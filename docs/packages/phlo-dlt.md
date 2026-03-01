@@ -45,7 +45,8 @@ phlo plugin install dlt
 ### Basic Ingestion
 
 ```python
-from phlo_dlt.decorator import phlo_ingestion
+from phlo import Consumer, SLA
+from phlo.ingestion import phlo_ingestion
 from workflows.schemas.events import EventSchema
 
 @phlo_ingestion(
@@ -55,6 +56,12 @@ from workflows.schemas.events import EventSchema
     group="api",
     cron="0 */1 * * *",
     freshness_hours=(1, 24),
+    owner="platform-ingestion",
+    consumers=[
+        Consumer(name="analytics", usage="daily_reporting"),
+        "fraud_team",
+    ],
+    sla=SLA(freshness_hours=2, quality_threshold=0.99),
 )
 def api_events(partition_date: str):
     """Ingest events from REST API."""
@@ -79,6 +86,9 @@ def api_events(partition_date: str):
 | `freshness_hours`   | `tuple[int, int]` | (warn, fail) freshness thresholds                   |
 | `merge_strategy`    | `str`             | `merge` (default) or `append`                       |
 | `merge_config`      | `dict`            | Advanced merge configuration                        |
+| `owner`             | `str`             | Optional owner/team metadata for contracts          |
+| `consumers`         | `list[Consumer \| str]` | Optional downstream consumer metadata         |
+| `sla`               | `SLA`             | Optional freshness/quality contract metadata        |
 
 ### Merge Strategies
 
@@ -108,7 +118,7 @@ schema derivation from `validation_schema` (for example Iceberg provider convers
 phlo materialize dlt_api_events
 
 # Via Phlo CLI
-phlo materialize api_events --partition 2025-01-15
+phlo materialize dlt_api_events --partition 2025-01-15
 ```
 
 ## Data Flow

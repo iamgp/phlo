@@ -420,5 +420,5 @@ openssl x509 -in cert.pem -noout -dates
 ## Next Steps
 
 - [Configuration Reference](../reference/configuration-reference.md) - All security variables
-- [Production Deployment](../blog/12-production-deployment.md) - Deployment guide
+- [Operations Guide](../operations/operations-guide.md) - Deployment and operations guide
 - [Observability Setup](observability.md) - Monitoring and logging

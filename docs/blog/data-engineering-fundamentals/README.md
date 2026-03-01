@@ -1,8 +1,8 @@
 # Data Engineering Fundamentals with Phlo
 
-A brand-new, standalone series for learning data engineering from first principles using the Phlo ecosystem.
-
-This series is separate from the existing Phlo blog track. It starts with fundamentals, then moves into ingestion, storage, transformation, quality, observability, and extension design.
+A standalone series for learning data engineering from first principles using the
+Phlo ecosystem. It starts with fundamentals, then moves into ingestion, storage,
+transformation, quality, observability, and extension design.
 
 ## Who This Series Is For
 
@@ -103,6 +103,6 @@ This track is a clean-room series built from scratch for learning data engineeri
 
 ## See Also
 
-- [Existing Phlo Blog Index](../README.md)
+- [Phlo Blog Index](../README.md)
 - [Developer Guide](../../guides/developer-guide.md)
 - [Architecture Reference](../../reference/architecture.md)

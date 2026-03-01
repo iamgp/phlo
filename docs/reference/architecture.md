@@ -217,7 +217,7 @@ Plugins are automatically discovered using Python entry points:
 - **CLI Management**: `phlo plugin search/install/list` commands
 
 For more details, see:
-- [Plugin System Blog Post](../blog/14-plugin-system.md)
+- [Data Engineering Fundamentals Part 12](../blog/data-engineering-fundamentals/12-extending-phlo-with-plugins-and-observatory.md)
 - [Capability-Driven Composition](../architecture/capability-composition.md)
 - [ADR 0030: Unified Plugin System](../architecture/decisions/0030-unified-plugin-system-with-registry.md)
 - [ADR 0046: Phlo Contracts for Migration Scaffolding](../architecture/decisions/0046-phlo-contracts-for-schema-migration-scaffolding.md)
