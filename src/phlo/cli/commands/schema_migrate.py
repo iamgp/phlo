@@ -167,16 +167,61 @@ def _collect_quality_checks(table_name: str) -> list[dict[str, Any]]:
     for check in get_capability_registry().list_checks():
         if check.asset_key != target_key:
             continue
+        tags = dict(check.tags)
+        consumers = tags.get("contract_consumers", "")
+        contract_consumers = [c for c in consumers.split(",") if c]
+        contract_sla: dict[str, Any] | None = None
+        raw_sla = tags.get("contract_sla")
+        if raw_sla:
+            try:
+                parsed = json.loads(raw_sla)
+                if isinstance(parsed, dict):
+                    contract_sla = parsed
+            except json.JSONDecodeError:
+                contract_sla = None
         checks.append(
             {
                 "name": check.name,
                 "severity": check.severity,
                 "blocking": check.blocking,
                 "description": check.description,
-                "tags": dict(check.tags),
+                "tags": tags,
+                "owner": tags.get("contract_owner"),
+                "consumers": contract_consumers,
+                "sla": contract_sla,
             }
         )
     return checks
+
+
+def _collect_contract_metadata(table_name: str) -> dict[str, Any]:
+    """Collect owner/consumer/SLA metadata for a table contract."""
+    short_name = table_name.split(".")[-1]
+    target_key = f"dlt_{short_name}"
+    owner: str | None = None
+    consumers: list[dict[str, Any]] = []
+    sla: dict[str, Any] | None = None
+
+    for asset in get_capability_registry().list_assets():
+        if asset.key != target_key:
+            continue
+        if asset.metadata.get("table_name") not in {short_name, table_name}:
+            continue
+
+        asset_owner = asset.metadata.get("owner")
+        if isinstance(asset_owner, str) and asset_owner:
+            owner = asset_owner
+
+        asset_consumers = asset.metadata.get("consumers")
+        if isinstance(asset_consumers, list):
+            consumers = [c for c in asset_consumers if isinstance(c, dict)]
+
+        asset_sla = asset.metadata.get("sla")
+        if isinstance(asset_sla, dict):
+            sla = asset_sla
+        break
+
+    return {"owner": owner, "consumers": consumers, "sla": sla}
 
 
 def _collect_transform_refs(table_name: str) -> list[str]:
@@ -215,6 +260,7 @@ def export_contract_for_table(
         "schema_migrator": _select_default_migrator_name(),
         "normalized_schema": asdict(desired),
         "migration_plan": asdict(migration_plan),
+        "contract_metadata": _collect_contract_metadata(table_name),
         "quality_checks": _collect_quality_checks(table_name),
         "transform_refs": _collect_transform_refs(table_name),
     }

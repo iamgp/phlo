@@ -7,10 +7,12 @@ by automatically generating Dagster asset checks from declarative quality check 
 
 from __future__ import annotations
 
+import json
 from typing import Any, Callable, List, Optional
 
 from phlo.capabilities import AssetCheckSpec, CheckResult, get_capability_registry, register_check
 from phlo.capabilities.runtime import RuntimeContext
+from phlo.contracts import Consumer, SLA, normalize_consumers, serialize_sla
 
 from phlo_quality.checks import QualityCheck, QualityCheckResult
 from phlo_quality.checks_extra import SchemaCheck
@@ -42,6 +44,9 @@ def phlo_quality(
     description: Optional[str] = None,
     query: Optional[str] = None,
     backend: str = "trino",
+    owner: str | None = None,
+    consumers: list[Consumer | str] | None = None,
+    sla: SLA | None = None,
 ) -> Callable:
     """Generate Dagster asset checks from declarative quality check definitions.
 
@@ -59,7 +64,19 @@ def phlo_quality(
         description: Auto-generated if not provided.
         query: Custom SQL query (defaults to ``SELECT * FROM {table}``).
         backend: ``"trino"`` or ``"duckdb"``.
+        owner: Optional quality-check owner/team identifier.
+        consumers: Optional downstream consumer metadata or names.
+        sla: Optional SLA metadata for quality/freshness alerting.
     """
+    normalized_consumers = normalize_consumers(consumers)
+    serialized_sla = serialize_sla(sla)
+    contract_tags: dict[str, str] = {}
+    if owner:
+        contract_tags["contract_owner"] = owner
+    if normalized_consumers:
+        contract_tags["contract_consumers"] = ",".join(c.name for c in normalized_consumers)
+    if serialized_sla:
+        contract_tags["contract_sla"] = json.dumps(serialized_sla, sort_keys=True)
 
     def decorator(func: Callable) -> Callable:
         """Register contract and quality checks for the decorated asset function."""
@@ -263,6 +280,7 @@ def phlo_quality(
                 fn=pandera_contract_check,
                 blocking=True,
                 description=f"Pandera schema contract for {table}",
+                tags=dict(contract_tags),
             )
             register_check(pandera_spec)
 
@@ -500,6 +518,7 @@ def phlo_quality(
                 fn=quality_check_wrapper,
                 blocking=blocking,
                 description=description,
+                tags=dict(contract_tags),
             )
             register_check(quality_spec)
 
