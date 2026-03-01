@@ -29,7 +29,9 @@ def _resolve_migrator() -> Any:
     migrators = registry.list_schema_migrators()
     if not migrators:
         console.print("[red]No schema migrator registered.[/red]")
-        console.print("Install a storage provider (e.g. phlo-iceberg) that implements SchemaMigrator.")
+        console.print(
+            "Install a storage provider (e.g. phlo-iceberg) that implements SchemaMigrator."
+        )
         sys.exit(1)
     return migrators[0].provider
 
@@ -74,7 +76,9 @@ def schema_migrate_group() -> None:
 
 @schema_migrate_group.command()
 @click.argument("table_name")
-@click.option("--schema-class", default=None, help="Pandera schema class name (auto-detected if omitted)")
+@click.option(
+    "--schema-class", default=None, help="Pandera schema class name (auto-detected if omitted)"
+)
 @click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table")
 def diff(table_name: str, schema_class: str | None, fmt: str) -> None:
     """Show pending schema changes between quality schema and storage table.
@@ -112,7 +116,9 @@ def diff(table_name: str, schema_class: str | None, fmt: str) -> None:
 
 @schema_migrate_group.command()
 @click.argument("table_name")
-@click.option("--schema-class", default=None, help="Pandera schema class name (auto-detected if omitted)")
+@click.option(
+    "--schema-class", default=None, help="Pandera schema class name (auto-detected if omitted)"
+)
 @click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table")
 def plan(table_name: str, schema_class: str | None, fmt: str) -> None:
     """Generate a migration plan for a table.
@@ -153,7 +159,9 @@ def plan(table_name: str, schema_class: str | None, fmt: str) -> None:
 
 @schema_migrate_group.command()
 @click.argument("table_name")
-@click.option("--schema-class", default=None, help="Pandera schema class name (auto-detected if omitted)")
+@click.option(
+    "--schema-class", default=None, help="Pandera schema class name (auto-detected if omitted)"
+)
 @click.option("--yes", is_flag=True, help="Auto-approve breaking changes")
 @click.option("--dry-run", is_flag=True, help="Show what would be applied without executing")
 def apply(table_name: str, schema_class: str | None, yes: bool, dry_run: bool) -> None:
@@ -248,9 +256,12 @@ def history(table_name: str, limit: int, fmt: str) -> None:
     table.add_column("Summary", style="dim")
 
     for entry in entries:
+        timestamp = entry.get("timestamp")
+        if timestamp is None:
+            timestamp = entry.get("timestamp_ms", "")
         table.add_row(
             str(entry.get("snapshot_id", "")),
-            str(entry.get("timestamp", "")),
+            str(timestamp),
             str(entry.get("summary", "")),
         )
 

@@ -197,9 +197,7 @@ class TestSchemaMigratorProtocol:
                 return "safe"
 
             def diff_schema(self, *, table_name: str, desired: object) -> object:
-                return SchemaMigrationPlan(
-                    table_name=table_name, changes=[], classification="safe"
-                )
+                return SchemaMigrationPlan(table_name=table_name, changes=[], classification="safe")
 
             def apply_plan(self, *, plan: object, approved: bool = False) -> dict[str, object]:
                 return {"status": "applied"}

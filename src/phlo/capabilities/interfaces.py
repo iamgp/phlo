@@ -161,21 +161,15 @@ class SchemaMigrator(Protocol):
         """Classify a single change as 'safe', 'warning', or 'breaking'."""
         ...
 
-    def diff_schema(
-        self, *, table_name: str, desired: Any
-    ) -> Any:
+    def diff_schema(self, *, table_name: str, desired: Any) -> Any:
         """Compare desired schema against current table and produce a migration plan."""
         ...
 
-    def apply_plan(
-        self, *, plan: Any, approved: bool = False
-    ) -> dict[str, Any]:
+    def apply_plan(self, *, plan: Any, approved: bool = False) -> dict[str, Any]:
         """Execute a migration plan. Breaking changes require approved=True."""
         ...
 
-    def get_schema_history(
-        self, *, table_name: str, limit: int = 10
-    ) -> list[dict[str, Any]]:
+    def get_schema_history(self, *, table_name: str, limit: int = 10) -> list[dict[str, Any]]:
         """Return schema version history for a table."""
         ...
 

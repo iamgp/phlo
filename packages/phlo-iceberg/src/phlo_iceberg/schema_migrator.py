@@ -91,9 +91,7 @@ class IcebergSchemaMigrator:
             return "warning"
         return default_classify_change(change_type, **details)
 
-    def diff_schema(
-        self, *, table_name: str, desired: NormalizedSchema
-    ) -> SchemaMigrationPlan:
+    def diff_schema(self, *, table_name: str, desired: NormalizedSchema) -> SchemaMigrationPlan:
         """Compare *desired* schema against current table schema.
 
         Returns a ``SchemaMigrationPlan`` describing every detected change.
@@ -116,23 +114,27 @@ class IcebergSchemaMigrator:
         for name, (dtype, nullable) in desired_fields.items():
             if name not in current_fields:
                 cls = self.classify_change("add", nullable=nullable, has_default=False)
-                changes.append(SchemaChange(
-                    field_name=name,
-                    change_type="add",
-                    new_value=dtype,
-                    classification=cls,
-                ))
+                changes.append(
+                    SchemaChange(
+                        field_name=name,
+                        change_type="add",
+                        new_value=dtype,
+                        classification=cls,
+                    )
+                )
 
         # Dropped fields
         for name in current_fields:
             if name not in desired_fields:
                 cls = self.classify_change("drop")
-                changes.append(SchemaChange(
-                    field_name=name,
-                    change_type="drop",
-                    old_value=current_fields[name][0],
-                    classification=cls,
-                ))
+                changes.append(
+                    SchemaChange(
+                        field_name=name,
+                        change_type="drop",
+                        old_value=current_fields[name][0],
+                        classification=cls,
+                    )
+                )
 
         # Type and nullability changes on common fields
         for name in current_fields.keys() & desired_fields.keys():
@@ -145,13 +147,15 @@ class IcebergSchemaMigrator:
                 else:
                     change_type = "narrow_type"
                 cls = self.classify_change(change_type)
-                changes.append(SchemaChange(
-                    field_name=name,
-                    change_type=change_type,
-                    old_value=cur_dtype,
-                    new_value=des_dtype,
-                    classification=cls,
-                ))
+                changes.append(
+                    SchemaChange(
+                        field_name=name,
+                        change_type=change_type,
+                        old_value=cur_dtype,
+                        new_value=des_dtype,
+                        classification=cls,
+                    )
+                )
 
             if cur_nullable != des_nullable:
                 if des_nullable and not cur_nullable:
@@ -159,13 +163,15 @@ class IcebergSchemaMigrator:
                 else:
                     change_type = "nullability_tightened"
                 cls = self.classify_change(change_type)
-                changes.append(SchemaChange(
-                    field_name=name,
-                    change_type=change_type,
-                    old_value=str(cur_nullable),
-                    new_value=str(des_nullable),
-                    classification=cls,
-                ))
+                changes.append(
+                    SchemaChange(
+                        field_name=name,
+                        change_type=change_type,
+                        old_value=str(cur_nullable),
+                        new_value=str(des_nullable),
+                        classification=cls,
+                    )
+                )
 
         classifications = [c.classification for c in changes]
         overall = worst_classification(classifications)
@@ -175,9 +181,7 @@ class IcebergSchemaMigrator:
         if requires_approval:
             recommendations.append("Breaking changes detected — requires explicit approval.")
         if any(c.change_type == "drop" for c in changes):
-            recommendations.append(
-                "Dropped columns are recoverable via Iceberg snapshot rollback."
-            )
+            recommendations.append("Dropped columns are recoverable via Iceberg snapshot rollback.")
 
         return SchemaMigrationPlan(
             table_name=table_name,
@@ -187,9 +191,7 @@ class IcebergSchemaMigrator:
             requires_approval=requires_approval,
         )
 
-    def apply_plan(
-        self, *, plan: SchemaMigrationPlan, approved: bool = False
-    ) -> dict[str, Any]:
+    def apply_plan(self, *, plan: SchemaMigrationPlan, approved: bool = False) -> dict[str, Any]:
         """Execute a migration plan against the Iceberg catalog.
 
         Raises ``ValueError`` if the plan contains breaking changes and
@@ -249,9 +251,7 @@ class IcebergSchemaMigrator:
             "changes_applied": applied,
         }
 
-    def get_schema_history(
-        self, *, table_name: str, limit: int = 10
-    ) -> list[dict[str, Any]]:
+    def get_schema_history(self, *, table_name: str, limit: int = 10) -> list[dict[str, Any]]:
         """Return snapshot-level history for *table_name*."""
         catalog = get_catalog(ref=self.ref)
         table = catalog.load_table(table_name)
@@ -259,12 +259,14 @@ class IcebergSchemaMigrator:
         snapshots = sorted(table.snapshots(), key=lambda s: s.timestamp_ms, reverse=True)
         results: list[dict[str, Any]] = []
         for snap in snapshots[:limit]:
-            results.append({
-                "snapshot_id": snap.snapshot_id,
-                "timestamp_ms": snap.timestamp_ms,
-                "summary": dict(snap.summary.additional_properties) if snap.summary else {},
-                "parent_id": snap.parent_snapshot_id,
-            })
+            results.append(
+                {
+                    "snapshot_id": snap.snapshot_id,
+                    "timestamp_ms": snap.timestamp_ms,
+                    "summary": dict(snap.summary.additional_properties) if snap.summary else {},
+                    "parent_id": snap.parent_snapshot_id,
+                }
+            )
         return results
 
 
