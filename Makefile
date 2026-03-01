@@ -60,7 +60,7 @@ PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(
 	health-observability health-api health-catalog \
 	check lint lint-sql lint-python format-python typecheck-python \
 	lint-ts format-ts typecheck-ts test-core-regression fix-sql \
-	prek-install prek-run prek-validate
+	prek-install prek-run prek-validate zizmor
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -343,3 +343,6 @@ prek-run:
 
 prek-validate:
 	uvx prek validate-config
+
+zizmor:
+	uvx zizmor --no-online-audits --no-progress .github/workflows
