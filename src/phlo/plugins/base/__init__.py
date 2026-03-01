@@ -18,6 +18,7 @@ from phlo.plugins.base.quality_provider import QualityProviderPlugin
 from phlo.plugins.base.service import ServicePlugin
 from phlo.plugins.base.source import SourceConnectorPlugin
 from phlo.plugins.base.transform import TransformationPlugin
+from phlo.plugins.base.transformation_provider import TransformationProviderPlugin
 
 __all__ = [
     "Plugin",
@@ -28,6 +29,7 @@ __all__ = [
     "QualityProviderPlugin",
     "IngestionProviderPlugin",
     "TransformationPlugin",
+    "TransformationProviderPlugin",
     "ServicePlugin",
     "CatalogPlugin",
     "GovernancePlugin",

@@ -7,13 +7,16 @@ from typing import Any
 from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
+    IngestionProviderPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
+    QualityProviderPlugin,
     ResourceProviderPlugin,
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
+    TransformationProviderPlugin,
 )
 from phlo.plugins.hooks import HookPlugin
 
@@ -35,8 +38,14 @@ def validate_plugin_interface(plugin: Plugin, logger: Any) -> bool:
         return hasattr(plugin, "fetch_data") and callable(plugin.fetch_data)
     if isinstance(plugin, QualityCheckPlugin):
         return hasattr(plugin, "create_check") and callable(plugin.create_check)
+    if isinstance(plugin, QualityProviderPlugin):
+        return hasattr(plugin, "get_decorator") and callable(plugin.get_decorator)
+    if isinstance(plugin, IngestionProviderPlugin):
+        return hasattr(plugin, "get_decorator") and callable(plugin.get_decorator)
     if isinstance(plugin, TransformationPlugin):
         return hasattr(plugin, "transform") and callable(plugin.transform)
+    if isinstance(plugin, TransformationProviderPlugin):
+        return hasattr(plugin, "get_asset_retriever") and callable(plugin.get_asset_retriever)
     if isinstance(plugin, ServicePlugin):
         try:
             service_definition = plugin.service_definition

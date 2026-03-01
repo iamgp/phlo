@@ -15,6 +15,7 @@ from phlo.plugins.base import (
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
+    TransformationProviderPlugin,
 )
 from phlo.plugins.hooks import HookPlugin
 
@@ -28,6 +29,7 @@ ENTRY_POINT_GROUPS = {
     "quality_checks": "phlo.plugins.quality",
     "quality_providers": "phlo.plugins.quality_providers",
     "ingestion_providers": "phlo.plugins.ingestion_providers",
+    "transformation_providers": "phlo.plugins.transformation_providers",
     "transformations": "phlo.plugins.transforms",
     "services": "phlo.plugins.services",
     "cli_commands": "phlo.plugins.cli",
@@ -44,6 +46,7 @@ PLUGIN_REGISTER_METHODS = {
     "quality_checks": "register_quality_check",
     "quality_providers": "register_quality_provider",
     "ingestion_providers": "register_ingestion_provider",
+    "transformation_providers": "register_transformation_provider",
     "transformations": "register_transformation",
     "services": "register_service",
     "cli_commands": "register_cli_command_plugin",
@@ -60,6 +63,7 @@ PLUGIN_GETTER_METHODS = {
     "quality_checks": "get_quality_check",
     "quality_providers": "get_quality_provider",
     "ingestion_providers": "get_ingestion_provider",
+    "transformation_providers": "get_transformation_provider",
     "transformations": "get_transformation",
     "services": "get_service",
     "cli_commands": "get_cli_command_plugin",
@@ -75,6 +79,7 @@ PLUGIN_EXPECTED_TYPES: dict[str, type[Plugin]] = {
     "quality_checks": QualityCheckPlugin,
     "quality_providers": QualityProviderPlugin,
     "ingestion_providers": IngestionProviderPlugin,
+    "transformation_providers": TransformationProviderPlugin,
     "transformations": TransformationPlugin,
     "services": ServicePlugin,
     "cli_commands": CliCommandPlugin,

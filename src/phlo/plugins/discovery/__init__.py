@@ -24,6 +24,7 @@ from phlo.plugins.discovery.plugins import (
     get_service,
     get_source_connector,
     get_transformation,
+    get_transformation_provider,
     list_plugins,
     validate_plugins,
 )
@@ -45,6 +46,7 @@ __all__ = [
     "get_quality_check",
     "get_quality_provider",
     "get_ingestion_provider",
+    "get_transformation_provider",
     "get_service",
     "get_hook_plugin",
     "get_source_connector",

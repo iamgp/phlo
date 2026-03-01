@@ -25,6 +25,7 @@ from phlo.plugins.base import (
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
+    TransformationProviderPlugin,
 )
 from phlo.plugins.discovery._plugin_auto_discovery import (
     is_auto_discover_disabled_by_env as _is_auto_discover_disabled_by_env_impl,
@@ -43,6 +44,7 @@ ENTRY_POINT_GROUPS = {
     "quality_checks": "phlo.plugins.quality",
     "quality_providers": "phlo.plugins.quality_providers",
     "ingestion_providers": "phlo.plugins.ingestion_providers",
+    "transformation_providers": "phlo.plugins.transformation_providers",
     "transformations": "phlo.plugins.transforms",
     "services": "phlo.plugins.services",
     "cli_commands": "phlo.plugins.cli",
@@ -59,6 +61,7 @@ _PLUGIN_REGISTER_METHODS = {
     "quality_checks": "register_quality_check",
     "quality_providers": "register_quality_provider",
     "ingestion_providers": "register_ingestion_provider",
+    "transformation_providers": "register_transformation_provider",
     "transformations": "register_transformation",
     "services": "register_service",
     "cli_commands": "register_cli_command_plugin",
@@ -75,6 +78,7 @@ _PLUGIN_GETTER_METHODS = {
     "quality_checks": "get_quality_check",
     "quality_providers": "get_quality_provider",
     "ingestion_providers": "get_ingestion_provider",
+    "transformation_providers": "get_transformation_provider",
     "transformations": "get_transformation",
     "services": "get_service",
     "cli_commands": "get_cli_command_plugin",
@@ -90,6 +94,7 @@ _PLUGIN_EXPECTED_TYPES = {
     "quality_checks": QualityCheckPlugin,
     "quality_providers": QualityProviderPlugin,
     "ingestion_providers": IngestionProviderPlugin,
+    "transformation_providers": TransformationProviderPlugin,
     "transformations": TransformationPlugin,
     "services": ServicePlugin,
     "cli_commands": CliCommandPlugin,
@@ -593,6 +598,20 @@ def get_ingestion_provider(name: str) -> IngestionProviderPlugin | None:
     """
     registry = get_global_registry()
     return registry.get_ingestion_provider(name)
+
+
+def get_transformation_provider(name: str) -> TransformationProviderPlugin | None:
+    """
+    Get a transformation provider plugin by name.
+
+    Args:
+        name: Plugin name (e.g., "dbt")
+
+    Returns:
+        TransformationProviderPlugin instance or None if not found
+    """
+    registry = get_global_registry()
+    return registry.get_transformation_provider(name)
 
 
 def get_transformation(name: str) -> TransformationPlugin | None:

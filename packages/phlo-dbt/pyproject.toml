@@ -34,6 +34,9 @@ quality = [
 [project.entry-points."phlo.plugins.assets"]
 dbt = "phlo_dbt.plugin:DbtAssetProvider"
 
+[project.entry-points."phlo.plugins.transformation_providers"]
+dbt = "phlo_dbt.plugin:DbtTransformationProvider"
+
 [project.entry-points."phlo.plugins.cli"]
 dbt = "phlo_dbt.cli_plugin:DbtCliPlugin"
 
