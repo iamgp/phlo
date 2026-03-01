@@ -42,20 +42,41 @@ phlo plugin install quality
 ### Defining Checks
 
 ```python
+from phlo import Consumer, SLA
 from phlo.quality import phlo_quality
 from phlo_quality import NullCheck, UniqueCheck, RangeCheck
 
 @phlo_quality(
-    asset="bronze.users",
+    table="bronze.users",
     checks=[
         NullCheck(columns=["id"]),
         UniqueCheck(columns=["email"]),
         RangeCheck(column="age", min_value=0, max_value=150),
-    ]
+    ],
+    owner="data-quality",
+    consumers=[
+        Consumer(name="finance_dashboard"),
+        "ml_feature_store",
+    ],
+    sla=SLA(freshness_hours=4, quality_threshold=0.995),
 )
 def validate_users():
     pass
 ```
+
+### Decorator Options
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `table` | `str` | Fully-qualified table to validate (for example `bronze.users`) |
+| `checks` | `list[QualityCheck]` | Checks to execute |
+| `asset_key` | `str \| None` | Override asset key (derived from table by default) |
+| `group` | `str \| None` | Optional asset group |
+| `blocking` | `bool` | Whether failed checks block downstream |
+| `partition_aware` | `bool` | Scope checks to active partition when available |
+| `owner` | `str \| None` | Optional owner/team metadata for contracts |
+| `consumers` | `list[Consumer \| str] \| None` | Optional downstream consumer metadata |
+| `sla` | `SLA \| None` | Optional freshness/quality contract metadata |
 
 ### Using Pandera Schemas
 

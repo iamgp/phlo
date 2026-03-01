@@ -56,6 +56,7 @@ nav:
   - Guides:
       - Developer Guide: guides/developer-guide.md
       - Workflow Development: guides/workflow-development.md
+      - Data Migrations: guides/data-migrations.md
       - dbt Development: guides/dbt-development.md
       - Data Modeling: guides/data-modeling.md
       - Dagster Assets: guides/dagster-assets.md

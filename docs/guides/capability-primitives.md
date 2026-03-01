@@ -77,6 +77,28 @@ orchestrator adapter. It provides:
 
 Do not rely on orchestrator-native context objects inside packages.
 
+## Runtime capability interfaces
+
+Provider implementations use runtime protocols from `phlo.capabilities.interfaces`.
+These are the contracts discovered and wired by capability providers.
+
+- `TableStore`: required methods are `ensure_table`, `append_parquet`, and
+  `merge_parquet`. Optional extended operations include `overwrite_parquet`,
+  `delete_rows`, `compact`, `list_snapshots`, `rollback_to_snapshot`, and
+  `vacuum`.
+- `GovernanceBackend`: policy APIs (`list_policies`, `apply_policy`,
+  `revoke_policy`, `check_access`).
+- `SecretBackend`: secret retrieval/listing APIs (`get_secret`, `list_secrets`).
+- `SchemaExtractor`: converts provider-native schema objects into
+  `NormalizedSchema`.
+- `SchemaMigrator`: storage-native schema migration hooks (`diff_schema`,
+  `apply_plan`, `get_schema_history`) with provider-specific change
+  classification.
+- `AccessPolicy`: value object used by governance providers.
+
+These interfaces let providers opt into richer behavior incrementally while
+keeping a single core contract surface for discovery and runtime resolution.
+
 ## Providers and adapters
 
 ### Asset providers
