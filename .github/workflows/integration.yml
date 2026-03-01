@@ -11,6 +11,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   integration-iceberg:
     name: integration / iceberg
@@ -19,10 +22,12 @@ jobs:
       result: ${{ steps.run_suite.outputs.result }}
       reason: ${{ steps.run_suite.outputs.reason }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
           version: "latest"
 
@@ -79,10 +84,12 @@ jobs:
       result: ${{ steps.run_suite.outputs.result }}
       reason: ${{ steps.run_suite.outputs.reason }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
           version: "latest"
 
@@ -139,10 +146,12 @@ jobs:
       result: ${{ steps.run_suite.outputs.result }}
       reason: ${{ steps.run_suite.outputs.reason }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
           version: "latest"
 
@@ -199,10 +208,12 @@ jobs:
       result: ${{ steps.run_suite.outputs.result }}
       reason: ${{ steps.run_suite.outputs.reason }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
           version: "latest"
 
@@ -284,17 +295,26 @@ jobs:
     steps:
       - name: Summarize integration lane results
         shell: bash
+        env:
+          ICEBERG_RESULT: ${{ needs.integration-iceberg.outputs.result || 'failed' }}
+          ICEBERG_REASON: ${{ needs.integration-iceberg.outputs.reason || 'missing output' }}
+          DAGSTER_RESULT: ${{ needs.integration-dagster.outputs.result || 'failed' }}
+          DAGSTER_REASON: ${{ needs.integration-dagster.outputs.reason || 'missing output' }}
+          API_RESULT: ${{ needs.integration-api.outputs.result || 'failed' }}
+          API_REASON: ${{ needs.integration-api.outputs.reason || 'missing output' }}
+          CAPABILITIES_RESULT: ${{ needs.integration-capabilities.outputs.result || 'failed' }}
+          CAPABILITIES_REASON: ${{ needs.integration-capabilities.outputs.reason || 'missing output' }}
         run: |
           set -euo pipefail
 
-          iceberg_result="${{ needs.integration-iceberg.outputs.result || 'failed' }}"
-          iceberg_reason="${{ needs.integration-iceberg.outputs.reason || 'missing output' }}"
-          dagster_result="${{ needs.integration-dagster.outputs.result || 'failed' }}"
-          dagster_reason="${{ needs.integration-dagster.outputs.reason || 'missing output' }}"
-          api_result="${{ needs.integration-api.outputs.result || 'failed' }}"
-          api_reason="${{ needs.integration-api.outputs.reason || 'missing output' }}"
-          capabilities_result="${{ needs.integration-capabilities.outputs.result || 'failed' }}"
-          capabilities_reason="${{ needs.integration-capabilities.outputs.reason || 'missing output' }}"
+          iceberg_result="$ICEBERG_RESULT"
+          iceberg_reason="$ICEBERG_REASON"
+          dagster_result="$DAGSTER_RESULT"
+          dagster_reason="$DAGSTER_REASON"
+          api_result="$API_RESULT"
+          api_reason="$API_REASON"
+          capabilities_result="$CAPABILITIES_RESULT"
+          capabilities_reason="$CAPABILITIES_REASON"
 
           echo "Integration lane summary"
           echo "- iceberg: $iceberg_result ($iceberg_reason)"
