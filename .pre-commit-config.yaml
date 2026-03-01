@@ -1,0 +1,40 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: debug-statements
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.1
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: sqlfluff-dbt
+        name: sqlfluff (dbt models)
+        entry: uv run sqlfluff lint
+        language: system
+        files: ^workflows/transforms/dbt/.*\.sql$
+      - id: ty-check
+        name: ty check (repo scope)
+        entry: uv run ty check src/phlo packages
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+      - id: pytest-unit
+        name: pytest (not integration)
+        entry: uv run pytest -m "not integration"
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

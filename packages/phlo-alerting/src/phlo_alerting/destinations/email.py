@@ -119,7 +119,7 @@ Message:
             <body style="font-family: Arial, sans-serif;">
                 <div style="border-left: 4px solid {severity_color}; padding: 15px; background: #f9f9f9; margin: 10px 0;">
                     <h2 style="margin-top: 0; color: {severity_color};">{alert.title}</h2>
-                    
+
                     <table style="width: 100%; margin: 15px 0;">
                         <tr>
                             <td style="font-weight: bold; width: 120px;">Severity:</td>
@@ -149,7 +149,7 @@ Message:
 
         html += """
                     </table>
-                    
+
                     <div style="margin: 15px 0;">
                         <h3>Message</h3>
                         <p>{}</p>
