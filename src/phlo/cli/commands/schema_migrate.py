@@ -6,15 +6,22 @@ between quality provider schemas and storage tables.
 
 from __future__ import annotations
 
+import importlib.util
+import inspect
 import json
+import os
 import sys
 from dataclasses import asdict
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import click
 from rich.console import Console
 from rich.table import Table
 
+from phlo.capabilities import FieldSpec, NormalizedSchema, get_capability_registry
+from phlo.cli.commands import schema_migrate_contracts
 from phlo.logging import get_logger
 
 console = Console()
@@ -23,7 +30,9 @@ logger = get_logger(__name__)
 
 def _resolve_migrator() -> Any:
     """Resolve the registered SchemaMigrator from the capability registry."""
-    from phlo.capabilities import get_capability_registry
+    from phlo.capabilities.discovery import discover_capabilities
+
+    discover_capabilities()
 
     registry = get_capability_registry()
     migrators = registry.list_schema_migrators()
@@ -66,7 +75,204 @@ def _discover_schema_for_table(table_name: str) -> Any:
         table_lower = short_name.lower().replace("_", "")
         if cls_lower == table_lower or table_lower in cls_lower:
             return schema_cls
+
+    fallback_schemas = _discover_pandera_schemas_from_files()
+    for name, schema_cls in fallback_schemas.items():
+        cls_lower = name.lower().replace("_", "")
+        table_lower = short_name.lower().replace("_", "")
+        if cls_lower == table_lower or table_lower in cls_lower:
+            return schema_cls
     return None
+
+
+def _discover_pandera_schemas_from_files() -> dict[str, type[Any]]:
+    """Fallback schema discovery that loads files directly to avoid import-path collisions."""
+    try:
+        from pandera.pandas import DataFrameModel
+    except ImportError:
+        return {}
+
+    env_paths = os.getenv("PHLO_SCHEMA_SEARCH_PATHS")
+    if env_paths:
+        search_paths = [Path(path.strip()) for path in env_paths.split(",") if path.strip()]
+    else:
+        search_paths = [Path("examples"), Path("workflows")]
+
+    discovered: dict[str, type[Any]] = {}
+    for root in search_paths:
+        if not root.exists():
+            continue
+        for schema_file in root.glob("**/schemas/*.py"):
+            if schema_file.name.startswith("_"):
+                continue
+            module_name = f"phlo_schema_fallback_{abs(hash(schema_file.resolve()))}"
+            spec = importlib.util.spec_from_file_location(module_name, schema_file)
+            if spec is None or spec.loader is None:
+                continue
+            module = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(module)
+            except Exception:
+                continue
+
+            for name, obj in inspect.getmembers(module, inspect.isclass):
+                if issubclass(obj, DataFrameModel) and obj is not DataFrameModel:
+                    discovered[name] = obj
+    return discovered
+
+
+def _resolve_desired_schema(table_name: str, schema_class: str | None) -> tuple[Any, Any, Any]:
+    """Resolve migrator, extracted desired schema, and native schema class."""
+    migrator = _resolve_migrator()
+    extractor = _resolve_extractor()
+
+    native_schema = _find_native_schema(table_name, schema_class)
+    if native_schema is None:
+        console.print(f"[red]No quality schema found for table: {table_name}[/red]")
+        sys.exit(1)
+
+    if extractor is None:
+        console.print("[red]No schema extractor available. Install phlo-quality.[/red]")
+        sys.exit(1)
+
+    desired = extractor.extract(native_schema)
+    return migrator, desired, native_schema
+
+
+def _select_default_table_store_name() -> str | None:
+    """Return first registered table-store name, if available."""
+    registry = get_capability_registry()
+    specs = registry.list_table_stores()
+    if not specs:
+        return None
+    return specs[0].name
+
+
+def _select_default_migrator_name() -> str | None:
+    """Return first registered schema-migrator name, if available."""
+    registry = get_capability_registry()
+    specs = registry.list_schema_migrators()
+    if not specs:
+        return None
+    return specs[0].name
+
+
+def _collect_quality_checks(table_name: str) -> list[dict[str, Any]]:
+    """Collect registered check metadata associated with a table asset."""
+    short_name = table_name.split(".")[-1]
+    target_key = f"dlt_{short_name}"
+    checks: list[dict[str, Any]] = []
+    for check in get_capability_registry().list_checks():
+        if check.asset_key != target_key:
+            continue
+        checks.append(
+            {
+                "name": check.name,
+                "severity": check.severity,
+                "blocking": check.blocking,
+                "description": check.description,
+                "tags": dict(check.tags),
+            }
+        )
+    return checks
+
+
+def _collect_transform_refs(table_name: str) -> list[str]:
+    """Collect transform asset refs that likely depend on the table."""
+    short_name = table_name.split(".")[-1]
+    target_key = f"dlt_{short_name}"
+    refs: list[str] = []
+    for asset in get_capability_registry().list_assets():
+        kinds = asset.kinds or set()
+        deps = asset.deps or []
+        if "dbt" not in kinds:
+            continue
+        if target_key in deps or short_name in deps:
+            refs.append(asset.key)
+    return sorted(set(refs))
+
+
+def export_contract_for_table(
+    *,
+    table_name: str,
+    schema_class: str | None = None,
+    output_path: Path | None = None,
+    force: bool = False,
+) -> Path:
+    """Export a schema contract for a table and return output path."""
+    migrator, desired, native_schema = _resolve_desired_schema(table_name, schema_class)
+    migration_plan = migrator.diff_schema(table_name=table_name, desired=desired)
+    now = datetime.now(timezone.utc).isoformat()
+
+    contract = {
+        "contract_version": schema_migrate_contracts.CONTRACT_VERSION,
+        "generated_at": now,
+        "table_name": table_name,
+        "schema_class": getattr(native_schema, "__name__", None),
+        "table_store": _select_default_table_store_name(),
+        "schema_migrator": _select_default_migrator_name(),
+        "normalized_schema": asdict(desired),
+        "migration_plan": asdict(migration_plan),
+        "quality_checks": _collect_quality_checks(table_name),
+        "transform_refs": _collect_transform_refs(table_name),
+    }
+    destination = output_path or schema_migrate_contracts.default_contract_path(table_name)
+    schema_migrate_contracts.write_contract(destination, contract, force=force)
+    return destination
+
+
+def refresh_contracts_for_selection(
+    *,
+    selection: str | None = None,
+    force: bool = True,
+) -> int:
+    """Refresh contracts for a materialization selection. Returns write count."""
+    registry = get_capability_registry()
+    candidate_tables: set[str] = set()
+    selection_value = (selection or "").strip()
+
+    if selection_value.startswith("dlt_"):
+        candidate_tables.add(selection_value.removeprefix("dlt_"))
+
+    for asset in registry.list_assets():
+        kinds = asset.kinds or set()
+        if "dlt" not in kinds:
+            continue
+        table_name = asset.metadata.get("table_name")
+        if not isinstance(table_name, str) or not table_name:
+            continue
+        if selection_value and selection_value.startswith("dlt_") and asset.key != selection_value:
+            continue
+        candidate_tables.add(table_name)
+
+    refreshed_count = 0
+    for table in sorted(candidate_tables):
+        table_candidates = [table]
+        if "." not in table:
+            try:
+                from phlo_dlt.settings import get_settings
+
+                namespace = get_settings().dlt_default_namespace
+                table_candidates.insert(0, f"{namespace}.{table}")
+            except Exception:
+                pass
+
+        for candidate in table_candidates:
+            try:
+                export_contract_for_table(table_name=candidate, force=force)
+            except SystemExit:
+                continue
+            except Exception:
+                logger.warning(
+                    "schema_contract_refresh_failed",
+                    table_name=candidate,
+                    selection=selection_value or None,
+                    exc_info=True,
+                )
+                continue
+            refreshed_count += 1
+            break
+    return refreshed_count
 
 
 @click.group("schema-migrate")
@@ -88,19 +294,7 @@ def diff(table_name: str, schema_class: str | None, fmt: str) -> None:
         phlo schema-migrate diff warehouse.customers --schema-class CustomerSchema
         phlo schema-migrate diff warehouse.customers --format json
     """
-    migrator = _resolve_migrator()
-    extractor = _resolve_extractor()
-
-    native_schema = _find_native_schema(table_name, schema_class)
-    if native_schema is None:
-        console.print(f"[red]No quality schema found for table: {table_name}[/red]")
-        sys.exit(1)
-
-    if extractor is None:
-        console.print("[red]No schema extractor available. Install phlo-quality.[/red]")
-        sys.exit(1)
-
-    desired = extractor.extract(native_schema)
+    migrator, desired, _ = _resolve_desired_schema(table_name, schema_class)
     plan = migrator.diff_schema(table_name=table_name, desired=desired)
 
     if fmt == "json":
@@ -126,19 +320,7 @@ def plan(table_name: str, schema_class: str | None, fmt: str) -> None:
     Examples:
         phlo schema-migrate plan warehouse.customers
     """
-    migrator = _resolve_migrator()
-    extractor = _resolve_extractor()
-
-    native_schema = _find_native_schema(table_name, schema_class)
-    if native_schema is None:
-        console.print(f"[red]No quality schema found for table: {table_name}[/red]")
-        sys.exit(1)
-
-    if extractor is None:
-        console.print("[red]No schema extractor available. Install phlo-quality.[/red]")
-        sys.exit(1)
-
-    desired = extractor.extract(native_schema)
+    migrator, desired, _ = _resolve_desired_schema(table_name, schema_class)
     migration_plan = migrator.diff_schema(table_name=table_name, desired=desired)
 
     if fmt == "json":
@@ -175,19 +357,7 @@ def apply(table_name: str, schema_class: str | None, yes: bool, dry_run: bool) -
         phlo schema-migrate apply warehouse.customers --yes
         phlo schema-migrate apply warehouse.customers --dry-run
     """
-    migrator = _resolve_migrator()
-    extractor = _resolve_extractor()
-
-    native_schema = _find_native_schema(table_name, schema_class)
-    if native_schema is None:
-        console.print(f"[red]No quality schema found for table: {table_name}[/red]")
-        sys.exit(1)
-
-    if extractor is None:
-        console.print("[red]No schema extractor available. Install phlo-quality.[/red]")
-        sys.exit(1)
-
-    desired = extractor.extract(native_schema)
+    migrator, desired, _ = _resolve_desired_schema(table_name, schema_class)
     migration_plan = migrator.diff_schema(table_name=table_name, desired=desired)
 
     if not migration_plan.changes:
@@ -268,17 +438,142 @@ def history(table_name: str, limit: int, fmt: str) -> None:
     console.print(table)
 
 
+@schema_migrate_group.command("export-contract")
+@click.argument("table_name")
+@click.option(
+    "--schema-class", default=None, help="Pandera schema class name (auto-detected if omitted)"
+)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=None,
+    help="Contract output path (default: .phlo/contracts/<table>.json)",
+)
+@click.option("--force", is_flag=True, help="Overwrite existing output file")
+def export_contract(
+    table_name: str,
+    schema_class: str | None,
+    output_path: Path | None,
+    force: bool,
+) -> None:
+    """Export a Phlo contract snapshot for a table."""
+    try:
+        destination = export_contract_for_table(
+            table_name=table_name,
+            schema_class=schema_class,
+            output_path=output_path,
+            force=force,
+        )
+    except FileExistsError as exc:
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(1)
+
+    console.print(f"[green]Exported contract:[/green] {destination}")
+
+
+@schema_migrate_group.command("scaffold-yaml")
+@click.argument("table_name")
+@click.option(
+    "--from-contract",
+    "contract_path",
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=None,
+    help="Path to contract JSON (default: .phlo/contracts/<table>.json)",
+)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=None,
+    help="YAML output path (default: .phlo/migrations/<table>.yaml)",
+)
+@click.option("--force", is_flag=True, help="Overwrite existing output file")
+def scaffold_yaml(
+    table_name: str,
+    contract_path: Path | None,
+    output_path: Path | None,
+    force: bool,
+) -> None:
+    """Generate migration scaffold YAML from a Phlo contract."""
+    source_path = contract_path or schema_migrate_contracts.default_contract_path(table_name)
+    destination = output_path or schema_migrate_contracts.default_scaffold_yaml_path(table_name)
+
+    try:
+        contract = schema_migrate_contracts.read_contract(source_path)
+    except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(1)
+
+    contract_table = contract.get("table_name")
+    if contract_table != table_name:
+        console.print(
+            f"[red]Contract table mismatch: expected '{table_name}', found '{contract_table}'[/red]"
+        )
+        sys.exit(1)
+
+    desired_payload = contract.get("normalized_schema")
+    if not isinstance(desired_payload, dict):
+        console.print("[red]Contract missing normalized_schema payload[/red]")
+        sys.exit(1)
+
+    fields_payload = desired_payload.get("fields", [])
+    metadata_payload = desired_payload.get("metadata", {})
+    if not isinstance(fields_payload, list) or not isinstance(metadata_payload, dict):
+        console.print("[red]Invalid normalized_schema payload in contract[/red]")
+        sys.exit(1)
+
+    try:
+        desired = NormalizedSchema(
+            fields=[FieldSpec(**field_data) for field_data in fields_payload],
+            metadata=metadata_payload,
+        )
+    except TypeError as exc:
+        console.print(f"[red]Invalid field payload in contract: {exc}[/red]")
+        sys.exit(1)
+    migrator = _resolve_migrator()
+    migration_plan = migrator.diff_schema(table_name=table_name, desired=desired)
+
+    payload = schema_migrate_contracts.build_scaffold_payload(
+        table_name=table_name,
+        contract=contract,
+        migration_plan=migration_plan,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+    try:
+        schema_migrate_contracts.write_scaffold_yaml(
+            destination,
+            payload=payload,
+            force=force,
+        )
+    except FileExistsError as exc:
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(1)
+
+    console.print(f"[green]Generated migration scaffold:[/green] {destination}")
+
+
 def _find_native_schema(table_name: str, schema_class: str | None) -> Any:
     """Find the native quality schema for a table."""
     if schema_class:
+        candidates: dict[str, Any] = {}
         try:
             from phlo_quality.cli_schema_utils import discover_pandera_schemas
 
-            schemas = discover_pandera_schemas()
-            if schema_class in schemas:
-                return schemas[schema_class]
+            candidates.update(discover_pandera_schemas())
         except ImportError:
             pass
+        candidates.update(_discover_pandera_schemas_from_files())
+
+        if schema_class in candidates:
+            return candidates[schema_class]
+
+        # Support module-qualified references (e.g. workflows.schemas.demo.RawSchema)
+        short_name = schema_class.split(".")[-1]
+        if short_name in candidates:
+            return candidates[short_name]
+
         console.print(f"[red]Schema class not found: {schema_class}[/red]")
         return None
 

@@ -19,6 +19,7 @@ from phlo.capabilities.specs import (
     QualityBackendSpec,
     QueryEngineSpec,
     ResourceSpec,
+    SchemaMigrationSpec,
     SecretBackendSpec,
     TableStoreSpec,
 )
@@ -111,4 +112,8 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_secret_backends(self) -> Iterable[SecretBackendSpec]:
         """Return secret backend capability specs exposed by this plugin."""
+        return []
+
+    def get_schema_migrators(self) -> Iterable[SchemaMigrationSpec]:
+        """Return schema migrator capability specs exposed by this plugin."""
         return []

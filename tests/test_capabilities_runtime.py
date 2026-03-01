@@ -5,6 +5,7 @@ import pytest
 from phlo.capabilities import (
     CatalogSpec,
     QueryEngineSpec,
+    SchemaMigrationSpec,
     TableStoreSpec,
     clear_capabilities,
     get_capability_registry,
@@ -12,6 +13,7 @@ from phlo.capabilities import (
     missing_required_capabilities,
     register_catalog,
     register_query_engine,
+    register_schema_migrator,
     register_table_store,
     resolve_capability,
 )
@@ -29,11 +31,13 @@ def test_registry_tracks_new_platform_capability_types() -> None:
     register_table_store(TableStoreSpec(name="iceberg", provider=object()))
     register_catalog(CatalogSpec(name="nessie", provider=object()))
     register_query_engine(QueryEngineSpec(name="trino", provider=object()))
+    register_schema_migrator(SchemaMigrationSpec(name="iceberg", provider=object()))
 
     registry = get_capability_registry()
     assert [spec.name for spec in registry.list_table_stores()] == ["iceberg"]
     assert [spec.name for spec in registry.list_catalogs()] == ["nessie"]
     assert [spec.name for spec in registry.list_query_engines()] == ["trino"]
+    assert [spec.name for spec in registry.list_schema_migrators()] == ["iceberg"]
 
 
 def test_resolve_capability_prefers_explicit_name() -> None:
@@ -63,3 +67,9 @@ def test_list_capabilities_returns_registered_names() -> None:
     register_table_store(TableStoreSpec(name="delta", provider=object()))
 
     assert sorted(list_capabilities("table_store")) == ["delta", "iceberg"]
+
+
+def test_list_capabilities_returns_schema_migrators() -> None:
+    register_schema_migrator(SchemaMigrationSpec(name="iceberg", provider=object()))
+
+    assert list_capabilities("schema_migrator") == ["iceberg"]

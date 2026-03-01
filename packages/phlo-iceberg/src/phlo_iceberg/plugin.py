@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from phlo.capabilities import ResourceSpec, TableStoreSpec
+from phlo.capabilities import ResourceSpec, SchemaMigrationSpec, TableStoreSpec
 from phlo.plugins.base import PluginMetadata, ResourceProviderPlugin
 
 from phlo_iceberg.resource import IcebergResource
+from phlo_iceberg.schema_migrator import IcebergSchemaMigrator
 
 
 class IcebergResourceProvider(ResourceProviderPlugin):
@@ -37,3 +38,11 @@ class IcebergResourceProvider(ResourceProviderPlugin):
             list[TableStoreSpec]: Iceberg table-store capability specifications.
         """
         return [TableStoreSpec(name="iceberg", provider=IcebergResource())]
+
+    def get_schema_migrators(self) -> list[SchemaMigrationSpec]:
+        """Get schema-migrator capability specs exposed by this plugin.
+
+        Returns:
+            list[SchemaMigrationSpec]: Iceberg schema migrator specifications.
+        """
+        return [SchemaMigrationSpec(name="iceberg", provider=IcebergSchemaMigrator())]

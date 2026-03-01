@@ -20,6 +20,7 @@ from phlo_dagster.framework.discovery import (
     _ensure_core_resources,
     discover_user_workflows,
 )
+from phlo_dagster.framework.schema_contracts import maybe_refresh_contracts
 from phlo_dagster.settings import get_settings
 from phlo.logging import get_logger, setup_logging
 
@@ -122,6 +123,7 @@ def build_definitions(
     # Discover user workflows
     try:
         user_defs = discover_user_workflows(workflows_path, clear_registries=True)
+        maybe_refresh_contracts(workflows_path, logger)
         user_assets = list(getattr(user_defs, "assets", []) or [])
         user_checks = list(getattr(user_defs, "asset_checks", []) or [])
         logger.info("Discovered %d user assets, %d checks", len(user_assets), len(user_checks))

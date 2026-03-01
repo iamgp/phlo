@@ -68,6 +68,7 @@ phlo lineage             # Asset lineage (show, export)
 ```bash
 phlo schema              # Manage Pandera schemas
 phlo validate-schema     # Validate Pandera schemas
+phlo schema-migrate      # Diff, plan, apply, and scaffold table schema migrations
 ```
 
 **Optional Plugin Commands** (requires installation):
@@ -858,6 +859,7 @@ phlo materialize ASSET_NAME [OPTIONS]
 ```bash
 --select SELECTOR        # Asset selection query
 --partition PARTITION    # Specific partition to materialize
+--no-contract-refresh    # Skip automatic schema-contract refresh
 --dry-run                # Show command without executing
 ```
 
@@ -889,9 +891,70 @@ phlo materialize --select "tag:nightscout"
 
 # Dry run
 phlo materialize dlt_glucose_entries --dry-run
+
+# Skip automatic contract refresh
+phlo materialize dlt_glucose_entries --no-contract-refresh
 ```
 
 ## Testing Commands
+
+## Schema Migration Commands
+
+### phlo schema-migrate export-contract
+
+Export a Phlo contract snapshot for a table.
+
+```bash
+phlo schema-migrate export-contract TABLE_NAME [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--schema-class NAME      # Explicit Pandera schema class name
+--output PATH            # Custom contract output path
+--force                  # Overwrite existing output file
+```
+
+**Examples**:
+
+```bash
+phlo schema-migrate export-contract warehouse.customers
+phlo schema-migrate export-contract warehouse.customers --output .phlo/contracts/customers.json
+```
+
+### phlo schema-migrate scaffold-yaml
+
+Generate migration scaffold YAML from a previously exported contract.
+
+```bash
+phlo schema-migrate scaffold-yaml TABLE_NAME [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--from-contract PATH     # Contract path (default: .phlo/contracts/<table>.json)
+--output PATH            # YAML output path (default: .phlo/migrations/<table>.yaml)
+--force                  # Overwrite existing output file
+```
+
+**Examples**:
+
+```bash
+phlo schema-migrate scaffold-yaml warehouse.customers
+phlo schema-migrate scaffold-yaml warehouse.customers --from-contract .phlo/contracts/customers.json
+```
+
+### phlo schema-migrate plan/apply/history
+
+Existing migration lifecycle commands remain available:
+
+```bash
+phlo schema-migrate plan warehouse.customers
+phlo schema-migrate apply warehouse.customers
+phlo schema-migrate history warehouse.customers --limit 5
+```
 
 ### phlo test
 
