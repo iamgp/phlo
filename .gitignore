@@ -170,3 +170,5 @@ context/
 # Local-only docs
 docs/architecture/decisions/
 agents.md
+docs/architecture/goals
+docs/architecture/specs
