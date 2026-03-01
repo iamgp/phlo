@@ -24,6 +24,7 @@ from phlo.hooks import (
 )
 from phlo.config.base import BaseConfig
 from phlo.logging import get_logger
+from phlo.utils import dedupe_preserve_order
 from pydantic import Field
 
 logger = get_logger(__name__)
@@ -325,14 +326,7 @@ def _trino_table_ref_candidates(name: str) -> list[str]:
         plain_schema_table = ".".join(part for part, _was_quoted in schema_table_parts)
         candidates.extend([quoted_schema_table, plain_schema_table])
 
-    deduped: list[str] = []
-    seen: set[str] = set()
-    for candidate in candidates:
-        if candidate in seen:
-            continue
-        seen.add(candidate)
-        deduped.append(candidate)
-    return deduped
+    return dedupe_preserve_order(candidates)
 
 
 def _describe_trino_table(trino: Any, source_table: str) -> tuple[list[tuple[str, str, str]], str]:
