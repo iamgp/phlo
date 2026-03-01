@@ -579,10 +579,68 @@
 </a>
 </li>
 <li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-schema-migrate-scaffold-yaml-recent">
+<span class="md-ellipsis">
+      
+        phlo schema-migrate scaffold-yaml-recent
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
 <a class="md-nav__link" href="#phlo-schema-migrate-planapplyhistory">
 <span class="md-ellipsis">
       
         phlo schema-migrate plan/apply/history
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#data-migration-commands">
+<span class="md-ellipsis">
+      
+        Data Migration Commands
+      
+    </span>
+</a>
+<nav aria-label="Data Migration Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-migrate-validate">
+<span class="md-ellipsis">
+      
+        phlo migrate validate
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-migrate-run">
+<span class="md-ellipsis">
+      
+        phlo migrate run
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-migrate-list">
+<span class="md-ellipsis">
+      
+        phlo migrate list
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-migrate-status">
+<span class="md-ellipsis">
+      
+        phlo migrate status
       
     </span>
 </a>
@@ -1420,10 +1478,68 @@
 </a>
 </li>
 <li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-schema-migrate-scaffold-yaml-recent">
+<span class="md-ellipsis">
+      
+        phlo schema-migrate scaffold-yaml-recent
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
 <a class="md-nav__link" href="#phlo-schema-migrate-planapplyhistory">
 <span class="md-ellipsis">
       
         phlo schema-migrate plan/apply/history
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#data-migration-commands">
+<span class="md-ellipsis">
+      
+        Data Migration Commands
+      
+    </span>
+</a>
+<nav aria-label="Data Migration Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-migrate-validate">
+<span class="md-ellipsis">
+      
+        phlo migrate validate
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-migrate-run">
+<span class="md-ellipsis">
+      
+        phlo migrate run
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-migrate-list">
+<span class="md-ellipsis">
+      
+        phlo migrate list
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-migrate-status">
+<span class="md-ellipsis">
+      
+        phlo migrate status
       
     </span>
 </a>
@@ -1875,6 +1991,7 @@ phlo lineage             # Asset lineage (show, export)
 <pre><code class="language-bash">phlo schema              # Manage Pandera schemas
 phlo validate-schema     # Validate Pandera schemas
 phlo schema-migrate      # Diff, plan, apply, and scaffold table schema migrations
+phlo migrate             # Run declarative data migration specs
 </code></pre>
 <p><strong>Optional Plugin Commands</strong> (requires installation):</p>
 <pre><code class="language-bash">phlo postgrest           # PostgREST management
@@ -2469,11 +2586,49 @@ phlo schema-migrate export-contract warehouse.customers --output .phlo/contracts
 <pre><code class="language-bash">phlo schema-migrate scaffold-yaml warehouse.customers
 phlo schema-migrate scaffold-yaml warehouse.customers --from-contract .phlo/contracts/customers.json
 </code></pre>
+<h3 id="phlo-schema-migrate-scaffold-yaml-recent">phlo schema-migrate scaffold-yaml-recent</h3>
+<p>Generate migration scaffold YAML files for recently added/updated contracts.</p>
+<pre><code class="language-bash">phlo schema-migrate scaffold-yaml-recent [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--since-hours INTEGER    # Only include contracts modified in last N hours (default: 24)
+--limit INTEGER          # Max recent contracts to scaffold
+--force                  # Overwrite existing output files
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo schema-migrate scaffold-yaml-recent
+phlo schema-migrate scaffold-yaml-recent --since-hours 1 --limit 5
+</code></pre>
 <h3 id="phlo-schema-migrate-planapplyhistory">phlo schema-migrate plan/apply/history</h3>
 <p>Existing migration lifecycle commands remain available:</p>
 <pre><code class="language-bash">phlo schema-migrate plan warehouse.customers
 phlo schema-migrate apply warehouse.customers
 phlo schema-migrate history warehouse.customers --limit 5
+</code></pre>
+<h2 id="data-migration-commands">Data Migration Commands</h2>
+<h3 id="phlo-migrate-validate">phlo migrate validate</h3>
+<p>Validate a migration YAML spec without executing writes.</p>
+<pre><code class="language-bash">phlo migrate validate SPEC_FILE
+</code></pre>
+<h3 id="phlo-migrate-run">phlo migrate run</h3>
+<p>Run a migration YAML spec.</p>
+<pre><code class="language-bash">phlo migrate run SPEC_FILE [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--dry-run               # Read and validate without writes
+--format table|json     # Output format (default: table)
+</code></pre>
+<h3 id="phlo-migrate-list">phlo migrate list</h3>
+<p>List migration specs from default directories (<code>migrations/</code>, <code>workflows/migrations/</code>).</p>
+<pre><code class="language-bash">phlo migrate list [--directory PATH]
+</code></pre>
+<h3 id="phlo-migrate-status">phlo migrate status</h3>
+<p>Show recent migration run history.</p>
+<pre><code class="language-bash">phlo migrate status [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--limit INTEGER         # Number of entries to show (default: 10)
+--format table|json     # Output format (default: table)
 </code></pre>
 <h3 id="phlo-test">phlo test</h3>
 <p>Run tests.</p>
