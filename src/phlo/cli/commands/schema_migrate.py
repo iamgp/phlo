@@ -564,7 +564,9 @@ def _find_native_schema(table_name: str, schema_class: str | None) -> Any:
             candidates.update(discover_pandera_schemas())
         except ImportError:
             pass
-        candidates.update(_discover_pandera_schemas_from_files())
+        # Keep primary discovery authoritative; fallback only fills missing names.
+        for name, schema in _discover_pandera_schemas_from_files().items():
+            candidates.setdefault(name, schema)
 
         if schema_class in candidates:
             return candidates[schema_class]

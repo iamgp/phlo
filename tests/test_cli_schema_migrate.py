@@ -1,6 +1,8 @@
 """Regression tests for schema-migrate CLI commands."""
 
 import json
+import sys
+import types
 from pathlib import Path
 
 import yaml
@@ -168,3 +170,28 @@ def test_schema_migrate_scaffold_yaml_is_deterministic(monkeypatch) -> None:
         assert second.exit_code == 0
         second_yaml = yaml.safe_load(Path(".phlo/migrations/warehouse__customers.yaml").read_text())
         assert second_yaml["operations"][0]["operation_id"] == first_operation_id
+
+
+def test_find_native_schema_prefers_primary_discovery(monkeypatch) -> None:
+    """Primary schema discovery wins when fallback has the same class name."""
+
+    class PrimarySchema:
+        pass
+
+    class FallbackSchema:
+        pass
+
+    cli_schema_utils = types.ModuleType("phlo_quality.cli_schema_utils")
+    cli_schema_utils.discover_pandera_schemas = lambda: {"RawContractDemo": PrimarySchema}
+    monkeypatch.setitem(sys.modules, "phlo_quality.cli_schema_utils", cli_schema_utils)
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "_discover_pandera_schemas_from_files",
+        lambda: {"RawContractDemo": FallbackSchema},
+    )
+
+    resolved = schema_migrate_commands._find_native_schema(
+        table_name="raw.contract_demo",
+        schema_class="RawContractDemo",
+    )
+    assert resolved is PrimarySchema
