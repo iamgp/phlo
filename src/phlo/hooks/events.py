@@ -125,6 +125,20 @@ class SchemaMigrationEvent(HookEvent):
 
 
 @dataclass(kw_only=True)
+class DataMigrationEvent(HookEvent):
+    """Event emitted for data migration lifecycle stages."""
+
+    migration_name: str
+    source_type: str
+    destination_table: str
+    status: str
+    rows_read: int
+    rows_written: int
+    chunk_index: int | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(kw_only=True)
 class LogEvent(HookEvent):
     """Event emitted for structured log records."""
 

@@ -69,6 +69,7 @@ phlo lineage             # Asset lineage (show, export)
 phlo schema              # Manage Pandera schemas
 phlo validate-schema     # Validate Pandera schemas
 phlo schema-migrate      # Diff, plan, apply, and scaffold table schema migrations
+phlo migrate             # Run declarative data migration specs
 ```
 
 **Optional Plugin Commands** (requires installation):
@@ -946,6 +947,29 @@ phlo schema-migrate scaffold-yaml warehouse.customers
 phlo schema-migrate scaffold-yaml warehouse.customers --from-contract .phlo/contracts/customers.json
 ```
 
+### phlo schema-migrate scaffold-yaml-recent
+
+Generate migration scaffold YAML files for recently added/updated contracts.
+
+```bash
+phlo schema-migrate scaffold-yaml-recent [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--since-hours INTEGER    # Only include contracts modified in last N hours (default: 24)
+--limit INTEGER          # Max recent contracts to scaffold
+--force                  # Overwrite existing output files
+```
+
+**Examples**:
+
+```bash
+phlo schema-migrate scaffold-yaml-recent
+phlo schema-migrate scaffold-yaml-recent --since-hours 1 --limit 5
+```
+
 ### phlo schema-migrate plan/apply/history
 
 Existing migration lifecycle commands remain available:
@@ -954,6 +978,54 @@ Existing migration lifecycle commands remain available:
 phlo schema-migrate plan warehouse.customers
 phlo schema-migrate apply warehouse.customers
 phlo schema-migrate history warehouse.customers --limit 5
+```
+
+## Data Migration Commands
+
+### phlo migrate validate
+
+Validate a migration YAML spec without executing writes.
+
+```bash
+phlo migrate validate SPEC_FILE
+```
+
+### phlo migrate run
+
+Run a migration YAML spec.
+
+```bash
+phlo migrate run SPEC_FILE [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--dry-run               # Read and validate without writes
+--format table|json     # Output format (default: table)
+```
+
+### phlo migrate list
+
+List migration specs from default directories (`migrations/`, `workflows/migrations/`).
+
+```bash
+phlo migrate list [--directory PATH]
+```
+
+### phlo migrate status
+
+Show recent migration run history.
+
+```bash
+phlo migrate status [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--limit INTEGER         # Number of entries to show (default: 10)
+--format table|json     # Output format (default: table)
 ```
 
 ### phlo test

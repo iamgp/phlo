@@ -6,6 +6,7 @@ from phlo.capabilities.registry import (
     register_asset,
     register_catalog,
     register_check,
+    register_data_migration_source,
     register_governance_backend,
     register_lineage_sink,
     register_metadata_catalog,
@@ -76,6 +77,8 @@ def discover_capabilities() -> None:
                 register_secret_backend(secret_backend)
             for schema_migrator in plugin.get_schema_migrators():
                 register_schema_migrator(schema_migrator)
+            for source_adapter in plugin.get_data_migration_sources():
+                register_data_migration_source(source_adapter)
         except Exception as exc:
             logger.warning(
                 "capability_resource_provider_registration_failed",

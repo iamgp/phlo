@@ -548,58 +548,117 @@ def scaffold_yaml(
     destination = output_path or schema_migrate_contracts.default_scaffold_yaml_path(table_name)
 
     try:
-        contract = schema_migrate_contracts.read_contract(source_path)
-    except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
-        console.print(f"[red]{exc}[/red]")
-        sys.exit(1)
-
-    contract_table = contract.get("table_name")
-    if contract_table != table_name:
-        console.print(
-            f"[red]Contract table mismatch: expected '{table_name}', found '{contract_table}'[/red]"
+        payload = _build_scaffold_payload_from_contract(
+            table_name=table_name,
+            contract_path=source_path,
         )
-        sys.exit(1)
-
-    desired_payload = contract.get("normalized_schema")
-    if not isinstance(desired_payload, dict):
-        console.print("[red]Contract missing normalized_schema payload[/red]")
-        sys.exit(1)
-
-    fields_payload = desired_payload.get("fields", [])
-    metadata_payload = desired_payload.get("metadata", {})
-    if not isinstance(fields_payload, list) or not isinstance(metadata_payload, dict):
-        console.print("[red]Invalid normalized_schema payload in contract[/red]")
-        sys.exit(1)
-
-    try:
-        desired = NormalizedSchema(
-            fields=[FieldSpec(**field_data) for field_data in fields_payload],
-            metadata=metadata_payload,
-        )
-    except TypeError as exc:
-        console.print(f"[red]Invalid field payload in contract: {exc}[/red]")
-        sys.exit(1)
-    migrator = _resolve_migrator()
-    migration_plan = migrator.diff_schema(table_name=table_name, desired=desired)
-
-    payload = schema_migrate_contracts.build_scaffold_payload(
-        table_name=table_name,
-        contract=contract,
-        migration_plan=migration_plan,
-        generated_at=datetime.now(timezone.utc).isoformat(),
-    )
-
-    try:
         schema_migrate_contracts.write_scaffold_yaml(
             destination,
             payload=payload,
             force=force,
         )
-    except FileExistsError as exc:
+    except (FileNotFoundError, ValueError, json.JSONDecodeError, TypeError, FileExistsError) as exc:
         console.print(f"[red]{exc}[/red]")
         sys.exit(1)
 
     console.print(f"[green]Generated migration scaffold:[/green] {destination}")
+
+
+@schema_migrate_group.command("scaffold-yaml-recent")
+@click.option(
+    "--since-hours",
+    type=int,
+    default=24,
+    show_default=True,
+    help="Only include contracts modified in the last N hours",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Maximum number of contract additions to scaffold",
+)
+@click.option("--force", is_flag=True, help="Overwrite existing output files")
+def scaffold_yaml_recent(since_hours: int, limit: int | None, force: bool) -> None:
+    """Generate migration scaffold YAML files for recent .phlo/contracts additions."""
+    if since_hours < 0:
+        console.print("[red]--since-hours must be >= 0[/red]")
+        sys.exit(1)
+    if limit is not None and limit <= 0:
+        console.print("[red]--limit must be > 0[/red]")
+        sys.exit(1)
+
+    contract_paths = schema_migrate_contracts.list_recent_contract_paths(
+        since_hours=since_hours,
+        limit=limit,
+    )
+    if not contract_paths:
+        console.print("[yellow]No recent contracts found in .phlo/contracts[/yellow]")
+        return
+
+    generated_count = 0
+    for contract_path in contract_paths:
+        try:
+            contract = schema_migrate_contracts.read_contract(contract_path)
+            table_name = contract.get("table_name")
+            if not isinstance(table_name, str) or not table_name:
+                raise ValueError(f"Contract missing table_name: {contract_path}")
+
+            payload = _build_scaffold_payload_from_contract(
+                table_name=table_name,
+                contract_path=contract_path,
+            )
+            destination = schema_migrate_contracts.default_scaffold_yaml_path(table_name)
+            schema_migrate_contracts.write_scaffold_yaml(destination, payload=payload, force=force)
+            generated_count += 1
+            console.print(
+                f"[green]Generated migration scaffold:[/green] {destination} (from {contract_path})"
+            )
+        except (
+            FileNotFoundError,
+            ValueError,
+            json.JSONDecodeError,
+            TypeError,
+            FileExistsError,
+        ) as exc:
+            console.print(f"[red]{exc}[/red]")
+            sys.exit(1)
+
+    console.print(f"[green]Generated {generated_count} migration scaffolds.[/green]")
+
+
+def _build_scaffold_payload_from_contract(
+    *, table_name: str, contract_path: Path
+) -> dict[str, Any]:
+    contract = schema_migrate_contracts.read_contract(contract_path)
+    contract_table = contract.get("table_name")
+    if contract_table != table_name:
+        raise ValueError(
+            f"Contract table mismatch: expected '{table_name}', found '{contract_table}'"
+        )
+
+    desired_payload = contract.get("normalized_schema")
+    if not isinstance(desired_payload, dict):
+        raise ValueError("Contract missing normalized_schema payload")
+
+    fields_payload = desired_payload.get("fields", [])
+    metadata_payload = desired_payload.get("metadata", {})
+    if not isinstance(fields_payload, list) or not isinstance(metadata_payload, dict):
+        raise ValueError("Invalid normalized_schema payload in contract")
+
+    desired = NormalizedSchema(
+        fields=[FieldSpec(**field_data) for field_data in fields_payload],
+        metadata=metadata_payload,
+    )
+    migrator = _resolve_migrator()
+    migration_plan = migrator.diff_schema(table_name=table_name, desired=desired)
+
+    return schema_migrate_contracts.build_scaffold_payload(
+        table_name=table_name,
+        contract=contract,
+        migration_plan=migration_plan,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+    )
 
 
 def _find_native_schema(table_name: str, schema_class: str | None) -> Any:
