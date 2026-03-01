@@ -9,6 +9,7 @@ from __future__ import annotations
 from phlo.plugins.base.catalog import CatalogPlugin
 from phlo.plugins.base.cli import CliCommandPlugin
 from phlo.plugins.base.governance import GovernancePlugin
+from phlo.plugins.base.ingestion_provider import IngestionProviderPlugin
 from phlo.plugins.base.orchestrator import OrchestratorAdapterPlugin
 from phlo.plugins.base.plugin import Plugin, PluginMetadata
 from phlo.plugins.base.providers import AssetProviderPlugin, ResourceProviderPlugin
@@ -25,6 +26,7 @@ __all__ = [
     "SourceConnectorPlugin",
     "QualityCheckPlugin",
     "QualityProviderPlugin",
+    "IngestionProviderPlugin",
     "TransformationPlugin",
     "ServicePlugin",
     "CatalogPlugin",

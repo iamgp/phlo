@@ -12,6 +12,7 @@ from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
     CliCommandPlugin,
+    IngestionProviderPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
@@ -29,6 +30,7 @@ _TYPE_CONFIG = {
     "source_connectors": ("_sources", "source", "Source connector"),
     "quality_checks": ("_quality_checks", "quality", "Quality check"),
     "quality_providers": ("_quality_providers", "quality_provider", "Quality provider"),
+    "ingestion_providers": ("_ingestion_providers", "ingestion_provider", "Ingestion provider"),
     "transformations": ("_transformations", "transformation", "Transformation"),
     "services": ("_services", "service", "Service"),
     "cli_commands": ("_cli_commands", "cli", "CLI command"),
@@ -53,6 +55,7 @@ class PluginRegistry:
         self._sources: dict[str, SourceConnectorPlugin] = {}
         self._quality_checks: dict[str, QualityCheckPlugin] = {}
         self._quality_providers: dict[str, QualityProviderPlugin] = {}
+        self._ingestion_providers: dict[str, IngestionProviderPlugin] = {}
         self._transformations: dict[str, TransformationPlugin] = {}
         self._services: dict[str, ServicePlugin] = {}
         self._cli_commands: dict[str, CliCommandPlugin] = {}
@@ -109,6 +112,12 @@ class PluginRegistry:
     ) -> None:
         """Register a quality provider plugin."""
         self._register_plugin("quality_providers", plugin, replace)
+
+    def register_ingestion_provider(
+        self, plugin: IngestionProviderPlugin, replace: bool = False
+    ) -> None:
+        """Register an ingestion provider plugin."""
+        self._register_plugin("ingestion_providers", plugin, replace)
 
     def register_transformation(self, plugin: TransformationPlugin, replace: bool = False) -> None:
         """Register a transformation plugin."""
@@ -175,6 +184,10 @@ class PluginRegistry:
     def get_quality_provider(self, name: str) -> QualityProviderPlugin | None:
         """Get a quality provider plugin by name."""
         return self._quality_providers.get(name)
+
+    def get_ingestion_provider(self, name: str) -> IngestionProviderPlugin | None:
+        """Get an ingestion provider plugin by name."""
+        return self._ingestion_providers.get(name)
 
     def get_transformation(self, name: str) -> TransformationPlugin | None:
         """Get a transformation plugin by name."""
