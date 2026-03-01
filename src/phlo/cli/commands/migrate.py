@@ -38,7 +38,7 @@ def validate(spec_file: Path) -> None:
         sys.exit(1)
 
     executor = MigrationExecutor()
-    errors = executor.validate(spec)
+    errors = executor.validate(spec, dry_run_override=True)
     if errors:
         console.print("[red]Validation failed:[/red]")
         for error in errors:

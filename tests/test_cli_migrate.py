@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
+from phlo.cli.commands import migrate as migrate_commands
 from phlo.cli.main import cli
 
 
@@ -51,6 +53,29 @@ def test_migrate_validate_passes_for_dry_run_csv() -> None:
 
         assert result.exit_code == 0
         assert "Migration spec is valid" in result.output
+
+
+def test_migrate_validate_uses_dry_run_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Validate command always validates as dry-run to avoid table-store requirements."""
+
+    class FakeExecutor:
+        seen_override: bool | None = None
+
+        def validate(self, spec, *, dry_run_override=None):  # type: ignore[no-untyped-def]
+            FakeExecutor.seen_override = dry_run_override
+            return []
+
+    monkeypatch.setattr(migrate_commands, "MigrationExecutor", lambda: FakeExecutor())
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        _write_csv(Path("customers.csv"))
+        _write_spec(Path("migrations/customers.yaml"), dry_run=False)
+
+        result = runner.invoke(cli, ["migrate", "validate", "migrations/customers.yaml"])
+
+        assert result.exit_code == 0
+        assert FakeExecutor.seen_override is True
 
 
 def test_migrate_run_dry_run_writes_history() -> None:
