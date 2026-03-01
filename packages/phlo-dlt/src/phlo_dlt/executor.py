@@ -48,7 +48,7 @@ class DltIngester(BaseIngester):
             table_store_resource: Table store resource used for merge operations.
             dlt_source_func: Callable that builds a DLT source for a partition.
             add_metadata_columns: Whether to inject metadata columns into staged parquet.
-            merge_strategy: Merge strategy name for Iceberg writes.
+            merge_strategy: Merge strategy name for table-store writes.
             merge_config: Optional merge strategy configuration.
         """
         super().__init__(context, logger)
@@ -63,7 +63,7 @@ class DltIngester(BaseIngester):
         self, partition_key: str, parameters: Dict[str, Any] | None = None
     ) -> IngestionResult:
         """
-        Run the full DLT -> Parquet -> Iceberg flow.
+        Run the full DLT -> Parquet -> table_store flow.
         """
         parameters = parameters or {}
         branch_name = parameters.get("branch_name", "main")

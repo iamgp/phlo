@@ -267,7 +267,7 @@ jobs:
 
           run_case "phlo-dbt" "packages/phlo-dbt/tests/test_quality_asset_checks.py" "quality" "pyarrow"
           run_case "phlo-quality" "packages/phlo-quality/tests/test_cli_004_schema_generate.py" "" "./packages/phlo-dlt pyiceberg"
-          run_case "phlo-dlt" "packages/phlo-dlt/tests/test_schema_converter.py" "" "pyiceberg"
+          run_case "phlo-iceberg" "packages/phlo-iceberg/tests/test_schema_converter.py"
           run_case "phlo-dlt" "packages/phlo-dlt/tests/test_ingestion_decorator.py" "" "pyiceberg"
 
           if [ "$failed_count" -eq 0 ]; then

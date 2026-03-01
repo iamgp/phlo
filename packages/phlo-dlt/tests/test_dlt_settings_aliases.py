@@ -12,7 +12,7 @@ def test_dlt_namespace_uses_dlt_env(monkeypatch) -> None:
         assert get_settings().dlt_default_namespace == "bronze"
         table = TableConfig(
             table_name="events",
-            iceberg_schema=object(),
+            table_schema=object(),
             validation_schema=None,
             unique_key="id",
             group_name="ingestion",

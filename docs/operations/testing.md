@@ -193,7 +193,7 @@ Test Iceberg table operations in-memory using DuckDB backend.
 
 ```python
 from phlo_testing import mock_iceberg_catalog
-from phlo_dlt.converter import pandera_to_iceberg
+from phlo_iceberg.schema_conversion import pandera_to_iceberg
 from workflows.schemas.weather import RawWeatherData
 import pandas as pd
 
@@ -353,7 +353,7 @@ Full end-to-end test without Docker:
 
 ```python
 from phlo_testing import test_asset_execution, mock_iceberg_catalog
-from phlo_dlt.converter import pandera_to_iceberg
+from phlo_iceberg.schema_conversion import pandera_to_iceberg
 from workflows.schemas.weather import RawWeatherData
 
 def test_full_pipeline_local():

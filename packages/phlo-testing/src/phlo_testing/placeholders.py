@@ -350,7 +350,7 @@ class MockIcebergCatalog:
             filtered = table.scan().filter("value > 40").to_pandas()
 
     Example with Phlo schema:
-        from phlo_dlt.converter import pandera_to_iceberg
+        from phlo_iceberg.schema_conversion import pandera_to_iceberg
         from workflows.schemas.weather import RawWeatherData
 
         # Convert Pandera to Iceberg schema
@@ -487,7 +487,7 @@ def mock_iceberg_catalog():
         MockIcebergCatalog instance
 
     Example:
-        from phlo_dlt.converter import pandera_to_iceberg
+        from phlo_iceberg.schema_conversion import pandera_to_iceberg
         from workflows.schemas.weather import RawWeatherData
 
         iceberg_schema = pandera_to_iceberg(RawWeatherData)

@@ -15,6 +15,7 @@ from dlt.common.pipeline import LoadInfo
 from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
 from phlo.capabilities.interfaces import TableStore
+from phlo.exceptions import PhloConfigError
 from phlo.logging import get_logger
 
 from phlo_dlt.registry import TableConfig
@@ -289,7 +290,7 @@ def merge_to_table_store(
         merge_config: Reserved merge configuration payload.
 
     Returns:
-        Merge metrics emitted by the underlying Iceberg write operation.
+        Merge metrics emitted by the underlying table-store write operation.
     """
 
     merge_config = merge_config or {}
@@ -303,9 +304,34 @@ def merge_to_table_store(
     )
 
     context.log.info(f"Ensuring destination table {table_name} exists on branch {branch_name}...")
+    table_schema = table_config.table_schema
+    if table_schema is None:
+        validation_schema = table_config.validation_schema
+        if validation_schema is None:
+            raise PhloConfigError(
+                message="No schema available for table-store write",
+                suggestions=[
+                    "Set table_schema explicitly in @phlo_ingestion",
+                    "Or provide validation_schema with a compatible table_store converter",
+                ],
+            )
+        schema_builder = getattr(table_store, "schema_from_validation_schema", None)
+        if not callable(schema_builder):
+            raise PhloConfigError(
+                message="Active table_store cannot derive schema from validation_schema",
+                suggestions=[
+                    "Set table_schema explicitly in @phlo_ingestion",
+                    "Or implement schema_from_validation_schema on the table_store provider",
+                ],
+            )
+        try:
+            table_schema = schema_builder(validation_schema=validation_schema)
+        except TypeError:
+            table_schema = schema_builder(validation_schema)
+
     table_store.ensure_table(
         table_name=table_name,
-        schema=table_config.iceberg_schema,
+        schema=table_schema,
         partition_spec=table_config.partition_spec,
         override_ref=branch_name,
     )
@@ -328,29 +354,29 @@ def merge_to_table_store(
         arrow_table = pq.read_table(str(parquet_file))
         num_rows = len(arrow_table)
 
-        def iceberg_type_to_arrow_type(iceberg_type: object) -> pa.DataType:
-            """Map a subset of Iceberg primitive types to Arrow data types."""
-            if isinstance(iceberg_type, StringType):
+        def table_store_type_to_arrow_type(table_type: object) -> pa.DataType:
+            """Map a subset of table-store primitive types to Arrow data types."""
+            if isinstance(table_type, StringType):
                 return pa.string()
-            if isinstance(iceberg_type, LongType):
+            if isinstance(table_type, LongType):
                 return pa.int64()
-            if isinstance(iceberg_type, DoubleType):
+            if isinstance(table_type, DoubleType):
                 return pa.float64()
-            if isinstance(iceberg_type, BooleanType):
+            if isinstance(table_type, BooleanType):
                 return pa.bool_()
-            if isinstance(iceberg_type, TimestamptzType):
+            if isinstance(table_type, TimestamptzType):
                 return pa.timestamp("us", tz="UTC")
-            if isinstance(iceberg_type, DateType):
+            if isinstance(table_type, DateType):
                 return pa.date32()
             return pa.string()
 
-        desired_fields = list(table_config.iceberg_schema.fields)
+        desired_fields = list(table_schema.fields)
         desired_names = [f.name for f in desired_fields]
 
         columns: list[pa.Array] = []
         for field in desired_fields:
             name = field.name
-            target_type = iceberg_type_to_arrow_type(field.field_type)
+            target_type = table_store_type_to_arrow_type(field.field_type)
 
             if name in arrow_table.column_names:
                 col = arrow_table[name]

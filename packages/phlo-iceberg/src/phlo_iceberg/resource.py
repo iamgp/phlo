@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import Any
+
+from pandera.pandas import DataFrameModel
 from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
@@ -41,6 +44,14 @@ class IcebergResource:
         """
         branch = override_ref or self.ref
         return get_catalog(ref=branch)
+
+    def schema_from_validation_schema(
+        self, validation_schema: type[DataFrameModel] | type[Any]
+    ) -> Schema:
+        """Build an Iceberg schema from a validation model for ingestion flows."""
+        from phlo_iceberg.schema_conversion import pandera_to_iceberg
+
+        return pandera_to_iceberg(validation_schema)
 
     def ensure_table(
         self,

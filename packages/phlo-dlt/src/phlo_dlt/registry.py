@@ -14,15 +14,15 @@ class TableConfig:
 
     Attributes:
         table_name: Physical target table name.
-        iceberg_schema: Converted Iceberg schema object.
+        table_schema: Optional explicit table-store schema object.
         validation_schema: Optional Pandera schema used for validation.
         unique_key: Column used as unique key for merge semantics.
         group_name: Dagster group name for generated assets.
-        partition_spec: Optional Iceberg partition transform specification.
+        partition_spec: Optional table-store partition transform specification.
     """
 
     table_name: str
-    iceberg_schema: Any
+    table_schema: Any | None
     validation_schema: type[DataFrameModel] | None
     unique_key: str
     group_name: str
