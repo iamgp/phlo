@@ -26,6 +26,7 @@ from phlo_quality import (
     get_quality_checks,
     phlo_quality,
 )
+from phlo.contracts import SLA
 
 
 @pytest.fixture(autouse=True)
@@ -399,6 +400,27 @@ class TestPhloQualityDecorator:
 
         checks = get_quality_checks()
         assert len(checks) > 0
+
+    def test_decorator_contract_metadata_tags(self):
+        """Contract metadata is propagated to check tags."""
+
+        @phlo_quality(
+            table="test.table",
+            checks=[NullCheck(columns=["id"])],
+            owner="platform-team",
+            consumers=["analytics", "ml-pipeline"],
+            sla=SLA(quality_threshold=0.97),
+        )
+        def contract_meta_check():
+            """No-op asset function used to register contract metadata tags."""
+
+            pass
+
+        checks = get_quality_checks()
+        quality_check = next(spec for spec in checks if spec.name == "contract_meta_check")
+        assert quality_check.tags["contract_owner"] == "platform-team"
+        assert quality_check.tags["contract_consumers"] == "analytics,ml-pipeline"
+        assert '"quality_threshold": 0.97' in quality_check.tags["contract_sla"]
 
 
 class TestQualityCheckIntegration:
