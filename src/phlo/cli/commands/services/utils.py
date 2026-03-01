@@ -13,6 +13,7 @@ import click
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.utils import _resolve_container_name
 from phlo.logging import get_logger
+from phlo.utils import dedupe_preserve_order
 
 logger = get_logger(__name__)
 
@@ -210,17 +211,8 @@ def _normalize_service_name_list(names: object) -> list[str]:
     if not isinstance(names, list):
         return []
 
-    normalized_names: list[str] = []
-    seen_names: set[str] = set()
-    for name in names:
-        if not isinstance(name, str):
-            continue
-        normalized_name = name.strip().lower()
-        if not normalized_name or normalized_name in seen_names:
-            continue
-        normalized_names.append(normalized_name)
-        seen_names.add(normalized_name)
-    return normalized_names
+    normalized = [name.strip().lower() for name in names if isinstance(name, str) and name.strip()]
+    return dedupe_preserve_order(normalized)
 
 
 def normalize_services_enabled_disabled_config(

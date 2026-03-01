@@ -4,8 +4,6 @@ Service Discovery Module
 Discovers and loads service definitions from installed plugins and optional directories.
 """
 
-from collections import deque
-from dataclasses import dataclass, field
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
@@ -14,6 +12,9 @@ import yaml
 
 from phlo.logging import get_logger, log_event
 from phlo.plugins.discovery import _service_loading
+from phlo.plugins.discovery._service_cycles import find_cycles as _find_cycles_impl
+from phlo.plugins.discovery._service_definition import ServiceDefinition
+from phlo.plugins.discovery._service_dependency_resolution import resolve_service_dependencies
 from phlo.plugins.discovery.registry import get_global_registry
 
 logger = get_logger(__name__)
@@ -47,187 +48,8 @@ def discover_plugins(plugin_type: str = "services", auto_register: bool = True):
 
 
 def _find_cycles(nodes: set[str], graph: dict[str, set[str]]) -> list[list[str]]:
-    """Extract closed dependency cycles from a graph subset.
-
-    ``graph`` is built as ``dependency -> dependents``. Convert that into
-    ``service -> dependencies`` first so cycle paths read in "depends-on"
-    order for user-facing diagnostics.
-    """
-    dependencies: dict[str, set[str]] = {name: set() for name in nodes}
-    for dependency, dependents in graph.items():
-        for dependent in dependents & nodes:
-            dependencies[dependent].add(dependency)
-
-    cycles: list[list[str]] = []
-    seen_signatures: set[tuple[str, ...]] = set()
-
-    for start in sorted(nodes):
-        cycle = _find_cycle_from_start(start, dependencies, nodes)
-        if not cycle:
-            continue
-        signature = _canonical_cycle(cycle[:-1])
-        if signature in seen_signatures:
-            continue
-        seen_signatures.add(signature)
-        cycles.append(cycle)
-
-    return cycles
-
-
-def _find_cycle_from_start(
-    start: str, dependencies: dict[str, set[str]], allowed: set[str]
-) -> list[str] | None:
-    stack: list[tuple[str, list[str], set[str]]] = [(start, [start], {start})]
-
-    while stack:
-        current, path, seen = stack.pop()
-        for dep in sorted(dependencies.get(current, set())):
-            if dep not in allowed:
-                continue
-            if dep == start and len(path) > 1:
-                return path + [start]
-            if dep in seen:
-                continue
-            stack.append((dep, path + [dep], seen | {dep}))
-
-    return None
-
-
-def _canonical_cycle(cycle_nodes: list[str]) -> tuple[str, ...]:
-    if not cycle_nodes:
-        return tuple()
-
-    rotations = [tuple(cycle_nodes[i:] + cycle_nodes[:i]) for i in range(len(cycle_nodes))]
-    reverse = list(reversed(cycle_nodes))
-    rotations_reverse = [tuple(reverse[i:] + reverse[:i]) for i in range(len(reverse))]
-    return min(rotations + rotations_reverse)
-
-
-@dataclass(slots=True)
-class ServiceDefinition:
-    """Represents a parsed service.yaml definition."""
-
-    name: str
-    description: str
-    category: str = "core"
-    version: str = "latest"
-    default: bool = False
-    profile: str | None = None
-    depends_on: list[str] = field(default_factory=list)
-    image: str | None = None
-    build: dict[str, Any] | None = None
-    compose: dict[str, Any] = field(default_factory=dict)
-    env_vars: dict[str, dict[str, Any]] = field(default_factory=dict)
-    files: list[dict[str, str]] = field(default_factory=list)
-    gitignore: list[str] = field(default_factory=list)
-    hooks: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
-    dev: dict[str, Any] = field(default_factory=dict)  # Dev mode config (subprocess or Docker)
-    source_path: Path | None = None
-    phlo_dev: bool = False  # Services that receive phlo source mount in dev mode
-    core: bool = False  # Core services bundled with phlo (not plugins)
-
-    @classmethod
-    def from_yaml(cls, path: Path) -> "ServiceDefinition":
-        """Load a service definition from a YAML file."""
-        with open(path) as f:
-            data = yaml.safe_load(f)
-
-        # Determine source_path: explicit value or default to yaml directory
-        if data.get("source_path"):
-            # Explicit source_path is relative to phlo package root
-            phlo_root = Path(__file__).parent.parent.parent.parent  # phlo repo root
-            source_path = phlo_root / data["source_path"]
-        else:
-            source_path = path.parent
-
-        return cls(
-            name=data["name"],
-            description=data["description"],
-            category=data.get("category", "core"),
-            version=data.get("version", "latest"),
-            default=data.get("default", False),
-            profile=data.get("profile"),
-            depends_on=data.get("depends_on", []),
-            image=data.get("image"),
-            build=data.get("build"),
-            compose=data.get("compose", {}),
-            env_vars=data.get("env_vars", {}),
-            files=data.get("files", []),
-            gitignore=data.get("gitignore", []),
-            hooks=data.get("hooks", {}),
-            dev=data.get("dev", {}),
-            source_path=source_path,
-            phlo_dev=data.get("phlo_dev", False),
-            core=data.get("core", False),
-        )
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any], source_path: Path | None) -> "ServiceDefinition":
-        """Load a service definition from a dictionary."""
-        return cls(
-            name=data["name"],
-            description=data.get("description", ""),
-            category=data.get("category", "core"),
-            version=data.get("version", "latest"),
-            default=data.get("default", False),
-            profile=data.get("profile"),
-            depends_on=data.get("depends_on", []),
-            image=data.get("image"),
-            build=data.get("build"),
-            compose=data.get("compose", {}),
-            env_vars=data.get("env_vars", {}),
-            files=data.get("files", []),
-            gitignore=data.get("gitignore", []),
-            hooks=data.get("hooks", {}),
-            dev=data.get("dev", {}),
-            source_path=source_path,
-            phlo_dev=data.get("phlo_dev", False),
-            core=data.get("core", False),
-        )
-
-    @classmethod
-    def from_inline(cls, name: str, config: dict[str, Any]) -> "ServiceDefinition":
-        """Create a ServiceDefinition from inline config in phlo.yaml.
-
-        Example phlo.yaml:
-            services:
-              custom-api:
-                type: inline
-                image: my-registry/api:latest
-                ports:
-                  - "4000:4000"
-                depends_on:
-                  - trino
-        """
-        # Build compose section from inline config
-        compose_keys = (
-            "user",
-            "container_name",
-            "labels",
-            "environment",
-            "ports",
-            "volumes",
-            "command",
-            "entrypoint",
-            "healthcheck",
-            "restart",
-            "mem_limit",
-            "mem_reservation",
-            "cpus",
-            "shm_size",
-        )
-        compose = {k: config[k] for k in compose_keys if k in config}
-
-        return cls(
-            name=name,
-            description=config.get("description", f"Custom service: {name}"),
-            category="custom",
-            default=True,  # Inline services are always included
-            depends_on=config.get("depends_on", []),
-            image=config.get("image"),
-            build=config.get("build"),
-            compose=compose,
-        )
+    """Compatibility wrapper around shared cycle-detection utilities."""
+    return _find_cycles_impl(nodes, graph)
 
 
 class ServiceDiscovery:
@@ -457,43 +279,7 @@ class ServiceDiscovery:
         """
         self.discover()
 
-        # Build dependency graph
-        service_names = {s.name for s in services}
-        graph: dict[str, set[str]] = {}
-        in_degree: dict[str, int] = {}
-
-        for service in services:
-            graph[service.name] = set()
-            in_degree[service.name] = 0
-
-        for service in services:
-            for dep in service.depends_on:
-                if dep in service_names:
-                    graph[dep].add(service.name)
-                    in_degree[service.name] += 1
-
-        # Kahn's algorithm for topological sort
-        queue = deque(name for name, degree in in_degree.items() if degree == 0)
-        result: list[str] = []
-
-        while queue:
-            node = queue.popleft()
-            result.append(node)
-
-            for neighbor in graph[node]:
-                in_degree[neighbor] -= 1
-                if in_degree[neighbor] == 0:
-                    queue.append(neighbor)
-
-        if len(result) != len(services):
-            remaining = set(in_degree.keys()) - set(result)
-            cycles = _find_cycles(remaining, graph)
-            cycle_detail = "; ".join(" → ".join(c) for c in cycles) if cycles else str(remaining)
-            raise ValueError(f"Circular dependency detected: {cycle_detail}")
-
-        # Return services in sorted order
-        name_to_service = {s.name: s for s in services}
-        return [name_to_service[name] for name in result]
+        return resolve_service_dependencies(services)
 
     def list_all(self) -> list[dict[str, Any]]:
         """List all services with their metadata.
