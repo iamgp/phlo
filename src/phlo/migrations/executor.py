@@ -29,9 +29,15 @@ class MigrationExecutionError(RuntimeError):
 class MigrationExecutor:
     """Execute data migrations from parsed specs."""
 
-    def validate(self, spec: MigrationSpec) -> list[str]:
+    def validate(
+        self,
+        spec: MigrationSpec,
+        *,
+        dry_run_override: bool | None = None,
+    ) -> list[str]:
         """Validate migration spec and environment without writing."""
         errors: list[str] = []
+        dry_run = spec.options.dry_run if dry_run_override is None else dry_run_override
         discover_capabilities()
 
         adapter = resolve_source_adapter(spec.source.type)
@@ -47,7 +53,7 @@ class MigrationExecutor:
         if spec.destination.write_mode == "merge" and not spec.destination.unique_key:
             errors.append("destination.unique_key is required for merge write_mode")
 
-        if not spec.options.dry_run and not get_capability_registry().list_table_stores():
+        if not dry_run and not get_capability_registry().list_table_stores():
             errors.append(
                 "No table store registered. Install a table-store provider or run with --dry-run"
             )
@@ -66,7 +72,7 @@ class MigrationExecutor:
         """Execute a migration specification."""
         dry_run = spec.options.dry_run if dry_run_override is None else dry_run_override
 
-        validation_errors = self.validate(spec)
+        validation_errors = self.validate(spec, dry_run_override=dry_run_override)
         if validation_errors:
             raise MigrationExecutionError("; ".join(validation_errors))
 
@@ -297,7 +303,11 @@ def _write_chunk_to_table_store(
             table_store.append_parquet(table_name=table_name, data_path=parquet_path)
             return
         if write_mode == "overwrite":
-            if first_chunk and hasattr(table_store, "overwrite_parquet"):
+            if not hasattr(table_store, "overwrite_parquet"):
+                raise MigrationExecutionError(
+                    "write_mode 'overwrite' requires table store support for overwrite_parquet"
+                )
+            if first_chunk:
                 table_store.overwrite_parquet(table_name=table_name, data_path=parquet_path)
             else:
                 table_store.append_parquet(table_name=table_name, data_path=parquet_path)
@@ -330,5 +340,9 @@ def _stage_chunk_parquet(chunk: list[dict[str, Any]]) -> Path:
         prefix="phlo-migrate-", suffix=".parquet", delete=False
     ) as tmp:
         temp_path = Path(tmp.name)
-    pq.write_table(table, temp_path)
+    try:
+        pq.write_table(table, temp_path)
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
     return temp_path
