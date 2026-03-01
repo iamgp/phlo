@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 from collections import deque
+from typing import Protocol, TypeVar
 
 from phlo.plugins.discovery._service_cycles import find_cycles
-from phlo.plugins.discovery._service_definition import ServiceDefinition
 
 
-def resolve_service_dependencies(services: list[ServiceDefinition]) -> list[ServiceDefinition]:
+class _ServiceLike(Protocol):
+    """Structural type for service dependency resolution."""
+
+    name: str
+    depends_on: list[str]
+
+
+_ServiceT = TypeVar("_ServiceT", bound=_ServiceLike)
+
+
+def resolve_service_dependencies(services: list[_ServiceT]) -> list[_ServiceT]:
     """Resolve and sort services by dependencies (topological order)."""
     service_names = {service.name for service in services}
     graph: dict[str, set[str]] = {}

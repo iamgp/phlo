@@ -44,7 +44,7 @@ class OpenMetadataColumn:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dict, excluding None values."""
-        return {k: v for k, v in asdict(self).items() if v is not None}
+        return compact_dict(asdict(self))
 
 
 @dataclass(slots=True)
@@ -614,7 +614,7 @@ class OpenMetadataClient:
         }
         if parameter_definition is not None:
             data_new["parameterDefinition"] = parameter_definition
-        data_new = {k: v for k, v in data_new.items() if v is not None}
+        data_new = compact_dict(data_new)
 
         data_legacy: dict[str, Any] = {
             "name": sanitized_name,
@@ -624,7 +624,7 @@ class OpenMetadataClient:
         }
         if parameter_definition is not None:
             data_legacy["parameterDefinition"] = parameter_definition
-        data_legacy = {k: v for k, v in data_legacy.items() if v is not None}
+        data_legacy = compact_dict(data_legacy)
 
         try:
             return self._request_fallback(
@@ -667,7 +667,7 @@ class OpenMetadataClient:
             "basicEntityReference": table_fqn,
             "description": description,
         }
-        data = {k: v for k, v in data.items() if v is not None}
+        data = compact_dict(data)
         return self._request("POST", "/v1/dataQuality/testSuites", data=data)
 
     def ensure_test_suite(
