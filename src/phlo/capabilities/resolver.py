@@ -22,6 +22,7 @@ _CAPABILITY_LISTERS = {
     "lineage_sink": "list_lineage_sinks",
     "governance_backend": "list_governance_backends",
     "secret_backend": "list_secret_backends",
+    "schema_migrator": "list_schema_migrators",
 }
 
 
