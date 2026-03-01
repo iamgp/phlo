@@ -982,6 +982,9 @@ phlo schema-migrate history warehouse.customers --limit 5
 
 ## Data Migration Commands
 
+For end-to-end spec authoring and execution workflow, see
+[Data Migrations Guide](../guides/data-migrations.md).
+
 ### phlo migrate validate
 
 Validate a migration YAML spec without executing writes.

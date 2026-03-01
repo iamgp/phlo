@@ -461,6 +461,78 @@ class CustomOrchestratorAdapter(OrchestratorAdapterPlugin):
 
 ---
 
+## Runtime Capability Interfaces
+
+`phlo.capabilities.interfaces`
+
+These runtime protocols define the provider contracts resolved by capability
+discovery and consumed by ingestion/migration flows.
+
+### TableStore
+
+Required methods:
+
+- `ensure_table(...)`
+- `append_parquet(...)`
+- `merge_parquet(...)`
+
+Optional extended operations:
+
+- `overwrite_parquet(...)`
+- `delete_rows(...)`
+- `compact(...)`
+- `list_snapshots(...)`
+- `rollback_to_snapshot(...)`
+- `vacuum(...)`
+
+### GovernanceBackend
+
+Policy contract for governance providers:
+
+- `list_policies(...)`
+- `apply_policy(...)`
+- `revoke_policy(...)`
+- `check_access(...)`
+
+### SecretBackend
+
+Secret storage contract:
+
+- `get_secret(key)`
+- `list_secrets()`
+
+### SchemaExtractor
+
+Provider contract for converting native quality schemas into
+`NormalizedSchema`:
+
+- `extract(native_schema)`
+
+### SchemaMigrator
+
+Storage-native schema migration contract:
+
+- `supported_changes()`
+- `classify_change(change_type, **details)`
+- `diff_schema(table_name, desired)`
+- `apply_plan(plan, approved=False)`
+- `get_schema_history(table_name, limit=10)`
+
+### AccessPolicy
+
+Value object used by governance providers:
+
+- `policy_id`
+- `principal`
+- `table_pattern`
+- `action`
+- `effect`
+- `columns`
+- `row_filter`
+- `data_masking`
+
+---
+
 ## Entry Point Registration
 
 Plugins are discovered at runtime via Python [entry points](https://packaging.python.org/en/latest/specifications/entry-points/). Declare them in your package's `pyproject.toml`:
