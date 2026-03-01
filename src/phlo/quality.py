@@ -6,7 +6,7 @@ quality provider plugins. The primary provider is phlo-pandera.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 from phlo.logging import get_logger
 
@@ -15,15 +15,76 @@ logger = get_logger(__name__)
 if TYPE_CHECKING:
     from phlo.plugins.base.quality_provider import QualityProviderPlugin
 
+get_quality_checks: Callable[[], list[Any]] | None = None
+clear_quality_checks: Callable[[], None] | None = None
+QualityCheck: type | None = None
+NullCheck: type | None = None
+RangeCheck: type | None = None
+FreshnessCheck: type | None = None
+UniqueCheck: type | None = None
+CountCheck: type | None = None
+SchemaCheck: type | None = None
+CustomSQLCheck: type | None = None
+PatternCheck: type | None = None
+ReconciliationCheck: type | None = None
+AggregateConsistencyCheck: type | None = None
+AggregateSpec: type | None = None
+KeyParityCheck: type | None = None
+MultiAggregateConsistencyCheck: type | None = None
+ChecksumReconciliationCheck: type | None = None
+PANDERA_CONTRACT_CHECK_NAME: str | None = None
+QualityCheckContract: type | None = None
+dbt_check_name: Callable[[str, str], str] | None = None
+phlo_quality: Callable | None = None
 
-def _load_quality_provider() -> "QualityProviderPlugin":
+
+def _load_quality_provider() -> "QualityProviderPlugin | None":
     """Load quality provider via plugin discovery, with fallback to direct import."""
+    global phlo_quality
+    global get_quality_checks
+    global clear_quality_checks
+    global QualityCheck
+    global NullCheck
+    global RangeCheck
+    global FreshnessCheck
+    global UniqueCheck
+    global CountCheck
+    global SchemaCheck
+    global CustomSQLCheck
+    global PatternCheck
+    global ReconciliationCheck
+    global AggregateConsistencyCheck
+    global AggregateSpec
+    global KeyParityCheck
+    global MultiAggregateConsistencyCheck
+    global ChecksumReconciliationCheck
+    global PANDERA_CONTRACT_CHECK_NAME
+    global QualityCheckContract
+    global dbt_check_name
+
     try:
         from phlo.plugins.discovery import discover_plugins, get_quality_provider
 
         discover_plugins()
         provider = get_quality_provider("pandera")
         if provider is not None:
+            phlo_quality = provider.get_decorator()
+            check_classes = provider.get_check_classes()
+            NullCheck = check_classes.get("null")
+            RangeCheck = check_classes.get("range")
+            FreshnessCheck = check_classes.get("freshness")
+            UniqueCheck = check_classes.get("unique")
+            CountCheck = check_classes.get("count")
+            SchemaCheck = check_classes.get("schema")
+            PatternCheck = check_classes.get("pattern")
+            QualityCheck = check_classes.get("quality_check")
+            rec_classes = provider.get_reconciliation_checks() or {}
+            ReconciliationCheck = rec_classes.get("reconciliation")
+            AggregateConsistencyCheck = rec_classes.get("aggregate_consistency")
+            AggregateSpec = rec_classes.get("aggregate_spec")
+            KeyParityCheck = rec_classes.get("key_parity")
+            MultiAggregateConsistencyCheck = rec_classes.get("multi_aggregate")
+            ChecksumReconciliationCheck = rec_classes.get("checksum")
             return provider
     except Exception as e:
         logger.warning("quality_provider_discovery_failed", exc_info=True, error=str(e))
@@ -90,66 +151,32 @@ def _load_quality_provider() -> "QualityProviderPlugin":
             get_quality_checks as _get_quality_checks,
         )
         from phlo_pandera import (
-            phlo_pandera as _phlo_quality,
+            phlo_pandera as _phlo_pandera,
         )
 
-        class _DirectImportProvider:
-            """Compatibility wrapper for direct import fallback."""
-
-            @property
-            def _check_classes(self):
-                return {
-                    "null": _NullCheck,
-                    "range": _RangeCheck,
-                    "freshness": _FreshnessCheck,
-                    "unique": _UniqueCheck,
-                    "count": _CountCheck,
-                    "schema": _SchemaCheck,
-                    "pattern": _PatternCheck,
-                }
-
-            def get_decorator(self):
-                return _phlo_quality
-
-            def get_check_classes(self):
-                return self._check_classes
-
-            def get_schema_extractor(self):
-                return None
-
-            def get_reconciliation_checks(self):
-                return {
-                    "reconciliation": _ReconciliationCheck,
-                    "aggregate_consistency": _AggregateConsistencyCheck,
-                    "aggregate_spec": _AggregateSpec,
-                    "key_parity": _KeyParityCheck,
-                    "multi_aggregate": _MultiAggregateConsistencyCheck,
-                    "checksum": _ChecksumReconciliationCheck,
-                }
-
-        _direct_provider = _DirectImportProvider()
-
-        global get_quality_checks, clear_quality_checks, QualityCheck
-        global CustomSQLCheck, QualityCheckContract, dbt_check_name
-        global PANDERA_CONTRACT_CHECK_NAME
-        global ReconciliationCheck, AggregateConsistencyCheck, AggregateSpec
-        global KeyParityCheck, MultiAggregateConsistencyCheck, ChecksumReconciliationCheck
-
+        phlo_quality = _phlo_pandera
         get_quality_checks = _get_quality_checks
         clear_quality_checks = _clear_quality_checks
         QualityCheck = _QualityCheck
+        NullCheck = _NullCheck
+        RangeCheck = _RangeCheck
+        FreshnessCheck = _FreshnessCheck
+        UniqueCheck = _UniqueCheck
+        CountCheck = _CountCheck
+        SchemaCheck = _SchemaCheck
         CustomSQLCheck = _CustomSQLCheck
-        QualityCheckContract = _QualityCheckContract
-        dbt_check_name = _dbt_check_name
-        PANDERA_CONTRACT_CHECK_NAME = _PANDERA_CONTRACT_CHECK_NAME
+        PatternCheck = _PatternCheck
         ReconciliationCheck = _ReconciliationCheck
         AggregateConsistencyCheck = _AggregateConsistencyCheck
         AggregateSpec = _AggregateSpec
         KeyParityCheck = _KeyParityCheck
         MultiAggregateConsistencyCheck = _MultiAggregateConsistencyCheck
         ChecksumReconciliationCheck = _ChecksumReconciliationCheck
+        PANDERA_CONTRACT_CHECK_NAME = _PANDERA_CONTRACT_CHECK_NAME
+        QualityCheckContract = _QualityCheckContract
+        dbt_check_name = _dbt_check_name
 
-        return _direct_provider
+        return None
     except ModuleNotFoundError:
         pass
 
@@ -158,19 +185,7 @@ def _load_quality_provider() -> "QualityProviderPlugin":
     )
 
 
-_provider = _load_quality_provider()
-
-phlo_quality = _provider.get_decorator()
-_check_classes = _provider.get_check_classes()
-_reconciliation_classes = _provider.get_reconciliation_checks() or {}
-
-NullCheck = _check_classes.get("null")
-RangeCheck = _check_classes.get("range")
-FreshnessCheck = _check_classes.get("freshness")
-UniqueCheck = _check_classes.get("unique")
-CountCheck = _check_classes.get("count")
-SchemaCheck = _check_classes.get("schema")
-PatternCheck = _check_classes.get("pattern")
+_load_quality_provider()
 
 
 __all__ = [
