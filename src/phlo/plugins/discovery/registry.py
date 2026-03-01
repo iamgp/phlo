@@ -15,6 +15,7 @@ from phlo.plugins.base import (
     OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
+    QualityProviderPlugin,
     ResourceProviderPlugin,
     ServicePlugin,
     SourceConnectorPlugin,
@@ -27,6 +28,7 @@ logger = get_logger(__name__)
 _TYPE_CONFIG = {
     "source_connectors": ("_sources", "source", "Source connector"),
     "quality_checks": ("_quality_checks", "quality", "Quality check"),
+    "quality_providers": ("_quality_providers", "quality_provider", "Quality provider"),
     "transformations": ("_transformations", "transformation", "Transformation"),
     "services": ("_services", "service", "Service"),
     "cli_commands": ("_cli_commands", "cli", "CLI command"),
@@ -50,6 +52,7 @@ class PluginRegistry:
         """Initialize empty plugin registry."""
         self._sources: dict[str, SourceConnectorPlugin] = {}
         self._quality_checks: dict[str, QualityCheckPlugin] = {}
+        self._quality_providers: dict[str, QualityProviderPlugin] = {}
         self._transformations: dict[str, TransformationPlugin] = {}
         self._services: dict[str, ServicePlugin] = {}
         self._cli_commands: dict[str, CliCommandPlugin] = {}
@@ -100,6 +103,12 @@ class PluginRegistry:
     def register_quality_check(self, plugin: QualityCheckPlugin, replace: bool = False) -> None:
         """Register a quality check plugin."""
         self._register_plugin("quality_checks", plugin, replace)
+
+    def register_quality_provider(
+        self, plugin: QualityProviderPlugin, replace: bool = False
+    ) -> None:
+        """Register a quality provider plugin."""
+        self._register_plugin("quality_providers", plugin, replace)
 
     def register_transformation(self, plugin: TransformationPlugin, replace: bool = False) -> None:
         """Register a transformation plugin."""
@@ -163,6 +172,10 @@ class PluginRegistry:
         """Get a quality check plugin by name."""
         return self._quality_checks.get(name)
 
+    def get_quality_provider(self, name: str) -> QualityProviderPlugin | None:
+        """Get a quality provider plugin by name."""
+        return self._quality_providers.get(name)
+
     def get_transformation(self, name: str) -> TransformationPlugin | None:
         """Get a transformation plugin by name."""
         return self._transformations.get(name)
@@ -202,6 +215,10 @@ class PluginRegistry:
     def list_quality_checks(self) -> list[str]:
         """List all registered quality check plugins."""
         return list(self._quality_checks.keys())
+
+    def list_quality_providers(self) -> list[str]:
+        """List all registered quality provider plugins."""
+        return list(self._quality_providers.keys())
 
     def list_transformations(self) -> list[str]:
         """List all registered transformation plugins."""

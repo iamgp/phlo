@@ -13,6 +13,7 @@ from phlo.plugins.base.orchestrator import OrchestratorAdapterPlugin
 from phlo.plugins.base.plugin import Plugin, PluginMetadata
 from phlo.plugins.base.providers import AssetProviderPlugin, ResourceProviderPlugin
 from phlo.plugins.base.quality import QualityCheckPlugin
+from phlo.plugins.base.quality_provider import QualityProviderPlugin
 from phlo.plugins.base.service import ServicePlugin
 from phlo.plugins.base.source import SourceConnectorPlugin
 from phlo.plugins.base.transform import TransformationPlugin
@@ -23,6 +24,7 @@ __all__ = [
     "CliCommandPlugin",
     "SourceConnectorPlugin",
     "QualityCheckPlugin",
+    "QualityProviderPlugin",
     "TransformationPlugin",
     "ServicePlugin",
     "CatalogPlugin",

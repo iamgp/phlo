@@ -122,7 +122,7 @@ phlo-dlt = { workspace = true }
 phlo-dbt = { workspace = true }
 phlo-dagster = { workspace = true }
 phlo-api = { workspace = true }
-phlo-quality = { workspace = true }
+phlo-pandera = { workspace = true }
 phlo-lineage = { workspace = true }
 phlo-alerting = { workspace = true }
 phlo-observatory = { workspace = true }
@@ -212,7 +212,7 @@ extra-paths = [
   "packages/phlo-postgres/src",
   "packages/phlo-postgrest/src",
   "packages/phlo-prometheus/src",
-  "packages/phlo-quality/src",
+  "packages/phlo-pandera/src",
   "packages/phlo-superset/src",
   "packages/phlo-testing/src",
   "packages/phlo-trino/src",

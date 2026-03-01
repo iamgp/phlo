@@ -136,7 +136,7 @@ Run ad-hoc queries:
 
 - [phlo-api](phlo-api.md) - Backend API
 - [phlo-lineage](phlo-lineage.md) - Lineage data
-- [phlo-quality](phlo-quality.md) - Quality checks
+- [phlo-pandera](phlo-pandera.md) - Quality checks
 - [phlo-nessie](phlo-nessie.md) - Branch management
 
 ## Next Steps

@@ -18,7 +18,7 @@ Phlo is organized as a monorepo with individual packages that provide specific f
 | [phlo-dbt](phlo-dbt.md)         | dbt integration for SQL transformations                             |
 | [phlo-dlt](phlo-dlt.md)         | Data Load Tool integration for ingestion                            |
 | [phlo-iceberg](phlo-iceberg.md) | Apache Iceberg catalog and table format support                     |
-| [phlo-quality](phlo-quality.md) | Data quality validation and checks                                  |
+| [phlo-pandera](phlo-pandera.md) | Data quality validation and checks                                  |
 | [phlo-lineage](phlo-lineage.md) | Data lineage tracking and visualization                             |
 
 ### Infrastructure Services

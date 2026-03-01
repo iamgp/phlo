@@ -243,11 +243,11 @@ dbt gives a clean SQL boundary for transformation logic, while Phlo keeps discov
 
 ## Next Steps
 
-1. Continue to [Part 7](07-quality-checks-with-pandera-and-phlo-quality.md) to enforce contracts and checks.
+1. Continue to [Part 7](07-quality-checks-with-pandera-and-phlo-pandera.md) to enforce contracts and checks.
 2. Add model test coverage for every gold output used by stakeholders.
 
 ## See Also
 
-- [Part 7: Quality Checks with Pandera and Phlo Quality](07-quality-checks-with-pandera-and-phlo-quality.md)
+- [Part 7: Quality Checks with Pandera and Phlo Quality](07-quality-checks-with-pandera-and-phlo-pandera.md)
 - [Part 11: Performance and Cost Optimisation](11-performance-and-cost-optimization.md)
 - [dbt Development Guide](../../guides/dbt-development.md)

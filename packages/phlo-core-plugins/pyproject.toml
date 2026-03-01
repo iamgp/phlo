@@ -19,7 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 quality = [
-    "phlo-quality>=0.1.0",
+    "phlo-pandera>=0.1.0",
 ]
 dev = [
     "pytest>=7.0",

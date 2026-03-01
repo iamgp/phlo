@@ -147,7 +147,7 @@ Physical Table (for active store)
 
 - [phlo-dagster](phlo-dagster.md) - Dagster adapter for capability specs
 - [phlo-iceberg](phlo-iceberg.md) - Iceberg table format
-- [phlo-quality](phlo-quality.md) - Data validation
+- [phlo-pandera](phlo-pandera.md) - Data validation
 - [phlo-nessie](phlo-nessie.md) - Branch management
 
 ## Next Steps

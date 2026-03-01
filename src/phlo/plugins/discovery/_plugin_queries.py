@@ -6,6 +6,7 @@ from phlo.logging import get_logger
 from phlo.plugins.base import (
     Plugin,
     QualityCheckPlugin,
+    QualityProviderPlugin,
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
@@ -51,6 +52,12 @@ def get_quality_check(name: str) -> QualityCheckPlugin | None:
     """Get a quality check plugin by name."""
     registry = get_global_registry()
     return registry.get_quality_check(name)
+
+
+def get_quality_provider(name: str) -> QualityProviderPlugin | None:
+    """Get a quality provider plugin by name."""
+    registry = get_global_registry()
+    return registry.get_quality_provider(name)
 
 
 def get_transformation(name: str) -> TransformationPlugin | None:

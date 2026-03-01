@@ -39,11 +39,11 @@ members = [
     "phlo-observatory",
     "phlo-observatory-example",
     "phlo-openmetadata",
+    "phlo-pandera",
     "phlo-pgweb",
     "phlo-postgres",
     "phlo-postgrest",
     "phlo-prometheus",
-    "phlo-quality",
     "phlo-superset",
     "phlo-testing",
     "phlo-trino",
@@ -2519,7 +2519,7 @@ wheels = [
 
 [[package]]
 name = "phlo"
-version = "0.5.1"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
@@ -2749,13 +2749,13 @@ dev = [
     { name = "ruff" },
 ]
 quality = [
-    { name = "phlo-quality" },
+    { name = "phlo-pandera" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "phlo", editable = "." },
-    { name = "phlo-quality", marker = "extra == 'quality'", editable = "packages/phlo-quality" },
+    { name = "phlo-pandera", marker = "extra == 'quality'", editable = "packages/phlo-pandera" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "requests", specifier = ">=2.28.0" },
@@ -2821,7 +2821,7 @@ dev = [
     { name = "ruff" },
 ]
 quality = [
-    { name = "phlo-quality" },
+    { name = "phlo-pandera" },
 ]
 
 [package.metadata]
@@ -2831,7 +2831,7 @@ requires-dist = [
     { name = "dbt-trino", specifier = ">=1.9.3" },
     { name = "phlo", editable = "." },
     { name = "phlo-dagster", marker = "extra == 'dagster'", editable = "packages/phlo-dagster" },
-    { name = "phlo-quality", marker = "extra == 'quality'", editable = "packages/phlo-quality" },
+    { name = "phlo-pandera", marker = "extra == 'quality'", editable = "packages/phlo-pandera" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
@@ -3180,7 +3180,7 @@ postgres = [
     { name = "phlo-postgres" },
 ]
 quality = [
-    { name = "phlo-quality" },
+    { name = "phlo-pandera" },
 ]
 trino = [
     { name = "phlo-trino" },
@@ -3192,11 +3192,44 @@ requires-dist = [
     { name = "phlo-dbt", marker = "extra == 'dbt'", editable = "packages/phlo-dbt" },
     { name = "phlo-lineage", marker = "extra == 'lineage'", editable = "packages/phlo-lineage" },
     { name = "phlo-nessie", marker = "extra == 'nessie'", editable = "packages/phlo-nessie" },
+    { name = "phlo-pandera", marker = "extra == 'quality'", editable = "packages/phlo-pandera" },
     { name = "phlo-postgres", marker = "extra == 'postgres'", editable = "packages/phlo-postgres" },
-    { name = "phlo-quality", marker = "extra == 'quality'", editable = "packages/phlo-quality" },
     { name = "phlo-trino", marker = "extra == 'trino'", editable = "packages/phlo-trino" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+
+[[package]]
+name = "phlo-pandera"
+version = "0.1.0"
+source = { editable = "packages/phlo-pandera" }
+dependencies = [
+    { name = "click" },
+    { name = "pandas" },
+    { name = "pandera" },
+    { name = "phlo" },
+    { name = "rich" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+observatory = [
+    { name = "phlo-observatory" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.3.0" },
+    { name = "pandas", specifier = ">=2.3.3" },
+    { name = "pandera", specifier = ">=0.26.1" },
+    { name = "phlo", editable = "." },
+    { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "rich", specifier = ">=14.2.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 
@@ -3301,39 +3334,6 @@ requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-]
-
-[[package]]
-name = "phlo-quality"
-version = "0.1.0"
-source = { editable = "packages/phlo-quality" }
-dependencies = [
-    { name = "click" },
-    { name = "pandas" },
-    { name = "pandera" },
-    { name = "phlo" },
-    { name = "rich" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
-]
-observatory = [
-    { name = "phlo-observatory" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.3.0" },
-    { name = "pandas", specifier = ">=2.3.3" },
-    { name = "pandera", specifier = ">=0.26.1" },
-    { name = "phlo", editable = "." },
-    { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "rich", specifier = ">=14.2.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 

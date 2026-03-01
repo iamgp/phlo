@@ -7,11 +7,11 @@ import pytest
 from phlo_dbt.translator import DbtSpecTranslator
 
 from phlo_dbt.asset_checks import extract_dbt_asset_checks
-from phlo_quality.pandera_asset_checks import (
+from phlo_pandera.pandera_asset_checks import (
     evaluate_pandera_contract_parquet,
     pandera_contract_asset_check_result,
 )
-from phlo_quality.schemas.base import PhloSchema
+from phlo_pandera.schemas.base import PhloSchema
 
 pytestmark = pytest.mark.integration
 

@@ -525,5 +525,5 @@ Debug patterns: [Troubleshooting](../../operations/troubleshooting.md)
 ## See Also
 
 - [Part 4: Iceberg and Nessie for Reliable Tables](04-iceberg-and-nessie-for-reliable-tables.md)
-- [Part 7: Quality Checks with Pandera and Phlo Quality](07-quality-checks-with-pandera-and-phlo-quality.md)
+- [Part 7: Quality Checks with Pandera and Phlo Quality](07-quality-checks-with-pandera-and-phlo-pandera.md)
 - [Data Modelling Guide](../../guides/data-modeling.md)

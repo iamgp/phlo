@@ -28,7 +28,7 @@ dagster = [
     "phlo-dagster>=0.1.0",
 ]
 quality = [
-    "phlo-quality>=0.1.0",
+    "phlo-pandera>=0.1.0",
 ]
 
 [project.entry-points."phlo.plugins.assets"]

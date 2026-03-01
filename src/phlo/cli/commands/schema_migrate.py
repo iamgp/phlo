@@ -48,7 +48,7 @@ def _resolve_migrator() -> Any:
 def _resolve_extractor() -> Any:
     """Resolve a SchemaExtractor by attempting known quality providers."""
     try:
-        from phlo_quality.schema_extractor import PanderaSchemaExtractor
+        from phlo_pandera.schema_extractor import PanderaSchemaExtractor
 
         return PanderaSchemaExtractor()
     except ImportError:
@@ -63,7 +63,7 @@ def _discover_schema_for_table(table_name: str) -> Any:
     """
     schemas: dict[str, Any] = {}
     try:
-        from phlo_quality.cli_schema_utils import discover_pandera_schemas
+        from phlo_pandera.cli_schema_utils import discover_pandera_schemas
 
         schemas = discover_pandera_schemas()
     except ImportError:
@@ -134,7 +134,7 @@ def _resolve_desired_schema(table_name: str, schema_class: str | None) -> tuple[
         sys.exit(1)
 
     if extractor is None:
-        console.print("[red]No schema extractor available. Install phlo-quality.[/red]")
+        console.print("[red]No schema extractor available. Install phlo-pandera.[/red]")
         sys.exit(1)
 
     desired = extractor.extract(native_schema)
@@ -675,7 +675,7 @@ def _find_native_schema(table_name: str, schema_class: str | None) -> Any:
     if schema_class:
         candidates: dict[str, Any] = {}
         try:
-            from phlo_quality.cli_schema_utils import discover_pandera_schemas
+            from phlo_pandera.cli_schema_utils import discover_pandera_schemas
 
             candidates.update(discover_pandera_schemas())
         except ImportError:

@@ -19,6 +19,7 @@ from phlo.plugins.base import (
     OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
+    QualityProviderPlugin,
     ResourceProviderPlugin,
     ServicePlugin,
     SourceConnectorPlugin,
@@ -39,6 +40,7 @@ logger = get_logger(__name__)
 ENTRY_POINT_GROUPS = {
     "source_connectors": "phlo.plugins.sources",
     "quality_checks": "phlo.plugins.quality",
+    "quality_providers": "phlo.plugins.quality_providers",
     "transformations": "phlo.plugins.transforms",
     "services": "phlo.plugins.services",
     "cli_commands": "phlo.plugins.cli",
@@ -53,6 +55,7 @@ ENTRY_POINT_GROUPS = {
 _PLUGIN_REGISTER_METHODS = {
     "source_connectors": "register_source_connector",
     "quality_checks": "register_quality_check",
+    "quality_providers": "register_quality_provider",
     "transformations": "register_transformation",
     "services": "register_service",
     "cli_commands": "register_cli_command_plugin",
@@ -67,6 +70,7 @@ _PLUGIN_REGISTER_METHODS = {
 _PLUGIN_GETTER_METHODS = {
     "source_connectors": "get_source_connector",
     "quality_checks": "get_quality_check",
+    "quality_providers": "get_quality_provider",
     "transformations": "get_transformation",
     "services": "get_service",
     "cli_commands": "get_cli_command_plugin",
@@ -80,6 +84,7 @@ _PLUGIN_GETTER_METHODS = {
 _PLUGIN_EXPECTED_TYPES = {
     "source_connectors": SourceConnectorPlugin,
     "quality_checks": QualityCheckPlugin,
+    "quality_providers": QualityProviderPlugin,
     "transformations": TransformationPlugin,
     "services": ServicePlugin,
     "cli_commands": CliCommandPlugin,
@@ -547,6 +552,28 @@ def get_quality_check(name: str) -> QualityCheckPlugin | None:
     """
     registry = get_global_registry()
     return registry.get_quality_check(name)
+
+
+def get_quality_provider(name: str) -> QualityProviderPlugin | None:
+    """
+    Get a quality provider plugin by name.
+
+    Args:
+        name: Plugin name (e.g., "pandera")
+
+    Returns:
+        QualityProviderPlugin instance or None if not found
+
+    Example:
+        ```python
+        provider = get_quality_provider("pandera")
+        if provider:
+            decorator = provider.get_decorator()
+            check_classes = provider.get_check_classes()
+        ```
+    """
+    registry = get_global_registry()
+    return registry.get_quality_provider(name)
 
 
 def get_transformation(name: str) -> TransformationPlugin | None:
