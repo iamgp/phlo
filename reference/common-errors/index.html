@@ -1875,7 +1875,7 @@ class MySchema(pa.DataFrameModel):
 <hr />
 <h3 id="5-missing-required-schema-parameter">5. Missing Required Schema Parameter</h3>
 <p><strong>Error Message</strong>:</p>
-<pre><code>ValueError: Either 'validation_schema' or 'iceberg_schema' must be provided
+<pre><code>ValueError: Missing required schema parameter (`validation_schema` or `table_schema`)
 </code></pre>
 <p><strong>Cause</strong>: Decorator missing schema parameter</p>
 <p><strong>Solution</strong>:</p>
@@ -1887,7 +1887,8 @@ class MySchema(pa.DataFrameModel):
     group=&quot;my_group&quot;,
 )
 </code></pre>
-<p><strong>Best practice</strong>: Always use <code>validation_schema</code> - Iceberg schema is auto-generated.</p>
+<p><strong>Best practice</strong>: Use <code>validation_schema</code> for contracts and provide <code>table_schema</code> when your
+active <code>table_store</code> cannot derive storage schema from validation models.</p>
 <p><strong>Details</strong>: <a href="./audit/error_message_audit.md#scenario-5">Error Message Audit</a></p>
 <hr />
 <h3 id="6-dlt-pipeline-failed">6. DLT Pipeline Failed</h3>

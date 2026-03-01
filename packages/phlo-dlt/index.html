@@ -1854,7 +1854,7 @@
 <h1 id="phlo-dlt">phlo-dlt</h1>
 <p>DLT (Data Load Tool) ingestion engine for Phlo.</p>
 <h2 id="overview">Overview</h2>
-<p><code>phlo-dlt</code> provides the <code>@phlo_ingestion</code> decorator for defining data ingestion pipelines using DLT. It automatically materializes data into Iceberg tables with schema evolution and full lineage tracking.</p>
+<p><code>phlo-dlt</code> provides the <code>@phlo_ingestion</code> decorator for defining data ingestion pipelines using DLT. It materializes data into the active <code>table_store</code> with schema evolution and full lineage tracking.</p>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-dlt
 # or
@@ -1958,7 +1958,7 @@ def api_events(partition_date: str):
 <tr>
 <td><code>table_name</code></td>
 <td><code>str</code></td>
-<td>Target Iceberg table name</td>
+<td>Target table-store table name</td>
 </tr>
 <tr>
 <td><code>unique_key</code></td>
@@ -1969,6 +1969,11 @@ def api_events(partition_date: str):
 <td><code>validation_schema</code></td>
 <td><code>DataFrameModel</code></td>
 <td>Pandera schema for validation</td>
+</tr>
+<tr>
+<td><code>table_schema</code></td>
+<td><code>Any</code></td>
+<td>Explicit table-store schema (optional)</td>
 </tr>
 <tr>
 <td><code>group</code></td>
@@ -2012,6 +2017,8 @@ def api_events(partition_date: str):
     merge_strategy=&quot;append&quot;
 )
 </code></pre>
+<p>When <code>table_schema</code> is omitted, the active <code>table_store</code> provider must implement
+schema derivation from <code>validation_schema</code> (for example Iceberg provider conversion).</p>
 <h3 id="running-ingestion">Running Ingestion</h3>
 <pre><code class="language-bash"># Via Phlo CLI
 phlo materialize dlt_api_events
@@ -2028,9 +2035,9 @@ Parquet Staging (S3)
      ↓
 Pandera Validation
      ↓
-PyIceberg Merge
+Table Store Merge
      ↓
-Iceberg Table (on Nessie branch)
+Physical Table (for active store)
 </code></pre>
 <h2 id="entry-points">Entry Points</h2>
 <table>

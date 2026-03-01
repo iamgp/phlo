@@ -2382,7 +2382,7 @@ def test_data_filtering():
 </ul>
 <p><strong>Example</strong>:</p>
 <pre><code class="language-python">from phlo_testing import mock_iceberg_catalog
-from phlo_dlt.converter import pandera_to_iceberg
+from phlo_iceberg.schema_conversion import pandera_to_iceberg
 from workflows.schemas.weather import RawWeatherData
 import pandas as pd
 
@@ -2522,7 +2522,7 @@ result.metadata     # dict: metadata (validation status, etc.)
 <h3 id="combining-mockicebergcatalog-test_asset_execution">Combining MockIcebergCatalog + test_asset_execution</h3>
 <p>Full end-to-end test without Docker:</p>
 <pre><code class="language-python">from phlo_testing import test_asset_execution, mock_iceberg_catalog
-from phlo_dlt.converter import pandera_to_iceberg
+from phlo_iceberg.schema_conversion import pandera_to_iceberg
 from workflows.schemas.weather import RawWeatherData
 
 def test_full_pipeline_local():
