@@ -195,3 +195,27 @@ def test_find_native_schema_prefers_primary_discovery(monkeypatch) -> None:
         schema_class="RawContractDemo",
     )
     assert resolved is PrimarySchema
+
+
+def test_discover_schema_for_table_uses_fallback_without_phlo_quality(monkeypatch) -> None:
+    """Falls back to file discovery when phlo_quality discovery import is unavailable."""
+
+    class RawContractDemo:
+        pass
+
+    real_import = __import__
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):  # type: ignore[no-untyped-def]
+        if name == "phlo_quality.cli_schema_utils":
+            raise ImportError("phlo_quality unavailable")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "_discover_pandera_schemas_from_files",
+        lambda: {"RawContractDemo": RawContractDemo},
+    )
+
+    resolved = schema_migrate_commands._discover_schema_for_table("raw.contract_demo")
+    assert resolved is RawContractDemo

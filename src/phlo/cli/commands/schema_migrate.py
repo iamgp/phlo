@@ -61,12 +61,14 @@ def _discover_schema_for_table(table_name: str) -> Any:
     Searches discovered Pandera schemas for a class whose metadata or naming
     convention matches the table.
     """
+    schemas: dict[str, Any] = {}
     try:
         from phlo_quality.cli_schema_utils import discover_pandera_schemas
 
         schemas = discover_pandera_schemas()
     except ImportError:
-        return None
+        # Continue with file-based fallback discovery.
+        pass
 
     short_name = table_name.split(".")[-1] if "." in table_name else table_name
 
