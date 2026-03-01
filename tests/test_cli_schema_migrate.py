@@ -254,6 +254,52 @@ def test_schema_migrate_scaffold_yaml_recent_reads_recent_contracts(monkeypatch)
         assert not Path(".phlo/migrations/warehouse__orders.yaml").exists()
 
 
+def test_schema_migrate_scaffold_yaml_recent_continues_after_error(monkeypatch) -> None:
+    """Recent scaffold continues processing valid contracts after per-item failures."""
+    _patch_schema_resolution(monkeypatch)
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        contracts_dir = Path(".phlo/contracts")
+        contracts_dir.mkdir(parents=True, exist_ok=True)
+
+        valid_contract = contracts_dir / "warehouse__customers.json"
+        valid_contract.write_text(
+            json.dumps(
+                {
+                    "contract_version": 1,
+                    "table_name": "warehouse.customers",
+                    "normalized_schema": {
+                        "fields": [
+                            {
+                                "name": "id",
+                                "dtype": "int64",
+                                "nullable": False,
+                                "default": None,
+                                "metadata": {},
+                            }
+                        ],
+                        "metadata": {},
+                    },
+                    "quality_checks": [],
+                    "transform_refs": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        broken_contract = contracts_dir / "warehouse__broken.json"
+        broken_contract.write_text("{not-json}", encoding="utf-8")
+
+        result = runner.invoke(
+            cli,
+            ["schema-migrate", "scaffold-yaml-recent", "--since-hours", "24"],
+        )
+        assert result.exit_code == 1
+        assert "Generated 1 migration scaffolds." in result.output
+        assert "Encountered 1 errors while scaffolding recent contracts." in result.output
+        assert Path(".phlo/migrations/warehouse__customers.yaml").exists()
+
+
 def test_find_native_schema_prefers_primary_discovery(monkeypatch) -> None:
     """Primary schema discovery wins when fallback has the same class name."""
 

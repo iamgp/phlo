@@ -597,6 +597,7 @@ def scaffold_yaml_recent(since_hours: int, limit: int | None, force: bool) -> No
         return
 
     generated_count = 0
+    errors: list[str] = []
     for contract_path in contract_paths:
         try:
             contract = schema_migrate_contracts.read_contract(contract_path)
@@ -621,10 +622,18 @@ def scaffold_yaml_recent(since_hours: int, limit: int | None, force: bool) -> No
             TypeError,
             FileExistsError,
         ) as exc:
-            console.print(f"[red]{exc}[/red]")
-            sys.exit(1)
+            message = f"{contract_path}: {exc}"
+            errors.append(message)
+            console.print(f"[yellow]Skipping contract due to error:[/yellow] {message}")
 
     console.print(f"[green]Generated {generated_count} migration scaffolds.[/green]")
+    if errors:
+        console.print(
+            f"[red]Encountered {len(errors)} errors while scaffolding recent contracts.[/red]"
+        )
+        for error in errors:
+            console.print(f"- {error}")
+        sys.exit(1)
 
 
 def _build_scaffold_payload_from_contract(
