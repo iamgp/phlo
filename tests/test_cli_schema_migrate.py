@@ -309,9 +309,9 @@ def test_find_native_schema_prefers_primary_discovery(monkeypatch) -> None:
     class FallbackSchema:
         pass
 
-    cli_schema_utils = types.ModuleType("phlo_quality.cli_schema_utils")
+    cli_schema_utils = types.ModuleType("phlo_pandera.cli_schema_utils")
     cli_schema_utils.discover_pandera_schemas = lambda: {"RawContractDemo": PrimarySchema}
-    monkeypatch.setitem(sys.modules, "phlo_quality.cli_schema_utils", cli_schema_utils)
+    monkeypatch.setitem(sys.modules, "phlo_pandera.cli_schema_utils", cli_schema_utils)
     monkeypatch.setattr(
         schema_migrate_commands,
         "_discover_pandera_schemas_from_files",
@@ -334,8 +334,8 @@ def test_discover_schema_for_table_uses_fallback_without_phlo_quality(monkeypatc
     real_import = __import__
 
     def fake_import(name, globals=None, locals=None, fromlist=(), level=0):  # type: ignore[no-untyped-def]
-        if name == "phlo_quality.cli_schema_utils":
-            raise ImportError("phlo_quality unavailable")
+        if name == "phlo_pandera.cli_schema_utils":
+            raise ImportError("phlo_pandera unavailable")
         return real_import(name, globals, locals, fromlist, level)
 
     monkeypatch.setattr("builtins.__import__", fake_import)
