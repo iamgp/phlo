@@ -5,10 +5,14 @@ repos:
       - id: check-merge-conflict
       - id: end-of-file-fixer
       - id: trailing-whitespace
+      - id: check-ast
+      - id: check-docstring-first
       - id: check-yaml
       - id: check-toml
       - id: check-json
+        exclude: (^|/)tsconfig(\..+)?\.json$
       - id: debug-statements
+      - id: detect-private-key
       - id: check-added-large-files
         args: ["--maxkb=1024"]
 
@@ -18,6 +22,42 @@ repos:
       - id: ruff
         args: ["--fix"]
       - id: ruff-format
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.28.0
+    hooks:
+      - id: gitleaks-docker
+
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        args: ["-c", ".yamllint"]
+        files: ^(\.github/|packages/.+/src/.+/service\.yaml$|.*\.ya?ml$)
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        files: ^(scripts/.*|.*\.sh)$
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.14.0
+    hooks:
+      - id: hadolint-docker
+        args: ["--failure-threshold", "error"]
+        files: (^|/)(Dockerfile|.*\.Dockerfile)$
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        args: ["--config=.codespellrc"]
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.9.1
+    hooks:
+      - id: commitizen
 
   - repo: local
     hooks:
@@ -31,6 +71,12 @@ repos:
         entry: uv run sqlfluff lint
         language: system
         files: ^workflows/transforms/dbt/.*\.sql$
+      - id: sqlfluff-dbt-fix
+        name: sqlfluff fix (dbt models)
+        entry: uv run sqlfluff fix workflows/transforms/dbt
+        language: system
+        pass_filenames: false
+        stages: [manual]
       - id: ty-check
         name: ty check (repo scope)
         entry: uv run ty check src/phlo packages
