@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Iterable, Protocol, runtime_checkable
+from typing import Awaitable, Callable, Iterable, Protocol, runtime_checkable
 
 from phlo.hooks.events import HookEvent
 from phlo.plugins.base import Plugin
@@ -40,7 +40,12 @@ class HookRegistration:
     """Registration details for a hook handler."""
 
     hook_name: str
-    handler: Callable[[HookEvent], None] | "HookHandler"
+    handler: (
+        Callable[[HookEvent], None]
+        | Callable[[HookEvent], Awaitable[None]]
+        | "HookHandler"
+        | "AsyncHookHandler"
+    )
     priority: int = 100
     filters: HookFilter | None = None
     failure_policy: FailurePolicy = FailurePolicy.LOG
@@ -66,6 +71,20 @@ class HookHandler(Protocol):
 
     def handle_event(self, event: HookEvent) -> None:
         """Handle a hook event emitted by the hook bus.
+
+        Args:
+            event: Hook event payload to process.
+        """
+
+        ...
+
+
+@runtime_checkable
+class AsyncHookHandler(Protocol):
+    """Protocol for async handler objects implementing hook dispatch."""
+
+    async def handle_event_async(self, event: HookEvent) -> None:
+        """Handle a hook event emitted by the async hook bus.
 
         Args:
             event: Hook event payload to process.
