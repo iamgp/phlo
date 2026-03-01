@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.6.0](https://github.com/phlohouse/phlo/compare/v0.5.0...v0.6.0) (2026-03-01)
+
+
+### Features
+
+* add core async operation and hook primitives ([#262](https://github.com/phlohouse/phlo/issues/262)) ([85f06a1](https://github.com/phlohouse/phlo/commit/85f06a1a9da783c3bc7363b3c99a6092dd1a5b0d))
+* add decorator contract metadata for schema contracts ([#259](https://github.com/phlohouse/phlo/issues/259)) ([92eb1bc](https://github.com/phlohouse/phlo/commit/92eb1bce35ec4f6c12a5b9af14337d2c0691f483))
+* add Phlo-native contracts for schema migration scaffolding ([#258](https://github.com/phlohouse/phlo/issues/258)) ([5c539ad](https://github.com/phlohouse/phlo/commit/5c539adf4cc2503b6cbe930699e5fa10d5ff9086))
+* **discovery:** emit discovery observability lifecycle signals ([#234](https://github.com/phlohouse/phlo/issues/234)) ([#247](https://github.com/phlohouse/phlo/issues/247)) ([6747f71](https://github.com/phlohouse/phlo/commit/6747f7107e5dc46b6156f8d65994308673799f1e))
+* expand TableStore protocol and add governance primitives ([#252](https://github.com/phlohouse/phlo/issues/252)) ([23d361d](https://github.com/phlohouse/phlo/commit/23d361d3fcd83debf9964e76f2025065869fb1e9))
+* implement data migration CLI and contract-based scaffolding ([#261](https://github.com/phlohouse/phlo/issues/261)) ([18ea5c5](https://github.com/phlohouse/phlo/commit/18ea5c551adfe21e1b652e4a27cc6b8142b6e416))
+* schema migration core primitives, providers, and CLI ([#253](https://github.com/phlohouse/phlo/issues/253)) ([c57bd3c](https://github.com/phlohouse/phlo/commit/c57bd3c7fcc28f19e9423bd4abcf7a2fb6b3a652))
+
+
+### Bug Fixes
+
+* add service discovery cache refresh/invalidation API ([#218](https://github.com/phlohouse/phlo/issues/218)) ([3c9a03c](https://github.com/phlohouse/phlo/commit/3c9a03c7c974eac14b0fba43b4746c7e4878560d))
+* **ci:** skip release-please on release commits ([f94a710](https://github.com/phlohouse/phlo/commit/f94a7109c4cde86975a0d52f5ba019bb0a76b820))
+* **cli:** improve services list error ux ([#216](https://github.com/phlohouse/phlo/issues/216)) ([d1ce2a6](https://github.com/phlohouse/phlo/commit/d1ce2a640daab0a5bb1bebc0fc49fcd40906ba12))
+* honor plugins_auto_discover precedence ([#207](https://github.com/phlohouse/phlo/issues/207)) ([#220](https://github.com/phlohouse/phlo/issues/220)) ([f2e426b](https://github.com/phlohouse/phlo/commit/f2e426bf8f0f91db47c69cd443c24a7c2b68f64b))
+* **plugins:** enforce safe teardown cleanup for [#232](https://github.com/phlohouse/phlo/issues/232) ([#240](https://github.com/phlohouse/phlo/issues/240)) ([a1bff6c](https://github.com/phlohouse/phlo/commit/a1bff6cdcd81fb5209f6d68e1e335038e2893167))
+* **plugins:** invoke lifecycle hooks in discovery flow ([#206](https://github.com/phlohouse/phlo/issues/206)) ([#221](https://github.com/phlohouse/phlo/issues/221)) ([7bc5763](https://github.com/phlohouse/phlo/commit/7bc57632b556fede92eb3a3e32b2b67ded25f26e))
+* **services:** clear disabled state when re-adding service ([#205](https://github.com/phlohouse/phlo/issues/205)) ([#217](https://github.com/phlohouse/phlo/issues/217)) ([fda2d67](https://github.com/phlohouse/phlo/commit/fda2d672a07e23daccbf053d904937f1235bf944))
+* **services:** fail fast on invalid --profile in start ([#219](https://github.com/phlohouse/phlo/issues/219)) ([b57ea51](https://github.com/phlohouse/phlo/commit/b57ea513f30655041cb557f886a9260120038356))
+* **services:** normalize enabled/disabled config lists ([#231](https://github.com/phlohouse/phlo/issues/231)) ([#242](https://github.com/phlohouse/phlo/issues/242)) ([257a8fb](https://github.com/phlohouse/phlo/commit/257a8fb44c86def344c1df7d6e7578abd8420373))
+* stabilize dev package loading and logging compatibility ([594b8f7](https://github.com/phlohouse/phlo/commit/594b8f7d97cd7f16b6d3452c9eb53a311a3bb6b2))
+
+
+### Performance Improvements
+
+* add discovery and registry micro-benchmarks ([#237](https://github.com/phlohouse/phlo/issues/237)) ([#249](https://github.com/phlohouse/phlo/issues/249)) ([c843767](https://github.com/phlohouse/phlo/commit/c843767bc683b1564718b668962c251e28428874))
+
+
+### Documentation
+
+* **blog:** add data engineering fundamentals series ([#251](https://github.com/phlohouse/phlo/issues/251)) ([f7c9fda](https://github.com/phlohouse/phlo/commit/f7c9fda8e7a46094ea11f0a4c56bafef1c4ebef4))
+* retire legacy blog and add data migration docs ([#263](https://github.com/phlohouse/phlo/issues/263)) ([53ff747](https://github.com/phlohouse/phlo/commit/53ff747bc969d581d8f8388f2c665adc72230284))
+* sync core behavior docs for services and discovery ([#227](https://github.com/phlohouse/phlo/issues/227)) ([#241](https://github.com/phlohouse/phlo/issues/241)) ([e2a2e4d](https://github.com/phlohouse/phlo/commit/e2a2e4d9b59be391b8f5e26712b14c4a35bd0001))
+
 ## [0.5.0](https://github.com/phlohouse/phlo/compare/v0.4.0...v0.5.0) (2026-02-18)
 
 
