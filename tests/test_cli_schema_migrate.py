@@ -86,6 +86,15 @@ def _patch_schema_resolution(monkeypatch) -> None:
         schema_migrate_commands, "_select_default_table_store_name", lambda: "iceberg"
     )
     monkeypatch.setattr(schema_migrate_commands, "_select_default_migrator_name", lambda: "iceberg")
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "_collect_contract_metadata",
+        lambda table_name: {
+            "owner": "platform-team",
+            "consumers": [{"name": "analytics", "contact": "#analytics", "usage": None}],
+            "sla": {"quality_threshold": 0.99},
+        },
+    )
     monkeypatch.setattr(schema_migrate_commands, "_collect_quality_checks", lambda table_name: [])
     monkeypatch.setattr(schema_migrate_commands, "_collect_transform_refs", lambda table_name: [])
 
@@ -104,6 +113,7 @@ def test_schema_migrate_export_contract_writes_default_path(monkeypatch) -> None
         assert payload["table_name"] == "warehouse.customers"
         assert payload["schema_migrator"] == "iceberg"
         assert payload["contract_version"] == 1
+        assert payload["contract_metadata"]["owner"] == "platform-team"
 
 
 def test_schema_migrate_scaffold_yaml_reads_contract(monkeypatch) -> None:
@@ -219,3 +229,30 @@ def test_discover_schema_for_table_uses_fallback_without_phlo_quality(monkeypatc
 
     resolved = schema_migrate_commands._discover_schema_for_table("raw.contract_demo")
     assert resolved is RawContractDemo
+
+
+def test_collect_quality_checks_parses_contract_tags(monkeypatch) -> None:
+    """Quality check payload includes parsed owner/consumers/sla from tags."""
+
+    class FakeRegistry:
+        def list_checks(self):
+            class Check:
+                asset_key = "dlt_contract_demo"
+                name = "quality_contract_demo"
+                severity = "error"
+                blocking = True
+                description = "quality checks"
+                tags = {
+                    "contract_owner": "platform-team",
+                    "contract_consumers": "analytics,ml-pipeline",
+                    "contract_sla": '{"quality_threshold": 0.99}',
+                }
+
+            return [Check()]
+
+    monkeypatch.setattr(schema_migrate_commands, "get_capability_registry", lambda: FakeRegistry())
+    checks = schema_migrate_commands._collect_quality_checks("raw.contract_demo")
+    assert len(checks) == 1
+    assert checks[0]["owner"] == "platform-team"
+    assert checks[0]["consumers"] == ["analytics", "ml-pipeline"]
+    assert checks[0]["sla"] == {"quality_threshold": 0.99}

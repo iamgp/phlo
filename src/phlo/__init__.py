@@ -9,6 +9,7 @@ from typing import Any
 __version__ = version("phlo")
 
 _INGESTION_EXPORTS = {"phlo_ingestion", "get_ingestion_assets"}
+_CONTRACT_EXPORTS = {"Consumer", "SLA"}
 _QUALITY_EXPORTS = {
     "phlo_quality",
     "get_quality_checks",
@@ -34,7 +35,13 @@ _QUALITY_EXPORTS = {
 }
 _SUBMODULE_EXPORTS = {"ingestion", "quality"}
 
-__all__ = ["__version__", *_SUBMODULE_EXPORTS, *_INGESTION_EXPORTS, *_QUALITY_EXPORTS]
+__all__ = [
+    "__version__",
+    *_SUBMODULE_EXPORTS,
+    *_CONTRACT_EXPORTS,
+    *_INGESTION_EXPORTS,
+    *_QUALITY_EXPORTS,
+]
 
 
 def __getattr__(name: str) -> Any:
@@ -53,6 +60,11 @@ def __getattr__(name: str) -> Any:
         module = import_module(f"{__name__}.{name}")
         globals()[name] = module
         return module
+    if name in _CONTRACT_EXPORTS:
+        from phlo.contracts import SLA, Consumer
+
+        globals().update({"Consumer": Consumer, "SLA": SLA})
+        return globals()[name]
     if name in _INGESTION_EXPORTS:
         from phlo.ingestion import get_ingestion_assets, phlo_ingestion
 

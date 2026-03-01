@@ -13,6 +13,7 @@ from pandera.pandas import DataFrameModel, Field
 
 pytest.importorskip("pyiceberg")
 
+from phlo.contracts import Consumer, SLA
 from phlo_dlt.decorator import clear_ingestion_assets, get_ingestion_assets, phlo_ingestion
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
@@ -201,6 +202,41 @@ class TestDecoratorConfiguration:
         # Check asset has correct group
         spec = get_asset_spec("dlt_test_table")
         assert spec.group == "custom_group"
+
+    def test_contract_metadata_configuration(self):
+        """Test owner/consumers/sla metadata is attached to ingestion asset."""
+
+        class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
+            id: str
+
+        @phlo_ingestion(
+            table_name="test_table",
+            unique_key="id",
+            validation_schema=TestSchema,
+            group="custom_group",
+            owner="platform-team",
+            consumers=["analytics", Consumer("ml-pipeline", contact="#ml")],
+            sla=SLA(freshness_hours=6, quality_threshold=0.99),
+        )
+        def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests."""
+
+            pass
+
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.metadata["owner"] == "platform-team"
+        assert spec.metadata["consumers"] == [
+            {"name": "analytics", "contact": None, "usage": None},
+            {"name": "ml-pipeline", "contact": "#ml", "usage": None},
+        ]
+        assert spec.metadata["sla"] == {
+            "freshness_hours": 6,
+            "quality_threshold": 0.99,
+            "max_failures": None,
+            "notify": None,
+        }
 
 
 class TestAutomationConfiguration:

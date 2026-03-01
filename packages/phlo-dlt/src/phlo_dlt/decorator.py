@@ -13,6 +13,7 @@ from phlo.capabilities import (
     RunResult,
     RunSpec,
 )
+from phlo.contracts import Consumer, SLA, normalize_consumers, serialize_consumers, serialize_sla
 from phlo.capabilities.runtime import RuntimeContext
 from phlo.exceptions import PhloConfigError
 from phlo.logging import log_event
@@ -193,6 +194,9 @@ def phlo_ingestion(
     merge_strategy: Literal["append", "merge"] = "merge",
     merge_config: dict[str, Any] | None = None,
     add_metadata_columns: bool = True,
+    owner: str | None = None,
+    consumers: list[Consumer | str] | None = None,
+    sla: SLA | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Register a function as a DLT-backed ingestion asset.
 
@@ -213,6 +217,9 @@ def phlo_ingestion(
         merge_strategy: Ingestion strategy (`append` or `merge`).
         merge_config: Optional merge behavior overrides.
         add_metadata_columns: Whether ingestion metadata columns should be added.
+        owner: Optional asset owner/team identifier.
+        consumers: Optional downstream consumer metadata or names.
+        sla: Optional SLA metadata for freshness/quality alerting.
 
     Returns:
         A decorator that registers ingestion metadata and returns the original function.
@@ -244,6 +251,7 @@ def phlo_ingestion(
         group_name=group,
         partition_spec=partition_spec,
     )
+    normalized_consumers = normalize_consumers(consumers)
 
     def decorator(func: Callable[..., Any]) -> Any:
         """Wrap an ingestion source function as a Phlo asset definition."""
@@ -431,6 +439,9 @@ def phlo_ingestion(
                 "table_name": table_config.table_name,
                 "unique_key": table_config.unique_key,
                 "group": table_config.group_name,
+                "owner": owner,
+                "consumers": serialize_consumers(normalized_consumers),
+                "sla": serialize_sla(sla),
             },
             partitions=PartitionSpec(kind="daily"),
             resources={"table_store"},

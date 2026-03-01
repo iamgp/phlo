@@ -47,6 +47,8 @@ class TestFastAPIApp:
         assert "/api/config" in route_paths
         assert "/api/plugins" in route_paths
         assert "/api/services" in route_paths
+        assert "/api/contracts" in route_paths
+        assert "/api/contracts/{table_name:path}" in route_paths
 
 
 # =============================================================================
@@ -226,6 +228,63 @@ class TestRegistryEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, dict)
+
+
+# =============================================================================
+# Contracts Endpoints Tests
+# =============================================================================
+
+
+class TestContractsEndpoints:
+    """Test contract discovery endpoints."""
+
+    def test_contracts_list_endpoint(self):
+        """List contracts endpoint returns helper payload."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        payload = [
+            {
+                "table_name": "raw.contract_demo",
+                "asset_key": "dlt_contract_demo",
+                "contract_metadata": {"owner": "platform-team", "consumers": [], "sla": None},
+            }
+        ]
+        with patch("phlo_api.main._list_contracts", return_value=payload):
+            client = TestClient(app)
+            response = client.get("/api/contracts")
+
+        assert response.status_code == 200
+        assert response.json() == payload
+
+    def test_contract_detail_endpoint(self):
+        """Detail endpoint returns contract for requested table."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        payload = {
+            "table_name": "raw.contract_demo",
+            "asset_key": "dlt_contract_demo",
+            "contract_metadata": {"owner": "platform-team", "consumers": [], "sla": None},
+        }
+        with patch("phlo_api.main._get_contract_by_table", return_value=payload):
+            client = TestClient(app)
+            response = client.get("/api/contracts/raw.contract_demo")
+
+        assert response.status_code == 200
+        assert response.json() == payload
+
+    def test_contract_detail_endpoint_not_found(self):
+        """Detail endpoint returns 404 when table has no contract."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch("phlo_api.main._get_contract_by_table", return_value=None):
+            client = TestClient(app)
+            response = client.get("/api/contracts/raw.unknown_table")
+
+        assert response.status_code == 404
+        assert "Contract not found" in response.json()["detail"]
 
 
 # =============================================================================
