@@ -29,6 +29,6 @@ class SchemaCheckPlugin(QualityCheckPlugin[Any]):
         Returns:
             Configured schema-check instance.
         """
-        from phlo_quality.checks_extra import SchemaCheck
+        from phlo_pandera.checks_extra import SchemaCheck
 
         return SchemaCheck(schema=schema, lazy=lazy)

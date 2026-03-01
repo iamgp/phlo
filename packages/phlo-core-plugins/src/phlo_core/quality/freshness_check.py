@@ -36,7 +36,7 @@ class FreshnessCheckPlugin(QualityCheckPlugin[Any]):
         Returns:
             Configured freshness-check instance.
         """
-        from phlo_quality.checks import FreshnessCheck
+        from phlo_pandera.checks import FreshnessCheck
 
         return FreshnessCheck(
             timestamp_column=timestamp_column,

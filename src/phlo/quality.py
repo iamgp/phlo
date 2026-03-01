@@ -30,27 +30,67 @@ def _load_quality_provider() -> "QualityProviderPlugin":
 
     try:
         from phlo_pandera import (  # noqa: F401
-            PANDERA_CONTRACT_CHECK_NAME,
-            AggregateConsistencyCheck,
-            AggregateSpec,
-            ChecksumReconciliationCheck,
-            CountCheck,
-            CustomSQLCheck,
-            FreshnessCheck,
-            KeyParityCheck,
-            MultiAggregateConsistencyCheck,
-            NullCheck,
-            PatternCheck,
-            QualityCheck,
-            QualityCheckContract,
-            RangeCheck,
-            ReconciliationCheck,
-            SchemaCheck,
-            UniqueCheck,
-            clear_quality_checks,
-            dbt_check_name,
-            get_quality_checks,
-            phlo_quality,
+            PANDERA_CONTRACT_CHECK_NAME as _PANDERA_CONTRACT_CHECK_NAME,
+        )
+        from phlo_pandera import (
+            AggregateConsistencyCheck as _AggregateConsistencyCheck,
+        )
+        from phlo_pandera import (
+            AggregateSpec as _AggregateSpec,
+        )
+        from phlo_pandera import (
+            ChecksumReconciliationCheck as _ChecksumReconciliationCheck,
+        )
+        from phlo_pandera import (
+            CountCheck as _CountCheck,
+        )
+        from phlo_pandera import (
+            CustomSQLCheck as _CustomSQLCheck,
+        )
+        from phlo_pandera import (
+            FreshnessCheck as _FreshnessCheck,
+        )
+        from phlo_pandera import (
+            KeyParityCheck as _KeyParityCheck,
+        )
+        from phlo_pandera import (
+            MultiAggregateConsistencyCheck as _MultiAggregateConsistencyCheck,
+        )
+        from phlo_pandera import (
+            NullCheck as _NullCheck,
+        )
+        from phlo_pandera import (
+            PatternCheck as _PatternCheck,
+        )
+        from phlo_pandera import (
+            QualityCheck as _QualityCheck,
+        )
+        from phlo_pandera import (
+            QualityCheckContract as _QualityCheckContract,
+        )
+        from phlo_pandera import (
+            RangeCheck as _RangeCheck,
+        )
+        from phlo_pandera import (
+            ReconciliationCheck as _ReconciliationCheck,
+        )
+        from phlo_pandera import (
+            SchemaCheck as _SchemaCheck,
+        )
+        from phlo_pandera import (
+            UniqueCheck as _UniqueCheck,
+        )
+        from phlo_pandera import (
+            clear_quality_checks as _clear_quality_checks,
+        )
+        from phlo_pandera import (
+            dbt_check_name as _dbt_check_name,
+        )
+        from phlo_pandera import (
+            get_quality_checks as _get_quality_checks,
+        )
+        from phlo_pandera import (
+            phlo_pandera as _phlo_quality,
         )
 
         class _DirectImportProvider:
@@ -59,17 +99,17 @@ def _load_quality_provider() -> "QualityProviderPlugin":
             @property
             def _check_classes(self):
                 return {
-                    "null": NullCheck,
-                    "range": RangeCheck,
-                    "freshness": FreshnessCheck,
-                    "unique": UniqueCheck,
-                    "count": CountCheck,
-                    "schema": SchemaCheck,
-                    "pattern": PatternCheck,
+                    "null": _NullCheck,
+                    "range": _RangeCheck,
+                    "freshness": _FreshnessCheck,
+                    "unique": _UniqueCheck,
+                    "count": _CountCheck,
+                    "schema": _SchemaCheck,
+                    "pattern": _PatternCheck,
                 }
 
             def get_decorator(self):
-                return phlo_quality
+                return _phlo_quality
 
             def get_check_classes(self):
                 return self._check_classes
@@ -79,15 +119,37 @@ def _load_quality_provider() -> "QualityProviderPlugin":
 
             def get_reconciliation_checks(self):
                 return {
-                    "reconciliation": ReconciliationCheck,
-                    "aggregate_consistency": AggregateConsistencyCheck,
-                    "aggregate_spec": AggregateSpec,
-                    "key_parity": KeyParityCheck,
-                    "multi_aggregate": MultiAggregateConsistencyCheck,
-                    "checksum": ChecksumReconciliationCheck,
+                    "reconciliation": _ReconciliationCheck,
+                    "aggregate_consistency": _AggregateConsistencyCheck,
+                    "aggregate_spec": _AggregateSpec,
+                    "key_parity": _KeyParityCheck,
+                    "multi_aggregate": _MultiAggregateConsistencyCheck,
+                    "checksum": _ChecksumReconciliationCheck,
                 }
 
-        return _DirectImportProvider()
+        _direct_provider = _DirectImportProvider()
+
+        global get_quality_checks, clear_quality_checks, QualityCheck
+        global CustomSQLCheck, QualityCheckContract, dbt_check_name
+        global PANDERA_CONTRACT_CHECK_NAME
+        global ReconciliationCheck, AggregateConsistencyCheck, AggregateSpec
+        global KeyParityCheck, MultiAggregateConsistencyCheck, ChecksumReconciliationCheck
+
+        get_quality_checks = _get_quality_checks
+        clear_quality_checks = _clear_quality_checks
+        QualityCheck = _QualityCheck
+        CustomSQLCheck = _CustomSQLCheck
+        QualityCheckContract = _QualityCheckContract
+        dbt_check_name = _dbt_check_name
+        PANDERA_CONTRACT_CHECK_NAME = _PANDERA_CONTRACT_CHECK_NAME
+        ReconciliationCheck = _ReconciliationCheck
+        AggregateConsistencyCheck = _AggregateConsistencyCheck
+        AggregateSpec = _AggregateSpec
+        KeyParityCheck = _KeyParityCheck
+        MultiAggregateConsistencyCheck = _MultiAggregateConsistencyCheck
+        ChecksumReconciliationCheck = _ChecksumReconciliationCheck
+
+        return _direct_provider
     except ModuleNotFoundError:
         pass
 
@@ -102,26 +164,13 @@ phlo_quality = _provider.get_decorator()
 _check_classes = _provider.get_check_classes()
 _reconciliation_classes = _provider.get_reconciliation_checks() or {}
 
-get_quality_checks = None
-clear_quality_checks = None
-QualityCheck = _check_classes.get("quality_check")
 NullCheck = _check_classes.get("null")
 RangeCheck = _check_classes.get("range")
 FreshnessCheck = _check_classes.get("freshness")
 UniqueCheck = _check_classes.get("unique")
 CountCheck = _check_classes.get("count")
 SchemaCheck = _check_classes.get("schema")
-CustomSQLCheck = None
 PatternCheck = _check_classes.get("pattern")
-ReconciliationCheck = _reconciliation_classes.get("reconciliation")
-AggregateConsistencyCheck = _reconciliation_classes.get("aggregate_consistency")
-AggregateSpec = _reconciliation_classes.get("aggregate_spec")
-KeyParityCheck = _reconciliation_classes.get("key_parity")
-MultiAggregateConsistencyCheck = _reconciliation_classes.get("multi_aggregate")
-ChecksumReconciliationCheck = _reconciliation_classes.get("checksum")
-PANDERA_CONTRACT_CHECK_NAME = "pandera_contract"
-QualityCheckContract = None
-dbt_check_name = None
 
 
 __all__ = [
