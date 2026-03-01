@@ -136,6 +136,44 @@ class SecretBackend(Protocol):
         ...
 
 
+@runtime_checkable
+class SchemaExtractor(Protocol):
+    """Protocol for extracting a NormalizedSchema from a quality provider's native schema."""
+
+    def extract(self, native_schema: Any) -> Any:
+        """Convert a native schema into a NormalizedSchema."""
+        ...
+
+
+@runtime_checkable
+class SchemaMigrator(Protocol):
+    """Protocol for storage-layer schema migration providers.
+
+    Each storage provider (Iceberg, Delta, Hudi) implements this protocol
+    and determines its own classification rules based on its capabilities.
+    """
+
+    def supported_changes(self) -> set[str]:
+        """Return the set of change_type values this provider supports natively."""
+        ...
+
+    def classify_change(self, change_type: str, **details: Any) -> str:
+        """Classify a single change as 'safe', 'warning', or 'breaking'."""
+        ...
+
+    def diff_schema(self, *, table_name: str, desired: Any) -> Any:
+        """Compare desired schema against current table and produce a migration plan."""
+        ...
+
+    def apply_plan(self, *, plan: Any, approved: bool = False) -> dict[str, Any]:
+        """Execute a migration plan. Breaking changes require approved=True."""
+        ...
+
+    def get_schema_history(self, *, table_name: str, limit: int = 10) -> list[dict[str, Any]]:
+        """Return schema version history for a table."""
+        ...
+
+
 class AccessPolicy:
     """Value object describing an access control policy."""
 

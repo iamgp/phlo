@@ -1,0 +1,82 @@
+"""Tests for PanderaSchemaExtractor."""
+
+from __future__ import annotations
+
+import pytest
+from pandera.pandas import Field
+
+from phlo.capabilities.interfaces import SchemaExtractor
+from phlo_quality.schema_extractor import PanderaSchemaExtractor, _map_dtype
+from phlo_quality.schemas.base import PhloSchema
+
+
+class SimpleSchema(PhloSchema):
+    name: str
+    age: int
+    score: float
+    active: bool
+
+
+class NullableSchema(PhloSchema):
+    required_id: str = Field(nullable=False)
+    optional_name: str | None = Field(nullable=True)
+    optional_score: float | None = Field(nullable=True)
+
+
+class SchemaWithConfig(PhloSchema):
+    id: str
+
+    class Config:
+        strict = True
+
+
+pytestmark = pytest.mark.core_regression
+
+
+class TestPanderaSchemaExtractor:
+    """Tests for PanderaSchemaExtractor."""
+
+    def test_simple_extraction(self):
+        extractor = PanderaSchemaExtractor()
+        result = extractor.extract(SimpleSchema)
+
+        assert len(result.fields) == 4
+        by_name = {f.name: f for f in result.fields}
+
+        assert by_name["name"].dtype == "string"
+        assert by_name["age"].dtype == "int64"
+        assert by_name["score"].dtype == "float64"
+        assert by_name["active"].dtype == "bool"
+
+    def test_nullable_fields(self):
+        extractor = PanderaSchemaExtractor()
+        result = extractor.extract(NullableSchema)
+
+        by_name = {f.name: f for f in result.fields}
+
+        assert by_name["optional_name"].nullable is True
+        assert by_name["optional_score"].nullable is True
+
+    def test_non_nullable_fields(self):
+        extractor = PanderaSchemaExtractor()
+        result = extractor.extract(NullableSchema)
+
+        by_name = {f.name: f for f in result.fields}
+        assert by_name["required_id"].nullable is False
+
+    def test_skips_dunder_and_config(self):
+        extractor = PanderaSchemaExtractor()
+        result = extractor.extract(SchemaWithConfig)
+
+        names = {f.name for f in result.fields}
+        assert "Config" not in names
+        assert not any(n.startswith("__") for n in names)
+        assert "id" in names
+
+    def test_satisfies_schema_extractor_protocol(self):
+        extractor = PanderaSchemaExtractor()
+        assert isinstance(extractor, SchemaExtractor)
+
+    def test_map_dtype_unsupported(self):
+        with pytest.raises(ValueError, match="Unsupported type"):
+            _map_dtype(list)

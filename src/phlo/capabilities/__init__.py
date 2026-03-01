@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from phlo.capabilities.interfaces import TableStore
+from phlo.capabilities.interfaces import SchemaExtractor, SchemaMigrator, TableStore
 from phlo.capabilities.registry import (
     CapabilityRegistry,
     clear_capabilities,
@@ -15,6 +15,7 @@ from phlo.capabilities.registry import (
     register_quality_backend,
     register_query_engine,
     register_resource,
+    register_schema_migrator,
     register_table_store,
 )
 from phlo.capabilities.runtime import RuntimeContext
@@ -23,15 +24,20 @@ from phlo.capabilities.specs import (
     AssetSpec,
     CatalogSpec,
     CheckResult,
+    FieldSpec,
     LineageSinkSpec,
     MaterializeResult,
     MetadataCatalogSpec,
+    NormalizedSchema,
     PartitionSpec,
     QualityBackendSpec,
     QueryEngineSpec,
     ResourceSpec,
     RunResult,
     RunSpec,
+    SchemaChange,
+    SchemaMigrationPlan,
+    SchemaMigrationSpec,
     TableStoreSpec,
 )
 
@@ -44,9 +50,11 @@ __all__ = [
     "CatalogSpec",
     "CapabilityRegistry",
     "CheckResult",
+    "FieldSpec",
     "LineageSinkSpec",
     "MaterializeResult",
     "MetadataCatalogSpec",
+    "NormalizedSchema",
     "PartitionSpec",
     "QualityBackendSpec",
     "QueryEngineSpec",
@@ -54,6 +62,11 @@ __all__ = [
     "RunResult",
     "RunSpec",
     "RuntimeContext",
+    "SchemaChange",
+    "SchemaExtractor",
+    "SchemaMigrationPlan",
+    "SchemaMigrationSpec",
+    "SchemaMigrator",
     "TableStoreSpec",
     "TableStore",
     "clear_capabilities",
@@ -68,6 +81,7 @@ __all__ = [
     "register_quality_backend",
     "register_query_engine",
     "register_resource",
+    "register_schema_migrator",
     "register_table_store",
     "ResolutionResult",
     "resolve_capability",
