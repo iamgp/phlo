@@ -15,6 +15,7 @@ from phlo.capabilities.specs import (
     QualityBackendSpec,
     QueryEngineSpec,
     ResourceSpec,
+    SchemaMigrationSpec,
     SecretBackendSpec,
     TableStoreSpec,
 )
@@ -35,6 +36,7 @@ class CapabilityRegistry:
     lineage_sinks: dict[str, LineageSinkSpec] = field(default_factory=dict)
     governance_backends: dict[str, GovernanceBackendSpec] = field(default_factory=dict)
     secret_backends: dict[str, SecretBackendSpec] = field(default_factory=dict)
+    schema_migrators: dict[str, SchemaMigrationSpec] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def register_asset(self, spec: AssetSpec) -> None:
@@ -177,6 +179,16 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.secret_backends.values())
 
+    def register_schema_migrator(self, spec: SchemaMigrationSpec) -> None:
+        """Register or replace a schema migrator spec by name."""
+        with self._lock:
+            self.schema_migrators[spec.name] = spec
+
+    def list_schema_migrators(self) -> list[SchemaMigrationSpec]:
+        """Return a snapshot list of registered schema migrator specs."""
+        with self._lock:
+            return list(self.schema_migrators.values())
+
     def clear(self) -> None:
         """Remove all assets, checks, and resources from the registry."""
 
@@ -192,6 +204,7 @@ class CapabilityRegistry:
             self.lineage_sinks.clear()
             self.governance_backends.clear()
             self.secret_backends.clear()
+            self.schema_migrators.clear()
 
     def clear_checks(self) -> None:
         """Remove all registered checks while preserving assets/resources."""
@@ -281,6 +294,11 @@ def register_governance_backend(spec: GovernanceBackendSpec) -> None:
 def register_secret_backend(spec: SecretBackendSpec) -> None:
     """Register a secret backend in the process-global registry."""
     _GLOBAL_REGISTRY.register_secret_backend(spec)
+
+
+def register_schema_migrator(spec: SchemaMigrationSpec) -> None:
+    """Register a schema migrator in the process-global registry."""
+    _GLOBAL_REGISTRY.register_schema_migrator(spec)
 
 
 def clear_capabilities() -> None:

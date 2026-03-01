@@ -11,6 +11,7 @@ from phlo.hooks.events import (
     LineageEvent,
     PublishEvent,
     QualityResultEvent,
+    SchemaMigrationEvent,
     ServiceLifecycleEvent,
     TelemetryEvent,
     TransformEvent,
@@ -469,5 +470,59 @@ class ServiceLifecycleEventEmitter:
                 status=status,
                 metadata=metadata or {},
                 tags=tags,
+            )
+        )
+
+
+@dataclass(frozen=True)
+class SchemaMigrationEventContext:
+    """Shared context for schema migration event emissions."""
+
+    table_name: str
+    tags: dict[str, str] = field(default_factory=dict)
+
+
+class SchemaMigrationEventEmitter:
+    """Emit schema migration lifecycle events with a shared context."""
+
+    def __init__(
+        self,
+        context: SchemaMigrationEventContext,
+        hook_bus: HookBus | None = None,
+    ) -> None:
+        """Initialize the schema migration event emitter.
+
+        Args:
+            context: Shared schema migration context for each emitted event.
+            hook_bus: Hook bus used to publish events. Defaults to the global bus.
+        """
+        self._context = context
+        self._hook_bus = hook_bus or get_hook_bus()
+
+    def emit(
+        self,
+        *,
+        status: str,
+        classification: str,
+        change_count: int,
+        changes: list[dict[str, Any]] | None = None,
+    ) -> None:
+        """Emit a schema migration event.
+
+        Args:
+            status: Lifecycle status (planned, approved, applied, rejected).
+            classification: Worst classification across changes.
+            change_count: Number of schema changes in the plan.
+            changes: Optional list of change detail dicts.
+        """
+        self._hook_bus.emit(
+            SchemaMigrationEvent(
+                event_type=f"schema_migration.{status}",
+                table_name=self._context.table_name,
+                classification=classification,
+                change_count=change_count,
+                status=status,
+                changes=changes or [],
+                tags=self._context.tags.copy(),
             )
         )
