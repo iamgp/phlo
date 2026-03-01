@@ -55,7 +55,122 @@ pandera = "phlo_pandera.plugin:PanderaQualityProvider"
 
 ## Data Flow
 
+```mermaid
+flowchart TB
+    subgraph Packages["Installed Packages"]
+        DLT["phlo-dlt<br/>Ingestion Provider"]
+        DBT["phlo-dbt<br/>Transformation Provider"]
+        PANDERA["phlo-pandera<br/>Quality Provider"]
+        TRINO["phlo-trino<br/>Resource Provider"]
+        DAGSTER["phlo-dagster<br/>Orchestrator"]
+        ICEBERG["phlo-iceberg<br/>Catalog"]
+    end
+
+    subgraph Discovery["Plugin Discovery"]
+        EP["Entry Points<br/>pyproject.toml"]
+        DISC["discover_plugins()"]
+        REG["PluginRegistry"]
+        VALID["validate_plugin_interface()"]
+    end
+
+    subgraph Providers["Provider Layer"]
+        QI["quality_providers<br/>PanderaQualityProvider"]
+        II["ingestion_providers<br/>DLTIngestionProvider"]
+        TI["transformation_providers<br/>DbtTransformationProvider"]
+        OI["orchestrators<br/>DagsterOrchestrator"]
+        RI["resource_providers<br/>TrinoResourceProvider"]
+        AI["asset_providers<br/>DbtAssetProvider"]
+        CI["catalogs<br/>IcebergCatalog"]
+    end
+
+    subgraph Specs["Capability Specs Layer"]
+        AS["AssetSpec"]
+        RS["ResourceSpec"]
+        CS["CheckSpec"]
+        CAT["CatalogSpec"]
+    end
+
+    subgraph Adapter["Orchestrator Adapter"]
+        BUILD["build_definitions()"]
+        WIRE["Wire specs to<br/>Dagster definitions"]
+    end
+
+    subgraph Runtime["Runtime"]
+        DAGTASK["Dagster<br/>Daemon"]
+        DLT_RUN["dlt Pipeline"]
+        DBT_RUN["dbt Models"]
+        TRINO_Q["Trino Query"]
+    end
+
+    Packages --> EP
+    EP --> DISC
+    DISC --> REG
+    REG --> VALID
+
+    QI -.->|get_decorator| PANDERA
+    II -.->|get_asset_retriever| DLT
+    TI -.->|get_asset_retriever| DBT
+    OI --> DAGSTER
+    RI --> TRINO
+    CI --> ICEBERG
+
+    DLT -->|provides| AS
+    DBT -->|provides| AS
+    PANDERA -->|provides| CS
+    TRINO -->|provides| RS
+    ICEBERG -->|provides| CAT
+
+    AS --> BUILD
+    CS --> BUILD
+    RS --> BUILD
+    CAT --> BUILD
+
+    BUILD --> WIRE
+    WIRE --> DAGTASK
+
+    DAGTASK -->|runs| DLT_RUN
+    DAGTASK -->|runs| DBT_RUN
+    DAGTASK -->|queries| TRINO_Q
 ```
+
+## End-to-End Example
+
+A complete flow from code to execution:
+
+```mermaid
+sequenceDiagram
+    participant D as Developer
+    participant P as phlo CLI
+    participant DIS as discover_plugins()
+    participant REG as PluginRegistry
+    participant QP as QualityProvider
+    participant IP as IngestionProvider
+    participant TP as TransformationProvider
+    participant DA as DagsterAdapter
+    participant DAGT as Dagster
+
+    D->>P: phlo services start
+    P->>DIS: discover_plugins()
+    DIS->>REG: register all plugins
+    REG->>QP: PanderaQualityProvider
+    REG->>IP: DLTIngestionProvider
+    REG->>TP: DbtTransformationProvider
+
+    D->>P: import phlo.ingestion
+    P->>IP: get_decorator()
+    IP-->>P: @phlo_ingestion
+
+    D->>P: @phlo_ingestion<br/>def load_users(): ...
+    P->>DA: build_definitions()
+    DA-->>P: Dagster Assets
+
+    P->>DAGT: dagster-webserver
+    DAGT->>DA: fetch definitions
+    DA-->>DAGT: Assets[load_users, dbt_model, quality_check]
+
+    D->>P: phlo materialize load_users
+    P->>DAGT: trigger materialization
+    DAGT->>DAGT: execute load_users<br/>→ dbt run<br/>→ quality check
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Package Layer                             │
 │  phlo-dlt   phlo-dbt   phlo-pandera   phlo-trino   phlo-dagster│
