@@ -10,6 +10,7 @@ This FastAPI service provides endpoints for Observatory to:
 from __future__ import annotations
 
 import importlib
+import json
 import os
 from contextlib import suppress
 from pathlib import Path
@@ -134,6 +135,180 @@ def load_phlo_config() -> dict[str, Any]:
         has_name=bool(config.get("name")),
     )
     return config
+
+
+def _default_table_store_name() -> str | None:
+    try:
+        from phlo.capabilities import get_capability_registry
+
+        specs = get_capability_registry().list_table_stores()
+        if not specs:
+            return None
+        return specs[0].name
+    except Exception:
+        return None
+
+
+def _default_schema_migrator_name() -> str | None:
+    try:
+        from phlo.capabilities import get_capability_registry
+
+        specs = get_capability_registry().list_schema_migrators()
+        if not specs:
+            return None
+        return specs[0].name
+    except Exception:
+        return None
+
+
+def _parse_quality_contract_tags(tags: dict[str, str]) -> dict[str, Any]:
+    owner = tags.get("contract_owner")
+    consumers_raw = tags.get("contract_consumers", "")
+    consumers = [c for c in consumers_raw.split(",") if c]
+    sla: dict[str, Any] | None = None
+
+    raw_sla = tags.get("contract_sla")
+    if raw_sla:
+        try:
+            parsed = json.loads(raw_sla)
+            if isinstance(parsed, dict):
+                sla = parsed
+        except json.JSONDecodeError:
+            sla = None
+
+    return {"owner": owner, "consumers": consumers, "sla": sla}
+
+
+def _load_contract_artifacts() -> dict[str, dict[str, Any]]:
+    contracts_dir = get_project_path() / ".phlo" / "contracts"
+    if not contracts_dir.exists():
+        return {}
+
+    artifacts: dict[str, dict[str, Any]] = {}
+    for contract_file in contracts_dir.glob("*.json"):
+        try:
+            payload = json.loads(contract_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        table_name = payload.get("table_name")
+        if not isinstance(table_name, str) or not table_name:
+            continue
+        artifacts[table_name] = payload
+    return artifacts
+
+
+def _list_contracts() -> list[dict[str, Any]]:
+    contracts: dict[str, dict[str, Any]] = {}
+
+    try:
+        from phlo.capabilities import get_capability_registry
+        from phlo.capabilities.discovery import discover_capabilities
+
+        discover_capabilities()
+        registry = get_capability_registry()
+        assets = registry.list_assets()
+        checks = registry.list_checks()
+    except Exception:
+        assets = []
+        checks = []
+
+    table_store = _default_table_store_name()
+    schema_migrator = _default_schema_migrator_name()
+
+    quality_checks_by_asset: dict[str, list[dict[str, Any]]] = {}
+    for check in checks:
+        tags = dict(check.tags)
+        quality_checks_by_asset.setdefault(check.asset_key, []).append(
+            {
+                "name": check.name,
+                "severity": check.severity,
+                "blocking": check.blocking,
+                "description": check.description,
+                "tags": tags,
+                "owner": _parse_quality_contract_tags(tags).get("owner"),
+                "consumers": _parse_quality_contract_tags(tags).get("consumers"),
+                "sla": _parse_quality_contract_tags(tags).get("sla"),
+            }
+        )
+
+    dlt_assets: dict[str, Any] = {}
+    dbt_assets: list[Any] = []
+    for asset in assets:
+        kinds = asset.kinds or set()
+        if "dlt" in kinds:
+            dlt_assets[asset.key] = asset
+        if "dbt" in kinds:
+            dbt_assets.append(asset)
+
+    for asset_key, asset in dlt_assets.items():
+        table_name = asset.metadata.get("table_name")
+        if not isinstance(table_name, str) or not table_name:
+            continue
+
+        qualified_table = table_name if "." in table_name else f"raw.{table_name}"
+        transform_refs: list[str] = []
+        for dbt_asset in dbt_assets:
+            deps = dbt_asset.deps or []
+            if asset_key in deps or table_name in deps:
+                transform_refs.append(dbt_asset.key)
+
+        contracts[qualified_table] = {
+            "table_name": qualified_table,
+            "asset_key": asset_key,
+            "table_store": table_store,
+            "schema_migrator": schema_migrator,
+            "contract_metadata": {
+                "owner": asset.metadata.get("owner"),
+                "consumers": asset.metadata.get("consumers", []),
+                "sla": asset.metadata.get("sla"),
+            },
+            "quality_checks": quality_checks_by_asset.get(asset_key, []),
+            "transform_refs": sorted(set(transform_refs)),
+            "generated_at": None,
+            "source": "registry",
+        }
+
+    artifacts = _load_contract_artifacts()
+    for table_name, artifact in artifacts.items():
+        if table_name in contracts:
+            contracts[table_name]["generated_at"] = artifact.get("generated_at")
+            contracts[table_name]["contract_version"] = artifact.get("contract_version")
+            contracts[table_name]["normalized_schema"] = artifact.get("normalized_schema")
+            contracts[table_name]["migration_plan"] = artifact.get("migration_plan")
+            contracts[table_name]["source"] = "registry+artifact"
+            continue
+
+        contracts[table_name] = {
+            "table_name": table_name,
+            "asset_key": f"dlt_{table_name.split('.')[-1]}",
+            "table_store": artifact.get("table_store"),
+            "schema_migrator": artifact.get("schema_migrator"),
+            "contract_metadata": artifact.get(
+                "contract_metadata", {"owner": None, "consumers": [], "sla": None}
+            ),
+            "quality_checks": artifact.get("quality_checks", []),
+            "transform_refs": artifact.get("transform_refs", []),
+            "generated_at": artifact.get("generated_at"),
+            "contract_version": artifact.get("contract_version"),
+            "normalized_schema": artifact.get("normalized_schema"),
+            "migration_plan": artifact.get("migration_plan"),
+            "source": "artifact",
+        }
+
+    return [contracts[key] for key in sorted(contracts.keys())]
+
+
+def _get_contract_by_table(table_name: str) -> dict[str, Any] | None:
+    normalized = table_name.replace("__", ".")
+    for contract in _list_contracts():
+        candidate = contract.get("table_name")
+        if not isinstance(candidate, str):
+            continue
+        if candidate == normalized or candidate == table_name:
+            return contract
+    return None
 
 
 @app.get("/health")
@@ -314,6 +489,27 @@ def get_registry() -> dict[str, Any]:
         return get_registry_data()
     except ImportError:
         return {"plugins": {}}
+
+
+@app.get("/api/contracts")
+def get_contracts() -> list[dict[str, Any]]:
+    """List resolved table contracts from registry and generated artifacts."""
+    logger.info("api_contracts_list_started")
+    contracts = _list_contracts()
+    logger.info("api_contracts_list_succeeded", contract_count=len(contracts))
+    return contracts
+
+
+@app.get("/api/contracts/{table_name:path}")
+def get_contract(table_name: str) -> dict[str, Any]:
+    """Get resolved contract payload for a single table."""
+    logger.info("api_contract_get_started", table_name=table_name)
+    contract = _get_contract_by_table(table_name)
+    if contract is None:
+        logger.warning("api_contract_get_failed", table_name=table_name, reason="not_found")
+        raise HTTPException(status_code=404, detail=f"Contract not found: {table_name}")
+    logger.info("api_contract_get_succeeded", table_name=table_name)
+    return contract
 
 
 if __name__ == "__main__":
