@@ -55,6 +55,8 @@ class HookBus:
                 continue
             try:
                 self._invoke_handler(hook.handler, event)
+            except TypeError:
+                raise
             except Exception as exc:
                 if self._handle_failure(hook=hook, error=exc):
                     continue
@@ -70,6 +72,8 @@ class HookBus:
                 continue
             try:
                 await self._invoke_handler_async(hook.handler, event)
+            except TypeError:
+                raise
             except Exception as exc:
                 if self._handle_failure(hook=hook, error=exc):
                     continue

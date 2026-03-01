@@ -161,3 +161,30 @@ def test_hook_bus_sync_emit_rejects_async_handlers() -> None:
 
     with pytest.raises(TypeError, match="emit_async"):
         bus.emit(event)
+
+
+def test_hook_bus_sync_emit_rejects_async_handlers_with_log_policy() -> None:
+    """Verify async/sync mismatch TypeError is never swallowed by LOG policy."""
+    bus = MockHookBus()
+
+    async def async_handler(_event) -> None:
+        return None
+
+    bus.register(
+        HookRegistration(
+            hook_name="async_handler",
+            handler=async_handler,
+            failure_policy=FailurePolicy.LOG,
+        ),
+        plugin_name="plugin_async",
+    )
+
+    event = QualityResultEvent(
+        event_type="quality.result",
+        asset_key="asset",
+        check_name="null_check",
+        passed=True,
+    )
+
+    with pytest.raises(TypeError, match="emit_async"):
+        bus.emit(event)
