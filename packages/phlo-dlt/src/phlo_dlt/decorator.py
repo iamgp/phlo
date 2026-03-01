@@ -23,7 +23,6 @@ from phlo_dlt.pandera_checks import (
     pandera_contract_asset_check_result,
 )
 
-from phlo_dlt.converter import pandera_to_iceberg
 from phlo_dlt.dlt_helpers import get_branch_from_context
 from phlo_dlt.registry import TableConfig
 
@@ -159,12 +158,30 @@ def _resolve_table_store_resource(context: RuntimeContext) -> Any:
     return table_store
 
 
+def _resolve_table_store_name(table_store: Any) -> str:
+    """Best-effort table-store provider name for logs and metadata."""
+    metadata = getattr(table_store, "metadata", None)
+    if isinstance(metadata, dict):
+        name = metadata.get("name")
+        if isinstance(name, str) and name:
+            return name
+
+    plugin_name = getattr(table_store, "name", None)
+    if isinstance(plugin_name, str) and plugin_name:
+        return plugin_name
+
+    class_name = table_store.__class__.__name__
+    if class_name.endswith("Resource") and len(class_name) > len("Resource"):
+        class_name = class_name[: -len("Resource")]
+    return class_name.lower()
+
+
 def phlo_ingestion(
     table_name: str,
     unique_key: str,
     group: str,
     validation_schema: type[Any] | None = None,
-    iceberg_schema: Any | None = None,
+    table_schema: Any | None = None,
     partition_spec: Any | None = None,
     cron: str | None = None,
     freshness_hours: tuple[int, int] | None = None,
@@ -180,11 +197,11 @@ def phlo_ingestion(
     """Register a function as a DLT-backed ingestion asset.
 
     Args:
-        table_name: Destination Iceberg table name (without `dlt_` prefix).
+        table_name: Destination table-store table name (without `dlt_` prefix).
         unique_key: Column used for deduplication and merge operations.
         group: Dagster/asset group name.
         validation_schema: Optional Pandera schema for data contract checks.
-        iceberg_schema: Optional explicit Iceberg schema.
+        table_schema: Optional explicit table-store schema.
         partition_spec: Optional partition specification override.
         cron: Optional cron schedule for automated runs.
         freshness_hours: Optional freshness policy window.
@@ -208,14 +225,12 @@ def phlo_ingestion(
 
     merge_cfg = _default_merge_config(merge_strategy, merge_config)
 
-    if iceberg_schema is None and validation_schema is not None:
-        iceberg_schema = pandera_to_iceberg(validation_schema)
-    elif iceberg_schema is None:
+    if table_schema is None and validation_schema is None:
         raise PhloConfigError(
             message="Missing required schema parameter",
             suggestions=[
-                "Add validation_schema parameter (recommended): validation_schema=MyPanderaSchema",
-                "Or add iceberg_schema parameter (manual): iceberg_schema=IcebergSchema(...)",
+                "Add validation_schema for provider-driven schema derivation",
+                "Or add explicit table_schema parameter: table_schema=<Schema>(...)",
             ],
         )
 
@@ -223,7 +238,7 @@ def phlo_ingestion(
 
     table_config = TableConfig(
         table_name=table_name,
-        iceberg_schema=iceberg_schema,
+        table_schema=table_schema,
         validation_schema=cast("type[DataFrameModel] | None", validation_schema),
         unique_key=unique_key,
         group_name=group,
@@ -267,6 +282,7 @@ def phlo_ingestion(
                 from phlo_dlt.executor import DltIngester
 
                 table_store = _resolve_table_store_resource(runtime)
+                table_store_name = _resolve_table_store_name(table_store)
 
                 ingester = DltIngester(
                     context=runtime,
@@ -277,6 +293,9 @@ def phlo_ingestion(
                     add_metadata_columns=add_metadata_columns,
                     merge_strategy=merge_strategy,
                     merge_config=merge_cfg,
+                )
+                log_event(
+                    logger, "info", "target_table_store_selected", table_store=table_store_name
                 )
 
                 result = ingester.run_ingestion(
@@ -392,6 +411,7 @@ def phlo_ingestion(
                         "rows_deleted": result.rows_deleted,
                         "unique_key": table_config.unique_key,
                         "table_name": table_config.full_table_name,
+                        "table_store": table_store_name,
                         "dlt_elapsed_seconds": result.metadata.get("dlt_elapsed_seconds", 0.0),
                         "total_elapsed_seconds": result.metadata.get("total_elapsed_seconds", 0.0),
                     },
@@ -404,8 +424,8 @@ def phlo_ingestion(
         asset_spec = AssetSpec(
             key=f"dlt_{table_config.table_name}",
             group=group,
-            description=func.__doc__ or f"Ingests {table_config.table_name} data to Iceberg",
-            kinds={"dlt", "iceberg"},
+            description=func.__doc__ or f"Ingests {table_config.table_name} data to table_store",
+            kinds={"dlt", "table_store"},
             tags={"source": "dlt"},
             metadata={
                 "table_name": table_config.table_name,

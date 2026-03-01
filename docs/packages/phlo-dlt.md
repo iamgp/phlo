@@ -4,7 +4,7 @@ DLT (Data Load Tool) ingestion engine for Phlo.
 
 ## Overview
 
-`phlo-dlt` provides the `@phlo_ingestion` decorator for defining data ingestion pipelines using DLT. It automatically materializes data into Iceberg tables with schema evolution and full lineage tracking.
+`phlo-dlt` provides the `@phlo_ingestion` decorator for defining data ingestion pipelines using DLT. It materializes data into the active `table_store` with schema evolution and full lineage tracking.
 
 ## Installation
 
@@ -68,16 +68,17 @@ def api_events(partition_date: str):
 
 ### Decorator Options
 
-| Option              | Type              | Description                       |
-| ------------------- | ----------------- | --------------------------------- |
-| `table_name`        | `str`             | Target Iceberg table name         |
-| `unique_key`        | `str`             | Column for deduplication          |
-| `validation_schema` | `DataFrameModel`  | Pandera schema for validation     |
-| `group`             | `str`             | Asset group name                  |
-| `cron`              | `str`             | Schedule expression               |
-| `freshness_hours`   | `tuple[int, int]` | (warn, fail) freshness thresholds |
-| `merge_strategy`    | `str`             | `merge` (default) or `append`     |
-| `merge_config`      | `dict`            | Advanced merge configuration      |
+| Option              | Type              | Description                                         |
+| ------------------- | ----------------- | --------------------------------------------------- |
+| `table_name`        | `str`             | Target table-store table name                       |
+| `unique_key`        | `str`             | Column for deduplication                            |
+| `validation_schema` | `DataFrameModel`  | Pandera schema for validation                       |
+| `table_schema`      | `Any`             | Explicit table-store schema (optional)              |
+| `group`             | `str`             | Asset group name                                    |
+| `cron`              | `str`             | Schedule expression                                 |
+| `freshness_hours`   | `tuple[int, int]` | (warn, fail) freshness thresholds                   |
+| `merge_strategy`    | `str`             | `merge` (default) or `append`                       |
+| `merge_config`      | `dict`            | Advanced merge configuration                        |
 
 ### Merge Strategies
 
@@ -96,6 +97,9 @@ def api_events(partition_date: str):
     merge_strategy="append"
 )
 ```
+
+When `table_schema` is omitted, the active `table_store` provider must implement
+schema derivation from `validation_schema` (for example Iceberg provider conversion).
 
 ### Running Ingestion
 
@@ -118,9 +122,9 @@ Parquet Staging (S3)
      ↓
 Pandera Validation
      ↓
-PyIceberg Merge
+Table Store Merge
      ↓
-Iceberg Table (on Nessie branch)
+Physical Table (for active store)
 ```
 
 ## Entry Points

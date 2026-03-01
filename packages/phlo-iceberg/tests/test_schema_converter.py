@@ -1,9 +1,4 @@
-"""Tests for Schema Converter Module.
-
-This module contains unit tests for the phlo_dlt.converter module.
-Tests cover Pandera to PyIceberg schema conversion including type mapping,
-field metadata extraction, DLT field injection, and error handling.
-"""
+"""Tests for Iceberg schema conversion utilities."""
 
 from datetime import date, datetime
 from decimal import Decimal
@@ -13,7 +8,7 @@ from pandera.pandas import DataFrameModel, Field
 
 pytest.importorskip("pyiceberg")
 
-from phlo_dlt.converter import SchemaConversionError, pandera_to_iceberg
+from phlo_iceberg.schema_conversion import SchemaConversionError, pandera_to_iceberg
 from pyiceberg.types import (
     BinaryType,
     BooleanType,

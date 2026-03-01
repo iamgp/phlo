@@ -130,7 +130,7 @@ class MySchema(pa.DataFrameModel):
 **Error Message**:
 
 ```
-ValueError: Either 'validation_schema' or 'iceberg_schema' must be provided
+ValueError: Missing required schema parameter (`validation_schema` or `table_schema`)
 ```
 
 **Cause**: Decorator missing schema parameter
@@ -147,7 +147,8 @@ ValueError: Either 'validation_schema' or 'iceberg_schema' must be provided
 )
 ```
 
-**Best practice**: Always use `validation_schema` - Iceberg schema is auto-generated.
+**Best practice**: Use `validation_schema` for contracts and provide `table_schema` when your
+active `table_store` cannot derive storage schema from validation models.
 
 **Details**: [Error Message Audit](./audit/error_message_audit.md#scenario-5)
 

@@ -10,7 +10,6 @@ pytest.importorskip("pyiceberg")
 
 from phlo.capabilities.interfaces import TableStore
 from phlo.logging import get_logger
-from phlo_dlt.converter import pandera_to_iceberg
 from phlo_dlt.registry import TableConfig
 from phlo_iceberg.resource import IcebergResource
 # from phlo_dlt.decorator import phlo_ingestion # Removed to avoid Dagster dependency in this test
@@ -66,7 +65,7 @@ def test_phlo_ingestion_execution_real(tmp_path, iceberg_catalog):
         table_name = "real_integration_test"
         table_config = TableConfig(
             table_name=table_name,
-            iceberg_schema=pandera_to_iceberg(MySchema),
+            table_schema=None,
             validation_schema=MySchema,
             unique_key="id",
             group_name="integration_test",

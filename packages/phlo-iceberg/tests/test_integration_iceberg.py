@@ -32,7 +32,7 @@ class TestPanderaToIcebergConversion:
     def test_basic_schema_conversion(self):
         """Test basic Pandera schema converts to Iceberg schema."""
         from pandera.pandas import DataFrameModel
-        from phlo_dlt.converter import pandera_to_iceberg
+        from phlo_iceberg.schema_conversion import pandera_to_iceberg
 
         class TestSchema(DataFrameModel):
             """Basic Pandera schema for conversion tests."""
@@ -55,7 +55,7 @@ class TestPanderaToIcebergConversion:
         from datetime import datetime
         from typing import Optional
         from pandera.pandas import DataFrameModel
-        from phlo_dlt.converter import pandera_to_iceberg
+        from phlo_iceberg.schema_conversion import pandera_to_iceberg
 
         class ComplexSchema(DataFrameModel):
             """Complex Pandera schema with mixed field types."""
