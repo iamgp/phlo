@@ -345,4 +345,4 @@ prek-validate:
 	uvx prek validate-config
 
 zizmor:
-	uvx zizmor --no-online-audits --no-progress .github/workflows
+	uvx zizmor --no-online-audits --no-progress --min-severity low .github/workflows

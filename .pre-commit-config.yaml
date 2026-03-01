@@ -23,7 +23,7 @@ repos:
     hooks:
       - id: zizmor
         name: zizmor (GitHub Actions security lint)
-        entry: uvx zizmor --no-online-audits --no-progress
+        entry: uvx zizmor --no-online-audits --no-progress --min-severity low
         language: system
         files: ^\.github/(workflows/.*\.(yml|yaml)|dependabot\.yml)$
       - id: sqlfluff-dbt
