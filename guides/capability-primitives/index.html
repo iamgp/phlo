@@ -376,6 +376,8 @@
       
         
       
+        
+      
     
     
     
@@ -461,6 +463,34 @@
     
   
     Workflow Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-migrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Migrations
   
 
     
@@ -662,6 +692,17 @@
     <span class="md-ellipsis">
       
         Runtime context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-capability-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime capability interfaces
       
     </span>
   </a>
@@ -1545,6 +1586,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#runtime-capability-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime capability interfaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#providers-and-adapters" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1725,6 +1777,26 @@ orchestrator adapter. It provides:</p>
 <li><code>resources</code> and <code>get_resource(name)</code></li>
 </ul>
 <p>Do not rely on orchestrator-native context objects inside packages.</p>
+<h2 id="runtime-capability-interfaces">Runtime capability interfaces</h2>
+<p>Provider implementations use runtime protocols from <code>phlo.capabilities.interfaces</code>.
+These are the contracts discovered and wired by capability providers.</p>
+<ul>
+<li><code>TableStore</code>: required methods are <code>ensure_table</code>, <code>append_parquet</code>, and
+  <code>merge_parquet</code>. Optional extended operations include <code>overwrite_parquet</code>,
+  <code>delete_rows</code>, <code>compact</code>, <code>list_snapshots</code>, <code>rollback_to_snapshot</code>, and
+  <code>vacuum</code>.</li>
+<li><code>GovernanceBackend</code>: policy APIs (<code>list_policies</code>, <code>apply_policy</code>,
+  <code>revoke_policy</code>, <code>check_access</code>).</li>
+<li><code>SecretBackend</code>: secret retrieval/listing APIs (<code>get_secret</code>, <code>list_secrets</code>).</li>
+<li><code>SchemaExtractor</code>: converts provider-native schema objects into
+  <code>NormalizedSchema</code>.</li>
+<li><code>SchemaMigrator</code>: storage-native schema migration hooks (<code>diff_schema</code>,
+  <code>apply_plan</code>, <code>get_schema_history</code>) with provider-specific change
+  classification.</li>
+<li><code>AccessPolicy</code>: value object used by governance providers.</li>
+</ul>
+<p>These interfaces let providers opt into richer behavior incrementally while
+keeping a single core contract surface for discovery and runtime resolution.</p>
 <h2 id="providers-and-adapters">Providers and adapters</h2>
 <h3 id="asset-providers">Asset providers</h3>
 <p>Asset providers return a list of <code>AssetSpec</code> objects.</p>

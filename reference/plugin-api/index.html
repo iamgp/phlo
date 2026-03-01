@@ -374,6 +374,8 @@
       
         
       
+        
+      
     
     
     
@@ -1280,6 +1282,89 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#runtime-capability-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Capability Interfaces
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime Capability Interfaces">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tablestore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TableStore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#governancebackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GovernanceBackend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretbackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SecretBackend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schemaextractor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SchemaExtractor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schemamigrator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SchemaMigrator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accesspolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AccessPolicy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#entry-point-registration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2128,6 +2213,89 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#runtime-capability-interfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Capability Interfaces
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime Capability Interfaces">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tablestore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TableStore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#governancebackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GovernanceBackend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretbackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SecretBackend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schemaextractor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SchemaExtractor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schemamigrator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SchemaMigrator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accesspolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AccessPolicy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#entry-point-registration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2829,6 +2997,68 @@ class CustomOrchestratorAdapter(OrchestratorAdapterPlugin):
         # Convert specs to orchestrator-native definitions
         return build_native_defs(assets, checks, resources)
 </code></pre>
+<hr />
+<h2 id="runtime-capability-interfaces">Runtime Capability Interfaces</h2>
+<p><code>phlo.capabilities.interfaces</code></p>
+<p>These runtime protocols define the provider contracts resolved by capability
+discovery and consumed by ingestion/migration flows.</p>
+<h3 id="tablestore">TableStore</h3>
+<p>Required methods:</p>
+<ul>
+<li><code>ensure_table(...)</code></li>
+<li><code>append_parquet(...)</code></li>
+<li><code>merge_parquet(...)</code></li>
+</ul>
+<p>Optional extended operations:</p>
+<ul>
+<li><code>overwrite_parquet(...)</code></li>
+<li><code>delete_rows(...)</code></li>
+<li><code>compact(...)</code></li>
+<li><code>list_snapshots(...)</code></li>
+<li><code>rollback_to_snapshot(...)</code></li>
+<li><code>vacuum(...)</code></li>
+</ul>
+<h3 id="governancebackend">GovernanceBackend</h3>
+<p>Policy contract for governance providers:</p>
+<ul>
+<li><code>list_policies(...)</code></li>
+<li><code>apply_policy(...)</code></li>
+<li><code>revoke_policy(...)</code></li>
+<li><code>check_access(...)</code></li>
+</ul>
+<h3 id="secretbackend">SecretBackend</h3>
+<p>Secret storage contract:</p>
+<ul>
+<li><code>get_secret(key)</code></li>
+<li><code>list_secrets()</code></li>
+</ul>
+<h3 id="schemaextractor">SchemaExtractor</h3>
+<p>Provider contract for converting native quality schemas into
+<code>NormalizedSchema</code>:</p>
+<ul>
+<li><code>extract(native_schema)</code></li>
+</ul>
+<h3 id="schemamigrator">SchemaMigrator</h3>
+<p>Storage-native schema migration contract:</p>
+<ul>
+<li><code>supported_changes()</code></li>
+<li><code>classify_change(change_type, **details)</code></li>
+<li><code>diff_schema(table_name, desired)</code></li>
+<li><code>apply_plan(plan, approved=False)</code></li>
+<li><code>get_schema_history(table_name, limit=10)</code></li>
+</ul>
+<h3 id="accesspolicy">AccessPolicy</h3>
+<p>Value object used by governance providers:</p>
+<ul>
+<li><code>policy_id</code></li>
+<li><code>principal</code></li>
+<li><code>table_pattern</code></li>
+<li><code>action</code></li>
+<li><code>effect</code></li>
+<li><code>columns</code></li>
+<li><code>row_filter</code></li>
+<li><code>data_masking</code></li>
+</ul>
 <hr />
 <h2 id="entry-point-registration">Entry Point Registration</h2>
 <p>Plugins are discovered at runtime via Python <a href="https://packaging.python.org/en/latest/specifications/entry-points/">entry points</a>. Declare them in your package's <code>pyproject.toml</code>:</p>

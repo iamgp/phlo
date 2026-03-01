@@ -13,6 +13,10 @@
       
       
       
+        <link rel="prev" href="../workflow-development/">
+      
+      
+        <link rel="next" href="../dbt-development/">
       
       
         
@@ -23,7 +27,7 @@
     
     
       
-        <title>Part 16: Building Custom Capability Packages - Phlo Lakehouse Platform</title>
+        <title>Data Migrations - Phlo Lakehouse Platform</title>
       
     
     
@@ -76,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#part-16-building-custom-capability-packages" class="md-skip">
+        <a href="#data-migrations" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Part 16: Building Custom Capability Packages
+              Data Migrations
             
           </span>
         </div>
@@ -331,62 +335,64 @@
       
   
   
-  
-  
     
-    
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-    
-      
-        
-        
-      
-    
-    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
-      
-        
   
   
   
-    <a href="../../guides/developer-guide/" class="md-nav__link">
+    
+    
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
   
   
   <span class="md-ellipsis">
@@ -400,12 +406,639 @@
   
   
 
-      
-        <span class="md-nav__icon md-icon"></span>
-      
-    </a>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
   
 
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Migrations
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Migrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spec-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spec format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#write-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Write modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source adapters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dbt-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dbt Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-modeling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Modeling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dagster-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dagster Assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../capability-primitives/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Capability Primitives
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../orchestrator-adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orchestrator Adapters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations-contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations Contracts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hook-event-bus/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hook Event Bus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../semantic-layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugin Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugin Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compose-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compose Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../service-packages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Service Packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../discovery-registry-benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Discovery And Registry Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
       
     </li>
   
@@ -826,10 +1459,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-youll-learn" class="md-nav__link">
+  <a href="#workflow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What You'll Learn
+        Workflow
       
     </span>
   </a>
@@ -837,10 +1470,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#spec-format" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        Spec format
       
     </span>
   </a>
@@ -848,10 +1481,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#when-to-create-a-custom-package" class="md-nav__link">
+  <a href="#commands" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When to Create a Custom Package
+        Commands
       
     </span>
   </a>
@@ -859,10 +1492,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#package-anatomy" class="md-nav__link">
+  <a href="#write-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Package Anatomy
+        Write modes
       
     </span>
   </a>
@@ -870,10 +1503,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#asset-provider-pattern" class="md-nav__link">
+  <a href="#source-adapters" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Asset Provider Pattern
+        Source adapters
       
     </span>
   </a>
@@ -881,87 +1514,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#resource-provider-pattern" class="md-nav__link">
+  <a href="#related" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Resource Provider Pattern
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#entry-points-and-discovery" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Entry Points and Discovery
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#complete-example-pluginpy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Complete Example: plugin.py
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#hands-on-exercise-scaffold-a-package" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hands-On Exercise: Scaffold a Package
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#common-issues" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Common Issues
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#see-also" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        See Also
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Next Steps
+        Related
       
     </span>
   </a>
@@ -985,230 +1541,70 @@
 
 
 
-<h1 id="part-16-building-custom-capability-packages">Part 16: Building Custom Capability Packages</h1>
-<blockquote>
-<p>Prerequisite: Review <a href="../13-capability-primitives/">Part 13: Capability Primitives</a> and <a href="../14-plugin-system/">Part 14: Extending Phlo with Plugins</a>.</p>
-</blockquote>
-<p>By now you have assets, checks, services, and orchestration in place. The next step is
-packaging domain logic so teams can reuse it across projects without copy-paste. This post
-shows how to build a custom package that provides assets and resources using capability
-primitives and entry points.
-For UI extensions that ship alongside packages, see <a href="../15-observatory-extensions/">Part 15: Observatory Extensions</a>.</p>
-<h2 id="what-youll-learn">What You'll Learn</h2>
-<ul>
-<li>How to structure a custom Phlo capability package</li>
-<li>How to implement AssetProviderPlugin and ResourceProviderPlugin</li>
-<li>How to wire entry points for discovery</li>
-<li>How to tie AssetSpec and ResourceSpec together</li>
-<li>How to verify your package is discovered by Phlo</li>
-</ul>
-<h2 id="prerequisites">Prerequisites</h2>
-<ul>
-<li>Review Part 13: Capability Primitives for AssetSpec and ResourceSpec</li>
-<li>Review Part 14: Extending Phlo with Plugins for entry point discovery</li>
-<li>Familiarity with Python packaging and editable installs</li>
-</ul>
-<h2 id="when-to-create-a-custom-package">When to Create a Custom Package</h2>
-<p>Create a capability package when you need:</p>
-<ul>
-<li>A reusable asset bundle for a domain (billing, marketing, security)</li>
-<li>Shared resources (clients, IO managers, config loaders)</li>
-<li>Versioned artifacts you can test, publish, and ship across repos</li>
-</ul>
-<p>Think of each package as a modular capability pack: specs in, orchestrator adapter out.</p>
-<h2 id="package-anatomy">Package Anatomy</h2>
-<p>A minimal capability package looks like this:</p>
-<pre><code>phlo-analytics/
-├── pyproject.toml
-├── README.md
-├── src/
-│   └── phlo_analytics/
-│       ├── __init__.py
-│       ├── assets.py
-│       ├── resources.py
-│       └── plugin.py
-</code></pre>
-<ul>
-<li><code>assets.py</code> defines AssetSpec and AssetCheckSpec instances.</li>
-<li><code>resources.py</code> builds clients and returns ResourceSpec definitions.</li>
-<li><code>plugin.py</code> exposes provider plugins for discovery.</li>
-</ul>
-<h2 id="asset-provider-pattern">Asset Provider Pattern</h2>
-<p>Asset providers emit AssetSpec objects. Keep asset execution logic in small functions and
-wrap them with RunSpec.</p>
-<pre><code class="language-python">from collections.abc import Iterable
-
-from phlo.capabilities.runtime import RuntimeContext
-from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, CheckResult, MaterializeResult
-from phlo.capabilities.specs import RunSpec
-from phlo.plugins import AssetProviderPlugin, PluginMetadata
-
-
-def load_billing_events(context: RuntimeContext) -&gt; Iterable[MaterializeResult]:
-    context.logger.info(&quot;loading billing events&quot;)
-    yield MaterializeResult(metadata={&quot;rows&quot;: 4200}, status=&quot;success&quot;)
-
-
-def check_rows_present(context: RuntimeContext) -&gt; CheckResult:
-    return CheckResult(
-        check_name=&quot;billing_rows_present&quot;,
-        asset_key=&quot;billing.events&quot;,
-        passed=True,
-    )
-
-
-class BillingAssetProvider(AssetProviderPlugin):
-    @property
-    def metadata(self) -&gt; PluginMetadata:
-        return PluginMetadata(
-            name=&quot;billing_assets&quot;,
-            version=&quot;0.1.0&quot;,
-            description=&quot;Billing domain asset specs&quot;,
-        )
-
-    def get_assets(self) -&gt; Iterable[AssetSpec]:
-        return [
-            AssetSpec(
-                key=&quot;billing.events&quot;,
-                group=&quot;bronze&quot;,
-                description=&quot;Raw billing events&quot;,
-                run=RunSpec(fn=load_billing_events),
-                checks=[
-                    AssetCheckSpec(
-                        name=&quot;billing_rows_present&quot;,
-                        asset_key=&quot;billing.events&quot;,
-                        fn=check_rows_present,
-                    )
-                ],
-            )
-        ]
-</code></pre>
-<p>Notes:</p>
-<ul>
-<li><code>key</code> should align with your naming conventions (snake case, domain prefix).</li>
-<li><code>run</code> is optional for static assets, required for executable ones.</li>
-<li><code>checks</code> can live alongside assets for end-to-end contracts.</li>
-</ul>
-<h2 id="resource-provider-pattern">Resource Provider Pattern</h2>
-<p>Resource providers return ResourceSpec objects. These are shared clients, IO managers, or
-configuration factories used by your assets.</p>
-<pre><code class="language-python">from phlo.capabilities.specs import ResourceSpec
-from phlo.plugins import PluginMetadata, ResourceProviderPlugin
-
-from phlo_analytics.resources import build_billing_client
-
-
-class BillingResourceProvider(ResourceProviderPlugin):
-    @property
-    def metadata(self) -&gt; PluginMetadata:
-        return PluginMetadata(
-            name=&quot;billing_resources&quot;,
-            version=&quot;0.1.0&quot;,
-            description=&quot;Shared billing clients and helpers&quot;,
-        )
-
-    def get_resources(self) -&gt; list[ResourceSpec]:
-        return [ResourceSpec(name=&quot;billing_client&quot;, resource=build_billing_client())]
-</code></pre>
-<p>Assets that need the resource can declare it in their AssetSpec:</p>
-<pre><code class="language-python">billing_asset = AssetSpec(
-    key=&quot;billing.events&quot;,
-    group=&quot;bronze&quot;,
-    resources={&quot;billing_client&quot;},
-    run=RunSpec(fn=load_billing_events),
-)
-</code></pre>
-<h2 id="entry-points-and-discovery">Entry Points and Discovery</h2>
-<p>Add entry points in <code>pyproject.toml</code> so Phlo can discover the package:</p>
-<pre><code class="language-toml">[project.entry-points.&quot;phlo.plugins.assets&quot;]
-billing_assets = &quot;phlo_analytics.plugin:BillingAssetProvider&quot;
-
-[project.entry-points.&quot;phlo.plugins.resources&quot;]
-billing_resources = &quot;phlo_analytics.plugin:BillingResourceProvider&quot;
-</code></pre>
-<p>Then install the package in your environment:</p>
-<pre><code class="language-bash">uv pip install -e .
-</code></pre>
-<p>Verify discovery:</p>
-<pre><code class="language-bash">phlo plugin list --type assets
-phlo plugin list --type resources
-</code></pre>
-<h2 id="complete-example-pluginpy">Complete Example: plugin.py</h2>
-<p>Keep providers close together so users can find the entry points quickly:</p>
-<pre><code class="language-python">from collections.abc import Iterable
-
-from phlo.capabilities.specs import AssetSpec, ResourceSpec
-from phlo.plugins import AssetProviderPlugin, PluginMetadata, ResourceProviderPlugin
-
-from phlo_analytics.assets import build_billing_assets
-from phlo_analytics.resources import build_billing_resources
-
-
-class AnalyticsAssets(AssetProviderPlugin):
-    @property
-    def metadata(self) -&gt; PluginMetadata:
-        return PluginMetadata(
-            name=&quot;analytics_assets&quot;,
-            version=&quot;0.1.0&quot;,
-            description=&quot;Analytics domain asset specs&quot;,
-        )
-
-    def get_assets(self) -&gt; Iterable[AssetSpec]:
-        return build_billing_assets()
-
-
-class AnalyticsResources(ResourceProviderPlugin):
-    @property
-    def metadata(self) -&gt; PluginMetadata:
-        return PluginMetadata(
-            name=&quot;analytics_resources&quot;,
-            version=&quot;0.1.0&quot;,
-            description=&quot;Analytics domain resources&quot;,
-        )
-
-    def get_resources(self) -&gt; Iterable[ResourceSpec]:
-        return build_billing_resources()
-</code></pre>
-<p>This pattern keeps the actual asset/resource code in dedicated modules while the plugin
-class remains a thin wrapper for discovery.</p>
-<h2 id="hands-on-exercise-scaffold-a-package">Hands-On Exercise: Scaffold a Package</h2>
+<h1 id="data-migrations">Data Migrations</h1>
+<p>Use <code>phlo migrate</code> for table-to-table, query-to-table, or file-to-table data
+backfills and reshapes defined in YAML specs.</p>
+<h2 id="workflow">Workflow</h2>
 <ol>
-<li>Create a new package directory with <code>pyproject.toml</code>.</li>
-<li>Add an <code>AssetProviderPlugin</code> implementation.</li>
-<li>Register entry points under <code>phlo.plugins.assets</code> and <code>phlo.plugins.resources</code>.</li>
-<li>Run <code>phlo plugin list</code> to confirm discovery.</li>
+<li>Write a migration spec file.</li>
+<li>Validate it (<code>phlo migrate validate</code>).</li>
+<li>Run it in dry-run mode (<code>phlo migrate run --dry-run</code>).</li>
+<li>Execute it (<code>phlo migrate run</code>).</li>
+<li>Review history (<code>phlo migrate status</code>).</li>
 </ol>
-<h2 id="common-issues">Common Issues</h2>
-<ul>
-<li><strong>Package not installed in the environment</strong></li>
-</ul>
-<pre><code class="language-bash">uv pip show phlo-analytics
+<h2 id="spec-format">Spec format</h2>
+<pre><code class="language-yaml">name: backfill_orders_2025q1
+version: &quot;1.0&quot;
+description: Backfill Q1 orders from staged CSV into Iceberg table
+
+source:
+  type: csv
+  path: data/orders_2025q1.csv
+
+destination:
+  table: warehouse.orders
+  write_mode: merge
+  unique_key: order_id
+
+options:
+  chunk_size: 50000
+  parallelism: 1
+  validate: true
+  dry_run: false
+
+column_mapping:
+  id: order_id
+  customerId: customer_id
 </code></pre>
-<p>Fix: reinstall with <code>uv pip install -e .</code> from the package root.</p>
-<ul>
-<li><strong>Entry points not detected</strong></li>
-</ul>
-<pre><code class="language-bash">uv run python -c &quot;import importlib.metadata as m; print(m.entry_points(group='phlo.plugins.assets'))&quot;
+<h2 id="commands">Commands</h2>
+<pre><code class="language-bash"># Validate a spec file
+phlo migrate validate migrations/backfill_orders_2025q1.yaml
+
+# Execute without writes
+phlo migrate run migrations/backfill_orders_2025q1.yaml --dry-run
+
+# Execute with writes
+phlo migrate run migrations/backfill_orders_2025q1.yaml
+
+# List discoverable spec files
+phlo migrate list
+
+# Show recent migration history
+phlo migrate status --limit 20
 </code></pre>
-<p>Fix: confirm <code>pyproject.toml</code> entry points and reinstall the package.</p>
+<h2 id="write-modes">Write modes</h2>
 <ul>
-<li><strong>Assets not visible in Phlo</strong></li>
+<li><code>append</code>: append all rows.</li>
+<li><code>overwrite</code>: replace destination contents (requires table-store overwrite support).</li>
+<li><code>merge</code>: upsert semantics, requires <code>destination.unique_key</code>.</li>
 </ul>
-<pre><code class="language-bash">phlo plugin list --type assets
-</code></pre>
-<p>Fix: restart the runtime and confirm the plugin metadata.</p>
-<p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
-<h2 id="see-also">See Also</h2>
-<p>See also: <a href="../13-capability-primitives/">Part 13: Capability Primitives</a>, <a href="../14-plugin-system/">Part 14: Extending Phlo with Plugins</a>, <a href="../15-observatory-extensions/">Part 15: Observatory Extensions</a>. Reference: <a href="../../reference/phlo-api/">Phlo API Reference</a>.</p>
-<h2 id="summary">Summary</h2>
-<p>Custom capability packages let teams ship reusable assets and resources with clear
-entry points and versioned releases. Use AssetProviderPlugin and ResourceProviderPlugin
-to keep domain logic centralised and discoverable across projects.</p>
-<h2 id="next-steps">Next Steps</h2>
+<h2 id="source-adapters">Source adapters</h2>
+<p><code>source.type</code> is resolved through source adapters. Keep source-specific connection
+or query parameters in <code>source</code> and adapter options.</p>
+<h2 id="related">Related</h2>
 <ul>
-<li>Package your first domain module and publish internally</li>
-<li>Add tests that validate specs returned by your providers</li>
-<li>Wire your assets into an orchestrator adapter (Dagster or custom)</li>
+<li><a href="../../reference/cli-reference/">CLI Reference</a></li>
+<li><a href="../../operations/testing/">Operations Testing</a></li>
 </ul>
 
 

@@ -374,6 +374,8 @@
       
         
       
+        
+      
     
     
     
@@ -1925,7 +1927,8 @@ phlo plugin install dlt
 </code></pre>
 <h2 id="usage">Usage</h2>
 <h3 id="basic-ingestion">Basic Ingestion</h3>
-<pre><code class="language-python">from phlo_dlt.decorator import phlo_ingestion
+<pre><code class="language-python">from phlo import Consumer, SLA
+from phlo.ingestion import phlo_ingestion
 from workflows.schemas.events import EventSchema
 
 @phlo_ingestion(
@@ -1935,6 +1938,12 @@ from workflows.schemas.events import EventSchema
     group=&quot;api&quot;,
     cron=&quot;0 */1 * * *&quot;,
     freshness_hours=(1, 24),
+    owner=&quot;platform-ingestion&quot;,
+    consumers=[
+        Consumer(name=&quot;analytics&quot;, usage=&quot;daily_reporting&quot;),
+        &quot;fraud_team&quot;,
+    ],
+    sla=SLA(freshness_hours=2, quality_threshold=0.99),
 )
 def api_events(partition_date: str):
     &quot;&quot;&quot;Ingest events from REST API.&quot;&quot;&quot;
@@ -2000,6 +2009,21 @@ def api_events(partition_date: str):
 <td><code>dict</code></td>
 <td>Advanced merge configuration</td>
 </tr>
+<tr>
+<td><code>owner</code></td>
+<td><code>str</code></td>
+<td>Optional owner/team metadata for contracts</td>
+</tr>
+<tr>
+<td><code>consumers</code></td>
+<td><code>list[Consumer \| str]</code></td>
+<td>Optional downstream consumer metadata</td>
+</tr>
+<tr>
+<td><code>sla</code></td>
+<td><code>SLA</code></td>
+<td>Optional freshness/quality contract metadata</td>
+</tr>
 </tbody>
 </table>
 <h3 id="merge-strategies">Merge Strategies</h3>
@@ -2024,7 +2048,7 @@ schema derivation from <code>validation_schema</code> (for example Iceberg provi
 phlo materialize dlt_api_events
 
 # Via Phlo CLI
-phlo materialize api_events --partition 2025-01-15
+phlo materialize dlt_api_events --partition 2025-01-15
 </code></pre>
 <h2 id="data-flow">Data Flow</h2>
 <pre><code>External API

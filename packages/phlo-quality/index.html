@@ -374,6 +374,8 @@
       
         
       
+        
+      
     
     
     
@@ -887,6 +889,17 @@
     <span class="md-ellipsis">
       
         Defining Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decorator-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decorator Options
       
     </span>
   </a>
@@ -1764,6 +1777,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#decorator-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decorator Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#using-pandera-schemas" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1932,20 +1956,84 @@ phlo plugin install quality
 </code></pre>
 <h2 id="usage">Usage</h2>
 <h3 id="defining-checks">Defining Checks</h3>
-<pre><code class="language-python">from phlo.quality import phlo_quality
+<pre><code class="language-python">from phlo import Consumer, SLA
+from phlo.quality import phlo_quality
 from phlo_quality import NullCheck, UniqueCheck, RangeCheck
 
 @phlo_quality(
-    asset=&quot;bronze.users&quot;,
+    table=&quot;bronze.users&quot;,
     checks=[
         NullCheck(columns=[&quot;id&quot;]),
         UniqueCheck(columns=[&quot;email&quot;]),
         RangeCheck(column=&quot;age&quot;, min_value=0, max_value=150),
-    ]
+    ],
+    owner=&quot;data-quality&quot;,
+    consumers=[
+        Consumer(name=&quot;finance_dashboard&quot;),
+        &quot;ml_feature_store&quot;,
+    ],
+    sla=SLA(freshness_hours=4, quality_threshold=0.995),
 )
 def validate_users():
     pass
 </code></pre>
+<h3 id="decorator-options">Decorator Options</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>table</code></td>
+<td><code>str</code></td>
+<td>Fully-qualified table to validate (for example <code>bronze.users</code>)</td>
+</tr>
+<tr>
+<td><code>checks</code></td>
+<td><code>list[QualityCheck]</code></td>
+<td>Checks to execute</td>
+</tr>
+<tr>
+<td><code>asset_key</code></td>
+<td><code>str \| None</code></td>
+<td>Override asset key (derived from table by default)</td>
+</tr>
+<tr>
+<td><code>group</code></td>
+<td><code>str \| None</code></td>
+<td>Optional asset group</td>
+</tr>
+<tr>
+<td><code>blocking</code></td>
+<td><code>bool</code></td>
+<td>Whether failed checks block downstream</td>
+</tr>
+<tr>
+<td><code>partition_aware</code></td>
+<td><code>bool</code></td>
+<td>Scope checks to active partition when available</td>
+</tr>
+<tr>
+<td><code>owner</code></td>
+<td><code>str \| None</code></td>
+<td>Optional owner/team metadata for contracts</td>
+</tr>
+<tr>
+<td><code>consumers</code></td>
+<td><code>list[Consumer \| str] \| None</code></td>
+<td>Optional downstream consumer metadata</td>
+</tr>
+<tr>
+<td><code>sla</code></td>
+<td><code>SLA \| None</code></td>
+<td>Optional freshness/quality contract metadata</td>
+</tr>
+</tbody>
+</table>
 <h3 id="using-pandera-schemas">Using Pandera Schemas</h3>
 <pre><code class="language-python">import pandera as pa
 from pandera.typing import Series
