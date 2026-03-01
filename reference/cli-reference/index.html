@@ -549,8 +549,44 @@
       
     </span>
 </a>
-<nav aria-label="Testing Commands" class="md-nav">
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#schema-migration-commands">
+<span class="md-ellipsis">
+      
+        Schema Migration Commands
+      
+    </span>
+</a>
+<nav aria-label="Schema Migration Commands" class="md-nav">
 <ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-schema-migrate-export-contract">
+<span class="md-ellipsis">
+      
+        phlo schema-migrate export-contract
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-schema-migrate-scaffold-yaml">
+<span class="md-ellipsis">
+      
+        phlo schema-migrate scaffold-yaml
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-schema-migrate-planapplyhistory">
+<span class="md-ellipsis">
+      
+        phlo schema-migrate plan/apply/history
+      
+    </span>
+</a>
+</li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="#phlo-test">
 <span class="md-ellipsis">
@@ -1354,8 +1390,44 @@
       
     </span>
 </a>
-<nav aria-label="Testing Commands" class="md-nav">
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#schema-migration-commands">
+<span class="md-ellipsis">
+      
+        Schema Migration Commands
+      
+    </span>
+</a>
+<nav aria-label="Schema Migration Commands" class="md-nav">
 <ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-schema-migrate-export-contract">
+<span class="md-ellipsis">
+      
+        phlo schema-migrate export-contract
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-schema-migrate-scaffold-yaml">
+<span class="md-ellipsis">
+      
+        phlo schema-migrate scaffold-yaml
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-schema-migrate-planapplyhistory">
+<span class="md-ellipsis">
+      
+        phlo schema-migrate plan/apply/history
+      
+    </span>
+</a>
+</li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="#phlo-test">
 <span class="md-ellipsis">
@@ -1802,6 +1874,7 @@ phlo lineage             # Asset lineage (show, export)
 <p><strong>Quality Commands:</strong></p>
 <pre><code class="language-bash">phlo schema              # Manage Pandera schemas
 phlo validate-schema     # Validate Pandera schemas
+phlo schema-migrate      # Diff, plan, apply, and scaffold table schema migrations
 </code></pre>
 <p><strong>Optional Plugin Commands</strong> (requires installation):</p>
 <pre><code class="language-bash">phlo postgrest           # PostgREST management
@@ -2338,6 +2411,7 @@ cd my-lakehouse
 <p><strong>Options</strong>:</p>
 <pre><code class="language-bash">--select SELECTOR        # Asset selection query
 --partition PARTITION    # Specific partition to materialize
+--no-contract-refresh    # Skip automatic schema-contract refresh
 --dry-run                # Show command without executing
 </code></pre>
 <p><strong>Selection Syntax</strong>:</p>
@@ -2363,8 +2437,44 @@ phlo materialize --select "tag:nightscout"
 
 # Dry run
 phlo materialize dlt_glucose_entries --dry-run
+
+# Skip automatic contract refresh
+phlo materialize dlt_glucose_entries --no-contract-refresh
 </code></pre>
 <h2 id="testing-commands">Testing Commands</h2>
+<h2 id="schema-migration-commands">Schema Migration Commands</h2>
+<h3 id="phlo-schema-migrate-export-contract">phlo schema-migrate export-contract</h3>
+<p>Export a Phlo contract snapshot for a table.</p>
+<pre><code class="language-bash">phlo schema-migrate export-contract TABLE_NAME [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--schema-class NAME      # Explicit Pandera schema class name
+--output PATH            # Custom contract output path
+--force                  # Overwrite existing output file
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo schema-migrate export-contract warehouse.customers
+phlo schema-migrate export-contract warehouse.customers --output .phlo/contracts/customers.json
+</code></pre>
+<h3 id="phlo-schema-migrate-scaffold-yaml">phlo schema-migrate scaffold-yaml</h3>
+<p>Generate migration scaffold YAML from a previously exported contract.</p>
+<pre><code class="language-bash">phlo schema-migrate scaffold-yaml TABLE_NAME [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--from-contract PATH     # Contract path (default: .phlo/contracts/&lt;table&gt;.json)
+--output PATH            # YAML output path (default: .phlo/migrations/&lt;table&gt;.yaml)
+--force                  # Overwrite existing output file
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo schema-migrate scaffold-yaml warehouse.customers
+phlo schema-migrate scaffold-yaml warehouse.customers --from-contract .phlo/contracts/customers.json
+</code></pre>
+<h3 id="phlo-schema-migrate-planapplyhistory">phlo schema-migrate plan/apply/history</h3>
+<p>Existing migration lifecycle commands remain available:</p>
+<pre><code class="language-bash">phlo schema-migrate plan warehouse.customers
+phlo schema-migrate apply warehouse.customers
+phlo schema-migrate history warehouse.customers --limit 5
+</code></pre>
 <h3 id="phlo-test">phlo test</h3>
 <p>Run tests.</p>
 <pre><code class="language-bash">phlo test [TEST_PATH] [OPTIONS]
