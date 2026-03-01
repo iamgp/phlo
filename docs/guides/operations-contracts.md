@@ -4,12 +4,16 @@ Phlo defines abstract contracts for ingestion and transformation engines. Orches
 adapters consume these contracts, allowing different backends (DLT, Airbyte, dbt, custom)
 to plug in without coupling to a specific orchestrator.
 
+Both synchronous and asynchronous variants are available. Existing packages can stay on
+sync contracts while new implementations opt into async contracts incrementally.
+
 ## Architecture
 
 ```text
 ┌─────────────────────┐     ┌──────────────────────┐
-│ BaseIngester (ABC)  │     │ BaseTransformer (ABC) │
-└─────────┬───────────┘     └──────────┬───────────┘
+│ BaseIngester /       │    │ BaseTransformer /     │
+│ AsyncIngester        │    │ AsyncTransformer      │
+└─────────┬────────────┘    └──────────┬────────────┘
           │ implements                  │ implements
           ▼                            ▼
 ┌─────────────────────┐     ┌──────────────────────┐
@@ -102,6 +106,49 @@ def run_transform(
 
 Run transformations for an optional partition. Both arguments default to `None` for
 full, unparameterized runs.
+
+## Async Contracts
+
+**Modules:** `phlo.operations.ingestion`, `phlo.operations.transformation`
+
+Async operation contracts mirror the sync interfaces:
+
+```python
+class AsyncIngester(ABC):
+    @abstractmethod
+    async def run_ingestion(
+        self,
+        partition_key: str | None,
+        parameters: dict[str, Any],
+    ) -> IngestionResult:
+        ...
+
+class AsyncTransformer(Generic[ContextT], ABC):
+    @abstractmethod
+    async def run_transform(
+        self,
+        partition_key: str | None = None,
+        parameters: dict[str, Any] | None = None,
+    ) -> TransformationResult:
+        ...
+```
+
+Use these contracts for network-bound ingestion/transform operations where concurrent I/O
+improves runtime.
+
+## Compatibility Adapters
+
+**Module:** `phlo.operations.adapters`
+
+Phlo provides adapters for gradual migration between sync and async engines:
+
+- `SyncToAsyncIngesterAdapter`
+- `AsyncToSyncIngesterAdapter`
+- `SyncToAsyncTransformerAdapter`
+- `AsyncToSyncTransformerAdapter`
+
+These adapters allow orchestrator code to adopt async execution paths without forcing
+all existing engine implementations to migrate at once.
 
 ## TransformationResult
 

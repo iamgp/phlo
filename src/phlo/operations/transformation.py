@@ -63,3 +63,34 @@ class BaseTransformer(Generic[ContextT], ABC):
             Transformation execution result metadata.
         """
         ...
+
+
+class AsyncTransformer(Generic[ContextT], ABC):
+    """Async contract for transformation engines."""
+
+    def __init__(self, context: ContextT, logger: Logger):
+        """Initialize an async transformer.
+
+        Args:
+            context: Engine-specific execution context.
+            logger: Logger used for execution output.
+        """
+        self.context = context
+        self.logger = logger
+
+    @abstractmethod
+    async def run_transform(
+        self,
+        partition_key: str | None = None,
+        parameters: dict[str, Any] | None = None,
+    ) -> TransformationResult:
+        """Run transformations for an optional partition asynchronously.
+
+        Args:
+            partition_key: Partition key for partition-scoped runs.
+            parameters: Backend-specific runtime parameters.
+
+        Returns:
+            Transformation execution result metadata.
+        """
+        ...

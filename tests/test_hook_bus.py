@@ -1,10 +1,12 @@
 """Tests for hook bus behavior."""
 
+from typing import cast
+
 import pytest
 from phlo_testing.hooks import MockHookBus
 
-from phlo.hooks import QualityResultEvent
-from phlo.plugins.hooks import FailurePolicy, HookFilter, HookRegistration
+from phlo.hooks import HookEvent, QualityResultEvent
+from phlo.plugins.hooks import AsyncHookHandler, FailurePolicy, HookFilter, HookRegistration
 
 pytestmark = pytest.mark.core_regression
 
@@ -76,4 +78,86 @@ def test_hook_bus_failure_policy_raise() -> None:
     )
 
     with pytest.raises(RuntimeError, match="boom"):
+        bus.emit(event)
+
+
+@pytest.mark.anyio
+async def test_hook_bus_emit_async_supports_mixed_handlers() -> None:
+    """Verify async emit supports sync, async function, and async object handlers."""
+    bus = MockHookBus()
+    calls: list[str] = []
+
+    def sync_handler(_event) -> None:
+        calls.append("sync")
+
+    async def async_handler(_event) -> None:
+        calls.append("async")
+
+    class AsyncObjectHandler:
+        async def handle_event_async(self, _event: HookEvent) -> None:
+            calls.append("async-object")
+
+    bus.register(
+        HookRegistration(
+            hook_name="sync_handler",
+            handler=sync_handler,
+            priority=20,
+            filters=HookFilter(event_types={"quality.result"}),
+        ),
+        plugin_name="plugin_sync",
+    )
+    bus.register(
+        HookRegistration(
+            hook_name="async_handler",
+            handler=async_handler,
+            priority=10,
+            filters=HookFilter(event_types={"quality.result"}),
+        ),
+        plugin_name="plugin_async",
+    )
+    bus.register(
+        HookRegistration(
+            hook_name="async_object_handler",
+            handler=cast(AsyncHookHandler, AsyncObjectHandler()),
+            priority=5,
+            filters=HookFilter(event_types={"quality.result"}),
+        ),
+        plugin_name="plugin_async_object",
+    )
+
+    event = QualityResultEvent(
+        event_type="quality.result",
+        asset_key="asset",
+        check_name="null_check",
+        passed=True,
+    )
+
+    await bus.emit_async(event)
+    assert calls == ["async-object", "async", "sync"]
+
+
+def test_hook_bus_sync_emit_rejects_async_handlers() -> None:
+    """Verify sync emit rejects async handlers and points callers to emit_async."""
+    bus = MockHookBus()
+
+    async def async_handler(_event) -> None:
+        return None
+
+    bus.register(
+        HookRegistration(
+            hook_name="async_handler",
+            handler=async_handler,
+            failure_policy=FailurePolicy.RAISE,
+        ),
+        plugin_name="plugin_async",
+    )
+
+    event = QualityResultEvent(
+        event_type="quality.result",
+        asset_key="asset",
+        check_name="null_check",
+        passed=True,
+    )
+
+    with pytest.raises(TypeError, match="emit_async"):
         bus.emit(event)

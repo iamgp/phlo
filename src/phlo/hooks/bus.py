@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable
+from typing import Any, Awaitable, Callable, Iterable
 
 from phlo.hooks.events import HookEvent
 from phlo.logging import get_logger
 from phlo.plugins.hooks import (
+    AsyncHookHandler,
     FailurePolicy,
     HookFilter,
     HookHandler,
@@ -24,7 +26,12 @@ class RegisteredHook:
 
     plugin_name: str
     hook_name: str
-    handler: Callable[[HookEvent], None] | HookHandler
+    handler: (
+        Callable[[HookEvent], None]
+        | Callable[[HookEvent], Awaitable[None]]
+        | HookHandler
+        | AsyncHookHandler
+    )
     priority: int
     filters: HookFilter | None
     failure_policy: FailurePolicy
@@ -49,16 +56,22 @@ class HookBus:
             try:
                 self._invoke_handler(hook.handler, event)
             except Exception as exc:
-                policy = hook.failure_policy
-                if policy == FailurePolicy.IGNORE:
+                if self._handle_failure(hook=hook, error=exc):
                     continue
-                if policy == FailurePolicy.LOG:
-                    logger.exception(
-                        "Hook failed: %s.%s (%s)",
-                        hook.plugin_name,
-                        hook.hook_name,
-                        exc,
-                    )
+                raise
+
+    async def emit_async(self, event: HookEvent) -> None:
+        """Emit an event asynchronously to all matching hooks."""
+        self._ensure_discovered()
+        for hook in sorted(
+            self._hooks, key=lambda item: (item.priority, item.plugin_name, item.hook_name)
+        ):
+            if hook.filters and not self._matches_filters(hook.filters, event):
+                continue
+            try:
+                await self._invoke_handler_async(hook.handler, event)
+            except Exception as exc:
+                if self._handle_failure(hook=hook, error=exc):
                     continue
                 raise
 
@@ -102,14 +115,71 @@ class HookBus:
 
     @staticmethod
     def _invoke_handler(
-        handler: Callable[[HookEvent], None] | HookHandler, event: HookEvent
+        handler: (
+            Callable[[HookEvent], None]
+            | Callable[[HookEvent], Awaitable[None]]
+            | HookHandler
+            | AsyncHookHandler
+        ),
+        event: HookEvent,
     ) -> None:
         """Dispatch a hook handler regardless of implementation style."""
 
+        if isinstance(handler, AsyncHookHandler):
+            raise TypeError(
+                "Async hook handler requires HookBus.emit_async(). "
+                "Use a sync handler or call emit_async for this event."
+            )
         if isinstance(handler, HookHandler):
             handler.handle_event(event)
             return
-        handler(event)
+        result = handler(event)
+        if inspect.isawaitable(result):
+            if inspect.iscoroutine(result):
+                result.close()
+            raise TypeError(
+                "Async hook function requires HookBus.emit_async(). "
+                "Use a sync handler or call emit_async for this event."
+            )
+
+    @staticmethod
+    async def _invoke_handler_async(
+        handler: (
+            Callable[[HookEvent], None]
+            | Callable[[HookEvent], Awaitable[None]]
+            | HookHandler
+            | AsyncHookHandler
+        ),
+        event: HookEvent,
+    ) -> None:
+        """Dispatch a hook handler from an async execution context."""
+
+        if isinstance(handler, AsyncHookHandler):
+            await handler.handle_event_async(event)
+            return
+        if isinstance(handler, HookHandler):
+            handler.handle_event(event)
+            return
+        result = handler(event)
+        if inspect.isawaitable(result):
+            await result
+
+    @staticmethod
+    def _handle_failure(*, hook: RegisteredHook, error: Exception) -> bool:
+        """Apply failure policy, returning True when dispatch should continue."""
+
+        policy = hook.failure_policy
+        if policy == FailurePolicy.IGNORE:
+            return True
+        if policy == FailurePolicy.LOG:
+            logger.exception(
+                "Hook failed: %s.%s (%s)",
+                hook.plugin_name,
+                hook.hook_name,
+                error,
+            )
+            return True
+        return False
 
     @staticmethod
     def _matches_filters(filters: HookFilter, event: HookEvent) -> bool:
