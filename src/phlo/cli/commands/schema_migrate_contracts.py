@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,31 @@ def default_contract_path(table_name: str) -> Path:
 def default_scaffold_yaml_path(table_name: str) -> Path:
     """Return default scaffold YAML path for a table."""
     return Path(".phlo/migrations") / f"{table_to_artifact_stem(table_name)}.yaml"
+
+
+def list_recent_contract_paths(
+    *,
+    contracts_dir: Path = Path(".phlo/contracts"),
+    since_hours: int = 24,
+    limit: int | None = None,
+) -> list[Path]:
+    """List recently modified contract files in descending mtime order."""
+    if since_hours < 0:
+        raise ValueError("since_hours must be >= 0")
+    if not contracts_dir.exists():
+        return []
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=since_hours)
+    candidates: list[tuple[float, Path]] = []
+    for path in contracts_dir.glob("*.json"):
+        mtime = path.stat().st_mtime
+        if datetime.fromtimestamp(mtime, tz=timezone.utc) >= cutoff:
+            candidates.append((mtime, path))
+
+    ordered = [path for _, path in sorted(candidates, key=lambda item: item[0], reverse=True)]
+    if limit is not None:
+        return ordered[:limit]
+    return ordered
 
 
 def write_contract(path: Path, payload: dict[str, Any], force: bool = False) -> None:
