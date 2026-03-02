@@ -1,0 +1,690 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
+<meta content="Phlo Team" name="author"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.3" name="generator"/>
+<title>Plugin System Architecture - Phlo Lakehouse Platform</title>
+<link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../../assets/_mkdocstrings.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#plugin-system-architecture">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="Phlo Lakehouse Platform" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Plugin System Architecture
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"></path></svg>
+</label>
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_2" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Switch to system preference" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_2" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to system preference">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<a aria-label="Share" class="md-search__icon md-icon" data-clipboard="" data-clipboard-text="" data-md-component="search-share" href="javascript:void(0)" tabindex="-1" title="Share">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"></path></svg>
+</a>
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Phlo Lakehouse Platform" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Phlo Lakehouse Platform
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../..">
+<span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../getting-started/installation/">
+<span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../guides/developer-guide/">
+<span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../setup/hasura/">
+<span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../packages/">
+<span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../architecture/">
+<span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../errors/">
+<span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../observatory/extensions/">
+<span class="md-ellipsis">
+    
+  
+    Observatory
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../operations/operations-guide/">
+<span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#overview">
+<span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-types">
+<span class="md-ellipsis">
+      
+        Plugin Types
+      
+    </span>
+</a>
+<nav aria-label="Plugin Types" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#provider-plugins-core-primitives">
+<span class="md-ellipsis">
+      
+        Provider Plugins (Core Primitives)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#implementation-plugins-individual-implementations">
+<span class="md-ellipsis">
+      
+        Implementation Plugins (Individual Implementations)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#how-discovery-works">
+<span class="md-ellipsis">
+      
+        How Discovery Works
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#data-flow">
+<span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#end-to-end-example">
+<span class="md-ellipsis">
+      
+        End-to-End Example
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#provider-pattern">
+<span class="md-ellipsis">
+      
+        Provider Pattern
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#related-documentation">
+<span class="md-ellipsis">
+      
+        Related Documentation
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="plugin-system-architecture">Plugin System Architecture</h1>
+<p>This document describes Phlo's plugin system, all plugin types, which packages provide them, and how they connect.</p>
+<h2 id="overview">Overview</h2>
+<p>Phlo uses Python entry points for plugin discovery. Packages declare plugins in their <code>pyproject.toml</code>, and Phlo discovers and registers them at runtime.</p>
+<h2 id="plugin-types">Plugin Types</h2>
+<h3 id="provider-plugins-core-primitives">Provider Plugins (Core Primitives)</h3>
+<p>Provider plugins supply the core primitives that other packages depend on:</p>
+<table>
+<thead>
+<tr>
+<th>Plugin Type</th>
+<th>Entry Point</th>
+<th>Purpose</th>
+<th>Package</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>orchestrators</code></td>
+<td><code>phlo.plugins.orchestrators</code></td>
+<td>Orchestration runtime (Dagster)</td>
+<td>phlo-dagster</td>
+</tr>
+<tr>
+<td><code>quality_providers</code></td>
+<td><code>phlo.plugins.quality_providers</code></td>
+<td>Quality primitives (@phlo_quality, checks)</td>
+<td>phlo-pandera</td>
+</tr>
+<tr>
+<td><code>ingestion_providers</code></td>
+<td><code>phlo.plugins.ingestion_providers</code></td>
+<td>Ingestion primitives (@phlo_ingestion)</td>
+<td>phlo-dlt</td>
+</tr>
+<tr>
+<td><code>transformation_providers</code></td>
+<td><code>phlo.plugins.transformation_providers</code></td>
+<td>Transformation primitives (dbt assets)</td>
+<td>phlo-dbt</td>
+</tr>
+<tr>
+<td><code>resource_providers</code></td>
+<td><code>phlo.plugins.resources</code></td>
+<td>Infrastructure resources (DB, storage)</td>
+<td>phlo-trino, phlo-postgres, phlo-iceberg</td>
+</tr>
+<tr>
+<td><code>asset_providers</code></td>
+<td><code>phlo.plugins.assets</code></td>
+<td>Asset spec generation</td>
+<td>phlo-dbt, phlo-dlt</td>
+</tr>
+<tr>
+<td><code>catalogs</code></td>
+<td><code>phlo.plugins.catalogs</code></td>
+<td>Table catalog (Iceberg, Nessie)</td>
+<td>phlo-iceberg</td>
+</tr>
+</tbody>
+</table>
+<h3 id="implementation-plugins-individual-implementations">Implementation Plugins (Individual Implementations)</h3>
+<p>These provide individual implementations of specific capabilities:</p>
+<table>
+<thead>
+<tr>
+<th>Plugin Type</th>
+<th>Entry Point</th>
+<th>Purpose</th>
+<th>Package</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>quality_checks</code></td>
+<td><code>phlo.plugins.quality</code></td>
+<td>Individual quality checks</td>
+<td>phlo-core-plugins</td>
+</tr>
+<tr>
+<td><code>source_connectors</code></td>
+<td><code>phlo.plugins.sources</code></td>
+<td>Data source connectors</td>
+<td>phlo-core-plugins</td>
+</tr>
+<tr>
+<td><code>transformations</code></td>
+<td><code>phlo.plugins.transforms</code></td>
+<td>Data transformations</td>
+<td>phlo-core-plugins</td>
+</tr>
+<tr>
+<td><code>services</code></td>
+<td><code>phlo.plugins.services</code></td>
+<td>Runtime services</td>
+<td>Various</td>
+</tr>
+<tr>
+<td><code>cli_commands</code></td>
+<td><code>phlo.plugins.cli</code></td>
+<td>CLI commands</td>
+<td>Various</td>
+</tr>
+<tr>
+<td><code>hooks</code></td>
+<td><code>phlo.plugins.hooks</code></td>
+<td>Event hooks</td>
+<td>Various</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-discovery-works">How Discovery Works</h2>
+<ol>
+<li>Package declares entry points in <code>pyproject.toml</code>:</li>
+</ol>
+<pre><code class="language-toml">[project.entry-points."phlo.plugins.quality_providers"]
+pandera = "phlo_pandera.plugin:PanderaQualityProvider"
+</code></pre>
+<ol>
+<li>
+<p>On <code>import phlo</code> or <code>discover_plugins()</code>, Phlo scans entry points</p>
+</li>
+<li>
+<p>Plugins are validated and registered in <code>PluginRegistry</code></p>
+</li>
+<li>
+<p>Packages access plugins via getters:</p>
+</li>
+<li><code>get_quality_provider("pandera")</code></li>
+<li><code>get_ingestion_provider("dlt")</code></li>
+<li><code>get_transformation_provider("dbt")</code></li>
+</ol>
+<h2 id="data-flow">Data Flow</h2>
+<div class="mermaid">flowchart TB
+    subgraph Packages["Installed Packages"]
+        DLT["phlo-dlt&lt;br/&gt;Ingestion Provider"]
+        DBT["phlo-dbt&lt;br/&gt;Transformation Provider"]
+        PANDERA["phlo-pandera&lt;br/&gt;Quality Provider"]
+        TRINO["phlo-trino&lt;br/&gt;Resource Provider"]
+        DAGSTER["phlo-dagster&lt;br/&gt;Orchestrator"]
+        ICEBERG["phlo-iceberg&lt;br/&gt;Catalog"]
+    end
+
+    subgraph Discovery["Plugin Discovery"]
+        EP["Entry Points&lt;br/&gt;pyproject.toml"]
+        DISC["discover_plugins()"]
+        REG["PluginRegistry"]
+        VALID["validate_plugin_interface()"]
+    end
+
+    subgraph Providers["Provider Layer"]
+        QI["quality_providers&lt;br/&gt;PanderaQualityProvider"]
+        II["ingestion_providers&lt;br/&gt;DLTIngestionProvider"]
+        TI["transformation_providers&lt;br/&gt;DbtTransformationProvider"]
+        OI["orchestrators&lt;br/&gt;DagsterOrchestrator"]
+        RI["resource_providers&lt;br/&gt;TrinoResourceProvider"]
+        AI["asset_providers&lt;br/&gt;DbtAssetProvider"]
+        CI["catalogs&lt;br/&gt;IcebergCatalog"]
+    end
+
+    subgraph Specs["Capability Specs Layer"]
+        AS["AssetSpec"]
+        RS["ResourceSpec"]
+        CS["CheckSpec"]
+        CAT["CatalogSpec"]
+    end
+
+    subgraph Adapter["Orchestrator Adapter"]
+        BUILD["build_definitions()"]
+        WIRE["Wire specs to&lt;br/&gt;Dagster definitions"]
+    end
+
+    subgraph Runtime["Runtime"]
+        DAGTASK["Dagster&lt;br/&gt;Daemon"]
+        DLT_RUN["dlt Pipeline"]
+        DBT_RUN["dbt Models"]
+        TRINO_Q["Trino Query"]
+    end
+
+    Packages --&gt; EP
+    EP --&gt; DISC
+    DISC --&gt; REG
+    REG --&gt; VALID
+
+    QI -.-&gt;|get_decorator| PANDERA
+    II -.-&gt;|get_asset_retriever| DLT
+    TI -.-&gt;|get_asset_retriever| DBT
+    OI --&gt; DAGSTER
+    RI --&gt; TRINO
+    CI --&gt; ICEBERG
+
+    DLT --&gt;|provides| AS
+    DBT --&gt;|provides| AS
+    PANDERA --&gt;|provides| CS
+    TRINO --&gt;|provides| RS
+    ICEBERG --&gt;|provides| CAT
+
+    AS --&gt; BUILD
+    CS --&gt; BUILD
+    RS --&gt; BUILD
+    CAT --&gt; BUILD
+
+    BUILD --&gt; WIRE
+    WIRE --&gt; DAGTASK
+
+    DAGTASK --&gt;|runs| DLT_RUN
+    DAGTASK --&gt;|runs| DBT_RUN
+    DAGTASK --&gt;|queries| TRINO_Q
+</div>
+<h2 id="end-to-end-example">End-to-End Example</h2>
+<p>A complete flow from code to execution:</p>
+<div class="mermaid">sequenceDiagram
+    participant D as Developer
+    participant P as phlo CLI
+    participant DIS as discover_plugins()
+    participant REG as PluginRegistry
+    participant QP as QualityProvider
+    participant IP as IngestionProvider
+    participant TP as TransformationProvider
+    participant DA as DagsterAdapter
+    participant DAGT as Dagster
+
+    D-&gt;&gt;P: phlo services start
+    P-&gt;&gt;DIS: discover_plugins()
+    DIS-&gt;&gt;REG: register all plugins
+    REG-&gt;&gt;QP: PanderaQualityProvider
+    REG-&gt;&gt;IP: DLTIngestionProvider
+    REG-&gt;&gt;TP: DbtTransformationProvider
+
+    D-&gt;&gt;P: import phlo.ingestion
+    P-&gt;&gt;IP: get_decorator()
+    IP--&gt;&gt;P: @phlo_ingestion
+
+    D-&gt;&gt;P: @phlo_ingestion&lt;br/&gt;def load_users(): ...
+    P-&gt;&gt;DA: build_definitions()
+    DA--&gt;&gt;P: Dagster Assets
+
+    P-&gt;&gt;DAGT: dagster-webserver
+    DAGT-&gt;&gt;DA: fetch definitions
+    DA--&gt;&gt;DAGT: Assets[load_users, dbt_model, quality_check]
+
+    D-&gt;&gt;P: phlo materialize load_users
+    P-&gt;&gt;DAGT: trigger materialization
+    DAGT-&gt;&gt;DAGT: execute load_users&lt;br/&gt;→ dbt run&lt;br/&gt;→ quality check
+┌─────────────────────────────────────────────────────────────────┐
+│                        Package Layer                             │
+│  phlo-dlt   phlo-dbt   phlo-pandera   phlo-trino   phlo-dagster│
+└─────────────────────────────────────────────────────────────────┘
+         │               │              │              │
+         │ entry points  │              │              │
+         ▼               ▼              ▼              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Plugin Discovery Layer                       │
+│  discover_plugins() → PluginRegistry                            │
+│  - quality_providers: PanderaQualityProvider                   │
+│  - ingestion_providers: DLTIngestionProvider                   │
+│  - transformation_providers: DbtTransformationProvider        │
+│  - orchestrators: DagsterOrchestrator                          │
+│  - resources: TrinoResourceProvider, PostgresResourceProvider │
+└─────────────────────────────────────────────────────────────────┘
+         │               │              │              │
+         │ gets specs    │ gets assets  │ gets checks  │
+         ▼               ▼              ▼              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Capability Specs Layer                      │
+│  AssetSpec   ResourceSpec   CheckSpec   CatalogSpec           │
+└─────────────────────────────────────────────────────────────────┘
+         │               │              │              │
+         │ wires to      │              │              │
+         ▼               ▼              ▼              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Orchestrator Adapter Layer                    │
+│  DagsterAdapter (phlo-dagster)                                 │
+│  - build_definitions() → Definitions                           │
+│  - Translates specs → Dagster assets/checks/resources          │
+└─────────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Runtime Layer                                │
+│  Dagster + dlt + dbt + Trino + Iceberg + etc.                  │
+└─────────────────────────────────────────────────────────────────┘
+</div>
+<h2 id="provider-pattern">Provider Pattern</h2>
+<p>The "provider" plugins (<code>quality_providers</code>, <code>ingestion_providers</code>, <code>transformation_providers</code>) follow a consistent pattern:</p>
+<pre><code class="language-python">class QualityProviderPlugin(Plugin, ABC):
+    @property
+    @abstractmethod
+    def metadata(self) -&gt; PluginMetadata:
+        """Plugin name, version, description."""
+
+    @abstractmethod
+    def get_decorator(self) -&gt; Callable:
+        """Returns @phlo_quality or equivalent."""
+
+    @abstractmethod
+    def get_check_classes(self) -&gt; dict[str, type]:
+        """Returns {name: CheckClass} mapping."""
+
+    def get_schema_extractor(self) -&gt; Any | None:
+        """Optional: schema extraction."""
+
+    def get_reconciliation_checks(self) -&gt; dict[str, type] | None:
+        """Optional: reconciliation checks."""
+</code></pre>
+<p>This allows <code>phlo.quality</code> to work without hardcoded imports:</p>
+<pre><code class="language-python"># phlo/quality.py
+from phlo.plugins.discovery import discover_plugins, get_quality_provider
+
+discover_plugins()
+provider = get_quality_provider("pandera")
+phlo_quality = provider.get_decorator()
+</code></pre>
+<h2 id="related-documentation">Related Documentation</h2>
+<ul>
+<li><a href="capability-primitives.md">Capability Primitives</a> - Spec types and interfaces</li>
+<li><a href="../plugin-api/">Plugin API</a> - Base classes for building plugins</li>
+<li><a href="packages/index.md">Package Documentation</a> - Individual package docs</li>
+</ul>
+</article>
+</div>
+<script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+mermaid.initialize({});</script></body>
+</html>
