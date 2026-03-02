@@ -33,6 +33,9 @@ alerting = [
 iceberg = [
     "phlo-iceberg>=0.1.0",
 ]
+nessie = [
+    "phlo-nessie>=0.1.0",
+]
 
 [project.entry-points."phlo.plugins.services"]
 dagster = "phlo_dagster.plugin:DagsterServicePlugin"
