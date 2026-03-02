@@ -62,7 +62,7 @@ First, make sure the CLI is installed in your environment:
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install phlo phlo-dagster phlo-dlt phlo-quality phlo-nessie phlo-iceberg phlo-dbt phlo-trino phlo-metrics phlo-lineage
+uv pip install phlo phlo-dagster phlo-dlt phlo-pandera phlo-nessie phlo-iceberg phlo-dbt phlo-trino phlo-metrics phlo-lineage
 ```
 
 The command should return something like this:

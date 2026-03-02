@@ -6,7 +6,7 @@ from unittest.mock import Mock
 import pytest
 from phlo_openmetadata.quality_sync import QualityCheckMapper, QualityCheckPublisher
 
-from phlo_quality.checks import (
+from phlo_pandera.checks import (
     CountCheck,
     FreshnessCheck,
     NullCheck,
@@ -14,7 +14,7 @@ from phlo_quality.checks import (
     RangeCheck,
     UniqueCheck,
 )
-from phlo_quality.checks_extra import CustomSQLCheck
+from phlo_pandera.checks_extra import CustomSQLCheck
 
 
 class TestQualityCheckMapper:

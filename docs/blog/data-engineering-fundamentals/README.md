@@ -37,7 +37,7 @@ Run this once before following any command snippets:
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install phlo phlo-dagster phlo-dlt phlo-quality phlo-nessie phlo-iceberg phlo-dbt phlo-trino phlo-metrics phlo-lineage
+uv pip install phlo phlo-dagster phlo-dlt phlo-pandera phlo-nessie phlo-iceberg phlo-dbt phlo-trino phlo-metrics phlo-lineage
 ```
 
 Then run the blog commands from your working project directory (for example `/Users/garethprice/Developer/phlo-examples/blog`).
@@ -52,7 +52,7 @@ Then run the blog commands from your working project directory (for example `/Us
 | 4 | [Iceberg and Nessie for Reliable Tables](04-iceberg-and-nessie-for-reliable-tables.md) | Table format, branching, catalog tooling | 22 min |
 | 5 | [Orchestration with Dagster Assets](05-orchestration-with-dagster-assets.md) | Materialization, backfills, scheduling mindset | 24 min |
 | 6 | [Transformations with dbt](06-transformations-with-dbt.md) | Medallion models, tests, publish configs | 24 min |
-| 7 | [Quality Checks with Pandera and Phlo Quality](07-quality-checks-with-pandera-and-phlo-quality.md) | Contracts, check suites, failure semantics | 24 min |
+| 7 | [Quality Checks with Pandera and Phlo Quality](07-quality-checks-with-pandera-and-phlo-pandera.md) | Contracts, check suites, failure semantics | 24 min |
 | 8 | [Schema Evolution and Data Contracts](08-schema-evolution-and-data-contracts.md) | Safe changes, rollout flow, compatibility | 20 min |
 | 9 | [Observability: Metrics, Logs, and Lineage](09-observability-metrics-logs-lineage.md) | Operational visibility and feedback loops | 22 min |
 | 10 | [Incident Response and Debugging](10-incident-response-and-debugging.md) | Triage playbooks, root cause, recovery | 24 min |
@@ -65,7 +65,7 @@ Then run the blog commands from your working project directory (for example `/Us
 
 1. Start with [Post 1](01-what-is-data-engineering.md)
 2. Complete [Post 2](02-build-your-first-phlo-project.md)
-3. Continue through [Post 7](07-quality-checks-with-pandera-and-phlo-quality.md)
+3. Continue through [Post 7](07-quality-checks-with-pandera-and-phlo-pandera.md)
 4. Use [Post 10](10-incident-response-and-debugging.md) as your runbook baseline
 
 ### Path B: Already Shipping Pipelines

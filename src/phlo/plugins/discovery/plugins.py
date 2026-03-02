@@ -16,13 +16,16 @@ from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
     CliCommandPlugin,
+    IngestionProviderPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
+    QualityProviderPlugin,
     ResourceProviderPlugin,
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
+    TransformationProviderPlugin,
 )
 from phlo.plugins.discovery._plugin_auto_discovery import (
     is_auto_discover_disabled_by_env as _is_auto_discover_disabled_by_env_impl,
@@ -39,6 +42,9 @@ logger = get_logger(__name__)
 ENTRY_POINT_GROUPS = {
     "source_connectors": "phlo.plugins.sources",
     "quality_checks": "phlo.plugins.quality",
+    "quality_providers": "phlo.plugins.quality_providers",
+    "ingestion_providers": "phlo.plugins.ingestion_providers",
+    "transformation_providers": "phlo.plugins.transformation_providers",
     "transformations": "phlo.plugins.transforms",
     "services": "phlo.plugins.services",
     "cli_commands": "phlo.plugins.cli",
@@ -53,6 +59,9 @@ ENTRY_POINT_GROUPS = {
 _PLUGIN_REGISTER_METHODS = {
     "source_connectors": "register_source_connector",
     "quality_checks": "register_quality_check",
+    "quality_providers": "register_quality_provider",
+    "ingestion_providers": "register_ingestion_provider",
+    "transformation_providers": "register_transformation_provider",
     "transformations": "register_transformation",
     "services": "register_service",
     "cli_commands": "register_cli_command_plugin",
@@ -67,6 +76,9 @@ _PLUGIN_REGISTER_METHODS = {
 _PLUGIN_GETTER_METHODS = {
     "source_connectors": "get_source_connector",
     "quality_checks": "get_quality_check",
+    "quality_providers": "get_quality_provider",
+    "ingestion_providers": "get_ingestion_provider",
+    "transformation_providers": "get_transformation_provider",
     "transformations": "get_transformation",
     "services": "get_service",
     "cli_commands": "get_cli_command_plugin",
@@ -80,6 +92,9 @@ _PLUGIN_GETTER_METHODS = {
 _PLUGIN_EXPECTED_TYPES = {
     "source_connectors": SourceConnectorPlugin,
     "quality_checks": QualityCheckPlugin,
+    "quality_providers": QualityProviderPlugin,
+    "ingestion_providers": IngestionProviderPlugin,
+    "transformation_providers": TransformationProviderPlugin,
     "transformations": TransformationPlugin,
     "services": ServicePlugin,
     "cli_commands": CliCommandPlugin,
@@ -547,6 +562,56 @@ def get_quality_check(name: str) -> QualityCheckPlugin | None:
     """
     registry = get_global_registry()
     return registry.get_quality_check(name)
+
+
+def get_quality_provider(name: str) -> QualityProviderPlugin | None:
+    """
+    Get a quality provider plugin by name.
+
+    Args:
+        name: Plugin name (e.g., "pandera")
+
+    Returns:
+        QualityProviderPlugin instance or None if not found
+
+    Example:
+        ```python
+        provider = get_quality_provider("pandera")
+        if provider:
+            decorator = provider.get_decorator()
+            check_classes = provider.get_check_classes()
+        ```
+    """
+    registry = get_global_registry()
+    return registry.get_quality_provider(name)
+
+
+def get_ingestion_provider(name: str) -> IngestionProviderPlugin | None:
+    """
+    Get an ingestion provider plugin by name.
+
+    Args:
+        name: Plugin name (e.g., "dlt")
+
+    Returns:
+        IngestionProviderPlugin instance or None if not found
+    """
+    registry = get_global_registry()
+    return registry.get_ingestion_provider(name)
+
+
+def get_transformation_provider(name: str) -> TransformationProviderPlugin | None:
+    """
+    Get a transformation provider plugin by name.
+
+    Args:
+        name: Plugin name (e.g., "dbt")
+
+    Returns:
+        TransformationProviderPlugin instance or None if not found
+    """
+    registry = get_global_registry()
+    return registry.get_transformation_provider(name)
 
 
 def get_transformation(name: str) -> TransformationPlugin | None:

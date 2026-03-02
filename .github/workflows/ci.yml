@@ -143,7 +143,7 @@ jobs:
             extra: ""
           - package: phlo-prometheus
             extra: ""
-          - package: phlo-quality
+          - package: phlo-pandera
             extra: ""
           - package: phlo-superset
             extra: ""

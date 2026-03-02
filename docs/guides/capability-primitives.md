@@ -12,7 +12,7 @@ without importing any orchestrator libraries.
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
 │                          Installed Packages                       │
-│  phlo-dlt   phlo-dbt   phlo-quality   phlo-iceberg   phlo-trino    │
+│  phlo-dlt   phlo-dbt   phlo-pandera   phlo-iceberg   phlo-trino    │
 └──────────────────────────────────────────────────────────────────┘
               │                       │
               │ entry points           │ entry points

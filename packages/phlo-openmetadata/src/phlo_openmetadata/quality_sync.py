@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Optional, TypeAlias, TypeVar
 from phlo.logging import get_logger
 
 try:
-    from phlo_quality.checks import (
+    from phlo_pandera.checks import (
         CountCheck as _CountCheck,
         FreshnessCheck as _FreshnessCheck,
         NullCheck as _NullCheck,
@@ -24,7 +24,7 @@ try:
         RangeCheck as _RangeCheck,
         UniqueCheck as _UniqueCheck,
     )
-    from phlo_quality.checks_extra import CustomSQLCheck as _CustomSQLCheck
+    from phlo_pandera.checks_extra import CustomSQLCheck as _CustomSQLCheck
 except Exception:  # noqa: BLE001 - optional dependency for quality sync
 
     class _CountCheck:
