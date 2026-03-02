@@ -34,10 +34,70 @@ jobs:
         run: uv sync --dev
 
       - name: Lint with ruff
-        run: uv run ruff check .
+        id: ruff_lint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cairn-artifacts
+
+          set +e
+          uv run ruff check . --output-format json --output-file cairn-artifacts/ruff-results.json
+          ruff_exit=$?
+          set -e
+
+          if [ ! -f cairn-artifacts/ruff-results.json ]; then
+            echo "[]" > cairn-artifacts/ruff-results.json
+          fi
+
+          echo "ruff_exit=${ruff_exit}" >> "$GITHUB_OUTPUT"
+          if [ "${ruff_exit}" -ne 0 ]; then
+            exit "${ruff_exit}"
+          fi
 
       - name: Check formatting
-        run: uv run ruff format --check .
+        id: ruff_format
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cairn-artifacts
+
+          set +e
+          uv run ruff format --check .
+          format_exit=$?
+          set -e
+
+          if [ "${format_exit}" -eq 0 ]; then
+            status="pass"
+          else
+            status="fail"
+          fi
+
+          cat > cairn-artifacts/ruff-format-summary.json <<EOF
+          {
+            "summary": {"status": "${status}", "duration_seconds": 0},
+            "results": [
+              {
+                "id": "ruff-format",
+                "status": "${status}",
+                "duration_seconds": 0,
+                "message": "ruff format --check exit ${format_exit}"
+              }
+            ]
+          }
+          EOF
+
+          echo "format_exit=${format_exit}" >> "$GITHUB_OUTPUT"
+          if [ "${format_exit}" -ne 0 ]; then
+            exit "${format_exit}"
+          fi
+
+      - name: Upload Cairn lint artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: cairn-lint
+          path: cairn-artifacts/
+          if-no-files-found: warn
 
   type-check:
     runs-on: ubuntu-latest
@@ -86,12 +146,41 @@ jobs:
         run: make test-core-regression
 
       - name: Run tests
+        id: core_tests
+        shell: bash
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
           SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
         run: |
-          uv run pytest tests -m "not integration" --tb=short --cov=phlo --cov-report=term-missing
+          set -euo pipefail
+          mkdir -p cairn-artifacts
+          junit_path="cairn-artifacts/pytest-${{ matrix.python-version }}.xml"
+
+          set +e
+          uv run pytest tests -m "not integration" --tb=short --cov=phlo --cov-report=term-missing --junitxml "${junit_path}"
+          pytest_exit=$?
+          set -e
+
+          if [ ! -f "${junit_path}" ]; then
+            printf '%s\n' \
+              '<testsuite name="pytest" tests="0" failures="0" errors="1" skipped="0">' \
+              '  <testcase classname="cairn" name="pytest-missing-output">' \
+              '    <error message="pytest did not produce junit xml output"/>' \
+              '  </testcase>' \
+              '</testsuite>' > "${junit_path}"
+          fi
+
+          echo "pytest_exit=${pytest_exit}" >> "$GITHUB_OUTPUT"
+          exit "${pytest_exit}"
+
+      - name: Upload Cairn core test artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: cairn-test-core-${{ matrix.python-version }}
+          path: cairn-artifacts/pytest-${{ matrix.python-version }}.xml
+          if-no-files-found: warn
 
   test-packages:
     runs-on: ubuntu-latest
@@ -302,3 +391,34 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  cairn:
+    runs-on: ubuntu-latest
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+    needs:
+      - lint
+      - test-core
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Download Cairn artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          pattern: cairn-*
+          merge-multiple: true
+          path: cairn-artifacts
+
+      - name: Publish Cairn report
+        uses: iamgp/cairn@90c816cc3386b98205f5f213e5589a80ba999008 # v0.2.1
+        with:
+          collect-config: .github/cairn.toml
+          pages-subdir: ${{ github.event_name == 'pull_request' && format('previews/pr-{0}', github.event.pull_request.number) || '' }}
+          deploy-pages: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'true' || 'false' }}
