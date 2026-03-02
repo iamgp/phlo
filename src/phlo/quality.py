@@ -6,6 +6,7 @@ quality provider plugins. The primary provider is phlo-pandera.
 
 from __future__ import annotations
 
+import importlib
 from typing import TYPE_CHECKING, Any, Callable
 
 from phlo.logging import get_logger
@@ -38,6 +39,16 @@ dbt_check_name: Callable[[str, str], str] | None = None
 phlo_quality: Callable | None = None
 
 
+def _provider_api_module(provider: "QualityProviderPlugin") -> Any | None:
+    """Resolve the provider package module that may expose helper exports."""
+    provider_module = provider.__class__.__module__
+    provider_package = provider_module.split(".", 1)[0]
+    try:
+        return importlib.import_module(provider_package)
+    except ModuleNotFoundError:
+        return None
+
+
 def _load_quality_provider() -> "QualityProviderPlugin | None":
     """Load quality provider via plugin discovery, with fallback to direct import."""
     global phlo_quality
@@ -68,6 +79,7 @@ def _load_quality_provider() -> "QualityProviderPlugin | None":
         discover_plugins()
         provider = get_quality_provider("pandera")
         if provider is not None:
+            provider_module = _provider_api_module(provider)
             phlo_quality = provider.get_decorator()
             check_classes = provider.get_check_classes()
             NullCheck = check_classes.get("null")
@@ -78,6 +90,9 @@ def _load_quality_provider() -> "QualityProviderPlugin | None":
             SchemaCheck = check_classes.get("schema")
             PatternCheck = check_classes.get("pattern")
             QualityCheck = check_classes.get("quality_check")
+            CustomSQLCheck = check_classes.get("custom_sql") or (
+                getattr(provider_module, "CustomSQLCheck", None) if provider_module else None
+            )
             rec_classes = provider.get_reconciliation_checks() or {}
             ReconciliationCheck = rec_classes.get("reconciliation")
             AggregateConsistencyCheck = rec_classes.get("aggregate_consistency")
@@ -85,6 +100,23 @@ def _load_quality_provider() -> "QualityProviderPlugin | None":
             KeyParityCheck = rec_classes.get("key_parity")
             MultiAggregateConsistencyCheck = rec_classes.get("multi_aggregate")
             ChecksumReconciliationCheck = rec_classes.get("checksum")
+            get_quality_checks = (
+                getattr(provider_module, "get_quality_checks", None) if provider_module else None
+            )
+            clear_quality_checks = (
+                getattr(provider_module, "clear_quality_checks", None) if provider_module else None
+            )
+            PANDERA_CONTRACT_CHECK_NAME = (
+                getattr(provider_module, "PANDERA_CONTRACT_CHECK_NAME", None)
+                if provider_module
+                else None
+            )
+            QualityCheckContract = (
+                getattr(provider_module, "QualityCheckContract", None) if provider_module else None
+            )
+            dbt_check_name = (
+                getattr(provider_module, "dbt_check_name", None) if provider_module else None
+            )
             return provider
     except Exception as e:
         logger.warning("quality_provider_discovery_failed", exc_info=True, error=str(e))
