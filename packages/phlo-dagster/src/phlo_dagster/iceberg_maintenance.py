@@ -54,6 +54,8 @@ def expire_table_snapshots(
 
     for namespace in resolve_namespaces(config):
         for table_name in list_tables(namespace, config.ref):
+            if config.table_allowlist and table_name not in config.table_allowlist:
+                continue
             try:
                 result = expire_snapshots(
                     table_name=table_name,
@@ -147,6 +149,8 @@ def cleanup_orphan_files(
 
     for namespace in resolve_namespaces(config):
         for table_name in list_tables(namespace, config.ref):
+            if config.table_allowlist and table_name not in config.table_allowlist:
+                continue
             try:
                 result = remove_orphan_files(
                     table_name=table_name,
@@ -226,6 +230,8 @@ def collect_table_stats(
 
     for namespace in resolve_namespaces(config):
         for table_name in list_tables(namespace, config.ref):
+            if config.table_allowlist and table_name not in config.table_allowlist:
+                continue
             try:
                 stats = get_table_stats(table_name=table_name, ref=config.ref)
                 tables.append(stats)
