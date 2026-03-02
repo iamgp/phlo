@@ -400,8 +400,6 @@ jobs:
       - test-core
     permissions:
       contents: write
-      pages: write
-      id-token: write
       pull-requests: write
       issues: write
     steps:
@@ -420,5 +418,5 @@ jobs:
         uses: iamgp/cairn@90c816cc3386b98205f5f213e5589a80ba999008 # v0.2.1
         with:
           collect-config: .github/cairn.toml
-          pages-subdir: ${{ github.event_name == 'pull_request' && format('previews/pr-{0}', github.event.pull_request.number) || '' }}
-          deploy-pages: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'true' || 'false' }}
+          pages-subdir: ${{ github.event_name == 'pull_request' && format('previews/pr-{0}/cairn', github.event.pull_request.number) || 'cairn' }}
+          deploy-pages: "false"
