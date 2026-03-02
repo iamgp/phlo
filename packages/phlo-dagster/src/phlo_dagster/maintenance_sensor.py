@@ -6,6 +6,8 @@ maintenance jobs when thresholds are exceeded.
 """
 
 import os
+import re
+from datetime import datetime, timezone
 from typing import Any
 
 import dagster as dg
@@ -23,6 +25,14 @@ from phlo_dagster.maintenance_policy import (
 logger = get_logger(__name__)
 
 _DEFAULT_POLICY_PATH = "maintenance_policy.yaml"
+_VALID_TABLE_NAME = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+$")
+
+
+def _validate_table_name(table_name: str) -> str:
+    """Validate fully-qualified table names before SQL interpolation."""
+    if not _VALID_TABLE_NAME.fullmatch(table_name):
+        raise ValueError(f"Invalid table name: {table_name}")
+    return table_name
 
 
 def _load_iceberg_stats() -> Any:
@@ -94,7 +104,8 @@ def optimize_table_files(
 
     for table_name in config.table_names:
         try:
-            trino.execute(f"ALTER TABLE {table_name} EXECUTE optimize")
+            validated_table_name = _validate_table_name(table_name)
+            trino.execute(f"ALTER TABLE {validated_table_name} EXECUTE optimize")
             context.log.info(f"Optimized table {table_name}")
             results.append({"table_name": table_name, "status": "success"})
         except Exception as e:
@@ -120,10 +131,10 @@ def optimize_tables_job():
     ),
     minimum_interval_seconds=1800,
     default_status=dg.DefaultSensorStatus.STOPPED,
-    jobs=[optimize_tables_job],
 )
 def maintenance_policy_sensor(context: dg.SensorEvaluationContext):
     """Evaluate tables against maintenance policies, yield RunRequests as needed."""
+    cursor_key = context.cursor or datetime.now(timezone.utc).isoformat()
     policy_path = os.environ.get("PHLO_MAINTENANCE_POLICY_PATH", _DEFAULT_POLICY_PATH)
 
     try:
@@ -149,7 +160,7 @@ def maintenance_policy_sensor(context: dg.SensorEvaluationContext):
                 table_count=len(expire_tables),
             )
             yield dg.RunRequest(
-                run_key=f"expire_{policy.namespace}_{context.cursor or 'init'}",
+                run_key=f"expire_{policy.namespace}_{cursor_key}",
                 job_name="expire_snapshots_job",
                 run_config=dg.RunConfig(
                     ops={
@@ -177,7 +188,7 @@ def maintenance_policy_sensor(context: dg.SensorEvaluationContext):
                 table_count=len(optimize_tables),
             )
             yield dg.RunRequest(
-                run_key=f"optimize_{policy.namespace}_{context.cursor or 'init'}",
+                run_key=f"optimize_{policy.namespace}_{cursor_key}",
                 job_name="optimize_tables_job",
                 run_config=dg.RunConfig(
                     ops={
@@ -190,6 +201,8 @@ def maintenance_policy_sensor(context: dg.SensorEvaluationContext):
                     }
                 ),
             )
+
+    context.update_cursor(datetime.now(timezone.utc).isoformat())
 
 
 def get_policy_maintenance_definitions() -> dg.Definitions:
@@ -205,12 +218,20 @@ def get_policy_maintenance_definitions() -> dg.Definitions:
         policy_defs = get_policy_maintenance_definitions()
         defs = dg.Definitions.merge(your_defs, policy_defs)
     """
+    jobs: list[dg.JobDefinition] = [optimize_tables_job]
+    try:
+        from phlo_dagster.iceberg_maintenance import expire_snapshots_job
+    except Exception:
+        logger.warning("dagster_policy_maintenance_expire_job_unavailable")
+    else:
+        jobs.insert(0, expire_snapshots_job)
+
     logger.info(
         "dagster_policy_maintenance_definitions_built",
-        job_count=1,
+        job_count=len(jobs),
         sensor_count=1,
     )
     return dg.Definitions(
-        jobs=[optimize_tables_job],
+        jobs=jobs,
         sensors=[maintenance_policy_sensor],
     )
