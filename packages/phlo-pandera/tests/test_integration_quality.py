@@ -162,6 +162,16 @@ class TestQualityDecorator:
 
         assert hasattr(decorator, "get_quality_checks")
 
+    def test_provider_exposes_quality_check_base_class(self):
+        """Provider check class map includes the base QualityCheck type."""
+        from phlo_pandera import QualityCheck
+        from phlo_pandera.plugin import PanderaQualityProvider
+
+        check_classes = PanderaQualityProvider().get_check_classes()
+
+        assert "quality_check" in check_classes
+        assert check_classes["quality_check"] is QualityCheck
+
 
 # =============================================================================
 # Severity Tests

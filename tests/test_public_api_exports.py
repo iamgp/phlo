@@ -85,6 +85,7 @@ def test_quality_module_populates_exports_on_discovered_provider(
     assert callable(quality_module.get_quality_checks)
     assert callable(quality_module.clear_quality_checks)
     assert quality_module.get_quality_checks() == ["check"]
+    assert quality_module.QualityCheck is _DummyCheck
     assert quality_module.CustomSQLCheck is _DummyCheck
     assert quality_module.QualityCheckContract is _DummyContract
     assert quality_module.PANDERA_CONTRACT_CHECK_NAME == "pandera_contract"

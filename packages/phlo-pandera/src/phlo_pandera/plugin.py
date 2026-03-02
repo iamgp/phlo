@@ -32,6 +32,7 @@ class PanderaQualityProvider(QualityProviderPlugin):
             FreshnessCheck,
             NullCheck,
             PatternCheck,
+            QualityCheck,
             RangeCheck,
             SchemaCheck,
             UniqueCheck,
@@ -45,6 +46,7 @@ class PanderaQualityProvider(QualityProviderPlugin):
             "count": CountCheck,
             "schema": SchemaCheck,
             "pattern": PatternCheck,
+            "quality_check": QualityCheck,
         }
 
     def get_schema_extractor(self) -> Any:
