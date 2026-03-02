@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phlo-pandera"
+version = "0.1.0"
+description = "Quality checks and schema utilities for Phlo"
+readme = {text = "Quality checks and Pandera utilities for Phlo.", content-type = "text/plain"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Phlo Team", email = "team@phlo.dev"},
+]
+license = {text = "MIT"}
+dependencies = [
+    "phlo>=0.1.0",
+    "pandas>=2.3.3",
+    "pandera>=0.26.1",
+    "click>=8.3.0",
+    "rich>=14.2.0",
+]
+
+[project.optional-dependencies]
+observatory = [
+    "phlo-observatory>=0.1.0",
+]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+
+[project.entry-points."phlo.plugins.cli"]
+pandera = "phlo_pandera.cli_plugin:PanderaCliPlugin"
+
+[project.entry-points."phlo.plugins.observatory"]
+pandera = "phlo_pandera.observatory_plugin:PanderaObservatoryExtension"
+
+[project.entry-points."phlo.plugins.quality_providers"]
+pandera = "phlo_pandera.plugin:PanderaQualityProvider"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+phlo_pandera = [
+    "schemas/**/*.py",
+    "observatory_assets/*",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

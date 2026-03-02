@@ -85,7 +85,7 @@ nav:
           - phlo-dlt: packages/phlo-dlt.md
           - phlo-dbt: packages/phlo-dbt.md
           - phlo-iceberg: packages/phlo-iceberg.md
-          - phlo-quality: packages/phlo-quality.md
+          - phlo-pandera: packages/phlo-pandera.md
           - phlo-lineage: packages/phlo-lineage.md
       - Infrastructure:
           - phlo-postgres: packages/phlo-postgres.md

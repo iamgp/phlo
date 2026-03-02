@@ -16,11 +16,11 @@ from pandera.pandas import DataFrameModel, Field
 from phlo.logging import get_logger
 
 try:
-    from phlo_quality.schemas.base import PhloSchema
+    from phlo_pandera.schemas.base import PhloSchema
 except Exception:  # noqa: BLE001 - optional dependency
 
     class PhloSchema(DataFrameModel):  # type: ignore[no-redef]
-        """Fallback schema base with PhloSchema defaults when phlo-quality is unavailable."""
+        """Fallback schema base with PhloSchema defaults when phlo-pandera is unavailable."""
 
         class Config:
             strict = False

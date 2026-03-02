@@ -29,6 +29,6 @@ class UniquenessCheckPlugin(QualityCheckPlugin[Any]):
         Returns:
             Configured uniqueness-check instance.
         """
-        from phlo_quality.checks import UniqueCheck
+        from phlo_pandera.checks import UniqueCheck
 
         return UniqueCheck(columns=columns, allow_threshold=allow_threshold)

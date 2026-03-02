@@ -28,7 +28,7 @@ TY_CHECK_SCOPE ?= src/phlo \
 	packages/phlo-postgres/src \
 	packages/phlo-postgrest/src \
 	packages/phlo-prometheus/src \
-	packages/phlo-quality/src \
+	packages/phlo-pandera/src \
 	packages/phlo-superset/src \
 	packages/phlo-trino/src
 CHECK_CMD := scripts/run-parallel \

@@ -105,7 +105,7 @@ Open `http://localhost:8585` in your browser:
 ## Related Packages
 
 - [phlo-lineage](phlo-lineage.md) - Lineage tracking
-- [phlo-quality](phlo-quality.md) - Quality checks
+- [phlo-pandera](phlo-pandera.md) - Quality checks
 - [phlo-dagster](phlo-dagster.md) - Asset metadata
 
 ## Next Steps

@@ -6,13 +6,16 @@ from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
     CliCommandPlugin,
+    IngestionProviderPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
+    QualityProviderPlugin,
     ResourceProviderPlugin,
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
+    TransformationProviderPlugin,
 )
 from phlo.plugins.hooks import HookPlugin
 
@@ -24,6 +27,9 @@ FALSY_ENV_VALUES = frozenset({"0", "false", "no", "off", ""})
 ENTRY_POINT_GROUPS = {
     "source_connectors": "phlo.plugins.sources",
     "quality_checks": "phlo.plugins.quality",
+    "quality_providers": "phlo.plugins.quality_providers",
+    "ingestion_providers": "phlo.plugins.ingestion_providers",
+    "transformation_providers": "phlo.plugins.transformation_providers",
     "transformations": "phlo.plugins.transforms",
     "services": "phlo.plugins.services",
     "cli_commands": "phlo.plugins.cli",
@@ -38,6 +44,9 @@ ENTRY_POINT_GROUPS = {
 PLUGIN_REGISTER_METHODS = {
     "source_connectors": "register_source_connector",
     "quality_checks": "register_quality_check",
+    "quality_providers": "register_quality_provider",
+    "ingestion_providers": "register_ingestion_provider",
+    "transformation_providers": "register_transformation_provider",
     "transformations": "register_transformation",
     "services": "register_service",
     "cli_commands": "register_cli_command_plugin",
@@ -52,6 +61,9 @@ PLUGIN_REGISTER_METHODS = {
 PLUGIN_GETTER_METHODS = {
     "source_connectors": "get_source_connector",
     "quality_checks": "get_quality_check",
+    "quality_providers": "get_quality_provider",
+    "ingestion_providers": "get_ingestion_provider",
+    "transformation_providers": "get_transformation_provider",
     "transformations": "get_transformation",
     "services": "get_service",
     "cli_commands": "get_cli_command_plugin",
@@ -65,6 +77,9 @@ PLUGIN_GETTER_METHODS = {
 PLUGIN_EXPECTED_TYPES: dict[str, type[Plugin]] = {
     "source_connectors": SourceConnectorPlugin,
     "quality_checks": QualityCheckPlugin,
+    "quality_providers": QualityProviderPlugin,
+    "ingestion_providers": IngestionProviderPlugin,
+    "transformation_providers": TransformationProviderPlugin,
     "transformations": TransformationPlugin,
     "services": ServicePlugin,
     "cli_commands": CliCommandPlugin,

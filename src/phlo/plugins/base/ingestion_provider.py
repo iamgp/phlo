@@ -1,0 +1,75 @@
+"""Ingestion provider plugin classes."""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Any, Callable
+
+from phlo.plugins.base.plugin import Plugin, PluginMetadata
+
+
+class IngestionProviderPlugin(Plugin, ABC):
+    """Base class for ingestion provider plugins.
+
+    Ingestion provider plugins supply the core ingestion primitives:
+    - The @phlo_ingestion decorator
+    - Asset registration and retrieval
+    - Source connectors and pipeline configurations
+
+    Example:
+        ```python
+        from phlo.plugins.base import IngestionProviderPlugin, PluginMetadata
+
+        class DLTIngestionProvider(IngestionProviderPlugin):
+            @property
+            def metadata(self) -> PluginMetadata:
+                return PluginMetadata(
+                    name="dlt",
+                    version="0.1.0",
+                    description="DLT-based ingestion provider",
+                )
+
+            def get_decorator(self) -> Callable:
+                from phlo_dlt import phlo_ingestion
+                return phlo_ingestion
+
+            def get_asset_retriever(self) -> Callable:
+                from phlo_dlt import get_ingestion_assets
+                return get_ingestion_assets
+        ```
+    """
+
+    @property
+    @abstractmethod
+    def metadata(self) -> PluginMetadata:
+        """Return plugin metadata."""
+
+    @abstractmethod
+    def get_decorator(self) -> Callable:
+        """Return the ingestion decorator function.
+
+        Returns:
+            The @phlo_ingestion decorator or equivalent.
+
+        Example:
+            ```python
+            def get_decorator(self) -> Callable:
+                from phlo_dlt import phlo_ingestion
+                return phlo_ingestion
+            ```
+        """
+
+    @abstractmethod
+    def get_asset_retriever(self) -> Callable[[], list[Any]]:
+        """Return a function to retrieve registered ingestion assets.
+
+        Returns:
+            Function that returns a list of registered ingestion assets.
+
+        Example:
+            ```python
+            def get_asset_retriever(self) -> Callable[[], list[Any]]:
+                from phlo_dlt import get_ingestion_assets
+                return get_ingestion_assets
+            ```
+        """

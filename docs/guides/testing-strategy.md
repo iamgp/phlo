@@ -63,7 +63,7 @@ This document outlines the testing requirements for all components in the Phlo e
 
 | Package | Test Location | Level 1 (Unit) | Level 2 (Functional) |
 | :--- | :--- | :--- | :--- |
-| **phlo-quality** | `packages/phlo-quality/tests/` | Check generation logic. | **Check Execution**: Run a check against a real dataset (Pandas/DuckDB). Verify pass/fail. |
+| **phlo-pandera** | `packages/phlo-pandera/tests/` | Check generation logic. | **Check Execution**: Run a check against a real dataset (Pandas/DuckDB). Verify pass/fail. |
 | **phlo-metrics** | `packages/phlo-metrics/tests/` | Metric formatting (Prometheus). | **Endpoint Scrape**: Expose metrics endpoint, scrape with test client. |
 | **phlo-alerting**| `packages/phlo-alerting/tests/`| Alert template rendering. | **Notification**: "Send" an alert to a mock sink/webhook receiver. |
 | **phlo-lineage** | `packages/phlo-lineage/tests/` | Graph construction. | **Store/Retrieve**: Write lineage events to DB, query graph back. |
@@ -92,7 +92,7 @@ This document outlines the testing requirements for all components in the Phlo e
 1.  **Core Data Flow**: `phlo-dlt` (Ingest), `phlo-iceberg` (Store), `phlo-dbt` (Transform).
 2.  **Orchestration**: `phlo-dagster` (Run).
 3.  **Core Infrastructure**: `phlo-minio`, `phlo-nessie` (if used in Golden Path).
-4.  **Observability**: `phlo-quality`, `phlo-metrics`.
+4.  **Observability**: `phlo-pandera`, `phlo-metrics`.
 5.  **Extended Services**: Everything else.
 
 ---

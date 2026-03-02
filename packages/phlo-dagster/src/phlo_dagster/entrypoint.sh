@@ -34,7 +34,7 @@ if [ "$PHLO_DEV_MODE" = "true" ] && [ -d /opt/phlo-dev/packages ]; then
         phlo-dagster \
         phlo-dlt \
         phlo-dbt \
-        phlo-quality \
+        phlo-pandera \
         phlo-iceberg \
         phlo-nessie \
         phlo-trino \

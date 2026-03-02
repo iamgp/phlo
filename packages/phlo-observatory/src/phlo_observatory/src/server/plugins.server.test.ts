@@ -91,7 +91,7 @@ describe('plugins.server resolvePluginLists', () => {
     const fetchRegistry = vi
       .fn()
       .mockResolvedValue([
-        plugin({ name: 'phlo-quality', type: 'quality', version: '0.1.0' }),
+        plugin({ name: 'phlo-pandera', type: 'quality', version: '0.1.0' }),
       ])
 
     const result = await resolvePluginLists({
@@ -226,7 +226,7 @@ describe('plugins.server createRegistryFetcherWithCache', () => {
           releaseFetch = () =>
             resolve([
               plugin({
-                name: 'phlo-quality',
+                name: 'phlo-pandera',
                 type: 'quality',
                 version: '0.1.1',
               }),

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Any, Callable
 
 from phlo.capabilities.specs import AssetCheckSpec, AssetSpec
-from phlo.plugins.base import AssetProviderPlugin, PluginMetadata
+from phlo.plugins.base import AssetProviderPlugin, IngestionProviderPlugin, PluginMetadata
 
-from phlo_dlt.decorator import get_ingestion_assets
-from phlo_dlt.decorator import clear_ingestion_assets
+from phlo_dlt.decorator import clear_ingestion_assets, get_ingestion_assets
 
 
 class DltAssetProvider(AssetProviderPlugin):
@@ -44,3 +44,26 @@ class DltAssetProvider(AssetProviderPlugin):
     def clear_registries(self) -> None:
         """Clear in-memory DLT ingestion asset registrations."""
         clear_ingestion_assets()
+
+
+class DLTIngestionProvider(IngestionProviderPlugin):
+    """DLT-based ingestion provider for Phlo."""
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        """Return plugin metadata."""
+        return PluginMetadata(
+            name="dlt",
+            version="0.1.0",
+            description="DLT-based ingestion provider with pipeline orchestration",
+        )
+
+    def get_decorator(self) -> Callable:
+        """Return the @phlo_ingestion decorator."""
+        from phlo_dlt import phlo_ingestion
+
+        return phlo_ingestion
+
+    def get_asset_retriever(self) -> Callable[[], list[Any]]:
+        """Return function to get registered ingestion assets."""
+        return get_ingestion_assets

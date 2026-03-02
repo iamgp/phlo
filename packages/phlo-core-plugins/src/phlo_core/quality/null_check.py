@@ -29,6 +29,6 @@ class NullCheckPlugin(QualityCheckPlugin[Any]):
         Returns:
             Configured null-check instance.
         """
-        from phlo_quality.checks import NullCheck
+        from phlo_pandera.checks import NullCheck
 
         return NullCheck(columns=columns, allow_threshold=allow_threshold)

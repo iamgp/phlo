@@ -29,7 +29,7 @@ dbt = [
     "phlo-dbt>=0.1.0",
 ]
 quality = [
-    "phlo-quality>=0.1.0",
+    "phlo-pandera>=0.1.0",
 ]
 lineage = [
     "phlo-lineage>=0.1.0",

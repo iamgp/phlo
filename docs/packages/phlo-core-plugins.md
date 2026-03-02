@@ -142,7 +142,7 @@ freshness_check(
 
 ## Related Packages
 
-- [phlo-quality](phlo-quality.md) - Quality framework
+- [phlo-pandera](phlo-pandera.md) - Quality framework
 - [phlo-dlt](phlo-dlt.md) - Ingestion framework
 
 ## Next Steps

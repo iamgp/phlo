@@ -1254,7 +1254,7 @@ def events_quality():
 
 ## Additional Resources
 
-- [phlo-quality Package Source](https://github.com/your-org/phlo/tree/main/packages/phlo-quality)
+- [phlo-pandera Package Source](https://github.com/your-org/phlo/tree/main/packages/phlo-pandera)
 - [Nightscout Example](https://github.com/your-org/phlo-examples/tree/main/nightscout/workflows/quality)
 - [GitHub Example](https://github.com/your-org/phlo-examples/tree/main/github/workflows/quality)
 - [Pandera Documentation](https://pandera.readthedocs.io/)
@@ -1267,5 +1267,5 @@ Found a bug or want to add a new check type? See [CONTRIBUTING.md](../CONTRIBUTI
 
 ## Questions?
 
-- Slack: #phlo-quality
+- Slack: #phlo-pandera
 - GitHub Issues: [phlo/issues](https://github.com/your-org/phlo/issues)

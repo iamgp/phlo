@@ -103,7 +103,7 @@ manager.send_alert(
 
 ## Related Packages
 
-- [phlo-quality](phlo-quality.md) - Quality checks
+- [phlo-pandera](phlo-pandera.md) - Quality checks
 - [phlo-prometheus](phlo-prometheus.md) - Metrics alerting
 - [phlo-grafana](phlo-grafana.md) - Alert visualization
 

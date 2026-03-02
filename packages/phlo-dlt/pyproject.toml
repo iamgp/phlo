@@ -31,6 +31,9 @@ dev = [
 [project.entry-points."phlo.plugins.assets"]
 dlt = "phlo_dlt.plugin:DltAssetProvider"
 
+[project.entry-points."phlo.plugins.ingestion_providers"]
+dlt = "phlo_dlt.plugin:DLTIngestionProvider"
+
 [project.entry-points."phlo.plugins.cli"]
 dlt = "phlo_dlt.cli_plugin:DltCliPlugin"
 

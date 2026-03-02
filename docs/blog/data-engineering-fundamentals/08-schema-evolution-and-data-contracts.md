@@ -1,6 +1,6 @@
 # Part 8: Schema Evolution and Data Contracts
 
-> Prerequisite: Complete [Part 7](07-quality-checks-with-pandera-and-phlo-quality.md).
+> Prerequisite: Complete [Part 7](07-quality-checks-with-pandera-and-phlo-pandera.md).
 
 ## What You'll Learn
 

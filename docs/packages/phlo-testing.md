@@ -180,7 +180,7 @@ This package does not register any entry points as it is intended for developmen
 
 ## Related Packages
 
-- [phlo-quality](phlo-quality.md) - Quality checks
+- [phlo-pandera](phlo-pandera.md) - Quality checks
 - [phlo-dlt](phlo-dlt.md) - Data ingestion
 
 ## Next Steps

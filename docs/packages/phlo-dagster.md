@@ -128,7 +128,7 @@ phlo materialize my_asset
 
 - [phlo-dlt](phlo-dlt.md) - Data ingestion
 - [phlo-dbt](phlo-dbt.md) - SQL transformations
-- [phlo-quality](phlo-quality.md) - Data quality checks
+- [phlo-pandera](phlo-pandera.md) - Data quality checks
 - [phlo-iceberg](phlo-iceberg.md) - Iceberg table access
 
 ## Next Steps
