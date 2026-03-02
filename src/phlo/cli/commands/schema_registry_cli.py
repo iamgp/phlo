@@ -21,6 +21,19 @@ console = Console()
 logger = get_logger(__name__)
 
 
+def _require_registry_db_url() -> str:
+    """Resolve and validate schema registry database URL."""
+    db_url = resolve_registry_db_url()
+    if db_url:
+        return db_url
+
+    console.print("[red]No registry database URL configured.[/red]")
+    console.print(
+        "Set PHLO_REGISTRY_DB_URL, PHLO_LINEAGE_DB_URL, or DAGSTER_PG_DB_CONNECTION_STRING."
+    )
+    raise SystemExit(1)
+
+
 @click.group("contracts")
 def contracts() -> None:
     """Schema registry and data contract management."""
@@ -38,13 +51,7 @@ def contracts() -> None:
 @click.option("--source", default="cli", help="Snapshot source label")
 def snapshot(table: str, schema_file: str, run_id: str | None, source: str) -> None:
     """Snapshot a schema from a JSON file into the registry."""
-    db_url = resolve_registry_db_url()
-    if not db_url:
-        console.print("[red]No registry database URL configured.[/red]")
-        console.print(
-            "Set PHLO_REGISTRY_DB_URL, PHLO_LINEAGE_DB_URL, or DAGSTER_PG_DB_CONNECTION_STRING."
-        )
-        sys.exit(1)
+    db_url = _require_registry_db_url()
 
     with open(schema_file) as f:
         schema = deserialize_schema(f.read())
@@ -64,13 +71,7 @@ def snapshot(table: str, schema_file: str, run_id: str | None, source: str) -> N
 )
 def check(table: str, fail_on: str) -> None:
     """Check schema compatibility for a table against its previous snapshot."""
-    db_url = resolve_registry_db_url()
-    if not db_url:
-        console.print("[red]No registry database URL configured.[/red]")
-        console.print(
-            "Set PHLO_REGISTRY_DB_URL, PHLO_LINEAGE_DB_URL, or DAGSTER_PG_DB_CONNECTION_STRING."
-        )
-        sys.exit(1)
+    db_url = _require_registry_db_url()
 
     registry = SchemaRegistry(db_url)
     snapshots = registry.get_latest_snapshots(table, limit=2)
