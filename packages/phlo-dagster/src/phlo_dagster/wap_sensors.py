@@ -61,6 +61,7 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
     NessieResource = _load_nessie()
     nessie = NessieResource()
 
+    evaluation_time = datetime.now(timezone.utc)
     cursor_ts = None
     if context.cursor:
         try:
@@ -68,7 +69,7 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
         except ValueError:
             cursor_ts = None
 
-    cutoff = cursor_ts or (datetime.now(timezone.utc) - timedelta(minutes=5))
+    cutoff = cursor_ts or (evaluation_time - timedelta(minutes=5))
 
     started_runs = list(
         instance.get_runs(
@@ -107,10 +108,6 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
             branch_hash=branch_hash,
         )
 
-        run_created = datetime.fromtimestamp(run.create_timestamp, tz=timezone.utc)
-        if run_created > latest_ts:
-            latest_ts = run_created
-
     if branches_created:
         logger.info(
             "wap_branch_creation_sensor_completed",
@@ -118,7 +115,7 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
             scanned_runs=len(started_runs),
         )
 
-    context.update_cursor(latest_ts.isoformat())
+    context.update_cursor(max(latest_ts, evaluation_time).isoformat())
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +138,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
     NessieResource = _load_nessie()
     nessie = NessieResource()
 
+    evaluation_time = datetime.now(timezone.utc)
     cursor_ts = None
     if context.cursor:
         try:
@@ -148,7 +146,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         except ValueError:
             cursor_ts = None
 
-    cutoff = cursor_ts or (datetime.now(timezone.utc) - timedelta(hours=1))
+    cutoff = cursor_ts or (evaluation_time - timedelta(hours=1))
 
     success_runs = list(
         instance.get_runs(
@@ -171,6 +169,8 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
 
         if run_tags.get("phlo/wap_promoted"):
             continue
+
+        latest_ts = max(latest_ts, evaluation_time)
 
         if not _all_checks_passed(instance, run.run_id):
             blocked += 1
@@ -199,10 +199,6 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             branch_name=branch_name,
         )
 
-        run_created = datetime.fromtimestamp(run.create_timestamp, tz=timezone.utc)
-        if run_created > latest_ts:
-            latest_ts = run_created
-
     if promoted or blocked:
         logger.info(
             "wap_auto_promotion_sensor_completed",
@@ -211,10 +207,10 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             scanned_runs=len(success_runs),
         )
 
-    context.update_cursor(latest_ts.isoformat())
+    context.update_cursor(max(latest_ts, evaluation_time).isoformat())
 
 
-def _all_checks_passed(instance: dg.DagsterInstance, run_id: str) -> bool:
+def _all_checks_passed(instance: Any, run_id: str) -> bool:
     """Return True if every asset check in the run passed (or none were executed)."""
     check_events = list(
         instance.get_event_log_entries(
@@ -260,7 +256,7 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
     skipped = 0
 
     for branch in pipeline_branches:
-        if branch.created_at and branch.created_at > retention_cutoff:
+        if not branch.created_at or branch.created_at > retention_cutoff:
             skipped += 1
             continue
 
