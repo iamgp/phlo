@@ -7,7 +7,7 @@ metrics emission, and catalog listing utilities used by maintenance ops.
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Optional
 
 import dagster as dg
 from phlo.hooks import TelemetryEventContext, TelemetryEventEmitter
@@ -54,6 +54,8 @@ class MaintenanceConfig(dg.Config):
     orphan_dry_run: bool = True
     # Nessie branch reference
     ref: str = "main"
+    # Optional allowlist of fully qualified table names to restrict maintenance to
+    table_allowlist: Optional[list[str]] = None
 
 
 def maintenance_tags(
