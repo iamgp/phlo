@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/phlo"]
-include = ["src/phlo/plugins/registry_data.json"]
+include = ["src/phlo/plugins/registry_data.json", "src/phlo/sql/*.sql"]
 
 [tool.hatch.build.targets.sdist]
 include = [
