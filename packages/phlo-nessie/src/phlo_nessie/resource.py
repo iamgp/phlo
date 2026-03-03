@@ -178,6 +178,94 @@ class NessieResource:
         )
         return deleted
 
+    def create_branch(self, name: str, from_ref: str = "main") -> str | None:
+        """Create a new branch from an existing reference.
+
+        Args:
+            name: New branch name.
+            from_ref: Source reference to branch from.
+
+        Returns:
+            Hash of the new branch, or ``None`` on failure.
+        """
+        logger.info(
+            "nessie_resource_create_branch_requested",
+            branch_name=name,
+            from_ref=from_ref,
+        )
+        source_hash = self.get_branch_hash(from_ref)
+        if not source_hash:
+            logger.warning(
+                "nessie_resource_create_branch_source_missing",
+                branch_name=name,
+                from_ref=from_ref,
+            )
+            return None
+        response = requests.post(
+            self._url("/api/v1/trees/tree"),
+            json={"name": name, "type": "BRANCH", "hash": source_hash},
+            timeout=10,
+        )
+        if response.status_code >= 400:
+            logger.warning(
+                "nessie_resource_create_branch_failed",
+                branch_name=name,
+                from_ref=from_ref,
+                status_code=response.status_code,
+                body=response.text[:200],
+            )
+            return None
+        new_hash = (response.json() or {}).get("hash")
+        logger.info(
+            "nessie_resource_create_branch_succeeded",
+            branch_name=name,
+            from_ref=from_ref,
+            hash=new_hash,
+        )
+        return new_hash
+
+    def merge_branch(self, source: str, target: str = "main") -> bool:
+        """Merge source branch into target branch.
+
+        Args:
+            source: Source branch name.
+            target: Target branch name to merge into.
+
+        Returns:
+            ``True`` if merge succeeded, else ``False``.
+        """
+        logger.info(
+            "nessie_resource_merge_branch_requested",
+            source=source,
+            target=target,
+        )
+        source_hash = self.get_branch_hash(source)
+        target_hash = self.get_branch_hash(target)
+        if not source_hash or not target_hash:
+            logger.warning(
+                "nessie_resource_merge_branch_hash_missing",
+                source=source,
+                target=target,
+                source_hash_found=source_hash is not None,
+                target_hash_found=target_hash is not None,
+            )
+            return False
+        response = requests.post(
+            self._url(f"/api/v1/trees/branch/{target}/merge"),
+            json={"fromRefName": source, "fromHash": source_hash},
+            params={"expectedHash": target_hash},
+            timeout=30,
+        )
+        merged = response.status_code < 300
+        logger.info(
+            "nessie_resource_merge_branch_completed",
+            source=source,
+            target=target,
+            status_code=response.status_code,
+            merged=merged,
+        )
+        return merged
+
 
 class BranchManagerResource:
     """Convenience wrapper for cleaning up Nessie branches."""
