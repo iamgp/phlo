@@ -1,4 +1,4 @@
-"""Row-level lineage store for Phlo.
+"""Row-level and column-level lineage store for Phlo.
 
 Tracks individual row provenance across the data pipeline using ULIDs.
 Stores lineage metadata in PostgreSQL for deterministic querying.
@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,19 @@ import ulid
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class ColumnLineage:
+    """A single column-to-column lineage mapping between two assets."""
+
+    source_asset: str
+    source_column: str
+    target_asset: str
+    target_column: str
+    source_type: str = "dbt_heuristic"
+    metadata: dict[str, Any] | None = None
+
 
 _LINEAGE_DB_KEYS = (
     "LINEAGE_DB_URL",
@@ -88,18 +102,21 @@ class LineageStore:
                 logger.warning("lineage_schema_init_failed", error=str(e))
 
     def setup_schema(self) -> None:
-        """Create the lineage schema and tables if they don't exist."""
-        sql_path = Path(__file__).parent / "sql" / "001_create_schema.sql"
+        """Create the lineage schema and tables if they don't exist.
 
-        with open(sql_path) as f:
-            schema_sql = f.read()
+        Executes all ``sql/*.sql`` files in sorted order to support
+        incremental schema migrations.
+        """
+        sql_dir = Path(__file__).parent / "sql"
+        sql_files = sorted(sql_dir.glob("*.sql"))
 
         with psycopg2.connect(self.connection_string) as conn:
             with conn.cursor() as cur:
-                cur.execute(schema_sql)
+                for sql_file in sql_files:
+                    cur.execute(sql_file.read_text())
             conn.commit()
 
-        logger.info("Lineage schema setup complete")
+        logger.info("lineage_schema_setup_complete", migration_count=len(sql_files))
 
     def record_row(
         self,
@@ -656,4 +673,165 @@ class LineageStore:
                 "metadata": row[5],
             }
             for row in rows
+        ]
+
+    # ------------------------------------------------------------------
+    # Column-level lineage
+    # ------------------------------------------------------------------
+
+    def record_column_lineage(self, mappings: list[ColumnLineage]) -> int:
+        """Batch-insert column lineage mappings.
+
+        Uses ``execute_values`` for efficiency.  Duplicate primary keys
+        are silently skipped (``ON CONFLICT DO NOTHING``).
+
+        Args:
+            mappings: Column lineage records to persist.
+
+        Returns:
+            Number of mappings submitted for insert.
+        """
+        if not mappings:
+            return 0
+
+        values = [
+            (
+                m.source_asset,
+                m.source_column,
+                m.target_asset,
+                m.target_column,
+                m.source_type,
+                json.dumps(m.metadata) if m.metadata else None,
+            )
+            for m in mappings
+        ]
+
+        logger.info("column_lineage_record_started", mapping_count=len(values))
+        try:
+            self._ensure_schema()
+            with psycopg2.connect(self.connection_string) as conn:
+                with conn.cursor() as cur:
+                    from psycopg2.extras import execute_values
+
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO phlo.column_lineage
+                        (source_asset, source_column, target_asset, target_column,
+                         source_type, metadata)
+                        VALUES %s
+                        ON CONFLICT DO NOTHING
+                        """,
+                        values,
+                    )
+                conn.commit()
+            logger.info("column_lineage_record_succeeded", mapping_count=len(values))
+        except Exception:
+            logger.warning(
+                "column_lineage_record_failed",
+                mapping_count=len(values),
+                exc_info=True,
+            )
+            raise
+
+        return len(values)
+
+    def get_upstream_columns(
+        self,
+        target_asset: str,
+        target_column: str | None = None,
+    ) -> list[ColumnLineage]:
+        """Query upstream column lineage for a target asset.
+
+        Args:
+            target_asset: Asset key of the downstream asset.
+            target_column: Optional column name to narrow the query.
+
+        Returns:
+            List of ``ColumnLineage`` records.
+        """
+        self._ensure_schema()
+
+        if target_column is not None:
+            query = """
+                SELECT source_asset, source_column, target_asset, target_column,
+                       source_type, metadata
+                FROM phlo.column_lineage
+                WHERE target_asset = %s AND target_column = %s
+            """
+            params: tuple[str, ...] = (target_asset, target_column)
+        else:
+            query = """
+                SELECT source_asset, source_column, target_asset, target_column,
+                       source_type, metadata
+                FROM phlo.column_lineage
+                WHERE target_asset = %s
+            """
+            params = (target_asset,)
+
+        with psycopg2.connect(self.connection_string) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, params)
+                rows = cur.fetchall()
+
+        return [
+            ColumnLineage(
+                source_asset=r[0],
+                source_column=r[1],
+                target_asset=r[2],
+                target_column=r[3],
+                source_type=r[4],
+                metadata=r[5],
+            )
+            for r in rows
+        ]
+
+    def get_downstream_columns(
+        self,
+        source_asset: str,
+        source_column: str | None = None,
+    ) -> list[ColumnLineage]:
+        """Query downstream column lineage for a source asset.
+
+        Args:
+            source_asset: Asset key of the upstream asset.
+            source_column: Optional column name to narrow the query.
+
+        Returns:
+            List of ``ColumnLineage`` records.
+        """
+        self._ensure_schema()
+
+        if source_column is not None:
+            query = """
+                SELECT source_asset, source_column, target_asset, target_column,
+                       source_type, metadata
+                FROM phlo.column_lineage
+                WHERE source_asset = %s AND source_column = %s
+            """
+            params: tuple[str, ...] = (source_asset, source_column)
+        else:
+            query = """
+                SELECT source_asset, source_column, target_asset, target_column,
+                       source_type, metadata
+                FROM phlo.column_lineage
+                WHERE source_asset = %s
+            """
+            params = (source_asset,)
+
+        with psycopg2.connect(self.connection_string) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, params)
+                rows = cur.fetchall()
+
+        return [
+            ColumnLineage(
+                source_asset=r[0],
+                source_column=r[1],
+                target_asset=r[2],
+                target_column=r[3],
+                source_type=r[4],
+                metadata=r[5],
+            )
+            for r in rows
         ]
