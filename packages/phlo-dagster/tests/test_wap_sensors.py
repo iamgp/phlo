@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 from phlo_dagster.wap_sensors import (
     _all_checks_passed,
     _wap_branch_name,
+    wap_auto_promotion_sensor,
+    wap_branch_creation_sensor,
 )
 
 
@@ -164,3 +166,37 @@ def test_get_wap_definitions_returns_three_sensors():
         "wap_auto_promotion_sensor",
         "wap_branch_cleanup_sensor",
     }
+
+
+def test_wap_branch_creation_sensor_uses_updated_after_filter():
+    """Branch creation sensor should scan by updated timestamp, not creation timestamp."""
+    instance = MagicMock()
+    instance.get_runs.return_value = []
+    context = MagicMock()
+    context.instance = instance
+    context.cursor = None
+
+    with patch("phlo_dagster.wap_sensors._load_nessie", return_value=lambda: MagicMock()):
+        wap_branch_creation_sensor._raw_fn(context)
+
+    filters = instance.get_runs.call_args.kwargs["filters"]
+    assert filters.updated_after is not None
+    assert filters.created_after is None
+    context.update_cursor.assert_called_once()
+
+
+def test_wap_auto_promotion_sensor_uses_updated_after_filter():
+    """Promotion sensor should scan by updated timestamp, not creation timestamp."""
+    instance = MagicMock()
+    instance.get_runs.return_value = []
+    context = MagicMock()
+    context.instance = instance
+    context.cursor = None
+
+    with patch("phlo_dagster.wap_sensors._load_nessie", return_value=lambda: MagicMock()):
+        wap_auto_promotion_sensor._raw_fn(context)
+
+    filters = instance.get_runs.call_args.kwargs["filters"]
+    assert filters.updated_after is not None
+    assert filters.created_after is None
+    context.update_cursor.assert_called_once()

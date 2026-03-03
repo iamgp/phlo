@@ -69,19 +69,22 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
         except ValueError:
             cursor_ts = None
 
-    cutoff = cursor_ts or (evaluation_time - timedelta(minutes=5))
+    cutoff = (
+        (cursor_ts - timedelta(minutes=5))
+        if cursor_ts
+        else (evaluation_time - timedelta(minutes=5))
+    )
 
     started_runs = list(
         instance.get_runs(
             filters=dg.RunsFilter(
                 statuses=[dg.DagsterRunStatus.STARTED],
-                created_after=cutoff,
+                updated_after=cutoff,
             )
         )
     )
 
     branches_created = 0
-    latest_ts = cutoff
 
     for run in started_runs:
         run_tags = run.tags or {}
@@ -115,7 +118,7 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
             scanned_runs=len(started_runs),
         )
 
-    context.update_cursor(max(latest_ts, evaluation_time).isoformat())
+    context.update_cursor(evaluation_time.isoformat())
 
 
 # ---------------------------------------------------------------------------
@@ -146,20 +149,21 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
         except ValueError:
             cursor_ts = None
 
-    cutoff = cursor_ts or (evaluation_time - timedelta(hours=1))
+    cutoff = (
+        (cursor_ts - timedelta(minutes=5)) if cursor_ts else (evaluation_time - timedelta(hours=1))
+    )
 
     success_runs = list(
         instance.get_runs(
             filters=dg.RunsFilter(
                 statuses=[dg.DagsterRunStatus.SUCCESS],
-                created_after=cutoff,
+                updated_after=cutoff,
             )
         )
     )
 
     promoted = 0
     blocked = 0
-    latest_ts = cutoff
 
     for run in success_runs:
         run_tags = run.tags or {}
@@ -169,8 +173,6 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
 
         if run_tags.get("phlo/wap_promoted"):
             continue
-
-        latest_ts = max(latest_ts, evaluation_time)
 
         if not _all_checks_passed(instance, run.run_id):
             blocked += 1
@@ -207,7 +209,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             scanned_runs=len(success_runs),
         )
 
-    context.update_cursor(max(latest_ts, evaluation_time).isoformat())
+    context.update_cursor(evaluation_time.isoformat())
 
 
 def _all_checks_passed(instance: Any, run_id: str) -> bool:
