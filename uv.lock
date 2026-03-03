@@ -2789,9 +2789,6 @@ dev = [
 iceberg = [
     { name = "phlo-iceberg" },
 ]
-nessie = [
-    { name = "phlo-nessie" },
-]
 observatory = [
     { name = "phlo-observatory" },
 ]
@@ -2802,7 +2799,6 @@ requires-dist = [
     { name = "phlo", editable = "." },
     { name = "phlo-alerting", marker = "extra == 'alerting'", editable = "packages/phlo-alerting" },
     { name = "phlo-iceberg", marker = "extra == 'iceberg'", editable = "packages/phlo-iceberg" },
-    { name = "phlo-nessie", marker = "extra == 'nessie'", editable = "packages/phlo-nessie" },
     { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
