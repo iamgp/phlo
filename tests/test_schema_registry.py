@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import MagicMock, patch
 
 from phlo.capabilities.specs import FieldSpec, NormalizedSchema
 from phlo.schema_registry import (
+    SchemaRegistry,
     _canonical_schema_json,
     _schema_hash,
     check_compatibility,
@@ -70,6 +72,21 @@ class TestCheckCompatibility:
         assert plan.classification == "breaking"
         assert plan.requires_approval is True
 
+    def test_add_non_nullable_with_default_is_warning(self) -> None:
+        previous = _schema(("id", "int64", False))
+        current = NormalizedSchema(
+            fields=[
+                FieldSpec(name="id", dtype="int64", nullable=False),
+                FieldSpec(
+                    name="email", dtype="string", nullable=False, default="unknown@example.com"
+                ),
+            ]
+        )
+        plan = check_compatibility(previous, current, table_name="t")
+        assert plan.classification == "warning"
+        add_change = next(c for c in plan.changes if c.change_type == "add")
+        assert add_change.classification == "warning"
+
     def test_widen_type_is_safe(self) -> None:
         previous = _schema(("val", "int32", True))
         current = _schema(("val", "int64", True))
@@ -117,3 +134,35 @@ class TestDeserializeSchema:
             assert field.name in restored_by_name
             assert restored_by_name[field.name].dtype == field.dtype
             assert restored_by_name[field.name].nullable == field.nullable
+
+    def test_roundtrip_preserves_default(self) -> None:
+        original = NormalizedSchema(
+            fields=[
+                FieldSpec(
+                    name="email", dtype="string", nullable=False, default="unknown@example.com"
+                )
+            ]
+        )
+        canonical = _canonical_schema_json(original)
+        restored = deserialize_schema(canonical)
+        assert restored.fields[0].default == "unknown@example.com"
+
+
+class TestSchemaRegistryPersistence:
+    def test_snapshot_schema_uses_conflict_update(self) -> None:
+        registry = SchemaRegistry("postgresql://example")
+        registry._ensure_schema = lambda: None
+
+        connection = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = ("persisted-id",)
+        connection.cursor.return_value.__enter__.return_value = cursor
+        mock_connect = MagicMock()
+        mock_connect.return_value.__enter__.return_value = connection
+
+        with patch("phlo.schema_registry.psycopg2.connect", mock_connect):
+            snapshot_id = registry.snapshot_schema("raw.users", _schema(("id", "int64", False)))
+
+        assert snapshot_id == "persisted-id"
+        executed_sql = cursor.execute.call_args.args[0]
+        assert "ON CONFLICT (table_name, schema_hash) DO UPDATE" in executed_sql

@@ -45,7 +45,12 @@ def _canonical_schema_json(schema: NormalizedSchema) -> str:
     """Serialize a NormalizedSchema to canonical JSON (sorted keys, stable for hashing)."""
     data = {
         "fields": [
-            {"name": f.name, "dtype": f.dtype, "nullable": f.nullable}
+            {
+                "name": f.name,
+                "dtype": f.dtype,
+                "nullable": f.nullable,
+                "default": f.default,
+            }
             for f in sorted(schema.fields, key=lambda f: f.name)
         ]
     }
@@ -121,7 +126,11 @@ class SchemaRegistry:
                     INSERT INTO phlo.schema_snapshots
                     (snapshot_id, table_name, schema, schema_hash, run_id, source)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (table_name, schema_hash) DO NOTHING
+                    ON CONFLICT (table_name, schema_hash) DO UPDATE
+                        SET created_at = NOW(),
+                            snapshot_id = EXCLUDED.snapshot_id,
+                            run_id = EXCLUDED.run_id,
+                            source = EXCLUDED.source
                     RETURNING snapshot_id
                     """,
                     (snapshot_id, table_name, canonical, schema_hash, run_id, source),
@@ -129,12 +138,13 @@ class SchemaRegistry:
                 row = cur.fetchone()
             conn.commit()
 
-        if row:
-            logger.info("schema_snapshot_created", table_name=table_name, snapshot_id=snapshot_id)
-            return snapshot_id
-
-        logger.info("schema_snapshot_unchanged", table_name=table_name, schema_hash=schema_hash)
-        return f"unchanged:{schema_hash}"
+        persisted_snapshot_id = row[0] if row else snapshot_id
+        logger.info(
+            "schema_snapshot_created",
+            table_name=table_name,
+            snapshot_id=persisted_snapshot_id,
+        )
+        return persisted_snapshot_id
 
     def get_latest_snapshots(self, table_name: str, limit: int = 2) -> list[SchemaSnapshot]:
         """Get most recent snapshots for a table."""
@@ -258,6 +268,12 @@ def deserialize_schema(schema_json: str) -> NormalizedSchema:
     """Deserialize a canonical schema JSON string back to NormalizedSchema."""
     data = json.loads(schema_json)
     fields = [
-        FieldSpec(name=f["name"], dtype=f["dtype"], nullable=f["nullable"]) for f in data["fields"]
+        FieldSpec(
+            name=f["name"],
+            dtype=f["dtype"],
+            nullable=f["nullable"],
+            default=f.get("default"),
+        )
+        for f in data["fields"]
     ]
     return NormalizedSchema(fields=fields)
