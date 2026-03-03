@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Optional
@@ -9,6 +10,7 @@ from typing import Optional
 import click
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 from phlo_lineage import get_lineage_graph
 
@@ -245,6 +247,122 @@ def lineage_status() -> None:
         console.print("\n[bold]Assets by Status:[/bold]")
         for status, count in sorted(status_counts.items()):
             console.print(f"  • {status}: {count}")
+
+
+@lineage_group.group(name="column")
+def column_group():
+    """Column-level lineage commands."""
+    pass
+
+
+@column_group.command(name="import-dbt")
+@click.option(
+    "--manifest",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="Path to dbt manifest.json",
+)
+def import_dbt(manifest: Path) -> None:
+    """Import column lineage from a dbt manifest.json.
+
+    Uses same-name heuristic matching between upstream and downstream
+    model columns.
+
+    Examples:
+        phlo lineage column import-dbt --manifest target/manifest.json
+    """
+    from phlo_lineage.dbt_column_lineage import extract_column_lineage
+    from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+
+    with open(manifest) as f:
+        manifest_data = json.load(f)
+
+    mappings = extract_column_lineage(manifest_data)
+
+    if not mappings:
+        console.print("[yellow]⚠[/yellow]  No column lineage mappings found in manifest")
+        return
+
+    connection_string = resolve_lineage_db_url()
+    if not connection_string:
+        console.print("[red]✗[/red]  No lineage database configured")
+        return
+
+    store = LineageStore(connection_string)
+    count = store.record_column_lineage(mappings)
+    console.print(f"[green]✓[/green]  Imported {count} column lineage mapping(s)")
+
+
+@column_group.command(name="upstream")
+@click.argument("asset")
+@click.option("--column", default=None, help="Filter to a specific column")
+def column_upstream(asset: str, column: str | None) -> None:
+    """Show upstream column lineage for an asset.
+
+    Examples:
+        phlo lineage column upstream silver.stg_glucose
+        phlo lineage column upstream silver.stg_glucose --column glucose_value
+    """
+    from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+
+    connection_string = resolve_lineage_db_url()
+    if not connection_string:
+        console.print("[red]✗[/red]  No lineage database configured")
+        return
+
+    store = LineageStore(connection_string)
+    results = store.get_upstream_columns(asset, target_column=column)
+
+    if not results:
+        console.print("[yellow]⚠[/yellow]  No upstream column lineage found")
+        return
+
+    table = Table(title=f"Upstream columns for {asset}")
+    table.add_column("Source Asset", style="cyan")
+    table.add_column("Source Column", style="green")
+    table.add_column("Target Column", style="green")
+    table.add_column("Source Type", style="dim")
+
+    for r in results:
+        table.add_row(r.source_asset, r.source_column, r.target_column, r.source_type)
+
+    console.print(table)
+
+
+@column_group.command(name="downstream")
+@click.argument("asset")
+@click.option("--column", default=None, help="Filter to a specific column")
+def column_downstream(asset: str, column: str | None) -> None:
+    """Show downstream column lineage for an asset.
+
+    Examples:
+        phlo lineage column downstream bronze.dlt_glucose
+        phlo lineage column downstream bronze.dlt_glucose --column glucose_value
+    """
+    from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+
+    connection_string = resolve_lineage_db_url()
+    if not connection_string:
+        console.print("[red]✗[/red]  No lineage database configured")
+        return
+
+    store = LineageStore(connection_string)
+    results = store.get_downstream_columns(asset, source_column=column)
+
+    if not results:
+        console.print("[yellow]⚠[/yellow]  No downstream column lineage found")
+        return
+
+    table = Table(title=f"Downstream columns for {asset}")
+    table.add_column("Target Asset", style="cyan")
+    table.add_column("Target Column", style="green")
+    table.add_column("Source Column", style="green")
+    table.add_column("Source Type", style="dim")
+
+    for r in results:
+        table.add_row(r.target_asset, r.target_column, r.source_column, r.source_type)
+
+    console.print(table)
 
 
 if __name__ == "__main__":
