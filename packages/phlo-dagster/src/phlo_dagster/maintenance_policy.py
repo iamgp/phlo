@@ -123,7 +123,7 @@ def load_policies(path: str | Path) -> list[NamespacePolicy]:
     data = yaml.safe_load(policy_path.read_text())
     policies: list[NamespacePolicy] = []
 
-    for entry in data.get("policies", []):
+    for entry in (data or {}).get("policies", []):
         expire = None
         optimize = None
 

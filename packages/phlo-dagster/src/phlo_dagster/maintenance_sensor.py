@@ -123,12 +123,23 @@ def optimize_tables_job():
     optimize_table_files()
 
 
+try:
+    from phlo_dagster.iceberg_maintenance import expire_snapshots_job
+except Exception:  # noqa: BLE001 - optional dependency integration
+    expire_snapshots_job = None
+
+_SENSOR_TARGET_JOBS: list[dg.JobDefinition] = [optimize_tables_job]
+if expire_snapshots_job is not None:
+    _SENSOR_TARGET_JOBS.insert(0, expire_snapshots_job)
+
+
 @dg.sensor(
     name="maintenance_policy_sensor",
     description=(
         "Evaluates table stats against maintenance policies "
         "and triggers maintenance when thresholds are exceeded"
     ),
+    jobs=_SENSOR_TARGET_JOBS,
     minimum_interval_seconds=1800,
     default_status=dg.DefaultSensorStatus.STOPPED,
 )
@@ -154,6 +165,13 @@ def maintenance_policy_sensor(context: dg.SensorEvaluationContext):
         optimize_tables = [a.table_name for a in actions if a.optimize]
 
         if expire_tables:
+            if expire_snapshots_job is None:
+                logger.warning(
+                    "maintenance_sensor_expire_job_unavailable",
+                    namespace=policy.namespace,
+                    table_count=len(expire_tables),
+                )
+                continue
             logger.info(
                 "maintenance_sensor_expire_triggered",
                 namespace=policy.namespace,
@@ -219,9 +237,7 @@ def get_policy_maintenance_definitions() -> dg.Definitions:
         defs = dg.Definitions.merge(your_defs, policy_defs)
     """
     jobs: list[dg.JobDefinition] = [optimize_tables_job]
-    try:
-        from phlo_dagster.iceberg_maintenance import expire_snapshots_job
-    except Exception:
+    if expire_snapshots_job is None:
         logger.warning("dagster_policy_maintenance_expire_job_unavailable")
     else:
         jobs.insert(0, expire_snapshots_job)
