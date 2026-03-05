@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator, Protocol
+from typing import Any, Protocol
 
 from phlo.capabilities import get_capability_registry
 from phlo.migrations.specs import MigrationSource

@@ -9,7 +9,6 @@ from __future__ import annotations
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from pydantic import ValidationError
@@ -21,7 +20,7 @@ logger = get_logger(__name__)
 
 
 @lru_cache(maxsize=1)
-def load_infrastructure_config(project_root: Optional[Path] = None) -> InfrastructureConfig:
+def load_infrastructure_config(project_root: Path | None = None) -> InfrastructureConfig:
     """Load infrastructure configuration from phlo.yaml."""
     started = time.perf_counter()
     if project_root is None:
@@ -45,7 +44,7 @@ def load_infrastructure_config(project_root: Optional[Path] = None) -> Infrastru
         return InfrastructureConfig()
 
     try:
-        with open(config_path) as f:
+        with config_path.open() as f:
             project_config = yaml.safe_load(f)
 
         if not project_config:
@@ -86,7 +85,7 @@ def load_infrastructure_config(project_root: Optional[Path] = None) -> Infrastru
         raise
 
 
-def get_project_name_from_config(project_root: Optional[Path] = None) -> Optional[str]:
+def get_project_name_from_config(project_root: Path | None = None) -> str | None:
     """Get project name from phlo.yaml."""
     if project_root is None:
         project_root = Path.cwd()
@@ -97,7 +96,7 @@ def get_project_name_from_config(project_root: Optional[Path] = None) -> Optiona
         return None
 
     try:
-        with open(config_path) as f:
+        with config_path.open() as f:
             project_config = yaml.safe_load(f)
         return project_config.get("name") if project_config else None
     except Exception:
@@ -105,9 +104,7 @@ def get_project_name_from_config(project_root: Optional[Path] = None) -> Optiona
         return None
 
 
-def get_service_config(
-    service_key: str, project_root: Optional[Path] = None
-) -> Optional[ServiceConfig]:
+def get_service_config(service_key: str, project_root: Path | None = None) -> ServiceConfig | None:
     """Get configuration for a specific service."""
     infra = load_infrastructure_config(project_root)
     return infra.get_service(service_key)
@@ -116,8 +113,8 @@ def get_service_config(
 def get_container_name(
     service_key: str,
     project_name: str,
-    project_root: Optional[Path] = None,
-) -> Optional[str]:
+    project_root: Path | None = None,
+) -> str | None:
     """Get container name for a service."""
     infra = load_infrastructure_config(project_root)
     return infra.get_container_name(service_key, project_name)

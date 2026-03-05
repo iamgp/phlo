@@ -33,7 +33,7 @@ def get_project_config() -> dict:
     config_path = Path.cwd() / "phlo.yaml"
     if config_path.exists():
         try:
-            with open(config_path) as f:
+            with config_path.open() as f:
                 config = yaml.safe_load(f) or {}
                 if isinstance(config, Mapping):
                     return dict(config)

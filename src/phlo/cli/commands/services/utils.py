@@ -116,9 +116,8 @@ def detect_phlo_source_path() -> str | None:
     """
     # Strategy 1: Environment variable
     env_path = os.environ.get("PHLO_DEV_SOURCE")
-    if env_path:
-        if resolved := resolve_phlo_package_dir(Path(env_path)):
-            return relpath_from_phlo_dir(resolved)
+    if env_path and (resolved := resolve_phlo_package_dir(Path(env_path))):
+        return relpath_from_phlo_dir(resolved)
 
     # Strategy 2: Common directory patterns
     candidates: list[Path] = []
@@ -508,7 +507,7 @@ def _load_native_state(project_root: Path) -> dict[str, dict]:
     if not path.exists():
         return {}
     try:
-        with open(path) as f:
+        with path.open() as f:
             return json.load(f) or {}
     except (json.JSONDecodeError, OSError) as e:
         click.echo(f"Warning: Failed to read native state file {path}: {e}", err=True)

@@ -7,7 +7,8 @@ quality provider plugins. The primary provider is phlo-pandera.
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from phlo.logging import get_logger
 
@@ -39,7 +40,7 @@ dbt_check_name: Callable[[str, str], str] | None = None
 phlo_quality: Callable | None = None
 
 
-def _provider_api_module(provider: "QualityProviderPlugin") -> Any | None:
+def _provider_api_module(provider: QualityProviderPlugin) -> Any | None:
     """Resolve the provider package module that may expose helper exports."""
     provider_module = provider.__class__.__module__
     provider_package = provider_module.split(".", 1)[0]
@@ -49,7 +50,7 @@ def _provider_api_module(provider: "QualityProviderPlugin") -> Any | None:
         return None
 
 
-def _load_quality_provider() -> "QualityProviderPlugin | None":
+def _load_quality_provider() -> QualityProviderPlugin | None:
     """Load quality provider via plugin discovery, with fallback to direct import."""
     global phlo_quality
     global get_quality_checks

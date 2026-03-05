@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 EVENT_VERSION = "1.0"
@@ -12,7 +12,7 @@ EVENT_VERSION = "1.0"
 def _utc_now() -> datetime:
     """Return the current UTC timestamp."""
 
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(kw_only=True)

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Iterable
+from typing import Any
 
 from phlo.hooks.events import HookEvent
 from phlo.logging import get_logger
@@ -195,9 +196,9 @@ class HookBus:
             event_asset_keys = _event_asset_keys(event)
             if not event_asset_keys or not filters.asset_keys.intersection(event_asset_keys):
                 return False
-        if filters.tags and not all(event.tags.get(k) == v for k, v in filters.tags.items()):
-            return False
-        return True
+        return not (
+            filters.tags and not all(event.tags.get(k) == v for k, v in filters.tags.items())
+        )
 
 
 def _event_asset_keys(event: HookEvent) -> set[str]:

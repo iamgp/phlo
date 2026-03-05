@@ -97,11 +97,10 @@ def init_cmd(
 
     # Auto-enable dev mode if we can detect a local Phlo checkout and the user didn't opt out.
     phlo_src_path: str | None = None
-    if not dev and not no_dev and not phlo_source:
-        if detected := detect_phlo_source_path():
-            dev = True
-            phlo_src_path = detected
-            click.echo(f"Dev mode: auto-enabled (path: {phlo_src_path})")
+    if not dev and not no_dev and not phlo_source and (detected := detect_phlo_source_path()):
+        dev = True
+        phlo_src_path = detected
+        click.echo(f"Dev mode: auto-enabled (path: {phlo_src_path})")
 
     # Derive project name from directory if not specified
     if not project_name:
@@ -167,7 +166,7 @@ def init_cmd(
     # Load existing phlo.yaml config for user overrides
     existing_config = {}
     if config_file.exists():
-        with open(config_file) as f:
+        with config_file.open() as f:
             existing_config = yaml.safe_load(f) or {}
     user_overrides = existing_config.get("services", {})
     env_overrides = _get_env_overrides(existing_config)

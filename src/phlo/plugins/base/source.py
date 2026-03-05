@@ -86,7 +86,6 @@ class SourceConnectorPlugin(Plugin, ABC):
                     }
             ```
         """
-        pass
 
     def get_schema(self, config: dict[str, Any]) -> dict[str, str] | None:
         """

@@ -392,26 +392,26 @@ class PluginRegistry:
         # Type-specific validation
         if isinstance(plugin, SourceConnectorPlugin):
             return hasattr(plugin, "fetch_data") and callable(plugin.fetch_data)
-        elif isinstance(plugin, QualityCheckPlugin):
+        if isinstance(plugin, QualityCheckPlugin):
             return hasattr(plugin, "create_check") and callable(plugin.create_check)
-        elif isinstance(plugin, TransformationPlugin):
+        if isinstance(plugin, TransformationPlugin):
             return hasattr(plugin, "transform") and callable(plugin.transform)
-        elif isinstance(plugin, ServicePlugin):
+        if isinstance(plugin, ServicePlugin):
             try:
                 service_definition = plugin.service_definition
             except Exception:
                 logger.debug("plugin_validation_service_definition_failed", exc_info=True)
                 return False
             return isinstance(service_definition, dict)
-        elif isinstance(plugin, HookPlugin):
+        if isinstance(plugin, HookPlugin):
             return hasattr(plugin, "get_hooks") and callable(plugin.get_hooks)
-        elif isinstance(plugin, AssetProviderPlugin):
+        if isinstance(plugin, AssetProviderPlugin):
             return hasattr(plugin, "get_assets") and callable(plugin.get_assets)
-        elif isinstance(plugin, ResourceProviderPlugin):
+        if isinstance(plugin, ResourceProviderPlugin):
             return hasattr(plugin, "get_resources") and callable(plugin.get_resources)
-        elif isinstance(plugin, OrchestratorAdapterPlugin):
+        if isinstance(plugin, OrchestratorAdapterPlugin):
             return hasattr(plugin, "build_definitions") and callable(plugin.build_definitions)
-        elif isinstance(plugin, CatalogPlugin):
+        if isinstance(plugin, CatalogPlugin):
             has_catalog = hasattr(plugin, "catalog_name")
             has_targets = hasattr(plugin, "targets")
             has_properties = hasattr(plugin, "get_properties") and callable(plugin.get_properties)

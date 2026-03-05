@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import click
 from rich.console import Console
@@ -53,7 +54,7 @@ def snapshot(table: str, schema_file: str, run_id: str | None, source: str) -> N
     """Snapshot a schema from a JSON file into the registry."""
     db_url = _require_registry_db_url()
 
-    with open(schema_file) as f:
+    with Path(schema_file).open() as f:
         schema = deserialize_schema(f.read())
 
     registry = SchemaRegistry(db_url)

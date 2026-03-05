@@ -7,7 +7,7 @@ This module defines plugin types that provide asset and resource specifications.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Iterable
+from collections.abc import Iterable
 
 from phlo.capabilities.specs import (
     AssetCheckSpec,

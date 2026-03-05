@@ -33,9 +33,9 @@ class ServiceDefinition:
     core: bool = False
 
     @classmethod
-    def from_yaml(cls, path: Path) -> "ServiceDefinition":
+    def from_yaml(cls, path: Path) -> ServiceDefinition:
         """Load a service definition from a YAML file."""
-        with open(path) as file_handle:
+        with path.open() as file_handle:
             data = yaml.safe_load(file_handle)
 
         if data.get("source_path"):
@@ -66,7 +66,7 @@ class ServiceDefinition:
         )
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any], source_path: Path | None) -> "ServiceDefinition":
+    def from_dict(cls, data: dict[str, Any], source_path: Path | None) -> ServiceDefinition:
         """Load a service definition from a dictionary."""
         return cls(
             name=data["name"],
@@ -90,7 +90,7 @@ class ServiceDefinition:
         )
 
     @classmethod
-    def from_inline(cls, name: str, config: dict[str, Any]) -> "ServiceDefinition":
+    def from_inline(cls, name: str, config: dict[str, Any]) -> ServiceDefinition:
         """Create a ServiceDefinition from inline config in phlo.yaml."""
         compose_keys = (
             "user",

@@ -27,7 +27,7 @@ def _clear_infra_config_cache():
 
 def _write_phlo_yaml(config_path: Path, config: dict) -> None:
     """Write a phlo.yaml fixture payload."""
-    with open(config_path, "w") as f:
+    with config_path.open("w") as f:
         yaml.safe_dump(config, f, sort_keys=False)
 
 
@@ -145,7 +145,7 @@ def test_load_infrastructure_config_with_file():
             },
         }
 
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             yaml.dump(phlo_config, f)
 
         clear_config_cache()
@@ -173,7 +173,7 @@ def test_get_container_name_helper():
             },
         }
 
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             yaml.dump(phlo_config, f)
 
         clear_config_cache()

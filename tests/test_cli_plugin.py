@@ -63,7 +63,7 @@ class DummyQuality(QualityCheckPlugin):
         Returns:
             None: No check object for this stub.
         """
-        return None
+        return
 
 
 class DummyTransform(TransformationPlugin):
