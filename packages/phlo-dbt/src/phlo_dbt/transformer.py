@@ -7,7 +7,7 @@ import subprocess
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any, List, Optional, Dict
+from typing import Any
 
 from phlo.logging import log_event
 from phlo.operations.transformation import BaseTransformer, TransformationResult
@@ -320,7 +320,7 @@ class DbtTransformer(BaseTransformer):
         self.dbt_executable = dbt_executable
 
     @staticmethod
-    def _sanitize_command_args_for_logging(args: List[str]) -> list[str]:
+    def _sanitize_command_args_for_logging(args: list[str]) -> list[str]:
         """Redact sensitive argument values before logging command invocations."""
         sensitive_flags = {
             "--vars",
@@ -357,7 +357,7 @@ class DbtTransformer(BaseTransformer):
         return redacted_args
 
     def _run_command(
-        self, args: List[str], env: Optional[Dict[str, str]] = None
+        self, args: list[str], env: dict[str, str] | None = None
     ) -> subprocess.CompletedProcess:
         """Run a dbt subprocess command inside the configured project.
 
@@ -393,7 +393,7 @@ class DbtTransformer(BaseTransformer):
         )
 
     def run_transform(
-        self, partition_key: Optional[str] = None, parameters: Optional[Dict[str, Any]] = None
+        self, partition_key: str | None = None, parameters: dict[str, Any] | None = None
     ) -> TransformationResult:
         """Execute dbt build/docs flow and emit transform telemetry events.
 
