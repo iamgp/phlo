@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from phlo.capabilities import RuntimeContext, routing_from_context
 from phlo_trino.settings import get_settings as get_trino_settings
+import yaml
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,3 +93,21 @@ def resolve_dbt_runtime_config(
         port=trino.trino_port,
         catalog=catalog,
     )
+
+
+def render_dbt_profile_yaml(config: DbtRuntimeConfig) -> str:
+    """Render canonical dbt runtime config as `profiles.yml` text."""
+    return yaml.safe_dump(config.to_profile_payload(), sort_keys=False)
+
+
+def write_dbt_profile(
+    config: DbtRuntimeConfig,
+    profiles_dir: Path,
+    *,
+    filename: str = "profiles.yml",
+) -> Path:
+    """Write canonical `profiles.yml` to disk and return its path."""
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    profile_path = profiles_dir / filename
+    profile_path.write_text(render_dbt_profile_yaml(config), encoding="utf-8")
+    return profile_path
