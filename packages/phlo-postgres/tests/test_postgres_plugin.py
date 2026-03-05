@@ -1,6 +1,8 @@
 """Tests for Postgres service and resource plugins."""
 
+from phlo.capabilities import PublishTargetSpec
 from phlo_postgres.plugin import PostgresResourceProvider, PostgresServicePlugin
+from phlo_postgres.publish_target import PostgresPublishTarget
 
 
 def test_postgres_service_definition():
@@ -19,3 +21,16 @@ def test_postgres_resource_provider():
 
     assert len(resources) == 1
     assert resources[0].name == "postgres"
+
+
+def test_postgres_resource_provider_exposes_publish_target() -> None:
+    provider = PostgresResourceProvider()
+    publish_targets = provider.get_publish_targets()
+
+    assert publish_targets == [
+        PublishTargetSpec(
+            name="postgres",
+            provider=PostgresPublishTarget(),
+            metadata={"target_system": "postgres", "role": "serving"},
+        )
+    ]

@@ -6,6 +6,7 @@ from phlo_trino.publishing import (
     _describe_trino_table,
     _is_retryable_introspection_error,
     _trino_table_ref_candidates,
+    _resolve_publish_target,
 )
 
 
@@ -201,3 +202,16 @@ def test_retryable_introspection_error_uses_structured_fields() -> None:
             self.error_type = "USER_ERROR"
 
     assert _is_retryable_introspection_error(_StructuredTrinoError())
+
+
+def test_resolve_publish_target_uses_wrapper_defaults() -> None:
+    class _PublishTarget:
+        resource = object()
+        target_system = "postgres"
+        default_schema = "serving"
+
+    resource, target_system, schema = _resolve_publish_target(_PublishTarget(), target_schema=None)
+
+    assert resource is _PublishTarget.resource
+    assert target_system == "postgres"
+    assert schema == "serving"
