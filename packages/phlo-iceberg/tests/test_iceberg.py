@@ -7,7 +7,8 @@ Tests cover catalog operations, table management, and data operations.
 from unittest.mock import MagicMock, patch
 
 import pytest
-from phlo_iceberg.catalog import create_namespace, get_catalog, list_tables
+from phlo_iceberg.catalog import create_namespace, get_catalog, list_tables, reset_catalog_cache
+from phlo_iceberg.cli_utils import get_iceberg_catalog
 from phlo_iceberg.tables import append_to_table, delete_table, ensure_table, get_table_schema
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType, TimestampType
@@ -120,6 +121,22 @@ class TestIcebergCatalogUnitTests:
         mock_catalog.create_namespace.side_effect = Exception("Namespace already exists")
         create_namespace("raw")  # Should not raise
         assert mock_catalog.create_namespace.call_count == 2
+
+    def test_reset_catalog_cache_clears_cli_utils_cache(self):
+        """reset_catalog_cache should clear the CLI-level catalog cache too."""
+        get_catalog.cache_clear()
+        get_iceberg_catalog.cache_clear()
+
+        with patch("phlo_iceberg.catalog.get_catalog", return_value=MagicMock()) as mock_get_catalog:
+            get_iceberg_catalog("main")
+            get_iceberg_catalog("main")
+
+            assert mock_get_catalog.call_count == 1
+
+            reset_catalog_cache()
+            get_iceberg_catalog("main")
+
+            assert mock_get_catalog.call_count == 2
 
 
 class TestIcebergTablesUnitTests:

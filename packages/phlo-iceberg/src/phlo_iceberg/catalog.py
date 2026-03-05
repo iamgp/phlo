@@ -45,7 +45,10 @@ def get_catalog(ref: str = "main"):
 
 def reset_catalog_cache() -> None:
     """Clear cached catalog instances."""
+    from phlo_iceberg.cli_utils import get_iceberg_catalog
+
     get_catalog.cache_clear()
+    get_iceberg_catalog.cache_clear()
     logger.debug("iceberg_catalog_cache_cleared")
 
 
