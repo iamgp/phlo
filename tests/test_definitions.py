@@ -8,6 +8,8 @@ from unittest.mock import patch
 import dagster as dg
 import pytest
 
+from phlo.exceptions import PhloCapabilitySetupError
+
 pytestmark = pytest.mark.integration
 
 
@@ -72,3 +74,22 @@ def test_build_definitions_merges_user_defs() -> None:
 
         result = build_definitions(workflows_path="workflows")
         assert isinstance(result, dg.Definitions)
+
+
+def test_build_definitions_raises_required_capability_setup_error() -> None:
+    with (
+        patch("phlo_dagster.framework.definitions.get_settings", return_value=_Settings()),
+        patch(
+            "phlo_dagster.framework.definitions.discover_user_workflows",
+            side_effect=PhloCapabilitySetupError(
+                capability="dbt",
+                required=True,
+                message="dbt asset discovery failed: manifest_unavailable",
+            ),
+        ),
+        patch("phlo_dagster.framework.definitions._default_executor", return_value=None),
+    ):
+        from phlo_dagster.framework.definitions import build_definitions
+
+        with pytest.raises(PhloCapabilitySetupError, match="manifest_unavailable"):
+            build_definitions(workflows_path="workflows")

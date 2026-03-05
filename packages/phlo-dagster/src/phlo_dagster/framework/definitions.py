@@ -15,6 +15,7 @@ from typing import Any
 
 import dagster as dg
 
+from phlo.exceptions import PhloCapabilitySetupError
 from phlo_dagster.framework.discovery import (
     _collect_dagster_extension_definitions,
     _ensure_core_resources,
@@ -127,6 +128,23 @@ def build_definitions(
         user_assets = list(getattr(user_defs, "assets", []) or [])
         user_checks = list(getattr(user_defs, "asset_checks", []) or [])
         logger.info("Discovered %d user assets, %d checks", len(user_assets), len(user_checks))
+    except PhloCapabilitySetupError as exc:
+        if exc.required:
+            logger.error(
+                "required_capability_setup_failed",
+                capability=exc.capability,
+                error=str(exc),
+                workflows_path=str(workflows_path),
+                exc_info=True,
+            )
+            raise
+        logger.warning(
+            "optional_capability_degraded",
+            capability=exc.capability,
+            error=str(exc),
+            workflows_path=str(workflows_path),
+        )
+        user_defs = dg.Definitions()
     except Exception as exc:
         logger.error(
             "failed_to_discover_user_workflows",

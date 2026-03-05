@@ -271,6 +271,28 @@ class PhloInfrastructureError(PhloError):
         )
 
 
+class PhloCapabilitySetupError(PhloError):
+    """Raised when a capability is present but cannot be set up correctly."""
+
+    def __init__(
+        self,
+        capability: str,
+        message: str,
+        *,
+        required: bool,
+        suggestions: list[str] | None = None,
+        cause: Exception | None = None,
+    ):
+        self.capability = capability
+        self.required = required
+        super().__init__(
+            message=message,
+            code=PhloErrorCode.INFRASTRUCTURE_ERROR,
+            suggestions=suggestions,
+            cause=cause,
+        )
+
+
 class SchemaConversionError(PhloError):
     """Raised when Pandera schema cannot be converted to PyIceberg."""
 
