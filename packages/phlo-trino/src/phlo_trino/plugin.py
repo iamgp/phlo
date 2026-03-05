@@ -7,8 +7,8 @@ from typing import Any
 
 import yaml
 
-from phlo.capabilities import ResourceSpec
-from phlo.capabilities.specs import GovernanceBackendSpec
+from phlo.capabilities import CapabilitySupport, ResourceSpec
+from phlo.capabilities.specs import GovernanceBackendSpec, QueryEngineSpec
 from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
 from phlo_trino.governance import TrinoGovernanceBackend
 from phlo_trino.resource import TrinoResource
@@ -57,6 +57,10 @@ class TrinoResourceProvider(ResourceProviderPlugin):
             name="trino",
             version="0.1.0",
             description="Trino resource for Phlo",
+            support=CapabilitySupport(
+                supports_refs=True,
+                supports_time_travel=True,
+            ),
         )
 
     def get_resources(self) -> list[ResourceSpec]:
@@ -67,10 +71,33 @@ class TrinoResourceProvider(ResourceProviderPlugin):
         """
         return [ResourceSpec(name="trino", resource=TrinoResource())]
 
+    def get_query_engines(self) -> list[QueryEngineSpec]:
+        """Return Trino query-engine capability specs.
+
+        Returns:
+            Query engine capability specifications for Trino.
+        """
+        return [
+            QueryEngineSpec(
+                name="trino",
+                provider=TrinoResource(),
+                support=CapabilitySupport(
+                    supports_refs=True,
+                    supports_time_travel=True,
+                ),
+            )
+        ]
+
     def get_governance_backends(self) -> list[GovernanceBackendSpec]:
         """Return Trino governance backend specs.
 
         Returns:
             Governance backend specifications for Trino SQL grants.
         """
-        return [GovernanceBackendSpec(name="trino", provider=TrinoGovernanceBackend())]
+        return [
+            GovernanceBackendSpec(
+                name="trino",
+                provider=TrinoGovernanceBackend(),
+                support=CapabilitySupport(),
+            )
+        ]

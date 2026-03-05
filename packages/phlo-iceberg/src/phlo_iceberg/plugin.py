@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from phlo.capabilities import ResourceSpec, SchemaMigrationSpec, TableStoreSpec
+from phlo.capabilities import CapabilitySupport, ResourceSpec, SchemaMigrationSpec, TableStoreSpec
 from phlo.plugins.base import PluginMetadata, ResourceProviderPlugin
 
 from phlo_iceberg.resource import IcebergResource
@@ -21,6 +21,12 @@ class IcebergResourceProvider(ResourceProviderPlugin):
             name="iceberg",
             version="0.1.0",
             description="Iceberg/Nessie catalog resource for Phlo",
+            support=CapabilitySupport(
+                supports_refs=True,
+                supports_snapshots=True,
+                supports_schema_evolution=True,
+                supports_time_travel=True,
+            ),
         )
 
     def get_resources(self) -> list[ResourceSpec]:
@@ -37,7 +43,18 @@ class IcebergResourceProvider(ResourceProviderPlugin):
         Returns:
             list[TableStoreSpec]: Iceberg table-store capability specifications.
         """
-        return [TableStoreSpec(name="iceberg", provider=IcebergResource())]
+        return [
+            TableStoreSpec(
+                name="iceberg",
+                provider=IcebergResource(),
+                support=CapabilitySupport(
+                    supports_refs=True,
+                    supports_snapshots=True,
+                    supports_schema_evolution=True,
+                    supports_time_travel=True,
+                ),
+            )
+        ]
 
     def get_schema_migrators(self) -> list[SchemaMigrationSpec]:
         """Get schema-migrator capability specs exposed by this plugin.
@@ -45,4 +62,10 @@ class IcebergResourceProvider(ResourceProviderPlugin):
         Returns:
             list[SchemaMigrationSpec]: Iceberg schema migrator specifications.
         """
-        return [SchemaMigrationSpec(name="iceberg", provider=IcebergSchemaMigrator())]
+        return [
+            SchemaMigrationSpec(
+                name="iceberg",
+                provider=IcebergSchemaMigrator(),
+                support=CapabilitySupport(supports_schema_evolution=True),
+            )
+        ]

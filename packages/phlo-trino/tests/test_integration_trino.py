@@ -362,6 +362,23 @@ class TestTrinoServicePlugin:
         # Service definitions have flat structure with 'name' and 'compose' keys
         assert "name" in service_def or "compose" in service_def
 
+    def test_resource_provider_registers_query_engine_capability(self):
+        """Trino resource provider should expose query-engine capability metadata."""
+        from phlo.capabilities import CapabilitySupport
+        from phlo_trino.plugin import TrinoResourceProvider
+        from phlo_trino.resource import TrinoResource
+
+        provider = TrinoResourceProvider()
+        engines = provider.get_query_engines()
+
+        assert len(engines) == 1
+        assert engines[0].name == "trino"
+        assert isinstance(engines[0].provider, TrinoResource)
+        assert engines[0].support == CapabilitySupport(
+            supports_refs=True,
+            supports_time_travel=True,
+        )
+
 
 # =============================================================================
 # Functional Integration Tests (Real Trino if available)
