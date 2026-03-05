@@ -121,6 +121,13 @@ class PostgresResource:
         """
         if self._connection is None or getattr(self._connection, "closed", 1):
             connection_pool = self._ensure_pool()
+            # Return the stale connection slot before acquiring a new one
+            if self._connection is not None:
+                try:
+                    connection_pool.putconn(self._connection, close=True)
+                except Exception:  # noqa: BLE001 - best effort return
+                    logger.debug("postgres_resource_stale_connection_return_failed", exc_info=True)
+                self._connection = None
             start = perf_counter()
             logger.info("postgres_resource_connection_started")
             try:
