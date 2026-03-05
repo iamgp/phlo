@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from phlo.capabilities.runtime import RuntimeContext
 
@@ -22,7 +23,7 @@ class PartitionSpec:
 class RunSpec:
     """Execution details for an asset."""
 
-    fn: Callable[[RuntimeContext], Iterable["RunResult"]]
+    fn: Callable[[RuntimeContext], Iterable[RunResult]]
     max_runtime_seconds: int | None = None
     max_retries: int | None = None
     retry_delay_seconds: int | None = None
@@ -36,7 +37,7 @@ class AssetCheckSpec:
 
     name: str
     asset_key: str
-    fn: Callable[[RuntimeContext], "CheckResult"] | None = None
+    fn: Callable[[RuntimeContext], CheckResult] | None = None
     blocking: bool = True
     description: str | None = None
     severity: str | None = None

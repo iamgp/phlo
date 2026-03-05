@@ -74,7 +74,7 @@ class DummyQualityPlugin(QualityCheckPlugin):
 
     def create_check(self, **kwargs):
         """Create test check."""
-        return None
+        return
 
 
 class DummyTransformPlugin(TransformationPlugin):
@@ -241,8 +241,6 @@ class TestPluginValidation:
 
         class BadPlugin:
             """Plugin-like object missing required metadata and methods."""
-
-            pass
 
         assert clean_registry.validate_plugin(BadPlugin()) is False
 

@@ -193,7 +193,7 @@ class NativeProcessManager:
             if self.log_dir is not None:
                 self.log_dir.mkdir(parents=True, exist_ok=True)
                 log_path = self.log_dir / f"{service.name}.log"
-                log_file = open(log_path, "a", encoding="utf-8")
+                log_file = log_path.open("a", encoding="utf-8")  # noqa: SIM115
                 stdout = log_file
             process = subprocess.Popen(
                 command,

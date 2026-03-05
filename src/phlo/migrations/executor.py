@@ -6,7 +6,7 @@ import json
 import tempfile
 import time
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -170,7 +170,7 @@ class MigrationExecutor:
                     "source_type": spec.source.type,
                     "write_mode": spec.destination.write_mode,
                     "dry_run": dry_run,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                 },
             )
             emitter.emit(

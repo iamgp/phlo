@@ -92,10 +92,7 @@ def _write_service_fixture(services_root: Path, service_count: int) -> None:
         service_dir = services_root / f"group-{index % 8:02d}" / service_name
         service_dir.mkdir(parents=True, exist_ok=True)
 
-        if index == 0:
-            depends_on = "[]"
-        else:
-            depends_on = f"[benchmark-service-{index - 1:03d}]"
+        depends_on = "[]" if index == 0 else f"[benchmark-service-{index - 1:03d}]"
 
         service_yaml = (
             f"name: {service_name}\n"

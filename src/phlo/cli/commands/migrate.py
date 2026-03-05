@@ -128,10 +128,7 @@ def status(limit: int, fmt: str) -> None:
     for entry in entries:
         raw_metadata = entry.get("metadata")
         metadata: dict[str, object]
-        if isinstance(raw_metadata, dict):
-            metadata = raw_metadata
-        else:
-            metadata = {}
+        metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
         table.add_row(
             str(entry.get("name", "")),
             str(entry.get("status", "")),

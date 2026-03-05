@@ -6,7 +6,7 @@ Pydantic models for phlo.yaml infrastructure section.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -33,41 +33,41 @@ class ServiceOverride(BaseModel):
         default=True,
         description="Whether to include this service. Set to false to disable.",
     )
-    ports: Optional[list[str]] = Field(
+    ports: list[str] | None = Field(
         default=None,
         description="Port mappings to override (replaces package defaults).",
     )
-    environment: Optional[dict[str, str]] = Field(
+    environment: dict[str, str] | None = Field(
         default=None,
         description="Environment variables to add/override (merged with package defaults).",
     )
-    volumes: Optional[list[str]] = Field(
+    volumes: list[str] | None = Field(
         default=None,
         description="Volume mounts to add (appended to package defaults).",
     )
-    depends_on: Optional[list[str]] = Field(
+    depends_on: list[str] | None = Field(
         default=None,
         description="Service dependencies to override (replaces package defaults).",
     )
-    command: Optional[str | list[str]] = Field(
+    command: str | list[str] | None = Field(
         default=None,
         description="Container command override.",
     )
 
     # For inline custom services (type: inline)
-    type: Optional[str] = Field(
+    type: str | None = Field(
         default=None,
         description="Service type. Set to 'inline' for custom services defined in phlo.yaml.",
     )
-    image: Optional[str] = Field(
+    image: str | None = Field(
         default=None,
         description="Docker image for inline services.",
     )
-    build: Optional[dict[str, Any]] = Field(
+    build: dict[str, Any] | None = Field(
         default=None,
         description="Build configuration for inline services.",
     )
-    healthcheck: Optional[dict[str, Any]] = Field(
+    healthcheck: dict[str, Any] | None = Field(
         default=None,
         description="Healthcheck configuration for inline services.",
     )
@@ -76,25 +76,25 @@ class ServiceOverride(BaseModel):
 class ServiceConfig(BaseModel):
     """Configuration for a single service."""
 
-    container_name: Optional[str] = Field(
+    container_name: str | None = Field(
         default=None,
         description="Explicit container name override. If None, uses container_naming_pattern.",
     )
     service_name: str = Field(
         description="Docker compose service name (e.g., 'dagster-webserver', 'postgres')"
     )
-    host: Optional[str] = Field(
+    host: str | None = Field(
         default="localhost",
         description="External hostname for accessing the service",
     )
-    internal_host: Optional[str] = Field(
+    internal_host: str | None = Field(
         default=None,
         description="Internal Docker network hostname. If None, uses service_name.",
     )
 
     @field_validator("container_name")
     @classmethod
-    def validate_container_name(cls, v: Optional[str]) -> Optional[str]:
+    def validate_container_name(cls, v: str | None) -> str | None:
         """Validate `container_name` characters and format.
 
         Args:
@@ -155,7 +155,7 @@ class ServiceConfig(BaseModel):
 class NetworkConfig(BaseModel):
     """Docker network configuration."""
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         description="Network name. If None, uses docker compose default.",
     )
@@ -203,11 +203,11 @@ class InfrastructureConfig(BaseModel):
             )
         return v
 
-    def get_service(self, service_key: str) -> Optional[ServiceConfig]:
+    def get_service(self, service_key: str) -> ServiceConfig | None:
         """Get service configuration by key."""
         return self.services.get(service_key)
 
-    def get_container_name(self, service_key: str, project_name: str) -> Optional[str]:
+    def get_container_name(self, service_key: str, project_name: str) -> str | None:
         """Get container name for a service."""
         service = self.get_service(service_key)
         if not service:

@@ -5,7 +5,6 @@ Structured error classes with error codes, contextual messages, and suggestions.
 """
 
 from enum import Enum
-from typing import List, Optional
 
 
 class PhloErrorCode(Enum):
@@ -62,8 +61,8 @@ class PhloError(Exception):
         self,
         message: str,
         code: PhloErrorCode,
-        suggestions: Optional[List[str]] = None,
-        cause: Optional[Exception] = None,
+        suggestions: list[str] | None = None,
+        cause: Exception | None = None,
     ):
         """
         Initialize PhloError.
@@ -113,7 +112,7 @@ class PhloError(Exception):
 class PhloDiscoveryError(PhloError):
     """Raised when assets cannot be discovered by Dagster."""
 
-    def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+    def __init__(self, message: str, suggestions: list[str] | None = None):
         """Initialize a discovery error.
 
         Args:
@@ -130,7 +129,7 @@ class PhloDiscoveryError(PhloError):
 class PhloSchemaError(PhloError):
     """Raised when schema configuration is invalid."""
 
-    def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+    def __init__(self, message: str, suggestions: list[str] | None = None):
         """Initialize a schema error.
 
         Args:
@@ -147,7 +146,7 @@ class PhloSchemaError(PhloError):
 class PhloCronError(PhloError):
     """Raised when cron expression is invalid."""
 
-    def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+    def __init__(self, message: str, suggestions: list[str] | None = None):
         """Initialize a cron expression error.
 
         Args:
@@ -172,8 +171,8 @@ class PhloValidationError(PhloError):
     def __init__(
         self,
         message: str,
-        suggestions: Optional[List[str]] = None,
-        cause: Optional[Exception] = None,
+        suggestions: list[str] | None = None,
+        cause: Exception | None = None,
     ):
         """Initialize a validation error.
 
@@ -193,7 +192,7 @@ class PhloValidationError(PhloError):
 class PhloConfigError(PhloError):
     """Raised when decorator configuration is invalid."""
 
-    def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+    def __init__(self, message: str, suggestions: list[str] | None = None):
         """Initialize a configuration error.
 
         Args:
@@ -213,8 +212,8 @@ class PhloIngestionError(PhloError):
     def __init__(
         self,
         message: str,
-        suggestions: Optional[List[str]] = None,
-        cause: Optional[Exception] = None,
+        suggestions: list[str] | None = None,
+        cause: Exception | None = None,
     ):
         """Initialize an ingestion error.
 
@@ -234,7 +233,7 @@ class PhloIngestionError(PhloError):
 class PhloTableError(PhloError):
     """Raised when Iceberg table operations fail."""
 
-    def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+    def __init__(self, message: str, suggestions: list[str] | None = None):
         """Initialize a table operation error.
 
         Args:
@@ -254,8 +253,8 @@ class PhloInfrastructureError(PhloError):
     def __init__(
         self,
         message: str,
-        suggestions: Optional[List[str]] = None,
-        cause: Optional[Exception] = None,
+        suggestions: list[str] | None = None,
+        cause: Exception | None = None,
     ):
         """Initialize an infrastructure error.
 
@@ -275,7 +274,7 @@ class PhloInfrastructureError(PhloError):
 class SchemaConversionError(PhloError):
     """Raised when Pandera schema cannot be converted to PyIceberg."""
 
-    def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+    def __init__(self, message: str, suggestions: list[str] | None = None):
         """Initialize a schema conversion error.
 
         Args:
@@ -295,8 +294,8 @@ class DLTPipelineError(PhloError):
     def __init__(
         self,
         message: str,
-        suggestions: Optional[List[str]] = None,
-        cause: Optional[Exception] = None,
+        suggestions: list[str] | None = None,
+        cause: Exception | None = None,
     ):
         """Initialize a DLT pipeline error.
 
@@ -319,8 +318,8 @@ class IcebergCatalogError(PhloError):
     def __init__(
         self,
         message: str,
-        suggestions: Optional[List[str]] = None,
-        cause: Optional[Exception] = None,
+        suggestions: list[str] | None = None,
+        cause: Exception | None = None,
     ):
         """Initialize an Iceberg catalog error.
 
@@ -342,9 +341,9 @@ class IcebergCatalogError(PhloError):
 
 def suggest_similar_field_names(
     invalid_field: str,
-    valid_fields: List[str],
+    valid_fields: list[str],
     max_suggestions: int = 3,
-) -> List[str]:
+) -> list[str]:
     """
     Generate "Did you mean?" suggestions for field name typos.
 
@@ -372,6 +371,6 @@ def suggest_similar_field_names(
     return [f"Available fields: {', '.join(valid_fields)}"]
 
 
-def format_field_list(fields: List[str]) -> str:
+def format_field_list(fields: list[str]) -> str:
     """Format a list of fields for error messages."""
     return ", ".join(f"'{field}'" for field in fields)

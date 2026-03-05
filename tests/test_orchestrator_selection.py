@@ -29,10 +29,12 @@ def test_get_active_orchestrator_prefers_explicit_name_over_env() -> None:
     adapter = object()
     registry.get_orchestrator.return_value = adapter
 
-    with patch.dict(os.environ, {"PHLO_ORCHESTRATOR": "env_orchestrator"}, clear=False):
-        with patch("phlo.orchestrators.selection.discover_plugins") as discover_plugins_mock:
-            with patch("phlo.orchestrators.selection.get_global_registry", return_value=registry):
-                selected = get_active_orchestrator(" explicit_orchestrator ")
+    with (
+        patch.dict(os.environ, {"PHLO_ORCHESTRATOR": "env_orchestrator"}, clear=False),
+        patch("phlo.orchestrators.selection.discover_plugins") as discover_plugins_mock,
+        patch("phlo.orchestrators.selection.get_global_registry", return_value=registry),
+    ):
+        selected = get_active_orchestrator(" explicit_orchestrator ")
 
     assert selected is adapter
     discover_plugins_mock.assert_called_once_with(plugin_type="orchestrators", auto_register=True)
@@ -45,10 +47,12 @@ def test_get_active_orchestrator_uses_phlo_orchestrator_env_when_name_missing() 
     adapter = object()
     registry.get_orchestrator.return_value = adapter
 
-    with patch.dict(os.environ, {"PHLO_ORCHESTRATOR": " env_orchestrator "}, clear=False):
-        with patch("phlo.orchestrators.selection.discover_plugins"):
-            with patch("phlo.orchestrators.selection.get_global_registry", return_value=registry):
-                selected = get_active_orchestrator()
+    with (
+        patch.dict(os.environ, {"PHLO_ORCHESTRATOR": " env_orchestrator "}, clear=False),
+        patch("phlo.orchestrators.selection.discover_plugins"),
+        patch("phlo.orchestrators.selection.get_global_registry", return_value=registry),
+    ):
+        selected = get_active_orchestrator()
 
     assert selected is adapter
     registry.get_orchestrator.assert_called_once_with("env_orchestrator")
@@ -60,14 +64,16 @@ def test_get_active_orchestrator_missing_adapter_raises_guided_config_error() ->
     registry.get_orchestrator.return_value = None
     registry.list_orchestrators.return_value = ["dagster"]
 
-    with patch(
-        "phlo.orchestrators.selection.get_settings",
-        return_value=SimpleNamespace(phlo_orchestrator="missing_orchestrator"),
+    with (
+        patch(
+            "phlo.orchestrators.selection.get_settings",
+            return_value=SimpleNamespace(phlo_orchestrator="missing_orchestrator"),
+        ),
+        patch("phlo.orchestrators.selection.discover_plugins"),
+        patch("phlo.orchestrators.selection.get_global_registry", return_value=registry),
+        pytest.raises(PhloConfigError) as exc_info,
     ):
-        with patch("phlo.orchestrators.selection.discover_plugins"):
-            with patch("phlo.orchestrators.selection.get_global_registry", return_value=registry):
-                with pytest.raises(PhloConfigError) as exc_info:
-                    get_active_orchestrator()
+        get_active_orchestrator()
 
     assert "Orchestrator adapter 'missing_orchestrator' is not installed." in str(exc_info.value)
     assert exc_info.value.suggestions == [

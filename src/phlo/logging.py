@@ -11,11 +11,12 @@ import logging
 import os
 import sys
 import traceback
+from collections.abc import Mapping, MutableMapping
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 import structlog
 
@@ -64,7 +65,7 @@ class LoggingSettings:
     environment: str = "dev"
 
     @classmethod
-    def from_settings(cls) -> "LoggingSettings":
+    def from_settings(cls) -> LoggingSettings:
         """Build logging settings from global application settings.
 
         Returns:
@@ -308,7 +309,7 @@ def _record_to_event(record: logging.LogRecord, default_service: str) -> LogEven
 
     return LogEvent(
         event_type="log.record",
-        timestamp=datetime.fromtimestamp(record.created, tz=timezone.utc),
+        timestamp=datetime.fromtimestamp(record.created, tz=UTC),
         logger=record.name,
         level=record.levelname.lower(),
         message=message,
@@ -343,9 +344,12 @@ def _extract_message_and_extra(
     event_dict: dict[str, Any] | None = None
     if isinstance(record.msg, Mapping):
         event_dict = dict(record.msg)
-    elif isinstance(record.msg, (list, tuple)) and len(record.msg) == 1:
-        if isinstance(record.msg[0], Mapping):
-            event_dict = dict(record.msg[0])
+    elif (
+        isinstance(record.msg, (list, tuple))
+        and len(record.msg) == 1
+        and isinstance(record.msg[0], Mapping)
+    ):
+        event_dict = dict(record.msg[0])
 
     if event_dict:
         extra.update(event_dict)
@@ -437,7 +441,7 @@ def _render_log_file_path(template: str) -> Path | None:
     Returns:
         Path | None: Resolved path with parent directory created, or `None` if invalid.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     tokens = {
         "YMD": now.strftime("%Y%m%d"),
         "YM": now.strftime("%Y%m"),
@@ -519,7 +523,7 @@ def _mark_phlo_handler(handler: logging.Handler) -> None:
     Args:
         handler: Logging handler to mark.
     """
-    setattr(handler, "_phlo_handler", True)
+    setattr(handler, "_phlo_handler", True)  # noqa: B010
 
 
 def _remove_phlo_handlers(root: logging.Logger) -> None:

@@ -73,7 +73,6 @@ class TransformationPlugin(Plugin, ABC):
                 return df
             ```
         """
-        pass
 
     def get_output_schema(
         self, input_schema: dict[str, str], config: dict[str, Any]

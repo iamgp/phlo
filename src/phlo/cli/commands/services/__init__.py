@@ -19,7 +19,6 @@ from phlo.cli.commands.services.stop import stop_cmd
 @click.group(name="services")
 def services_group():
     """Manage Phlo infrastructure services (Docker)."""
-    pass
 
 
 # Register all commands

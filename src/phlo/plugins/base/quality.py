@@ -79,4 +79,3 @@ class QualityCheckPlugin(Plugin, ABC, Generic[TQualityCheck]):
                 return CustomQualityCheck(column=column, threshold=threshold)
             ```
         """
-        pass

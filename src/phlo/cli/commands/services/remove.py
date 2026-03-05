@@ -49,7 +49,7 @@ def remove_cmd(service_name: str, keep_running: bool):
 
     # Load project config
     if config_file.exists():
-        with open(config_file) as f:
+        with config_file.open() as f:
             config = yaml.safe_load(f) or {}
     else:
         logger.error("services_remove_missing_config", config_file=str(config_file))
@@ -125,7 +125,7 @@ def remove_cmd(service_name: str, keep_running: bool):
     normalize_services_enabled_disabled_config(config)
 
     # Write updated config
-    with open(config_file, "w") as f:
+    with config_file.open("w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
     logger.info("services_remove_config_updated", service_name=service_name)
 

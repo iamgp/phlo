@@ -552,7 +552,7 @@ def start_cmd(
         logger.error("services_start_docker_not_found", project_name=project_name, exc_info=True)
         raise click.ClickException(
             "docker command not found. Install Docker: https://docs.docker.com/get-docker/"
-        )
+        ) from None
     except (subprocess.SubprocessError, OSError) as exc:
         logger.error(
             "services_start_unexpected_error",

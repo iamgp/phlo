@@ -2,7 +2,6 @@
 
 import sys
 from subprocess import TimeoutExpired
-from typing import Optional
 
 import click
 
@@ -19,7 +18,7 @@ logger = get_logger(__name__)
 @click.argument("service", required=False)
 @click.option("-f", "--follow", is_flag=True, help="Follow log output")
 @click.option("-n", "--tail", default=100, help="Number of lines to show")
-def logs_cmd(service: Optional[str], follow: bool, tail: int):
+def logs_cmd(service: str | None, follow: bool, tail: int):
     """View logs from Phlo infrastructure services.
 
     Examples:
@@ -88,4 +87,3 @@ def logs_cmd(service: Optional[str], follow: bool, tail: int):
             project_name=project_name,
             service_name=service,
         )
-        pass

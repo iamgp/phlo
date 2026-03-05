@@ -61,12 +61,14 @@ def test_default_executor_honors_force_flags() -> None:
 def test_build_definitions_merges_user_defs() -> None:
     """Builds Dagster definitions when workflow discovery returns user definitions."""
     empty_defs = dg.Definitions()
-    with patch("phlo_dagster.framework.definitions.get_settings", return_value=_Settings()):
-        with patch(
+    with (
+        patch("phlo_dagster.framework.definitions.get_settings", return_value=_Settings()),
+        patch(
             "phlo_dagster.framework.definitions.discover_user_workflows", return_value=empty_defs
-        ):
-            with patch("phlo_dagster.framework.definitions._default_executor", return_value=None):
-                from phlo_dagster.framework.definitions import build_definitions
+        ),
+        patch("phlo_dagster.framework.definitions._default_executor", return_value=None),
+    ):
+        from phlo_dagster.framework.definitions import build_definitions
 
-                result = build_definitions(workflows_path="workflows")
-                assert isinstance(result, dg.Definitions)
+        result = build_definitions(workflows_path="workflows")
+        assert isinstance(result, dg.Definitions)

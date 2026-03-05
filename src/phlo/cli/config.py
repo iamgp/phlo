@@ -26,7 +26,6 @@ logger = get_logger(__name__)
 @click.group()
 def config():
     """Manage infrastructure configuration."""
-    pass
 
 
 @config.command("show")
@@ -80,7 +79,7 @@ def validate():
 
     console.print(f"Validating: {config_path}\n")
 
-    with open(config_path) as f:
+    with config_path.open() as f:
         project_config = yaml.safe_load(f)
 
     if not project_config:
@@ -164,7 +163,7 @@ def upgrade(force: bool):
         error_console.print("Run [cyan]phlo services init[/cyan] to create a new project")
         sys.exit(1)
 
-    with open(config_path) as f:
+    with config_path.open() as f:
         project_config = yaml.safe_load(f) or {}
 
     if "infrastructure" in project_config and not force:
@@ -178,7 +177,7 @@ def upgrade(force: bool):
     default_infra = InfrastructureConfig()
     project_config["infrastructure"] = default_infra.model_dump(exclude_none=False, mode="python")
 
-    with open(config_path, "w") as f:
+    with config_path.open("w") as f:
         yaml.dump(
             project_config,
             f,

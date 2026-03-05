@@ -16,7 +16,6 @@ from phlo.cli.commands.plugin.update import update_cmd
 @click.group(name="plugin")
 def plugin_group():
     """Manage Phlo plugins."""
-    pass
 
 
 # Register commands

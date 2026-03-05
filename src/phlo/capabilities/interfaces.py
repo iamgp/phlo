@@ -110,7 +110,7 @@ class GovernanceBackend(Protocol):
         """List access policies, optionally filtered by table."""
         ...
 
-    def apply_policy(self, *, policy: "AccessPolicy") -> None:
+    def apply_policy(self, *, policy: AccessPolicy) -> None:
         """Apply an access policy to the backend."""
         ...
 

@@ -115,8 +115,7 @@ def select_changed_packages(
 
         if (
             file == "pyproject.toml"
-            or file.startswith("src/phlo/")
-            or file.startswith("registry/")
+            or file.startswith(("src/phlo/", "registry/"))
             or file in {"README.md", "CHANGELOG.md"}
         ):
             changed_packages.add(root_name)
@@ -125,7 +124,7 @@ def select_changed_packages(
 
 
 def topo_sort(selected: set[str], dep_map: dict[str, list[str]]) -> list[str]:
-    in_deg = {name: 0 for name in selected}
+    in_deg = dict.fromkeys(selected, 0)
     dependents: dict[str, list[str]] = {name: [] for name in selected}
     for name in selected:
         for dep in dep_map.get(name, []):
@@ -175,7 +174,7 @@ def parse_target_packages(raw: str, available: set[str]) -> set[str]:
 
 
 def main() -> None:
-    root = Path(".")
+    root = Path()
     package_paths, package_meta = load_packages(root)
     internal = set(package_paths)
 
@@ -208,8 +207,8 @@ def main() -> None:
         "dry_run": "true" if dry_run else "false",
     }
 
-    output_path = os.environ["GITHUB_OUTPUT"]
-    with open(output_path, "a", encoding="utf-8") as fh:
+    output_path = Path(os.environ["GITHUB_OUTPUT"])
+    with output_path.open("a", encoding="utf-8") as fh:
         for key, value in outputs.items():
             fh.write(f"{key}={value}\n")
 

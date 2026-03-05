@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -44,7 +43,7 @@ logger = get_logger(__name__)
     type=click.Path(),
     help="Path for new plugin package (default: ./phlo-plugin-{name})",
 )
-def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
+def create_cmd(plugin_name: str, plugin_type: str, path: str | None):
     """Create scaffolding for a new plugin.
 
     Examples:

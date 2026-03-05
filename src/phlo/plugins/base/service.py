@@ -28,7 +28,6 @@ class ServicePlugin(Plugin, ABC):
 
         This is equivalent to the content of a service.yaml file.
         """
-        pass
 
     @property
     def category(self) -> str:

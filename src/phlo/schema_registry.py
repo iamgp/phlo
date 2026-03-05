@@ -97,7 +97,7 @@ class SchemaRegistry:
 
     def _setup_schema(self) -> None:
         sql_path = Path(__file__).parent / "sql" / "001_create_schema_registry.sql"
-        with open(sql_path) as f:
+        with sql_path.open() as f:
             schema_sql = f.read()
         with psycopg2.connect(self.connection_string) as conn:
             with conn.cursor() as cur:
@@ -149,10 +149,9 @@ class SchemaRegistry:
     def get_latest_snapshots(self, table_name: str, limit: int = 2) -> list[SchemaSnapshot]:
         """Get most recent snapshots for a table."""
         self._ensure_schema()
-        with psycopg2.connect(self.connection_string) as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
+        with psycopg2.connect(self.connection_string) as conn, conn.cursor() as cur:
+            cur.execute(
+                """
                     SELECT snapshot_id, table_name, schema, schema_hash,
                            created_at, run_id, source
                     FROM phlo.schema_snapshots
@@ -160,9 +159,9 @@ class SchemaRegistry:
                     ORDER BY created_at DESC
                     LIMIT %s
                     """,
-                    (table_name, limit),
-                )
-                rows = cur.fetchall()
+                (table_name, limit),
+            )
+            rows = cur.fetchall()
         return [
             SchemaSnapshot(
                 snapshot_id=r[0],

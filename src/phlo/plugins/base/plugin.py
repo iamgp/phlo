@@ -64,7 +64,6 @@ class Plugin(ABC):
         Returns:
             PluginMetadata with name, version, description, etc.
         """
-        pass
 
     def initialize(self, config: dict[str, Any]) -> None:
         """
@@ -79,7 +78,7 @@ class Plugin(ABC):
         Args:
             config: Configuration dictionary for the plugin
         """
-        pass
+        return
 
     def cleanup(self) -> None:
         """
@@ -91,4 +90,4 @@ class Plugin(ABC):
         - Releasing resources
         - Saving state
         """
-        pass
+        return
