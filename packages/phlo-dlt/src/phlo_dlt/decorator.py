@@ -21,6 +21,7 @@ from phlo_dlt.pandera_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
     PanderaContractEvaluation,
     evaluate_pandera_contract_parquet,
+    evaluate_pandera_contract_parquet_files,
     pandera_contract_asset_check_result,
 )
 
@@ -340,9 +341,17 @@ def phlo_ingestion(
                     return
 
                 if validate and table_config.validation_schema is not None:
-                    parquet_path = result.metadata.get("parquet_path")
+                    parquet_paths_raw = result.metadata.get("parquet_paths")
+                    if isinstance(parquet_paths_raw, list):
+                        parquet_paths = [Path(str(path)) for path in parquet_paths_raw]
+                    else:
+                        parquet_path = result.metadata.get("parquet_path")
+                        parquet_paths = [Path(str(parquet_path))] if parquet_path else []
+                    primary_parquet_path = parquet_paths[0] if parquet_paths else None
                     query_or_sql = (
-                        f"parquet://{parquet_path}" if parquet_path else "parquet://<missing>"
+                        ",".join(f"parquet://{parquet_path}" for parquet_path in parquet_paths)
+                        if parquet_paths
+                        else "parquet://<missing>"
                     )
                     log_event(
                         logger,
@@ -350,15 +359,22 @@ def phlo_ingestion(
                         "pandera_contract_evaluation_started",
                         table_name=table_config.full_table_name,
                         partition_date=partition_date,
-                        parquet_path=str(parquet_path) if parquet_path is not None else None,
+                        parquet_path=str(primary_parquet_path)
+                        if primary_parquet_path is not None
+                        else None,
+                        parquet_path_count=len(parquet_paths),
                     )
                     try:
-                        if parquet_path is None:
-                            raise FileNotFoundError("Missing parquet_path in ingestion metadata")
-                        evaluation = evaluate_pandera_contract_parquet(
-                            Path(parquet_path),
-                            schema_class=table_config.validation_schema,
-                        )
+                        if len(parquet_paths) == 1:
+                            evaluation = evaluate_pandera_contract_parquet(
+                                primary_parquet_path,
+                                schema_class=table_config.validation_schema,
+                            )
+                        else:
+                            evaluation = evaluate_pandera_contract_parquet_files(
+                                parquet_paths,
+                                schema_class=table_config.validation_schema,
+                            )
                         if evaluation.passed:
                             log_event(
                                 logger,
@@ -366,7 +382,10 @@ def phlo_ingestion(
                                 "pandera_contract_evaluation_passed",
                                 table_name=table_config.full_table_name,
                                 partition_date=partition_date,
-                                parquet_path=str(parquet_path),
+                                parquet_path=str(primary_parquet_path)
+                                if primary_parquet_path is not None
+                                else None,
+                                parquet_path_count=len(parquet_paths),
                                 total_count=evaluation.total_count,
                                 failed_count=evaluation.failed_count,
                             )
@@ -377,7 +396,10 @@ def phlo_ingestion(
                                 "pandera_contract_evaluation_failed",
                                 table_name=table_config.full_table_name,
                                 partition_date=partition_date,
-                                parquet_path=str(parquet_path),
+                                parquet_path=str(primary_parquet_path)
+                                if primary_parquet_path is not None
+                                else None,
+                                parquet_path_count=len(parquet_paths),
                                 total_count=evaluation.total_count,
                                 failed_count=evaluation.failed_count,
                                 error=evaluation.error,
@@ -389,7 +411,10 @@ def phlo_ingestion(
                             "pandera_contract_evaluation_failed",
                             table_name=table_config.full_table_name,
                             partition_date=partition_date,
-                            parquet_path=str(parquet_path) if parquet_path is not None else None,
+                            parquet_path=str(primary_parquet_path)
+                            if primary_parquet_path is not None
+                            else None,
+                            parquet_path_count=len(parquet_paths),
                             error=str(exc),
                         )
                         logger.exception("pandera_contract_evaluation_exception")

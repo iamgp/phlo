@@ -37,6 +37,20 @@ def evaluate_pandera_contract_parquet(
     return evaluate_pandera_contract(df, schema_class=schema_class)
 
 
+def evaluate_pandera_contract_parquet_files(
+    parquet_paths: list[Path],
+    *,
+    schema_class: type[DataFrameModel],
+) -> PanderaContractEvaluation:
+    """Load one or more parquet files and validate them as a single staged dataset."""
+    if not parquet_paths:
+        raise FileNotFoundError("Missing parquet_paths in ingestion metadata")
+    frames = [pd.read_parquet(parquet_path) for parquet_path in parquet_paths]
+    return evaluate_pandera_contract(
+        pd.concat(frames, ignore_index=True), schema_class=schema_class
+    )
+
+
 def evaluate_pandera_contract(
     df: pd.DataFrame,
     *,

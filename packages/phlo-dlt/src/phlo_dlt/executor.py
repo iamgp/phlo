@@ -192,6 +192,7 @@ class DltIngester(BaseIngester):
                 metadata={
                     "dlt_elapsed_seconds": dlt_elapsed,
                     "parquet_path": str(parquet_path),
+                    "parquet_paths": [str(parquet_path)],
                     "total_elapsed_seconds": total_elapsed,
                 },
             )
