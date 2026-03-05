@@ -18,6 +18,7 @@ from phlo.capabilities import (
     register_schema_migrator,
     register_table_store,
     resolve_capability,
+    resolve_runtime_ref,
     routing_from_context,
 )
 from phlo.plugins.base import PluginMetadata
@@ -140,3 +141,78 @@ def test_routing_from_context_reads_canonical_tags() -> None:
     assert routing.run_id == "run-123"
     assert routing.feature_flags == {"wap": "true"}
     assert "table_store" in routing.resources
+
+
+def test_resolve_runtime_ref_returns_routing_ref_when_supported() -> None:
+    runtime = type(
+        "StubRuntime",
+        (),
+        {
+            "run_id": "run-123",
+            "partition_key": None,
+            "tags": {"phlo/ref": "feature/orders"},
+            "resources": {},
+            "logger": property(lambda self: object()),
+            "routing": property(lambda self: (_ for _ in ()).throw(AttributeError())),
+            "get_resource": lambda self, name: None,
+        },
+    )()
+
+    assert (
+        resolve_runtime_ref(
+            runtime,
+            support=CapabilitySupport(supports_refs=True),
+            default_ref="main",
+        )
+        == "feature/orders"
+    )
+
+
+def test_resolve_runtime_ref_uses_default_for_ref_aware_capability() -> None:
+    runtime = type(
+        "StubRuntime",
+        (),
+        {
+            "run_id": "run-123",
+            "partition_key": None,
+            "tags": {},
+            "resources": {},
+            "logger": property(lambda self: object()),
+            "routing": property(lambda self: (_ for _ in ()).throw(AttributeError())),
+            "get_resource": lambda self, name: None,
+        },
+    )()
+
+    assert (
+        resolve_runtime_ref(
+            runtime,
+            support=CapabilitySupport(supports_refs=True),
+            default_ref="main",
+        )
+        == "main"
+    )
+
+
+def test_resolve_runtime_ref_ignores_ref_for_non_versioned_capability() -> None:
+    runtime = type(
+        "StubRuntime",
+        (),
+        {
+            "run_id": "run-123",
+            "partition_key": None,
+            "tags": {"phlo/ref": "feature/orders"},
+            "resources": {},
+            "logger": property(lambda self: object()),
+            "routing": property(lambda self: (_ for _ in ()).throw(AttributeError())),
+            "get_resource": lambda self, name: None,
+        },
+    )()
+
+    assert (
+        resolve_runtime_ref(
+            runtime,
+            support=CapabilitySupport(supports_refs=False),
+            default_ref="main",
+        )
+        is None
+    )

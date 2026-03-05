@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from phlo.capabilities.support import CapabilitySupport
+
 
 @dataclass(frozen=True, slots=True)
 class RuntimeRouting:
@@ -89,3 +91,28 @@ def routing_from_context(context: RuntimeContext) -> RuntimeRouting:
         resources=resources,
         feature_flags=feature_flags,
     )
+
+
+def resolve_runtime_ref(
+    context: RuntimeContext | None,
+    *,
+    support: CapabilitySupport | None = None,
+    default_ref: str | None = None,
+) -> str | None:
+    """Resolve the effective ref for a capability from runtime routing and support metadata.
+
+    Args:
+        context: Runtime context or ``None`` when no orchestrator context exists.
+        support: Capability support metadata. When refs are unsupported, routing refs are ignored.
+        default_ref: Fallback ref used when the capability supports refs but the runtime omitted one.
+
+    Returns:
+        Effective ref name for the capability, or ``None`` when refs are unsupported.
+    """
+    if support is not None and not support.supports_refs:
+        return None
+    if context is not None:
+        routing = routing_from_context(context)
+        if routing.ref:
+            return routing.ref
+    return default_ref

@@ -19,7 +19,12 @@ from phlo.capabilities.registry import (
     register_schema_migrator,
     register_table_store,
 )
-from phlo.capabilities.runtime import RuntimeContext, RuntimeRouting, routing_from_context
+from phlo.capabilities.runtime import (
+    RuntimeContext,
+    RuntimeRouting,
+    resolve_runtime_ref,
+    routing_from_context,
+)
 from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
@@ -92,6 +97,7 @@ __all__ = [
     "register_schema_migrator",
     "register_table_store",
     "ResolutionResult",
+    "resolve_runtime_ref",
     "resolve_capability",
     "routing_from_context",
 ]
