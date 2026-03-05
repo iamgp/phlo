@@ -208,6 +208,16 @@ from phlo_testing.hooks import (
     sample_telemetry_event,
     sample_transform_event,
 )
+from phlo_testing.profile_harness import (
+    BUNDLED_STACK_CORE_SERVICES,
+    BUNDLED_STACK_DEV_PACKAGES,
+    BundledStackHarness,
+    BundledStackPorts,
+    bootstrap_bundled_stack_harness,
+    build_bundled_stack_env_updates,
+    bundled_stack_contract_enabled,
+    keep_bundled_stack_running,
+)
 
 logger = get_logger(__name__)
 
@@ -311,6 +321,15 @@ __all__ = [
     "sample_lineage_event",
     "sample_telemetry_event",
     "sample_service_event",
+    # Profile harnesses
+    "BUNDLED_STACK_CORE_SERVICES",
+    "BUNDLED_STACK_DEV_PACKAGES",
+    "BundledStackHarness",
+    "BundledStackPorts",
+    "bootstrap_bundled_stack_harness",
+    "build_bundled_stack_env_updates",
+    "bundled_stack_contract_enabled",
+    "keep_bundled_stack_running",
 ]
 
 if _FIXTURES_AVAILABLE:
