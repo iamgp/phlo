@@ -49,12 +49,20 @@ def ensure_table(
         pass
 
     from pyiceberg.partitioning import PartitionField, PartitionSpec
-    from pyiceberg.transforms import DayTransform, HourTransform, IdentityTransform
+    from pyiceberg.transforms import (
+        DayTransform,
+        HourTransform,
+        IdentityTransform,
+        MonthTransform,
+        YearTransform,
+    )
 
     transform_map = {
         "identity": IdentityTransform(),
         "day": DayTransform(),
         "hour": HourTransform(),
+        "month": MonthTransform(),
+        "year": YearTransform(),
     }
 
     partition_fields = []
