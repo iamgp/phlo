@@ -57,14 +57,19 @@ def _run_dbt(subcommand: str, target: str, select_expr: str | None = None) -> No
         sys.exit(1)
 
 
-@click.command("compile")
+@click.group("dbt")
+def dbt_group() -> None:
+    """dbt commands (compile, run, test, publishing)."""
+
+
+@dbt_group.command("compile")
 @click.option("--target", default="dev", help="dbt target profile")
 def compile_cmd(target: str) -> None:
     """Compile dbt models in the local project."""
     _run_dbt("compile", target)
 
 
-@click.command("run")
+@dbt_group.command("run")
 @click.option("--target", default="dev", help="dbt target profile")
 @click.option("--select", "select_expr", default=None, help="dbt model selector")
 def run_cmd(target: str, select_expr: str | None) -> None:
@@ -72,12 +77,15 @@ def run_cmd(target: str, select_expr: str | None) -> None:
     _run_dbt("run", target, select_expr)
 
 
-@click.command("test")
+@dbt_group.command("test")
 @click.option("--target", default="dev", help="dbt target profile")
 @click.option("--select", "select_expr", default=None, help="dbt model selector")
 def test_cmd(target: str, select_expr: str | None) -> None:
     """Run dbt tests in the local project."""
     _run_dbt("test", target, select_expr)
+
+
+dbt_group.add_command(publishing)
 
 
 class DbtCliPlugin(CliCommandPlugin):
@@ -102,4 +110,4 @@ class DbtCliPlugin(CliCommandPlugin):
         Returns:
             List of click commands to register.
         """
-        return [publishing, compile_cmd, run_cmd, test_cmd]
+        return [dbt_group]
