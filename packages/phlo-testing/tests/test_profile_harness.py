@@ -36,6 +36,27 @@ def test_build_bundled_stack_env_updates_resolves_core_ports() -> None:
     assert ("Nessie", 19120) in calls
 
 
+def test_build_bundled_stack_env_updates_avoids_duplicate_ports(monkeypatch) -> None:
+    duplicate_ports = {
+        "Dagster": 3001,
+        "Observatory": 3001,
+        "MinIO API": 9002,
+        "MinIO Console": 9002,
+    }
+
+    def fake_resolve_port(service_name: str, default_port: int) -> int:
+        return duplicate_ports.get(service_name, default_port)
+
+    monkeypatch.setattr("phlo_testing.profile_harness._port_in_use", lambda port: False)
+
+    updates = build_bundled_stack_env_updates(fake_resolve_port)
+
+    assert updates["DAGSTER_PORT"] == "3001"
+    assert updates["OBSERVATORY_PORT"] == "3002"
+    assert updates["MINIO_API_PORT"] == "9002"
+    assert updates["MINIO_CONSOLE_PORT"] == "9003"
+
+
 def test_bundled_stack_harness_materialize_adds_partition(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
@@ -79,3 +100,91 @@ def test_bundled_stack_harness_materialize_adds_partition(monkeypatch) -> None:
         "stream_output": False,
         "python_exe": Path("/tmp/project/.venv/bin/python"),
     }
+
+
+def test_bundled_stack_harness_cleanup_skips_kept_stack(monkeypatch) -> None:
+    stop_calls: list[bool] = []
+    removed_paths: list[Path] = []
+
+    monkeypatch.setattr(
+        "phlo_testing.profile_harness._load_golden_path_module",
+        lambda: type(
+            "StubGoldenPathModule",
+            (),
+            {
+                "force_remove_directory": staticmethod(
+                    lambda path: removed_paths.append(path) or True
+                )
+            },
+        )(),
+    )
+
+    harness = BundledStackHarness(
+        project_dir=Path("/tmp/project"),
+        phlo_source=Path("/tmp/source"),
+        python_executable=Path("/tmp/project/.venv/bin/python"),
+        ports=BundledStackPorts(
+            phlo_api=54000,
+            dagster=3000,
+            postgres=5432,
+            trino=8080,
+            minio_api=9000,
+            minio_console=9001,
+            nessie=19120,
+        ),
+        keep_running=True,
+    )
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "stop_services",
+        lambda self, *, stream_output=True: stop_calls.append(stream_output),
+    )
+
+    harness.cleanup(stream_output=False)
+
+    assert stop_calls == []
+    assert removed_paths == []
+
+
+def test_bundled_stack_harness_cleanup_force_stops_kept_stack(monkeypatch) -> None:
+    stop_calls: list[bool] = []
+    removed_paths: list[Path] = []
+
+    monkeypatch.setattr(
+        "phlo_testing.profile_harness._load_golden_path_module",
+        lambda: type(
+            "StubGoldenPathModule",
+            (),
+            {
+                "force_remove_directory": staticmethod(
+                    lambda path: removed_paths.append(path) or True
+                )
+            },
+        )(),
+    )
+
+    harness = BundledStackHarness(
+        project_dir=Path("/tmp/project"),
+        phlo_source=Path("/tmp/source"),
+        python_executable=Path("/tmp/project/.venv/bin/python"),
+        ports=BundledStackPorts(
+            phlo_api=54000,
+            dagster=3000,
+            postgres=5432,
+            trino=8080,
+            minio_api=9000,
+            minio_console=9001,
+            nessie=19120,
+        ),
+        keep_running=True,
+    )
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "stop_services",
+        lambda self, *, stream_output=True: stop_calls.append(stream_output),
+    )
+
+    harness.cleanup(stream_output=False, force=True)
+
+    assert stop_calls == [False]
+    assert removed_paths == [Path("/tmp/project")]

@@ -16,7 +16,7 @@ from phlo_testing.profile_harness import (
 
 
 @pytest.fixture(scope="session")
-def bundled_stack_harness() -> Iterator:
+def bundled_stack_harness(request: pytest.FixtureRequest) -> Iterator:
     """Boot the real bundled stack when contract tests are explicitly enabled."""
     if not bundled_stack_contract_enabled():
         pytest.skip("Set PHLO_RUN_BUNDLED_STACK_CONTRACT=1 to run bundled-stack contract tests")
@@ -25,7 +25,10 @@ def bundled_stack_harness() -> Iterator:
     try:
         yield harness
     finally:
-        harness.cleanup(stream_output=True)
+        harness.cleanup(
+            stream_output=True,
+            force=request.session.testsfailed == 0,
+        )
 
 
 @pytest.fixture(scope="session")

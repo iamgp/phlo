@@ -5,7 +5,10 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import os
+import socket
 import subprocess
+import sys
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -41,6 +44,7 @@ BUNDLED_STACK_DEV_PACKAGES = (
 _BUNDLED_STACK_PORT_DEFAULTS = {
     "PHLO_API_PORT": ("Phlo API", 54000),
     "DAGSTER_PORT": ("Dagster", 3000),
+    "OBSERVATORY_PORT": ("Observatory", 3001),
     "POSTGRES_PORT": ("Postgres", 5432),
     "TRINO_PORT": ("Trino", 8080),
     "MINIO_API_PORT": ("MinIO API", 9000),
@@ -70,6 +74,74 @@ def _load_golden_path_module() -> Any:
     return module
 
 
+def _repo_python_executable() -> Path:
+    repo_python = _repo_root() / ".venv" / "bin" / "python"
+    if repo_python.exists():
+        return repo_python
+    return Path(sys.executable)
+
+
+def _repo_pythonpath() -> str:
+    repo_root = _repo_root()
+    entries = [repo_root / "src", *(repo_root / "packages").glob("*/src")]
+    rendered = os.pathsep.join(str(path) for path in entries)
+    existing = os.environ.get("PYTHONPATH", "")
+    if existing:
+        return f"{rendered}{os.pathsep}{existing}"
+    return rendered
+
+
+def _run_repo_phlo(
+    args: list[str],
+    *,
+    cwd: Path,
+    timeout: int | None,
+    stream_output: bool,
+) -> subprocess.CompletedProcess[str]:
+    command = [str(_repo_python_executable()), "-m", "phlo.cli.main", *args]
+    env = {**os.environ, "PYTHONPATH": _repo_pythonpath()}
+
+    if stream_output:
+        process = subprocess.Popen(
+            command,
+            cwd=cwd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        output_lines: list[str] = []
+        try:
+            if process.stdout is not None:
+                for line in process.stdout:
+                    print(f"    {line}", end="")
+                    output_lines.append(line)
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            raise
+        result = subprocess.CompletedProcess(
+            args=command,
+            returncode=process.returncode,
+            stdout="".join(output_lines),
+            stderr="",
+        )
+    else:
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+        )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"Command failed: {' '.join(command)}")
+    return result
+
+
 def bundled_stack_contract_enabled() -> bool:
     value = os.environ.get("PHLO_RUN_BUNDLED_STACK_CONTRACT", "")
     return value.strip().lower() in {"1", "true", "yes", "on"}
@@ -81,17 +153,86 @@ def keep_bundled_stack_running() -> bool:
 
 
 def default_bundled_stack_project_dir(base_dir: Path | None = None) -> Path:
-    root = base_dir or (Path.home() / "tmp")
+    root = base_dir or (_repo_root() / ".tmp")
     return root / f"phlo-bundled-stack-{uuid.uuid4().hex[:8]}"
 
 
+def _port_in_use(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return sock.connect_ex(("127.0.0.1", port)) == 0
+
+
+def _allocate_unique_port(
+    service_name: str,
+    default_port: int,
+    *,
+    resolve_port: Any,
+    used_ports: set[int],
+) -> int:
+    candidate = int(resolve_port(service_name, default_port))
+    while candidate in used_ports or _port_in_use(candidate):
+        candidate += 1
+    used_ports.add(candidate)
+    return candidate
+
+
 def build_bundled_stack_env_updates(resolve_port: Any) -> dict[str, str]:
+    used_ports: set[int] = set()
     updates = {
-        env_key: str(resolve_port(service_name, default_port))
+        env_key: str(
+            _allocate_unique_port(
+                service_name,
+                default_port,
+                resolve_port=resolve_port,
+                used_ports=used_ports,
+            )
+        )
         for env_key, (service_name, default_port) in _BUNDLED_STACK_PORT_DEFAULTS.items()
     }
     updates["PHLO_DEV_EXTRA_PACKAGES"] = ",".join(BUNDLED_STACK_DEV_PACKAGES)
     return updates
+
+
+def _verify_bind_mount_parent(path: Path, *, attempts: int = 5, delay_seconds: float = 0.5) -> None:
+    """Verify Docker can read a marker file from the target parent path."""
+    target_path = path.resolve()
+    target_path.mkdir(parents=True, exist_ok=True)
+    marker = f".phlo_bind_check_{uuid.uuid4().hex}"
+    marker_path = target_path / marker
+    marker_path.write_text("ok\n")
+    try:
+        last_detail = "unknown bind mount error"
+        for _ in range(attempts):
+            result = subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "-v",
+                    f"{target_path}:/mnt:ro",
+                    "alpine:3.20",
+                    "sh",
+                    "-lc",
+                    f"test -f /mnt/{marker}",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+            if result.returncode == 0:
+                return
+            last_detail = (
+                result.stderr.strip() or result.stdout.strip() or "unknown bind mount error"
+            )
+            time.sleep(delay_seconds)
+        raise RuntimeError(
+            "Docker cannot bind-mount the contract test project directory: "
+            f"{target_path} ({last_detail})"
+        )
+    finally:
+        marker_path.unlink(missing_ok=True)
 
 
 @dataclass(slots=True)
@@ -176,8 +317,13 @@ class BundledStackHarness:
                 stream_output=stream_output,
             )
 
-    def cleanup(self, *, stream_output: bool = True) -> None:
-        if self.keep_running:
+    def cleanup(
+        self,
+        *,
+        stream_output: bool = True,
+        force: bool = False,
+    ) -> None:
+        if self.keep_running and not force:
             return
         utils = _load_golden_path_module()
         self.stop_services(stream_output=stream_output)
@@ -294,12 +440,7 @@ def bootstrap_bundled_stack_harness(
     if docker_info.returncode != 0:
         raise RuntimeError("Docker daemon is unavailable for bundled-stack contract tests")
 
-    bind_mount_ok, bind_mount_detail = utils.verify_bind_mount_visibility(target_project_dir.parent)
-    if not bind_mount_ok:
-        raise RuntimeError(
-            "Docker cannot bind-mount the contract test project directory: "
-            f"{target_project_dir.parent} ({bind_mount_detail})"
-        )
+    _verify_bind_mount_parent(target_project_dir.parent)
 
     if target_project_dir.exists() and not utils.force_remove_directory(target_project_dir):
         raise RuntimeError(f"Unable to remove existing contract test project: {target_project_dir}")
@@ -307,7 +448,7 @@ def bootstrap_bundled_stack_harness(
     project_name = target_project_dir.name
 
     try:
-        utils.run_phlo(
+        _run_repo_phlo(
             ["init", project_name, "--template", "basic", "--force"],
             cwd=target_project_dir.parent,
             timeout=120,
