@@ -27,7 +27,7 @@ from phlo_dlt.pandera_checks import (
     pandera_contract_asset_check_result,
 )
 
-from phlo_dlt.dlt_helpers import get_branch_from_context
+from phlo_dlt.dlt_helpers import get_branch_from_context, get_write_branch_from_context
 from phlo_dlt.registry import TableConfig
 
 _INGESTION_ASSETS: list[AssetSpec] = []
@@ -279,11 +279,23 @@ def phlo_ingestion(
                 )
 
             branch_name = get_branch_from_context(runtime)
+            write_branch_name = get_write_branch_from_context(
+                runtime,
+                strict_validation=strict_validation,
+            )
             run_id = runtime.run_id or "unknown"
             logger = runtime.logger
 
             log_event(logger, "info", "starting_ingestion", partition_date=partition_date)
             log_event(logger, "info", "ingesting_to_branch", branch_name=branch_name)
+            if write_branch_name != branch_name:
+                log_event(
+                    logger,
+                    "info",
+                    "ingesting_to_isolated_branch",
+                    target_branch_name=branch_name,
+                    write_branch_name=write_branch_name,
+                )
             log_event(
                 logger, "info", "target_table_selected", table_name=table_config.full_table_name
             )
@@ -314,7 +326,11 @@ def phlo_ingestion(
 
                 result = ingester.run_ingestion(
                     partition_key=partition_date,
-                    parameters={"branch_name": branch_name, "run_id": run_id},
+                    parameters={
+                        "branch_name": write_branch_name,
+                        "target_branch_name": branch_name,
+                        "run_id": run_id,
+                    },
                 )
 
                 if result.status == "no_data":
@@ -337,6 +353,7 @@ def phlo_ingestion(
                     yield MaterializeResult(
                         metadata={
                             "branch": branch_name,
+                            "write_branch": write_branch_name,
                             "partition_date": partition_date,
                             "rows_loaded": 0,
                             "status": "no_data",
@@ -448,6 +465,7 @@ def phlo_ingestion(
                 yield MaterializeResult(
                     metadata={
                         "branch": branch_name,
+                        "write_branch": write_branch_name,
                         "partition_date": partition_date,
                         "rows_inserted": result.rows_inserted,
                         "rows_deleted": result.rows_deleted,

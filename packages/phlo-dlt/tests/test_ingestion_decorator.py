@@ -15,7 +15,7 @@ pytest.importorskip("pyiceberg")
 
 from phlo.contracts import Consumer, SLA
 from phlo_dlt.decorator import clear_ingestion_assets, get_ingestion_assets, phlo_ingestion
-from phlo_dlt.dlt_helpers import get_branch_from_context
+from phlo_dlt.dlt_helpers import get_branch_from_context, get_write_branch_from_context
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
 
@@ -77,6 +77,49 @@ def test_get_branch_from_context_defaults_to_main() -> None:
             raise KeyError(name)
 
     assert get_branch_from_context(RuntimeStub()) == "main"
+
+
+def test_get_write_branch_from_context_prefers_wap_branch_for_strict_runs() -> None:
+    """Strict validation should use the isolated WAP branch when present."""
+
+    class RuntimeStub:
+        run_id = "run-1"
+        partition_key = "2025-01-01"
+        tags = {
+            "phlo/ref": "main",
+            "phlo/wap_branch": "pipeline/run-run-1",
+        }
+        resources = {}
+
+        @property
+        def logger(self) -> Any:
+            return object()
+
+        def get_resource(self, name: str) -> Any:
+            raise KeyError(name)
+
+    assert (
+        get_write_branch_from_context(RuntimeStub(), strict_validation=True) == "pipeline/run-run-1"
+    )
+
+
+def test_get_write_branch_from_context_uses_target_branch_without_wap() -> None:
+    """Without WAP routing, writes should fall back to the target branch."""
+
+    class RuntimeStub:
+        run_id = "run-1"
+        partition_key = "2025-01-01"
+        tags = {"phlo/ref": "feature/orders"}
+        resources = {}
+
+        @property
+        def logger(self) -> Any:
+            return object()
+
+        def get_resource(self, name: str) -> Any:
+            raise KeyError(name)
+
+    assert get_write_branch_from_context(RuntimeStub(), strict_validation=True) == "feature/orders"
 
 
 class TestSchemaAutoGeneration:

@@ -81,6 +81,7 @@ class DltIngester(BaseIngester):
         """
         parameters = parameters or {}
         branch_name = parameters.get("branch_name", "main")
+        target_branch_name = parameters.get("target_branch_name", branch_name)
         run_id = parameters.get("run_id", "unknown")
 
         pipeline_name = f"{self.table_config.table_name}_{partition_key.replace('-', '_')}"
@@ -202,6 +203,7 @@ class DltIngester(BaseIngester):
                     "rows_deleted": merge_metrics.get("rows_deleted", 0),
                     "dlt_elapsed_seconds": dlt_elapsed,
                     "total_elapsed_seconds": total_elapsed,
+                    "target_branch_name": target_branch_name,
                 },
             )
 
@@ -215,6 +217,7 @@ class DltIngester(BaseIngester):
                     "parquet_paths": [str(parquet_path) for parquet_path in parquet_paths],
                     "pandera_evaluation": evaluation_metadata,
                     "total_elapsed_seconds": total_elapsed,
+                    "target_branch_name": target_branch_name,
                 },
             )
 

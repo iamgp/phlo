@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,7 @@ from phlo_dlt.registry import TableConfig
 
 logger = get_logger(__name__)
 DLT_TABLE_STORE_SUPPORT = CapabilitySupport(supports_refs=True)
+WAP_TAG_KEY = "phlo/wap_branch"
 
 
 def generate_row_id() -> str:
@@ -47,6 +49,21 @@ def get_branch_from_context(context: Any) -> str:
         )
         or "main"
     )
+
+
+def get_write_branch_from_context(context: Any, *, strict_validation: bool) -> str:
+    """Return the effective write ref for the current ingestion run.
+
+    When strict validation is enabled and the runtime carries an isolated WAP
+    branch tag, writes should land there first so promotion remains explicit.
+    """
+    if strict_validation:
+        tags = getattr(context, "tags", {}) or {}
+        if isinstance(tags, Mapping):
+            wap_branch = tags.get(WAP_TAG_KEY)
+            if isinstance(wap_branch, str) and wap_branch:
+                return wap_branch
+    return get_branch_from_context(context)
 
 
 def inject_metadata_columns(
