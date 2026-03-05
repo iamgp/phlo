@@ -6,11 +6,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from phlo.capabilities import RuntimeContext, routing_from_context
+from phlo.capabilities import (
+    CapabilitySupport,
+    RuntimeContext,
+    resolve_runtime_ref,
+    routing_from_context,
+)
 from phlo_trino.settings import get_settings as get_trino_settings
 import yaml
 
 DEFAULT_DBT_TARGET = "dev"
+DBT_QUERY_ENGINE_SUPPORT = CapabilitySupport(supports_refs=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,11 +89,9 @@ def resolve_dbt_runtime_config(
     trino = get_trino_settings()
     target_name = resolve_dbt_target_name(runtime, target=target)
     catalog = trino.trino_catalog
-
-    if runtime is not None:
-        routing = routing_from_context(runtime)
-        if routing.ref and routing.ref != "main":
-            catalog = f"{catalog}_{routing.ref}"
+    ref = resolve_runtime_ref(runtime, support=DBT_QUERY_ENGINE_SUPPORT, default_ref="main")
+    if ref and ref != "main":
+        catalog = f"{catalog}_{ref}"
 
     return DbtRuntimeConfig(
         target_name=target_name,
