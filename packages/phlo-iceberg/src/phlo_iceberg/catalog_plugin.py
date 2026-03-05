@@ -7,6 +7,31 @@ import os
 from phlo.plugins.base import CatalogPlugin, PluginMetadata
 
 
+def _base_iceberg_catalog_properties(
+    *,
+    prefix: str | None = None,
+) -> dict[str, str]:
+    """Build shared Iceberg catalog properties from environment."""
+    nessie_host = os.environ.get("NESSIE_HOST", "nessie")
+    nessie_port = os.environ.get("NESSIE_PORT", "19120")
+    minio_endpoint = os.environ.get("S3_ENDPOINT", "http://minio:9000")
+    s3_region = os.environ.get("AWS_REGION", "us-east-1")
+
+    props: dict[str, str] = {
+        "connector.name": "iceberg",
+        "iceberg.catalog.type": "rest",
+        "iceberg.rest-catalog.uri": f"http://{nessie_host}:{nessie_port}/iceberg",
+        "iceberg.rest-catalog.warehouse": "warehouse",
+        "fs.native-s3.enabled": "true",
+        "s3.endpoint": minio_endpoint,
+        "s3.path-style-access": "true",
+        "s3.region": s3_region,
+    }
+    if prefix is not None:
+        props["iceberg.rest-catalog.prefix"] = prefix
+    return props
+
+
 class IcebergCatalogPlugin(CatalogPlugin):
     """Iceberg catalog with Nessie REST backend for Trino."""
 
@@ -44,21 +69,7 @@ class IcebergCatalogPlugin(CatalogPlugin):
 
     def get_properties(self) -> dict[str, str]:
         """Generate Iceberg catalog properties from environment."""
-        nessie_host = os.environ.get("NESSIE_HOST", "nessie")
-        nessie_port = os.environ.get("NESSIE_PORT", "19120")
-        minio_endpoint = os.environ.get("S3_ENDPOINT", "http://minio:9000")
-        s3_region = os.environ.get("AWS_REGION", "us-east-1")
-
-        return {
-            "connector.name": "iceberg",
-            "iceberg.catalog.type": "rest",
-            "iceberg.rest-catalog.uri": f"http://{nessie_host}:{nessie_port}/iceberg",
-            "iceberg.rest-catalog.warehouse": "warehouse",
-            "fs.native-s3.enabled": "true",
-            "s3.endpoint": minio_endpoint,
-            "s3.path-style-access": "true",
-            "s3.region": s3_region,
-        }
+        return _base_iceberg_catalog_properties()
 
 
 class IcebergDevCatalogPlugin(CatalogPlugin):
@@ -98,19 +109,4 @@ class IcebergDevCatalogPlugin(CatalogPlugin):
 
     def get_properties(self) -> dict[str, str]:
         """Generate dev Iceberg catalog properties."""
-        nessie_host = os.environ.get("NESSIE_HOST", "nessie")
-        nessie_port = os.environ.get("NESSIE_PORT", "19120")
-        minio_endpoint = os.environ.get("S3_ENDPOINT", "http://minio:9000")
-        s3_region = os.environ.get("AWS_REGION", "us-east-1")
-
-        return {
-            "connector.name": "iceberg",
-            "iceberg.catalog.type": "rest",
-            "iceberg.rest-catalog.uri": f"http://{nessie_host}:{nessie_port}/iceberg",
-            "iceberg.rest-catalog.warehouse": "warehouse",
-            "iceberg.rest-catalog.prefix": "dev",
-            "fs.native-s3.enabled": "true",
-            "s3.endpoint": minio_endpoint,
-            "s3.path-style-access": "true",
-            "s3.region": s3_region,
-        }
+        return _base_iceberg_catalog_properties(prefix="dev")

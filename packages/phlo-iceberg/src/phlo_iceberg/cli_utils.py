@@ -5,7 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=None)
 def get_iceberg_catalog(ref: str = "main"):
     """
     Get configured Iceberg catalog instance.
