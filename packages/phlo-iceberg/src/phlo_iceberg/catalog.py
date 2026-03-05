@@ -14,7 +14,7 @@ from phlo_iceberg.settings import get_settings
 logger = get_logger(__name__)
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=16)
 def get_catalog(ref: str = "main"):
     """
     Get PyIceberg catalog configured for Nessie.
