@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -11,6 +12,9 @@ from phlo.logging import get_logger
 from phlo_nessie.settings import get_settings
 
 logger = get_logger(__name__)
+
+_MAX_RETRIES = 3
+_BACKOFF_SCHEDULE = [0.5, 1.0]
 
 
 @dataclass
@@ -61,6 +65,60 @@ class NessieResource:
 
         return f"{self.base_url}{path}"
 
+    def _request(
+        self,
+        method: str,
+        url: str,
+        **kwargs: object,
+    ) -> requests.Response:
+        """Execute an HTTP request with retry logic.
+
+        Retries up to ``_MAX_RETRIES`` times on connection errors and 5xx
+        responses, using exponential backoff defined by ``_BACKOFF_SCHEDULE``.
+
+        Args:
+            method: HTTP method (``GET``, ``POST``, ``DELETE``).
+            url: Fully qualified URL.
+            **kwargs: Forwarded to :func:`requests.request`.
+
+        Returns:
+            The successful :class:`requests.Response`.
+
+        Raises:
+            requests.exceptions.ConnectionError: After all retries exhausted.
+            requests.exceptions.RequestException: On non-retryable failures.
+        """
+
+        last_exc: Exception | None = None
+        for attempt in range(1, _MAX_RETRIES + 1):
+            try:
+                response = requests.request(method, url, **kwargs)
+                if response.status_code >= 500 and attempt < _MAX_RETRIES:
+                    logger.warning(
+                        "nessie_resource_request_retry",
+                        method=method,
+                        url=url,
+                        status_code=response.status_code,
+                        attempt=attempt,
+                    )
+                    time.sleep(_BACKOFF_SCHEDULE[attempt - 1])
+                    continue
+                return response
+            except requests.exceptions.ConnectionError as exc:
+                last_exc = exc
+                if attempt < _MAX_RETRIES:
+                    logger.warning(
+                        "nessie_resource_request_connection_retry",
+                        method=method,
+                        url=url,
+                        attempt=attempt,
+                        error=str(exc),
+                    )
+                    time.sleep(_BACKOFF_SCHEDULE[attempt - 1])
+                    continue
+                raise
+        raise last_exc  # type: ignore[misc]
+
     def list_branches(self) -> list[BranchInfo]:
         """List all branch references from Nessie.
 
@@ -73,7 +131,7 @@ class NessieResource:
             base_url=self.base_url,
         )
         try:
-            response = requests.get(self._url("/api/v1/trees"), timeout=10)
+            response = self._request("GET", self._url("/api/v1/trees"), timeout=10)
             response.raise_for_status()
             payload = response.json() or {}
         except Exception:
@@ -126,7 +184,7 @@ class NessieResource:
             branch_name=name,
             base_url=self.base_url,
         )
-        response = requests.get(self._url(f"/api/v1/trees/tree/{name}"), timeout=10)
+        response = self._request("GET", self._url(f"/api/v1/trees/tree/{name}"), timeout=10)
         if response.status_code >= 400:
             logger.info(
                 "nessie_resource_get_branch_hash_missing",
@@ -164,7 +222,8 @@ class NessieResource:
                 branch_name=name,
             )
             return False
-        response = requests.delete(
+        response = self._request(
+            "DELETE",
             self._url(f"/api/v1/trees/tree/{name}"),
             params={"expectedHash": branch_hash},
             timeout=10,
@@ -201,7 +260,8 @@ class NessieResource:
                 from_ref=from_ref,
             )
             return None
-        response = requests.post(
+        response = self._request(
+            "POST",
             self._url("/api/v1/trees/tree"),
             json={"name": name, "type": "BRANCH", "hash": source_hash},
             timeout=10,
@@ -250,7 +310,8 @@ class NessieResource:
                 target_hash_found=target_hash is not None,
             )
             return False
-        response = requests.post(
+        response = self._request(
+            "POST",
             self._url(f"/api/v1/trees/branch/{target}/merge"),
             json={"fromRefName": source, "fromHash": source_hash},
             params={"expectedHash": target_hash},

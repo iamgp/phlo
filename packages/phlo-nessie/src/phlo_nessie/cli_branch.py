@@ -10,6 +10,7 @@ Provides commands to:
 import json
 
 import click
+import requests
 from rich.console import Console
 from rich.table import Table
 
@@ -496,14 +497,41 @@ def diff(source_branch: str, target_branch: str, format: str):
         assert target_ref is not None
 
         console.print(f"\n[bold]Differences: {source_branch} -> {target_branch}[/bold]")
-        console.print("[dim]Note: Table-level diff requires catalog access[/dim]")
 
-        # In production, would use catalog to compare tables
-        differences = {
+        differences: dict[str, list[str]] = {
             "added_tables": [],
             "modified_tables": [],
             "deleted_tables": [],
         }
+
+        settings = get_nessie_settings()
+        diff_url = (
+            f"http://{settings.nessie_host}:{settings.nessie_port}"
+            f"/api/v1/diffs/{source_branch}...{target_branch}"
+        )
+        try:
+            resp = requests.get(diff_url, timeout=10)
+            resp.raise_for_status()
+            diffs = resp.json().get("diffs", [])
+            for entry in diffs:
+                key = entry.get("key", {})
+                table_name = ".".join(key.get("elements", []))
+                has_from = "from" in entry
+                has_to = "to" in entry
+                if has_to and not has_from:
+                    differences["added_tables"].append(table_name)
+                elif has_from and not has_to:
+                    differences["deleted_tables"].append(table_name)
+                elif has_from and has_to:
+                    differences["modified_tables"].append(table_name)
+        except Exception:
+            logger.warning(
+                "nessie_branch_diff_api_fallback",
+                source_branch=source_branch,
+                target_branch=target_branch,
+                exc_info=True,
+            )
+            console.print("[yellow]Diff not supported by this Nessie version[/yellow]")
 
         if format == "json":
             click.echo(json.dumps(differences, indent=2))
