@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import requests
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from phlo.logging import get_logger
 from phlo_nessie.settings import get_settings
@@ -89,10 +90,11 @@ class NessieResource:
             requests.exceptions.RequestException: On non-retryable failures.
         """
 
+        request_fn = getattr(requests, method.lower())
         last_exc: Exception | None = None
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
-                response = requests.request(method, url, **kwargs)
+                response = request_fn(url, **kwargs)
                 if response.status_code >= 500 and attempt < _MAX_RETRIES:
                     logger.warning(
                         "nessie_resource_request_retry",
@@ -104,7 +106,7 @@ class NessieResource:
                     time.sleep(_BACKOFF_SCHEDULE[attempt - 1])
                     continue
                 return response
-            except requests.exceptions.ConnectionError as exc:
+            except RequestsConnectionError as exc:
                 last_exc = exc
                 if attempt < _MAX_RETRIES:
                     logger.warning(

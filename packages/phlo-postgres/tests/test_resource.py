@@ -36,9 +36,7 @@ def test_context_manager_rolls_back_and_closes_on_error() -> None:
     connection.closed = 0
     mock_pool = _mock_pool(connection)
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         with pytest.raises(RuntimeError, match="boom"):
             with _resource():
                 raise RuntimeError("boom")
@@ -56,9 +54,7 @@ def test_transactional_cursor_commits_on_success() -> None:
     connection.cursor.return_value = cursor
     mock_pool = _mock_pool(connection)
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         resource = _resource()
         with resource.transactional_cursor() as current_cursor:
             assert current_cursor is cursor
@@ -77,9 +73,7 @@ def test_transactional_cursor_rolls_back_on_error() -> None:
     connection.cursor.return_value = cursor
     mock_pool = _mock_pool(connection)
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         resource = _resource()
         with pytest.raises(ValueError, match="fail"):
             with resource.transactional_cursor():
@@ -98,9 +92,7 @@ def test_is_healthy_returns_true_on_success() -> None:
     connection.cursor.return_value = cursor
     mock_pool = _mock_pool(connection)
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         resource = _resource()
         assert resource.is_healthy() is True
 
@@ -111,9 +103,7 @@ def test_is_healthy_returns_false_on_failure() -> None:
     mock_pool.closed = False
     mock_pool.getconn.side_effect = Exception("connection refused")
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         resource = _resource()
         assert resource.is_healthy() is False
 
@@ -126,9 +116,7 @@ def test_execute_commits() -> None:
     connection.cursor.return_value = cursor
     mock_pool = _mock_pool(connection)
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         resource = _resource()
         resource.execute("INSERT INTO t VALUES (%s)", (1,))
 
@@ -145,9 +133,7 @@ def test_query_returns_rows() -> None:
     connection.cursor.return_value = cursor
     mock_pool = _mock_pool(connection)
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         resource = _resource()
         result = resource.query("SELECT id FROM t")
 
@@ -163,9 +149,7 @@ def test_query_one_returns_first_row() -> None:
     connection.cursor.return_value = cursor
     mock_pool = _mock_pool(connection)
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         resource = _resource()
         result = resource.query_one("SELECT id FROM t LIMIT 1")
 
@@ -181,9 +165,7 @@ def test_query_one_returns_none_when_empty() -> None:
     connection.cursor.return_value = cursor
     mock_pool = _mock_pool(connection)
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         resource = _resource()
         result = resource.query_one("SELECT id FROM t WHERE 1=0")
 
@@ -198,9 +180,7 @@ def test_ensure_schema_executes_ddl() -> None:
     connection.cursor.return_value = cursor
     mock_pool = _mock_pool(connection)
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         resource = _resource()
         resource.ensure_schema("my_schema")
 
@@ -214,9 +194,7 @@ def test_close_pool_tears_down_pool() -> None:
     connection.closed = 0
     mock_pool = _mock_pool(connection)
 
-    with patch(
-        "phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool
-    ):
+    with patch("phlo_postgres.resource.pool.SimpleConnectionPool", return_value=mock_pool):
         resource = _resource()
         resource._ensure_connection()
         resource.close()
