@@ -503,6 +503,7 @@ def diff(source_branch: str, target_branch: str, format: str):
             "modified_tables": [],
             "deleted_tables": [],
         }
+        diff_supported = True
 
         settings = get_nessie_settings()
         diff_url = (
@@ -525,6 +526,7 @@ def diff(source_branch: str, target_branch: str, format: str):
                 elif has_from and has_to:
                     differences["modified_tables"].append(table_name)
         except Exception:
+            diff_supported = False
             logger.warning(
                 "nessie_branch_diff_api_fallback",
                 source_branch=source_branch,
@@ -533,9 +535,9 @@ def diff(source_branch: str, target_branch: str, format: str):
             )
             console.print("[yellow]Diff not supported by this Nessie version[/yellow]")
 
-        if format == "json":
+        if diff_supported and format == "json":
             click.echo(json.dumps(differences, indent=2))
-        else:
+        elif diff_supported:
             table = Table(title="Branch Differences")
             table.add_column("Type", style="cyan")
             table.add_column("Table Name", style="green")
@@ -548,15 +550,16 @@ def diff(source_branch: str, target_branch: str, format: str):
                 console.print("[yellow]No differences found[/yellow]")
             else:
                 console.print(table)
-        logger.info(
-            "nessie_branch_diff_rendered",
-            source_branch=source_branch,
-            target_branch=target_branch,
-            output_format=format,
-            added_count=len(differences["added_tables"]),
-            modified_count=len(differences["modified_tables"]),
-            deleted_count=len(differences["deleted_tables"]),
-        )
+        if diff_supported:
+            logger.info(
+                "nessie_branch_diff_rendered",
+                source_branch=source_branch,
+                target_branch=target_branch,
+                output_format=format,
+                added_count=len(differences["added_tables"]),
+                modified_count=len(differences["modified_tables"]),
+                deleted_count=len(differences["deleted_tables"]),
+            )
 
     except Exception as e:
         logger.error(

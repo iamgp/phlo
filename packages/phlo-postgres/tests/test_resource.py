@@ -202,3 +202,26 @@ def test_close_pool_tears_down_pool() -> None:
 
     mock_pool.putconn.assert_called_once_with(connection)
     mock_pool.closeall.assert_called_once()
+
+
+def test_exit_closes_pool_even_when_close_raises() -> None:
+    """Verify __exit__ always tears down the pool."""
+    resource = _resource()
+    resource.close = MagicMock(side_effect=RuntimeError("putconn failed"))  # type: ignore[method-assign]
+    resource.close_pool = MagicMock()  # type: ignore[method-assign]
+
+    with pytest.raises(RuntimeError, match="putconn failed"):
+        resource.__exit__(None, None, None)
+
+    resource.close_pool.assert_called_once()
+
+
+def test_del_closes_pool_even_when_close_raises() -> None:
+    """Verify __del__ still closes the pool when close fails."""
+    resource = _resource()
+    resource.close = MagicMock(side_effect=RuntimeError("putconn failed"))  # type: ignore[method-assign]
+    resource.close_pool = MagicMock()  # type: ignore[method-assign]
+
+    resource.__del__()
+
+    resource.close_pool.assert_called_once()

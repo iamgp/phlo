@@ -51,18 +51,21 @@ class PostgresResource:
                 self.rollback()
             except Exception:  # noqa: BLE001 - best effort rollback on context exit
                 logger.warning("postgres_resource_rollback_failed", exc_info=True)
-                pass
-        self.close()
-        self.close_pool()
+        try:
+            self.close()
+        finally:
+            self.close_pool()
 
     def __del__(self) -> None:
         """Best-effort connection and pool cleanup during object destruction."""
         try:
             self.close()
-            self.close_pool()
         except Exception:  # noqa: BLE001 - destructor must never raise
             logger.debug("postgres_resource_close_on_del_failed", exc_info=True)
-            pass
+        try:
+            self.close_pool()
+        except Exception:  # noqa: BLE001 - destructor must never raise
+            logger.debug("postgres_resource_pool_close_on_del_failed", exc_info=True)
 
     def _ensure_pool(self) -> pool.SimpleConnectionPool:
         """Create the connection pool if it does not already exist.
