@@ -211,7 +211,7 @@ def stage_to_parquet(
     pipeline: Any,
     dlt_source: Any,
     local_staging_root: Path,
-) -> tuple[Path, float]:
+) -> tuple[list[Path], float]:
     """Run DLT extraction and locate the staged parquet output.
 
     Args:
@@ -221,7 +221,7 @@ def stage_to_parquet(
         local_staging_root: Root directory used to resolve relative parquet paths.
 
     Returns:
-        Tuple of ``(parquet_path, elapsed_seconds)``.
+        Tuple of ``(parquet_paths, elapsed_seconds)``.
     """
 
     start_time = time.time()
@@ -245,38 +245,45 @@ def stage_to_parquet(
         )
         raise RuntimeError("DLT pipeline completed without load packages")
 
-    completed_jobs = load_info.load_packages[0].jobs["completed_jobs"]
-    parquet_files = [job for job in completed_jobs if job.file_path.endswith(".parquet")]
-    if not parquet_files:
+    parquet_paths: list[Path] = []
+    completed_job_count = 0
+    for load_package in load_info.load_packages:
+        completed_jobs = load_package.jobs["completed_jobs"]
+        completed_job_count += len(completed_jobs)
+        for job in completed_jobs:
+            if not job.file_path.endswith(".parquet"):
+                continue
+            parquet_path = Path(job.file_path)
+            if not parquet_path.is_absolute():
+                parquet_path = (local_staging_root / parquet_path).resolve()
+            parquet_paths.append(parquet_path)
+    if not parquet_paths:
         logger.error(
             "dlt_stage_to_parquet_missing_parquet_output",
             pipeline_name=getattr(pipeline, "pipeline_name", ""),
-            completed_job_count=len(completed_jobs),
+            completed_job_count=completed_job_count,
         )
         raise RuntimeError("DLT pipeline completed without producing parquet files")
 
-    parquet_path = Path(parquet_files[0].file_path)
-    if not parquet_path.is_absolute():
-        parquet_path = (local_staging_root / parquet_path).resolve()
-
     elapsed = time.time() - start_time
     context.log.info(f"DLT staging completed in {elapsed:.2f}s")
-    context.log.debug(f"Parquet staged to {parquet_path}")
+    context.log.debug(f"Parquet staged to {len(parquet_paths)} files")
     logger.info(
         "dlt_stage_to_parquet_finished",
         pipeline_name=getattr(pipeline, "pipeline_name", ""),
-        parquet_path=str(parquet_path),
+        parquet_path_count=len(parquet_paths),
+        parquet_paths=[str(parquet_path) for parquet_path in parquet_paths],
         elapsed_seconds=round(elapsed, 3),
     )
 
-    return parquet_path, elapsed
+    return parquet_paths, elapsed
 
 
 def merge_to_table_store(
     context,
     table_store: TableStore,
     table_config: TableConfig,
-    parquet_path: Path,
+    parquet_paths: list[Path],
     branch_name: str,
     merge_strategy: str = "merge",
     merge_config: dict[str, Any] | None = None,
@@ -287,7 +294,7 @@ def merge_to_table_store(
         context: Dagster context used for progress logging.
         table_store: Table store capability used for table operations.
         table_config: Table configuration including schema, partitioning, and keys.
-        parquet_path: Path to staged parquet data.
+        parquet_paths: Paths to staged parquet data.
         branch_name: Nessie branch to write into.
         merge_strategy: Write strategy (``"append"`` or ``"merge"``).
         merge_config: Reserved merge configuration payload.
@@ -303,6 +310,7 @@ def merge_to_table_store(
         table_name=table_name,
         branch_name=branch_name,
         merge_strategy=merge_strategy,
+        parquet_path_count=len(parquet_paths),
         merge_config_keys=sorted(merge_config.keys()),
     )
 
@@ -404,26 +412,35 @@ def merge_to_table_store(
         pq.write_table(projected, str(coerced_path))
         return coerced_path
 
-    parquet_path = _coerce_parquet_to_table_schema(parquet_path)
+    coerced_parquet_paths = [
+        _coerce_parquet_to_table_schema(parquet_path) for parquet_path in parquet_paths
+    ]
+    merge_metrics = {"rows_inserted": 0, "rows_deleted": 0}
 
     if merge_strategy == "append":
         context.log.info(f"Appending data to destination table on branch {branch_name}...")
-        merge_metrics = table_store.append_parquet(
-            table_name=table_name,
-            data_path=str(parquet_path),
-            override_ref=branch_name,
-        )
+        for parquet_path in coerced_parquet_paths:
+            file_metrics = table_store.append_parquet(
+                table_name=table_name,
+                data_path=str(parquet_path),
+                override_ref=branch_name,
+            )
+            merge_metrics["rows_inserted"] += file_metrics.get("rows_inserted", 0)
+            merge_metrics["rows_deleted"] += file_metrics.get("rows_deleted", 0)
         context.log.info(f"Appended {merge_metrics['rows_inserted']} rows to {table_name}")
     elif merge_strategy == "merge":
         context.log.info(
             f"Merging data to destination table on branch {branch_name} (idempotent upsert)..."
         )
-        merge_metrics = table_store.merge_parquet(
-            table_name=table_name,
-            data_path=str(parquet_path),
-            unique_key=table_config.unique_key,
-            override_ref=branch_name,
-        )
+        for parquet_path in coerced_parquet_paths:
+            file_metrics = table_store.merge_parquet(
+                table_name=table_name,
+                data_path=str(parquet_path),
+                unique_key=table_config.unique_key,
+                override_ref=branch_name,
+            )
+            merge_metrics["rows_inserted"] += file_metrics.get("rows_inserted", 0)
+            merge_metrics["rows_deleted"] += file_metrics.get("rows_deleted", 0)
         context.log.info(
             f"Merged {merge_metrics['rows_inserted']} rows to {table_name} "
             + f"(deleted {merge_metrics['rows_deleted']} existing duplicates)"

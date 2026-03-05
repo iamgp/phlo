@@ -133,7 +133,7 @@ class DltIngester(BaseIngester):
 
             shim = ContextShim(self.logger)
 
-            parquet_path, dlt_elapsed = stage_to_parquet(
+            parquet_paths, dlt_elapsed = stage_to_parquet(
                 context=shim,
                 pipeline=pipeline,
                 dlt_source=dlt_source,
@@ -141,12 +141,13 @@ class DltIngester(BaseIngester):
             )
 
             if self.add_metadata_columns:
-                inject_metadata_columns(
-                    parquet_path=parquet_path,
-                    partition_date=partition_key,
-                    run_id=run_id,
-                    context=shim,
-                )
+                for parquet_path in parquet_paths:
+                    inject_metadata_columns(
+                        parquet_path=parquet_path,
+                        partition_date=partition_key,
+                        run_id=run_id,
+                        context=shim,
+                    )
 
             # Validation hook would go here (Pandera) - currently kept in decorator or moved here?
             # User asked for core logic here. Validation IS core logic.
@@ -160,7 +161,7 @@ class DltIngester(BaseIngester):
                 context=shim,
                 table_store=self.table_store,
                 table_config=self.table_config,
-                parquet_path=parquet_path,
+                parquet_paths=parquet_paths,
                 branch_name=branch_name,
                 merge_strategy=self.merge_strategy,
                 merge_config=self.merge_config,
@@ -191,8 +192,8 @@ class DltIngester(BaseIngester):
                 rows_deleted=merge_metrics.get("rows_deleted", 0),
                 metadata={
                     "dlt_elapsed_seconds": dlt_elapsed,
-                    "parquet_path": str(parquet_path),
-                    "parquet_paths": [str(parquet_path)],
+                    "parquet_path": str(parquet_paths[0]),
+                    "parquet_paths": [str(parquet_path) for parquet_path in parquet_paths],
                     "total_elapsed_seconds": total_elapsed,
                 },
             )
