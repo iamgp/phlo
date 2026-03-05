@@ -5,6 +5,10 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 import pytest
+from phlo_testing.non_versioned_profile_harness import (
+    NonVersionedProfileHarness,
+    bootstrap_non_versioned_profile_harness,
+)
 from phlo_testing.profile_harness import (
     bootstrap_bundled_stack_harness,
     bundled_stack_contract_enabled,
@@ -22,3 +26,17 @@ def bundled_stack_harness() -> Iterator:
         yield harness
     finally:
         harness.cleanup(stream_output=True)
+
+
+@pytest.fixture(scope="session")
+def non_versioned_profile_harness() -> Iterator[NonVersionedProfileHarness]:
+    """Create the lightweight non-versioned profile harness when its deps exist."""
+    try:
+        harness = bootstrap_non_versioned_profile_harness()
+    except RuntimeError as exc:
+        pytest.skip(str(exc))
+
+    try:
+        yield harness
+    finally:
+        harness.cleanup()

@@ -218,6 +218,10 @@ from phlo_testing.profile_harness import (
     bundled_stack_contract_enabled,
     keep_bundled_stack_running,
 )
+from phlo_testing.non_versioned_profile_harness import (
+    NonVersionedProfileHarness,
+    bootstrap_non_versioned_profile_harness,
+)
 
 logger = get_logger(__name__)
 
@@ -330,6 +334,8 @@ __all__ = [
     "build_bundled_stack_env_updates",
     "bundled_stack_contract_enabled",
     "keep_bundled_stack_running",
+    "NonVersionedProfileHarness",
+    "bootstrap_non_versioned_profile_harness",
 ]
 
 if _FIXTURES_AVAILABLE:
