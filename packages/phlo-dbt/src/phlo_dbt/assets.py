@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -11,150 +10,10 @@ from phlo.capabilities.runtime import RuntimeContext
 from phlo.logging import get_logger
 from phlo_dbt.settings import get_settings
 
-from phlo_dbt.transformer import DbtTransformer
+from phlo_dbt.transformer import DbtTransformer, ensure_dbt_manifest
 from phlo_dbt.translator import DbtSpecTranslator
 
 logger = get_logger(__name__)
-
-
-def _latest_project_mtime(dbt_project_path: Path) -> float:
-    """Return latest modification timestamp across dbt project inputs.
-
-    Args:
-        dbt_project_path: Root path of the dbt project.
-
-    Returns:
-        Most recent file modification timestamp.
-    """
-    candidates: list[Path] = [
-        dbt_project_path / "dbt_project.yml",
-        dbt_project_path / "packages.yml",
-        dbt_project_path / "package-lock.yml",
-    ]
-    candidate_dirs = [
-        dbt_project_path / "models",
-        dbt_project_path / "macros",
-        dbt_project_path / "seeds",
-        dbt_project_path / "snapshots",
-        dbt_project_path / "tests",
-        dbt_project_path / "analysis",
-    ]
-
-    latest = 0.0
-    for path in candidates:
-        if path.exists():
-            latest = max(latest, path.stat().st_mtime)
-
-    for directory in candidate_dirs:
-        if not directory.exists():
-            continue
-        for file_path in directory.rglob("*"):
-            if file_path.is_file():
-                latest = max(latest, file_path.stat().st_mtime)
-
-    return latest
-
-
-def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
-    """Ensure a valid dbt manifest exists, compiling when necessary.
-
-    Args:
-        dbt_project_path: Root path of the dbt project.
-        profiles_path: Path to dbt profiles directory.
-
-    Returns:
-        ``True`` when a valid manifest is available, else ``False``.
-    """
-    manifest_path = dbt_project_path / "target" / "manifest.json"
-    logger.debug(
-        "dbt_manifest_check_started",
-        dbt_project_path=str(dbt_project_path),
-        manifest_path=str(manifest_path),
-    )
-
-    needs_compile = not manifest_path.exists()
-    if not needs_compile:
-        try:
-            needs_compile = _latest_project_mtime(dbt_project_path) > manifest_path.stat().st_mtime
-        except OSError:
-            needs_compile = True
-
-    if not needs_compile:
-        try:
-            manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            logger.warning(
-                "dbt_manifest_existing_invalid",
-                manifest_path=str(manifest_path),
-            )
-            needs_compile = True
-        else:
-            if not isinstance(manifest_payload, Mapping):
-                logger.warning(
-                    "dbt_manifest_existing_not_mapping",
-                    manifest_path=str(manifest_path),
-                )
-                needs_compile = True
-
-    if not needs_compile:
-        logger.debug(
-            "dbt_manifest_check_succeeded",
-            manifest_path=str(manifest_path),
-            compiled=False,
-        )
-        return True
-
-    logger.info(
-        "dbt_manifest_compile_started",
-        dbt_project_path=str(dbt_project_path),
-        profiles_path=str(profiles_path),
-    )
-    try:
-        result = subprocess.run(
-            ["dbt", "compile", "--profiles-dir", str(profiles_path)],
-            cwd=str(dbt_project_path),
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-    except FileNotFoundError:
-        logger.warning(
-            "dbt_manifest_compile_binary_missing",
-            dbt_project_path=str(dbt_project_path),
-        )
-        return False
-    except subprocess.TimeoutExpired:
-        logger.warning(
-            "dbt_manifest_compile_timeout",
-            dbt_project_path=str(dbt_project_path),
-        )
-        return False
-
-    if result.returncode != 0 or not manifest_path.exists():
-        logger.warning(
-            "dbt_manifest_compile_failed",
-            dbt_project_path=str(dbt_project_path),
-            returncode=result.returncode,
-            manifest_exists=manifest_path.exists(),
-        )
-        return False
-
-    try:
-        manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        logger.warning(
-            "dbt_manifest_compile_output_invalid",
-            manifest_path=str(manifest_path),
-        )
-        return False
-
-    valid_mapping = isinstance(manifest_payload, Mapping)
-    logger.info(
-        "dbt_manifest_compile_finished",
-        manifest_path=str(manifest_path),
-        valid_manifest=valid_mapping,
-    )
-    return valid_mapping
 
 
 def _asset_deps(unique_id: str, nodes: Mapping[str, Any], asset_keys: dict[str, str]) -> list[str]:
