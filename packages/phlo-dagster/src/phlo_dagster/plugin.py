@@ -12,6 +12,41 @@ from phlo.plugins import PluginMetadata, ServicePlugin
 logger = get_logger(__name__)
 
 
+def _load_service_definition(plugin_name: str, filename: str) -> dict[str, Any]:
+    """Load a service definition YAML file from the phlo_dagster package.
+
+    Args:
+        plugin_name: Logical name for logging (e.g. "dagster", "dagster_daemon").
+        filename: YAML filename inside the phlo_dagster package.
+
+    Returns:
+        Parsed service configuration dict.
+    """
+    service_path = resources.files("phlo_dagster").joinpath(filename)
+    logger.info(
+        "dagster_service_definition_load_started",
+        plugin_name=plugin_name,
+        service_definition_path=str(service_path),
+    )
+    try:
+        definition = yaml.safe_load(service_path.read_text(encoding="utf-8"))
+        logger.info(
+            "dagster_service_definition_load_completed",
+            plugin_name=plugin_name,
+            service_definition_path=str(service_path),
+        )
+        return definition
+    except Exception as exc:
+        logger.error(
+            "dagster_service_definition_load_failed",
+            plugin_name=plugin_name,
+            service_definition_path=str(service_path),
+            error=str(exc),
+            exc_info=True,
+        )
+        raise
+
+
 class DagsterServicePlugin(ServicePlugin):
     """Service plugin for Dagster."""
 
@@ -37,29 +72,7 @@ class DagsterServicePlugin(ServicePlugin):
         Returns:
             dict[str, Any]: Parsed service configuration from YAML.
         """
-        service_path = resources.files("phlo_dagster").joinpath("service.yaml")
-        logger.info(
-            "dagster_service_definition_load_started",
-            plugin_name="dagster",
-            service_definition_path=str(service_path),
-        )
-        try:
-            definition = yaml.safe_load(service_path.read_text(encoding="utf-8"))
-            logger.info(
-                "dagster_service_definition_load_completed",
-                plugin_name="dagster",
-                service_definition_path=str(service_path),
-            )
-            return definition
-        except Exception as exc:
-            logger.error(
-                "dagster_service_definition_load_failed",
-                plugin_name="dagster",
-                service_definition_path=str(service_path),
-                error=str(exc),
-                exc_info=True,
-            )
-            raise
+        return _load_service_definition("dagster", "service.yaml")
 
 
 class DagsterDaemonServicePlugin(ServicePlugin):
@@ -87,26 +100,4 @@ class DagsterDaemonServicePlugin(ServicePlugin):
         Returns:
             dict[str, Any]: Parsed service configuration from YAML.
         """
-        service_path = resources.files("phlo_dagster").joinpath("dagster-daemon.yaml")
-        logger.info(
-            "dagster_service_definition_load_started",
-            plugin_name="dagster_daemon",
-            service_definition_path=str(service_path),
-        )
-        try:
-            definition = yaml.safe_load(service_path.read_text(encoding="utf-8"))
-            logger.info(
-                "dagster_service_definition_load_completed",
-                plugin_name="dagster_daemon",
-                service_definition_path=str(service_path),
-            )
-            return definition
-        except Exception as exc:
-            logger.error(
-                "dagster_service_definition_load_failed",
-                plugin_name="dagster_daemon",
-                service_definition_path=str(service_path),
-                error=str(exc),
-                exc_info=True,
-            )
-            raise
+        return _load_service_definition("dagster_daemon", "dagster-daemon.yaml")

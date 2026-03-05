@@ -4,15 +4,19 @@ Display current state of assets, jobs, and services.
 """
 
 import json
+import os
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import click
+import requests as http_requests
+from requests import exceptions as requests_exceptions
 from rich.console import Console
 from rich.table import Table
 
 from phlo.logging import get_logger
+from phlo_dagster.settings import get_settings
 
 console = Console()
 logger = get_logger(__name__)
@@ -51,7 +55,7 @@ logger = get_logger(__name__)
 def status(
     assets: bool,
     services: bool,
-    group: Optional[str],
+    group: str | None,
     stale: bool,
     output_json: bool,
 ) -> None:
@@ -92,7 +96,7 @@ def status(
     result = {}
 
     if show_assets:
-        asset_status = _get_asset_status(group=group, stale=stale, quiet=output_json)
+        asset_status = _get_asset_status(group=group, stale=stale)
         result["assets"] = asset_status
         logger.info(
             "dagster_status_assets_collected",
@@ -130,40 +134,30 @@ def status(
 
 
 def _get_asset_status(
-    group: Optional[str] = None,
+    group: str | None = None,
     stale: bool = False,
-    quiet: bool = False,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get asset status from Dagster GraphQL API.
 
     Returns:
         List of asset status dicts with name, last_run, status, freshness
     """
-    assets = []
+    assets: list[dict[str, Any]] = []
     logger.debug(
         "dagster_status_asset_query_started",
         group=group,
         stale_only=stale,
-        quiet=quiet,
     )
 
     try:
-        # Try to get asset info from Dagster
-        import os
-
-        from dagster_graphql import DagsterGraphQLClient
-
+        settings = get_settings()
         dagster_host = os.getenv("DAGSTER_WEBSERVER_HOST", "localhost")
-        dagster_port = os.getenv("DAGSTER_WEBSERVER_PORT", "3000")
+        dagster_port = os.getenv("DAGSTER_WEBSERVER_PORT") or str(settings.dagster_port)
 
-        client = DagsterGraphQLClient(
-            hostname=dagster_host,
-            port_number=int(dagster_port),
-        )
+        dagster_url = f"http://{dagster_host}:{dagster_port}/graphql"
 
         # Query asset materializations
-        # This is a simplified implementation - in production would query actual GraphQL
         query = """
         {
             assetsOrError {
@@ -184,7 +178,10 @@ def _get_asset_status(
         """
 
         try:
-            result = client._execute(query)
+            response = http_requests.post(dagster_url, json={"query": query}, timeout=5)
+            response.raise_for_status()
+            result = response.json()
+
             if result and "data" in result:
                 for asset in result["data"].get("assetsOrError", {}).get("nodes", []):
                     asset_path = asset.get("key", {}).get("path", [])
@@ -205,7 +202,7 @@ def _get_asset_status(
                         "name": asset_name,
                         "group": asset_group,
                         "last_run": last_run,
-                        "status": last_run.get("status", "unknown") if last_run else "never_run",
+                        "status": (last_run.get("status", "unknown") if last_run else "never_run"),
                         "freshness": _get_freshness_indicator(last_run),
                         "is_stale": is_stale,
                     }
@@ -219,33 +216,23 @@ def _get_asset_status(
                 exc_info=True,
             )
 
-    except ImportError:
-        # Dagster GraphQL client not available
+    except Exception:
         logger.info(
             "dagster_status_asset_query_client_unavailable",
             group=group,
             stale_only=stale,
+            exc_info=True,
         )
-
-    # If no assets found, return mock data for demo
-    if not assets:
-        logger.info(
-            "dagster_status_asset_query_fallback_mock",
-            group=group,
-            stale_only=stale,
-        )
-        assets = _get_mock_asset_status(group=group, stale=stale, show_warning=not quiet)
 
     return assets
 
 
-def _get_asset_last_run(asset_name: str) -> Optional[Dict[str, Any]]:
+def _get_asset_last_run(asset_name: str) -> dict[str, Any] | None:
     """Get last run info for an asset."""
-    # Mock implementation - would query Dagster in production
     return None
 
 
-def _check_if_stale(last_run: Optional[Dict[str, Any]]) -> bool:
+def _check_if_stale(last_run: dict[str, Any] | None) -> bool:
     """Check if asset is stale based on SLA."""
     if not last_run:
         return True
@@ -262,7 +249,7 @@ def _check_if_stale(last_run: Optional[Dict[str, Any]]) -> bool:
     return age > timedelta(hours=24)
 
 
-def _get_freshness_indicator(last_run: Optional[Dict[str, Any]]) -> str:
+def _get_freshness_indicator(last_run: dict[str, Any] | None) -> str:
     """Get freshness indicator (fresh, stale, never)."""
     if not last_run:
         return "never_run"
@@ -284,79 +271,15 @@ def _get_freshness_indicator(last_run: Optional[Dict[str, Any]]) -> str:
         return "stale"
 
 
-def _get_mock_asset_status(
-    group: Optional[str] = None,
-    stale: bool = False,
-    show_warning: bool = False,
-) -> List[Dict[str, Any]]:
-    """Get mock asset status for demo."""
-    if show_warning:
-        console.print("[dim](showing demo data - Dagster not connected)[/dim]\n")
-    mock_assets = [
-        {
-            "name": "dlt_glucose_entries",
-            "group": "nightscout",
-            "last_run": {
-                "status": "success",
-                "timestamp": datetime.now(timezone.utc) - timedelta(hours=0.5),
-            },
-            "status": "success",
-            "freshness": "fresh",
-            "is_stale": False,
-        },
-        {
-            "name": "stg_glucose_entries",
-            "group": "nightscout",
-            "last_run": {
-                "status": "success",
-                "timestamp": datetime.now(timezone.utc) - timedelta(hours=2),
-            },
-            "status": "success",
-            "freshness": "okay",
-            "is_stale": False,
-        },
-        {
-            "name": "fct_glucose_readings",
-            "group": "nightscout",
-            "last_run": {
-                "status": "failure",
-                "timestamp": datetime.now(timezone.utc) - timedelta(hours=48),
-            },
-            "status": "failure",
-            "freshness": "failed",
-            "is_stale": True,
-        },
-        {
-            "name": "mrt_glucose_readings",
-            "group": "nightscout",
-            "last_run": {
-                "status": "success",
-                "timestamp": datetime.now(timezone.utc) - timedelta(hours=30),
-            },
-            "status": "success",
-            "freshness": "stale",
-            "is_stale": True,
-        },
-    ]
-
-    # Filter by group if specified
-    if group:
-        mock_assets = [a for a in mock_assets if a["group"] == group]
-
-    # Filter stale if requested
-    if stale:
-        mock_assets = [a for a in mock_assets if a["is_stale"]]
-
-    return mock_assets
-
-
-def _get_service_status() -> Dict[str, Dict[str, Any]]:
+def _get_service_status() -> dict[str, dict[str, Any]]:
     """Get service health status."""
-    services = {}
+    services: dict[str, dict[str, Any]] = {}
+
+    settings = get_settings()
 
     # Check Dagster
     services["dagster"] = _check_service_health(
-        "http://localhost:3000/server_info",
+        f"http://localhost:{settings.dagster_port}/server_info",
         name="Dagster",
     )
 
@@ -373,8 +296,15 @@ def _get_service_status() -> Dict[str, Dict[str, Any]]:
     )
 
     # Check Nessie
+    nessie_port = 19120
+    try:
+        from phlo_nessie.settings import get_settings as get_nessie_settings
+
+        nessie_port = get_nessie_settings().nessie_port
+    except Exception:
+        pass
     services["nessie"] = _check_service_health(
-        "http://localhost:19120/api/v1/config",
+        f"http://localhost:{nessie_port}/api/v1/config",
         name="Nessie",
     )
     logger.info("dagster_status_service_checks_completed", service_count=len(services))
@@ -385,30 +315,15 @@ def _get_service_status() -> Dict[str, Dict[str, Any]]:
 def _check_service_health(
     url: str,
     name: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Check if a service is healthy."""
     try:
-        import requests
-        from requests import exceptions as requests_exceptions
-    except ImportError:
-        logger.info(
-            "dagster_status_service_health_requests_missing",
-            service_name=name,
-        )
-        return {
-            "name": name,
-            "status": "error",
-            "latency_ms": None,
-            "error": "requests library not installed",
-        }
-
-    try:
         start = time.time()
-        response = requests.get(url, timeout=2)
+        response = http_requests.get(url, timeout=2)
         latency = (time.time() - start) * 1000  # Convert to ms
 
         is_healthy = 200 <= response.status_code < 300
-        status = "healthy" if is_healthy else "unhealthy"
+        health_status = "healthy" if is_healthy else "unhealthy"
         if not is_healthy:
             logger.warning(
                 "dagster_status_service_health_unhealthy",
@@ -419,7 +334,7 @@ def _check_service_health(
 
         return {
             "name": name,
-            "status": status,
+            "status": health_status,
             "latency_ms": round(latency, 1),
             "status_code": response.status_code,
         }
@@ -462,8 +377,8 @@ def _check_service_health(
 
 
 def _display_asset_status(
-    assets: List[Dict[str, Any]],
-    group: Optional[str] = None,
+    assets: list[dict[str, Any]],
+    group: str | None = None,
     stale: bool = False,
 ) -> None:
     """Display asset status table."""
@@ -481,10 +396,10 @@ def _display_asset_status(
 
     for asset in sorted(assets, key=lambda a: a["name"]):
         # Status color
-        status = asset["status"]
-        if status == "success":
+        asset_status = asset["status"]
+        if asset_status == "success":
             status_str = "[green]✓ success[/green]"
-        elif status == "failure":
+        elif asset_status == "failure":
             status_str = "[red]✗ failed[/red]"
         else:
             status_str = "[yellow]⚠ unknown[/yellow]"
@@ -527,7 +442,7 @@ def _display_asset_status(
     console.print(table)
 
 
-def _display_service_status(services: Dict[str, Dict[str, Any]]) -> None:
+def _display_service_status(services: dict[str, dict[str, Any]]) -> None:
     """Display service health table."""
     table = Table(
         title="Service Health",
@@ -541,16 +456,16 @@ def _display_service_status(services: Dict[str, Dict[str, Any]]) -> None:
 
     for service_key in sorted(services.keys()):
         service = services[service_key]
-        status = service.get("status", "unknown")
+        svc_status = service.get("status", "unknown")
 
         # Status color
-        if status == "healthy":
+        if svc_status == "healthy":
             status_str = "[green]✓ Healthy[/green]"
-        elif status == "down":
+        elif svc_status == "down":
             status_str = "[red]✗ Down[/red]"
-        elif status == "timeout":
+        elif svc_status == "timeout":
             status_str = "[yellow]⚠ Timeout[/yellow]"
-        elif status == "unhealthy":
+        elif svc_status == "unhealthy":
             status_str = "[red]✗ Unhealthy[/red]"
         else:
             status_str = "[yellow]⚠ Error[/yellow]"

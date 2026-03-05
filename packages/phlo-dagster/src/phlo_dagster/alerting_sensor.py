@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from dagster import DagsterEventType, DagsterRunStatus, RunsFilter, sensor
 
@@ -34,16 +34,23 @@ def failure_alert_sensor(context):
     """
     Sensor that triggers alerts when asset materializations fail.
 
-    Checks for failed runs in the last 5 minutes and sends alerts
-    to configured destinations (Slack, PagerDuty, Email).
+    Uses cursor to track the last-seen run creation time cutoff to avoid
+    re-alerting across sensor ticks.
     """
-    # Get the Dagster instance
     instance = context.instance
 
-    # Look for failed runs in the last 5 minutes
-    cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+    # Parse cursor as ISO datetime for dedup across ticks
+    cutoff_time = None
+    if context.cursor:
+        try:
+            cutoff_time = datetime.fromisoformat(context.cursor)
+        except ValueError:
+            cutoff_time = None
+
+    if cutoff_time is None:
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+
     alerted_count = 0
-    skipped_count = 0
     scanned_event_count = 0
 
     logger.info(
@@ -52,13 +59,12 @@ def failure_alert_sensor(context):
     )
     try:
         Alert, AlertSeverity, get_alert_manager = _load_alerting()
-        # Query for failed runs
+        # Query for failed runs created after the cursor cutoff
         failed_runs = list(
             instance.get_runs(
                 filters=RunsFilter(
-                    # Filter for failed runs since cutoff.
                     statuses=[DagsterRunStatus.FAILURE],
-                    created_after=cutoff_time,
+                    updated_after=cutoff_time,
                 )
             )
         )
@@ -66,12 +72,6 @@ def failure_alert_sensor(context):
         alert_manager = get_alert_manager()
 
         for run in failed_runs:
-            # Skip if already alerted
-            alert_key = f"run_{run.run_id}"
-            if hasattr(context, "_alerted_runs") and alert_key in context._alerted_runs:
-                skipped_count += 1
-                continue
-
             # Get run events to find failures
             events = list(
                 instance.get_event_log_entries(
@@ -100,16 +100,10 @@ def failure_alert_sensor(context):
                     alerted_count += 1
                     logger.info("failure_alert_sent", run_id=run.run_id, job_name=run.job_name)
 
-                    # Mark as alerted
-                    if not hasattr(context, "_alerted_runs"):
-                        context._alerted_runs = set()
-                    context._alerted_runs.add(alert_key)
-
         logger.info(
             "failure_alert_sensor_scan_completed",
             cutoff_time=cutoff_time.isoformat(),
             failed_run_count=len(failed_runs),
-            skipped_run_count=skipped_count,
             failure_event_count=scanned_event_count,
             alerts_sent_count=alerted_count,
         )
@@ -117,7 +111,6 @@ def failure_alert_sensor(context):
         logger.error(
             "failure_alert_sensor_scan_failed",
             cutoff_time=cutoff_time.isoformat(),
-            skipped_run_count=skipped_count,
             failure_event_count=scanned_event_count,
             alerts_sent_count=alerted_count,
             error=str(exc),
@@ -125,8 +118,11 @@ def failure_alert_sensor(context):
         )
         raise
 
+    # Advance cursor to now so next tick only sees newer runs
+    context.update_cursor(datetime.now(timezone.utc).isoformat())
 
-def _extract_error_message(event) -> Optional[str]:
+
+def _extract_error_message(event) -> str | None:
     """Extract error message from event."""
     if hasattr(event, "step_output_event"):
         return event.step_output_event.get("error")
@@ -138,9 +134,9 @@ def send_alert(
     title: str,
     message: str,
     severity: Any = "ERROR",
-    asset_name: Optional[str] = None,
-    run_id: Optional[str] = None,
-    error_message: Optional[str] = None,
+    asset_name: str | None = None,
+    run_id: str | None = None,
+    error_message: str | None = None,
 ) -> bool:
     """
     Send a custom alert.

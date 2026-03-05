@@ -11,4 +11,4 @@ __all__ = [
     "DagsterSettings",
     "get_settings",
 ]
-__version__ = "0.1.1"
+__version__ = "0.1.2"
