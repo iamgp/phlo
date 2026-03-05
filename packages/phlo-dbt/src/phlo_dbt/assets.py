@@ -15,6 +15,7 @@ from phlo.capabilities import (
 from phlo.capabilities.runtime import RuntimeContext
 from phlo.logging import get_logger
 from phlo_dbt.settings import get_settings
+from phlo_dbt.runtime_config import ensure_dbt_profile
 
 from phlo_dbt.transformer import DbtTransformer, ensure_dbt_manifest
 from phlo_dbt.translator import DbtSpecTranslator
@@ -125,6 +126,8 @@ def build_dbt_asset_specs() -> list[AssetSpec]:
             dbt_project_path=str(dbt_project_path),
         )
         return []
+
+    ensure_dbt_profile(dbt_profiles_path, target="dev")
 
     if not ensure_dbt_manifest(dbt_project_path, dbt_profiles_path):
         logger.warning(

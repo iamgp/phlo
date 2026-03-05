@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from phlo_dbt.runtime_config import (
     DbtRuntimeConfig,
+    ensure_dbt_profile,
     render_dbt_profile_yaml,
     resolve_dbt_runtime_config,
     resolve_dbt_target_name,
@@ -107,3 +108,18 @@ def test_write_dbt_profile_writes_profiles_file(tmp_path) -> None:
     assert profile_path.exists()
     payload = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
     assert payload["phlo"]["outputs"]["dev"]["host"] == "trino"
+
+
+def test_ensure_dbt_profile_uses_runtime_target_and_ref(tmp_path) -> None:
+    runtime = SimpleNamespace(
+        run_id="run-1",
+        partition_key=None,
+        tags={"environment": "ci", "phlo/ref": "feature_orders"},
+        resources={},
+    )
+
+    profile_path = ensure_dbt_profile(tmp_path / "profiles", runtime=runtime)
+
+    payload = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    assert payload["phlo"]["target"] == "ci"
+    assert payload["phlo"]["outputs"]["ci"]["catalog"] == "iceberg_feature_orders"

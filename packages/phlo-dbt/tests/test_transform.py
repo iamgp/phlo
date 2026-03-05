@@ -182,6 +182,39 @@ def test_run_transform_skip_build_returns_success(tmp_path: Path) -> None:
     assert run_calls == []
 
 
+def test_run_transform_writes_canonical_profile(tmp_path: Path) -> None:
+    """Verifies runtime execution materializes canonical `profiles.yml` before dbt runs."""
+    transformer = DbtTransformer(
+        context=SimpleNamespace(
+            run_id="run-1",
+            partition_key=None,
+            tags={"environment": "ci", "phlo/ref": "feature_orders"},
+            resources={},
+        ),
+        logger=get_logger("test_dbt_transformer_profile_write"),
+        project_dir=tmp_path,
+        profiles_dir=tmp_path / "profiles",
+        target="ci",
+    )
+
+    def fake_run_command(args: list[str], env: dict[str, str] | None = None):
+        return subprocess.CompletedProcess(
+            args=["dbt"] + args,
+            returncode=0,
+            stdout="PASS=1 WARN=0 ERROR=0 SKIP=0 TOTAL=1",
+            stderr="",
+        )
+
+    transformer._run_command = fake_run_command  # type: ignore[method-assign]
+
+    result = transformer.run_transform(parameters={"generate_docs": False})
+
+    assert result.status == "success"
+    profile_payload = (tmp_path / "profiles" / "profiles.yml").read_text(encoding="utf-8")
+    assert "target: ci" in profile_payload
+    assert "catalog: iceberg_feature_orders" in profile_payload
+
+
 def test_run_transform_counts_models_and_tests_from_run_results(tmp_path: Path) -> None:
     """Verifies model/test counts are derived from dbt run_results artifacts.
 

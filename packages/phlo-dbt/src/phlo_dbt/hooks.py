@@ -9,6 +9,7 @@ from pathlib import Path
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
+from phlo_dbt.runtime_config import ensure_dbt_profile
 from phlo_dbt.settings import get_settings
 
 logger = get_logger(__name__)
@@ -47,6 +48,8 @@ def compile_dbt() -> int:
             dbt_project_path=str(local_project),
         )
         return 0
+
+    ensure_dbt_profile(local_project / "profiles", target="dev")
 
     logger.info(
         "dbt_hook_compile_started",

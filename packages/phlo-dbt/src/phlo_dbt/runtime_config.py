@@ -111,3 +111,16 @@ def write_dbt_profile(
     profile_path = profiles_dir / filename
     profile_path.write_text(render_dbt_profile_yaml(config), encoding="utf-8")
     return profile_path
+
+
+def ensure_dbt_profile(
+    profiles_dir: Path,
+    *,
+    runtime: RuntimeContext | None = None,
+    target: str | None = None,
+) -> Path:
+    """Resolve and write canonical `profiles.yml` for the active dbt target."""
+    return write_dbt_profile(
+        resolve_dbt_runtime_config(runtime, target=target),
+        profiles_dir,
+    )

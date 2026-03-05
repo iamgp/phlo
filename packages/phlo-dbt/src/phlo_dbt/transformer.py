@@ -20,6 +20,7 @@ from phlo.hooks import (
     TransformEventEmitter,
 )
 from phlo_dbt.translator import DbtSpecTranslator
+from phlo_dbt.runtime_config import ensure_dbt_profile
 
 
 def _parse_dbt_summary(stdout: str) -> dict[str, int]:
@@ -170,6 +171,7 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
         ``True`` when a valid manifest is present after checks/compile.
     """
     manifest_path = dbt_project_path / "target" / "manifest.json"
+    ensure_dbt_profile(profiles_path, target="dev")
 
     needs_compile = not manifest_path.exists()
     if not needs_compile:
@@ -408,6 +410,7 @@ class DbtTransformer(BaseTransformer):
         select_args = parameters.get("select", [])
         exclude_args = parameters.get("exclude", [])
         skip_build = parameters.get("skip_build", False)
+        ensure_dbt_profile(self.profiles_dir, runtime=self.context, target=self.target)
 
         # Build dbt args
         build_args = [

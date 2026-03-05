@@ -10,6 +10,7 @@ import click
 from phlo.logging import get_logger
 from phlo.plugins.base import CliCommandPlugin, PluginMetadata
 from phlo_dbt.cli_publishing import publishing
+from phlo_dbt.runtime_config import ensure_dbt_profile
 
 
 def _run_dbt(subcommand: str, target: str, select_expr: str | None = None) -> None:
@@ -30,6 +31,8 @@ def _run_dbt(subcommand: str, target: str, select_expr: str | None = None) -> No
     if not (project_dir / "dbt_project.yml").exists():
         click.echo(f"No dbt project found at {project_dir}", err=True)
         sys.exit(1)
+
+    ensure_dbt_profile(profiles_dir, target=target)
 
     cmd = [
         "dbt",
