@@ -90,10 +90,10 @@ def apply_schema_types(
 
     Example:
         from phlo_trino.type_mapping import apply_schema_types
-        from workflows.schemas.glucose import FactGlucoseReadings
+        from workflows.schemas.orders import FactOrders
 
-        df = trino.query("SELECT * FROM gold.fct_glucose_readings")
-        df = apply_schema_types(df, FactGlucoseReadings)
+        df = trino.query("SELECT * FROM gold.fct_orders")
+        df = apply_schema_types(df, FactOrders)
         # Types are now correct for validation
     """
     import types

@@ -4,11 +4,11 @@ import { getComposeLabelValue, matchesComposeProject } from './docker-labels'
 
 describe('docker-labels', () => {
   const labels =
-    'com.docker.compose.project=glucose-platform,com.docker.compose.service=dagster,foo=bar'
+    'com.docker.compose.project=phlo-platform,com.docker.compose.service=dagster,foo=bar'
 
   it('extracts compose label values', () => {
     expect(getComposeLabelValue(labels, 'com.docker.compose.project')).toBe(
-      'glucose-platform',
+      'phlo-platform',
     )
     expect(getComposeLabelValue(labels, 'com.docker.compose.service')).toBe(
       'dagster',
@@ -25,7 +25,7 @@ describe('docker-labels', () => {
   })
 
   it('matches compose project when scoped', () => {
-    expect(matchesComposeProject(labels, 'glucose-platform')).toBe(true)
+    expect(matchesComposeProject(labels, 'phlo-platform')).toBe(true)
     expect(matchesComposeProject(labels, 'pokemon-lakehouse')).toBe(false)
   })
 

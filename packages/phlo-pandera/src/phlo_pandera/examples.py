@@ -119,19 +119,19 @@ def customer_dims_quality_schema():
     pass
 
 
-# Example 6: Partitioned data with freshness check
+# Example 6: Partitioned telemetry data with freshness check
 @phlo_pandera(
-    table="bronze.glucose_entries",
+    table="bronze.sensor_events",
     checks=[
-        NullCheck(columns=["sgv", "timestamp"]),
-        RangeCheck(column="sgv", min_value=20, max_value=600),
+        NullCheck(columns=["sensor_id", "timestamp"]),
+        RangeCheck(column="reading_value", min_value=0, max_value=1000),
         FreshnessCheck(timestamp_column="timestamp", max_age_hours=24),
     ],
-    group="nightscout",
+    group="telemetry",
     blocking=True,
 )
-def glucose_quality_partitioned():
-    """Quality checks for partitioned glucose data."""
+def telemetry_quality_partitioned():
+    """Quality checks for partitioned telemetry data."""
     pass
 
 

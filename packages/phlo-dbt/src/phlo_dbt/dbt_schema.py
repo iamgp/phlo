@@ -115,7 +115,7 @@ def dbt_model_to_pandera(
 
     Args:
         yaml_path: Path to the dbt model YAML file
-        model_name: Name of the model in the YAML (e.g., "fct_glucose_readings")
+        model_name: Name of the model in the YAML (e.g., "fct_orders")
         class_name: Optional class name (defaults to PascalCase of model_name)
 
     Returns:
@@ -123,8 +123,8 @@ def dbt_model_to_pandera(
 
     Example:
         Schema = dbt_model_to_pandera(
-            "workflows/transforms/dbt/models/silver/fct_glucose_readings.yml",
-            "fct_glucose_readings"
+            "workflows/transforms/dbt/models/silver/fct_orders.yml",
+            "fct_orders"
         )
         validated_df = Schema.validate(df)
     """

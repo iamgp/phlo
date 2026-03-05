@@ -85,8 +85,8 @@ def logs(
     Access and filter Dagster run logs from CLI.
 
     Supports multiple filtering options:
-    - By asset name: --asset glucose_entries
-    - By job name: --job weather_pipeline
+    - By asset name: --asset dlt_orders
+    - By job name: --job orders_pipeline
     - By log level: --level ERROR
     - By time range: --since 1h (last hour)
     - By specific run: --run-id abc123
@@ -95,8 +95,8 @@ def logs(
     \b
     Examples:
       phlo logs                           # Recent logs (last 100)
-      phlo logs --asset glucose_entries   # Filter by asset
-      phlo logs --job weather_pipeline    # Filter by job
+      phlo logs --asset dlt_orders        # Filter by asset
+      phlo logs --job orders_pipeline     # Filter by job
       phlo logs --level ERROR             # Errors only
       phlo logs --since 1h                # Last hour
       phlo logs --follow                  # Tail mode
