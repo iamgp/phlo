@@ -54,7 +54,6 @@ class CatalogPlugin(Plugin, ABC):
 
         Examples: ["trino"], ["spark"], ["trino", "spark"].
         """
-        pass
 
     @property
     @abstractmethod
@@ -64,7 +63,6 @@ class CatalogPlugin(Plugin, ABC):
 
         This becomes the catalog identifier in the engine.
         """
-        pass
 
     @abstractmethod
     def get_properties(self) -> dict[str, Any]:
@@ -74,7 +72,6 @@ class CatalogPlugin(Plugin, ABC):
         Returns:
             Dictionary of config key -> value
         """
-        pass
 
     def supports_target(self, target: str) -> bool:
         """Return True if the catalog supports the requested engine target."""

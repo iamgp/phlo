@@ -49,7 +49,7 @@ def _find_cycle_from_start(
 
 def _canonical_cycle(cycle_nodes: list[str]) -> tuple[str, ...]:
     if not cycle_nodes:
-        return tuple()
+        return ()
 
     rotations = [tuple(cycle_nodes[i:] + cycle_nodes[:i]) for i in range(len(cycle_nodes))]
     reverse = list(reversed(cycle_nodes))

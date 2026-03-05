@@ -99,7 +99,7 @@ class _MultiTypeLifecyclePlugin(SourceConnectorPlugin, QualityCheckPlugin):
 
     def create_check(self, **kwargs):
         """Return no-op check for quality plugin interface."""
-        return None
+        return
 
 
 @pytest.fixture

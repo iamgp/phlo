@@ -18,6 +18,8 @@ os.environ["DAGSTER_TELEMETRY_ENABLED"] = "False"
 os.environ["DAGSTER_DISABLE_TELEMETRY"] = "True"
 os.environ["DO_NOT_TRACK"] = "1"  # General standard
 
+import contextlib
+
 import pytest
 
 # Add src to path for imports
@@ -172,10 +174,8 @@ def iceberg_catalog(minio_service, tmp_path):
             secret=minio_service.secret_key,
             client_kwargs={"region_name": "us-east-1"},
         )
-        try:
+        with contextlib.suppress(FileExistsError):
             fs.mkdir("warehouse")
-        except FileExistsError:
-            pass
     else:
         (tmp_path / "warehouse").mkdir(exist_ok=True)
 

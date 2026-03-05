@@ -51,7 +51,7 @@ def list_cmd(show_all: bool, output_json: bool):
     )
     if config_file.exists():
         try:
-            with open(config_file) as f:
+            with config_file.open() as f:
                 existing_config = yaml.safe_load(f) or {}
                 if not isinstance(existing_config, dict):
                     raise click.ClickException(f"{config_file} must contain a top-level mapping.")

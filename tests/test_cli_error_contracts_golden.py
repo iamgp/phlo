@@ -1,7 +1,7 @@
 """Golden tests for stable CLI error output contracts."""
 
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 import pytest
 from click.testing import CliRunner, Result

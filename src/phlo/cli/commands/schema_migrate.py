@@ -12,7 +12,7 @@ import json
 import os
 import sys
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -249,7 +249,7 @@ def export_contract_for_table(
     """Export a schema contract for a table and return output path."""
     migrator, desired, native_schema = _resolve_desired_schema(table_name, schema_class)
     migration_plan = migrator.diff_schema(table_name=table_name, desired=desired)
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     contract = {
         "contract_version": schema_migrate_contracts.CONTRACT_VERSION,
@@ -666,7 +666,7 @@ def _build_scaffold_payload_from_contract(
         table_name=table_name,
         contract=contract,
         migration_plan=migration_plan,
-        generated_at=datetime.now(timezone.utc).isoformat(),
+        generated_at=datetime.now(UTC).isoformat(),
     )
 
 

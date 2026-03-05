@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -43,11 +43,11 @@ def list_recent_contract_paths(
     if not contracts_dir.exists():
         return []
 
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=since_hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=since_hours)
     candidates: list[tuple[float, Path]] = []
     for path in contracts_dir.glob("*.json"):
         mtime = path.stat().st_mtime
-        if datetime.fromtimestamp(mtime, tz=timezone.utc) >= cutoff:
+        if datetime.fromtimestamp(mtime, tz=UTC) >= cutoff:
             candidates.append((mtime, path))
 
     ordered = [path for _, path in sorted(candidates, key=lambda item: item[0], reverse=True)]

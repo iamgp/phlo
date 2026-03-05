@@ -7,7 +7,8 @@ This module defines plugin types for orchestrator integration.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
 from phlo.plugins.base.plugin import Plugin

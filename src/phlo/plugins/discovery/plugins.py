@@ -404,12 +404,7 @@ def discover_plugins(
                     plugin_class = entry_point.load()
 
                     # Instantiate the plugin
-                    if isinstance(plugin_class, type):
-                        # It's a class, instantiate it
-                        plugin = plugin_class()
-                    else:
-                        # It's already an instance
-                        plugin = plugin_class
+                    plugin = plugin_class() if isinstance(plugin_class, type) else plugin_class
 
                     # Validate plugin type
                     if not isinstance(plugin, Plugin):

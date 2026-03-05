@@ -99,7 +99,7 @@ def _load_project_config() -> dict[str, Any]:
     if not config_path.exists():
         return {}
     try:
-        with open(config_path) as f:
+        with config_path.open() as f:
             return yaml.safe_load(f) or {}
     except (OSError, yaml.YAMLError):
         logger.warning("env_export_config_load_failed", path=str(config_path), exc_info=True)

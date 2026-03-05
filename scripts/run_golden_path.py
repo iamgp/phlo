@@ -31,7 +31,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -531,7 +531,7 @@ def http_get_basic(
     timeout: int = 30,
 ) -> dict | list | str:
     """Make an HTTP GET request with basic auth."""
-    token = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+    token = base64.b64encode(f"{username}:{password}".encode()).decode("ascii")
     headers = {"Authorization": f"Basic {token}"}
     return http_get(url, headers=headers, timeout=timeout)
 
@@ -1143,7 +1143,9 @@ def main() -> int:
         if not wait_for_tcp("127.0.0.1", nessie_port, name="Nessie", timeout=120):
             return 1
 
-        partition_date = args.partition_date or (date.today() - timedelta(days=1)).isoformat()
+        partition_date = (
+            args.partition_date or (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+        )
         log_info(f"Using partition date: {partition_date}")
 
         # Step 5: Run DLT ingestion

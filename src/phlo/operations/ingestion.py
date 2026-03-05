@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 
 @dataclass
@@ -10,7 +10,7 @@ class IngestionResult:
     status: str
     rows_inserted: int
     rows_deleted: int
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class BaseIngester(ABC):
@@ -34,14 +34,13 @@ class BaseIngester(ABC):
 
     @abstractmethod
     def run_ingestion(
-        self, partition_key: str | None, parameters: Dict[str, Any]
+        self, partition_key: str | None, parameters: dict[str, Any]
     ) -> IngestionResult:
         """
         Execute the ingestion logic for a specific partition.
 
         partition_key may be None for unpartitioned runs.
         """
-        pass
 
 
 class AsyncIngester(ABC):
@@ -65,11 +64,10 @@ class AsyncIngester(ABC):
 
     @abstractmethod
     async def run_ingestion(
-        self, partition_key: str | None, parameters: Dict[str, Any]
+        self, partition_key: str | None, parameters: dict[str, Any]
     ) -> IngestionResult:
         """
         Execute the ingestion logic for a specific partition.
 
         partition_key may be None for unpartitioned runs.
         """
-        pass

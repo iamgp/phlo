@@ -49,7 +49,7 @@ def add_cmd(service_name: str, no_start: bool):
 
     # Load project config
     if config_file.exists():
-        with open(config_file) as f:
+        with config_file.open() as f:
             config = yaml.safe_load(f) or {}
         if not isinstance(config, dict):
             logger.error("services_add_invalid_config_mapping", config_file=str(config_file))
@@ -103,7 +103,7 @@ def add_cmd(service_name: str, no_start: bool):
     normalize_services_enabled_disabled_config(config)
 
     # Write updated config
-    with open(config_file, "w") as f:
+    with config_file.open("w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
     click.echo(f"Added '{service_name}' to phlo.yaml")

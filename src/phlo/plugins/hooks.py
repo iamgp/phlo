@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
-from enum import Enum
-from typing import Awaitable, Callable, Iterable, Protocol, runtime_checkable
+from enum import StrEnum
+from typing import Protocol, runtime_checkable
 
 from phlo.hooks.events import HookEvent
 from phlo.plugins.base import Plugin
 
 
-class FailurePolicy(str, Enum):
+class FailurePolicy(StrEnum):
     """Failure handling policy for hook handlers."""
 
     IGNORE = "ignore"
@@ -43,8 +44,8 @@ class HookRegistration:
     handler: (
         Callable[[HookEvent], None]
         | Callable[[HookEvent], Awaitable[None]]
-        | "HookHandler"
-        | "AsyncHookHandler"
+        | HookHandler
+        | AsyncHookHandler
     )
     priority: int = 100
     filters: HookFilter | None = None

@@ -8,7 +8,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -80,11 +79,11 @@ _load_cli_plugin_commands()
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 @click.option("-m", "--marker", help="Run tests with specific pytest marker")
 def test(
-    asset_name: Optional[str],
+    asset_name: str | None,
     local: bool,
     coverage: bool,
     verbose: bool,
-    marker: Optional[str],
+    marker: str | None,
 ):
     """
     Run tests for Phlo workflows.
@@ -150,7 +149,7 @@ def test(
     help="Project template to use",
 )
 @click.option("--force", is_flag=True, help="Initialize in non-empty directory")
-def init(project_name: Optional[str], template: str, force: bool):
+def init(project_name: str | None, template: str, force: bool):
     """
     Initialize a new Phlo project.
 
