@@ -1,14 +1,16 @@
-"""Unit tests for dbt transform translator.
+"""Unit tests for dbt transform translator and runtime target resolution.
 
 These tests do not require a dbt manifest or running services.
 """
 
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from phlo.logging import get_logger
 from phlo_dbt.transformer import DbtTransformer
+from phlo_dbt.assets import _target_from_runtime
 from phlo_dbt.translator import DbtSpecTranslator
 
 
@@ -28,6 +30,42 @@ def test_custom_dbt_translator_asset_key_source_dagster_assets_maps_to_dlt() -> 
         {"resource_type": "source", "source_name": "dagster_assets", "name": "entries"}
     )
     assert asset_key == "dlt_entries"
+
+
+def test_target_from_runtime_prefers_canonical_environment() -> None:
+    """Canonical runtime routing should take precedence over legacy dbt tags."""
+    runtime = SimpleNamespace(
+        run_id="run-1",
+        partition_key="2025-01-01",
+        tags={"environment": "ci", "dbt_target": "legacy"},
+        resources={},
+    )
+
+    assert _target_from_runtime(runtime) == "ci"
+
+
+def test_target_from_runtime_falls_back_to_legacy_tag() -> None:
+    """Legacy dbt_target tags should keep working when no environment is set."""
+    runtime = SimpleNamespace(
+        run_id="run-1",
+        partition_key=None,
+        tags={"dbt_target": "qa"},
+        resources={},
+    )
+
+    assert _target_from_runtime(runtime) == "qa"
+
+
+def test_target_from_runtime_defaults_to_dev() -> None:
+    """Missing routing and legacy tags should preserve the existing dev default."""
+    runtime = SimpleNamespace(
+        run_id="run-1",
+        partition_key=None,
+        tags={},
+        resources={},
+    )
+
+    assert _target_from_runtime(runtime) == "dev"
 
 
 @pytest.mark.parametrize(

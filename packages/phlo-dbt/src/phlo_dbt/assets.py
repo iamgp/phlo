@@ -5,7 +5,13 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from phlo.capabilities import AssetSpec, MaterializeResult, PartitionSpec, RunSpec
+from phlo.capabilities import (
+    AssetSpec,
+    MaterializeResult,
+    PartitionSpec,
+    RunSpec,
+    routing_from_context,
+)
 from phlo.capabilities.runtime import RuntimeContext
 from phlo.logging import get_logger
 from phlo_dbt.settings import get_settings
@@ -14,6 +20,21 @@ from phlo_dbt.transformer import DbtTransformer, ensure_dbt_manifest
 from phlo_dbt.translator import DbtSpecTranslator
 
 logger = get_logger(__name__)
+
+
+def _target_from_runtime(runtime: RuntimeContext) -> str:
+    """Resolve dbt target from canonical runtime routing with legacy fallback."""
+    routing = routing_from_context(runtime)
+    if routing.environment:
+        return routing.environment
+
+    runtime_tags = getattr(runtime, "tags", {}) or {}
+    if isinstance(runtime_tags, Mapping):
+        legacy_target = runtime_tags.get("dbt_target")
+        if isinstance(legacy_target, str) and legacy_target:
+            return legacy_target
+
+    return "dev"
 
 
 def _asset_deps(unique_id: str, nodes: Mapping[str, Any], asset_keys: dict[str, str]) -> list[str]:
@@ -57,10 +78,7 @@ def _run_dbt_model(
     Returns:
         Materialization results for the model run.
     """
-    runtime_tags = getattr(runtime, "tags", {}) or {}
-    if not isinstance(runtime_tags, Mapping):
-        runtime_tags = {}
-    target = str(runtime_tags.get("dbt_target") or "dev")
+    target = _target_from_runtime(runtime)
     partition_key = runtime.partition_key
 
     transformer = DbtTransformer(
