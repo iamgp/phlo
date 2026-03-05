@@ -10,6 +10,7 @@ Provides commands to:
 import json
 
 import click
+import requests
 from rich.console import Console
 from rich.table import Table
 
@@ -496,18 +497,47 @@ def diff(source_branch: str, target_branch: str, format: str):
         assert target_ref is not None
 
         console.print(f"\n[bold]Differences: {source_branch} -> {target_branch}[/bold]")
-        console.print("[dim]Note: Table-level diff requires catalog access[/dim]")
 
-        # In production, would use catalog to compare tables
-        differences = {
+        differences: dict[str, list[str]] = {
             "added_tables": [],
             "modified_tables": [],
             "deleted_tables": [],
         }
+        diff_supported = True
 
-        if format == "json":
+        settings = get_nessie_settings()
+        diff_url = (
+            f"http://{settings.nessie_host}:{settings.nessie_port}"
+            f"/api/v1/diffs/{source_branch}...{target_branch}"
+        )
+        try:
+            resp = requests.get(diff_url, timeout=10)
+            resp.raise_for_status()
+            diffs = resp.json().get("diffs", [])
+            for entry in diffs:
+                key = entry.get("key", {})
+                table_name = ".".join(key.get("elements", []))
+                has_from = "from" in entry
+                has_to = "to" in entry
+                if has_to and not has_from:
+                    differences["added_tables"].append(table_name)
+                elif has_from and not has_to:
+                    differences["deleted_tables"].append(table_name)
+                elif has_from and has_to:
+                    differences["modified_tables"].append(table_name)
+        except Exception:
+            diff_supported = False
+            logger.warning(
+                "nessie_branch_diff_api_fallback",
+                source_branch=source_branch,
+                target_branch=target_branch,
+                exc_info=True,
+            )
+            console.print("[yellow]Diff not supported by this Nessie version[/yellow]")
+
+        if diff_supported and format == "json":
             click.echo(json.dumps(differences, indent=2))
-        else:
+        elif diff_supported:
             table = Table(title="Branch Differences")
             table.add_column("Type", style="cyan")
             table.add_column("Table Name", style="green")
@@ -520,15 +550,16 @@ def diff(source_branch: str, target_branch: str, format: str):
                 console.print("[yellow]No differences found[/yellow]")
             else:
                 console.print(table)
-        logger.info(
-            "nessie_branch_diff_rendered",
-            source_branch=source_branch,
-            target_branch=target_branch,
-            output_format=format,
-            added_count=len(differences["added_tables"]),
-            modified_count=len(differences["modified_tables"]),
-            deleted_count=len(differences["deleted_tables"]),
-        )
+        if diff_supported:
+            logger.info(
+                "nessie_branch_diff_rendered",
+                source_branch=source_branch,
+                target_branch=target_branch,
+                output_format=format,
+                added_count=len(differences["added_tables"]),
+                modified_count=len(differences["modified_tables"]),
+                deleted_count=len(differences["deleted_tables"]),
+            )
 
     except Exception as e:
         logger.error(
