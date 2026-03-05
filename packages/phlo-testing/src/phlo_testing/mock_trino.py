@@ -412,12 +412,12 @@ class MockTrinoResource:
 
         Example:
             from phlo_testing import MockTrinoResource
-            from workflows.schemas.glucose import FactGlucoseReadings
+            from workflows.schemas.orders import FactOrders
 
             trino = MockTrinoResource()
             df = trino.query_with_schema(
-                "SELECT * FROM gold.fct_glucose_readings",
-                FactGlucoseReadings,
+                "SELECT * FROM gold.fct_orders",
+                FactOrders,
             )
             # Types are now correct for validation
         """

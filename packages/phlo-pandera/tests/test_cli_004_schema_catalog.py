@@ -105,6 +105,41 @@ class TestSchemaCommands:
         assert "classification" in data
         assert "details" in data
 
+    def test_schema_diff_with_old_file(self, tmp_path):
+        """Test phlo schema diff against an explicit old schema file."""
+        old_schema_file = tmp_path / "glucose_previous.py"
+        old_schema_file.write_text(
+            """
+from pandera.pandas import Field
+from phlo_pandera.schemas import PhloSchema
+
+
+class RawGlucoseEntries(PhloSchema):
+    _id: str = Field(unique=True)
+    sgv: int = Field(ge=0)
+"""
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "schema",
+                "diff",
+                "RawGlucoseEntries",
+                "--old",
+                str(old_schema_file),
+                "--format",
+                "json",
+            ],
+            env=SCHEMA_ENV,
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["old_schema"] == {"_id": "str", "sgv": "int"}
+        assert "Added columns: date" in data["details"]
+
     def test_schema_validate(self):
         """Test phlo schema validate command."""
         runner = CliRunner()

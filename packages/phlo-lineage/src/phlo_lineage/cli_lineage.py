@@ -73,9 +73,9 @@ def show_lineage(asset_name: str, direction: str, depth: Optional[int]) -> None:
     Shows upstream dependencies and downstream dependents.
 
     Examples:
-        phlo lineage show glucose_entries
-        phlo lineage show glucose_entries --upstream
-        phlo lineage show glucose_entries --downstream --depth 2
+        phlo lineage show orders
+        phlo lineage show orders --direction upstream
+        phlo lineage show orders --direction downstream --depth 2
     """
     graph = get_lineage_graph()
 
@@ -132,9 +132,9 @@ def export_lineage(asset_name: str, format: str, output: Path) -> None:
     Supports Graphviz DOT, Mermaid diagram, and JSON formats.
 
     Examples:
-        phlo lineage export glucose_entries --format dot --output lineage.dot
-        phlo lineage export glucose_entries --format mermaid --output lineage.md
-        phlo lineage export glucose_entries --format json --output lineage.json
+        phlo lineage export orders --format dot --output lineage.dot
+        phlo lineage export orders --format mermaid --output lineage.md
+        phlo lineage export orders --format json --output lineage.json
     """
     graph = get_lineage_graph()
 
@@ -179,8 +179,8 @@ def analyze_impact(asset_name: str) -> None:
     to the specified asset.
 
     Examples:
-        phlo lineage impact glucose_entries
-        phlo lineage impact stg_glucose_entries
+        phlo lineage impact orders
+        phlo lineage impact stg_orders
     """
     graph = get_lineage_graph()
 
@@ -300,8 +300,8 @@ def column_upstream(asset: str, column: str | None) -> None:
     """Show upstream column lineage for an asset.
 
     Examples:
-        phlo lineage column upstream silver.stg_glucose
-        phlo lineage column upstream silver.stg_glucose --column glucose_value
+        phlo lineage column upstream silver.stg_orders
+        phlo lineage column upstream silver.stg_orders --column order_total
     """
     from phlo_lineage.store import LineageStore, resolve_lineage_db_url
 
@@ -336,8 +336,8 @@ def column_downstream(asset: str, column: str | None) -> None:
     """Show downstream column lineage for an asset.
 
     Examples:
-        phlo lineage column downstream bronze.dlt_glucose
-        phlo lineage column downstream bronze.dlt_glucose --column glucose_value
+        phlo lineage column downstream bronze.dlt_orders
+        phlo lineage column downstream bronze.dlt_orders --column order_total
     """
     from phlo_lineage.store import LineageStore, resolve_lineage_db_url
 

@@ -36,10 +36,10 @@ def materialize(
     Materialize Dagster assets via Docker.
 
     Examples:
-        phlo materialize dlt_glucose_entries
-        phlo materialize dlt_glucose_entries --partition 2025-01-15
-        phlo materialize --select "tag:nightscout"
-        phlo materialize dlt_glucose_entries --dry-run
+        phlo materialize dlt_orders
+        phlo materialize dlt_orders --partition 2025-01-15
+        phlo materialize --select "tag:bronze"
+        phlo materialize dlt_orders --dry-run
     """
     logger = get_logger("phlo.dagster.materialize", service="dagster")
     started_at = time.perf_counter()

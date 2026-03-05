@@ -72,7 +72,7 @@ def status(
       phlo status                    # All assets and services
       phlo status --assets           # Assets only
       phlo status --services         # Services only
-      phlo status --group nightscout # Filter by group
+      phlo status --group ingestion  # Filter by group
       phlo status --stale            # Only stale assets
       phlo status --json             # JSON output for scripting
     """
