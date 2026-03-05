@@ -9,8 +9,8 @@ from types import SimpleNamespace
 
 import pytest
 from phlo.logging import get_logger
+from phlo_dbt.runtime_config import resolve_dbt_target_name
 from phlo_dbt.transformer import DbtTransformer
-from phlo_dbt.assets import _target_from_runtime
 from phlo_dbt.translator import DbtSpecTranslator
 
 
@@ -32,7 +32,7 @@ def test_custom_dbt_translator_asset_key_source_dagster_assets_maps_to_dlt() -> 
     assert asset_key == "dlt_entries"
 
 
-def test_target_from_runtime_prefers_canonical_environment() -> None:
+def test_resolve_dbt_target_name_prefers_canonical_environment() -> None:
     """Canonical runtime routing should take precedence over legacy dbt tags."""
     runtime = SimpleNamespace(
         run_id="run-1",
@@ -41,10 +41,10 @@ def test_target_from_runtime_prefers_canonical_environment() -> None:
         resources={},
     )
 
-    assert _target_from_runtime(runtime) == "ci"
+    assert resolve_dbt_target_name(runtime) == "ci"
 
 
-def test_target_from_runtime_falls_back_to_legacy_tag() -> None:
+def test_resolve_dbt_target_name_falls_back_to_legacy_tag() -> None:
     """Legacy dbt_target tags should keep working when no environment is set."""
     runtime = SimpleNamespace(
         run_id="run-1",
@@ -53,10 +53,10 @@ def test_target_from_runtime_falls_back_to_legacy_tag() -> None:
         resources={},
     )
 
-    assert _target_from_runtime(runtime) == "qa"
+    assert resolve_dbt_target_name(runtime) == "qa"
 
 
-def test_target_from_runtime_defaults_to_dev() -> None:
+def test_resolve_dbt_target_name_defaults_to_dev() -> None:
     """Missing routing and legacy tags should preserve the existing dev default."""
     runtime = SimpleNamespace(
         run_id="run-1",
@@ -65,7 +65,7 @@ def test_target_from_runtime_defaults_to_dev() -> None:
         resources={},
     )
 
-    assert _target_from_runtime(runtime) == "dev"
+    assert resolve_dbt_target_name(runtime) == "dev"
 
 
 @pytest.mark.parametrize(

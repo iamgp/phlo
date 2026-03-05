@@ -4,6 +4,7 @@ import yaml
 from types import SimpleNamespace
 
 from phlo_dbt.runtime_config import (
+    DEFAULT_DBT_TARGET,
     DbtRuntimeConfig,
     ensure_dbt_profile,
     render_dbt_profile_yaml,
@@ -86,8 +87,12 @@ def test_resolve_dbt_runtime_config_uses_ref_aware_catalog() -> None:
 def test_resolve_dbt_runtime_config_defaults_to_main_catalog() -> None:
     config = resolve_dbt_runtime_config()
 
-    assert config.target_name == "dev"
+    assert config.target_name == DEFAULT_DBT_TARGET
     assert config.catalog == "iceberg"
+
+
+def test_resolve_dbt_target_name_defaults_to_canonical_default() -> None:
+    assert resolve_dbt_target_name() == DEFAULT_DBT_TARGET
 
 
 def test_render_dbt_profile_yaml_returns_expected_yaml() -> None:

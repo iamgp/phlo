@@ -49,7 +49,7 @@ def compile_dbt() -> int:
         )
         return 0
 
-    ensure_dbt_profile(local_project / "profiles", target="dev")
+    ensure_dbt_profile(local_project / "profiles")
 
     logger.info(
         "dbt_hook_compile_started",
@@ -95,8 +95,7 @@ def compile_dbt() -> int:
                 container_name,
                 "bash",
                 "-c",
-                f"cd {Path('/app') / dbt_project_dir} && "
-                "dbt compile --profiles-dir profiles --target dev",
+                f"cd {Path('/app') / dbt_project_dir} && dbt compile --profiles-dir profiles",
             ],
             timeout_seconds=120,
             check=False,

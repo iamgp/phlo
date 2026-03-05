@@ -171,7 +171,7 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
         ``True`` when a valid manifest is present after checks/compile.
     """
     manifest_path = dbt_project_path / "target" / "manifest.json"
-    ensure_dbt_profile(profiles_path, target="dev")
+    ensure_dbt_profile(profiles_path)
 
     needs_compile = not manifest_path.exists()
     if not needs_compile:

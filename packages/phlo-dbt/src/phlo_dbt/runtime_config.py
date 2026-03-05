@@ -10,13 +10,15 @@ from phlo.capabilities import RuntimeContext, routing_from_context
 from phlo_trino.settings import get_settings as get_trino_settings
 import yaml
 
+DEFAULT_DBT_TARGET = "dev"
+
 
 @dataclass(frozen=True, slots=True)
 class DbtRuntimeConfig:
     """Canonical dbt runtime configuration for the active execution target."""
 
     profile_name: str = "phlo"
-    target_name: str = "dev"
+    target_name: str = DEFAULT_DBT_TARGET
     user: str = "dagster"
     host: str = "trino"
     port: int = 8080
@@ -57,7 +59,7 @@ def resolve_dbt_target_name(
     1. Explicit target argument
     2. Canonical routing environment
     3. Legacy `dbt_target` tag
-    4. Default `dev`
+    4. Default `DEFAULT_DBT_TARGET`
     """
     if target:
         return target
@@ -69,7 +71,7 @@ def resolve_dbt_target_name(
         legacy_target = runtime_tags.get("dbt_target") if isinstance(runtime_tags, dict) else None
         if isinstance(legacy_target, str) and legacy_target:
             return legacy_target
-    return "dev"
+    return DEFAULT_DBT_TARGET
 
 
 def resolve_dbt_runtime_config(
