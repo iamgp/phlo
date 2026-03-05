@@ -317,20 +317,6 @@ def _check_service_health(
 ) -> dict[str, Any]:
     """Check if a service is healthy."""
     try:
-        from requests import exceptions as requests_exceptions
-    except ImportError:
-        logger.info(
-            "dagster_status_service_health_requests_missing",
-            service_name=name,
-        )
-        return {
-            "name": name,
-            "status": "error",
-            "latency_ms": None,
-            "error": "requests library not installed",
-        }
-
-    try:
         start = time.time()
         response = http_requests.get(url, timeout=2)
         latency = (time.time() - start) * 1000  # Convert to ms
@@ -351,7 +337,7 @@ def _check_service_health(
             "latency_ms": round(latency, 1),
             "status_code": response.status_code,
         }
-    except requests_exceptions.Timeout:
+    except http_requests.exceptions.Timeout:
         logger.warning(
             "dagster_status_service_health_timeout",
             service_name=name,
@@ -363,7 +349,7 @@ def _check_service_health(
             "latency_ms": 2000,
             "error": "Request timeout",
         }
-    except requests_exceptions.ConnectionError:
+    except http_requests.exceptions.ConnectionError:
         logger.warning(
             "dagster_status_service_health_connection_error",
             service_name=name,
