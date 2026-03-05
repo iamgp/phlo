@@ -127,7 +127,9 @@ class TestIcebergCatalogUnitTests:
         get_catalog.cache_clear()
         get_iceberg_catalog.cache_clear()
 
-        with patch("phlo_iceberg.catalog.get_catalog", return_value=MagicMock()) as mock_get_catalog:
+        with patch(
+            "phlo_iceberg.catalog.get_catalog", return_value=MagicMock()
+        ) as mock_get_catalog:
             get_iceberg_catalog("main")
             get_iceberg_catalog("main")
 
