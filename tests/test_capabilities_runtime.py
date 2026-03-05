@@ -5,6 +5,7 @@ import pytest
 from phlo.capabilities import (
     CapabilitySupport,
     CatalogSpec,
+    PublishTargetSpec,
     QueryEngineSpec,
     RuntimeRouting,
     SchemaMigrationSpec,
@@ -14,6 +15,7 @@ from phlo.capabilities import (
     list_capabilities,
     missing_required_capabilities,
     register_catalog,
+    register_publish_target,
     register_query_engine,
     register_schema_migrator,
     register_table_store,
@@ -36,12 +38,14 @@ def test_registry_tracks_new_platform_capability_types() -> None:
     register_catalog(CatalogSpec(name="nessie", provider=object()))
     register_query_engine(QueryEngineSpec(name="trino", provider=object()))
     register_schema_migrator(SchemaMigrationSpec(name="iceberg", provider=object()))
+    register_publish_target(PublishTargetSpec(name="postgres", provider=object()))
 
     registry = get_capability_registry()
     assert [spec.name for spec in registry.list_table_stores()] == ["iceberg"]
     assert [spec.name for spec in registry.list_catalogs()] == ["nessie"]
     assert [spec.name for spec in registry.list_query_engines()] == ["trino"]
     assert [spec.name for spec in registry.list_schema_migrators()] == ["iceberg"]
+    assert [spec.name for spec in registry.list_publish_targets()] == ["postgres"]
 
 
 def test_resolve_capability_prefers_explicit_name() -> None:
@@ -104,6 +108,12 @@ def test_list_capabilities_returns_schema_migrators() -> None:
     register_schema_migrator(SchemaMigrationSpec(name="iceberg", provider=object()))
 
     assert list_capabilities("schema_migrator") == ["iceberg"]
+
+
+def test_list_capabilities_returns_publish_targets() -> None:
+    register_publish_target(PublishTargetSpec(name="postgres", provider=object()))
+
+    assert list_capabilities("publish_target") == ["postgres"]
 
 
 def test_plugin_metadata_support_defaults_to_empty() -> None:

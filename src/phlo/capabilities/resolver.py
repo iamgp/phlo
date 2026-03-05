@@ -22,6 +22,7 @@ _CAPABILITY_LISTERS = {
     "metadata_catalog": "list_metadata_catalogs",
     "lineage_sink": "list_lineage_sinks",
     "governance_backend": "list_governance_backends",
+    "publish_target": "list_publish_targets",
     "secret_backend": "list_secret_backends",
     "schema_migrator": "list_schema_migrators",
 }

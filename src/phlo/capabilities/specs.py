@@ -141,6 +141,16 @@ class GovernanceBackendSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class PublishTargetSpec:
+    """Publish target capability (for example Postgres marts, warehouse export sink)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
 class SecretBackendSpec:
     """Secret backend capability (for example Vault, AWS Secrets Manager, env)."""
 
