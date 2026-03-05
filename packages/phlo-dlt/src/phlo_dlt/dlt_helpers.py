@@ -14,7 +14,7 @@ import ulid
 from dlt.common.pipeline import LoadInfo
 from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
-from phlo.capabilities import routing_from_context
+from phlo.capabilities import CapabilitySupport, resolve_runtime_ref
 from phlo.capabilities.interfaces import TableStore
 from phlo.exceptions import PhloConfigError
 from phlo.logging import get_logger
@@ -22,6 +22,7 @@ from phlo.logging import get_logger
 from phlo_dlt.registry import TableConfig
 
 logger = get_logger(__name__)
+DLT_TABLE_STORE_SUPPORT = CapabilitySupport(supports_refs=True)
 
 
 def generate_row_id() -> str:
@@ -38,8 +39,14 @@ def get_branch_from_context(context: Any) -> str:
     Returns:
         Ref resolved from canonical runtime routing, defaulting to ``"main"``.
     """
-    routing = routing_from_context(context)
-    return routing.ref or "main"
+    return (
+        resolve_runtime_ref(
+            context,
+            support=DLT_TABLE_STORE_SUPPORT,
+            default_ref="main",
+        )
+        or "main"
+    )
 
 
 def inject_metadata_columns(
