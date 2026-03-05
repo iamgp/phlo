@@ -19,6 +19,11 @@ from phlo_dlt.dlt_helpers import (
     setup_dlt_pipeline,
     stage_to_parquet,
 )
+from phlo_dlt.pandera_checks import (
+    PanderaContractValidationError,
+    evaluate_pandera_contract_parquet_files,
+    serialize_pandera_contract_evaluation,
+)
 from phlo_dlt.registry import TableConfig
 
 
@@ -35,6 +40,9 @@ class DltIngester(BaseIngester):
         table_config: TableConfig,
         table_store_resource: TableStore,
         dlt_source_func: Callable[..., Any],
+        validation_schema: type[Any] | None = None,
+        validate: bool = True,
+        strict_validation: bool = True,
         add_metadata_columns: bool = True,
         merge_strategy: str = "merge",
         merge_config: Dict[str, Any] | None = None,
@@ -47,6 +55,9 @@ class DltIngester(BaseIngester):
             table_config: Table-level ingestion configuration.
             table_store_resource: Table store resource used for merge operations.
             dlt_source_func: Callable that builds a DLT source for a partition.
+            validation_schema: Optional Pandera schema used for staged-data validation.
+            validate: Whether Pandera validation should run for staged data.
+            strict_validation: Whether failed validation should abort before visible writes.
             add_metadata_columns: Whether to inject metadata columns into staged parquet.
             merge_strategy: Merge strategy name for table-store writes.
             merge_config: Optional merge strategy configuration.
@@ -55,6 +66,9 @@ class DltIngester(BaseIngester):
         self.table_config = table_config
         self.table_store = table_store_resource
         self.dlt_source_func = dlt_source_func
+        self.validation_schema = validation_schema
+        self.validate = validate
+        self.strict_validation = strict_validation
         self.add_metadata_columns = add_metadata_columns
         self.merge_strategy = merge_strategy
         self.merge_config = merge_config or {}
@@ -149,13 +163,18 @@ class DltIngester(BaseIngester):
                         context=shim,
                     )
 
-            # Validation hook would go here (Pandera) - currently kept in decorator or moved here?
-            # User asked for core logic here. Validation IS core logic.
-            # To avoid importing Dagster exceptions here, we should raise standard exceptions
-            # and let the orchestrator wrapper catch/translate them.
-
-            # NOTE: Pandera validation requires the checks logic.
-            # For this iteration, I will assume validation happens here via standard Exceptions.
+            evaluation_metadata: dict[str, Any] | None = None
+            if self.validate and self.validation_schema is not None:
+                evaluation = evaluate_pandera_contract_parquet_files(
+                    parquet_paths,
+                    schema_class=self.validation_schema,
+                )
+                evaluation_metadata = serialize_pandera_contract_evaluation(evaluation)
+                if self.strict_validation and not evaluation.passed:
+                    raise PanderaContractValidationError(
+                        evaluation=evaluation,
+                        parquet_paths=tuple(parquet_paths),
+                    )
 
             merge_metrics = merge_to_table_store(
                 context=shim,
@@ -194,6 +213,7 @@ class DltIngester(BaseIngester):
                     "dlt_elapsed_seconds": dlt_elapsed,
                     "parquet_path": str(parquet_paths[0]),
                     "parquet_paths": [str(parquet_path) for parquet_path in parquet_paths],
+                    "pandera_evaluation": evaluation_metadata,
                     "total_elapsed_seconds": total_elapsed,
                 },
             )

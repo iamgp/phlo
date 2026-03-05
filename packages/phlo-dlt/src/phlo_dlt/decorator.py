@@ -20,6 +20,8 @@ from phlo.logging import log_event
 from phlo_dlt.pandera_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
     PanderaContractEvaluation,
+    PanderaContractValidationError,
+    deserialize_pandera_contract_evaluation,
     evaluate_pandera_contract_parquet,
     evaluate_pandera_contract_parquet_files,
     pandera_contract_asset_check_result,
@@ -299,6 +301,9 @@ def phlo_ingestion(
                     table_config=table_config,
                     table_store_resource=table_store,
                     dlt_source_func=func,
+                    validation_schema=table_config.validation_schema,
+                    validate=validate,
+                    strict_validation=strict_validation,
                     add_metadata_columns=add_metadata_columns,
                     merge_strategy=merge_strategy,
                     merge_config=merge_cfg,
@@ -365,16 +370,20 @@ def phlo_ingestion(
                         parquet_path_count=len(parquet_paths),
                     )
                     try:
-                        if len(parquet_paths) == 1:
-                            evaluation = evaluate_pandera_contract_parquet(
-                                primary_parquet_path,
-                                schema_class=table_config.validation_schema,
-                            )
-                        else:
-                            evaluation = evaluate_pandera_contract_parquet_files(
-                                parquet_paths,
-                                schema_class=table_config.validation_schema,
-                            )
+                        evaluation = deserialize_pandera_contract_evaluation(
+                            result.metadata.get("pandera_evaluation")
+                        )
+                        if evaluation is None:
+                            if len(parquet_paths) == 1:
+                                evaluation = evaluate_pandera_contract_parquet(
+                                    primary_parquet_path,
+                                    schema_class=table_config.validation_schema,
+                                )
+                            else:
+                                evaluation = evaluate_pandera_contract_parquet_files(
+                                    parquet_paths,
+                                    schema_class=table_config.validation_schema,
+                                )
                         if evaluation.passed:
                             log_event(
                                 logger,
@@ -451,6 +460,18 @@ def phlo_ingestion(
                     status=result.status,
                 )
 
+            except PanderaContractValidationError as exc:
+                query_or_sql = ",".join(
+                    f"parquet://{parquet_path}" for parquet_path in exc.parquet_paths
+                )
+                yield pandera_contract_asset_check_result(
+                    exc.evaluation,
+                    partition_key=partition_date,
+                    asset_key=f"dlt_{table_config.table_name}",
+                    schema_class=table_config.validation_schema,
+                    query_or_sql=query_or_sql,
+                )
+                raise RuntimeError("Pandera contract validation failed") from exc
             except Exception:
                 raise
 
