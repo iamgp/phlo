@@ -13,6 +13,7 @@ from rich.console import Console
 from rich.table import Table
 
 from phlo.capabilities import missing_required_capabilities
+from phlo.capabilities.support import coerce_capability_support
 from phlo.cli.commands.plugin.scaffold import create_plugin_package  # noqa: F401
 from phlo.logging import get_logger
 from phlo.plugins import get_plugin_info
@@ -136,11 +137,14 @@ def collect_installed_plugins(plugin_type: str) -> list[dict]:
             return
         required_capabilities = info.get("requires_capabilities", [])
         optional_capabilities = info.get("optional_capabilities", [])
+        support = coerce_capability_support(info.get("support"))
         missing_capabilities = missing_required_capabilities(
             PluginMetadata(
                 name=info["name"],
                 version=info["version"],
                 requires_capabilities=list(required_capabilities),
+                optional_capabilities=list(optional_capabilities),
+                support=support,
             )
         )
         installed.append(
@@ -155,6 +159,7 @@ def collect_installed_plugins(plugin_type: str) -> list[dict]:
                 "installed": True,
                 "required_capabilities": required_capabilities,
                 "optional_capabilities": optional_capabilities,
+                "support": support.to_dict(),
                 "missing_capabilities": missing_capabilities,
                 "ready": len(missing_capabilities) == 0,
             }
@@ -185,6 +190,7 @@ def collect_installed_plugins(plugin_type: str) -> list[dict]:
                         "default": service.is_default,
                         "required_capabilities": metadata.requires_capabilities,
                         "optional_capabilities": metadata.optional_capabilities,
+                        "support": metadata.support.to_dict(),
                         "missing_capabilities": missing_capabilities,
                         "ready": len(missing_capabilities) == 0,
                     }

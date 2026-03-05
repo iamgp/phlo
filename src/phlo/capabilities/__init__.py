@@ -19,7 +19,7 @@ from phlo.capabilities.registry import (
     register_schema_migrator,
     register_table_store,
 )
-from phlo.capabilities.runtime import RuntimeContext
+from phlo.capabilities.runtime import RuntimeContext, RuntimeRouting, routing_from_context
 from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
@@ -42,6 +42,7 @@ from phlo.capabilities.specs import (
     SchemaMigrationSpec,
     TableStoreSpec,
 )
+from phlo.capabilities.support import CapabilitySupport, coerce_capability_support
 
 if TYPE_CHECKING:
     from phlo.capabilities.resolver import ResolutionResult
@@ -50,6 +51,7 @@ __all__ = [
     "AssetCheckSpec",
     "AssetSpec",
     "CatalogSpec",
+    "CapabilitySupport",
     "CapabilityRegistry",
     "CheckResult",
     "DataMigrationSourceSpec",
@@ -65,6 +67,7 @@ __all__ = [
     "RunResult",
     "RunSpec",
     "RuntimeContext",
+    "RuntimeRouting",
     "SchemaChange",
     "SchemaExtractor",
     "SchemaMigrationPlan",
@@ -72,6 +75,7 @@ __all__ = [
     "SchemaMigrator",
     "TableStoreSpec",
     "TableStore",
+    "coerce_capability_support",
     "clear_capabilities",
     "get_capability_registry",
     "list_capabilities",
@@ -89,6 +93,7 @@ __all__ = [
     "register_table_store",
     "ResolutionResult",
     "resolve_capability",
+    "routing_from_context",
 ]
 
 

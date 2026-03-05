@@ -8,7 +8,7 @@ from typing import Any, Iterable, Mapping
 
 import dagster as dg
 
-from phlo.capabilities.runtime import RuntimeContext
+from phlo.capabilities.runtime import RuntimeContext, RuntimeRouting, routing_from_context
 from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
@@ -181,6 +181,11 @@ class DagsterRuntime(RuntimeContext):
                 continue
             resource_map[name] = value
         return resource_map
+
+    @property
+    def routing(self) -> RuntimeRouting:
+        """Return canonical runtime routing information."""
+        return routing_from_context(self)
 
     def get_resource(self, name: str) -> Any:
         """Return a named Dagster resource from execution context.
