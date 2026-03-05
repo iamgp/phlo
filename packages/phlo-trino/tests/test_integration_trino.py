@@ -177,6 +177,31 @@ class TestTrinoResourceUnit:
             resource = TrinoResource(catalog="iceberg", ref="dev")
             assert resource._resolved_catalog() == "iceberg_dev"
 
+    def test_resolved_catalog_prefers_runtime_ref(self):
+        """Runtime routing should override the configured default ref."""
+        from phlo_trino import TrinoResource
+
+        with patch("phlo_trino.resource.config") as mock_config:
+            mock_config.trino_catalog = "iceberg"
+            mock_config.iceberg_nessie_ref = "main"
+
+            runtime = type(
+                "StubRuntime",
+                (),
+                {
+                    "run_id": "run-1",
+                    "partition_key": None,
+                    "tags": {"phlo/ref": "feature_orders"},
+                    "resources": {},
+                    "logger": property(lambda self: object()),
+                    "routing": property(lambda self: (_ for _ in ()).throw(AttributeError())),
+                    "get_resource": lambda self, name: None,
+                },
+            )()
+
+            resource = TrinoResource(catalog="iceberg", runtime=runtime)
+            assert resource._resolved_catalog() == "iceberg_feature_orders"
+
     def test_execute_with_mocked_connection(self):
         """Test execute method with mocked Trino connection."""
         from phlo_trino import TrinoResource

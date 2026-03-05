@@ -11,7 +11,7 @@ from phlo.capabilities import CapabilitySupport, ResourceSpec
 from phlo.capabilities.specs import GovernanceBackendSpec, QueryEngineSpec
 from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
 from phlo_trino.governance import TrinoGovernanceBackend
-from phlo_trino.resource import TrinoResource
+from phlo_trino.resource import TRINO_QUERY_ENGINE_SUPPORT, TrinoResource
 
 
 class TrinoServicePlugin(ServicePlugin):
@@ -57,10 +57,7 @@ class TrinoResourceProvider(ResourceProviderPlugin):
             name="trino",
             version="0.1.0",
             description="Trino resource for Phlo",
-            support=CapabilitySupport(
-                supports_refs=True,
-                supports_time_travel=True,
-            ),
+            support=TRINO_QUERY_ENGINE_SUPPORT,
         )
 
     def get_resources(self) -> list[ResourceSpec]:
@@ -81,10 +78,7 @@ class TrinoResourceProvider(ResourceProviderPlugin):
             QueryEngineSpec(
                 name="trino",
                 provider=TrinoResource(),
-                support=CapabilitySupport(
-                    supports_refs=True,
-                    supports_time_travel=True,
-                ),
+                support=TRINO_QUERY_ENGINE_SUPPORT,
             )
         ]
 
