@@ -15,6 +15,7 @@ pytest.importorskip("pyiceberg")
 
 from phlo.contracts import Consumer, SLA
 from phlo_dlt.decorator import clear_ingestion_assets, get_ingestion_assets, phlo_ingestion
+from phlo_dlt.dlt_helpers import get_branch_from_context
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
 
@@ -38,6 +39,44 @@ def get_asset_spec(asset_key: str) -> Any:
         if spec.key == asset_key:
             return spec
     raise AssertionError(f"AssetSpec {asset_key} not found")
+
+
+def test_get_branch_from_context_prefers_canonical_ref() -> None:
+    """Canonical runtime routing should drive ref selection."""
+
+    class RuntimeStub:
+        run_id = "run-1"
+        partition_key = "2025-01-01"
+        tags = {"branch": "legacy-branch", "phlo/ref": "canonical-ref"}
+        resources = {}
+
+        @property
+        def logger(self) -> Any:
+            return object()
+
+        def get_resource(self, name: str) -> Any:
+            raise KeyError(name)
+
+    assert get_branch_from_context(RuntimeStub()) == "canonical-ref"
+
+
+def test_get_branch_from_context_defaults_to_main() -> None:
+    """Missing routing metadata should fall back to main."""
+
+    class RuntimeStub:
+        run_id = None
+        partition_key = None
+        tags: dict[str, str] = {}
+        resources: dict[str, Any] = {}
+
+        @property
+        def logger(self) -> Any:
+            return object()
+
+        def get_resource(self, name: str) -> Any:
+            raise KeyError(name)
+
+    assert get_branch_from_context(RuntimeStub()) == "main"
 
 
 class TestSchemaAutoGeneration:

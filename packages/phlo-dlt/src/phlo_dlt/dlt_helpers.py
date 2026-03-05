@@ -14,6 +14,7 @@ import ulid
 from dlt.common.pipeline import LoadInfo
 from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
+from phlo.capabilities import routing_from_context
 from phlo.capabilities.interfaces import TableStore
 from phlo.exceptions import PhloConfigError
 from phlo.logging import get_logger
@@ -29,21 +30,16 @@ def generate_row_id() -> str:
 
 
 def get_branch_from_context(context: Any) -> str:
-    """Return the target branch from Dagster context tags.
+    """Return the target ref from canonical runtime routing.
 
     Args:
-        context: Dagster execution context or compatible object exposing ``tags``.
+        context: Runtime context or compatible object.
 
     Returns:
-        Branch name from ``context.tags["branch"]`` when present, else ``"main"``.
+        Ref resolved from canonical runtime routing, defaulting to ``"main"``.
     """
-
-    tags = getattr(context, "tags", None) or {}
-    branch = tags.get("branch")
-    if isinstance(branch, str) and branch:
-        return branch
-
-    return "main"
+    routing = routing_from_context(context)
+    return routing.ref or "main"
 
 
 def inject_metadata_columns(
