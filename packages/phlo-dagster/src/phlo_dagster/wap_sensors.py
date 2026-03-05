@@ -229,7 +229,7 @@ def _all_checks_passed(instance: Any, run_id: str) -> bool:
             run_id=run_id,
             exc_info=True,
         )
-        return True
+        return False
 
     for event in check_events:
         check_eval = event.asset_check_evaluation

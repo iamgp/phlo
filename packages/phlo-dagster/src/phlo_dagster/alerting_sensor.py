@@ -64,7 +64,7 @@ def failure_alert_sensor(context):
             instance.get_runs(
                 filters=RunsFilter(
                     statuses=[DagsterRunStatus.FAILURE],
-                    created_after=cutoff_time,
+                    updated_after=cutoff_time,
                 )
             )
         )
