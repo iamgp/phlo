@@ -1,13 +1,11 @@
 """Tests for the phlo logs CLI command."""
 
-import json
 from datetime import datetime, timedelta, timezone
 
 from click.testing import CliRunner
 
 from phlo_dagster.cli_logs import (
     _get_log_level,
-    _get_mock_logs,
     _parse_since,
     logs,
 )
@@ -88,55 +86,6 @@ class TestJSONDetection:
         assert not _is_json("")
 
 
-class TestMockLogs:
-    """Test mock log generation and filtering."""
-
-    def test_mock_logs_generation(self):
-        """Generate mock logs."""
-        logs_data = _get_mock_logs({})
-        assert len(logs_data) > 0
-        assert all("timestamp" in log for log in logs_data)
-        assert all("level" in log for log in logs_data)
-        assert all("message" in log for log in logs_data)
-
-    def test_filter_by_level(self):
-        """Filter logs by level."""
-        logs_data = _get_mock_logs({"level": "INFO"})
-        assert all(log["level"] == "INFO" for log in logs_data)
-
-    def test_filter_by_asset(self):
-        """Filter logs by asset name."""
-        logs_data = _get_mock_logs({"asset": "glucose_entries"})
-        assert len(logs_data) > 0
-        assert all("glucose" in log["message"].lower() for log in logs_data)
-
-    def test_filter_by_job(self):
-        """Filter logs by job name."""
-        logs_data = _get_mock_logs({"job": "glucose_ingestion"})
-        assert all(log["job_name"] == "glucose_ingestion" for log in logs_data)
-
-    def test_filter_by_run_id(self):
-        """Filter logs by run ID."""
-        logs_data = _get_mock_logs({"run_id": "abc123"})
-        assert all(log["run_id"] == "abc123" for log in logs_data)
-
-    def test_filter_by_time(self):
-        """Filter logs by time range."""
-        now = datetime.now(timezone.utc)
-        cutoff = now - timedelta(minutes=3)
-        logs_data = _get_mock_logs({"start_time": cutoff})
-
-        # All logs should be after cutoff
-        for log in logs_data:
-            log_time = datetime.fromisoformat(log["timestamp"])
-            assert log_time >= cutoff
-
-    def test_limit(self):
-        """Respect limit parameter."""
-        logs_data = _get_mock_logs({"limit": 2})
-        assert len(logs_data) <= 2
-
-
 class TestLogsCLI:
     """Test logs CLI command."""
 
@@ -152,86 +101,34 @@ class TestLogsCLI:
         assert "--follow" in result.output
 
     def test_basic_logs(self):
-        """Display basic logs."""
+        """Display basic logs (no services connected = no logs)."""
         runner = CliRunner()
         result = runner.invoke(logs)
         assert result.exit_code == 0
-        assert "Time" in result.output
-        assert "Level" in result.output
-        assert "Message" in result.output
 
     def test_filter_by_level(self):
         """Filter logs by level."""
         runner = CliRunner()
         result = runner.invoke(logs, ["--level", "ERROR"])
         assert result.exit_code == 0
-        # Mock data doesn't have ERROR level, so should show no logs
-        assert "No logs found" in result.output or "Total: 0" in result.output
-
-    def test_filter_by_asset(self):
-        """Filter logs by asset name."""
-        runner = CliRunner()
-        result = runner.invoke(logs, ["--asset", "glucose_entries"])
-        assert result.exit_code == 0
-        assert "Total:" in result.output
-
-    def test_filter_by_job(self):
-        """Filter logs by job name."""
-        runner = CliRunner()
-        result = runner.invoke(logs, ["--job", "glucose_ingestion"])
-        assert result.exit_code == 0
-        # Job name might be truncated in display, check for logs instead
-        assert "Total:" in result.output
 
     def test_json_output(self):
-        """Output logs in JSON format."""
+        """Output logs in JSON format (empty when services disconnected)."""
         runner = CliRunner()
         result = runner.invoke(logs, ["--json", "--limit", "2"])
         assert result.exit_code == 0
-        data = json.loads(result.output)
-        assert isinstance(data, list)
-        assert len(data) <= 2
-
-    def test_time_filter(self):
-        """Filter logs by time range."""
-        runner = CliRunner()
-        result = runner.invoke(logs, ["--since", "1h"])
-        assert result.exit_code == 0
-        assert "Total:" in result.output
 
     def test_limit_parameter(self):
         """Limit number of logs."""
         runner = CliRunner()
         result = runner.invoke(logs, ["--limit", "3"])
         assert result.exit_code == 0
-        # Count rows in output (excluding header/footer)
-        lines = result.output.split("\n")
-        assert len(lines) > 0
-
-    def test_run_id_filter(self):
-        """Filter logs by run ID."""
-        runner = CliRunner()
-        result = runner.invoke(logs, ["--run-id", "abc123"])
-        assert result.exit_code == 0
-        assert "abc123" in result.output or "Total:" in result.output
-
-    def test_combined_filters(self):
-        """Apply multiple filters."""
-        runner = CliRunner()
-        result = runner.invoke(
-            logs,
-            ["--asset", "glucose_entries", "--job", "glucose_ingestion"],
-        )
-        assert result.exit_code == 0
-        assert "Total:" in result.output
 
     def test_invalid_time_filter(self):
         """Handle invalid time filter gracefully."""
         runner = CliRunner()
         result = runner.invoke(logs, ["--since", "invalid_time"])
         assert result.exit_code == 0
-        # Should still work with default time
-        assert "Total:" in result.output
 
 
 class TestLogsPerformance:
@@ -254,4 +151,3 @@ class TestLogsPerformance:
         runner = CliRunner()
         result = runner.invoke(logs, ["--limit", "1000"])
         assert result.exit_code == 0
-        assert "Total:" in result.output

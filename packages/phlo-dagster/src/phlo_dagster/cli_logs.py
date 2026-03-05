@@ -3,15 +3,17 @@
 Access and filter Dagster run logs from CLI.
 """
 
+import os
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import click
+import requests as http_requests
 from rich.console import Console
 
 from phlo.logging import get_logger
 from phlo_dagster.cli_logs_display import _display_logs, _tail_logs
+from phlo_dagster.settings import get_settings
 
 console = Console()
 logger = get_logger(__name__)
@@ -69,11 +71,11 @@ logger = get_logger(__name__)
     help="JSON output for scripting",
 )
 def logs(
-    asset: Optional[str],
-    job: Optional[str],
-    level: Optional[str],
-    since: Optional[str],
-    run_id: Optional[str],
+    asset: str | None,
+    job: str | None,
+    level: str | None,
+    since: str | None,
+    run_id: str | None,
     follow: bool,
     full: bool,
     limit: int,
@@ -136,7 +138,7 @@ def logs(
             limit=limit,
         )
     else:
-        logs_data = _get_logs(filters, quiet=output_json)
+        logs_data = _get_logs(filters)
         _display_logs(logs_data, full=full, output_json=output_json)
         logger.info(
             "dagster_logs_query_completed",
@@ -183,7 +185,7 @@ def _parse_since(since_str: str) -> datetime:
         return datetime.now(timezone.utc) - timedelta(hours=24)  # Default to last 24 hours
 
 
-def _get_logs(filters: dict, quiet: bool = False) -> list[dict]:
+def _get_logs(filters: dict) -> list[dict]:
     """
     Retrieve logs from Dagster with filters.
 
@@ -194,17 +196,11 @@ def _get_logs(filters: dict, quiet: bool = False) -> list[dict]:
         List of log dictionaries
     """
     try:
-        import os
-
-        from dagster_graphql import DagsterGraphQLClient
-
+        settings = get_settings()
         dagster_host = os.getenv("DAGSTER_WEBSERVER_HOST", "localhost")
-        dagster_port = os.getenv("DAGSTER_WEBSERVER_PORT", "3000")
+        dagster_port = os.getenv("DAGSTER_WEBSERVER_PORT") or str(settings.dagster_port)
 
-        client = DagsterGraphQLClient(
-            hostname=dagster_host,
-            port_number=int(dagster_port),
-        )
+        dagster_url = f"http://{dagster_host}:{dagster_port}/graphql"
 
         # Build GraphQL query
         query = _build_logs_query(filters)
@@ -216,15 +212,18 @@ def _get_logs(filters: dict, quiet: bool = False) -> list[dict]:
         )
 
         try:
-            result = client._execute(query)
-            logs_list = []
+            response = http_requests.post(dagster_url, json={"query": query}, timeout=5)
+            response.raise_for_status()
+            result = response.json()
+
+            logs_list: list[dict] = []
 
             if result and "data" in result:
                 runs = result["data"].get("runsOrError", {}).get("runs", [])
                 for run in runs:
                     run_id = run.get("runId", "")
                     job_name = run.get("jobName", "")
-                    status = run.get("status", "")
+                    run_status = run.get("status", "")
 
                     # Get events for this run
                     events = run.get("events", [])
@@ -232,20 +231,20 @@ def _get_logs(filters: dict, quiet: bool = False) -> list[dict]:
                         event_type = event.get("eventType", "")
                         message = event.get("message", "")
                         timestamp = event.get("timestamp")
-                        level = _get_log_level(event_type)
+                        event_level = _get_log_level(event_type)
 
                         log_entry = {
                             "timestamp": timestamp,
-                            "level": level,
+                            "level": event_level,
                             "message": message,
                             "event_type": event_type,
                             "run_id": run_id,
                             "job_name": job_name,
-                            "run_status": status,
+                            "run_status": run_status,
                         }
 
                         # Apply level filter
-                        if filters.get("level") and level != filters["level"]:
+                        if filters.get("level") and event_level != filters["level"]:
                             continue
 
                         logs_list.append(log_entry)
@@ -257,17 +256,18 @@ def _get_logs(filters: dict, quiet: bool = False) -> list[dict]:
             return logs_list
 
         except Exception:
-            # GraphQL query might fail, provide mock data
             logger.warning(
-                "dagster_logs_graphql_query_failed_fallback_mock",
+                "dagster_logs_graphql_query_failed",
                 exc_info=True,
             )
-            return _get_mock_logs(filters, show_warning=not quiet)
+            return []
 
-    except ImportError:
-        # Dagster GraphQL client not available, use mock data
-        logger.info("dagster_logs_graphql_client_unavailable_fallback_mock")
-        return _get_mock_logs(filters, show_warning=not quiet)
+    except Exception:
+        logger.info(
+            "dagster_logs_graphql_client_unavailable",
+            exc_info=True,
+        )
+        return []
 
 
 def _build_logs_query(filters: dict) -> str:
@@ -337,81 +337,3 @@ def _get_log_level(event_type: str) -> str:
         return "INFO"
     else:
         return "DEBUG"
-
-
-def _get_mock_logs(filters: dict, show_warning: bool = False) -> list[dict]:
-    """Return mock logs for demo/testing."""
-    if show_warning:
-        console.print("[dim](showing demo data - Dagster not connected)[/dim]\n")
-    now = datetime.now(timezone.utc)
-    mock_logs = [
-        {
-            "timestamp": (now - timedelta(minutes=5)).isoformat(),
-            "level": "INFO",
-            "message": "Asset materialization started for glucose_entries",
-            "event_type": "ASSET_MATERIALIZATION_START",
-            "run_id": "abc123",
-            "job_name": "glucose_ingestion",
-            "run_status": "STARTED",
-        },
-        {
-            "timestamp": (now - timedelta(minutes=4)).isoformat(),
-            "level": "INFO",
-            "message": "Fetching data from Nightscout API",
-            "event_type": "STEP_INPUT",
-            "run_id": "abc123",
-            "job_name": "glucose_ingestion",
-            "run_status": "STARTED",
-        },
-        {
-            "timestamp": (now - timedelta(minutes=3)).isoformat(),
-            "level": "DEBUG",
-            "message": "Downloaded 1234 records from API",
-            "event_type": "LOG_MESSAGE",
-            "run_id": "abc123",
-            "job_name": "glucose_ingestion",
-            "run_status": "STARTED",
-        },
-        {
-            "timestamp": (now - timedelta(minutes=2)).isoformat(),
-            "level": "INFO",
-            "message": "Validating data against schema",
-            "event_type": "STEP_OUTPUT",
-            "run_id": "abc123",
-            "job_name": "glucose_ingestion",
-            "run_status": "SUCCESS",
-        },
-        {
-            "timestamp": (now - timedelta(minutes=1)).isoformat(),
-            "level": "INFO",
-            "message": "Asset materialization completed successfully",
-            "event_type": "ASSET_MATERIALIZATION_SUCCESS",
-            "run_id": "abc123",
-            "job_name": "glucose_ingestion",
-            "run_status": "SUCCESS",
-        },
-    ]
-
-    # Apply filters
-    filtered = mock_logs
-
-    if filters.get("level"):
-        filtered = [log for log in filtered if log["level"] == filters["level"]]
-
-    if filters.get("asset"):
-        filtered = [log for log in filtered if filters["asset"].lower() in log["message"].lower()]
-
-    if filters.get("job"):
-        filtered = [log for log in filtered if log["job_name"] == filters["job"]]
-
-    if filters.get("run_id"):
-        filtered = [log for log in filtered if log["run_id"] == filters["run_id"]]
-
-    if filters.get("start_time"):
-        filtered = [
-            log
-            for log in filtered
-            if datetime.fromisoformat(log["timestamp"]) >= filters["start_time"]
-        ]
-
-    return filtered[: filters.get("limit", 100)]

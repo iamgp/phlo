@@ -13,7 +13,6 @@ from phlo_dagster.cli_status import (
     _check_if_stale,
     _check_service_health,
     _get_freshness_indicator,
-    _get_mock_asset_status,
     status,
 )
 
@@ -112,61 +111,6 @@ class TestStalenessCheck:
         assert not _check_if_stale(last_run)
 
 
-class TestMockAssetStatus:
-    """Tests for mock asset status."""
-
-    def test_returns_mock_assets(self):
-        """Test that mock assets are returned."""
-        assets = _get_mock_asset_status()
-        assert len(assets) == 4
-        assert all("name" in a for a in assets)
-        assert all("group" in a for a in assets)
-
-    def test_mock_assets_have_required_fields(self):
-        """Test that mock assets have all required fields."""
-        assets = _get_mock_asset_status()
-        required_fields = {"name", "group", "last_run", "status", "freshness", "is_stale"}
-        for asset in assets:
-            assert required_fields.issubset(asset.keys())
-
-    def test_filter_by_group(self):
-        """Test filtering mock assets by group."""
-        assets = _get_mock_asset_status(group="nightscout")
-        assert len(assets) == 4
-        assert all(a["group"] == "nightscout" for a in assets)
-
-    def test_filter_by_non_existent_group(self):
-        """Test filtering by non-existent group returns empty."""
-        assets = _get_mock_asset_status(group="nonexistent")
-        assert len(assets) == 0
-
-    def test_filter_stale_assets(self):
-        """Test filtering to only stale assets."""
-        assets = _get_mock_asset_status(stale=True)
-        assert len(assets) > 0
-        assert all(a["is_stale"] for a in assets)
-
-    def test_filter_by_group_and_stale(self):
-        """Test filtering by both group and stale."""
-        assets = _get_mock_asset_status(group="nightscout", stale=True)
-        assert len(assets) > 0
-        assert all(a["is_stale"] for a in assets)
-        assert all(a["group"] == "nightscout" for a in assets)
-
-    def test_mock_assets_freshness_values(self):
-        """Test that mock assets have valid freshness values."""
-        assets = _get_mock_asset_status()
-        valid_freshness = {"fresh", "okay", "stale", "failed", "never_run"}
-        for asset in assets:
-            assert asset["freshness"] in valid_freshness
-
-    def test_mock_asset_names_are_unique(self):
-        """Test that mock assets have unique names."""
-        assets = _get_mock_asset_status()
-        names = [a["name"] for a in assets]
-        assert len(names) == len(set(names))
-
-
 class TestServiceHealth:
     """Tests for service health checks."""
 
@@ -211,7 +155,8 @@ class TestStatusCLI:
         result = runner.invoke(status, [])
 
         assert result.exit_code == 0
-        assert "Asset Status" in result.output
+        # With no Dagster running, assets section shows "No assets found"
+        # and services section shows service health table
         assert "Service Health" in result.output
 
     def test_status_assets_only(self):
@@ -220,7 +165,6 @@ class TestStatusCLI:
         result = runner.invoke(status, ["--assets"])
 
         assert result.exit_code == 0
-        assert "Asset Status" in result.output
         assert "Service Health" not in result.output
 
     def test_status_services_only(self):
@@ -230,7 +174,6 @@ class TestStatusCLI:
 
         assert result.exit_code == 0
         assert "Service Health" in result.output
-        assert "Asset Status" not in result.output
 
     def test_status_filter_by_group(self):
         """Test filtering by asset group."""
@@ -238,7 +181,6 @@ class TestStatusCLI:
         result = runner.invoke(status, ["--assets", "--group", "nightscout"])
 
         assert result.exit_code == 0
-        assert "nightscout" in result.output.lower()
 
     def test_status_filter_stale_only(self):
         """Test showing only stale assets."""
@@ -246,8 +188,6 @@ class TestStatusCLI:
         result = runner.invoke(status, ["--assets", "--stale"])
 
         assert result.exit_code == 0
-        # Should show stale indicator
-        assert "Stale" in result.output or "Failed" in result.output
 
     def test_status_json_output(self):
         """Test JSON output format."""
@@ -310,16 +250,13 @@ class TestStatusCLI:
 class TestStatusOutput:
     """Tests for status output formatting."""
 
-    def test_asset_status_table_formatting(self):
-        """Test that asset status table is formatted correctly."""
+    def test_asset_status_empty_when_disconnected(self):
+        """Test that asset status shows empty state when services disconnected."""
         runner = CliRunner()
         result = runner.invoke(status, ["--assets"])
 
         assert result.exit_code == 0
-        # Check for expected table headers
-        assert "Asset Name" in result.output
-        assert "Status" in result.output
-        assert "Freshness" in result.output
+        assert "No assets found" in result.output
 
     def test_service_status_table_formatting(self):
         """Test that service status table is formatted correctly."""
@@ -327,7 +264,6 @@ class TestStatusOutput:
         result = runner.invoke(status, ["--services"])
 
         assert result.exit_code == 0
-        # Check for expected table headers
         assert "Service" in result.output
         assert "Status" in result.output
         assert "Latency" in result.output
@@ -341,20 +277,10 @@ class TestStatusOutput:
         if result.output.strip():
             data = json.loads(result.output)
             assert "timestamp" in data
-            # Timestamp should be ISO format
             try:
                 datetime.fromisoformat(data["timestamp"])
             except ValueError:
                 pytest.fail("Timestamp is not in ISO format")
-
-    def test_status_shows_asset_count(self):
-        """Test that status shows asset count information."""
-        runner = CliRunner()
-        result = runner.invoke(status, ["--assets"])
-
-        assert result.exit_code == 0
-        # Should have a table with multiple assets
-        assert "Asset Status" in result.output
 
 
 class TestStatusFiltering:

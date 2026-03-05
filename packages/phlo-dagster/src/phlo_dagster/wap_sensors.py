@@ -214,14 +214,23 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
 
 def _all_checks_passed(instance: Any, run_id: str) -> bool:
     """Return True if every asset check in the run passed (or none were executed)."""
-    check_events = list(
-        instance.get_event_log_entries(
-            run_id=run_id,
-            event_filter_fn=lambda event: (
-                event.event_type == dg.DagsterEventType.ASSET_CHECK_EVALUATION
-            ),
+    try:
+        check_events = list(
+            instance.get_event_log_entries(
+                run_id=run_id,
+                event_filter_fn=lambda event: (
+                    event.event_type == dg.DagsterEventType.ASSET_CHECK_EVALUATION
+                ),
+            )
         )
-    )
+    except Exception:
+        logger.warning(
+            "wap_all_checks_passed_filter_failed",
+            run_id=run_id,
+            exc_info=True,
+        )
+        return False
+
     for event in check_events:
         check_eval = event.asset_check_evaluation
         if check_eval is not None and not check_eval.passed:
