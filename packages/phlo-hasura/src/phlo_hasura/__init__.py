@@ -9,7 +9,7 @@ This module provides tools for managing Hasura metadata:
 Example:
     >>> from phlo_hasura import HasuraClient
     >>> client = HasuraClient()
-    >>> client.track_table("api", "glucose_readings")
+    >>> client.track_table("api", "orders")
 """
 
 from phlo_hasura.client import HasuraClient

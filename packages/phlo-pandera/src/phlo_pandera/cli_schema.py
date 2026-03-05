@@ -10,7 +10,10 @@ Provides commands to:
 
 from __future__ import annotations
 
+import ast
+import inspect
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -54,7 +57,7 @@ def list(domain: Optional[str], format: str):
 
     Examples:
         phlo schema list                 # List all schemas
-        phlo schema list --domain nightscout
+        phlo schema list --domain sales
         phlo schema list --format json
     """
     try:
@@ -121,8 +124,8 @@ def show(schema_name: str, iceberg: bool):
     Displays fields, types, constraints, and descriptions.
 
     Examples:
-        phlo schema show RawGlucoseEntries
-        phlo schema show RawGlucoseEntries --iceberg
+        phlo schema show OrderSchema
+        phlo schema show OrderSchema --iceberg
     """
     try:
         schemas = discover_pandera_schemas()
@@ -200,9 +203,9 @@ def diff(schema_name: str, old: str, format: str):
     Detects added/removed/modified fields and classifies changes as safe or breaking.
 
     Examples:
-        phlo schema diff RawGlucoseEntries --old HEAD~1
-        phlo schema diff RawGlucoseEntries --old main
-        phlo schema diff workflows/schemas/glucose.py workflows/schemas/glucose_v2.py
+        phlo schema diff OrderSchema --old HEAD~1
+        phlo schema diff OrderSchema --old main
+        phlo schema diff OrderSchema --old workflows/schemas/orders_previous.py
     """
     try:
         schemas = discover_pandera_schemas()
@@ -213,21 +216,20 @@ def diff(schema_name: str, old: str, format: str):
 
         schema_cls = schemas[schema_name]
         new_schema = {name: str(type_) for name, type_ in schema_cls.__annotations__.items()}
-
-        # For demo purposes, show the new schema
-        # In production, would load old version from git/file
-        # Classify changes
-        classification, details = classify_schema_change({}, new_schema)
+        old_schema = _load_old_schema(schema_cls, schema_name, old)
+        classification, details = classify_schema_change(old_schema, new_schema)
 
         if format == "json":
             output = {
                 "classification": classification,
                 "details": details,
+                "old_schema": old_schema,
                 "new_schema": new_schema,
             }
             click.echo(json.dumps(output, indent=2))
         else:
             console.print(f"\n[bold blue]Schema Diff: {schema_name}[/bold blue]")
+            console.print(f"Old schema fields: {len(old_schema)}")
             console.print(f"New schema fields: {len(new_schema)}")
 
             table = Table(title=f"Classification: {classification}")
@@ -259,7 +261,7 @@ def validate(schema_path: str):
     Checks for common issues and integration problems.
 
     Examples:
-        phlo schema validate workflows/schemas/glucose.py
+        phlo schema validate workflows/schemas/orders.py
         phlo schema validate workflows/schemas/custom.py
     """
     try:
@@ -322,6 +324,64 @@ def validate(schema_path: str):
         )
         console.print(f"[red]Error validating schema: {e}[/red]")
         sys.exit(1)
+
+
+def _load_old_schema(schema_cls: type, schema_name: str, old_ref: str) -> dict[str, str]:
+    """Load a previous schema definition from a file path or git ref."""
+    source_path = inspect.getsourcefile(schema_cls)
+    if source_path is None:
+        raise ValueError(f"Could not determine source file for schema '{schema_name}'")
+
+    current_path = Path(source_path).resolve()
+    old_path = Path(old_ref)
+    if old_path.exists():
+        source = old_path.read_text()
+        return _extract_schema_annotations(source, schema_name, str(old_path))
+
+    repo_root = _get_repo_root()
+    relative_path = current_path.relative_to(repo_root)
+
+    try:
+        result = subprocess.run(
+            ["git", "show", f"{old_ref}:{relative_path.as_posix()}"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr.strip()
+        raise ValueError(
+            f"Could not load schema '{schema_name}' from git ref '{old_ref}'"
+            + (f": {stderr}" if stderr else "")
+        ) from exc
+
+    return _extract_schema_annotations(result.stdout, schema_name, f"{old_ref}:{relative_path}")
+
+
+def _extract_schema_annotations(source: str, schema_name: str, source_label: str) -> dict[str, str]:
+    """Extract annotated class fields from schema source without importing it."""
+    module = ast.parse(source, filename=source_label)
+    for node in module.body:
+        if isinstance(node, ast.ClassDef) and node.name == schema_name:
+            annotations: dict[str, str] = {}
+            for statement in node.body:
+                if isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
+                    annotations[statement.target.id] = ast.unparse(statement.annotation)
+            if annotations:
+                return annotations
+            raise ValueError(f"Schema '{schema_name}' has no annotated fields in {source_label}")
+    raise ValueError(f"Schema '{schema_name}' not found in {source_label}")
+
+
+def _get_repo_root() -> Path:
+    """Resolve the git repository root for schema diff lookups."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return Path(result.stdout.strip()).resolve()
 
 
 def _pandera_to_iceberg_example(schema_cls) -> str:

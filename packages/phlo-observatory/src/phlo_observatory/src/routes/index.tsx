@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
 import {
-  Activity,
   AlertTriangle,
   CheckCircle,
   Clock,
@@ -158,18 +157,6 @@ function Dashboard() {
 
         <ExtensionSlot slotId="dashboard.after-cards" className="mb-6" />
 
-        {/* Placeholder Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <PlaceholderSection
-            title="Recent Activity"
-            description="Pipeline runs and data changes will appear here"
-          />
-          <PlaceholderSection
-            title="Attention Needed"
-            description="Failures, stale data, and quality issues will appear here"
-          />
-        </div>
-
         {/* Last Updated */}
         {healthData && (
           <div className="mt-6 text-sm text-muted-foreground text-right">
@@ -247,7 +234,7 @@ function getQualityStatus(
   data: HealthMetrics | null | undefined,
 ): 'success' | 'warning' | 'error' | 'loading' {
   if (!data) return 'loading'
-  if (data.qualityChecksTotal === 0) return 'loading' // Not implemented yet
+  if (data.qualityChecksTotal === 0) return 'warning'
   const ratio = data.qualityChecksPassing / data.qualityChecksTotal
   if (ratio === 1) return 'success'
   if (ratio >= 0.9) return 'warning'
@@ -322,28 +309,6 @@ function HealthCard({ title, value, subtitle, icon, status }: HealthCardProps) {
       <CardContent className="pt-0">
         <CardTitle className="text-3xl">{value}</CardTitle>
         <div className="text-sm text-muted-foreground mt-1">{subtitle}</div>
-      </CardContent>
-    </Card>
-  )
-}
-
-interface PlaceholderSectionProps {
-  title: string
-  description: string
-}
-
-function PlaceholderSection({ title, description }: PlaceholderSectionProps) {
-  return (
-    <Card className="border-dashed">
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Activity className="size-4" />
-          <span>Coming soon</span>
-        </div>
       </CardContent>
     </Card>
   )

@@ -86,11 +86,11 @@ def backfill(
 
     \b
     Examples:
-      phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-01-31
-      phlo backfill glucose_entries --partitions 2024-01-01,2024-01-15,2024-01-31
-      phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-12-31 --parallel 4
+      phlo backfill dlt_orders --start-date 2024-01-01 --end-date 2024-01-31
+      phlo backfill dlt_orders --partitions 2024-01-01,2024-01-15,2024-01-31
+      phlo backfill dlt_orders --start-date 2024-01-01 --end-date 2024-12-31 --parallel 4
       phlo backfill --resume
-      phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-01-31 --dry-run
+      phlo backfill dlt_orders --start-date 2024-01-01 --end-date 2024-01-31 --dry-run
     """
     console.print("\n[bold blue]📦 Asset Backfill[/bold blue]\n")
     logger.info(
