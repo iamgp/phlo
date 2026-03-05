@@ -11,6 +11,7 @@ from typing import Any
 
 import click
 import requests as http_requests
+from requests import exceptions as requests_exceptions
 from rich.console import Console
 from rich.table import Table
 
@@ -337,7 +338,7 @@ def _check_service_health(
             "latency_ms": round(latency, 1),
             "status_code": response.status_code,
         }
-    except http_requests.exceptions.Timeout:
+    except requests_exceptions.Timeout:
         logger.warning(
             "dagster_status_service_health_timeout",
             service_name=name,
@@ -349,7 +350,7 @@ def _check_service_health(
             "latency_ms": 2000,
             "error": "Request timeout",
         }
-    except http_requests.exceptions.ConnectionError:
+    except requests_exceptions.ConnectionError:
         logger.warning(
             "dagster_status_service_health_connection_error",
             service_name=name,
