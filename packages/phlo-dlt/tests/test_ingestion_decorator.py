@@ -87,7 +87,7 @@ def test_get_write_branch_from_context_prefers_wap_branch_for_strict_runs() -> N
         partition_key = "2025-01-01"
         tags = {
             "phlo/ref": "main",
-            "phlo/wap_branch": "pipeline/run-run-1",
+            "phlo/wap_branch": "pipeline-run-run-1",
         }
         resources = {}
 
@@ -99,7 +99,7 @@ def test_get_write_branch_from_context_prefers_wap_branch_for_strict_runs() -> N
             raise KeyError(name)
 
     assert (
-        get_write_branch_from_context(RuntimeStub(), strict_validation=True) == "pipeline/run-run-1"
+        get_write_branch_from_context(RuntimeStub(), strict_validation=True) == "pipeline-run-run-1"
     )
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import dagster as dg
 import pytest
@@ -93,3 +93,35 @@ def test_build_definitions_raises_required_capability_setup_error() -> None:
 
         with pytest.raises(PhloCapabilitySetupError, match="manifest_unavailable"):
             build_definitions(workflows_path="workflows")
+
+
+def test_build_definitions_merges_wap_sensors_when_versioned_catalog_present() -> None:
+    empty_defs = dg.Definitions()
+    versioned_catalog = MagicMock()
+    with (
+        patch("phlo_dagster.framework.definitions.get_settings", return_value=_Settings()),
+        patch(
+            "phlo_dagster.framework.definitions.discover_user_workflows", return_value=empty_defs
+        ),
+        patch("phlo_dagster.framework.definitions._default_executor", return_value=None),
+        patch(
+            "phlo_dagster.framework.definitions.resolve_capability",
+            return_value=MagicMock(
+                name="nessie",
+                provider=versioned_catalog,
+                support=MagicMock(supports_refs=True, supports_promote=True),
+            ),
+        ),
+        patch(
+            "phlo_dagster.framework.definitions.VersionedCatalog", MagicMock(return_value=object)
+        ),
+        patch(
+            "phlo_dagster.framework.definitions._collect_wap_definitions",
+            return_value=dg.Definitions(sensors=[]),
+        ) as collect_wap,
+    ):
+        from phlo_dagster.framework.definitions import build_definitions
+
+        result = build_definitions(workflows_path="workflows")
+        assert isinstance(result, dg.Definitions)
+        collect_wap.assert_called_once()

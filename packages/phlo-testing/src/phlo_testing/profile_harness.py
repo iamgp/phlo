@@ -15,6 +15,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+import psycopg2
+import requests
+from dagster import DagsterRunStatus
+from dagster._core.storage.tags import PARTITION_NAME_TAG
+from dagster_graphql.client.client import DagsterGraphQLClient
+
 BUNDLED_STACK_CORE_SERVICES = (
     "postgres",
     "minio",
@@ -22,6 +28,7 @@ BUNDLED_STACK_CORE_SERVICES = (
     "nessie",
     "trino",
     "dagster",
+    "dagster-daemon",
 )
 
 BUNDLED_STACK_DEV_PACKAGES = (
@@ -191,6 +198,8 @@ def build_bundled_stack_env_updates(resolve_port: Any) -> dict[str, str]:
         for env_key, (service_name, default_port) in _BUNDLED_STACK_PORT_DEFAULTS.items()
     }
     updates["PHLO_DEV_EXTRA_PACKAGES"] = ",".join(BUNDLED_STACK_DEV_PACKAGES)
+    updates["PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS"] = "1"
+    updates["PHLO_WAP_PROMOTION_INTERVAL_SECONDS"] = "1"
     return updates
 
 
@@ -270,6 +279,10 @@ class BundledStackHarness:
     ports: BundledStackPorts
     keep_running: bool = False
 
+    def dagster_graphql_client(self) -> DagsterGraphQLClient:
+        """Return a Dagster GraphQL client for the live harness."""
+        return DagsterGraphQLClient("127.0.0.1", port_number=self.ports.dagster)
+
     def run_phlo(
         self,
         args: list[str],
@@ -307,6 +320,166 @@ class BundledStackHarness:
         if partition_date is not None:
             args.extend(["--partition", partition_date])
         return self.run_phlo(args, timeout=timeout, stream_output=stream_output)
+
+    def launch_versioned_materialization(
+        self,
+        asset_name: str,
+        *,
+        partition_date: str | None = None,
+    ) -> tuple[str, str]:
+        """Launch a Dagster asset run tagged to an isolated WAP branch."""
+        from phlo_nessie.resource import NessieResource
+
+        branch_name = f"pipeline-run-{uuid.uuid4().hex[:12]}"
+        nessie = NessieResource(base_url=f"http://127.0.0.1:{self.ports.nessie}")
+        created_hash = nessie.create_branch(branch_name, from_ref="main")
+        if created_hash is None:
+            raise RuntimeError(f"Unable to create WAP branch {branch_name}")
+
+        tags: dict[str, str] = {"phlo/wap_branch": branch_name}
+        if partition_date:
+            tags[PARTITION_NAME_TAG] = partition_date
+
+        deadline = time.time() + 60
+        last_error: Exception | None = None
+        while time.time() < deadline:
+            try:
+                run_id = self.dagster_graphql_client().submit_job_execution(
+                    job_name="__ASSET_JOB",
+                    run_config={},
+                    asset_selection=[asset_name],
+                    tags=tags,
+                )
+                return run_id, branch_name
+            except Exception as exc:
+                last_error = exc
+                time.sleep(2)
+        raise RuntimeError("Unable to launch Dagster versioned materialization") from last_error
+
+    def wait_for_run_completion(self, run_id: str, *, timeout: int = 1200) -> DagsterRunStatus:
+        """Poll Dagster until a launched run reaches a terminal status."""
+        status = self.wait_for_run_status(
+            run_id,
+            expected_statuses={
+                DagsterRunStatus.SUCCESS,
+                DagsterRunStatus.FAILURE,
+                DagsterRunStatus.CANCELED,
+                DagsterRunStatus.CANCELING,
+            },
+            timeout=timeout,
+        )
+        if status != DagsterRunStatus.SUCCESS:
+            raise RuntimeError(f"Dagster run {run_id} finished with status {status.value}")
+        return status
+
+    def wait_for_run_status(
+        self,
+        run_id: str,
+        *,
+        expected_statuses: set[DagsterRunStatus],
+        timeout: int = 1200,
+    ) -> DagsterRunStatus:
+        """Poll persisted Dagster metadata until a run reaches an expected status."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            status = self.get_run_status(run_id)
+            if status in expected_statuses:
+                return status
+            time.sleep(1)
+        raise TimeoutError(f"Timed out waiting for Dagster run {run_id}")
+
+    def get_run_status(self, run_id: str) -> DagsterRunStatus:
+        """Read Dagster run status from the metadata database."""
+        env_vars = self.read_env()
+        connection = psycopg2.connect(
+            host="127.0.0.1",
+            port=self.ports.postgres,
+            user=env_vars.get("POSTGRES_USER", "phlo"),
+            password=env_vars.get("POSTGRES_PASSWORD", "phlo"),
+            dbname=env_vars.get("POSTGRES_DB", "phlo"),
+        )
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT status FROM runs WHERE run_id = %s",
+                    (run_id,),
+                )
+                row = cursor.fetchone()
+        finally:
+            connection.close()
+
+        if row is None or row[0] is None:
+            raise RuntimeError(f"Unable to find Dagster run {run_id}")
+        return DagsterRunStatus(str(row[0]))
+
+    def get_run_tags(self, run_id: str) -> dict[str, str]:
+        """Read persisted Dagster run tags from the metadata database."""
+        env_vars = self.read_env()
+        connection = psycopg2.connect(
+            host="127.0.0.1",
+            port=self.ports.postgres,
+            user=env_vars.get("POSTGRES_USER", "phlo"),
+            password=env_vars.get("POSTGRES_PASSWORD", "phlo"),
+            dbname=env_vars.get("POSTGRES_DB", "phlo"),
+        )
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT key, value FROM run_tags WHERE run_id = %s",
+                    (run_id,),
+                )
+                rows = cursor.fetchall()
+        finally:
+            connection.close()
+        return {str(key): str(value) for key, value in rows}
+
+    def list_table_snapshots(
+        self, *, table_name: str, ref: str, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        """List Iceberg snapshots for a table on a given ref using host-accessible settings."""
+        from phlo_iceberg.catalog import reset_catalog_cache
+        from phlo_iceberg.resource import IcebergResource
+        from phlo_iceberg.settings import get_settings as get_iceberg_settings
+
+        env_updates = {
+            "ICEBERG_S3_ENDPOINT": f"http://127.0.0.1:{self.ports.minio_api}",
+            "ICEBERG_NESSIE_URI": f"http://127.0.0.1:{self.ports.nessie}/iceberg",
+            "AWS_ACCESS_KEY_ID": "minio",
+            "AWS_SECRET_ACCESS_KEY": "minio123",
+            "ICEBERG_S3_ACCESS_KEY": "minio",
+            "ICEBERG_S3_SECRET_KEY": "minio123",
+        }
+        previous = {key: os.environ.get(key) for key in env_updates}
+        try:
+            for key, value in env_updates.items():
+                os.environ[key] = value
+            get_iceberg_settings.cache_clear()
+            reset_catalog_cache()
+            resource = IcebergResource(ref=ref)
+            try:
+                return resource.list_snapshots(table_name=table_name, limit=limit)
+            except Exception:
+                return []
+        finally:
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            get_iceberg_settings.cache_clear()
+            reset_catalog_cache()
+
+    def wait_for_branch_absence(self, branch_name: str, *, timeout: int = 120) -> None:
+        """Wait until a promoted WAP branch is cleaned up."""
+        from phlo_nessie.resource import NessieResource
+
+        nessie = NessieResource(base_url=f"http://127.0.0.1:{self.ports.nessie}")
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if not any(branch.name == branch_name for branch in nessie.list_branches()):
+                return
+            time.sleep(1)
+        raise TimeoutError(f"Timed out waiting for branch cleanup: {branch_name}")
 
     def stop_services(self, *, stream_output: bool = True) -> None:
         with contextlib.suppress(Exception):
@@ -371,7 +544,7 @@ def _write_bundled_stack_workflow(
 
     utils.write_file(
         project_dir / "workflows" / "ingestion" / "jsonplaceholder" / "posts.py",
-        '''"""Jsonplaceholder posts ingestion asset."""\n\nfrom dlt.sources.rest_api import rest_api\nfrom phlo_dlt import phlo_ingestion\nfrom workflows.schemas.jsonplaceholder import RawPosts\n\n\n@phlo_ingestion(\n    table_name="posts",\n    unique_key="id",\n    validation_schema=RawPosts,\n    group="jsonplaceholder",\n    cron="0 */1 * * *",\n    freshness_hours=(1, 24),\n    validate=False,\n)\ndef posts(partition_date: str):\n    base_url = "https://jsonplaceholder.typicode.com"\n    return rest_api(\n        client={"base_url": base_url},\n        resources=[{"name": "posts", "endpoint": {"path": "posts"}}],\n    )\n''',
+        '''"""Jsonplaceholder posts ingestion asset."""\n\nimport time\n\nfrom dlt.sources.rest_api import rest_api\nfrom phlo_dlt import phlo_ingestion\nfrom workflows.schemas.jsonplaceholder import RawPosts\n\n\n@phlo_ingestion(\n    table_name="posts",\n    unique_key="id",\n    validation_schema=RawPosts,\n    group="jsonplaceholder",\n    cron="0 */1 * * *",\n    freshness_hours=(1, 24),\n    validate=True,\n)\ndef posts(partition_date: str):\n    time.sleep(2)\n    base_url = "https://jsonplaceholder.typicode.com"\n    return rest_api(\n        client={"base_url": base_url},\n        resources=[{"name": "posts", "endpoint": {"path": "posts"}}],\n    )\n''',
     )
 
     utils.write_file(
@@ -416,6 +589,27 @@ def _wait_for_bundled_stack_services(ports: BundledStackPorts) -> None:
         raise RuntimeError("Postgres did not become ready")
     if not utils.wait_for_tcp("127.0.0.1", ports.nessie, name="Nessie", timeout=120):
         raise RuntimeError("Nessie did not become ready")
+    _wait_for_dagster_graphql(ports)
+
+
+def _wait_for_dagster_graphql(ports: BundledStackPorts, *, timeout: int = 180) -> None:
+    """Wait until Dagster GraphQL is responsive."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            response = requests.post(
+                f"http://127.0.0.1:{ports.dagster}/graphql",
+                json={"query": "query Version { version }"},
+                timeout=5,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if payload.get("data", {}).get("version"):
+                return
+        except Exception:
+            time.sleep(1)
+            continue
+    raise RuntimeError("Dagster GraphQL did not become ready")
 
 
 def bootstrap_bundled_stack_harness(

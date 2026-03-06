@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
+from dagster import DagsterRunStatus
 from phlo_testing.profile_harness import (
     BUNDLED_STACK_DEV_PACKAGES,
     BundledStackHarness,
@@ -188,3 +190,42 @@ def test_bundled_stack_harness_cleanup_force_stops_kept_stack(monkeypatch) -> No
 
     assert stop_calls == [False]
     assert removed_paths == [Path("/tmp/project")]
+
+
+def test_bundled_stack_harness_get_run_status_reads_metadata_db(monkeypatch) -> None:
+    connection = MagicMock()
+    cursor = MagicMock()
+    cursor.fetchone.return_value = ("SUCCESS",)
+    connection.cursor.return_value.__enter__.return_value = cursor
+
+    monkeypatch.setattr("phlo_testing.profile_harness.psycopg2.connect", lambda **_: connection)
+
+    harness = BundledStackHarness(
+        project_dir=Path("/tmp/project"),
+        phlo_source=Path("/tmp/source"),
+        python_executable=Path("/tmp/project/.venv/bin/python"),
+        ports=BundledStackPorts(
+            phlo_api=54000,
+            dagster=3000,
+            postgres=5432,
+            trino=8080,
+            minio_api=9000,
+            minio_console=9001,
+            nessie=19120,
+        ),
+    )
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "read_env",
+        lambda self: {
+            "POSTGRES_USER": "phlo",
+            "POSTGRES_PASSWORD": "phlo",
+            "POSTGRES_DB": "phlo",
+        },
+    )
+
+    assert harness.get_run_status("run-1") == DagsterRunStatus.SUCCESS
+    cursor.execute.assert_called_once_with(
+        "SELECT status FROM runs WHERE run_id = %s",
+        ("run-1",),
+    )
