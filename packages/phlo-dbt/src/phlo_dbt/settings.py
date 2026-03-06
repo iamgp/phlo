@@ -13,6 +13,43 @@ from phlo.config.base import BaseConfig
 class DbtSettings(BaseConfig):
     """dbt project configuration."""
 
+    dbt_query_engine_type: str = Field(
+        default="trino",
+        description="Query engine adapter used by dbt profiles",
+    )
+    dbt_query_host: str = Field(
+        default="trino",
+        description="Query engine host for generated dbt profiles",
+    )
+    dbt_query_port: int = Field(
+        default=8080,
+        description="Query engine port for generated dbt profiles",
+    )
+    dbt_query_catalog: str = Field(
+        default="iceberg",
+        description="Base query engine catalog for generated dbt profiles",
+    )
+    dbt_query_schema: str = Field(
+        default="raw",
+        description="Default schema for generated dbt profiles",
+    )
+    dbt_query_user: str = Field(
+        default="dagster",
+        description="Query engine user for generated dbt profiles",
+    )
+    dbt_query_http_scheme: str = Field(
+        default="http",
+        description="HTTP scheme for generated dbt profiles",
+    )
+    dbt_query_auth_method: str = Field(
+        default="none",
+        description="Auth method for generated dbt profiles",
+    )
+    dbt_query_threads: int = Field(
+        default=2,
+        description="Worker threads for generated dbt profiles",
+    )
+
     dbt_project_dir: str = Field(
         default="workflows/transforms/dbt",
         description="Path to dbt project directory",

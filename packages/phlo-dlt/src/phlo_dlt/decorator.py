@@ -363,6 +363,7 @@ def phlo_ingestion(
                     return
 
                 if validate and table_config.validation_schema is not None:
+                    validation_schema = table_config.validation_schema
                     parquet_paths_raw = result.metadata.get("parquet_paths")
                     if isinstance(parquet_paths_raw, list):
                         parquet_paths = [Path(str(path)) for path in parquet_paths_raw]
@@ -392,14 +393,15 @@ def phlo_ingestion(
                         )
                         if evaluation is None:
                             if len(parquet_paths) == 1:
+                                assert primary_parquet_path is not None
                                 evaluation = evaluate_pandera_contract_parquet(
                                     primary_parquet_path,
-                                    schema_class=table_config.validation_schema,
+                                    schema_class=validation_schema,
                                 )
                             else:
                                 evaluation = evaluate_pandera_contract_parquet_files(
                                     parquet_paths,
-                                    schema_class=table_config.validation_schema,
+                                    schema_class=validation_schema,
                                 )
                         if evaluation.passed:
                             log_event(
@@ -455,7 +457,7 @@ def phlo_ingestion(
                         evaluation,
                         partition_key=partition_date,
                         asset_key=f"dlt_{table_config.table_name}",
-                        schema_class=table_config.validation_schema,
+                        schema_class=validation_schema,
                         query_or_sql=query_or_sql,
                     )
                     yield check_result
@@ -479,6 +481,8 @@ def phlo_ingestion(
                 )
 
             except PanderaContractValidationError as exc:
+                validation_schema = table_config.validation_schema
+                assert validation_schema is not None
                 query_or_sql = ",".join(
                     f"parquet://{parquet_path}" for parquet_path in exc.parquet_paths
                 )
@@ -486,7 +490,7 @@ def phlo_ingestion(
                     exc.evaluation,
                     partition_key=partition_date,
                     asset_key=f"dlt_{table_config.table_name}",
-                    schema_class=table_config.validation_schema,
+                    schema_class=validation_schema,
                     query_or_sql=query_or_sql,
                 )
                 raise RuntimeError("Pandera contract validation failed") from exc

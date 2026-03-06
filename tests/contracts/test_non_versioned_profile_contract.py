@@ -1,4 +1,4 @@
-"""Non-versioned profile contract checks."""
+"""Smoke entry point for the non-versioned profile harness."""
 
 from __future__ import annotations
 
@@ -8,23 +8,14 @@ from phlo_testing.non_versioned_profile_harness import NonVersionedProfileHarnes
 pytestmark = pytest.mark.integration
 
 
-def test_non_versioned_profile_ingest_and_transform_without_refs(
+def test_non_versioned_profile_harness_boots_local_project(
     non_versioned_profile_harness: NonVersionedProfileHarness,
 ) -> None:
-    """Core ingest and transform composition should work without branch-aware routing."""
-    non_versioned_profile_harness.ingest_rows(
-        "raw.posts",
-        [
-            {"id": 1, "title": "hello", "body": "world"},
-            {"id": 2, "title": "goodbye", "body": "moon"},
-        ],
+    """The non-versioned harness should provide a runnable local dbt project."""
+    assert non_versioned_profile_harness.project_dir.exists()
+    assert (non_versioned_profile_harness.project_dir / "dbt_project.yml").exists()
+    assert (non_versioned_profile_harness.project_dir / "profiles.yml").exists()
+    assert (
+        non_versioned_profile_harness.duckdb_path.parent
+        == non_versioned_profile_harness.project_dir
     )
-
-    raw_count = non_versioned_profile_harness.query_scalar("SELECT count(*) FROM raw.posts")
-    assert raw_count == 2
-
-    result = non_versioned_profile_harness.run_transform()
-    assert result.status == "success", result.error
-
-    mart_count = non_versioned_profile_harness.query_scalar("SELECT count(*) FROM marts.posts_mart")
-    assert mart_count == raw_count

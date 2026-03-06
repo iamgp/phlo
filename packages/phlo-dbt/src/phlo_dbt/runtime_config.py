@@ -12,7 +12,7 @@ from phlo.capabilities import (
     resolve_runtime_ref,
     routing_from_context,
 )
-from phlo_trino.settings import get_settings as get_trino_settings
+from phlo_dbt.settings import get_settings as get_dbt_settings
 import yaml
 
 DEFAULT_DBT_TARGET = "dev"
@@ -86,18 +86,23 @@ def resolve_dbt_runtime_config(
     target: str | None = None,
 ) -> DbtRuntimeConfig:
     """Resolve canonical dbt runtime config from query-engine settings and routing."""
-    trino = get_trino_settings()
+    settings = get_dbt_settings()
     target_name = resolve_dbt_target_name(runtime, target=target)
-    catalog = trino.trino_catalog
+    catalog = settings.dbt_query_catalog
     ref = resolve_runtime_ref(runtime, support=DBT_QUERY_ENGINE_SUPPORT, default_ref="main")
     if ref and ref != "main":
         catalog = f"{catalog}_{ref}"
 
     return DbtRuntimeConfig(
         target_name=target_name,
-        host=trino.trino_host,
-        port=trino.trino_port,
+        user=settings.dbt_query_user,
+        host=settings.dbt_query_host,
+        port=settings.dbt_query_port,
         catalog=catalog,
+        schema=settings.dbt_query_schema,
+        threads=settings.dbt_query_threads,
+        http_scheme=settings.dbt_query_http_scheme,
+        method=settings.dbt_query_auth_method,
     )
 
 
