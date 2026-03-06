@@ -19,7 +19,7 @@ phlo plugin install nessie
 | Variable               | Default   | Description                |
 | ---------------------- | --------- | -------------------------- |
 | `NESSIE_PORT`          | `19120`   | Nessie API port            |
-| `NESSIE_VERSION`       | `0.106.0` | Nessie version             |
+| `NESSIE_VERSION`       | `0.107.2` | Nessie version             |
 | `NESSIE_OIDC_ENABLED`  | `false`   | Enable OIDC authentication |
 | `NESSIE_AUTHZ_ENABLED` | `false`   | Enable authorization       |
 

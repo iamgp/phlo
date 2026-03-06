@@ -105,7 +105,7 @@ Nessie Git-like catalog:
 
 ```bash
 # Version and connectivity
-NESSIE_VERSION=0.106.0
+NESSIE_VERSION=0.107.2
 NESSIE_PORT=10003
 NESSIE_HOST=nessie
 NESSIE_API_VERSION=v1
