@@ -6,7 +6,7 @@ Observatory does not talk to Trino directly for this flow.
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -242,6 +242,27 @@ def get_table_from_asset_key(asset_key: str) -> str:
     return asset_key.split("/")[-1] or asset_key
 
 
+def _result_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return []
+    return [cast(dict[str, Any], row) for row in rows if isinstance(row, dict)]
+
+
+def _result_columns(payload: dict[str, Any]) -> list[str]:
+    columns = payload.get("columns")
+    if not isinstance(columns, list):
+        return []
+    return [str(column) for column in columns]
+
+
+def _result_column_types(payload: dict[str, Any]) -> list[str]:
+    column_types = payload.get("column_types")
+    if not isinstance(column_types, list):
+        return []
+    return [str(column_type) for column_type in column_types]
+
+
 def build_contributing_rows_query(
     downstream_table_name: str,
     upstream: ResolveTableResult,
@@ -340,9 +361,10 @@ async def resolve_iceberg_table(
     if "error" in schemas_result:
         return None
 
+    schema_rows = _result_rows(schemas_result)
     schemas = [
         str(row["table_schema"])
-        for row in schemas_result["rows"]
+        for row in schema_rows
         if row.get("table_schema") and row.get("table_schema") != "information_schema"
     ]
     if not schemas:
@@ -367,8 +389,11 @@ async def resolve_iceberg_table(
     if "error" in columns_result:
         return None
 
+    column_rows = _result_rows(columns_result)
     column_types = {
-        str(row["column_name"]): str(row["data_type"]) for row in columns_result["rows"]
+        str(row["column_name"]): str(row["data_type"])
+        for row in column_rows
+        if row.get("column_name") and row.get("data_type")
     }
 
     return ResolveTableResult(
@@ -459,8 +484,11 @@ async def get_contributing_rows_page(
     if "error" in result:
         return result
 
-    has_more = len(result["rows"]) > page_size
-    rows = result["rows"][:page_size] if has_more else result["rows"]
+    rows = _result_rows(result)
+    columns = _result_columns(result)
+    column_types = _result_column_types(result)
+    has_more = len(rows) > page_size
+    rows = rows[:page_size] if has_more else rows
 
     return ContributingRowsPageResponse(
         mode=mode,
@@ -469,7 +497,7 @@ async def get_contributing_rows_page(
         has_more=has_more,
         query=query_or_error,
         upstream=UpstreamTableRef(schema_name=upstream.schema_name, table=upstream.table),
-        columns=result["columns"],
-        column_types=result["column_types"],
+        columns=columns,
+        column_types=column_types,
         rows=rows,
     )

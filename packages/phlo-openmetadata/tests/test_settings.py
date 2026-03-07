@@ -1,6 +1,6 @@
 """Tests for OpenMetadata settings."""
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from phlo_openmetadata.settings import OpenMetadataSettings
 
@@ -18,11 +18,13 @@ def test_openmetadata_database_prefers_explicit_name():
 def test_openmetadata_database_uses_query_engine_capability():
     """Settings resolve the database name from the query engine capability."""
     settings = OpenMetadataSettings(openmetadata_database_name=None)
+    globals_dict = OpenMetadataSettings.openmetadata_database.__globals__
+    resolve_mock = Mock(return_value="iceberg_dev")
 
-    with patch(
-        "phlo_openmetadata.settings.resolve_query_engine_catalog",
-        return_value="iceberg_dev",
-    ) as resolve_mock:
+    with patch.dict(
+        globals_dict,
+        {"resolve_query_engine_catalog": resolve_mock},
+    ):
         assert settings.openmetadata_database() == "iceberg_dev"
 
     resolve_mock.assert_called_once_with("trino", default="iceberg")
