@@ -3,9 +3,8 @@
 from unittest.mock import Mock
 
 import pytest
+from phlo_openmetadata.graph import OpenMetadataLineageGraph
 from phlo_openmetadata.lineage import LineageExtractor
-
-from phlo_lineage.graph import LineageGraph
 
 
 @pytest.fixture
@@ -57,7 +56,7 @@ class TestLineageExtractor:
         """Test extractor initialization."""
         extractor = LineageExtractor()
 
-        assert isinstance(extractor.graph, LineageGraph)
+        assert isinstance(extractor.graph, OpenMetadataLineageGraph)
         assert len(extractor.graph.assets) == 0
 
     def test_extract_from_dbt_manifest(self, sample_manifest):
