@@ -2,13 +2,14 @@
 
 from typing import TYPE_CHECKING
 
-from phlo.capabilities.interfaces import SchemaExtractor, SchemaMigrator, TableStore
+from phlo.capabilities.interfaces import CatalogScanner, SchemaExtractor, SchemaMigrator, TableStore
 from phlo.capabilities.registry import (
     CapabilityRegistry,
     clear_capabilities,
     get_capability_registry,
     register_asset,
     register_catalog,
+    register_catalog_scanner,
     register_check,
     register_data_migration_source,
     register_lineage_sink,
@@ -29,6 +30,7 @@ from phlo.capabilities.runtime import (
 from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
+    CatalogScannerSpec,
     CatalogSpec,
     CheckResult,
     DataMigrationSourceSpec,
@@ -58,6 +60,8 @@ __all__ = [
     "AssetCheckSpec",
     "AssetSpec",
     "CatalogSpec",
+    "CatalogScanner",
+    "CatalogScannerSpec",
     "CapabilitySupport",
     "CapabilityRegistry",
     "CheckResult",
@@ -90,6 +94,7 @@ __all__ = [
     "missing_required_capabilities",
     "register_asset",
     "register_catalog",
+    "register_catalog_scanner",
     "register_check",
     "register_data_migration_source",
     "register_lineage_sink",

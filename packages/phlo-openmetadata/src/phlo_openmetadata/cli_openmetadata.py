@@ -9,6 +9,7 @@ import click
 from rich.console import Console
 
 from phlo.logging import get_logger
+from phlo_openmetadata.capabilities import resolve_catalog_scanner
 from phlo_openmetadata.dbt_sync import DbtManifestParser
 from phlo_openmetadata.nessie_sync import sync_nessie_tables_to_openmetadata
 from phlo_openmetadata.openmetadata import OpenMetadataClient
@@ -84,9 +85,13 @@ def sync(
         console.print("[red]OpenMetadata is not reachable[/red]")
         sys.exit(1)
 
-    from phlo_nessie.catalog_scanner import NessieTableScanner
+    try:
+        scanner = resolve_catalog_scanner("nessie")
+    except RuntimeError as exc:
+        logger.error("openmetadata_nessie_scanner_unavailable", error=str(exc))
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(1)
 
-    scanner = NessieTableScanner.from_config()
     nessie_stats = sync_nessie_tables_to_openmetadata(
         scanner,
         client,

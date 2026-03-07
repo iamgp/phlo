@@ -17,6 +17,7 @@ logger = get_logger(__name__)
 _CAPABILITY_LISTERS = {
     "table_store": "list_table_stores",
     "catalog": "list_catalogs",
+    "catalog_scanner": "list_catalog_scanners",
     "query_engine": "list_query_engines",
     "quality_backend": "list_quality_backends",
     "metadata_catalog": "list_metadata_catalogs",

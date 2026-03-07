@@ -5,6 +5,7 @@ from __future__ import annotations
 from phlo.capabilities.registry import (
     register_asset,
     register_catalog,
+    register_catalog_scanner,
     register_check,
     register_data_migration_source,
     register_governance_backend,
@@ -64,6 +65,8 @@ def discover_capabilities() -> None:
                 register_table_store(table_store)
             for catalog in plugin.get_catalogs():
                 register_catalog(catalog)
+            for catalog_scanner in plugin.get_catalog_scanners():
+                register_catalog_scanner(catalog_scanner)
             for query_engine in plugin.get_query_engines():
                 register_query_engine(query_engine)
             for quality_backend in plugin.get_quality_backends():

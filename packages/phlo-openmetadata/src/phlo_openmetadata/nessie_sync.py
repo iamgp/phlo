@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from phlo_nessie.catalog_scanner import NessieTableScanner
-
+from phlo.capabilities.interfaces import CatalogScanner
 from phlo.logging import get_logger
 from phlo_openmetadata.openmetadata import OpenMetadataClient, OpenMetadataColumn, OpenMetadataTable
 
@@ -97,7 +96,7 @@ def nessie_table_metadata_to_openmetadata_table(
 
 
 def sync_nessie_tables_to_openmetadata(
-    scanner: NessieTableScanner,
+    scanner: CatalogScanner,
     om_client: OpenMetadataClient,
     include_namespaces: list[str] | None = None,
     exclude_namespaces: list[str] | None = None,

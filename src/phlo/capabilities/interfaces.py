@@ -132,6 +132,19 @@ class VersionedCatalog(Protocol):
 
 
 @runtime_checkable
+class CatalogScanner(Protocol):
+    """Protocol for catalog scanners used by metadata synchronization flows."""
+
+    def scan_all_tables(self) -> dict[str, list[dict[str, Any]]]:
+        """Return all discovered tables grouped by namespace."""
+        ...
+
+    def get_table_metadata(self, namespace: str, table_name: str) -> dict[str, Any] | None:
+        """Return normalized metadata for one discovered table."""
+        ...
+
+
+@runtime_checkable
 class GovernanceBackend(Protocol):
     """Protocol for governance providers (access control, masking, policies)."""
 

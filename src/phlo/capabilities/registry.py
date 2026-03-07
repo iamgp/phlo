@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
+    CatalogScannerSpec,
     CatalogSpec,
     DataMigrationSourceSpec,
     GovernanceBackendSpec,
@@ -32,6 +33,7 @@ class CapabilityRegistry:
     resources: dict[str, ResourceSpec] = field(default_factory=dict)
     table_stores: dict[str, TableStoreSpec] = field(default_factory=dict)
     catalogs: dict[str, CatalogSpec] = field(default_factory=dict)
+    catalog_scanners: dict[str, CatalogScannerSpec] = field(default_factory=dict)
     query_engines: dict[str, QueryEngineSpec] = field(default_factory=dict)
     quality_backends: dict[str, QualityBackendSpec] = field(default_factory=dict)
     metadata_catalogs: dict[str, MetadataCatalogSpec] = field(default_factory=dict)
@@ -122,6 +124,16 @@ class CapabilityRegistry:
         """Return a snapshot list of registered catalog specs."""
         with self._lock:
             return list(self.catalogs.values())
+
+    def register_catalog_scanner(self, spec: CatalogScannerSpec) -> None:
+        """Register or replace a catalog scanner spec by name."""
+        with self._lock:
+            self.catalog_scanners[spec.name] = spec
+
+    def list_catalog_scanners(self) -> list[CatalogScannerSpec]:
+        """Return a snapshot list of registered catalog scanner specs."""
+        with self._lock:
+            return list(self.catalog_scanners.values())
 
     def register_query_engine(self, spec: QueryEngineSpec) -> None:
         """Register or replace a query engine spec by name."""
@@ -222,6 +234,7 @@ class CapabilityRegistry:
             self.resources.clear()
             self.table_stores.clear()
             self.catalogs.clear()
+            self.catalog_scanners.clear()
             self.query_engines.clear()
             self.quality_backends.clear()
             self.metadata_catalogs.clear()
@@ -290,6 +303,11 @@ def register_table_store(spec: TableStoreSpec) -> None:
 def register_catalog(spec: CatalogSpec) -> None:
     """Register a catalog in the process-global registry."""
     _GLOBAL_REGISTRY.register_catalog(spec)
+
+
+def register_catalog_scanner(spec: CatalogScannerSpec) -> None:
+    """Register a catalog scanner in the process-global registry."""
+    _GLOBAL_REGISTRY.register_catalog_scanner(spec)
 
 
 def register_query_engine(spec: QueryEngineSpec) -> None:

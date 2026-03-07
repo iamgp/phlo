@@ -12,6 +12,7 @@ from collections.abc import Iterable
 from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
+    CatalogScannerSpec,
     CatalogSpec,
     DataMigrationSourceSpec,
     GovernanceBackendSpec,
@@ -90,6 +91,10 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_catalogs(self) -> Iterable[CatalogSpec]:
         """Return catalog capability specs exposed by this plugin."""
+        return []
+
+    def get_catalog_scanners(self) -> Iterable[CatalogScannerSpec]:
+        """Return catalog scanner capability specs exposed by this plugin."""
         return []
 
     def get_query_engines(self) -> Iterable[QueryEngineSpec]:

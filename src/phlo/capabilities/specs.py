@@ -91,6 +91,16 @@ class CatalogSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class CatalogScannerSpec:
+    """Catalog scanner capability for metadata sync and table discovery."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
 class QueryEngineSpec:
     """Query engine capability (for example Trino, Spark SQL, DuckDB)."""
 
