@@ -2,22 +2,10 @@
 
 from __future__ import annotations
 
-from phlo.capabilities import MaintenanceReadModelSpec
+from phlo.capabilities import CapabilitySupport, MaintenanceReadModelSpec, ObservabilityBackendSpec
 from phlo.plugins import PluginMetadata, ResourceProviderPlugin
 
-from phlo_metrics.maintenance import load_maintenance_status, render_maintenance_prometheus
-
-
-class MetricsMaintenanceReadModel:
-    """Expose phlo-metrics maintenance helpers as a neutral read model."""
-
-    def load_maintenance_status(self):
-        """Load the latest maintenance status snapshot."""
-        return load_maintenance_status()
-
-    def render_maintenance_prometheus(self) -> str:
-        """Render maintenance metrics in Prometheus text format."""
-        return render_maintenance_prometheus()
+from phlo_metrics.capabilities import DefaultObservabilityBackend, MetricsMaintenanceReadModel
 
 
 class MetricsResourceProvider(ResourceProviderPlugin):
@@ -43,5 +31,30 @@ class MetricsResourceProvider(ResourceProviderPlugin):
             MaintenanceReadModelSpec(
                 name="metrics",
                 provider=MetricsMaintenanceReadModel(),
+            )
+        ]
+
+    def get_observability_backends(self) -> list[ObservabilityBackendSpec]:
+        """Expose phlo-metrics as an observability backend capability."""
+        return [
+            ObservabilityBackendSpec(
+                name="default",
+                provider=DefaultObservabilityBackend(),
+                metadata={
+                    "default_stack": [
+                        "phlo-metrics",
+                        "phlo-prometheus",
+                        "phlo-loki",
+                        "phlo-grafana",
+                        "phlo-alloy",
+                    ],
+                    "service_dependencies": ["prometheus", "loki", "grafana", "alloy"],
+                },
+                support=CapabilitySupport(
+                    supports_metrics=True,
+                    supports_logs=True,
+                    supports_dashboards=True,
+                    supports_alerts=True,
+                ),
             )
         ]

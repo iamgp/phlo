@@ -340,6 +340,8 @@ Metrics collection:
 
 ```bash
 PROMETHEUS_PORT=9090
+PROMETHEUS_PUBLIC_URL=
+PROMETHEUS_QUERY_PATH=/graph
 ```
 
 Access: http://localhost:9090
@@ -350,6 +352,8 @@ Log aggregation:
 
 ```bash
 LOKI_PORT=3100
+LOKI_PUBLIC_URL=
+LOKI_LOGS_PATH=/logs
 ```
 
 #### Grafana
@@ -360,9 +364,21 @@ Dashboards and visualization:
 GRAFANA_PORT=3000
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=admin
+GRAFANA_PUBLIC_URL=
+GRAFANA_DASHBOARD_PATH_TEMPLATE=/d/{uid}
 ```
 
 Access: http://localhost:3000
+
+#### Observability Link Resolution
+
+```bash
+PHLO_OBSERVABILITY_PUBLIC_HOST=localhost
+PHLO_OBSERVABILITY_PUBLIC_SCHEME=http
+```
+
+- Set `*_PUBLIC_URL` when Grafana, Loki, or Prometheus are exposed behind a proxy or custom domain.
+- If `*_PUBLIC_URL` is unset, Phlo builds links from `PHLO_OBSERVABILITY_PUBLIC_SCHEME`, `PHLO_OBSERVABILITY_PUBLIC_HOST`, and the configured service port.
 
 ### Alerting Configuration
 

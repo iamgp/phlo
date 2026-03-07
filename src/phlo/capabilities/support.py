@@ -21,6 +21,10 @@ class CapabilitySupport:
     supports_atomic_validation: bool = False
     supports_promote: bool = False
     supports_time_travel: bool = False
+    supports_metrics: bool = False
+    supports_logs: bool = False
+    supports_dashboards: bool = False
+    supports_alerts: bool = False
 
     def to_dict(self) -> dict[str, bool]:
         """Return the support metadata as a plain dictionary."""
@@ -50,6 +54,10 @@ def coerce_capability_support(
             "supports_atomic_validation",
             "supports_promote",
             "supports_time_travel",
+            "supports_metrics",
+            "supports_logs",
+            "supports_dashboards",
+            "supports_alerts",
         }
         payload = {key: bool(raw_value) for key, raw_value in value.items() if key in allowed_keys}
         return CapabilitySupport(**payload)

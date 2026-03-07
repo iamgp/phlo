@@ -17,6 +17,7 @@ from phlo.capabilities.specs import (
     LineageSinkSpec,
     MaintenanceReadModelSpec,
     MetadataCatalogSpec,
+    ObservabilityBackendSpec,
     PublishTargetSpec,
     QualityBackendSpec,
     QueryEngineSpec,
@@ -49,6 +50,7 @@ class CapabilityRegistry:
     secret_backends: dict[str, SecretBackendSpec] = field(default_factory=dict)
     schema_migrators: dict[str, SchemaMigrationSpec] = field(default_factory=dict)
     data_migration_sources: dict[str, DataMigrationSourceSpec] = field(default_factory=dict)
+    observability_backends: dict[str, ObservabilityBackendSpec] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def register_asset(self, spec: AssetSpec) -> None:
@@ -261,6 +263,16 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.data_migration_sources.values())
 
+    def register_observability_backend(self, spec: ObservabilityBackendSpec) -> None:
+        """Register or replace an observability backend spec by name."""
+        with self._lock:
+            self.observability_backends[spec.name] = spec
+
+    def list_observability_backends(self) -> list[ObservabilityBackendSpec]:
+        """Return a snapshot list of registered observability backend specs."""
+        with self._lock:
+            return list(self.observability_backends.values())
+
     def clear(self) -> None:
         """Remove all assets, checks, and resources from the registry."""
 
@@ -283,6 +295,7 @@ class CapabilityRegistry:
             self.secret_backends.clear()
             self.schema_migrators.clear()
             self.data_migration_sources.clear()
+            self.observability_backends.clear()
 
     def clear_checks(self) -> None:
         """Remove all registered checks while preserving assets/resources."""
@@ -405,8 +418,13 @@ def register_schema_migrator(spec: SchemaMigrationSpec) -> None:
 
 
 def register_data_migration_source(spec: DataMigrationSourceSpec) -> None:
-    """Register a data migration source adapter in the process-global registry."""
+    """Register a data migration source adapter in the global registry."""
     _GLOBAL_REGISTRY.register_data_migration_source(spec)
+
+
+def register_observability_backend(spec: ObservabilityBackendSpec) -> None:
+    """Register an observability backend in the global registry."""
+    _GLOBAL_REGISTRY.register_observability_backend(spec)
 
 
 def clear_capabilities() -> None:

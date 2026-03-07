@@ -28,4 +28,8 @@ def test_plugin_metadata_to_dict_includes_support() -> None:
         "supports_atomic_validation": True,
         "supports_promote": False,
         "supports_time_travel": False,
+        "supports_metrics": False,
+        "supports_logs": False,
+        "supports_dashboards": False,
+        "supports_alerts": False,
     }

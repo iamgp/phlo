@@ -55,6 +55,12 @@ env_vars:
     default: admin
     description: Grafana admin password
     secret: true
+  GRAFANA_PUBLIC_URL:
+    default: ""
+    description: Public Grafana base URL used by observability links
+  GRAFANA_DASHBOARD_PATH_TEMPLATE:
+    default: "/d/{uid}"
+    description: Path template used to build dashboard links from dashboard UIDs
 
 files:
   - source: provisioning

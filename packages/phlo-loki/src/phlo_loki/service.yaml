@@ -40,6 +40,12 @@ env_vars:
   LOKI_PORT:
     default: 3100
     description: Loki API port
+  LOKI_PUBLIC_URL:
+    default: ""
+    description: Public Loki base URL used by observability links
+  LOKI_LOGS_PATH:
+    default: "/logs"
+    description: Path used to build Loki log query links
 
 files:
   - source: loki-config.yml

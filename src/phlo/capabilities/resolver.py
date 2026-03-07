@@ -29,6 +29,7 @@ _CAPABILITY_LISTERS = {
     "api_backend": "list_api_backends",
     "secret_backend": "list_secret_backends",
     "schema_migrator": "list_schema_migrators",
+    "observability_backend": "list_observability_backends",
 }
 
 

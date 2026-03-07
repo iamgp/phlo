@@ -578,6 +578,97 @@ export const searchApi = {
 }
 
 // ============================================================================
+// Observability API
+// ============================================================================
+
+export interface HealthSummaryResponse {
+  overall_status: string
+  components: Record<string, string>
+  timestamp: string
+}
+
+export interface ServiceStatusResponse {
+  name: string
+  status: string
+  last_check: string
+}
+
+export interface PlatformMetricsResponse {
+  period: string
+  metrics: Record<string, unknown>
+  timestamp: string
+}
+
+export interface AlertResponse {
+  title: string
+  severity: string
+  status: string
+  fired_at: string
+}
+
+export interface DashboardLinkResponse {
+  title: string
+  url: string
+  category?: string
+}
+
+export const observabilityApi = {
+  getHealthSummary: (backend?: string) =>
+    apiGet<HealthSummaryResponse | { error: string }>('/observability/health', {
+      backend,
+    }),
+
+  getServiceStatus: (backend?: string) =>
+    apiGet<Array<ServiceStatusResponse> | { error: string }>(
+      '/observability/services',
+      {
+        backend,
+      },
+    ),
+
+  getPlatformMetrics: (period?: string, backend?: string) =>
+    apiGet<PlatformMetricsResponse | { error: string }>(
+      '/observability/metrics',
+      {
+        period,
+        backend,
+      },
+    ),
+
+  getRecentAlerts: (limit?: number, backend?: string) =>
+    apiGet<Array<AlertResponse> | { error: string }>('/observability/alerts', {
+      limit,
+      backend,
+    }),
+
+  getDashboardLinks: (backend?: string) =>
+    apiGet<Array<DashboardLinkResponse> | { error: string }>(
+      '/observability/dashboards',
+      {
+        backend,
+      },
+    ),
+
+  getLogsQueryLink: (service?: string, backend?: string) =>
+    apiGet<{ url: string | null } | { error: string }>(
+      '/observability/links/logs',
+      {
+        service,
+        backend,
+      },
+    ),
+
+  getMetricsQueryLink: (metric?: string, backend?: string) =>
+    apiGet<{ url: string | null } | { error: string }>(
+      '/observability/links/metrics',
+      {
+        metric,
+        backend,
+      },
+    ),
+}
+
+// ============================================================================
 // Unified API export
 // ============================================================================
 
@@ -590,6 +681,7 @@ export const api = {
   loki: lokiApi,
   lineage: lineageApi,
   search: searchApi,
+  observability: observabilityApi,
 }
 
 export default api

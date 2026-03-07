@@ -14,6 +14,7 @@ from phlo.capabilities.registry import (
     register_lineage_sink,
     register_maintenance_read_model,
     register_metadata_catalog,
+    register_observability_backend,
     register_publish_target,
     register_quality_backend,
     register_query_engine,
@@ -94,6 +95,8 @@ def discover_capabilities() -> None:
                 register_schema_migrator(schema_migrator)
             for source_adapter in plugin.get_data_migration_sources():
                 register_data_migration_source(source_adapter)
+            for observability_backend in plugin.get_observability_backends():
+                register_observability_backend(observability_backend)
         except Exception as exc:
             logger.warning(
                 "capability_resource_provider_registration_failed",
