@@ -30,18 +30,43 @@ logger = get_logger(__name__)
 
 router = APIRouter(tags=["trino"])
 
-DEFAULT_TRINO_URL = "http://trino:8080"
 _DEFAULT_QUERY_ENGINE_ENV = "PHLO_QUERY_ENGINE"
+_QUERY_ENGINE_URL_ENV = "PHLO_QUERY_ENGINE_URL"
+_DISCOVERY_SCHEMAS_ENV = "PHLO_API_DISCOVERY_SCHEMAS"
+
+
+def _resolve_query_engine() -> Any | None:
+    discover_capabilities()
+    return resolve_capability("query_engine", os.environ.get(_DEFAULT_QUERY_ENGINE_ENV))
 
 
 def resolve_trino_url(override: str | None = None) -> str:
-    """Resolve the Trino URL from override, environment, or default."""
-    env_url = os.environ.get("TRINO_URL")
+    """Resolve the query-engine URL from override, environment, or capability metadata."""
+    env_url = os.environ.get(_QUERY_ENGINE_URL_ENV) or os.environ.get("TRINO_URL")
     if override and override.strip():
-        if env_url and override.strip() == "http://localhost:8080":
-            return env_url
         return override
-    return env_url or DEFAULT_TRINO_URL
+    if env_url:
+        return env_url
+
+    resolution = _resolve_query_engine()
+    if resolution is not None:
+        for key in ("url", "http_url", "endpoint"):
+            value = resolution.metadata.get(key)
+            if isinstance(value, str) and value:
+                return value
+
+        host = resolution.metadata.get("host")
+        port = resolution.metadata.get("port")
+        scheme = (
+            resolution.metadata.get("scheme") or resolution.metadata.get("http_scheme") or "http"
+        )
+        if isinstance(host, str) and host and port is not None:
+            return f"{scheme}://{host}:{port}"
+
+    raise RuntimeError(
+        "No query-engine URL is configured. Set PHLO_QUERY_ENGINE_URL or TRINO_URL, "
+        "or expose query_engine capability metadata with host/port or a URL."
+    )
 
 
 def resolve_default_catalog() -> str:
@@ -50,8 +75,7 @@ def resolve_default_catalog() -> str:
     if env_catalog:
         return env_catalog
 
-    discover_capabilities()
-    resolution = resolve_capability("query_engine", os.environ.get(_DEFAULT_QUERY_ENGINE_ENV))
+    resolution = _resolve_query_engine()
     if resolution is not None:
         for key in ("default_catalog", "catalog", "catalog_name"):
             value = resolution.metadata.get(key)
@@ -69,8 +93,7 @@ def resolve_default_ref() -> str:
     if env_ref:
         return env_ref
 
-    discover_capabilities()
-    resolution = resolve_capability("query_engine", os.environ.get(_DEFAULT_QUERY_ENGINE_ENV))
+    resolution = _resolve_query_engine()
     if resolution is not None:
         for key in ("default_ref", "ref", "catalog_ref"):
             value = resolution.metadata.get(key)
@@ -80,6 +103,42 @@ def resolve_default_ref() -> str:
         "No default ref is configured. Set PHLO_DEFAULT_REF or expose query_engine "
         "capability metadata with a default_ref."
     )
+
+
+def resolve_table_discovery_schemas(
+    preferred_schema: str | None = None,
+    branch: str | None = None,
+) -> list[str]:
+    """Resolve schemas to query when listing catalog tables."""
+    if preferred_schema and preferred_schema.strip():
+        return [preferred_schema.strip()]
+
+    env_schemas = os.environ.get(_DISCOVERY_SCHEMAS_ENV)
+    if env_schemas:
+        schemas = [schema.strip() for schema in env_schemas.split(",") if schema.strip()]
+        if schemas:
+            return schemas
+
+    resolution = _resolve_query_engine()
+    if resolution is not None:
+        for key in ("discovery_schemas", "table_schemas", "schemas"):
+            value = resolution.metadata.get(key)
+            if isinstance(value, list):
+                schemas = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+                if schemas:
+                    return schemas
+
+    if branch and branch.strip():
+        return [branch.strip()]
+
+    try:
+        return [resolve_default_ref()]
+    except RuntimeError as exc:
+        raise RuntimeError(
+            "No table-discovery schemas are configured. Set PHLO_API_DISCOVERY_SCHEMAS, "
+            "pass a branch/preferred_schema, or expose query_engine capability metadata "
+            "with discovery_schemas."
+        ) from exc
 
 
 # --- Pydantic Models ---
@@ -163,12 +222,11 @@ async def execute_trino_query(
 
     Trino uses a multi-stage query execution model with polling.
     """
-    url = resolve_trino_url(trino_url)
-    timeout = timeout_ms / 1000.0
-    effective_catalog = catalog or resolve_default_catalog()
-    effective_schema = schema or resolve_default_ref()
-
     try:
+        url = resolve_trino_url(trino_url)
+        timeout = timeout_ms / 1000.0
+        effective_catalog = catalog or resolve_default_catalog()
+        effective_schema = schema or resolve_default_ref()
         start_time = monotonic()
         async with httpx.AsyncClient(timeout=timeout) as client:
             # Submit query
@@ -234,6 +292,8 @@ async def execute_trino_query(
 
             return {"columns": columns, "column_types": column_types, "rows": rows}
 
+    except RuntimeError as exc:
+        return QueryExecutionError(error=str(exc), kind="validation")
     except httpx.TimeoutException:
         return QueryExecutionError(error="Query timed out", kind="timeout")
     except Exception as e:

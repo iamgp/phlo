@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from phlo.logging import get_logger
 from phlo_api.observatory_api.dagster import get_assets
 from phlo_api.observatory_api.iceberg import get_table_schema, get_tables
-from phlo_api.observatory_api.trino import resolve_default_catalog, resolve_default_ref
+from phlo_api.observatory_api.trino import resolve_default_catalog
 
 logger = get_logger(__name__)
 
@@ -116,11 +116,10 @@ async def get_search_index(
     """
     try:
         effective_catalog = catalog or resolve_default_catalog()
-        effective_branch = branch or resolve_default_ref()
         # Fetch assets and tables in parallel
         assets_result, tables_result = await asyncio.gather(
             get_assets(dagster_url),
-            get_tables(effective_branch, effective_catalog, None, trino_url),
+            get_tables(branch, effective_catalog, None, trino_url),
         )
 
         # Handle errors
@@ -163,7 +162,7 @@ async def get_search_index(
                     schema_result = await get_table_schema(
                         table.name,
                         table.schema_name,
-                        effective_branch,
+                        None,
                         effective_catalog,
                         trino_url,
                     )

@@ -19,6 +19,7 @@ from phlo_api.observatory_api.trino import (
     quote_identifier,
     resolve_default_catalog,
     resolve_default_ref,
+    resolve_table_discovery_schemas,
 )
 
 logger = get_logger(__name__)
@@ -182,9 +183,9 @@ def infer_layer_from_schema(schema: str, table_name: str) -> Layer:
 
 
 async def fetch_tables(
-    branch: str,
+    branch: str | None,
     catalog: str,
-    preferred_schema: str | None,
+    schemas_to_query: list[str],
     trino_url: str | None,
     timeout_ms: int,
 ) -> list[IcebergTable] | dict[str, str]:
@@ -193,21 +194,13 @@ async def fetch_tables(
     Args:
         branch: Branch/schema fallback name.
         catalog: Trino catalog name.
-        preferred_schema: Optional schema to prioritize.
+        schemas_to_query: Explicit schemas to query.
         trino_url: Optional Trino URL override.
         timeout_ms: Query timeout in milliseconds.
 
     Returns:
         Table list or an error dictionary.
     """
-    schemas_to_query = ["bronze", "silver", "gold", "raw", "marts", "publish"]
-
-    # Prioritize preferred schema
-    if preferred_schema and preferred_schema in schemas_to_query:
-        schemas_to_query = [preferred_schema] + [
-            s for s in schemas_to_query if s != preferred_schema
-        ]
-
     all_tables: list[IcebergTable] = []
     seen_tables: set[str] = set()
     errors: list[str] = []
@@ -235,7 +228,7 @@ async def fetch_tables(
                 )
 
     # If no tables found in standard schemas, try branch as schema
-    if not all_tables and errors:
+    if not all_tables and errors and branch and branch not in schemas_to_query:
         # Try branch as the schema name
         sql = f"SHOW TABLES FROM {quote_identifier(catalog)}.{quote_identifier(branch)}"
         result = await execute_trino_query(sql, catalog, branch, trino_url, timeout_ms)
@@ -338,19 +331,18 @@ async def get_tables(
     """
     try:
         effective_catalog = catalog or resolve_default_catalog()
-        effective_branch = branch or resolve_default_ref()
+        effective_branch = branch
+        schemas_to_query = resolve_table_discovery_schemas(preferred_schema, branch)
     except RuntimeError as exc:
         return {"error": str(exc)}
 
-    cache_key = (
-        f"tables:{effective_catalog}:{effective_branch}:{preferred_schema}:{trino_url or 'default'}"
-    )
+    cache_key = f"tables:{effective_catalog}:{effective_branch}:{','.join(schemas_to_query)}:{trino_url or 'default'}"
     cached = _cache_get(cache_key, CACHE_TTL_TABLES)
     if cached is not None:
         return cached
 
     result = await fetch_tables(
-        effective_branch, effective_catalog, preferred_schema, trino_url, timeout_ms
+        effective_branch, effective_catalog, schemas_to_query, trino_url, timeout_ms
     )
     if not isinstance(result, dict):
         _cache_set(cache_key, result)

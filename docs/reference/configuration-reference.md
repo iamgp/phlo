@@ -137,6 +137,26 @@ TRINO_CATALOG=iceberg
 trino://trino:10005/iceberg_dev
 ```
 
+### API Backend Configuration
+
+Observatory API runtime routing:
+
+```bash
+PHLO_API_PORT=4000
+HOST=0.0.0.0
+PHLO_QUERY_ENGINE_URL=
+PHLO_QUERY_CATALOG=
+PHLO_DEFAULT_REF=
+PHLO_API_DISCOVERY_SCHEMAS=
+```
+
+Notes:
+
+- `PHLO_QUERY_ENGINE_URL` is required unless the resolved `query_engine` capability exposes `url`, `http_url`, or `host`/`port` metadata.
+- `PHLO_QUERY_CATALOG` is required unless the resolved `query_engine` capability exposes `default_catalog`.
+- `PHLO_DEFAULT_REF` is required for ref-dependent endpoints unless the resolved `query_engine` capability exposes `default_ref`.
+- `PHLO_API_DISCOVERY_SCHEMAS` is optional only when table discovery can use request `branch`/`preferred_schema` values or `query_engine` capability metadata such as `discovery_schemas`.
+
 ### dbt Runtime Configuration
 
 Generated dbt profile settings:
