@@ -11,7 +11,7 @@ from phlo.capabilities import (
     clear_capabilities,
     register_observability_backend,
 )
-from phlo_api.observatory_api import observability
+from phlo_api.api import observability
 
 
 class _MockObservabilityBackend:

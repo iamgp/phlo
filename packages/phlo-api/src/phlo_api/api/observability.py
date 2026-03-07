@@ -1,6 +1,6 @@
 """Observability API Router.
 
-Endpoints for platform observability backed by the observability_backend capability.
+Endpoints for platform observability backed by the observability backend capability.
 """
 
 from __future__ import annotations
@@ -23,13 +23,7 @@ _DEFAULT_BACKEND_ENV = "PHLO_OBSERVABILITY_BACKEND"
 
 
 def _resolve_observability_backend(backend_name: str | None = None) -> Any:
-    """Resolve the configured observability backend capability.
-
-    Args:
-        backend_name: Optional explicit backend name. If not provided, uses
-            PHLO_OBSERVABILITY_BACKEND env var, or falls back to resolving
-            without a name (requires exactly one provider).
-    """
+    """Resolve the configured observability backend capability."""
     discover_capabilities()
 
     name = backend_name or os.environ.get(_DEFAULT_BACKEND_ENV)

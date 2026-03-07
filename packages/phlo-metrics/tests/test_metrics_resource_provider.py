@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from phlo_metrics.resource_provider import DefaultObservabilityBackend, MetricsResourceProvider
+from phlo_metrics.capabilities import DefaultObservabilityBackend
+from phlo_metrics.resource_provider import MetricsResourceProvider
 
 
 class _Operation:
