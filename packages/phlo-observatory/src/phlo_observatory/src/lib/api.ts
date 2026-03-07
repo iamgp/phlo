@@ -614,18 +614,26 @@ export interface DashboardLinkResponse {
 
 export const observabilityApi = {
   getHealthSummary: (backend?: string) =>
-    apiGet<HealthSummaryResponse | { error: string }>('/observability/health', { backend }),
+    apiGet<HealthSummaryResponse | { error: string }>('/observability/health', {
+      backend,
+    }),
 
   getServiceStatus: (backend?: string) =>
-    apiGet<Array<ServiceStatusResponse> | { error: string }>('/observability/services', {
-      backend,
-    }),
+    apiGet<Array<ServiceStatusResponse> | { error: string }>(
+      '/observability/services',
+      {
+        backend,
+      },
+    ),
 
   getPlatformMetrics: (period?: string, backend?: string) =>
-    apiGet<PlatformMetricsResponse | { error: string }>('/observability/metrics', {
-      period,
-      backend,
-    }),
+    apiGet<PlatformMetricsResponse | { error: string }>(
+      '/observability/metrics',
+      {
+        period,
+        backend,
+      },
+    ),
 
   getRecentAlerts: (limit?: number, backend?: string) =>
     apiGet<Array<AlertResponse> | { error: string }>('/observability/alerts', {
@@ -634,21 +642,30 @@ export const observabilityApi = {
     }),
 
   getDashboardLinks: (backend?: string) =>
-    apiGet<Array<DashboardLinkResponse> | { error: string }>('/observability/dashboards', {
-      backend,
-    }),
+    apiGet<Array<DashboardLinkResponse> | { error: string }>(
+      '/observability/dashboards',
+      {
+        backend,
+      },
+    ),
 
   getLogsQueryLink: (service?: string, backend?: string) =>
-    apiGet<{ url: string | null } | { error: string }>('/observability/links/logs', {
-      service,
-      backend,
-    }),
+    apiGet<{ url: string | null } | { error: string }>(
+      '/observability/links/logs',
+      {
+        service,
+        backend,
+      },
+    ),
 
   getMetricsQueryLink: (metric?: string, backend?: string) =>
-    apiGet<{ url: string | null } | { error: string }>('/observability/links/metrics', {
-      metric,
-      backend,
-    }),
+    apiGet<{ url: string | null } | { error: string }>(
+      '/observability/links/metrics',
+      {
+        metric,
+        backend,
+      },
+    ),
 }
 
 // ============================================================================

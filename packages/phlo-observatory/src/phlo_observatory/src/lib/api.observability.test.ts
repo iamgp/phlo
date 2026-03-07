@@ -12,7 +12,9 @@ describe('observabilityApi', () => {
   it('passes backend selection through health requests', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response(JSON.stringify({ overall_status: 'healthy' })))
+      .mockResolvedValue(
+        new Response(JSON.stringify({ overall_status: 'healthy' })),
+      )
 
     await observabilityApi.getHealthSummary('custom')
 
@@ -25,7 +27,9 @@ describe('observabilityApi', () => {
   it('passes backend selection through parameterized requests', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response(JSON.stringify({ url: 'http://loki:3100/logs' })))
+      .mockResolvedValue(
+        new Response(JSON.stringify({ url: 'http://loki:3100/logs' })),
+      )
 
     await observabilityApi.getLogsQueryLink('dagster', 'custom')
 
