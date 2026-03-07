@@ -1,12 +1,12 @@
-"""Tests for Trino's Nessie-backed catalog plugins."""
+"""Tests for Nessie's optional Trino catalog adapter."""
 
-from phlo_trino.nessie_catalog_plugin import (
+from phlo_nessie.adapters.trino import (
     TrinoNessieIcebergCatalogPlugin,
     TrinoNessieIcebergDevCatalogPlugin,
 )
 
 
-def test_nessie_catalog_plugin_exposes_main_catalog_properties(monkeypatch) -> None:
+def test_trino_catalog_plugin_exposes_main_catalog_properties(monkeypatch) -> None:
     """Main catalog plugin should emit Nessie-backed Trino properties."""
     monkeypatch.setenv("NESSIE_HOST", "nessie")
     monkeypatch.setenv("NESSIE_PORT", "19120")
@@ -19,7 +19,7 @@ def test_nessie_catalog_plugin_exposes_main_catalog_properties(monkeypatch) -> N
     assert "iceberg.rest-catalog.prefix" not in props
 
 
-def test_nessie_catalog_plugin_exposes_dev_catalog_prefix(monkeypatch) -> None:
+def test_trino_catalog_plugin_exposes_dev_catalog_prefix(monkeypatch) -> None:
     """Dev catalog plugin should pin the Trino prefix to the dev ref."""
     monkeypatch.setenv("NESSIE_HOST", "nessie")
     monkeypatch.setenv("NESSIE_PORT", "19120")

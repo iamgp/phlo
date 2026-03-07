@@ -40,10 +40,6 @@ trino = "phlo_trino.plugin:TrinoServicePlugin"
 [project.entry-points."phlo.plugins.observatory"]
 trino = "phlo_trino.observatory_plugin:TrinoObservatoryExtension"
 
-[project.entry-points."phlo.plugins.catalogs"]
-iceberg = "phlo_trino.nessie_catalog_plugin:TrinoNessieIcebergCatalogPlugin"
-iceberg_dev = "phlo_trino.nessie_catalog_plugin:TrinoNessieIcebergDevCatalogPlugin"
-
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
