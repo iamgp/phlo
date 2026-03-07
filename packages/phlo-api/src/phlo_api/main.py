@@ -52,6 +52,7 @@ _OBSERVATORY_ROUTERS = [
     ("lineage", "/api/lineage"),
     ("maintenance", "/api/maintenance"),
     ("search", "/api/search"),
+    ("observability", "/api/observability"),
 ]
 
 _OBSERVATORY_ROUTERS_NO_PREFIX = [

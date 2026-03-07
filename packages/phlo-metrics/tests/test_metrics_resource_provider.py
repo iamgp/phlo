@@ -2,7 +2,22 @@
 
 from __future__ import annotations
 
-from phlo_metrics.resource_provider import MetricsResourceProvider
+from datetime import datetime, timedelta, timezone
+
+from phlo_metrics.resource_provider import DefaultObservabilityBackend, MetricsResourceProvider
+
+
+class _Operation:
+    def __init__(self, operation: str, status: str, completed_at: datetime, job_name: str | None):
+        self.operation = operation
+        self.status = status
+        self.completed_at = completed_at
+        self.job_name = job_name
+
+
+class _Snapshot:
+    def __init__(self, operations: list[_Operation]):
+        self.operations = operations
 
 
 def test_metrics_resource_provider_exposes_maintenance_read_model() -> None:
@@ -14,3 +29,94 @@ def test_metrics_resource_provider_exposes_maintenance_read_model() -> None:
     assert [spec.name for spec in specs] == ["metrics"]
     assert hasattr(specs[0].provider, "load_maintenance_status")
     assert hasattr(specs[0].provider, "render_maintenance_prometheus")
+
+
+def test_metrics_resource_provider_exposes_observability_backend() -> None:
+    """Metrics package should register a default observability backend."""
+    provider = MetricsResourceProvider()
+
+    specs = provider.get_observability_backends()
+
+    assert [spec.name for spec in specs] == ["default"]
+    assert isinstance(specs[0].provider, DefaultObservabilityBackend)
+
+
+def test_default_observability_backend_has_required_methods() -> None:
+    """Default observability backend should implement the ObservabilityBackend protocol."""
+    backend = DefaultObservabilityBackend()
+
+    assert hasattr(backend, "health_summary")
+    assert hasattr(backend, "service_status")
+    assert hasattr(backend, "platform_metrics")
+    assert hasattr(backend, "recent_alerts")
+    assert hasattr(backend, "dashboard_links")
+    assert hasattr(backend, "logs_query_link")
+    assert hasattr(backend, "metrics_query_link")
+
+
+def test_default_observability_backend_returns_expected_types() -> None:
+    """Default observability backend methods should return expected types."""
+    backend = DefaultObservabilityBackend()
+
+    health = backend.health_summary()
+    assert hasattr(health, "overall_status")
+    assert hasattr(health, "components")
+    assert hasattr(health, "timestamp")
+
+    services = backend.service_status()
+    assert isinstance(services, list)
+
+    metrics = backend.platform_metrics("24h")
+    assert hasattr(metrics, "period")
+    assert hasattr(metrics, "metrics")
+    assert hasattr(metrics, "timestamp")
+
+    alerts = backend.recent_alerts(10)
+    assert isinstance(alerts, list)
+
+    links = backend.dashboard_links()
+    assert isinstance(links, list)
+
+    logs_link = backend.logs_query_link("test-service")
+    assert isinstance(logs_link, str) or logs_link is None
+
+    metrics_link = backend.metrics_query_link("test_metric")
+    assert isinstance(metrics_link, str) or metrics_link is None
+
+
+def test_recent_alerts_limits_after_filtering_failures(monkeypatch) -> None:
+    """Alert limit should apply after selecting failed operations."""
+    now = datetime.now(timezone.utc)
+    backend = DefaultObservabilityBackend()
+    snapshot = _Snapshot(
+        operations=[
+            _Operation("compact", "completed", now, "dagster"),
+            _Operation("expire", "completed", now - timedelta(minutes=1), "dagster"),
+            _Operation("cleanup", "failed", now - timedelta(minutes=2), "dagster"),
+            _Operation("vacuum", "failed", now - timedelta(minutes=3), "dagster"),
+        ]
+    )
+    monkeypatch.setattr(backend._maintenance, "load_maintenance_status", lambda: snapshot)
+
+    alerts = backend.recent_alerts(1)
+
+    assert len(alerts) == 1
+    assert alerts[0].title == "Maintenance operation cleanup failed"
+
+
+def test_service_status_is_sorted_deterministically(monkeypatch) -> None:
+    """Service list should not depend on set iteration order."""
+    now = datetime.now(timezone.utc)
+    backend = DefaultObservabilityBackend()
+    snapshot = _Snapshot(
+        operations=[
+            _Operation("compact", "completed", now, "zeta"),
+            _Operation("expire", "completed", now - timedelta(minutes=1), "alpha"),
+            _Operation("vacuum", "completed", now - timedelta(minutes=2), "alpha"),
+        ]
+    )
+    monkeypatch.setattr(backend._maintenance, "load_maintenance_status", lambda: snapshot)
+
+    services = backend.service_status()
+
+    assert [service.name for service in services] == ["alpha", "zeta"]
