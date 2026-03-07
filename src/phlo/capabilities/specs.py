@@ -121,6 +121,16 @@ class QualityBackendSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class MaintenanceReadModelSpec:
+    """Maintenance and observability read-model capability."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
 class MetadataCatalogSpec:
     """Metadata catalog capability (for example OpenMetadata)."""
 
@@ -153,6 +163,16 @@ class GovernanceBackendSpec:
 @dataclass(frozen=True, slots=True)
 class PublishTargetSpec:
     """Publish target capability (for example Postgres marts, warehouse export sink)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
+class AlertSinkSpec:
+    """Alert sink capability (for example PagerDuty/Slack manager)."""
 
     name: str
     provider: Any

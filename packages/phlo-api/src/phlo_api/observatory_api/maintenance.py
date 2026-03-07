@@ -12,11 +12,23 @@ from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
+from phlo.capabilities import MaintenanceReadModel, resolve_capability
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["maintenance"])
+
+
+def _resolve_maintenance_read_model() -> MaintenanceReadModel:
+    """Resolve the configured maintenance read-model capability."""
+    resolution = resolve_capability("maintenance_read_model", "metrics")
+    if resolution is None:
+        raise RuntimeError(
+            "Maintenance observability requires a maintenance_read_model capability. "
+            "Install phlo-metrics or another provider."
+        )
+    return resolution.provider
 
 
 class MaintenanceOperationStatus(BaseModel):
@@ -51,9 +63,7 @@ def get_maintenance_status() -> MaintenanceStatusSnapshot | dict[str, str]:
     """Get maintenance status derived from telemetry logs."""
 
     try:
-        from phlo_metrics.maintenance import load_maintenance_status
-
-        snapshot = load_maintenance_status()
+        snapshot = _resolve_maintenance_read_model().load_maintenance_status()
         logger.debug("maintenance_status_loaded", operation_count=len(snapshot.operations))
         return _serialize_snapshot(snapshot)
     except Exception as exc:
@@ -66,9 +76,7 @@ def get_maintenance_metrics() -> PlainTextResponse:
     """Expose maintenance metrics in Prometheus text format."""
 
     try:
-        from phlo_metrics.maintenance import render_maintenance_prometheus
-
-        metrics_payload = render_maintenance_prometheus()
+        metrics_payload = _resolve_maintenance_read_model().render_maintenance_prometheus()
         logger.debug("maintenance_metrics_rendered", payload_length=len(metrics_payload))
         return PlainTextResponse(metrics_payload)
     except Exception as exc:

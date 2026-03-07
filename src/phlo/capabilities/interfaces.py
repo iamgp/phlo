@@ -209,6 +209,20 @@ class MetadataCatalog(Protocol):
 
 
 @runtime_checkable
+class QueryEngine(Protocol):
+    """Protocol for SQL query engines used by maintenance and discovery flows."""
+
+    def execute(
+        self,
+        sql: str,
+        params: Any = None,
+        schema: str | None = None,
+    ) -> Any:
+        """Execute SQL and return provider-native results."""
+        ...
+
+
+@runtime_checkable
 class LineageSink(Protocol):
     """Protocol for lineage backends and queryable lineage stores."""
 
@@ -254,6 +268,24 @@ class MaintenanceReadModel(Protocol):
 
     def render_maintenance_prometheus(self) -> str:
         """Render maintenance metrics in Prometheus text format."""
+        ...
+
+
+@runtime_checkable
+class AlertSink(Protocol):
+    """Protocol for alerting providers used by orchestrators and APIs."""
+
+    def send_alert(
+        self,
+        *,
+        title: str,
+        message: str,
+        severity: str | None = None,
+        asset_name: str | None = None,
+        run_id: str | None = None,
+        error_message: str | None = None,
+    ) -> bool:
+        """Send one alert notification."""
         ...
 
 

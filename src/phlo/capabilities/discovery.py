@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from phlo.capabilities.registry import (
+    register_alert_sink,
     register_asset,
     register_catalog,
     register_catalog_scanner,
@@ -10,6 +11,7 @@ from phlo.capabilities.registry import (
     register_data_migration_source,
     register_governance_backend,
     register_lineage_sink,
+    register_maintenance_read_model,
     register_metadata_catalog,
     register_publish_target,
     register_quality_backend,
@@ -71,6 +73,8 @@ def discover_capabilities() -> None:
                 register_query_engine(query_engine)
             for quality_backend in plugin.get_quality_backends():
                 register_quality_backend(quality_backend)
+            for maintenance_read_model in plugin.get_maintenance_read_models():
+                register_maintenance_read_model(maintenance_read_model)
             for metadata_catalog in plugin.get_metadata_catalogs():
                 register_metadata_catalog(metadata_catalog)
             for lineage_sink in plugin.get_lineage_sinks():
@@ -79,6 +83,8 @@ def discover_capabilities() -> None:
                 register_governance_backend(governance_backend)
             for publish_target in plugin.get_publish_targets():
                 register_publish_target(publish_target)
+            for alert_sink in plugin.get_alert_sinks():
+                register_alert_sink(alert_sink)
             for secret_backend in plugin.get_secret_backends():
                 register_secret_backend(secret_backend)
             for schema_migrator in plugin.get_schema_migrators():

@@ -20,10 +20,12 @@ _CAPABILITY_LISTERS = {
     "catalog_scanner": "list_catalog_scanners",
     "query_engine": "list_query_engines",
     "quality_backend": "list_quality_backends",
+    "maintenance_read_model": "list_maintenance_read_models",
     "metadata_catalog": "list_metadata_catalogs",
     "lineage_sink": "list_lineage_sinks",
     "governance_backend": "list_governance_backends",
     "publish_target": "list_publish_targets",
+    "alert_sink": "list_alert_sinks",
     "secret_backend": "list_secret_backends",
     "schema_migrator": "list_schema_migrators",
 }

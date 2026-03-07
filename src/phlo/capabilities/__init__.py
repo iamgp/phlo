@@ -2,17 +2,27 @@
 
 from typing import TYPE_CHECKING
 
-from phlo.capabilities.interfaces import CatalogScanner, SchemaExtractor, SchemaMigrator, TableStore
+from phlo.capabilities.interfaces import (
+    AlertSink,
+    CatalogScanner,
+    MaintenanceReadModel,
+    QueryEngine,
+    SchemaExtractor,
+    SchemaMigrator,
+    TableStore,
+)
 from phlo.capabilities.registry import (
     CapabilityRegistry,
     clear_capabilities,
     get_capability_registry,
+    register_alert_sink,
     register_asset,
     register_catalog,
     register_catalog_scanner,
     register_check,
     register_data_migration_source,
     register_lineage_sink,
+    register_maintenance_read_model,
     register_metadata_catalog,
     register_publish_target,
     register_quality_backend,
@@ -28,6 +38,7 @@ from phlo.capabilities.runtime import (
     routing_from_context,
 )
 from phlo.capabilities.specs import (
+    AlertSinkSpec,
     AssetCheckSpec,
     AssetSpec,
     CatalogScannerSpec,
@@ -36,6 +47,7 @@ from phlo.capabilities.specs import (
     DataMigrationSourceSpec,
     FieldSpec,
     LineageSinkSpec,
+    MaintenanceReadModelSpec,
     MaterializeResult,
     MetadataCatalogSpec,
     NormalizedSchema,
@@ -57,6 +69,8 @@ if TYPE_CHECKING:
     from phlo.capabilities.resolver import ResolutionResult
 
 __all__ = [
+    "AlertSink",
+    "AlertSinkSpec",
     "AssetCheckSpec",
     "AssetSpec",
     "CatalogSpec",
@@ -68,11 +82,14 @@ __all__ = [
     "DataMigrationSourceSpec",
     "FieldSpec",
     "LineageSinkSpec",
+    "MaintenanceReadModel",
+    "MaintenanceReadModelSpec",
     "MaterializeResult",
     "MetadataCatalogSpec",
     "NormalizedSchema",
     "PartitionSpec",
     "PublishTargetSpec",
+    "QueryEngine",
     "QualityBackendSpec",
     "QueryEngineSpec",
     "ResourceSpec",
@@ -92,12 +109,14 @@ __all__ = [
     "get_capability_registry",
     "list_capabilities",
     "missing_required_capabilities",
+    "register_alert_sink",
     "register_asset",
     "register_catalog",
     "register_catalog_scanner",
     "register_check",
     "register_data_migration_source",
     "register_lineage_sink",
+    "register_maintenance_read_model",
     "register_metadata_catalog",
     "register_publish_target",
     "register_quality_backend",
