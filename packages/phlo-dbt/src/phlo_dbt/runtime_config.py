@@ -25,6 +25,7 @@ class DbtRuntimeConfig:
 
     profile_name: str = "phlo"
     target_name: str = DEFAULT_DBT_TARGET
+    engine_type: str = "trino"
     user: str = "dagster"
     host: str = "trino"
     port: int = 8080
@@ -41,7 +42,7 @@ class DbtRuntimeConfig:
                 "target": self.target_name,
                 "outputs": {
                     self.target_name: {
-                        "type": "trino",
+                        "type": self.engine_type,
                         "method": self.method,
                         "user": self.user,
                         "host": self.host,
@@ -95,6 +96,7 @@ def resolve_dbt_runtime_config(
 
     return DbtRuntimeConfig(
         target_name=target_name,
+        engine_type=settings.dbt_query_engine_type,
         user=settings.dbt_query_user,
         host=settings.dbt_query_host,
         port=settings.dbt_query_port,

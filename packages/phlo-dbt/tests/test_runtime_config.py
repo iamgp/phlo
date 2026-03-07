@@ -42,6 +42,12 @@ def test_dbt_runtime_config_to_profile_payload() -> None:
     }
 
 
+def test_dbt_runtime_config_to_profile_payload_uses_engine_type() -> None:
+    config = DbtRuntimeConfig(target_name="ci", engine_type="duckdb")
+
+    assert config.to_profile_payload()["phlo"]["outputs"]["ci"]["type"] == "duckdb"
+
+
 def test_resolve_dbt_target_name_prefers_explicit_target() -> None:
     runtime = SimpleNamespace(tags={"environment": "ci"})
 
@@ -88,6 +94,7 @@ def test_resolve_dbt_runtime_config_defaults_to_main_catalog() -> None:
     config = resolve_dbt_runtime_config()
 
     assert config.target_name == DEFAULT_DBT_TARGET
+    assert config.engine_type == "trino"
     assert config.catalog == "iceberg"
 
 
