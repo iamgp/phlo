@@ -83,7 +83,7 @@ def test_dagster_container_candidates_no_configured() -> None:
 
 
 def test_select_first_existing_returns_first_match() -> None:
-    from phlo_dagster.containers import select_first_existing
+    from phlo.infrastructure import select_first_existing
 
     result = select_first_existing(
         ["a", "b", "c"],
@@ -93,14 +93,14 @@ def test_select_first_existing_returns_first_match() -> None:
 
 
 def test_select_first_existing_returns_none_when_no_match() -> None:
-    from phlo_dagster.containers import select_first_existing
+    from phlo.infrastructure import select_first_existing
 
     result = select_first_existing(["a", "b"], ["x", "y"])
     assert result is None
 
 
 def test_select_first_existing_skips_empty_candidates() -> None:
-    from phlo_dagster.containers import select_first_existing
+    from phlo.infrastructure import select_first_existing
 
     result = select_first_existing(["", "b"], ["b"])
     assert result == "b"
