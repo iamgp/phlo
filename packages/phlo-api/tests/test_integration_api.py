@@ -313,6 +313,153 @@ class TestObservatoryRouters:
         iceberg_routes = [p for p in route_paths if p.startswith("/api/iceberg")]
         assert isinstance(iceberg_routes, list)
 
+    def test_dagster_graph_routes_registered(self):
+        """Test Dagster graph routes are registered."""
+        from phlo_api.main import app
+
+        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
+
+        assert "/api/dagster/graph" in route_paths
+        assert "/api/dagster/graph/neighbors" in route_paths
+        assert "/api/dagster/graph/impact" in route_paths
+
+
+class TestDagsterGraphEndpoints:
+    """Test Dagster graph endpoints."""
+
+    @staticmethod
+    def _graphql_asset_graph_payload():
+        return {
+            "data": {
+                "assetsOrError": {
+                    "__typename": "AssetConnection",
+                    "nodes": [
+                        {
+                            "id": "source-id",
+                            "key": {"path": ["raw", "source_orders"]},
+                            "definition": {
+                                "description": "Source orders",
+                                "computeKind": "python",
+                                "groupName": "ingest",
+                                "dependencyKeys": [],
+                                "dependedByKeys": [{"path": ["silver", "stg_orders"]}],
+                            },
+                            "assetMaterializations": [{"timestamp": "100"}],
+                        },
+                        {
+                            "id": "stg-id",
+                            "key": {"path": ["silver", "stg_orders"]},
+                            "definition": {
+                                "description": "Staged orders",
+                                "computeKind": "dbt",
+                                "groupName": "transform",
+                                "dependencyKeys": [{"path": ["raw", "source_orders"]}],
+                                "dependedByKeys": [{"path": ["gold", "fct_orders"]}],
+                            },
+                            "assetMaterializations": [{"timestamp": "200"}],
+                        },
+                        {
+                            "id": "fct-id",
+                            "key": {"path": ["gold", "fct_orders"]},
+                            "definition": {
+                                "description": "Fact orders",
+                                "computeKind": "dbt",
+                                "groupName": "warehouse",
+                                "dependencyKeys": [{"path": ["silver", "stg_orders"]}],
+                                "dependedByKeys": [],
+                            },
+                            "assetMaterializations": [{"timestamp": "300"}],
+                        },
+                    ],
+                }
+            }
+        }
+
+    def test_dagster_graph_endpoint_transforms_payload(self):
+        """Graph endpoint returns Observatory-shaped payload."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.dagster.graphql_request",
+            return_value=self._graphql_asset_graph_payload(),
+        ):
+            client = TestClient(app)
+            response = client.get("/api/dagster/graph")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert [node["key_path"] for node in data["nodes"]] == [
+            "raw/source_orders",
+            "silver/stg_orders",
+            "gold/fct_orders",
+        ]
+        assert data["nodes"][0]["layer"] == "bronze"
+        assert data["nodes"][1]["upstream_count"] == 1
+        assert data["nodes"][1]["downstream_count"] == 1
+        assert data["edges"] == [
+            {"source": "raw/source_orders", "target": "silver/stg_orders"},
+            {"source": "silver/stg_orders", "target": "gold/fct_orders"},
+        ]
+
+    def test_dagster_graph_neighbors_filters_subgraph(self):
+        """Neighbors endpoint trims graph by direction and depth."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.dagster.graphql_request",
+            return_value=self._graphql_asset_graph_payload(),
+        ):
+            client = TestClient(app)
+            response = client.get(
+                "/api/dagster/graph/neighbors",
+                params={
+                    "asset_key": "silver/stg_orders",
+                    "direction": "upstream",
+                    "depth": 1,
+                },
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert sorted(node["key_path"] for node in data["nodes"]) == [
+            "raw/source_orders",
+            "silver/stg_orders",
+        ]
+        assert data["edges"] == [{"source": "raw/source_orders", "target": "silver/stg_orders"}]
+
+    def test_dagster_graph_impact_returns_downstream_assets(self):
+        """Impact endpoint returns downstream assets ordered by depth."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.dagster.graphql_request",
+            return_value=self._graphql_asset_graph_payload(),
+        ):
+            client = TestClient(app)
+            response = client.get(
+                "/api/dagster/graph/impact",
+                params={"asset_key": "raw/source_orders"},
+            )
+
+        assert response.status_code == 200
+        assert response.json() == [
+            {
+                "key_path": "silver/stg_orders",
+                "label": "stg_orders",
+                "layer": "silver",
+                "depth": 1,
+            },
+            {
+                "key_path": "gold/fct_orders",
+                "label": "fct_orders",
+                "layer": "gold",
+                "depth": 2,
+            },
+        ]
+
 
 # =============================================================================
 # Service Plugin Tests
