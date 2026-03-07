@@ -892,6 +892,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#publish-target-role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Publish Target Role
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#endpoints" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1770,6 +1781,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#publish-target-role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Publish Target Role
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#endpoints" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1845,6 +1867,8 @@
 <p>PostgreSQL database service for Phlo.</p>
 <h2 id="overview">Overview</h2>
 <p><code>phlo-postgres</code> provides the core PostgreSQL database for metadata storage, lineage tracking, and operational data. It includes an optional Prometheus exporter for database metrics.</p>
+<p>It also acts as a structured publish target for serving tables produced from the
+analytical plane.</p>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-postgres
 # or
@@ -1982,6 +2006,17 @@ conn_string = settings.get_postgres_connection_string()
 SELECT * FROM marts.mrt_daily_summary;
 SELECT * FROM marts.mrt_user_metrics;
 </code></pre>
+<h2 id="publish-target-role">Publish Target Role</h2>
+<p>Within capability-native Phlo profiles, Postgres is a publish target, not a
+parallel transformation plane.</p>
+<p>Typical flow:</p>
+<p><code>DLT -&gt; table store -&gt; query engine/dbt -&gt; publish target</code></p>
+<p>That means:</p>
+<ul>
+<li>transforms build on the analytical table store</li>
+<li>selected marts are copied into Postgres explicitly</li>
+<li>serving tables stay downstream of the lakehouse contract</li>
+</ul>
 <h2 id="endpoints">Endpoints</h2>
 <table>
 <thead>

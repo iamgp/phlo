@@ -854,6 +854,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#dbt-runtime-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbt Runtime Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#data-lake-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -869,6 +880,17 @@
     <span class="md-ellipsis">
       
         Branch Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wap-sensor-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WAP Sensor Configuration
       
     </span>
   </a>
@@ -1884,6 +1906,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#dbt-runtime-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbt Runtime Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#data-lake-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1899,6 +1932,17 @@
     <span class="md-ellipsis">
       
         Branch Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wap-sensor-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WAP Sensor Configuration
       
     </span>
   </a>
@@ -2571,7 +2615,7 @@ MINIO_ROOT_PASSWORD=minioadmin
 <h3 id="catalog-configuration">Catalog Configuration</h3>
 <p>Nessie Git-like catalog:</p>
 <pre><code class="language-bash"># Version and connectivity
-NESSIE_VERSION=0.106.0
+NESSIE_VERSION=0.107.2
 NESSIE_PORT=10003
 NESSIE_HOST=nessie
 NESSIE_API_VERSION=v1
@@ -2595,6 +2639,22 @@ TRINO_CATALOG=iceberg
 <p><strong>Connection string</strong>:</p>
 <pre><code>trino://trino:10005/iceberg_dev
 </code></pre>
+<h3 id="dbt-runtime-configuration">dbt Runtime Configuration</h3>
+<p>Generated dbt profile settings:</p>
+<pre><code class="language-bash">DBT_PROJECT_DIR=workflows/transforms/dbt
+DBT_PROFILES_DIR=workflows/transforms/dbt/profiles
+DBT_QUERY_ENGINE_TYPE=trino
+DBT_QUERY_HOST=trino
+DBT_QUERY_PORT=8080
+DBT_QUERY_CATALOG=iceberg
+DBT_QUERY_SCHEMA=raw
+DBT_QUERY_USER=dagster
+DBT_QUERY_HTTP_SCHEME=http
+DBT_QUERY_AUTH_METHOD=none
+DBT_QUERY_THREADS=2
+</code></pre>
+<p>These values are used to generate <code>profiles.yml</code> for dbt runtime execution.
+Target and ref selection are derived from canonical runtime routing.</p>
 <h3 id="data-lake-configuration">Data Lake Configuration</h3>
 <p>Apache Iceberg table format:</p>
 <pre><code class="language-bash"># Storage paths
@@ -2631,6 +2691,14 @@ BRANCH_CLEANUP_ENABLED=false
 <li><code>AUTO_PROMOTE_ENABLED</code>: Auto-merge to main when quality checks pass</li>
 <li><code>BRANCH_CLEANUP_ENABLED</code>: Automatically delete old branches</li>
 </ul>
+<h3 id="wap-sensor-configuration">WAP Sensor Configuration</h3>
+<p>Dagster WAP sensor intervals:</p>
+<pre><code class="language-bash">PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS=30
+PHLO_WAP_PROMOTION_INTERVAL_SECONDS=60
+PHLO_WAP_CLEANUP_INTERVAL_SECONDS=3600
+</code></pre>
+<p>These settings only matter when the active profile includes a versioned catalog
+capability.</p>
 <h3 id="validation-configuration">Validation Configuration</h3>
 <p>Data quality validation settings:</p>
 <pre><code class="language-bash"># Freshness blocking

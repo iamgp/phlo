@@ -766,6 +766,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#versioned-catalogs-and-wap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Versioned catalogs and WAP
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1748,6 +1759,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#versioned-catalogs-and-wap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Versioned catalogs and WAP
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1904,6 +1926,21 @@ phlo plugin install dagster
 <td><code>workflows</code></td>
 <td>Path to workflow files</td>
 </tr>
+<tr>
+<td><code>PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS</code></td>
+<td><code>30</code></td>
+<td>WAP branch creation sensor interval</td>
+</tr>
+<tr>
+<td><code>PHLO_WAP_PROMOTION_INTERVAL_SECONDS</code></td>
+<td><code>60</code></td>
+<td>WAP promotion sensor interval</td>
+</tr>
+<tr>
+<td><code>PHLO_WAP_CLEANUP_INTERVAL_SECONDS</code></td>
+<td><code>3600</code></td>
+<td>WAP cleanup sensor interval</td>
+</tr>
 </tbody>
 </table>
 <h2 id="features">Features</h2>
@@ -1930,6 +1967,10 @@ phlo plugin install dagster
 <td>Auto-discovers workflows in <code>workflows/</code> directory</td>
 </tr>
 <tr>
+<td><strong>Fail-Closed Setup</strong></td>
+<td>Re-raises required capability setup failures during definitions loading</td>
+</tr>
+<tr>
 <td><strong>Metrics Labels</strong></td>
 <td>Exposes Dagster metrics for Prometheus</td>
 </tr>
@@ -1949,6 +1990,13 @@ phlo plugin install dagster
 <li>Resource specs from <code>phlo.plugins.resources</code> (for example phlo-iceberg, phlo-trino)</li>
 <li>Check specs from <code>@phlo_quality</code> and other packages</li>
 </ul>
+<h3 id="versioned-catalogs-and-wap">Versioned catalogs and WAP</h3>
+<p>Dagster enables WAP lifecycle sensors only when a <code>VersionedCatalog</code> capability
+is available. That keeps the orchestration layer capability-driven instead of
+hard-wiring Dagster to a specific catalog implementation.</p>
+<p>In the bundled stack, Nessie is the versioned catalog provider. In profiles
+without versioning, the same Dagster adapter still works, but WAP branch
+creation/promotion/cleanup is not enabled.</p>
 <h2 id="usage">Usage</h2>
 <h3 id="starting-the-service">Starting the Service</h3>
 <pre><code class="language-bash"># Start Dagster

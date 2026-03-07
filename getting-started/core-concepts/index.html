@@ -1534,11 +1534,12 @@
 <p><strong>Orchestration</strong>: Dagster manages the entire workflow with asset-based orchestration.</p>
 <h2 id="key-concepts">Key Concepts</h2>
 <h3 id="1-write-audit-publish-wap-pattern">1. Write-Audit-Publish (WAP) Pattern</h3>
-<p>Phlo implements an automated Write-Audit-Publish pattern using Nessie branches:</p>
+<p>Phlo implements an automated Write-Audit-Publish pattern when the active profile
+includes a versioned catalog capability.</p>
 <p><strong>Write Phase</strong></p>
 <ul>
-<li>Data lands on isolated branch: <code>pipeline/run-{run_id}</code></li>
-<li>No impact on production <code>main</code> branch</li>
+<li>Data lands on isolated ref: <code>pipeline-run-{run_id}</code></li>
+<li>No impact on the durable target ref</li>
 <li>Multiple pipelines can run concurrently</li>
 </ul>
 <p><strong>Audit Phase</strong></p>
@@ -1549,27 +1550,30 @@
 </ul>
 <p><strong>Publish Phase</strong></p>
 <ul>
-<li>Auto-promotion sensor merges to <code>main</code> when checks pass</li>
+<li>Auto-promotion sensor merges back to the durable target ref when checks pass</li>
 <li>Atomic commit of all tables</li>
 <li>Old branches cleaned up after retention period</li>
 </ul>
 <p><strong>Implementation</strong></p>
-<pre><code class="language-python"># Automatic branch creation on job start
+<pre><code class="language-python"># Automatic ref creation on job start
 # workflows/sensors/branch_lifecycle.py
 @sensor(name=&quot;branch_creation_sensor&quot;)
 def branch_creation_sensor(context):
-    # Creates pipeline/run-{id} branch
+    # Creates isolated run ref when a VersionedCatalog is available
 
 # Automatic promotion when checks pass
 @sensor(name=&quot;auto_promotion_sensor&quot;)
 def auto_promotion_sensor(context):
-    # Merges to main if all checks pass
+    # Promotes to the durable target ref if all checks pass
 
 # Cleanup old branches
 @sensor(name=&quot;branch_cleanup_sensor&quot;)
 def branch_cleanup_sensor(context):
-    # Deletes branches older than retention period
+    # Deletes stale run refs older than retention period
 </code></pre>
+<p>In the default bundled stack, Nessie is the versioned catalog provider for this flow.
+Profiles without a versioned catalog still work, but they do not get branch/promotion
+semantics.</p>
 <h3 id="2-decorator-driven-development">2. Decorator-Driven Development</h3>
 <p>Phlo reduces boilerplate through powerful decorators that auto-generate Dagster assets.</p>
 <h4 id="phlo_ingestion-decorator">@phlo_ingestion Decorator</h4>

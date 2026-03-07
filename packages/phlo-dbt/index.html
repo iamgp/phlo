@@ -850,6 +850,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#runtime-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime routing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generated-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generated profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1793,6 +1815,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#runtime-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime routing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generated-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generated profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1936,7 +1980,7 @@ phlo plugin install dbt
 <tr>
 <td><code>DBT_PROFILES_DIR</code></td>
 <td><code>workflows/transforms/dbt/profiles</code></td>
-<td>Path to dbt profiles</td>
+<td>Path to generated dbt profiles</td>
 </tr>
 <tr>
 <td><code>DBT_MANIFEST_PATH</code></td>
@@ -1947,6 +1991,51 @@ phlo plugin install dbt
 <td><code>DBT_CATALOG_PATH</code></td>
 <td><code>workflows/transforms/dbt/target/catalog.json</code></td>
 <td>Path to dbt catalog</td>
+</tr>
+<tr>
+<td><code>DBT_QUERY_ENGINE_TYPE</code></td>
+<td><code>trino</code></td>
+<td>Adapter type written into generated profiles</td>
+</tr>
+<tr>
+<td><code>DBT_QUERY_HOST</code></td>
+<td><code>trino</code></td>
+<td>Query engine host</td>
+</tr>
+<tr>
+<td><code>DBT_QUERY_PORT</code></td>
+<td><code>8080</code></td>
+<td>Query engine port</td>
+</tr>
+<tr>
+<td><code>DBT_QUERY_CATALOG</code></td>
+<td><code>iceberg</code></td>
+<td>Base query engine catalog</td>
+</tr>
+<tr>
+<td><code>DBT_QUERY_SCHEMA</code></td>
+<td><code>raw</code></td>
+<td>Default schema</td>
+</tr>
+<tr>
+<td><code>DBT_QUERY_USER</code></td>
+<td><code>dagster</code></td>
+<td>Query engine user</td>
+</tr>
+<tr>
+<td><code>DBT_QUERY_HTTP_SCHEME</code></td>
+<td><code>http</code></td>
+<td>Query engine scheme</td>
+</tr>
+<tr>
+<td><code>DBT_QUERY_AUTH_METHOD</code></td>
+<td><code>none</code></td>
+<td>Query engine auth method</td>
+</tr>
+<tr>
+<td><code>DBT_QUERY_THREADS</code></td>
+<td><code>2</code></td>
+<td>dbt worker threads</td>
 </tr>
 </tbody>
 </table>
@@ -1965,6 +2054,10 @@ phlo plugin install dbt
 <td>Auto-discovers <code>dbt_project.yml</code> in workspace via <code>find_dbt_projects()</code></td>
 </tr>
 <tr>
+<td><strong>Generated Profiles</strong></td>
+<td>Writes canonical <code>profiles.yml</code> from Phlo runtime settings</td>
+</tr>
+<tr>
 <td><strong>Asset Specs</strong></td>
 <td>Automatically creates asset specs from dbt models</td>
 </tr>
@@ -1975,6 +2068,10 @@ phlo plugin install dbt
 <tr>
 <td><strong>Auto-Compile</strong></td>
 <td>Compiles dbt on startup via post_start hook</td>
+</tr>
+<tr>
+<td><strong>Fail-Closed Setup</strong></td>
+<td>Existing dbt projects fail startup if manifest/profile setup is broken</td>
 </tr>
 </tbody>
 </table>
@@ -2010,6 +2107,20 @@ projects = find_dbt_projects()
 # Get the active dbt project directory
 project_dir = get_dbt_project_dir()
 </code></pre>
+<h3 id="runtime-routing">Runtime routing</h3>
+<p><code>phlo-dbt</code> derives its active target from canonical runtime routing:</p>
+<ul>
+<li>explicit target argument</li>
+<li>runtime <code>environment</code></li>
+<li>legacy <code>dbt_target</code> tag only as fallback</li>
+</ul>
+<p>When the runtime carries a ref, dbt also uses a ref-aware catalog name such as
+<code>iceberg_feature_orders</code>.</p>
+<h3 id="generated-profiles">Generated profiles</h3>
+<p>Do not hand-maintain environment-specific dbt profiles inside Phlo projects.</p>
+<p><code>phlo-dbt</code> generates <code>workflows/transforms/dbt/profiles/profiles.yml</code> from its
+own runtime settings so dbt remains capability-driven and does not need to import
+concrete query-engine packages.</p>
 <h2 id="project-structure">Project Structure</h2>
 <p>Standard dbt project layout for Phlo:</p>
 <pre><code>workflows/transforms/dbt/
@@ -2093,6 +2204,7 @@ GROUP BY 1, 2
 <li><a href="../phlo-dagster/">phlo-dagster</a> - Dagster adapter for capability specs</li>
 <li><a href="../phlo-trino/">phlo-trino</a> - Query engine</li>
 <li><a href="../phlo-iceberg/">phlo-iceberg</a> - Table format</li>
+<li><a href="../../guides/integration-profiles/">Integration Profiles</a> - Supported capability combinations</li>
 </ul>
 <h2 id="next-steps">Next Steps</h2>
 <ul>

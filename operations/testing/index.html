@@ -1050,7 +1050,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Advanced Testing Utilities ✨ NEW">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profile-level-contract-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile-Level Contract Tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Profile-Level Contract Tests">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1725,7 +1736,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Advanced Testing Utilities ✨ NEW">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profile-level-contract-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile-Level Contract Tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Profile-Level Contract Tests">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2372,6 +2394,23 @@ def test_data_filtering():
 <hr />
 <h2 id="advanced-testing-utilities-new">Advanced Testing Utilities ✨ NEW</h2>
 <p>Phlo provides powerful testing utilities for fast, local testing without Docker.</p>
+<h2 id="profile-level-contract-tests">Profile-Level Contract Tests</h2>
+<p>Unit tests are not enough for cross-package lakehouse wiring.</p>
+<p>Phlo supports profile-level contract tests:</p>
+<ul>
+<li>bundled stack contracts
+  real services, local workspace source, versioned and publish flows</li>
+<li>non-versioned profile contracts
+  local DuckDB + dbt verification without the bundled service stack</li>
+</ul>
+<p>Use these when you need to verify:</p>
+<ul>
+<li>canonical runtime routing</li>
+<li>ref-aware writes and promotion</li>
+<li>generated dbt profile behavior</li>
+<li>publish-target wiring</li>
+<li>full cross-package integration</li>
+</ul>
 <h3 id="mockicebergcatalog">MockIcebergCatalog</h3>
 <p>Test Iceberg table operations in-memory using DuckDB backend.</p>
 <p><strong>Features</strong>:</p>

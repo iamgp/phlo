@@ -696,6 +696,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Runtime context">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtime-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime routing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1583,6 +1600,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Runtime context">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtime-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime routing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1775,8 +1809,21 @@ orchestrator adapter. It provides:</p>
 <li><code>run_id</code>, <code>partition_key</code>, <code>tags</code></li>
 <li><code>logger</code></li>
 <li><code>resources</code> and <code>get_resource(name)</code></li>
+<li><code>routing</code>, a canonical <code>RuntimeRouting</code> payload derived from the orchestrator context</li>
 </ul>
 <p>Do not rely on orchestrator-native context objects inside packages.</p>
+<h3 id="runtime-routing">Runtime routing</h3>
+<p><code>RuntimeRouting</code> is the shared execution contract across capabilities. It carries:</p>
+<ul>
+<li><code>environment</code></li>
+<li><code>ref</code></li>
+<li><code>partition_key</code></li>
+<li><code>run_id</code></li>
+<li><code>resources</code></li>
+<li><code>feature_flags</code></li>
+</ul>
+<p>Helpers such as <code>routing_from_context()</code> and <code>resolve_runtime_ref()</code> let packages derive
+ref-aware behavior without importing concrete provider packages.</p>
 <h2 id="runtime-capability-interfaces">Runtime capability interfaces</h2>
 <p>Provider implementations use runtime protocols from <code>phlo.capabilities.interfaces</code>.
 These are the contracts discovered and wired by capability providers.</p>
@@ -1785,6 +1832,9 @@ These are the contracts discovered and wired by capability providers.</p>
   <code>merge_parquet</code>. Optional extended operations include <code>overwrite_parquet</code>,
   <code>delete_rows</code>, <code>compact</code>, <code>list_snapshots</code>, <code>rollback_to_snapshot</code>, and
   <code>vacuum</code>.</li>
+<li><code>VersionedCatalog</code>: optional branch-aware catalog contract used for refs,
+  promotion, and branch cleanup. Dagster WAP flows should depend on this
+  interface rather than concrete Nessie types.</li>
 <li><code>GovernanceBackend</code>: policy APIs (<code>list_policies</code>, <code>apply_policy</code>,
   <code>revoke_policy</code>, <code>check_access</code>).</li>
 <li><code>SecretBackend</code>: secret retrieval/listing APIs (<code>get_secret</code>, <code>list_secrets</code>).</li>
@@ -1795,6 +1845,13 @@ These are the contracts discovered and wired by capability providers.</p>
   classification.</li>
 <li><code>AccessPolicy</code>: value object used by governance providers.</li>
 </ul>
+<p>The capability registry also supports higher-level specs such as:</p>
+<ul>
+<li><code>QueryEngineSpec</code></li>
+<li><code>PublishTargetSpec</code></li>
+</ul>
+<p>That lets packages declare what they provide without encoding stack-specific
+assumptions into consumers.</p>
 <p>These interfaces let providers opt into richer behavior incrementally while
 keeping a single core contract surface for discovery and runtime resolution.</p>
 <h2 id="providers-and-adapters">Providers and adapters</h2>
