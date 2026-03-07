@@ -6,11 +6,11 @@ from importlib import resources
 from importlib.abc import Traversable
 
 from phlo.plugins import PluginMetadata
-from phlo_observatory import ObservatoryExtensionPlugin
-from phlo_observatory.manifest import (
+from phlo.plugins.observatory import (
     ObservatoryExtensionCompatibility,
     ObservatoryExtensionManifest,
     ObservatoryExtensionNavItem,
+    ObservatoryExtensionPlugin,
     ObservatoryExtensionRoute,
     ObservatoryExtensionSettings,
     ObservatoryExtensionSettingsPanel,

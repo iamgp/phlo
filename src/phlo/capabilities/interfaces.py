@@ -175,6 +175,76 @@ class SchemaExtractor(Protocol):
 
 
 @runtime_checkable
+class MetadataCatalog(Protocol):
+    """Protocol for metadata catalog providers."""
+
+    def health_check(self) -> bool:
+        """Check provider connectivity and readiness."""
+        ...
+
+    def upsert_table(self, *, namespace: str, table: Any) -> Any:
+        """Create or update one table definition in the metadata catalog."""
+        ...
+
+    def publish_quality_result(self, *, event: Any) -> None:
+        """Publish one quality result payload to the metadata catalog."""
+        ...
+
+    def publish_lineage_edges(self, *, edges: list[tuple[str, str]]) -> None:
+        """Publish directed lineage edges to the metadata catalog."""
+        ...
+
+
+@runtime_checkable
+class LineageSink(Protocol):
+    """Protocol for lineage backends and queryable lineage stores."""
+
+    def record_asset_edges(
+        self,
+        edges: list[tuple[str, str]],
+        *,
+        asset_keys: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        tags: dict[str, str] | None = None,
+    ) -> int:
+        """Persist directed asset lineage edges."""
+        ...
+
+    def record_row_lineage(
+        self,
+        *,
+        row_id: str,
+        table_name: str,
+        source_type: str,
+        parent_row_ids: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Persist one row-level lineage record."""
+        ...
+
+    def get_asset_graph(self) -> Any:
+        """Return the current asset-level lineage graph representation."""
+        ...
+
+    def get_row_journey(self, *, row_id: str, depth: int = 10) -> Any:
+        """Return upstream and downstream lineage for one row identifier."""
+        ...
+
+
+@runtime_checkable
+class MaintenanceReadModel(Protocol):
+    """Protocol for maintenance and observability status read models."""
+
+    def load_maintenance_status(self) -> Any:
+        """Load the current maintenance status snapshot."""
+        ...
+
+    def render_maintenance_prometheus(self) -> str:
+        """Render maintenance metrics in Prometheus text format."""
+        ...
+
+
+@runtime_checkable
 class SchemaMigrator(Protocol):
     """Protocol for storage-layer schema migration providers.
 

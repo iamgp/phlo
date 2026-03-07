@@ -24,9 +24,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-observatory = [
-    "phlo-observatory>=0.1.0",
-]
 lineage = [
     "phlo-lineage>=0.1.0",
 ]

@@ -102,3 +102,25 @@ def test_plugins_module_reexports_provider_getters() -> None:
     assert "get_transformation_provider" in plugins.__all__
     assert plugins.get_ingestion_provider is discovery.get_ingestion_provider
     assert plugins.get_transformation_provider is discovery.get_transformation_provider
+
+
+def test_plugins_module_reexports_observatory_contracts() -> None:
+    """phlo.plugins should expose Observatory extension contracts from core."""
+    import phlo.plugins as plugins
+    from phlo.plugins.observatory import ObservatoryExtensionManifest, ObservatoryExtensionPlugin
+
+    assert "ObservatoryExtensionPlugin" in plugins.__all__
+    assert "ObservatoryExtensionManifest" in plugins.__all__
+    assert plugins.ObservatoryExtensionPlugin is ObservatoryExtensionPlugin
+    assert plugins.ObservatoryExtensionManifest is ObservatoryExtensionManifest
+
+
+def test_plugins_module_reexports_observatory_settings_contracts() -> None:
+    """phlo.plugins should expose Observatory settings storage contracts from core."""
+    import phlo.plugins as plugins
+    from phlo.plugins.observatory_settings import SettingsScope, get_settings_service
+
+    assert "SettingsScope" in plugins.__all__
+    assert "get_settings_service" in plugins.__all__
+    assert plugins.SettingsScope is SettingsScope
+    assert plugins.get_settings_service is get_settings_service

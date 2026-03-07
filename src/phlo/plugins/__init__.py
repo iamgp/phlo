@@ -148,6 +148,25 @@ from phlo.plugins.base import (
     TransformationPlugin,
 )
 from phlo.plugins.hooks import FailurePolicy, HookFilter, HookHandler, HookPlugin, HookProvider
+from phlo.plugins.observatory import (
+    ObservatoryExtensionCompatibility,
+    ObservatoryExtensionManifest,
+    ObservatoryExtensionNavItem,
+    ObservatoryExtensionPlugin,
+    ObservatoryExtensionRoute,
+    ObservatoryExtensionSettings,
+    ObservatoryExtensionSettingsPanel,
+    ObservatoryExtensionSlot,
+    ObservatoryExtensionUI,
+    discover_observatory_extensions,
+    get_observatory_extension,
+)
+from phlo.plugins.observatory_settings import (
+    SettingsRecord,
+    SettingsScope,
+    SettingsService,
+    get_settings_service,
+)
 from phlo.plugins.semantic import SemanticLayerProvider, SemanticModel
 
 if TYPE_CHECKING:
@@ -221,6 +240,21 @@ __all__ = [
     "HookHandler",
     "HookFilter",
     "FailurePolicy",
+    "ObservatoryExtensionPlugin",
+    "ObservatoryExtensionManifest",
+    "ObservatoryExtensionCompatibility",
+    "ObservatoryExtensionSettings",
+    "ObservatoryExtensionRoute",
+    "ObservatoryExtensionNavItem",
+    "ObservatoryExtensionSlot",
+    "ObservatoryExtensionSettingsPanel",
+    "ObservatoryExtensionUI",
+    "discover_observatory_extensions",
+    "get_observatory_extension",
+    "SettingsScope",
+    "SettingsRecord",
+    "SettingsService",
+    "get_settings_service",
     "SemanticLayerProvider",
     "SemanticModel",
     # Discovery
