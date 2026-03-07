@@ -43,6 +43,7 @@ app.add_middleware(
 # Auto-discover and register Observatory API routers
 _OBSERVATORY_ROUTERS = [
     ("trino", "/api/trino"),
+    ("contributing", "/api/contributing"),
     ("iceberg", "/api/iceberg"),
     ("dagster", "/api/dagster"),
     ("nessie", "/api/nessie"),

@@ -323,6 +323,15 @@ class TestObservatoryRouters:
         assert "/api/dagster/graph/neighbors" in route_paths
         assert "/api/dagster/graph/impact" in route_paths
 
+    def test_contributing_routes_registered(self):
+        """Test contributing routes are registered."""
+        from phlo_api.main import app
+
+        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
+
+        assert "/api/contributing/query" in route_paths
+        assert "/api/contributing/page" in route_paths
+
 
 class TestDagsterGraphEndpoints:
     """Test Dagster graph endpoints."""
@@ -459,6 +468,108 @@ class TestDagsterGraphEndpoints:
                 "depth": 2,
             },
         ]
+
+
+class TestContributingRowsEndpoints:
+    """Test contributing rows endpoints."""
+
+    def test_contributing_query_endpoint_builds_entity_query(self):
+        """Query endpoint returns the built contributing query."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.contributing.execute_trino_query",
+            side_effect=[
+                {
+                    "columns": ["table_schema"],
+                    "column_types": ["varchar"],
+                    "rows": [{"table_schema": "silver"}],
+                },
+                {
+                    "columns": ["column_name", "data_type"],
+                    "column_types": ["varchar", "varchar"],
+                    "rows": [{"column_name": "_phlo_row_id", "data_type": "varchar"}],
+                },
+            ],
+        ):
+            client = TestClient(app)
+            response = client.post(
+                "/api/contributing/query",
+                json={
+                    "downstream_asset_key": "gold/fct_orders",
+                    "upstream_asset_key": "silver/stg_orders",
+                    "row_data": {"_phlo_row_id": "abc123"},
+                    "limit": 25,
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "query": 'SELECT * FROM "iceberg"."silver"."stg_orders" WHERE "_phlo_row_id" = \'abc123\' ORDER BY "_phlo_row_id" LIMIT 25',
+            "upstream": {"schema": "silver", "table": "stg_orders"},
+        }
+
+    def test_contributing_page_endpoint_returns_rows(self):
+        """Page endpoint executes contributing query and returns paginated rows."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.contributing.execute_trino_query",
+            side_effect=[
+                {
+                    "columns": ["table_schema"],
+                    "column_types": ["varchar"],
+                    "rows": [{"table_schema": "silver"}],
+                },
+                {
+                    "columns": ["column_name", "data_type"],
+                    "column_types": ["varchar", "varchar"],
+                    "rows": [
+                        {"column_name": "_phlo_partition_date", "data_type": "date"},
+                        {"column_name": "hour_of_day", "data_type": "integer"},
+                        {"column_name": "day_of_week", "data_type": "integer"},
+                    ],
+                },
+                {
+                    "columns": ["hour_of_day", "day_of_week"],
+                    "column_types": ["integer", "integer"],
+                    "rows": [
+                        {"hour_of_day": 3, "day_of_week": 2},
+                        {"hour_of_day": 3, "day_of_week": 2},
+                    ],
+                },
+            ],
+        ):
+            client = TestClient(app)
+            response = client.post(
+                "/api/contributing/page",
+                json={
+                    "downstream_asset_key": "publish/mrt_contribution_patterns",
+                    "upstream_asset_key": "silver/fct_github_events",
+                    "row_data": {
+                        "_phlo_partition_date": "2025-01-01",
+                        "hour_of_day": 3,
+                        "day_of_week": 2,
+                    },
+                    "page": 0,
+                    "page_size": 1,
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "mode": "aggregate",
+            "page": 0,
+            "page_size": 1,
+            "has_more": True,
+            "query": 'SELECT * FROM "iceberg"."silver"."fct_github_events" WHERE "hour_of_day" = 3 and "day_of_week" = 2 and "_phlo_partition_date" = date \'2025-01-01\' ORDER BY xxhash64(to_utf8(concat(\'phlo\', \'|\', coalesce(cast("day_of_week" as varchar), \'\'), \'|\' , coalesce(cast("hour_of_day" as varchar), \'\')))) OFFSET 0 LIMIT 2',
+            "upstream": {"schema": "silver", "table": "fct_github_events"},
+            "columns": ["hour_of_day", "day_of_week"],
+            "column_types": ["integer", "integer"],
+            "rows": [{"hour_of_day": 3, "day_of_week": 2}],
+        }
 
 
 # =============================================================================
