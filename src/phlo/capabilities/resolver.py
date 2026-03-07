@@ -17,12 +17,16 @@ logger = get_logger(__name__)
 _CAPABILITY_LISTERS = {
     "table_store": "list_table_stores",
     "catalog": "list_catalogs",
+    "catalog_scanner": "list_catalog_scanners",
     "query_engine": "list_query_engines",
     "quality_backend": "list_quality_backends",
+    "maintenance_read_model": "list_maintenance_read_models",
     "metadata_catalog": "list_metadata_catalogs",
     "lineage_sink": "list_lineage_sinks",
     "governance_backend": "list_governance_backends",
     "publish_target": "list_publish_targets",
+    "alert_sink": "list_alert_sinks",
+    "api_backend": "list_api_backends",
     "secret_backend": "list_secret_backends",
     "schema_migrator": "list_schema_migrators",
 }

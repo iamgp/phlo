@@ -184,3 +184,21 @@ def test_maintenance_sensor_has_optimize_target_job() -> None:
 
     target_job_names = {target.job_name for target in maintenance_policy_sensor.targets}
     assert "optimize_tables_job" in target_job_names
+
+
+def test_load_optimize_query_engine_uses_capability(monkeypatch) -> None:
+    """Optimize operations should resolve the query engine via capabilities."""
+    from phlo_dagster import maintenance_sensor
+
+    engine = object()
+    monkeypatch.setattr(
+        maintenance_sensor,
+        "resolve_capability",
+        lambda capability_type, name: (
+            type("Resolution", (), {"provider": engine})()
+            if capability_type == "query_engine" and name == "trino"
+            else None
+        ),
+    )
+
+    assert maintenance_sensor._load_optimize_query_engine() is engine

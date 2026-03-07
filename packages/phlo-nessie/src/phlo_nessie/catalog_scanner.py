@@ -15,6 +15,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import requests
+from phlo.capabilities import QueryEngine, resolve_capability
 from phlo.logging import get_logger
 from phlo_nessie.settings import get_settings
 
@@ -141,7 +142,7 @@ class NessieTableScanner:
         Returns:
             list[dict[str, Any]]: Namespace objects with ``namespace`` key.
         """
-        trino = self._get_trino_resource()
+        trino = self._get_query_engine()
         if trino is None:
             return []
         try:
@@ -168,7 +169,7 @@ class NessieTableScanner:
         Returns:
             list[dict[str, Any]]: Table objects with ``name`` key.
         """
-        trino = self._get_trino_resource()
+        trino = self._get_query_engine()
         if trino is None:
             return []
         try:
@@ -199,7 +200,7 @@ class NessieTableScanner:
         Returns:
             dict[str, Any] | None: Normalized metadata when available.
         """
-        trino = self._get_trino_resource()
+        trino = self._get_query_engine()
         if trino is None:
             return None
         try:
@@ -226,27 +227,20 @@ class NessieTableScanner:
             return None
         return {"name": table_name, "schema": {"fields": fields}}
 
-    def _get_trino_resource(self):
-        """Return Trino resource used for fallback queries.
+    def _get_query_engine(self) -> QueryEngine | None:
+        """Return query engine used for fallback queries.
 
         Returns:
-            Any | None: Trino resource instance, or ``None`` when unavailable.
+            QueryEngine | None: Query engine provider instance, or ``None`` when unavailable.
         """
-        try:
-            from phlo_trino import TrinoResource
-            from phlo_trino.settings import get_settings as get_trino_settings
-        except Exception as exc:  # noqa: BLE001 - optional dependency
+        resolution = resolve_capability("query_engine", "trino")
+        if resolution is None:
             logger.warning(
-                "nessie_trino_resource_unavailable",
-                error=str(exc),
+                "nessie_query_engine_unavailable",
+                required_capability="query_engine:trino",
             )
             return None
-        settings = get_trino_settings()
-        return TrinoResource(
-            host=settings.trino_host,
-            port=settings.trino_port,
-            catalog=settings.trino_catalog,
-        )
+        return resolution.provider
 
     def _normalize_table_metadata(self, table_name: str, data: Any) -> dict[str, Any]:
         """Normalize Nessie table payload into a stable metadata shape.

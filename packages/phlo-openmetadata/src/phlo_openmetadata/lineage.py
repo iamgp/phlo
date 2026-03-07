@@ -66,14 +66,9 @@ class LineageExtractor:
 
     def __init__(self):
         """Initialize lineage extractor."""
-        try:
-            from phlo_lineage.graph import LineageGraph
-        except Exception as exc:  # noqa: BLE001
-            raise RuntimeError(
-                "Lineage extraction requires phlo-lineage. Install phlo-openmetadata[lineage] "
-                "or phlo-lineage."
-            ) from exc
-        self.graph = LineageGraph()
+        from phlo_openmetadata.graph import OpenMetadataLineageGraph
+
+        self.graph = OpenMetadataLineageGraph()
 
     @log_extraction_errors("Dagster")
     def extract_from_dagster(self, context: Any) -> None:

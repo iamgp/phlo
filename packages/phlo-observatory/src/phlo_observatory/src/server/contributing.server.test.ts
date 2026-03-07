@@ -1,56 +1,122 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  fetchContributingRowsPageFromApi,
+  fetchContributingRowsQueryFromApi,
+  transformContributingRowsPageResult,
+  transformContributingRowsQueryResult,
+} from '@/server/contributing.server'
 
-import { buildContributingRowsQuery } from '@/server/contributing.server'
+const { apiPost } = vi.hoisted(() => ({
+  apiPost: vi.fn(),
+}))
 
-describe('contributing rows query builder', () => {
-  it('uses _phlo_row_id equality when present upstream', () => {
-    const result = buildContributingRowsQuery({
-      downstreamTableName: 'mrt_language_distribution',
-      upstream: {
-        schema: 'gold',
-        table: 'fct_repository_languages',
-        fullName: '"iceberg"."gold"."fct_repository_languages"',
-        columnTypes: { _phlo_row_id: 'varchar', primary_language: 'varchar' },
-      },
-      rowData: { _phlo_row_id: 'abc123', primary_language: 'Go' },
-      pageSize: 50,
-      page: 0,
-    })
+vi.mock('@/server/phlo-api', () => ({
+  apiPost,
+}))
 
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.mode).toBe('entity')
-    expect(result.query).toMatch(/WHERE\s+"?_phlo_row_id"?\s*=\s*'abc123'/)
-    expect(result.query).toMatch(/ORDER BY "_phlo_row_id"/)
+describe('contributing.server transforms', () => {
+  beforeEach(() => {
+    apiPost.mockReset()
   })
 
-  it('uses deterministic ordering when sampling aggregate contributing rows', () => {
-    const result = buildContributingRowsQuery({
-      downstreamTableName: 'mrt_contribution_patterns',
-      upstream: {
-        schema: 'silver',
-        table: 'fct_github_events',
-        fullName: '"iceberg"."silver"."fct_github_events"',
-        columnTypes: {
-          _phlo_partition_date: 'date',
-          hour_of_day: 'integer',
-          day_of_week: 'integer',
-          _phlo_row_id: 'varchar',
-        },
-      },
-      rowData: {
-        _phlo_partition_date: '2025-01-01',
-        hour_of_day: 3,
-        day_of_week: 2,
-      },
-      pageSize: 25,
+  it('keeps contributing query payload stable', () => {
+    expect(
+      transformContributingRowsQueryResult({
+        query: 'SELECT * FROM foo LIMIT 10',
+        upstream: { schema: 'gold', table: 'fct_orders' },
+      }),
+    ).toEqual({
+      query: 'SELECT * FROM foo LIMIT 10',
+      upstream: { schema: 'gold', table: 'fct_orders' },
+    })
+  })
+
+  it('camelizes contributing page payload from phlo-api', () => {
+    expect(
+      transformContributingRowsPageResult({
+        mode: 'aggregate',
+        page: 2,
+        page_size: 50,
+        has_more: true,
+        query: 'SELECT * FROM foo OFFSET 100 LIMIT 51',
+        upstream: { schema: 'silver', table: 'stg_orders' },
+        columns: ['order_id'],
+        column_types: ['varchar'],
+        rows: [{ order_id: 'abc123' }],
+      }),
+    ).toEqual({
+      mode: 'aggregate',
       page: 2,
+      pageSize: 50,
+      hasMore: true,
+      query: 'SELECT * FROM foo OFFSET 100 LIMIT 51',
+      upstream: { schema: 'silver', table: 'stg_orders' },
+      columns: ['order_id'],
+      columnTypes: ['varchar'],
+      rows: [{ order_id: 'abc123' }],
+    })
+  })
+
+  it('fetches contributing query payload from phlo-api', async () => {
+    const payload = {
+      query: 'SELECT * FROM foo LIMIT 10',
+      upstream: { schema: 'gold', table: 'fct_orders' },
+    }
+    apiPost.mockResolvedValue(payload)
+
+    const result = await fetchContributingRowsQueryFromApi({
+      downstreamAssetKey: 'gold.fct_orders',
+      upstreamAssetKey: 'silver.stg_orders',
+      rowData: { order_id: 'abc123' },
+      limit: 25,
+      trinoUrl: 'http://trino:8080',
     })
 
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.mode).toBe('aggregate')
-    expect(result.query).toMatch(/ORDER BY xxhash64/)
-    expect(result.query).toMatch(/OFFSET 50 LIMIT 26$/)
+    expect(result).toEqual(payload)
+    expect(apiPost).toHaveBeenCalledWith('/api/contributing/query', {
+      downstream_asset_key: 'gold.fct_orders',
+      upstream_asset_key: 'silver.stg_orders',
+      row_data: { order_id: 'abc123' },
+      limit: 25,
+      trino_url: 'http://trino:8080',
+      timeout_ms: undefined,
+      catalog: undefined,
+    })
+  })
+
+  it('fetches contributing page payload from phlo-api', async () => {
+    const payload = {
+      mode: 'aggregate' as const,
+      page: 2,
+      page_size: 50,
+      has_more: true,
+      query: 'SELECT * FROM foo OFFSET 50 LIMIT 51',
+      upstream: { schema: 'silver', table: 'stg_orders' },
+      columns: ['order_id'],
+      column_types: ['varchar'],
+      rows: [{ order_id: 'abc123' }],
+    }
+    apiPost.mockResolvedValue(payload)
+
+    const result = await fetchContributingRowsPageFromApi({
+      downstreamAssetKey: 'gold.fct_orders',
+      upstreamAssetKey: 'silver.stg_orders',
+      rowData: { order_id: 'abc123' },
+      page: 2,
+      pageSize: 50,
+      catalog: 'iceberg',
+    })
+
+    expect(result).toEqual(payload)
+    expect(apiPost).toHaveBeenCalledWith('/api/contributing/page', {
+      downstream_asset_key: 'gold.fct_orders',
+      upstream_asset_key: 'silver.stg_orders',
+      row_data: { order_id: 'abc123' },
+      page: 2,
+      page_size: 50,
+      trino_url: undefined,
+      timeout_ms: undefined,
+      catalog: 'iceberg',
+    })
   })
 })

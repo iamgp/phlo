@@ -308,10 +308,15 @@ class ComposeGenerator:
         service: ServiceDefinition,
         output_dir: Path,
     ) -> str:
-        if "{source}" not in volume or not service.source_path:
+        if not service.source_path:
             return volume
         source_path = str(os.path.relpath(service.source_path, output_dir))
-        return volume.replace("{source}", source_path)
+        resolved = volume
+        if "{source}" in resolved:
+            resolved = resolved.replace("{source}", source_path)
+        if "{source_path}" in resolved:
+            resolved = resolved.replace("{source_path}", source_path)
+        return resolved
 
     def generate_env(
         self,

@@ -33,6 +33,9 @@ hasura = "phlo_hasura.plugin:HasuraServicePlugin"
 [project.entry-points."phlo.plugins.cli"]
 hasura = "phlo_hasura.cli_plugin:HasuraCliPlugin"
 
+[project.entry-points."phlo.plugins.resources"]
+hasura = "phlo_hasura.resource_provider:HasuraResourceProvider"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true

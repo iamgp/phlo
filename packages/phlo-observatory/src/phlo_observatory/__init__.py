@@ -1,24 +1,44 @@
 """Observatory UI plugin package."""
 
-from phlo_observatory.manifest import ObservatoryExtensionManifest
-from phlo_observatory.observatory_ext import ObservatoryExtensionPlugin
-from phlo_observatory.plugin import ObservatoryServicePlugin
-from phlo_observatory.settings import ObservatorySettings, get_settings
-from phlo_observatory.settings_service import (
+from phlo.plugins.observatory import (
+    ObservatoryExtensionCompatibility,
+    ObservatoryExtensionManifest,
+    ObservatoryExtensionNavItem,
+    ObservatoryExtensionPlugin,
+    ObservatoryExtensionRoute,
+    ObservatoryExtensionSettings,
+    ObservatoryExtensionSettingsPanel,
+    ObservatoryExtensionSlot,
+    ObservatoryExtensionUI,
+    discover_observatory_extensions,
+    get_observatory_extension,
+)
+from phlo.plugins.observatory_settings import (
     SettingsRecord,
     SettingsScope,
     SettingsService,
     get_settings_service,
 )
+from phlo_observatory.plugin import ObservatoryServicePlugin
+from phlo_observatory.settings import ObservatorySettings, get_settings
 
 __all__ = [
+    "ObservatoryExtensionCompatibility",
     "ObservatoryExtensionManifest",
+    "ObservatoryExtensionNavItem",
     "ObservatoryExtensionPlugin",
+    "ObservatoryExtensionRoute",
+    "ObservatoryExtensionSettings",
+    "ObservatoryExtensionSettingsPanel",
+    "ObservatoryExtensionSlot",
+    "ObservatoryExtensionUI",
     "ObservatoryServicePlugin",
     "ObservatorySettings",
     "SettingsRecord",
     "SettingsScope",
     "SettingsService",
+    "discover_observatory_extensions",
+    "get_observatory_extension",
     "get_settings",
     "get_settings_service",
 ]

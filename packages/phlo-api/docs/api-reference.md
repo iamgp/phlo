@@ -156,6 +156,39 @@ Get the plugin registry (available plugins for installation).
 }
 ```
 
+### API Backend Discovery
+
+#### `GET /api/backends`
+
+List capability-backed API and graph-serving backends.
+
+**Response:**
+```json
+[
+  {
+    "name": "hasura",
+    "healthy": true,
+    "metadata": {
+      "backend_kind": "graphql",
+      "service_name": "hasura",
+      "category": "api"
+    },
+    "description": {
+      "service_name": "hasura",
+      "backend_kind": "graphql",
+      "default_path": "/v1/graphql",
+      "health_path": "/healthz",
+      "metadata_path": "/v1/metadata",
+      "base_url": "http://localhost:8081"
+    }
+  }
+]
+```
+
+#### `GET /api/backends/{name}`
+
+Get detailed information for one capability-backed API backend.
+
 ## Trino Query Engine
 
 Base path: `/api/trino`

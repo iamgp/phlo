@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import contextlib
 import importlib.util
+import json
 import os
 import socket
 import subprocess
 import sys
 import time
+import urllib.parse
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -32,31 +34,69 @@ BUNDLED_STACK_CORE_SERVICES = (
 )
 
 BUNDLED_STACK_DEV_PACKAGES = (
+    "phlo-alerting",
+    "phlo-alloy",
     "phlo-dagster",
     "phlo-dlt",
     "phlo-dbt",
+    "phlo-grafana",
     "phlo-iceberg",
-    "phlo-trino",
-    "phlo-postgres",
-    "phlo-nessie",
-    "phlo-minio",
     "phlo-hasura",
-    "phlo-postgrest",
-    "phlo-superset",
-    "phlo-api",
-    "phlo-observatory",
     "phlo-lineage",
+    "phlo-loki",
+    "phlo-metrics",
+    "phlo-minio",
+    "phlo-nessie",
+    "phlo-observatory",
+    "phlo-openmetadata",
+    "phlo-pgweb",
+    "phlo-postgres",
+    "phlo-postgrest",
+    "phlo-prometheus",
+    "phlo-superset",
+    "phlo-trino",
+    "phlo-api",
+)
+
+BUNDLED_STACK_OPTIONAL_PACKAGES = (
+    "phlo-alerting",
+    "phlo-alloy",
+    "phlo-grafana",
+    "phlo-lineage",
+    "phlo-loki",
+    "phlo-metrics",
+    "phlo-openmetadata",
+    "phlo-pgweb",
+    "phlo-prometheus",
+)
+
+BUNDLED_STACK_OPTIONAL_SERVICE_PLUGINS = (
+    "phlo-alloy",
+    "phlo-grafana",
+    "phlo-loki",
+    "phlo-openmetadata",
+    "phlo-pgweb",
+    "phlo-prometheus",
 )
 
 _BUNDLED_STACK_PORT_DEFAULTS = {
     "PHLO_API_PORT": ("Phlo API", 54000),
     "DAGSTER_PORT": ("Dagster", 3000),
     "OBSERVATORY_PORT": ("Observatory", 3001),
+    "HASURA_PORT": ("Hasura", 8082),
+    "POSTGREST_PORT": ("PostgREST", 3002),
+    "PGWEB_PORT": ("pgweb", 8081),
     "POSTGRES_PORT": ("Postgres", 5432),
     "TRINO_PORT": ("Trino", 8080),
     "MINIO_API_PORT": ("MinIO API", 9000),
     "MINIO_CONSOLE_PORT": ("MinIO Console", 9001),
     "NESSIE_PORT": ("Nessie", 19120),
+    "PROMETHEUS_PORT": ("Prometheus", 9090),
+    "LOKI_PORT": ("Loki", 3100),
+    "GRAFANA_PORT": ("Grafana", 3003),
+    "ALLOY_PORT": ("Alloy", 12345),
+    "SUPERSET_PORT": ("Superset", 8088),
+    "OPENMETADATA_PORT": ("OpenMetadata", 8585),
 }
 
 _GOLDEN_PATH_MODULE: Any | None = None
@@ -164,6 +204,78 @@ def default_bundled_stack_project_dir(base_dir: Path | None = None) -> Path:
     return root / f"phlo-bundled-stack-{uuid.uuid4().hex[:8]}"
 
 
+def _cleanup_existing_bundled_stack_projects(base_dir: Path, *, stream_output: bool) -> None:
+    utils = _load_golden_path_module()
+    for project_dir in sorted(base_dir.glob("phlo-bundled-stack-*")):
+        phlo_dir = project_dir / ".phlo"
+        python_executable = project_dir / ".venv" / "bin" / "python"
+
+        if phlo_dir.exists() and python_executable.exists():
+            with contextlib.suppress(Exception):
+                utils.run_phlo(
+                    ["services", "stop", "--native"],
+                    cwd=project_dir,
+                    timeout=120,
+                    check=False,
+                    stream_output=stream_output,
+                    python_exe=python_executable,
+                )
+            with contextlib.suppress(Exception):
+                utils.run_phlo(
+                    ["services", "stop"],
+                    cwd=project_dir,
+                    timeout=180,
+                    check=False,
+                    stream_output=stream_output,
+                    python_exe=python_executable,
+                )
+
+        with contextlib.suppress(Exception):
+            utils.force_remove_directory(project_dir)
+
+    with contextlib.suppress(Exception):
+        container_result = subprocess.run(
+            ["docker", "ps", "-aq", "--filter", "name=phlo-bundled-stack-"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        container_ids = [
+            line.strip() for line in container_result.stdout.splitlines() if line.strip()
+        ]
+        if container_ids:
+            subprocess.run(
+                ["docker", "rm", "-f", *container_ids],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+
+    with contextlib.suppress(Exception):
+        network_result = subprocess.run(
+            ["docker", "network", "ls", "--format", "{{.Name}}"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        network_names = [
+            line.strip()
+            for line in network_result.stdout.splitlines()
+            if line.strip().startswith("phlo-bundled-stack-")
+        ]
+        if network_names:
+            subprocess.run(
+                ["docker", "network", "rm", *network_names],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+
+
 def _port_in_use(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -250,22 +362,42 @@ class BundledStackPorts:
 
     phlo_api: int
     dagster: int
-    postgres: int
-    trino: int
-    minio_api: int
-    minio_console: int
-    nessie: int
+    observatory: int = 3001
+    hasura: int = 8082
+    postgrest: int = 3002
+    pgweb: int = 8081
+    postgres: int = 5432
+    trino: int = 8080
+    minio_api: int = 9000
+    minio_console: int = 9001
+    nessie: int = 19120
+    prometheus: int = 9090
+    loki: int = 3100
+    grafana: int = 3003
+    alloy: int = 12345
+    superset: int = 8088
+    openmetadata: int = 8585
 
     @classmethod
     def from_env(cls, env_vars: dict[str, str]) -> BundledStackPorts:
         return cls(
             phlo_api=int(env_vars.get("PHLO_API_PORT", "54000")),
             dagster=int(env_vars.get("DAGSTER_PORT", "3000")),
+            observatory=int(env_vars.get("OBSERVATORY_PORT", "3001")),
+            hasura=int(env_vars.get("HASURA_PORT", "8082")),
+            postgrest=int(env_vars.get("POSTGREST_PORT", "3002")),
+            pgweb=int(env_vars.get("PGWEB_PORT", "8081")),
             postgres=int(env_vars.get("POSTGRES_PORT", "5432")),
             trino=int(env_vars.get("TRINO_PORT", "8080")),
             minio_api=int(env_vars.get("MINIO_API_PORT", "9000")),
             minio_console=int(env_vars.get("MINIO_CONSOLE_PORT", "9001")),
             nessie=int(env_vars.get("NESSIE_PORT", "19120")),
+            prometheus=int(env_vars.get("PROMETHEUS_PORT", "9090")),
+            loki=int(env_vars.get("LOKI_PORT", "3100")),
+            grafana=int(env_vars.get("GRAFANA_PORT", "3003")),
+            alloy=int(env_vars.get("ALLOY_PORT", "12345")),
+            superset=int(env_vars.get("SUPERSET_PORT", "8088")),
+            openmetadata=int(env_vars.get("OPENMETADATA_PORT", "8585")),
         )
 
 
@@ -307,6 +439,494 @@ class BundledStackHarness:
 
     def default_partition_date(self) -> str:
         return (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+
+    def _utils(self) -> Any:
+        return _load_golden_path_module()
+
+    @contextlib.contextmanager
+    def _temporary_env(self, updates: dict[str, str | None]) -> Any:
+        previous = {key: os.environ.get(key) for key in updates}
+        try:
+            for key, value in updates.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            yield
+        finally:
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
+    def install_workspace_packages(
+        self,
+        package_names: tuple[str, ...] | list[str],
+        *,
+        timeout: int = 600,
+    ) -> None:
+        if not package_names:
+            return
+
+        install_args = ["uv", "pip", "install", "--python", str(self.python_executable)]
+        for package_name in package_names:
+            package_path = self.phlo_source / "packages" / package_name
+            if not package_path.exists():
+                raise RuntimeError(f"Workspace package not found: {package_name}")
+            install_args.extend(["-e", str(package_path)])
+        self._utils().run_command(install_args, cwd=self.project_dir, timeout=timeout)
+
+    def ensure_full_stack_packages(self) -> None:
+        self.install_workspace_packages(BUNDLED_STACK_OPTIONAL_PACKAGES)
+
+    def add_services(
+        self, service_names: tuple[str, ...] | list[str], *, timeout: int = 180
+    ) -> None:
+        for service_name in service_names:
+            self.run_phlo(
+                ["services", "add", service_name, "--no-start"],
+                timeout=timeout,
+                stream_output=True,
+            )
+
+    def start_services(
+        self,
+        service_names: tuple[str, ...] | list[str],
+        *,
+        timeout: int = 600,
+        native: bool = False,
+    ) -> None:
+        if not service_names:
+            return
+        args = ["services", "start"]
+        if native:
+            args.append("--native")
+        for service_name in service_names:
+            args.extend(["--service", service_name])
+        self.run_phlo(args, timeout=timeout, stream_output=True)
+
+    def wait_for_http(self, url: str, *, name: str, timeout: int = 120) -> None:
+        if not self._utils().wait_for_http(url, name=name, timeout=timeout):
+            raise RuntimeError(f"{name} did not become ready: {url}")
+
+    def http_get(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        timeout: int = 30,
+    ) -> dict[str, Any] | list[Any] | str:
+        return cast(
+            dict[str, Any] | list[Any] | str,
+            self._utils().http_get(url, headers=headers, timeout=timeout),
+        )
+
+    def http_post(
+        self,
+        url: str,
+        data: dict[str, Any] | str,
+        *,
+        headers: dict[str, str] | None = None,
+        timeout: int = 30,
+    ) -> dict[str, Any] | list[Any] | str:
+        return cast(
+            dict[str, Any] | list[Any] | str,
+            self._utils().http_post(url, data, headers=headers, timeout=timeout),
+        )
+
+    def run_python(
+        self,
+        code: str,
+        *,
+        env_updates: dict[str, str] | None = None,
+        timeout: int = 60,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        if env_updates:
+            env.update(env_updates)
+        return subprocess.run(
+            [str(self.python_executable), "-c", code],
+            cwd=self.project_dir,
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=check,
+        )
+
+    def run_command(
+        self,
+        args: list[str],
+        *,
+        timeout: int = 60,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            args,
+            cwd=self.project_dir,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=check,
+        )
+
+    def host_lineage_db_url(self) -> str:
+        env_vars = self.read_env()
+        return (
+            "postgresql://"
+            f"{env_vars.get('POSTGRES_USER', 'phlo')}:"
+            f"{env_vars.get('POSTGRES_PASSWORD', 'phlo')}"
+            f"@localhost:{self.ports.postgres}/{env_vars.get('POSTGRES_DB', 'phlo')}"
+        )
+
+    def verify_default_frontends(self) -> None:
+        self.start_services(["phlo-api", "observatory"], timeout=600, native=True)
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.phlo_api}/health",
+            name="Phlo API",
+            timeout=120,
+        )
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.observatory}/",
+            name="Observatory",
+            timeout=180,
+        )
+        observatory_response = requests.get(
+            f"http://127.0.0.1:{self.ports.observatory}/",
+            timeout=30,
+        )
+        observatory_response.raise_for_status()
+        assert "text/html" in observatory_response.headers.get("content-type", "")
+
+    def verify_api_stack(self) -> None:
+        self.add_services(["hasura", "postgrest", "pgweb"])
+        self.start_services(["hasura", "postgrest", "pgweb"], timeout=600)
+
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.hasura}/healthz",
+            name="Hasura",
+            timeout=180,
+        )
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.postgrest}/",
+            name="PostgREST",
+            timeout=120,
+        )
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.pgweb}/",
+            name="pgweb",
+            timeout=120,
+        )
+
+        env_vars = self.read_env()
+        hasura_secret = env_vars.get("HASURA_ADMIN_SECRET", "phlo-hasura-admin-secret")
+        graphql_result = self.http_post(
+            f"http://127.0.0.1:{self.ports.hasura}/v1/graphql",
+            {
+                "query": """
+                    query {
+                        marts_posts_mart(limit: 5) {
+                            id
+                            title
+                        }
+                    }
+                """
+            },
+            headers={"x-hasura-admin-secret": hasura_secret},
+        )
+        assert isinstance(graphql_result, dict)
+        rows = graphql_result.get("data", {}).get("marts_posts_mart")
+        assert isinstance(rows, list)
+        assert rows
+
+        rest_result = self.http_get(
+            f"http://127.0.0.1:{self.ports.postgrest}/posts_mart?limit=5",
+            headers={"Accept": "application/json"},
+        )
+        assert isinstance(rest_result, list)
+        assert rest_result
+
+        pgweb_response = requests.get(f"http://127.0.0.1:{self.ports.pgweb}/", timeout=30)
+        pgweb_response.raise_for_status()
+        assert "pgweb" in pgweb_response.text.lower()
+
+        backends = self.http_get(f"http://127.0.0.1:{self.ports.phlo_api}/api/backends")
+        assert isinstance(backends, list)
+        assert any(
+            isinstance(backend, dict)
+            and backend.get("name") == "hasura"
+            and backend.get("healthy") is True
+            for backend in backends
+        )
+
+    def verify_observability_stack(self) -> None:
+        self.add_services(["prometheus", "loki", "alloy", "grafana"])
+        self.start_services(["prometheus", "loki", "alloy", "grafana"], timeout=900)
+
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.prometheus}/-/healthy",
+            name="Prometheus",
+            timeout=180,
+        )
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.loki}/ready",
+            name="Loki",
+            timeout=180,
+        )
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.alloy}/-/ready",
+            name="Alloy",
+            timeout=120,
+        )
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.grafana}/api/health",
+            name="Grafana",
+            timeout=180,
+        )
+
+        prometheus_targets = self.http_get(
+            f"http://127.0.0.1:{self.ports.prometheus}/api/v1/targets"
+        )
+        assert isinstance(prometheus_targets, dict)
+        active_targets = prometheus_targets.get("data", {}).get("activeTargets")
+        assert isinstance(active_targets, list)
+        assert any(
+            target.get("health") == "up" for target in active_targets if isinstance(target, dict)
+        )
+
+        loki_labels = self.http_get(f"http://127.0.0.1:{self.ports.loki}/loki/api/v1/labels")
+        assert isinstance(loki_labels, dict)
+        assert isinstance(loki_labels.get("data"), list)
+
+        grafana_datasources = self.http_get(
+            f"http://127.0.0.1:{self.ports.grafana}/api/datasources",
+            headers={"Authorization": "Basic YWRtaW46YWRtaW4="},
+        )
+        assert isinstance(grafana_datasources, list)
+        assert grafana_datasources
+
+    def verify_superset(self) -> None:
+        self.add_services(["superset"])
+        self.start_services(["superset"], timeout=900)
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.superset}/health",
+            name="Superset",
+            timeout=300,
+        )
+        health = self.http_get(f"http://127.0.0.1:{self.ports.superset}/health")
+        if isinstance(health, dict):
+            assert health.get("status") == "OK"
+            return
+        assert isinstance(health, str)
+        assert health.strip().upper() == "OK"
+
+    def verify_metrics_cli(self) -> None:
+        result = self.run_phlo(
+            ["metrics", "summary", "--period", "24h"],
+            timeout=120,
+            stream_output=False,
+        )
+        assert "Platform Metrics Summary" in result.stdout
+
+    def verify_alerting_cli(self) -> None:
+        env_updates = {"PHLO_ALERT_SLACK_WEBHOOK": "https://example.com/mock"}
+        with self._temporary_env(env_updates):
+            result = self.run_phlo(
+                ["alerts", "list"],
+                timeout=120,
+                stream_output=False,
+            )
+        assert "slack" in result.stdout.lower()
+
+    def emit_lineage_smoke_events(
+        self,
+        *,
+        source_asset: str,
+        target_asset: str,
+        metadata: dict[str, Any] | None = None,
+        env_updates: dict[str, str] | None = None,
+    ) -> None:
+        metadata_json = json.dumps(metadata or {"source": "bundled_stack_contract"})
+        code = f"""
+from phlo.hooks.emitters import LineageEventContext, LineageEventEmitter
+
+LineageEventEmitter(LineageEventContext(tags={{"source": "bundled_stack_contract"}})).emit_edges(
+    edges=[({source_asset!r}, {target_asset!r})],
+    asset_keys=[{target_asset!r}],
+    metadata={metadata_json},
+)
+"""
+        self.run_python(code, env_updates=env_updates, timeout=60)
+
+    def verify_lineage_cli(self) -> None:
+        lineage_db_url = self.host_lineage_db_url()
+        self.emit_lineage_smoke_events(
+            source_asset="raw.posts",
+            target_asset="raw_marts.posts_mart",
+            env_updates={"LINEAGE_DB_URL": lineage_db_url},
+        )
+
+        export_path = self.project_dir / ".phlo" / "lineage_contract_export.json"
+        with self._temporary_env({"LINEAGE_DB_URL": lineage_db_url}):
+            self.run_phlo(
+                [
+                    "lineage",
+                    "export",
+                    "raw_marts.posts_mart",
+                    "--format",
+                    "json",
+                    "--output",
+                    str(export_path),
+                ],
+                timeout=120,
+                stream_output=False,
+            )
+        payload = json.loads(export_path.read_text(encoding="utf-8"))
+        assert "raw.posts" in payload.get("assets", {})
+        assert "raw_marts.posts_mart" in payload.get("assets", {})
+        assert "raw_marts.posts_mart" in payload.get("edges", {}).get("raw.posts", [])
+
+    def verify_openmetadata(self) -> None:
+        self.add_services(["openmetadata"])
+        result = self.run_phlo(
+            ["services", "start", "--service", "openmetadata"],
+            timeout=1500,
+            stream_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            project_name = self.project_dir.name
+            setup_container = f"{project_name}-openmetadata-setup-1"
+            server_container = f"{project_name}-openmetadata-1"
+            setup_result = self.run_command(
+                ["docker", "start", "-a", setup_container],
+                timeout=1500,
+                check=False,
+            )
+            if setup_result.returncode != 0:
+                raise RuntimeError(
+                    setup_result.stdout or setup_result.stderr or "openmetadata setup failed"
+                )
+            server_result = self.run_command(
+                ["docker", "start", server_container],
+                timeout=60,
+                check=False,
+            )
+            if server_result.returncode != 0:
+                raise RuntimeError(
+                    server_result.stdout
+                    or server_result.stderr
+                    or "openmetadata server failed to start"
+                )
+        self.wait_for_http(
+            f"http://127.0.0.1:{self.ports.openmetadata}/api/v1/system/version",
+            name="OpenMetadata",
+            timeout=900,
+        )
+
+        env_vars = self.read_env()
+        om_service = env_vars.get("OPENMETADATA_SERVICE_NAME", "phlo")
+        om_database = env_vars.get(
+            "OPENMETADATA_DATABASE_NAME",
+            env_vars.get("TRINO_CATALOG", "iceberg"),
+        )
+        sync_env = {
+            "OPENMETADATA_HOST": "127.0.0.1",
+            "OPENMETADATA_PORT": str(self.ports.openmetadata),
+            "OPENMETADATA_SERVICE_NAME": om_service,
+            "OPENMETADATA_SERVICE_TYPE": env_vars.get("OPENMETADATA_SERVICE_TYPE", "Trino"),
+            "OPENMETADATA_DATABASE_NAME": om_database,
+            "NESSIE_HOST": "127.0.0.1",
+            "NESSIE_PORT": str(self.ports.nessie),
+            "TRINO_HOST": "127.0.0.1",
+            "TRINO_PORT": str(self.ports.trino),
+        }
+        with self._temporary_env(sync_env):
+            self.run_phlo(["openmetadata", "sync"], timeout=900, stream_output=False)
+
+        om_user = env_vars.get("OPENMETADATA_USERNAME", "admin")
+        om_pass = env_vars.get("OPENMETADATA_PASSWORD", "admin")
+        om_base_url = f"http://127.0.0.1:{self.ports.openmetadata}"
+        om_token = self._utils().openmetadata_login(
+            om_base_url,
+            username=om_user,
+            password=om_pass,
+        )
+        table_fqn = f"{om_service}.{om_database}.raw_marts.posts_mart"
+        source_fqn = f"{om_service}.{om_database}.raw.posts"
+        table = self._utils().openmetadata_get_with_fallback(
+            [f"{om_base_url}/api/v1/tables/name/{urllib.parse.quote(table_fqn, safe='')}"],
+            token=om_token,
+            username=om_user,
+            password=om_pass,
+            timeout=30,
+        )
+        assert isinstance(table, dict)
+        assert table.get("name") == "posts_mart"
+
+        emit_env = {
+            **sync_env,
+            "OPENMETADATA_USERNAME": om_user,
+            "OPENMETADATA_PASSWORD": om_pass,
+        }
+        code = f"""
+from phlo.hooks.emitters import (
+    LineageEventContext,
+    LineageEventEmitter,
+    QualityResultEventContext,
+    QualityResultEventEmitter,
+)
+
+source_fqn = {source_fqn!r}
+target_fqn = {table_fqn!r}
+
+LineageEventEmitter(LineageEventContext(tags={{"source": "bundled_stack_contract"}})).emit_edges(
+    edges=[(source_fqn, target_fqn)],
+    asset_keys=[target_fqn],
+    metadata={{"bundled_stack_contract": True}},
+)
+
+QualityResultEventEmitter(
+    QualityResultEventContext(asset_key=target_fqn, tags={{"source": "bundled_stack_contract"}})
+).emit_result(
+    check_name="bundled_stack_row_count",
+    passed=True,
+    check_type="CountCheck",
+    metadata={{"table_fqn": target_fqn, "metric_value": {{"row_count": 1}}}},
+)
+"""
+        self.run_python(code, env_updates=emit_env, timeout=60)
+        time.sleep(2)
+
+        lineage = self._utils().openmetadata_get_with_fallback(
+            [f"{om_base_url}/api/v1/lineage/table/{table['id']}?upstreamDepth=1&downstreamDepth=0"],
+            token=om_token,
+            username=om_user,
+            password=om_pass,
+            timeout=30,
+        )
+        assert isinstance(lineage, dict)
+        edges = lineage.get("edges") or lineage.get("upstreamEdges") or []
+        assert isinstance(edges, list)
+        assert edges
+
+        test_cases = self._utils().openmetadata_get_with_fallback(
+            [
+                f"{om_base_url}/api/v1/dataQuality/testCases?limit=100",
+                f"{om_base_url}/api/v1/testCases?limit=100",
+            ],
+            token=om_token,
+            username=om_user,
+            password=om_pass,
+            timeout=30,
+        )
+        data = test_cases.get("data", []) if isinstance(test_cases, dict) else test_cases
+        assert isinstance(data, list)
+        assert any(
+            table_fqn in str(case.get("entityLink", "")) for case in data if isinstance(case, dict)
+        )
 
     def materialize(
         self,
@@ -481,14 +1101,44 @@ class BundledStackHarness:
             time.sleep(1)
         raise TimeoutError(f"Timed out waiting for branch cleanup: {branch_name}")
 
-    def stop_services(self, *, stream_output: bool = True) -> None:
-        with contextlib.suppress(Exception):
+    def stop_services(
+        self,
+        services: list[str] | None = None,
+        *,
+        timeout: int = 300,
+        native: bool | None = None,
+        stream_output: bool = True,
+    ) -> None:
+        if services:
+            args = ["services", "stop"]
+            if native:
+                args.append("--native")
+            for service in services:
+                args.extend(["--service", service])
             self.run_phlo(
-                ["services", "stop"],
-                timeout=300,
+                args,
+                timeout=timeout,
                 check=False,
                 stream_output=stream_output,
             )
+            return
+
+        if native is None or native:
+            with contextlib.suppress(Exception):
+                self.run_phlo(
+                    ["services", "stop", "--native"],
+                    timeout=timeout,
+                    check=False,
+                    stream_output=stream_output,
+                )
+        if native is None or not native:
+            with contextlib.suppress(Exception):
+                self.run_phlo(
+                    ["services", "stop"],
+                    timeout=timeout,
+                    check=False,
+                    stream_output=stream_output,
+                )
 
     def cleanup(
         self,
@@ -634,6 +1284,7 @@ def bootstrap_bundled_stack_harness(
     if docker_info.returncode != 0:
         raise RuntimeError("Docker daemon is unavailable for bundled-stack contract tests")
 
+    _cleanup_existing_bundled_stack_projects(target_project_dir.parent, stream_output=stream_output)
     _verify_bind_mount_parent(target_project_dir.parent)
 
     if target_project_dir.exists() and not utils.force_remove_directory(target_project_dir):

@@ -35,6 +35,9 @@ lineage = "phlo_lineage.cli_plugin:LineageCliPlugin"
 [project.entry-points."phlo.plugins.hooks"]
 lineage = "phlo_lineage.hooks_plugin:LineageHookPlugin"
 
+[project.entry-points."phlo.plugins.resources"]
+lineage = "phlo_lineage.resource_provider:LineageResourceProvider"
+
 [project.entry-points."phlo.plugins.observatory"]
 lineage = "phlo_lineage.observatory_plugin:LineageObservatoryExtension"
 

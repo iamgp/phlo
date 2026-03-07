@@ -66,7 +66,7 @@ Phlo Observatory defines extension manifest models for compatibility, navigation
 Example structure:
 
 ```python
-from phlo_observatory.manifest import (
+from phlo.plugins.observatory import (
     ObservatoryExtensionCompatibility,
     ObservatoryExtensionManifest,
     ObservatoryExtensionNavItem,
@@ -89,7 +89,7 @@ manifest = ObservatoryExtensionManifest(
 ```python
 from importlib import resources
 from phlo.plugins import PluginMetadata
-from phlo_observatory import ObservatoryExtensionPlugin
+from phlo.plugins.observatory import ObservatoryExtensionPlugin
 
 class ExampleObservatoryExtension(ObservatoryExtensionPlugin):
     @property

@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from phlo.logging import get_logger
 
 try:
-    from phlo_observatory.extensions import discover_observatory_extensions
+    from phlo.plugins.observatory import discover_observatory_extensions
 except Exception:  # noqa: BLE001 - observatory package is optional
 
     def discover_observatory_extensions() -> list[Any]:

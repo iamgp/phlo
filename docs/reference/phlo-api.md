@@ -14,6 +14,7 @@ The `phlo-api` is a FastAPI-based backend service that provides the Observatory 
 - **Logging**: Search and correlate logs via Loki
 - **Lineage Tracking**: Row-level lineage queries
 - **Maintenance**: Iceberg maintenance operation status
+- **API Backends**: Capability-backed Graph/API backend discovery
 - **Search**: Unified search across assets, tables, and columns
 
 ## Quick Start
@@ -50,6 +51,7 @@ This includes detailed documentation for all endpoints:
 - Logging (Loki integration, run logs, asset logs)
 - Row lineage (ancestors, descendants, journey)
 - Maintenance (status, metrics)
+- API backends (capability-backed Graph/API backend discovery)
 - Search index (assets, tables, columns)
 
 ## Key Features

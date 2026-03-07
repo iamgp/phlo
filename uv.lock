@@ -2718,9 +2718,6 @@ dev = [
 lineage = [
     { name = "phlo-lineage" },
 ]
-observatory = [
-    { name = "phlo-observatory" },
-]
 
 [package.metadata]
 requires-dist = [
@@ -2729,7 +2726,6 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "phlo", editable = "." },
     { name = "phlo-lineage", marker = "extra == 'lineage'", editable = "packages/phlo-lineage" },
-    { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
