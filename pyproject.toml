@@ -118,6 +118,7 @@ dev-dependencies = [
 phlo = { workspace = true }
 phlo-core-plugins = { workspace = true }
 phlo-iceberg = { workspace = true }
+phlo-delta = { workspace = true }
 phlo-dlt = { workspace = true }
 phlo-dbt = { workspace = true }
 phlo-dagster = { workspace = true }
@@ -196,6 +197,7 @@ extra-paths = [
   "packages/phlo-core-plugins/src",
   "packages/phlo-dagster/src",
   "packages/phlo-dbt/src",
+  "packages/phlo-delta/src",
   "packages/phlo-dlt/src",
   "packages/phlo-grafana/src",
   "packages/phlo-hasura/src",

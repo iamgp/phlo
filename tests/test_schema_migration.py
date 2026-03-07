@@ -175,8 +175,7 @@ class TestSchemaMigrationRegistry:
 
         registry = get_capability_registry()
         migrators = registry.list_schema_migrators()
-        assert len(migrators) == 1
-        assert migrators[0].name == "iceberg"
+        assert any(m.name == "iceberg" for m in migrators)
 
     def test_clear(self) -> None:
         register_schema_migrator(SchemaMigrationSpec(name="delta", provider=object()))

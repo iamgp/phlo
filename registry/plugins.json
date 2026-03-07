@@ -235,6 +235,16 @@
       "tags": ["orchestration", "ui", "observability"],
       "verified": true
     },
+    "delta": {
+      "type": "resource",
+      "package": "phlo-delta",
+      "version": "0.1.0",
+      "description": "Delta Lake table-store capability plugin for the data lakehouse",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/phlohouse/phlo/tree/main/packages/phlo-delta",
+      "tags": ["table-store", "delta", "lakehouse"],
+      "verified": true
+    },
     "openmetadata": {
       "type": "hooks",
       "package": "phlo-openmetadata",
