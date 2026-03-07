@@ -36,8 +36,8 @@ class MetricsBackendSettings(BaseConfig):
         default=None,
         description="Optional query_engine capability name for table stats queries",
     )
-    metrics_query_catalog: str = Field(
-        default="iceberg",
+    metrics_query_catalog: str | None = Field(
+        default=None,
         description="Catalog name used for query-engine table stats lookups",
     )
 
@@ -438,7 +438,7 @@ class MetricsCollector:
     def _get_iceberg_table_stats(self, table_name: str) -> dict[str, Any]:
         """Get table statistics from Iceberg."""
         query_engine = self._load_query_engine()
-        catalog = self.settings.metrics_query_catalog
+        catalog = self._resolve_query_engine_catalog()
         if "." in table_name:
             table_schema, raw_table = table_name.split(".", maxsplit=1)
         else:
@@ -590,6 +590,36 @@ class MetricsCollector:
                 f"Query engine capability unavailable for Iceberg metrics ({target})"
             )
         return resolution.provider
+
+    def _resolve_query_engine_catalog(self) -> str:
+        """Resolve the catalog used for query-engine table stats lookups."""
+        if self.settings.metrics_query_catalog:
+            return self._validate_identifier(
+                self.settings.metrics_query_catalog,
+                "metrics_query_catalog",
+            )
+
+        discover_capabilities()
+        resolution = resolve_capability("query_engine", self.settings.metrics_query_engine)
+        if resolution is None:
+            target = (
+                f"query_engine:{self.settings.metrics_query_engine}"
+                if self.settings.metrics_query_engine
+                else "query_engine"
+            )
+            raise MetricsDependencyError(
+                f"Query engine capability unavailable for metrics catalog resolution ({target})"
+            )
+
+        for key in ("default_catalog", "catalog", "catalog_name"):
+            value = resolution.metadata.get(key)
+            if isinstance(value, str) and value:
+                return self._validate_identifier(value, "metrics_query_catalog")
+
+        raise MetricsDependencyError(
+            "Query engine capability does not declare a default catalog and "
+            "metrics_query_catalog is not configured."
+        )
 
 
 # Global metrics collector instance

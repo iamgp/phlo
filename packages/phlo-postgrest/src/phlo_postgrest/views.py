@@ -30,8 +30,8 @@ class PostgrestViewsSettings(BaseConfig):
         default="workflows/transforms/dbt/target/manifest.json",
         description="Path to dbt manifest.json",
     )
-    dbt_api_source_schema: str = Field(
-        default="marts",
+    dbt_api_source_schema: str | None = Field(
+        default=None,
         description="dbt schema to expose through generated PostgREST views",
     )
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
@@ -84,12 +84,14 @@ class DbtManifestParser:
         with open(self.manifest_path) as f:
             manifest = json.load(f)
 
+        source_schema = self.source_schema or self._infer_source_schema(manifest)
+
         models = {}
         for unique_id, node in manifest.get("nodes", {}).items():
             if not unique_id.startswith("model."):
                 continue
 
-            if node.get("schema") != self.source_schema:
+            if node.get("schema") != source_schema:
                 continue
 
             model = DbtModel(
@@ -104,6 +106,20 @@ class DbtManifestParser:
             models[model.name] = model
 
         return models
+
+    def _infer_source_schema(self, manifest: dict) -> str:
+        """Infer the source schema when configuration is omitted."""
+        schemas = {
+            node.get("schema")
+            for unique_id, node in manifest.get("nodes", {}).items()
+            if unique_id.startswith("model.") and isinstance(node.get("schema"), str)
+        }
+        if len(schemas) == 1:
+            return next(iter(schemas))
+        raise ValueError(
+            "dbt_api_source_schema is not configured and manifest contains multiple model "
+            f"schemas: {sorted(schemas)}"
+        )
 
     def build_dependency_graph(self) -> dict[str, list[str]]:
         """Build model dependency graph from manifest.
@@ -427,6 +443,7 @@ def generate_views(
     models: Optional[str] = None,
     manifest_path: Optional[str] = None,
     api_schema: str = "api",
+    source_schema: Optional[str] = None,
     verbose: bool = True,
 ) -> str:
     """Generate PostgREST API views from dbt models.
@@ -438,6 +455,7 @@ def generate_views(
         models: Model filter pattern (e.g., 'mrt_*')
         manifest_path: Path to dbt manifest.json
         api_schema: Schema for API views
+        source_schema: dbt schema to expose
         verbose: Print progress messages
 
     Returns:
@@ -449,7 +467,7 @@ def generate_views(
         logger.info("=" * 60)
 
     # Generate SQL
-    generator = ViewGenerator(manifest_path, api_schema)
+    generator = ViewGenerator(manifest_path, api_schema, source_schema=source_schema)
     sql = generator.generate_all_views(models)
 
     if not sql:

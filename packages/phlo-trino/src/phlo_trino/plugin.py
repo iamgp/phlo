@@ -80,8 +80,12 @@ class TrinoResourceProvider(ResourceProviderPlugin):
                 name="trino",
                 provider=TrinoResource(),
                 metadata={
+                    "host": get_trino_settings().trino_host,
+                    "port": get_trino_settings().trino_port,
                     "default_catalog": get_trino_settings().trino_catalog,
                     "default_ref": get_trino_settings().trino_default_ref,
+                    "service_type": "Trino",
+                    "sqlalchemy_uri_template": "trino://{host}:{port}/{default_catalog}",
                 },
                 support=TRINO_QUERY_ENGINE_SUPPORT,
             )

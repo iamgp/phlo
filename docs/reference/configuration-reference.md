@@ -331,12 +331,15 @@ OPENMETADATA_PASSWORD=admin
 OPENMETADATA_VERIFY_SSL=false
 OPENMETADATA_CATALOG_SCANNER=
 OPENMETADATA_QUERY_ENGINE=
-OPENMETADATA_DEFAULT_CATALOG=iceberg
+OPENMETADATA_DATABASE_NAME=
 OPENMETADATA_DBT_MANIFEST_PATH=workflows/transforms/dbt/target/manifest.json
 OPENMETADATA_DBT_CATALOG_PATH=workflows/transforms/dbt/target/catalog.json
 OPENMETADATA_SYNC_ENABLED=true
 OPENMETADATA_SYNC_INTERVAL_SECONDS=300  # Minimum interval between syncs
 ```
+
+`OPENMETADATA_DATABASE_NAME` is required unless a resolved `query_engine` capability
+declares catalog metadata.
 
 Access: http://localhost:8585
 

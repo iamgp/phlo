@@ -7,6 +7,8 @@ import time
 
 import requests
 
+from phlo.capabilities import resolve_capability
+from phlo.capabilities.discovery import discover_capabilities
 from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -19,17 +21,77 @@ def _superset_auth_provider() -> str:
 
 def _superset_database_name() -> str:
     """Return the configured logical database name shown in Superset."""
-    return os.environ.get("SUPERSET_DATABASE_NAME", "query_engine")
+    configured = os.environ.get("SUPERSET_DATABASE_NAME")
+    if configured:
+        return configured
+
+    discover_capabilities()
+    resolution = resolve_capability("query_engine", _query_engine_name())
+    if resolution is not None:
+        for key in ("default_catalog", "catalog", "catalog_name"):
+            value = resolution.metadata.get(key)
+            if isinstance(value, str) and value:
+                return value
+
+    raise RuntimeError(
+        "SUPERSET_DATABASE_NAME is not configured and no query_engine capability "
+        "declares a default catalog."
+    )
 
 
-def add_trino_database() -> None:
-    """Add Trino database connection to Superset."""
+def _query_engine_name() -> str | None:
+    """Return the configured query_engine capability name for Superset integration."""
+    return os.environ.get("SUPERSET_QUERY_ENGINE")
+
+
+def _configured_database_uri() -> str | None:
+    """Return an explicit SQLAlchemy URI override when configured."""
+    uri = os.environ.get("SUPERSET_DATABASE_URI")
+    if uri:
+        return uri
+    return None
+
+
+def _discover_query_engine_database_uri() -> str:
+    """Resolve a SQLAlchemy URI from query_engine capability metadata."""
+    discover_capabilities()
+    resolution = resolve_capability("query_engine", _query_engine_name())
+    if resolution is None:
+        target = _query_engine_name() or "query_engine"
+        raise RuntimeError(
+            "Superset database URI is not configured. Set SUPERSET_DATABASE_URI or "
+            f"install/configure capability '{target}'."
+        )
+
+    metadata = resolution.metadata
+    direct_uri = metadata.get("sqlalchemy_uri")
+    if isinstance(direct_uri, str) and direct_uri:
+        return direct_uri
+
+    template = metadata.get("sqlalchemy_uri_template")
+    if isinstance(template, str) and template:
+        try:
+            return template.format(**metadata)
+        except KeyError as exc:
+            missing = exc.args[0]
+            raise RuntimeError(
+                f"Query engine metadata is missing '{missing}' required for Superset SQLAlchemy URI."
+            ) from exc
+
+    raise RuntimeError(
+        "Superset requires SUPERSET_DATABASE_URI or query_engine capability metadata "
+        "with sqlalchemy_uri/sqlalchemy_uri_template."
+    )
+
+
+def add_query_engine_database() -> None:
+    """Add the configured query-engine database connection to Superset."""
     start = time.perf_counter()
     superset_url = os.environ.get("SUPERSET_URL", "http://localhost:8088")
     admin_user = os.environ.get("SUPERSET_ADMIN_USER", "admin")
     admin_password = os.environ.get("SUPERSET_ADMIN_PASSWORD", "admin")
     logger.info(
-        "superset_add_trino_database_started",
+        "superset_add_query_engine_database_started",
         superset_url=superset_url,
     )
 
@@ -101,11 +163,16 @@ def add_trino_database() -> None:
             error=str(exc),
         )
 
-    # Check if Trino database already exists
+    # Check if query-engine database already exists
+    try:
+        database_name = _superset_database_name()
+    except RuntimeError as exc:
+        logger.error("superset_database_name_resolution_failed", error=str(exc))
+        return
+
     try:
         dbs_resp = session.get(f"{superset_url}/api/v1/database/", timeout=10)
         existing_dbs = dbs_resp.json().get("result", [])
-        database_name = _superset_database_name()
         for db in existing_dbs:
             if db.get("database_name") == database_name:
                 logger.info(
@@ -122,15 +189,11 @@ def add_trino_database() -> None:
             error=str(exc),
         )
 
-    # Add Trino database
-    trino_host = os.environ.get("TRINO_HOST", "trino")
-    trino_port = os.environ.get("TRINO_PORT", "8080")
-    trino_catalog = os.environ.get("TRINO_CATALOG", "iceberg")
-    database_name = _superset_database_name()
+    database_uri = _configured_database_uri() or _discover_query_engine_database_uri()
 
     database_payload = {
         "database_name": database_name,
-        "sqlalchemy_uri": f"trino://{trino_host}:{trino_port}/{trino_catalog}",
+        "sqlalchemy_uri": database_uri,
         "expose_in_sqllab": True,
         "allow_run_async": True,
         "allow_ctas": True,
@@ -144,9 +207,7 @@ def add_trino_database() -> None:
             "superset_query_engine_database_create_started",
             superset_url=superset_url,
             database_name=database_name,
-            trino_host=trino_host,
-            trino_port=trino_port,
-            trino_catalog=trino_catalog,
+            sqlalchemy_uri=database_uri,
         )
         resp = session.post(
             f"{superset_url}/api/v1/database/",
@@ -176,6 +237,6 @@ if __name__ == "__main__":
     setup_logging()
 
     if len(sys.argv) > 1 and sys.argv[1] == "add-database":
-        add_trino_database()
+        add_query_engine_database()
     else:
         logger.info("Usage: python -m phlo_superset.hooks add-database")

@@ -18,6 +18,7 @@ from phlo_api.observatory_api.trino import (
     execute_trino_query,
     quote_identifier,
     resolve_default_catalog,
+    resolve_default_ref,
 )
 
 logger = get_logger(__name__)
@@ -317,7 +318,7 @@ async def fetch_table_schema(
 
 @router.get("/tables", response_model=list[IcebergTable] | dict)
 async def get_tables(
-    branch: str = "main",
+    branch: str | None = None,
     catalog: str | None = None,
     preferred_schema: str | None = None,
     trino_url: str | None = None,
@@ -335,14 +336,22 @@ async def get_tables(
     Returns:
         Table list or an error dictionary.
     """
-    effective_catalog = catalog or resolve_default_catalog()
+    try:
+        effective_catalog = catalog or resolve_default_catalog()
+        effective_branch = branch or resolve_default_ref()
+    except RuntimeError as exc:
+        return {"error": str(exc)}
 
-    cache_key = f"tables:{effective_catalog}:{branch}:{preferred_schema}:{trino_url or 'default'}"
+    cache_key = (
+        f"tables:{effective_catalog}:{effective_branch}:{preferred_schema}:{trino_url or 'default'}"
+    )
     cached = _cache_get(cache_key, CACHE_TTL_TABLES)
     if cached is not None:
         return cached
 
-    result = await fetch_tables(branch, effective_catalog, preferred_schema, trino_url, timeout_ms)
+    result = await fetch_tables(
+        effective_branch, effective_catalog, preferred_schema, trino_url, timeout_ms
+    )
     if not isinstance(result, dict):
         _cache_set(cache_key, result)
     return result
@@ -352,7 +361,7 @@ async def get_tables(
 async def get_table_schema(
     table: str,
     schema: str | None = None,
-    branch: str = "main",
+    branch: str | None = None,
     catalog: str | None = None,
     trino_url: str | None = None,
     timeout_ms: int = Query(default=30000, le=120000),
@@ -370,8 +379,11 @@ async def get_table_schema(
     Returns:
         Column list or an error dictionary.
     """
-    effective_catalog = catalog or resolve_default_catalog()
-    effective_schema = schema or branch
+    try:
+        effective_catalog = catalog or resolve_default_catalog()
+        effective_schema = schema or branch or resolve_default_ref()
+    except RuntimeError as exc:
+        return {"error": str(exc)}
 
     cache_key = f"schema:{effective_catalog}:{effective_schema}:{table}:{trino_url or 'default'}"
     cached = _cache_get(cache_key, CACHE_TTL_SCHEMA)
@@ -389,7 +401,7 @@ async def get_table_schema(
 @router.get("/tables/{table:path}/row-count", response_model=int | dict)
 async def get_table_row_count(
     table: str,
-    branch: str = "main",
+    branch: str | None = None,
     catalog: str | None = None,
     trino_url: str | None = None,
     timeout_ms: int = Query(default=30000, le=120000),
@@ -406,10 +418,16 @@ async def get_table_row_count(
     Returns:
         Row count or an error dictionary.
     """
-    effective_catalog = catalog or resolve_default_catalog()
-    sql = f"SELECT COUNT(*) as cnt FROM {quote_identifier(effective_catalog)}.{quote_identifier(branch)}.{quote_identifier(table)}"
+    try:
+        effective_catalog = catalog or resolve_default_catalog()
+        effective_branch = branch or resolve_default_ref()
+    except RuntimeError as exc:
+        return {"error": str(exc)}
+    sql = f"SELECT COUNT(*) as cnt FROM {quote_identifier(effective_catalog)}.{quote_identifier(effective_branch)}.{quote_identifier(table)}"
 
-    result = await execute_trino_query(sql, effective_catalog, branch, trino_url, timeout_ms)
+    result = await execute_trino_query(
+        sql, effective_catalog, effective_branch, trino_url, timeout_ms
+    )
 
     if isinstance(result, QueryExecutionError):
         return {"error": result.error}
@@ -422,7 +440,7 @@ async def get_table_row_count(
 @router.get("/tables/{table:path}/metadata", response_model=TableMetadata | dict)
 async def get_table_metadata(
     table: str,
-    branch: str = "main",
+    branch: str | None = None,
     catalog: str | None = None,
     trino_url: str | None = None,
     timeout_ms: int = Query(default=30000, le=120000),
@@ -439,11 +457,15 @@ async def get_table_metadata(
     Returns:
         Table metadata or an error dictionary.
     """
-    effective_catalog = catalog or resolve_default_catalog()
+    try:
+        effective_catalog = catalog or resolve_default_catalog()
+        effective_branch = branch or resolve_default_ref()
+    except RuntimeError as exc:
+        return {"error": str(exc)}
 
     # Get schema
     schema_result = await fetch_table_schema(
-        table, branch, effective_catalog, trino_url, timeout_ms
+        table, effective_branch, effective_catalog, trino_url, timeout_ms
     )
     if isinstance(schema_result, dict) and "error" in schema_result:
         return schema_result
@@ -452,7 +474,7 @@ async def get_table_metadata(
     row_count = None
     try:
         count_result = await get_table_row_count(
-            table, branch, effective_catalog, trino_url, timeout_ms
+            table, effective_branch, effective_catalog, trino_url, timeout_ms
         )
         if isinstance(count_result, int):
             row_count = count_result
@@ -462,9 +484,9 @@ async def get_table_metadata(
     return TableMetadata(
         table=IcebergTable(
             catalog=effective_catalog,
-            schema_name=branch,
+            schema_name=effective_branch,
             name=table,
-            full_name=f"{quote_identifier(effective_catalog)}.{quote_identifier(branch)}.{quote_identifier(table)}",
+            full_name=f"{quote_identifier(effective_catalog)}.{quote_identifier(effective_branch)}.{quote_identifier(table)}",
             layer=infer_layer(table),
         ),
         columns=schema_result,  # type: ignore

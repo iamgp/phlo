@@ -217,3 +217,50 @@ def test_get_iceberg_table_stats_malformed_response(monkeypatch):
     )
     with pytest.raises(MetricsMalformedResponseError):
         collector._get_iceberg_table_stats("dlt_users")
+
+
+def test_get_iceberg_table_stats_uses_query_engine_default_catalog(monkeypatch):
+    """Collector should derive the catalog from query-engine capability metadata."""
+    from phlo_metrics.collector import MetricsCollector
+
+    class FakeQueryEngine:
+        def __init__(self, rows):
+            self.rows = rows
+
+        def execute(self, _sql, params=None, schema=None):
+            return self.rows.pop(0)
+
+    collector = MetricsCollector()
+    collector.settings.metrics_query_catalog = None
+    monkeypatch.setattr(
+        collector, "_load_query_engine", lambda: FakeQueryEngine([[("bronze",)], [(1, 2)]])
+    )
+    monkeypatch.setattr("phlo_metrics.collector.discover_capabilities", lambda: None)
+    monkeypatch.setattr(
+        "phlo_metrics.collector.resolve_capability",
+        lambda capability, name=None: type(
+            "Resolution",
+            (),
+            {"metadata": {"default_catalog": "lakehouse"}},
+        )(),
+    )
+
+    stats = collector._get_iceberg_table_stats("dlt_users")
+
+    assert stats == {"total_bytes": 1, "row_count": 2}
+
+
+def test_get_iceberg_table_stats_requires_catalog_metadata_when_unconfigured(monkeypatch):
+    """Collector should fail clearly when catalog resolution metadata is absent."""
+    from phlo_metrics.collector import MetricsCollector, MetricsDependencyError
+
+    collector = MetricsCollector()
+    collector.settings.metrics_query_catalog = None
+    monkeypatch.setattr("phlo_metrics.collector.discover_capabilities", lambda: None)
+    monkeypatch.setattr(
+        "phlo_metrics.collector.resolve_capability",
+        lambda capability, name=None: type("Resolution", (), {"metadata": {}})(),
+    )
+
+    with pytest.raises(MetricsDependencyError, match="default catalog"):
+        collector._resolve_query_engine_catalog()

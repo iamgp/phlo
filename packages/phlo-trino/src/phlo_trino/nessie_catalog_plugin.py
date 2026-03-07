@@ -1,4 +1,4 @@
-"""Catalog plugins for Nessie-backed Trino catalogs."""
+"""Trino catalog plugins for Nessie-backed Iceberg catalogs."""
 
 from __future__ import annotations
 
@@ -6,19 +6,23 @@ import os
 
 from phlo.plugins.base import CatalogPlugin, PluginMetadata
 
-from phlo_nessie.settings import get_settings
+
+def _nessie_iceberg_rest_uri() -> str:
+    """Build the Nessie Iceberg REST URI from environment settings."""
+    host = os.environ.get("NESSIE_HOST", "nessie")
+    port = os.environ.get("NESSIE_PORT", "19120")
+    return f"http://{host}:{port}/iceberg"
 
 
 def _base_iceberg_catalog_properties(*, prefix: str | None = None) -> dict[str, str]:
     """Build shared Trino Iceberg catalog properties for a Nessie backend."""
-    settings = get_settings()
     minio_endpoint = os.environ.get("S3_ENDPOINT", "http://minio:9000")
     s3_region = os.environ.get("AWS_REGION", "us-east-1")
 
     props: dict[str, str] = {
         "connector.name": "iceberg",
         "iceberg.catalog.type": "rest",
-        "iceberg.rest-catalog.uri": settings.nessie_iceberg_rest_uri(),
+        "iceberg.rest-catalog.uri": _nessie_iceberg_rest_uri(),
         "iceberg.rest-catalog.warehouse": "warehouse",
         "fs.native-s3.enabled": "true",
         "s3.endpoint": minio_endpoint,
@@ -30,7 +34,7 @@ def _base_iceberg_catalog_properties(*, prefix: str | None = None) -> dict[str, 
     return props
 
 
-class NessieIcebergCatalogPlugin(CatalogPlugin):
+class TrinoNessieIcebergCatalogPlugin(CatalogPlugin):
     """Main Trino catalog backed by Nessie Iceberg REST."""
 
     @property
@@ -38,8 +42,8 @@ class NessieIcebergCatalogPlugin(CatalogPlugin):
         return PluginMetadata(
             name="iceberg",
             version="0.1.0",
-            description="Iceberg catalog with Nessie REST backend",
-            tags=["iceberg", "nessie", "lakehouse"],
+            description="Trino Iceberg catalog backed by Nessie REST",
+            tags=["trino", "iceberg", "nessie", "lakehouse"],
         )
 
     @property
@@ -54,7 +58,7 @@ class NessieIcebergCatalogPlugin(CatalogPlugin):
         return _base_iceberg_catalog_properties()
 
 
-class NessieIcebergDevCatalogPlugin(CatalogPlugin):
+class TrinoNessieIcebergDevCatalogPlugin(CatalogPlugin):
     """Dev Trino catalog backed by the Nessie dev ref."""
 
     @property
@@ -62,8 +66,8 @@ class NessieIcebergDevCatalogPlugin(CatalogPlugin):
         return PluginMetadata(
             name="iceberg_dev",
             version="0.1.0",
-            description="Iceberg dev branch catalog",
-            tags=["iceberg", "nessie", "dev"],
+            description="Trino Iceberg catalog for the Nessie dev ref",
+            tags=["trino", "iceberg", "nessie", "dev"],
         )
 
     @property

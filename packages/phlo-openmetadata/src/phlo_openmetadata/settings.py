@@ -7,7 +7,10 @@ from functools import lru_cache
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
-from phlo_openmetadata.capabilities import resolve_query_engine_catalog
+from phlo_openmetadata.capabilities import (
+    resolve_query_engine_catalog,
+    resolve_query_engine_service_type,
+)
 
 
 class OpenMetadataSettings(BaseConfig):
@@ -26,9 +29,9 @@ class OpenMetadataSettings(BaseConfig):
         default="phlo",
         description="OpenMetadata database service name for Phlo metadata sync",
     )
-    openmetadata_service_type: str = Field(
-        default="Trino",
-        description="OpenMetadata database service type (e.g., Trino, Postgres)",
+    openmetadata_service_type: str | None = Field(
+        default=None,
+        description="OpenMetadata database service type (required unless query_engine metadata declares service_type)",
     )
     openmetadata_catalog_scanner: str | None = Field(
         default=None,
@@ -38,13 +41,9 @@ class OpenMetadataSettings(BaseConfig):
         default=None,
         description="Query engine capability name used to infer the OpenMetadata database name",
     )
-    openmetadata_default_catalog: str = Field(
-        default="iceberg",
-        description="Fallback catalog/database name when query-engine metadata is unavailable",
-    )
     openmetadata_database_name: str | None = Field(
         default=None,
-        description="OpenMetadata database name (defaults to Trino catalog if unset)",
+        description="OpenMetadata database name (required unless a query_engine capability declares catalog metadata)",
     )
     openmetadata_dbt_manifest_path: str = Field(
         default="workflows/transforms/dbt/target/manifest.json",
@@ -73,14 +72,17 @@ class OpenMetadataSettings(BaseConfig):
         """Resolve the OpenMetadata database name.
 
         Returns:
-            str: Explicit OpenMetadata database name or Trino catalog fallback.
+            str: Explicit OpenMetadata database name or discovered query-engine catalog.
         """
         if self.openmetadata_database_name:
             return self.openmetadata_database_name
-        return resolve_query_engine_catalog(
-            self.openmetadata_query_engine,
-            default=self.openmetadata_default_catalog,
-        )
+        return resolve_query_engine_catalog(self.openmetadata_query_engine)
+
+    def openmetadata_database_service_type(self) -> str:
+        """Resolve the OpenMetadata service type."""
+        if self.openmetadata_service_type:
+            return self.openmetadata_service_type
+        return resolve_query_engine_service_type(self.openmetadata_query_engine)
 
 
 @lru_cache(maxsize=1)

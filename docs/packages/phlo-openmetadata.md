@@ -26,8 +26,8 @@ phlo plugin install openmetadata
 | `OPENMETADATA_PASSWORD`              | `admin`               | Admin password             |
 | `OPENMETADATA_VERIFY_SSL`            | `false`               | Verify SSL certificates    |
 | `OPENMETADATA_CATALOG_SCANNER`       | unset                 | Optional `catalog_scanner` capability name for sync |
-| `OPENMETADATA_QUERY_ENGINE`          | unset                 | Optional `query_engine` capability name for catalog inference |
-| `OPENMETADATA_DEFAULT_CATALOG`       | `iceberg`             | Fallback catalog/database name |
+| `OPENMETADATA_QUERY_ENGINE`          | unset                 | Optional `query_engine` capability name for database inference; required unless `OPENMETADATA_DATABASE_NAME` is set |
+| `OPENMETADATA_DATABASE_NAME`         | unset                 | Explicit OpenMetadata database name when not deriving it from a query engine capability |
 | `OPENMETADATA_DBT_MANIFEST_PATH`     | `workflows/transforms/dbt/target/manifest.json` | dbt manifest path |
 | `OPENMETADATA_DBT_CATALOG_PATH`      | `workflows/transforms/dbt/target/catalog.json` | dbt catalog path |
 | `OPENMETADATA_SYNC_ENABLED`          | `true`                | Enable automatic sync      |
@@ -65,6 +65,8 @@ Pipeline Events → HookBus → OpenMetadataHookPlugin → OpenMetadata API
 
 ```bash
 # Manually sync all tables using the resolved catalog_scanner capability
+# Requires either OPENMETADATA_DATABASE_NAME or a query_engine capability
+# with catalog metadata.
 phlo openmetadata sync
 ```
 

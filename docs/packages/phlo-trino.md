@@ -30,6 +30,7 @@ phlo plugin install trino
 | Feature                 | How It Works                                                                 |
 | ----------------------- | ---------------------------------------------------------------------------- |
 | **Catalog Discovery**   | Auto-generates catalog files from `phlo.plugins.catalogs` entry points |
+| **Nessie Adapter**      | Owns Trino-specific Nessie/Iceberg catalog adapters (`iceberg`, `iceberg_dev`) |
 | **Metrics Labels**      | Exposes Trino metrics for Prometheus                                         |
 | **Grafana Datasource**  | Auto-registers as Grafana datasource via labels                              |
 | **Superset Connection** | Auto-registered in Superset via Superset hook                                |
@@ -145,6 +146,7 @@ compose:
 | ------------------------- | ------------------------- |
 | `phlo.plugins.services`   | `TrinoServicePlugin`      |
 | `phlo.plugins.resources`  | `TrinoResourceProvider`   |
+| `phlo.plugins.catalogs`   | Trino catalog adapters    |
 
 ## Related Packages
 
