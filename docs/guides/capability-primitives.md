@@ -74,8 +74,23 @@ orchestrator adapter. It provides:
 - `run_id`, `partition_key`, `tags`
 - `logger`
 - `resources` and `get_resource(name)`
+- `routing`, a canonical `RuntimeRouting` payload derived from the orchestrator context
 
 Do not rely on orchestrator-native context objects inside packages.
+
+### Runtime routing
+
+`RuntimeRouting` is the shared execution contract across capabilities. It carries:
+
+- `environment`
+- `ref`
+- `partition_key`
+- `run_id`
+- `resources`
+- `feature_flags`
+
+Helpers such as `routing_from_context()` and `resolve_runtime_ref()` let packages derive
+ref-aware behavior without importing concrete provider packages.
 
 ## Runtime capability interfaces
 
@@ -86,6 +101,9 @@ These are the contracts discovered and wired by capability providers.
   `merge_parquet`. Optional extended operations include `overwrite_parquet`,
   `delete_rows`, `compact`, `list_snapshots`, `rollback_to_snapshot`, and
   `vacuum`.
+- `VersionedCatalog`: optional branch-aware catalog contract used for refs,
+  promotion, and branch cleanup. Dagster WAP flows should depend on this
+  interface rather than concrete Nessie types.
 - `GovernanceBackend`: policy APIs (`list_policies`, `apply_policy`,
   `revoke_policy`, `check_access`).
 - `SecretBackend`: secret retrieval/listing APIs (`get_secret`, `list_secrets`).
@@ -95,6 +113,14 @@ These are the contracts discovered and wired by capability providers.
   `apply_plan`, `get_schema_history`) with provider-specific change
   classification.
 - `AccessPolicy`: value object used by governance providers.
+
+The capability registry also supports higher-level specs such as:
+
+- `QueryEngineSpec`
+- `PublishTargetSpec`
+
+That lets packages declare what they provide without encoding stack-specific
+assumptions into consumers.
 
 These interfaces let providers opt into richer behavior incrementally while
 keeping a single core contract surface for discovery and runtime resolution.
