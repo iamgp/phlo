@@ -48,11 +48,15 @@ def test_registry_tracks_new_platform_capability_types() -> None:
     register_publish_target(PublishTargetSpec(name="postgres", provider=object()))
 
     registry = get_capability_registry()
-    assert [spec.name for spec in registry.list_table_stores()] == ["iceberg"]
-    assert [spec.name for spec in registry.list_catalogs()] == ["nessie"]
-    assert [spec.name for spec in registry.list_query_engines()] == ["trino"]
-    assert [spec.name for spec in registry.list_schema_migrators()] == ["iceberg"]
-    assert [spec.name for spec in registry.list_publish_targets()] == ["postgres"]
+
+    def names(specs):
+        return {spec.name for spec in specs}
+
+    assert "iceberg" in names(registry.list_table_stores())
+    assert "nessie" in names(registry.list_catalogs())
+    assert "trino" in names(registry.list_query_engines())
+    assert "iceberg" in names(registry.list_schema_migrators())
+    assert "postgres" in names(registry.list_publish_targets())
 
 
 def test_resolve_capability_prefers_explicit_name() -> None:
