@@ -5,15 +5,42 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from phlo.capabilities import AssetSpec, MaterializeResult, PartitionSpec, RunSpec
+from phlo.capabilities import (
+    AssetSpec,
+    MaterializeResult,
+    PartitionSpec,
+    RunSpec,
+)
 from phlo.capabilities.runtime import RuntimeContext
+from phlo.exceptions import PhloCapabilitySetupError
 from phlo.logging import get_logger
+from phlo_dbt.runtime_config import ensure_dbt_profile, resolve_dbt_target_name
 from phlo_dbt.settings import get_settings
 
 from phlo_dbt.transformer import DbtTransformer, ensure_dbt_manifest
 from phlo_dbt.translator import DbtSpecTranslator
 
 logger = get_logger(__name__)
+
+
+def _raise_required_dbt_setup_error(
+    *,
+    reason: str,
+    dbt_project_path: Path,
+    dbt_profiles_path: Path,
+    manifest_path: Path,
+) -> None:
+    """Raise a required capability setup error for dbt asset discovery."""
+    raise PhloCapabilitySetupError(
+        capability="dbt",
+        required=True,
+        message=f"dbt asset discovery failed: {reason}",
+        suggestions=[
+            f"Check the dbt project at {dbt_project_path}",
+            f"Check generated profiles at {dbt_profiles_path}",
+            f"Ensure dbt can compile a valid manifest at {manifest_path}",
+        ],
+    )
 
 
 def _asset_deps(unique_id: str, nodes: Mapping[str, Any], asset_keys: dict[str, str]) -> list[str]:
@@ -57,10 +84,7 @@ def _run_dbt_model(
     Returns:
         Materialization results for the model run.
     """
-    runtime_tags = getattr(runtime, "tags", {}) or {}
-    if not isinstance(runtime_tags, Mapping):
-        runtime_tags = {}
-    target = str(runtime_tags.get("dbt_target") or "dev")
+    target = resolve_dbt_target_name(runtime)
     partition_key = runtime.partition_key
 
     transformer = DbtTransformer(
@@ -101,46 +125,57 @@ def build_dbt_asset_specs() -> list[AssetSpec]:
     dbt_profiles_path = settings.dbt_profiles_path
     manifest_path = dbt_project_path / "target" / "manifest.json"
 
-    if not dbt_project_path.exists():
-        logger.info(
-            "dbt_asset_specs_skipped_project_missing",
+    if not dbt_project_path.exists() or not (dbt_project_path / "dbt_project.yml").exists():
+        logger.warning(
+            "optional_capability_degraded",
+            capability="dbt",
+            reason="project_missing",
             dbt_project_path=str(dbt_project_path),
         )
         return []
 
+    ensure_dbt_profile(dbt_profiles_path)
+
     if not ensure_dbt_manifest(dbt_project_path, dbt_profiles_path):
-        logger.warning(
-            "dbt_asset_specs_skipped_manifest_unavailable",
-            dbt_project_path=str(dbt_project_path),
-            profiles_path=str(dbt_profiles_path),
+        _raise_required_dbt_setup_error(
+            reason="manifest_unavailable",
+            dbt_project_path=dbt_project_path,
+            dbt_profiles_path=dbt_profiles_path,
+            manifest_path=manifest_path,
         )
-        return []
 
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        logger.warning(
-            "dbt_asset_specs_manifest_read_failed",
-            manifest_path=str(manifest_path),
+        _raise_required_dbt_setup_error(
+            reason="manifest_read_failed",
+            dbt_project_path=dbt_project_path,
+            dbt_profiles_path=dbt_profiles_path,
+            manifest_path=manifest_path,
         )
-        return []
 
     if not isinstance(manifest, Mapping):
-        logger.warning(
-            "dbt_asset_specs_manifest_not_mapping",
-            manifest_path=str(manifest_path),
+        _raise_required_dbt_setup_error(
+            reason="manifest_not_mapping",
+            dbt_project_path=dbt_project_path,
+            dbt_profiles_path=dbt_profiles_path,
+            manifest_path=manifest_path,
         )
-        return []
 
     translator = DbtSpecTranslator()
-    nodes = manifest.get("nodes") or {}
-    sources = manifest.get("sources") or {}
+    nodes = manifest.get("nodes")
+    sources = manifest.get("sources")
+    if nodes is None:
+        nodes = {}
+    if sources is None:
+        sources = {}
     if not isinstance(nodes, Mapping) or not isinstance(sources, Mapping):
-        logger.warning(
-            "dbt_asset_specs_manifest_shape_invalid",
-            manifest_path=str(manifest_path),
+        _raise_required_dbt_setup_error(
+            reason="manifest_shape_invalid",
+            dbt_project_path=dbt_project_path,
+            dbt_profiles_path=dbt_profiles_path,
+            manifest_path=manifest_path,
         )
-        return []
 
     asset_keys: dict[str, str] = {}
     for unique_id, props in {**nodes, **sources}.items():

@@ -27,6 +27,17 @@ class PanderaContractEvaluation:
     error: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class PanderaContractValidationError(RuntimeError):
+    """Raised when strict Pandera validation fails before a visible write."""
+
+    evaluation: PanderaContractEvaluation
+    parquet_paths: tuple[Path, ...]
+
+    def __post_init__(self) -> None:
+        RuntimeError.__init__(self, "Pandera contract validation failed")
+
+
 def evaluate_pandera_contract_parquet(
     parquet_path: Path,
     *,
@@ -35,6 +46,20 @@ def evaluate_pandera_contract_parquet(
     """Load parquet data and validate it against a Pandera schema class."""
     df = pd.read_parquet(parquet_path)
     return evaluate_pandera_contract(df, schema_class=schema_class)
+
+
+def evaluate_pandera_contract_parquet_files(
+    parquet_paths: list[Path],
+    *,
+    schema_class: type[DataFrameModel],
+) -> PanderaContractEvaluation:
+    """Load one or more parquet files and validate them as a single staged dataset."""
+    if not parquet_paths:
+        raise FileNotFoundError("Missing parquet_paths in ingestion metadata")
+    frames = [pd.read_parquet(parquet_path) for parquet_path in parquet_paths]
+    return evaluate_pandera_contract(
+        pd.concat(frames, ignore_index=True), schema_class=schema_class
+    )
 
 
 def evaluate_pandera_contract(
@@ -118,4 +143,31 @@ def pandera_contract_asset_check_result(
         metadata=metadata,
         severity=None if evaluation.passed else "error",
         asset_key=asset_key,
+    )
+
+
+def serialize_pandera_contract_evaluation(
+    evaluation: PanderaContractEvaluation,
+) -> dict[str, Any]:
+    """Convert a Pandera contract evaluation to metadata-safe primitives."""
+    return {
+        "passed": evaluation.passed,
+        "failed_count": evaluation.failed_count,
+        "total_count": evaluation.total_count,
+        "sample": evaluation.sample,
+        "error": evaluation.error,
+    }
+
+
+def deserialize_pandera_contract_evaluation(payload: Any) -> PanderaContractEvaluation | None:
+    """Convert metadata payload back into a Pandera contract evaluation."""
+    if not isinstance(payload, dict):
+        return None
+    sample = payload.get("sample")
+    return PanderaContractEvaluation(
+        passed=bool(payload.get("passed")),
+        failed_count=int(payload.get("failed_count", 0)),
+        total_count=int(payload.get("total_count", 0)),
+        sample=sample if isinstance(sample, list) else [],
+        error=str(payload["error"]) if payload.get("error") is not None else None,
     )

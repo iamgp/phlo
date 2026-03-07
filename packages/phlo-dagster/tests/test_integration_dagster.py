@@ -109,6 +109,29 @@ def test_dagster_runtime_reads_run_tags_when_context_has_no_tags():
     assert runtime.tags == {"dbt_target": "ci"}
 
 
+def test_dagster_runtime_builds_routing_without_recursion():
+    """DagsterRuntime.routing should return concrete routing metadata."""
+    from phlo_dagster.adapter import DagsterRuntime
+
+    context = SimpleNamespace(
+        tags={"environment": "dev", "phlo/ref": "feature/orders", "feature/wap": "true"},
+        run_id="abc123",
+        has_partition_key=True,
+        partition_key="2025-01-01",
+        log=SimpleNamespace(),
+        resources=SimpleNamespace(table_store="iceberg"),
+    )
+
+    runtime = DagsterRuntime(context=cast(AssetExecutionContext, context))
+
+    assert runtime.routing.environment == "dev"
+    assert runtime.routing.ref == "feature/orders"
+    assert runtime.routing.partition_key == "2025-01-01"
+    assert runtime.routing.run_id == "abc123"
+    assert runtime.routing.feature_flags == {"wap": "true"}
+    assert runtime.routing.resources["table_store"] == "iceberg"
+
+
 def test_materialize_result_failure_status_fails_step():
     """Failure statuses from capability assets must fail Dagster runs."""
     from phlo.capabilities import AssetSpec, MaterializeResult, RunSpec

@@ -3,8 +3,11 @@ from __future__ import annotations
 import pytest
 
 from phlo.capabilities import (
+    CapabilitySupport,
     CatalogSpec,
+    PublishTargetSpec,
     QueryEngineSpec,
+    RuntimeRouting,
     SchemaMigrationSpec,
     TableStoreSpec,
     clear_capabilities,
@@ -12,10 +15,13 @@ from phlo.capabilities import (
     list_capabilities,
     missing_required_capabilities,
     register_catalog,
+    register_publish_target,
     register_query_engine,
     register_schema_migrator,
     register_table_store,
     resolve_capability,
+    resolve_runtime_ref,
+    routing_from_context,
 )
 from phlo.plugins.base import PluginMetadata
 
@@ -32,22 +38,51 @@ def test_registry_tracks_new_platform_capability_types() -> None:
     register_catalog(CatalogSpec(name="nessie", provider=object()))
     register_query_engine(QueryEngineSpec(name="trino", provider=object()))
     register_schema_migrator(SchemaMigrationSpec(name="iceberg", provider=object()))
+    register_publish_target(PublishTargetSpec(name="postgres", provider=object()))
 
     registry = get_capability_registry()
     assert [spec.name for spec in registry.list_table_stores()] == ["iceberg"]
     assert [spec.name for spec in registry.list_catalogs()] == ["nessie"]
     assert [spec.name for spec in registry.list_query_engines()] == ["trino"]
     assert [spec.name for spec in registry.list_schema_migrators()] == ["iceberg"]
+    assert [spec.name for spec in registry.list_publish_targets()] == ["postgres"]
 
 
 def test_resolve_capability_prefers_explicit_name() -> None:
-    register_query_engine(QueryEngineSpec(name="trino", provider={"engine": "trino"}))
+    register_query_engine(
+        QueryEngineSpec(
+            name="trino",
+            provider={"engine": "trino"},
+            support=CapabilitySupport(supports_refs=True),
+        )
+    )
     register_query_engine(QueryEngineSpec(name="duckdb", provider={"engine": "duckdb"}))
 
     resolved = resolve_capability("query_engine", "duckdb")
     assert resolved is not None
     assert resolved.name == "duckdb"
     assert resolved.provider == {"engine": "duckdb"}
+    assert resolved.support.supports_refs is False
+
+
+def test_resolve_capability_returns_support_metadata() -> None:
+    register_table_store(
+        TableStoreSpec(
+            name="iceberg",
+            provider=object(),
+            support=CapabilitySupport(
+                supports_refs=True,
+                supports_schema_evolution=True,
+                supports_time_travel=True,
+            ),
+        )
+    )
+
+    resolved = resolve_capability("table_store", "iceberg")
+    assert resolved is not None
+    assert resolved.support.supports_refs is True
+    assert resolved.support.supports_schema_evolution is True
+    assert resolved.support.supports_time_travel is True
 
 
 def test_missing_required_capabilities_reports_unsatisfied_requirements() -> None:
@@ -73,3 +108,121 @@ def test_list_capabilities_returns_schema_migrators() -> None:
     register_schema_migrator(SchemaMigrationSpec(name="iceberg", provider=object()))
 
     assert list_capabilities("schema_migrator") == ["iceberg"]
+
+
+def test_list_capabilities_returns_publish_targets() -> None:
+    register_publish_target(PublishTargetSpec(name="postgres", provider=object()))
+
+    assert list_capabilities("publish_target") == ["postgres"]
+
+
+def test_plugin_metadata_support_defaults_to_empty() -> None:
+    metadata = PluginMetadata(name="test-plugin", version="1.0.0")
+
+    assert metadata.support == CapabilitySupport()
+
+
+def test_routing_from_context_reads_canonical_tags() -> None:
+    class StubRuntime:
+        run_id = "run-123"
+        partition_key = "2025-01-01"
+        tags = {
+            "environment": "dev",
+            "branch": "feature/orders",
+            "feature/wap": "true",
+        }
+        resources = {"table_store": object()}
+
+        @property
+        def logger(self) -> object:
+            return object()
+
+        @property
+        def routing(self) -> RuntimeRouting:
+            raise AttributeError
+
+        def get_resource(self, name: str) -> object:
+            return self.resources[name]
+
+    routing = routing_from_context(StubRuntime())
+    assert routing.environment == "dev"
+    assert routing.ref == "feature/orders"
+    assert routing.partition_key == "2025-01-01"
+    assert routing.run_id == "run-123"
+    assert routing.feature_flags == {"wap": "true"}
+    assert "table_store" in routing.resources
+
+
+def test_resolve_runtime_ref_returns_routing_ref_when_supported() -> None:
+    runtime = type(
+        "StubRuntime",
+        (),
+        {
+            "run_id": "run-123",
+            "partition_key": None,
+            "tags": {"phlo/ref": "feature/orders"},
+            "resources": {},
+            "logger": property(lambda self: object()),
+            "routing": property(lambda self: (_ for _ in ()).throw(AttributeError())),
+            "get_resource": lambda self, name: None,
+        },
+    )()
+
+    assert (
+        resolve_runtime_ref(
+            runtime,
+            support=CapabilitySupport(supports_refs=True),
+            default_ref="main",
+        )
+        == "feature/orders"
+    )
+
+
+def test_resolve_runtime_ref_uses_default_for_ref_aware_capability() -> None:
+    runtime = type(
+        "StubRuntime",
+        (),
+        {
+            "run_id": "run-123",
+            "partition_key": None,
+            "tags": {},
+            "resources": {},
+            "logger": property(lambda self: object()),
+            "routing": property(lambda self: (_ for _ in ()).throw(AttributeError())),
+            "get_resource": lambda self, name: None,
+        },
+    )()
+
+    assert (
+        resolve_runtime_ref(
+            runtime,
+            support=CapabilitySupport(supports_refs=True),
+            default_ref="main",
+        )
+        == "main"
+    )
+
+
+def test_resolve_runtime_ref_ignores_ref_for_non_versioned_capability() -> None:
+    runtime = type(
+        "StubRuntime",
+        (),
+        {
+            "run_id": "run-123",
+            "partition_key": None,
+            "tags": {"phlo/ref": "feature/orders"},
+            "resources": {},
+            "logger": property(lambda self: object()),
+            "routing": property(lambda self: (_ for _ in ()).throw(AttributeError())),
+            "get_resource": lambda self, name: None,
+        },
+    )()
+
+    assert (
+        resolve_runtime_ref(
+            runtime,
+            support=CapabilitySupport(supports_refs=False),
+            default_ref="main",
+        )
+        is None
+    )

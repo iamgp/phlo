@@ -11,6 +11,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
+from phlo.capabilities.support import CapabilitySupport
+
 
 @dataclass
 class PluginMetadata:
@@ -45,6 +47,9 @@ class PluginMetadata:
 
     optional_capabilities: list[str] = field(default_factory=list)
     """Capabilities this plugin can use when available."""
+
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+    """Concrete guarantees the plugin or provider supports."""
 
 
 class Plugin(ABC):

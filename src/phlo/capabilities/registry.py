@@ -13,6 +13,7 @@ from phlo.capabilities.specs import (
     GovernanceBackendSpec,
     LineageSinkSpec,
     MetadataCatalogSpec,
+    PublishTargetSpec,
     QualityBackendSpec,
     QueryEngineSpec,
     ResourceSpec,
@@ -36,6 +37,7 @@ class CapabilityRegistry:
     metadata_catalogs: dict[str, MetadataCatalogSpec] = field(default_factory=dict)
     lineage_sinks: dict[str, LineageSinkSpec] = field(default_factory=dict)
     governance_backends: dict[str, GovernanceBackendSpec] = field(default_factory=dict)
+    publish_targets: dict[str, PublishTargetSpec] = field(default_factory=dict)
     secret_backends: dict[str, SecretBackendSpec] = field(default_factory=dict)
     schema_migrators: dict[str, SchemaMigrationSpec] = field(default_factory=dict)
     data_migration_sources: dict[str, DataMigrationSourceSpec] = field(default_factory=dict)
@@ -171,6 +173,16 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.governance_backends.values())
 
+    def register_publish_target(self, spec: PublishTargetSpec) -> None:
+        """Register or replace a publish target spec by name."""
+        with self._lock:
+            self.publish_targets[spec.name] = spec
+
+    def list_publish_targets(self) -> list[PublishTargetSpec]:
+        """Return a snapshot list of registered publish target specs."""
+        with self._lock:
+            return list(self.publish_targets.values())
+
     def register_secret_backend(self, spec: SecretBackendSpec) -> None:
         """Register or replace a secret backend spec by name."""
         with self._lock:
@@ -215,6 +227,7 @@ class CapabilityRegistry:
             self.metadata_catalogs.clear()
             self.lineage_sinks.clear()
             self.governance_backends.clear()
+            self.publish_targets.clear()
             self.secret_backends.clear()
             self.schema_migrators.clear()
             self.data_migration_sources.clear()
@@ -302,6 +315,11 @@ def register_lineage_sink(spec: LineageSinkSpec) -> None:
 def register_governance_backend(spec: GovernanceBackendSpec) -> None:
     """Register a governance backend in the process-global registry."""
     _GLOBAL_REGISTRY.register_governance_backend(spec)
+
+
+def register_publish_target(spec: PublishTargetSpec) -> None:
+    """Register a publish target in the process-global registry."""
+    _GLOBAL_REGISTRY.register_publish_target(spec)
 
 
 def register_secret_backend(spec: SecretBackendSpec) -> None:

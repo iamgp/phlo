@@ -177,6 +177,31 @@ class TestTrinoResourceUnit:
             resource = TrinoResource(catalog="iceberg", ref="dev")
             assert resource._resolved_catalog() == "iceberg_dev"
 
+    def test_resolved_catalog_prefers_runtime_ref(self):
+        """Runtime routing should override the configured default ref."""
+        from phlo_trino import TrinoResource
+
+        with patch("phlo_trino.resource.config") as mock_config:
+            mock_config.trino_catalog = "iceberg"
+            mock_config.iceberg_nessie_ref = "main"
+
+            runtime = type(
+                "StubRuntime",
+                (),
+                {
+                    "run_id": "run-1",
+                    "partition_key": None,
+                    "tags": {"phlo/ref": "feature_orders"},
+                    "resources": {},
+                    "logger": property(lambda self: object()),
+                    "routing": property(lambda self: (_ for _ in ()).throw(AttributeError())),
+                    "get_resource": lambda self, name: None,
+                },
+            )()
+
+            resource = TrinoResource(catalog="iceberg", runtime=runtime)
+            assert resource._resolved_catalog() == "iceberg_feature_orders"
+
     def test_execute_with_mocked_connection(self):
         """Test execute method with mocked Trino connection."""
         from phlo_trino import TrinoResource
@@ -361,6 +386,23 @@ class TestTrinoServicePlugin:
         assert isinstance(service_def, dict)
         # Service definitions have flat structure with 'name' and 'compose' keys
         assert "name" in service_def or "compose" in service_def
+
+    def test_resource_provider_registers_query_engine_capability(self):
+        """Trino resource provider should expose query-engine capability metadata."""
+        from phlo.capabilities import CapabilitySupport
+        from phlo_trino.plugin import TrinoResourceProvider
+        from phlo_trino.resource import TrinoResource
+
+        provider = TrinoResourceProvider()
+        engines = provider.get_query_engines()
+
+        assert len(engines) == 1
+        assert engines[0].name == "trino"
+        assert isinstance(engines[0].provider, TrinoResource)
+        assert engines[0].support == CapabilitySupport(
+            supports_refs=True,
+            supports_time_travel=True,
+        )
 
 
 # =============================================================================

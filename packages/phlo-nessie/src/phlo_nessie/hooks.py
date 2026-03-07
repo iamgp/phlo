@@ -7,11 +7,13 @@ import json
 import os
 import time
 from typing import Any
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+_DEFAULT_WAREHOUSE = "s3://lake/warehouse"
 
 
 def _get_json(url: str) -> dict[str, Any]:
@@ -75,6 +77,23 @@ def _post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
     return response_data
 
 
+def _delete(url: str) -> int:
+    """Perform a DELETE request and return the HTTP status code."""
+    logger.debug(
+        "nessie_hooks_delete_requested",
+        url=url,
+    )
+    req = Request(url, method="DELETE")
+    with urlopen(req, timeout=10) as response:  # nosec B310
+        status_code = response.getcode()
+    logger.debug(
+        "nessie_hooks_delete_succeeded",
+        url=url,
+        status_code=status_code,
+    )
+    return status_code
+
+
 def _resolve_nessie_url() -> str:
     """Resolve the Nessie base URL from environment variables.
 
@@ -85,6 +104,64 @@ def _resolve_nessie_url() -> str:
         return url.rstrip("/")
     port = os.environ.get("NESSIE_PORT", "19120")
     return f"http://localhost:{port}"
+
+
+def _get_ref_log(base_url: str, ref: str) -> list[dict[str, Any]]:
+    """Return the Nessie commit log entries for a ref."""
+    payload = _get_json(f"{base_url}/api/v1/trees/tree/{ref}/log?maxRecords=1")
+    log_entries = payload.get("logEntries", [])
+    return log_entries if isinstance(log_entries, list) else []
+
+
+def _get_iceberg_prefix(base_url: str, ref: str) -> str:
+    """Resolve the Iceberg REST prefix for a Nessie ref."""
+    config = _get_json(f"{base_url}/iceberg/{ref}/v1/config?warehouse={_DEFAULT_WAREHOUSE}")
+    defaults = config.get("defaults", {})
+    prefix = defaults.get("prefix") if isinstance(defaults, dict) else None
+    if not isinstance(prefix, str) or not prefix:
+        raise RuntimeError(f"Missing Iceberg REST prefix for ref '{ref}'.")
+    return prefix
+
+
+def _delete_namespace_if_present(base_url: str, prefix: str, namespace: str) -> None:
+    """Delete a bootstrap namespace when it already exists."""
+    namespace_url = f"{base_url}/iceberg/v1/{prefix}/namespaces/{namespace}"
+    try:
+        _delete(namespace_url)
+    except HTTPError as exc:
+        if exc.code != 404:
+            raise
+
+
+def _ensure_bootstrap_commit(base_url: str, ref: str) -> None:
+    """Materialize a baseline catalog commit for refs with empty history."""
+    if _get_ref_log(base_url, ref):
+        logger.info(
+            "nessie_hooks_bootstrap_commit_exists",
+            base_url=base_url,
+            ref=ref,
+        )
+        return
+
+    prefix = _get_iceberg_prefix(base_url, ref)
+    namespace = f"__phlo_bootstrap_{ref}__"
+    namespace_url = f"{base_url}/iceberg/v1/{prefix}/namespaces"
+
+    logger.info(
+        "nessie_hooks_bootstrap_commit_started",
+        base_url=base_url,
+        ref=ref,
+        namespace=namespace,
+    )
+    _delete_namespace_if_present(base_url, prefix, namespace)
+    _post_json(namespace_url, {"namespace": [namespace]})
+    _delete(f"{namespace_url}/{namespace}")
+    logger.info(
+        "nessie_hooks_bootstrap_commit_completed",
+        base_url=base_url,
+        ref=ref,
+        namespace=namespace,
+    )
 
 
 def init_branches() -> int:
@@ -136,14 +213,6 @@ def init_branches() -> int:
         print(f"Warning: Could not check Nessie branches: {exc}")
         return 0
 
-    if "dev" in existing:
-        logger.info(
-            "nessie_hooks_dev_branch_exists",
-            base_url=base_url,
-        )
-        print("Nessie branches ready (main, dev).")
-        return 0
-
     if "main" not in existing:
         logger.warning(
             "nessie_hooks_main_branch_missing",
@@ -151,6 +220,37 @@ def init_branches() -> int:
             existing_branch_count=len(existing),
         )
         print("Warning: Nessie main branch missing; cannot create dev.")
+        return 0
+
+    try:
+        _ensure_bootstrap_commit(base_url, "main")
+    except Exception as exc:
+        logger.warning(
+            "nessie_hooks_main_bootstrap_failed",
+            base_url=base_url,
+            error=str(exc),
+            exc_info=True,
+        )
+        print(f"Warning: Could not bootstrap Nessie main branch: {exc}")
+        return 0
+
+    if "dev" in existing:
+        try:
+            _ensure_bootstrap_commit(base_url, "dev")
+        except Exception as exc:
+            logger.warning(
+                "nessie_hooks_dev_bootstrap_failed",
+                base_url=base_url,
+                error=str(exc),
+                exc_info=True,
+            )
+            print(f"Warning: Could not bootstrap Nessie dev branch: {exc}")
+            return 0
+        logger.info(
+            "nessie_hooks_dev_branch_exists",
+            base_url=base_url,
+        )
+        print("Nessie branches ready (main, dev).")
         return 0
 
     try:
@@ -181,6 +281,7 @@ def init_branches() -> int:
                 payload_keys=sorted(created.keys()),
             )
             print("Warning: Nessie dev branch create did not return expected payload.")
+        _ensure_bootstrap_commit(base_url, "dev")
     except Exception as exc:
         logger.warning(
             "nessie_hooks_dev_branch_create_failed",

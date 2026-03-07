@@ -16,12 +16,21 @@ phlo plugin install dbt
 
 ## Configuration
 
-| Variable            | Default                               | Description                   |
-| ------------------- | ------------------------------------- | ----------------------------- |
-| `DBT_PROJECT_DIR`   | `workflows/transforms/dbt`                      | Path to dbt project directory |
-| `DBT_PROFILES_DIR`  | `workflows/transforms/dbt/profiles`             | Path to dbt profiles          |
-| `DBT_MANIFEST_PATH` | `workflows/transforms/dbt/target/manifest.json` | Path to dbt manifest          |
-| `DBT_CATALOG_PATH`  | `workflows/transforms/dbt/target/catalog.json`  | Path to dbt catalog           |
+| Variable                  | Default                               | Description                                  |
+| ------------------------- | ------------------------------------- | -------------------------------------------- |
+| `DBT_PROJECT_DIR`         | `workflows/transforms/dbt`            | Path to dbt project directory                |
+| `DBT_PROFILES_DIR`        | `workflows/transforms/dbt/profiles`   | Path to generated dbt profiles               |
+| `DBT_MANIFEST_PATH`       | `workflows/transforms/dbt/target/manifest.json` | Path to dbt manifest              |
+| `DBT_CATALOG_PATH`        | `workflows/transforms/dbt/target/catalog.json`  | Path to dbt catalog               |
+| `DBT_QUERY_ENGINE_TYPE`   | `trino`                               | Adapter type written into generated profiles |
+| `DBT_QUERY_HOST`          | `trino`                               | Query engine host                            |
+| `DBT_QUERY_PORT`          | `8080`                                | Query engine port                            |
+| `DBT_QUERY_CATALOG`       | `iceberg`                             | Base query engine catalog                    |
+| `DBT_QUERY_SCHEMA`        | `raw`                                 | Default schema                               |
+| `DBT_QUERY_USER`          | `dagster`                             | Query engine user                            |
+| `DBT_QUERY_HTTP_SCHEME`   | `http`                                | Query engine scheme                          |
+| `DBT_QUERY_AUTH_METHOD`   | `none`                                | Query engine auth method                     |
+| `DBT_QUERY_THREADS`       | `2`                                   | dbt worker threads                           |
 
 ## Features
 
@@ -30,9 +39,11 @@ phlo plugin install dbt
 | Feature               | How It Works                                                            |
 | --------------------- | ----------------------------------------------------------------------- |
 | **Project Discovery** | Auto-discovers `dbt_project.yml` in workspace via `find_dbt_projects()` |
-| **Asset Specs**       | Automatically creates asset specs from dbt models                        |
-| **Lineage Events**    | Emits lineage events during model execution                             |
-| **Auto-Compile**      | Compiles dbt on startup via post_start hook                             |
+| **Generated Profiles**| Writes canonical `profiles.yml` from Phlo runtime settings             |
+| **Asset Specs**       | Automatically creates asset specs from dbt models                      |
+| **Lineage Events**    | Emits lineage events during model execution                            |
+| **Auto-Compile**      | Compiles dbt on startup via post_start hook                            |
+| **Fail-Closed Setup** | Existing dbt projects fail startup if manifest/profile setup is broken |
 
 ### Discovery Locations
 
@@ -74,6 +85,25 @@ projects = find_dbt_projects()
 # Get the active dbt project directory
 project_dir = get_dbt_project_dir()
 ```
+
+### Runtime routing
+
+`phlo-dbt` derives its active target from canonical runtime routing:
+
+- explicit target argument
+- runtime `environment`
+- legacy `dbt_target` tag only as fallback
+
+When the runtime carries a ref, dbt also uses a ref-aware catalog name such as
+`iceberg_feature_orders`.
+
+### Generated profiles
+
+Do not hand-maintain environment-specific dbt profiles inside Phlo projects.
+
+`phlo-dbt` generates `workflows/transforms/dbt/profiles/profiles.yml` from its
+own runtime settings so dbt remains capability-driven and does not need to import
+concrete query-engine packages.
 
 ## Project Structure
 
@@ -160,6 +190,7 @@ GROUP BY 1, 2
 - [phlo-dagster](phlo-dagster.md) - Dagster adapter for capability specs
 - [phlo-trino](phlo-trino.md) - Query engine
 - [phlo-iceberg](phlo-iceberg.md) - Table format
+- [Integration Profiles](../guides/integration-profiles.md) - Supported capability combinations
 
 ## Next Steps
 

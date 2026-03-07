@@ -10,6 +10,7 @@ import click
 from phlo.logging import get_logger
 from phlo.plugins.base import CliCommandPlugin, PluginMetadata
 from phlo_dbt.cli_publishing import publishing
+from phlo_dbt.runtime_config import DEFAULT_DBT_TARGET, ensure_dbt_profile
 
 
 def _run_dbt(subcommand: str, target: str, select_expr: str | None = None) -> None:
@@ -30,6 +31,8 @@ def _run_dbt(subcommand: str, target: str, select_expr: str | None = None) -> No
     if not (project_dir / "dbt_project.yml").exists():
         click.echo(f"No dbt project found at {project_dir}", err=True)
         sys.exit(1)
+
+    ensure_dbt_profile(profiles_dir, target=target)
 
     cmd = [
         "dbt",
@@ -63,14 +66,14 @@ def dbt_group() -> None:
 
 
 @dbt_group.command("compile")
-@click.option("--target", default="dev", help="dbt target profile")
+@click.option("--target", default=DEFAULT_DBT_TARGET, help="dbt target profile")
 def compile_cmd(target: str) -> None:
     """Compile dbt models in the local project."""
     _run_dbt("compile", target)
 
 
 @dbt_group.command("run")
-@click.option("--target", default="dev", help="dbt target profile")
+@click.option("--target", default=DEFAULT_DBT_TARGET, help="dbt target profile")
 @click.option("--select", "select_expr", default=None, help="dbt model selector")
 def run_cmd(target: str, select_expr: str | None) -> None:
     """Run dbt models in the local project."""
@@ -78,7 +81,7 @@ def run_cmd(target: str, select_expr: str | None) -> None:
 
 
 @dbt_group.command("test")
-@click.option("--target", default="dev", help="dbt target profile")
+@click.option("--target", default=DEFAULT_DBT_TARGET, help="dbt target profile")
 @click.option("--select", "select_expr", default=None, help="dbt model selector")
 def test_cmd(target: str, select_expr: str | None) -> None:
     """Run dbt tests in the local project."""

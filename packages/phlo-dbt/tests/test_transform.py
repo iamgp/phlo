@@ -1,13 +1,15 @@
-"""Unit tests for dbt transform translator.
+"""Unit tests for dbt transform translator and runtime target resolution.
 
 These tests do not require a dbt manifest or running services.
 """
 
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from phlo.logging import get_logger
+from phlo_dbt.runtime_config import resolve_dbt_target_name
 from phlo_dbt.transformer import DbtTransformer
 from phlo_dbt.translator import DbtSpecTranslator
 
@@ -28,6 +30,42 @@ def test_custom_dbt_translator_asset_key_source_dagster_assets_maps_to_dlt() -> 
         {"resource_type": "source", "source_name": "dagster_assets", "name": "entries"}
     )
     assert asset_key == "dlt_entries"
+
+
+def test_resolve_dbt_target_name_prefers_canonical_environment() -> None:
+    """Canonical runtime routing should take precedence over legacy dbt tags."""
+    runtime = SimpleNamespace(
+        run_id="run-1",
+        partition_key="2025-01-01",
+        tags={"environment": "ci", "dbt_target": "legacy"},
+        resources={},
+    )
+
+    assert resolve_dbt_target_name(runtime) == "ci"
+
+
+def test_resolve_dbt_target_name_falls_back_to_legacy_tag() -> None:
+    """Legacy dbt_target tags should keep working when no environment is set."""
+    runtime = SimpleNamespace(
+        run_id="run-1",
+        partition_key=None,
+        tags={"dbt_target": "qa"},
+        resources={},
+    )
+
+    assert resolve_dbt_target_name(runtime) == "qa"
+
+
+def test_resolve_dbt_target_name_defaults_to_dev() -> None:
+    """Missing routing and legacy tags should preserve the existing dev default."""
+    runtime = SimpleNamespace(
+        run_id="run-1",
+        partition_key=None,
+        tags={},
+        resources={},
+    )
+
+    assert resolve_dbt_target_name(runtime) == "dev"
 
 
 @pytest.mark.parametrize(
@@ -142,6 +180,39 @@ def test_run_transform_skip_build_returns_success(tmp_path: Path) -> None:
     assert result.tests_failed == 0
     assert result.metadata["dbt_output"] == ""
     assert run_calls == []
+
+
+def test_run_transform_writes_canonical_profile(tmp_path: Path) -> None:
+    """Verifies runtime execution materializes canonical `profiles.yml` before dbt runs."""
+    transformer = DbtTransformer(
+        context=SimpleNamespace(
+            run_id="run-1",
+            partition_key=None,
+            tags={"environment": "ci", "phlo/ref": "feature_orders"},
+            resources={},
+        ),
+        logger=get_logger("test_dbt_transformer_profile_write"),
+        project_dir=tmp_path,
+        profiles_dir=tmp_path / "profiles",
+        target="ci",
+    )
+
+    def fake_run_command(args: list[str], env: dict[str, str] | None = None):
+        return subprocess.CompletedProcess(
+            args=["dbt"] + args,
+            returncode=0,
+            stdout="PASS=1 WARN=0 ERROR=0 SKIP=0 TOTAL=1",
+            stderr="",
+        )
+
+    transformer._run_command = fake_run_command  # type: ignore[method-assign]
+
+    result = transformer.run_transform(parameters={"generate_docs": False})
+
+    assert result.status == "success"
+    profile_payload = (tmp_path / "profiles" / "profiles.yml").read_text(encoding="utf-8")
+    assert "target: ci" in profile_payload
+    assert "catalog: iceberg_feature_orders" in profile_payload
 
 
 def test_run_transform_counts_models_and_tests_from_run_results(tmp_path: Path) -> None:

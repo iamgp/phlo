@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import dagster as dg
+
 from phlo_dagster.wap_sensors import (
     _all_checks_passed,
     _wap_branch_name,
     wap_auto_promotion_sensor,
     wap_branch_creation_sensor,
+    wap_branch_cleanup_sensor,
 )
 
 
@@ -18,7 +21,13 @@ from phlo_dagster.wap_sensors import (
 
 
 def test_wap_branch_name():
-    assert _wap_branch_name("abc123") == "pipeline/run-abc123"
+    assert _wap_branch_name("abc123") == "pipeline-run-abc123"
+
+
+def test_wap_sensors_default_to_running() -> None:
+    assert wap_branch_creation_sensor.default_status == dg.DefaultSensorStatus.RUNNING
+    assert wap_auto_promotion_sensor.default_status == dg.DefaultSensorStatus.RUNNING
+    assert wap_branch_cleanup_sensor.default_status == dg.DefaultSensorStatus.RUNNING
 
 
 # ---------------------------------------------------------------------------
@@ -33,34 +42,42 @@ class _FakeCheckEvaluation:
 
 class _FakeEvent:
     def __init__(self, passed: bool):
-        self.event_type = "ASSET_CHECK_EVALUATION"
         self.asset_check_evaluation = _FakeCheckEvaluation(passed)
+
+
+class _FakeRecord:
+    def __init__(self, passed: bool):
+        self.event_log_entry = _FakeEvent(passed)
 
 
 def test_all_checks_passed_no_events():
     """No check events means nothing failed — returns True."""
     instance = MagicMock()
-    instance.get_event_log_entries.return_value = []
+    instance.get_records_for_run.return_value = MagicMock(records=[])
     assert _all_checks_passed(instance, "run-1") is True
 
 
 def test_all_checks_passed_all_pass():
     """All checks passing returns True."""
     instance = MagicMock()
-    instance.get_event_log_entries.return_value = [
-        _FakeEvent(passed=True),
-        _FakeEvent(passed=True),
-    ]
+    instance.get_records_for_run.return_value = MagicMock(
+        records=[
+            _FakeRecord(passed=True),
+            _FakeRecord(passed=True),
+        ]
+    )
     assert _all_checks_passed(instance, "run-1") is True
 
 
 def test_all_checks_passed_one_fails():
     """A single failing check returns False."""
     instance = MagicMock()
-    instance.get_event_log_entries.return_value = [
-        _FakeEvent(passed=True),
-        _FakeEvent(passed=False),
-    ]
+    instance.get_records_for_run.return_value = MagicMock(
+        records=[
+            _FakeRecord(passed=True),
+            _FakeRecord(passed=False),
+        ]
+    )
     assert _all_checks_passed(instance, "run-1") is False
 
 
@@ -95,7 +112,7 @@ class TestNessieResourceBranchOps:
         mock_requests.get.return_value = mock_get
         mock_requests.post.return_value = mock_post
 
-        result = nessie.create_branch("pipeline/run-1", from_ref="main")
+        result = nessie.create_branch("pipeline-run-1", from_ref="main")
         assert result == "def456"
         mock_requests.post.assert_called_once()
 
@@ -109,7 +126,7 @@ class TestNessieResourceBranchOps:
         mock_get.json.return_value = {}
         mock_requests.get.return_value = mock_get
 
-        result = nessie.create_branch("pipeline/run-1", from_ref="nonexistent")
+        result = nessie.create_branch("pipeline-run-1", from_ref="nonexistent")
         assert result is None
 
     @patch("phlo_nessie.resource.requests")
@@ -117,36 +134,74 @@ class TestNessieResourceBranchOps:
         """merge_branch returns True on success."""
         nessie = self._make_resource()
 
-        mock_get = MagicMock()
-        mock_get.status_code = 200
-        mock_get.json.return_value = {"hash": "abc123"}
+        source_get = MagicMock()
+        source_get.status_code = 200
+        source_get.json.return_value = {"hash": "source-hash"}
+
+        target_get = MagicMock()
+        target_get.status_code = 200
+        target_get.json.return_value = {"hash": "main-hash"}
 
         mock_post = MagicMock()
         mock_post.status_code = 200
 
-        mock_requests.get.return_value = mock_get
+        mock_requests.get.side_effect = [source_get, target_get]
         mock_requests.post.return_value = mock_post
 
-        result = nessie.merge_branch(source="pipeline/run-1", target="main")
+        result = nessie.merge_branch(source="pipeline-run-1", target="main")
         assert result is True
+        merge_url = mock_requests.post.call_args.args[0]
+        assert merge_url.endswith("/api/v2/trees/main@main-hash/history/merge")
+        assert mock_requests.post.call_args.kwargs["json"]["fromHash"] == "source-hash"
+        assert "params" not in mock_requests.post.call_args.kwargs
 
     @patch("phlo_nessie.resource.requests")
     def test_merge_branch_conflict(self, mock_requests):
         """merge_branch returns False on conflict."""
         nessie = self._make_resource()
 
-        mock_get = MagicMock()
-        mock_get.status_code = 200
-        mock_get.json.return_value = {"hash": "abc123"}
+        source_get = MagicMock()
+        source_get.status_code = 200
+        source_get.json.return_value = {"hash": "source-hash"}
+
+        target_get = MagicMock()
+        target_get.status_code = 200
+        target_get.json.return_value = {"hash": "main-hash"}
 
         mock_post = MagicMock()
         mock_post.status_code = 409
 
-        mock_requests.get.return_value = mock_get
+        mock_requests.get.side_effect = [source_get, target_get]
         mock_requests.post.return_value = mock_post
 
-        result = nessie.merge_branch(source="pipeline/run-1", target="main")
+        result = nessie.merge_branch(source="pipeline-run-1", target="main")
         assert result is False
+        merge_url = mock_requests.post.call_args.args[0]
+        assert merge_url.endswith("/api/v2/trees/main@main-hash/history/merge")
+        assert mock_requests.post.call_args.kwargs["json"]["fromHash"] == "source-hash"
+        assert "params" not in mock_requests.post.call_args.kwargs
+
+    @patch("phlo_nessie.resource.requests")
+    def test_delete_branch_uses_branch_endpoint(self, mock_requests):
+        """delete_branch uses the Nessie branch delete endpoint."""
+        nessie = self._make_resource()
+
+        branch_get = MagicMock()
+        branch_get.status_code = 200
+        branch_get.json.return_value = {"hash": "branch-hash"}
+
+        delete_response = MagicMock()
+        delete_response.status_code = 204
+
+        mock_requests.get.return_value = branch_get
+        mock_requests.delete.return_value = delete_response
+
+        result = nessie.delete_branch("pipeline-run-1")
+
+        assert result is True
+        delete_url = mock_requests.delete.call_args.args[0]
+        assert delete_url.endswith("/api/v1/trees/branch/pipeline-run-1")
+        assert mock_requests.delete.call_args.kwargs["params"] == {"expectedHash": "branch-hash"}
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +231,7 @@ def test_wap_branch_creation_sensor_uses_updated_after_filter():
     context.instance = instance
     context.cursor = None
 
-    with patch("phlo_dagster.wap_sensors._load_nessie", return_value=lambda: MagicMock()):
+    with patch("phlo_dagster.wap_sensors._load_versioned_catalog", return_value=MagicMock()):
         wap_branch_creation_sensor._raw_fn(context)
 
     filters = instance.get_runs.call_args.kwargs["filters"]
@@ -193,7 +248,7 @@ def test_wap_auto_promotion_sensor_uses_updated_after_filter():
     context.instance = instance
     context.cursor = None
 
-    with patch("phlo_dagster.wap_sensors._load_nessie", return_value=lambda: MagicMock()):
+    with patch("phlo_dagster.wap_sensors._load_versioned_catalog", return_value=MagicMock()):
         wap_auto_promotion_sensor._raw_fn(context)
 
     filters = instance.get_runs.call_args.kwargs["filters"]

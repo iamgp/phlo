@@ -8,6 +8,7 @@ from datetime import date
 from typing import Any
 
 from phlo.capabilities.runtime import RuntimeContext
+from phlo.capabilities.support import CapabilitySupport
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +77,7 @@ class TableStoreSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +87,7 @@ class CatalogSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +97,7 @@ class QueryEngineSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +107,7 @@ class QualityBackendSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +117,7 @@ class MetadataCatalogSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +127,7 @@ class LineageSinkSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,6 +137,17 @@ class GovernanceBackendSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
+class PublishTargetSpec:
+    """Publish target capability (for example Postgres marts, warehouse export sink)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,6 +157,7 @@ class SecretBackendSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,6 +212,7 @@ class SchemaMigrationSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +222,7 @@ class DataMigrationSourceSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
 
 
 @dataclass(frozen=True, slots=True)

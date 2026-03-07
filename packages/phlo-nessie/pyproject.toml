@@ -38,6 +38,9 @@ iceberg-cli = [
 [project.entry-points."phlo.plugins.services"]
 nessie = "phlo_nessie.plugin:NessieServicePlugin"
 
+[project.entry-points."phlo.plugins.resources"]
+nessie = "phlo_nessie.resource_provider:NessieResourceProvider"
+
 [project.entry-points."phlo.plugins.cli"]
 nessie = "phlo_nessie.cli_plugin:NessieCliPlugin"
 

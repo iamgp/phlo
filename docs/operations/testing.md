@@ -177,6 +177,25 @@ def test_data_filtering():
 
 Phlo provides powerful testing utilities for fast, local testing without Docker.
 
+## Profile-Level Contract Tests
+
+Unit tests are not enough for cross-package lakehouse wiring.
+
+Phlo supports profile-level contract tests:
+
+- bundled stack contracts
+  real services, local workspace source, versioned and publish flows
+- non-versioned profile contracts
+  local DuckDB + dbt verification without the bundled service stack
+
+Use these when you need to verify:
+
+- canonical runtime routing
+- ref-aware writes and promotion
+- generated dbt profile behavior
+- publish-target wiring
+- full cross-package integration
+
 ### MockIcebergCatalog
 
 Test Iceberg table operations in-memory using DuckDB backend.

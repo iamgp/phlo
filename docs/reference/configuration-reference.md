@@ -105,7 +105,7 @@ Nessie Git-like catalog:
 
 ```bash
 # Version and connectivity
-NESSIE_VERSION=0.106.0
+NESSIE_VERSION=0.107.2
 NESSIE_PORT=10003
 NESSIE_HOST=nessie
 NESSIE_API_VERSION=v1
@@ -136,6 +136,27 @@ TRINO_CATALOG=iceberg
 ```
 trino://trino:10005/iceberg_dev
 ```
+
+### dbt Runtime Configuration
+
+Generated dbt profile settings:
+
+```bash
+DBT_PROJECT_DIR=workflows/transforms/dbt
+DBT_PROFILES_DIR=workflows/transforms/dbt/profiles
+DBT_QUERY_ENGINE_TYPE=trino
+DBT_QUERY_HOST=trino
+DBT_QUERY_PORT=8080
+DBT_QUERY_CATALOG=iceberg
+DBT_QUERY_SCHEMA=raw
+DBT_QUERY_USER=dagster
+DBT_QUERY_HTTP_SCHEME=http
+DBT_QUERY_AUTH_METHOD=none
+DBT_QUERY_THREADS=2
+```
+
+These values are used to generate `profiles.yml` for dbt runtime execution.
+Target and ref selection are derived from canonical runtime routing.
 
 ### Data Lake Configuration
 
@@ -183,6 +204,19 @@ BRANCH_CLEANUP_ENABLED=false
 - `BRANCH_RETENTION_DAYS_FAILED`: Days to keep failed pipeline branches
 - `AUTO_PROMOTE_ENABLED`: Auto-merge to main when quality checks pass
 - `BRANCH_CLEANUP_ENABLED`: Automatically delete old branches
+
+### WAP Sensor Configuration
+
+Dagster WAP sensor intervals:
+
+```bash
+PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS=30
+PHLO_WAP_PROMOTION_INTERVAL_SECONDS=60
+PHLO_WAP_CLEANUP_INTERVAL_SECONDS=3600
+```
+
+These settings only matter when the active profile includes a versioned catalog
+capability.
 
 ### Validation Configuration
 

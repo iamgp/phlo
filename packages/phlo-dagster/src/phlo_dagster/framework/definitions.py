@@ -15,6 +15,9 @@ from typing import Any
 
 import dagster as dg
 
+from phlo.capabilities.interfaces import VersionedCatalog
+from phlo.capabilities.resolver import resolve_capability
+from phlo.exceptions import PhloCapabilitySetupError
 from phlo_dagster.framework.discovery import (
     _collect_dagster_extension_definitions,
     _ensure_core_resources,
@@ -25,6 +28,41 @@ from phlo_dagster.settings import get_settings
 from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
+
+
+def _collect_wap_definitions() -> dg.Definitions | None:
+    """Load WAP sensors when a versioned catalog capability is available."""
+    resolution = resolve_capability("catalog")
+    if resolution is None:
+        return None
+
+    if not (resolution.support.supports_refs and resolution.support.supports_promote):
+        return None
+
+    provider = resolution.provider
+    if not isinstance(provider, VersionedCatalog):
+        logger.warning(
+            "dagster_wap_catalog_provider_incompatible",
+            capability_name=resolution.name,
+            provider_type=type(provider).__name__,
+        )
+        return None
+
+    try:
+        from phlo_dagster.wap_sensors import get_wap_definitions
+    except Exception:
+        logger.warning(
+            "dagster_wap_definitions_unavailable",
+            capability_name=resolution.name,
+            exc_info=True,
+        )
+        return None
+
+    logger.info(
+        "dagster_wap_definitions_enabled",
+        capability_name=resolution.name,
+    )
+    return get_wap_definitions()
 
 
 def _default_executor() -> dg.ExecutorDefinition | None:
@@ -127,6 +165,23 @@ def build_definitions(
         user_assets = list(getattr(user_defs, "assets", []) or [])
         user_checks = list(getattr(user_defs, "asset_checks", []) or [])
         logger.info("Discovered %d user assets, %d checks", len(user_assets), len(user_checks))
+    except PhloCapabilitySetupError as exc:
+        if exc.required:
+            logger.error(
+                "required_capability_setup_failed",
+                capability=exc.capability,
+                error=str(exc),
+                workflows_path=str(workflows_path),
+                exc_info=True,
+            )
+            raise
+        logger.warning(
+            "optional_capability_degraded",
+            capability=exc.capability,
+            error=str(exc),
+            workflows_path=str(workflows_path),
+        )
+        user_defs = dg.Definitions()
     except Exception as exc:
         logger.error(
             "failed_to_discover_user_workflows",
@@ -140,6 +195,9 @@ def build_definitions(
     definitions_to_merge = [user_defs]
     if dagster_defs is not None:
         definitions_to_merge.append(dagster_defs)
+    wap_defs = _collect_wap_definitions()
+    if wap_defs is not None:
+        definitions_to_merge.append(wap_defs)
 
     merged = dg.Definitions.merge(*definitions_to_merge)
     merged = _ensure_core_resources(merged)

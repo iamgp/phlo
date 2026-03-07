@@ -44,6 +44,34 @@ class TablePublishStats:
     column_count: int
 
 
+def publish_marts_to_target(
+    *,
+    context: Any,
+    trino: Any,
+    publish_target: Any,
+    tables_to_publish: dict[str, str],
+    data_source: str,
+    target_schema: str | None = None,
+    batch_size: int = 10_000,
+) -> dict[str, TablePublishStats]:
+    """Copy analytical outputs into a structured publish target."""
+
+    postgres, target_system, resolved_schema = _resolve_publish_target(
+        publish_target,
+        target_schema=target_schema,
+    )
+    return _publish_marts(
+        context=context,
+        trino=trino,
+        postgres=postgres,
+        target_system=target_system,
+        tables_to_publish=tables_to_publish,
+        data_source=data_source,
+        target_schema=resolved_schema,
+        batch_size=batch_size,
+    )
+
+
 def publish_marts_to_postgres(
     *,
     context: Any,
@@ -55,23 +83,59 @@ def publish_marts_to_postgres(
     batch_size: int = 10_000,
 ) -> dict[str, TablePublishStats]:
     """Copy Trino tables into Postgres and emit publish lifecycle events."""
+    return _publish_marts(
+        context=context,
+        trino=trino,
+        postgres=postgres,
+        target_system="postgres",
+        tables_to_publish=tables_to_publish,
+        data_source=data_source,
+        target_schema=target_schema or TrinoPublishingSettings().postgres_mart_schema,
+        batch_size=batch_size,
+    )
 
-    settings = TrinoPublishingSettings()
-    schema = target_schema or settings.postgres_mart_schema
+
+def _resolve_publish_target(
+    publish_target: Any,
+    *,
+    target_schema: str | None,
+) -> tuple[Any, str, str]:
+    """Resolve publish target wrapper or raw resource into publishing primitives."""
+    resource = getattr(publish_target, "resource", publish_target)
+    target_system = str(getattr(publish_target, "target_system", "postgres"))
+    default_schema = getattr(publish_target, "default_schema", None)
+    if not isinstance(default_schema, str) or not default_schema:
+        default_schema = TrinoPublishingSettings().postgres_mart_schema
+    return resource, target_system, target_schema or default_schema
+
+
+def _publish_marts(
+    *,
+    context: Any,
+    trino: Any,
+    postgres: Any,
+    target_system: str,
+    tables_to_publish: dict[str, str],
+    data_source: str,
+    target_schema: str,
+    batch_size: int,
+) -> dict[str, TablePublishStats]:
+    """Shared publish implementation for Postgres-backed publish targets."""
+    schema = target_schema
     asset_key = _resolve_asset_key(context, data_source)
     emitter = PublishEventEmitter(
         PublishEventContext(
             asset_key=asset_key,
-            target_system="postgres",
+            target_system=target_system,
             tables=tables_to_publish,
-            tags={"source": data_source, "target": "postgres"},
+            tags={"source": data_source, "target": target_system},
         )
     )
     telemetry = TelemetryEventEmitter(
-        TelemetryEventContext(tags={"source": data_source, "target": "postgres"})
+        TelemetryEventContext(tags={"source": data_source, "target": target_system})
     )
     lineage = LineageEventEmitter(
-        LineageEventContext(tags={"source": data_source, "target": "postgres"})
+        LineageEventContext(tags={"source": data_source, "target": target_system})
     )
     start_time = time.time()
 
@@ -79,6 +143,7 @@ def publish_marts_to_postgres(
         "trino_publish_started",
         data_source=data_source,
         target_schema=schema,
+        target_system=target_system,
         table_count=len(tables_to_publish),
         batch_size=batch_size,
         asset_key=asset_key,
@@ -93,6 +158,7 @@ def publish_marts_to_postgres(
                 "trino_publish_table_started",
                 source_table=source_table,
                 target_schema=schema,
+                target_system=target_system,
                 target_table=target_table,
                 batch_size=batch_size,
             )
@@ -112,6 +178,7 @@ def publish_marts_to_postgres(
                 "trino_publish_table_completed",
                 source_table=source_table,
                 target_schema=schema,
+                target_system=target_system,
                 target_table=target_table,
                 row_count=row_count,
                 column_count=column_count,
@@ -128,26 +195,10 @@ def publish_marts_to_postgres(
         elapsed = time.time() - start_time
         total_rows = sum(item.row_count for item in stats.values())
         total_columns = sum(item.column_count for item in stats.values())
-        telemetry.emit_metric(
-            name="publish.tables",
-            value=len(stats),
-            unit="tables",
-        )
-        telemetry.emit_metric(
-            name="publish.rows_total",
-            value=total_rows,
-            unit="rows",
-        )
-        telemetry.emit_metric(
-            name="publish.columns_total",
-            value=total_columns,
-            unit="columns",
-        )
-        telemetry.emit_metric(
-            name="publish.duration_seconds",
-            value=elapsed,
-            unit="seconds",
-        )
+        telemetry.emit_metric(name="publish.tables", value=len(stats), unit="tables")
+        telemetry.emit_metric(name="publish.rows_total", value=total_rows, unit="rows")
+        telemetry.emit_metric(name="publish.columns_total", value=total_columns, unit="columns")
+        telemetry.emit_metric(name="publish.duration_seconds", value=elapsed, unit="seconds")
         edges = [
             (source_table, f"{schema}.{target_table}")
             for target_table, source_table in tables_to_publish.items()
@@ -156,12 +207,13 @@ def publish_marts_to_postgres(
             lineage.emit_edges(
                 edges=edges,
                 asset_keys=[edge[1] for edge in edges],
-                metadata={"source_system": "trino", "target_system": "postgres"},
+                metadata={"source_system": "trino", "target_system": target_system},
             )
         logger.info(
             "trino_publish_completed",
             data_source=data_source,
             target_schema=schema,
+            target_system=target_system,
             table_count=len(stats),
             total_rows=total_rows,
             total_columns=total_columns,
@@ -174,6 +226,7 @@ def publish_marts_to_postgres(
             "trino_publish_failed",
             data_source=data_source,
             target_schema=schema,
+            target_system=target_system,
             table_count=len(tables_to_publish),
             elapsed_seconds=elapsed,
         )

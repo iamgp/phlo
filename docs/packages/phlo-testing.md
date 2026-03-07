@@ -152,6 +152,19 @@ def test_ingestion_creates_table(mock_iceberg_catalog, test_dataframe):
     assert catalog.table_exists("bronze.my_table")
 ```
 
+### Contract harnesses
+
+`phlo-testing` now includes profile-level harnesses for cross-package contract tests.
+
+- `BundledStackHarness`
+  Boots a real generated project against the bundled service stack using local
+  workspace source.
+- `NonVersionedProfileHarness`
+  Boots a local DuckDB + dbt profile for fast non-versioned verification.
+
+These harnesses are useful when unit tests are not enough and you need to prove
+that the supported capability combination actually wires together correctly.
+
 ### Testing Quality Checks
 
 ```python

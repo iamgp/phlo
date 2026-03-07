@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from phlo.capabilities.registry import CapabilityRegistry, get_capability_registry
+from phlo.capabilities.support import CapabilitySupport
 from phlo.logging import get_logger
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ _CAPABILITY_LISTERS = {
     "metadata_catalog": "list_metadata_catalogs",
     "lineage_sink": "list_lineage_sinks",
     "governance_backend": "list_governance_backends",
+    "publish_target": "list_publish_targets",
     "secret_backend": "list_secret_backends",
     "schema_migrator": "list_schema_migrators",
 }
@@ -34,6 +36,7 @@ class ResolutionResult:
     name: str
     provider: Any
     metadata: dict[str, Any]
+    support: CapabilitySupport
 
 
 def list_capabilities(
@@ -91,6 +94,7 @@ def resolve_capability(
                     name=spec.name,
                     provider=spec.provider,
                     metadata=spec.metadata,
+                    support=spec.support,
                 )
         logger.debug(
             "capability_resolution_name_not_found",
@@ -119,6 +123,7 @@ def resolve_capability(
         name=spec.name,
         provider=spec.provider,
         metadata=spec.metadata,
+        support=spec.support,
     )
 
 

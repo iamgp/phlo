@@ -103,6 +103,35 @@ class TableStore(Protocol):
 
 
 @runtime_checkable
+class VersionedCatalog(Protocol):
+    """Protocol for optional catalog/versioning providers.
+
+    Providers opt in when they support explicit branch lifecycle management
+    for versioned analytical storage.
+    """
+
+    def list_branches(self) -> list[Any]:
+        """List known branch references."""
+        ...
+
+    def get_branch_hash(self, name: str) -> str | None:
+        """Resolve the current hash for a branch."""
+        ...
+
+    def create_branch(self, name: str, from_ref: str = "main") -> str | None:
+        """Create a new branch from an existing reference."""
+        ...
+
+    def merge_branch(self, source: str, target: str = "main") -> bool:
+        """Merge a source branch into a target branch."""
+        ...
+
+    def delete_branch(self, name: str) -> bool:
+        """Delete a branch reference."""
+        ...
+
+
+@runtime_checkable
 class GovernanceBackend(Protocol):
     """Protocol for governance providers (access control, masking, policies)."""
 

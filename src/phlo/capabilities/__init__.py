@@ -13,13 +13,19 @@ from phlo.capabilities.registry import (
     register_data_migration_source,
     register_lineage_sink,
     register_metadata_catalog,
+    register_publish_target,
     register_quality_backend,
     register_query_engine,
     register_resource,
     register_schema_migrator,
     register_table_store,
 )
-from phlo.capabilities.runtime import RuntimeContext
+from phlo.capabilities.runtime import (
+    RuntimeContext,
+    RuntimeRouting,
+    resolve_runtime_ref,
+    routing_from_context,
+)
 from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
@@ -32,6 +38,7 @@ from phlo.capabilities.specs import (
     MetadataCatalogSpec,
     NormalizedSchema,
     PartitionSpec,
+    PublishTargetSpec,
     QualityBackendSpec,
     QueryEngineSpec,
     ResourceSpec,
@@ -42,6 +49,7 @@ from phlo.capabilities.specs import (
     SchemaMigrationSpec,
     TableStoreSpec,
 )
+from phlo.capabilities.support import CapabilitySupport, coerce_capability_support
 
 if TYPE_CHECKING:
     from phlo.capabilities.resolver import ResolutionResult
@@ -50,6 +58,7 @@ __all__ = [
     "AssetCheckSpec",
     "AssetSpec",
     "CatalogSpec",
+    "CapabilitySupport",
     "CapabilityRegistry",
     "CheckResult",
     "DataMigrationSourceSpec",
@@ -59,12 +68,14 @@ __all__ = [
     "MetadataCatalogSpec",
     "NormalizedSchema",
     "PartitionSpec",
+    "PublishTargetSpec",
     "QualityBackendSpec",
     "QueryEngineSpec",
     "ResourceSpec",
     "RunResult",
     "RunSpec",
     "RuntimeContext",
+    "RuntimeRouting",
     "SchemaChange",
     "SchemaExtractor",
     "SchemaMigrationPlan",
@@ -72,6 +83,7 @@ __all__ = [
     "SchemaMigrator",
     "TableStoreSpec",
     "TableStore",
+    "coerce_capability_support",
     "clear_capabilities",
     "get_capability_registry",
     "list_capabilities",
@@ -82,13 +94,16 @@ __all__ = [
     "register_data_migration_source",
     "register_lineage_sink",
     "register_metadata_catalog",
+    "register_publish_target",
     "register_quality_backend",
     "register_query_engine",
     "register_resource",
     "register_schema_migrator",
     "register_table_store",
     "ResolutionResult",
+    "resolve_runtime_ref",
     "resolve_capability",
+    "routing_from_context",
 ]
 
 
