@@ -458,7 +458,7 @@ def get_table_stats(
     metadata = dt.metadata()
     version = dt.version()
 
-    total_size_bytes = sum(f.size for f in dt.get_add_actions().to_pydict().get("size", []))
+    total_size_bytes = sum(dt.get_add_actions().to_pydict().get("size", []))
 
     return {
         "table_name": table_name,
