@@ -7,6 +7,7 @@ from functools import lru_cache
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo_openmetadata.capabilities import resolve_query_engine_catalog
 
 
 class OpenMetadataSettings(BaseConfig):
@@ -56,12 +57,7 @@ class OpenMetadataSettings(BaseConfig):
         """
         if self.openmetadata_database_name:
             return self.openmetadata_database_name
-        try:
-            from phlo_trino.settings import get_settings as get_trino_settings
-
-            return get_trino_settings().trino_catalog
-        except Exception:  # noqa: BLE001 - optional dependency fallback
-            return "iceberg"
+        return resolve_query_engine_catalog("trino", default="iceberg")
 
 
 @lru_cache(maxsize=1)
