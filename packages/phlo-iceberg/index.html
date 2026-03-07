@@ -828,17 +828,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#catalog-entry-points" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Catalog Entry Points
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1715,17 +1704,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#catalog-entry-points" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Catalog Entry Points
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1856,7 +1834,7 @@
 <h1 id="phlo-iceberg">phlo-iceberg</h1>
 <p>Apache Iceberg catalog integration for Phlo.</p>
 <h2 id="overview">Overview</h2>
-<p><code>phlo-iceberg</code> provides PyIceberg resources for adapters and Trino catalog configuration. It enables ACID transactions, schema evolution, and time travel on the data lakehouse.</p>
+<p><code>phlo-iceberg</code> provides PyIceberg resources for adapters and table-store/schema-migration capabilities. It enables ACID transactions, schema evolution, and time travel on the data lakehouse.</p>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-iceberg
 # or
@@ -1892,22 +1870,16 @@ phlo plugin install iceberg
 <td>Default namespace/schema</td>
 </tr>
 <tr>
-<td><code>ICEBERG_NESSIE_REF</code></td>
+<td><code>ICEBERG_DEFAULT_REF</code></td>
 <td>No</td>
 <td><code>main</code></td>
-<td>Default Nessie branch/tag</td>
+<td>Default catalog ref/branch</td>
 </tr>
 <tr>
-<td><code>NESSIE_HOST</code></td>
+<td><code>ICEBERG_CATALOG_URI</code></td>
 <td>No</td>
-<td><code>nessie</code></td>
-<td>Nessie catalog host</td>
-</tr>
-<tr>
-<td><code>NESSIE_PORT</code></td>
-<td>No</td>
-<td><code>19120</code></td>
-<td>Nessie REST API port</td>
+<td><code>http://nessie:19120/iceberg</code></td>
+<td>Iceberg REST catalog URI</td>
 </tr>
 </tbody>
 </table>
@@ -1930,21 +1902,11 @@ phlo plugin install iceberg
 <td><code>IcebergResource</code> published via capability specs</td>
 </tr>
 <tr>
-<td><strong>Catalogs</strong></td>
-<td>Registers <code>iceberg</code> and <code>iceberg_dev</code> catalogs via <code>phlo.plugins.catalogs</code></td>
-</tr>
-<tr>
 <td><strong>Catalog Generation</strong></td>
-<td>Catalog <code>.properties</code> files auto-generated at Trino startup</td>
+<td>Trino catalog <code>.properties</code> files can be generated from catalog plugins owned by <code>phlo-nessie</code></td>
 </tr>
 </tbody>
 </table>
-<h3 id="catalog-entry-points">Catalog Entry Points</h3>
-<pre><code class="language-toml">[project.entry-points.&quot;phlo.plugins.catalogs&quot;]
-iceberg = &quot;phlo_iceberg.catalog_plugin:IcebergCatalogPlugin&quot;
-iceberg_dev = &quot;phlo_iceberg.catalog_plugin:IcebergDevCatalogPlugin&quot;
-</code></pre>
-<p>Each catalog plugin declares <code>targets</code> in code (for example: <code>["trino"]</code>).</p>
 <h2 id="usage">Usage</h2>
 <h3 id="resource-usage">Resource Usage</h3>
 <pre><code class="language-python">from phlo_iceberg.resource import IcebergResource
@@ -1962,7 +1924,7 @@ config = get_settings().get_pyiceberg_catalog_config(&quot;main&quot;)
 
 # Use with PyIceberg
 from pyiceberg.catalog import load_catalog
-catalog = load_catalog(&quot;nessie&quot;, **config)
+catalog = load_catalog(&quot;iceberg_main&quot;, **config)
 </code></pre>
 <h3 id="time-travel">Time Travel</h3>
 <pre><code class="language-python"># Query specific snapshot
@@ -1975,7 +1937,7 @@ df = table.scan().using(snapshot_id=snapshot_id).to_pandas()
 <h3 id="branch-aware-operations">Branch-Aware Operations</h3>
 <pre><code class="language-python"># Load catalog for specific branch
 config = get_settings().get_pyiceberg_catalog_config(&quot;dev&quot;)
-catalog = load_catalog(&quot;nessie&quot;, **config)
+catalog = load_catalog(&quot;iceberg_dev&quot;, **config)
 
 # All operations now target the 'dev' branch
 table = catalog.load_table(&quot;bronze.users&quot;)
@@ -2003,10 +1965,6 @@ SELECT * FROM iceberg.bronze.users FOR VERSION AS OF 123456789;
 <tr>
 <td><code>phlo.plugins.resources</code></td>
 <td><code>IcebergResourceProvider</code></td>
-</tr>
-<tr>
-<td><code>phlo.plugins.catalogs</code></td>
-<td>Iceberg catalog configurations (targets: trino)</td>
 </tr>
 </tbody>
 </table>

@@ -1766,8 +1766,29 @@ phlo plugin install api
 <td><code>0.0.0.0</code></td>
 <td>API server host</td>
 </tr>
+<tr>
+<td><code>PHLO_QUERY_ENGINE_URL</code></td>
+<td>none</td>
+<td>Explicit query-engine HTTP endpoint for <code>/api/trino/*</code> and catalog-backed metadata routes</td>
+</tr>
+<tr>
+<td><code>PHLO_QUERY_CATALOG</code></td>
+<td>none</td>
+<td>Default query catalog when request payloads do not provide one</td>
+</tr>
+<tr>
+<td><code>PHLO_DEFAULT_REF</code></td>
+<td>none</td>
+<td>Default ref/schema context when request payloads do not provide one</td>
+</tr>
+<tr>
+<td><code>PHLO_API_DISCOVERY_SCHEMAS</code></td>
+<td>none</td>
+<td>Comma-separated schema list for <code>/api/iceberg/tables</code> and <code>/api/search/index</code> discovery</td>
+</tr>
 </tbody>
 </table>
+<p><code>/api/trino/*</code> and <code>/api/iceberg/*</code> remain compatibility route names. The backing URL, catalog, ref, and discovery schemas are resolved from explicit config or <code>query_engine</code> capability metadata; the API no longer silently assumes the bundled Trino/Nessie defaults.</p>
 <h2 id="features">Features</h2>
 <h3 id="auto-configuration">Auto-Configuration</h3>
 <table>

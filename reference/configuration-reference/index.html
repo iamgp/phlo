@@ -854,6 +854,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#api-backend-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Backend Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#dbt-runtime-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1917,6 +1928,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#api-backend-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Backend Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#dbt-runtime-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2661,6 +2683,22 @@ TRINO_CATALOG=iceberg
 <p><strong>Connection string</strong>:</p>
 <pre><code>trino://trino:10005/iceberg_dev
 </code></pre>
+<h3 id="api-backend-configuration">API Backend Configuration</h3>
+<p>Observatory API runtime routing:</p>
+<pre><code class="language-bash">PHLO_API_PORT=4000
+HOST=0.0.0.0
+PHLO_QUERY_ENGINE_URL=
+PHLO_QUERY_CATALOG=
+PHLO_DEFAULT_REF=
+PHLO_API_DISCOVERY_SCHEMAS=
+</code></pre>
+<p>Notes:</p>
+<ul>
+<li><code>PHLO_QUERY_ENGINE_URL</code> is required unless the resolved <code>query_engine</code> capability exposes <code>url</code>, <code>http_url</code>, or <code>host</code>/<code>port</code> metadata.</li>
+<li><code>PHLO_QUERY_CATALOG</code> is required unless the resolved <code>query_engine</code> capability exposes <code>default_catalog</code>.</li>
+<li><code>PHLO_DEFAULT_REF</code> is required for ref-dependent endpoints unless the resolved <code>query_engine</code> capability exposes <code>default_ref</code>.</li>
+<li><code>PHLO_API_DISCOVERY_SCHEMAS</code> is optional only when table discovery can use request <code>branch</code>/<code>preferred_schema</code> values or <code>query_engine</code> capability metadata such as <code>discovery_schemas</code>.</li>
+</ul>
 <h3 id="dbt-runtime-configuration">dbt Runtime Configuration</h3>
 <p>Generated dbt profile settings:</p>
 <pre><code class="language-bash">DBT_PROJECT_DIR=workflows/transforms/dbt
@@ -2686,8 +2724,11 @@ ICEBERG_STAGING_PATH=s3://lake/stage
 # Default namespace
 ICEBERG_DEFAULT_NAMESPACE=raw
 
-# Default branch reference
-ICEBERG_NESSIE_REF=main
+# Default catalog reference
+ICEBERG_DEFAULT_REF=main
+
+# Iceberg REST catalog endpoint
+ICEBERG_CATALOG_URI=http://nessie:19120/iceberg
 </code></pre>
 <p><strong>Warehouse paths by branch</strong>:</p>
 <pre><code class="language-python"># main branch
@@ -2747,8 +2788,11 @@ VALIDATION_RETRY_DELAY_SECONDS=300  # seconds
 SUPERSET_ADMIN_USER=admin
 SUPERSET_ADMIN_PASSWORD=admin
 SUPERSET_ADMIN_EMAIL=admin@superset.com
+SUPERSET_DATABASE_NAME=
 </code></pre>
 <p>Access: http://localhost:10007</p>
+<p><code>SUPERSET_DATABASE_NAME</code> is required unless a resolved <code>query_engine</code> capability
+declares catalog metadata.</p>
 <h4 id="dagster">Dagster</h4>
 <p>Orchestration platform:</p>
 <pre><code class="language-bash">DAGSTER_PORT=10006
@@ -2783,8 +2827,11 @@ HASURA_GRAPHQL_ENABLE_CONSOLE=true
 <pre><code class="language-bash">POSTGREST_PORT=10011
 POSTGREST_DB_SCHEMA=marts
 POSTGREST_DB_ANON_ROLE=web_anon
+DBT_API_SOURCE_SCHEMA=
 </code></pre>
 <p>Access: http://localhost:10011</p>
+<p><code>DBT_API_SOURCE_SCHEMA</code> is optional only when the dbt manifest contains exactly one
+model schema; otherwise it must be set explicitly.</p>
 <h4 id="openmetadata">OpenMetadata</h4>
 <p>Data catalog and governance:</p>
 <pre><code class="language-bash">OPENMETADATA_HOST=openmetadata-server
@@ -2794,9 +2841,18 @@ OPENMETADATA_ES_JAVA_OPTS=&quot;-Xms512m -Xmx512m&quot;
 OPENMETADATA_USERNAME=admin
 OPENMETADATA_PASSWORD=admin
 OPENMETADATA_VERIFY_SSL=false
+OPENMETADATA_SERVICE_TYPE=
+OPENMETADATA_CATALOG_SCANNER=
+OPENMETADATA_QUERY_ENGINE=
+OPENMETADATA_DATABASE_NAME=
+OPENMETADATA_DBT_MANIFEST_PATH=workflows/transforms/dbt/target/manifest.json
+OPENMETADATA_DBT_CATALOG_PATH=workflows/transforms/dbt/target/catalog.json
 OPENMETADATA_SYNC_ENABLED=true
 OPENMETADATA_SYNC_INTERVAL_SECONDS=300  # Minimum interval between syncs
 </code></pre>
+<p><code>OPENMETADATA_DATABASE_NAME</code> and <code>OPENMETADATA_SERVICE_TYPE</code> are required unless a
+resolved <code>query_engine</code> capability declares both catalog and <code>service_type</code>
+metadata.</p>
 <p>Access: http://localhost:8585</p>
 <h3 id="observability-stack">Observability Stack</h3>
 <h4 id="prometheus">Prometheus</h4>

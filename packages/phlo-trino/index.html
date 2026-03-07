@@ -1894,7 +1894,7 @@ phlo plugin install trino
 <tbody>
 <tr>
 <td><strong>Catalog Discovery</strong></td>
-<td>Auto-generates catalog files from <code>phlo.plugins.catalogs</code> entry points</td>
+<td>Auto-generates catalog files from installed <code>phlo.plugins.catalogs</code> entry points</td>
 </tr>
 <tr>
 <td><strong>Metrics Labels</strong></td>
@@ -2039,6 +2039,10 @@ results = cursor.fetchall()
 <tr>
 <td><code>phlo.plugins.resources</code></td>
 <td><code>TrinoResourceProvider</code></td>
+</tr>
+<tr>
+<td><code>phlo.plugins.catalogs</code></td>
+<td>Discovers external catalog adapters targeting Trino</td>
 </tr>
 </tbody>
 </table>

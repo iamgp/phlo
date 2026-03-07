@@ -1746,6 +1746,36 @@ phlo plugin install openmetadata
 <td>Verify SSL certificates</td>
 </tr>
 <tr>
+<td><code>OPENMETADATA_SERVICE_TYPE</code></td>
+<td>unset</td>
+<td>Explicit OpenMetadata database service type; required unless a <code>query_engine</code> capability declares <code>service_type</code> metadata</td>
+</tr>
+<tr>
+<td><code>OPENMETADATA_CATALOG_SCANNER</code></td>
+<td>unset</td>
+<td>Optional <code>catalog_scanner</code> capability name for sync</td>
+</tr>
+<tr>
+<td><code>OPENMETADATA_QUERY_ENGINE</code></td>
+<td>unset</td>
+<td>Optional <code>query_engine</code> capability name for database/service inference; required unless both <code>OPENMETADATA_DATABASE_NAME</code> and <code>OPENMETADATA_SERVICE_TYPE</code> are set</td>
+</tr>
+<tr>
+<td><code>OPENMETADATA_DATABASE_NAME</code></td>
+<td>unset</td>
+<td>Explicit OpenMetadata database name when not deriving it from a query engine capability</td>
+</tr>
+<tr>
+<td><code>OPENMETADATA_DBT_MANIFEST_PATH</code></td>
+<td><code>workflows/transforms/dbt/target/manifest.json</code></td>
+<td>dbt manifest path</td>
+</tr>
+<tr>
+<td><code>OPENMETADATA_DBT_CATALOG_PATH</code></td>
+<td><code>workflows/transforms/dbt/target/catalog.json</code></td>
+<td>dbt catalog path</td>
+</tr>
+<tr>
 <td><code>OPENMETADATA_SYNC_ENABLED</code></td>
 <td><code>true</code></td>
 <td>Enable automatic sync</td>
@@ -1817,14 +1847,10 @@ phlo plugin install openmetadata
 </table>
 <h2 id="usage">Usage</h2>
 <h3 id="cli-commands">CLI Commands</h3>
-<pre><code class="language-bash"># Manually sync all tables
+<pre><code class="language-bash"># Manually sync all tables using the resolved catalog_scanner capability
+# Requires either OPENMETADATA_DATABASE_NAME and OPENMETADATA_SERVICE_TYPE,
+# or a query_engine capability with catalog + service_type metadata.
 phlo openmetadata sync
-
-# Sync specific table
-phlo openmetadata sync --table bronze.users
-
-# Check sync status
-phlo openmetadata status
 </code></pre>
 <h3 id="programmatic">Programmatic</h3>
 <pre><code class="language-python">from phlo_openmetadata.client import OpenMetadataClient

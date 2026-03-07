@@ -1794,7 +1794,7 @@
 <h1 id="phlo-superset">phlo-superset</h1>
 <p>Apache Superset BI service for Phlo.</p>
 <h2 id="overview">Overview</h2>
-<p><code>phlo-superset</code> provides a business intelligence and data visualization platform. It connects to Trino to query the lakehouse data.</p>
+<p><code>phlo-superset</code> provides a business intelligence and data visualization platform. It connects to the configured query engine to query lakehouse data.</p>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-superset
 # or
@@ -1840,6 +1840,16 @@ phlo plugin install superset
 <td><code>admin@example.com</code></td>
 <td>Admin email</td>
 </tr>
+<tr>
+<td><code>SUPERSET_DATABASE_URI</code></td>
+<td>unset</td>
+<td>Explicit SQLAlchemy URI for the query engine</td>
+</tr>
+<tr>
+<td><code>SUPERSET_QUERY_ENGINE</code></td>
+<td>unset</td>
+<td>Optional query_engine capability name used to discover a SQLAlchemy URI</td>
+</tr>
 </tbody>
 </table>
 <h2 id="features">Features</h2>
@@ -1853,8 +1863,8 @@ phlo plugin install superset
 </thead>
 <tbody>
 <tr>
-<td><strong>Trino Database</strong></td>
-<td>Auto-registered on startup via post_start hook</td>
+<td><strong>Query Engine Database</strong></td>
+<td>Auto-registered on startup via explicit URI or query_engine capability metadata</td>
 </tr>
 <tr>
 <td><strong>Metrics Labels</strong></td>
@@ -1882,8 +1892,8 @@ phlo plugin install superset
 </thead>
 <tbody>
 <tr>
-<td>Trino (Iceberg)</td>
-<td><code>trino://trino:8080/iceberg</code></td>
+<td>Query Engine</td>
+<td>Discovered from capability metadata or <code>SUPERSET_DATABASE_URI</code></td>
 </tr>
 <tr>
 <td>PostgreSQL (Marts)</td>

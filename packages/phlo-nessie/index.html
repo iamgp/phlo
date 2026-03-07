@@ -942,17 +942,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#related-packages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related Packages
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1781,17 +1770,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#related-packages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related Packages
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1827,6 +1805,9 @@
 <pre><code class="language-bash">pip install phlo-nessie
 # or
 phlo plugin install nessie
+
+# Nessie plus the Trino catalog adapter
+pip install 'phlo-nessie[trino]'
 </code></pre>
 <h2 id="configuration">Configuration</h2>
 <table>
@@ -1881,6 +1862,14 @@ phlo plugin install nessie
 <tr>
 <td><strong>Postgres Storage</strong></td>
 <td>Uses PostgreSQL for version store (default backend)</td>
+</tr>
+<tr>
+<td><strong>Catalog Backend</strong></td>
+<td>Exposes Nessie Iceberg REST endpoints for optional engine adapters</td>
+</tr>
+<tr>
+<td><strong>Trino Adapter</strong></td>
+<td><code>phlo-nessie[trino]</code> registers <code>iceberg</code> and <code>iceberg_dev</code> catalogs</td>
 </tr>
 </tbody>
 </table>
@@ -2014,9 +2003,16 @@ curl http://localhost:19120/api/v2/trees/main
 <td><code>phlo.plugins.cli</code></td>
 <td>Nessie CLI commands</td>
 </tr>
+<tr>
+<td><code>phlo.plugins.catalogs</code></td>
+<td>Nessie-owned catalog adapters (for example the optional Trino adapter)</td>
+</tr>
+<tr>
+<td>## Related Packages</td>
+<td></td>
+</tr>
 </tbody>
 </table>
-<h2 id="related-packages">Related Packages</h2>
 <ul>
 <li><a href="../phlo-iceberg/">phlo-iceberg</a> - Iceberg table format</li>
 <li><a href="../phlo-trino/">phlo-trino</a> - Query engine</li>
