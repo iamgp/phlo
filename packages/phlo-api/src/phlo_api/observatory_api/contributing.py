@@ -6,6 +6,7 @@ Observatory does not talk to Trino directly for this flow.
 
 from __future__ import annotations
 
+import math
 from typing import Any, Literal, cast
 
 from fastapi import APIRouter
@@ -158,8 +159,10 @@ def to_sql_equality(column_name: str, column_type: str, value: Primitive) -> str
     ):
         numeric = str(value).strip()
         try:
-            float(numeric)
+            parsed = float(numeric)
         except ValueError:
+            return None
+        if not math.isfinite(parsed):
             return None
         return f"{quote_identifier(column_name)} = {numeric}"
 

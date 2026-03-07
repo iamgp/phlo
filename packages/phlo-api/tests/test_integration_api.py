@@ -475,6 +475,42 @@ class TestDagsterGraphEndpoints:
 class TestContributingRowsEndpoints:
     """Test contributing rows endpoints."""
 
+    def test_contributing_query_endpoint_rejects_non_finite_numeric_values(self):
+        """Non-finite numeric values should not be interpolated into Trino SQL."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.contributing.execute_trino_query",
+            side_effect=[
+                {
+                    "columns": ["table_schema"],
+                    "column_types": ["varchar"],
+                    "rows": [{"table_schema": "silver"}],
+                },
+                {
+                    "columns": ["column_name", "data_type"],
+                    "column_types": ["varchar", "varchar"],
+                    "rows": [{"column_name": "hour_of_day", "data_type": "integer"}],
+                },
+            ],
+        ):
+            client = TestClient(app)
+            response = client.post(
+                "/api/contributing/query",
+                json={
+                    "downstream_asset_key": "publish/mrt_contribution_patterns",
+                    "upstream_asset_key": "silver/fct_github_events",
+                    "row_data": {"hour_of_day": "nan"},
+                    "limit": 25,
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "error": "No safe predicates could be derived for contributing rows. Add an explicit mapping for this model pair."
+        }
+
     def test_contributing_query_endpoint_builds_entity_query(self):
         """Query endpoint returns the built contributing query."""
         from fastapi.testclient import TestClient

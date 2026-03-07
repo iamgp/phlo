@@ -176,11 +176,17 @@ def _list_api_backends() -> list[dict[str, Any]]:
 
     backends: list[dict[str, Any]] = []
     for spec in specs:
-        description = spec.provider.describe()
+        try:
+            description = spec.provider.describe()
+            healthy = spec.provider.health_check()
+        except Exception:
+            description = None
+            healthy = False
+
         backends.append(
             {
                 "name": spec.name,
-                "healthy": spec.provider.health_check(),
+                "healthy": healthy,
                 "metadata": spec.metadata,
                 "description": description,
             }
