@@ -255,9 +255,13 @@ SUPERSET_PORT=10007
 SUPERSET_ADMIN_USER=admin
 SUPERSET_ADMIN_PASSWORD=admin
 SUPERSET_ADMIN_EMAIL=admin@superset.com
+SUPERSET_DATABASE_NAME=
 ```
 
 Access: http://localhost:10007
+
+`SUPERSET_DATABASE_NAME` is required unless a resolved `query_engine` capability
+declares catalog metadata.
 
 #### Dagster
 
@@ -313,9 +317,13 @@ Access: http://localhost:10012
 POSTGREST_PORT=10011
 POSTGREST_DB_SCHEMA=marts
 POSTGREST_DB_ANON_ROLE=web_anon
+DBT_API_SOURCE_SCHEMA=
 ```
 
 Access: http://localhost:10011
+
+`DBT_API_SOURCE_SCHEMA` is optional only when the dbt manifest contains exactly one
+model schema; otherwise it must be set explicitly.
 
 #### OpenMetadata
 
@@ -329,6 +337,7 @@ OPENMETADATA_ES_JAVA_OPTS="-Xms512m -Xmx512m"
 OPENMETADATA_USERNAME=admin
 OPENMETADATA_PASSWORD=admin
 OPENMETADATA_VERIFY_SSL=false
+OPENMETADATA_SERVICE_TYPE=
 OPENMETADATA_CATALOG_SCANNER=
 OPENMETADATA_QUERY_ENGINE=
 OPENMETADATA_DATABASE_NAME=
@@ -338,8 +347,9 @@ OPENMETADATA_SYNC_ENABLED=true
 OPENMETADATA_SYNC_INTERVAL_SECONDS=300  # Minimum interval between syncs
 ```
 
-`OPENMETADATA_DATABASE_NAME` is required unless a resolved `query_engine` capability
-declares catalog metadata.
+`OPENMETADATA_DATABASE_NAME` and `OPENMETADATA_SERVICE_TYPE` are required unless a
+resolved `query_engine` capability declares both catalog and `service_type`
+metadata.
 
 Access: http://localhost:8585
 

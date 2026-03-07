@@ -27,6 +27,7 @@ Part of the `api` profile.
 | `POSTGRES_USER`     | `phlo`    | Database user      |
 | `POSTGRES_PASSWORD` | `phlo`    | Database password  |
 | `POSTGRES_DB`       | `phlo`    | Database name      |
+| `DBT_API_SOURCE_SCHEMA` | unset  | dbt model schema to expose; inferred only when the manifest contains exactly one model schema |
 
 ## Auto-Configuration
 

@@ -24,6 +24,7 @@ phlo plugin install superset
 | `SUPERSET_ADMIN_USER`     | `admin`             | Admin username         |
 | `SUPERSET_ADMIN_PASSWORD` | `admin`             | Admin password         |
 | `SUPERSET_ADMIN_EMAIL`    | `admin@example.com` | Admin email            |
+| `SUPERSET_DATABASE_NAME`  | unset               | Logical database name shown in Superset; required unless a `query_engine` capability declares a default catalog |
 
 ## Auto-Configuration
 
