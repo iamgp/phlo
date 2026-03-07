@@ -307,9 +307,8 @@ async def execute_trino_query(
 @router.get("/connection", response_model=TrinoConnectionStatus)
 async def check_connection(trino_url: str | None = None) -> TrinoConnectionStatus:
     """Check if Trino is reachable."""
-    url = resolve_trino_url(trino_url)
-
     try:
+        url = resolve_trino_url(trino_url)
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(f"{url}/v1/info")
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -74,3 +75,34 @@ def test_superset_database_uri_fails_without_config_or_metadata(monkeypatch) -> 
 
     with pytest.raises(RuntimeError, match="SUPERSET_DATABASE_URI"):
         hooks._discover_query_engine_database_uri()
+
+
+def test_add_query_engine_database_handles_database_uri_resolution_failure(monkeypatch) -> None:
+    """Hook should log and return when no database URI can be resolved."""
+    session = Mock()
+    session.headers = {}
+    login_response = Mock()
+    login_response.raise_for_status.return_value = None
+    login_response.json.return_value = {"access_token": "token"}
+    csrf_response = Mock()
+    csrf_response.json.return_value = {"result": "csrf"}
+    list_response = Mock()
+    list_response.json.return_value = {"result": []}
+    session.post.return_value = login_response
+    session.get.side_effect = [csrf_response, list_response]
+
+    monkeypatch.setattr(
+        hooks.requests, "get", lambda *_args, **_kwargs: SimpleNamespace(status_code=200)
+    )
+    monkeypatch.setattr(hooks.requests, "Session", lambda: session)
+    monkeypatch.setattr(hooks, "_superset_database_name", lambda: "analytics")
+    monkeypatch.setattr(hooks, "_configured_database_uri", lambda: None)
+    monkeypatch.setattr(
+        hooks,
+        "_discover_query_engine_database_uri",
+        lambda: (_ for _ in ()).throw(RuntimeError("missing uri metadata")),
+    )
+
+    hooks.add_query_engine_database()
+
+    assert session.post.call_count == 1

@@ -189,7 +189,11 @@ def add_query_engine_database() -> None:
             error=str(exc),
         )
 
-    database_uri = _configured_database_uri() or _discover_query_engine_database_uri()
+    try:
+        database_uri = _configured_database_uri() or _discover_query_engine_database_uri()
+    except RuntimeError as exc:
+        logger.error("superset_database_uri_resolution_failed", error=str(exc))
+        return
 
     database_payload = {
         "database_name": database_name,

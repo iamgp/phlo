@@ -82,6 +82,21 @@ def test_resolve_trino_url_requires_configuration(monkeypatch) -> None:
             trino.resolve_trino_url()
 
 
+@pytest.mark.anyio
+async def test_check_connection_returns_structured_error_when_url_unconfigured(monkeypatch) -> None:
+    """Connection health should report config failures without raising."""
+    monkeypatch.setattr(
+        trino,
+        "resolve_trino_url",
+        lambda _override=None: (_ for _ in ()).throw(RuntimeError("missing query engine url")),
+    )
+
+    result = await trino.check_connection()
+
+    assert result.connected is False
+    assert result.error == "missing query engine url"
+
+
 def test_resolve_table_discovery_schemas_uses_query_engine_metadata(monkeypatch) -> None:
     """Table discovery should use configured schema metadata when present."""
     monkeypatch.delenv("PHLO_API_DISCOVERY_SCHEMAS", raising=False)
