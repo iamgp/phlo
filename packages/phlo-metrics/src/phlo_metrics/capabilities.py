@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from phlo.capabilities.interfaces import (
     AlertSummary,
@@ -11,8 +14,18 @@ from phlo.capabilities.interfaces import (
     PlatformMetricsSummary,
     ServiceStatus,
 )
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 from phlo_metrics.maintenance import load_maintenance_status, render_maintenance_prometheus
+
+_PUBLIC_HOST_ENV = "PHLO_OBSERVABILITY_PUBLIC_HOST"
+_PUBLIC_SCHEME_ENV = "PHLO_OBSERVABILITY_PUBLIC_SCHEME"
+_GRAFANA_PUBLIC_URL_ENV = "GRAFANA_PUBLIC_URL"
+_GRAFANA_DASHBOARD_PATH_TEMPLATE_ENV = "GRAFANA_DASHBOARD_PATH_TEMPLATE"
+_PROMETHEUS_PUBLIC_URL_ENV = "PROMETHEUS_PUBLIC_URL"
+_PROMETHEUS_QUERY_PATH_ENV = "PROMETHEUS_QUERY_PATH"
+_LOKI_PUBLIC_URL_ENV = "LOKI_PUBLIC_URL"
+_LOKI_LOGS_PATH_ENV = "LOKI_LOGS_PATH"
 
 
 class MetricsMaintenanceReadModel:
@@ -36,9 +49,9 @@ class DefaultObservabilityBackend:
         prometheus_url: str | None = None,
         loki_url: str | None = None,
     ):
-        self._grafana_url = grafana_url or "http://grafana:3000"
-        self._prometheus_url = prometheus_url or "http://prometheus:9090"
-        self._loki_url = loki_url or "http://loki:3100"
+        self._grafana_url = grafana_url
+        self._prometheus_url = prometheus_url
+        self._loki_url = loki_url
         self._maintenance = MetricsMaintenanceReadModel()
 
     def health_summary(self) -> PlatformHealthSummary:
@@ -130,27 +143,136 @@ class DefaultObservabilityBackend:
 
     def dashboard_links(self) -> list[DashboardLink]:
         """Return available dashboard links."""
+        grafana_url = self._grafana_url or _resolve_service_base_url(
+            "grafana",
+            public_url_env=_GRAFANA_PUBLIC_URL_ENV,
+            port_env_key="GRAFANA_PORT",
+        )
+        if grafana_url is None:
+            return []
+
+        path_template = (
+            _service_env_value(
+                "grafana",
+                _GRAFANA_DASHBOARD_PATH_TEMPLATE_ENV,
+            )
+            or "/d/{uid}"
+        )
         return [
             DashboardLink(
-                title="Platform Overview",
-                url=f"{self._grafana_url}/d/platform-overview",
-                category="overview",
-            ),
-            DashboardLink(
-                title="Maintenance Operations",
-                url=f"{self._grafana_url}/d/maintenance-operations",
-                category="maintenance",
-            ),
+                title=dashboard["title"],
+                url=f"{grafana_url}{path_template.format(uid=dashboard['uid'])}",
+                category=_dashboard_category(dashboard["title"]),
+            )
+            for dashboard in _discover_grafana_dashboards()
         ]
 
     def logs_query_link(self, service: str | None = None) -> str | None:
         """Return a link to query logs."""
+        loki_url = self._loki_url or _resolve_service_base_url(
+            "loki",
+            public_url_env=_LOKI_PUBLIC_URL_ENV,
+            port_env_key="LOKI_PORT",
+        )
+        if loki_url is None:
+            return None
+        logs_path = _service_env_value("loki", _LOKI_LOGS_PATH_ENV) or "/logs"
         if service:
-            return f"{self._loki_url}/logs?service={service}"
-        return f"{self._loki_url}/logs"
+            return f"{loki_url}{logs_path}?service={service}"
+        return f"{loki_url}{logs_path}"
 
     def metrics_query_link(self, metric: str | None = None) -> str | None:
         """Return a link to query metrics."""
+        prometheus_url = self._prometheus_url or _resolve_service_base_url(
+            "prometheus",
+            public_url_env=_PROMETHEUS_PUBLIC_URL_ENV,
+            port_env_key="PROMETHEUS_PORT",
+        )
+        if prometheus_url is None:
+            return None
+        query_path = _service_env_value("prometheus", _PROMETHEUS_QUERY_PATH_ENV) or "/graph"
         if metric:
-            return f"{self._prometheus_url}/graph?g0.expr={metric}"
-        return f"{self._prometheus_url}/graph"
+            return f"{prometheus_url}{query_path}?g0.expr={metric}"
+        return f"{prometheus_url}{query_path}"
+
+
+def _resolve_service_base_url(
+    service_name: str,
+    *,
+    public_url_env: str,
+    port_env_key: str,
+) -> str | None:
+    public_url = _service_env_value(service_name, public_url_env)
+    if public_url:
+        return public_url.rstrip("/")
+
+    port = _service_env_value(service_name, port_env_key)
+    if port is None:
+        return None
+
+    host = os.environ.get(_PUBLIC_HOST_ENV, "localhost")
+    scheme = os.environ.get(_PUBLIC_SCHEME_ENV, "http")
+    return f"{scheme}://{host}:{port}"
+
+
+def _service_env_value(service_name: str, key: str) -> str | None:
+    env_value = os.environ.get(key)
+    if env_value:
+        return env_value
+
+    service = _discover_service(service_name)
+    if service is None:
+        return None
+
+    payload = service.env_vars.get(key, {})
+    default = payload.get("default")
+    if default in (None, ""):
+        return None
+    return str(default)
+
+
+def _discover_service(service_name: str) -> ServiceDefinition | None:
+    try:
+        return ServiceDiscovery().get_service(service_name)
+    except Exception:
+        return None
+
+
+def _discover_grafana_dashboards() -> list[dict[str, str]]:
+    service = _discover_service("grafana")
+    if service is None or service.source_path is None:
+        return []
+
+    dashboards_dir = service.source_path / "dashboards"
+    if not dashboards_dir.exists():
+        return []
+
+    dashboards: list[dict[str, str]] = []
+    for dashboard_path in sorted(dashboards_dir.glob("*.json")):
+        payload = _load_dashboard_payload(dashboard_path)
+        if payload is None:
+            continue
+        uid = payload.get("uid")
+        title = payload.get("title")
+        if isinstance(uid, str) and isinstance(title, str):
+            dashboards.append({"uid": uid, "title": title})
+    return dashboards
+
+
+def _load_dashboard_payload(path: Path) -> dict[str, object] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _dashboard_category(title: str) -> str:
+    lowered = title.lower()
+    if "overview" in lowered:
+        return "overview"
+    if "infrastructure" in lowered:
+        return "infrastructure"
+    return "dashboard"

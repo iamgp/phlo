@@ -26,6 +26,8 @@ Part of the `observability` profile.
 | `GRAFANA_VERSION`        | `11.3.1` | Grafana version     |
 | `GRAFANA_ADMIN_USER`     | `admin`  | Admin username      |
 | `GRAFANA_ADMIN_PASSWORD` | `admin`  | Admin password      |
+| `GRAFANA_PUBLIC_URL`     | -        | Public Grafana base URL used by observability links |
+| `GRAFANA_DASHBOARD_PATH_TEMPLATE` | `/d/{uid}` | Dashboard path template used to build links from dashboard UIDs |
 
 ## Features
 

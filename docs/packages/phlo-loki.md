@@ -24,6 +24,8 @@ Part of the `observability` profile.
 | --------------------- | ------- | -------------------- |
 | `LOKI_PORT`           | `3100`  | Loki API port        |
 | `LOKI_RETENTION_DAYS` | `7`     | Log retention period |
+| `LOKI_PUBLIC_URL`     | -       | Public Loki base URL used by observability links |
+| `LOKI_LOGS_PATH`      | `/logs` | Path used for generated log query links |
 
 ## Features
 

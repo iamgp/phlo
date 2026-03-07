@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from types import SimpleNamespace
 
 from phlo_metrics.capabilities import DefaultObservabilityBackend
 from phlo_metrics.resource_provider import MetricsResourceProvider
@@ -40,6 +42,10 @@ def test_metrics_resource_provider_exposes_observability_backend() -> None:
 
     assert [spec.name for spec in specs] == ["default"]
     assert isinstance(specs[0].provider, DefaultObservabilityBackend)
+    assert specs[0].support.supports_metrics is True
+    assert specs[0].support.supports_logs is True
+    assert specs[0].support.supports_dashboards is True
+    assert specs[0].support.supports_alerts is True
 
 
 def test_default_observability_backend_has_required_methods() -> None:
@@ -121,3 +127,49 @@ def test_service_status_is_sorted_deterministically(monkeypatch) -> None:
     services = backend.service_status()
 
     assert [service.name for service in services] == ["alpha", "zeta"]
+
+
+def test_links_resolve_from_service_config(monkeypatch, tmp_path: Path) -> None:
+    """Service config should drive generated observability links."""
+    backend = DefaultObservabilityBackend()
+    grafana_dir = tmp_path / "grafana"
+    dashboards_dir = grafana_dir / "dashboards"
+    dashboards_dir.mkdir(parents=True)
+    (dashboards_dir / "overview.json").write_text(
+        '{"uid": "phlo-overview", "title": "Phlo Lakehouse - Overview"}',
+        encoding="utf-8",
+    )
+
+    services = {
+        "grafana": SimpleNamespace(
+            env_vars={
+                "GRAFANA_PORT": {"default": 3003},
+                "GRAFANA_DASHBOARD_PATH_TEMPLATE": {"default": "/d/{uid}"},
+            },
+            source_path=grafana_dir,
+        ),
+        "loki": SimpleNamespace(
+            env_vars={
+                "LOKI_PORT": {"default": 3100},
+                "LOKI_LOGS_PATH": {"default": "/logs"},
+            },
+        ),
+        "prometheus": SimpleNamespace(
+            env_vars={
+                "PROMETHEUS_PORT": {"default": 9090},
+                "PROMETHEUS_QUERY_PATH": {"default": "/graph"},
+            },
+        ),
+    }
+
+    class _StubDiscovery:
+        def get_service(self, name: str):
+            return services.get(name)
+
+    monkeypatch.setattr("phlo_metrics.capabilities.ServiceDiscovery", lambda: _StubDiscovery())
+
+    links = backend.dashboard_links()
+
+    assert links[0].url == "http://localhost:3003/d/phlo-overview"
+    assert backend.logs_query_link("dagster") == "http://localhost:3100/logs?service=dagster"
+    assert backend.metrics_query_link("up") == "http://localhost:9090/graph?g0.expr=up"

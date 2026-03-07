@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phlo.capabilities import MaintenanceReadModelSpec, ObservabilityBackendSpec
+from phlo.capabilities import CapabilitySupport, MaintenanceReadModelSpec, ObservabilityBackendSpec
 from phlo.plugins import PluginMetadata, ResourceProviderPlugin
 
 from phlo_metrics.capabilities import DefaultObservabilityBackend, MetricsMaintenanceReadModel
@@ -40,5 +40,21 @@ class MetricsResourceProvider(ResourceProviderPlugin):
             ObservabilityBackendSpec(
                 name="default",
                 provider=DefaultObservabilityBackend(),
+                metadata={
+                    "default_stack": [
+                        "phlo-metrics",
+                        "phlo-prometheus",
+                        "phlo-loki",
+                        "phlo-grafana",
+                        "phlo-alloy",
+                    ],
+                    "service_dependencies": ["prometheus", "loki", "grafana", "alloy"],
+                },
+                support=CapabilitySupport(
+                    supports_metrics=True,
+                    supports_logs=True,
+                    supports_dashboards=True,
+                    supports_alerts=True,
+                ),
             )
         ]

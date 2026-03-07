@@ -292,3 +292,27 @@ def test_list_observability_backend_capabilities() -> None:
 
     assert "default" in names
     assert "custom" in names
+
+
+def test_observability_support_flags_round_trip() -> None:
+    """Observability support flags should survive resolution."""
+    register_observability_backend(
+        ObservabilityBackendSpec(
+            name="default",
+            provider=object(),
+            support=CapabilitySupport(
+                supports_metrics=True,
+                supports_logs=True,
+                supports_dashboards=True,
+                supports_alerts=True,
+            ),
+        )
+    )
+
+    resolved = resolve_capability("observability_backend", "default")
+
+    assert resolved is not None
+    assert resolved.support.supports_metrics is True
+    assert resolved.support.supports_logs is True
+    assert resolved.support.supports_dashboards is True
+    assert resolved.support.supports_alerts is True
