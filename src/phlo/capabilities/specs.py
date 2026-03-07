@@ -171,6 +171,16 @@ class PublishTargetSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class ApiBackendSpec:
+    """API/backend capability (for example Hasura, PostgREST, custom graph API)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
 class AlertSinkSpec:
     """Alert sink capability (for example PagerDuty/Slack manager)."""
 

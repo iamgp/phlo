@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from phlo.capabilities.registry import (
     register_alert_sink,
+    register_api_backend,
     register_asset,
     register_catalog,
     register_catalog_scanner,
@@ -85,6 +86,8 @@ def discover_capabilities() -> None:
                 register_publish_target(publish_target)
             for alert_sink in plugin.get_alert_sinks():
                 register_alert_sink(alert_sink)
+            for api_backend in plugin.get_api_backends():
+                register_api_backend(api_backend)
             for secret_backend in plugin.get_secret_backends():
                 register_secret_backend(secret_backend)
             for schema_migrator in plugin.get_schema_migrators():

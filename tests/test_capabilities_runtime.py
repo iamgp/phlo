@@ -3,8 +3,11 @@ from __future__ import annotations
 import pytest
 
 from phlo.capabilities import (
+    ApiBackendSpec,
     CapabilitySupport,
     CatalogSpec,
+    LineageSinkSpec,
+    MetadataCatalogSpec,
     PublishTargetSpec,
     QueryEngineSpec,
     RuntimeRouting,
@@ -15,6 +18,8 @@ from phlo.capabilities import (
     list_capabilities,
     missing_required_capabilities,
     register_catalog,
+    register_lineage_sink,
+    register_metadata_catalog,
     register_publish_target,
     register_query_engine,
     register_schema_migrator,
@@ -114,6 +119,28 @@ def test_list_capabilities_returns_publish_targets() -> None:
     register_publish_target(PublishTargetSpec(name="postgres", provider=object()))
 
     assert list_capabilities("publish_target") == ["postgres"]
+
+
+def test_registry_tracks_api_backends() -> None:
+    from phlo.capabilities import register_api_backend
+
+    register_api_backend(ApiBackendSpec(name="hasura", provider=object()))
+
+    registry = get_capability_registry()
+    assert [spec.name for spec in registry.list_api_backends()] == ["hasura"]
+
+
+def test_resolve_metadata_and_lineage_capabilities() -> None:
+    register_metadata_catalog(MetadataCatalogSpec(name="openmetadata", provider={"catalog": True}))
+    register_lineage_sink(LineageSinkSpec(name="phlo-lineage", provider={"lineage": True}))
+
+    metadata = resolve_capability("metadata_catalog", "openmetadata")
+    lineage = resolve_capability("lineage_sink", "phlo-lineage")
+
+    assert metadata is not None
+    assert metadata.provider == {"catalog": True}
+    assert lineage is not None
+    assert lineage.provider == {"lineage": True}
 
 
 def test_plugin_metadata_support_defaults_to_empty() -> None:

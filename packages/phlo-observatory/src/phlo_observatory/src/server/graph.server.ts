@@ -107,6 +107,46 @@ function transformImpactedAsset(asset: ApiImpactedAsset): ImpactedAsset {
   }
 }
 
+export async function fetchAssetGraphFromApi(params: {
+  dagsterUrl?: string
+}): Promise<ApiAssetGraph | { error: string }> {
+  return apiGet<ApiAssetGraph | { error: string }>('/api/dagster/graph', {
+    dagster_url: params.dagsterUrl,
+  })
+}
+
+export async function fetchAssetNeighborsFromApi(params: {
+  assetKey: string
+  direction: 'upstream' | 'downstream' | 'both'
+  depth: number
+  dagsterUrl?: string
+}): Promise<ApiAssetGraph | { error: string }> {
+  return apiGet<ApiAssetGraph | { error: string }>(
+    '/api/dagster/graph/neighbors',
+    {
+      asset_key: params.assetKey,
+      direction: params.direction,
+      depth: params.depth,
+      dagster_url: params.dagsterUrl,
+    },
+  )
+}
+
+export async function fetchAssetImpactFromApi(params: {
+  assetKey: string
+  maxDepth?: number
+  dagsterUrl?: string
+}): Promise<Array<ApiImpactedAsset> | { error: string }> {
+  return apiGet<Array<ApiImpactedAsset> | { error: string }>(
+    '/api/dagster/graph/impact',
+    {
+      asset_key: params.assetKey,
+      max_depth: params.maxDepth ?? 99,
+      dagster_url: params.dagsterUrl,
+    },
+  )
+}
+
 export const getAssetGraph = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
@@ -114,10 +154,7 @@ export const getAssetGraph = createServerFn()
     try {
       const dagsterUrl = data.dagsterUrl ?? 'default'
       const result = await withCache(
-        () =>
-          apiGet<ApiAssetGraph | { error: string }>('/api/dagster/graph', {
-            dagster_url: data.dagsterUrl,
-          }),
+        () => fetchAssetGraphFromApi({ dagsterUrl: data.dagsterUrl }),
         cacheKeys.graphFull(dagsterUrl),
         cacheTTL.graphFull,
       )
@@ -143,11 +180,11 @@ export const getAssetNeighbors = createServerFn()
       const dagsterUrl = data.dagsterUrl ?? 'default'
       const result = await withCache(
         () =>
-          apiGet<ApiAssetGraph | { error: string }>('/api/dagster/graph/neighbors', {
-            asset_key: data.assetKey,
+          fetchAssetNeighborsFromApi({
+            assetKey: data.assetKey,
             direction: data.direction,
             depth: data.depth,
-            dagster_url: data.dagsterUrl,
+            dagsterUrl: data.dagsterUrl,
           }),
         cacheKeys.graphNeighbors(
           dagsterUrl,
@@ -173,14 +210,11 @@ export const getAssetImpact = createServerFn()
   .handler(
     async ({ data }): Promise<Array<ImpactedAsset> | { error: string }> => {
       try {
-        const result = await apiGet<Array<ApiImpactedAsset> | { error: string }>(
-          '/api/dagster/graph/impact',
-          {
-            asset_key: data.assetKey,
-            max_depth: data.maxDepth ?? 99,
-            dagster_url: data.dagsterUrl,
-          },
-        )
+        const result = await fetchAssetImpactFromApi({
+          assetKey: data.assetKey,
+          maxDepth: data.maxDepth,
+          dagsterUrl: data.dagsterUrl,
+        })
         if ('error' in result) return result
         return result.map(transformImpactedAsset)
       } catch (error) {

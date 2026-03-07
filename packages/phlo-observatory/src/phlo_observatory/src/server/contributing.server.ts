@@ -76,6 +76,54 @@ export function transformContributingRowsPageResult(
   }
 }
 
+export async function fetchContributingRowsQueryFromApi(data: {
+  downstreamAssetKey: string
+  upstreamAssetKey: string
+  rowData: Record<string, unknown>
+  limit?: number
+  trinoUrl?: string
+  timeoutMs?: number
+  catalog?: string
+}): Promise<ApiContributingRowsQueryResult | { error: string }> {
+  return apiPost<ApiContributingRowsQueryResult | { error: string }>(
+    '/api/contributing/query',
+    {
+      downstream_asset_key: data.downstreamAssetKey,
+      upstream_asset_key: data.upstreamAssetKey,
+      row_data: data.rowData,
+      limit: data.limit,
+      trino_url: data.trinoUrl,
+      timeout_ms: data.timeoutMs,
+      catalog: data.catalog,
+    },
+  )
+}
+
+export async function fetchContributingRowsPageFromApi(data: {
+  downstreamAssetKey: string
+  upstreamAssetKey: string
+  rowData: Record<string, unknown>
+  page?: number
+  pageSize?: number
+  trinoUrl?: string
+  timeoutMs?: number
+  catalog?: string
+}): Promise<ApiContributingRowsPageResult | { error: string }> {
+  return apiPost<ApiContributingRowsPageResult | { error: string }>(
+    '/api/contributing/page',
+    {
+      downstream_asset_key: data.downstreamAssetKey,
+      upstream_asset_key: data.upstreamAssetKey,
+      row_data: data.rowData,
+      page: data.page,
+      page_size: data.pageSize,
+      trino_url: data.trinoUrl,
+      timeout_ms: data.timeoutMs,
+      catalog: data.catalog,
+    },
+  )
+}
+
 export const getContributingRowsQuery = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
@@ -91,17 +139,7 @@ export const getContributingRowsQuery = createServerFn()
   )
   .handler(async ({ data }): Promise<ContributingRowsQueryResult> => {
     try {
-      const result = await apiPost<
-        ApiContributingRowsQueryResult | { error: string }
-      >('/api/contributing/query', {
-        downstream_asset_key: data.downstreamAssetKey,
-        upstream_asset_key: data.upstreamAssetKey,
-        row_data: data.rowData,
-        limit: data.limit,
-        trino_url: data.trinoUrl,
-        timeout_ms: data.timeoutMs,
-        catalog: data.catalog,
-      })
+      const result = await fetchContributingRowsQueryFromApi(data)
       if ('error' in result) return result
       return transformContributingRowsQueryResult(result)
     } catch (error) {
@@ -125,18 +163,7 @@ export const getContributingRowsPage = createServerFn()
   )
   .handler(async ({ data }): Promise<ContributingRowsPageResult> => {
     try {
-      const result = await apiPost<
-        ApiContributingRowsPageResult | { error: string }
-      >('/api/contributing/page', {
-        downstream_asset_key: data.downstreamAssetKey,
-        upstream_asset_key: data.upstreamAssetKey,
-        row_data: data.rowData,
-        page: data.page,
-        page_size: data.pageSize,
-        trino_url: data.trinoUrl,
-        timeout_ms: data.timeoutMs,
-        catalog: data.catalog,
-      })
+      const result = await fetchContributingRowsPageFromApi(data)
       if ('error' in result) return result
       return transformContributingRowsPageResult(result)
     } catch (error) {

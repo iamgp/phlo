@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from phlo.capabilities.interfaces import (
     AlertSink,
+    ApiBackend,
     CatalogScanner,
     MaintenanceReadModel,
     QueryEngine,
@@ -16,6 +17,7 @@ from phlo.capabilities.registry import (
     clear_capabilities,
     get_capability_registry,
     register_alert_sink,
+    register_api_backend,
     register_asset,
     register_catalog,
     register_catalog_scanner,
@@ -39,6 +41,7 @@ from phlo.capabilities.runtime import (
 )
 from phlo.capabilities.specs import (
     AlertSinkSpec,
+    ApiBackendSpec,
     AssetCheckSpec,
     AssetSpec,
     CatalogScannerSpec,
@@ -71,6 +74,8 @@ if TYPE_CHECKING:
 __all__ = [
     "AlertSink",
     "AlertSinkSpec",
+    "ApiBackend",
+    "ApiBackendSpec",
     "AssetCheckSpec",
     "AssetSpec",
     "CatalogSpec",
@@ -110,6 +115,7 @@ __all__ = [
     "list_capabilities",
     "missing_required_capabilities",
     "register_alert_sink",
+    "register_api_backend",
     "register_asset",
     "register_catalog",
     "register_catalog_scanner",

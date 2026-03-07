@@ -11,6 +11,7 @@ from collections.abc import Iterable
 
 from phlo.capabilities.specs import (
     AlertSinkSpec,
+    ApiBackendSpec,
     AssetCheckSpec,
     AssetSpec,
     CatalogScannerSpec,
@@ -129,6 +130,10 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_alert_sinks(self) -> Iterable[AlertSinkSpec]:
         """Return alert sink capability specs exposed by this plugin."""
+        return []
+
+    def get_api_backends(self) -> Iterable[ApiBackendSpec]:
+        """Return API backend capability specs exposed by this plugin."""
         return []
 
     def get_secret_backends(self) -> Iterable[SecretBackendSpec]:

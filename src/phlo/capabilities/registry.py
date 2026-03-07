@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 from phlo.capabilities.specs import (
     AlertSinkSpec,
+    ApiBackendSpec,
     AssetCheckSpec,
     AssetSpec,
     CatalogScannerSpec,
@@ -44,6 +45,7 @@ class CapabilityRegistry:
     governance_backends: dict[str, GovernanceBackendSpec] = field(default_factory=dict)
     publish_targets: dict[str, PublishTargetSpec] = field(default_factory=dict)
     alert_sinks: dict[str, AlertSinkSpec] = field(default_factory=dict)
+    api_backends: dict[str, ApiBackendSpec] = field(default_factory=dict)
     secret_backends: dict[str, SecretBackendSpec] = field(default_factory=dict)
     schema_migrators: dict[str, SchemaMigrationSpec] = field(default_factory=dict)
     data_migration_sources: dict[str, DataMigrationSourceSpec] = field(default_factory=dict)
@@ -219,6 +221,16 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.alert_sinks.values())
 
+    def register_api_backend(self, spec: ApiBackendSpec) -> None:
+        """Register or replace an API backend spec by name."""
+        with self._lock:
+            self.api_backends[spec.name] = spec
+
+    def list_api_backends(self) -> list[ApiBackendSpec]:
+        """Return a snapshot list of registered API backend specs."""
+        with self._lock:
+            return list(self.api_backends.values())
+
     def register_secret_backend(self, spec: SecretBackendSpec) -> None:
         """Register or replace a secret backend spec by name."""
         with self._lock:
@@ -267,6 +279,7 @@ class CapabilityRegistry:
             self.governance_backends.clear()
             self.publish_targets.clear()
             self.alert_sinks.clear()
+            self.api_backends.clear()
             self.secret_backends.clear()
             self.schema_migrators.clear()
             self.data_migration_sources.clear()
@@ -374,6 +387,11 @@ def register_publish_target(spec: PublishTargetSpec) -> None:
 def register_alert_sink(spec: AlertSinkSpec) -> None:
     """Register an alert sink in the process-global registry."""
     _GLOBAL_REGISTRY.register_alert_sink(spec)
+
+
+def register_api_backend(spec: ApiBackendSpec) -> None:
+    """Register an API backend in the process-global registry."""
+    _GLOBAL_REGISTRY.register_api_backend(spec)
 
 
 def register_secret_backend(spec: SecretBackendSpec) -> None:

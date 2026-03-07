@@ -26,6 +26,7 @@ _CAPABILITY_LISTERS = {
     "governance_backend": "list_governance_backends",
     "publish_target": "list_publish_targets",
     "alert_sink": "list_alert_sinks",
+    "api_backend": "list_api_backends",
     "secret_backend": "list_secret_backends",
     "schema_migrator": "list_schema_migrators",
 }

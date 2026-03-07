@@ -290,6 +290,19 @@ class AlertSink(Protocol):
 
 
 @runtime_checkable
+class ApiBackend(Protocol):
+    """Protocol for swappable API and graph-serving backends."""
+
+    def health_check(self) -> bool:
+        """Check backend connectivity and readiness."""
+        ...
+
+    def describe(self) -> dict[str, Any]:
+        """Return backend metadata and public endpoint information."""
+        ...
+
+
+@runtime_checkable
 class SchemaMigrator(Protocol):
     """Protocol for storage-layer schema migration providers.
 

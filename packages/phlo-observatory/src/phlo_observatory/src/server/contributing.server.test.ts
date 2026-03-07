@@ -1,11 +1,24 @@
-import { describe, expect, it } from 'vitest'
-
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  fetchContributingRowsPageFromApi,
+  fetchContributingRowsQueryFromApi,
   transformContributingRowsPageResult,
   transformContributingRowsQueryResult,
 } from '@/server/contributing.server'
 
+const { apiPost } = vi.hoisted(() => ({
+  apiPost: vi.fn(),
+}))
+
+vi.mock('@/server/phlo-api', () => ({
+  apiPost,
+}))
+
 describe('contributing.server transforms', () => {
+  beforeEach(() => {
+    apiPost.mockReset()
+  })
+
   it('keeps contributing query payload stable', () => {
     expect(
       transformContributingRowsQueryResult({
@@ -41,6 +54,69 @@ describe('contributing.server transforms', () => {
       columns: ['order_id'],
       columnTypes: ['varchar'],
       rows: [{ order_id: 'abc123' }],
+    })
+  })
+
+  it('fetches contributing query payload from phlo-api', async () => {
+    const payload = {
+      query: 'SELECT * FROM foo LIMIT 10',
+      upstream: { schema: 'gold', table: 'fct_orders' },
+    }
+    apiPost.mockResolvedValue(payload)
+
+    const result = await fetchContributingRowsQueryFromApi({
+      downstreamAssetKey: 'gold.fct_orders',
+      upstreamAssetKey: 'silver.stg_orders',
+      rowData: { order_id: 'abc123' },
+      limit: 25,
+      trinoUrl: 'http://trino:8080',
+    })
+
+    expect(result).toEqual(payload)
+    expect(apiPost).toHaveBeenCalledWith('/api/contributing/query', {
+      downstream_asset_key: 'gold.fct_orders',
+      upstream_asset_key: 'silver.stg_orders',
+      row_data: { order_id: 'abc123' },
+      limit: 25,
+      trino_url: 'http://trino:8080',
+      timeout_ms: undefined,
+      catalog: undefined,
+    })
+  })
+
+  it('fetches contributing page payload from phlo-api', async () => {
+    const payload = {
+      mode: 'aggregate' as const,
+      page: 2,
+      page_size: 50,
+      has_more: true,
+      query: 'SELECT * FROM foo OFFSET 50 LIMIT 51',
+      upstream: { schema: 'silver', table: 'stg_orders' },
+      columns: ['order_id'],
+      column_types: ['varchar'],
+      rows: [{ order_id: 'abc123' }],
+    }
+    apiPost.mockResolvedValue(payload)
+
+    const result = await fetchContributingRowsPageFromApi({
+      downstreamAssetKey: 'gold.fct_orders',
+      upstreamAssetKey: 'silver.stg_orders',
+      rowData: { order_id: 'abc123' },
+      page: 2,
+      pageSize: 50,
+      catalog: 'iceberg',
+    })
+
+    expect(result).toEqual(payload)
+    expect(apiPost).toHaveBeenCalledWith('/api/contributing/page', {
+      downstream_asset_key: 'gold.fct_orders',
+      upstream_asset_key: 'silver.stg_orders',
+      row_data: { order_id: 'abc123' },
+      page: 2,
+      page_size: 50,
+      trino_url: undefined,
+      timeout_ms: undefined,
+      catalog: 'iceberg',
     })
   })
 })

@@ -47,6 +47,8 @@ class TestFastAPIApp:
         assert "/api/config" in route_paths
         assert "/api/plugins" in route_paths
         assert "/api/services" in route_paths
+        assert "/api/backends" in route_paths
+        assert "/api/backends/{name}" in route_paths
         assert "/api/contracts" in route_paths
         assert "/api/contracts/{table_name:path}" in route_paths
 
