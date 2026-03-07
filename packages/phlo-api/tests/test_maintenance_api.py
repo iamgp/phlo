@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from phlo_api.observatory_api import maintenance
+from phlo_api.api import maintenance
 
 
 class _Operation:

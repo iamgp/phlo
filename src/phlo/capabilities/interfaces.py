@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -365,3 +366,82 @@ class AccessPolicy:
         self.columns = columns
         self.row_filter = row_filter
         self.data_masking = data_masking
+
+
+@dataclass(frozen=True)
+class PlatformHealthSummary:
+    """Platform health summary from observability backend."""
+
+    overall_status: str
+    components: dict[str, str]
+    timestamp: str
+
+
+@dataclass(frozen=True)
+class ServiceStatus:
+    """Service status from observability backend."""
+
+    name: str
+    status: str
+    last_check: str
+
+
+@dataclass(frozen=True)
+class PlatformMetricsSummary:
+    """Platform metrics summary from observability backend."""
+
+    period: str
+    metrics: dict[str, Any]
+    timestamp: str
+
+
+@dataclass(frozen=True)
+class AlertSummary:
+    """Alert summary from observability backend."""
+
+    title: str
+    severity: str
+    status: str
+    fired_at: str
+
+
+@dataclass(frozen=True)
+class DashboardLink:
+    """Dashboard link from observability backend."""
+
+    title: str
+    url: str
+    category: str | None = None
+
+
+@runtime_checkable
+class ObservabilityBackend(Protocol):
+    """Protocol for swappable observability backends (metrics, logs, dashboards)."""
+
+    def health_summary(self) -> PlatformHealthSummary:
+        """Return platform health summary."""
+        ...
+
+    def service_status(self) -> list[ServiceStatus]:
+        """Return service status list."""
+        ...
+
+    def platform_metrics(self, period: str) -> PlatformMetricsSummary:
+        """Return platform metrics for the specified period."""
+        ...
+
+    def recent_alerts(self, limit: int) -> list[AlertSummary]:
+        """Return recent alerts up to the specified limit."""
+        ...
+
+    def dashboard_links(self) -> list[DashboardLink]:
+        """Return available dashboard links."""
+        ...
+
+    def logs_query_link(self, service: str | None = None) -> str | None:
+        """Return a link to query logs, optionally filtered by service."""
+        ...
+
+    def metrics_query_link(self, metric: str | None = None) -> str | None:
+        """Return a link to query metrics, optionally filtered by metric."""
+        ...

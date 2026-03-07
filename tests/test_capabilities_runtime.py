@@ -8,6 +8,7 @@ from phlo.capabilities import (
     CatalogSpec,
     LineageSinkSpec,
     MetadataCatalogSpec,
+    ObservabilityBackendSpec,
     PublishTargetSpec,
     QueryEngineSpec,
     RuntimeRouting,
@@ -20,6 +21,7 @@ from phlo.capabilities import (
     register_catalog,
     register_lineage_sink,
     register_metadata_catalog,
+    register_observability_backend,
     register_publish_target,
     register_query_engine,
     register_schema_migrator,
@@ -253,3 +255,64 @@ def test_resolve_runtime_ref_ignores_ref_for_non_versioned_capability() -> None:
         )
         is None
     )
+
+
+def test_registry_tracks_observability_backend_capability() -> None:
+    """Observability backend capability should be registrable and listable."""
+    mock_backend = object()
+    register_observability_backend(ObservabilityBackendSpec(name="default", provider=mock_backend))
+
+    registry = get_capability_registry()
+    specs = registry.list_observability_backends()
+
+    assert len(specs) == 1
+    assert specs[0].name == "default"
+    assert specs[0].provider is mock_backend
+
+
+def test_resolve_observability_backend_capability() -> None:
+    """Should be able to resolve observability backend capability by name."""
+    mock_backend = object()
+    register_observability_backend(ObservabilityBackendSpec(name="default", provider=mock_backend))
+
+    resolved = resolve_capability("observability_backend", "default")
+
+    assert resolved is not None
+    assert resolved.name == "default"
+    assert resolved.provider is mock_backend
+
+
+def test_list_observability_backend_capabilities() -> None:
+    """list_capabilities should return observability backend names."""
+    mock_backend = object()
+    register_observability_backend(ObservabilityBackendSpec(name="default", provider=mock_backend))
+    register_observability_backend(ObservabilityBackendSpec(name="custom", provider=object()))
+
+    names = list_capabilities("observability_backend")
+
+    assert "default" in names
+    assert "custom" in names
+
+
+def test_observability_support_flags_round_trip() -> None:
+    """Observability support flags should survive resolution."""
+    register_observability_backend(
+        ObservabilityBackendSpec(
+            name="default",
+            provider=object(),
+            support=CapabilitySupport(
+                supports_metrics=True,
+                supports_logs=True,
+                supports_dashboards=True,
+                supports_alerts=True,
+            ),
+        )
+    )
+
+    resolved = resolve_capability("observability_backend", "default")
+
+    assert resolved is not None
+    assert resolved.support.supports_metrics is True
+    assert resolved.support.supports_logs is True
+    assert resolved.support.supports_dashboards is True
+    assert resolved.support.supports_alerts is True

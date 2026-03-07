@@ -21,6 +21,7 @@ from phlo.capabilities.specs import (
     LineageSinkSpec,
     MaintenanceReadModelSpec,
     MetadataCatalogSpec,
+    ObservabilityBackendSpec,
     PublishTargetSpec,
     QualityBackendSpec,
     QueryEngineSpec,
@@ -146,4 +147,8 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_data_migration_sources(self) -> Iterable[DataMigrationSourceSpec]:
         """Return data migration source adapter specs exposed by this plugin."""
+        return []
+
+    def get_observability_backends(self) -> Iterable[ObservabilityBackendSpec]:
+        """Return observability backend capability specs exposed by this plugin."""
         return []

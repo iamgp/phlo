@@ -25,6 +25,8 @@ Part of the `observability` profile.
 | `PROMETHEUS_PORT`            | `9090`  | Prometheus web UI port   |
 | `PROMETHEUS_RETENTION_TIME`  | `15d`   | Metrics retention period |
 | `PROMETHEUS_SCRAPE_INTERVAL` | `15s`   | Default scrape interval  |
+| `PROMETHEUS_PUBLIC_URL`      | -       | Public Prometheus base URL used by observability links |
+| `PROMETHEUS_QUERY_PATH`      | `/graph`| Path used for generated metric query links |
 
 ## Features
 

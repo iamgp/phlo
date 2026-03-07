@@ -1,0 +1,278 @@
+"""Capability implementations exposed by phlo-metrics."""
+
+from __future__ import annotations
+
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+from phlo.capabilities.interfaces import (
+    AlertSummary,
+    DashboardLink,
+    PlatformHealthSummary,
+    PlatformMetricsSummary,
+    ServiceStatus,
+)
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
+
+from phlo_metrics.maintenance import load_maintenance_status, render_maintenance_prometheus
+
+_PUBLIC_HOST_ENV = "PHLO_OBSERVABILITY_PUBLIC_HOST"
+_PUBLIC_SCHEME_ENV = "PHLO_OBSERVABILITY_PUBLIC_SCHEME"
+_GRAFANA_PUBLIC_URL_ENV = "GRAFANA_PUBLIC_URL"
+_GRAFANA_DASHBOARD_PATH_TEMPLATE_ENV = "GRAFANA_DASHBOARD_PATH_TEMPLATE"
+_PROMETHEUS_PUBLIC_URL_ENV = "PROMETHEUS_PUBLIC_URL"
+_PROMETHEUS_QUERY_PATH_ENV = "PROMETHEUS_QUERY_PATH"
+_LOKI_PUBLIC_URL_ENV = "LOKI_PUBLIC_URL"
+_LOKI_LOGS_PATH_ENV = "LOKI_LOGS_PATH"
+
+
+class MetricsMaintenanceReadModel:
+    """Expose phlo-metrics maintenance helpers as a neutral read model."""
+
+    def load_maintenance_status(self):
+        """Load the latest maintenance status snapshot."""
+        return load_maintenance_status()
+
+    def render_maintenance_prometheus(self) -> str:
+        """Render maintenance metrics in Prometheus text format."""
+        return render_maintenance_prometheus()
+
+
+class DefaultObservabilityBackend:
+    """Default observability backend composing metrics, logs, and dashboards."""
+
+    def __init__(
+        self,
+        grafana_url: str | None = None,
+        prometheus_url: str | None = None,
+        loki_url: str | None = None,
+    ):
+        self._grafana_url = grafana_url
+        self._prometheus_url = prometheus_url
+        self._loki_url = loki_url
+        self._maintenance = MetricsMaintenanceReadModel()
+
+    def health_summary(self) -> PlatformHealthSummary:
+        """Return platform health summary."""
+        try:
+            maintenance = self._maintenance.load_maintenance_status()
+            components = {
+                "metrics": "healthy",
+                "maintenance": "healthy" if maintenance.operations else "no_data",
+            }
+            if maintenance.operations:
+                failed = any(op.status == "failed" for op in maintenance.operations)
+                overall = "degraded" if failed else "healthy"
+            else:
+                overall = "unknown"
+        except Exception:
+            overall = "unhealthy"
+            components = {"metrics": "unhealthy", "maintenance": "unhealthy"}
+
+        return PlatformHealthSummary(
+            overall_status=overall,
+            components=components,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+
+    def service_status(self) -> list[ServiceStatus]:
+        """Return service status list."""
+        try:
+            maintenance = self._maintenance.load_maintenance_status()
+            latest_by_service: dict[str, ServiceStatus] = {}
+            for operation in maintenance.operations:
+                service_name = operation.job_name or operation.operation
+                if service_name in latest_by_service:
+                    continue
+                status = "healthy" if operation.status == "completed" else "unknown"
+                latest_by_service[service_name] = ServiceStatus(
+                    name=service_name,
+                    status=status,
+                    last_check=operation.completed_at.isoformat(),
+                )
+            return [latest_by_service[name] for name in sorted(latest_by_service)]
+        except Exception:
+            return [
+                ServiceStatus(
+                    name="metrics",
+                    status="unknown",
+                    last_check=datetime.now(timezone.utc).isoformat(),
+                )
+            ]
+
+    def platform_metrics(self, period: str) -> PlatformMetricsSummary:
+        """Return platform metrics for the specified period."""
+        try:
+            maintenance = self._maintenance.load_maintenance_status()
+            total_ops = len(maintenance.operations)
+            failed_ops = sum(1 for op in maintenance.operations if op.status == "failed")
+            metrics = {
+                "total_maintenance_operations": total_ops,
+                "failed_operations": failed_ops,
+                "successful_operations": total_ops - failed_ops,
+            }
+        except Exception:
+            metrics = {"error": "failed_to_load_metrics"}
+
+        return PlatformMetricsSummary(
+            period=period,
+            metrics=metrics,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+
+    def recent_alerts(self, limit: int) -> list[AlertSummary]:
+        """Return recent alerts up to the specified limit."""
+        try:
+            maintenance = self._maintenance.load_maintenance_status()
+            failed_ops = [op for op in maintenance.operations if op.status == "failed"]
+            alerts = []
+            for op in failed_ops[:limit]:
+                alerts.append(
+                    AlertSummary(
+                        title=f"Maintenance operation {op.operation} failed",
+                        severity="error",
+                        status="firing",
+                        fired_at=op.completed_at.isoformat(),
+                    )
+                )
+            return alerts
+        except Exception:
+            return []
+
+    def dashboard_links(self) -> list[DashboardLink]:
+        """Return available dashboard links."""
+        grafana_url = self._grafana_url or _resolve_service_base_url(
+            "grafana",
+            public_url_env=_GRAFANA_PUBLIC_URL_ENV,
+            port_env_key="GRAFANA_PORT",
+        )
+        if grafana_url is None:
+            return []
+
+        path_template = (
+            _service_env_value(
+                "grafana",
+                _GRAFANA_DASHBOARD_PATH_TEMPLATE_ENV,
+            )
+            or "/d/{uid}"
+        )
+        return [
+            DashboardLink(
+                title=dashboard["title"],
+                url=f"{grafana_url}{path_template.format(uid=dashboard['uid'])}",
+                category=_dashboard_category(dashboard["title"]),
+            )
+            for dashboard in _discover_grafana_dashboards()
+        ]
+
+    def logs_query_link(self, service: str | None = None) -> str | None:
+        """Return a link to query logs."""
+        loki_url = self._loki_url or _resolve_service_base_url(
+            "loki",
+            public_url_env=_LOKI_PUBLIC_URL_ENV,
+            port_env_key="LOKI_PORT",
+        )
+        if loki_url is None:
+            return None
+        logs_path = _service_env_value("loki", _LOKI_LOGS_PATH_ENV) or "/logs"
+        if service:
+            return f"{loki_url}{logs_path}?service={service}"
+        return f"{loki_url}{logs_path}"
+
+    def metrics_query_link(self, metric: str | None = None) -> str | None:
+        """Return a link to query metrics."""
+        prometheus_url = self._prometheus_url or _resolve_service_base_url(
+            "prometheus",
+            public_url_env=_PROMETHEUS_PUBLIC_URL_ENV,
+            port_env_key="PROMETHEUS_PORT",
+        )
+        if prometheus_url is None:
+            return None
+        query_path = _service_env_value("prometheus", _PROMETHEUS_QUERY_PATH_ENV) or "/graph"
+        if metric:
+            return f"{prometheus_url}{query_path}?g0.expr={metric}"
+        return f"{prometheus_url}{query_path}"
+
+
+def _resolve_service_base_url(
+    service_name: str,
+    *,
+    public_url_env: str,
+    port_env_key: str,
+) -> str | None:
+    public_url = _service_env_value(service_name, public_url_env)
+    if public_url:
+        return public_url.rstrip("/")
+
+    port = _service_env_value(service_name, port_env_key)
+    if port is None:
+        return None
+
+    host = os.environ.get(_PUBLIC_HOST_ENV, "localhost")
+    scheme = os.environ.get(_PUBLIC_SCHEME_ENV, "http")
+    return f"{scheme}://{host}:{port}"
+
+
+def _service_env_value(service_name: str, key: str) -> str | None:
+    env_value = os.environ.get(key)
+    if env_value:
+        return env_value
+
+    service = _discover_service(service_name)
+    if service is None:
+        return None
+
+    payload = service.env_vars.get(key, {})
+    default = payload.get("default")
+    if default in (None, ""):
+        return None
+    return str(default)
+
+
+def _discover_service(service_name: str) -> ServiceDefinition | None:
+    try:
+        return ServiceDiscovery().get_service(service_name)
+    except Exception:
+        return None
+
+
+def _discover_grafana_dashboards() -> list[dict[str, str]]:
+    service = _discover_service("grafana")
+    if service is None or service.source_path is None:
+        return []
+
+    dashboards_dir = service.source_path / "dashboards"
+    if not dashboards_dir.exists():
+        return []
+
+    dashboards: list[dict[str, str]] = []
+    for dashboard_path in sorted(dashboards_dir.glob("*.json")):
+        payload = _load_dashboard_payload(dashboard_path)
+        if payload is None:
+            continue
+        uid = payload.get("uid")
+        title = payload.get("title")
+        if isinstance(uid, str) and isinstance(title, str):
+            dashboards.append({"uid": uid, "title": title})
+    return dashboards
+
+
+def _load_dashboard_payload(path: Path) -> dict[str, object] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _dashboard_category(title: str) -> str:
+    lowered = title.lower()
+    if "overview" in lowered:
+        return "overview"
+    if "infrastructure" in lowered:
+        return "infrastructure"
+    return "dashboard"

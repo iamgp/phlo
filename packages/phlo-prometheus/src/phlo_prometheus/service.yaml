@@ -44,6 +44,12 @@ env_vars:
   PROMETHEUS_PORT:
     default: 9090
     description: Prometheus web UI port
+  PROMETHEUS_PUBLIC_URL:
+    default: ""
+    description: Public Prometheus base URL used by observability links
+  PROMETHEUS_QUERY_PATH:
+    default: "/graph"
+    description: Path used to build Prometheus query links
 
 files:
   - source: prometheus.yml

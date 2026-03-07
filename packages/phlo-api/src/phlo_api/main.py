@@ -40,18 +40,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Auto-discover and register Observatory API routers
-_OBSERVATORY_ROUTERS = [
-    ("trino", "/api/trino"),
-    ("contributing", "/api/contributing"),
-    ("iceberg", "/api/iceberg"),
-    ("dagster", "/api/dagster"),
-    ("nessie", "/api/nessie"),
-    ("quality", "/api/quality"),
-    ("loki", "/api/loki"),
-    ("lineage", "/api/lineage"),
-    ("maintenance", "/api/maintenance"),
-    ("search", "/api/search"),
+# Auto-discover and register API routers
+_ROUTERS = [
+    ("phlo_api.observatory_api.trino", "/api/trino"),
+    ("phlo_api.observatory_api.contributing", "/api/contributing"),
+    ("phlo_api.observatory_api.iceberg", "/api/iceberg"),
+    ("phlo_api.observatory_api.dagster", "/api/dagster"),
+    ("phlo_api.observatory_api.nessie", "/api/nessie"),
+    ("phlo_api.observatory_api.quality", "/api/quality"),
+    ("phlo_api.observatory_api.loki", "/api/loki"),
+    ("phlo_api.observatory_api.lineage", "/api/lineage"),
+    ("phlo_api.api.maintenance", "/api/maintenance"),
+    ("phlo_api.observatory_api.search", "/api/search"),
+    ("phlo_api.api.observability", "/api/observability"),
 ]
 
 _OBSERVATORY_ROUTERS_NO_PREFIX = [
@@ -65,13 +66,13 @@ def _register_observatory_routers() -> None:
     """Register Observatory API routers if available."""
     # Combine routers with prefix and without prefix into single iterable
     all_routers = [
-        *_OBSERVATORY_ROUTERS,
-        *((name, None) for name in _OBSERVATORY_ROUTERS_NO_PREFIX),
+        *_ROUTERS,
+        *((f"phlo_api.observatory_api.{name}", None) for name in _OBSERVATORY_ROUTERS_NO_PREFIX),
     ]
 
-    for name, prefix in all_routers:
+    for module_name, prefix in all_routers:
         try:
-            module = importlib.import_module(f"phlo_api.observatory_api.{name}")
+            module = importlib.import_module(module_name)
             router = getattr(module, "router", None)
             if router:
                 if prefix is not None:
@@ -79,7 +80,7 @@ def _register_observatory_routers() -> None:
                 else:
                     app.include_router(router)
         except ImportError as e:
-            logger.debug("Failed to import observatory router %s: %s", name, e)
+            logger.debug("Failed to import API router %s: %s", module_name, e)
 
 
 _register_observatory_routers()
