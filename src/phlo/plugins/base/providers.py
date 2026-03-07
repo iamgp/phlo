@@ -17,6 +17,7 @@ from phlo.capabilities.specs import (
     GovernanceBackendSpec,
     LineageSinkSpec,
     MetadataCatalogSpec,
+    PublishTargetSpec,
     QualityBackendSpec,
     QueryEngineSpec,
     ResourceSpec,
@@ -109,6 +110,10 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_governance_backends(self) -> Iterable[GovernanceBackendSpec]:
         """Return governance backend capability specs exposed by this plugin."""
+        return []
+
+    def get_publish_targets(self) -> Iterable[PublishTargetSpec]:
+        """Return publish target capability specs exposed by this plugin."""
         return []
 
     def get_secret_backends(self) -> Iterable[SecretBackendSpec]:

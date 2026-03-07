@@ -6,6 +6,9 @@ PostgreSQL database service for Phlo.
 
 `phlo-postgres` provides the core PostgreSQL database for metadata storage, lineage tracking, and operational data. It includes an optional Prometheus exporter for database metrics.
 
+It also acts as a structured publish target for serving tables produced from the
+analytical plane.
+
 ## Installation
 
 ```bash
@@ -99,6 +102,21 @@ Gold layer data is published to the `marts` schema:
 SELECT * FROM marts.mrt_daily_summary;
 SELECT * FROM marts.mrt_user_metrics;
 ```
+
+## Publish Target Role
+
+Within capability-native Phlo profiles, Postgres is a publish target, not a
+parallel transformation plane.
+
+Typical flow:
+
+`DLT -> table store -> query engine/dbt -> publish target`
+
+That means:
+
+- transforms build on the analytical table store
+- selected marts are copied into Postgres explicitly
+- serving tables stay downstream of the lakehouse contract
 
 ## Endpoints
 

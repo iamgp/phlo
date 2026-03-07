@@ -1,39 +1,51 @@
 """
 Write-Audit-Publish (WAP) lifecycle sensors for Dagster.
 
-Automates the Nessie-backed WAP pattern:
-1. Branch creation sensor — creates pipeline/run-{run_id} on job start.
+Automates the versioned-catalog WAP pattern:
+1. Branch creation sensor — creates pipeline-run-{run_id} on job start.
 2. Auto-promotion sensor — merges to main when all asset checks pass.
 3. Branch cleanup sensor — deletes stale pipeline branches after retention.
 """
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import dagster as dg
 
+from phlo.capabilities.interfaces import VersionedCatalog
+from phlo.capabilities.resolver import resolve_capability
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
 
-WAP_BRANCH_PREFIX = "pipeline/"
+WAP_BRANCH_PREFIX = "pipeline-"
 WAP_TAG_KEY = "phlo/wap_branch"
 DEFAULT_RETENTION_HOURS = 24
-DEFAULT_CLEANUP_INTERVAL_SECONDS = 3600
-DEFAULT_PROMOTION_INTERVAL_SECONDS = 60
+DEFAULT_BRANCH_CREATION_INTERVAL_SECONDS = int(
+    os.getenv("PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS", "30")
+)
+DEFAULT_CLEANUP_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_CLEANUP_INTERVAL_SECONDS", "3600"))
+DEFAULT_PROMOTION_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_PROMOTION_INTERVAL_SECONDS", "60"))
 
 
-def _load_nessie() -> Any:
-    """Load NessieResource lazily so the base package works without phlo-nessie."""
-    try:
-        from phlo_nessie.resource import NessieResource
-    except Exception as exc:  # noqa: BLE001
+def _load_versioned_catalog() -> VersionedCatalog:
+    """Resolve the active versioned catalog capability for WAP flows."""
+    resolution = resolve_capability("catalog")
+    if resolution is None:
+        raise RuntimeError("WAP sensors require a catalog capability with ref/promotion support.")
+
+    if not (resolution.support.supports_refs and resolution.support.supports_promote):
         raise RuntimeError(
-            "WAP sensors require phlo-nessie. Install phlo-dagster[nessie] or phlo-nessie."
-        ) from exc
-    return NessieResource
+            "WAP sensors require a catalog capability that supports refs and promotion."
+        )
+
+    provider = resolution.provider
+    if not isinstance(provider, VersionedCatalog):
+        raise RuntimeError("WAP sensors require a VersionedCatalog-compatible provider.")
+    return provider
 
 
 def _wap_branch_name(run_id: str) -> str:
@@ -49,17 +61,18 @@ def _wap_branch_name(run_id: str) -> str:
 @dg.sensor(
     name="wap_branch_creation_sensor",
     description="Creates an isolated Nessie branch for each new pipeline run (WAP write phase)",
-    minimum_interval_seconds=30,
+    minimum_interval_seconds=DEFAULT_BRANCH_CREATION_INTERVAL_SECONDS,
+    default_status=dg.DefaultSensorStatus.RUNNING,
 )
 def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
-    """Create a pipeline/run-{run_id} branch when a new run starts.
+    """Create a pipeline-run-{run_id} branch when a new run starts.
 
     Scans for STARTED runs that don't yet have a WAP branch tag, creates the
-    branch in Nessie, and tags the run so downstream sensors can track it.
+    branch in the versioned catalog, and tags the run so downstream sensors can
+    track it.
     """
     instance = context.instance
-    NessieResource = _load_nessie()
-    nessie = NessieResource()
+    catalog = _load_versioned_catalog()
 
     evaluation_time = datetime.now(timezone.utc)
     cursor_ts = None
@@ -93,7 +106,7 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
 
         branch_name = _wap_branch_name(run.run_id)
 
-        branch_hash = nessie.create_branch(branch_name, from_ref="main")
+        branch_hash = catalog.create_branch(branch_name, from_ref="main")
         if branch_hash is None:
             logger.warning(
                 "wap_branch_creation_skipped",
@@ -130,6 +143,7 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
     name="wap_auto_promotion_sensor",
     description="Merges WAP branches to main when all asset checks pass (WAP publish phase)",
     minimum_interval_seconds=DEFAULT_PROMOTION_INTERVAL_SECONDS,
+    default_status=dg.DefaultSensorStatus.RUNNING,
 )
 def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
     """Merge pipeline branches whose runs succeeded with all checks passing.
@@ -138,8 +152,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
     no asset checks failed, then merges the branch to main and cleans up.
     """
     instance = context.instance
-    NessieResource = _load_nessie()
-    nessie = NessieResource()
+    catalog = _load_versioned_catalog()
 
     evaluation_time = datetime.now(timezone.utc)
     cursor_ts = None
@@ -183,7 +196,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             )
             continue
 
-        merged = nessie.merge_branch(source=branch_name, target="main")
+        merged = catalog.merge_branch(source=branch_name, target="main")
         if not merged:
             logger.error(
                 "wap_promotion_merge_failed",
@@ -192,7 +205,7 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             )
             continue
 
-        nessie.delete_branch(branch_name)
+        catalog.delete_branch(branch_name)
         instance.add_run_tags(run.run_id, {"phlo/wap_promoted": "true"})
         promoted += 1
         logger.info(
@@ -215,13 +228,9 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
 def _all_checks_passed(instance: Any, run_id: str) -> bool:
     """Return True if every asset check in the run passed (or none were executed)."""
     try:
-        check_events = list(
-            instance.get_event_log_entries(
-                run_id=run_id,
-                event_filter_fn=lambda event: (
-                    event.event_type == dg.DagsterEventType.ASSET_CHECK_EVALUATION
-                ),
-            )
+        check_records = instance.get_records_for_run(
+            run_id,
+            of_type=dg.DagsterEventType.ASSET_CHECK_EVALUATION,
         )
     except Exception:
         logger.warning(
@@ -231,8 +240,8 @@ def _all_checks_passed(instance: Any, run_id: str) -> bool:
         )
         return False
 
-    for event in check_events:
-        check_eval = event.asset_check_evaluation
+    for record in check_records.records:
+        check_eval = record.event_log_entry.asset_check_evaluation
         if check_eval is not None and not check_eval.passed:
             return False
     return True
@@ -247,20 +256,20 @@ def _all_checks_passed(instance: Any, run_id: str) -> bool:
     name="wap_branch_cleanup_sensor",
     description="Deletes stale WAP pipeline branches past retention period",
     minimum_interval_seconds=DEFAULT_CLEANUP_INTERVAL_SECONDS,
+    default_status=dg.DefaultSensorStatus.RUNNING,
 )
 def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
     """Clean up pipeline branches older than the retention period.
 
-    Scans Nessie for branches matching the pipeline/ prefix and deletes those
+    Scans the versioned catalog for branches matching the pipeline- prefix and deletes those
     whose associated runs have terminated (SUCCESS or FAILURE) and whose
     creation time exceeds the retention window.
     """
-    NessieResource = _load_nessie()
-    nessie = NessieResource()
+    catalog = _load_versioned_catalog()
 
     retention_cutoff = datetime.now(timezone.utc) - timedelta(hours=DEFAULT_RETENTION_HOURS)
 
-    branches = nessie.list_branches()
+    branches = catalog.list_branches()
     pipeline_branches = [b for b in branches if b.name.startswith(WAP_BRANCH_PREFIX)]
 
     deleted = 0
@@ -271,7 +280,7 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
             skipped += 1
             continue
 
-        if nessie.delete_branch(branch.name):
+        if catalog.delete_branch(branch.name):
             deleted += 1
             logger.info(
                 "wap_branch_cleaned_up",

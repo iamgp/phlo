@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from dataclasses import dataclass
 
-from phlo.infrastructure import load_infrastructure_config
+from phlo.infrastructure import (
+    find_service_container,
+    list_running_containers,
+    resolve_container_name,
+)
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -44,24 +47,6 @@ def dagster_container_candidates(
     return DagsterContainerCandidates(configured=configured, new=new, legacy=legacy)
 
 
-def select_first_existing(candidates: list[str], existing: list[str]) -> str | None:
-    """Return the first candidate present in the existing container list.
-
-    Args:
-        candidates: Candidate container names in priority order.
-        existing: Existing running container names.
-
-    Returns:
-        First matching candidate, or ``None`` when no match exists.
-    """
-
-    existing_set = set(existing)
-    for candidate in candidates:
-        if candidate and candidate in existing_set:
-            return candidate
-    return None
-
-
 def _resolve_container_name(service_name: str, project_name: str) -> str:
     """Resolve container name for a service from infrastructure settings.
 
@@ -73,37 +58,12 @@ def _resolve_container_name(service_name: str, project_name: str) -> str:
         Configured or derived container name for the service.
     """
 
-    infra = load_infrastructure_config()
-    configured = infra.get_container_name(service_name, project_name)
-    if configured:
-        return configured
-    return infra.container_naming_pattern.format(project=project_name, service=service_name)
+    return resolve_container_name(service_name, project_name)
 
 
 def _list_running_containers(project_name: str) -> list[str]:
-    """List running compose container names for a project.
-
-    Args:
-        project_name: Compose project name.
-
-    Returns:
-        Running container names reported by Docker.
-    """
-
-    result = subprocess.run(
-        [
-            "docker",
-            "ps",
-            "--filter",
-            f"label=com.docker.compose.project={project_name}",
-            "--format",
-            "{{.Names}}",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.stdout.splitlines() if result.stdout else []
+    """List running compose container names for a project."""
+    return list_running_containers(project_name)
 
 
 def find_dagster_container(project_name: str) -> str:
@@ -124,42 +84,19 @@ def find_dagster_container(project_name: str) -> str:
         project_name=project_name,
     )
     try:
-        configured_name = _resolve_container_name("dagster", project_name)
-        candidates = dagster_container_candidates(project_name, configured_name)
-        preferred = [candidates.configured, candidates.new, candidates.legacy]
-
-        existing = _list_running_containers(project_name)
-        chosen = select_first_existing(preferred, existing)
-        if chosen:
-            logger.info(
-                "dagster_container_lookup_completed",
-                project_name=project_name,
-                selected_container=chosen,
-                container_source="preferred_candidate",
-                running_container_count=len(existing),
-            )
-            return chosen
-
-        fallback_matches = [
-            name
-            for name in existing
-            if re.search(rf"{re.escape(project_name)}.*dagster", name) and "daemon" not in name
-        ]
-        if fallback_matches:
-            logger.info(
-                "dagster_container_lookup_completed",
-                project_name=project_name,
-                selected_container=fallback_matches[0],
-                container_source="fallback_match",
-                running_container_count=len(existing),
-            )
-            return fallback_matches[0]
-
-        error_message = (
-            f"Could not find running Dagster webserver container for project '{project_name}'. "
-            f"Expected container name: {candidates.new} or {candidates.legacy}"
+        chosen = find_service_container(
+            project_name=project_name,
+            service_name="dagster",
+            legacy_names=(f"{project_name}-dagster-webserver-1",),
+            include_pattern=rf"{re.escape(project_name)}.*dagster",
+            exclude_substrings=("daemon",),
         )
-        raise RuntimeError(error_message)
+        logger.info(
+            "dagster_container_lookup_completed",
+            project_name=project_name,
+            selected_container=chosen,
+        )
+        return chosen
     except Exception as exc:
         logger.error(
             "dagster_container_lookup_failed",

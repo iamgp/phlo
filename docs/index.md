@@ -50,6 +50,7 @@ In-depth tutorials and how-tos:
 - [Service Packages](guides/service-packages.md) - Installable infrastructure services
 - [Plugin Development](guides/plugin-development.md) - Build custom plugins to extend Phlo
 - [Capability Primitives](guides/capability-primitives.md) - Orchestrator-agnostic specs
+- [Integration Profiles](guides/integration-profiles.md) - Supported capability combinations
 - [Workflow Development](guides/workflow-development.md) - Build complete data pipelines
 - [Data Migrations](guides/data-migrations.md) - Run declarative backfills and reshapes
 - [Data Modelling](guides/data-modeling.md) - Bronze/Silver/Gold architecture

@@ -6,9 +6,10 @@ from importlib import resources
 from typing import Any
 
 import yaml
-from phlo.capabilities import ResourceSpec
+from phlo.capabilities import PublishTargetSpec, ResourceSpec
 from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
 
+from phlo_postgres.publish_target import PostgresPublishTarget
 from phlo_postgres.resource import PostgresResource
 
 
@@ -93,3 +94,13 @@ class PostgresResourceProvider(ResourceProviderPlugin):
             list[ResourceSpec]: Registered resource specifications.
         """
         return [ResourceSpec(name="postgres", resource=PostgresResource())]
+
+    def get_publish_targets(self) -> list[PublishTargetSpec]:
+        """Return publish target capability specs exposed by this provider."""
+        return [
+            PublishTargetSpec(
+                name="postgres",
+                provider=PostgresPublishTarget(),
+                metadata={"target_system": "postgres", "role": "serving"},
+            )
+        ]

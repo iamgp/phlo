@@ -364,6 +364,7 @@ class PluginRegistry:
             "dependencies": metadata.dependencies,
             "requires_capabilities": metadata.requires_capabilities,
             "optional_capabilities": metadata.optional_capabilities,
+            "support": metadata.support.to_dict(),
         }
 
     def validate_plugin(self, plugin: Plugin) -> bool:

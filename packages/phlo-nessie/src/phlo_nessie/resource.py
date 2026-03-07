@@ -226,7 +226,7 @@ class NessieResource:
             return False
         response = self._request(
             "DELETE",
-            self._url(f"/api/v1/trees/tree/{name}"),
+            self._url(f"/api/v1/trees/branch/{name}"),
             params={"expectedHash": branch_hash},
             timeout=10,
         )
@@ -314,9 +314,12 @@ class NessieResource:
             return False
         response = self._request(
             "POST",
-            self._url(f"/api/v1/trees/branch/{target}/merge"),
-            json={"fromRefName": source, "fromHash": source_hash},
-            params={"expectedHash": target_hash},
+            self._url(f"/api/v2/trees/{target}@{target_hash}/history/merge"),
+            json={
+                "fromRefName": source,
+                "fromHash": source_hash,
+                "message": f"Merge {source} into {target}",
+            },
             timeout=30,
         )
         merged = response.status_code < 300
@@ -325,6 +328,7 @@ class NessieResource:
             source=source,
             target=target,
             status_code=response.status_code,
+            body=response.text[:200] if response.status_code >= 400 else None,
             merged=merged,
         )
         return merged

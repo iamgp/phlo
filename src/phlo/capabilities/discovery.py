@@ -10,6 +10,7 @@ from phlo.capabilities.registry import (
     register_governance_backend,
     register_lineage_sink,
     register_metadata_catalog,
+    register_publish_target,
     register_quality_backend,
     register_query_engine,
     register_resource,
@@ -73,6 +74,8 @@ def discover_capabilities() -> None:
                 register_lineage_sink(lineage_sink)
             for governance_backend in plugin.get_governance_backends():
                 register_governance_backend(governance_backend)
+            for publish_target in plugin.get_publish_targets():
+                register_publish_target(publish_target)
             for secret_backend in plugin.get_secret_backends():
                 register_secret_backend(secret_backend)
             for schema_migrator in plugin.get_schema_migrators():

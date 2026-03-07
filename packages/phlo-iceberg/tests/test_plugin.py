@@ -1,5 +1,6 @@
 """Tests for Iceberg resource provider plugin."""
 
+from phlo.capabilities import CapabilitySupport
 from phlo_iceberg.plugin import IcebergResourceProvider
 from phlo_iceberg.resource import IcebergResource
 from phlo_iceberg.schema_migrator import IcebergSchemaMigrator
@@ -25,6 +26,12 @@ def test_iceberg_provider_registers_table_store_capability() -> None:
     assert len(table_stores) == 1
     assert table_stores[0].name == "iceberg"
     assert isinstance(table_stores[0].provider, IcebergResource)
+    assert table_stores[0].support == CapabilitySupport(
+        supports_refs=True,
+        supports_snapshots=True,
+        supports_schema_evolution=True,
+        supports_time_travel=True,
+    )
 
 
 def test_iceberg_provider_registers_schema_migrator_capability() -> None:
@@ -36,3 +43,4 @@ def test_iceberg_provider_registers_schema_migrator_capability() -> None:
     assert len(migrators) == 1
     assert migrators[0].name == "iceberg"
     assert isinstance(migrators[0].provider, IcebergSchemaMigrator)
+    assert migrators[0].support == CapabilitySupport(supports_schema_evolution=True)

@@ -20,6 +20,9 @@ phlo plugin install dagster
 | ---------------- | ----------- | ---------------------- |
 | `DAGSTER_PORT`   | `3000`      | Dagster webserver port |
 | `WORKFLOWS_PATH` | `workflows` | Path to workflow files |
+| `PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS` | `30`   | WAP branch creation sensor interval |
+| `PHLO_WAP_PROMOTION_INTERVAL_SECONDS`       | `60`   | WAP promotion sensor interval       |
+| `PHLO_WAP_CLEANUP_INTERVAL_SECONDS`         | `3600` | WAP cleanup sensor interval         |
 
 ## Features
 
@@ -32,6 +35,7 @@ This package is **fully auto-configured**:
 | **Adapter Discovery**  | Loads `phlo.plugins.orchestrators` and builds Dagster definitions         |
 | **dbt Compilation**    | Auto-compiles dbt on startup via post_start hook                          |
 | **Workflow Discovery** | Auto-discovers workflows in `workflows/` directory                        |
+| **Fail-Closed Setup**  | Re-raises required capability setup failures during definitions loading   |
 | **Metrics Labels**     | Exposes Dagster metrics for Prometheus                                    |
 
 ### Post-Start Hook
@@ -52,6 +56,16 @@ Capability providers are auto-loaded through the plugin system:
 - Asset specs from `phlo.plugins.assets` (for example phlo-dlt, phlo-dbt)
 - Resource specs from `phlo.plugins.resources` (for example phlo-iceberg, phlo-trino)
 - Check specs from `@phlo_quality` and other packages
+
+### Versioned catalogs and WAP
+
+Dagster enables WAP lifecycle sensors only when a `VersionedCatalog` capability
+is available. That keeps the orchestration layer capability-driven instead of
+hard-wiring Dagster to a specific catalog implementation.
+
+In the bundled stack, Nessie is the versioned catalog provider. In profiles
+without versioning, the same Dagster adapter still works, but WAP branch
+creation/promotion/cleanup is not enabled.
 
 ## Usage
 

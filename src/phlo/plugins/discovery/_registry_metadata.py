@@ -19,4 +19,5 @@ def plugin_metadata_to_dict(plugin: Plugin) -> dict:
         "dependencies": metadata.dependencies,
         "requires_capabilities": metadata.requires_capabilities,
         "optional_capabilities": metadata.optional_capabilities,
+        "support": metadata.support.to_dict(),
     }

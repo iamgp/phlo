@@ -93,6 +93,8 @@ def test_phlo_ingestion_execution_real(tmp_path, iceberg_catalog):
 
         assert result.status == "success"
         assert result.rows_inserted == 2
+        assert len(result.metadata["parquet_paths"]) == 1
+        assert result.metadata["parquet_path"] == result.metadata["parquet_paths"][0]
 
         # 5. Verify Iceberg Table Content
         table = iceberg_catalog.load_table(table_config.full_table_name)

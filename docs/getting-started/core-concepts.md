@@ -50,12 +50,13 @@ Phlo is a data lakehouse framework that combines best-in-class tools into a cohe
 
 ### 1. Write-Audit-Publish (WAP) Pattern
 
-Phlo implements an automated Write-Audit-Publish pattern using Nessie branches:
+Phlo implements an automated Write-Audit-Publish pattern when the active profile
+includes a versioned catalog capability.
 
 **Write Phase**
 
-- Data lands on isolated branch: `pipeline/run-{run_id}`
-- No impact on production `main` branch
+- Data lands on isolated ref: `pipeline-run-{run_id}`
+- No impact on the durable target ref
 - Multiple pipelines can run concurrently
 
 **Audit Phase**
@@ -66,29 +67,33 @@ Phlo implements an automated Write-Audit-Publish pattern using Nessie branches:
 
 **Publish Phase**
 
-- Auto-promotion sensor merges to `main` when checks pass
+- Auto-promotion sensor merges back to the durable target ref when checks pass
 - Atomic commit of all tables
 - Old branches cleaned up after retention period
 
 **Implementation**
 
 ```python
-# Automatic branch creation on job start
+# Automatic ref creation on job start
 # workflows/sensors/branch_lifecycle.py
 @sensor(name="branch_creation_sensor")
 def branch_creation_sensor(context):
-    # Creates pipeline/run-{id} branch
+    # Creates isolated run ref when a VersionedCatalog is available
 
 # Automatic promotion when checks pass
 @sensor(name="auto_promotion_sensor")
 def auto_promotion_sensor(context):
-    # Merges to main if all checks pass
+    # Promotes to the durable target ref if all checks pass
 
 # Cleanup old branches
 @sensor(name="branch_cleanup_sensor")
 def branch_cleanup_sensor(context):
-    # Deletes branches older than retention period
+    # Deletes stale run refs older than retention period
 ```
+
+In the default bundled stack, Nessie is the versioned catalog provider for this flow.
+Profiles without a versioned catalog still work, but they do not get branch/promotion
+semantics.
 
 ### 2. Decorator-Driven Development
 

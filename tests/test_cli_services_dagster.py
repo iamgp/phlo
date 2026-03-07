@@ -6,13 +6,8 @@ from phlo_dagster.containers import find_dagster_container
 
 def test_find_dagster_container_prefers_configured_name(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "phlo_dagster.containers._resolve_container_name",
-        lambda service, project: "myproj-dagster-webserver-1",
-    )
-
-    monkeypatch.setattr(
-        "phlo_dagster.containers._list_running_containers",
-        lambda _project: ["myproj-dagster-webserver-1"],
+        "phlo_dagster.containers.find_service_container",
+        lambda **kwargs: "myproj-dagster-webserver-1",
     )
 
     assert find_dagster_container("myproj") == "myproj-dagster-webserver-1"
@@ -20,13 +15,8 @@ def test_find_dagster_container_prefers_configured_name(monkeypatch: pytest.Monk
 
 def test_find_dagster_container_falls_back_to_new_name(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "phlo_dagster.containers._resolve_container_name",
-        lambda service, project: "cfg",
-    )
-
-    monkeypatch.setattr(
-        "phlo_dagster.containers._list_running_containers",
-        lambda _project: ["myproj-dagster-1"],
+        "phlo_dagster.containers.find_service_container",
+        lambda **kwargs: "myproj-dagster-1",
     )
 
     assert find_dagster_container("myproj") == "myproj-dagster-1"
@@ -34,36 +24,33 @@ def test_find_dagster_container_falls_back_to_new_name(monkeypatch: pytest.Monke
 
 def test_find_dagster_container_falls_back_to_legacy_name(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "phlo_dagster.containers._resolve_container_name",
-        lambda service, project: "cfg",
-    )
-    monkeypatch.setattr(
-        "phlo_dagster.containers._list_running_containers",
-        lambda _project: ["myproj-dagster-webserver-1"],
+        "phlo_dagster.containers.find_service_container",
+        lambda **kwargs: "myproj-dagster-webserver-1",
     )
     assert find_dagster_container("myproj") == "myproj-dagster-webserver-1"
 
 
 def test_find_dagster_container_regex_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_find_service_container(**kwargs):
+        captured.update(kwargs)
+        return "myproj-custom-dagster-web-1"
+
     monkeypatch.setattr(
-        "phlo_dagster.containers._resolve_container_name",
-        lambda service, project: "cfg",
+        "phlo_dagster.containers.find_service_container", _fake_find_service_container
     )
-    monkeypatch.setattr(
-        "phlo_dagster.containers._list_running_containers",
-        lambda _project: ["myproj-custom-dagster-web-1"],
-    )
+
     assert find_dagster_container("myproj") == "myproj-custom-dagster-web-1"
+    assert captured["service_name"] == "dagster"
+    assert captured["legacy_names"] == ("myproj-dagster-webserver-1",)
+    assert captured["exclude_substrings"] == ("daemon",)
 
 
 def test_find_dagster_container_regex_excludes_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "phlo_dagster.containers._resolve_container_name",
-        lambda service, project: "cfg",
-    )
-    monkeypatch.setattr(
-        "phlo_dagster.containers._list_running_containers",
-        lambda _project: ["myproj-dagster-daemon-1"],
+        "phlo_dagster.containers.find_service_container",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("Could not find running Dagster")),
     )
     with pytest.raises(RuntimeError, match="Could not find running Dagster"):
         find_dagster_container("myproj")
@@ -71,12 +58,8 @@ def test_find_dagster_container_regex_excludes_daemon(monkeypatch: pytest.Monkey
 
 def test_find_dagster_container_raises_when_no_containers(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "phlo_dagster.containers._resolve_container_name",
-        lambda service, project: "cfg",
-    )
-    monkeypatch.setattr(
-        "phlo_dagster.containers._list_running_containers",
-        lambda _project: [],
+        "phlo_dagster.containers.find_service_container",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("Could not find running Dagster")),
     )
     with pytest.raises(RuntimeError, match="Could not find running Dagster"):
         find_dagster_container("myproj")
@@ -100,7 +83,7 @@ def test_dagster_container_candidates_no_configured() -> None:
 
 
 def test_select_first_existing_returns_first_match() -> None:
-    from phlo_dagster.containers import select_first_existing
+    from phlo.infrastructure import select_first_existing
 
     result = select_first_existing(
         ["a", "b", "c"],
@@ -110,14 +93,14 @@ def test_select_first_existing_returns_first_match() -> None:
 
 
 def test_select_first_existing_returns_none_when_no_match() -> None:
-    from phlo_dagster.containers import select_first_existing
+    from phlo.infrastructure import select_first_existing
 
     result = select_first_existing(["a", "b"], ["x", "y"])
     assert result is None
 
 
 def test_select_first_existing_skips_empty_candidates() -> None:
-    from phlo_dagster.containers import select_first_existing
+    from phlo.infrastructure import select_first_existing
 
     result = select_first_existing(["", "b"], ["b"])
     assert result == "b"

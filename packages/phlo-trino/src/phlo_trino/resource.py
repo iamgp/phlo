@@ -9,10 +9,16 @@ from typing import Iterable
 
 from trino.dbapi import connect
 
+from phlo.capabilities import CapabilitySupport, RuntimeContext, resolve_runtime_ref
 from phlo.logging import get_logger
 from phlo_trino.settings import get_settings as get_trino_settings
 
 logger = get_logger(__name__)
+
+TRINO_QUERY_ENGINE_SUPPORT = CapabilitySupport(
+    supports_refs=True,
+    supports_time_travel=True,
+)
 
 
 class _ConfigFacade:
@@ -68,6 +74,7 @@ class TrinoResource:
         user: Trino username for connections.
         catalog: Optional catalog override.
         ref: Optional Nessie ref override for catalog resolution.
+        runtime: Optional runtime context providing canonical ref routing.
     """
 
     host: str | None = None
@@ -75,6 +82,15 @@ class TrinoResource:
     user: str = "dagster"
     catalog: str | None = None
     ref: str | None = None
+    runtime: RuntimeContext | None = None
+
+    def _resolved_ref(self) -> str | None:
+        """Resolve the effective ref for Trino catalog routing."""
+        return resolve_runtime_ref(
+            self.runtime,
+            support=TRINO_QUERY_ENGINE_SUPPORT,
+            default_ref=self.ref or config.iceberg_nessie_ref,
+        )
 
     def _resolved_catalog(self) -> str:
         """Resolve the catalog name, including non-main Nessie refs.
@@ -83,7 +99,7 @@ class TrinoResource:
             Catalog name used for Trino connections.
         """
         base_catalog = self.catalog or config.trino_catalog
-        ref = self.ref or config.iceberg_nessie_ref
+        ref = self._resolved_ref()
         if ref and ref != "main":
             return f"{base_catalog}_{ref}"
         return base_catalog
