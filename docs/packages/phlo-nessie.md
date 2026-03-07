@@ -12,6 +12,9 @@ Nessie Git-like catalog for Phlo.
 pip install phlo-nessie
 # or
 phlo plugin install nessie
+
+# Nessie plus the Trino catalog adapter
+pip install 'phlo-nessie[trino]'
 ```
 
 ## Configuration
@@ -32,6 +35,8 @@ phlo plugin install nessie
 | **Branch Init**      | Auto-creates `main` and `dev` branches via post_start hook |
 | **Metrics Labels**   | Exposes Quarkus metrics at `/q/metrics`                    |
 | **Postgres Storage** | Uses PostgreSQL for version store (default backend)        |
+| **Catalog Backend**  | Exposes Nessie Iceberg REST endpoints for optional engine adapters |
+| **Trino Adapter**    | `phlo-nessie[trino]` registers `iceberg` and `iceberg_dev` catalogs |
 
 ### Post-Start Hook
 
@@ -133,7 +138,7 @@ curl http://localhost:19120/api/v2/trees/main
 | ----------------------- | --------------------- |
 | `phlo.plugins.services` | `NessieServicePlugin` |
 | `phlo.plugins.cli`      | Nessie CLI commands   |
-
+| `phlo.plugins.catalogs` | Nessie-owned catalog adapters (for example the optional Trino adapter) |
 ## Related Packages
 
 - [phlo-iceberg](phlo-iceberg.md) - Iceberg table format

@@ -480,20 +480,30 @@ class TestContributingRowsEndpoints:
         from fastapi.testclient import TestClient
         from phlo_api.main import app
 
-        with patch(
-            "phlo_api.observatory_api.contributing.execute_trino_query",
-            side_effect=[
-                {
-                    "columns": ["table_schema"],
-                    "column_types": ["varchar"],
-                    "rows": [{"table_schema": "silver"}],
-                },
-                {
-                    "columns": ["column_name", "data_type"],
-                    "column_types": ["varchar", "varchar"],
-                    "rows": [{"column_name": "hour_of_day", "data_type": "integer"}],
-                },
-            ],
+        with (
+            patch(
+                "phlo_api.observatory_api.contributing.execute_trino_query",
+                side_effect=[
+                    {
+                        "columns": ["table_schema"],
+                        "column_types": ["varchar"],
+                        "rows": [{"table_schema": "silver"}],
+                    },
+                    {
+                        "columns": ["column_name", "data_type"],
+                        "column_types": ["varchar", "varchar"],
+                        "rows": [{"column_name": "hour_of_day", "data_type": "integer"}],
+                    },
+                ],
+            ),
+            patch(
+                "phlo_api.observatory_api.contributing.resolve_default_catalog",
+                return_value="iceberg",
+            ),
+            patch(
+                "phlo_api.observatory_api.contributing.resolve_default_ref",
+                return_value="main",
+            ),
         ):
             client = TestClient(app)
             response = client.post(
@@ -516,20 +526,30 @@ class TestContributingRowsEndpoints:
         from fastapi.testclient import TestClient
         from phlo_api.main import app
 
-        with patch(
-            "phlo_api.observatory_api.contributing.execute_trino_query",
-            side_effect=[
-                {
-                    "columns": ["table_schema"],
-                    "column_types": ["varchar"],
-                    "rows": [{"table_schema": "silver"}],
-                },
-                {
-                    "columns": ["column_name", "data_type"],
-                    "column_types": ["varchar", "varchar"],
-                    "rows": [{"column_name": "_phlo_row_id", "data_type": "varchar"}],
-                },
-            ],
+        with (
+            patch(
+                "phlo_api.observatory_api.contributing.execute_trino_query",
+                side_effect=[
+                    {
+                        "columns": ["table_schema"],
+                        "column_types": ["varchar"],
+                        "rows": [{"table_schema": "silver"}],
+                    },
+                    {
+                        "columns": ["column_name", "data_type"],
+                        "column_types": ["varchar", "varchar"],
+                        "rows": [{"column_name": "_phlo_row_id", "data_type": "varchar"}],
+                    },
+                ],
+            ),
+            patch(
+                "phlo_api.observatory_api.contributing.resolve_default_catalog",
+                return_value="iceberg",
+            ),
+            patch(
+                "phlo_api.observatory_api.contributing.resolve_default_ref",
+                return_value="main",
+            ),
         ):
             client = TestClient(app)
             response = client.post(
@@ -553,32 +573,42 @@ class TestContributingRowsEndpoints:
         from fastapi.testclient import TestClient
         from phlo_api.main import app
 
-        with patch(
-            "phlo_api.observatory_api.contributing.execute_trino_query",
-            side_effect=[
-                {
-                    "columns": ["table_schema"],
-                    "column_types": ["varchar"],
-                    "rows": [{"table_schema": "silver"}],
-                },
-                {
-                    "columns": ["column_name", "data_type"],
-                    "column_types": ["varchar", "varchar"],
-                    "rows": [
-                        {"column_name": "_phlo_partition_date", "data_type": "date"},
-                        {"column_name": "hour_of_day", "data_type": "integer"},
-                        {"column_name": "day_of_week", "data_type": "integer"},
-                    ],
-                },
-                {
-                    "columns": ["hour_of_day", "day_of_week"],
-                    "column_types": ["integer", "integer"],
-                    "rows": [
-                        {"hour_of_day": 3, "day_of_week": 2},
-                        {"hour_of_day": 3, "day_of_week": 2},
-                    ],
-                },
-            ],
+        with (
+            patch(
+                "phlo_api.observatory_api.contributing.execute_trino_query",
+                side_effect=[
+                    {
+                        "columns": ["table_schema"],
+                        "column_types": ["varchar"],
+                        "rows": [{"table_schema": "silver"}],
+                    },
+                    {
+                        "columns": ["column_name", "data_type"],
+                        "column_types": ["varchar", "varchar"],
+                        "rows": [
+                            {"column_name": "_phlo_partition_date", "data_type": "date"},
+                            {"column_name": "hour_of_day", "data_type": "integer"},
+                            {"column_name": "day_of_week", "data_type": "integer"},
+                        ],
+                    },
+                    {
+                        "columns": ["hour_of_day", "day_of_week"],
+                        "column_types": ["integer", "integer"],
+                        "rows": [
+                            {"hour_of_day": 3, "day_of_week": 2},
+                            {"hour_of_day": 3, "day_of_week": 2},
+                        ],
+                    },
+                ],
+            ),
+            patch(
+                "phlo_api.observatory_api.contributing.resolve_default_catalog",
+                return_value="iceberg",
+            ),
+            patch(
+                "phlo_api.observatory_api.contributing.resolve_default_ref",
+                return_value="main",
+            ),
         ):
             client = TestClient(app)
             response = client.post(

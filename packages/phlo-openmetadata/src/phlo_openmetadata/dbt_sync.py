@@ -13,6 +13,7 @@ from typing import Any, Optional
 
 from phlo.logging import get_logger
 from phlo_openmetadata.openmetadata import OpenMetadataColumn, OpenMetadataTable
+from phlo_openmetadata.settings import OpenMetadataSettings
 
 logger = get_logger(__name__)
 
@@ -39,18 +40,11 @@ class DbtManifestParser:
         self.catalog = None
 
     @classmethod
-    def from_config(cls) -> DbtManifestParser:
-        """Create parser from application config."""
-        try:
-            from phlo_dbt.settings import get_settings
-        except Exception as exc:  # noqa: BLE001
-            raise RuntimeError(
-                "dbt sync requires phlo-dbt. Install phlo-openmetadata[dbt] or phlo-dbt."
-            ) from exc
-        config = get_settings()
+    def from_settings(cls, settings: OpenMetadataSettings) -> DbtManifestParser:
+        """Create parser from OpenMetadata-owned config."""
         return cls(
-            manifest_path=config.dbt_manifest_path,
-            catalog_path=config.dbt_catalog_path,
+            manifest_path=settings.openmetadata_dbt_manifest_path,
+            catalog_path=settings.openmetadata_dbt_catalog_path,
         )
 
     def load_manifest(self) -> dict[str, Any]:

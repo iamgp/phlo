@@ -42,7 +42,7 @@ class TestIcebergCatalogUnitTests:
         catalog1 = get_catalog("main")
         assert catalog1 == mock_catalog_main
         mock_load_catalog.assert_called_once_with(
-            name="nessie_main", type="rest", uri="http://nessie:19120/iceberg/main"
+            name="iceberg_main", type="rest", uri="http://nessie:19120/iceberg/main"
         )
 
         # Second call for main should return cached
@@ -55,7 +55,7 @@ class TestIcebergCatalogUnitTests:
         catalog3 = get_catalog("dev")
         assert catalog3 == mock_catalog_dev
         mock_load_catalog.assert_called_once_with(
-            name="nessie_dev", type="rest", uri="http://nessie:19120/iceberg/dev"
+            name="iceberg_dev", type="rest", uri="http://nessie:19120/iceberg/dev"
         )
 
     @patch("phlo_iceberg.catalog.get_catalog")

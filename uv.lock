@@ -3100,7 +3100,7 @@ iceberg-cli = [
 observatory = [
     { name = "phlo-observatory" },
 ]
-trino-fallback = [
+trino = [
     { name = "phlo-trino" },
 ]
 
@@ -3110,7 +3110,7 @@ requires-dist = [
     { name = "phlo", editable = "." },
     { name = "phlo-iceberg", marker = "extra == 'iceberg-cli'", editable = "packages/phlo-iceberg" },
     { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
-    { name = "phlo-trino", marker = "extra == 'trino-fallback'", editable = "packages/phlo-trino" },
+    { name = "phlo-trino", marker = "extra == 'trino'", editable = "packages/phlo-trino" },
     { name = "pynessie", specifier = ">=0.67.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },

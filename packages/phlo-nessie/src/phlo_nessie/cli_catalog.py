@@ -4,8 +4,7 @@ Catalog CLI commands.
 This CLI is intentionally shipped with `phlo-nessie` because Nessie is the
 current catalog backend.
 
-Implementation uses `phlo-iceberg` (PyIceberg + Nessie REST catalog) when
-available.
+Implementation uses PyIceberg against the Nessie REST catalog when available.
 """
 
 from __future__ import annotations
@@ -30,19 +29,15 @@ def _get_iceberg_catalog(ref: str = "main"):
         ref=ref,
     )
     try:
-        from phlo_iceberg.catalog import get_catalog
+        from phlo_nessie.catalog_backend import load_pyiceberg_catalog
     except ImportError as exc:  # pragma: no cover
-        logger.error(
-            "nessie_catalog_catalog_backend_missing",
-            ref=ref,
-            exc_info=True,
-        )
+        logger.error("nessie_catalog_catalog_backend_missing", ref=ref, exc_info=True)
         raise RuntimeError(
             "Iceberg catalog support is not installed. "
-            "Install `phlo-iceberg` (or `phlo[defaults]`)."
+            "Install `phlo-nessie[iceberg-cli]` or `pyiceberg`."
         ) from exc
 
-    return get_catalog(ref=ref)
+    return load_pyiceberg_catalog(ref=ref)
 
 
 @click.group()

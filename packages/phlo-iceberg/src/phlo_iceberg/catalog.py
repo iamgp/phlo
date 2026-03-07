@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 @lru_cache(maxsize=16)
 def get_catalog(ref: str = "main"):
     """
-    Get PyIceberg catalog configured for Nessie.
+    Get the configured PyIceberg REST catalog.
 
     Args:
         ref: Nessie branch/tag reference (default: main)
@@ -28,7 +28,7 @@ def get_catalog(ref: str = "main"):
     )
     catalog_config = get_settings().get_pyiceberg_catalog_config(ref=ref)
     try:
-        catalog = load_catalog(name=f"nessie_{ref}", **catalog_config)
+        catalog = load_catalog(name=f"iceberg_{ref}", **catalog_config)
     except Exception:
         logger.error(
             "iceberg_catalog_get_failed",

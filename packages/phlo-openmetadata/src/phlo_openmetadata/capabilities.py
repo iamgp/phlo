@@ -23,25 +23,43 @@ def resolve_catalog_scanner(name: str | None = None) -> CatalogScanner:
     return resolution.provider
 
 
-def resolve_query_engine_catalog(name: str | None = None, *, default: str = "iceberg") -> str:
-    """Resolve the default catalog name from a query engine capability provider."""
+def resolve_query_engine_catalog(name: str | None = None) -> str:
+    """Resolve the default catalog name from query-engine capability metadata."""
     _discover_capabilities()
     resolution = resolve_capability("query_engine", name)
     if resolution is None:
-        return default
+        if name:
+            raise RuntimeError(f"Query engine capability '{name}' is not available.")
+        raise RuntimeError("No query engine capability is available.")
 
-    provider = resolution.provider
-    resolved_catalog = getattr(provider, "_resolved_catalog", None)
-    if callable(resolved_catalog):
-        try:
-            catalog = resolved_catalog()
-        except Exception:
-            return default
+    metadata = resolution.metadata
+    for key in ("catalog", "default_catalog", "catalog_name"):
+        catalog = metadata.get(key)
         if isinstance(catalog, str) and catalog:
             return catalog
 
-    catalog = getattr(provider, "catalog", None)
-    if isinstance(catalog, str) and catalog:
-        return catalog
+    provider_name = name or getattr(resolution, "name", None) or "resolved query engine"
+    raise RuntimeError(
+        f"Query engine capability '{provider_name}' does not declare catalog metadata."
+    )
 
-    return default
+
+def resolve_query_engine_service_type(name: str | None = None) -> str:
+    """Resolve the OpenMetadata service type from query-engine capability metadata."""
+    _discover_capabilities()
+    resolution = resolve_capability("query_engine", name)
+    if resolution is None:
+        if name:
+            raise RuntimeError(f"Query engine capability '{name}' is not available.")
+        raise RuntimeError("No query engine capability is available.")
+
+    metadata = resolution.metadata
+    for key in ("service_type", "openmetadata_service_type"):
+        service_type = metadata.get(key)
+        if isinstance(service_type, str) and service_type:
+            return service_type
+
+    provider_name = name or getattr(resolution, "name", None) or "resolved query engine"
+    raise RuntimeError(
+        f"Query engine capability '{provider_name}' does not declare service_type metadata."
+    )

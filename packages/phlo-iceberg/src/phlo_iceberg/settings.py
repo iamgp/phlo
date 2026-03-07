@@ -21,8 +21,8 @@ class IcebergSettings(BaseConfig):
     iceberg_default_namespace: str = Field(
         default="raw", description="Default namespace/schema for Iceberg tables"
     )
-    iceberg_nessie_ref: str = Field(
-        default="main", description="Default Nessie branch/tag for Iceberg operations"
+    iceberg_default_ref: str = Field(
+        default="main", description="Default catalog ref/branch for Iceberg operations"
     )
     iceberg_s3_endpoint: str | None = Field(
         default="http://minio:10001",
@@ -40,9 +40,9 @@ class IcebergSettings(BaseConfig):
         default="us-east-1",
         description="S3 region for Iceberg I/O",
     )
-    iceberg_nessie_uri: str = Field(
+    iceberg_catalog_uri: str = Field(
         default="http://nessie:19120/iceberg",
-        description="Nessie Iceberg REST endpoint base URI",
+        description="Iceberg REST catalog endpoint base URI",
     )
 
     def get_iceberg_warehouse_for_branch(self, branch: str = "main") -> str:
@@ -67,7 +67,7 @@ class IcebergSettings(BaseConfig):
         """
         return {
             "type": "rest",
-            "uri": f"{self.iceberg_nessie_uri}/{ref}",
+            "uri": f"{self.iceberg_catalog_uri}/{ref}",
             "warehouse": self.get_iceberg_warehouse_for_branch(ref),
             "s3.endpoint": self.iceberg_s3_endpoint,
             "s3.access-key-id": self.iceberg_s3_access_key,

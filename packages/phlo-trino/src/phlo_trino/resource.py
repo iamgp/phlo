@@ -52,11 +52,11 @@ class _ConfigFacade:
         return get_trino_settings().trino_catalog
 
     @property
-    def iceberg_nessie_ref(self) -> str:
-        """Get the configured Nessie reference for Iceberg.
+    def default_catalog_ref(self) -> str:
+        """Get the configured default ref for ref-aware catalogs.
 
         Returns:
-            Nessie branch or tag reference.
+            Branch or tag reference.
         """
         return get_trino_settings().trino_default_ref
 
@@ -89,7 +89,7 @@ class TrinoResource:
         return resolve_runtime_ref(
             self.runtime,
             support=TRINO_QUERY_ENGINE_SUPPORT,
-            default_ref=self.ref or config.iceberg_nessie_ref,
+            default_ref=self.ref or config.default_catalog_ref,
         )
 
     def _resolved_catalog(self) -> str:

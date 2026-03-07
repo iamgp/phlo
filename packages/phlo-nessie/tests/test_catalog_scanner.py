@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import phlo_nessie.catalog_scanner as catalog_scanner_module
+
 from phlo_nessie.catalog_scanner import NessieTableScanner
 
 
@@ -19,10 +21,16 @@ def test_list_namespaces_uses_query_engine_capability(monkeypatch) -> None:
     """Fallback namespace scans should resolve the query engine via capabilities."""
     engine = _QueryEngine([("raw",), ("curated",)])
     monkeypatch.setattr(
-        "phlo_nessie.catalog_scanner.resolve_capability",
-        lambda capability_type, name: (
+        catalog_scanner_module,
+        "get_settings",
+        lambda: type("Settings", (), {"nessie_query_engine": None})(),
+    )
+    monkeypatch.setattr(
+        catalog_scanner_module,
+        "resolve_capability",
+        lambda capability_type, name, **_kwargs: (
             type("Resolution", (), {"provider": engine})()
-            if capability_type == "query_engine" and name == "trino"
+            if capability_type == "query_engine" and name is None
             else None
         ),
     )
@@ -37,8 +45,37 @@ def test_list_namespaces_uses_query_engine_capability(monkeypatch) -> None:
 def test_get_query_engine_returns_none_when_capability_missing(monkeypatch) -> None:
     """Fallback paths should tolerate missing query engine providers."""
     monkeypatch.setattr(
-        "phlo_nessie.catalog_scanner.resolve_capability", lambda *_args, **_kwargs: None
+        catalog_scanner_module,
+        "get_settings",
+        lambda: type("Settings", (), {"nessie_query_engine": None})(),
+    )
+    monkeypatch.setattr(
+        catalog_scanner_module,
+        "resolve_capability",
+        lambda *_args, **_kwargs: None,
     )
     scanner = NessieTableScanner("http://nessie.example")
 
     assert scanner._get_query_engine() is None
+
+
+def test_get_query_engine_uses_configured_capability_name(monkeypatch) -> None:
+    """Fallback scans should honor a configured query_engine provider name."""
+    engine = _QueryEngine([])
+    monkeypatch.setattr(
+        catalog_scanner_module,
+        "get_settings",
+        lambda: type("Settings", (), {"nessie_query_engine": "duckdb"})(),
+    )
+    monkeypatch.setattr(
+        catalog_scanner_module,
+        "resolve_capability",
+        lambda capability_type, name, **_kwargs: (
+            type("Resolution", (), {"provider": engine})()
+            if capability_type == "query_engine" and name == "duckdb"
+            else None
+        ),
+    )
+    scanner = NessieTableScanner("http://nessie.example")
+
+    assert scanner._get_query_engine() is engine

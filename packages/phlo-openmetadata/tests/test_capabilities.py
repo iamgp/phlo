@@ -2,7 +2,11 @@
 
 from unittest.mock import Mock, patch
 
-from phlo_openmetadata.capabilities import resolve_catalog_scanner
+from phlo_openmetadata.capabilities import (
+    resolve_catalog_scanner,
+    resolve_query_engine_catalog,
+    resolve_query_engine_service_type,
+)
 
 
 def test_resolve_catalog_scanner_returns_provider():
@@ -34,3 +38,64 @@ def test_resolve_catalog_scanner_raises_when_missing():
             assert "nessie" in str(exc)
         else:  # pragma: no cover - defensive
             raise AssertionError("Expected RuntimeError")
+
+
+def test_resolve_query_engine_catalog_uses_capability_metadata():
+    """Catalog helper reads stable metadata instead of provider internals."""
+    with (
+        patch("phlo_openmetadata.capabilities._discover_capabilities"),
+        patch(
+            "phlo_openmetadata.capabilities.resolve_capability",
+            return_value=Mock(metadata={"catalog": "iceberg_dev"}),
+        ) as resolve_mock,
+    ):
+        result = resolve_query_engine_catalog("duckdb")
+
+    assert result == "iceberg_dev"
+    resolve_mock.assert_called_once_with("query_engine", "duckdb")
+
+
+def test_resolve_query_engine_catalog_falls_back_when_metadata_missing():
+    """Catalog helper fails when metadata is absent."""
+    with (
+        patch("phlo_openmetadata.capabilities._discover_capabilities"),
+        patch(
+            "phlo_openmetadata.capabilities.resolve_capability",
+            return_value=Mock(metadata={}),
+        ),
+    ):
+        try:
+            resolve_query_engine_catalog()
+        except RuntimeError as exc:
+            assert "catalog metadata" in str(exc)
+        else:  # pragma: no cover - defensive
+            raise AssertionError("Expected RuntimeError")
+
+
+def test_resolve_query_engine_catalog_raises_when_capability_missing():
+    """Catalog helper fails clearly when no query-engine capability resolves."""
+    with (
+        patch("phlo_openmetadata.capabilities._discover_capabilities"),
+        patch("phlo_openmetadata.capabilities.resolve_capability", return_value=None),
+    ):
+        try:
+            resolve_query_engine_catalog("duckdb")
+        except RuntimeError as exc:
+            assert "duckdb" in str(exc)
+        else:  # pragma: no cover - defensive
+            raise AssertionError("Expected RuntimeError")
+
+
+def test_resolve_query_engine_service_type_uses_capability_metadata():
+    """Service type helper reads stable metadata from the query engine capability."""
+    with (
+        patch("phlo_openmetadata.capabilities._discover_capabilities"),
+        patch(
+            "phlo_openmetadata.capabilities.resolve_capability",
+            return_value=Mock(metadata={"service_type": "Trino"}),
+        ) as resolve_mock,
+    ):
+        result = resolve_query_engine_service_type("duckdb")
+
+    assert result == "Trino"
+    resolve_mock.assert_called_once_with("query_engine", "duckdb")

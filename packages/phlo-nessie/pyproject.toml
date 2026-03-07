@@ -28,7 +28,7 @@ dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",
 ]
-trino-fallback = [
+trino = [
     "phlo-trino>=0.1.0",
 ]
 iceberg-cli = [
@@ -43,6 +43,10 @@ nessie = "phlo_nessie.resource_provider:NessieResourceProvider"
 
 [project.entry-points."phlo.plugins.cli"]
 nessie = "phlo_nessie.cli_plugin:NessieCliPlugin"
+
+[project.entry-points."phlo.plugins.catalogs"]
+iceberg = "phlo_nessie.adapters.trino:TrinoNessieIcebergCatalogPlugin"
+iceberg_dev = "phlo_nessie.adapters.trino:TrinoNessieIcebergDevCatalogPlugin"
 
 [project.entry-points."phlo.plugins.observatory"]
 nessie = "phlo_nessie.observatory_plugin:NessieObservatoryExtension"

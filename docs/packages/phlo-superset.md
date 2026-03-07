@@ -4,7 +4,7 @@ Apache Superset BI service for Phlo.
 
 ## Overview
 
-`phlo-superset` provides a business intelligence and data visualization platform. It connects to Trino to query the lakehouse data.
+`phlo-superset` provides a business intelligence and data visualization platform. It connects to the configured query engine to query lakehouse data.
 
 ## Installation
 
@@ -24,6 +24,8 @@ phlo plugin install superset
 | `SUPERSET_ADMIN_USER`     | `admin`             | Admin username         |
 | `SUPERSET_ADMIN_PASSWORD` | `admin`             | Admin password         |
 | `SUPERSET_ADMIN_EMAIL`    | `admin@example.com` | Admin email            |
+| `SUPERSET_DATABASE_URI`   | unset               | Explicit SQLAlchemy URI for the query engine |
+| `SUPERSET_QUERY_ENGINE`   | unset               | Optional query_engine capability name used to discover a SQLAlchemy URI |
 
 ## Features
 
@@ -31,7 +33,7 @@ phlo plugin install superset
 
 | Feature            | How It Works                                   |
 | ------------------ | ---------------------------------------------- |
-| **Trino Database** | Auto-registered on startup via post_start hook |
+| **Query Engine Database** | Auto-registered on startup via explicit URI or query_engine capability metadata |
 | **Metrics Labels** | Exposes health endpoint for Prometheus         |
 | **Admin User**     | Auto-created on first startup                  |
 
@@ -48,7 +50,7 @@ hooks:
 
 | Database           | Connection                                  |
 | ------------------ | ------------------------------------------- |
-| Trino (Iceberg)    | `trino://trino:8080/iceberg`                |
+| Query Engine       | Discovered from capability metadata or `SUPERSET_DATABASE_URI` |
 | PostgreSQL (Marts) | `postgresql://phlo:phlo@postgres:5432/phlo` |
 
 ## Usage

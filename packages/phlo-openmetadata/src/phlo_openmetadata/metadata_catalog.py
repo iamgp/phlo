@@ -81,7 +81,7 @@ class OpenMetadataCatalogProvider:
                 password=settings.openmetadata_password,
                 verify_ssl=settings.openmetadata_verify_ssl,
                 service_name=settings.openmetadata_service_name,
-                service_type=settings.openmetadata_service_type,
+                service_type=settings.openmetadata_database_service_type(),
                 database_name=settings.openmetadata_database(),
             )
         return self._client

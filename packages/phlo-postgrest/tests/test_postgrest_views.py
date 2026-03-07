@@ -71,7 +71,7 @@ class TestDbtManifestParser:
 
     def test_parse_extracts_marts_models(self, manifest_file):
         """Should extract only models from marts schema."""
-        parser = DbtManifestParser(manifest_file)
+        parser = DbtManifestParser(manifest_file, source_schema="marts")
         models = parser.parse()
 
         assert "glucose_readings" in models
@@ -81,7 +81,7 @@ class TestDbtManifestParser:
 
     def test_parse_extracts_model_metadata(self, manifest_file):
         """Should extract all model metadata."""
-        parser = DbtManifestParser(manifest_file)
+        parser = DbtManifestParser(manifest_file, source_schema="marts")
         models = parser.parse()
 
         model = models["glucose_readings"]
@@ -101,13 +101,22 @@ class TestDbtManifestParser:
         assert graph["glucose_metrics"] == ["glucose_readings"]
         assert graph["glucose_readings"] == []
 
+    def test_parse_uses_configured_source_schema(self, manifest_file):
+        """Should allow the source dbt schema to be selected explicitly."""
+        parser = DbtManifestParser(manifest_file, source_schema="bronze")
+
+        models = parser.parse()
+
+        assert "bronze_raw_data" in models
+        assert "glucose_readings" not in models
+
 
 class TestViewGenerator:
     """Tests for ViewGenerator."""
 
     def test_generate_view_sql(self, manifest_file):
         """Should generate valid CREATE VIEW SQL."""
-        generator = ViewGenerator(manifest_file)
+        generator = ViewGenerator(manifest_file, source_schema="marts")
         models = generator.parser.parse()
         model = models["glucose_readings"]
 
@@ -122,7 +131,7 @@ class TestViewGenerator:
 
     def test_generate_permissions_sql(self, manifest_file):
         """Should generate correct GRANT statements."""
-        generator = ViewGenerator(manifest_file)
+        generator = ViewGenerator(manifest_file, source_schema="marts")
         models = generator.parser.parse()
         model = models["glucose_readings"]
 
@@ -136,7 +145,7 @@ class TestViewGenerator:
 
     def test_generate_permissions_with_public_tag(self, manifest_file):
         """Should grant to anon role for public tag."""
-        generator = ViewGenerator(manifest_file)
+        generator = ViewGenerator(manifest_file, source_schema="marts")
         models = generator.parser.parse()
         model = models["glucose_metrics"]
 
@@ -148,7 +157,7 @@ class TestViewGenerator:
 
     def test_generate_all_views(self, manifest_file):
         """Should generate SQL for all views."""
-        generator = ViewGenerator(manifest_file)
+        generator = ViewGenerator(manifest_file, source_schema="marts")
         sql = generator.generate_all_views()
 
         assert "glucose_readings" in sql
@@ -157,7 +166,7 @@ class TestViewGenerator:
 
     def test_generate_all_views_with_filter(self, manifest_file):
         """Should filter models by pattern."""
-        generator = ViewGenerator(manifest_file)
+        generator = ViewGenerator(manifest_file, source_schema="marts")
         sql = generator.generate_all_views(model_filter="glucose_readings")
 
         assert "glucose_readings" in sql
@@ -166,7 +175,7 @@ class TestViewGenerator:
 
     def test_topological_sort(self, manifest_file):
         """Should sort models by dependencies."""
-        generator = ViewGenerator(manifest_file)
+        generator = ViewGenerator(manifest_file, source_schema="marts")
         models = generator.parser.parse()
         graph = generator.parser.build_dependency_graph()
 
@@ -179,6 +188,13 @@ class TestViewGenerator:
         """Should escape single quotes in strings."""
         escaped = ViewGenerator._escape_string("It's a test")
         assert escaped == "It''s a test"
+
+    def test_parse_requires_explicit_schema_when_manifest_has_multiple_schemas(self, manifest_file):
+        """Parser should fail clearly when multiple schemas exist and config is omitted."""
+        parser = DbtManifestParser(manifest_file, source_schema=None)
+
+        with pytest.raises(ValueError, match="dbt_api_source_schema"):
+            parser.parse()
 
 
 class TestPostgreSQLViewManager:
@@ -248,7 +264,7 @@ class TestGenerateViewsFunction:
 
     def test_generate_views_returns_sql(self, manifest_file):
         """Should return SQL when no output specified."""
-        sql = generate_views(manifest_path=manifest_file, verbose=False)
+        sql = generate_views(manifest_path=manifest_file, source_schema="marts", verbose=False)
 
         assert sql.startswith("-- PostgREST API Views")
         assert "CREATE OR REPLACE VIEW" in sql
@@ -259,6 +275,7 @@ class TestGenerateViewsFunction:
 
         result = generate_views(
             manifest_path=manifest_file,
+            source_schema="marts",
             output=str(output_file),
             verbose=False,
         )
@@ -271,6 +288,7 @@ class TestGenerateViewsFunction:
         """Should execute SQL when apply=True."""
         result = generate_views(
             manifest_path=manifest_file,
+            source_schema="marts",
             apply=True,
             verbose=False,
         )
@@ -285,6 +303,7 @@ class TestGenerateViewsFunction:
 
         result = generate_views(
             manifest_path=manifest_file,
+            source_schema="marts",
             diff=True,
             verbose=False,
         )

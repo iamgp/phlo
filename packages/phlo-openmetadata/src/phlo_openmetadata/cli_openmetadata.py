@@ -19,6 +19,26 @@ console = Console()
 logger = get_logger(__name__)
 
 
+def _resolve_database_name() -> str:
+    """Resolve the database name or exit with a clear configuration error."""
+    try:
+        return get_settings().openmetadata_database()
+    except RuntimeError as exc:
+        logger.error("openmetadata_database_resolution_failed", error=str(exc))
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(1)
+
+
+def _resolve_service_type() -> str:
+    """Resolve the service type or exit with a clear configuration error."""
+    try:
+        return get_settings().openmetadata_database_service_type()
+    except RuntimeError as exc:
+        logger.error("openmetadata_service_type_resolution_failed", error=str(exc))
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(1)
+
+
 @click.group()
 def openmetadata():
     """Manage OpenMetadata integration (optional)."""
@@ -28,6 +48,8 @@ def openmetadata():
 def health() -> None:
     """Check OpenMetadata connectivity using configured credentials."""
     cfg = get_settings()
+    database_name = _resolve_database_name()
+    service_type = _resolve_service_type()
     client = OpenMetadataClient(
         base_url=cfg.openmetadata_uri(),
         username=cfg.openmetadata_username,
@@ -35,8 +57,8 @@ def health() -> None:
         verify_ssl=cfg.openmetadata_verify_ssl,
         timeout=10,
         service_name=cfg.openmetadata_service_name,
-        service_type=cfg.openmetadata_service_type,
-        database_name=cfg.openmetadata_database(),
+        service_type=service_type,
+        database_name=database_name,
     )
     logger.debug("openmetadata_health_check_started")
     ok = client.health_check()
@@ -69,6 +91,8 @@ def sync(
         dbt_schema=dbt_schema,
     )
     cfg = get_settings()
+    database_name = _resolve_database_name()
+    service_type = _resolve_service_type()
     client = OpenMetadataClient(
         base_url=cfg.openmetadata_uri(),
         username=cfg.openmetadata_username,
@@ -76,8 +100,8 @@ def sync(
         verify_ssl=cfg.openmetadata_verify_ssl,
         timeout=30,
         service_name=cfg.openmetadata_service_name,
-        service_type=cfg.openmetadata_service_type,
-        database_name=cfg.openmetadata_database(),
+        service_type=service_type,
+        database_name=database_name,
     )
 
     if not client.health_check():
@@ -86,9 +110,13 @@ def sync(
         sys.exit(1)
 
     try:
-        scanner = resolve_catalog_scanner("nessie")
+        scanner = resolve_catalog_scanner(cfg.openmetadata_catalog_scanner)
     except RuntimeError as exc:
-        logger.error("openmetadata_nessie_scanner_unavailable", error=str(exc))
+        logger.error(
+            "openmetadata_catalog_scanner_unavailable",
+            scanner_name=cfg.openmetadata_catalog_scanner,
+            error=str(exc),
+        )
         console.print(f"[red]{exc}[/red]")
         sys.exit(1)
 
@@ -103,7 +131,7 @@ def sync(
 
     if dbt:
         try:
-            parser = DbtManifestParser.from_config()
+            parser = DbtManifestParser.from_settings(cfg)
             if dbt_schema:
                 dbt_stats = parser.sync_to_openmetadata(client, schema_name=dbt_schema)
             else:

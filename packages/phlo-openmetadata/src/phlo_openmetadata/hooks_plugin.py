@@ -246,15 +246,19 @@ class OpenMetadataHookPlugin(HookPlugin):
         if not settings.openmetadata_sync_enabled:
             return None
         if self._client is None:
-            self._client = OpenMetadataClient(
-                base_url=settings.openmetadata_uri(),
-                username=settings.openmetadata_username,
-                password=settings.openmetadata_password,
-                verify_ssl=settings.openmetadata_verify_ssl,
-                service_name=settings.openmetadata_service_name,
-                service_type=settings.openmetadata_service_type,
-                database_name=settings.openmetadata_database(),
-            )
+            try:
+                self._client = OpenMetadataClient(
+                    base_url=settings.openmetadata_uri(),
+                    username=settings.openmetadata_username,
+                    password=settings.openmetadata_password,
+                    verify_ssl=settings.openmetadata_verify_ssl,
+                    service_name=settings.openmetadata_service_name,
+                    service_type=settings.openmetadata_database_service_type(),
+                    database_name=settings.openmetadata_database(),
+                )
+            except RuntimeError as exc:
+                logger.warning("openmetadata_client_configuration_unavailable", error=str(exc))
+                return None
         return self._client
 
 
