@@ -1064,6 +1064,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#observability-link-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observability Link Resolution
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2116,6 +2127,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#observability-link-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observability Link Resolution
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2780,19 +2802,33 @@ OPENMETADATA_SYNC_INTERVAL_SECONDS=300  # Minimum interval between syncs
 <h4 id="prometheus">Prometheus</h4>
 <p>Metrics collection:</p>
 <pre><code class="language-bash">PROMETHEUS_PORT=9090
+PROMETHEUS_PUBLIC_URL=
+PROMETHEUS_QUERY_PATH=/graph
 </code></pre>
 <p>Access: http://localhost:9090</p>
 <h4 id="loki">Loki</h4>
 <p>Log aggregation:</p>
 <pre><code class="language-bash">LOKI_PORT=3100
+LOKI_PUBLIC_URL=
+LOKI_LOGS_PATH=/logs
 </code></pre>
 <h4 id="grafana">Grafana</h4>
 <p>Dashboards and visualization:</p>
 <pre><code class="language-bash">GRAFANA_PORT=3000
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=admin
+GRAFANA_PUBLIC_URL=
+GRAFANA_DASHBOARD_PATH_TEMPLATE=/d/{uid}
 </code></pre>
 <p>Access: http://localhost:3000</p>
+<h4 id="observability-link-resolution">Observability Link Resolution</h4>
+<pre><code class="language-bash">PHLO_OBSERVABILITY_PUBLIC_HOST=localhost
+PHLO_OBSERVABILITY_PUBLIC_SCHEME=http
+</code></pre>
+<ul>
+<li>Set <code>*_PUBLIC_URL</code> when Grafana, Loki, or Prometheus are exposed behind a proxy or custom domain.</li>
+<li>If <code>*_PUBLIC_URL</code> is unset, Phlo builds links from <code>PHLO_OBSERVABILITY_PUBLIC_SCHEME</code>, <code>PHLO_OBSERVABILITY_PUBLIC_HOST</code>, and the configured service port.</li>
+</ul>
 <h3 id="alerting-configuration">Alerting Configuration</h3>
 <h4 id="slack">Slack</h4>
 <pre><code class="language-bash">PHLO_ALERT_SLACK_WEBHOOK=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
