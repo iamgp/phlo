@@ -47,6 +47,10 @@ nessie = "phlo_nessie.cli_plugin:NessieCliPlugin"
 [project.entry-points."phlo.plugins.observatory"]
 nessie = "phlo_nessie.observatory_plugin:NessieObservatoryExtension"
 
+[project.entry-points."phlo.plugins.catalogs"]
+iceberg = "phlo_nessie.catalog_plugin:NessieIcebergCatalogPlugin"
+iceberg_dev = "phlo_nessie.catalog_plugin:NessieIcebergDevCatalogPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true

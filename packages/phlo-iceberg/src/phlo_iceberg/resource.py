@@ -29,9 +29,9 @@ logger = get_logger(__name__)
 
 @dataclass
 class IcebergResource:
-    """Resource wrapper for the Nessie-backed Iceberg catalog."""
+    """Resource wrapper for the configured Iceberg REST catalog."""
 
-    ref: str = field(default_factory=lambda: get_settings().iceberg_nessie_ref)
+    ref: str = field(default_factory=lambda: get_settings().iceberg_default_ref)
 
     def get_catalog(self, override_ref: str | None = None) -> Catalog:
         """Return an Iceberg catalog client for the active branch.

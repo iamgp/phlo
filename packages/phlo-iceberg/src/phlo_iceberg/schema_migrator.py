@@ -63,7 +63,7 @@ def _iceberg_type_to_dtype(iceberg_type: IcebergType) -> str:
 class IcebergSchemaMigrator:
     """SchemaMigrator backed by a PyIceberg catalog."""
 
-    ref: str = field(default_factory=lambda: get_settings().iceberg_nessie_ref)
+    ref: str = field(default_factory=lambda: get_settings().iceberg_default_ref)
 
     def supported_changes(self) -> set[str]:
         """Return the set of change types supported natively by Iceberg."""

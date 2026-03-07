@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from phlo_openmetadata.dbt_sync import DbtManifestParser
+from phlo_openmetadata.settings import OpenMetadataSettings
 
 
 @pytest.fixture
@@ -110,6 +111,18 @@ def catalog_file(sample_catalog):
 
 class TestDbtManifestParser:
     """Tests for DbtManifestParser."""
+
+    def test_from_settings(self):
+        """Parser paths come from OpenMetadata-owned settings."""
+        settings = OpenMetadataSettings(
+            openmetadata_dbt_manifest_path="/tmp/manifest.json",
+            openmetadata_dbt_catalog_path="/tmp/catalog.json",
+        )
+
+        parser = DbtManifestParser.from_settings(settings)
+
+        assert parser.manifest_path == Path("/tmp/manifest.json")
+        assert parser.catalog_path == Path("/tmp/catalog.json")
 
     def test_parser_initialization(self, manifest_file, catalog_file):
         """Test parser initialization."""

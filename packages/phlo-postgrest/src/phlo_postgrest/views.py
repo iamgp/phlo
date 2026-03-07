@@ -30,6 +30,10 @@ class PostgrestViewsSettings(BaseConfig):
         default="workflows/transforms/dbt/target/manifest.json",
         description="Path to dbt manifest.json",
     )
+    dbt_api_source_schema: str = Field(
+        default="marts",
+        description="dbt schema to expose through generated PostgREST views",
+    )
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
     postgres_port: int = Field(default=5432, description="PostgreSQL port")
     postgres_user: str = Field(default="phlo", description="PostgreSQL username")
@@ -52,16 +56,21 @@ class DbtModel:
 class DbtManifestParser:
     """Parses dbt manifest.json to extract model metadata."""
 
-    def __init__(self, manifest_path: Optional[str] = None):
+    def __init__(self, manifest_path: Optional[str] = None, source_schema: Optional[str] = None):
         """Initialize manifest parser.
 
         Args:
             manifest_path: Path to manifest.json. If None, uses config value.
+            source_schema: dbt schema to expose. If None, uses config value.
         """
+        settings = PostgrestViewsSettings()
         if manifest_path is None:
-            manifest_path = PostgrestViewsSettings().dbt_manifest_path
+            manifest_path = settings.dbt_manifest_path
+        if source_schema is None:
+            source_schema = settings.dbt_api_source_schema
 
         self.manifest_path = Path(manifest_path)
+        self.source_schema = source_schema
 
         if not self.manifest_path.exists():
             raise FileNotFoundError(f"dbt manifest not found at {manifest_path}")
@@ -80,8 +89,7 @@ class DbtManifestParser:
             if not unique_id.startswith("model."):
                 continue
 
-            # Filter to marts_postgres schema
-            if node.get("schema") != "marts":
+            if node.get("schema") != self.source_schema:
                 continue
 
             model = DbtModel(
@@ -127,14 +135,20 @@ class DbtManifestParser:
 class ViewGenerator:
     """Generates PostgREST API views from dbt models."""
 
-    def __init__(self, manifest_path: Optional[str] = None, api_schema: str = "api"):
+    def __init__(
+        self,
+        manifest_path: Optional[str] = None,
+        api_schema: str = "api",
+        source_schema: Optional[str] = None,
+    ):
         """Initialize view generator.
 
         Args:
             manifest_path: Path to dbt manifest.json
             api_schema: Schema for API views (default: api)
+            source_schema: dbt schema to expose through API views
         """
-        self.parser = DbtManifestParser(manifest_path)
+        self.parser = DbtManifestParser(manifest_path, source_schema=source_schema)
         self.api_schema = api_schema
 
     def generate_view_sql(self, model: DbtModel) -> str:

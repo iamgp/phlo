@@ -14,10 +14,10 @@ from pydantic import BaseModel
 
 from phlo.logging import get_logger
 from phlo_api.observatory_api.trino import (
-    DEFAULT_CATALOG,
     QueryExecutionError,
     execute_trino_query,
     quote_identifier,
+    resolve_default_catalog,
 )
 
 logger = get_logger(__name__)
@@ -335,7 +335,7 @@ async def get_tables(
     Returns:
         Table list or an error dictionary.
     """
-    effective_catalog = catalog or DEFAULT_CATALOG
+    effective_catalog = catalog or resolve_default_catalog()
 
     cache_key = f"tables:{effective_catalog}:{branch}:{preferred_schema}:{trino_url or 'default'}"
     cached = _cache_get(cache_key, CACHE_TTL_TABLES)
@@ -370,7 +370,7 @@ async def get_table_schema(
     Returns:
         Column list or an error dictionary.
     """
-    effective_catalog = catalog or DEFAULT_CATALOG
+    effective_catalog = catalog or resolve_default_catalog()
     effective_schema = schema or branch
 
     cache_key = f"schema:{effective_catalog}:{effective_schema}:{table}:{trino_url or 'default'}"
@@ -406,7 +406,7 @@ async def get_table_row_count(
     Returns:
         Row count or an error dictionary.
     """
-    effective_catalog = catalog or DEFAULT_CATALOG
+    effective_catalog = catalog or resolve_default_catalog()
     sql = f"SELECT COUNT(*) as cnt FROM {quote_identifier(effective_catalog)}.{quote_identifier(branch)}.{quote_identifier(table)}"
 
     result = await execute_trino_query(sql, effective_catalog, branch, trino_url, timeout_ms)
@@ -439,7 +439,7 @@ async def get_table_metadata(
     Returns:
         Table metadata or an error dictionary.
     """
-    effective_catalog = catalog or DEFAULT_CATALOG
+    effective_catalog = catalog or resolve_default_catalog()
 
     # Get schema
     schema_result = await fetch_table_schema(

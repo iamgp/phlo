@@ -15,6 +15,8 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
+from phlo.capabilities import resolve_capability
+from phlo.capabilities.discovery import discover_capabilities
 from phlo.logging import get_logger
 from phlo_api.observatory_api.trino_sql import (
     is_probably_qualified_table,
@@ -28,8 +30,10 @@ logger = get_logger(__name__)
 
 router = APIRouter(tags=["trino"])
 
-DEFAULT_CATALOG = "iceberg"
+DEFAULT_CATALOG = os.environ.get("PHLO_QUERY_CATALOG") or os.environ.get("TRINO_CATALOG", "iceberg")
+DEFAULT_REF = os.environ.get("PHLO_DEFAULT_REF") or os.environ.get("NESSIE_DEFAULT_REF", "main")
 DEFAULT_TRINO_URL = "http://trino:8080"
+_DEFAULT_QUERY_ENGINE_ENV = "PHLO_QUERY_ENGINE"
 
 
 def resolve_trino_url(override: str | None = None) -> str:
@@ -40,6 +44,18 @@ def resolve_trino_url(override: str | None = None) -> str:
             return env_url
         return override
     return env_url or DEFAULT_TRINO_URL
+
+
+def resolve_default_catalog() -> str:
+    """Resolve the default catalog from query-engine capability metadata."""
+    discover_capabilities()
+    resolution = resolve_capability("query_engine", os.environ.get(_DEFAULT_QUERY_ENGINE_ENV))
+    if resolution is not None:
+        for key in ("default_catalog", "catalog", "catalog_name"):
+            value = resolution.metadata.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return os.environ.get("TRINO_CATALOG", DEFAULT_CATALOG)
 
 
 # --- Pydantic Models ---
@@ -115,7 +131,7 @@ class QueryExecutionError(BaseModel):
 async def execute_trino_query(
     query: str,
     catalog: str = DEFAULT_CATALOG,
-    schema: str = "main",
+    schema: str = DEFAULT_REF,
     trino_url: str | None = None,
     timeout_ms: int = 30000,
 ) -> dict[str, Any] | QueryExecutionError:
@@ -229,7 +245,7 @@ async def check_connection(trino_url: str | None = None) -> TrinoConnectionStatu
 @router.get("/preview/{table:path}", response_model=DataPreviewResult | dict)
 async def preview_data(
     table: str,
-    branch: str = "main",
+    branch: str = DEFAULT_REF,
     catalog: str | None = None,
     schema: str | None = None,
     limit: int = Query(default=100, le=5000),
@@ -238,7 +254,7 @@ async def preview_data(
     timeout_ms: int = Query(default=30000, le=120000),
 ) -> DataPreviewResult | dict[str, str]:
     """Preview data from a table with pagination."""
-    effective_catalog = catalog or DEFAULT_CATALOG
+    effective_catalog = catalog or resolve_default_catalog()
     effective_schema = schema or branch
 
     resolved_table = (
@@ -272,14 +288,14 @@ async def preview_data(
 async def profile_column(
     table: str,
     column: str,
-    branch: str = "main",
+    branch: str = DEFAULT_REF,
     catalog: str | None = None,
     schema: str | None = None,
     trino_url: str | None = None,
     timeout_ms: int = Query(default=30000, le=120000),
 ) -> ColumnProfile | dict[str, str]:
     """Get column statistics/profile."""
-    effective_catalog = catalog or DEFAULT_CATALOG
+    effective_catalog = catalog or resolve_default_catalog()
     effective_schema = schema or branch
 
     resolved_table = (
@@ -327,14 +343,14 @@ async def profile_column(
 @router.get("/metrics/{table:path}", response_model=TableMetrics | dict)
 async def get_table_metrics(
     table: str,
-    branch: str = "main",
+    branch: str = DEFAULT_REF,
     catalog: str | None = None,
     schema: str | None = None,
     trino_url: str | None = None,
     timeout_ms: int = Query(default=30000, le=120000),
 ) -> TableMetrics | dict[str, str]:
     """Get table-level metrics (row count, etc)."""
-    effective_catalog = catalog or DEFAULT_CATALOG
+    effective_catalog = catalog or resolve_default_catalog()
     effective_schema = schema or branch
 
     resolved_table = (
@@ -361,7 +377,7 @@ async def get_table_metrics(
 @router.post("/query", response_model=QueryExecutionResult | QueryExecutionError)
 async def execute_query(request: ExecuteQueryRequest) -> QueryExecutionResult | QueryExecutionError:
     """Run an arbitrary query (with guardrails)."""
-    effective_catalog = request.catalog or DEFAULT_CATALOG
+    effective_catalog = request.catalog or resolve_default_catalog()
     effective_schema = request.schema_name or request.branch
 
     if request.read_only_mode:
@@ -393,7 +409,7 @@ class ExecuteQueryRequest(BaseModel):
     """Payload for executing an ad-hoc Trino query."""
 
     query: str
-    branch: str = "main"
+    branch: str = DEFAULT_REF
     catalog: str | None = None
     schema_name: str | None = Field(default=None, alias="schema")
     trino_url: str | None = None
@@ -408,7 +424,7 @@ class QueryWithFiltersRequest(BaseModel):
 
     table_name: str
     schema_name: str = Field(alias="schema")
-    catalog: str = DEFAULT_CATALOG
+    catalog: str | None = None
     filters: dict[str, Any]
     limit: int = 10
     trino_url: str | None = None
@@ -421,7 +437,7 @@ async def query_with_filters(
 ) -> DataPreviewResult | dict[str, str]:
     """Query a table with a simple equality filter map."""
     try:
-        catalog = request.catalog or DEFAULT_CATALOG
+        catalog = request.catalog or resolve_default_catalog()
         table = request.table_name
         schema = request.schema_name
 
@@ -475,7 +491,7 @@ async def get_row_by_id(
     timeout_ms: int = Query(default=30000, le=120000),
 ) -> DataPreviewResult | dict[str, str]:
     """Get a single row by its _phlo_row_id."""
-    effective_catalog = catalog or DEFAULT_CATALOG
+    effective_catalog = catalog or resolve_default_catalog()
     effective_schema = schema or "main"
 
     resolved_table = (

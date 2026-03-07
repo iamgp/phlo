@@ -12,6 +12,7 @@ from phlo.capabilities.specs import GovernanceBackendSpec, QueryEngineSpec
 from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
 from phlo_trino.governance import TrinoGovernanceBackend
 from phlo_trino.resource import TRINO_QUERY_ENGINE_SUPPORT, TrinoResource
+from phlo_trino.settings import get_settings as get_trino_settings
 
 
 class TrinoServicePlugin(ServicePlugin):
@@ -78,6 +79,10 @@ class TrinoResourceProvider(ResourceProviderPlugin):
             QueryEngineSpec(
                 name="trino",
                 provider=TrinoResource(),
+                metadata={
+                    "default_catalog": get_trino_settings().trino_catalog,
+                    "default_ref": get_trino_settings().trino_default_ref,
+                },
                 support=TRINO_QUERY_ENGINE_SUPPORT,
             )
         ]

@@ -30,9 +30,29 @@ class OpenMetadataSettings(BaseConfig):
         default="Trino",
         description="OpenMetadata database service type (e.g., Trino, Postgres)",
     )
+    openmetadata_catalog_scanner: str | None = Field(
+        default=None,
+        description="Catalog scanner capability name to use for sync operations",
+    )
+    openmetadata_query_engine: str | None = Field(
+        default=None,
+        description="Query engine capability name used to infer the OpenMetadata database name",
+    )
+    openmetadata_default_catalog: str = Field(
+        default="iceberg",
+        description="Fallback catalog/database name when query-engine metadata is unavailable",
+    )
     openmetadata_database_name: str | None = Field(
         default=None,
         description="OpenMetadata database name (defaults to Trino catalog if unset)",
+    )
+    openmetadata_dbt_manifest_path: str = Field(
+        default="workflows/transforms/dbt/target/manifest.json",
+        description="Path to dbt manifest.json for metadata sync",
+    )
+    openmetadata_dbt_catalog_path: str = Field(
+        default="workflows/transforms/dbt/target/catalog.json",
+        description="Path to dbt catalog.json for metadata sync",
     )
     openmetadata_sync_enabled: bool = Field(
         default=True, description="Enable automatic metadata sync to OpenMetadata"
@@ -57,7 +77,10 @@ class OpenMetadataSettings(BaseConfig):
         """
         if self.openmetadata_database_name:
             return self.openmetadata_database_name
-        return resolve_query_engine_catalog("trino", default="iceberg")
+        return resolve_query_engine_catalog(
+            self.openmetadata_query_engine,
+            default=self.openmetadata_default_catalog,
+        )
 
 
 @lru_cache(maxsize=1)

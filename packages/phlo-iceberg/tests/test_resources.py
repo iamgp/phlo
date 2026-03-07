@@ -75,7 +75,7 @@ class TestResourcesUnitTests:
         mock_config.trino_host = "trino"
         mock_config.trino_port = 8080
         mock_config.trino_catalog = "iceberg"
-        mock_config.iceberg_nessie_ref = "dev"
+        mock_config.iceberg_default_ref = "dev"
 
         mock_connection = MagicMock()
         mock_connect.return_value = mock_connection
@@ -189,7 +189,7 @@ class TestResourcesIntegrationTests:
         mock_config.trino_host = "localhost"
         mock_config.trino_port = 8080
         mock_config.trino_catalog = "iceberg"
-        mock_config.iceberg_nessie_ref = "main"
+        mock_config.iceberg_default_ref = "main"
 
         mock_connection = MagicMock()
         mock_cursor = MagicMock()

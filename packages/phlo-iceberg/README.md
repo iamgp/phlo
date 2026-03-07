@@ -4,7 +4,7 @@ Apache Iceberg catalog integration for Phlo.
 
 ## Description
 
-Provides PyIceberg resources for adapters and Trino catalog configuration. Enables ACID transactions, schema evolution, and time travel on the data lakehouse.
+Provides PyIceberg table-store resources for adapters. Enables ACID transactions, schema evolution, and time travel on the data lakehouse.
 
 ## Installation
 
@@ -21,9 +21,8 @@ phlo plugin install iceberg
 | `ICEBERG_WAREHOUSE_PATH`    | Yes      | `s3://lake/warehouse` | S3 path for Iceberg warehouse |
 | `ICEBERG_STAGING_PATH`      | No       | `s3://lake/stage`     | S3 path for staging           |
 | `ICEBERG_DEFAULT_NAMESPACE` | No       | `raw`                 | Default namespace/schema      |
-| `ICEBERG_NESSIE_REF`        | No       | `main`                | Default Nessie branch/tag     |
-| `NESSIE_HOST`               | No       | `nessie`              | Nessie catalog host           |
-| `NESSIE_PORT`               | No       | `19120`               | Nessie REST API port          |
+| `ICEBERG_DEFAULT_REF`       | No       | `main`                | Default catalog ref/branch    |
+| `ICEBERG_CATALOG_URI`       | No       | `http://nessie:19120/iceberg` | Iceberg REST catalog URI |
 
 > **S3 Access**: Configure AWS credentials via `~/.aws/credentials` or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` env vars. When using MinIO, these are set automatically.
 
@@ -34,19 +33,8 @@ Works out-of-the-box when MinIO and Nessie are running:
 | Feature                | How It Works                                                                     |
 | ---------------------- | -------------------------------------------------------------------------------- |
 | **Resource Provider**  | `IcebergResource` published as runtime resource `table_store`                    |
-| **Table Store Capability** | Registers `table_store:iceberg` capability                                   |
-| **Catalogs**           | Registers `iceberg` and `iceberg_dev` catalogs via `phlo.plugins.catalogs`       |
-| **Catalog Generation** | Catalog `.properties` files auto-generated at Trino startup                      |
-
-### Catalog Entry Points
-
-```toml
-[project.entry-points."phlo.plugins.catalogs"]
-iceberg = "phlo_iceberg.catalog_plugin:IcebergCatalogPlugin"
-iceberg_dev = "phlo_iceberg.catalog_plugin:IcebergDevCatalogPlugin"
-```
-
-Each catalog plugin declares `targets` in code (for example: `["trino"]`).
+| **Table Store Capability** | Registers `table_store:iceberg` capability                               |
+| **Schema Migration**   | Registers `schema_migrator:iceberg` capability                                   |
 
 ## Usage
 
@@ -73,4 +61,3 @@ config = get_settings().get_pyiceberg_catalog_config("main")
 ## Entry Points
 
 - `phlo.plugins.resources` - Provides `IcebergResourceProvider`
-- `phlo.plugins.catalogs` - Provides Iceberg catalog configurations (targets: trino)

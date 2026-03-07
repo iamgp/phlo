@@ -170,8 +170,11 @@ ICEBERG_STAGING_PATH=s3://lake/stage
 # Default namespace
 ICEBERG_DEFAULT_NAMESPACE=raw
 
-# Default branch reference
-ICEBERG_NESSIE_REF=main
+# Default catalog reference
+ICEBERG_DEFAULT_REF=main
+
+# Iceberg REST catalog endpoint
+ICEBERG_CATALOG_URI=http://nessie:19120/iceberg
 ```
 
 **Warehouse paths by branch**:
@@ -326,6 +329,11 @@ OPENMETADATA_ES_JAVA_OPTS="-Xms512m -Xmx512m"
 OPENMETADATA_USERNAME=admin
 OPENMETADATA_PASSWORD=admin
 OPENMETADATA_VERIFY_SSL=false
+OPENMETADATA_CATALOG_SCANNER=
+OPENMETADATA_QUERY_ENGINE=
+OPENMETADATA_DEFAULT_CATALOG=iceberg
+OPENMETADATA_DBT_MANIFEST_PATH=workflows/transforms/dbt/target/manifest.json
+OPENMETADATA_DBT_CATALOG_PATH=workflows/transforms/dbt/target/catalog.json
 OPENMETADATA_SYNC_ENABLED=true
 OPENMETADATA_SYNC_INTERVAL_SECONDS=300  # Minimum interval between syncs
 ```

@@ -32,6 +32,7 @@ phlo plugin install nessie
 | **Branch Init**      | Auto-creates `main` and `dev` branches via post_start hook |
 | **Metrics Labels**   | Exposes Quarkus metrics at `/q/metrics`                    |
 | **Postgres Storage** | Uses PostgreSQL for version store (default backend)        |
+| **Catalog Plugins**  | Owns Nessie-backed Trino catalog entry points (`iceberg`, `iceberg_dev`) |
 
 ### Post-Start Hook
 
@@ -133,6 +134,7 @@ curl http://localhost:19120/api/v2/trees/main
 | ----------------------- | --------------------- |
 | `phlo.plugins.services` | `NessieServicePlugin` |
 | `phlo.plugins.cli`      | Nessie CLI commands   |
+| `phlo.plugins.catalogs` | Nessie-backed Trino catalogs |
 
 ## Related Packages
 

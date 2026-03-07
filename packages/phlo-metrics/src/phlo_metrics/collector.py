@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-import importlib
 from typing import Any, Optional, cast
 
 import psycopg2
 import psycopg2.extras
 import requests
 from cachetools import TTLCache
+from phlo.capabilities import QueryEngine, resolve_capability
+from phlo.capabilities.discovery import discover_capabilities
 from phlo.config.base import BaseConfig
 from psycopg2 import Error as PsycopgError
 from pydantic import Field
@@ -31,6 +32,14 @@ class MetricsBackendSettings(BaseConfig):
     nessie_host: str = Field(default="nessie", description="Nessie host")
     nessie_port: int = Field(default=19120, description="Nessie port")
     nessie_api_version: str = Field(default="v1", description="Nessie API version")
+    metrics_query_engine: str | None = Field(
+        default=None,
+        description="Optional query_engine capability name for table stats queries",
+    )
+    metrics_query_catalog: str = Field(
+        default="iceberg",
+        description="Catalog name used for query-engine table stats lookups",
+    )
 
     def nessie_api_uri(self) -> str:
         """Return the versioned Nessie API URI."""
@@ -428,12 +437,12 @@ class MetricsCollector:
 
     def _get_iceberg_table_stats(self, table_name: str) -> dict[str, Any]:
         """Get table statistics from Iceberg."""
-        trino_connect = self._load_trino_connect()
-        trino_settings = self._load_trino_settings()
+        query_engine = self._load_query_engine()
+        catalog = self.settings.metrics_query_catalog
         if "." in table_name:
             table_schema, raw_table = table_name.split(".", maxsplit=1)
         else:
-            table_schema = self._resolve_table_schema(table_name, trino_settings.trino_catalog)
+            table_schema = self._resolve_table_schema(table_name, catalog, query_engine)
             raw_table = table_name
 
         safe_schema = self._validate_identifier(table_schema, "table_schema")
@@ -441,72 +450,52 @@ class MetricsCollector:
         escaped_files_table = f"{safe_table}$files"
         stats_sql = (
             f"SELECT COALESCE(SUM(file_size_in_bytes), 0), COALESCE(SUM(record_count), 0) "
-            f'FROM {trino_settings.trino_catalog}.{safe_schema}."{escaped_files_table}"'
+            f'FROM {catalog}.{safe_schema}."{escaped_files_table}"'
         )
 
-        conn = None
         try:
-            conn = trino_connect(
-                host=trino_settings.trino_host,
-                port=trino_settings.trino_port,
-                user="phlo_metrics",
-                catalog=trino_settings.trino_catalog,
-                schema=safe_schema,
-            )
-            with conn.cursor() as cur:
-                cur.execute(stats_sql)
-                row = cur.fetchone()
+            row = query_engine.execute(stats_sql, schema=safe_schema)
         except Exception as exc:
             raise MetricsDependencyError(
                 f"Failed querying Iceberg table stats for {table_name}"
             ) from exc
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
 
-        if row is None or len(row) != 2:
+        if not isinstance(row, list) or len(row) != 1 or not isinstance(row[0], tuple):
+            raise MetricsMalformedResponseError(
+                f"Unexpected Iceberg table stats shape for {table_name}: {row!r}"
+            )
+        stats_row = row[0]
+        if len(stats_row) != 2:
             raise MetricsMalformedResponseError(
                 f"Unexpected Iceberg table stats shape for {table_name}: {row!r}"
             )
 
         return {
-            "total_bytes": self._coerce_int(row[0], "total_bytes"),
-            "row_count": self._coerce_int(row[1], "row_count"),
+            "total_bytes": self._coerce_int(stats_row[0], "total_bytes"),
+            "row_count": self._coerce_int(stats_row[1], "row_count"),
         }
 
-    def _resolve_table_schema(self, table_name: str, catalog: str) -> str:
-        """Resolve table schema through Trino information_schema."""
-        trino_connect = self._load_trino_connect()
-
+    def _resolve_table_schema(
+        self, table_name: str, catalog: str, query_engine: QueryEngine
+    ) -> str:
+        """Resolve table schema through the configured query engine."""
         safe_table_name = self._validate_identifier(table_name, "table_name")
         schema_sql = (
             f"SELECT table_schema FROM {catalog}.information_schema.tables "
             f"WHERE table_name = '{safe_table_name}' ORDER BY table_schema LIMIT 1"
         )
 
-        conn = None
         try:
-            trino_settings = self._load_trino_settings()
-            conn = trino_connect(
-                host=trino_settings.trino_host,
-                port=trino_settings.trino_port,
-                user="phlo_metrics",
-                catalog=catalog,
-            )
-            with conn.cursor() as cur:
-                cur.execute(schema_sql)
-                row = cur.fetchone()
+            rows = query_engine.execute(schema_sql)
         except Exception as exc:
             raise MetricsDependencyError(f"Failed resolving schema for {table_name}") from exc
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
 
-        if row is None or not row or not isinstance(row[0], str) or not row[0]:
+        if not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], tuple):
+            raise MetricsMalformedResponseError(
+                f"Could not resolve Iceberg schema for table {table_name}"
+            )
+        row = rows[0]
+        if not row or not isinstance(row[0], str) or not row[0]:
             raise MetricsMalformedResponseError(
                 f"Could not resolve Iceberg schema for table {table_name}"
             )
@@ -587,33 +576,20 @@ class MetricsCollector:
             raise MetricsMalformedResponseError(f"Invalid identifier for {field_name}: {value!r}")
         return value
 
-    def _load_trino_connect(self):
-        """Load Trino DB-API connection function lazily."""
-        try:
-            module = importlib.import_module("trino.dbapi")
-        except ModuleNotFoundError as exc:
+    def _load_query_engine(self) -> QueryEngine:
+        """Resolve the configured query_engine capability for metadata queries."""
+        discover_capabilities()
+        resolution = resolve_capability("query_engine", self.settings.metrics_query_engine)
+        if resolution is None:
+            target = (
+                f"query_engine:{self.settings.metrics_query_engine}"
+                if self.settings.metrics_query_engine
+                else "query_engine"
+            )
             raise MetricsDependencyError(
-                "Trino dependency unavailable; install phlo-trino and trino client"
-            ) from exc
-
-        connect = getattr(module, "connect", None)
-        if not callable(connect):
-            raise MetricsDependencyError("Trino dependency unavailable: missing connect()")
-        return connect
-
-    def _load_trino_settings(self) -> Any:
-        """Load Trino settings lazily from optional phlo-trino package."""
-        try:
-            module = importlib.import_module("phlo_trino.settings")
-        except ModuleNotFoundError as exc:
-            raise MetricsDependencyError(
-                "phlo-trino package unavailable for Iceberg metrics"
-            ) from exc
-
-        get_settings = getattr(module, "get_settings", None)
-        if not callable(get_settings):
-            raise MetricsDependencyError("phlo-trino settings unavailable: missing get_settings()")
-        return get_settings()
+                f"Query engine capability unavailable for Iceberg metrics ({target})"
+            )
+        return resolution.provider
 
 
 # Global metrics collector instance

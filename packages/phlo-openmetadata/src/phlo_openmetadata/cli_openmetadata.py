@@ -86,9 +86,13 @@ def sync(
         sys.exit(1)
 
     try:
-        scanner = resolve_catalog_scanner("nessie")
+        scanner = resolve_catalog_scanner(cfg.openmetadata_catalog_scanner)
     except RuntimeError as exc:
-        logger.error("openmetadata_nessie_scanner_unavailable", error=str(exc))
+        logger.error(
+            "openmetadata_catalog_scanner_unavailable",
+            scanner_name=cfg.openmetadata_catalog_scanner,
+            error=str(exc),
+        )
         console.print(f"[red]{exc}[/red]")
         sys.exit(1)
 
@@ -103,7 +107,7 @@ def sync(
 
     if dbt:
         try:
-            parser = DbtManifestParser.from_config()
+            parser = DbtManifestParser.from_settings(cfg)
             if dbt_schema:
                 dbt_stats = parser.sync_to_openmetadata(client, schema_name=dbt_schema)
             else:

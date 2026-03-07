@@ -12,6 +12,16 @@ from phlo.logging import get_logger, setup_logging
 logger = get_logger(__name__)
 
 
+def _superset_auth_provider() -> str:
+    """Return the configured Superset auth provider for API logins."""
+    return os.environ.get("SUPERSET_AUTH_PROVIDER", "db")
+
+
+def _superset_database_name() -> str:
+    """Return the configured logical database name shown in Superset."""
+    return os.environ.get("SUPERSET_DATABASE_NAME", "query_engine")
+
+
 def add_trino_database() -> None:
     """Add Trino database connection to Superset."""
     start = time.perf_counter()
@@ -62,7 +72,7 @@ def add_trino_database() -> None:
             json={
                 "username": admin_user,
                 "password": admin_password,
-                "provider": "db",
+                "provider": _superset_auth_provider(),
             },
             timeout=10,
         )
@@ -95,11 +105,13 @@ def add_trino_database() -> None:
     try:
         dbs_resp = session.get(f"{superset_url}/api/v1/database/", timeout=10)
         existing_dbs = dbs_resp.json().get("result", [])
+        database_name = _superset_database_name()
         for db in existing_dbs:
-            if db.get("database_name") == "Trino":
+            if db.get("database_name") == database_name:
                 logger.info(
-                    "superset_trino_database_exists",
+                    "superset_query_engine_database_exists",
                     superset_url=superset_url,
+                    database_name=database_name,
                     elapsed_ms=round((time.perf_counter() - start) * 1000, 2),
                 )
                 return
@@ -114,9 +126,10 @@ def add_trino_database() -> None:
     trino_host = os.environ.get("TRINO_HOST", "trino")
     trino_port = os.environ.get("TRINO_PORT", "8080")
     trino_catalog = os.environ.get("TRINO_CATALOG", "iceberg")
+    database_name = _superset_database_name()
 
     database_payload = {
-        "database_name": "Trino",
+        "database_name": database_name,
         "sqlalchemy_uri": f"trino://{trino_host}:{trino_port}/{trino_catalog}",
         "expose_in_sqllab": True,
         "allow_run_async": True,
@@ -128,8 +141,9 @@ def add_trino_database() -> None:
 
     try:
         logger.info(
-            "superset_trino_database_create_started",
+            "superset_query_engine_database_create_started",
             superset_url=superset_url,
+            database_name=database_name,
             trino_host=trino_host,
             trino_port=trino_port,
             trino_catalog=trino_catalog,
@@ -141,14 +155,16 @@ def add_trino_database() -> None:
         )
         resp.raise_for_status()
         logger.info(
-            "superset_trino_database_create_completed",
+            "superset_query_engine_database_create_completed",
             superset_url=superset_url,
+            database_name=database_name,
             elapsed_ms=round((time.perf_counter() - start) * 1000, 2),
         )
     except requests.RequestException as exc:
         logger.error(
-            "superset_trino_database_create_failed",
+            "superset_query_engine_database_create_failed",
             superset_url=superset_url,
+            database_name=database_name,
             error=str(exc),
             elapsed_ms=round((time.perf_counter() - start) * 1000, 2),
         )

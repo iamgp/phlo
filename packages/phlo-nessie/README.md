@@ -32,6 +32,7 @@ Works out-of-the-box with sensible defaults:
 | **Branch Init**      | Auto-creates `main` and `dev` branches via post_start hook |
 | **Metrics Labels**   | Exposes Quarkus metrics at `/q/metrics`                    |
 | **Postgres Storage** | Uses PostgreSQL for version store (default backend)        |
+| **Catalog Plugins**  | Registers `iceberg` and `iceberg_dev` Trino catalogs       |
 
 ### Post-Start Hook
 
@@ -64,3 +65,4 @@ phlo nessie branch create feature/my-feature
 
 - `phlo.plugins.services` - Provides `NessieServicePlugin`
 - `phlo.plugins.cli` - Provides Nessie CLI commands
+- `phlo.plugins.catalogs` - Provides Nessie-backed Trino catalog configurations

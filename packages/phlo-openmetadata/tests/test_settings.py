@@ -17,7 +17,11 @@ def test_openmetadata_database_prefers_explicit_name():
 
 def test_openmetadata_database_uses_query_engine_capability():
     """Settings resolve the database name from the query engine capability."""
-    settings = OpenMetadataSettings(openmetadata_database_name=None)
+    settings = OpenMetadataSettings(
+        openmetadata_database_name=None,
+        openmetadata_query_engine="duckdb",
+        openmetadata_default_catalog="fallback",
+    )
     globals_dict = OpenMetadataSettings.openmetadata_database.__globals__
     resolve_mock = Mock(return_value="iceberg_dev")
 
@@ -27,4 +31,4 @@ def test_openmetadata_database_uses_query_engine_capability():
     ):
         assert settings.openmetadata_database() == "iceberg_dev"
 
-    resolve_mock.assert_called_once_with("trino", default="iceberg")
+    resolve_mock.assert_called_once_with("duckdb", default="fallback")

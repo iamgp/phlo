@@ -101,6 +101,15 @@ class TestDbtManifestParser:
         assert graph["glucose_metrics"] == ["glucose_readings"]
         assert graph["glucose_readings"] == []
 
+    def test_parse_uses_configured_source_schema(self, manifest_file):
+        """Should allow the source dbt schema to be selected explicitly."""
+        parser = DbtManifestParser(manifest_file, source_schema="bronze")
+
+        models = parser.parse()
+
+        assert "bronze_raw_data" in models
+        assert "glucose_readings" not in models
+
 
 class TestViewGenerator:
     """Tests for ViewGenerator."""
