@@ -43,6 +43,7 @@ app.add_middleware(
 # Auto-discover and register Observatory API routers
 _OBSERVATORY_ROUTERS = [
     ("trino", "/api/trino"),
+    ("contributing", "/api/contributing"),
     ("iceberg", "/api/iceberg"),
     ("dagster", "/api/dagster"),
     ("nessie", "/api/nessie"),
@@ -159,6 +160,46 @@ def _default_schema_migrator_name() -> str | None:
         return specs[0].name
     except Exception:
         return None
+
+
+def _list_api_backends() -> list[dict[str, Any]]:
+    """List capability-backed API backends and their current health."""
+    try:
+        from phlo.capabilities import get_capability_registry
+        from phlo.capabilities.discovery import discover_capabilities
+
+        discover_capabilities()
+        registry = get_capability_registry()
+        specs = registry.list_api_backends()
+    except Exception:
+        return []
+
+    backends: list[dict[str, Any]] = []
+    for spec in specs:
+        try:
+            description = spec.provider.describe()
+            healthy = spec.provider.health_check()
+        except Exception:
+            description = None
+            healthy = False
+
+        backends.append(
+            {
+                "name": spec.name,
+                "healthy": healthy,
+                "metadata": spec.metadata,
+                "description": description,
+            }
+        )
+    return backends
+
+
+def _get_api_backend(name: str) -> dict[str, Any] | None:
+    """Get one capability-backed API backend by name."""
+    for backend in _list_api_backends():
+        if backend["name"] == name:
+            return backend
+    return None
 
 
 def _parse_quality_contract_tags(tags: dict[str, str]) -> dict[str, Any]:
@@ -489,6 +530,27 @@ def get_registry() -> dict[str, Any]:
         return get_registry_data()
     except ImportError:
         return {"plugins": {}}
+
+
+@app.get("/api/backends")
+def get_api_backends() -> list[dict[str, Any]]:
+    """List capability-backed API and graph backends."""
+    logger.info("api_backends_list_started")
+    backends = _list_api_backends()
+    logger.info("api_backends_list_succeeded", backend_count=len(backends))
+    return backends
+
+
+@app.get("/api/backends/{name}")
+def get_api_backend_info(name: str) -> dict[str, Any]:
+    """Get capability-backed API backend details by name."""
+    logger.info("api_backend_get_started", backend_name=name)
+    backend = _get_api_backend(name)
+    if backend is None:
+        logger.warning("api_backend_get_failed", backend_name=name, reason="not_found")
+        raise HTTPException(status_code=404, detail=f"API backend not found: {name}")
+    logger.info("api_backend_get_succeeded", backend_name=name)
+    return backend
 
 
 @app.get("/api/contracts")

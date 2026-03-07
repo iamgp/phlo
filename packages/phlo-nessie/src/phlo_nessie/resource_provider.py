@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from phlo.capabilities import CapabilitySupport, CatalogSpec, ResourceSpec
+from phlo.capabilities import CapabilitySupport, CatalogScannerSpec, CatalogSpec, ResourceSpec
 from phlo.plugins.base import PluginMetadata, ResourceProviderPlugin
 
+from phlo_nessie.catalog_scanner import NessieTableScanner
 from phlo_nessie.resource import NessieResource
 
 
@@ -36,5 +37,15 @@ class NessieResourceProvider(ResourceProviderPlugin):
                 name="nessie",
                 provider=NessieResource(),
                 support=support,
+            )
+        ]
+
+    def get_catalog_scanners(self) -> list[CatalogScannerSpec]:
+        """Expose Nessie table scanning as a capability."""
+        return [
+            CatalogScannerSpec(
+                name="nessie",
+                provider=NessieTableScanner.from_config(),
+                support=CapabilitySupport(),
             )
         ]

@@ -47,6 +47,8 @@ class TestFastAPIApp:
         assert "/api/config" in route_paths
         assert "/api/plugins" in route_paths
         assert "/api/services" in route_paths
+        assert "/api/backends" in route_paths
+        assert "/api/backends/{name}" in route_paths
         assert "/api/contracts" in route_paths
         assert "/api/contracts/{table_name:path}" in route_paths
 
@@ -312,6 +314,300 @@ class TestObservatoryRouters:
         route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
         iceberg_routes = [p for p in route_paths if p.startswith("/api/iceberg")]
         assert isinstance(iceberg_routes, list)
+
+    def test_dagster_graph_routes_registered(self):
+        """Test Dagster graph routes are registered."""
+        from phlo_api.main import app
+
+        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
+
+        assert "/api/dagster/graph" in route_paths
+        assert "/api/dagster/graph/neighbors" in route_paths
+        assert "/api/dagster/graph/impact" in route_paths
+
+    def test_contributing_routes_registered(self):
+        """Test contributing routes are registered."""
+        from phlo_api.main import app
+
+        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
+
+        assert "/api/contributing/query" in route_paths
+        assert "/api/contributing/page" in route_paths
+
+
+class TestDagsterGraphEndpoints:
+    """Test Dagster graph endpoints."""
+
+    @staticmethod
+    def _graphql_asset_graph_payload():
+        return {
+            "data": {
+                "assetsOrError": {
+                    "__typename": "AssetConnection",
+                    "nodes": [
+                        {
+                            "id": "source-id",
+                            "key": {"path": ["raw", "source_orders"]},
+                            "definition": {
+                                "description": "Source orders",
+                                "computeKind": "python",
+                                "groupName": "ingest",
+                                "dependencyKeys": [],
+                                "dependedByKeys": [{"path": ["silver", "stg_orders"]}],
+                            },
+                            "assetMaterializations": [{"timestamp": "100"}],
+                        },
+                        {
+                            "id": "stg-id",
+                            "key": {"path": ["silver", "stg_orders"]},
+                            "definition": {
+                                "description": "Staged orders",
+                                "computeKind": "dbt",
+                                "groupName": "transform",
+                                "dependencyKeys": [{"path": ["raw", "source_orders"]}],
+                                "dependedByKeys": [{"path": ["gold", "fct_orders"]}],
+                            },
+                            "assetMaterializations": [{"timestamp": "200"}],
+                        },
+                        {
+                            "id": "fct-id",
+                            "key": {"path": ["gold", "fct_orders"]},
+                            "definition": {
+                                "description": "Fact orders",
+                                "computeKind": "dbt",
+                                "groupName": "warehouse",
+                                "dependencyKeys": [{"path": ["silver", "stg_orders"]}],
+                                "dependedByKeys": [],
+                            },
+                            "assetMaterializations": [{"timestamp": "300"}],
+                        },
+                    ],
+                }
+            }
+        }
+
+    def test_dagster_graph_endpoint_transforms_payload(self):
+        """Graph endpoint returns Observatory-shaped payload."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.dagster.graphql_request",
+            return_value=self._graphql_asset_graph_payload(),
+        ):
+            client = TestClient(app)
+            response = client.get("/api/dagster/graph")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert [node["key_path"] for node in data["nodes"]] == [
+            "raw/source_orders",
+            "silver/stg_orders",
+            "gold/fct_orders",
+        ]
+        assert data["nodes"][0]["layer"] == "bronze"
+        assert data["nodes"][1]["upstream_count"] == 1
+        assert data["nodes"][1]["downstream_count"] == 1
+        assert data["edges"] == [
+            {"source": "raw/source_orders", "target": "silver/stg_orders"},
+            {"source": "silver/stg_orders", "target": "gold/fct_orders"},
+        ]
+
+    def test_dagster_graph_neighbors_filters_subgraph(self):
+        """Neighbors endpoint trims graph by direction and depth."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.dagster.graphql_request",
+            return_value=self._graphql_asset_graph_payload(),
+        ):
+            client = TestClient(app)
+            response = client.get(
+                "/api/dagster/graph/neighbors",
+                params={
+                    "asset_key": "silver/stg_orders",
+                    "direction": "upstream",
+                    "depth": 1,
+                },
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert sorted(node["key_path"] for node in data["nodes"]) == [
+            "raw/source_orders",
+            "silver/stg_orders",
+        ]
+        assert data["edges"] == [{"source": "raw/source_orders", "target": "silver/stg_orders"}]
+
+    def test_dagster_graph_impact_returns_downstream_assets(self):
+        """Impact endpoint returns downstream assets ordered by depth."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.dagster.graphql_request",
+            return_value=self._graphql_asset_graph_payload(),
+        ):
+            client = TestClient(app)
+            response = client.get(
+                "/api/dagster/graph/impact",
+                params={"asset_key": "raw/source_orders"},
+            )
+
+        assert response.status_code == 200
+        assert response.json() == [
+            {
+                "key_path": "silver/stg_orders",
+                "label": "stg_orders",
+                "layer": "silver",
+                "depth": 1,
+            },
+            {
+                "key_path": "gold/fct_orders",
+                "label": "fct_orders",
+                "layer": "gold",
+                "depth": 2,
+            },
+        ]
+
+
+class TestContributingRowsEndpoints:
+    """Test contributing rows endpoints."""
+
+    def test_contributing_query_endpoint_rejects_non_finite_numeric_values(self):
+        """Non-finite numeric values should not be interpolated into Trino SQL."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.contributing.execute_trino_query",
+            side_effect=[
+                {
+                    "columns": ["table_schema"],
+                    "column_types": ["varchar"],
+                    "rows": [{"table_schema": "silver"}],
+                },
+                {
+                    "columns": ["column_name", "data_type"],
+                    "column_types": ["varchar", "varchar"],
+                    "rows": [{"column_name": "hour_of_day", "data_type": "integer"}],
+                },
+            ],
+        ):
+            client = TestClient(app)
+            response = client.post(
+                "/api/contributing/query",
+                json={
+                    "downstream_asset_key": "publish/mrt_contribution_patterns",
+                    "upstream_asset_key": "silver/fct_github_events",
+                    "row_data": {"hour_of_day": "nan"},
+                    "limit": 25,
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "error": "No safe predicates could be derived for contributing rows. Add an explicit mapping for this model pair."
+        }
+
+    def test_contributing_query_endpoint_builds_entity_query(self):
+        """Query endpoint returns the built contributing query."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.contributing.execute_trino_query",
+            side_effect=[
+                {
+                    "columns": ["table_schema"],
+                    "column_types": ["varchar"],
+                    "rows": [{"table_schema": "silver"}],
+                },
+                {
+                    "columns": ["column_name", "data_type"],
+                    "column_types": ["varchar", "varchar"],
+                    "rows": [{"column_name": "_phlo_row_id", "data_type": "varchar"}],
+                },
+            ],
+        ):
+            client = TestClient(app)
+            response = client.post(
+                "/api/contributing/query",
+                json={
+                    "downstream_asset_key": "gold/fct_orders",
+                    "upstream_asset_key": "silver/stg_orders",
+                    "row_data": {"_phlo_row_id": "abc123"},
+                    "limit": 25,
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "query": 'SELECT * FROM "iceberg"."silver"."stg_orders" WHERE "_phlo_row_id" = \'abc123\' ORDER BY "_phlo_row_id" LIMIT 25',
+            "upstream": {"schema": "silver", "table": "stg_orders"},
+        }
+
+    def test_contributing_page_endpoint_returns_rows(self):
+        """Page endpoint executes contributing query and returns paginated rows."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        with patch(
+            "phlo_api.observatory_api.contributing.execute_trino_query",
+            side_effect=[
+                {
+                    "columns": ["table_schema"],
+                    "column_types": ["varchar"],
+                    "rows": [{"table_schema": "silver"}],
+                },
+                {
+                    "columns": ["column_name", "data_type"],
+                    "column_types": ["varchar", "varchar"],
+                    "rows": [
+                        {"column_name": "_phlo_partition_date", "data_type": "date"},
+                        {"column_name": "hour_of_day", "data_type": "integer"},
+                        {"column_name": "day_of_week", "data_type": "integer"},
+                    ],
+                },
+                {
+                    "columns": ["hour_of_day", "day_of_week"],
+                    "column_types": ["integer", "integer"],
+                    "rows": [
+                        {"hour_of_day": 3, "day_of_week": 2},
+                        {"hour_of_day": 3, "day_of_week": 2},
+                    ],
+                },
+            ],
+        ):
+            client = TestClient(app)
+            response = client.post(
+                "/api/contributing/page",
+                json={
+                    "downstream_asset_key": "publish/mrt_contribution_patterns",
+                    "upstream_asset_key": "silver/fct_github_events",
+                    "row_data": {
+                        "_phlo_partition_date": "2025-01-01",
+                        "hour_of_day": 3,
+                        "day_of_week": 2,
+                    },
+                    "page": 0,
+                    "page_size": 1,
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "mode": "aggregate",
+            "page": 0,
+            "page_size": 1,
+            "has_more": True,
+            "query": 'SELECT * FROM "iceberg"."silver"."fct_github_events" WHERE "hour_of_day" = 3 and "day_of_week" = 2 and "_phlo_partition_date" = date \'2025-01-01\' ORDER BY xxhash64(to_utf8(concat(\'phlo\', \'|\', coalesce(cast("day_of_week" as varchar), \'\'), \'|\' , coalesce(cast("hour_of_day" as varchar), \'\')))) OFFSET 0 LIMIT 2',
+            "upstream": {"schema": "silver", "table": "fct_github_events"},
+            "columns": ["hour_of_day", "day_of_week"],
+            "column_types": ["integer", "integer"],
+            "rows": [{"hour_of_day": 3, "day_of_week": 2}],
+        }
 
 
 # =============================================================================

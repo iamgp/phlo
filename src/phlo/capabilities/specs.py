@@ -91,6 +91,16 @@ class CatalogSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class CatalogScannerSpec:
+    """Catalog scanner capability for metadata sync and table discovery."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
 class QueryEngineSpec:
     """Query engine capability (for example Trino, Spark SQL, DuckDB)."""
 
@@ -103,6 +113,16 @@ class QueryEngineSpec:
 @dataclass(frozen=True, slots=True)
 class QualityBackendSpec:
     """Quality backend capability used by quality checks."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
+class MaintenanceReadModelSpec:
+    """Maintenance and observability read-model capability."""
 
     name: str
     provider: Any
@@ -143,6 +163,26 @@ class GovernanceBackendSpec:
 @dataclass(frozen=True, slots=True)
 class PublishTargetSpec:
     """Publish target capability (for example Postgres marts, warehouse export sink)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
+class ApiBackendSpec:
+    """API/backend capability (for example Hasura, PostgREST, custom graph API)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
+class AlertSinkSpec:
+    """Alert sink capability (for example PagerDuty/Slack manager)."""
 
     name: str
     provider: Any

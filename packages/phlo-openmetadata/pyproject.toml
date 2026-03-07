@@ -47,6 +47,9 @@ openmetadata = "phlo_openmetadata.cli_plugin:OpenMetadataCliPlugin"
 [project.entry-points."phlo.plugins.hooks"]
 openmetadata = "phlo_openmetadata.hooks_plugin:OpenMetadataHookPlugin"
 
+[project.entry-points."phlo.plugins.resources"]
+openmetadata = "phlo_openmetadata.resource_provider:OpenMetadataResourceProvider"
+
 [project.entry-points."phlo.plugins.services"]
 openmetadata = "phlo_openmetadata.plugin:OpenMetadataServicePlugin"
 

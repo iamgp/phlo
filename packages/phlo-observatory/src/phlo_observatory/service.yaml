@@ -55,7 +55,7 @@ dev:
     - --host
     - 0.0.0.0
     - --port
-    - '3001'
+    - '${OBSERVATORY_PORT:-3001}'
   environment:
     NODE_ENV: development
     PHLO_API_URL: http://127.0.0.1:${PHLO_API_PORT:-4000}
@@ -63,5 +63,6 @@ dev:
     NESSIE_URL: http://127.0.0.1:${NESSIE_PORT:-19120}/api/v2
     TRINO_URL: http://127.0.0.1:${TRINO_PORT:-8080}
   volumes:
-    - '{source}:/app'
+    - '{source_path}:/app'
     - '/app/node_modules'
+  cwd: '{source_path}'

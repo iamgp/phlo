@@ -12,6 +12,7 @@ from typing import Any
 
 import dagster as dg
 
+from phlo.capabilities import QueryEngine, resolve_capability
 from phlo.logging import get_logger
 
 from phlo_dagster.iceberg_maintenance_utils import list_tables
@@ -47,15 +48,15 @@ def _load_iceberg_stats() -> Any:
     return get_table_stats
 
 
-def _load_trino() -> Any:
-    """Load TrinoResource lazily for optional integration support."""
-    try:
-        from phlo_trino.resource import TrinoResource
-    except Exception as exc:  # noqa: BLE001 - runtime guidance for optional dependency
+def _load_optimize_query_engine() -> QueryEngine:
+    """Resolve the query engine used for maintenance OPTIMIZE operations."""
+    resolution = resolve_capability("query_engine", "trino")
+    if resolution is None:
         raise RuntimeError(
-            "Trino OPTIMIZE requires phlo-trino. Install phlo-dagster[trino] or phlo-trino."
-        ) from exc
-    return TrinoResource
+            "Trino OPTIMIZE requires a query_engine:trino capability. "
+            "Install phlo-trino or another provider exposing that capability."
+        )
+    return resolution.provider
 
 
 def _evaluate_namespace(
@@ -97,15 +98,14 @@ def optimize_table_files(
     config: OptimizeConfig,
 ) -> dict[str, Any]:
     """Run Trino OPTIMIZE on tables to compact small files."""
-    TrinoResource = _load_trino()
-    trino = TrinoResource()
+    query_engine = _load_optimize_query_engine()
     results: list[dict[str, Any]] = []
     errors: list[str] = []
 
     for table_name in config.table_names:
         try:
             validated_table_name = _validate_table_name(table_name)
-            trino.execute(f"ALTER TABLE {validated_table_name} EXECUTE optimize")
+            query_engine.execute(f"ALTER TABLE {validated_table_name} EXECUTE optimize")
             context.log.info(f"Optimized table {table_name}")
             results.append({"table_name": table_name, "status": "success"})
         except Exception as e:

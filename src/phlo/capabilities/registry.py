@@ -6,12 +6,16 @@ import threading
 from dataclasses import dataclass, field
 
 from phlo.capabilities.specs import (
+    AlertSinkSpec,
+    ApiBackendSpec,
     AssetCheckSpec,
     AssetSpec,
+    CatalogScannerSpec,
     CatalogSpec,
     DataMigrationSourceSpec,
     GovernanceBackendSpec,
     LineageSinkSpec,
+    MaintenanceReadModelSpec,
     MetadataCatalogSpec,
     PublishTargetSpec,
     QualityBackendSpec,
@@ -32,12 +36,16 @@ class CapabilityRegistry:
     resources: dict[str, ResourceSpec] = field(default_factory=dict)
     table_stores: dict[str, TableStoreSpec] = field(default_factory=dict)
     catalogs: dict[str, CatalogSpec] = field(default_factory=dict)
+    catalog_scanners: dict[str, CatalogScannerSpec] = field(default_factory=dict)
     query_engines: dict[str, QueryEngineSpec] = field(default_factory=dict)
     quality_backends: dict[str, QualityBackendSpec] = field(default_factory=dict)
+    maintenance_read_models: dict[str, MaintenanceReadModelSpec] = field(default_factory=dict)
     metadata_catalogs: dict[str, MetadataCatalogSpec] = field(default_factory=dict)
     lineage_sinks: dict[str, LineageSinkSpec] = field(default_factory=dict)
     governance_backends: dict[str, GovernanceBackendSpec] = field(default_factory=dict)
     publish_targets: dict[str, PublishTargetSpec] = field(default_factory=dict)
+    alert_sinks: dict[str, AlertSinkSpec] = field(default_factory=dict)
+    api_backends: dict[str, ApiBackendSpec] = field(default_factory=dict)
     secret_backends: dict[str, SecretBackendSpec] = field(default_factory=dict)
     schema_migrators: dict[str, SchemaMigrationSpec] = field(default_factory=dict)
     data_migration_sources: dict[str, DataMigrationSourceSpec] = field(default_factory=dict)
@@ -123,6 +131,16 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.catalogs.values())
 
+    def register_catalog_scanner(self, spec: CatalogScannerSpec) -> None:
+        """Register or replace a catalog scanner spec by name."""
+        with self._lock:
+            self.catalog_scanners[spec.name] = spec
+
+    def list_catalog_scanners(self) -> list[CatalogScannerSpec]:
+        """Return a snapshot list of registered catalog scanner specs."""
+        with self._lock:
+            return list(self.catalog_scanners.values())
+
     def register_query_engine(self, spec: QueryEngineSpec) -> None:
         """Register or replace a query engine spec by name."""
         with self._lock:
@@ -142,6 +160,16 @@ class CapabilityRegistry:
         """Return a snapshot list of registered quality backend specs."""
         with self._lock:
             return list(self.quality_backends.values())
+
+    def register_maintenance_read_model(self, spec: MaintenanceReadModelSpec) -> None:
+        """Register or replace a maintenance read-model spec by name."""
+        with self._lock:
+            self.maintenance_read_models[spec.name] = spec
+
+    def list_maintenance_read_models(self) -> list[MaintenanceReadModelSpec]:
+        """Return a snapshot list of maintenance read-model specs."""
+        with self._lock:
+            return list(self.maintenance_read_models.values())
 
     def register_metadata_catalog(self, spec: MetadataCatalogSpec) -> None:
         """Register or replace a metadata catalog spec by name."""
@@ -183,6 +211,26 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.publish_targets.values())
 
+    def register_alert_sink(self, spec: AlertSinkSpec) -> None:
+        """Register or replace an alert sink spec by name."""
+        with self._lock:
+            self.alert_sinks[spec.name] = spec
+
+    def list_alert_sinks(self) -> list[AlertSinkSpec]:
+        """Return a snapshot list of registered alert sink specs."""
+        with self._lock:
+            return list(self.alert_sinks.values())
+
+    def register_api_backend(self, spec: ApiBackendSpec) -> None:
+        """Register or replace an API backend spec by name."""
+        with self._lock:
+            self.api_backends[spec.name] = spec
+
+    def list_api_backends(self) -> list[ApiBackendSpec]:
+        """Return a snapshot list of registered API backend specs."""
+        with self._lock:
+            return list(self.api_backends.values())
+
     def register_secret_backend(self, spec: SecretBackendSpec) -> None:
         """Register or replace a secret backend spec by name."""
         with self._lock:
@@ -222,12 +270,16 @@ class CapabilityRegistry:
             self.resources.clear()
             self.table_stores.clear()
             self.catalogs.clear()
+            self.catalog_scanners.clear()
             self.query_engines.clear()
             self.quality_backends.clear()
+            self.maintenance_read_models.clear()
             self.metadata_catalogs.clear()
             self.lineage_sinks.clear()
             self.governance_backends.clear()
             self.publish_targets.clear()
+            self.alert_sinks.clear()
+            self.api_backends.clear()
             self.secret_backends.clear()
             self.schema_migrators.clear()
             self.data_migration_sources.clear()
@@ -292,6 +344,11 @@ def register_catalog(spec: CatalogSpec) -> None:
     _GLOBAL_REGISTRY.register_catalog(spec)
 
 
+def register_catalog_scanner(spec: CatalogScannerSpec) -> None:
+    """Register a catalog scanner in the process-global registry."""
+    _GLOBAL_REGISTRY.register_catalog_scanner(spec)
+
+
 def register_query_engine(spec: QueryEngineSpec) -> None:
     """Register a query engine in the process-global registry."""
     _GLOBAL_REGISTRY.register_query_engine(spec)
@@ -300,6 +357,11 @@ def register_query_engine(spec: QueryEngineSpec) -> None:
 def register_quality_backend(spec: QualityBackendSpec) -> None:
     """Register a quality backend in the process-global registry."""
     _GLOBAL_REGISTRY.register_quality_backend(spec)
+
+
+def register_maintenance_read_model(spec: MaintenanceReadModelSpec) -> None:
+    """Register a maintenance read model in the process-global registry."""
+    _GLOBAL_REGISTRY.register_maintenance_read_model(spec)
 
 
 def register_metadata_catalog(spec: MetadataCatalogSpec) -> None:
@@ -320,6 +382,16 @@ def register_governance_backend(spec: GovernanceBackendSpec) -> None:
 def register_publish_target(spec: PublishTargetSpec) -> None:
     """Register a publish target in the process-global registry."""
     _GLOBAL_REGISTRY.register_publish_target(spec)
+
+
+def register_alert_sink(spec: AlertSinkSpec) -> None:
+    """Register an alert sink in the process-global registry."""
+    _GLOBAL_REGISTRY.register_alert_sink(spec)
+
+
+def register_api_backend(spec: ApiBackendSpec) -> None:
+    """Register an API backend in the process-global registry."""
+    _GLOBAL_REGISTRY.register_api_backend(spec)
 
 
 def register_secret_backend(spec: SecretBackendSpec) -> None:

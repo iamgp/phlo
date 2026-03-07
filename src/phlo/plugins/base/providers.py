@@ -10,12 +10,16 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
 from phlo.capabilities.specs import (
+    AlertSinkSpec,
+    ApiBackendSpec,
     AssetCheckSpec,
     AssetSpec,
+    CatalogScannerSpec,
     CatalogSpec,
     DataMigrationSourceSpec,
     GovernanceBackendSpec,
     LineageSinkSpec,
+    MaintenanceReadModelSpec,
     MetadataCatalogSpec,
     PublishTargetSpec,
     QualityBackendSpec,
@@ -92,12 +96,20 @@ class ResourceProviderPlugin(Plugin, ABC):
         """Return catalog capability specs exposed by this plugin."""
         return []
 
+    def get_catalog_scanners(self) -> Iterable[CatalogScannerSpec]:
+        """Return catalog scanner capability specs exposed by this plugin."""
+        return []
+
     def get_query_engines(self) -> Iterable[QueryEngineSpec]:
         """Return query engine capability specs exposed by this plugin."""
         return []
 
     def get_quality_backends(self) -> Iterable[QualityBackendSpec]:
         """Return quality backend capability specs exposed by this plugin."""
+        return []
+
+    def get_maintenance_read_models(self) -> Iterable[MaintenanceReadModelSpec]:
+        """Return maintenance read-model capability specs exposed by this plugin."""
         return []
 
     def get_metadata_catalogs(self) -> Iterable[MetadataCatalogSpec]:
@@ -114,6 +126,14 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_publish_targets(self) -> Iterable[PublishTargetSpec]:
         """Return publish target capability specs exposed by this plugin."""
+        return []
+
+    def get_alert_sinks(self) -> Iterable[AlertSinkSpec]:
+        """Return alert sink capability specs exposed by this plugin."""
+        return []
+
+    def get_api_backends(self) -> Iterable[ApiBackendSpec]:
+        """Return API backend capability specs exposed by this plugin."""
         return []
 
     def get_secret_backends(self) -> Iterable[SecretBackendSpec]:

@@ -5,11 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
 from dagster import DagsterRunStatus
 from phlo_testing.profile_harness import (
+    BUNDLED_STACK_OPTIONAL_PACKAGES,
     BUNDLED_STACK_DEV_PACKAGES,
     BundledStackHarness,
     BundledStackPorts,
+    _cleanup_existing_bundled_stack_projects,
     build_bundled_stack_env_updates,
     bundled_stack_contract_enabled,
 )
@@ -36,6 +39,8 @@ def test_build_bundled_stack_env_updates_resolves_core_ports() -> None:
     assert updates["PHLO_DEV_EXTRA_PACKAGES"] == ",".join(BUNDLED_STACK_DEV_PACKAGES)
     assert ("Dagster", 3000) in calls
     assert ("Nessie", 19120) in calls
+    assert ("Hasura", 8082) in calls
+    assert ("OpenMetadata", 8585) in calls
 
 
 def test_build_bundled_stack_env_updates_avoids_duplicate_ports(monkeypatch) -> None:
@@ -229,3 +234,268 @@ def test_bundled_stack_harness_get_run_status_reads_metadata_db(monkeypatch) -> 
         "SELECT status FROM runs WHERE run_id = %s",
         ("run-1",),
     )
+
+
+def test_bundled_stack_harness_installs_optional_workspace_packages(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_command(args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return "ok"
+
+    monkeypatch.setattr(
+        "phlo_testing.profile_harness._load_golden_path_module",
+        lambda: type(
+            "StubGoldenPathModule",
+            (),
+            {"run_command": staticmethod(fake_run_command)},
+        )(),
+    )
+
+    harness = BundledStackHarness(
+        project_dir=Path("/tmp/project"),
+        phlo_source=Path(__file__).resolve().parents[3],
+        python_executable=Path("/tmp/project/.venv/bin/python"),
+        ports=BundledStackPorts(phlo_api=54000, dagster=3000),
+    )
+
+    harness.ensure_full_stack_packages()
+
+    assert captured["kwargs"] == {"cwd": Path("/tmp/project"), "timeout": 600}
+    args = captured["args"]
+    assert isinstance(args, list)
+    assert args[:4] == [
+        "uv",
+        "pip",
+        "install",
+        "--python",
+    ]
+    for package_name in BUNDLED_STACK_OPTIONAL_PACKAGES:
+        assert str(Path(__file__).resolve().parents[3] / "packages" / package_name) in args
+
+
+def test_bundled_stack_harness_verify_default_frontends_checks_both_endpoints(monkeypatch) -> None:
+    started_services: list[tuple[tuple[str, ...], bool]] = []
+    waited_urls: list[tuple[str, str, int]] = []
+
+    harness = BundledStackHarness(
+        project_dir=Path("/tmp/project"),
+        phlo_source=Path("/tmp/source"),
+        python_executable=Path("/tmp/project/.venv/bin/python"),
+        ports=BundledStackPorts(phlo_api=54000, dagster=3000, observatory=3001),
+    )
+
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "start_services",
+        lambda self, service_names, *, timeout=600, native=False: started_services.append(
+            (tuple(service_names), native)
+        ),
+    )
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "wait_for_http",
+        lambda self, url, *, name, timeout=120: waited_urls.append((url, name, timeout)),
+    )
+    response = MagicMock()
+    response.headers = {"content-type": "text/html; charset=utf-8"}
+    response.raise_for_status.return_value = None
+    monkeypatch.setattr(
+        "phlo_testing.profile_harness.requests.get", lambda *args, **kwargs: response
+    )
+
+    harness.verify_default_frontends()
+
+    assert started_services == [(("phlo-api", "observatory"), True)]
+    assert waited_urls == [
+        ("http://127.0.0.1:54000/health", "Phlo API", 120),
+        ("http://127.0.0.1:3001/", "Observatory", 180),
+    ]
+
+
+def test_bundled_stack_harness_stop_services_builds_expected_cli_args(monkeypatch) -> None:
+    run_calls: list[tuple[list[str], int, bool, bool]] = []
+
+    harness = BundledStackHarness(
+        project_dir=Path("/tmp/project"),
+        phlo_source=Path("/tmp/source"),
+        python_executable=Path("/tmp/project/.venv/bin/python"),
+        ports=BundledStackPorts(phlo_api=54000, dagster=3000),
+    )
+
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "run_phlo",
+        lambda self, args, *, timeout=300, stream_output=False, check=True: run_calls.append(
+            (args, timeout, stream_output, check)
+        ),
+    )
+
+    harness.stop_services(["phlo-api", "observatory"], native=True)
+    harness.stop_services(["superset"], timeout=120)
+
+    assert run_calls == [
+        (
+            ["services", "stop", "--native", "--service", "phlo-api", "--service", "observatory"],
+            300,
+            True,
+            False,
+        ),
+        (
+            ["services", "stop", "--service", "superset"],
+            120,
+            True,
+            False,
+        ),
+    ]
+
+
+def test_bundled_stack_harness_verify_superset_accepts_plaintext_health(monkeypatch) -> None:
+    added_services: list[tuple[str, ...]] = []
+    started_services: list[tuple[tuple[str, ...], int]] = []
+    waited_urls: list[tuple[str, str, int]] = []
+
+    harness = BundledStackHarness(
+        project_dir=Path("/tmp/project"),
+        phlo_source=Path("/tmp/source"),
+        python_executable=Path("/tmp/project/.venv/bin/python"),
+        ports=BundledStackPorts(phlo_api=54000, dagster=3000, superset=8088),
+    )
+
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "add_services",
+        lambda self, service_names: added_services.append(tuple(service_names)),
+    )
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "start_services",
+        lambda self, service_names, *, timeout=600, native=False: started_services.append(
+            (tuple(service_names), timeout)
+        ),
+    )
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "wait_for_http",
+        lambda self, url, *, name, timeout=120: waited_urls.append((url, name, timeout)),
+    )
+    monkeypatch.setattr(BundledStackHarness, "http_get", lambda self, url: "OK")
+
+    harness.verify_superset()
+
+    assert added_services == [("superset",)]
+    assert started_services == [(("superset",), 900)]
+    assert waited_urls == [("http://127.0.0.1:8088/health", "Superset", 300)]
+
+
+def test_bundled_stack_harness_verify_openmetadata_falls_back_to_manual_start(monkeypatch) -> None:
+    added_services: list[tuple[str, ...]] = []
+    waited_urls: list[tuple[str, str, int]] = []
+    phlo_calls: list[tuple[str, ...]] = []
+    docker_calls: list[tuple[str, ...]] = []
+
+    harness = BundledStackHarness(
+        project_dir=Path("/tmp/phlo-bundled-stack-abc12345"),
+        phlo_source=Path("/tmp/source"),
+        python_executable=Path("/tmp/project/.venv/bin/python"),
+        ports=BundledStackPorts(phlo_api=54000, dagster=3000, openmetadata=8585),
+    )
+
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "add_services",
+        lambda self, service_names: added_services.append(tuple(service_names)),
+    )
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "wait_for_http",
+        lambda self, url, *, name, timeout=120: (
+            waited_urls.append((url, name, timeout)) or (_ for _ in ()).throw(RuntimeError("stop"))
+        ),
+    )
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "run_phlo",
+        lambda self, args, **kwargs: (
+            phlo_calls.append(tuple(args))
+            or type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()
+        ),
+    )
+    monkeypatch.setattr(
+        BundledStackHarness,
+        "run_command",
+        lambda self, args, **kwargs: (
+            docker_calls.append(tuple(args))
+            or type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        ),
+    )
+    with pytest.raises(RuntimeError, match="stop"):
+        harness.verify_openmetadata()
+
+    assert added_services == [("openmetadata",)]
+    assert phlo_calls == [("services", "start", "--service", "openmetadata")]
+    assert docker_calls == [
+        ("docker", "start", "-a", "phlo-bundled-stack-abc12345-openmetadata-setup-1"),
+        ("docker", "start", "phlo-bundled-stack-abc12345-openmetadata-1"),
+    ]
+    assert waited_urls == [("http://127.0.0.1:8585/api/v1/system/version", "OpenMetadata", 900)]
+
+
+def test_cleanup_existing_bundled_stack_projects_stops_native_and_docker(
+    monkeypatch, tmp_path
+) -> None:
+    project_dir = tmp_path / "phlo-bundled-stack-stale"
+    (project_dir / ".phlo").mkdir(parents=True)
+    python_executable = project_dir / ".venv" / "bin" / "python"
+    python_executable.parent.mkdir(parents=True)
+    python_executable.write_text("", encoding="utf-8")
+
+    run_calls: list[tuple[tuple[str, ...], Path]] = []
+    removed_paths: list[Path] = []
+    docker_calls: list[tuple[str, ...]] = []
+
+    monkeypatch.setattr(
+        "phlo_testing.profile_harness._load_golden_path_module",
+        lambda: type(
+            "StubGoldenPathModule",
+            (),
+            {
+                "run_phlo": staticmethod(
+                    lambda args, **kwargs: run_calls.append((tuple(args), kwargs["cwd"]))
+                ),
+                "force_remove_directory": staticmethod(
+                    lambda path: removed_paths.append(path) or True
+                ),
+            },
+        )(),
+    )
+    monkeypatch.setattr(
+        "phlo_testing.profile_harness.subprocess.run",
+        lambda args, **kwargs: (
+            docker_calls.append(tuple(args))
+            or type(
+                "Result",
+                (),
+                {
+                    "stdout": "abc123\nphlo-bundled-stack-test\n"
+                    if args[:4] == ["docker", "network", "ls", "--format"]
+                    else "abc123\n",
+                },
+            )()
+        ),
+    )
+
+    _cleanup_existing_bundled_stack_projects(tmp_path, stream_output=False)
+
+    assert run_calls == [
+        (("services", "stop", "--native"), project_dir),
+        (("services", "stop"), project_dir),
+    ]
+    assert removed_paths == [project_dir]
+    assert docker_calls == [
+        ("docker", "ps", "-aq", "--filter", "name=phlo-bundled-stack-"),
+        ("docker", "rm", "-f", "abc123"),
+        ("docker", "network", "ls", "--format", "{{.Name}}"),
+        ("docker", "network", "rm", "phlo-bundled-stack-test"),
+    ]

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Any
 
 from anyio.to_thread import run_sync
@@ -10,20 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from phlo.logging import get_logger
-
-try:
-    from phlo_observatory import SettingsScope, get_settings_service
-except Exception:  # noqa: BLE001 - observatory package is optional
-
-    class SettingsScope(str, Enum):
-        """Fallback settings scope enum when Observatory package is unavailable."""
-
-        GLOBAL = "global"
-        EXTENSION = "extension"
-
-    def get_settings_service() -> Any:
-        """Raise a runtime error when Observatory settings service is unavailable."""
-        raise RuntimeError("phlo-observatory is not installed")
+from phlo.plugins.observatory_settings import SettingsScope, get_settings_service
 
 
 logger = get_logger(__name__)

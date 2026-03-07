@@ -468,6 +468,17 @@ class CustomOrchestratorAdapter(OrchestratorAdapterPlugin):
 These runtime protocols define the provider contracts resolved by capability
 discovery and consumed by ingestion/migration flows.
 
+### ApiBackend
+
+Swappable API and graph-serving backend contract:
+
+- `health_check()`
+- `describe()`
+
+Use this for packages such as Hasura or future semantic/API backends. Service
+plugins answer how to run the backend; `ApiBackend` answers what backend surface
+the rest of Phlo can resolve and expose.
+
 ### TableStore
 
 Required methods:
@@ -517,6 +528,19 @@ Storage-native schema migration contract:
 - `diff_schema(table_name, desired)`
 - `apply_plan(plan, approved=False)`
 - `get_schema_history(table_name, limit=10)`
+
+### MaintenanceReadModel
+
+Maintenance and observability read-model contract:
+
+- `load_maintenance_status()`
+- `render_maintenance_prometheus()`
+
+### AlertSink
+
+Alert delivery contract:
+
+- `send_alert(...)`
 
 ### AccessPolicy
 

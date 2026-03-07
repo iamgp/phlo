@@ -29,6 +29,29 @@ from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 logger = get_logger(__name__)
 
 
+def _load_native_env_overrides(project_root: Path) -> dict[str, str]:
+    """Load project env values for native service subprocesses."""
+    env_values: dict[str, str] = {}
+    for path in (project_root / ".phlo" / ".env", project_root / ".phlo" / ".env.local"):
+        if not path.exists():
+            continue
+        try:
+            lines = path.read_text().splitlines()
+        except OSError:
+            logger.warning("services_start_env_file_read_failed", env_file=str(path), exc_info=True)
+            continue
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, value = stripped.split("=", 1)
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                value = value[1:-1]
+            env_values[key.strip()] = value
+    return env_values
+
+
 def _validate_requested_profiles(profile_names: tuple[str, ...]) -> tuple[str, ...]:
     """Normalize and validate requested profile names."""
     requested_profiles = tuple(
@@ -404,6 +427,7 @@ def start_cmd(
                     """
                     started: dict[str, dict] = {}
                     env_overrides = {
+                        **_load_native_env_overrides(project_root),
                         "PHLO_PROJECT_PATH": str(project_root),
                         "ENV_FILE_PATH": str(project_root / ".phlo" / ".env"),
                     }

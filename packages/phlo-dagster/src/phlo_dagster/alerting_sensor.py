@@ -3,26 +3,24 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from enum import Enum
-from typing import Any
 
 from dagster import DagsterEventType, DagsterRunStatus, RunsFilter, sensor
 
+from phlo.capabilities import AlertSink, resolve_capability
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-def _load_alerting() -> tuple[type[Any], type[Any], Any]:
-    """Load alerting classes lazily so base package works without phlo-alerting."""
-    try:
-        from phlo_alerting.manager import Alert, AlertSeverity, get_alert_manager
-    except Exception as exc:  # noqa: BLE001 - provide actionable runtime error
+def _load_alert_sink() -> AlertSink:
+    """Resolve the configured alert sink capability."""
+    resolution = resolve_capability("alert_sink", "alerting")
+    if resolution is None:
         raise RuntimeError(
-            "Alerting integration requires phlo-alerting. Install phlo-dagster[alerting] "
-            "or phlo-alerting."
-        ) from exc
-    return Alert, AlertSeverity, get_alert_manager
+            "Alerting integration requires an alert_sink:alerting capability. "
+            "Install phlo-alerting or another provider exposing that capability."
+        )
+    return resolution.provider
 
 
 @sensor(
@@ -58,7 +56,7 @@ def failure_alert_sensor(context):
         cutoff_time=cutoff_time.isoformat(),
     )
     try:
-        Alert, AlertSeverity, get_alert_manager = _load_alerting()
+        alert_sink = _load_alert_sink()
         # Query for failed runs created after the cursor cutoff
         failed_runs = list(
             instance.get_runs(
@@ -68,9 +66,6 @@ def failure_alert_sensor(context):
                 )
             )
         )
-
-        alert_manager = get_alert_manager()
-
         for run in failed_runs:
             # Get run events to find failures
             events = list(
@@ -85,18 +80,14 @@ def failure_alert_sensor(context):
 
             for event in events:
                 # Build alert
-                alert = Alert(
+                if alert_sink.send_alert(
                     title=f"Pipeline Run Failed: {run.job_name}",
                     message=f"Run {run.run_id} for job {run.job_name} has failed",
-                    severity=AlertSeverity.ERROR,
+                    severity="ERROR",
                     asset_name=run.job_name,
                     run_id=run.run_id,
                     error_message=_extract_error_message(event),
-                    timestamp=datetime.now(timezone.utc),
-                )
-
-                # Send alert
-                if alert_manager.send(alert):
+                ):
                     alerted_count += 1
                     logger.info("failure_alert_sent", run_id=run.run_id, job_name=run.job_name)
 
@@ -133,7 +124,7 @@ def _extract_error_message(event) -> str | None:
 def send_alert(
     title: str,
     message: str,
-    severity: Any = "ERROR",
+    severity: str | None = "ERROR",
     asset_name: str | None = None,
     run_id: str | None = None,
     error_message: str | None = None,
@@ -152,36 +143,11 @@ def send_alert(
     Returns:
         True if alert was sent successfully
     """
-    Alert, AlertSeverity, get_alert_manager = _load_alerting()
-    severity_value = _coerce_alert_severity(severity, AlertSeverity)
-    alert_manager = get_alert_manager()
-    alert = Alert(
+    return _load_alert_sink().send_alert(
         title=title,
         message=message,
-        severity=severity_value,
+        severity=severity,
         asset_name=asset_name,
         run_id=run_id,
         error_message=error_message,
-        timestamp=datetime.now(timezone.utc),
     )
-    return alert_manager.send(alert)
-
-
-def _coerce_alert_severity(severity: Any, alert_severity_type: type[Any]) -> Any:
-    """Normalize user-provided severity into the alert severity enum."""
-    if isinstance(severity, alert_severity_type):
-        return severity
-    if isinstance(severity, str):
-        normalized = severity.strip()
-        if not normalized:
-            return alert_severity_type.ERROR
-        by_name = getattr(alert_severity_type, normalized.upper(), None)
-        if by_name is not None:
-            return by_name
-        if issubclass(alert_severity_type, Enum):
-            try:
-                return alert_severity_type(normalized.lower())
-            except ValueError:
-                return alert_severity_type.ERROR
-        return alert_severity_type.ERROR
-    return alert_severity_type.ERROR

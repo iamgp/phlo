@@ -73,6 +73,7 @@ query HealthMetrics {
 ASSETS_QUERY = """
 query AssetsQuery {
     assetsOrError {
+        __typename
         ... on AssetConnection {
             nodes {
                 id
@@ -87,6 +88,31 @@ query AssetsQuery {
                 assetMaterializations(limit: 1) {
                     timestamp
                     runId
+                }
+            }
+        }
+        ... on PythonError { message }
+    }
+}
+"""
+
+ASSET_GRAPH_QUERY = """
+query AssetGraphQuery {
+    assetsOrError {
+        __typename
+        ... on AssetConnection {
+            nodes {
+                id
+                key { path }
+                definition {
+                    description
+                    computeKind
+                    groupName
+                    dependencyKeys { path }
+                    dependedByKeys { path }
+                }
+                assetMaterializations(limit: 1) {
+                    timestamp
                 }
             }
         }
@@ -257,6 +283,45 @@ class MaterializationEvent(BaseModel):
     duration: int | None = None
 
 
+class GraphNode(BaseModel):
+    """Graph node payload used by Observatory graph views."""
+
+    id: str
+    key: list[str]
+    key_path: str
+    label: str
+    description: str | None = None
+    compute_kind: str | None = None
+    group_name: str | None = None
+    layer: str
+    last_materialization: str | None = None
+    upstream_count: int
+    downstream_count: int
+
+
+class GraphEdge(BaseModel):
+    """Directed edge between two graph nodes."""
+
+    source: str
+    target: str
+
+
+class AssetGraphPayload(BaseModel):
+    """Full asset graph payload for Observatory."""
+
+    nodes: list[GraphNode]
+    edges: list[GraphEdge]
+
+
+class ImpactedAsset(BaseModel):
+    """Single downstream impact result for an asset."""
+
+    key_path: str
+    label: str
+    layer: str
+    depth: int
+
+
 # --- Helper Functions ---
 
 
@@ -272,6 +337,150 @@ async def graphql_request(
         )
         response.raise_for_status()
         return response.json()
+
+
+def infer_layer(key_path: str) -> str:
+    """Infer logical data layer from asset key path."""
+    path = key_path.lower()
+    if "publish" in path or path.startswith("publish_"):
+        return "publish"
+    if "mart" in path or path.startswith("mrt_"):
+        return "marts"
+    if "gold" in path or path.startswith("dim_") or path.startswith("fct_"):
+        return "gold"
+    if "silver" in path or "stg_" in path:
+        return "silver"
+    if "bronze" in path or "raw" in path:
+        return "bronze"
+    if path.startswith("dlt_") or "ingest" in path:
+        return "bronze"
+    if path.startswith("src_") or "source" in path:
+        return "source"
+    return "unknown"
+
+
+def build_asset_graph_payload(asset_nodes: list[dict[str, Any]]) -> AssetGraphPayload:
+    """Build the normalized Observatory graph payload from Dagster nodes."""
+    nodes: list[GraphNode] = []
+    edges: list[GraphEdge] = []
+    known_nodes: set[str] = set()
+
+    for asset in asset_nodes:
+        key = asset["key"]["path"]
+        key_path = "/".join(key)
+        definition = asset.get("definition") or {}
+        known_nodes.add(key_path)
+        nodes.append(
+            GraphNode(
+                id=asset["id"],
+                key=key,
+                key_path=key_path,
+                label=key[-1] if key else key_path,
+                description=definition.get("description"),
+                compute_kind=definition.get("computeKind"),
+                group_name=definition.get("groupName"),
+                layer=infer_layer(key_path),
+                last_materialization=((asset.get("assetMaterializations") or [None])[0] or {}).get(
+                    "timestamp"
+                ),
+                upstream_count=len(definition.get("dependencyKeys") or []),
+                downstream_count=len(definition.get("dependedByKeys") or []),
+            )
+        )
+
+    for asset in asset_nodes:
+        target_key_path = "/".join(asset["key"]["path"])
+        dependencies = (asset.get("definition") or {}).get("dependencyKeys") or []
+        for dependency in dependencies:
+            source_key_path = "/".join(dependency["path"])
+            if source_key_path in known_nodes and target_key_path in known_nodes:
+                edges.append(GraphEdge(source=source_key_path, target=target_key_path))
+
+    return AssetGraphPayload(nodes=nodes, edges=edges)
+
+
+def filter_asset_neighbors(
+    graph: AssetGraphPayload,
+    asset_key: str,
+    direction: str,
+    depth: int,
+) -> AssetGraphPayload:
+    """Return a focused subgraph around an asset."""
+    upstream: dict[str, list[str]] = {}
+    downstream: dict[str, list[str]] = {}
+
+    for edge in graph.edges:
+        upstream.setdefault(edge.target, []).append(edge.source)
+        downstream.setdefault(edge.source, []).append(edge.target)
+
+    included_nodes = {asset_key}
+
+    def bfs(start_key: str, adjacency: dict[str, list[str]], max_depth: int) -> None:
+        queue: list[tuple[str, int]] = [(start_key, 0)]
+        visited = {start_key}
+
+        while queue:
+            current, current_depth = queue.pop(0)
+            if current_depth >= max_depth:
+                continue
+
+            for neighbor in adjacency.get(current, []):
+                if neighbor in visited:
+                    continue
+                visited.add(neighbor)
+                included_nodes.add(neighbor)
+                queue.append((neighbor, current_depth + 1))
+
+    if direction in {"upstream", "both"}:
+        bfs(asset_key, upstream, depth)
+    if direction in {"downstream", "both"}:
+        bfs(asset_key, downstream, depth)
+
+    return AssetGraphPayload(
+        nodes=[node for node in graph.nodes if node.key_path in included_nodes],
+        edges=[
+            edge
+            for edge in graph.edges
+            if edge.source in included_nodes and edge.target in included_nodes
+        ],
+    )
+
+
+def compute_asset_impact(
+    graph: AssetGraphPayload, asset_key: str, max_depth: int
+) -> list[ImpactedAsset]:
+    """Compute all downstream assets impacted by a given asset."""
+    node_map = {node.key_path: node for node in graph.nodes}
+    downstream: dict[str, list[str]] = {}
+    for edge in graph.edges:
+        downstream.setdefault(edge.source, []).append(edge.target)
+
+    impacted: list[ImpactedAsset] = []
+    visited = {asset_key}
+    queue: list[tuple[str, int]] = [(asset_key, 0)]
+
+    while queue:
+        current, current_depth = queue.pop(0)
+        if current_depth > max_depth:
+            continue
+
+        for child in downstream.get(current, []):
+            if child in visited:
+                continue
+            visited.add(child)
+            node = node_map.get(child)
+            if node is not None:
+                impacted.append(
+                    ImpactedAsset(
+                        key_path=node.key_path,
+                        label=node.label,
+                        layer=node.layer,
+                        depth=current_depth + 1,
+                    )
+                )
+            queue.append((child, current_depth + 1))
+
+    return sorted(impacted, key=lambda item: (item.depth, item.label))
 
 
 # --- API Endpoints ---
@@ -549,3 +758,52 @@ async def get_materialization_history(
     except Exception as e:
         logger.exception("Failed to get materialization history")
         return {"error": str(e)}
+
+
+@router.get("/graph", response_model=AssetGraphPayload | dict)
+async def get_asset_graph(
+    dagster_url: str | None = None,
+) -> AssetGraphPayload | dict[str, str]:
+    """Get the full asset dependency graph from Dagster."""
+    url = resolve_dagster_url(dagster_url)
+
+    try:
+        result = await graphql_request(url, ASSET_GRAPH_QUERY, timeout=15.0)
+        if result.get("errors"):
+            return {"error": result["errors"][0].get("message", "GraphQL error")}
+
+        assets_or_error = result.get("data", {}).get("assetsOrError", {})
+        if assets_or_error.get("__typename") == "PythonError" or assets_or_error.get("message"):
+            return {"error": assets_or_error.get("message", "Dagster error")}
+
+        return build_asset_graph_payload(assets_or_error.get("nodes", []))
+    except Exception as e:
+        logger.exception("Failed to get asset graph")
+        return {"error": str(e)}
+
+
+@router.get("/graph/neighbors", response_model=AssetGraphPayload | dict)
+async def get_asset_neighbors(
+    asset_key: str,
+    direction: str = Query(default="both", pattern="^(upstream|downstream|both)$"),
+    depth: int = Query(default=2, ge=1, le=10),
+    dagster_url: str | None = None,
+) -> AssetGraphPayload | dict[str, str]:
+    """Get a focused graph around a single asset."""
+    graph = await get_asset_graph(dagster_url=dagster_url)
+    if isinstance(graph, dict):
+        return graph
+    return filter_asset_neighbors(graph, asset_key=asset_key, direction=direction, depth=depth)
+
+
+@router.get("/graph/impact", response_model=list[ImpactedAsset] | dict)
+async def get_asset_impact(
+    asset_key: str,
+    max_depth: int = Query(default=99, ge=1, le=100),
+    dagster_url: str | None = None,
+) -> list[ImpactedAsset] | dict[str, str]:
+    """Get downstream impact analysis for a single asset."""
+    graph = await get_asset_graph(dagster_url=dagster_url)
+    if isinstance(graph, dict):
+        return graph
+    return compute_asset_impact(graph, asset_key=asset_key, max_depth=max_depth)

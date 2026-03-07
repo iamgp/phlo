@@ -144,6 +144,12 @@ class NativeProcessManager:
         if env_overrides:
             env.update({k: self._expand_env_vars(v, env) for k, v in env_overrides.items()})
 
+        project_venv = self.project_root / ".venv"
+        project_venv_bin = project_venv / "bin"
+        if project_venv_bin.exists():
+            env["PATH"] = f"{project_venv_bin}{os.pathsep}{env.get('PATH', '')}"
+            env["VIRTUAL_ENV"] = str(project_venv)
+
         command = [self._expand_env_vars(arg, env) for arg in command if isinstance(arg, str)]
 
         # Resolve working directory
@@ -291,6 +297,8 @@ class NativeProcessManager:
         resolved = template
         if "{project_root}" in resolved:
             resolved = resolved.replace("{project_root}", str(self.project_root))
+        if "{source}" in resolved and service.source_path:
+            resolved = resolved.replace("{source}", str(service.source_path))
         if "{source_path}" in resolved and service.source_path:
             resolved = resolved.replace("{source_path}", str(service.source_path))
         return Path(resolved)
