@@ -5,6 +5,7 @@ Endpoints for Iceberg maintenance observability data.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from typing import Any
 
@@ -12,18 +13,32 @@ from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from phlo.capabilities import MaintenanceReadModel, resolve_capability
+from phlo.capabilities import MaintenanceReadModel, list_capabilities, resolve_capability
+from phlo.capabilities.discovery import discover_capabilities
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["maintenance"])
+_DEFAULT_READ_MODEL_ENV = "PHLO_MAINTENANCE_READ_MODEL"
 
 
 def _resolve_maintenance_read_model() -> MaintenanceReadModel:
     """Resolve the configured maintenance read-model capability."""
-    resolution = resolve_capability("maintenance_read_model", "metrics")
+    discover_capabilities()
+    name = os.environ.get(_DEFAULT_READ_MODEL_ENV)
+    resolution = resolve_capability("maintenance_read_model", name)
     if resolution is None:
+        available = list_capabilities("maintenance_read_model")
+        if name:
+            raise RuntimeError(
+                f"Maintenance read model '{name}' not found. Available providers: {available}"
+            )
+        if available:
+            raise RuntimeError(
+                "Multiple maintenance_read_model providers are installed. "
+                f"Set {_DEFAULT_READ_MODEL_ENV} to select one: {available}"
+            )
         raise RuntimeError(
             "Maintenance observability requires a maintenance_read_model capability. "
             "Install phlo-metrics or another provider."

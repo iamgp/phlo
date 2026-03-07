@@ -4,6 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import pytest
+
+from phlo.capabilities import (
+    MaintenanceReadModelSpec,
+    clear_capabilities,
+    register_maintenance_read_model,
+)
 from phlo_api.api import maintenance
 
 
@@ -56,3 +63,31 @@ def test_get_maintenance_metrics_uses_capability(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.body.decode() == "phlo_metric 1\n"
+
+
+def test_resolve_maintenance_read_model_uses_env_selection(monkeypatch) -> None:
+    """Environment selection should pick one provider among many."""
+    clear_capabilities()
+    monkeypatch.setattr(maintenance, "discover_capabilities", lambda: None)
+    monkeypatch.setenv("PHLO_MAINTENANCE_READ_MODEL", "custom")
+    register_maintenance_read_model(MaintenanceReadModelSpec(name="default", provider=object()))
+    register_maintenance_read_model(MaintenanceReadModelSpec(name="custom", provider=_ReadModel()))
+
+    resolved = maintenance._resolve_maintenance_read_model()
+
+    assert isinstance(resolved, _ReadModel)
+    clear_capabilities()
+
+
+def test_resolve_maintenance_read_model_requires_selection_when_ambiguous(monkeypatch) -> None:
+    """Ambiguous maintenance providers should fail with deterministic guidance."""
+    clear_capabilities()
+    monkeypatch.setattr(maintenance, "discover_capabilities", lambda: None)
+    monkeypatch.delenv("PHLO_MAINTENANCE_READ_MODEL", raising=False)
+    register_maintenance_read_model(MaintenanceReadModelSpec(name="default", provider=object()))
+    register_maintenance_read_model(MaintenanceReadModelSpec(name="custom", provider=object()))
+
+    with pytest.raises(RuntimeError, match="Multiple maintenance_read_model providers"):
+        maintenance._resolve_maintenance_read_model()
+
+    clear_capabilities()

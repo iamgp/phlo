@@ -233,11 +233,14 @@ class NessieTableScanner:
         Returns:
             QueryEngine | None: Query engine provider instance, or ``None`` when unavailable.
         """
-        resolution = resolve_capability("query_engine", "trino")
+        query_engine_name = get_settings().nessie_query_engine
+        resolution = resolve_capability("query_engine", query_engine_name)
         if resolution is None:
             logger.warning(
                 "nessie_query_engine_unavailable",
-                required_capability="query_engine:trino",
+                required_capability=(
+                    f"query_engine:{query_engine_name}" if query_engine_name else "query_engine"
+                ),
             )
             return None
         return resolution.provider

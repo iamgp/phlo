@@ -24,6 +24,7 @@ Part of the `api` profile.
 | ------------------- | --------- | ------------------ |
 | `POSTGREST_PORT`    | `3002`    | PostgREST API port |
 | `POSTGREST_VERSION` | `v12.2.3` | PostgREST version  |
+| `DBT_API_SOURCE_SCHEMA` | unset | dbt schema to expose; required when manifest contains multiple model schemas |
 | `POSTGRES_USER`     | `phlo`    | Database user      |
 | `POSTGRES_PASSWORD` | `phlo`    | Database password  |
 | `POSTGRES_DB`       | `phlo`    | Database name      |

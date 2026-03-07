@@ -137,6 +137,26 @@ TRINO_CATALOG=iceberg
 trino://trino:10005/iceberg_dev
 ```
 
+### API Backend Configuration
+
+Observatory API runtime routing:
+
+```bash
+PHLO_API_PORT=4000
+HOST=0.0.0.0
+PHLO_QUERY_ENGINE_URL=
+PHLO_QUERY_CATALOG=
+PHLO_DEFAULT_REF=
+PHLO_API_DISCOVERY_SCHEMAS=
+```
+
+Notes:
+
+- `PHLO_QUERY_ENGINE_URL` is required unless the resolved `query_engine` capability exposes `url`, `http_url`, or `host`/`port` metadata.
+- `PHLO_QUERY_CATALOG` is required unless the resolved `query_engine` capability exposes `default_catalog`.
+- `PHLO_DEFAULT_REF` is required for ref-dependent endpoints unless the resolved `query_engine` capability exposes `default_ref`.
+- `PHLO_API_DISCOVERY_SCHEMAS` is optional only when table discovery can use request `branch`/`preferred_schema` values or `query_engine` capability metadata such as `discovery_schemas`.
+
 ### dbt Runtime Configuration
 
 Generated dbt profile settings:
@@ -170,8 +190,11 @@ ICEBERG_STAGING_PATH=s3://lake/stage
 # Default namespace
 ICEBERG_DEFAULT_NAMESPACE=raw
 
-# Default branch reference
-ICEBERG_NESSIE_REF=main
+# Default catalog reference
+ICEBERG_DEFAULT_REF=main
+
+# Iceberg REST catalog endpoint
+ICEBERG_CATALOG_URI=http://nessie:19120/iceberg
 ```
 
 **Warehouse paths by branch**:
@@ -252,9 +275,13 @@ SUPERSET_PORT=10007
 SUPERSET_ADMIN_USER=admin
 SUPERSET_ADMIN_PASSWORD=admin
 SUPERSET_ADMIN_EMAIL=admin@superset.com
+SUPERSET_DATABASE_NAME=
 ```
 
 Access: http://localhost:10007
+
+`SUPERSET_DATABASE_NAME` is required unless a resolved `query_engine` capability
+declares catalog metadata.
 
 #### Dagster
 
@@ -310,9 +337,13 @@ Access: http://localhost:10012
 POSTGREST_PORT=10011
 POSTGREST_DB_SCHEMA=marts
 POSTGREST_DB_ANON_ROLE=web_anon
+DBT_API_SOURCE_SCHEMA=
 ```
 
 Access: http://localhost:10011
+
+`DBT_API_SOURCE_SCHEMA` is optional only when the dbt manifest contains exactly one
+model schema; otherwise it must be set explicitly.
 
 #### OpenMetadata
 
@@ -326,9 +357,19 @@ OPENMETADATA_ES_JAVA_OPTS="-Xms512m -Xmx512m"
 OPENMETADATA_USERNAME=admin
 OPENMETADATA_PASSWORD=admin
 OPENMETADATA_VERIFY_SSL=false
+OPENMETADATA_SERVICE_TYPE=
+OPENMETADATA_CATALOG_SCANNER=
+OPENMETADATA_QUERY_ENGINE=
+OPENMETADATA_DATABASE_NAME=
+OPENMETADATA_DBT_MANIFEST_PATH=workflows/transforms/dbt/target/manifest.json
+OPENMETADATA_DBT_CATALOG_PATH=workflows/transforms/dbt/target/catalog.json
 OPENMETADATA_SYNC_ENABLED=true
 OPENMETADATA_SYNC_INTERVAL_SECONDS=300  # Minimum interval between syncs
 ```
+
+`OPENMETADATA_DATABASE_NAME` and `OPENMETADATA_SERVICE_TYPE` are required unless a
+resolved `query_engine` capability declares both catalog and `service_type`
+metadata.
 
 Access: http://localhost:8585
 

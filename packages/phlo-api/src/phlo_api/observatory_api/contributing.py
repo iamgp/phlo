@@ -12,7 +12,12 @@ from typing import Any, Literal, cast
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from phlo_api.observatory_api.trino import DEFAULT_CATALOG, QueryExecutionError, execute_trino_query
+from phlo_api.observatory_api.trino import (
+    QueryExecutionError,
+    execute_trino_query,
+    resolve_default_catalog,
+    resolve_default_ref,
+)
 from phlo_api.observatory_api.trino_sql import quote_identifier
 
 router = APIRouter(tags=["contributing"])
@@ -353,13 +358,18 @@ async def resolve_iceberg_table(
     catalog: str,
 ) -> ResolveTableResult | None:
     """Resolve schema and columns for an Iceberg table by name."""
+    try:
+        default_ref = resolve_default_ref()
+    except RuntimeError:
+        return None
+
     safe_name = escape_sql_string(table_name)
     schema_query = (
         f"select table_schema from {quote_identifier(catalog)}.information_schema.tables "
         f"where table_name = '{safe_name}'"
     )
     schemas_result = await _execute_trino_or_error(
-        schema_query, catalog, "main", trino_url, timeout_ms
+        schema_query, catalog, default_ref, trino_url, timeout_ms
     )
     if "error" in schemas_result:
         return None
@@ -387,7 +397,11 @@ async def resolve_iceberg_table(
         f"where table_schema = '{escape_sql_string(schema)}' and table_name = '{safe_name}'"
     )
     columns_result = await _execute_trino_or_error(
-        columns_query, catalog, "main", trino_url, timeout_ms
+        columns_query,
+        catalog,
+        default_ref,
+        trino_url,
+        timeout_ms,
     )
     if "error" in columns_result:
         return None
@@ -414,7 +428,10 @@ async def get_contributing_rows_query(
     request: ContributingRowsQueryRequest,
 ) -> ContributingRowsQueryResponse | dict[str, str]:
     """Generate the contributing rows query for a row journey selection."""
-    catalog = request.catalog or DEFAULT_CATALOG
+    try:
+        catalog = request.catalog or resolve_default_catalog()
+    except RuntimeError as exc:
+        return {"error": str(exc)}
     upstream_table_name = get_table_from_asset_key(request.upstream_asset_key)
     downstream_table_name = get_table_from_asset_key(request.downstream_asset_key)
 
@@ -454,7 +471,11 @@ async def get_contributing_rows_page(
     request: ContributingRowsPageRequest,
 ) -> ContributingRowsPageResponse | dict[str, str]:
     """Return paginated contributing rows for the selected upstream/downstream pair."""
-    catalog = request.catalog or DEFAULT_CATALOG
+    try:
+        catalog = request.catalog or resolve_default_catalog()
+        default_ref = resolve_default_ref()
+    except RuntimeError as exc:
+        return {"error": str(exc)}
     upstream_table_name = get_table_from_asset_key(request.upstream_asset_key)
     downstream_table_name = get_table_from_asset_key(request.downstream_asset_key)
 
@@ -482,7 +503,7 @@ async def get_contributing_rows_page(
         return {"error": query_or_error}
 
     result = await _execute_trino_or_error(
-        query_or_error, catalog, "main", request.trino_url, request.timeout_ms
+        query_or_error, catalog, default_ref, request.trino_url, request.timeout_ms
     )
     if "error" in result:
         return result

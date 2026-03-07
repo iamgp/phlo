@@ -20,6 +20,10 @@ class NessieSettings(BaseConfig):
         default="main",
         description="Default Nessie branch/tag",
     )
+    nessie_query_engine: str | None = Field(
+        default=None,
+        description="Optional query_engine capability name for catalog scan fallbacks",
+    )
 
     def nessie_uri(self) -> str:
         """Return the base Nessie API URI.

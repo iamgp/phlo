@@ -29,7 +29,7 @@ phlo plugin install trino
 
 | Feature                 | How It Works                                                                 |
 | ----------------------- | ---------------------------------------------------------------------------- |
-| **Catalog Discovery**   | Auto-generates catalog files from `phlo.plugins.catalogs` entry points |
+| **Catalog Discovery**   | Auto-generates catalog files from installed `phlo.plugins.catalogs` entry points |
 | **Metrics Labels**      | Exposes Trino metrics for Prometheus                                         |
 | **Grafana Datasource**  | Auto-registers as Grafana datasource via labels                              |
 | **Superset Connection** | Auto-registered in Superset via Superset hook                                |
@@ -145,6 +145,7 @@ compose:
 | ------------------------- | ------------------------- |
 | `phlo.plugins.services`   | `TrinoServicePlugin`      |
 | `phlo.plugins.resources`  | `TrinoResourceProvider`   |
+| `phlo.plugins.catalogs`   | Discovers external catalog adapters targeting Trino |
 
 ## Related Packages
 

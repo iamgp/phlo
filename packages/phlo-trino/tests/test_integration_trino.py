@@ -161,7 +161,7 @@ class TestTrinoResourceUnit:
 
         with patch("phlo_trino.resource.config") as mock_config:
             mock_config.trino_catalog = "iceberg"
-            mock_config.iceberg_nessie_ref = "main"
+            mock_config.default_catalog_ref = "main"
 
             resource = TrinoResource(catalog="iceberg")
             assert resource._resolved_catalog() == "iceberg"
@@ -172,7 +172,7 @@ class TestTrinoResourceUnit:
 
         with patch("phlo_trino.resource.config") as mock_config:
             mock_config.trino_catalog = "iceberg"
-            mock_config.iceberg_nessie_ref = "dev"
+            mock_config.default_catalog_ref = "dev"
 
             resource = TrinoResource(catalog="iceberg", ref="dev")
             assert resource._resolved_catalog() == "iceberg_dev"
@@ -183,7 +183,7 @@ class TestTrinoResourceUnit:
 
         with patch("phlo_trino.resource.config") as mock_config:
             mock_config.trino_catalog = "iceberg"
-            mock_config.iceberg_nessie_ref = "main"
+            mock_config.default_catalog_ref = "main"
 
             runtime = type(
                 "StubRuntime",
