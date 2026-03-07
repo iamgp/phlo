@@ -206,3 +206,18 @@ def test_services_start_uses_profile_targets_without_default_fallback(
     assert docker_calls
     assert "prometheus" in docker_calls[0]
     assert "postgres" not in docker_calls[0]
+
+
+def test_load_native_env_overrides_merges_env_files(tmp_path) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("PHLO_API_PORT=54000\nOBSERVATORY_PORT=3001\n")
+    (phlo_dir / ".env.local").write_text("PHLO_API_PORT=54001\nSECRET_TOKEN='abc123'\n")
+
+    result = start_module._load_native_env_overrides(tmp_path)
+
+    assert result["PHLO_API_PORT"] == "54001"
+    assert result["OBSERVATORY_PORT"] == "3001"
+    assert result["SECRET_TOKEN"] == "abc123"

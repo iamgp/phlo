@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -106,6 +107,13 @@ class TestResolvePath:
         result = mgr._resolve_path("{source_path}/build", svc)
         assert result == Path("/pkg/src/build")
 
+    def test_replaces_source_alias(self) -> None:
+        """Verify `{source}` placeholders are resolved."""
+        mgr = NativeProcessManager(Path("/my/project"))
+        svc = _svc("api", source_path=Path("/pkg/src"))
+        result = mgr._resolve_path("{source}/build", svc)
+        assert result == Path("/pkg/src/build")
+
     def test_returns_plain_path_when_no_placeholders(self) -> None:
         """Verify plain path inputs are converted directly."""
         mgr = NativeProcessManager(Path("/my/project"))
@@ -156,3 +164,37 @@ class TestProcessTracking:
 
         assert mgr.get_process("api") is native
         assert mgr.get_process("other") is None
+
+
+class TestNativeEnvSetup:
+    """Tests for native subprocess environment setup."""
+
+    def test_start_service_prepends_project_venv_bin_to_path(self, monkeypatch, tmp_path) -> None:
+        mgr = NativeProcessManager(tmp_path)
+        venv_bin = tmp_path / ".venv" / "bin"
+        venv_bin.mkdir(parents=True)
+        service = _svc("api", dev={"command": ["python", "-m", "http.server"]})
+
+        captured_env: dict[str, str] = {}
+
+        class _Proc:
+            pid = 123
+
+            def poll(self):
+                return None
+
+        def fake_popen(command, **kwargs):
+            captured_env.update(kwargs["env"])
+            return _Proc()
+
+        monkeypatch.setattr("phlo.plugins.compose.native.subprocess.Popen", fake_popen)
+        monkeypatch.setattr(
+            NativeProcessManager,
+            "_wait_for_health",
+            lambda self, url, timeout=30: asyncio.sleep(0, result=True),
+        )
+
+        asyncio.run(mgr.start_service(service))
+
+        assert captured_env["PATH"].split(os.pathsep)[0] == str(venv_bin)
+        assert captured_env["VIRTUAL_ENV"] == str(tmp_path / ".venv")

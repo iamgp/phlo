@@ -10,7 +10,7 @@ def test_resolve_catalog_scanner_returns_provider():
     provider = Mock()
 
     with (
-        patch("phlo_openmetadata.capabilities.discover_capabilities"),
+        patch("phlo_openmetadata.capabilities._discover_capabilities"),
         patch(
             "phlo_openmetadata.capabilities.resolve_capability",
             return_value=Mock(provider=provider),
@@ -25,7 +25,7 @@ def test_resolve_catalog_scanner_returns_provider():
 def test_resolve_catalog_scanner_raises_when_missing():
     """Capability helper fails clearly when scanner capability is unavailable."""
     with (
-        patch("phlo_openmetadata.capabilities.discover_capabilities"),
+        patch("phlo_openmetadata.capabilities._discover_capabilities"),
         patch("phlo_openmetadata.capabilities.resolve_capability", return_value=None),
     ):
         try:

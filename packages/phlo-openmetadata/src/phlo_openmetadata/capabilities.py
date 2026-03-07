@@ -4,12 +4,17 @@ from __future__ import annotations
 
 from phlo.capabilities import resolve_capability
 from phlo.capabilities.interfaces import CatalogScanner
-from phlo.capabilities.discovery import discover_capabilities
+
+
+def _discover_capabilities() -> None:
+    from phlo.capabilities.discovery import discover_capabilities
+
+    discover_capabilities()
 
 
 def resolve_catalog_scanner(name: str | None = None) -> CatalogScanner:
     """Resolve a catalog scanner capability for metadata sync flows."""
-    discover_capabilities()
+    _discover_capabilities()
     resolution = resolve_capability("catalog_scanner", name)
     if resolution is None:
         if name:
@@ -20,7 +25,7 @@ def resolve_catalog_scanner(name: str | None = None) -> CatalogScanner:
 
 def resolve_query_engine_catalog(name: str | None = None, *, default: str = "iceberg") -> str:
     """Resolve the default catalog name from a query engine capability provider."""
-    discover_capabilities()
+    _discover_capabilities()
     resolution = resolve_capability("query_engine", name)
     if resolution is None:
         return default

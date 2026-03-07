@@ -154,6 +154,40 @@ def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
     assert trino["ulimits"] == {"nofile": {"soft": 16384, "hard": 16384}}
 
 
+def test_compose_generator_resolves_source_path_dev_volumes(tmp_path) -> None:
+    class FakeDiscovery:
+        def resolve_dependencies(
+            self, services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
+            return services
+
+        def get_service(self, _name: str) -> None:
+            return None
+
+    service_source = tmp_path / "packages" / "phlo-observatory"
+    service_source.mkdir(parents=True)
+    service = ServiceDefinition(
+        name="observatory",
+        description="observatory",
+        category="orchestration",
+        default=True,
+        source_path=service_source,
+        dev={"volumes": ["{source_path}:/app", "/app/node_modules"]},
+    )
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    compose_yaml = generator.generate_compose(
+        services=[service],
+        output_dir=tmp_path / ".phlo",
+        dev_mode=True,
+    )
+
+    data = yaml.safe_load(compose_yaml)
+    observatory = data["services"]["observatory"]
+    expected_source = os.path.relpath(service_source, tmp_path / ".phlo")
+    assert observatory["volumes"] == [f"{expected_source}:/app", "/app/node_modules"]
+
+
 def test_services_init_excludes_profile_services_by_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
