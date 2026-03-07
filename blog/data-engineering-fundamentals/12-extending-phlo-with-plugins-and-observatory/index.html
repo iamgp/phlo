@@ -438,7 +438,7 @@ Description: Data orchestration platform for workflows and pipelines
 <h2 id="observatory-extension-manifest-basics">Observatory Extension Manifest Basics</h2>
 <p>Phlo Observatory defines extension manifest models for compatibility, navigation, slots, and settings.</p>
 <p>Example structure:</p>
-<pre><code class="language-python">from phlo_observatory.manifest import (
+<pre><code class="language-python">from phlo.plugins.observatory import (
     ObservatoryExtensionCompatibility,
     ObservatoryExtensionManifest,
     ObservatoryExtensionNavItem,
@@ -457,7 +457,7 @@ manifest = ObservatoryExtensionManifest(
 <h2 id="example-extension-class">Example Extension Class</h2>
 <pre><code class="language-python">from importlib import resources
 from phlo.plugins import PluginMetadata
-from phlo_observatory import ObservatoryExtensionPlugin
+from phlo.plugins.observatory import ObservatoryExtensionPlugin
 
 class ExampleObservatoryExtension(ObservatoryExtensionPlugin):
     @property

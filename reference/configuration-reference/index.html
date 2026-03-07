@@ -2767,6 +2767,8 @@ POSTGREST_DB_ANON_ROLE=web_anon
 <p>Data catalog and governance:</p>
 <pre><code class="language-bash">OPENMETADATA_HOST=openmetadata-server
 OPENMETADATA_PORT=8585
+OPENMETADATA_HEAP_OPTS=&quot;-Xmx512m -Xms512m&quot;
+OPENMETADATA_ES_JAVA_OPTS=&quot;-Xms512m -Xmx512m&quot;
 OPENMETADATA_USERNAME=admin
 OPENMETADATA_PASSWORD=admin
 OPENMETADATA_VERIFY_SSL=false

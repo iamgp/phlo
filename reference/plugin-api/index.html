@@ -1294,6 +1294,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#apibackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ApiBackend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#tablestore" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1342,6 +1353,28 @@
     <span class="md-ellipsis">
       
         SchemaMigrator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#maintenancereadmodel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MaintenanceReadModel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alertsink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AlertSink
       
     </span>
   </a>
@@ -2225,6 +2258,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#apibackend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ApiBackend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#tablestore" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2273,6 +2317,28 @@
     <span class="md-ellipsis">
       
         SchemaMigrator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#maintenancereadmodel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MaintenanceReadModel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alertsink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AlertSink
       
     </span>
   </a>
@@ -3002,6 +3068,15 @@ class CustomOrchestratorAdapter(OrchestratorAdapterPlugin):
 <p><code>phlo.capabilities.interfaces</code></p>
 <p>These runtime protocols define the provider contracts resolved by capability
 discovery and consumed by ingestion/migration flows.</p>
+<h3 id="apibackend">ApiBackend</h3>
+<p>Swappable API and graph-serving backend contract:</p>
+<ul>
+<li><code>health_check()</code></li>
+<li><code>describe()</code></li>
+</ul>
+<p>Use this for packages such as Hasura or future semantic/API backends. Service
+plugins answer how to run the backend; <code>ApiBackend</code> answers what backend surface
+the rest of Phlo can resolve and expose.</p>
 <h3 id="tablestore">TableStore</h3>
 <p>Required methods:</p>
 <ul>
@@ -3046,6 +3121,17 @@ discovery and consumed by ingestion/migration flows.</p>
 <li><code>diff_schema(table_name, desired)</code></li>
 <li><code>apply_plan(plan, approved=False)</code></li>
 <li><code>get_schema_history(table_name, limit=10)</code></li>
+</ul>
+<h3 id="maintenancereadmodel">MaintenanceReadModel</h3>
+<p>Maintenance and observability read-model contract:</p>
+<ul>
+<li><code>load_maintenance_status()</code></li>
+<li><code>render_maintenance_prometheus()</code></li>
+</ul>
+<h3 id="alertsink">AlertSink</h3>
+<p>Alert delivery contract:</p>
+<ul>
+<li><code>send_alert(...)</code></li>
 </ul>
 <h3 id="accesspolicy">AccessPolicy</h3>
 <p>Value object used by governance providers:</p>
