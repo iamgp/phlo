@@ -71,10 +71,10 @@ class TrinoResource:
     Attributes:
         host: Optional Trino host override.
         port: Optional Trino port override.
-    user: Trino username for connections.
-    catalog: Optional catalog override.
-    ref: Optional Nessie ref override for catalog resolution.
-    runtime: Optional runtime context providing canonical ref routing.
+        user: Trino username for connections.
+        catalog: Optional catalog override.
+        ref: Optional Nessie ref override for catalog resolution.
+        runtime: Optional runtime context providing canonical ref routing.
     """
 
     host: str | None = None
