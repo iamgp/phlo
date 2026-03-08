@@ -8,6 +8,7 @@ import time
 from typing import TYPE_CHECKING, Any, Iterable
 
 import clickhouse_connect
+import pandas as pd
 
 from phlo.capabilities import CapabilitySupport
 from phlo.logging import get_logger
@@ -104,6 +105,10 @@ class ClickHouseResource:
         )
         raise TimeoutError(f"ClickHouse not ready after {timeout:.1f}s") from last_error
 
+    def _escape_identifier(self, name: str) -> str:
+        """Escape a ClickHouse identifier (database, table, column) with backticks."""
+        return f"`{name.replace('`', '``')}`"
+
     def ensure_table(
         self,
         *,
@@ -114,16 +119,17 @@ class ClickHouseResource:
     ) -> Any:
         """Ensure a destination table exists."""
         settings = self._settings()
-        database = self.database or settings.clickhouse_db
+        database = self._escape_identifier(self.database or settings.clickhouse_db)
+        table = self._escape_identifier(table_name)
 
         columns_def = self._schema_to_columns(schema)
 
         partition_by = ""
         if partition_spec:
-            partition_cols = [p[0] for p in partition_spec]
+            partition_cols = [self._escape_identifier(p[0]) for p in partition_spec]
             partition_by = f"PARTITION BY ({', '.join(partition_cols)})"
 
-        sql = f"CREATE TABLE IF NOT EXISTS {database}.{table_name} ({columns_def}) ENGINE = MergeTree() {partition_by} ORDER BY tuple()"
+        sql = f"CREATE TABLE IF NOT EXISTS {database}.{table} ({columns_def}) ENGINE = MergeTree() {partition_by} ORDER BY tuple()"
 
         return self.command(sql)
 
@@ -136,13 +142,20 @@ class ClickHouseResource:
     ) -> dict[str, int]:
         """Append staged parquet data to a destination table."""
         settings = self._settings()
-        database = self.database or settings.clickhouse_db
+        database = self._escape_identifier(self.database or settings.clickhouse_db)
+        table = self._escape_identifier(table_name)
 
         data_path_str = str(data_path)
-        sql = f"INSERT INTO {database}.{table_name} SELECT * FROM file('{data_path_str}', Parquet)"
+        df = pd.read_parquet(data_path_str)
+        row_count = len(df)
 
-        self.command(sql)
-        return {"rows_inserted": 0}
+        client = self.get_client()
+        try:
+            client.insert_df(f"{database}.{table}", df)
+        finally:
+            client.close()
+
+        return {"rows_inserted": row_count}
 
     def merge_parquet(
         self,
@@ -154,19 +167,24 @@ class ClickHouseResource:
     ) -> dict[str, int]:
         """Merge staged parquet data into a destination table."""
         settings = self._settings()
-        database = self.database or settings.clickhouse_db
+        database = self._escape_identifier(self.database or settings.clickhouse_db)
+        table = self._escape_identifier(table_name)
+        key = self._escape_identifier(unique_key)
 
         data_path_str = str(data_path)
+        df = pd.read_parquet(data_path_str)
+        row_count = len(df)
+
         sql = f"""
-        INSERT INTO {database}.{table_name}
+        INSERT INTO {database}.{table}
         SELECT * FROM file('{data_path_str}', Parquet)
-        WHERE {unique_key} NOT IN (
-            SELECT {unique_key} FROM {database}.{table_name}
+        WHERE {key} NOT IN (
+            SELECT {key} FROM {database}.{table}
         )
         """
 
         self.command(sql)
-        return {"rows_inserted": 0, "rows_deleted": 0}
+        return {"rows_inserted": row_count, "rows_deleted": 0}
 
     def _schema_to_columns(self, schema: Any) -> str:
         """Convert a schema to ClickHouse column definitions."""
