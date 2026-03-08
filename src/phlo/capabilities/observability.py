@@ -1,10 +1,10 @@
-"""Capability implementations exposed by phlo-metrics."""
+"""Default observability capability provider."""
 
 from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -15,8 +15,13 @@ from phlo.capabilities.interfaces import (
     PlatformMetricsSummary,
     ServiceStatus,
 )
-
-from phlo_metrics.maintenance import load_maintenance_status, render_maintenance_prometheus
+from phlo.capabilities.maintenance import DefaultMaintenanceReadModel
+from phlo.capabilities.registry import (
+    register_maintenance_read_model,
+    register_observability_backend,
+)
+from phlo.capabilities.specs import MaintenanceReadModelSpec, ObservabilityBackendSpec
+from phlo.capabilities.support import CapabilitySupport
 
 _PUBLIC_HOST_ENV = "PHLO_OBSERVABILITY_PUBLIC_HOST"
 _PUBLIC_SCHEME_ENV = "PHLO_OBSERVABILITY_PUBLIC_SCHEME"
@@ -32,18 +37,6 @@ _LOKI_PUBLIC_URL_ENV = "LOKI_PUBLIC_URL"
 _LOKI_LOGS_PATH_ENV = "LOKI_LOGS_PATH"
 
 
-class MetricsMaintenanceReadModel:
-    """Expose phlo-metrics maintenance helpers as a neutral read model."""
-
-    def load_maintenance_status(self):
-        """Load the latest maintenance status snapshot."""
-        return load_maintenance_status()
-
-    def render_maintenance_prometheus(self) -> str:
-        """Render maintenance metrics in Prometheus text format."""
-        return render_maintenance_prometheus()
-
-
 class DefaultObservabilityBackend:
     """Default observability backend composing metrics, logs, and dashboards."""
 
@@ -56,14 +49,13 @@ class DefaultObservabilityBackend:
         self._grafana_url = grafana_url
         self._prometheus_url = prometheus_url
         self._loki_url = loki_url
-        self._maintenance = MetricsMaintenanceReadModel()
+        self._maintenance = DefaultMaintenanceReadModel()
 
     def health_summary(self) -> PlatformHealthSummary:
-        """Return platform health summary."""
         try:
             maintenance = self._maintenance.load_maintenance_status()
             components = {
-                "metrics": "healthy",
+                "observability": "healthy",
                 "maintenance": "healthy" if maintenance.operations else "no_data",
             }
             if maintenance.operations:
@@ -73,16 +65,15 @@ class DefaultObservabilityBackend:
                 overall = "unknown"
         except Exception:
             overall = "unhealthy"
-            components = {"metrics": "unhealthy", "maintenance": "unhealthy"}
+            components = {"observability": "unhealthy", "maintenance": "unhealthy"}
 
         return PlatformHealthSummary(
             overall_status=overall,
             components=components,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     def service_status(self) -> list[ServiceStatus]:
-        """Return service status list."""
         try:
             maintenance = self._maintenance.load_maintenance_status()
             latest_by_service: dict[str, ServiceStatus] = {}
@@ -100,14 +91,13 @@ class DefaultObservabilityBackend:
         except Exception:
             return [
                 ServiceStatus(
-                    name="metrics",
+                    name="observability",
                     status="unknown",
-                    last_check=datetime.now(timezone.utc).isoformat(),
+                    last_check=datetime.now(UTC).isoformat(),
                 )
             ]
 
     def platform_metrics(self, period: str) -> PlatformMetricsSummary:
-        """Return platform metrics for the specified period."""
         try:
             maintenance = self._maintenance.load_maintenance_status()
             total_ops = len(maintenance.operations)
@@ -123,30 +113,26 @@ class DefaultObservabilityBackend:
         return PlatformMetricsSummary(
             period=period,
             metrics=metrics,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     def recent_alerts(self, limit: int) -> list[AlertSummary]:
-        """Return recent alerts up to the specified limit."""
         try:
             maintenance = self._maintenance.load_maintenance_status()
             failed_ops = [op for op in maintenance.operations if op.status == "failed"]
-            alerts = []
-            for op in failed_ops[:limit]:
-                alerts.append(
-                    AlertSummary(
-                        title=f"Maintenance operation {op.operation} failed",
-                        severity="error",
-                        status="firing",
-                        fired_at=op.completed_at.isoformat(),
-                    )
+            return [
+                AlertSummary(
+                    title=f"Maintenance operation {op.operation} failed",
+                    severity="error",
+                    status="firing",
+                    fired_at=op.completed_at.isoformat(),
                 )
-            return alerts
+                for op in failed_ops[:limit]
+            ]
         except Exception:
             return []
 
     def dashboard_links(self) -> list[DashboardLink]:
-        """Return available dashboard links."""
         clickstack_url = self._resolve_clickstack_url()
         if clickstack_url is not None:
             dashboards_path = (
@@ -169,11 +155,7 @@ class DefaultObservabilityBackend:
             return []
 
         path_template = (
-            _service_env_value(
-                "grafana",
-                _GRAFANA_DASHBOARD_PATH_TEMPLATE_ENV,
-            )
-            or "/d/{uid}"
+            _service_env_value("grafana", _GRAFANA_DASHBOARD_PATH_TEMPLATE_ENV) or "/d/{uid}"
         )
         return [
             DashboardLink(
@@ -185,7 +167,6 @@ class DefaultObservabilityBackend:
         ]
 
     def logs_query_link(self, service: str | None = None) -> str | None:
-        """Return a link to query logs."""
         clickstack_url = self._resolve_clickstack_url()
         if clickstack_url is not None:
             logs_path = _service_env_value("clickstack", _CLICKSTACK_LOGS_PATH_ENV) or "/"
@@ -204,7 +185,6 @@ class DefaultObservabilityBackend:
         return f"{loki_url}{logs_path}"
 
     def metrics_query_link(self, metric: str | None = None) -> str | None:
-        """Return a link to query metrics."""
         clickstack_url = self._resolve_clickstack_url()
         if clickstack_url is not None:
             metrics_path = _service_env_value("clickstack", _CLICKSTACK_METRICS_PATH_ENV) or "/"
@@ -223,12 +203,37 @@ class DefaultObservabilityBackend:
         return f"{prometheus_url}{query_path}"
 
     def _resolve_clickstack_url(self) -> str | None:
-        """Resolve ClickStack base URL when the service is installed."""
         return _resolve_service_base_url(
             "clickstack",
             public_url_env=_CLICKSTACK_PUBLIC_URL_ENV,
             port_env_key="CLICKSTACK_PORT",
         )
+
+
+def register_default_capability_providers() -> None:
+    """Register core-owned default maintenance and observability providers."""
+    register_maintenance_read_model(
+        MaintenanceReadModelSpec(
+            name="default",
+            provider=DefaultMaintenanceReadModel(),
+        )
+    )
+    register_observability_backend(
+        ObservabilityBackendSpec(
+            name="default",
+            provider=DefaultObservabilityBackend(),
+            metadata={
+                "default_stack": ["phlo-otel", "phlo-clickstack"],
+                "service_dependencies": ["clickstack"],
+            },
+            support=CapabilitySupport(
+                supports_metrics=True,
+                supports_logs=True,
+                supports_dashboards=True,
+                supports_alerts=True,
+            ),
+        )
+    )
 
 
 def _resolve_service_base_url(
@@ -316,7 +321,6 @@ def _dashboard_category(title: str) -> str:
 
 
 def _join_url(base_url: str, path: str) -> str:
-    """Join a base URL and path without duplicating slashes."""
     normalized_path = path if path.startswith("/") else f"/{path}"
     if normalized_path == "/":
         return base_url.rstrip("/")
@@ -324,7 +328,6 @@ def _join_url(base_url: str, path: str) -> str:
 
 
 def _append_query_params(url: str, **params: str | None) -> str:
-    """Append non-empty query params to a URL while preserving existing params."""
     split_result = urlsplit(url)
     query_params = dict(parse_qsl(split_result.query, keep_blank_values=True))
     query_params.update({key: value for key, value in params.items() if value is not None})

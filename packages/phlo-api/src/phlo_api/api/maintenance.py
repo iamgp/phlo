@@ -41,7 +41,7 @@ def _resolve_maintenance_read_model() -> MaintenanceReadModel:
             )
         raise RuntimeError(
             "Maintenance observability requires a maintenance_read_model capability. "
-            "Install phlo-metrics or another provider."
+            "Install the core maintenance provider or another provider."
         )
     return resolution.provider
 

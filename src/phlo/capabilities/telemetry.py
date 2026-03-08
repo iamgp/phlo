@@ -1,13 +1,14 @@
-"""Telemetry recording helpers for hook-based metrics."""
+"""Core telemetry recording helpers."""
 
 from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterator
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from phlo.hooks import TelemetryEvent
 from phlo.logging import get_logger
@@ -16,16 +17,9 @@ logger = get_logger(__name__)
 
 
 class TelemetryRecorder:
-    """Write telemetry events to a JSONL file.
-
-    Args:
-        path: Optional output path for telemetry events.
-        max_bytes: Maximum file size before rotation.
-    """
+    """Write telemetry events to a JSONL file."""
 
     def __init__(self, path: Path | None = None, max_bytes: int = 20_000_000) -> None:
-        """Create a recorder that writes telemetry events to JSONL."""
-
         self.path = path or _default_path()
         self.max_bytes = max_bytes
 
@@ -43,12 +37,11 @@ class TelemetryRecorder:
 
     def _rotate_if_needed(self) -> None:
         """Rotate the telemetry file when it exceeds max_bytes."""
-
         if not self.path.exists():
             return
         if self.path.stat().st_size < self.max_bytes:
             return
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         rotated = self.path.with_name(f"{self.path.stem}.{timestamp}{self.path.suffix}")
         self.path.rename(rotated)
         logger.debug(
@@ -61,7 +54,6 @@ class TelemetryRecorder:
 
 def _default_path() -> Path:
     """Return the default telemetry output path."""
-
     env_path = os.environ.get("PHLO_TELEMETRY_PATH")
     if env_path:
         return Path(env_path)
@@ -70,13 +62,11 @@ def _default_path() -> Path:
 
 def get_telemetry_path(path: Path | None = None) -> Path:
     """Resolve the telemetry JSONL path."""
-
     return path or _default_path()
 
 
 def iter_telemetry_events(path: Path | None = None) -> Iterator[dict[str, Any]]:
     """Yield telemetry events from the JSONL file."""
-
     event_path = get_telemetry_path(path)
     if not event_path.exists():
         return iter(())
@@ -105,7 +95,6 @@ def iter_telemetry_events(path: Path | None = None) -> Iterator[dict[str, Any]]:
 
 def _serialize_event(event: TelemetryEvent) -> dict[str, Any]:
     """Serialize a TelemetryEvent into JSON-friendly primitives."""
-
     payload = asdict(event)
     payload["timestamp"] = event.timestamp.isoformat()
     return payload

@@ -12,6 +12,7 @@ from pathlib import Path
 import click
 
 import phlo.cli._warning_filters  # noqa: F401
+from phlo.cli.commands.metrics import metrics_group
 from phlo.cli.commands.migrate import migrate_group
 from phlo.cli.commands.plugin import plugin_group
 from phlo.cli.commands.schema_migrate import schema_migrate_group
@@ -43,6 +44,7 @@ cli.add_command(workflow_group)
 cli.add_command(plugin_group)
 cli.add_command(schema_migrate_group)
 cli.add_command(migrate_group)
+cli.add_command(metrics_group)
 cli.add_command(contracts)
 cli.add_command(config)
 cli.add_command(env)

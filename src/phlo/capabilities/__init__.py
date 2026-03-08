@@ -13,6 +13,17 @@ from phlo.capabilities.interfaces import (
     SchemaMigrator,
     TableStore,
 )
+from phlo.capabilities.maintenance import (
+    DefaultMaintenanceReadModel,
+    MaintenanceOperationStatus,
+    MaintenanceStatusSnapshot,
+    load_maintenance_status,
+    render_maintenance_prometheus,
+)
+from phlo.capabilities.observability import (
+    DefaultObservabilityBackend,
+    register_default_capability_providers,
+)
 from phlo.capabilities.registry import (
     CapabilityRegistry,
     clear_capabilities,
@@ -70,6 +81,7 @@ from phlo.capabilities.specs import (
     TableStoreSpec,
 )
 from phlo.capabilities.support import CapabilitySupport, coerce_capability_support
+from phlo.capabilities.telemetry import TelemetryRecorder, get_telemetry_path, iter_telemetry_events
 
 if TYPE_CHECKING:
     from phlo.capabilities.resolver import ResolutionResult
@@ -88,10 +100,15 @@ __all__ = [
     "CapabilityRegistry",
     "CheckResult",
     "DataMigrationSourceSpec",
+    "DefaultMaintenanceReadModel",
+    "DefaultObservabilityBackend",
     "FieldSpec",
+    "get_telemetry_path",
     "LineageSinkSpec",
     "MaintenanceReadModel",
+    "MaintenanceOperationStatus",
     "MaintenanceReadModelSpec",
+    "MaintenanceStatusSnapshot",
     "MaterializeResult",
     "MetadataCatalogSpec",
     "NormalizedSchema",
@@ -135,11 +152,16 @@ __all__ = [
     "register_query_engine",
     "register_resource",
     "register_schema_migrator",
+    "register_default_capability_providers",
     "register_table_store",
     "ResolutionResult",
+    "render_maintenance_prometheus",
     "resolve_runtime_ref",
     "resolve_capability",
     "routing_from_context",
+    "TelemetryRecorder",
+    "iter_telemetry_events",
+    "load_maintenance_status",
 ]
 
 
