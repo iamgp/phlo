@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime
 from typing import Any
 
@@ -883,6 +884,16 @@ class OtelHookPlugin(HookPlugin):
             span_id = metadata_span_id
         if metadata_trace_flags is not None:
             trace_flags = metadata_trace_flags
+        if trace_id is None or span_id is None:
+            synthetic_trace_id, synthetic_span_id = self._derive_trace_context_identifiers(
+                correlation
+            )
+            if trace_id is None:
+                trace_id = synthetic_trace_id
+            if span_id is None:
+                span_id = synthetic_span_id
+            if trace_flags is None and synthetic_trace_id is not None:
+                trace_flags = TraceFlags(0x01)
         return trace_id, span_id, trace_flags
 
     def _merge_correlation(self, correlation: HookCorrelation, **overrides: Any) -> HookCorrelation:
@@ -896,6 +907,14 @@ class OtelHookPlugin(HookPlugin):
         trace_id = self._parse_trace_identifier(correlation.trace_id)
         span_id = self._parse_trace_identifier(correlation.span_id)
         if trace_id is None or span_id is None:
+            synthetic_trace_id, synthetic_span_id = self._derive_trace_context_identifiers(
+                correlation
+            )
+            if trace_id is None:
+                trace_id = synthetic_trace_id
+            if span_id is None:
+                span_id = synthetic_span_id
+        if trace_id is None or span_id is None:
             return None
 
         trace_flags = self._parse_trace_flags(correlation.trace_flags) or TraceFlags(0x01)
@@ -907,6 +926,29 @@ class OtelHookPlugin(HookPlugin):
             trace_state=TraceState(),
         )
         return set_span_in_context(NonRecordingSpan(span_context))
+
+    def _derive_trace_context_identifiers(
+        self,
+        correlation: HookCorrelation,
+    ) -> tuple[int | None, int | None]:
+        grouping_key = self._trace_grouping_key(correlation)
+        if grouping_key is None:
+            return None, None
+
+        trace_id = self._stable_identifier(f"trace:{grouping_key}", bytes_length=16)
+        span_id = self._stable_identifier(f"span:{grouping_key}", bytes_length=8)
+        return trace_id, span_id
+
+    def _trace_grouping_key(self, correlation: HookCorrelation) -> str | None:
+        if correlation.run_id:
+            return f"run:{correlation.run_id}"
+        if correlation.request_id:
+            return f"request:{correlation.request_id}"
+        return None
+
+    def _stable_identifier(self, value: str, *, bytes_length: int) -> int:
+        digest = hashlib.sha256(value.encode("utf-8")).digest()
+        return int.from_bytes(digest[:bytes_length], byteorder="big", signed=False)
 
     def _parse_trace_identifier(self, value: Any) -> int | None:
         if value is None:

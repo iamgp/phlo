@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from opentelemetry.trace import get_current_span
 
 from phlo.hooks.emitters import TelemetryEventContext, TelemetryEventEmitter
 from phlo.hooks.events import (
@@ -130,6 +131,26 @@ class TestOtelHookPlugin:
         mock_span.set_attribute.assert_any_call("phlo.run_id", "run-123")
         mock_span.set_attribute.assert_any_call("phlo.partition_key", "2026-03-08")
         mock_span.set_attribute.assert_any_call("phlo.job_name", "daily_ingestion")
+
+    def test_build_parent_context_derives_stable_trace_from_run_id(self, plugin):
+        first = plugin._build_parent_context(HookCorrelation(run_id="run-123"))
+        second = plugin._build_parent_context(HookCorrelation(run_id="run-123"))
+
+        assert first is not None
+        assert second is not None
+        first_context = get_current_span(first).get_span_context()
+        second_context = get_current_span(second).get_span_context()
+        assert first_context.is_valid
+        assert second_context.is_valid
+        assert first_context.trace_id == second_context.trace_id
+        assert first_context.span_id == second_context.span_id
+
+    def test_build_parent_context_uses_request_id_when_run_id_missing(self, plugin):
+        context = plugin._build_parent_context(HookCorrelation(request_id="req-99"))
+
+        assert context is not None
+        span_context = get_current_span(context).get_span_context()
+        assert span_context.is_valid
 
     @patch("phlo_otel.hooks_plugin.get_meter")
     @patch("phlo_otel.hooks_plugin.get_tracer")
@@ -773,6 +794,26 @@ class TestOtelHookPlugin:
         assert emitted_record.span_id == int("def456", 16)
         assert emitted_record.attributes["phlo.run_id"] == "run-42"
         assert emitted_record.attributes["phlo.asset_key"] == "silver.orders"
+
+    @patch("phlo_otel.hooks_plugin.get_log_emitter")
+    def test_log_record_derives_trace_context_from_run_id(self, mock_get_log_emitter, plugin):
+        mock_emitter = MagicMock()
+        mock_get_log_emitter.return_value = mock_emitter
+
+        event = LogEvent(
+            event_type="log.record",
+            logger="phlo.tests.logging",
+            level="info",
+            message="pipeline heartbeat",
+            run_id="run-777",
+        )
+
+        plugin._handle_log_record(event)
+
+        emitted_record = mock_emitter.emit.call_args.args[0]
+        assert emitted_record.trace_id is not None
+        assert emitted_record.span_id is not None
+        assert emitted_record.attributes["phlo.run_id"] == "run-777"
 
     def test_parse_trace_identifier_treats_all_digit_strings_as_hex(self, plugin):
         assert plugin._parse_trace_identifier("1234567890123456") == int("1234567890123456", 16)
