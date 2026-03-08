@@ -3,6 +3,7 @@
 import sys
 from pathlib import Path
 from subprocess import TimeoutExpired
+from uuid import uuid4
 
 import click
 import yaml
@@ -52,6 +53,7 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
         phlo services stop --service postgres,minio
     """
     project_root = Path.cwd()
+    lifecycle_request_id = uuid4().hex
     logger.info(
         "services_stop_requested",
         project_name=get_project_name(),
@@ -83,6 +85,7 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
                 native_targets,
                 project_name=get_project_name(),
                 project_root=project_root,
+                request_id=lifecycle_request_id,
                 metadata={"native": True},
             )
         _stop_native_processes(project_root, native_services_list or None)
@@ -98,6 +101,7 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
                 native_targets,
                 project_name=get_project_name(),
                 project_root=project_root,
+                request_id=lifecycle_request_id,
                 status="success",
                 metadata={"native": True},
             )
@@ -147,6 +151,7 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
             docker_targets,
             project_name=project_name,
             project_root=project_root,
+            request_id=lifecycle_request_id,
             metadata={"native": False},
         )
 
@@ -185,6 +190,7 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
                     docker_targets,
                     project_name=project_name,
                     project_root=project_root,
+                    request_id=lifecycle_request_id,
                     status="success",
                     metadata={"native": False},
                 )
@@ -207,6 +213,7 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
                     docker_targets,
                     project_name=project_name,
                     project_root=project_root,
+                    request_id=lifecycle_request_id,
                     status="failure",
                     metadata={"native": False, "returncode": result.returncode},
                 )

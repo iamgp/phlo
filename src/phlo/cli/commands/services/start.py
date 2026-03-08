@@ -5,6 +5,7 @@ import signal
 import subprocess
 import time
 from pathlib import Path
+from uuid import uuid4
 
 import click
 import yaml
@@ -136,6 +137,7 @@ def start_cmd(
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"
     project_name = get_project_name()
+    lifecycle_request_id = uuid4().hex
     logger.info(
         "services_start_requested",
         project_name=project_name,
@@ -292,6 +294,7 @@ def start_cmd(
             docker_service_names,
             project_name=project_name,
             project_root=Path.cwd(),
+            request_id=lifecycle_request_id,
             metadata={"native": False},
         )
 
@@ -437,6 +440,7 @@ def start_cmd(
                             [svc.name],
                             project_name=project_name,
                             project_root=project_root,
+                            request_id=lifecycle_request_id,
                             metadata={"native": True},
                         )
                         click.echo(f"  Starting {svc.name}...")
@@ -455,6 +459,7 @@ def start_cmd(
                                 [svc.name],
                                 project_name=project_name,
                                 project_root=project_root,
+                                request_id=lifecycle_request_id,
                                 status="success",
                                 metadata={"native": True, "pid": process.pid},
                             )
@@ -465,6 +470,7 @@ def start_cmd(
                                 [svc.name],
                                 project_name=project_name,
                                 project_root=project_root,
+                                request_id=lifecycle_request_id,
                                 status="failure",
                                 metadata={"native": True},
                             )
@@ -532,6 +538,7 @@ def start_cmd(
                 started_services,
                 project_name=project_name,
                 project_root=Path.cwd(),
+                request_id=lifecycle_request_id,
                 status="success",
                 metadata={"native": False},
             )
@@ -559,6 +566,7 @@ def start_cmd(
                 docker_service_names,
                 project_name=project_name,
                 project_root=Path.cwd(),
+                request_id=lifecycle_request_id,
                 status="failure",
                 metadata={"native": False, "returncode": result.returncode},
             )
