@@ -87,6 +87,7 @@ class TestOtelHookPlugin:
         mock_tracer.start_as_current_span.assert_called_once()
         call_args = mock_tracer.start_as_current_span.call_args
         assert "ingestion.glucose_entries" in call_args[0]
+        assert call_args.kwargs["attributes"]["phlo.stage"] == "ingestion"
 
         assert mock_meter.create_counter.call_count == 2
         assert mock_counter.add.call_count == 2
@@ -247,6 +248,8 @@ class TestOtelHookPlugin:
             "lineage.edges",
             attributes={
                 "phlo.event_type": "lineage.edges",
+                "phlo.stage": "lineage",
+                "phlo.operation": "edges",
                 "phlo.edge_count": 2,
                 "phlo.asset_count": 2,
             },
@@ -283,6 +286,10 @@ class TestOtelHookPlugin:
         plugin._handle_publish(event)
 
         mock_tracer.start_as_current_span.assert_called_once()
+        call_args = mock_tracer.start_as_current_span.call_args
+        assert call_args.kwargs["attributes"]["phlo.stage"] == "publish"
+        assert call_args.kwargs["attributes"]["phlo.system"] == "clickhouse"
+        assert call_args.kwargs["attributes"]["phlo.operation"] == "publish"
         mock_runs_counter.add.assert_called_once_with(
             1, {"target_system": "clickhouse", "status": "success"}
         )
@@ -354,6 +361,9 @@ class TestOtelHookPlugin:
 
         plugin._handle_service_lifecycle(event)
 
+        call_args = mock_tracer.start_as_current_span.call_args
+        assert call_args.kwargs["attributes"]["phlo.stage"] == "service"
+        assert call_args.kwargs["attributes"]["phlo.operation"] == "post_start"
         mock_span.set_status.assert_called_once()
         mock_error_counter.add.assert_called_once_with(
             1,
@@ -420,6 +430,12 @@ class TestOtelHookPlugin:
         plugin._handle_schema_migration(schema_event)
         plugin._handle_data_migration(data_event)
 
+        schema_call = mock_tracer.start_as_current_span.call_args_list[0]
+        data_call = mock_tracer.start_as_current_span.call_args_list[1]
+        assert schema_call.kwargs["attributes"]["phlo.stage"] == "migration"
+        assert schema_call.kwargs["attributes"]["phlo.system"] == "schema"
+        assert data_call.kwargs["attributes"]["phlo.stage"] == "migration"
+        assert data_call.kwargs["attributes"]["phlo.system"] == "postgres"
         schema_changes.add.assert_called_once_with(
             3, {"classification": "minor", "status": "applied"}
         )
@@ -593,6 +609,85 @@ class TestOtelHookPlugin:
 
         mock_meter_fn.assert_not_called()
 
+    @patch("phlo_otel.hooks_plugin.get_meter")
+    def test_maintenance_telemetry_promotes_standard_metrics(self, mock_meter_fn, plugin):
+        mock_runs_counter = MagicMock()
+        mock_duration_histogram = MagicMock()
+        mock_meter = MagicMock()
+        mock_meter.create_counter.return_value = mock_runs_counter
+        mock_meter.create_histogram.return_value = mock_duration_histogram
+        mock_meter_fn.return_value = mock_meter
+
+        run_event = TelemetryEvent(
+            event_type="telemetry.metric",
+            name="iceberg.maintenance.run",
+            value=1,
+            unit="run",
+            payload={
+                "operation": "expire_snapshots",
+                "namespace": "raw",
+                "status": "success",
+                "ref": "dev",
+            },
+        )
+        duration_event = TelemetryEvent(
+            event_type="telemetry.metric",
+            name="iceberg.maintenance.duration_seconds",
+            value=3.5,
+            unit="seconds",
+            payload={
+                "operation": "expire_snapshots",
+                "namespace": "raw",
+                "status": "success",
+            },
+        )
+
+        plugin._handle_telemetry(run_event)
+        plugin._handle_telemetry(duration_event)
+
+        mock_meter.create_counter.assert_called_once_with(
+            "phlo.maintenance.runs",
+            unit="run",
+            description="Maintenance metric derived from iceberg.maintenance.run",
+        )
+        mock_runs_counter.add.assert_called_once_with(
+            1,
+            {"operation": "expire_snapshots", "namespace": "raw", "status": "success"},
+        )
+        mock_meter.create_histogram.assert_called_once_with(
+            "phlo.maintenance.duration",
+            unit="seconds",
+            description="Maintenance metric derived from iceberg.maintenance.duration_seconds",
+        )
+        mock_duration_histogram.record.assert_called_once_with(
+            3.5,
+            {"operation": "expire_snapshots", "namespace": "raw", "status": "success"},
+        )
+
+    @patch("phlo_otel.hooks_plugin.get_meter")
+    def test_unknown_telemetry_keeps_generic_metric_namespace(self, mock_meter_fn, plugin):
+        mock_gauge = MagicMock()
+        mock_meter = MagicMock()
+        mock_meter.create_gauge.return_value = mock_gauge
+        mock_meter_fn.return_value = mock_meter
+
+        event = TelemetryEvent(
+            event_type="telemetry.metric",
+            name="custom.backlog",
+            value=9,
+            unit="items",
+            payload={"operation": "sync"},
+        )
+
+        plugin._handle_telemetry(event)
+
+        mock_meter.create_gauge.assert_called_once_with(
+            "phlo.telemetry.custom.backlog",
+            unit="items",
+            description="Telemetry metric: custom.backlog",
+        )
+        mock_gauge.set.assert_called_once_with(9, {"operation": "sync"})
+
     @patch("phlo_otel.hooks_plugin.get_log_emitter")
     def test_log_record_exports_to_otel_logs(self, mock_get_log_emitter, plugin):
         mock_emitter = MagicMock()
@@ -616,10 +711,32 @@ class TestOtelHookPlugin:
         assert emitted_record.body == "lag spike detected"
         assert emitted_record.severity_text == "WARNING"
         assert emitted_record.trace_id == int("abc123", 16)
+        assert emitted_record.attributes["phlo.stage"] == "log"
         assert emitted_record.attributes["phlo.service"] == "phlo-worker"
+        assert emitted_record.attributes["phlo.system"] == "phlo-worker"
         assert emitted_record.attributes["phlo.run_id"] == "run-7"
         assert emitted_record.attributes["phlo.tag.team"] == "analytics"
         assert emitted_record.attributes["phlo.metadata.trace_id"] == "abc123"
+
+    @patch("phlo_otel.hooks_plugin.get_log_emitter")
+    def test_log_record_uses_operation_tag_as_semantic_attribute(
+        self, mock_get_log_emitter, plugin
+    ):
+        mock_emitter = MagicMock()
+        mock_get_log_emitter.return_value = mock_emitter
+
+        event = LogEvent(
+            event_type="log.record",
+            logger="phlo.tests.logging",
+            level="info",
+            message="maintenance complete",
+            tags={"operation": "expire_snapshots"},
+        )
+
+        plugin._handle_log_record(event)
+
+        emitted_record = mock_emitter.emit.call_args.args[0]
+        assert emitted_record.attributes["phlo.operation"] == "expire_snapshots"
 
     @patch("phlo_otel.hooks_plugin.get_log_emitter")
     def test_log_record_uses_correlation_for_trace_context(self, mock_get_log_emitter, plugin):

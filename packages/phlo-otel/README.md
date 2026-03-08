@@ -50,7 +50,7 @@ Phlo settings supported for resource defaults:
 | `ServiceLifecycleEvent` | `service.<service>.<phase>` | `phlo.service.lifecycle.events` |
 | `SchemaMigrationEvent` | `schema_migration.<table>` | `phlo.schema_migration.runs`, `phlo.schema_migration.changes` |
 | `DataMigrationEvent` | `data_migration.<migration>` | `phlo.data_migration.runs`, `phlo.data_migration.rows_read`, `phlo.data_migration.rows_written`, `phlo.data_migration.duration` |
-| `TelemetryEvent` | — | `phlo.telemetry.<name>` (`gauge` by default; `counter`, `histogram`, and `up_down_counter` supported via payload) |
+| `TelemetryEvent` | — | `phlo.telemetry.<name>` fallback (`gauge` by default; `counter`, `histogram`, and `up_down_counter` supported via payload) |
 | `LogEvent` | — | OTLP log records with Phlo correlation attributes |
 
 Trace and metric export activate when you configure an OTLP endpoint or set the
@@ -59,6 +59,24 @@ Failure statuses across workflow events also increment `phlo.errors`.
 Spans and OTLP log records carry shared correlation fields when hook producers
 provide them, including `run_id`, `asset_key`, `partition_key`, `job_name`,
 and trace/span identifiers.
+
+### Stable semantic attributes
+
+Representative spans and OTLP log records include a stable semantic envelope:
+
+- `phlo.event_type`
+- `phlo.stage`
+- `phlo.system`
+- `phlo.operation` when a bounded operation is available
+- `phlo.status` when the source event carries status
+
+Examples:
+
+- ingestion spans: `phlo.stage=ingestion`
+- transform spans: `phlo.stage=transform`, `phlo.system=dbt`
+- publish spans: `phlo.stage=publish`, `phlo.system=<target_system>`, `phlo.operation=publish`
+- service lifecycle spans: `phlo.stage=service`, `phlo.operation=<phase>`
+- migration spans: `phlo.stage=migration`
 
 Example:
 
@@ -114,6 +132,21 @@ Allowed label keys currently include:
 
 Identifiers such as `run_id`, `partition_key`, and `asset_key` stay in traces
 and logs rather than metric labels.
+
+### Maintenance metric promotion
+
+Known Iceberg maintenance telemetry is promoted into bounded workflow metrics:
+
+- `iceberg.maintenance.run` -> `phlo.maintenance.runs`
+- `iceberg.maintenance.duration_seconds` -> `phlo.maintenance.duration`
+- `iceberg.maintenance.tables_processed` -> `phlo.maintenance.tables_processed`
+- `iceberg.maintenance.errors` -> `phlo.maintenance.errors`
+- `iceberg.maintenance.snapshots_deleted` -> `phlo.maintenance.snapshots_deleted`
+- `iceberg.maintenance.orphan_files` -> `phlo.maintenance.orphan_files`
+- `iceberg.maintenance.total_records` -> `phlo.maintenance.records_processed`
+- `iceberg.maintenance.total_size_mb` -> `phlo.maintenance.size_mb`
+
+Unknown telemetry names still fall back to `phlo.telemetry.<name>`.
 
 ## Architecture
 

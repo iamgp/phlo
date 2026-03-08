@@ -112,6 +112,7 @@ class OtelHookPlugin(HookPlugin):
             f"ingestion.{event.table_name}",
             attributes={
                 "phlo.asset_key": event.asset_key,
+                "phlo.stage": "ingestion",
                 "phlo.table_name": event.table_name,
                 "phlo.group_name": event.group_name,
                 "phlo.event_type": event.event_type,
@@ -119,6 +120,7 @@ class OtelHookPlugin(HookPlugin):
             context=self._build_parent_context(correlation),
         ) as span:
             self._set_correlation_attributes(span, correlation)
+            self._set_attribute_if_present(span, "phlo.system", event.tags.get("source"))
             if event.status:
                 span.set_attribute("phlo.status", event.status)
             if event.error:
@@ -171,6 +173,8 @@ class OtelHookPlugin(HookPlugin):
         with tracer.start_as_current_span(
             span_name,
             attributes={
+                "phlo.stage": "transform",
+                "phlo.system": event.tool,
                 "phlo.tool": event.tool,
                 "phlo.event_type": event.event_type,
             },
@@ -218,6 +222,7 @@ class OtelHookPlugin(HookPlugin):
             f"quality.{event.check_name}",
             attributes={
                 "phlo.asset_key": event.asset_key,
+                "phlo.stage": "quality",
                 "phlo.check_name": event.check_name,
                 "phlo.passed": event.passed,
                 "phlo.event_type": event.event_type,
@@ -225,6 +230,8 @@ class OtelHookPlugin(HookPlugin):
             context=self._build_parent_context(correlation),
         ) as span:
             self._set_correlation_attributes(span, correlation)
+            self._set_attribute_if_present(span, "phlo.system", event.tags.get("backend"))
+            self._set_attribute_if_present(span, "phlo.operation", event.check_type)
             if event.severity:
                 span.set_attribute("phlo.severity", event.severity)
             if event.check_type:
@@ -259,6 +266,8 @@ class OtelHookPlugin(HookPlugin):
             "lineage.edges",
             attributes={
                 "phlo.event_type": event.event_type,
+                "phlo.stage": "lineage",
+                "phlo.operation": "edges",
                 "phlo.edge_count": len(event.edges),
                 "phlo.asset_count": len(event.asset_keys),
             },
@@ -300,6 +309,9 @@ class OtelHookPlugin(HookPlugin):
             f"publish.{target_system}",
             attributes={
                 "phlo.event_type": event.event_type,
+                "phlo.stage": "publish",
+                "phlo.system": target_system,
+                "phlo.operation": "publish",
                 "phlo.target_system": target_system,
             },
             context=self._build_parent_context(correlation),
@@ -347,6 +359,9 @@ class OtelHookPlugin(HookPlugin):
             f"service.{event.service_name}.{phase}",
             attributes={
                 "phlo.event_type": event.event_type,
+                "phlo.stage": "service",
+                "phlo.system": "service",
+                "phlo.operation": phase,
                 "phlo.service_name": event.service_name,
                 "phlo.phase": phase,
             },
@@ -394,6 +409,9 @@ class OtelHookPlugin(HookPlugin):
             f"schema_migration.{event.table_name}",
             attributes={
                 "phlo.event_type": event.event_type,
+                "phlo.stage": "migration",
+                "phlo.system": "schema",
+                "phlo.operation": "schema_migration",
                 "phlo.table_name": event.table_name,
                 "phlo.classification": event.classification,
                 "phlo.change_count": event.change_count,
@@ -440,6 +458,9 @@ class OtelHookPlugin(HookPlugin):
             f"data_migration.{event.migration_name}",
             attributes={
                 "phlo.event_type": event.event_type,
+                "phlo.stage": "migration",
+                "phlo.system": event.source_type,
+                "phlo.operation": "data_migration",
                 "phlo.migration_name": event.migration_name,
                 "phlo.source_type": event.source_type,
                 "phlo.destination_table": event.destination_table,
@@ -496,6 +517,8 @@ class OtelHookPlugin(HookPlugin):
             return
         if not isinstance(event.value, (int, float)):
             return
+        if self._handle_maintenance_telemetry(event):
+            return
 
         metric_name = f"phlo.telemetry.{event.name}"
         metric_kind = self._resolve_metric_kind(event.payload)
@@ -535,6 +558,49 @@ class OtelHookPlugin(HookPlugin):
             description=f"Telemetry metric: {event.name}",
         )
         gauge.set(event.value, attributes)
+
+    def _handle_maintenance_telemetry(self, event: TelemetryEvent) -> bool:
+        if not event.name.startswith("iceberg.maintenance."):
+            return False
+
+        attributes = self._normalize_metric_attributes(event.payload)
+        metric_map: dict[str, tuple[str, str]] = {
+            "iceberg.maintenance.run": ("counter", "phlo.maintenance.runs"),
+            "iceberg.maintenance.duration_seconds": ("histogram", "phlo.maintenance.duration"),
+            "iceberg.maintenance.tables_processed": (
+                "counter",
+                "phlo.maintenance.tables_processed",
+            ),
+            "iceberg.maintenance.errors": ("counter", "phlo.maintenance.errors"),
+            "iceberg.maintenance.snapshots_deleted": (
+                "counter",
+                "phlo.maintenance.snapshots_deleted",
+            ),
+            "iceberg.maintenance.orphan_files": ("counter", "phlo.maintenance.orphan_files"),
+            "iceberg.maintenance.total_records": ("counter", "phlo.maintenance.records_processed"),
+            "iceberg.maintenance.total_size_mb": ("histogram", "phlo.maintenance.size_mb"),
+        }
+        mapping = metric_map.get(event.name)
+        if mapping is None:
+            return False
+
+        metric_type, metric_name = mapping
+        if metric_type == "counter":
+            counter = self._get_counter(
+                metric_name,
+                description=f"Maintenance metric derived from {event.name}",
+                unit=event.unit or "",
+            )
+            counter.add(event.value, attributes)
+            return True
+
+        histogram = self._get_histogram(
+            metric_name,
+            description=f"Maintenance metric derived from {event.name}",
+            unit=event.unit or "",
+        )
+        histogram.record(event.value, attributes)
+        return True
 
     def _handle_log_record(self, event: Any) -> None:
         if not isinstance(event, LogEvent):
@@ -633,6 +699,10 @@ class OtelHookPlugin(HookPlugin):
         if correlation.check_name:
             span.set_attribute("phlo.check_name", correlation.check_name)
 
+    def _set_attribute_if_present(self, span: Span, key: str, value: str | None) -> None:
+        if value:
+            span.set_attribute(key, value)
+
     def _metric_attributes_from_tags(self, tags: dict[str, str]) -> dict[str, str]:
         return {
             key: value for key, value in tags.items() if key in self._allowed_metric_label_keys()
@@ -667,11 +737,16 @@ class OtelHookPlugin(HookPlugin):
         )
         attributes: dict[str, Any] = {
             "phlo.event_type": event.event_type,
+            "phlo.stage": self._event_stage(event.event_type),
             "phlo.logger": event.logger,
             "phlo.level": event.level,
         }
         if event.service:
             attributes["phlo.service"] = event.service
+            attributes["phlo.system"] = event.service
+        operation = event.tags.get("operation")
+        if operation:
+            attributes["phlo.operation"] = operation
         if correlation.request_id:
             attributes["phlo.request_id"] = correlation.request_id
         if correlation.run_id:
@@ -720,6 +795,18 @@ class OtelHookPlugin(HookPlugin):
         if normalized == "critical":
             return SeverityNumber.FATAL
         return SeverityNumber.INFO
+
+    def _event_stage(self, event_type: str) -> str:
+        prefix = event_type.split(".", maxsplit=1)[0]
+        if prefix in {"schema_migration", "data_migration"}:
+            return "migration"
+        if prefix == "service":
+            return "service"
+        if prefix == "telemetry":
+            return "telemetry"
+        if prefix == "log":
+            return "log"
+        return prefix
 
     def _is_failure_status(self, status: str) -> bool:
         return status.lower() in {"error", "failed", "failure", "rejected"}
