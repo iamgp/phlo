@@ -1,0 +1,26 @@
+# Companion service for rustfs - creates required buckets
+name: rustfs-setup
+description: Initialize RustFS buckets for data lake
+category: core
+default: false
+
+image: amazon/aws-cli:2.15.40
+
+depends_on:
+  - rustfs
+
+compose:
+  restart: "no"
+  entrypoint: /bin/sh
+  command: >
+    -c "
+    sleep 5 &&
+    aws --endpoint-url http://rustfs:9000 s3 mb s3://lake --region us-east-1 || true &&
+    aws --endpoint-url http://rustfs:9000 s3 mb s3://lake/warehouse --region us-east-1 || true &&
+    aws --endpoint-url http://rustfs:9000 s3 mb s3://lake/stage --region us-east-1 || true &&
+    echo 'RustFS buckets created successfully'
+    "
+  environment:
+    AWS_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+    AWS_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
+    AWS_DEFAULT_REGION: us-east-1

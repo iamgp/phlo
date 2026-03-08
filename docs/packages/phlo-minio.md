@@ -123,6 +123,7 @@ compose:
 
 ## Related Packages
 
+- [phlo-rustfs](phlo-rustfs.md) - Alternative S3 storage (RustFS)
 - [phlo-iceberg](phlo-iceberg.md) - Table format
 - [phlo-nessie](phlo-nessie.md) - Catalog service
 - [phlo-prometheus](phlo-prometheus.md) - Metrics collection

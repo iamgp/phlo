@@ -133,6 +133,7 @@ phlo-observatory = { workspace = true }
 phlo-postgres = { workspace = true }
 phlo-minio = { workspace = true }
 phlo-nessie = { workspace = true }
+phlo-rustfs = { workspace = true }
 phlo-trino = { workspace = true }
 phlo-openmetadata = { workspace = true }
 phlo-otel = { workspace = true }
@@ -222,6 +223,7 @@ extra-paths = [
   "packages/phlo-postgrest/src",
   "packages/phlo-prometheus/src",
   "packages/phlo-pandera/src",
+  "packages/phlo-rustfs/src",
   "packages/phlo-superset/src",
   "packages/phlo-testing/src",
   "packages/phlo-trino/src",

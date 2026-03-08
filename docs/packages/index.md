@@ -30,6 +30,7 @@ Phlo is organized as a monorepo with individual packages that provide specific f
 | [phlo-nessie](phlo-nessie.md)     | Git-like catalog for Iceberg tables |
 | [phlo-trino](phlo-trino.md)       | Distributed SQL query engine        |
 | [phlo-minio](phlo-minio.md)       | S3-compatible object storage        |
+| [phlo-rustfs](phlo-rustfs.md)     | RustFS S3-compatible storage        |
 | [phlo-clickhouse](phlo-clickhouse.md) | ClickHouse analytical database |
 
 ### Observability
