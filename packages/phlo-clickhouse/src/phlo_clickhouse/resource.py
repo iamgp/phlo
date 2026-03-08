@@ -175,16 +175,19 @@ class ClickHouseResource:
         df = pd.read_parquet(data_path_str)
         row_count = len(df)
 
-        sql = f"""
-        INSERT INTO {database}.{table}
-        SELECT * FROM file('{data_path_str}', Parquet)
-        WHERE {key} NOT IN (
-            SELECT {key} FROM {database}.{table}
-        )
-        """
+        unique_keys = df[unique_key].tolist()
+        if unique_keys:
+            keys_str = ", ".join(f"'{k}'" for k in unique_keys)
+            delete_sql = f"ALTER TABLE {database}.{table} DELETE WHERE {key} IN ({keys_str})"
+            self.command(delete_sql)
 
-        self.command(sql)
-        return {"rows_inserted": row_count, "rows_deleted": 0}
+        client = self.get_client()
+        try:
+            client.insert_df(f"{database}.{table}", df)
+        finally:
+            client.close()
+
+        return {"rows_inserted": row_count, "rows_deleted": len(unique_keys)}
 
     def _schema_to_columns(self, schema: Any) -> str:
         """Convert a schema to ClickHouse column definitions."""
