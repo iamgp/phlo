@@ -12,6 +12,7 @@ from typing import Any
 from phlo.logging import log_event
 from phlo.operations.transformation import BaseTransformer, TransformationResult
 from phlo.hooks import (
+    HookCorrelation,
     LineageEventContext,
     LineageEventEmitter,
     TelemetryEventContext,
@@ -442,6 +443,20 @@ class DbtTransformer(BaseTransformer):
         # We need model names for context. If select args are passed, we use those as proxy
         # or we might parse the output.
         model_names = select_args if select_args else ["all"]
+        run_id = getattr(self.context, "run_id", None)
+        asset_key = getattr(self.context, "asset_key", None)
+        resolved_asset_key = None
+        if asset_key is not None:
+            if hasattr(asset_key, "to_user_string"):
+                resolved_asset_key = str(asset_key.to_user_string())
+            else:
+                resolved_asset_key = str(asset_key)
+        correlation = HookCorrelation(
+            run_id=run_id,
+            asset_key=resolved_asset_key,
+            partition_key=partition_key,
+            job_name=getattr(self.context, "job_name", None),
+        )
 
         emitter = TransformEventEmitter(
             TransformEventContext(
@@ -449,15 +464,23 @@ class DbtTransformer(BaseTransformer):
                 project_dir=str(self.project_dir),
                 target=self.target,
                 partition_key=partition_key,
+                asset_key=resolved_asset_key,
+                run_id=run_id,
                 model_names=model_names,
                 tags={"tool": "dbt"},
+                correlation=correlation,
             )
         )
         telemetry = TelemetryEventEmitter(
-            TelemetryEventContext(tags={"tool": "dbt", "target": self.target})
+            TelemetryEventContext(
+                tags={"tool": "dbt", "target": self.target},
+                correlation=correlation,
+            )
         )
         lineage = LineageEventEmitter(
-            LineageEventContext(tags={"tool": "dbt", "target": self.target})
+            LineageEventContext(
+                tags={"tool": "dbt", "target": self.target}, correlation=correlation
+            )
         )
 
         start_time = time.time()

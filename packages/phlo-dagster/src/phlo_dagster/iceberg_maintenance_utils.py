@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Annotated, Any, Optional
 
 import dagster as dg
-from phlo.hooks import TelemetryEventContext, TelemetryEventEmitter
+from phlo.hooks import HookCorrelation, TelemetryEventContext, TelemetryEventEmitter
 from pydantic import Field
 
 from phlo.logging import get_logger
@@ -245,7 +245,10 @@ def start_maintenance_op(
     """
 
     telemetry = TelemetryEventEmitter(
-        TelemetryEventContext(tags=maintenance_tags(config, operation=operation, **extra_tags))
+        TelemetryEventContext(
+            tags=maintenance_tags(config, operation=operation, **extra_tags),
+            correlation=HookCorrelation(run_id=context.run_id, job_name=context.job_name),
+        )
     )
     context.log.info(
         "Starting Iceberg maintenance operation",
@@ -326,7 +329,8 @@ def finish_maintenance_op(
         )
     metrics_emitter = TelemetryEventEmitter(
         TelemetryEventContext(
-            tags=maintenance_tags(config, operation=operation, status=status, **tag_extras)
+            tags=maintenance_tags(config, operation=operation, status=status, **tag_extras),
+            correlation=HookCorrelation(run_id=context.run_id, job_name=context.job_name),
         )
     )
     emit_maintenance_metrics(

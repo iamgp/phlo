@@ -15,6 +15,7 @@ except Exception:  # noqa: BLE001 - optional dependency in lightweight test envs
     TrinoUserError = None  # type: ignore[assignment]
 
 from phlo.hooks import (
+    HookCorrelation,
     LineageEventContext,
     LineageEventEmitter,
     PublishEventContext,
@@ -123,19 +124,33 @@ def _publish_marts(
     """Shared publish implementation for Postgres-backed publish targets."""
     schema = target_schema
     asset_key = _resolve_asset_key(context, data_source)
+    correlation = HookCorrelation(
+        run_id=getattr(context, "run_id", None),
+        asset_key=asset_key,
+        partition_key=getattr(context, "partition_key", None),
+        job_name=getattr(context, "job_name", None),
+    )
     emitter = PublishEventEmitter(
         PublishEventContext(
             asset_key=asset_key,
+            run_id=correlation.run_id,
+            partition_key=correlation.partition_key,
             target_system=target_system,
             tables=tables_to_publish,
             tags={"source": data_source, "target": target_system},
+            correlation=correlation,
         )
     )
     telemetry = TelemetryEventEmitter(
-        TelemetryEventContext(tags={"source": data_source, "target": target_system})
+        TelemetryEventContext(
+            tags={"source": data_source, "target": target_system},
+            correlation=correlation,
+        )
     )
     lineage = LineageEventEmitter(
-        LineageEventContext(tags={"source": data_source, "target": target_system})
+        LineageEventContext(
+            tags={"source": data_source, "target": target_system}, correlation=correlation
+        )
     )
     start_time = time.time()
 
