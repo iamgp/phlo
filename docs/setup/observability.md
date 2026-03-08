@@ -14,6 +14,34 @@ Phlo includes a production-ready observability stack based on industry-standard 
 
 All observability services are optional and run under the `observability` docker-compose profile.
 
+## OTLP-First Model
+
+Phlo's OpenTelemetry path is OTLP-first:
+
+```text
+Phlo workflow packages
+  -> HookBus events
+  -> phlo-otel
+  -> OTLP
+  -> Alloy / OpenTelemetry Collector
+  -> Tempo / Prometheus-compatible backend / Loki / ClickStack
+```
+
+This keeps backend routing outside workflow code:
+
+- `phlo-otel` emits backend-agnostic OTLP traces, metrics, and optional OTLP logs
+- Alloy or OpenTelemetry Collector handles fan-out, enrichment, batching, and backend routing
+- ClickStack support is collector configuration, not a Phlo-specific exporter plugin
+
+Typical Phlo OTLP environment:
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_TRACES_EXPORTER=otlp
+export OTEL_METRICS_EXPORTER=otlp
+export OTEL_LOGS_EXPORTER=otlp
+```
+
 ## Quick Start
 
 ```bash
@@ -91,7 +119,123 @@ Default credentials:
 - Discovers Docker containers automatically
 - Adds phlo-specific labels (component, service, job)
 - Parses JSON logs and extracts fields
-- Forwards metrics to Prometheus, logs to Loki
+- Can also receive OTLP telemetry and forward traces, metrics, and logs onward
+- Forwards metrics to Prometheus, logs to Loki, and can route OTLP signals to other backends
+
+## Collector Topologies
+
+### Local Grafana Stack
+
+Use Alloy as the in-cluster collector and point `phlo-otel` at its OTLP receiver.
+
+```text
+phlo-otel -> OTLP -> Alloy -> Prometheus / Loki / Tempo
+```
+
+Good default for:
+
+- local development
+- Grafana-first deployments
+- one collector handling both infrastructure and application telemetry
+
+### Generic OpenTelemetry Collector
+
+Use OpenTelemetry Collector when you want backend-neutral routing or multiple downstream consumers.
+
+```text
+phlo-otel -> OTLP -> OpenTelemetry Collector -> backend-specific exporters
+```
+
+Good default for:
+
+- mixed vendor environments
+- multiple observability backends
+- production routing policies and tail-based processing
+
+### ClickStack-Compatible Routing
+
+ClickStack should be treated as a downstream OTLP consumer behind Alloy or OpenTelemetry Collector.
+
+```text
+phlo-otel -> OTLP -> Collector -> ClickStack
+                           -> Tempo
+                           -> Prometheus-compatible backend
+```
+
+The important constraint is cardinality discipline:
+
+- keep `run_id`, `asset_key`, and `partition_key` in traces/logs
+- keep metric labels bounded and low-cardinality
+- prefer append-only event semantics with explicit units
+
+## Example Collector Config
+
+Minimal OpenTelemetry Collector topology:
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+processors:
+  batch:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+
+exporters:
+  debug: {}
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+```
+
+Swap `debug` for your destination exporters:
+
+- Tempo or another trace backend for traces
+- Prometheus-compatible remote write or OTLP metrics backend for metrics
+- Loki or ClickStack-compatible OTLP/log pipeline for logs
+
+## Example Alloy OTLP Receiver
+
+Minimal Alloy OTLP receiver shape:
+
+```hcl
+otelcol.receiver.otlp "phlo" {
+  grpc {}
+  http {}
+
+  output {
+    traces  = [otelcol.processor.batch.default.input]
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces  = [otelcol.exporter.otlp.default.input]
+    metrics = [otelcol.exporter.otlp.default.input]
+    logs    = [otelcol.exporter.otlp.default.input]
+  }
+}
+```
+
+Use backend-specific exporters downstream from there. Keep the receiver stable and move routing changes into collector config.
 
 #### Grafana (Port 3003)
 
