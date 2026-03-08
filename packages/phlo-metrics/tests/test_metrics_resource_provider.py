@@ -186,5 +186,5 @@ def test_links_resolve_from_service_config(monkeypatch, tmp_path: Path) -> None:
     links = backend.dashboard_links()
 
     assert links[0].url == "http://localhost:8080"
-    assert backend.logs_query_link("dagster") == "http://localhost:8080"
-    assert backend.metrics_query_link("up") == "http://localhost:8080"
+    assert backend.logs_query_link("dagster") == "http://localhost:8080?service=dagster"
+    assert backend.metrics_query_link("up") == "http://localhost:8080?metric=up"

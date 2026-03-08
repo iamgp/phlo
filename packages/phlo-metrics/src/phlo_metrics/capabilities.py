@@ -6,6 +6,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from phlo.capabilities.interfaces import (
     AlertSummary,
@@ -188,7 +189,7 @@ class DefaultObservabilityBackend:
         clickstack_url = self._resolve_clickstack_url()
         if clickstack_url is not None:
             logs_path = _service_env_value("clickstack", _CLICKSTACK_LOGS_PATH_ENV) or "/"
-            return _join_url(clickstack_url, logs_path)
+            return _append_query_params(_join_url(clickstack_url, logs_path), service=service)
 
         loki_url = self._loki_url or _resolve_service_base_url(
             "loki",
@@ -207,7 +208,7 @@ class DefaultObservabilityBackend:
         clickstack_url = self._resolve_clickstack_url()
         if clickstack_url is not None:
             metrics_path = _service_env_value("clickstack", _CLICKSTACK_METRICS_PATH_ENV) or "/"
-            return _join_url(clickstack_url, metrics_path)
+            return _append_query_params(_join_url(clickstack_url, metrics_path), metric=metric)
 
         prometheus_url = self._prometheus_url or _resolve_service_base_url(
             "prometheus",
@@ -320,3 +321,19 @@ def _join_url(base_url: str, path: str) -> str:
     if normalized_path == "/":
         return base_url.rstrip("/")
     return f"{base_url.rstrip('/')}{normalized_path}"
+
+
+def _append_query_params(url: str, **params: str | None) -> str:
+    """Append non-empty query params to a URL while preserving existing params."""
+    split_result = urlsplit(url)
+    query_params = dict(parse_qsl(split_result.query, keep_blank_values=True))
+    query_params.update({key: value for key, value in params.items() if value is not None})
+    return urlunsplit(
+        (
+            split_result.scheme,
+            split_result.netloc,
+            split_result.path,
+            urlencode(query_params),
+            split_result.fragment,
+        )
+    )
