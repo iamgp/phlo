@@ -686,7 +686,6 @@ class OtelHookPlugin(HookPlugin):
         try:
             if raw.startswith("0x"):
                 return int(raw, 16)
-            base = 16 if any(char in "abcdef" for char in raw) else 10
-            return int(raw, base)
+            return int(raw, 16)
         except ValueError:
             return None

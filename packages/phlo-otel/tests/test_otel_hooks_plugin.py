@@ -561,3 +561,6 @@ class TestOtelHookPlugin:
         assert emitted_record.attributes["phlo.run_id"] == "run-7"
         assert emitted_record.attributes["phlo.tag.team"] == "analytics"
         assert emitted_record.attributes["phlo.metadata.trace_id"] == "abc123"
+
+    def test_parse_trace_identifier_treats_all_digit_strings_as_hex(self, plugin):
+        assert plugin._parse_trace_identifier("1234567890123456") == int("1234567890123456", 16)
