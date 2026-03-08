@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import asdict, dataclass
+from typing import Any, cast
 
 import pyarrow as pa
 
 from phlo.capabilities.schema import default_classify_change, worst_classification
 from phlo.capabilities.specs import NormalizedSchema, SchemaChange, SchemaMigrationPlan
+from phlo.hooks import SchemaMigrationEventContext, SchemaMigrationEventEmitter
 from phlo.logging import get_logger
 from phlo_delta.tables import _default_storage_options, _resolve_table_uri
 
@@ -108,7 +109,7 @@ class DeltaSchemaMigrator:
         opts = _default_storage_options()
 
         dt = DeltaTable(table_uri, storage_options=opts)
-        current_schema = dt.schema().to_pyarrow()
+        current_schema = cast(Any, dt.schema()).to_pyarrow()
 
         current_fields: dict[str, tuple[str, bool]] = {}
         for field in current_schema:
@@ -190,13 +191,25 @@ class DeltaSchemaMigrator:
         if any(c.change_type == "drop" for c in changes):
             recommendations.append("Dropped columns are recoverable via Delta Lake time travel.")
 
-        return SchemaMigrationPlan(
+        plan = SchemaMigrationPlan(
             table_name=table_name,
             changes=changes,
             classification=overall,
             recommendations=recommendations,
             requires_approval=requires_approval,
         )
+
+        emitter = SchemaMigrationEventEmitter(
+            SchemaMigrationEventContext(table_name=table_name, tags={"backend": "delta"})
+        )
+        emitter.emit(
+            status="planned",
+            classification=overall,
+            change_count=len(changes),
+            changes=[asdict(c) for c in changes],
+        )
+
+        return plan
 
     def apply_plan(self, *, plan: SchemaMigrationPlan, approved: bool = False) -> dict[str, Any]:
         """Execute a migration plan against a Delta table.
@@ -215,19 +228,22 @@ class DeltaSchemaMigrator:
         opts = _default_storage_options()
 
         dt = DeltaTable(table_uri, storage_options=opts)
-        current_schema = dt.schema().to_pyarrow()
+        current_schema = cast(Any, dt.schema()).to_pyarrow()
 
         new_fields: list[pa.Field] = list(current_schema)
         applied: list[str] = []
 
+        applied_changes: list[SchemaChange] = []
         for change in plan.changes:
             if change.change_type == "add":
                 arrow_type = _dtype_to_arrow_type(change.new_value or "string")
                 new_fields.append(pa.field(change.field_name, arrow_type, nullable=True))
                 applied.append(f"add:{change.field_name}")
+                applied_changes.append(change)
             elif change.change_type == "drop":
                 new_fields = [f for f in new_fields if f.name != change.field_name]
                 applied.append(f"drop:{change.field_name}")
+                applied_changes.append(change)
             elif change.change_type == "rename":
                 old_name = change.old_value or change.field_name
                 new_name = change.new_value or change.field_name
@@ -236,6 +252,7 @@ class DeltaSchemaMigrator:
                     for f in new_fields
                 ]
                 applied.append(f"rename:{change.field_name}")
+                applied_changes.append(change)
             elif change.change_type in {"widen_type", "narrow_type"}:
                 arrow_type = _dtype_to_arrow_type(change.new_value or "string")
                 new_fields = [
@@ -245,18 +262,21 @@ class DeltaSchemaMigrator:
                     for f in new_fields
                 ]
                 applied.append(f"{change.change_type}:{change.field_name}")
+                applied_changes.append(change)
             elif change.change_type == "nullability_relaxed":
                 new_fields = [
                     pa.field(f.name, f.type, nullable=True) if f.name == change.field_name else f
                     for f in new_fields
                 ]
                 applied.append(f"nullability_relaxed:{change.field_name}")
+                applied_changes.append(change)
             elif change.change_type == "nullability_tightened":
                 new_fields = [
                     pa.field(f.name, f.type, nullable=False) if f.name == change.field_name else f
                     for f in new_fields
                 ]
                 applied.append(f"nullability_tightened:{change.field_name}")
+                applied_changes.append(change)
 
         new_schema = pa.schema(new_fields)
 
@@ -280,6 +300,16 @@ class DeltaSchemaMigrator:
             table_name=plan.table_name,
             applied_count=len(applied),
             changes=applied,
+        )
+
+        emitter = SchemaMigrationEventEmitter(
+            SchemaMigrationEventContext(table_name=plan.table_name, tags={"backend": "delta"})
+        )
+        emitter.emit(
+            status="applied",
+            classification=plan.classification,
+            change_count=len(applied),
+            changes=[asdict(c) for c in applied_changes],
         )
 
         return {
