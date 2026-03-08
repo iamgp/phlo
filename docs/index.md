@@ -79,12 +79,6 @@ Technical documentation:
 - [DuckDB Queries](reference/duckdb-queries.md) - Ad-hoc analysis
 - [Common Errors](reference/common-errors.md) - Error messages explained
 
-### Architecture Specs
-
-Working specs and implementation plans:
-
-- [OTel Lakehouse Observability](architecture/specs/0013-otel-lakehouse-observability.md) - Backend-agnostic OpenTelemetry plan for Phlo lakehouse workloads
-
 ### Operations
 
 Production operations and maintenance:
