@@ -101,6 +101,7 @@ dev-dependencies = [
     "pytest-cov>=6.0",
     "sqlfluff>=3.5.0",
     "phlo-clickstack>=0.1.0",
+    "phlo-clickhouse>=0.1.0",
     "phlo-dlt>=0.1.0",
     "phlo-iceberg>=0.1.0",
     "phlo-dbt>=0.1.0",
@@ -137,6 +138,7 @@ phlo-openmetadata = { workspace = true }
 phlo-otel = { workspace = true }
 phlo-testing = { workspace = true }
 phlo-observatory-example = { workspace = true }
+phlo-clickhouse = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -144,6 +146,7 @@ dev = [
     "pytest-cov>=6.0",
     "sqlfluff>=3.5.0",
     "phlo-clickstack>=0.1.0",
+    "phlo-clickhouse>=0.1.0",
     "phlo-dlt>=0.1.0",
     "phlo-iceberg>=0.1.0",
     "phlo-dbt>=0.1.0",
@@ -197,6 +200,7 @@ extra-paths = [
   "packages/phlo-alloy/src",
   "packages/phlo-api/src",
   "packages/phlo-clickstack/src",
+  "packages/phlo-clickhouse/src",
   "packages/phlo-core-plugins/src",
   "packages/phlo-dagster/src",
   "packages/phlo-dbt/src",

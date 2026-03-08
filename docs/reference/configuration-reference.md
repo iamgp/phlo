@@ -158,6 +158,47 @@ TRINO_CATALOG=iceberg
 trino://trino:10005/iceberg_dev
 ```
 
+### ClickHouse Configuration
+
+ClickHouse analytical database for data plane:
+
+```bash
+# Version and connectivity
+CLICKHOUSE_VERSION=latest
+CLICKHOUSE_HTTP_PORT=8123
+CLICKHOUSE_NATIVE_PORT=19000
+CLICKHOUSE_HOST=clickhouse
+
+# Credentials
+CLICKHOUSE_USER=default
+CLICKHOUSE_PASSWORD=
+
+# Database
+CLICKHOUSE_DB=default
+
+# TLS
+CLICKHOUSE_SECURE=false
+```
+
+**HTTP endpoint**:
+
+```
+http://clickhouse:8123
+```
+
+**Native endpoint**:
+
+```
+clickhouse:19000
+```
+
+**Default databases** (created by clickhouse-setup):
+
+- `raw` - Raw ingestion tables
+- `staging` - Intermediate tables
+- `curated` - Cleaned/validated tables
+- `marts` - Published analytical marts
+
 ### API Backend Configuration
 
 Observatory API runtime routing:
