@@ -274,6 +274,28 @@
       "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-lineage",
       "tags": ["lineage", "observability", "hooks"],
       "verified": true
+    },
+    "clickhouse": {
+      "type": "service",
+      "package": "phlo-clickhouse",
+      "version": "0.1.0",
+      "description": "ClickHouse analytical database for data plane",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/phlohouse/phlo/tree/main/packages/phlo-clickhouse",
+      "tags": ["data", "query", "storage", "clickhouse"],
+      "verified": true,
+      "core": false
+    },
+    "clickhouse-setup": {
+      "type": "service",
+      "package": "phlo-clickhouse",
+      "version": "0.1.0",
+      "description": "Initialize ClickHouse databases for data plane",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/phlohouse/phlo/tree/main/packages/phlo-clickhouse",
+      "tags": ["data", "bootstrap", "clickhouse"],
+      "verified": true,
+      "core": false
     }
   }
 }

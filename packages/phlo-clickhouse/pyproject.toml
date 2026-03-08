@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phlo-clickhouse"
+version = "0.1.0"
+description = "ClickHouse service and resource plugin for Phlo"
+readme = {text = "ClickHouse service and resource plugin for Phlo.", content-type = "text/plain"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Phlo Team", email = "team@phlo.dev"},
+]
+license = {text = "MIT"}
+dependencies = [
+    "phlo>=0.1.0",
+    "clickhouse-connect>=0.8.0",
+    "pyyaml>=6.0.1",
+    "pandas>=2.0.0",
+    "pyarrow>=12.0.0",
+]
+
+[project.optional-dependencies]
+dbt = [
+    "dbt-core>=1.8",
+    "dbt-clickhouse>=1.8",
+]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+
+[project.entry-points."phlo.plugins.services"]
+clickhouse = "phlo_clickhouse.plugin:ClickHouseServicePlugin"
+clickhouse-setup = "phlo_clickhouse.plugin:ClickHouseSetupServicePlugin"
+
+[project.entry-points."phlo.plugins.resources"]
+clickhouse = "phlo_clickhouse.plugin:ClickHouseResourceProvider"
+
+[project.entry-points."phlo.plugins.cli"]
+clickhouse = "phlo_clickhouse.cli_plugin:ClickHouseCliPlugin"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+phlo_clickhouse = ["service.yaml", "clickhouse-setup.yaml"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
