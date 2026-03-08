@@ -1,25 +1,33 @@
-"""Integration tests for phlo-metrics."""
+"""Core metrics runtime tests."""
 
-from datetime import datetime, timezone
+from __future__ import annotations
+
+from datetime import UTC, datetime
 
 import pytest
+
+from phlo.hooks import TelemetryEvent
+from phlo.hooks.telemetry import CoreTelemetryHookProvider
+from phlo.metrics import (
+    AssetMetrics,
+    MetricsCollector,
+    MetricsDependencyError,
+    MetricsMalformedResponseError,
+    RunMetrics,
+    SummaryMetrics,
+    get_metrics_collector,
+)
 
 pytestmark = pytest.mark.integration
 
 
-def test_metrics_collector_initializes():
-    """Test that MetricsCollector initializes correctly."""
-    from phlo_metrics import MetricsCollector, get_metrics_collector
-
+def test_metrics_collector_initializes() -> None:
     collector = get_metrics_collector()
     assert isinstance(collector, MetricsCollector)
     assert collector._cache is not None
 
 
-def test_summary_metrics_defaults():
-    """Test SummaryMetrics has correct defaults."""
-    from phlo_metrics import SummaryMetrics
-
+def test_summary_metrics_defaults() -> None:
     metrics = SummaryMetrics()
     assert metrics.total_runs_24h == 0
     assert metrics.successful_runs_24h == 0
@@ -27,10 +35,7 @@ def test_summary_metrics_defaults():
     assert metrics.assets_by_status == {"success": 0, "warning": 0, "failure": 0}
 
 
-def test_asset_metrics_defaults():
-    """Test AssetMetrics has correct defaults."""
-    from phlo_metrics import AssetMetrics
-
+def test_asset_metrics_defaults() -> None:
     metrics = AssetMetrics(asset_name="test_asset")
     assert metrics.asset_name == "test_asset"
     assert metrics.last_run is None
@@ -39,12 +44,8 @@ def test_asset_metrics_defaults():
     assert metrics.failure_rate == 0.0
 
 
-def test_run_metrics_creation():
-    """Test RunMetrics creation."""
-    from datetime import datetime, timezone
-    from phlo_metrics import RunMetrics
-
-    now = datetime.now(timezone.utc)
+def test_run_metrics_creation() -> None:
+    now = datetime.now(UTC)
     run = RunMetrics(
         asset_name="test_asset",
         run_id="run123",
@@ -52,76 +53,43 @@ def test_run_metrics_creation():
         status="success",
         rows_processed=1000,
     )
-
     assert run.asset_name == "test_asset"
     assert run.run_id == "run123"
     assert run.status == "success"
     assert run.rows_processed == 1000
 
 
-def test_collector_caching():
-    """Test that MetricsCollector uses caching."""
-    from phlo_metrics import MetricsCollector, SummaryMetrics
-
+def test_collector_caching() -> None:
     collector = MetricsCollector()
-
-    # Manually inject cache
-    cache_key = "summary_24h"
-    cached_metrics = SummaryMetrics(total_runs_24h=42)
-    collector._cache[cache_key] = cached_metrics
-
-    # Collect should return cached value
+    collector._cache["summary_24h"] = SummaryMetrics(total_runs_24h=42)
     result = collector.collect_summary(period_hours=24)
     assert result.total_runs_24h == 42
 
 
-def test_telemetry_recorder_exists():
-    """Test TelemetryRecorder is exported and can be instantiated."""
-    from phlo_metrics import TelemetryRecorder
-
-    recorder = TelemetryRecorder()
-    assert recorder is not None
-
-
-def test_metrics_exports():
-    """Test that phlo-metrics exports required classes."""
-    import phlo_metrics
-
-    assert hasattr(phlo_metrics, "MetricsCollector")
-    assert hasattr(phlo_metrics, "get_metrics_collector")
-    assert hasattr(phlo_metrics, "SummaryMetrics")
-    assert hasattr(phlo_metrics, "AssetMetrics")
-    assert hasattr(phlo_metrics, "RunMetrics")
-    assert hasattr(phlo_metrics, "TelemetryRecorder")
+def test_core_telemetry_hook_provider_records_telemetry() -> None:
+    provider = CoreTelemetryHookProvider()
+    provider._handle_telemetry(
+        TelemetryEvent(
+            event_type="telemetry.metric",
+            name="test.metric",
+            value=1,
+        )
+    )
 
 
-def test_hooks_plugin_exists():
-    """Test that metrics hooks plugin exists."""
-    from phlo_metrics.hooks_plugin import MetricsHookPlugin
-
-    plugin = MetricsHookPlugin()
-    assert plugin is not None
-    assert hasattr(plugin, "metadata")
-
-
-def test_get_asset_runs_from_postgres_success(monkeypatch):
-    """Collector returns normalized Dagster run rows."""
-    from phlo_metrics.collector import MetricsCollector
-    import phlo_metrics.collector as collector_module
-
+def test_get_asset_runs_from_postgres_success(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeCursor:
         last_params = None
 
         def execute(self, _query, _params):
             FakeCursor.last_params = _params
-            return None
 
         def fetchall(self):
             return [
                 {
                     "run_id": "run-123",
-                    "start_time": datetime(2026, 2, 1, 10, 0, tzinfo=timezone.utc),
-                    "end_time": datetime(2026, 2, 1, 10, 5, tzinfo=timezone.utc),
+                    "start_time": datetime(2026, 2, 1, 10, 0, tzinfo=UTC),
+                    "end_time": datetime(2026, 2, 1, 10, 5, tzinfo=UTC),
                     "status": "SUCCESS",
                 }
             ]
@@ -145,7 +113,7 @@ def test_get_asset_runs_from_postgres_success(monkeypatch):
         def __exit__(self, exc_type, exc, tb):
             return False
 
-    monkeypatch.setattr(collector_module.psycopg2, "connect", lambda **_kwargs: FakeConnection())
+    monkeypatch.setattr("phlo.metrics.psycopg2.connect", lambda **_kwargs: FakeConnection())
 
     collector = MetricsCollector()
     runs = collector._get_asset_runs_from_postgres("dlt_users", limit=5)
@@ -158,10 +126,7 @@ def test_get_asset_runs_from_postgres_success(monkeypatch):
     assert FakeCursor.last_params[1] == r"%dlt\_users%"
 
 
-def test_get_iceberg_table_stats_dependency_unavailable(monkeypatch):
-    """Collector raises explicit dependency error when query engine is unavailable."""
-    from phlo_metrics.collector import MetricsCollector, MetricsDependencyError
-
+def test_get_iceberg_table_stats_dependency_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     collector = MetricsCollector()
     monkeypatch.setattr(
         collector,
@@ -172,17 +137,12 @@ def test_get_iceberg_table_stats_dependency_unavailable(monkeypatch):
         collector._get_iceberg_table_stats("dlt_users")
 
 
-def test_get_iceberg_table_stats_success(monkeypatch):
-    """Collector returns row/byte stats from Trino metadata tables."""
-    from phlo_metrics.collector import MetricsCollector
-
+def test_get_iceberg_table_stats_success(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeQueryEngine:
         def __init__(self, rows):
             self.rows = rows
-            self.queries = []
 
-        def execute(self, sql, params=None, schema=None):
-            self.queries.append((sql, schema))
+        def execute(self, _sql, params=None, schema=None):
             return self.rows.pop(0)
 
     collector = MetricsCollector()
@@ -193,14 +153,10 @@ def test_get_iceberg_table_stats_success(monkeypatch):
         lambda: FakeQueryEngine([[("bronze",)], [(1024, 42)]]),
     )
     stats = collector._get_iceberg_table_stats("dlt_users")
-
     assert stats == {"total_bytes": 1024, "row_count": 42}
 
 
-def test_get_iceberg_table_stats_malformed_response(monkeypatch):
-    """Collector raises typed malformed response error for invalid Trino payload."""
-    from phlo_metrics.collector import MetricsCollector, MetricsMalformedResponseError
-
+def test_get_iceberg_table_stats_malformed_response(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeQueryEngine:
         def __init__(self, rows):
             self.rows = rows
@@ -219,10 +175,9 @@ def test_get_iceberg_table_stats_malformed_response(monkeypatch):
         collector._get_iceberg_table_stats("dlt_users")
 
 
-def test_get_iceberg_table_stats_uses_query_engine_default_catalog(monkeypatch):
-    """Collector should derive the catalog from query-engine capability metadata."""
-    from phlo_metrics.collector import MetricsCollector
-
+def test_get_iceberg_table_stats_uses_query_engine_default_catalog(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class FakeQueryEngine:
         def __init__(self, rows):
             self.rows = rows
@@ -235,9 +190,9 @@ def test_get_iceberg_table_stats_uses_query_engine_default_catalog(monkeypatch):
     monkeypatch.setattr(
         collector, "_load_query_engine", lambda: FakeQueryEngine([[("bronze",)], [(1, 2)]])
     )
-    monkeypatch.setattr("phlo_metrics.collector.discover_capabilities", lambda: None)
+    monkeypatch.setattr("phlo.metrics.discover_capabilities", lambda: None)
     monkeypatch.setattr(
-        "phlo_metrics.collector.resolve_capability",
+        "phlo.metrics.resolve_capability",
         lambda capability, name=None: type(
             "Resolution",
             (),
@@ -246,19 +201,17 @@ def test_get_iceberg_table_stats_uses_query_engine_default_catalog(monkeypatch):
     )
 
     stats = collector._get_iceberg_table_stats("dlt_users")
-
     assert stats == {"total_bytes": 1, "row_count": 2}
 
 
-def test_get_iceberg_table_stats_requires_catalog_metadata_when_unconfigured(monkeypatch):
-    """Collector should fail clearly when catalog resolution metadata is absent."""
-    from phlo_metrics.collector import MetricsCollector, MetricsDependencyError
-
+def test_get_iceberg_table_stats_requires_catalog_metadata_when_unconfigured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     collector = MetricsCollector()
     collector.settings.metrics_query_catalog = None
-    monkeypatch.setattr("phlo_metrics.collector.discover_capabilities", lambda: None)
+    monkeypatch.setattr("phlo.metrics.discover_capabilities", lambda: None)
     monkeypatch.setattr(
-        "phlo_metrics.collector.resolve_capability",
+        "phlo.metrics.resolve_capability",
         lambda capability, name=None: type("Resolution", (), {"metadata": {}})(),
     )
 

@@ -1,54 +1,36 @@
-"""CLI commands for metrics exposure and analysis."""
+"""Core metrics CLI commands."""
 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from typing import Any, cast
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
 import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from phlo.capabilities.maintenance import render_maintenance_prometheus
 from phlo.logging import get_logger
-from phlo_metrics.collector import get_metrics_collector
+from phlo.metrics import get_metrics_collector
 
 console = Console()
 logger = get_logger(__name__)
 
 
 @click.group(name="metrics")
-def metrics_group():
+def metrics_group() -> None:
     """Pipeline and data metrics exposure."""
-    pass
 
 
 @metrics_group.command(name="summary")
-@click.option(
-    "--period",
-    type=str,
-    default="24h",
-    help="Time period to analyze (e.g., 24h, 7d, 30d)",
-)
+@click.option("--period", type=str, default="24h", help="Time period to analyze (e.g., 24h, 7d)")
 def metrics_summary(period: str) -> None:
-    """
-    Show key metrics overview.
-
-    Displays:
-    - Total runs (24h): success/failure count
-    - Data volume: rows processed, bytes written
-    - Latency: p50, p95, p99 execution times
-    - Active assets: count by status
-    """
-    # Parse period
-    period_hours = _parse_period(period)
-
+    """Show key metrics overview."""
     collector = get_metrics_collector()
-    metrics = collector.collect_summary(period_hours)
-
-    # Build summary panel
+    metrics = collector.collect_summary(_parse_period(period))
     summary_text = f"""
 [bold]Platform Metrics Summary[/bold]
 
@@ -72,51 +54,35 @@ def metrics_summary(period: str) -> None:
   Warning:   {metrics.assets_by_status.get("warning", 0)}
   Failure:   {metrics.assets_by_status.get("failure", 0)}
 """
-
-    console.print(Panel(summary_text, title="📊 Metrics Summary", expand=False))
+    console.print(Panel(summary_text, title="Metrics Summary", expand=False))
 
 
 @metrics_group.command(name="asset")
 @click.argument("asset_name")
-@click.option(
-    "--runs",
-    type=int,
-    default=10,
-    help="Number of past runs to display",
-)
+@click.option("--runs", type=int, default=10, help="Number of past runs to display")
 def metrics_asset(asset_name: str, runs: int) -> None:
-    """
-    Show per-asset metrics.
-
-    Displays:
-    - Last 10 run durations
-    - Average rows per run
-    - Failure rate
-    - Data growth trend
-    """
+    """Show per-asset metrics."""
     collector = get_metrics_collector()
     metrics = collector.collect_asset(asset_name, runs=runs)
 
-    # Build asset metrics table
     table = Table(title=f"Metrics for {asset_name}")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="magenta")
-
     table.add_row("Last Run Status", metrics.last_run.status if metrics.last_run else "-")
     table.add_row(
         "Last Run Duration",
-        f"{metrics.last_run.duration_seconds:.2f}s"
-        if metrics.last_run and metrics.last_run.duration_seconds
-        else "-",
+        (
+            f"{metrics.last_run.duration_seconds:.2f}s"
+            if metrics.last_run and metrics.last_run.duration_seconds
+            else "-"
+        ),
     )
     table.add_row("Average Duration", f"{metrics.average_duration:.2f}s")
     table.add_row("Failure Rate", f"{metrics.failure_rate:.1%}")
     table.add_row("Avg Rows/Run", f"{metrics.average_rows_per_run:,.0f}")
     table.add_row("Data Size", _format_bytes(metrics.data_growth_bytes))
-
     console.print(table)
 
-    # Display run history
     if metrics.last_10_runs:
         console.print()
         run_table = Table(title=f"Last {len(metrics.last_10_runs)} Runs")
@@ -124,7 +90,6 @@ def metrics_asset(asset_name: str, runs: int) -> None:
         run_table.add_column("Status", style="magenta")
         run_table.add_column("Duration", style="yellow")
         run_table.add_column("Rows", style="green")
-
         for run in metrics.last_10_runs:
             status_color = "green" if run.status == "success" else "red"
             duration_str = f"{run.duration_seconds:.2f}s" if run.duration_seconds else "-"
@@ -134,65 +99,46 @@ def metrics_asset(asset_name: str, runs: int) -> None:
                 duration_str,
                 f"{run.rows_processed:,}",
             )
-
         console.print(run_table)
 
 
 @metrics_group.command(name="export")
 @click.option(
     "--format",
+    "export_format",
     type=click.Choice(["json", "csv", "prometheus"]),
     default="json",
     help="Export format",
 )
-@click.option(
-    "--output",
-    type=Path,
-    required=True,
-    help="Output file path",
-)
-@click.option(
-    "--period",
-    type=str,
-    default="24h",
-    help="Time period to analyze (e.g., 24h, 7d, 30d)",
-)
-def metrics_export(format: str, output: Path, period: str) -> None:
-    """
-    Export metrics to JSON or CSV.
-
-    Prometheus export includes maintenance telemetry metrics.
-    """
-    period_hours = _parse_period(period)
+@click.option("--output", type=Path, required=True, help="Output file path")
+@click.option("--period", type=str, default="24h", help="Time period to analyze (e.g., 24h, 7d)")
+def metrics_export(export_format: str, output: Path, period: str) -> None:
+    """Export metrics to JSON, CSV, or Prometheus text."""
     collector = get_metrics_collector()
-    metrics = collector.collect_summary(period_hours)
-
+    metrics = collector.collect_summary(_parse_period(period))
     try:
-        if format == "json":
+        if export_format == "json":
             _export_json(metrics, output)
-        elif format == "csv":
+        elif export_format == "csv":
             _export_csv(metrics, output)
-        elif format == "prometheus":
-            _export_prometheus(output)
+        else:
+            output.write_text(render_maintenance_prometheus(), encoding="utf-8")
     except Exception:
         logger.warning(
             "metrics_export_failed",
-            export_format=format,
+            export_format=export_format,
             output_path=str(output),
             period=period,
             exc_info=True,
         )
         raise
-
     console.print(f"[green]✓[/green] Metrics exported to {output}")
 
 
 def _parse_period(period_str: str) -> int:
-    """Parse period string to hours."""
     raw_period = period_str
     period_str = period_str.strip()
     fallback_hours = 24
-
     if period_str.endswith("h"):
         try:
             return int(period_str[:-1])
@@ -211,25 +157,21 @@ def _parse_period(period_str: str) -> int:
         except ValueError:
             logger.debug("metrics_period_parse_invalid_weeks", period=raw_period)
             return fallback_hours
-
     logger.debug("metrics_period_parse_defaulted", period=raw_period)
     return fallback_hours
 
 
 def _percentage(part: int, total: int) -> float:
-    """Calculate percentage."""
     if total == 0:
         return 0.0
     return (part / total) * 100
 
 
 def _format_number(num: int) -> str:
-    """Format large numbers with commas."""
     return f"{num:,}"
 
 
 def _format_bytes(bytes_val: int | float) -> str:
-    """Format bytes as human-readable size."""
     val = float(bytes_val)
     for unit in ["B", "KB", "MB", "GB", "TB"]:
         if val < 1024:
@@ -239,73 +181,59 @@ def _format_bytes(bytes_val: int | float) -> str:
 
 
 def _export_json(metrics: object, output: Path) -> None:
-    """Export metrics as JSON."""
-    # Convert dataclass to dict
     result = _dataclass_to_dict(metrics)
     if isinstance(result, dict):
         result_dict = cast(dict[str, Any], result)
-        result_dict["exported_at"] = datetime.now(timezone.utc).isoformat()
-        with open(output, "w") as f:
-            json.dump(result_dict, f, indent=2, default=str)
-    else:
-        with open(output, "w") as f:
-            json.dump(
-                {"data": result, "exported_at": datetime.now(timezone.utc).isoformat()},
-                f,
-                indent=2,
-                default=str,
-            )
+        result_dict["exported_at"] = datetime.now(UTC).isoformat()
+        output.write_text(json.dumps(result_dict, indent=2, default=str), encoding="utf-8")
+        return
+    output.write_text(
+        json.dumps(
+            {"data": result, "exported_at": datetime.now(UTC).isoformat()},
+            indent=2,
+            default=str,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _export_csv(metrics: object, output: Path) -> None:
-    """Export metrics as CSV."""
     import csv
 
     result = _dataclass_to_dict(metrics)
     if isinstance(result, dict):
         result_dict = cast(dict[str, Any], result)
-        result_dict["exported_at"] = datetime.now(timezone.utc).isoformat()
-        with open(output, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=result_dict.keys())
+        result_dict["exported_at"] = datetime.now(UTC).isoformat()
+        with output.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=result_dict.keys())
             writer.writeheader()
             writer.writerow(result_dict)
-    else:
-        with open(output, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["data", "exported_at"])
-            writer.writerow([str(result), datetime.now(timezone.utc).isoformat()])
+        return
 
-
-def _export_prometheus(output: Path) -> None:
-    """Export maintenance telemetry as Prometheus text format."""
-
-    from phlo_metrics.maintenance import render_maintenance_prometheus
-
-    output.write_text(render_maintenance_prometheus(), encoding="utf-8")
+    with output.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["data", "exported_at"])
+        writer.writerow([str(result), datetime.now(UTC).isoformat()])
 
 
 def _dataclass_to_dict(obj: object) -> dict[str, Any] | object:
-    """Recursively convert dataclass to dict."""
     import dataclasses
 
-    if dataclasses.is_dataclass(obj):
-        result: dict[str, Any] = {}
-        for field in dataclasses.fields(obj):
-            value = getattr(obj, field.name)
-            if dataclasses.is_dataclass(value):
-                result[field.name] = _dataclass_to_dict(value)
-            elif isinstance(value, dict):
-                result[field.name] = {k: _dataclass_to_dict(v) for k, v in value.items()}
-            elif isinstance(value, list):
-                result[field.name] = [
-                    _dataclass_to_dict(item) if dataclasses.is_dataclass(item) else item
-                    for item in value
-                ]
-            else:
-                result[field.name] = value
-        return result
-    return obj
+    if not dataclasses.is_dataclass(obj):
+        return obj
 
-
-if __name__ == "__main__":
-    metrics_group()
+    result: dict[str, Any] = {}
+    for field in dataclasses.fields(obj):
+        value = getattr(obj, field.name)
+        if dataclasses.is_dataclass(value):
+            result[field.name] = _dataclass_to_dict(value)
+        elif isinstance(value, dict):
+            result[field.name] = {k: _dataclass_to_dict(v) for k, v in value.items()}
+        elif isinstance(value, list):
+            result[field.name] = [
+                _dataclass_to_dict(item) if dataclasses.is_dataclass(item) else item
+                for item in value
+            ]
+        else:
+            result[field.name] = value
+    return result

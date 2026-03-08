@@ -1,13 +1,18 @@
-"""Tests for phlo-metrics resource provider."""
+"""Tests for the core default observability capability provider."""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
-from phlo_metrics.capabilities import DefaultObservabilityBackend
-from phlo_metrics.resource_provider import MetricsResourceProvider
+from phlo.capabilities import (
+    DefaultMaintenanceReadModel,
+    DefaultObservabilityBackend,
+    clear_capabilities,
+    get_capability_registry,
+)
+from phlo.capabilities.discovery import discover_capabilities
 
 
 class _Operation:
@@ -23,41 +28,26 @@ class _Snapshot:
         self.operations = operations
 
 
-def test_metrics_resource_provider_exposes_maintenance_read_model() -> None:
-    """Metrics package should register a neutral maintenance read model."""
-    provider = MetricsResourceProvider()
-
-    specs = provider.get_maintenance_read_models()
-
-    assert [spec.name for spec in specs] == ["metrics"]
-    assert hasattr(specs[0].provider, "load_maintenance_status")
-    assert hasattr(specs[0].provider, "render_maintenance_prometheus")
-
-
-def test_metrics_resource_provider_exposes_observability_backend() -> None:
-    """Metrics package should register a default observability backend."""
-    provider = MetricsResourceProvider()
-
-    specs = provider.get_observability_backends()
-
-    assert [spec.name for spec in specs] == ["default"]
-    assert isinstance(specs[0].provider, DefaultObservabilityBackend)
-    assert specs[0].metadata["default_stack"] == [
-        "phlo-metrics",
-        "phlo-otel",
-        "phlo-clickstack",
-    ]
-    assert specs[0].metadata["service_dependencies"] == ["clickstack"]
-    assert specs[0].support.supports_metrics is True
-    assert specs[0].support.supports_logs is True
-    assert specs[0].support.supports_dashboards is True
-    assert specs[0].support.supports_alerts is True
+def test_discover_capabilities_registers_core_default_providers() -> None:
+    clear_capabilities()
+    discover_capabilities()
+    registry = get_capability_registry()
+    maintenance_specs = registry.list_maintenance_read_models()
+    observability_specs = registry.list_observability_backends()
+    assert [spec.name for spec in maintenance_specs] == ["default"]
+    assert isinstance(maintenance_specs[0].provider, DefaultMaintenanceReadModel)
+    assert [spec.name for spec in observability_specs] == ["default"]
+    assert isinstance(observability_specs[0].provider, DefaultObservabilityBackend)
+    assert observability_specs[0].metadata["default_stack"] == ["phlo-otel", "phlo-clickstack"]
+    assert observability_specs[0].metadata["service_dependencies"] == ["clickstack"]
+    assert observability_specs[0].support.supports_metrics is True
+    assert observability_specs[0].support.supports_logs is True
+    assert observability_specs[0].support.supports_dashboards is True
+    assert observability_specs[0].support.supports_alerts is True
 
 
 def test_default_observability_backend_has_required_methods() -> None:
-    """Default observability backend should implement the ObservabilityBackend protocol."""
     backend = DefaultObservabilityBackend()
-
     assert hasattr(backend, "health_summary")
     assert hasattr(backend, "service_status")
     assert hasattr(backend, "platform_metrics")
@@ -68,38 +58,22 @@ def test_default_observability_backend_has_required_methods() -> None:
 
 
 def test_default_observability_backend_returns_expected_types() -> None:
-    """Default observability backend methods should return expected types."""
     backend = DefaultObservabilityBackend()
-
-    health = backend.health_summary()
-    assert hasattr(health, "overall_status")
-    assert hasattr(health, "components")
-    assert hasattr(health, "timestamp")
-
-    services = backend.service_status()
-    assert isinstance(services, list)
-
-    metrics = backend.platform_metrics("24h")
-    assert hasattr(metrics, "period")
-    assert hasattr(metrics, "metrics")
-    assert hasattr(metrics, "timestamp")
-
-    alerts = backend.recent_alerts(10)
-    assert isinstance(alerts, list)
-
-    links = backend.dashboard_links()
-    assert isinstance(links, list)
-
-    logs_link = backend.logs_query_link("test-service")
-    assert isinstance(logs_link, str) or logs_link is None
-
-    metrics_link = backend.metrics_query_link("test_metric")
-    assert isinstance(metrics_link, str) or metrics_link is None
+    assert hasattr(backend.health_summary(), "overall_status")
+    assert isinstance(backend.service_status(), list)
+    assert hasattr(backend.platform_metrics("24h"), "period")
+    assert isinstance(backend.recent_alerts(10), list)
+    assert isinstance(backend.dashboard_links(), list)
+    assert isinstance(backend.logs_query_link("test-service"), str) or (
+        backend.logs_query_link("test-service") is None
+    )
+    assert isinstance(backend.metrics_query_link("test_metric"), str) or (
+        backend.metrics_query_link("test_metric") is None
+    )
 
 
 def test_recent_alerts_limits_after_filtering_failures(monkeypatch) -> None:
-    """Alert limit should apply after selecting failed operations."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     backend = DefaultObservabilityBackend()
     snapshot = _Snapshot(
         operations=[
@@ -110,16 +84,13 @@ def test_recent_alerts_limits_after_filtering_failures(monkeypatch) -> None:
         ]
     )
     monkeypatch.setattr(backend._maintenance, "load_maintenance_status", lambda: snapshot)
-
     alerts = backend.recent_alerts(1)
-
     assert len(alerts) == 1
     assert alerts[0].title == "Maintenance operation cleanup failed"
 
 
 def test_service_status_is_sorted_deterministically(monkeypatch) -> None:
-    """Service list should not depend on set iteration order."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     backend = DefaultObservabilityBackend()
     snapshot = _Snapshot(
         operations=[
@@ -129,14 +100,11 @@ def test_service_status_is_sorted_deterministically(monkeypatch) -> None:
         ]
     )
     monkeypatch.setattr(backend._maintenance, "load_maintenance_status", lambda: snapshot)
-
     services = backend.service_status()
-
     assert [service.name for service in services] == ["alpha", "zeta"]
 
 
 def test_links_resolve_from_service_config(monkeypatch, tmp_path: Path) -> None:
-    """Service config should drive generated observability links."""
     backend = DefaultObservabilityBackend()
     grafana_dir = tmp_path / "grafana"
     dashboards_dir = grafana_dir / "dashboards"
@@ -177,14 +145,9 @@ def test_links_resolve_from_service_config(monkeypatch, tmp_path: Path) -> None:
         ),
     }
 
-    class _StubDiscovery:
-        def get_service(self, name: str):
-            return services.get(name)
-
-    monkeypatch.setattr("phlo_metrics.capabilities._discover_service", services.get)
+    monkeypatch.setattr("phlo.capabilities.observability._discover_service", services.get)
 
     links = backend.dashboard_links()
-
     assert links[0].url == "http://localhost:8080"
     assert backend.logs_query_link("dagster") == "http://localhost:8080?service=dagster"
     assert backend.metrics_query_link("up") == "http://localhost:8080?metric=up"

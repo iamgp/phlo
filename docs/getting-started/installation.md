@@ -192,7 +192,7 @@ Install additional service packages:
 uv pip install phlo-superset
 
 # Observability stack
-uv pip install phlo-otel phlo-metrics phlo-clickstack
+uv pip install phlo-otel phlo-clickstack
 
 # API layers
 uv pip install phlo-postgrest phlo-hasura

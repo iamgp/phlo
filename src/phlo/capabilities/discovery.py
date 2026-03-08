@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from phlo.capabilities.observability import register_default_capability_providers
 from phlo.capabilities.registry import (
     register_alert_sink,
     register_api_backend,
@@ -32,6 +33,7 @@ logger = get_logger(__name__)
 def discover_capabilities() -> None:
     """Discover capability providers and register their specs."""
     logger.info("capability_discovery_started")
+    register_default_capability_providers()
     discover_plugins(plugin_type="asset_providers", auto_register=True)
     discover_plugins(plugin_type="resource_providers", auto_register=True)
 

@@ -40,7 +40,6 @@ members = [
     "phlo-iceberg",
     "phlo-lineage",
     "phlo-loki",
-    "phlo-metrics",
     "phlo-minio",
     "phlo-nessie",
     "phlo-observatory",
@@ -2764,7 +2763,6 @@ dev = [
     { name = "phlo-dbt" },
     { name = "phlo-dlt" },
     { name = "phlo-iceberg" },
-    { name = "phlo-metrics" },
     { name = "phlo-nessie" },
     { name = "phlo-openmetadata" },
     { name = "phlo-testing" },
@@ -2821,7 +2819,6 @@ dev = [
     { name = "phlo-dbt", editable = "packages/phlo-dbt" },
     { name = "phlo-dlt", editable = "packages/phlo-dlt" },
     { name = "phlo-iceberg", editable = "packages/phlo-iceberg" },
-    { name = "phlo-metrics", editable = "packages/phlo-metrics" },
     { name = "phlo-nessie", editable = "packages/phlo-nessie" },
     { name = "phlo-openmetadata", editable = "packages/phlo-openmetadata" },
     { name = "phlo-testing", editable = "packages/phlo-testing" },
@@ -3259,41 +3256,6 @@ requires-dist = [
     { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-]
-
-[[package]]
-name = "phlo-metrics"
-version = "0.1.0"
-source = { editable = "packages/phlo-metrics" }
-dependencies = [
-    { name = "cachetools" },
-    { name = "phlo" },
-    { name = "psycopg2-binary" },
-    { name = "requests" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
-]
-nessie = [
-    { name = "phlo-nessie" },
-]
-postgres = [
-    { name = "phlo-postgres" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cachetools", specifier = ">=6.2.1" },
-    { name = "phlo", editable = "." },
-    { name = "phlo-nessie", marker = "extra == 'nessie'", editable = "packages/phlo-nessie" },
-    { name = "phlo-postgres", marker = "extra == 'postgres'", editable = "packages/phlo-postgres" },
-    { name = "psycopg2-binary", specifier = ">=2.9.11" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "requests", specifier = ">=2.32.5" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 

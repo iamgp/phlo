@@ -14,7 +14,7 @@ pip install phlo-clickstack
 For the current recommended observability path:
 
 ```bash
-pip install phlo-otel phlo-metrics phlo-clickstack
+pip install phlo-otel phlo-clickstack
 ```
 
 ## Profile
@@ -82,5 +82,5 @@ host/container log collection beyond direct OTLP application telemetry.
 
 - [phlo-otel](phlo-otel.md) - OTLP signal emission
 - [phlo-alloy](phlo-alloy.md) - Optional collector and fan-out layer
-- [phlo-metrics](phlo-metrics.md) - Neutral observability capability provider
+- Core observability capabilities resolve ClickStack links directly when installed
 - [Observability Setup](../setup/observability.md) - Stack topology guidance

@@ -98,7 +98,6 @@ nav:
           - phlo-loki: packages/phlo-loki.md
           - phlo-alloy: packages/phlo-alloy.md
           - phlo-alerting: packages/phlo-alerting.md
-          - phlo-metrics: packages/phlo-metrics.md
       - API Layer:
           - phlo-api: packages/phlo-api.md
           - phlo-postgrest: packages/phlo-postgrest.md

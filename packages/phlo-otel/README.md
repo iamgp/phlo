@@ -161,6 +161,6 @@ Unknown telemetry names still fall back to `phlo.telemetry.<name>`.
 
 ## Architecture
 
-Hooks into the existing `HookBus` as a `HookPlugin` — same pattern as `phlo-metrics`.
+Hooks into the existing `HookBus` as a `HookPlugin`, alongside core telemetry hook handling.
 Point the OTLP exporters at Alloy or OpenTelemetry Collector, then route onward
 to your trace, metric, and log backends there.
