@@ -267,7 +267,7 @@ class IcebergSchemaMigrator:
             status="applied",
             classification=plan.classification,
             change_count=len(applied),
-            changes=[asdict(c) for c in plan.changes],
+            changes=[asdict(c) for c in applied],
         )
 
         return {
