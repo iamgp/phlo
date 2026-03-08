@@ -78,6 +78,11 @@ graph TB
         SCHEDULES[Schedules & Sensors]
     end
 
+    subgraph "Observability"
+        OTEL[phlo-otel]
+        CLICKSTACK[ClickStack]
+    end
+
     subgraph "Analytics Layer"
         MARTS[PostgreSQL Marts]
         SUPERSET[Superset Dashboards]
@@ -100,6 +105,9 @@ graph TB
     DAGSTER --> DBT
     DAGSTER --> TRINO
     SCHEDULES --> DAGSTER
+
+    DAGSTER --> OTEL
+    OTEL --> CLICKSTACK
 
     DBT --> MARTS
     TRINO --> MARTS
@@ -218,7 +226,6 @@ Plugins are automatically discovered using Python entry points:
 
 For more details, see:
 - [Data Engineering Fundamentals Part 12](../blog/data-engineering-fundamentals/12-extending-phlo-with-plugins-and-observatory.md)
-- [Capability-Driven Composition](../architecture/capability-composition.md)
 - [ADR 0030: Unified Plugin System](../architecture/decisions/0030-unified-plugin-system-with-registry.md)
 - [ADR 0046: Phlo Contracts for Migration Scaffolding](../architecture/decisions/0046-phlo-contracts-for-schema-migration-scaffolding.md)
 
@@ -230,8 +237,8 @@ Phlo uses a Git-like branching model for data:
 - **dev**: Development workspace (read-write)
 - **feature branches**: Isolated development environments
 
-See [NESSIE_WORKFLOW.md](../../NESSIE_WORKFLOW.md) for detailed branching workflows.
+See the [Core Concepts guide](../getting-started/core-concepts.md) for branching patterns.
 
 ## For More Details
 
-Read the full [Architecture Guide](../../ARCHITECTURE.md) for complete technical specifications.
+See the [Plugin Architecture](plugin-architecture.md) for the full plugin system specification.

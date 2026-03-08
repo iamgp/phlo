@@ -18,7 +18,7 @@ Provider plugins supply the core primitives that other packages depend on:
 | `quality_providers` | `phlo.plugins.quality_providers` | Quality primitives (@phlo_quality, checks) | phlo-pandera |
 | `ingestion_providers` | `phlo.plugins.ingestion_providers` | Ingestion primitives (@phlo_ingestion) | phlo-dlt |
 | `transformation_providers` | `phlo.plugins.transformation_providers` | Transformation primitives (dbt assets) | phlo-dbt |
-| `resource_providers` | `phlo.plugins.resources` | Infrastructure resources (DB, storage) | phlo-trino, phlo-postgres, phlo-iceberg |
+| `resource_providers` | `phlo.plugins.resources` | Infrastructure resources (DB, storage) | phlo-trino, phlo-postgres, phlo-iceberg, phlo-delta |
 | `asset_providers` | `phlo.plugins.assets` | Asset spec generation | phlo-dbt, phlo-dlt |
 | `catalogs` | `phlo.plugins.catalogs` | Table catalog (Iceberg, Nessie) | phlo-iceberg |
 

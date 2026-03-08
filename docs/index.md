@@ -56,7 +56,6 @@ In-depth tutorials and how-tos:
 - [Data Modelling](guides/data-modeling.md) - Bronze/Silver/Gold architecture
 - [dbt Development](guides/dbt-development.md) - SQL transformations
 - [Dagster Assets](guides/dagster-assets.md) - Orchestration patterns
-- [GitHub Workflow](guides/github-workflow.md) - Git branching and CI/CD
 
 ### Setup
 
@@ -73,6 +72,7 @@ Package-specific reference:
 
 - [phlo-clickstack](packages/phlo-clickstack.md) - Preferred all-in-one observability backend
 - [phlo-otel](packages/phlo-otel.md) - OpenTelemetry traces, metrics, and OTLP log export
+- [phlo-delta](packages/phlo-delta.md) - Delta Lake table format (alternative to Iceberg)
 
 ### Reference
 
@@ -158,7 +158,7 @@ Phlo is open source. Contributions welcome!
 
 - Report bugs via GitHub Issues
 - Submit improvements via Pull Requests
-- See [guides/github-workflow.md](guides/github-workflow.md) for workflow
+- See [Developer Guide](guides/developer-guide.md) for workflow
 
 ## Key Features
 
@@ -180,4 +180,4 @@ Built-in monitoring, alerting, backups, and disaster recovery patterns.
 
 ---
 
-**Version:** 2.0 | **Last Updated:** 2025-12-06
+**Version:** 2.0 | **Last Updated:** 2026-03-08
