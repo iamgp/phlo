@@ -563,7 +563,10 @@ class OtelHookPlugin(HookPlugin):
         if not event.name.startswith("iceberg.maintenance."):
             return False
 
-        attributes = self._normalize_metric_attributes(event.payload)
+        attributes = {
+            **self._metric_attributes_from_tags(event.tags),
+            **self._normalize_metric_attributes(event.payload),
+        }
         metric_map: dict[str, tuple[str, str]] = {
             "iceberg.maintenance.run": ("counter", "phlo.maintenance.runs"),
             "iceberg.maintenance.duration_seconds": ("histogram", "phlo.maintenance.duration"),

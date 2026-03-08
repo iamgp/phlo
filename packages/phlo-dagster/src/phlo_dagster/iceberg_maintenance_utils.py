@@ -173,41 +173,53 @@ def emit_maintenance_metrics(
         total_size_mb: Optional total data size affected in MB.
     """
 
-    emitter.emit_metric(name="iceberg.maintenance.run", value=1, unit="run")
+    payload = dict(emitter._context.tags)
+    emitter.emit_metric(name="iceberg.maintenance.run", value=1, unit="run", payload=payload)
     emitter.emit_metric(
         name="iceberg.maintenance.duration_seconds",
         value=duration_seconds,
         unit="seconds",
+        payload=payload,
     )
     emitter.emit_metric(
         name="iceberg.maintenance.tables_processed",
         value=tables_processed,
         unit="tables",
+        payload=payload,
     )
-    emitter.emit_metric(name="iceberg.maintenance.errors", value=errors, unit="errors")
+    emitter.emit_metric(
+        name="iceberg.maintenance.errors",
+        value=errors,
+        unit="errors",
+        payload=payload,
+    )
     if snapshots_deleted is not None:
         emitter.emit_metric(
             name="iceberg.maintenance.snapshots_deleted",
             value=snapshots_deleted,
             unit="snapshots",
+            payload=payload,
         )
     if orphan_files is not None:
         emitter.emit_metric(
             name="iceberg.maintenance.orphan_files",
             value=orphan_files,
             unit="files",
+            payload=payload,
         )
     if total_records is not None:
         emitter.emit_metric(
             name="iceberg.maintenance.total_records",
             value=total_records,
             unit="records",
+            payload=payload,
         )
     if total_size_mb is not None:
         emitter.emit_metric(
             name="iceberg.maintenance.total_size_mb",
             value=total_size_mb,
             unit="mb",
+            payload=payload,
         )
 
 

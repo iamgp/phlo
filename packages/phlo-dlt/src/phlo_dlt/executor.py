@@ -98,6 +98,12 @@ class DltIngester(BaseIngester):
                 run_id=run_id,
                 branch_name=branch_name,
                 tags={"group": group_name, "source": "dlt"},
+                correlation=HookCorrelation(
+                    run_id=run_id,
+                    asset_key=f"dlt_{self.table_config.table_name}",
+                    partition_key=partition_key,
+                    job_name=getattr(self.context, "job_name", None),
+                ),
             )
         )
         telemetry = TelemetryEventEmitter(

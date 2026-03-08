@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from phlo.hooks.emitters import TelemetryEventContext, TelemetryEventEmitter
 from phlo.hooks.events import (
     DataMigrationEvent,
     HookCorrelation,
@@ -610,7 +611,9 @@ class TestOtelHookPlugin:
         mock_meter_fn.assert_not_called()
 
     @patch("phlo_otel.hooks_plugin.get_meter")
-    def test_maintenance_telemetry_promotes_standard_metrics(self, mock_meter_fn, plugin):
+    def test_maintenance_telemetry_promotes_standard_metrics(
+        self, mock_meter_fn, monkeypatch, plugin
+    ):
         mock_runs_counter = MagicMock()
         mock_duration_histogram = MagicMock()
         mock_meter = MagicMock()
@@ -618,32 +621,39 @@ class TestOtelHookPlugin:
         mock_meter.create_histogram.return_value = mock_duration_histogram
         mock_meter_fn.return_value = mock_meter
 
-        run_event = TelemetryEvent(
-            event_type="telemetry.metric",
+        class RecordingBus:
+            def __init__(self) -> None:
+                self.events: list[object] = []
+
+            def emit(self, event: object) -> None:
+                self.events.append(event)
+
+        bus = RecordingBus()
+        monkeypatch.setattr("phlo.hooks.emitters.get_hook_bus", lambda: bus)
+        telemetry = TelemetryEventEmitter(
+            TelemetryEventContext(
+                tags={
+                    "operation": "expire_snapshots",
+                    "namespace": "raw",
+                    "status": "success",
+                }
+            )
+        )
+        telemetry.emit_metric(
             name="iceberg.maintenance.run",
             value=1,
             unit="run",
-            payload={
-                "operation": "expire_snapshots",
-                "namespace": "raw",
-                "status": "success",
-                "ref": "dev",
-            },
+            payload={"operation": "expire_snapshots", "namespace": "raw", "status": "success"},
         )
-        duration_event = TelemetryEvent(
-            event_type="telemetry.metric",
+        telemetry.emit_metric(
             name="iceberg.maintenance.duration_seconds",
             value=3.5,
             unit="seconds",
-            payload={
-                "operation": "expire_snapshots",
-                "namespace": "raw",
-                "status": "success",
-            },
+            payload={"operation": "expire_snapshots", "namespace": "raw", "status": "success"},
         )
 
-        plugin._handle_telemetry(run_event)
-        plugin._handle_telemetry(duration_event)
+        for event in bus.events:
+            plugin._handle_telemetry(event)
 
         mock_meter.create_counter.assert_called_once_with(
             "phlo.maintenance.runs",
