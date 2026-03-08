@@ -34,6 +34,7 @@ Phlo is organized as a monorepo with individual packages that provide specific f
 
 | Package                               | Description                          |
 | ------------------------------------- | ------------------------------------ |
+| [phlo-clickstack](phlo-clickstack.md) | All-in-one observability backend     |
 | [phlo-grafana](phlo-grafana.md)       | Metrics visualization and dashboards |
 | [phlo-prometheus](phlo-prometheus.md) | Metrics collection and alerting      |
 | [phlo-loki](phlo-loki.md)             | Log aggregation                      |

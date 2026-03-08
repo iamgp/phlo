@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pandas as pd
+import pyarrow as pa
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
 
@@ -82,3 +83,44 @@ def test_merge_to_table_store_appends_all_files(tmp_path) -> None:
 
     assert metrics == {"rows_inserted": 2, "rows_deleted": 0}
     assert len(append_calls) == 2
+
+
+def test_merge_to_table_store_supports_pyarrow_table_schema(tmp_path) -> None:
+    parquet_path = tmp_path / "pokemon.parquet"
+    pd.DataFrame([{"pokemon_id": 1, "name": "bulbasaur"}]).to_parquet(parquet_path)
+
+    append_calls: list[str] = []
+
+    class TableStoreStub:
+        def ensure_table(self, **_kwargs):
+            return None
+
+        def append_parquet(
+            self, *, table_name: str, data_path: str, override_ref: str | None = None
+        ):
+            append_calls.append(data_path)
+            return {"rows_inserted": 1, "rows_deleted": 0}
+
+    context = SimpleNamespace(log=SimpleNamespace(info=lambda *_args, **_kwargs: None))
+    metrics = merge_to_table_store(
+        context=context,
+        table_store=TableStoreStub(),
+        table_config=TableConfig(
+            table_name="pokemon_species",
+            table_schema=pa.schema(
+                [
+                    pa.field("pokemon_id", pa.int64()),
+                    pa.field("name", pa.string()),
+                ]
+            ),
+            validation_schema=None,
+            unique_key="pokemon_id",
+            group_name="pokemon",
+        ),
+        parquet_paths=[parquet_path],
+        branch_name="main",
+        merge_strategy="append",
+    )
+
+    assert metrics == {"rows_inserted": 1, "rows_deleted": 0}
+    assert len(append_calls) == 1

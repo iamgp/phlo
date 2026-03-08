@@ -29,7 +29,10 @@ def is_plugin_allowed(plugin_name: str) -> bool:
 
 
 def discover_plugins(
-    plugin_type: str | None = None, auto_register: bool = True
+    plugin_type: str | None = None,
+    auto_register: bool = True,
+    *,
+    failure_level: str = "error",
 ) -> dict[str, list[Plugin]]:
     """Discover installed Phlo plugins from entry points."""
     settings = get_settings()
@@ -101,14 +104,15 @@ def discover_plugins(
 
                     discovered[current_type].append(plugin)
 
-                    logger.info(
+                    logger.debug(
                         "plugin_loaded",
                         plugin_name=plugin.metadata.name,
                         plugin_version=plugin.metadata.version,
                         plugin_type=current_type,
                     )
                 except Exception:
-                    logger.error(
+                    log_method = getattr(logger, failure_level, logger.error)
+                    log_method(
                         "plugin_load_failed",
                         plugin_name=entry_point.name,
                         entry_point=entry_point.value,
@@ -118,6 +122,6 @@ def discover_plugins(
                     continue
 
         total = sum(len(plugins) for plugins in discovered.values())
-        logger.info("plugin_discovery_completed", total_plugins=total, discovered=discovered)
+        logger.debug("plugin_discovery_completed", total_plugins=total, discovered=discovered)
 
         return discovered

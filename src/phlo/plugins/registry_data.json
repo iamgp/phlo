@@ -215,6 +215,16 @@
       "tags": ["api", "rest"],
       "verified": true
     },
+    "clickstack": {
+      "type": "service",
+      "package": "phlo-clickstack",
+      "version": "0.1.0",
+      "description": "ClickStack all-in-one observability backend",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-clickstack",
+      "tags": ["observability", "logs", "metrics", "traces"],
+      "verified": true
+    },
     "loki": {
       "type": "service",
       "package": "phlo-loki",

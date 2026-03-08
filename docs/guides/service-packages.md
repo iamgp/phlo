@@ -40,6 +40,7 @@ Optional packages:
 - `phlo-pgweb` - PostgreSQL web admin
 - `phlo-postgrest` - Auto-generated REST API
 - `phlo-hasura` - GraphQL API
+- `phlo-clickstack` - All-in-one observability backend [observability]
 - `phlo-prometheus` - Metrics [observability]
 - `phlo-grafana` - Dashboards [observability]
 - `phlo-loki` - Log aggregation [observability]
