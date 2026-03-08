@@ -16,6 +16,21 @@ def _utc_now() -> datetime:
 
 
 @dataclass(kw_only=True)
+class HookCorrelation:
+    """Shared correlation fields for cross-signal observability."""
+
+    request_id: str | None = None
+    trace_id: str | None = None
+    span_id: str | None = None
+    trace_flags: str | None = None
+    run_id: str | None = None
+    asset_key: str | None = None
+    job_name: str | None = None
+    partition_key: str | None = None
+    check_name: str | None = None
+
+
+@dataclass(kw_only=True)
 class HookEvent:
     """Base event payload shared by all hook events."""
 
@@ -23,6 +38,7 @@ class HookEvent:
     version: str = EVENT_VERSION
     timestamp: datetime = field(default_factory=_utc_now)
     tags: dict[str, str] = field(default_factory=dict)
+    correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
 @dataclass(kw_only=True)

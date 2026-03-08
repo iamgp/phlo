@@ -52,15 +52,25 @@ def _build_resource_attributes() -> dict[str, str]:
     """Build OTel resource attributes for Phlo process metadata."""
     settings = get_settings()
     service_name = os.environ.get("OTEL_SERVICE_NAME", settings.phlo_log_service_name)
+    service_namespace = os.environ.get("OTEL_SERVICE_NAMESPACE", settings.phlo_service_namespace)
+    service_version = os.environ.get(
+        "OTEL_SERVICE_VERSION",
+        settings.phlo_service_version or INSTRUMENTATION_VERSION,
+    )
+    service_instance_id = os.environ.get(
+        "OTEL_SERVICE_INSTANCE_ID",
+        settings.phlo_service_instance_id or socket.gethostname(),
+    )
+    project = os.environ.get("PHLO_PROJECT", settings.phlo_project or service_name)
     return {
         SERVICE_NAME: service_name,
-        "service.namespace": os.environ.get("OTEL_SERVICE_NAMESPACE", "phlo"),
-        "service.version": os.environ.get("OTEL_SERVICE_VERSION", INSTRUMENTATION_VERSION),
-        "service.instance.id": os.environ.get("OTEL_SERVICE_INSTANCE_ID", socket.gethostname()),
+        "service.namespace": service_namespace,
+        "service.version": service_version,
+        "service.instance.id": service_instance_id,
         "deployment.environment": settings.phlo_environment,
         "phlo.package": PACKAGE_NAME,
         "phlo.runtime": "python",
-        "phlo.project": os.environ.get("PHLO_PROJECT", service_name),
+        "phlo.project": project,
     }
 
 

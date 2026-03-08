@@ -6,6 +6,7 @@ from typing import Any, List
 
 from phlo.capabilities.runtime import RuntimeContext
 from phlo.hooks import (
+    HookCorrelation,
     QualityResultEventContext,
     QualityResultEventEmitter,
     TelemetryEventContext,
@@ -17,17 +18,26 @@ from phlo_pandera.contract import QualityCheckContract
 
 
 def _make_emitters(
+    runtime: RuntimeContext,
     asset_key: str,
     partition_key_value: str | None,
     source: str,
     backend: str,
 ) -> tuple[QualityResultEventEmitter, TelemetryEventEmitter]:
     """Create quality-result and telemetry emitters."""
+    correlation = HookCorrelation(
+        run_id=runtime.run_id,
+        asset_key=asset_key,
+        partition_key=partition_key_value,
+        job_name=getattr(runtime, "job_name", None),
+    )
     emitter = QualityResultEventEmitter(
         QualityResultEventContext(
             asset_key=asset_key,
+            run_id=runtime.run_id,
             partition_key=partition_key_value,
             tags={"source": source, "backend": backend},
+            correlation=correlation,
         )
     )
     telemetry = TelemetryEventEmitter(
@@ -36,7 +46,8 @@ def _make_emitters(
                 "asset": asset_key,
                 "source": source,
                 "backend": backend,
-            }
+            },
+            correlation=correlation,
         )
     )
     return emitter, telemetry

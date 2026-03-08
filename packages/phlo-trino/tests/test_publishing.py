@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+from phlo.hooks.events import LineageEvent, PublishEvent, TelemetryEvent
+import phlo_trino.publishing as publishing
 from phlo_trino.publishing import (
     _describe_trino_table,
     _is_retryable_introspection_error,
@@ -215,3 +219,107 @@ def test_resolve_publish_target_uses_wrapper_defaults() -> None:
     assert resource is _PublishTarget.resource
     assert target_system == "postgres"
     assert schema == "serving"
+
+
+def test_publish_marts_emits_correlation(monkeypatch) -> None:
+    class RecordingBus:
+        def __init__(self) -> None:
+            self.events: list[object] = []
+
+        def emit(self, event: object) -> None:
+            self.events.append(event)
+
+    bus = RecordingBus()
+    monkeypatch.setattr("phlo.hooks.emitters.get_hook_bus", lambda: bus)
+    inserted_rows: list[tuple[object, ...]] = []
+
+    def _record_execute_values(_cursor, _query, rows, page_size) -> None:
+        assert page_size == 1000
+        inserted_rows.extend(rows)
+
+    monkeypatch.setattr(publishing, "execute_values", _record_execute_values)
+
+    class _FakePostgresCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def execute(self, query) -> None:
+            return None
+
+    class _FakeTrinoCursor:
+        def __init__(self) -> None:
+            self._rows: list[tuple[object, ...]] = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def execute(self, query: str) -> None:
+            if query.startswith("DESCRIBE ") or query.startswith("SHOW COLUMNS FROM "):
+                self._rows = [
+                    ("order_id", "bigint"),
+                    ("status", "varchar"),
+                    ("amount", "double"),
+                ]
+                return
+            if query.startswith("SELECT "):
+                self._rows = [
+                    (1, "placed", 10.0),
+                    (2, "paid", 12.5),
+                    (3, "fulfilled", 18.0),
+                ]
+                return
+            raise AssertionError(f"Unexpected Trino query: {query}")
+
+        def fetchall(self) -> list[tuple[object, ...]]:
+            return list(self._rows)
+
+        def fetchmany(self, batch_size: int) -> list[tuple[object, ...]]:
+            batch = self._rows[:batch_size]
+            self._rows = self._rows[batch_size:]
+            return batch
+
+    class _FakeTrino:
+        def cursor(self) -> _FakeTrinoCursor:
+            return _FakeTrinoCursor()
+
+    class _FakePostgres:
+        def cursor(self) -> _FakePostgresCursor:
+            return _FakePostgresCursor()
+
+        def commit(self) -> None:
+            return None
+
+    stats = publishing._publish_marts(
+        context=SimpleNamespace(asset_key="publish_orders", run_id="run-88"),
+        trino=_FakeTrino(),
+        postgres=_FakePostgres(),
+        target_system="postgres",
+        tables_to_publish={"orders": "silver.orders"},
+        data_source="orders",
+        target_schema="marts",
+        batch_size=1000,
+    )
+
+    assert stats["orders"].row_count == 3
+    assert stats["orders"].column_count == 3
+    assert inserted_rows == [
+        (1, "placed", 10.0),
+        (2, "paid", 12.5),
+        (3, "fulfilled", 18.0),
+    ]
+    publish_event = next(event for event in bus.events if isinstance(event, PublishEvent))
+    telemetry_event = next(event for event in bus.events if isinstance(event, TelemetryEvent))
+    lineage_event = next(event for event in bus.events if isinstance(event, LineageEvent))
+
+    assert publish_event.correlation.run_id == "run-88"
+    assert publish_event.correlation.asset_key == "publish_orders"
+    assert telemetry_event.correlation.run_id == "run-88"
+    assert telemetry_event.correlation.asset_key == "publish_orders"
+    assert lineage_event.correlation.run_id == "run-88"
+    assert lineage_event.correlation.asset_key == "publish_orders"

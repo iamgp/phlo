@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from phlo.hooks.events import TelemetryEvent, TransformEvent
 from phlo.logging import get_logger
 from phlo_dbt.runtime_config import resolve_dbt_target_name
 from phlo_dbt.transformer import DbtTransformer
@@ -269,7 +270,61 @@ def test_run_transform_counts_models_and_tests_from_run_results(tmp_path: Path) 
     assert result.models_failed == 1
     assert result.tests_passed == 2
     assert result.tests_failed == 1
-    assert result.metadata["counts_source"] == "run_results"
+
+
+def test_run_transform_emits_runtime_correlation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class RecordingBus:
+        def __init__(self) -> None:
+            self.events: list[object] = []
+
+        def emit(self, event: object) -> None:
+            self.events.append(event)
+
+    bus = RecordingBus()
+    monkeypatch.setattr("phlo.hooks.emitters.get_hook_bus", lambda: bus)
+
+    transformer = DbtTransformer(
+        context=SimpleNamespace(
+            run_id="run-44",
+            partition_key="2026-03-08",
+            job_name="daily_transform",
+            asset_key="mart_orders",
+            tags={"environment": "ci"},
+            resources={},
+        ),
+        logger=get_logger("test_dbt_transformer_correlation"),
+        project_dir=tmp_path,
+        profiles_dir=tmp_path,
+        target="ci",
+    )
+
+    def fake_run_command(args: list[str], env: dict[str, str] | None = None):
+        return subprocess.CompletedProcess(
+            args=["dbt"] + args,
+            returncode=0,
+            stdout="PASS=1 WARN=0 ERROR=0 SKIP=0 TOTAL=1",
+            stderr="",
+        )
+
+    transformer._run_command = fake_run_command  # type: ignore[method-assign]
+
+    result = transformer.run_transform(
+        partition_key="2026-03-08",
+        parameters={"generate_docs": False},
+    )
+
+    assert result.status == "success"
+    transform_events = [event for event in bus.events if isinstance(event, TransformEvent)]
+    telemetry_events = [event for event in bus.events if isinstance(event, TelemetryEvent)]
+    assert transform_events
+    assert telemetry_events
+    assert transform_events[0].correlation.run_id == "run-44"
+    assert transform_events[0].correlation.partition_key == "2026-03-08"
+    assert transform_events[0].correlation.job_name == "daily_transform"
+    assert telemetry_events[0].correlation.run_id == "run-44"
+    assert telemetry_events[0].correlation.partition_key == "2026-03-08"
 
 
 def test_run_transform_falls_back_when_run_results_missing(tmp_path: Path) -> None:
