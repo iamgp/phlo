@@ -887,6 +887,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#delta-lake-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delta Lake Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#branch-management" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1961,6 +1972,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#delta-lake-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delta Lake Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#branch-management" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2757,6 +2779,21 @@ s3://lake/warehouse
 
 # Custom branch
 s3://lake/warehouse@feature-branch
+</code></pre>
+<h3 id="delta-lake-configuration">Delta Lake Configuration</h3>
+<p>Delta Lake table format (alternative to Iceberg):</p>
+<pre><code class="language-bash"># Storage paths
+DELTA_WAREHOUSE_PATH=s3://lake/warehouse/delta
+DELTA_STAGING_PATH=s3://lake/stage
+
+# Default namespace
+DELTA_DEFAULT_NAMESPACE=raw
+
+# S3 endpoint
+DELTA_S3_ENDPOINT=http://minio:10001
+
+# Allow unsafe rename for S3
+DELTA_S3_ALLOW_UNSAFE_RENAME=true
 </code></pre>
 <h3 id="branch-management">Branch Management</h3>
 <p>Nessie branch lifecycle configuration:</p>

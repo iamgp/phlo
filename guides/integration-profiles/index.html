@@ -872,6 +872,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#alternative-delta-table-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative: Delta Table Store
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1009,6 +1020,12 @@
 <li>clean up the run branch</li>
 </ol>
 <p>In the default stack, Nessie provides that versioned catalog capability.</p>
+<h3 id="alternative-delta-table-store">Alternative: Delta Table Store</h3>
+<p>The bundled stack can use <code>phlo-delta</code> instead of <code>phlo-iceberg</code> as the table-store capability:</p>
+<ul>
+<li>table store: <code>phlo-delta</code></li>
+</ul>
+<p>The rest of the stack remains the same. Delta does not support versioned catalog refs, so WAP sensors are not enabled in this configuration.</p>
 <h2 id="profile-non-versioned-local-profile">Profile: Non-Versioned Local Profile</h2>
 <p>Local non-versioned profile:</p>
 <ul>

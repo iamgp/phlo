@@ -1249,10 +1249,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#distributed-tracing-future" class="md-nav__link">
+  <a href="#distributed-tracing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Distributed Tracing (Future)
+        Distributed Tracing
       
     </span>
   </a>
@@ -2359,10 +2359,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#distributed-tracing-future" class="md-nav__link">
+  <a href="#distributed-tracing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Distributed Tracing (Future)
+        Distributed Tracing
       
     </span>
   </a>
@@ -2979,14 +2979,12 @@ def my_asset(context):
     pipeline_runs.inc()
 </code></pre>
 <p>Then scrape via Dagster's metrics endpoint (if exposed).</p>
-<h3 id="distributed-tracing-future">Distributed Tracing (Future)</h3>
-<p>Add Tempo for distributed tracing:</p>
-<pre><code class="language-yaml"># docker-compose.yml
-tempo:
-  image: grafana/tempo:latest
-  profiles: [&quot;observability&quot;]
-</code></pre>
-<p>Integrate with Dagster, Trino, and dbt for end-to-end trace visibility.</p>
+<h3 id="distributed-tracing">Distributed Tracing</h3>
+<p><code>phlo-otel</code> emits distributed traces via OTLP. Route them to ClickStack (default)
+or Grafana Tempo for end-to-end trace visibility across Dagster, dbt, and Trino
+workflows.</p>
+<p>See <a href="../../packages/phlo-otel/">phlo-otel</a> for trace instrumentation details and
+<a href="../../packages/phlo-clickstack/">phlo-clickstack</a> for the recommended trace backend.</p>
 <h2 id="references">References</h2>
 <ul>
 <li><a href="https://prometheus.io/docs/">Prometheus Documentation</a></li>
