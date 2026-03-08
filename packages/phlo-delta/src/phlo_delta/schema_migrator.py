@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, cast
 
 import pyarrow as pa
 
@@ -109,7 +109,7 @@ class DeltaSchemaMigrator:
         opts = _default_storage_options()
 
         dt = DeltaTable(table_uri, storage_options=opts)
-        current_schema = dt.schema().to_pyarrow()
+        current_schema = cast(Any, dt.schema()).to_pyarrow()
 
         current_fields: dict[str, tuple[str, bool]] = {}
         for field in current_schema:
@@ -228,19 +228,22 @@ class DeltaSchemaMigrator:
         opts = _default_storage_options()
 
         dt = DeltaTable(table_uri, storage_options=opts)
-        current_schema = dt.schema().to_pyarrow()
+        current_schema = cast(Any, dt.schema()).to_pyarrow()
 
         new_fields: list[pa.Field] = list(current_schema)
         applied: list[str] = []
 
+        applied_changes: list[SchemaChange] = []
         for change in plan.changes:
             if change.change_type == "add":
                 arrow_type = _dtype_to_arrow_type(change.new_value or "string")
                 new_fields.append(pa.field(change.field_name, arrow_type, nullable=True))
                 applied.append(f"add:{change.field_name}")
+                applied_changes.append(change)
             elif change.change_type == "drop":
                 new_fields = [f for f in new_fields if f.name != change.field_name]
                 applied.append(f"drop:{change.field_name}")
+                applied_changes.append(change)
             elif change.change_type == "rename":
                 old_name = change.old_value or change.field_name
                 new_name = change.new_value or change.field_name
@@ -249,6 +252,7 @@ class DeltaSchemaMigrator:
                     for f in new_fields
                 ]
                 applied.append(f"rename:{change.field_name}")
+                applied_changes.append(change)
             elif change.change_type in {"widen_type", "narrow_type"}:
                 arrow_type = _dtype_to_arrow_type(change.new_value or "string")
                 new_fields = [
@@ -258,18 +262,21 @@ class DeltaSchemaMigrator:
                     for f in new_fields
                 ]
                 applied.append(f"{change.change_type}:{change.field_name}")
+                applied_changes.append(change)
             elif change.change_type == "nullability_relaxed":
                 new_fields = [
                     pa.field(f.name, f.type, nullable=True) if f.name == change.field_name else f
                     for f in new_fields
                 ]
                 applied.append(f"nullability_relaxed:{change.field_name}")
+                applied_changes.append(change)
             elif change.change_type == "nullability_tightened":
                 new_fields = [
                     pa.field(f.name, f.type, nullable=False) if f.name == change.field_name else f
                     for f in new_fields
                 ]
                 applied.append(f"nullability_tightened:{change.field_name}")
+                applied_changes.append(change)
 
         new_schema = pa.schema(new_fields)
 
@@ -302,7 +309,7 @@ class DeltaSchemaMigrator:
             status="applied",
             classification=plan.classification,
             change_count=len(applied),
-            changes=[asdict(c) for c in applied],
+            changes=[asdict(c) for c in applied_changes],
         )
 
         return {

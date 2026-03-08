@@ -221,6 +221,7 @@ class IcebergSchemaMigrator:
         table = catalog.load_table(plan.table_name)
 
         applied: list[str] = []
+        applied_changes: list[SchemaChange] = []
         with table.update_schema() as update:
             for change in plan.changes:
                 if change.change_type == "add":
@@ -230,15 +231,18 @@ class IcebergSchemaMigrator:
                         field_type=iceberg_type,
                     )
                     applied.append(f"add:{change.field_name}")
+                    applied_changes.append(change)
                 elif change.change_type == "drop":
                     update.delete_column(path=change.field_name)
                     applied.append(f"drop:{change.field_name}")
+                    applied_changes.append(change)
                 elif change.change_type == "rename":
                     update.rename_column(
                         path=change.old_value or change.field_name,
                         new_name=change.new_value or change.field_name,
                     )
                     applied.append(f"rename:{change.field_name}")
+                    applied_changes.append(change)
                 elif change.change_type in {"widen_type", "narrow_type"}:
                     iceberg_type = _dtype_to_iceberg_type(change.new_value or "string")
                     update.update_column(
@@ -246,12 +250,15 @@ class IcebergSchemaMigrator:
                         field_type=iceberg_type,
                     )
                     applied.append(f"{change.change_type}:{change.field_name}")
+                    applied_changes.append(change)
                 elif change.change_type == "nullability_relaxed":
                     update.set_column_optional(path=change.field_name)
                     applied.append(f"nullability_relaxed:{change.field_name}")
+                    applied_changes.append(change)
                 elif change.change_type == "nullability_tightened":
                     update.set_column_required(path=change.field_name)
                     applied.append(f"nullability_tightened:{change.field_name}")
+                    applied_changes.append(change)
 
         logger.info(
             "iceberg_schema_migration_applied",
@@ -267,7 +274,7 @@ class IcebergSchemaMigrator:
             status="applied",
             classification=plan.classification,
             change_count=len(applied),
-            changes=[asdict(c) for c in applied],
+            changes=[asdict(c) for c in applied_changes],
         )
 
         return {
