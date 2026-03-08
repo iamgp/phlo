@@ -4,7 +4,7 @@ Grafana Alloy log collector for Phlo.
 
 ## Overview
 
-`phlo-alloy` collects logs from all Docker containers and ships them to Loki for aggregation and querying.
+`phlo-alloy` can collect Docker logs and receive OTLP telemetry for forwarding to downstream observability backends.
 
 ## Installation
 
@@ -33,6 +33,8 @@ Part of the `observability` profile.
 | **Container Discovery** | Auto-discovers all Docker containers via Docker socket |
 | **Log Collection**      | Collects stdout/stderr from all containers             |
 | **Loki Shipping**       | Ships logs to Loki for storage and querying            |
+| **OTLP Receiver**       | Accepts traces, metrics, and logs from `phlo-otel`     |
+| **Backend Routing**     | Forwards OTLP signals to one or more downstream sinks  |
 | **Metrics Labels**      | Exposes Alloy metrics for Prometheus                   |
 
 ### Docker Socket Access
@@ -55,6 +57,20 @@ phlo services start --profile observability
 # Or start individually
 phlo services start --service alloy
 ```
+
+### OTLP Gateway Pattern
+
+Use Alloy as the stable OTLP ingress for Phlo application telemetry:
+
+```text
+phlo-otel -> OTLP -> Alloy -> downstream backends
+```
+
+That lets you:
+
+- keep `phlo-otel` backend-neutral
+- route the same telemetry to Grafana-native or non-Grafana backends
+- move ClickStack / Tempo / Loki routing changes into Alloy config instead of Python code
 
 ## Endpoints
 

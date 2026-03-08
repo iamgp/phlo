@@ -60,6 +60,17 @@ Spans and OTLP log records carry shared correlation fields when hook producers
 provide them, including `run_id`, `asset_key`, `partition_key`, `job_name`,
 and trace/span identifiers.
 
+### Backend routing
+
+`phlo-otel` stays backend-neutral. Recommended routing patterns:
+
+- `phlo-otel -> Alloy -> Grafana-native backends`
+- `phlo-otel -> OpenTelemetry Collector -> multiple downstream backends`
+- `phlo-otel -> Collector -> ClickStack`
+
+Collector configuration should own backend fan-out and backend-specific exporters.
+Do not add a dedicated ClickStack exporter path inside `phlo-otel`.
+
 ### Stable semantic attributes
 
 Representative spans and OTLP log records include a stable semantic envelope:
@@ -151,5 +162,5 @@ Unknown telemetry names still fall back to `phlo.telemetry.<name>`.
 ## Architecture
 
 Hooks into the existing `HookBus` as a `HookPlugin` — same pattern as `phlo-metrics`.
-Point the OTLP exporters at Alloy (already OTel-compatible) or directly at your
-trace/metric/log backends.
+Point the OTLP exporters at Alloy or OpenTelemetry Collector, then route onward
+to your trace, metric, and log backends there.

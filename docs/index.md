@@ -65,7 +65,7 @@ Configure additional services:
 - [OpenMetadata](setup/openmetadata.md) - Data catalog and governance
 - [PostgREST](setup/postgrest.md) - REST API from PostgreSQL
 - [Hasura](setup/hasura.md) - GraphQL API
-- [Observability](setup/observability.md) - Monitoring with Grafana
+- [Observability](setup/observability.md) - Monitoring, OTLP collectors, and backend routing
 
 ### Packages
 

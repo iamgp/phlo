@@ -9,10 +9,11 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from phlo.capabilities import get_capability_registry
 from phlo.capabilities.discovery import discover_capabilities
-from phlo.hooks import DataMigrationEventContext, DataMigrationEventEmitter
+from phlo.hooks import DataMigrationEventContext, DataMigrationEventEmitter, HookCorrelation
 from phlo.logging import get_logger
 from phlo.migrations.adapters import list_source_adapter_types, resolve_source_adapter
 from phlo.migrations.specs import MigrationResult, MigrationSpec
@@ -86,11 +87,16 @@ class MigrationExecutor:
         if not dry_run:
             table_store = get_capability_registry().list_table_stores()[0].provider
 
+        request_id = uuid4().hex
         emitter = DataMigrationEventEmitter(
             DataMigrationEventContext(
                 migration_name=spec.name,
                 source_type=spec.source.type,
                 destination_table=spec.destination.table,
+                correlation=HookCorrelation(
+                    request_id=request_id,
+                    asset_key=spec.destination.table,
+                ),
             )
         )
 
