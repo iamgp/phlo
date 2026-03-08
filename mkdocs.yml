@@ -85,6 +85,7 @@ nav:
           - phlo-dlt: packages/phlo-dlt.md
           - phlo-dbt: packages/phlo-dbt.md
           - phlo-iceberg: packages/phlo-iceberg.md
+          - phlo-delta: packages/phlo-delta.md
           - phlo-pandera: packages/phlo-pandera.md
           - phlo-lineage: packages/phlo-lineage.md
       - Infrastructure:
@@ -97,6 +98,8 @@ nav:
           - phlo-prometheus: packages/phlo-prometheus.md
           - phlo-loki: packages/phlo-loki.md
           - phlo-alloy: packages/phlo-alloy.md
+          - phlo-otel: packages/phlo-otel.md
+          - phlo-clickstack: packages/phlo-clickstack.md
           - phlo-alerting: packages/phlo-alerting.md
       - API Layer:
           - phlo-api: packages/phlo-api.md

@@ -652,18 +652,14 @@ def my_asset(context):
 
 Then scrape via Dagster's metrics endpoint (if exposed).
 
-### Distributed Tracing (Future)
+### Distributed Tracing
 
-Add Tempo for distributed tracing:
+`phlo-otel` emits distributed traces via OTLP. Route them to ClickStack (default)
+or Grafana Tempo for end-to-end trace visibility across Dagster, dbt, and Trino
+workflows.
 
-```yaml
-# docker-compose.yml
-tempo:
-  image: grafana/tempo:latest
-  profiles: ["observability"]
-```
-
-Integrate with Dagster, Trino, and dbt for end-to-end trace visibility.
+See [phlo-otel](../packages/phlo-otel.md) for trace instrumentation details and
+[phlo-clickstack](../packages/phlo-clickstack.md) for the recommended trace backend.
 
 ## References
 

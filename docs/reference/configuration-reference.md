@@ -228,6 +228,25 @@ s3://lake/warehouse
 s3://lake/warehouse@feature-branch
 ```
 
+### Delta Lake Configuration
+
+Delta Lake table format (alternative to Iceberg):
+
+```bash
+# Storage paths
+DELTA_WAREHOUSE_PATH=s3://lake/warehouse/delta
+DELTA_STAGING_PATH=s3://lake/stage
+
+# Default namespace
+DELTA_DEFAULT_NAMESPACE=raw
+
+# S3 endpoint
+DELTA_S3_ENDPOINT=http://minio:10001
+
+# Allow unsafe rename for S3
+DELTA_S3_ALLOW_UNSAFE_RENAME=true
+```
+
 ### Branch Management
 
 Nessie branch lifecycle configuration:

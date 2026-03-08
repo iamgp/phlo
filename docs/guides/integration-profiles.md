@@ -65,6 +65,14 @@ When the active catalog supports refs and promotion, the normal Dagster WAP flow
 
 In the default stack, Nessie provides that versioned catalog capability.
 
+### Alternative: Delta Table Store
+
+The bundled stack can use `phlo-delta` instead of `phlo-iceberg` as the table-store capability:
+
+- table store: `phlo-delta`
+
+The rest of the stack remains the same. Delta does not support versioned catalog refs, so WAP sensors are not enabled in this configuration.
+
 ## Profile: Non-Versioned Local Profile
 
 Local non-versioned profile:
