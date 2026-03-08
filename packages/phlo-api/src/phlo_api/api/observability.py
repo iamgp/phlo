@@ -47,7 +47,7 @@ def _resolve_observability_backend(backend_name: str | None = None) -> Any:
             )
         raise RuntimeError(
             "Observability requires an observability_backend capability. "
-            "Install phlo-metrics or another provider."
+            "Install phlo-metrics with phlo-clickstack, or another provider."
         )
     return resolution.provider
 

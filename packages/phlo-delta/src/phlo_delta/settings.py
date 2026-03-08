@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
 
@@ -22,19 +22,23 @@ class DeltaSettings(BaseConfig):
         default="raw", description="Default namespace/schema for Delta tables"
     )
     delta_s3_endpoint: str | None = Field(
-        default="http://minio:10001",
+        default="http://minio:9000",
+        validation_alias=AliasChoices("DELTA_S3_ENDPOINT", "AWS_S3_ENDPOINT"),
         description="S3 endpoint URL for Delta I/O",
     )
     delta_s3_access_key: str = Field(
         default="minio",
+        validation_alias=AliasChoices("DELTA_S3_ACCESS_KEY", "AWS_ACCESS_KEY_ID"),
         description="S3 access key for Delta I/O",
     )
     delta_s3_secret_key: str = Field(
         default="minio123",
+        validation_alias=AliasChoices("DELTA_S3_SECRET_KEY", "AWS_SECRET_ACCESS_KEY"),
         description="S3 secret key for Delta I/O",
     )
     delta_s3_region: str = Field(
         default="us-east-1",
+        validation_alias=AliasChoices("DELTA_S3_REGION", "AWS_REGION"),
         description="S3 region for Delta I/O",
     )
     delta_s3_allow_unsafe_rename: bool = Field(

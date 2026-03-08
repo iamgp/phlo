@@ -42,6 +42,12 @@ def test_metrics_resource_provider_exposes_observability_backend() -> None:
 
     assert [spec.name for spec in specs] == ["default"]
     assert isinstance(specs[0].provider, DefaultObservabilityBackend)
+    assert specs[0].metadata["default_stack"] == [
+        "phlo-metrics",
+        "phlo-otel",
+        "phlo-clickstack",
+    ]
+    assert specs[0].metadata["service_dependencies"] == ["clickstack"]
     assert specs[0].support.supports_metrics is True
     assert specs[0].support.supports_logs is True
     assert specs[0].support.supports_dashboards is True
@@ -141,6 +147,15 @@ def test_links_resolve_from_service_config(monkeypatch, tmp_path: Path) -> None:
     )
 
     services = {
+        "clickstack": SimpleNamespace(
+            env_vars={
+                "CLICKSTACK_PORT": {"default": 8080},
+                "CLICKSTACK_DASHBOARDS_PATH": {"default": "/"},
+                "CLICKSTACK_LOGS_PATH": {"default": "/"},
+                "CLICKSTACK_METRICS_PATH": {"default": "/"},
+            },
+            source_path=None,
+        ),
         "grafana": SimpleNamespace(
             env_vars={
                 "GRAFANA_PORT": {"default": 3003},
@@ -166,10 +181,10 @@ def test_links_resolve_from_service_config(monkeypatch, tmp_path: Path) -> None:
         def get_service(self, name: str):
             return services.get(name)
 
-    monkeypatch.setattr("phlo_metrics.capabilities.ServiceDiscovery", lambda: _StubDiscovery())
+    monkeypatch.setattr("phlo_metrics.capabilities._discover_service", services.get)
 
     links = backend.dashboard_links()
 
-    assert links[0].url == "http://localhost:3003/d/phlo-overview"
-    assert backend.logs_query_link("dagster") == "http://localhost:3100/logs?service=dagster"
-    assert backend.metrics_query_link("up") == "http://localhost:9090/graph?g0.expr=up"
+    assert links[0].url == "http://localhost:8080"
+    assert backend.logs_query_link("dagster") == "http://localhost:8080?service=dagster"
+    assert backend.metrics_query_link("up") == "http://localhost:8080?metric=up"

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import pyarrow as pa
 from pandera.pandas import DataFrameModel
 
+from phlo.exceptions import PhloConfigError
 from phlo.logging import get_logger
 from phlo_delta.settings import get_settings
 from phlo_delta.tables import (
@@ -20,6 +22,70 @@ from phlo_delta.tables import (
 )
 
 logger = get_logger(__name__)
+
+
+def _resolve_delta_ref(override_ref: str | None) -> None:
+    """Validate the requested override ref for Delta operations.
+
+    Delta tables in Phlo are not branch-aware. Accept the default ``main`` ref
+    for table-store interface compatibility and reject any branch-like override.
+    """
+    if override_ref in (None, "", "main"):
+        return
+    raise PhloConfigError(
+        message=f"Delta table_store does not support override_ref={override_ref!r}",
+        suggestions=[
+            "Use the default main ref when writing to Delta tables",
+            "Use phlo-iceberg if you need Nessie branch-aware table writes",
+        ],
+    )
+
+
+def _partition_columns_from_spec(
+    partition_spec: Sequence[tuple[str, str] | str] | None,
+) -> list[str] | None:
+    """Convert shared partition_spec tuples into Delta partition columns.
+
+    Delta Lake only supports identity partitioning here, so transforms such as
+    ``day`` or ``bucket`` must be rejected explicitly.
+    """
+    if not partition_spec:
+        return None
+
+    partition_columns: list[str] = []
+    for entry in partition_spec:
+        if isinstance(entry, str):
+            partition_columns.append(entry)
+            continue
+
+        if not isinstance(entry, (tuple, list)) or len(entry) != 2:
+            raise PhloConfigError(
+                message="Delta partition_spec entries must be column names or (column, transform) pairs",
+                suggestions=[
+                    "Use partition_spec=[('column', 'identity')] for Delta tables",
+                    "Or omit partition_spec entirely for unpartitioned Delta tables",
+                ],
+            )
+
+        source_name, transform_name = entry
+        if not isinstance(source_name, str) or not isinstance(transform_name, str):
+            raise PhloConfigError(
+                message="Delta partition_spec entries must contain string column and transform names",
+                suggestions=[
+                    "Use partition_spec=[('column', 'identity')] for Delta tables",
+                ],
+            )
+        if transform_name != "identity":
+            raise PhloConfigError(
+                message=f"Delta table_store only supports identity partition transforms, got {transform_name!r}",
+                suggestions=[
+                    "Use partition_spec=[('column', 'identity')] with Delta",
+                    "Use phlo-iceberg for transform-based partitioning like day/month/bucket",
+                ],
+            )
+        partition_columns.append(source_name)
+
+    return partition_columns
 
 
 @dataclass
@@ -68,34 +134,44 @@ class DeltaResource:
         self,
         table_name: str,
         schema: pa.Schema,
-        partition_columns: list[str] | None = None,
+        partition_spec: Sequence[tuple[str, str] | str] | None = None,
+        override_ref: str | None = None,
     ) -> Any:
         """Ensure a table exists and return its handle.
 
         Args:
             table_name: Fully qualified table name (namespace.table).
             schema: PyArrow table schema.
-            partition_columns: Optional columns to partition by.
+            partition_spec: Optional shared partition specification.
+            override_ref: Optional branch override for interface compatibility.
 
         Returns:
             DeltaTable: Existing or newly created Delta table.
         """
+        _resolve_delta_ref(override_ref)
         return ensure_table(
             table_name=table_name,
             schema=schema,
-            partition_columns=partition_columns,
+            partition_columns=_partition_columns_from_spec(partition_spec),
         )
 
-    def append_parquet(self, table_name: str, data_path: str) -> dict[str, int]:
+    def append_parquet(
+        self,
+        table_name: str,
+        data_path: str,
+        override_ref: str | None = None,
+    ) -> dict[str, int]:
         """Append parquet data into a Delta table.
 
         Args:
             table_name: Fully qualified table name (namespace.table).
             data_path: Path to parquet input data.
+            override_ref: Optional branch override for interface compatibility.
 
         Returns:
             dict[str, int]: Write statistics from the append operation.
         """
+        _resolve_delta_ref(override_ref)
         logger.info(
             "delta_resource_append_requested",
             table_name=table_name,
@@ -126,6 +202,7 @@ class DeltaResource:
         table_name: str,
         data_path: str,
         unique_key: str,
+        override_ref: str | None = None,
     ) -> dict[str, int]:
         """Merge parquet data into a Delta table using a unique key.
 
@@ -133,10 +210,12 @@ class DeltaResource:
             table_name: Fully qualified table name (namespace.table).
             data_path: Path to parquet input data.
             unique_key: Column used to match existing rows.
+            override_ref: Optional branch override for interface compatibility.
 
         Returns:
             dict[str, int]: Write statistics from the merge operation.
         """
+        _resolve_delta_ref(override_ref)
         logger.info(
             "delta_resource_merge_requested",
             table_name=table_name,
@@ -169,16 +248,24 @@ class DeltaResource:
         )
         return result
 
-    def overwrite_parquet(self, *, table_name: str, data_path: str) -> dict[str, int]:
+    def overwrite_parquet(
+        self,
+        *,
+        table_name: str,
+        data_path: str,
+        override_ref: str | None = None,
+    ) -> dict[str, int]:
         """Overwrite a Delta table with staged parquet data.
 
         Args:
             table_name: Fully qualified table name (namespace.table).
             data_path: Path to parquet input data.
+            override_ref: Optional branch override for interface compatibility.
 
         Returns:
             dict[str, int]: Write statistics from the overwrite operation.
         """
+        _resolve_delta_ref(override_ref)
         logger.info(
             "delta_resource_overwrite_requested",
             table_name=table_name,
@@ -204,17 +291,25 @@ class DeltaResource:
         )
         return result
 
-    def delete_rows(self, *, table_name: str, predicate: str) -> dict[str, int]:
+    def delete_rows(
+        self,
+        *,
+        table_name: str,
+        predicate: str,
+        override_ref: str | None = None,
+    ) -> dict[str, int]:
         """Delete rows matching a predicate expression.
 
         Args:
             table_name: Fully qualified table name (namespace.table).
             predicate: Filter expression (e.g. ``"status = 'inactive'"``).
+            override_ref: Optional branch override for interface compatibility.
 
         Returns:
             dict[str, int]: Delete statistics (rows_deleted is -1 as Delta
             does not return a count from predicate deletes).
         """
+        _resolve_delta_ref(override_ref)
         logger.info(
             "delta_resource_delete_rows_requested",
             table_name=table_name,

@@ -29,6 +29,7 @@ members = [
     "phlo-alerting",
     "phlo-alloy",
     "phlo-api",
+    "phlo-clickstack",
     "phlo-core-plugins",
     "phlo-dagster",
     "phlo-dbt",
@@ -2759,6 +2760,7 @@ openmetadata = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "phlo-clickstack" },
     { name = "phlo-dbt" },
     { name = "phlo-dlt" },
     { name = "phlo-iceberg" },
@@ -2815,6 +2817,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "phlo-clickstack", editable = "packages/phlo-clickstack" },
     { name = "phlo-dbt", editable = "packages/phlo-dbt" },
     { name = "phlo-dlt", editable = "packages/phlo-dlt" },
     { name = "phlo-iceberg", editable = "packages/phlo-iceberg" },
@@ -2920,6 +2923,29 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "uvicorn", specifier = ">=0.38.0" },
+]
+
+[[package]]
+name = "phlo-clickstack"
+version = "0.1.0"
+source = { editable = "packages/phlo-clickstack" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 
 [[package]]

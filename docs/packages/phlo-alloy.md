@@ -4,7 +4,8 @@ Grafana Alloy log collector for Phlo.
 
 ## Overview
 
-`phlo-alloy` can collect Docker logs and receive OTLP telemetry for forwarding to downstream observability backends.
+`phlo-alloy` can collect Docker logs and receive OTLP telemetry for forwarding
+to downstream observability backends.
 
 ## Installation
 
@@ -60,16 +61,19 @@ phlo services start --service alloy
 
 ### OTLP Gateway Pattern
 
-Use Alloy as the stable OTLP ingress for Phlo application telemetry:
+Use Alloy when you need a collector in front of the default ClickStack backend
+or any multi-backend topology.
+
+Stable OTLP ingress pattern:
 
 ```text
-phlo-otel -> OTLP -> Alloy -> downstream backends
+phlo-otel -> OTLP -> Alloy -> ClickStack / other downstream backends
 ```
 
 That lets you:
 
 - keep `phlo-otel` backend-neutral
-- route the same telemetry to Grafana-native or non-Grafana backends
+- route the same telemetry to ClickStack and other downstream backends
 - move ClickStack / Tempo / Loki routing changes into Alloy config instead of Python code
 
 ## Endpoints
@@ -87,6 +91,7 @@ That lets you:
 
 ## Related Packages
 
+- [phlo-clickstack](phlo-clickstack.md) - Preferred backend
 - [phlo-loki](phlo-loki.md) - Log storage
 - [phlo-grafana](phlo-grafana.md) - Log visualization
 - [phlo-prometheus](phlo-prometheus.md) - Metrics collection

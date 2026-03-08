@@ -13,7 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from phlo.logging import get_logger
-from phlo_metrics import get_metrics_collector
+from phlo_metrics.collector import get_metrics_collector
 
 console = Console()
 logger = get_logger(__name__)
