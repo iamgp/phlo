@@ -46,7 +46,7 @@ class ClickHouseResource:
             port=self.port or settings.clickhouse_http_port,
             username=self.user or settings.clickhouse_user,
             password=self.password or settings.clickhouse_password,
-            database=self.database or settings.clickhouse_database,
+            database=self.database or settings.clickhouse_db,
             secure=self.secure if self.secure is not None else settings.clickhouse_secure,
         )
 
@@ -114,7 +114,7 @@ class ClickHouseResource:
     ) -> Any:
         """Ensure a destination table exists."""
         settings = self._settings()
-        database = self.database or settings.clickhouse_database
+        database = self.database or settings.clickhouse_db
 
         columns_def = self._schema_to_columns(schema)
 
@@ -136,7 +136,7 @@ class ClickHouseResource:
     ) -> dict[str, int]:
         """Append staged parquet data to a destination table."""
         settings = self._settings()
-        database = self.database or settings.clickhouse_database
+        database = self.database or settings.clickhouse_db
 
         data_path_str = str(data_path)
         sql = f"INSERT INTO {database}.{table_name} SELECT * FROM file('{data_path_str}', Parquet)"
@@ -154,7 +154,7 @@ class ClickHouseResource:
     ) -> dict[str, int]:
         """Merge staged parquet data into a destination table."""
         settings = self._settings()
-        database = self.database or settings.clickhouse_database
+        database = self.database or settings.clickhouse_db
 
         data_path_str = str(data_path)
         sql = f"""
@@ -187,7 +187,9 @@ class ClickHouseResource:
                 columns.append(f"{field.name} {ch_type}")
             return ", ".join(columns)
 
-        return "tuple()"
+        raise TypeError(
+            f"Unsupported schema type: {type(schema).__name__}. Expected a schema with 'columns' or 'fields' attribute."
+        )
 
     def _pandas_type_to_clickhouse(self, dtype: Any) -> str:
         """Convert pandas dtype to ClickHouse type."""

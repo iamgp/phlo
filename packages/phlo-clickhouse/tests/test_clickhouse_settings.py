@@ -13,7 +13,7 @@ def test_clickhouse_settings_defaults():
     assert settings.clickhouse_native_port == 9000
     assert settings.clickhouse_user == "default"
     assert settings.clickhouse_password == ""
-    assert settings.clickhouse_database == "default"
+    assert settings.clickhouse_db == "default"
     assert settings.clickhouse_secure is False
 
 
@@ -42,7 +42,7 @@ def test_clickhouse_settings_with_overrides():
         clickhouse_native_port=9001,
         clickhouse_user="admin",
         clickhouse_password="secret",
-        clickhouse_database="mydb",
+        clickhouse_db="mydb",
         clickhouse_secure=True,
     )
 
@@ -51,7 +51,7 @@ def test_clickhouse_settings_with_overrides():
     assert settings.clickhouse_native_port == 9001
     assert settings.clickhouse_user == "admin"
     assert settings.clickhouse_password == "secret"
-    assert settings.clickhouse_database == "mydb"
+    assert settings.clickhouse_db == "mydb"
     assert settings.clickhouse_secure is True
 
 

@@ -128,7 +128,7 @@ class ClickHouseResourceProvider(ResourceProviderPlugin):
                     "host": settings.clickhouse_host,
                     "port": settings.clickhouse_http_port,
                     "native_port": settings.clickhouse_native_port,
-                    "default_database": settings.clickhouse_database,
+                    "default_database": settings.clickhouse_db,
                     "service_type": "ClickHouse",
                 },
                 support=CLICKHOUSE_QUERY_ENGINE_SUPPORT,

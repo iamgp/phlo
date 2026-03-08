@@ -25,7 +25,7 @@ phlo plugin install clickhouse
 | `CLICKHOUSE_NATIVE_PORT`        | No       | `9000`                      | ClickHouse native protocol port |
 | `CLICKHOUSE_USER`              | No       | `default`                   | ClickHouse username           |
 | `CLICKHOUSE_PASSWORD`          | No       |                             | ClickHouse password           |
-| `CLICKHOUSE_DATABASE`          | No       | `default`                   | Default ClickHouse database   |
+| `CLICKHOUSE_DB`                 | No       | `default`                   | Default ClickHouse database   |
 | `CLICKHOUSE_SECURE`            | No       | `false`                     | Use TLS for connections       |
 
 ## Features

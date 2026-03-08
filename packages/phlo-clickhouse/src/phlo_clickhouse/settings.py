@@ -17,7 +17,7 @@ class ClickHouseSettings(BaseConfig):
     clickhouse_native_port: int = Field(default=9000, description="ClickHouse native protocol port")
     clickhouse_user: str = Field(default="default", description="ClickHouse username")
     clickhouse_password: str = Field(default="", description="ClickHouse password")
-    clickhouse_database: str = Field(default="default", description="Default ClickHouse database")
+    clickhouse_db: str = Field(default="default", description="Default ClickHouse database")
     clickhouse_secure: bool = Field(default=False, description="Use TLS for ClickHouse connections")
 
     def clickhouse_http_endpoint(self) -> str:
