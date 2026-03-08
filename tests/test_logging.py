@@ -157,6 +157,8 @@ def test_record_to_event_extracts_tags_and_metadata() -> None:
             "service": "ingestion-worker",
             "run_id": 42,
             "asset_key": "raw.orders",
+            "trace_id": "abc123",
+            "span_id": "def456",
             "tags": {"team": "analytics", "attempt": 2},
             "custom_field": "ok",
             "api_token": "secret-value",
@@ -176,6 +178,8 @@ def test_record_to_event_extracts_tags_and_metadata() -> None:
         "service": "ingestion-worker",
     }
     assert event.metadata["custom_field"] == "ok"
+    assert event.metadata["trace_id"] == "abc123"
+    assert event.metadata["span_id"] == "def456"
     assert event.metadata["api_token"] == "<redacted>"
     assert "service" not in event.metadata
     assert "run_id" not in event.metadata
