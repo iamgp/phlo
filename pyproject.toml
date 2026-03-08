@@ -33,6 +33,7 @@ classifiers = [
 dependencies = [
     "dagster>=1.12.1",
     "dagster-webserver>=1.12.1",
+    "cachetools>=6.2.1",
     "pyyaml>=6.0.1",
     "pydantic-settings>=2.11.0",
     "pandas>=2.3.3",
@@ -105,7 +106,6 @@ dev-dependencies = [
     "phlo-dbt>=0.1.0",
     "phlo-nessie>=0.1.0",
     "phlo-openmetadata>=0.1.0",
-    "phlo-metrics>=0.1.0",
     "phlo-testing>=0.1.0",
     "ruff>=0.14.1",
     "ty==0.0.1a23",
@@ -134,7 +134,6 @@ phlo-minio = { workspace = true }
 phlo-nessie = { workspace = true }
 phlo-trino = { workspace = true }
 phlo-openmetadata = { workspace = true }
-phlo-metrics = { workspace = true }
 phlo-otel = { workspace = true }
 phlo-testing = { workspace = true }
 phlo-observatory-example = { workspace = true }
@@ -150,7 +149,6 @@ dev = [
     "phlo-dbt>=0.1.0",
     "phlo-nessie>=0.1.0",
     "phlo-openmetadata>=0.1.0",
-    "phlo-metrics>=0.1.0",
     "phlo-testing>=0.1.0",
     "ruff>=0.14.1",
     "ty==0.0.1a23",
@@ -209,7 +207,6 @@ extra-paths = [
   "packages/phlo-iceberg/src",
   "packages/phlo-lineage/src",
   "packages/phlo-loki/src",
-  "packages/phlo-metrics/src",
   "packages/phlo-otel/src",
   "packages/phlo-minio/src",
   "packages/phlo-nessie/src",

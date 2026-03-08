@@ -1,21 +1,21 @@
-"""Metrics collection from Prometheus, Iceberg, and Postgres."""
+"""Metrics collection models and helpers."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional, cast
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import psycopg2
 import psycopg2.extras
 import requests
 from cachetools import TTLCache
-from phlo.capabilities import QueryEngine, resolve_capability
-from phlo.capabilities.discovery import discover_capabilities
-from phlo.config.base import BaseConfig
 from psycopg2 import Error as PsycopgError
 from pydantic import Field
 
+from phlo.capabilities import QueryEngine, resolve_capability
+from phlo.capabilities.discovery import discover_capabilities
+from phlo.config.base import BaseConfig
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -65,9 +65,9 @@ class RunMetrics:
     asset_name: str
     run_id: str
     start_time: datetime
-    end_time: Optional[datetime] = None
-    duration_seconds: Optional[float] = None
-    status: str = "running"  # running, success, failure
+    end_time: datetime | None = None
+    duration_seconds: float | None = None
+    status: str = "running"
     rows_processed: int = 0
     bytes_written: int = 0
 
@@ -77,7 +77,7 @@ class AssetMetrics:
     """Aggregated metrics for an asset."""
 
     asset_name: str
-    last_run: Optional[RunMetrics] = None
+    last_run: RunMetrics | None = None
     last_10_runs: list[RunMetrics] = field(default_factory=list)
     average_duration: float = 0.0
     failure_rate: float = 0.0
@@ -105,39 +105,28 @@ class SummaryMetrics:
 
 
 class MetricsCollector:
-    """Collects metrics from Prometheus, Iceberg, and Postgres."""
+    """Collect metrics from Prometheus, Iceberg, and Postgres."""
 
-    def __init__(self):
-        """Initialize metrics collector."""
+    def __init__(self) -> None:
         self.settings = MetricsBackendSettings()
-        self._cache = TTLCache(maxsize=100, ttl=30)  # 30 second cache
-        self._prometheus_url: Optional[str] = None
+        self._cache = TTLCache(maxsize=100, ttl=30)
+        self._prometheus_url: str | None = None
 
     @property
-    def prometheus_url(self) -> Optional[str]:
+    def prometheus_url(self) -> str | None:
         """Get Prometheus URL from config or environment."""
         if self._prometheus_url is None:
-            # Try to get from environment or docker-compose discovery
             self._prometheus_url = "http://prometheus:9090"
         return self._prometheus_url
 
     def collect_summary(self, period_hours: int = 24) -> SummaryMetrics:
-        """
-        Collect summary metrics for the platform.
-
-        Args:
-            period_hours: Hours to look back (default: 24)
-
-        Returns:
-            SummaryMetrics with platform-wide metrics
-        """
+        """Collect summary metrics for the platform."""
         cache_key = f"summary_{period_hours}h"
         if cache_key in self._cache:
             return self._cache[cache_key]
 
         metrics = SummaryMetrics()
 
-        # Try to get Prometheus metrics
         try:
             metrics = cast(SummaryMetrics, self._collect_from_prometheus(period_hours))
         except Exception:
@@ -145,7 +134,6 @@ class MetricsCollector:
                 "metrics_collect_prometheus_failed", period_hours=period_hours, exc_info=True
             )
 
-        # Supplement with Postgres metrics
         try:
             postgres_metrics = self._collect_from_postgres(period_hours)
             metrics.total_rows_processed_24h = postgres_metrics.get("rows_processed", 0)
@@ -155,7 +143,6 @@ class MetricsCollector:
                 "metrics_collect_postgres_failed", period_hours=period_hours, exc_info=True
             )
 
-        # Supplement with Iceberg stats
         try:
             iceberg_metrics = self._collect_from_iceberg()
             metrics.active_assets_count = int(iceberg_metrics.get("table_count", 0) or 0)
@@ -169,43 +156,32 @@ class MetricsCollector:
         return metrics
 
     def collect_asset(self, asset_name: str, runs: int = 10) -> AssetMetrics:
-        """
-        Collect metrics for a specific asset.
-
-        Args:
-            asset_name: Name of the asset
-            runs: Number of past runs to retrieve (default: 10)
-
-        Returns:
-            AssetMetrics with per-asset metrics
-        """
+        """Collect metrics for a specific asset."""
         cache_key = f"asset_{asset_name}_{runs}"
         if cache_key in self._cache:
             return self._cache[cache_key]
 
         metrics = AssetMetrics(asset_name=asset_name)
 
-        # Collect from Postgres (Dagster event log)
         try:
             run_records = self._get_asset_runs_from_postgres(asset_name, limit=runs)
             if run_records:
                 metrics.last_10_runs = run_records
-                if run_records:
-                    metrics.last_run = run_records[0]
+                metrics.last_run = run_records[0]
 
-                # Calculate averages
                 durations = [
-                    r.duration_seconds for r in run_records if r.duration_seconds is not None
+                    record.duration_seconds
+                    for record in run_records
+                    if record.duration_seconds is not None
                 ]
                 if durations:
                     metrics.average_duration = sum(durations) / len(durations)
 
-                successful = sum(1 for r in run_records if r.status == "success")
+                successful = sum(1 for record in run_records if record.status == "success")
                 metrics.failure_rate = 1.0 - (successful / len(run_records))
-
-                total_rows = sum(r.rows_processed for r in run_records)
-                metrics.average_rows_per_run = total_rows / len(run_records)
-
+                metrics.average_rows_per_run = sum(
+                    record.rows_processed for record in run_records
+                ) / len(run_records)
         except Exception:
             logger.warning(
                 "asset_metrics_collect_failed",
@@ -214,7 +190,6 @@ class MetricsCollector:
                 exc_info=True,
             )
 
-        # Collect from Iceberg (table stats)
         try:
             iceberg_metrics = self._get_iceberg_table_stats(asset_name)
             metrics.data_growth_bytes = iceberg_metrics.get("total_bytes", 0)
@@ -227,12 +202,10 @@ class MetricsCollector:
     def _collect_from_prometheus(self, period_hours: int) -> SummaryMetrics:
         """Collect metrics from Prometheus."""
         metrics = SummaryMetrics()
-
         if not self.prometheus_url:
             return metrics
 
         try:
-            # Query for run counts
             response = requests.get(
                 f"{self.prometheus_url}/api/v1/query",
                 params={
@@ -246,7 +219,6 @@ class MetricsCollector:
                     value = data["data"]["result"][0].get("value", [None, "0"])
                     metrics.successful_runs_24h = int(float(value[1]))
 
-            # Query for failed runs
             response = requests.get(
                 f"{self.prometheus_url}/api/v1/query",
                 params={
@@ -262,12 +234,14 @@ class MetricsCollector:
 
             metrics.total_runs_24h = metrics.successful_runs_24h + metrics.failed_runs_24h
 
-            # Query for latency percentiles
             for percentile in ["0.5", "0.95", "0.99"]:
                 response = requests.get(
                     f"{self.prometheus_url}/api/v1/query",
                     params={
-                        "query": f"histogram_quantile({percentile}, dagster_run_duration_seconds[{period_hours}h])"
+                        "query": (
+                            f"histogram_quantile({percentile}, "
+                            f"dagster_run_duration_seconds[{period_hours}h])"
+                        )
                     },
                     timeout=5,
                 )
@@ -280,9 +254,8 @@ class MetricsCollector:
                             metrics.p50_duration_seconds = duration
                         elif percentile == "0.95":
                             metrics.p95_duration_seconds = duration
-                        elif percentile == "0.99":
+                        else:
                             metrics.p99_duration_seconds = duration
-
         except Exception:
             logger.debug("prometheus_collection_failed", period_hours=period_hours, exc_info=True)
 
@@ -291,7 +264,6 @@ class MetricsCollector:
     def _collect_from_postgres(self, period_hours: int) -> dict[str, Any]:
         """Collect metrics from Postgres."""
         metrics: dict[str, Any] = {}
-
         try:
             conn = psycopg2.connect(
                 host=self.settings.postgres_host,
@@ -301,9 +273,7 @@ class MetricsCollector:
                 password=self.settings.postgres_password,
             )
             cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-            # Query Dagster events for metrics
-            since = datetime.now(timezone.utc) - timedelta(hours=period_hours)
+            since = datetime.now(UTC) - timedelta(hours=period_hours)
             cur.execute(
                 """
                 SELECT
@@ -311,61 +281,47 @@ class MetricsCollector:
                     SUM(CASE WHEN event_type = 'PIPELINE_SUCCESS' THEN 1 ELSE 0 END) as success_count
                 FROM dagster_event_logs
                 WHERE timestamp > %s
-            """,
+                """,
                 (since,),
             )
-
             row = cur.fetchone()
             if row:
                 metrics["runs"] = row["run_count"] or 0
                 metrics["successful_runs"] = row["success_count"] or 0
-
             conn.close()
-
         except Exception:
             logger.debug(
                 "postgres_metrics_collection_failed", period_hours=period_hours, exc_info=True
             )
-
         return metrics
 
     def _collect_from_iceberg(self) -> dict[str, Any]:
         """Collect metrics from Iceberg/Nessie."""
         metrics: dict[str, Any] = {}
-
         try:
-            # Query Nessie for table listing
             nessie_url = self.settings.nessie_api_uri()
             response = requests.get(f"{nessie_url}/trees", timeout=5)
-
             if response.status_code == 200:
                 data = response.json()
-                # Get table count from all namespaces
                 tables_count = 0
-                total_bytes = 0
-
-                # Try to query each namespace
                 namespaces = data.get("trees", [])
                 for namespace in namespaces:
                     ns_name = namespace.get("name")
-                    if ns_name:
-                        try:
-                            ns_response = requests.get(
-                                f"{nessie_url}/namespaces/{ns_name}/tables",
-                                timeout=5,
-                            )
-                            if ns_response.status_code == 200:
-                                ns_data = ns_response.json()
-                                tables_count += len(ns_data.get("tables", []))
-                        except Exception:
-                            pass
-
+                    if not ns_name:
+                        continue
+                    try:
+                        ns_response = requests.get(
+                            f"{nessie_url}/namespaces/{ns_name}/tables",
+                            timeout=5,
+                        )
+                        if ns_response.status_code == 200:
+                            tables_count += len(ns_response.json().get("tables", []))
+                    except Exception:
+                        continue
                 metrics["table_count"] = tables_count
-                metrics["total_bytes"] = total_bytes
-
+                metrics["total_bytes"] = 0
         except Exception:
             logger.debug("iceberg_metrics_collection_failed", exc_info=True)
-
         return metrics
 
     def _get_asset_runs_from_postgres(self, asset_name: str, limit: int = 10) -> list[RunMetrics]:
@@ -381,13 +337,11 @@ class MetricsCollector:
         except PsycopgError as exc:
             raise MetricsDependencyError("Postgres unavailable for asset run lookup") from exc
 
-        runs: list[RunMetrics] = []
         try:
             escaped_asset_name = (
                 asset_name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             )
             with conn, conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-                # Dagster stores per-run asset selection in run_tags; include direct pipeline match fallback.
                 cur.execute(
                     """
                     SELECT
@@ -414,22 +368,20 @@ class MetricsCollector:
         finally:
             conn.close()
 
+        runs: list[RunMetrics] = []
         for row in rows:
             run_id = row.get("run_id")
             if not isinstance(run_id, str) or not run_id:
                 raise MetricsMalformedResponseError("Dagster run row missing string run_id")
-
             start = self._coerce_datetime(row.get("start_time"), "start_time")
             end = self._coerce_datetime(row.get("end_time"), "end_time", allow_none=True)
-            duration = (end - start).total_seconds() if end is not None else None
-
             runs.append(
                 RunMetrics(
                     asset_name=asset_name,
                     run_id=run_id,
                     start_time=start,
                     end_time=end,
-                    duration_seconds=duration,
+                    duration_seconds=(end - start).total_seconds() if end is not None else None,
                     status=self._normalize_status(row.get("status")),
                 )
             )
@@ -478,13 +430,11 @@ class MetricsCollector:
     def _resolve_table_schema(
         self, table_name: str, catalog: str, query_engine: QueryEngine
     ) -> str:
-        """Resolve table schema through the configured query engine."""
         safe_table_name = self._validate_identifier(table_name, "table_name")
         schema_sql = (
             f"SELECT table_schema FROM {catalog}.information_schema.tables "
             f"WHERE table_name = '{safe_table_name}' ORDER BY table_schema LIMIT 1"
         )
-
         try:
             rows = query_engine.execute(schema_sql)
         except Exception as exc:
@@ -499,26 +449,21 @@ class MetricsCollector:
             raise MetricsMalformedResponseError(
                 f"Could not resolve Iceberg schema for table {table_name}"
             )
-
         return self._validate_identifier(row[0], "table_schema")
 
     def _coerce_datetime(
         self, value: Any, field_name: str, *, allow_none: bool = False
-    ) -> Optional[datetime]:
-        """Coerce database datetime/timestamp value into UTC datetime."""
+    ) -> datetime | None:
         if value is None:
             if allow_none:
                 return None
             raise MetricsMalformedResponseError(f"Missing required timestamp field {field_name}")
-
         if isinstance(value, datetime):
             if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
-            return value.astimezone(timezone.utc)
-
+                return value.replace(tzinfo=UTC)
+            return value.astimezone(UTC)
         if isinstance(value, (int, float)):
-            return datetime.fromtimestamp(value, tz=timezone.utc)
-
+            return datetime.fromtimestamp(value, tz=UTC)
         if isinstance(value, str):
             normal = value.replace("Z", "+00:00")
             try:
@@ -528,15 +473,13 @@ class MetricsCollector:
                     f"Invalid datetime string for {field_name}: {value!r}"
                 ) from exc
             if parsed.tzinfo is None:
-                return parsed.replace(tzinfo=timezone.utc)
-            return parsed.astimezone(timezone.utc)
-
+                return parsed.replace(tzinfo=UTC)
+            return parsed.astimezone(UTC)
         raise MetricsMalformedResponseError(
             f"Unsupported datetime value type for {field_name}: {type(value).__name__}"
         )
 
     def _coerce_int(self, value: Any, field_name: str) -> int:
-        """Coerce query value into an integer."""
         if isinstance(value, bool):
             raise MetricsMalformedResponseError(
                 f"Invalid numeric value for {field_name}: {value!r}"
@@ -556,7 +499,6 @@ class MetricsCollector:
         raise MetricsMalformedResponseError(f"Invalid numeric value for {field_name}: {value!r}")
 
     def _normalize_status(self, value: Any) -> str:
-        """Normalize Dagster status values into metrics statuses."""
         if not isinstance(value, str):
             raise MetricsMalformedResponseError(f"Invalid Dagster status value: {value!r}")
         normalized = value.lower()
@@ -569,7 +511,6 @@ class MetricsCollector:
         return normalized
 
     def _validate_identifier(self, value: str, field_name: str) -> str:
-        """Allow only Trino-safe identifier characters for dynamic SQL."""
         if not value:
             raise MetricsMalformedResponseError(f"Empty identifier for {field_name}")
         if not all(part and part.replace("_", "").isalnum() for part in value.split(".")):
@@ -577,7 +518,6 @@ class MetricsCollector:
         return value
 
     def _load_query_engine(self) -> QueryEngine:
-        """Resolve the configured query_engine capability for metadata queries."""
         discover_capabilities()
         resolution = resolve_capability("query_engine", self.settings.metrics_query_engine)
         if resolution is None:
@@ -592,13 +532,11 @@ class MetricsCollector:
         return resolution.provider
 
     def _resolve_query_engine_catalog(self) -> str:
-        """Resolve the catalog used for query-engine table stats lookups."""
         if self.settings.metrics_query_catalog:
             return self._validate_identifier(
                 self.settings.metrics_query_catalog,
                 "metrics_query_catalog",
             )
-
         discover_capabilities()
         resolution = resolve_capability("query_engine", self.settings.metrics_query_engine)
         if resolution is None:
@@ -610,24 +548,21 @@ class MetricsCollector:
             raise MetricsDependencyError(
                 f"Query engine capability unavailable for metrics catalog resolution ({target})"
             )
-
         for key in ("default_catalog", "catalog", "catalog_name"):
             value = resolution.metadata.get(key)
             if isinstance(value, str) and value:
                 return self._validate_identifier(value, "metrics_query_catalog")
-
         raise MetricsDependencyError(
             "Query engine capability does not declare a default catalog and "
             "metrics_query_catalog is not configured."
         )
 
 
-# Global metrics collector instance
-_metrics_collector: Optional[MetricsCollector] = None
+_metrics_collector: MetricsCollector | None = None
 
 
 def get_metrics_collector() -> MetricsCollector:
-    """Get or create global metrics collector."""
+    """Get or create the global metrics collector."""
     global _metrics_collector
     if _metrics_collector is None:
         _metrics_collector = MetricsCollector()

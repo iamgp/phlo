@@ -255,16 +255,6 @@
       "tags": ["metadata", "lineage", "quality", "hooks"],
       "verified": true
     },
-    "metrics": {
-      "type": "hooks",
-      "package": "phlo-metrics",
-      "version": "0.1.0",
-      "description": "Telemetry hooks for metrics capture",
-      "author": "Phlo Team",
-      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-metrics",
-      "tags": ["metrics", "telemetry", "hooks"],
-      "verified": true
-    },
     "alerting": {
       "type": "hooks",
       "package": "phlo-alerting",

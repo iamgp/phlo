@@ -78,7 +78,7 @@ phlo migrate             # Run declarative data migration specs
 phlo postgrest           # PostgREST management
 phlo hasura              # Hasura GraphQL management
 phlo publishing          # dbt publishing layer
-phlo metrics             # Prometheus metrics
+phlo metrics             # Metrics summary and export
 phlo alerts              # Alerting rules
 phlo openmetadata        # OpenMetadata catalog
 ```
@@ -1675,9 +1675,7 @@ dbt publishing layer management.
 
 ### phlo metrics
 
-Prometheus metrics configuration.
-
-**Installation**: `phlo plugin install phlo-metrics`
+Metrics summary and export.
 
 ### phlo alerts
 
