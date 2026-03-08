@@ -306,6 +306,10 @@ def _record_to_event(record: logging.LogRecord, default_service: str) -> LogEven
 
     correlation = {field: _pop_value(extra, field) for field in _CORRELATION_FIELDS}
     metadata = _build_metadata(record, extra)
+    for field in ("request_id", "trace_id", "span_id"):
+        value = correlation.get(field)
+        if value is not None:
+            metadata[field] = value
 
     return LogEvent(
         event_type="log.record",
