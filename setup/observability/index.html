@@ -726,6 +726,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#preferred-clickstack-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preferred ClickStack Stack
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#generic-opentelemetry-collector" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1825,6 +1836,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#preferred-clickstack-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preferred ClickStack Stack
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#generic-opentelemetry-collector" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2396,6 +2418,7 @@
 <h2 id="overview">Overview</h2>
 <p>Phlo includes a production-ready observability stack based on industry-standard tools:</p>
 <ul>
+<li><strong>ClickStack</strong> - Preferred all-in-one observability backend</li>
 <li><strong>Prometheus</strong> - Metrics collection and storage</li>
 <li><strong>Loki</strong> - Log aggregation and querying</li>
 <li><strong>Grafana Alloy</strong> - Unified telemetry collection agent</li>
@@ -2416,7 +2439,7 @@
 <ul>
 <li><code>phlo-otel</code> emits backend-agnostic OTLP traces, metrics, and optional OTLP logs</li>
 <li>Alloy or OpenTelemetry Collector handles fan-out, enrichment, batching, and backend routing</li>
-<li>ClickStack support is collector configuration, not a Phlo-specific exporter plugin</li>
+<li>ClickStack is the preferred default destination for Phlo OTLP telemetry</li>
 </ul>
 <p>Typical Phlo OTLP environment:</p>
 <pre><code class="language-bash">export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
@@ -2508,6 +2531,17 @@ make grafana
 <li>Grafana-first deployments</li>
 <li>one collector handling both infrastructure and application telemetry</li>
 </ul>
+<h3 id="preferred-clickstack-stack">Preferred ClickStack Stack</h3>
+<p>Use ClickStack directly when you want the default Phlo observability path with a
+single OTLP-native backend and a unified UI.</p>
+<pre><code class="language-text">phlo-otel -&gt; OTLP -&gt; ClickStack
+</code></pre>
+<p>Good default for:</p>
+<ul>
+<li>Phlo's recommended observability install</li>
+<li>teams that want one backend for logs, traces, and metrics</li>
+<li>minimal local setup without separate Prometheus/Loki/Grafana services</li>
+</ul>
 <h3 id="generic-opentelemetry-collector">Generic OpenTelemetry Collector</h3>
 <p>Use OpenTelemetry Collector when you want backend-neutral routing or multiple downstream consumers.</p>
 <pre><code class="language-text">phlo-otel -&gt; OTLP -&gt; OpenTelemetry Collector -&gt; backend-specific exporters
@@ -2519,7 +2553,8 @@ make grafana
 <li>production routing policies and tail-based processing</li>
 </ul>
 <h3 id="clickstack-compatible-routing">ClickStack-Compatible Routing</h3>
-<p>ClickStack should be treated as a downstream OTLP consumer behind Alloy or OpenTelemetry Collector.</p>
+<p>When you need extra routing or host log collection, treat ClickStack as a
+downstream OTLP consumer behind Alloy or OpenTelemetry Collector.</p>
 <pre><code class="language-text">phlo-otel -&gt; OTLP -&gt; Collector -&gt; ClickStack
                            -&gt; Tempo
                            -&gt; Prometheus-compatible backend

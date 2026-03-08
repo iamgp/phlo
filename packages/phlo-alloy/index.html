@@ -1834,7 +1834,8 @@
 <h1 id="phlo-alloy">phlo-alloy</h1>
 <p>Grafana Alloy log collector for Phlo.</p>
 <h2 id="overview">Overview</h2>
-<p><code>phlo-alloy</code> can collect Docker logs and receive OTLP telemetry for forwarding to downstream observability backends.</p>
+<p><code>phlo-alloy</code> can collect Docker logs and receive OTLP telemetry for forwarding
+to downstream observability backends.</p>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-alloy
 # or
@@ -1909,13 +1910,15 @@ phlo services start --profile observability
 phlo services start --service alloy
 </code></pre>
 <h3 id="otlp-gateway-pattern">OTLP Gateway Pattern</h3>
-<p>Use Alloy as the stable OTLP ingress for Phlo application telemetry:</p>
-<pre><code class="language-text">phlo-otel -&gt; OTLP -&gt; Alloy -&gt; downstream backends
+<p>Use Alloy when you need a collector in front of the default ClickStack backend
+or any multi-backend topology.</p>
+<p>Stable OTLP ingress pattern:</p>
+<pre><code class="language-text">phlo-otel -&gt; OTLP -&gt; Alloy -&gt; ClickStack / other downstream backends
 </code></pre>
 <p>That lets you:</p>
 <ul>
 <li>keep <code>phlo-otel</code> backend-neutral</li>
-<li>route the same telemetry to Grafana-native or non-Grafana backends</li>
+<li>route the same telemetry to ClickStack and other downstream backends</li>
 <li>move ClickStack / Tempo / Loki routing changes into Alloy config instead of Python code</li>
 </ul>
 <h2 id="endpoints">Endpoints</h2>
@@ -1954,6 +1957,7 @@ phlo services start --service alloy
 </table>
 <h2 id="related-packages">Related Packages</h2>
 <ul>
+<li><a href="../phlo-clickstack/">phlo-clickstack</a> - Preferred backend</li>
 <li><a href="../phlo-loki/">phlo-loki</a> - Log storage</li>
 <li><a href="../phlo-grafana/">phlo-grafana</a> - Log visualization</li>
 <li><a href="../phlo-prometheus/">phlo-prometheus</a> - Metrics collection</li>
