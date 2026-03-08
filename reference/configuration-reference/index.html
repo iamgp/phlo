@@ -854,6 +854,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#clickhouse-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ClickHouse Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#api-backend-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1939,6 +1950,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#clickhouse-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ClickHouse Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#api-backend-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2726,6 +2748,37 @@ TRINO_CATALOG=iceberg
 <p><strong>Connection string</strong>:</p>
 <pre><code>trino://trino:10005/iceberg_dev
 </code></pre>
+<h3 id="clickhouse-configuration">ClickHouse Configuration</h3>
+<p>ClickHouse analytical database for data plane:</p>
+<pre><code class="language-bash"># Version and connectivity
+CLICKHOUSE_VERSION=latest
+CLICKHOUSE_HTTP_PORT=8123
+CLICKHOUSE_NATIVE_PORT=19000
+CLICKHOUSE_HOST=clickhouse
+
+# Credentials
+CLICKHOUSE_USER=default
+CLICKHOUSE_PASSWORD=
+
+# Database
+CLICKHOUSE_DB=default
+
+# TLS
+CLICKHOUSE_SECURE=false
+</code></pre>
+<p><strong>HTTP endpoint</strong>:</p>
+<pre><code>http://clickhouse:8123
+</code></pre>
+<p><strong>Native endpoint</strong>:</p>
+<pre><code>clickhouse:19000
+</code></pre>
+<p><strong>Default databases</strong> (created by clickhouse-setup):</p>
+<ul>
+<li><code>raw</code> - Raw ingestion tables</li>
+<li><code>staging</code> - Intermediate tables</li>
+<li><code>curated</code> - Cleaned/validated tables</li>
+<li><code>marts</code> - Published analytical marts</li>
+</ul>
 <h3 id="api-backend-configuration">API Backend Configuration</h3>
 <p>Observatory API runtime routing:</p>
 <pre><code class="language-bash">PHLO_API_PORT=4000
