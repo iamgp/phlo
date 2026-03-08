@@ -1000,6 +1000,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#otlp-gateway-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTLP Gateway Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1743,6 +1754,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#otlp-gateway-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTLP Gateway Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1812,7 +1834,7 @@
 <h1 id="phlo-alloy">phlo-alloy</h1>
 <p>Grafana Alloy log collector for Phlo.</p>
 <h2 id="overview">Overview</h2>
-<p><code>phlo-alloy</code> collects logs from all Docker containers and ships them to Loki for aggregation and querying.</p>
+<p><code>phlo-alloy</code> can collect Docker logs and receive OTLP telemetry for forwarding to downstream observability backends.</p>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-alloy
 # or
@@ -1860,6 +1882,14 @@ phlo plugin install alloy
 <td>Ships logs to Loki for storage and querying</td>
 </tr>
 <tr>
+<td><strong>OTLP Receiver</strong></td>
+<td>Accepts traces, metrics, and logs from <code>phlo-otel</code></td>
+</tr>
+<tr>
+<td><strong>Backend Routing</strong></td>
+<td>Forwards OTLP signals to one or more downstream sinks</td>
+</tr>
+<tr>
 <td><strong>Metrics Labels</strong></td>
 <td>Exposes Alloy metrics for Prometheus</td>
 </tr>
@@ -1878,6 +1908,16 @@ phlo services start --profile observability
 # Or start individually
 phlo services start --service alloy
 </code></pre>
+<h3 id="otlp-gateway-pattern">OTLP Gateway Pattern</h3>
+<p>Use Alloy as the stable OTLP ingress for Phlo application telemetry:</p>
+<pre><code class="language-text">phlo-otel -&gt; OTLP -&gt; Alloy -&gt; downstream backends
+</code></pre>
+<p>That lets you:</p>
+<ul>
+<li>keep <code>phlo-otel</code> backend-neutral</li>
+<li>route the same telemetry to Grafana-native or non-Grafana backends</li>
+<li>move ClickStack / Tempo / Loki routing changes into Alloy config instead of Python code</li>
+</ul>
 <h2 id="endpoints">Endpoints</h2>
 <table>
 <thead>

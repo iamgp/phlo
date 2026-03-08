@@ -850,6 +850,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#backend-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend Routing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#semantic-attributes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -944,6 +955,15 @@ settings when those variables are unset.</p>
 <li><code>phlo.runtime</code></li>
 <li><code>phlo.project</code></li>
 </ul>
+<h2 id="backend-routing">Backend Routing</h2>
+<p><code>phlo-otel</code> is intentionally backend-neutral. It emits OTLP and expects collector infrastructure to handle routing.</p>
+<p>Recommended topologies:</p>
+<ul>
+<li><code>phlo-otel -&gt; Alloy -&gt; Grafana / Loki / Tempo</code></li>
+<li><code>phlo-otel -&gt; OpenTelemetry Collector -&gt; multiple downstream backends</code></li>
+<li><code>phlo-otel -&gt; Collector -&gt; ClickStack</code></li>
+</ul>
+<p>That means ClickStack support should be introduced through collector configuration, not through a dedicated Phlo exporter fork.</p>
 <h2 id="semantic-attributes">Semantic Attributes</h2>
 <p><code>phlo-otel</code> applies a stable semantic envelope across spans and OTLP log records.</p>
 <table>
@@ -1005,6 +1025,7 @@ instruments instead of only generic <code>phlo.telemetry.*</code> series.</p>
 <ul>
 <li><a href="../../reference/configuration-reference/">Configuration Reference</a></li>
 <li><a href="../../setup/observability/">Observability Setup</a></li>
+<li><a href="../phlo-alloy/">phlo-alloy</a></li>
 <li><a href="../">Packages Index</a></li>
 </ul>
 
