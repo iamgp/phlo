@@ -14,7 +14,9 @@ class ClickHouseSettings(BaseConfig):
 
     clickhouse_host: str = Field(default="clickhouse", description="ClickHouse service hostname")
     clickhouse_http_port: int = Field(default=8123, description="ClickHouse HTTP interface port")
-    clickhouse_native_port: int = Field(default=9000, description="ClickHouse native protocol port")
+    clickhouse_native_port: int = Field(
+        default=19000, description="ClickHouse native protocol port"
+    )
     clickhouse_user: str = Field(default="default", description="ClickHouse username")
     clickhouse_password: str = Field(default="", description="ClickHouse password")
     clickhouse_db: str = Field(default="default", description="Default ClickHouse database")

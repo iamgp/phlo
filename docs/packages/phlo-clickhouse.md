@@ -22,7 +22,7 @@ phlo plugin install clickhouse
 | ------------------------------ | -------- | --------------------------- | ------------------------------ |
 | `CLICKHOUSE_HOST`              | No       | `clickhouse`                | ClickHouse service hostname    |
 | `CLICKHOUSE_HTTP_PORT`         | No       | `8123`                      | ClickHouse HTTP interface port |
-| `CLICKHOUSE_NATIVE_PORT`        | No       | `9000`                      | ClickHouse native protocol port |
+| `CLICKHOUSE_NATIVE_PORT`        | No       | `19000`                     | ClickHouse native protocol port |
 | `CLICKHOUSE_USER`              | No       | `default`                   | ClickHouse username           |
 | `CLICKHOUSE_PASSWORD`          | No       |                             | ClickHouse password           |
 | `CLICKHOUSE_DB`                 | No       | `default`                   | Default ClickHouse database   |
@@ -105,11 +105,7 @@ Example dbt model config:
 
 ## Port Conflict Note
 
-Both `phlo-clickhouse` (data plane) and `phlo-clickstack` (observability) expose ClickHouse on native port 9000. Users must not run both simultaneously with default ports. Solutions:
-
-1. Remap one service's native port (e.g., `CLICKHOUSE_NATIVE_PORT=19000`)
-2. Use only one at a time
-3. Access ClickHouse data plane via HTTP port 8123 (avoids native port conflict)
+`phlo-clickhouse` uses native port 19000 by default to avoid conflict with `phlo-clickstack` (which uses 9000). If you need to run both, you may need to remap one service's port.
 
 ## Entry Points
 

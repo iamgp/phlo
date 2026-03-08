@@ -166,7 +166,7 @@ ClickHouse analytical database for data plane:
 # Version and connectivity
 CLICKHOUSE_VERSION=latest
 CLICKHOUSE_HTTP_PORT=8123
-CLICKHOUSE_NATIVE_PORT=9000
+CLICKHOUSE_NATIVE_PORT=19000
 CLICKHOUSE_HOST=clickhouse
 
 # Credentials
@@ -189,7 +189,7 @@ http://clickhouse:8123
 **Native endpoint**:
 
 ```
-clickhouse:9000
+clickhouse:19000
 ```
 
 **Default databases** (created by clickhouse-setup):

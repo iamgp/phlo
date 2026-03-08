@@ -10,7 +10,7 @@ def test_clickhouse_settings_defaults():
 
     assert settings.clickhouse_host == "clickhouse"
     assert settings.clickhouse_http_port == 8123
-    assert settings.clickhouse_native_port == 9000
+    assert settings.clickhouse_native_port == 19000
     assert settings.clickhouse_user == "default"
     assert settings.clickhouse_password == ""
     assert settings.clickhouse_db == "default"
@@ -30,7 +30,7 @@ def test_clickhouse_settings_native_endpoint():
 
     settings = ClickHouseSettings()
 
-    assert settings.clickhouse_native_endpoint() == "clickhouse:9000"
+    assert settings.clickhouse_native_endpoint() == "clickhouse:19000"
 
 
 def test_clickhouse_settings_with_overrides():
