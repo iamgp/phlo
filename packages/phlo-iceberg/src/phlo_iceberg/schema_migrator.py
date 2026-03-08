@@ -20,8 +20,11 @@ from pyiceberg.types import (
     TimestamptzType,
 )
 
+from dataclasses import asdict
+
 from phlo.capabilities.schema import default_classify_change, worst_classification
 from phlo.capabilities.specs import NormalizedSchema, SchemaChange, SchemaMigrationPlan
+from phlo.hooks import SchemaMigrationEventContext, SchemaMigrationEventEmitter
 from phlo.logging import get_logger
 from phlo_iceberg.catalog import get_catalog
 from phlo_iceberg.settings import get_settings
@@ -183,13 +186,25 @@ class IcebergSchemaMigrator:
         if any(c.change_type == "drop" for c in changes):
             recommendations.append("Dropped columns are recoverable via Iceberg snapshot rollback.")
 
-        return SchemaMigrationPlan(
+        plan = SchemaMigrationPlan(
             table_name=table_name,
             changes=changes,
             classification=overall,
             recommendations=recommendations,
             requires_approval=requires_approval,
         )
+
+        emitter = SchemaMigrationEventEmitter(
+            SchemaMigrationEventContext(table_name=table_name, tags={"backend": "iceberg"})
+        )
+        emitter.emit(
+            status="planned",
+            classification=overall,
+            change_count=len(changes),
+            changes=[asdict(c) for c in changes],
+        )
+
+        return plan
 
     def apply_plan(self, *, plan: SchemaMigrationPlan, approved: bool = False) -> dict[str, Any]:
         """Execute a migration plan against the Iceberg catalog.
@@ -243,6 +258,16 @@ class IcebergSchemaMigrator:
             table_name=plan.table_name,
             applied_count=len(applied),
             changes=applied,
+        )
+
+        emitter = SchemaMigrationEventEmitter(
+            SchemaMigrationEventContext(table_name=plan.table_name, tags={"backend": "iceberg"})
+        )
+        emitter.emit(
+            status="applied",
+            classification=plan.classification,
+            change_count=len(applied),
+            changes=[asdict(c) for c in plan.changes],
         )
 
         return {

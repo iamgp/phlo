@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 
 import pyarrow as pa
 
 from phlo.capabilities.schema import default_classify_change, worst_classification
 from phlo.capabilities.specs import NormalizedSchema, SchemaChange, SchemaMigrationPlan
+from phlo.hooks import SchemaMigrationEventContext, SchemaMigrationEventEmitter
 from phlo.logging import get_logger
 from phlo_delta.tables import _default_storage_options, _resolve_table_uri
 
@@ -190,13 +191,25 @@ class DeltaSchemaMigrator:
         if any(c.change_type == "drop" for c in changes):
             recommendations.append("Dropped columns are recoverable via Delta Lake time travel.")
 
-        return SchemaMigrationPlan(
+        plan = SchemaMigrationPlan(
             table_name=table_name,
             changes=changes,
             classification=overall,
             recommendations=recommendations,
             requires_approval=requires_approval,
         )
+
+        emitter = SchemaMigrationEventEmitter(
+            SchemaMigrationEventContext(table_name=table_name, tags={"backend": "delta"})
+        )
+        emitter.emit(
+            status="planned",
+            classification=overall,
+            change_count=len(changes),
+            changes=[asdict(c) for c in changes],
+        )
+
+        return plan
 
     def apply_plan(self, *, plan: SchemaMigrationPlan, approved: bool = False) -> dict[str, Any]:
         """Execute a migration plan against a Delta table.
@@ -280,6 +293,16 @@ class DeltaSchemaMigrator:
             table_name=plan.table_name,
             applied_count=len(applied),
             changes=applied,
+        )
+
+        emitter = SchemaMigrationEventEmitter(
+            SchemaMigrationEventContext(table_name=plan.table_name, tags={"backend": "delta"})
+        )
+        emitter.emit(
+            status="applied",
+            classification=plan.classification,
+            change_count=len(applied),
+            changes=[asdict(c) for c in plan.changes],
         )
 
         return {
