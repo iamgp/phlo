@@ -36,6 +36,18 @@ Resource attributes emitted by default include:
 - `phlo.runtime`
 - `phlo.project`
 
+## Backend Routing
+
+`phlo-otel` is intentionally backend-neutral. It emits OTLP and expects collector infrastructure to handle routing.
+
+Recommended topologies:
+
+- `phlo-otel -> Alloy -> Grafana / Loki / Tempo`
+- `phlo-otel -> OpenTelemetry Collector -> multiple downstream backends`
+- `phlo-otel -> Collector -> ClickStack`
+
+That means ClickStack support should be introduced through collector configuration, not through a dedicated Phlo exporter fork.
+
 ## Semantic Attributes
 
 `phlo-otel` applies a stable semantic envelope across spans and OTLP log records.
@@ -75,4 +87,5 @@ instruments instead of only generic `phlo.telemetry.*` series.
 
 - [Configuration Reference](../reference/configuration-reference.md)
 - [Observability Setup](../setup/observability.md)
+- [phlo-alloy](phlo-alloy.md)
 - [Packages Index](index.md)

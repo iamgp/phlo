@@ -7,6 +7,7 @@ import sys
 import time
 from pathlib import Path
 from typing import cast
+from uuid import uuid4
 
 import click
 
@@ -460,6 +461,7 @@ def _emit_service_lifecycle_events(
     project_name: str,
     project_root: Path,
     *,
+    request_id: str | None = None,
     status: str | None = None,
     metadata: dict[str, object] | None = None,
 ) -> None:
@@ -470,12 +472,19 @@ def _emit_service_lifecycle_events(
         service_names: Target service names.
         project_name: Active project name.
         project_root: Project root path.
+        request_id: Shared correlation identifier for this lifecycle operation.
         status: Optional lifecycle status value.
         metadata: Optional extra metadata attached to emitted events.
     """
     if not service_names:
         return
-    from phlo.hooks import ServiceLifecycleEventContext, ServiceLifecycleEventEmitter
+    from phlo.hooks import (
+        HookCorrelation,
+        ServiceLifecycleEventContext,
+        ServiceLifecycleEventEmitter,
+    )
+
+    operation_request_id = request_id or uuid4().hex
 
     for name in service_names:
         emitter = ServiceLifecycleEventEmitter(
@@ -484,6 +493,7 @@ def _emit_service_lifecycle_events(
                 project_name=project_name,
                 project_root=str(project_root),
                 container_name=_resolve_container_name(name, project_name),
+                correlation=HookCorrelation(request_id=operation_request_id),
             )
         )
         emitter.emit(phase=phase, status=status, metadata=metadata)

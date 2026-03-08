@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from phlo.hooks.events import DataMigrationEvent
 from phlo.migrations import executor as migration_executor
 from phlo.migrations.executor import (
     MigrationExecutionError,
@@ -139,3 +140,42 @@ def test_stage_chunk_parquet_cleans_temp_file_on_write_error(
         _stage_chunk_parquet([{"id": "1"}])
 
     assert not staged_path.exists()
+
+
+def test_execute_emits_stable_correlation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Migration execution reuses one request correlation across emitted events."""
+
+    class RecordingBus:
+        def __init__(self) -> None:
+            self.events: list[object] = []
+
+        def emit(self, event: object) -> None:
+            self.events.append(event)
+
+    class _Adapter:
+        def validate_config(self, source: MigrationSource) -> list[str]:
+            return []
+
+        def estimate_row_count(self, source: MigrationSource) -> int | None:
+            return 2
+
+        def read_chunks(self, source: MigrationSource, *, chunk_size: int = 50_000):
+            yield [{"id": "1"}]
+            yield [{"id": "2"}]
+
+    bus = RecordingBus()
+    monkeypatch.setattr("phlo.hooks.emitters.get_hook_bus", lambda: bus)
+    monkeypatch.setattr(migration_executor, "discover_capabilities", lambda: None)
+    monkeypatch.setattr(migration_executor, "resolve_source_adapter", lambda _: _Adapter())
+    monkeypatch.setattr(migration_executor, "get_capability_registry", lambda: _FakeRegistry())
+    monkeypatch.setattr(migration_executor, "_append_history", lambda result: None)
+
+    result = MigrationExecutor().execute(_spec(dry_run=True))
+
+    assert result.status == "dry_run"
+    migration_events = [event for event in bus.events if isinstance(event, DataMigrationEvent)]
+    assert migration_events
+    request_ids = {event.correlation.request_id for event in migration_events}
+    assert len(request_ids) == 1
+    assert request_ids != {None}
+    assert {event.correlation.asset_key for event in migration_events} == {"warehouse.demo"}
