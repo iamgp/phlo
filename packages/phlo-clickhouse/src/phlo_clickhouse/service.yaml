@@ -22,7 +22,7 @@ compose:
     CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: ${CLICKHOUSE_ACCESS_MANAGEMENT:-1}
   ports:
     - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
-    - "${CLICKHOUSE_NATIVE_PORT:-19000}:19000"
+    - "${CLICKHOUSE_NATIVE_PORT:-19000}:9000"
     - "${CLICKHOUSE_METRICS_PORT:-9363}:9363"
   volumes:
     - ./volumes/clickhouse/data:/var/lib/clickhouse
