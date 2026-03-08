@@ -46,7 +46,28 @@ PHLO_LOG_SERVICE_NAME=phlo
 # Available placeholders: {YMD}, {YM}, {Y}, {YYYY}, {M}, {MM}, {D}, {DD}, {H}, {HM}, {HMS}, {DATE}, {TIMESTAMP}
 # Set empty to disable file logging
 PHLO_LOG_FILE_TEMPLATE=.phlo/logs/{YMD}.log
+
+# Default service namespace attached to observability resources (default: phlo)
+PHLO_SERVICE_NAMESPACE=phlo
+
+# Optional default service version attached to observability resources
+PHLO_SERVICE_VERSION=
+
+# Optional default service instance ID attached to observability resources
+PHLO_SERVICE_INSTANCE_ID=
+
+# Optional project identifier attached to observability resources
+PHLO_PROJECT=
+
+# Runtime environment attached to logs and observability resources (default: dev)
+PHLO_ENVIRONMENT=dev
 ```
+
+Notes:
+
+- `PHLO_LOG_SERVICE_NAME` is the default `service.name` for `phlo-otel` when `OTEL_SERVICE_NAME` is unset.
+- `PHLO_SERVICE_NAMESPACE`, `PHLO_SERVICE_VERSION`, `PHLO_SERVICE_INSTANCE_ID`, and `PHLO_PROJECT` provide Phlo-native defaults for OTel resource metadata.
+- Standard `OTEL_*` variables still take precedence when set.
 
 ### Database Configuration
 

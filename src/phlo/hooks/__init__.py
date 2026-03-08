@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 __all__ = [
     "EVENT_VERSION",
     "HookBus",
+    "HookCorrelation",
     "HookEvent",
     "IngestionEventContext",
     "IngestionEventEmitter",
@@ -66,6 +67,7 @@ _EMITTER_EXPORTS = {
 }
 _EVENT_EXPORTS = {
     "EVENT_VERSION",
+    "HookCorrelation",
     "HookEvent",
     "IngestionEvent",
     "DataMigrationEvent",
@@ -105,6 +107,7 @@ if TYPE_CHECKING:
     from phlo.hooks.events import (
         EVENT_VERSION,
         DataMigrationEvent,
+        HookCorrelation,
         HookEvent,
         IngestionEvent,
         LineageEvent,

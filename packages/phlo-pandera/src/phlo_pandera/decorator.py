@@ -116,7 +116,7 @@ def phlo_pandera(
                 partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
                 emitter, telemetry = _make_emitters(
-                    asset_key_value, partition_key_value, "pandera", backend
+                    runtime, asset_key_value, partition_key_value, "pandera", backend
                 )
                 scope = PartitionScope(
                     partition_key=partition_key,
@@ -291,7 +291,7 @@ def phlo_pandera(
                 partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
                 emitter, telemetry = _make_emitters(
-                    asset_key_value, partition_key_value, "phlo", backend
+                    runtime, asset_key_value, partition_key_value, "phlo", backend
                 )
                 scope = PartitionScope(
                     partition_key=partition_key,

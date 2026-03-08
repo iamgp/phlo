@@ -21,7 +21,7 @@ from typing import Any
 import structlog
 
 from phlo.config import get_settings
-from phlo.hooks.events import LogEvent
+from phlo.hooks.events import HookCorrelation, LogEvent
 
 _STANDARD_LOG_RECORD_FIELDS = set(
     logging.LogRecord(
@@ -32,6 +32,7 @@ _CORRELATION_FIELDS = (
     "request_id",
     "trace_id",
     "span_id",
+    "trace_flags",
     "run_id",
     "asset_key",
     "job_name",
@@ -239,6 +240,16 @@ def clear_context() -> None:
     structlog.contextvars.clear_contextvars()
 
 
+def get_bound_correlation_context() -> HookCorrelation:
+    """Return the current correlation fields bound in logging contextvars."""
+
+    values = {
+        field: _coerce_optional_string(structlog.contextvars.get_contextvars().get(field))
+        for field in _CORRELATION_FIELDS
+    }
+    return HookCorrelation(**values)
+
+
 @contextmanager
 def suppress_log_routing() -> Any:
     """Temporarily disable log routing to the hook bus."""
@@ -304,10 +315,15 @@ def _record_to_event(record: logging.LogRecord, default_service: str) -> LogEven
     if service:
         tags.setdefault("service", service)
 
-    correlation = {field: _pop_value(extra, field) for field in _CORRELATION_FIELDS}
+    bound_correlation = get_bound_correlation_context()
+    correlation_values = {
+        field: _pop_value(extra, field) or getattr(bound_correlation, field)
+        for field in _CORRELATION_FIELDS
+    }
+    correlation = HookCorrelation(**correlation_values)
     metadata = _build_metadata(record, extra)
-    for field in ("request_id", "trace_id", "span_id"):
-        value = correlation.get(field)
+    for field in ("request_id", "trace_id", "span_id", "trace_flags"):
+        value = getattr(correlation, field)
         if value is not None:
             metadata[field] = value
 
@@ -318,13 +334,14 @@ def _record_to_event(record: logging.LogRecord, default_service: str) -> LogEven
         level=record.levelname.lower(),
         message=message,
         service=service,
-        run_id=correlation.get("run_id"),
-        asset_key=correlation.get("asset_key"),
-        job_name=correlation.get("job_name"),
-        partition_key=correlation.get("partition_key"),
-        check_name=correlation.get("check_name"),
+        run_id=correlation.run_id,
+        asset_key=correlation.asset_key,
+        job_name=correlation.job_name,
+        partition_key=correlation.partition_key,
+        check_name=correlation.check_name,
         metadata=metadata,
         tags=tags,
+        correlation=correlation,
     )
 
 
@@ -504,6 +521,14 @@ def _pop_value(extra: dict[str, Any], key: str) -> str | None:
         str | None: Stringified value or `None` when absent.
     """
     value = extra.pop(key, None)
+    if value is None:
+        return None
+    return str(value)
+
+
+def _coerce_optional_string(value: Any) -> str | None:
+    """Normalize correlation values into optional strings."""
+
     if value is None:
         return None
     return str(value)

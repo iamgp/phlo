@@ -67,6 +67,12 @@ Configure additional services:
 - [Hasura](setup/hasura.md) - GraphQL API
 - [Observability](setup/observability.md) - Monitoring with Grafana
 
+### Packages
+
+Package-specific reference:
+
+- [phlo-otel](packages/phlo-otel.md) - OpenTelemetry traces, metrics, and OTLP log export
+
 ### Reference
 
 Technical documentation:

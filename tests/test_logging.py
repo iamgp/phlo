@@ -13,6 +13,9 @@ from phlo.logging import (
     LogRouterHandler,
     _record_to_event,
     _render_log_file_path,
+    bind_context,
+    clear_context,
+    get_bound_correlation_context,
     get_logger,
     log_event,
     setup_logging,
@@ -185,6 +188,35 @@ def test_record_to_event_extracts_tags_and_metadata() -> None:
     assert "run_id" not in event.metadata
     assert "asset_key" not in event.metadata
     assert "tags" not in event.metadata
+
+
+def test_get_bound_correlation_context_reads_structlog_contextvars() -> None:
+    bind_context(run_id="run-99", asset_key="silver.orders", trace_id="abc123")
+
+    try:
+        correlation = get_bound_correlation_context()
+    finally:
+        clear_context()
+
+    assert correlation.run_id == "run-99"
+    assert correlation.asset_key == "silver.orders"
+    assert correlation.trace_id == "abc123"
+
+
+def test_record_to_event_merges_bound_correlation_context() -> None:
+    bind_context(run_id="run-77", asset_key="bronze.orders", trace_id="abc123")
+
+    try:
+        record = _make_record(msg="context-backed event")
+        event = _record_to_event(record, "phlo-default")
+    finally:
+        clear_context()
+
+    assert event is not None
+    assert event.run_id == "run-77"
+    assert event.asset_key == "bronze.orders"
+    assert event.correlation.trace_id == "abc123"
+    assert event.metadata["trace_id"] == "abc123"
 
 
 def test_log_router_handler_emit_routes_and_reports_errors(

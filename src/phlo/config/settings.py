@@ -36,6 +36,26 @@ class Settings(BaseConfig):
         validation_alias=AliasChoices("PHLO_ENVIRONMENT", "ENVIRONMENT"),
         description="Runtime environment attached to structured logs",
     )
+    phlo_service_namespace: str = Field(
+        default="phlo",
+        validation_alias=AliasChoices("PHLO_SERVICE_NAMESPACE", "OTEL_SERVICE_NAMESPACE"),
+        description="Default service namespace attached to observability resources",
+    )
+    phlo_service_version: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("PHLO_SERVICE_VERSION", "OTEL_SERVICE_VERSION"),
+        description="Optional default service version attached to observability resources",
+    )
+    phlo_service_instance_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("PHLO_SERVICE_INSTANCE_ID", "OTEL_SERVICE_INSTANCE_ID"),
+        description="Optional default service instance identifier for observability resources",
+    )
+    phlo_project: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("PHLO_PROJECT"),
+        description="Optional project identifier attached to observability resources",
+    )
 
     plugins_enabled: bool = Field(default=True, description="Enable plugin system")
     plugins_auto_discover: bool = Field(

@@ -15,7 +15,14 @@ def test_build_resource_attributes(monkeypatch):
     monkeypatch.setenv("PHLO_PROJECT", "demo-lakehouse")
     monkeypatch.setattr(
         "phlo_otel.provider.get_settings",
-        lambda: SimpleNamespace(phlo_environment="prod", phlo_log_service_name="ignored"),
+        lambda: SimpleNamespace(
+            phlo_environment="prod",
+            phlo_log_service_name="ignored",
+            phlo_service_namespace="ignored-namespace",
+            phlo_service_version="ignored-version",
+            phlo_service_instance_id="ignored-instance",
+            phlo_project="ignored-project",
+        ),
     )
 
     resource_attributes = provider._build_resource_attributes()
@@ -38,7 +45,14 @@ def test_build_resource_attributes_uses_phlo_defaults(monkeypatch):
     monkeypatch.delenv("PHLO_PROJECT", raising=False)
     monkeypatch.setattr(
         "phlo_otel.provider.get_settings",
-        lambda: SimpleNamespace(phlo_environment="dev", phlo_log_service_name="phlo-worker"),
+        lambda: SimpleNamespace(
+            phlo_environment="dev",
+            phlo_log_service_name="phlo-worker",
+            phlo_service_namespace="phlo",
+            phlo_service_version=None,
+            phlo_service_instance_id=None,
+            phlo_project=None,
+        ),
     )
     monkeypatch.setattr("phlo_otel.provider.socket.gethostname", lambda: "worker-host")
 
@@ -50,6 +64,34 @@ def test_build_resource_attributes_uses_phlo_defaults(monkeypatch):
     assert resource_attributes["service.instance.id"] == "worker-host"
     assert resource_attributes["deployment.environment"] == "dev"
     assert resource_attributes["phlo.project"] == "phlo-worker"
+
+
+def test_build_resource_attributes_uses_phlo_observability_settings(monkeypatch):
+    monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+    monkeypatch.delenv("OTEL_SERVICE_NAMESPACE", raising=False)
+    monkeypatch.delenv("OTEL_SERVICE_VERSION", raising=False)
+    monkeypatch.delenv("OTEL_SERVICE_INSTANCE_ID", raising=False)
+    monkeypatch.delenv("PHLO_PROJECT", raising=False)
+    monkeypatch.setattr(
+        "phlo_otel.provider.get_settings",
+        lambda: SimpleNamespace(
+            phlo_environment="staging",
+            phlo_log_service_name="phlo-api",
+            phlo_service_namespace="lakehouse",
+            phlo_service_version="2.4.0",
+            phlo_service_instance_id="api-7",
+            phlo_project="acme-analytics",
+        ),
+    )
+
+    resource_attributes = provider._build_resource_attributes()
+
+    assert resource_attributes["service.name"] == "phlo-api"
+    assert resource_attributes["service.namespace"] == "lakehouse"
+    assert resource_attributes["service.version"] == "2.4.0"
+    assert resource_attributes["service.instance.id"] == "api-7"
+    assert resource_attributes["deployment.environment"] == "staging"
+    assert resource_attributes["phlo.project"] == "acme-analytics"
 
 
 def test_get_log_emitter_uses_cached_logger_provider(monkeypatch):

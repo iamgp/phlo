@@ -38,6 +38,7 @@ Phlo is organized as a monorepo with individual packages that provide specific f
 | [phlo-prometheus](phlo-prometheus.md) | Metrics collection and alerting      |
 | [phlo-loki](phlo-loki.md)             | Log aggregation                      |
 | [phlo-alloy](phlo-alloy.md)           | OpenTelemetry collector              |
+| [phlo-otel](phlo-otel.md)             | OpenTelemetry signal emission        |
 | [phlo-alerting](phlo-alerting.md)     | Alert management and routing         |
 | [phlo-metrics](phlo-metrics.md)       | Custom metrics collection            |
 
