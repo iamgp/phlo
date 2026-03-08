@@ -212,8 +212,6 @@ jobs:
             extra: ""
           - package: phlo-loki
             extra: ""
-          - package: phlo-metrics
-            extra: ""
           - package: phlo-minio
             extra: ""
           - package: phlo-nessie
