@@ -1867,12 +1867,6 @@
 <td style="text-align: left;"><strong>Check Execution</strong>: Run a check against a real dataset (Pandas/DuckDB). Verify pass/fail.</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>phlo-metrics</strong></td>
-<td style="text-align: left;"><code>packages/phlo-metrics/tests/</code></td>
-<td style="text-align: left;">Metric formatting (Prometheus).</td>
-<td style="text-align: left;"><strong>Endpoint Scrape</strong>: Expose metrics endpoint, scrape with test client.</td>
-</tr>
-<tr>
 <td style="text-align: left;"><strong>phlo-alerting</strong></td>
 <td style="text-align: left;"><code>packages/phlo-alerting/tests/</code></td>
 <td style="text-align: left;">Alert template rendering.</td>
@@ -1967,7 +1961,7 @@
 <li><strong>Core Data Flow</strong>: <code>phlo-dlt</code> (Ingest), <code>phlo-iceberg</code> (Store), <code>phlo-dbt</code> (Transform).</li>
 <li><strong>Orchestration</strong>: <code>phlo-dagster</code> (Run).</li>
 <li><strong>Core Infrastructure</strong>: <code>phlo-minio</code>, <code>phlo-nessie</code> (if used in Golden Path).</li>
-<li><strong>Observability</strong>: <code>phlo-pandera</code>, <code>phlo-metrics</code>.</li>
+<li><strong>Observability</strong>: <code>phlo-pandera</code>, <code>phlo-otel</code>, <code>phlo-clickstack</code>.</li>
 <li><strong>Extended Services</strong>: Everything else.</li>
 </ol>
 <hr />
