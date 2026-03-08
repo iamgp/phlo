@@ -6,6 +6,7 @@ Complete guide to monitoring, logging, and observability in the Phlo lakehouse p
 
 Phlo includes a production-ready observability stack based on industry-standard tools:
 
+- **ClickStack** - Preferred all-in-one observability backend
 - **Prometheus** - Metrics collection and storage
 - **Loki** - Log aggregation and querying
 - **Grafana Alloy** - Unified telemetry collection agent
@@ -31,7 +32,7 @@ This keeps backend routing outside workflow code:
 
 - `phlo-otel` emits backend-agnostic OTLP traces, metrics, and optional OTLP logs
 - Alloy or OpenTelemetry Collector handles fan-out, enrichment, batching, and backend routing
-- ClickStack support is collector configuration, not a Phlo-specific exporter plugin
+- ClickStack is the preferred default destination for Phlo OTLP telemetry
 
 Typical Phlo OTLP environment:
 
@@ -138,6 +139,21 @@ Good default for:
 - Grafana-first deployments
 - one collector handling both infrastructure and application telemetry
 
+### Preferred ClickStack Stack
+
+Use ClickStack directly when you want the default Phlo observability path with a
+single OTLP-native backend and a unified UI.
+
+```text
+phlo-otel -> OTLP -> ClickStack
+```
+
+Good default for:
+
+- Phlo's recommended observability install
+- teams that want one backend for logs, traces, and metrics
+- minimal local setup without separate Prometheus/Loki/Grafana services
+
 ### Generic OpenTelemetry Collector
 
 Use OpenTelemetry Collector when you want backend-neutral routing or multiple downstream consumers.
@@ -154,7 +170,8 @@ Good default for:
 
 ### ClickStack-Compatible Routing
 
-ClickStack should be treated as a downstream OTLP consumer behind Alloy or OpenTelemetry Collector.
+When you need extra routing or host log collection, treat ClickStack as a
+downstream OTLP consumer behind Alloy or OpenTelemetry Collector.
 
 ```text
 phlo-otel -> OTLP -> Collector -> ClickStack

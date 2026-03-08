@@ -183,7 +183,7 @@ def _register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: b
         plugin.initialize({})
         _emit_plugin_lifecycle_signal(
             event_name="plugin_lifecycle_initialize_succeeded",
-            level="info",
+            level="debug",
             plugin_type=plugin_type,
             plugin_name=plugin_name,
             lifecycle_phase="incoming_plugin_initialize",
@@ -237,7 +237,7 @@ def _register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: b
                 existing_plugin.cleanup()
                 _emit_plugin_lifecycle_signal(
                     event_name="plugin_lifecycle_cleanup_succeeded",
-                    level="info",
+                    level="debug",
                     plugin_type=plugin_type,
                     plugin_name=existing_plugin_name or plugin_name,
                     lifecycle_phase="existing_plugin_cleanup",
@@ -267,7 +267,7 @@ def _register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: b
                 existing_plugin.initialize({})
                 _emit_plugin_lifecycle_signal(
                     event_name="plugin_lifecycle_initialize_succeeded",
-                    level="info",
+                    level="debug",
                     plugin_type=plugin_type,
                     plugin_name=existing_plugin_name or plugin_name,
                     lifecycle_phase="existing_plugin_recovery_initialize",
@@ -325,7 +325,10 @@ def _register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: b
 
 
 def discover_plugins(
-    plugin_type: str | None = None, auto_register: bool = True
+    plugin_type: str | None = None,
+    auto_register: bool = True,
+    *,
+    failure_level: str = "error",
 ) -> dict[str, list[Plugin]]:
     """
     Discover all installed Phlo plugins.
@@ -338,6 +341,7 @@ def discover_plugins(
             "quality_checks", "transformations", "services", "catalogs"). If None, discover all types.
         auto_register: If True, automatically register discovered plugins
             in the global registry (default: True)
+        failure_level: Log level for plugin import failures. Defaults to ``"error"``.
 
     Returns:
         Dictionary mapping plugin type to list of discovered plugins
@@ -440,7 +444,8 @@ def discover_plugins(
                     )
 
                 except Exception:
-                    logger.error(
+                    log_method = getattr(logger, failure_level, logger.error)
+                    log_method(
                         "plugin_load_failed",
                         plugin_name=entry_point.name,
                         entry_point=entry_point.value,
@@ -451,7 +456,7 @@ def discover_plugins(
 
         # Log summary
         total = sum(len(plugins) for plugins in discovered.values())
-        logger.info("plugin_discovery_completed", total_plugins=total, discovered=discovered)
+        logger.debug("plugin_discovery_completed", total_plugins=total, discovered=discovered)
 
         return discovered
 

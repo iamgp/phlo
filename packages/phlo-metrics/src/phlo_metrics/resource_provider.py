@@ -43,12 +43,10 @@ class MetricsResourceProvider(ResourceProviderPlugin):
                 metadata={
                     "default_stack": [
                         "phlo-metrics",
-                        "phlo-prometheus",
-                        "phlo-loki",
-                        "phlo-grafana",
-                        "phlo-alloy",
+                        "phlo-otel",
+                        "phlo-clickstack",
                     ],
-                    "service_dependencies": ["prometheus", "loki", "grafana", "alloy"],
+                    "service_dependencies": ["clickstack"],
                 },
                 support=CapabilitySupport(
                     supports_metrics=True,

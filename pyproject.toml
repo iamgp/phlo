@@ -99,6 +99,7 @@ dev-dependencies = [
     "pytest>=8.4.2",
     "pytest-cov>=6.0",
     "sqlfluff>=3.5.0",
+    "phlo-clickstack>=0.1.0",
     "phlo-dlt>=0.1.0",
     "phlo-iceberg>=0.1.0",
     "phlo-dbt>=0.1.0",
@@ -116,6 +117,7 @@ dev-dependencies = [
 
 [tool.uv.sources]
 phlo = { workspace = true }
+phlo-clickstack = { workspace = true }
 phlo-core-plugins = { workspace = true }
 phlo-iceberg = { workspace = true }
 phlo-delta = { workspace = true }
@@ -142,6 +144,7 @@ dev = [
     "pytest>=8.4.2",
     "pytest-cov>=6.0",
     "sqlfluff>=3.5.0",
+    "phlo-clickstack>=0.1.0",
     "phlo-dlt>=0.1.0",
     "phlo-iceberg>=0.1.0",
     "phlo-dbt>=0.1.0",
@@ -195,6 +198,7 @@ extra-paths = [
   "packages/phlo-alerting/src",
   "packages/phlo-alloy/src",
   "packages/phlo-api/src",
+  "packages/phlo-clickstack/src",
   "packages/phlo-core-plugins/src",
   "packages/phlo-dagster/src",
   "packages/phlo-dbt/src",

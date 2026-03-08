@@ -42,11 +42,14 @@ Resource attributes emitted by default include:
 
 Recommended topologies:
 
+- `phlo-otel -> ClickStack`
 - `phlo-otel -> Alloy -> Grafana / Loki / Tempo`
 - `phlo-otel -> OpenTelemetry Collector -> multiple downstream backends`
 - `phlo-otel -> Collector -> ClickStack`
 
-That means ClickStack support should be introduced through collector configuration, not through a dedicated Phlo exporter fork.
+Phlo's preferred default is direct OTLP into ClickStack. More complex routing
+still belongs in Alloy or OpenTelemetry Collector rather than a dedicated Phlo
+exporter fork.
 
 ## Semantic Attributes
 
@@ -87,5 +90,6 @@ instruments instead of only generic `phlo.telemetry.*` series.
 
 - [Configuration Reference](../reference/configuration-reference.md)
 - [Observability Setup](../setup/observability.md)
+- [phlo-clickstack](phlo-clickstack.md)
 - [phlo-alloy](phlo-alloy.md)
 - [Packages Index](index.md)

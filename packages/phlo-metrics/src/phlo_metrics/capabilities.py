@@ -14,12 +14,15 @@ from phlo.capabilities.interfaces import (
     PlatformMetricsSummary,
     ServiceStatus,
 )
-from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 from phlo_metrics.maintenance import load_maintenance_status, render_maintenance_prometheus
 
 _PUBLIC_HOST_ENV = "PHLO_OBSERVABILITY_PUBLIC_HOST"
 _PUBLIC_SCHEME_ENV = "PHLO_OBSERVABILITY_PUBLIC_SCHEME"
+_CLICKSTACK_PUBLIC_URL_ENV = "CLICKSTACK_PUBLIC_URL"
+_CLICKSTACK_DASHBOARDS_PATH_ENV = "CLICKSTACK_DASHBOARDS_PATH"
+_CLICKSTACK_LOGS_PATH_ENV = "CLICKSTACK_LOGS_PATH"
+_CLICKSTACK_METRICS_PATH_ENV = "CLICKSTACK_METRICS_PATH"
 _GRAFANA_PUBLIC_URL_ENV = "GRAFANA_PUBLIC_URL"
 _GRAFANA_DASHBOARD_PATH_TEMPLATE_ENV = "GRAFANA_DASHBOARD_PATH_TEMPLATE"
 _PROMETHEUS_PUBLIC_URL_ENV = "PROMETHEUS_PUBLIC_URL"
@@ -143,6 +146,19 @@ class DefaultObservabilityBackend:
 
     def dashboard_links(self) -> list[DashboardLink]:
         """Return available dashboard links."""
+        clickstack_url = self._resolve_clickstack_url()
+        if clickstack_url is not None:
+            dashboards_path = (
+                _service_env_value("clickstack", _CLICKSTACK_DASHBOARDS_PATH_ENV) or "/"
+            )
+            return [
+                DashboardLink(
+                    title="ClickStack",
+                    url=_join_url(clickstack_url, dashboards_path),
+                    category="overview",
+                )
+            ]
+
         grafana_url = self._grafana_url or _resolve_service_base_url(
             "grafana",
             public_url_env=_GRAFANA_PUBLIC_URL_ENV,
@@ -169,6 +185,11 @@ class DefaultObservabilityBackend:
 
     def logs_query_link(self, service: str | None = None) -> str | None:
         """Return a link to query logs."""
+        clickstack_url = self._resolve_clickstack_url()
+        if clickstack_url is not None:
+            logs_path = _service_env_value("clickstack", _CLICKSTACK_LOGS_PATH_ENV) or "/"
+            return _join_url(clickstack_url, logs_path)
+
         loki_url = self._loki_url or _resolve_service_base_url(
             "loki",
             public_url_env=_LOKI_PUBLIC_URL_ENV,
@@ -183,6 +204,11 @@ class DefaultObservabilityBackend:
 
     def metrics_query_link(self, metric: str | None = None) -> str | None:
         """Return a link to query metrics."""
+        clickstack_url = self._resolve_clickstack_url()
+        if clickstack_url is not None:
+            metrics_path = _service_env_value("clickstack", _CLICKSTACK_METRICS_PATH_ENV) or "/"
+            return _join_url(clickstack_url, metrics_path)
+
         prometheus_url = self._prometheus_url or _resolve_service_base_url(
             "prometheus",
             public_url_env=_PROMETHEUS_PUBLIC_URL_ENV,
@@ -194,6 +220,14 @@ class DefaultObservabilityBackend:
         if metric:
             return f"{prometheus_url}{query_path}?g0.expr={metric}"
         return f"{prometheus_url}{query_path}"
+
+    def _resolve_clickstack_url(self) -> str | None:
+        """Resolve ClickStack base URL when the service is installed."""
+        return _resolve_service_base_url(
+            "clickstack",
+            public_url_env=_CLICKSTACK_PUBLIC_URL_ENV,
+            port_env_key="CLICKSTACK_PORT",
+        )
 
 
 def _resolve_service_base_url(
@@ -231,8 +265,10 @@ def _service_env_value(service_name: str, key: str) -> str | None:
     return str(default)
 
 
-def _discover_service(service_name: str) -> ServiceDefinition | None:
+def _discover_service(service_name: str):
     try:
+        from phlo.plugins.discovery import ServiceDiscovery
+
         return ServiceDiscovery().get_service(service_name)
     except Exception:
         return None
@@ -276,3 +312,11 @@ def _dashboard_category(title: str) -> str:
     if "infrastructure" in lowered:
         return "infrastructure"
     return "dashboard"
+
+
+def _join_url(base_url: str, path: str) -> str:
+    """Join a base URL and path without duplicating slashes."""
+    normalized_path = path if path.startswith("/") else f"/{path}"
+    if normalized_path == "/":
+        return base_url.rstrip("/")
+    return f"{base_url.rstrip('/')}{normalized_path}"

@@ -71,6 +71,7 @@ Configure additional services:
 
 Package-specific reference:
 
+- [phlo-clickstack](packages/phlo-clickstack.md) - Preferred all-in-one observability backend
 - [phlo-otel](packages/phlo-otel.md) - OpenTelemetry traces, metrics, and OTLP log export
 
 ### Reference

@@ -11,6 +11,7 @@ from pathlib import Path
 
 import click
 
+import phlo.cli._warning_filters  # noqa: F401
 from phlo.cli.commands.migrate import migrate_group
 from phlo.cli.commands.plugin import plugin_group
 from phlo.cli.commands.schema_migrate import schema_migrate_group
@@ -51,7 +52,7 @@ def _load_cli_plugin_commands() -> None:
     from phlo.plugins.discovery import discover_plugins, get_global_registry
 
     logger.debug("cli_plugin_discovery_started")
-    discover_plugins(plugin_type="cli_commands", auto_register=True)
+    discover_plugins(plugin_type="cli_commands", auto_register=True, failure_level="debug")
     registry = get_global_registry()
     added_count = 0
     for name in registry.list_cli_command_plugins():

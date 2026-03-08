@@ -398,13 +398,23 @@ def merge_to_table_store(
                 return pa.date32()
             return pa.string()
 
-        desired_fields = list(table_schema.fields)
-        desired_names = [f.name for f in desired_fields]
+        if isinstance(table_schema, pa.Schema):
+            desired_fields = list(table_schema)
+            desired_names = table_schema.names
+
+            def resolve_target_type(field: Any) -> pa.DataType:
+                return field.type
+        else:
+            desired_fields = list(table_schema.fields)
+            desired_names = [f.name for f in desired_fields]
+
+            def resolve_target_type(field: Any) -> pa.DataType:
+                return table_store_type_to_arrow_type(field.field_type)
 
         columns: list[pa.Array] = []
         for field in desired_fields:
             name = field.name
-            target_type = table_store_type_to_arrow_type(field.field_type)
+            target_type = resolve_target_type(field)
 
             if name in arrow_table.column_names:
                 col = arrow_table[name]

@@ -5,7 +5,6 @@ from __future__ import annotations
 import click
 
 from phlo.plugins.base import CliCommandPlugin, PluginMetadata
-from phlo_metrics.cli import metrics_group
 
 
 class MetricsCliPlugin(CliCommandPlugin):
@@ -30,4 +29,6 @@ class MetricsCliPlugin(CliCommandPlugin):
         Returns:
             list[click.Command]: Registered metrics command group.
         """
+        from phlo_metrics.cli import metrics_group
+
         return [metrics_group]
