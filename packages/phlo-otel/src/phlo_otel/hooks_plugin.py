@@ -6,9 +6,21 @@ from datetime import datetime
 from typing import Any
 
 from opentelemetry._logs import LogRecord, SeverityNumber
-from opentelemetry.trace import Span, StatusCode, get_current_span
+from opentelemetry.context import Context
+from opentelemetry.trace import (
+    NonRecordingSpan,
+    Span,
+    SpanContext,
+    Status,
+    StatusCode,
+    TraceFlags,
+    TraceState,
+    get_current_span,
+    set_span_in_context,
+)
 
 from phlo.hooks.events import DataMigrationEvent
+from phlo.hooks.events import HookCorrelation
 from phlo.hooks.events import LogEvent
 from phlo.hooks.events import LineageEvent
 from phlo.hooks.events import PublishEvent
@@ -89,6 +101,12 @@ class OtelHookPlugin(HookPlugin):
         if not isinstance(event, IngestionEvent):
             return
 
+        correlation = self._merge_correlation(
+            event.correlation,
+            run_id=event.run_id,
+            asset_key=event.asset_key,
+            partition_key=event.partition_key,
+        )
         tracer = get_tracer()
         with tracer.start_as_current_span(
             f"ingestion.{event.table_name}",
@@ -98,19 +116,18 @@ class OtelHookPlugin(HookPlugin):
                 "phlo.group_name": event.group_name,
                 "phlo.event_type": event.event_type,
             },
+            context=self._build_parent_context(correlation),
         ) as span:
-            if event.partition_key:
-                span.set_attribute("phlo.partition_key", event.partition_key)
-            if event.run_id:
-                span.set_attribute("phlo.run_id", event.run_id)
+            self._set_correlation_attributes(span, correlation)
             if event.status:
                 span.set_attribute("phlo.status", event.status)
             if event.error:
-                span.set_status(StatusCode.ERROR, event.error)
+                span.set_status(Status(status_code=StatusCode.ERROR, description=event.error))
             if event.metrics:
                 for key, value in event.metrics.items():
                     if isinstance(value, (int, float)):
                         span.set_attribute(f"phlo.metrics.{key}", value)
+            self._set_event_tags(span, event.tags)
             self._record_failure(event_name="ingestion", status=event.status, error=event.error)
 
         counter = self._get_counter(
@@ -140,6 +157,12 @@ class OtelHookPlugin(HookPlugin):
         if not isinstance(event, TransformEvent):
             return
 
+        correlation = self._merge_correlation(
+            event.correlation,
+            run_id=getattr(event, "run_id", None),
+            asset_key=event.asset_key,
+            partition_key=event.partition_key,
+        )
         tracer = get_tracer()
         span_name = f"transform.{event.tool}"
         if event.target:
@@ -151,7 +174,9 @@ class OtelHookPlugin(HookPlugin):
                 "phlo.tool": event.tool,
                 "phlo.event_type": event.event_type,
             },
+            context=self._build_parent_context(correlation),
         ) as span:
+            self._set_correlation_attributes(span, correlation)
             if event.target:
                 span.set_attribute("phlo.target", event.target)
             if event.model_names:
@@ -159,12 +184,9 @@ class OtelHookPlugin(HookPlugin):
             if event.status:
                 span.set_attribute("phlo.status", event.status)
             if event.error:
-                span.set_status(StatusCode.ERROR, event.error)
-            if event.asset_key:
-                span.set_attribute("phlo.asset_key", event.asset_key)
-            if event.partition_key:
-                span.set_attribute("phlo.partition_key", event.partition_key)
+                span.set_status(Status(status_code=StatusCode.ERROR, description=event.error))
             self._set_numeric_span_attributes(span, event.metrics)
+            self._set_event_tags(span, event.tags)
             self._record_failure(event_name="transform", status=event.status, error=event.error)
 
         counter = self._get_counter(
@@ -184,6 +206,13 @@ class OtelHookPlugin(HookPlugin):
         if not isinstance(event, QualityResultEvent):
             return
 
+        correlation = self._merge_correlation(
+            event.correlation,
+            run_id=getattr(event, "run_id", None),
+            asset_key=event.asset_key,
+            partition_key=event.partition_key,
+            check_name=event.check_name,
+        )
         tracer = get_tracer()
         with tracer.start_as_current_span(
             f"quality.{event.check_name}",
@@ -193,17 +222,25 @@ class OtelHookPlugin(HookPlugin):
                 "phlo.passed": event.passed,
                 "phlo.event_type": event.event_type,
             },
+            context=self._build_parent_context(correlation),
         ) as span:
+            self._set_correlation_attributes(span, correlation)
             if event.severity:
                 span.set_attribute("phlo.severity", event.severity)
-            if event.partition_key:
-                span.set_attribute("phlo.partition_key", event.partition_key)
+            if event.check_type:
+                span.set_attribute("phlo.check_type", event.check_type)
             for key, value in event.metadata.items():
                 if isinstance(value, (bool, int, float, str)):
                     span.set_attribute(f"phlo.metadata.{key}", value)
             if not event.passed:
-                span.set_status(StatusCode.ERROR, f"Quality check failed: {event.check_name}")
+                span.set_status(
+                    Status(
+                        status_code=StatusCode.ERROR,
+                        description=f"Quality check failed: {event.check_name}",
+                    )
+                )
                 self._record_failure(event_name="quality", status="fail")
+            self._set_event_tags(span, event.tags)
 
         counter = self._get_counter(
             "phlo.quality.checks",
@@ -216,6 +253,7 @@ class OtelHookPlugin(HookPlugin):
         if not isinstance(event, LineageEvent):
             return
 
+        correlation = self._merge_correlation(event.correlation)
         tracer = get_tracer()
         with tracer.start_as_current_span(
             "lineage.edges",
@@ -224,7 +262,9 @@ class OtelHookPlugin(HookPlugin):
                 "phlo.edge_count": len(event.edges),
                 "phlo.asset_count": len(event.asset_keys),
             },
+            context=self._build_parent_context(correlation),
         ) as span:
+            self._set_correlation_attributes(span, correlation)
             if event.asset_keys:
                 span.set_attribute("phlo.asset_keys", sorted(event.asset_keys))
             self._set_event_tags(span, event.tags)
@@ -248,6 +288,12 @@ class OtelHookPlugin(HookPlugin):
         if not isinstance(event, PublishEvent):
             return
 
+        correlation = self._merge_correlation(
+            event.correlation,
+            run_id=getattr(event, "run_id", None),
+            asset_key=event.asset_key,
+            partition_key=getattr(event, "partition_key", None),
+        )
         target_system = event.target_system or "unknown"
         tracer = get_tracer()
         with tracer.start_as_current_span(
@@ -256,16 +302,16 @@ class OtelHookPlugin(HookPlugin):
                 "phlo.event_type": event.event_type,
                 "phlo.target_system": target_system,
             },
+            context=self._build_parent_context(correlation),
         ) as span:
-            if event.asset_key:
-                span.set_attribute("phlo.asset_key", event.asset_key)
+            self._set_correlation_attributes(span, correlation)
             if event.status:
                 span.set_attribute("phlo.status", event.status)
             if event.tables:
                 span.set_attribute("phlo.table_count", len(event.tables))
                 span.set_attribute("phlo.tables", sorted(event.tables.values()))
             if event.error:
-                span.set_status(StatusCode.ERROR, event.error)
+                span.set_status(Status(status_code=StatusCode.ERROR, description=event.error))
             self._set_numeric_span_attributes(span, event.metrics)
             self._set_event_tags(span, event.tags)
             self._record_failure(event_name="publish", status=event.status, error=event.error)
@@ -294,6 +340,7 @@ class OtelHookPlugin(HookPlugin):
         if not isinstance(event, ServiceLifecycleEvent):
             return
 
+        correlation = self._merge_correlation(event.correlation)
         phase = event.phase or "unknown"
         tracer = get_tracer()
         with tracer.start_as_current_span(
@@ -303,7 +350,9 @@ class OtelHookPlugin(HookPlugin):
                 "phlo.service_name": event.service_name,
                 "phlo.phase": phase,
             },
+            context=self._build_parent_context(correlation),
         ) as span:
+            self._set_correlation_attributes(span, correlation)
             if event.project_name:
                 span.set_attribute("phlo.project_name", event.project_name)
             if event.project_root:
@@ -313,7 +362,12 @@ class OtelHookPlugin(HookPlugin):
             if event.status:
                 span.set_attribute("phlo.status", event.status)
                 if self._is_failure_status(event.status):
-                    span.set_status(StatusCode.ERROR, f"Service lifecycle failed: {phase}")
+                    span.set_status(
+                        Status(
+                            status_code=StatusCode.ERROR,
+                            description=f"Service lifecycle failed: {phase}",
+                        )
+                    )
             self._set_event_tags(span, event.tags)
             self._record_failure(event_name="service_lifecycle", status=event.status)
 
@@ -334,6 +388,7 @@ class OtelHookPlugin(HookPlugin):
         if not isinstance(event, SchemaMigrationEvent):
             return
 
+        correlation = self._merge_correlation(event.correlation)
         tracer = get_tracer()
         with tracer.start_as_current_span(
             f"schema_migration.{event.table_name}",
@@ -344,12 +399,19 @@ class OtelHookPlugin(HookPlugin):
                 "phlo.change_count": event.change_count,
                 "phlo.status": event.status,
             },
+            context=self._build_parent_context(correlation),
         ) as span:
+            self._set_correlation_attributes(span, correlation)
             if event.changes:
                 span.set_attribute("phlo.schema_change_count", len(event.changes))
             self._set_event_tags(span, event.tags)
             if self._is_failure_status(event.status):
-                span.set_status(StatusCode.ERROR, f"Schema migration failed: {event.table_name}")
+                span.set_status(
+                    Status(
+                        status_code=StatusCode.ERROR,
+                        description=f"Schema migration failed: {event.table_name}",
+                    )
+                )
             self._record_failure(event_name="schema_migration", status=event.status)
 
         labels = {"classification": event.classification, "status": event.status}
@@ -369,6 +431,10 @@ class OtelHookPlugin(HookPlugin):
         if not isinstance(event, DataMigrationEvent):
             return
 
+        correlation = self._merge_correlation(
+            event.correlation,
+            run_id=getattr(event, "run_id", None),
+        )
         tracer = get_tracer()
         with tracer.start_as_current_span(
             f"data_migration.{event.migration_name}",
@@ -381,13 +447,20 @@ class OtelHookPlugin(HookPlugin):
                 "phlo.rows_written": event.rows_written,
                 "phlo.status": event.status,
             },
+            context=self._build_parent_context(correlation),
         ) as span:
+            self._set_correlation_attributes(span, correlation)
             if event.chunk_index is not None:
                 span.set_attribute("phlo.chunk_index", event.chunk_index)
             self._set_numeric_span_attributes(span, event.metrics)
             self._set_event_tags(span, event.tags)
             if self._is_failure_status(event.status):
-                span.set_status(StatusCode.ERROR, f"Data migration failed: {event.migration_name}")
+                span.set_status(
+                    Status(
+                        status_code=StatusCode.ERROR,
+                        description=f"Data migration failed: {event.migration_name}",
+                    )
+                )
             self._record_failure(event_name="data_migration", status=event.status)
 
         labels = {"source_type": event.source_type, "status": event.status}
@@ -425,8 +498,8 @@ class OtelHookPlugin(HookPlugin):
             return
 
         metric_name = f"phlo.telemetry.{event.name}"
+        metric_kind = self._resolve_metric_kind(event.payload)
         attributes = self._normalize_metric_attributes(event.payload)
-        metric_kind = self._resolve_metric_kind(attributes)
         unit = event.unit or ""
 
         if metric_kind == "counter":
@@ -479,7 +552,6 @@ class OtelHookPlugin(HookPlugin):
             severity_number=self._map_severity(event.level),
             body=event.message,
             attributes=attributes,
-            event_name=event.event_type,
         )
         emitter = get_log_emitter()
         if emitter is None:
@@ -518,9 +590,9 @@ class OtelHookPlugin(HookPlugin):
             self._up_down_counter_cache[cache_key] = counter
         return counter
 
-    def _resolve_metric_kind(self, attributes: dict[str, Any]) -> str:
+    def _resolve_metric_kind(self, payload: dict[str, Any]) -> str:
         """Resolve telemetry metric type from reserved payload attributes."""
-        raw_kind = attributes.pop("metric_kind", attributes.pop("otel_metric_kind", "gauge"))
+        raw_kind = payload.get("metric_kind", payload.get("otel_metric_kind", "gauge"))
         if not isinstance(raw_kind, str):
             return "gauge"
 
@@ -533,6 +605,8 @@ class OtelHookPlugin(HookPlugin):
     def _normalize_metric_attributes(self, payload: dict[str, Any]) -> dict[str, Any]:
         normalized: dict[str, Any] = {}
         for key, value in payload.items():
+            if key not in self._allowed_metric_label_keys():
+                continue
             normalized[key] = self._coerce_metric_attribute_value(value)
         return normalized
 
@@ -545,36 +619,71 @@ class OtelHookPlugin(HookPlugin):
         for key, value in tags.items():
             span.set_attribute(f"phlo.tags.{key}", value)
 
+    def _set_correlation_attributes(self, span: Span, correlation: HookCorrelation) -> None:
+        if correlation.request_id:
+            span.set_attribute("phlo.request_id", correlation.request_id)
+        if correlation.run_id:
+            span.set_attribute("phlo.run_id", correlation.run_id)
+        if correlation.asset_key:
+            span.set_attribute("phlo.asset_key", correlation.asset_key)
+        if correlation.job_name:
+            span.set_attribute("phlo.job_name", correlation.job_name)
+        if correlation.partition_key:
+            span.set_attribute("phlo.partition_key", correlation.partition_key)
+        if correlation.check_name:
+            span.set_attribute("phlo.check_name", correlation.check_name)
+
     def _metric_attributes_from_tags(self, tags: dict[str, str]) -> dict[str, str]:
-        allowed = {
+        return {
+            key: value for key, value in tags.items() if key in self._allowed_metric_label_keys()
+        }
+
+    def _allowed_metric_label_keys(self) -> set[str]:
+        return {
             "backend",
+            "classification",
             "environment",
             "namespace",
             "operation",
+            "phase",
+            "result",
             "service",
             "source",
+            "source_type",
+            "status",
             "target",
+            "target_system",
             "tool",
         }
-        return {key: value for key, value in tags.items() if key in allowed}
 
     def _build_log_attributes(self, event: LogEvent) -> dict[str, Any]:
+        correlation = self._merge_correlation(
+            event.correlation,
+            run_id=event.run_id,
+            asset_key=event.asset_key,
+            job_name=event.job_name,
+            partition_key=event.partition_key,
+            check_name=event.check_name,
+        )
         attributes: dict[str, Any] = {
+            "phlo.event_type": event.event_type,
             "phlo.logger": event.logger,
             "phlo.level": event.level,
         }
         if event.service:
             attributes["phlo.service"] = event.service
-        if event.run_id:
-            attributes["phlo.run_id"] = event.run_id
-        if event.asset_key:
-            attributes["phlo.asset_key"] = event.asset_key
-        if event.job_name:
-            attributes["phlo.job_name"] = event.job_name
-        if event.partition_key:
-            attributes["phlo.partition_key"] = event.partition_key
-        if event.check_name:
-            attributes["phlo.check_name"] = event.check_name
+        if correlation.request_id:
+            attributes["phlo.request_id"] = correlation.request_id
+        if correlation.run_id:
+            attributes["phlo.run_id"] = correlation.run_id
+        if correlation.asset_key:
+            attributes["phlo.asset_key"] = correlation.asset_key
+        if correlation.job_name:
+            attributes["phlo.job_name"] = correlation.job_name
+        if correlation.partition_key:
+            attributes["phlo.partition_key"] = correlation.partition_key
+        if correlation.check_name:
+            attributes["phlo.check_name"] = correlation.check_name
 
         for key, value in event.tags.items():
             attributes[f"phlo.tag.{key}"] = value
@@ -657,6 +766,17 @@ class OtelHookPlugin(HookPlugin):
         return int(value.timestamp() * 1_000_000_000)
 
     def _resolve_log_context(self, event: LogEvent) -> tuple[int | None, int | None, Any | None]:
+        correlation = self._merge_correlation(
+            event.correlation,
+            trace_id=event.metadata.get("trace_id"),
+            span_id=event.metadata.get("span_id"),
+            trace_flags=event.metadata.get("trace_flags"),
+            run_id=event.run_id,
+            asset_key=event.asset_key,
+            job_name=event.job_name,
+            partition_key=event.partition_key,
+            check_name=event.check_name,
+        )
         span_context = get_current_span().get_span_context()
         trace_id = span_id = trace_flags = None
         if span_context.is_valid:
@@ -664,13 +784,39 @@ class OtelHookPlugin(HookPlugin):
             span_id = span_context.span_id
             trace_flags = span_context.trace_flags
 
-        metadata_trace_id = self._parse_trace_identifier(event.metadata.get("trace_id"))
-        metadata_span_id = self._parse_trace_identifier(event.metadata.get("span_id"))
+        metadata_trace_id = self._parse_trace_identifier(correlation.trace_id)
+        metadata_span_id = self._parse_trace_identifier(correlation.span_id)
+        metadata_trace_flags = self._parse_trace_flags(correlation.trace_flags)
         if metadata_trace_id is not None:
             trace_id = metadata_trace_id
         if metadata_span_id is not None:
             span_id = metadata_span_id
+        if metadata_trace_flags is not None:
+            trace_flags = metadata_trace_flags
         return trace_id, span_id, trace_flags
+
+    def _merge_correlation(self, correlation: HookCorrelation, **overrides: Any) -> HookCorrelation:
+        merged = HookCorrelation(**vars(correlation))
+        for key, value in overrides.items():
+            if value is not None:
+                setattr(merged, key, str(value))
+        return merged
+
+    def _build_parent_context(self, correlation: HookCorrelation) -> Context | None:
+        trace_id = self._parse_trace_identifier(correlation.trace_id)
+        span_id = self._parse_trace_identifier(correlation.span_id)
+        if trace_id is None or span_id is None:
+            return None
+
+        trace_flags = self._parse_trace_flags(correlation.trace_flags) or TraceFlags(0x01)
+        span_context = SpanContext(
+            trace_id=trace_id,
+            span_id=span_id,
+            is_remote=True,
+            trace_flags=trace_flags,
+            trace_state=TraceState(),
+        )
+        return set_span_in_context(NonRecordingSpan(span_context))
 
     def _parse_trace_identifier(self, value: Any) -> int | None:
         if value is None:
@@ -689,3 +835,9 @@ class OtelHookPlugin(HookPlugin):
             return int(raw, 16)
         except ValueError:
             return None
+
+    def _parse_trace_flags(self, value: Any) -> TraceFlags | None:
+        trace_flags = self._parse_trace_identifier(value)
+        if trace_flags is None:
+            return None
+        return TraceFlags(trace_flags & 0xFF)

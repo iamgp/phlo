@@ -8,6 +8,7 @@ from typing import Any
 from phlo.hooks.bus import HookBus, get_hook_bus
 from phlo.hooks.events import (
     DataMigrationEvent,
+    HookCorrelation,
     IngestionEvent,
     LineageEvent,
     PublishEvent,
@@ -17,6 +18,26 @@ from phlo.hooks.events import (
     TelemetryEvent,
     TransformEvent,
 )
+from phlo.logging import get_bound_correlation_context
+
+
+def _merge_correlation(
+    *,
+    base: HookCorrelation | None = None,
+    overrides: dict[str, Any] | None = None,
+) -> HookCorrelation:
+    """Merge bound, explicit, and event-specific correlation fields."""
+
+    correlation = HookCorrelation(**vars(get_bound_correlation_context()))
+    if base is not None:
+        for key, value in vars(base).items():
+            if value is not None:
+                setattr(correlation, key, str(value))
+    if overrides is not None:
+        for key, value in overrides.items():
+            if value is not None:
+                setattr(correlation, key, str(value))
+    return correlation
 
 
 @dataclass(frozen=True)
@@ -30,6 +51,7 @@ class IngestionEventContext:
     run_id: str | None = None
     branch_name: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
+    correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
 class IngestionEventEmitter:
@@ -90,6 +112,14 @@ class IngestionEventEmitter:
                 metrics=metrics or {},
                 error=error,
                 tags=self._context.tags.copy(),
+                correlation=_merge_correlation(
+                    base=self._context.correlation,
+                    overrides={
+                        "run_id": self._context.run_id,
+                        "asset_key": self._context.asset_key,
+                        "partition_key": self._context.partition_key,
+                    },
+                ),
             )
         )
 
@@ -103,8 +133,10 @@ class TransformEventContext:
     target: str | None = None
     partition_key: str | None = None
     asset_key: str | None = None
+    run_id: str | None = None
     model_names: list[str] = field(default_factory=list)
     tags: dict[str, str] = field(default_factory=dict)
+    correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
 class TransformEventEmitter:
@@ -165,6 +197,14 @@ class TransformEventEmitter:
                 metrics=metrics or {},
                 error=error,
                 tags=self._context.tags.copy(),
+                correlation=_merge_correlation(
+                    base=self._context.correlation,
+                    overrides={
+                        "run_id": self._context.run_id,
+                        "asset_key": self._context.asset_key,
+                        "partition_key": self._context.partition_key,
+                    },
+                ),
             )
         )
 
@@ -174,9 +214,12 @@ class PublishEventContext:
     """Shared context for publish event emissions."""
 
     asset_key: str | None = None
+    run_id: str | None = None
+    partition_key: str | None = None
     target_system: str | None = None
     tables: dict[str, str] = field(default_factory=dict)
     tags: dict[str, str] = field(default_factory=dict)
+    correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
 class PublishEventEmitter:
@@ -234,6 +277,14 @@ class PublishEventEmitter:
                 metrics=metrics or {},
                 error=error,
                 tags=self._context.tags.copy(),
+                correlation=_merge_correlation(
+                    base=self._context.correlation,
+                    overrides={
+                        "run_id": self._context.run_id,
+                        "asset_key": self._context.asset_key,
+                        "partition_key": self._context.partition_key,
+                    },
+                ),
             )
         )
 
@@ -243,8 +294,10 @@ class QualityResultEventContext:
     """Shared context for quality result event emissions."""
 
     asset_key: str
+    run_id: str | None = None
     partition_key: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
+    correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
 class QualityResultEventEmitter:
@@ -286,6 +339,15 @@ class QualityResultEventEmitter:
                 partition_key=self._context.partition_key,
                 metadata=metadata or {},
                 tags=self._context.tags.copy(),
+                correlation=_merge_correlation(
+                    base=self._context.correlation,
+                    overrides={
+                        "run_id": self._context.run_id,
+                        "asset_key": self._context.asset_key,
+                        "partition_key": self._context.partition_key,
+                        "check_name": check_name,
+                    },
+                ),
             )
         )
 
@@ -295,6 +357,7 @@ class LineageEventContext:
     """Shared context for lineage event emissions."""
 
     tags: dict[str, str] = field(default_factory=dict)
+    correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
 class LineageEventEmitter:
@@ -326,6 +389,7 @@ class LineageEventEmitter:
                 asset_keys=list(asset_keys) if asset_keys else [],
                 metadata=metadata or {},
                 tags=self._context.tags.copy(),
+                correlation=_merge_correlation(base=self._context.correlation),
             )
         )
 
@@ -335,6 +399,7 @@ class TelemetryEventContext:
     """Shared context for telemetry event emissions."""
 
     tags: dict[str, str] = field(default_factory=dict)
+    correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
 class TelemetryEventEmitter:
@@ -418,6 +483,7 @@ class TelemetryEventEmitter:
                 unit=unit,
                 payload=payload or {},
                 tags=self._context.tags.copy(),
+                correlation=_merge_correlation(base=self._context.correlation),
             )
         )
 
@@ -431,6 +497,7 @@ class ServiceLifecycleEventContext:
     project_root: str | None = None
     container_name: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
+    correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
 class ServiceLifecycleEventEmitter:
@@ -471,6 +538,7 @@ class ServiceLifecycleEventEmitter:
                 status=status,
                 metadata=metadata or {},
                 tags=tags,
+                correlation=_merge_correlation(base=self._context.correlation),
             )
         )
 
@@ -481,6 +549,7 @@ class SchemaMigrationEventContext:
 
     table_name: str
     tags: dict[str, str] = field(default_factory=dict)
+    correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
 class SchemaMigrationEventEmitter:
@@ -525,6 +594,7 @@ class SchemaMigrationEventEmitter:
                 status=status,
                 changes=changes or [],
                 tags=self._context.tags.copy(),
+                correlation=_merge_correlation(base=self._context.correlation),
             )
         )
 
@@ -536,7 +606,9 @@ class DataMigrationEventContext:
     migration_name: str
     source_type: str
     destination_table: str
+    run_id: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
+    correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
 class DataMigrationEventEmitter:
@@ -576,5 +648,9 @@ class DataMigrationEventEmitter:
                 chunk_index=chunk_index,
                 metrics=metrics or {},
                 tags=tags,
+                correlation=_merge_correlation(
+                    base=self._context.correlation,
+                    overrides={"run_id": self._context.run_id},
+                ),
             )
         )
