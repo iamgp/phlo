@@ -99,7 +99,8 @@ def phlo_sling_replication(
         table_name: Target table name in the table store (without namespace prefix).
         source_conn: Sling source connection name.
         group: Dagster/asset group name.
-        target_conn: Sling target connection name. None uses table-store resource.
+        target_conn: Sling target connection name. If set and object is omitted,
+            Phlo targets `<namespace>.<table_name>`.
         mode: Replication mode.
         primary_key: Column(s) used as primary key. String or list of strings.
         update_key: Column used as cursor for incremental replication.

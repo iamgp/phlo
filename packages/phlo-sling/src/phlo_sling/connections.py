@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import MutableMapping
 from typing import Any
 
 from phlo.logging import get_logger
+from phlo_sling.settings import get_settings
 
 logger = get_logger(__name__)
 
@@ -18,6 +21,10 @@ def resolve_phlo_connections() -> dict[str, dict[str, Any]]:
     Returns:
         Dict mapping connection name to Sling connection config.
     """
+    if not get_settings().sling_auto_connections:
+        logger.debug("sling_auto_connections_disabled")
+        return {}
+
     connections: dict[str, dict[str, Any]] = {}
 
     connections.update(_resolve_postgres_connection())
@@ -100,4 +107,22 @@ def export_sling_env(connections: dict[str, dict[str, Any]]) -> dict[str, str]:
     env_vars: dict[str, str] = {}
     for name, config in connections.items():
         env_vars[name] = json.dumps(config)
+    return env_vars
+
+
+def apply_sling_connection_env(environ: MutableMapping[str, str] | None = None) -> dict[str, str]:
+    """Inject resolved Sling connections into an environment mapping.
+
+    Existing variables win over auto-generated values.
+
+    Args:
+        environ: Environment mapping to mutate. Defaults to ``os.environ``.
+
+    Returns:
+        Dict of injected environment variables.
+    """
+    target_env = os.environ if environ is None else environ
+    env_vars = export_sling_env(resolve_phlo_connections())
+    for name, value in env_vars.items():
+        target_env.setdefault(name, value)
     return env_vars

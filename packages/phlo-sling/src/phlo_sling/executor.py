@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any, Callable, Dict
 
+from phlo.exceptions import PhloConfigError
 from phlo.logging import log_event
 from phlo.operations.ingestion import BaseIngester, IngestionResult
 from phlo.hooks import (
@@ -204,5 +205,18 @@ class SlingIngester(BaseIngester):
             kwargs["tgt_options"] = config.target_options
 
         kwargs.update(self.overrides)
+
+        target_object = kwargs.get("tgt_object")
+        if not target_object and kwargs.get("tgt_conn"):
+            kwargs["tgt_object"] = config.full_table_name
+        elif not target_object:
+            raise PhloConfigError(
+                message="Sling replication requires a destination object",
+                suggestions=[
+                    f"Set target_conn to a Sling connection so Phlo can target {config.full_table_name}",
+                    "Or return a tgt_object/tgt_conn override from the decorated function",
+                    "Or set object=... for file-based targets",
+                ],
+            )
 
         return kwargs
