@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from phlo_sling.settings import get_settings
 
@@ -55,3 +55,26 @@ class ReplicationConfig:
     def asset_key(self) -> str:
         """Return the Phlo asset key for this replication stream."""
         return f"sling_{self.table_name}"
+
+
+@dataclass(frozen=True)
+class SlingReplication:
+    """Python-first replication definition for dynamic Sling asset discovery."""
+
+    stream_name: str
+    table_name: str
+    source_conn: str
+    target_conn: str | None = None
+    mode: Literal["full-refresh", "incremental", "snapshot", "backfill"] | None = None
+    primary_key: list[str] | str | None = None
+    update_key: str | None = None
+    group_name: str | None = None
+    object: str | None = None
+    select: list[str] = field(default_factory=list)
+    where: str | None = None
+    source_options: dict[str, Any] = field(default_factory=dict)
+    target_options: dict[str, Any] = field(default_factory=dict)
+    description: str | None = None
+    owner: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    tags: dict[str, str] = field(default_factory=dict)

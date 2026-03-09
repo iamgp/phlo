@@ -40,6 +40,41 @@ def replicate_users(context):
     return None
 ```
 
+### Python-First File Discovery
+
+Use `phlo_sling_assets` when you want Python logic to discover folders/files
+first and register one Sling-backed asset per result.
+
+```python
+from pathlib import Path
+
+from phlo_sling import SlingReplication, phlo_sling_assets
+
+
+@phlo_sling_assets(group="finance")
+def discover_workbooks():
+    root = Path("/mnt/finance")
+
+    for workbook in root.rglob("*.xlsx"):
+        table_name = workbook.stem.replace("-", "_").lower()
+        yield SlingReplication(
+            stream_name=f"file://{workbook}",
+            table_name=table_name,
+            source_conn="LOCAL",
+            target_conn="WAREHOUSE",
+            object=f"raw.{table_name}",
+            mode="full-refresh",
+            source_options={"sheet": "Sheet1!A:F"},
+            description=f"Ingest workbook {workbook.name}",
+            metadata={"workbook_path": str(workbook)},
+            tags={"format": "xlsx"},
+        )
+```
+
+Use the original `phlo_sling_replication` decorator when you want one stable
+asset whose function may return runtime Sling overrides such as a dynamic
+`src_stream` or `where` clause.
+
 ### CLI Commands
 
 ```bash

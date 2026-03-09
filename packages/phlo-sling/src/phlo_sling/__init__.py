@@ -1,6 +1,15 @@
 from collections.abc import Callable
 from typing import Any
 
+from phlo_sling.registry import SlingReplication
+
+
+def phlo_sling_assets(*args: Any, **kwargs: Any) -> Callable[..., Any]:
+    """Lazily resolve and forward to the Sling asset discovery decorator."""
+    from phlo_sling.decorator import phlo_sling_assets as _phlo_sling_assets
+
+    return _phlo_sling_assets(*args, **kwargs)
+
 
 def phlo_sling_replication(*args: Any, **kwargs: Any) -> Callable[..., Any]:
     """Lazily resolve and forward to the sling replication decorator factory."""
@@ -16,4 +25,4 @@ def get_sling_assets() -> list[Any]:
     return _get_sling_assets()
 
 
-__all__ = ["get_sling_assets", "phlo_sling_replication"]
+__all__ = ["SlingReplication", "get_sling_assets", "phlo_sling_assets", "phlo_sling_replication"]
