@@ -31,6 +31,9 @@ phlo plugin install rustfs
 phlo services start --service rustfs
 ```
 
+This targeted start also prepares `./volumes/rustfs` for the non-root RustFS container and creates
+the default `lake`, `warehouse/`, and `stage/` S3 layout automatically.
+
 ## Endpoints
 
 - **S3 API**: `http://localhost:9000`

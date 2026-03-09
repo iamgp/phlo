@@ -3,6 +3,9 @@ description: S3-compatible object storage for data lake (RustFS)
 category: core
 default: false
 
+depends_on:
+  - rustfs-volume-setup
+
 image: rustfs/rustfs:latest
 
 compose:

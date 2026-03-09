@@ -27,9 +27,9 @@ phlo plugin install rustfs
 
 ## Features
 
-### Default Buckets
+### Default Layout
 
-| Bucket           | Purpose                |
+| Bucket / Prefix  | Purpose                |
 | ---------------- | ---------------------- |
 | `lake`           | Main data lake storage |
 | `lake/warehouse` | Iceberg table data     |
@@ -42,6 +42,9 @@ phlo plugin install rustfs
 ```bash
 phlo services start --service rustfs
 ```
+
+This targeted start now bootstraps the writable `./volumes/rustfs` bind mount and initializes the
+default `lake`, `lake/warehouse`, and `lake/stage` layout automatically.
 
 ### Web Console
 

@@ -15,6 +15,7 @@ def _service(
     default: bool = False,
     profile: str | None = None,
     category: str = "core",
+    depends_on: list[str] | None = None,
 ) -> ServiceDefinition:
     return ServiceDefinition(
         name=name,
@@ -22,6 +23,7 @@ def _service(
         category=category,
         default=default,
         profile=profile,
+        depends_on=depends_on or [],
     )
 
 
@@ -176,6 +178,14 @@ def test_services_start_uses_profile_targets_without_default_fallback(
         def get_available_profiles(self) -> set[str]:
             return {"observability"}
 
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {"prometheus": _service("prometheus")}
+
+        def resolve_dependencies(
+            self, services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
+            return services
+
     profile_calls: list[tuple[str, ...]] = []
     docker_calls: list[list[str]] = []
 
@@ -206,6 +216,63 @@ def test_services_start_uses_profile_targets_without_default_fallback(
     assert docker_calls
     assert "prometheus" in docker_calls[0]
     assert "postgres" not in docker_calls[0]
+
+
+def test_services_start_includes_setup_companions_for_explicit_targets(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text(
+        "services:\n  rustfs: {}\n  rustfs-setup: {}\n  rustfs-volume-setup: {}\n",
+    )
+
+    rustfs_volume_setup = _service("rustfs-volume-setup")
+    rustfs = _service("rustfs", depends_on=["rustfs-volume-setup"])
+    rustfs_setup = _service("rustfs-setup", depends_on=["rustfs"])
+
+    class FakeDiscovery:
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {
+                rustfs_volume_setup.name: rustfs_volume_setup,
+                rustfs.name: rustfs,
+                rustfs_setup.name: rustfs_setup,
+            }
+
+        def resolve_dependencies(
+            self, services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
+            names = {service.name for service in services}
+            ordered = [rustfs_volume_setup, rustfs, rustfs_setup]
+            return [service for service in ordered if service.name in names]
+
+        def get_available_profiles(self) -> set[str]:
+            return set()
+
+    docker_calls: list[list[str]] = []
+
+    def _fake_run_command(cmd: list[str], check=False, capture_output=False) -> CompletedProcess:
+        docker_calls.append(cmd)
+        return CompletedProcess(args=cmd, returncode=0)
+
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
+    monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
+    monkeypatch.setattr(start_module, "run_command", _fake_run_command)
+    monkeypatch.setattr(start_module, "require_docker", lambda: None)
+    monkeypatch.setattr(
+        start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+
+    result = CliRunner().invoke(start_module.start_cmd, ["--service", "rustfs"])
+
+    assert result.exit_code == 0
+    assert docker_calls
+    assert docker_calls[0][-3:] == ["rustfs-volume-setup", "rustfs", "rustfs-setup"]
 
 
 def test_load_native_env_overrides_merges_env_files(tmp_path) -> None:

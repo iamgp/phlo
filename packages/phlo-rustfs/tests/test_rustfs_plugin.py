@@ -12,6 +12,7 @@ def test_rustfs_service_definition():
     assert service_definition["category"] == "core"
     assert service_definition["default"] is False
     assert "rustfs/rustfs" in service_definition["image"]
+    assert "rustfs-volume-setup" in service_definition["depends_on"]
 
 
 def test_rustfs_plugin_metadata():

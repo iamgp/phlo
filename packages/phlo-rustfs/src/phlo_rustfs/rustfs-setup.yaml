@@ -14,11 +14,13 @@ compose:
   entrypoint: /bin/sh
   command: >
     -c "
-    sleep 5 &&
+    until aws --endpoint-url http://rustfs:9000 s3api list-buckets --region us-east-1 >/dev/null 2>&1; do
+    echo 'Waiting for RustFS...' && sleep 2;
+    done &&
     aws --endpoint-url http://rustfs:9000 s3 mb s3://lake --region us-east-1 || true &&
-    aws --endpoint-url http://rustfs:9000 s3 mb s3://lake/warehouse --region us-east-1 || true &&
-    aws --endpoint-url http://rustfs:9000 s3 mb s3://lake/stage --region us-east-1 || true &&
-    echo 'RustFS buckets created successfully'
+    aws --endpoint-url http://rustfs:9000 s3api put-object --bucket lake --key warehouse/ --region us-east-1 >/dev/null &&
+    aws --endpoint-url http://rustfs:9000 s3api put-object --bucket lake --key stage/ --region us-east-1 >/dev/null &&
+    echo 'RustFS bucket prefixes created successfully'
     "
   environment:
     AWS_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY:-rustfsadmin}

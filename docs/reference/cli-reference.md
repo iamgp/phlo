@@ -192,6 +192,7 @@ phlo services start --build
 
 - `--profile` values are validated before Docker commands are executed.
 - Unknown profiles fail fast with a `ClickException` that includes valid options.
+- `--service` targets include required dependencies and matching `*-setup` bootstrap services.
 
 ```bash
 phlo services start --profile not-a-profile
