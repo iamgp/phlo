@@ -25,14 +25,18 @@ def sling_group() -> None:
 @click.option("--target", "-t", help="Target connection name.")
 @click.option("--stream", help="Source stream (e.g., 'public.users').")
 @click.option("--object", "target_object", help="Target object/table name.")
-@click.option("--mode", default="incremental", help="Replication mode.")
+@click.option(
+    "--mode",
+    default=None,
+    help="Replication mode. Defaults to SLING_DEFAULT_MODE when omitted.",
+)
 def run_command(
     replication: str | None,
     source: str | None,
     target: str | None,
     stream: str | None,
     target_object: str | None,
-    mode: str,
+    mode: str | None,
 ) -> None:
     """Run a Sling replication.
 
@@ -41,6 +45,7 @@ def run_command(
     from sling import Replication, Sling
 
     apply_sling_connection_env()
+    resolved_mode = mode or get_settings().sling_default_mode
 
     if replication:
         click.echo(f"Running replication from {replication}")
@@ -56,7 +61,7 @@ def run_command(
             src_stream=stream,
             tgt_conn=target,
             tgt_object=resolved_target_object,
-            mode=mode,
+            mode=resolved_mode,
         )
         config.run()
     else:
@@ -162,7 +167,7 @@ def _parse_discovery_output(output: str) -> list[dict[str, str]]:
     lines = [line.rstrip() for line in output.splitlines() if line.strip()]
     table_lines = [line for line in lines if "|" in line]
     if len(table_lines) < 2:
-        raise ValueError("Unexpected Sling discovery output format.")
+        return []
 
     headers = [_normalize_column_name(part) for part in table_lines[0].split("|")]
     rows: list[dict[str, str]] = []
@@ -173,9 +178,6 @@ def _parse_discovery_output(output: str) -> list[dict[str, str]]:
         if all(set(value) <= {"-"} for value in values):
             continue
         rows.append(dict(zip(headers, values, strict=True)))
-
-    if not rows:
-        raise ValueError("No streams found in Sling discovery output.")
 
     return rows
 

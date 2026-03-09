@@ -37,6 +37,34 @@ def test_run_command_derives_target_object_from_stream(monkeypatch) -> None:
     assert captured["ran"] is True
 
 
+def test_run_command_uses_configured_default_mode(monkeypatch) -> None:
+    """Ad-hoc runs should honor SLING_DEFAULT_MODE when --mode is omitted."""
+    captured: dict[str, object] = {}
+
+    class _FakeSling:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def run(self) -> None:
+            captured["ran"] = True
+
+    monkeypatch.setattr("phlo_sling.cli_commands.apply_sling_connection_env", lambda: {})
+    monkeypatch.setattr(
+        "phlo_sling.cli_commands.get_settings",
+        lambda: type("Settings", (), {"sling_default_mode": "full-refresh"})(),
+    )
+    monkeypatch.setattr("sling.Sling", _FakeSling)
+
+    result = CliRunner().invoke(
+        run_command,
+        ["--source", "SRC", "--stream", "public.users", "--target", "TGT"],
+    )
+
+    assert result.exit_code == 0
+    assert captured["mode"] == "full-refresh"
+    assert captured["ran"] is True
+
+
 def test_run_command_requires_object_for_wildcard_stream(monkeypatch) -> None:
     """Wildcard streams need an explicit target object in ad-hoc mode."""
     monkeypatch.setattr("phlo_sling.cli_commands.apply_sling_connection_env", lambda: {})
@@ -76,3 +104,28 @@ def test_discover_command_uses_sling_conns_discover(monkeypatch) -> None:
     _, json_output = result.output.split("\n", 1)
     payload = json.loads(json_output)
     assert payload == [{"database": "warehouse", "schema": "public", "table": "users"}]
+
+
+def test_discover_command_returns_empty_json_for_no_matches(monkeypatch) -> None:
+    """JSON discovery should return an empty list when no streams match."""
+
+    def _run_command(args: list[str]) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+    monkeypatch.setattr("phlo_sling.cli_commands.apply_sling_connection_env", lambda: {})
+    monkeypatch.setattr("phlo_sling.cli_commands._run_sling_cli_command", _run_command)
+
+    result = CliRunner().invoke(
+        discover_command,
+        ["PHLO_POSTGRES", "--schema", "missing", "--format", "json"],
+    )
+
+    assert result.exit_code == 0
+    _, json_output = result.output.split("\n", 1)
+    payload = json.loads(json_output)
+    assert payload == []
