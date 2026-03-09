@@ -120,6 +120,27 @@ http://minio:10001
 
 **Console UI**: http://localhost:10002
 
+RustFS S3-compatible object storage:
+
+```bash
+# Host and ports
+RUSTFS_HOST=rustfs
+RUSTFS_API_PORT=9000
+RUSTFS_CONSOLE_PORT=9001
+
+# Credentials
+RUSTFS_ACCESS_KEY=rustfsadmin
+RUSTFS_SECRET_KEY=rustfsadmin
+```
+
+**RustFS endpoint**:
+
+```
+http://rustfs:9000
+```
+
+**Console UI**: http://localhost:9001
+
 ### Catalog Configuration
 
 Nessie Git-like catalog:

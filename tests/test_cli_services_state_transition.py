@@ -52,6 +52,11 @@ def _build_fake_discovery(
         def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
             return [svc for svc in services.values() if svc.profile == profile]
 
+        def resolve_dependencies(
+            self, selected_services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
+            return selected_services
+
     return FakeDiscovery
 
 

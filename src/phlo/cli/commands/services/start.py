@@ -95,6 +95,44 @@ def _load_disabled_service_names(project_root: Path) -> set[str]:
     return disabled_names
 
 
+def _expand_requested_services(
+    discovery: ServiceDiscovery,
+    service_names: list[str],
+) -> list[ServiceDefinition]:
+    """Expand explicit service targets with dependencies and setup companions."""
+    if not service_names:
+        return []
+
+    all_services = discovery.discover()
+    unknown_services = [name for name in service_names if name not in all_services]
+    if unknown_services:
+        raise click.ClickException(f"Unknown service name(s): {', '.join(unknown_services)}")
+
+    requested = [all_services[name] for name in service_names]
+
+    selected: dict[str, ServiceDefinition] = {service.name: service for service in requested}
+    queue = list(requested)
+    while queue:
+        service = queue.pop(0)
+        for dependency_name in service.depends_on:
+            dependency = all_services.get(dependency_name)
+            if dependency and dependency.name not in selected:
+                selected[dependency.name] = dependency
+                queue.append(dependency)
+
+    bootstrap_companions = [
+        service
+        for service in all_services.values()
+        if service.name.endswith("-setup")
+        and service.depends_on
+        and all(dependency in selected for dependency in service.depends_on)
+    ]
+    for companion in bootstrap_companions:
+        selected.setdefault(companion.name, companion)
+
+    return discovery.resolve_dependencies(list(selected.values()))
+
+
 @click.command("start")
 @click.option(
     "-d",
@@ -193,14 +231,26 @@ def start_cmd(
     else:
         click.echo(f"Starting {project_name} infrastructure...")
 
+    discovery = ServiceDiscovery()
+    resolved_services: list[ServiceDefinition] = []
+    if services_list:
+        try:
+            resolved_services = _expand_requested_services(discovery, services_list)
+        except ValueError as exc:
+            logger.warning(
+                "services_start_dependency_resolution_failed",
+                project_name=project_name,
+                service_names=services_list,
+                error=str(exc),
+            )
+            raise click.ClickException(str(exc)) from exc
+
     # If native dev services are enabled, start Docker services excluding native ones,
     # then start native processes for the excluded services.
     native_service_names: set[str] = set()
-    discovery = None
     if native:
         from phlo.plugins.compose.native import NativeProcessManager
 
-        discovery = ServiceDiscovery()
         project_root = Path.cwd()
         dev_manager = NativeProcessManager(
             project_root, log_dir=project_root / ".phlo" / "native-logs"
@@ -223,7 +273,9 @@ def start_cmd(
             click.echo("Warning: No services support native mode; starting Docker only.", err=True)
             native = False
 
-    docker_services_list = services_list
+    docker_services_list = (
+        [service.name for service in resolved_services] if resolved_services else services_list
+    )
     if native and not docker_services_list and not profile:
         try:
             compose_config = yaml.safe_load(compose_file.read_text()) or {}
@@ -249,21 +301,11 @@ def start_cmd(
     if native and docker_services_list:
         docker_services_list = [n for n in docker_services_list if n not in native_service_names]
 
-    if native and services_list and discovery:
-        all_services = discovery.discover()
-        requested_defs = [svc for name, svc in all_services.items() if name in services_list]
-        try:
-            resolved = discovery.resolve_dependencies(requested_defs)
-        except ValueError as exc:
-            logger.warning(
-                "services_start_dependency_resolution_failed",
-                project_name=project_name,
-                service_names=services_list,
-                error=str(exc),
-            )
-            raise click.ClickException(str(exc)) from exc
+    if native and resolved_services:
         required_docker_services = [
-            svc.name for svc in resolved if svc.name not in native_service_names
+            service.name
+            for service in resolved_services
+            if service.name not in native_service_names
         ]
         docker_services_list = required_docker_services
 

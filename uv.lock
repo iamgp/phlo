@@ -52,6 +52,7 @@ members = [
     "phlo-postgres",
     "phlo-postgrest",
     "phlo-prometheus",
+    "phlo-rustfs",
     "phlo-superset",
     "phlo-testing",
     "phlo-trino",
@@ -3721,6 +3722,29 @@ requires-dist = [
 name = "phlo-prometheus"
 version = "0.1.0"
 source = { editable = "packages/phlo-prometheus" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+
+[[package]]
+name = "phlo-rustfs"
+version = "0.1.0"
+source = { editable = "packages/phlo-rustfs" }
 dependencies = [
     { name = "phlo" },
     { name = "pyyaml" },
