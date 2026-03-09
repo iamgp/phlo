@@ -2721,6 +2721,20 @@ MINIO_ROOT_PASSWORD=minioadmin
 <pre><code>http://minio:10001
 </code></pre>
 <p><strong>Console UI</strong>: http://localhost:10002</p>
+<p>RustFS S3-compatible object storage:</p>
+<pre><code class="language-bash"># Host and ports
+RUSTFS_HOST=rustfs
+RUSTFS_API_PORT=9000
+RUSTFS_CONSOLE_PORT=9001
+
+# Credentials
+RUSTFS_ACCESS_KEY=rustfsadmin
+RUSTFS_SECRET_KEY=rustfsadmin
+</code></pre>
+<p><strong>RustFS endpoint</strong>:</p>
+<pre><code>http://rustfs:9000
+</code></pre>
+<p><strong>Console UI</strong>: http://localhost:9001</p>
 <h3 id="catalog-configuration">Catalog Configuration</h3>
 <p>Nessie Git-like catalog:</p>
 <pre><code class="language-bash"># Version and connectivity

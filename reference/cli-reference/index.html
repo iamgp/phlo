@@ -2082,6 +2082,7 @@ phlo services start --build
 <ul>
 <li><code>--profile</code> values are validated before Docker commands are executed.</li>
 <li>Unknown profiles fail fast with a <code>ClickException</code> that includes valid options.</li>
+<li><code>--service</code> targets include required dependencies and matching <code>*-setup</code> bootstrap services.</li>
 </ul>
 <pre><code class="language-bash">phlo services start --profile not-a-profile
 # Error: Invalid profile: not-a-profile. Valid profile options: api, observability

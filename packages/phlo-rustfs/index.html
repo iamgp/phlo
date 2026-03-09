@@ -13,10 +13,10 @@
       
       
       
-        <link rel="prev" href="../phlo-openmetadata/">
+        <link rel="prev" href="../phlo-minio/">
       
       
-        <link rel="next" href="../phlo-superset/">
+        <link rel="next" href="../phlo-grafana/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>phlo-observatory - Phlo Lakehouse Platform</title>
+        <title>phlo-rustfs - Phlo Lakehouse Platform</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#phlo-observatory" class="md-skip">
+        <a href="#phlo-rustfs" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              phlo-observatory
+              phlo-rustfs
             
           </span>
         </div>
@@ -626,38 +626,38 @@
                 
   
   
-  
-  
     
-    
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-    
-      
-        
-        
-      
-    
-    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
-      
-        
   
   
   
-    <a href="../phlo-postgres/" class="md-nav__link">
+    
+    
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="0">
+            
   
   
   <span class="md-ellipsis">
@@ -671,12 +671,386 @@
   
   
 
-      
-        <span class="md-nav__icon md-icon"></span>
-      
-    </a>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Infrastructure
   
 
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../phlo-postgres/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    phlo-postgres
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../phlo-nessie/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    phlo-nessie
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../phlo-trino/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    phlo-trino
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../phlo-minio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    phlo-minio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    phlo-rustfs
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    phlo-rustfs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default Layout
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#starting-the-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Starting the Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#web-console" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Web Console
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aws-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-boto3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python (boto3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Endpoints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-from-minio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration from MinIO
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry Points
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
       
     </li>
   
@@ -862,34 +1236,34 @@
                 
   
   
+  
+  
     
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
   
   
   
-    
-    
+    <a href="../phlo-observatory/" class="md-nav__link">
       
-        
-      
-        
-      
-        
-      
-    
-    
-    
-    
-      
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
-            
   
   
   <span class="md-ellipsis">
@@ -903,391 +1277,12 @@
   
   
 
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_5_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    User Interface
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
   
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    phlo-observatory
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    phlo-observatory
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Overview
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Features
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Features">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#core-capabilities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Core Capabilities
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#auto-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Auto-Configuration
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Usage
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Usage">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#starting-the-service" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Starting the Service
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#accessing-the-ui" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Accessing the UI
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ui-sections" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        UI Sections
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="UI Sections">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#data-explorer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Data Explorer
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lineage-graph" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Lineage Graph
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#asset-browser" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Asset Browser
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#quality-dashboard" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quality Dashboard
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#branch-manager" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Branch Manager
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#sql-workbench" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SQL Workbench
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#endpoints" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Endpoints
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#entry-points" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Entry Points
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-packages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related Packages
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Next Steps
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../phlo-superset/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    phlo-superset
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../phlo-pgweb/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    phlo-pgweb
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
       
     </li>
   
@@ -1688,21 +1683,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#core-capabilities" class="md-nav__link">
+  <a href="#default-layout" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core Capabilities
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#auto-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Auto-Configuration
+        Default Layout
       
     </span>
   </a>
@@ -1738,38 +1722,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#accessing-the-ui" class="md-nav__link">
+  <a href="#web-console" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Accessing the UI
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ui-sections" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        UI Sections
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="UI Sections">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#data-explorer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Data Explorer
+        Web Console
       
     </span>
   </a>
@@ -1777,10 +1733,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#lineage-graph" class="md-nav__link">
+  <a href="#aws-cli" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Lineage Graph
+        AWS CLI
       
     </span>
   </a>
@@ -1788,43 +1744,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#asset-browser" class="md-nav__link">
+  <a href="#python-boto3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Asset Browser
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#quality-dashboard" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quality Dashboard
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#branch-manager" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Branch Manager
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#sql-workbench" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SQL Workbench
+        Python (boto3)
       
     </span>
   </a>
@@ -1841,6 +1764,17 @@
     <span class="md-ellipsis">
       
         Endpoints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-from-minio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration from MinIO
       
     </span>
   </a>
@@ -1897,14 +1831,14 @@
 
 
 
-<h1 id="phlo-observatory">phlo-observatory</h1>
-<p>Phlo Observatory UI for data platform visibility.</p>
+<h1 id="phlo-rustfs">phlo-rustfs</h1>
+<p>RustFS S3-compatible object storage for Phlo.</p>
 <h2 id="overview">Overview</h2>
-<p><code>phlo-observatory</code> is a web-based UI for exploring the data lakehouse. It enables viewing lineage, browsing tables, running queries, and monitoring pipeline health.</p>
+<p><code>phlo-rustfs</code> provides S3-compatible object storage for the data lake using <a href="https://github.com/rustfs/rustfs">RustFS</a>, an Apache 2.0 licensed, Rust-built, 100% S3-compatible object storage server. It stores Iceberg table data, staging files, and backups.</p>
 <h2 id="installation">Installation</h2>
-<pre><code class="language-bash">pip install phlo-observatory
+<pre><code class="language-bash">pip install phlo-rustfs
 # or
-phlo plugin install observatory
+phlo plugin install rustfs
 </code></pre>
 <h2 id="configuration">Configuration</h2>
 <table>
@@ -1917,153 +1851,102 @@ phlo plugin install observatory
 </thead>
 <tbody>
 <tr>
-<td><code>OBSERVATORY_PORT</code></td>
-<td><code>3001</code></td>
-<td>Observatory web UI port</td>
+<td><code>RUSTFS_ACCESS_KEY</code></td>
+<td><code>rustfsadmin</code></td>
+<td>Access key (username)</td>
 </tr>
 <tr>
-<td><code>DAGSTER_GRAPHQL_URL</code></td>
-<td><code>http://dagster:3000/graphql</code></td>
-<td>Dagster GraphQL endpoint</td>
+<td><code>RUSTFS_SECRET_KEY</code></td>
+<td><code>rustfsadmin</code></td>
+<td>Secret key (password)</td>
 </tr>
 <tr>
-<td><code>NESSIE_URL</code></td>
-<td><code>http://nessie:19120/api/v2</code></td>
-<td>Nessie API URL</td>
+<td><code>RUSTFS_API_PORT</code></td>
+<td><code>9000</code></td>
+<td>S3 API port</td>
 </tr>
 <tr>
-<td><code>TRINO_URL</code></td>
-<td><code>http://trino:8080</code></td>
-<td>Trino HTTP URL</td>
+<td><code>RUSTFS_CONSOLE_PORT</code></td>
+<td><code>9001</code></td>
+<td>Web console port</td>
 </tr>
 <tr>
-<td><code>PHLO_API_URL</code></td>
-<td><code>http://phlo-api:4000</code></td>
-<td>Phlo API URL</td>
+<td><code>RUSTFS_CORS_ALLOWED_ORIGINS</code></td>
+<td><code>*</code></td>
+<td>CORS origins for S3 API</td>
+</tr>
+<tr>
+<td><code>RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS</code></td>
+<td><code>*</code></td>
+<td>CORS origins for console</td>
 </tr>
 </tbody>
 </table>
 <h2 id="features">Features</h2>
-<h3 id="core-capabilities">Core Capabilities</h3>
+<h3 id="default-layout">Default Layout</h3>
 <table>
 <thead>
 <tr>
-<th>Feature</th>
-<th>Description</th>
+<th>Bucket / Prefix</th>
+<th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Data Explorer</strong></td>
-<td>Browse tables, view schemas, preview data</td>
+<td><code>lake</code></td>
+<td>Main data lake storage</td>
 </tr>
 <tr>
-<td><strong>Lineage Graph</strong></td>
-<td>Interactive visualization of data flow</td>
+<td><code>lake/warehouse</code></td>
+<td>Iceberg table data</td>
 </tr>
 <tr>
-<td><strong>Asset Browser</strong></td>
-<td>View Dagster assets and materialization status</td>
-</tr>
-<tr>
-<td><strong>Quality Dashboard</strong></td>
-<td>Monitor quality check results</td>
-</tr>
-<tr>
-<td><strong>Branch Management</strong></td>
-<td>Create, view, and merge Nessie branches</td>
-</tr>
-<tr>
-<td><strong>SQL Workbench</strong></td>
-<td>Execute ad-hoc queries against Trino</td>
-</tr>
-</tbody>
-</table>
-<h3 id="auto-configuration">Auto-Configuration</h3>
-<table>
-<thead>
-<tr>
-<th>Feature</th>
-<th>How It Works</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>API Connection</strong></td>
-<td>Connects to phlo-api for backend data</td>
-</tr>
-<tr>
-<td><strong>Service URLs</strong></td>
-<td>Auto-configured from environment variables</td>
-</tr>
-<tr>
-<td><strong>Dev Mode</strong></td>
-<td>Hot-reloading in <code>--dev</code> mode</td>
+<td><code>lake/stage</code></td>
+<td>Ingestion staging area</td>
 </tr>
 </tbody>
 </table>
 <h2 id="usage">Usage</h2>
 <h3 id="starting-the-service">Starting the Service</h3>
-<pre><code class="language-bash"># Start Observatory
-phlo services start --service observatory
-
-# Start with native mode (better for ARM Macs)
-phlo services start --native
-
-# Start with dev mode (hot-reload)
-phlo services start --dev
+<pre><code class="language-bash">phlo services start --service rustfs
 </code></pre>
-<h3 id="accessing-the-ui">Accessing the UI</h3>
-<p>Open <code>http://localhost:3001</code> in your browser.</p>
-<h2 id="ui-sections">UI Sections</h2>
-<h3 id="data-explorer">Data Explorer</h3>
-<p>Browse and explore your data lakehouse:</p>
+<p>This targeted start now bootstraps the writable <code>./volumes/rustfs</code> bind mount and initializes the
+default <code>lake</code>, <code>lake/warehouse</code>, and <code>lake/stage</code> layout automatically.</p>
+<h3 id="web-console">Web Console</h3>
+<p>Access the RustFS console at <code>http://localhost:9001</code>:</p>
 <ul>
-<li>View all schemas and tables</li>
-<li>Inspect table schemas and statistics</li>
-<li>Preview data with pagination</li>
-<li>Export query results</li>
+<li>Username: <code>rustfsadmin</code> (or <code>RUSTFS_ACCESS_KEY</code>)</li>
+<li>Password: <code>rustfsadmin</code> (or <code>RUSTFS_SECRET_KEY</code>)</li>
 </ul>
-<h3 id="lineage-graph">Lineage Graph</h3>
-<p>Visualize data dependencies:</p>
-<ul>
-<li>Interactive node-based graph</li>
-<li>Click tables to see details</li>
-<li>Filter by upstream/downstream</li>
-<li>Highlight specific paths</li>
-</ul>
-<h3 id="asset-browser">Asset Browser</h3>
-<p>Monitor Dagster assets:</p>
-<ul>
-<li>View materialization status</li>
-<li>See last run timestamps</li>
-<li>Check freshness policies</li>
-<li>Trigger materializations</li>
-</ul>
-<h3 id="quality-dashboard">Quality Dashboard</h3>
-<p>Track data quality:</p>
-<ul>
-<li>View check results over time</li>
-<li>Filter by status (pass/fail)</li>
-<li>Drill into failure details</li>
-<li>See violation samples</li>
-</ul>
-<h3 id="branch-manager">Branch Manager</h3>
-<p>Work with Nessie branches:</p>
-<ul>
-<li>List all branches</li>
-<li>Create new branches</li>
-<li>Compare branches</li>
-<li>Merge branches</li>
-</ul>
-<h3 id="sql-workbench">SQL Workbench</h3>
-<p>Run ad-hoc queries:</p>
-<ul>
-<li>Syntax highlighting</li>
-<li>Auto-complete for tables</li>
-<li>Result pagination</li>
-<li>Export to CSV</li>
-</ul>
+<h3 id="aws-cli">AWS CLI</h3>
+<pre><code class="language-bash"># Configure AWS CLI for RustFS
+aws configure set aws_access_key_id rustfsadmin
+aws configure set aws_secret_access_key rustfsadmin
+
+# List buckets
+aws --endpoint-url http://localhost:9000 s3 ls
+
+# List warehouse contents
+aws --endpoint-url http://localhost:9000 s3 ls s3://lake/warehouse/
+
+# Copy file to staging
+aws --endpoint-url http://localhost:9000 s3 cp data.parquet s3://lake/stage/
+</code></pre>
+<h3 id="python-boto3">Python (boto3)</h3>
+<pre><code class="language-python">import boto3
+
+s3 = boto3.client(
+    's3',
+    endpoint_url='http://localhost:9000',
+    aws_access_key_id='rustfsadmin',
+    aws_secret_access_key='rustfsadmin'
+)
+
+# List objects
+response = s3.list_objects_v2(Bucket='lake', Prefix='warehouse/')
+for obj in response.get('Contents', []):
+    print(obj['Key'])
+</code></pre>
 <h2 id="endpoints">Endpoints</h2>
 <table>
 <thead>
@@ -2074,11 +1957,46 @@ phlo services start --dev
 </thead>
 <tbody>
 <tr>
-<td><strong>Web UI</strong></td>
-<td><code>http://localhost:3001</code></td>
+<td><strong>S3 API</strong></td>
+<td><code>http://localhost:9000</code></td>
+</tr>
+<tr>
+<td><strong>Console</strong></td>
+<td><code>http://localhost:9001</code></td>
 </tr>
 </tbody>
 </table>
+<h2 id="migration-from-minio">Migration from MinIO</h2>
+<p>If you're switching from MinIO to RustFS:</p>
+<ol>
+<li>Update environment variables:</li>
+</ol>
+<pre><code class="language-bash"># Before (MinIO)
+AWS_S3_ENDPOINT=http://minio:9000
+AWS_ACCESS_KEY_ID=minio
+AWS_SECRET_ACCESS_KEY=minio123
+
+# After (RustFS)
+AWS_S3_ENDPOINT=http://rustfs:9000
+AWS_ACCESS_KEY_ID=rustfsadmin
+AWS_SECRET_ACCESS_KEY=rustfsadmin
+</code></pre>
+<ol>
+<li>Data migration options:</li>
+</ol>
+<p><strong>Option A: Mirror via mc</strong></p>
+<pre><code class="language-bash"># Export from MinIO
+mc alias set myminio http://localhost:9000 minio minio123
+mc mirror myminio/lake ./backup/
+
+# Import to RustFS
+mc alias set myrustfs http://localhost:9000 rustfsadmin rustfsadmin
+mc mirror ./backup/ myrustfs/lake/
+</code></pre>
+<p><strong>Option B: Direct volume copy</strong></p>
+<pre><code class="language-bash">cp -r ./volumes/minio/* ./volumes/rustfs/
+chown -R 10001:10001 ./volumes/rustfs
+</code></pre>
 <h2 id="entry-points">Entry Points</h2>
 <table>
 <thead>
@@ -2090,22 +2008,25 @@ phlo services start --dev
 <tbody>
 <tr>
 <td><code>phlo.plugins.services</code></td>
-<td><code>ObservatoryServicePlugin</code></td>
+<td><code>RustfsServicePlugin</code></td>
+</tr>
+<tr>
+<td><code>phlo.plugins.services</code></td>
+<td><code>RustfsSetupServicePlugin</code></td>
 </tr>
 </tbody>
 </table>
 <h2 id="related-packages">Related Packages</h2>
 <ul>
-<li><a href="../phlo-api/">phlo-api</a> - Backend API</li>
-<li><a href="../phlo-lineage/">phlo-lineage</a> - Lineage data</li>
-<li><a href="../phlo-pandera/">phlo-pandera</a> - Quality checks</li>
-<li><a href="../phlo-nessie/">phlo-nessie</a> - Branch management</li>
+<li><a href="../phlo-minio/">phlo-minio</a> - Alternative S3 storage (MinIO)</li>
+<li><a href="../phlo-iceberg/">phlo-iceberg</a> - Table format</li>
+<li><a href="../phlo-nessie/">phlo-nessie</a> - Catalog service</li>
 </ul>
 <h2 id="next-steps">Next Steps</h2>
 <ul>
 <li><a href="../../getting-started/installation/">Installation Guide</a> - Complete setup</li>
-<li><a href="../../getting-started/quickstart/">Quickstart</a> - First steps</li>
-<li><a href="../../operations/troubleshooting/">Troubleshooting</a> - Debug issues</li>
+<li><a href="../../reference/architecture/">Architecture Reference</a> - System design</li>
+<li><a href="../../operations/operations-guide/">Operations Guide</a> - Backup and maintenance</li>
 </ul>
 
 
