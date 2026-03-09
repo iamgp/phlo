@@ -35,7 +35,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_rustfs = ["service.yaml", "rustfs-setup.yaml"]
+phlo_rustfs = ["service.yaml", "rustfs-setup.yaml", "rustfs-volume-setup.yaml"]
 
 [tool.ruff]
 line-length = 100
