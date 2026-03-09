@@ -104,9 +104,11 @@ def _expand_requested_services(
         return []
 
     all_services = discovery.discover()
-    requested = [all_services[name] for name in service_names if name in all_services]
-    if not requested:
-        return []
+    unknown_services = [name for name in service_names if name not in all_services]
+    if unknown_services:
+        raise click.ClickException(f"Unknown service name(s): {', '.join(unknown_services)}")
+
+    requested = [all_services[name] for name in service_names]
 
     selected: dict[str, ServiceDefinition] = {service.name: service for service in requested}
     queue = list(requested)
@@ -122,7 +124,8 @@ def _expand_requested_services(
         service
         for service in all_services.values()
         if service.name.endswith("-setup")
-        and any(dependency in selected for dependency in service.depends_on)
+        and service.depends_on
+        and all(dependency in selected for dependency in service.depends_on)
     ]
     for companion in bootstrap_companions:
         selected.setdefault(companion.name, companion)

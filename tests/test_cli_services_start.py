@@ -275,6 +275,94 @@ def test_services_start_includes_setup_companions_for_explicit_targets(
     assert docker_calls[0][-3:] == ["rustfs-volume-setup", "rustfs", "rustfs-setup"]
 
 
+def test_services_start_rejects_unknown_explicit_targets(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text("services:\n  rustfs: {}\n")
+
+    class FakeDiscovery:
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {"rustfs": _service("rustfs")}
+
+        def get_available_profiles(self) -> set[str]:
+            return set()
+
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
+
+    result = CliRunner().invoke(start_module.start_cmd, ["--service", "rustfs,typo"])
+
+    assert result.exit_code != 0
+    assert "Unknown service name(s): typo" in result.output
+
+
+def test_services_start_requires_full_dependency_match_for_setup_companions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text(
+        "services:\n  openmetadata-mysql: {}\n  openmetadata-elasticsearch: {}\n"
+        "  openmetadata-setup: {}\n",
+    )
+
+    mysql = _service("openmetadata-mysql")
+    elasticsearch = _service("openmetadata-elasticsearch")
+    setup = _service(
+        "openmetadata-setup",
+        depends_on=["openmetadata-mysql", "openmetadata-elasticsearch"],
+    )
+
+    class FakeDiscovery:
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {
+                mysql.name: mysql,
+                elasticsearch.name: elasticsearch,
+                setup.name: setup,
+            }
+
+        def resolve_dependencies(
+            self, services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
+            names = {service.name for service in services}
+            ordered = [mysql, elasticsearch, setup]
+            return [service for service in ordered if service.name in names]
+
+        def get_available_profiles(self) -> set[str]:
+            return set()
+
+    docker_calls: list[list[str]] = []
+
+    def _fake_run_command(cmd: list[str], check=False, capture_output=False) -> CompletedProcess:
+        docker_calls.append(cmd)
+        return CompletedProcess(args=cmd, returncode=0)
+
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
+    monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
+    monkeypatch.setattr(start_module, "run_command", _fake_run_command)
+    monkeypatch.setattr(start_module, "require_docker", lambda: None)
+    monkeypatch.setattr(
+        start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+
+    result = CliRunner().invoke(start_module.start_cmd, ["--service", "openmetadata-mysql"])
+
+    assert result.exit_code == 0
+    assert docker_calls
+    assert docker_calls[0][-1] == "openmetadata-mysql"
+    assert "openmetadata-setup" not in docker_calls[0]
+
+
 def test_load_native_env_overrides_merges_env_files(tmp_path) -> None:
     from phlo.cli.commands.services import start as start_module
 
