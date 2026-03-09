@@ -103,7 +103,9 @@ class SlingIngester(BaseIngester):
 
         try:
             from sling import Sling
+            from phlo_sling.connections import apply_sling_connection_env
 
+            apply_sling_connection_env()
             sling_kwargs = self._build_sling_kwargs(partition_key)
             sling_config = Sling(**sling_kwargs)
 

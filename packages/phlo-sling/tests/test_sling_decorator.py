@@ -1,6 +1,7 @@
 """Tests for Sling replication decorator."""
 
 import pytest
+from types import SimpleNamespace
 
 from phlo.exceptions import PhloConfigError
 from phlo_sling.decorator import (
@@ -76,4 +77,26 @@ def test_decorator_attaches_config():
     config = my_replication._phlo_replication_config  # type: ignore[attr-defined]
     assert config.stream_name == "public.orders"  # type: ignore[attr-defined]
     assert config.primary_key == ["id"]  # type: ignore[attr-defined]
+    clear_sling_assets()
+
+
+def test_decorator_uses_configured_default_mode(monkeypatch) -> None:
+    """Decorator should honor SLING_DEFAULT_MODE when mode is omitted."""
+    clear_sling_assets()
+    monkeypatch.setattr(
+        "phlo_sling.decorator.get_settings",
+        lambda: SimpleNamespace(sling_default_mode="full-refresh"),
+    )
+
+    @phlo_sling_replication(
+        stream_name="public.users",
+        table_name="users",
+        source_conn="TEST_PG",
+        group="test",
+    )
+    def my_replication(context):
+        return None
+
+    config = my_replication._phlo_replication_config  # type: ignore[attr-defined]
+    assert config.mode == "full-refresh"  # type: ignore[attr-defined]
     clear_sling_assets()

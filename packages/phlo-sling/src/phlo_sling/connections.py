@@ -65,13 +65,13 @@ def _resolve_s3_connection() -> dict[str, dict[str, Any]]:
             "PHLO_S3": {
                 "type": "s3",
                 "endpoint": f"http://{minio.minio_endpoint()}",
-                "access_key_id": minio.minio_access_key,
-                "secret_access_key": minio.minio_secret_key,
+                "access_key_id": minio.minio_root_user,
+                "secret_access_key": minio.minio_root_password,
                 "region": minio.s3_region,
             }
         }
-    except (ImportError, Exception):
-        pass
+    except (ImportError, Exception) as exc:
+        logger.debug("minio_connection_skipped", error=str(exc))
 
     try:
         from phlo_rustfs.settings import get_settings as get_rustfs_settings

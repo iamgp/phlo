@@ -12,6 +12,7 @@ from phlo.exceptions import PhloConfigError
 from phlo.logging import log_event
 
 from phlo_sling.registry import ReplicationConfig
+from phlo_sling.settings import get_settings
 
 _SLING_ASSETS: list[AssetSpec] = []
 
@@ -71,7 +72,7 @@ def phlo_sling_replication(
     group: str,
     *,
     target_conn: str | None = None,
-    mode: Literal["full-refresh", "incremental", "snapshot", "backfill"] = "incremental",
+    mode: Literal["full-refresh", "incremental", "snapshot", "backfill"] | None = None,
     primary_key: list[str] | str | None = None,
     update_key: str | None = None,
     object: str | None = None,
@@ -101,7 +102,7 @@ def phlo_sling_replication(
         group: Dagster/asset group name.
         target_conn: Sling target connection name. If set and object is omitted,
             Phlo targets `<namespace>.<table_name>`.
-        mode: Replication mode.
+        mode: Replication mode. None uses `SLING_DEFAULT_MODE`.
         primary_key: Column(s) used as primary key. String or list of strings.
         update_key: Column used as cursor for incremental replication.
         object: Target object path for file-based targets.
@@ -124,8 +125,9 @@ def phlo_sling_replication(
     Raises:
         PhloConfigError: If mode or configuration is invalid.
     """
-    _validate_replication_mode(mode)
-    _validate_incremental_config(mode, update_key)
+    resolved_mode = mode or get_settings().sling_default_mode
+    _validate_replication_mode(resolved_mode)
+    _validate_incremental_config(resolved_mode, update_key)
 
     pk_list = [primary_key] if isinstance(primary_key, str) else (primary_key or [])
 
@@ -134,7 +136,7 @@ def phlo_sling_replication(
         table_name=table_name,
         source_conn=source_conn,
         target_conn=target_conn,
-        mode=mode,
+        mode=resolved_mode,
         primary_key=pk_list,
         update_key=update_key,
         group_name=group,
