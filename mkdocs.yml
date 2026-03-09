@@ -93,6 +93,7 @@ nav:
           - phlo-nessie: packages/phlo-nessie.md
           - phlo-trino: packages/phlo-trino.md
           - phlo-minio: packages/phlo-minio.md
+          - phlo-rustfs: packages/phlo-rustfs.md
       - Observability:
           - phlo-grafana: packages/phlo-grafana.md
           - phlo-prometheus: packages/phlo-prometheus.md
