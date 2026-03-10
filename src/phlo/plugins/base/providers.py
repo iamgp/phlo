@@ -14,6 +14,7 @@ from phlo.capabilities.specs import (
     ApiBackendSpec,
     AssetCheckSpec,
     AssetSpec,
+    AuthorizationPolicyBackendSpec,
     CatalogScannerSpec,
     CatalogSpec,
     DataMigrationSourceSpec,
@@ -128,6 +129,10 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_governance_backends(self) -> Iterable[GovernanceBackendSpec]:
         """Return governance backend capability specs exposed by this plugin."""
+        return []
+
+    def get_authorization_policy_backends(self) -> Iterable[AuthorizationPolicyBackendSpec]:
+        """Return authorization policy backend capability specs exposed by this plugin."""
         return []
 
     def get_publish_targets(self) -> Iterable[PublishTargetSpec]:

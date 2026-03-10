@@ -5,11 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from anyio.to_thread import run_sync
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from phlo.logging import get_logger
 from phlo.plugins.observatory_settings import SettingsScope, get_settings_service
+from phlo_api.api.authorization import check_admin_manage, check_admin_read
 
 
 logger = get_logger(__name__)
@@ -135,8 +136,9 @@ def _upsert_settings_sync(payload: ObservatorySettingsPayload) -> ObservatorySet
 
 
 @router.get("/settings", response_model=ObservatorySettingsResponse)
-async def get_observatory_settings() -> ObservatorySettingsResponse:
+async def get_observatory_settings(request: Request) -> ObservatorySettingsResponse:
     """Fetch server-wide Observatory settings."""
+    check_admin_read(request, "observatory_settings")
     try:
         return await run_sync(_fetch_settings_sync)
     except RuntimeError as exc:
@@ -148,9 +150,11 @@ async def get_observatory_settings() -> ObservatorySettingsResponse:
 
 @router.put("/settings", response_model=ObservatorySettingsResponse)
 async def put_observatory_settings(
+    request: Request,
     payload: ObservatorySettingsPayload,
 ) -> ObservatorySettingsResponse:
     """Replace server-wide Observatory settings."""
+    check_admin_manage(request, "observatory_settings")
     try:
         return await run_sync(_upsert_settings_sync, payload)
     except RuntimeError as exc:

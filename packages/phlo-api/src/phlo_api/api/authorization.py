@@ -1,0 +1,359 @@
+"""Authorization helpers for phlo-api.
+
+This module provides authorization capability integration for FastAPI routes.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any, Callable, TypeVar
+
+from fastapi import HTTPException, Request
+
+from phlo.capabilities import (
+    AuthorizationDecision,
+    AuthorizationPolicyBackend,
+    DecisionContext,
+    Principal,
+    ResourceRef,
+    list_capabilities,
+    resolve_capability,
+)
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+_ACTION_DATASET_READ = "dataset.read"
+_ACTION_DATASET_QUERY = "dataset.query"
+_ACTION_ASSET_READ = "asset.read"
+_ACTION_ASSET_EXECUTE = "asset.execute"
+_ACTION_SERVICE_READ = "service.read"
+_ACTION_SERVICE_MANAGE = "service.manage"
+_ACTION_ADMIN_READ = "admin.read"
+_ACTION_ADMIN_MANAGE = "admin.manage"
+_AUTHORIZATION_BACKEND_ENV = "PHLO_AUTHORIZATION_BACKEND"
+
+
+def get_authorization_backend() -> AuthorizationPolicyBackend | None:
+    """Resolve the authorization policy backend capability.
+
+    Returns None if no backend is configured.
+    Raises when multiple backends are installed without an explicit selection.
+    """
+    backend_name = os.environ.get(_AUTHORIZATION_BACKEND_ENV)
+    result = resolve_capability("authorization_policy_backend", backend_name)
+    if backend_name and result is None:
+        raise RuntimeError(
+            f"Authorization backend {backend_name!r} is not registered. "
+            f"Set {_AUTHORIZATION_BACKEND_ENV} to a valid backend name."
+        )
+
+    if result is None:
+        available_backends = list_capabilities("authorization_policy_backend")
+        if not available_backends:
+            logger.debug("no_authorization_backend_configured")
+            return None
+        if backend_name is None and len(available_backends) > 1:
+            raise RuntimeError(
+                "Multiple authorization backends are registered. "
+                f"Set {_AUTHORIZATION_BACKEND_ENV} to one of: {', '.join(sorted(available_backends))}."
+            )
+        logger.debug("no_authorization_backend_configured")
+        return None
+    return result.provider
+
+
+def require_authorization_backend() -> AuthorizationPolicyBackend:
+    """Resolve the authorization policy backend or raise if not available."""
+    backend = get_authorization_backend()
+    if backend is None:
+        raise RuntimeError("Authorization backend not configured")
+    return backend
+
+
+def create_decision_context(
+    request: Request,
+    environment: str | None = None,
+) -> DecisionContext:
+    """Create a DecisionContext from a FastAPI request."""
+    return DecisionContext(
+        environment=environment,
+        request_id=request.state.request_id if hasattr(request.state, "request_id") else None,
+        ip_address=request.client.host if request.client else None,
+        attributes={
+            "method": request.method,
+            "path": request.url.path,
+        },
+    )
+
+
+def resolve_request_principal(request: Request) -> Principal:
+    """Resolve the principal from the request.
+
+    In production, this would extract identity from authentication.
+    For now, returns a default principal for development.
+    """
+    auth_header = request.headers.get("authorization")
+
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        return Principal(
+            subject=token[:8],
+            principal_type="service",
+            roles=("service",),
+        )
+
+    return Principal(
+        subject="anonymous",
+        principal_type="user",
+        roles=("viewer",),
+    )
+
+
+def check_dataset_read(
+    request: Request,
+    dataset_id: str,
+    environment: str | None = None,
+) -> None:
+    """Check if the request can read the dataset."""
+    backend = get_authorization_backend()
+    if backend is None:
+        return
+
+    principal = resolve_request_principal(request)
+    resource = ResourceRef(
+        resource_type="dataset",
+        resource_id=dataset_id,
+    )
+    context = create_decision_context(request, environment)
+
+    if not backend.is_allowed(principal, _ACTION_DATASET_READ, resource, context):
+        decision = backend.explain_decision(principal, _ACTION_DATASET_READ, resource, context)
+        _log_deny(principal, _ACTION_DATASET_READ, resource, decision)
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "reason": decision.reason_code},
+        )
+
+
+def check_dataset_query(
+    request: Request,
+    dataset_id: str,
+    environment: str | None = None,
+) -> None:
+    """Check if the request can query the dataset."""
+    backend = get_authorization_backend()
+    if backend is None:
+        return
+
+    principal = resolve_request_principal(request)
+    resource = ResourceRef(
+        resource_type="dataset",
+        resource_id=dataset_id,
+    )
+    context = create_decision_context(request, environment)
+
+    if not backend.is_allowed(principal, _ACTION_DATASET_QUERY, resource, context):
+        decision = backend.explain_decision(principal, _ACTION_DATASET_QUERY, resource, context)
+        _log_deny(principal, _ACTION_DATASET_QUERY, resource, decision)
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "reason": decision.reason_code},
+        )
+
+
+def check_asset_read(
+    request: Request,
+    asset_id: str,
+    environment: str | None = None,
+) -> None:
+    """Check if the request can read the asset."""
+    backend = get_authorization_backend()
+    if backend is None:
+        return
+
+    principal = resolve_request_principal(request)
+    resource = ResourceRef(
+        resource_type="asset",
+        resource_id=asset_id,
+    )
+    context = create_decision_context(request, environment)
+
+    if not backend.is_allowed(principal, _ACTION_ASSET_READ, resource, context):
+        decision = backend.explain_decision(principal, _ACTION_ASSET_READ, resource, context)
+        _log_deny(principal, _ACTION_ASSET_READ, resource, decision)
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "reason": decision.reason_code},
+        )
+
+
+def check_asset_execute(
+    request: Request,
+    asset_id: str,
+    environment: str | None = None,
+) -> None:
+    """Check if the request can execute the asset."""
+    backend = get_authorization_backend()
+    if backend is None:
+        return
+
+    principal = resolve_request_principal(request)
+    resource = ResourceRef(
+        resource_type="asset",
+        resource_id=asset_id,
+    )
+    context = create_decision_context(request, environment)
+
+    if not backend.is_allowed(principal, _ACTION_ASSET_EXECUTE, resource, context):
+        decision = backend.explain_decision(principal, _ACTION_ASSET_EXECUTE, resource, context)
+        _log_deny(principal, _ACTION_ASSET_EXECUTE, resource, decision)
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "reason": decision.reason_code},
+        )
+
+
+def check_service_read(
+    request: Request,
+    service_id: str,
+    environment: str | None = None,
+) -> None:
+    """Check if the request can read the service."""
+    backend = get_authorization_backend()
+    if backend is None:
+        return
+
+    principal = resolve_request_principal(request)
+    resource = ResourceRef(
+        resource_type="service",
+        resource_id=service_id,
+    )
+    context = create_decision_context(request, environment)
+
+    if not backend.is_allowed(principal, _ACTION_SERVICE_READ, resource, context):
+        decision = backend.explain_decision(principal, _ACTION_SERVICE_READ, resource, context)
+        _log_deny(principal, _ACTION_SERVICE_READ, resource, decision)
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "reason": decision.reason_code},
+        )
+
+
+def check_service_manage(
+    request: Request,
+    service_id: str,
+    environment: str | None = None,
+) -> None:
+    """Check if the request can manage the service."""
+    backend = get_authorization_backend()
+    if backend is None:
+        return
+
+    principal = resolve_request_principal(request)
+    resource = ResourceRef(
+        resource_type="service",
+        resource_id=service_id,
+    )
+    context = create_decision_context(request, environment)
+
+    if not backend.is_allowed(principal, _ACTION_SERVICE_MANAGE, resource, context):
+        decision = backend.explain_decision(principal, _ACTION_SERVICE_MANAGE, resource, context)
+        _log_deny(principal, _ACTION_SERVICE_MANAGE, resource, decision)
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "reason": decision.reason_code},
+        )
+
+
+def check_admin_read(
+    request: Request,
+    admin_id: str,
+    environment: str | None = None,
+) -> None:
+    """Check if the request can read admin resources."""
+    backend = get_authorization_backend()
+    if backend is None:
+        return
+
+    principal = resolve_request_principal(request)
+    resource = ResourceRef(
+        resource_type="admin",
+        resource_id=admin_id,
+    )
+    context = create_decision_context(request, environment)
+
+    if not backend.is_allowed(principal, _ACTION_ADMIN_READ, resource, context):
+        decision = backend.explain_decision(principal, _ACTION_ADMIN_READ, resource, context)
+        _log_deny(principal, _ACTION_ADMIN_READ, resource, decision)
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "reason": decision.reason_code},
+        )
+
+
+def check_admin_manage(
+    request: Request,
+    admin_id: str,
+    environment: str | None = None,
+) -> None:
+    """Check if the request can manage admin resources."""
+    backend = get_authorization_backend()
+    if backend is None:
+        return
+
+    principal = resolve_request_principal(request)
+    resource = ResourceRef(
+        resource_type="admin",
+        resource_id=admin_id,
+    )
+    context = create_decision_context(request, environment)
+
+    if not backend.is_allowed(principal, _ACTION_ADMIN_MANAGE, resource, context):
+        decision = backend.explain_decision(principal, _ACTION_ADMIN_MANAGE, resource, context)
+        _log_deny(principal, _ACTION_ADMIN_MANAGE, resource, decision)
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "reason": decision.reason_code},
+        )
+
+
+def filter_datasets(
+    request: Request,
+    dataset_ids: list[str],
+    action: str = _ACTION_DATASET_READ,
+    environment: str | None = None,
+) -> list[str]:
+    """Filter a list of dataset IDs to only those the principal can access."""
+    backend = get_authorization_backend()
+    if backend is None:
+        return dataset_ids
+
+    principal = resolve_request_principal(request)
+    resources = [ResourceRef(resource_type="dataset", resource_id=d_id) for d_id in dataset_ids]
+    context = create_decision_context(request, environment)
+
+    allowed_resources = backend.filter_resources(principal, resources, action, context)
+    return [r.resource_id for r in allowed_resources]
+
+
+def _log_deny(
+    principal: Principal,
+    action: str,
+    resource: ResourceRef,
+    decision: AuthorizationDecision,
+) -> None:
+    """Log authorization denial for auditing."""
+    logger.warning(
+        "authorization_denied",
+        principal=principal.subject,
+        principal_type=principal.principal_type,
+        roles=list(principal.roles),
+        action=action,
+        resource_type=resource.resource_type,
+        resource_id=resource.resource_id,
+        reason_code=decision.reason_code,
+        policy_id=decision.policy_id,
+    )

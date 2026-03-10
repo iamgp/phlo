@@ -10,6 +10,7 @@ from phlo.capabilities.specs import (
     ApiBackendSpec,
     AssetCheckSpec,
     AssetSpec,
+    AuthorizationPolicyBackendSpec,
     CatalogScannerSpec,
     CatalogSpec,
     DataMigrationSourceSpec,
@@ -46,6 +47,9 @@ class CapabilityRegistry:
     metadata_catalogs: dict[str, MetadataCatalogSpec] = field(default_factory=dict)
     lineage_sinks: dict[str, LineageSinkSpec] = field(default_factory=dict)
     governance_backends: dict[str, GovernanceBackendSpec] = field(default_factory=dict)
+    authorization_policy_backends: dict[str, AuthorizationPolicyBackendSpec] = field(
+        default_factory=dict
+    )
     publish_targets: dict[str, PublishTargetSpec] = field(default_factory=dict)
     alert_sinks: dict[str, AlertSinkSpec] = field(default_factory=dict)
     api_backends: dict[str, ApiBackendSpec] = field(default_factory=dict)
@@ -215,6 +219,16 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.governance_backends.values())
 
+    def register_authorization_policy_backend(self, spec: AuthorizationPolicyBackendSpec) -> None:
+        """Register or replace an authorization policy backend spec by name."""
+        with self._lock:
+            self.authorization_policy_backends[spec.name] = spec
+
+    def list_authorization_policy_backends(self) -> list[AuthorizationPolicyBackendSpec]:
+        """Return a snapshot list of registered authorization policy backend specs."""
+        with self._lock:
+            return list(self.authorization_policy_backends.values())
+
     def register_publish_target(self, spec: PublishTargetSpec) -> None:
         """Register or replace a publish target spec by name."""
         with self._lock:
@@ -302,6 +316,7 @@ class CapabilityRegistry:
             self.metadata_catalogs.clear()
             self.lineage_sinks.clear()
             self.governance_backends.clear()
+            self.authorization_policy_backends.clear()
             self.publish_targets.clear()
             self.alert_sinks.clear()
             self.api_backends.clear()
@@ -408,6 +423,11 @@ def register_lineage_sink(spec: LineageSinkSpec) -> None:
 def register_governance_backend(spec: GovernanceBackendSpec) -> None:
     """Register a governance backend in the process-global registry."""
     _GLOBAL_REGISTRY.register_governance_backend(spec)
+
+
+def register_authorization_policy_backend(spec: AuthorizationPolicyBackendSpec) -> None:
+    """Register an authorization policy backend in the process-global registry."""
+    _GLOBAL_REGISTRY.register_authorization_policy_backend(spec)
 
 
 def register_publish_target(spec: PublishTargetSpec) -> None:
