@@ -21,6 +21,7 @@ from phlo.capabilities.specs import (
     LineageSinkSpec,
     MaintenanceReadModelSpec,
     MetadataCatalogSpec,
+    ObjectStoreSpec,
     ObservabilityBackendSpec,
     PublishTargetSpec,
     QualityBackendSpec,
@@ -103,6 +104,10 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_query_engines(self) -> Iterable[QueryEngineSpec]:
         """Return query engine capability specs exposed by this plugin."""
+        return []
+
+    def get_object_stores(self) -> Iterable[ObjectStoreSpec]:
+        """Return object-store capability specs exposed by this plugin."""
         return []
 
     def get_quality_backends(self) -> Iterable[QualityBackendSpec]:

@@ -105,6 +105,7 @@ dev-dependencies = [
     "phlo-dlt>=0.1.0",
     "phlo-iceberg>=0.1.0",
     "phlo-dbt>=0.1.0",
+    "phlo-sling>=0.1.0",
     "phlo-nessie>=0.1.0",
     "phlo-openmetadata>=0.1.0",
     "phlo-testing>=0.1.0",
@@ -140,6 +141,7 @@ phlo-otel = { workspace = true }
 phlo-testing = { workspace = true }
 phlo-observatory-example = { workspace = true }
 phlo-clickhouse = { workspace = true }
+phlo-sling = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -151,6 +153,7 @@ dev = [
     "phlo-dlt>=0.1.0",
     "phlo-iceberg>=0.1.0",
     "phlo-dbt>=0.1.0",
+    "phlo-sling>=0.1.0",
     "phlo-nessie>=0.1.0",
     "phlo-openmetadata>=0.1.0",
     "phlo-testing>=0.1.0",
@@ -207,6 +210,7 @@ extra-paths = [
   "packages/phlo-dbt/src",
   "packages/phlo-delta/src",
   "packages/phlo-dlt/src",
+  "packages/phlo-sling/src",
   "packages/phlo-grafana/src",
   "packages/phlo-hasura/src",
   "packages/phlo-iceberg/src",

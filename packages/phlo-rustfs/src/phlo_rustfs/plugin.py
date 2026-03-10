@@ -8,8 +8,9 @@ from typing import Any
 
 import yaml
 
+from phlo.capabilities import ObjectStoreSpec, ResourceSpec
 from phlo.logging import get_logger
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
 
 logger = get_logger(__name__)
 
@@ -83,3 +84,49 @@ class RustfsSetupServicePlugin(ServicePlugin):
     def service_definition(self) -> dict[str, Any]:
         """Load the RustFS setup service definition."""
         return _load_service_definition("rustfs-setup.yaml", "rustfs-setup")
+
+
+class RustfsObjectStoreProvider:
+    """Capability provider for RustFS-backed object storage."""
+
+    def to_sling_connection(self) -> dict[str, Any]:
+        """Return a Sling-compatible S3 connection definition."""
+        from phlo_rustfs.settings import get_settings
+
+        settings = get_settings()
+        return {
+            "type": "s3",
+            "endpoint": f"http://{settings.rustfs_endpoint()}",
+            "access_key_id": settings.rustfs_access_key,
+            "secret_access_key": settings.rustfs_secret_key,
+            "region": settings.s3_region,
+        }
+
+
+class RustfsResourceProvider(ResourceProviderPlugin):
+    """Resource provider plugin for RustFS capabilities."""
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the RustFS resource provider."""
+        return PluginMetadata(
+            name="rustfs",
+            version="0.1.0",
+            description="RustFS object-store capability for Phlo",
+            tags=["core", "storage", "s3"],
+        )
+
+    def get_resources(self) -> list[ResourceSpec]:
+        """Return resource specs exposed by this provider."""
+        return []
+
+    def get_object_stores(self) -> list[ObjectStoreSpec]:
+        """Return object-store capability specs exposed by this provider."""
+        provider = RustfsObjectStoreProvider()
+        return [
+            ObjectStoreSpec(
+                name="rustfs",
+                provider=provider,
+            metadata={"storage_system": "s3", "type": "s3", "endpoint": provider.to_sling_connection()["endpoint"]},
+            )
+        ]

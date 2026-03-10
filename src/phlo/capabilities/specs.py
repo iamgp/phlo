@@ -121,6 +121,16 @@ class QueryEngineSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class ObjectStoreSpec:
+    """Object storage capability (for example MinIO, RustFS, S3)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
 class QualityBackendSpec:
     """Quality backend capability used by quality checks."""
 
