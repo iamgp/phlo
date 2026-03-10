@@ -1,0 +1,247 @@
+"""Tests for authorization policy backend capability."""
+
+from __future__ import annotations
+
+import pytest
+
+from phlo.capabilities import (
+    AuthorizationPolicyBackendSpec,
+    Principal,
+    ResourceRef,
+    clear_capabilities,
+    get_capability_registry,
+    list_capabilities,
+    register_authorization_policy_backend,
+    resolve_capability,
+)
+from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
+
+pytestmark = pytest.mark.core_regression
+
+
+def teardown_function() -> None:
+    """Reset global capability registry between tests."""
+    clear_capabilities()
+
+
+def test_registry_tracks_authorization_policy_backends() -> None:
+    backend = DefaultAuthorizationPolicyBackend()
+    register_authorization_policy_backend(
+        AuthorizationPolicyBackendSpec(
+            name="default",
+            provider=backend,
+        )
+    )
+
+    registry = get_capability_registry()
+    backends = registry.list_authorization_policy_backends()
+
+    assert len(backends) == 1
+    assert backends[0].name == "default"
+    assert backends[0].provider is backend
+
+
+def test_list_authorization_policy_backends() -> None:
+    register_authorization_policy_backend(
+        AuthorizationPolicyBackendSpec(
+            name="rbac",
+            provider=DefaultAuthorizationPolicyBackend(),
+        )
+    )
+
+    names = list_capabilities("authorization_policy_backend")
+    assert "rbac" in names
+
+
+def test_resolve_authorization_policy_backend() -> None:
+    backend = DefaultAuthorizationPolicyBackend()
+    register_authorization_policy_backend(
+        AuthorizationPolicyBackendSpec(
+            name="rbac",
+            provider=backend,
+        )
+    )
+
+    resolved = resolve_capability("authorization_policy_backend", "rbac")
+    assert resolved is not None
+    assert resolved.name == "rbac"
+    assert resolved.provider is backend
+
+
+def test_default_authorization_policy_backend_explicit_allow() -> None:
+    backend = DefaultAuthorizationPolicyBackend(
+        policies=[
+            {
+                "policy_id": "analyst_read",
+                "effect": "allow",
+                "principal": {"roles": ["analyst"]},
+                "action": "dataset.read",
+                "resource": {"type": "dataset", "id_pattern": "analytics.*"},
+            }
+        ]
+    )
+
+    principal = Principal(subject="alice", principal_type="user", roles=("analyst",))
+    resource = ResourceRef(resource_type="dataset", resource_id="analytics.orders")
+
+    assert backend.is_allowed(principal, "dataset.read", resource) is True
+
+
+def test_default_authorization_policy_backend_explicit_deny() -> None:
+    backend = DefaultAuthorizationPolicyBackend(
+        policies=[
+            {
+                "policy_id": "deny_sensitive",
+                "effect": "deny",
+                "principal": {"roles": ["analyst"]},
+                "action": "dataset.read",
+                "resource": {"type": "dataset", "id_pattern": "sensitive.*"},
+            },
+            {
+                "policy_id": "analyst_read",
+                "effect": "allow",
+                "principal": {"roles": ["analyst"]},
+                "action": "dataset.read",
+                "resource": {"type": "dataset", "id_pattern": "*"},
+            },
+        ]
+    )
+
+    principal = Principal(subject="alice", principal_type="user", roles=("analyst",))
+    resource = ResourceRef(resource_type="dataset", resource_id="sensitive.data")
+
+    decision = backend.explain_decision(principal, "dataset.read", resource)
+    assert decision.allowed is False
+    assert decision.reason_code == "explicit_deny"
+
+
+def test_default_authorization_policy_backend_default_deny() -> None:
+    backend = DefaultAuthorizationPolicyBackend(policies=[])
+
+    principal = Principal(subject="alice", principal_type="user", roles=("analyst",))
+    resource = ResourceRef(resource_type="dataset", resource_id="analytics.orders")
+
+    decision = backend.explain_decision(principal, "dataset.read", resource)
+    assert decision.allowed is False
+    assert decision.reason_code == "default_deny"
+
+
+def test_default_authorization_policy_backend_deny_wins_over_allow() -> None:
+    backend = DefaultAuthorizationPolicyBackend(
+        policies=[
+            {
+                "policy_id": "analyst_read_all",
+                "effect": "allow",
+                "principal": {"roles": ["analyst"]},
+                "action": "dataset.read",
+                "resource": {"type": "dataset", "id_pattern": "*"},
+            },
+            {
+                "policy_id": "deny_restricted",
+                "effect": "deny",
+                "principal": {"roles": ["analyst"]},
+                "action": "dataset.read",
+                "resource": {"type": "dataset", "id_pattern": "restricted.*"},
+            },
+        ]
+    )
+
+    principal = Principal(subject="alice", principal_type="user", roles=("analyst",))
+    resource = ResourceRef(resource_type="dataset", resource_id="restricted.data")
+
+    decision = backend.explain_decision(principal, "dataset.read", resource)
+    assert decision.allowed is False
+    assert decision.reason_code == "explicit_deny"
+
+
+def test_default_authorization_policy_backend_wildcard_action() -> None:
+    backend = DefaultAuthorizationPolicyBackend(
+        policies=[
+            {
+                "policy_id": "admin_all",
+                "effect": "allow",
+                "principal": {"roles": ["admin"]},
+                "action": "*",
+                "resource": {"type": "dataset", "id_pattern": "*"},
+            }
+        ]
+    )
+
+    principal = Principal(subject="bob", principal_type="user", roles=("admin",))
+    resource = ResourceRef(resource_type="dataset", resource_id="any.dataset")
+
+    assert backend.is_allowed(principal, "dataset.read", resource) is True
+    assert backend.is_allowed(principal, "dataset.query", resource) is True
+    assert backend.is_allowed(principal, "asset.execute", resource) is True
+
+
+def test_default_authorization_policy_backend_filter_resources() -> None:
+    backend = DefaultAuthorizationPolicyBackend(
+        policies=[
+            {
+                "policy_id": "analyst_read",
+                "effect": "allow",
+                "principal": {"roles": ["analyst"]},
+                "action": "dataset.read",
+                "resource": {"type": "dataset", "id_pattern": "analytics.*"},
+            }
+        ]
+    )
+
+    principal = Principal(subject="alice", principal_type="user", roles=("analyst",))
+    resources = [
+        ResourceRef(resource_type="dataset", resource_id="analytics.orders"),
+        ResourceRef(resource_type="dataset", resource_id="sales.revenue"),
+        ResourceRef(resource_type="dataset", resource_id="analytics.users"),
+    ]
+
+    allowed = backend.filter_resources(principal, resources, "dataset.read")
+
+    assert len(allowed) == 2
+    allowed_ids = {r.resource_id for r in allowed}
+    assert "analytics.orders" in allowed_ids
+    assert "analytics.users" in allowed_ids
+    assert "sales.revenue" not in allowed_ids
+
+
+def test_default_authorization_policy_backend_fail_closed() -> None:
+    class FailingBackend:
+        def is_allowed(self, *args, **kwargs):
+            raise RuntimeError("Provider failed")
+
+        def explain_decision(self, *args, **kwargs):
+            raise RuntimeError("Provider failed")
+
+        def filter_resources(self, *args, **kwargs):
+            raise RuntimeError("Provider failed")
+
+    backend = FailingBackend()
+
+    principal = Principal(subject="alice", principal_type="user", roles=("analyst",))
+    resource = ResourceRef(resource_type="dataset", resource_id="analytics.orders")
+
+    with pytest.raises(RuntimeError, match="Provider failed"):
+        backend.is_allowed(principal, "dataset.read", resource)
+
+
+def test_is_allowed_and_explain_decision_parity() -> None:
+    backend = DefaultAuthorizationPolicyBackend(
+        policies=[
+            {
+                "policy_id": "analyst_read",
+                "effect": "allow",
+                "principal": {"roles": ["analyst"]},
+                "action": "dataset.read",
+                "resource": {"type": "dataset", "id_pattern": "analytics.*"},
+            }
+        ]
+    )
+
+    principal = Principal(subject="alice", principal_type="user", roles=("analyst",))
+    resource = ResourceRef(resource_type="dataset", resource_id="analytics.orders")
+
+    is_allowed_result = backend.is_allowed(principal, "dataset.read", resource)
+    explain_result = backend.explain_decision(principal, "dataset.read", resource)
+
+    assert is_allowed_result == explain_result.allowed
+    assert explain_result.reason_code == "explicit_allow"

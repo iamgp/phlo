@@ -12,12 +12,13 @@ from time import monotonic
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, Field
 
 from phlo.capabilities import resolve_capability
 from phlo.capabilities.discovery import discover_capabilities
 from phlo.logging import get_logger
+from phlo_api.api.authorization import check_dataset_query, check_dataset_read
 from phlo_api.observatory_api.trino_sql import (
     is_probably_qualified_table,
     qualify_table_name,
@@ -329,6 +330,7 @@ async def check_connection(trino_url: str | None = None) -> TrinoConnectionStatu
 
 @router.get("/preview/{table:path}", response_model=DataPreviewResult | dict)
 async def preview_data(
+    request: Request,
     table: str,
     branch: str | None = None,
     catalog: str | None = None,
@@ -350,6 +352,8 @@ async def preview_data(
         if is_probably_qualified_table(table)
         else qualify_table_name(effective_catalog, effective_schema, table)
     )
+
+    check_dataset_read(request, resolved_table)
 
     # Build query
     if offset > 0:
@@ -469,13 +473,18 @@ async def get_table_metrics(
 
 
 @router.post("/query", response_model=QueryExecutionResult | QueryExecutionError)
-async def execute_query(request: ExecuteQueryRequest) -> QueryExecutionResult | QueryExecutionError:
+async def execute_query(
+    http_request: Request,
+    request: ExecuteQueryRequest,
+) -> QueryExecutionResult | QueryExecutionError:
     """Run an arbitrary query (with guardrails)."""
     try:
         effective_catalog = request.catalog or resolve_default_catalog()
         effective_schema = request.schema_name or request.branch or resolve_default_ref()
     except RuntimeError as exc:
         return QueryExecutionError(error=str(exc), kind="validation")
+
+    check_dataset_query(http_request, f"{effective_catalog}.{effective_schema}")
 
     if request.read_only_mode:
         validation_error = validate_read_only_query(request.query)

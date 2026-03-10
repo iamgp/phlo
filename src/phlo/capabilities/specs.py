@@ -181,6 +181,16 @@ class GovernanceBackendSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class AuthorizationPolicyBackendSpec:
+    """Authorization policy backend capability (PDP for access control)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
 class PublishTargetSpec:
     """Publish target capability (for example Postgres marts, warehouse export sink)."""
 

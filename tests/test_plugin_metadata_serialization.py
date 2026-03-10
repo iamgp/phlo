@@ -32,4 +32,6 @@ def test_plugin_metadata_to_dict_includes_support() -> None:
         "supports_logs": False,
         "supports_dashboards": False,
         "supports_alerts": False,
+        "supports_permissions": False,
+        "supports_attributes": False,
     }
