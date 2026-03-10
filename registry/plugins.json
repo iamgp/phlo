@@ -318,6 +318,17 @@
       "tags": ["data", "bootstrap", "clickhouse"],
       "verified": true,
       "core": false
+    },
+    "sling": {
+      "type": "ingestion_providers",
+      "package": "phlo-sling",
+      "version": "0.1.0",
+      "description": "Sling database replication ingestion provider for Phlo",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/phlohouse/phlo/tree/main/packages/phlo-sling",
+      "tags": ["ingestion", "replication", "database", "sling"],
+      "verified": true,
+      "core": false
     }
   }
 }

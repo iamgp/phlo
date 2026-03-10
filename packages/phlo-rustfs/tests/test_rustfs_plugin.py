@@ -1,6 +1,6 @@
 """Tests for RustFS service plugin."""
 
-from phlo_rustfs.plugin import RustfsServicePlugin, RustfsSetupServicePlugin
+from phlo_rustfs.plugin import RustfsResourceProvider, RustfsServicePlugin, RustfsSetupServicePlugin
 
 
 def test_rustfs_service_definition():
@@ -43,3 +43,25 @@ def test_rustfs_setup_plugin_metadata():
 
     assert metadata.name == "rustfs-setup"
     assert "bootstrap" in metadata.tags
+
+
+def test_rustfs_resource_provider_exposes_object_store(monkeypatch) -> None:
+    """RustFS should expose an object_store capability."""
+    monkeypatch.setattr(
+        "phlo_rustfs.plugin.RustfsObjectStoreProvider.to_sling_connection",
+        lambda _self: {
+            "type": "s3",
+            "endpoint": "http://rustfs:9000",
+            "access_key_id": "rustfs",
+            "secret_access_key": "secret",
+            "region": "us-east-1",
+        },
+    )
+
+    provider = RustfsResourceProvider()
+
+    object_stores = provider.get_object_stores()
+
+    assert len(object_stores) == 1
+    assert object_stores[0].name == "rustfs"
+    assert object_stores[0].metadata["endpoint"] == "http://rustfs:9000"

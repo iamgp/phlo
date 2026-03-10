@@ -17,6 +17,7 @@ from phlo.capabilities.specs import (
     LineageSinkSpec,
     MaintenanceReadModelSpec,
     MetadataCatalogSpec,
+    ObjectStoreSpec,
     ObservabilityBackendSpec,
     PublishTargetSpec,
     QualityBackendSpec,
@@ -39,6 +40,7 @@ class CapabilityRegistry:
     catalogs: dict[str, CatalogSpec] = field(default_factory=dict)
     catalog_scanners: dict[str, CatalogScannerSpec] = field(default_factory=dict)
     query_engines: dict[str, QueryEngineSpec] = field(default_factory=dict)
+    object_stores: dict[str, ObjectStoreSpec] = field(default_factory=dict)
     quality_backends: dict[str, QualityBackendSpec] = field(default_factory=dict)
     maintenance_read_models: dict[str, MaintenanceReadModelSpec] = field(default_factory=dict)
     metadata_catalogs: dict[str, MetadataCatalogSpec] = field(default_factory=dict)
@@ -152,6 +154,16 @@ class CapabilityRegistry:
         """Return a snapshot list of registered query engine specs."""
         with self._lock:
             return list(self.query_engines.values())
+
+    def register_object_store(self, spec: ObjectStoreSpec) -> None:
+        """Register or replace an object store spec by name."""
+        with self._lock:
+            self.object_stores[spec.name] = spec
+
+    def list_object_stores(self) -> list[ObjectStoreSpec]:
+        """Return a snapshot list of registered object store specs."""
+        with self._lock:
+            return list(self.object_stores.values())
 
     def register_quality_backend(self, spec: QualityBackendSpec) -> None:
         """Register or replace a quality backend spec by name."""
@@ -284,6 +296,7 @@ class CapabilityRegistry:
             self.catalogs.clear()
             self.catalog_scanners.clear()
             self.query_engines.clear()
+            self.object_stores.clear()
             self.quality_backends.clear()
             self.maintenance_read_models.clear()
             self.metadata_catalogs.clear()
@@ -365,6 +378,11 @@ def register_catalog_scanner(spec: CatalogScannerSpec) -> None:
 def register_query_engine(spec: QueryEngineSpec) -> None:
     """Register a query engine in the process-global registry."""
     _GLOBAL_REGISTRY.register_query_engine(spec)
+
+
+def register_object_store(spec: ObjectStoreSpec) -> None:
+    """Register an object store in the process-global registry."""
+    _GLOBAL_REGISTRY.register_object_store(spec)
 
 
 def register_quality_backend(spec: QualityBackendSpec) -> None:

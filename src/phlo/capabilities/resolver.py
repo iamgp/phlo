@@ -19,6 +19,7 @@ _CAPABILITY_LISTERS = {
     "catalog": "list_catalogs",
     "catalog_scanner": "list_catalog_scanners",
     "query_engine": "list_query_engines",
+    "object_store": "list_object_stores",
     "quality_backend": "list_quality_backends",
     "maintenance_read_model": "list_maintenance_read_models",
     "metadata_catalog": "list_metadata_catalogs",

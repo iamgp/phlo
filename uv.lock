@@ -53,6 +53,7 @@ members = [
     "phlo-postgrest",
     "phlo-prometheus",
     "phlo-rustfs",
+    "phlo-sling",
     "phlo-superset",
     "phlo-testing",
     "phlo-trino",
@@ -2895,6 +2896,7 @@ dev = [
     { name = "phlo-iceberg" },
     { name = "phlo-nessie" },
     { name = "phlo-openmetadata" },
+    { name = "phlo-sling" },
     { name = "phlo-testing" },
     { name = "pyiceberg" },
     { name = "pytest" },
@@ -2953,6 +2955,7 @@ dev = [
     { name = "phlo-iceberg", editable = "packages/phlo-iceberg" },
     { name = "phlo-nessie", editable = "packages/phlo-nessie" },
     { name = "phlo-openmetadata", editable = "packages/phlo-openmetadata" },
+    { name = "phlo-sling", editable = "packages/phlo-sling" },
     { name = "phlo-testing", editable = "packages/phlo-testing" },
     { name = "pyiceberg", specifier = ">=0.10.0" },
     { name = "pytest", specifier = ">=8.4.2" },
@@ -3762,6 +3765,31 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+
+[[package]]
+name = "phlo-sling"
+version = "0.1.0"
+source = { editable = "packages/phlo-sling" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyarrow" },
+    { name = "sling" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pyarrow", specifier = ">=21.0.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+    { name = "sling", specifier = ">=1.0.0" },
 ]
 
 [[package]]
@@ -5018,6 +5046,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050 },
+]
+
+[[package]]
+name = "sling"
+version = "1.5.12"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/74/8c/85afbff99a285196055539770e416eead76958ff5b0fc87d351beedc7dc3/sling-1.5.12.tar.gz", hash = "sha256:9ba14244ae31bd62e65fa8bd19a234952bf3ce4c2e74d0d38ec9c567366e260b", size = 58402 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/98/39/d44356193fdae9e25e1bfba961696296b98bffca1eb9530c525513ee8426/sling-1.5.12-py3-none-any.whl", hash = "sha256:369445e2cacd5cb779026fe7aff6e2d21b3570d830f92b4706e3c815249fec7a", size = 31969 },
 ]
 
 [[package]]
