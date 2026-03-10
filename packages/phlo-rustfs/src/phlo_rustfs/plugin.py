@@ -127,6 +127,6 @@ class RustfsResourceProvider(ResourceProviderPlugin):
             ObjectStoreSpec(
                 name="rustfs",
                 provider=provider,
-                metadata={"storage_system": "s3", **provider.to_sling_connection()},
+            metadata={"storage_system": "s3", "type": "s3", "endpoint": provider.to_sling_connection()["endpoint"]},
             )
         ]
