@@ -27,6 +27,9 @@ dev = [
 minio = "phlo_minio.plugin:MinioServicePlugin"
 minio-setup = "phlo_minio.plugin:MinioSetupServicePlugin"
 
+[project.entry-points."phlo.plugins.resources"]
+minio = "phlo_minio.plugin:MinioResourceProvider"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true

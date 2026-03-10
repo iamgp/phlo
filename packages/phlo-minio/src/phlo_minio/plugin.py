@@ -8,8 +8,9 @@ from typing import Any
 
 import yaml
 
+from phlo.capabilities import ObjectStoreSpec, ResourceSpec
 from phlo.logging import get_logger
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
 
 logger = get_logger(__name__)
 
@@ -99,3 +100,49 @@ class MinioSetupServicePlugin(ServicePlugin):
             dict[str, Any]: Parsed service configuration from YAML.
         """
         return _load_service_definition("minio-setup.yaml", "minio-setup")
+
+
+class MinioObjectStoreProvider:
+    """Capability provider for MinIO-backed object storage."""
+
+    def to_sling_connection(self) -> dict[str, Any]:
+        """Return a Sling-compatible S3 connection definition."""
+        from phlo_minio.settings import get_settings
+
+        settings = get_settings()
+        return {
+            "type": "s3",
+            "endpoint": f"http://{settings.minio_endpoint()}",
+            "access_key_id": settings.minio_root_user,
+            "secret_access_key": settings.minio_root_password,
+            "region": settings.s3_region,
+        }
+
+
+class MinioResourceProvider(ResourceProviderPlugin):
+    """Resource provider plugin for MinIO capabilities."""
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the MinIO resource provider."""
+        return PluginMetadata(
+            name="minio",
+            version="0.1.0",
+            description="MinIO object-store capability for Phlo",
+            tags=["core", "storage", "s3"],
+        )
+
+    def get_resources(self) -> list[ResourceSpec]:
+        """Return resource specs exposed by this provider."""
+        return []
+
+    def get_object_stores(self) -> list[ObjectStoreSpec]:
+        """Return object-store capability specs exposed by this provider."""
+        provider = MinioObjectStoreProvider()
+        return [
+            ObjectStoreSpec(
+                name="minio",
+                provider=provider,
+                metadata={"storage_system": "s3", **provider.to_sling_connection()},
+            )
+        ]

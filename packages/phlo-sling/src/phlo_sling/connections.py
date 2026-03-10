@@ -6,6 +6,8 @@ import os
 from collections.abc import MutableMapping
 from typing import Any
 
+from phlo.capabilities import list_capabilities, resolve_capability
+from phlo.capabilities.discovery import discover_capabilities
 from phlo.logging import get_logger
 from phlo_sling.settings import get_settings
 
@@ -56,39 +58,37 @@ def _resolve_postgres_connection() -> dict[str, dict[str, Any]]:
 
 
 def _resolve_s3_connection() -> dict[str, dict[str, Any]]:
-    """Resolve S3 connection from phlo-minio or phlo-rustfs settings."""
-    try:
-        from phlo_minio.settings import get_settings as get_minio_settings
-
-        minio = get_minio_settings()
-        return {
-            "PHLO_S3": {
-                "type": "s3",
-                "endpoint": f"http://{minio.minio_endpoint()}",
-                "access_key_id": minio.minio_root_user,
-                "secret_access_key": minio.minio_root_password,
-                "region": minio.s3_region,
-            }
-        }
-    except (ImportError, Exception) as exc:
-        logger.debug("minio_connection_skipped", error=str(exc))
-
-    try:
-        from phlo_rustfs.settings import get_settings as get_rustfs_settings
-
-        rustfs = get_rustfs_settings()
-        return {
-            "PHLO_S3": {
-                "type": "s3",
-                "endpoint": f"http://{rustfs.rustfs_endpoint()}",
-                "access_key_id": rustfs.rustfs_access_key,
-                "secret_access_key": rustfs.rustfs_secret_key,
-                "region": rustfs.s3_region,
-            }
-        }
-    except (ImportError, Exception) as exc:
-        logger.debug("s3_connection_skipped", error=str(exc))
+    """Resolve S3 connection from the active object-store capability."""
+    discover_capabilities()
+    requested_name = os.environ.get("PHLO_OBJECT_STORE")
+    resolution = resolve_capability("object_store", requested_name)
+    if resolution is None:
+        available = list_capabilities("object_store")
+        logger.debug(
+            "object_store_connection_skipped",
+            requested_name=requested_name,
+            available=available,
+        )
         return {}
+
+    provider = resolution.provider
+    if hasattr(provider, "to_sling_connection"):
+        config = provider.to_sling_connection()
+    else:
+        config = {
+            key: value
+            for key, value in resolution.metadata.items()
+            if key in {"type", "endpoint", "access_key_id", "secret_access_key", "region"}
+        }
+
+    if not config:
+        logger.debug(
+            "object_store_connection_missing_config",
+            capability_name=resolution.name,
+        )
+        return {}
+
+    return {"PHLO_S3": config}
 
 
 def export_sling_env(connections: dict[str, dict[str, Any]]) -> dict[str, str]:

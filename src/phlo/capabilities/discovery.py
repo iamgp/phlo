@@ -15,6 +15,7 @@ from phlo.capabilities.registry import (
     register_lineage_sink,
     register_maintenance_read_model,
     register_metadata_catalog,
+    register_object_store,
     register_observability_backend,
     register_publish_target,
     register_quality_backend,
@@ -75,6 +76,8 @@ def discover_capabilities() -> None:
                 register_catalog_scanner(catalog_scanner)
             for query_engine in plugin.get_query_engines():
                 register_query_engine(query_engine)
+            for object_store in plugin.get_object_stores():
+                register_object_store(object_store)
             for quality_backend in plugin.get_quality_backends():
                 register_quality_backend(quality_backend)
             for maintenance_read_model in plugin.get_maintenance_read_models():

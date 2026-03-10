@@ -27,6 +27,9 @@ dev = [
 rustfs = "phlo_rustfs.plugin:RustfsServicePlugin"
 rustfs-setup = "phlo_rustfs.plugin:RustfsSetupServicePlugin"
 
+[project.entry-points."phlo.plugins.resources"]
+rustfs = "phlo_rustfs.plugin:RustfsResourceProvider"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true

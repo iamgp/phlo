@@ -120,6 +120,10 @@ http://minio:10001
 
 **Console UI**: http://localhost:10002
 
+When multiple `object_store` capability providers are installed, set
+`PHLO_OBJECT_STORE=minio` to select MinIO for integrations that resolve the
+active object store via capabilities, such as `phlo-sling` auto-connections.
+
 RustFS S3-compatible object storage:
 
 ```bash
@@ -140,6 +144,10 @@ http://rustfs:9000
 ```
 
 **Console UI**: http://localhost:9001
+
+When multiple `object_store` capability providers are installed, set
+`PHLO_OBJECT_STORE=rustfs` to select RustFS for integrations that resolve the
+active object store via capabilities.
 
 ### Catalog Configuration
 

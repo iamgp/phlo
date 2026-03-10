@@ -1,9 +1,7 @@
 """Tests for Sling connection auto-discovery."""
 
 import json
-import sys
 from types import SimpleNamespace
-from types import ModuleType
 
 from phlo_sling.connections import (
     _resolve_s3_connection,
@@ -48,22 +46,43 @@ def test_resolve_phlo_connections_respects_auto_connections_setting(monkeypatch)
     assert resolve_phlo_connections() == {}
 
 
-def test_resolve_s3_connection_uses_minio_root_credentials(monkeypatch) -> None:
-    """MinIO-backed Sling connections should use the actual settings field names."""
-    minio_settings = SimpleNamespace(
-        minio_endpoint=lambda: "minio:9000",
-        minio_root_user="minio",
-        minio_root_password="secret",
-        s3_region="us-east-1",
+def test_resolve_s3_connection_uses_object_store_capability(monkeypatch) -> None:
+    """S3 auto-connections should resolve from the active object_store capability."""
+    monkeypatch.setattr("phlo_sling.connections.discover_capabilities", lambda: None)
+    monkeypatch.setattr("phlo_sling.connections.list_capabilities", lambda _kind: ["minio"])
+    monkeypatch.setattr(
+        "phlo_sling.connections.resolve_capability",
+        lambda _kind, _name=None: SimpleNamespace(
+            name="minio",
+            provider=SimpleNamespace(
+                to_sling_connection=lambda: {
+                    "type": "s3",
+                    "endpoint": "http://minio:9000",
+                    "access_key_id": "minio",
+                    "secret_access_key": "secret",
+                    "region": "us-east-1",
+                }
+            ),
+            metadata={},
+        ),
     )
-    package = ModuleType("phlo_minio")
-    settings_module = ModuleType("phlo_minio.settings")
-    settings_module.get_settings = lambda: minio_settings
-    package.settings = settings_module
-    monkeypatch.setitem(sys.modules, "phlo_minio", package)
-    monkeypatch.setitem(sys.modules, "phlo_minio.settings", settings_module)
 
     result = _resolve_s3_connection()
 
     assert result["PHLO_S3"]["access_key_id"] == "minio"
     assert result["PHLO_S3"]["secret_access_key"] == "secret"
+
+
+def test_resolve_s3_connection_skips_when_object_store_is_ambiguous(monkeypatch) -> None:
+    """Auto-connections should not guess when multiple object_store capabilities exist."""
+    monkeypatch.setattr("phlo_sling.connections.discover_capabilities", lambda: None)
+    monkeypatch.setattr(
+        "phlo_sling.connections.list_capabilities",
+        lambda _kind: ["minio", "rustfs"],
+    )
+    monkeypatch.setattr(
+        "phlo_sling.connections.resolve_capability",
+        lambda _kind, _name=None: None,
+    )
+
+    assert _resolve_s3_connection() == {}

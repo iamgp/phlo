@@ -102,8 +102,10 @@ The following environment variables can be used to configure Sling:
 - `SLING_DEFAULT_NAMESPACE` - Default namespace for generated replication table names (default: "raw")
 - `SLING_DEFAULT_MODE` - Default replication mode (default: "incremental")
 - `SLING_AUTO_CONNECTIONS` - Auto-generate Sling connections from Phlo capability metadata (default: true)
+- `PHLO_OBJECT_STORE` - Select the active `object_store` capability when more than one is installed
 
 Notes:
 
 - Decorator-backed replications need a real Sling destination. When `target_conn` is set and `object` is omitted, `phlo-sling` targets `<namespace>.<table_name>` automatically.
 - If you set `SLING_AUTO_CONNECTIONS=false`, `phlo-sling` stops injecting `PHLO_POSTGRES` / `PHLO_S3` connection definitions into the environment.
+- `PHLO_S3` now resolves from the active `object_store` capability instead of importing `phlo-minio` / `phlo-rustfs` directly. If both are installed, set `PHLO_OBJECT_STORE=minio` or `PHLO_OBJECT_STORE=rustfs`.
