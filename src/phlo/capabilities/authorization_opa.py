@@ -200,7 +200,7 @@ class OPAAuthorizationPolicyBackend:
 
     def _evaluate(self, input_data: dict[str, Any]) -> dict[str, Any] | None:
         """Evaluate the input against OPA."""
-        url = f"{self._opa_url}/v1/data/{self._opa_policy_package}"
+        url = f"{self._opa_url}/v1/data/{self._opa_policy_package.replace('.', '/')}"
         payload = {"input": input_data}
 
         with httpx.Client(timeout=self._timeout) as client:
