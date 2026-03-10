@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -444,4 +444,79 @@ class ObservabilityBackend(Protocol):
 
     def metrics_query_link(self, metric: str | None = None) -> str | None:
         """Return a link to query metrics, optionally filtered by metric."""
+        ...
+
+
+@dataclass(frozen=True)
+class Principal:
+    """Principal attempting an action."""
+
+    subject: str
+    principal_type: str
+    roles: tuple[str, ...] = ()
+    attributes: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ResourceRef:
+    """Reference to a resource being accessed."""
+
+    resource_type: str
+    resource_id: str
+    tenant: str | None = None
+    attributes: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class DecisionContext:
+    """Context for an authorization decision."""
+
+    environment: str | None = None
+    request_id: str | None = None
+    ip_address: str | None = None
+    attributes: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class AuthorizationDecision:
+    """Result of an authorization evaluation."""
+
+    allowed: bool
+    reason_code: str
+    policy_id: str | None = None
+    explanation: str | None = None
+
+
+@runtime_checkable
+class AuthorizationPolicyBackend(Protocol):
+    """Protocol for authorization policy decision point (PDP) providers."""
+
+    def is_allowed(
+        self,
+        principal: Principal,
+        action: str,
+        resource: ResourceRef,
+        context: DecisionContext | None = None,
+    ) -> bool:
+        """Check if an action is allowed."""
+        ...
+
+    def explain_decision(
+        self,
+        principal: Principal,
+        action: str,
+        resource: ResourceRef,
+        context: DecisionContext | None = None,
+    ) -> AuthorizationDecision:
+        """Explain an authorization decision with full details."""
+        ...
+
+    def filter_resources(
+        self,
+        principal: Principal,
+        resources: list[ResourceRef],
+        action: str,
+        context: DecisionContext | None = None,
+    ) -> list[ResourceRef]:
+        """Filter resources to only those the principal can access."""
         ...

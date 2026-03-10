@@ -12,7 +12,9 @@ from phlo.capabilities import (
     clear_capabilities,
     get_capability_registry,
 )
+from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
 from phlo.capabilities.discovery import discover_capabilities
+from phlo.capabilities.interfaces import Principal, ResourceRef
 
 
 class _Operation:
@@ -32,8 +34,10 @@ def test_discover_capabilities_registers_core_default_providers() -> None:
     clear_capabilities()
     discover_capabilities()
     registry = get_capability_registry()
+    authorization_specs = registry.list_authorization_policy_backends()
     maintenance_specs = registry.list_maintenance_read_models()
     observability_specs = registry.list_observability_backends()
+    assert authorization_specs == []
     assert [spec.name for spec in maintenance_specs] == ["default"]
     assert isinstance(maintenance_specs[0].provider, DefaultMaintenanceReadModel)
     assert [spec.name for spec in observability_specs] == ["default"]
@@ -70,6 +74,31 @@ def test_default_observability_backend_returns_expected_types() -> None:
     assert isinstance(backend.metrics_query_link("test_metric"), str) or (
         backend.metrics_query_link("test_metric") is None
     )
+
+
+def test_default_authorization_backend_matches_wildcard_resource_types() -> None:
+    backend = DefaultAuthorizationPolicyBackend(
+        policies=[
+            {
+                "policy_id": "table-reader",
+                "effect": "allow",
+                "principal": {"roles": ["analyst"]},
+                "action": "dataset.read",
+                "resource": {
+                    "type": "table_*",
+                    "id_pattern": "analytics.*",
+                },
+            }
+        ]
+    )
+
+    allowed = backend.is_allowed(
+        principal=Principal(subject="alice", principal_type="user", roles=("analyst",)),
+        action="dataset.read",
+        resource=ResourceRef(resource_type="table_view", resource_id="analytics.orders"),
+    )
+
+    assert allowed is True
 
 
 def test_recent_alerts_limits_after_filtering_failures(monkeypatch) -> None:
