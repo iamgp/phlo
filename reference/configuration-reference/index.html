@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
     
     
       
@@ -2721,6 +2721,9 @@ MINIO_ROOT_PASSWORD=minioadmin
 <pre><code>http://minio:10001
 </code></pre>
 <p><strong>Console UI</strong>: http://localhost:10002</p>
+<p>When multiple <code>object_store</code> capability providers are installed, set
+<code>PHLO_OBJECT_STORE=minio</code> to select MinIO for integrations that resolve the
+active object store via capabilities, such as <code>phlo-sling</code> auto-connections.</p>
 <p>RustFS S3-compatible object storage:</p>
 <pre><code class="language-bash"># Host and ports
 RUSTFS_HOST=rustfs
@@ -2735,6 +2738,9 @@ RUSTFS_SECRET_KEY=rustfsadmin
 <pre><code>http://rustfs:9000
 </code></pre>
 <p><strong>Console UI</strong>: http://localhost:9001</p>
+<p>When multiple <code>object_store</code> capability providers are installed, set
+<code>PHLO_OBJECT_STORE=rustfs</code> to select RustFS for integrations that resolve the
+active object store via capabilities.</p>
 <h3 id="catalog-configuration">Catalog Configuration</h3>
 <p>Nessie Git-like catalog:</p>
 <pre><code class="language-bash"># Version and connectivity
