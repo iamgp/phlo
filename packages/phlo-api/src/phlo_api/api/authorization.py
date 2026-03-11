@@ -21,6 +21,8 @@ from phlo.capabilities import (
 )
 from phlo.logging import get_logger
 
+from phlo_api.api.authentication import get_request_principal
+
 logger = get_logger(__name__)
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -89,22 +91,79 @@ def create_decision_context(
     )
 
 
-def resolve_request_principal(request: Request) -> Principal:
-    """Resolve the principal from the request.
+def resolve_request_principal(request: Request, require_auth: bool = False) -> Principal | None:
+    """Resolve the principal from the request using authentication capability.
 
-    In production, this would extract identity from authentication.
-    For now, returns a default principal for development.
+    Uses the configured authentication provider to get the AuthPrincipal,
+    then applies canonical role mapping to produce the authz Principal.
+
+    Args:
+        request: The FastAPI request
+        require_auth: If True, returns None when authentication fails or is not configured.
+                     If False (default), falls back to anonymous principal for backward compat.
+
+    Returns:
+        Principal if authenticated (or require_auth=False), None if require_auth=True and not authenticated.
     """
-    auth_header = request.headers.get("authorization")
+    auth_principal = get_request_principal(request)
+    if auth_principal is None:
+        if require_auth:
+            return None
+        return _default_principal()
 
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-        return Principal(
-            subject=token[:8],
-            principal_type="service",
-            roles=("service",),
-        )
+    return _authn_to_authz_principal(auth_principal)
 
+
+def _authn_to_authz_principal(auth_principal: Any) -> Principal:
+    """Convert AuthPrincipal from authentication to authz Principal.
+
+    Applies canonical role mapping based on authentication attributes.
+    Only maps known group names to canonical roles; unknown groups are discarded.
+    """
+    roles = _map_groups_to_roles(auth_principal.groups)
+    roles = _apply_principal_type_roles(auth_principal.principal_type, roles)
+
+    return Principal(
+        subject=auth_principal.subject,
+        principal_type=auth_principal.principal_type,
+        roles=roles,
+        attributes=dict(auth_principal.attributes),
+    )
+
+
+def _map_groups_to_roles(groups: tuple[str, ...]) -> tuple[str, ...]:
+    """Map authentication groups to canonical roles.
+
+    Only known group names are mapped to canonical roles.
+    Unknown groups are discarded to prevent privilege escalation
+    based on IdP-native group names.
+    """
+    role_mapping = {
+        "admin": "admin",
+        "operators": "operator",
+        "developers": "developer",
+        "analysts": "analyst",
+        "viewers": "viewer",
+    }
+    roles = []
+    for group in groups:
+        if group in role_mapping and role_mapping[group] not in roles:
+            roles.append(role_mapping[group])
+    return tuple(roles)
+
+
+def _apply_principal_type_roles(
+    principal_type: str, existing_roles: tuple[str, ...]
+) -> tuple[str, ...]:
+    """Apply default roles based on principal type."""
+    if principal_type == "service":
+        if "service" not in existing_roles:
+            return (*existing_roles, "service") if existing_roles else ("service",)
+    return existing_roles
+
+
+def _default_principal() -> Principal:
+    """Return the default anonymous principal."""
     return Principal(
         subject="anonymous",
         principal_type="user",
@@ -116,13 +175,19 @@ def check_dataset_read(
     request: Request,
     dataset_id: str,
     environment: str | None = None,
+    require_auth: bool = True,
 ) -> None:
     """Check if the request can read the dataset."""
     backend = get_authorization_backend()
     if backend is None:
         return
 
-    principal = resolve_request_principal(request)
+    principal = resolve_request_principal(request, require_auth=require_auth)
+    if principal is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "unauthorized", "reason": "authentication_required"},
+        )
     resource = ResourceRef(
         resource_type="dataset",
         resource_id=dataset_id,
@@ -142,13 +207,19 @@ def check_dataset_query(
     request: Request,
     dataset_id: str,
     environment: str | None = None,
+    require_auth: bool = True,
 ) -> None:
     """Check if the request can query the dataset."""
     backend = get_authorization_backend()
     if backend is None:
         return
 
-    principal = resolve_request_principal(request)
+    principal = resolve_request_principal(request, require_auth=require_auth)
+    if principal is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "unauthorized", "reason": "authentication_required"},
+        )
     resource = ResourceRef(
         resource_type="dataset",
         resource_id=dataset_id,
@@ -168,13 +239,19 @@ def check_asset_read(
     request: Request,
     asset_id: str,
     environment: str | None = None,
+    require_auth: bool = True,
 ) -> None:
     """Check if the request can read the asset."""
     backend = get_authorization_backend()
     if backend is None:
         return
 
-    principal = resolve_request_principal(request)
+    principal = resolve_request_principal(request, require_auth=require_auth)
+    if principal is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "unauthorized", "reason": "authentication_required"},
+        )
     resource = ResourceRef(
         resource_type="asset",
         resource_id=asset_id,
@@ -194,13 +271,19 @@ def check_asset_execute(
     request: Request,
     asset_id: str,
     environment: str | None = None,
+    require_auth: bool = True,
 ) -> None:
     """Check if the request can execute the asset."""
     backend = get_authorization_backend()
     if backend is None:
         return
 
-    principal = resolve_request_principal(request)
+    principal = resolve_request_principal(request, require_auth=require_auth)
+    if principal is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "unauthorized", "reason": "authentication_required"},
+        )
     resource = ResourceRef(
         resource_type="asset",
         resource_id=asset_id,
@@ -220,13 +303,19 @@ def check_service_read(
     request: Request,
     service_id: str,
     environment: str | None = None,
+    require_auth: bool = True,
 ) -> None:
     """Check if the request can read the service."""
     backend = get_authorization_backend()
     if backend is None:
         return
 
-    principal = resolve_request_principal(request)
+    principal = resolve_request_principal(request, require_auth=require_auth)
+    if principal is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "unauthorized", "reason": "authentication_required"},
+        )
     resource = ResourceRef(
         resource_type="service",
         resource_id=service_id,
@@ -246,13 +335,19 @@ def check_service_manage(
     request: Request,
     service_id: str,
     environment: str | None = None,
+    require_auth: bool = True,
 ) -> None:
     """Check if the request can manage the service."""
     backend = get_authorization_backend()
     if backend is None:
         return
 
-    principal = resolve_request_principal(request)
+    principal = resolve_request_principal(request, require_auth=require_auth)
+    if principal is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "unauthorized", "reason": "authentication_required"},
+        )
     resource = ResourceRef(
         resource_type="service",
         resource_id=service_id,
@@ -272,13 +367,19 @@ def check_admin_read(
     request: Request,
     admin_id: str,
     environment: str | None = None,
+    require_auth: bool = True,
 ) -> None:
     """Check if the request can read admin resources."""
     backend = get_authorization_backend()
     if backend is None:
         return
 
-    principal = resolve_request_principal(request)
+    principal = resolve_request_principal(request, require_auth=require_auth)
+    if principal is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "unauthorized", "reason": "authentication_required"},
+        )
     resource = ResourceRef(
         resource_type="admin",
         resource_id=admin_id,
@@ -298,13 +399,19 @@ def check_admin_manage(
     request: Request,
     admin_id: str,
     environment: str | None = None,
+    require_auth: bool = True,
 ) -> None:
     """Check if the request can manage admin resources."""
     backend = get_authorization_backend()
     if backend is None:
         return
 
-    principal = resolve_request_principal(request)
+    principal = resolve_request_principal(request, require_auth=require_auth)
+    if principal is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "unauthorized", "reason": "authentication_required"},
+        )
     resource = ResourceRef(
         resource_type="admin",
         resource_id=admin_id,
@@ -325,13 +432,16 @@ def filter_datasets(
     dataset_ids: list[str],
     action: str = _ACTION_DATASET_READ,
     environment: str | None = None,
+    require_auth: bool = True,
 ) -> list[str]:
     """Filter a list of dataset IDs to only those the principal can access."""
     backend = get_authorization_backend()
     if backend is None:
         return dataset_ids
 
-    principal = resolve_request_principal(request)
+    principal = resolve_request_principal(request, require_auth=require_auth)
+    if principal is None:
+        return []
     resources = [ResourceRef(resource_type="dataset", resource_id=d_id) for d_id in dataset_ids]
     context = create_decision_context(request, environment)
 
