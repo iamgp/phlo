@@ -10,6 +10,7 @@ from phlo.capabilities.specs import (
     ApiBackendSpec,
     AssetCheckSpec,
     AssetSpec,
+    AuthenticationProviderSpec,
     AuthorizationPolicyBackendSpec,
     CatalogScannerSpec,
     CatalogSpec,
@@ -50,6 +51,7 @@ class CapabilityRegistry:
     authorization_policy_backends: dict[str, AuthorizationPolicyBackendSpec] = field(
         default_factory=dict
     )
+    authentication_providers: dict[str, AuthenticationProviderSpec] = field(default_factory=dict)
     publish_targets: dict[str, PublishTargetSpec] = field(default_factory=dict)
     alert_sinks: dict[str, AlertSinkSpec] = field(default_factory=dict)
     api_backends: dict[str, ApiBackendSpec] = field(default_factory=dict)
@@ -229,6 +231,16 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.authorization_policy_backends.values())
 
+    def register_authentication_provider(self, spec: AuthenticationProviderSpec) -> None:
+        """Register or replace an authentication provider spec by name."""
+        with self._lock:
+            self.authentication_providers[spec.name] = spec
+
+    def list_authentication_providers(self) -> list[AuthenticationProviderSpec]:
+        """Return a snapshot list of registered authentication provider specs."""
+        with self._lock:
+            return list(self.authentication_providers.values())
+
     def register_publish_target(self, spec: PublishTargetSpec) -> None:
         """Register or replace a publish target spec by name."""
         with self._lock:
@@ -317,6 +329,7 @@ class CapabilityRegistry:
             self.lineage_sinks.clear()
             self.governance_backends.clear()
             self.authorization_policy_backends.clear()
+            self.authentication_providers.clear()
             self.publish_targets.clear()
             self.alert_sinks.clear()
             self.api_backends.clear()
@@ -428,6 +441,11 @@ def register_governance_backend(spec: GovernanceBackendSpec) -> None:
 def register_authorization_policy_backend(spec: AuthorizationPolicyBackendSpec) -> None:
     """Register an authorization policy backend in the process-global registry."""
     _GLOBAL_REGISTRY.register_authorization_policy_backend(spec)
+
+
+def register_authentication_provider(spec: AuthenticationProviderSpec) -> None:
+    """Register an authentication provider in the process-global registry."""
+    _GLOBAL_REGISTRY.register_authentication_provider(spec)
 
 
 def register_publish_target(spec: PublishTargetSpec) -> None:
