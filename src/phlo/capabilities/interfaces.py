@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -520,3 +522,121 @@ class AuthorizationPolicyBackend(Protocol):
     ) -> list[ResourceRef]:
         """Filter resources to only those the principal can access."""
         ...
+
+
+@dataclass(frozen=True)
+class AuthPrincipal:
+    """Normalized caller identity from authentication."""
+
+    subject: str
+    principal_type: str  # "user" | "service"
+    issuer: str | None = None
+    email: str | None = None
+    groups: tuple[str, ...] = ()
+    claims: dict[str, str] = field(default_factory=dict)
+    attributes: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class AuthenticatedSession:
+    """Validated auth state associated with a caller."""
+
+    principal: AuthPrincipal
+    auth_method: str  # "oidc" | "proxy" | "bearer_token" | "session" | "static"
+    provider_name: str
+    session_id: str | None = None
+    expires_at: datetime | None = None
+    issued_at: datetime | None = None
+    attributes: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class AuthResult:
+    """Normalized result of an authentication step."""
+
+    authenticated: bool
+    principal: AuthPrincipal | None = None
+    session: AuthenticatedSession | None = None
+    reason_code: str | None = None
+
+
+@dataclass(frozen=True)
+class BrowserLoginStart:
+    """Result of starting a browser-based login flow."""
+
+    redirect_url: str
+    state_token: str | None = None
+    code_verifier: str | None = None
+
+
+@dataclass(frozen=True)
+class LogoutResult:
+    """Result of a logout operation."""
+
+    success: bool
+    redirect_url: str | None = None
+
+
+class RequestContext:
+    """Request-scoped input presented to the authentication provider.
+
+    This is a simple container that adapters can populate with request data
+    (headers, cookies, etc.) for the authentication provider to validate.
+    """
+
+    def __init__(
+        self,
+        headers: Mapping[str, str] | None = None,
+        cookies: Mapping[str, str] | None = None,
+        query_params: Mapping[str, str] | None = None,
+        method: str | None = None,
+        path: str | None = None,
+        remote_addr: str | None = None,
+    ):
+        self.headers = dict(headers) if headers else {}
+        self.cookies = dict(cookies) if cookies else {}
+        self.query_params = dict(query_params) if query_params else {}
+        self.method = method
+        self.path = path
+        self.remote_addr = remote_addr
+
+
+@runtime_checkable
+class AuthenticationProvider(Protocol):
+    """Protocol for authentication providers.
+
+    Every provider must implement the mandatory interface.
+    Optional browser flows may raise NotImplementedError if not supported.
+    """
+
+    def authenticate(self, request_context: RequestContext) -> AuthResult:
+        """Authenticate a request and return the result."""
+        ...
+
+    def current_principal(self, request_context: RequestContext) -> AuthPrincipal | None:
+        """Get the current principal from an already-authenticated request."""
+        ...
+
+    def validate_token(self, token: str) -> AuthenticatedSession | None:
+        """Validate a bearer token and return session if valid."""
+        ...
+
+    def start_login(self) -> BrowserLoginStart:
+        """Start a browser-based login flow (optional)."""
+        raise NotImplementedError
+
+    def finish_login(self, request_context: RequestContext) -> AuthResult:
+        """Finish a browser-based login flow (optional)."""
+        raise NotImplementedError
+
+    def logout(self, request_context: RequestContext) -> LogoutResult:
+        """Log out the current user (optional)."""
+        raise NotImplementedError
+
+    def exchange_token(self, token: str) -> AuthenticatedSession | None:
+        """Exchange one token type for another (optional)."""
+        raise NotImplementedError
+
+    def authenticate_proxy_identity(self, request_context: RequestContext) -> AuthResult:
+        """Authenticate reverse-proxy asserted identity (optional)."""
+        raise NotImplementedError

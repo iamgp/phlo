@@ -7,6 +7,7 @@ from phlo.capabilities.registry import (
     register_alert_sink,
     register_api_backend,
     register_asset,
+    register_authentication_provider,
     register_authorization_policy_backend,
     register_catalog,
     register_catalog_scanner,
@@ -91,6 +92,8 @@ def discover_capabilities() -> None:
                 register_governance_backend(governance_backend)
             for authorization_policy_backend in plugin.get_authorization_policy_backends():
                 register_authorization_policy_backend(authorization_policy_backend)
+            for authentication_provider in plugin.get_authentication_providers():
+                register_authentication_provider(authentication_provider)
             for publish_target in plugin.get_publish_targets():
                 register_publish_target(publish_target)
             for alert_sink in plugin.get_alert_sinks():

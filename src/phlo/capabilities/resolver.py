@@ -26,6 +26,7 @@ _CAPABILITY_LISTERS = {
     "lineage_sink": "list_lineage_sinks",
     "governance_backend": "list_governance_backends",
     "authorization_policy_backend": "list_authorization_policy_backends",
+    "authentication_provider": "list_authentication_providers",
     "publish_target": "list_publish_targets",
     "alert_sink": "list_alert_sinks",
     "api_backend": "list_api_backends",

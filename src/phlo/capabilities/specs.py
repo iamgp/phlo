@@ -12,6 +12,16 @@ from phlo.capabilities.support import CapabilitySupport
 
 
 @dataclass(frozen=True, slots=True)
+class AuthenticationProviderSpec:
+    """Authentication provider capability."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
 class ObservabilityBackendSpec:
     """Observability backend capability (metrics, logs, dashboards, alerts)."""
 
