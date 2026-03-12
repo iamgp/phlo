@@ -268,36 +268,32 @@ class TrinoCompiler(GovernanceCompiler):
             privileges = self.ACTION_MAPPING.get(policy.action, ())
 
             for role_name in policy.principal_roles:
-                effective_roles = rbac.roles.get_effective_roles(role_name)
-                for effective_role in effective_roles:
-                    resource_id = policy.resource_id_pattern.replace("*", "%")
-                    artifact_name = f"{effective_role}_{policy.resource_type}_{resource_id}"
+                resource_id = policy.resource_id_pattern.replace("*", "%")
+                artifact_name = f"{role_name}_{policy.resource_type}_{resource_id}"
 
-                    for privilege in privileges:
-                        if policy.resource_type == "dataset":
-                            statement = (
-                                f"GRANT {privilege} ON TABLE {resource_id} TO ROLE {effective_role}"
-                            )
-                        elif policy.resource_type == "service":
-                            statement = f"GRANT {privilege} ON SCHEMA {resource_id} TO ROLE {effective_role}"
-                        else:
-                            statement = f"GRANT {privilege} ON {policy.resource_type} {resource_id} TO ROLE {effective_role}"
+                for privilege in privileges:
+                    if policy.resource_type == "dataset":
+                        statement = f"GRANT {privilege} ON TABLE {resource_id} TO ROLE {role_name}"
+                    elif policy.resource_type == "service":
+                        statement = f"GRANT {privilege} ON SCHEMA {resource_id} TO ROLE {role_name}"
+                    else:
+                        statement = f"GRANT {privilege} ON {policy.resource_type} {resource_id} TO ROLE {role_name}"
 
-                        artifacts.append(
-                            BackendArtifact(
-                                backend=self.backend_name,
-                                artifact_type="grant",
-                                name=artifact_name,
-                                statement=statement,
-                                managed=True,
-                                metadata={
-                                    "role": effective_role,
-                                    "privilege": privilege,
-                                    "resource": resource_id,
-                                    "policy_id": policy.policy_id,
-                                },
-                            )
+                    artifacts.append(
+                        BackendArtifact(
+                            backend=self.backend_name,
+                            artifact_type="grant",
+                            name=artifact_name,
+                            statement=statement,
+                            managed=True,
+                            metadata={
+                                "role": role_name,
+                                "privilege": privilege,
+                                "resource": resource_id,
+                                "policy_id": policy.policy_id,
+                            },
                         )
+                    )
 
         return artifacts
 
@@ -555,28 +551,26 @@ class PostgreSQLCompiler(GovernanceCompiler):
             privileges = self.ACTION_MAPPING.get(policy.action, ())
 
             for role_name in policy.principal_roles:
-                effective_roles = rbac.roles.get_effective_roles(role_name)
-                for effective_role in effective_roles:
-                    resource_id = policy.resource_id_pattern.replace("*", "%")
+                resource_id = policy.resource_id_pattern.replace("*", "%")
 
-                    for privilege in privileges:
-                        statement = f"GRANT {privilege} ON SCHEMA {resource_id} TO {effective_role}"
+                for privilege in privileges:
+                    statement = f"GRANT {privilege} ON SCHEMA {resource_id} TO {role_name}"
 
-                        artifacts.append(
-                            BackendArtifact(
-                                backend=self.backend_name,
-                                artifact_type="grant",
-                                name=f"{effective_role}_{policy.resource_type}_{resource_id}",
-                                statement=statement,
-                                managed=True,
-                                metadata={
-                                    "role": effective_role,
-                                    "privilege": privilege,
-                                    "resource": resource_id,
-                                    "policy_id": policy.policy_id,
-                                },
-                            )
+                    artifacts.append(
+                        BackendArtifact(
+                            backend=self.backend_name,
+                            artifact_type="grant",
+                            name=f"{role_name}_{policy.resource_type}_{resource_id}",
+                            statement=statement,
+                            managed=True,
+                            metadata={
+                                "role": role_name,
+                                "privilege": privilege,
+                                "resource": resource_id,
+                                "policy_id": policy.policy_id,
+                            },
                         )
+                    )
 
         return artifacts
 
@@ -718,34 +712,32 @@ class HasuraCompiler(GovernanceCompiler):
             permission_type = self.ACTION_MAPPING.get(policy.action, "select")
 
             for role_name in policy.principal_roles:
-                effective_roles = rbac.roles.get_effective_roles(role_name)
-                for effective_role in effective_roles:
-                    resource_id = policy.resource_id_pattern.replace("*", "%")
+                resource_id = policy.resource_id_pattern.replace("*", "%")
 
-                    permission = {
-                        "role": effective_role,
-                        "permission": {
-                            "columns": "*",
-                            "filter": {},
-                            "allow_upsert": True,
+                permission = {
+                    "role": role_name,
+                    "permission": {
+                        "columns": "*",
+                        "filter": {},
+                        "allow_upsert": True,
+                    },
+                }
+
+                artifacts.append(
+                    BackendArtifact(
+                        backend=self.backend_name,
+                        artifact_type="permission",
+                        name=f"{role_name}_{resource_id}_{permission_type}",
+                        statement=json.dumps(permission),
+                        managed=True,
+                        metadata={
+                            "role": role_name,
+                            "table": resource_id,
+                            "permission_type": permission_type,
+                            "policy_id": policy.policy_id,
                         },
-                    }
-
-                    artifacts.append(
-                        BackendArtifact(
-                            backend=self.backend_name,
-                            artifact_type="permission",
-                            name=f"{effective_role}_{resource_id}_{permission_type}",
-                            statement=json.dumps(permission),
-                            managed=True,
-                            metadata={
-                                "role": effective_role,
-                                "table": resource_id,
-                                "permission_type": permission_type,
-                                "policy_id": policy.policy_id,
-                            },
-                        )
                     )
+                )
 
         return artifacts
 
@@ -881,42 +873,40 @@ class MinIOCompiler(GovernanceCompiler):
             actions = self.ACTION_MAPPING.get(policy.action, [])
 
             for role_name in policy.principal_roles:
-                effective_roles = rbac.roles.get_effective_roles(role_name)
-                for effective_role in effective_roles:
-                    resource_pattern = policy.resource_id_pattern.replace("*", "*")
+                resource_pattern = policy.resource_id_pattern.replace("*", "*")
 
-                    statements = []
-                    for action in actions:
-                        statements.append(
-                            {
-                                "Effect": "Allow",
-                                "Action": action,
-                                "Resource": [f"arn:aws:s3:::{resource_pattern}/*"],
-                            }
-                        )
-
-                    policy_doc = {
-                        "Version": "2012-10-17",
-                        "Statement": statements,
-                    }
-
-                    policy_name = f"{context.managed_prefix}{effective_role}_{policy.action}"
-
-                    artifacts.append(
-                        BackendArtifact(
-                            backend=self.backend_name,
-                            artifact_type="iam_policy",
-                            name=policy_name,
-                            statement=json.dumps(policy_doc, indent=2),
-                            managed=True,
-                            metadata={
-                                "role": effective_role,
-                                "actions": actions,
-                                "resource": resource_pattern,
-                                "policy_id": policy.policy_id,
-                            },
-                        )
+                statements = []
+                for action in actions:
+                    statements.append(
+                        {
+                            "Effect": "Allow",
+                            "Action": action,
+                            "Resource": [f"arn:aws:s3:::{resource_pattern}/*"],
+                        }
                     )
+
+                policy_doc = {
+                    "Version": "2012-10-17",
+                    "Statement": statements,
+                }
+
+                policy_name = f"{context.managed_prefix}{role_name}_{policy.action}"
+
+                artifacts.append(
+                    BackendArtifact(
+                        backend=self.backend_name,
+                        artifact_type="iam_policy",
+                        name=policy_name,
+                        statement=json.dumps(policy_doc, indent=2),
+                        managed=True,
+                        metadata={
+                            "role": role_name,
+                            "actions": actions,
+                            "resource": resource_pattern,
+                            "policy_id": policy.policy_id,
+                        },
+                    )
+                )
 
         return artifacts
 
@@ -1052,32 +1042,30 @@ class NessieCompiler(GovernanceCompiler):
             permissions = self.ACTION_MAPPING.get(policy.action, [])
 
             for role_name in policy.principal_roles:
-                effective_roles = rbac.roles.get_effective_roles(role_name)
-                for effective_role in effective_roles:
-                    resource_pattern = policy.resource_id_pattern.replace("*", "*")
+                resource_pattern = policy.resource_id_pattern.replace("*", "*")
 
-                    rule = {
-                        "name": f"{effective_role}_{policy.action}_{resource_pattern}",
-                        "roles": [effective_role],
-                        "permissions": permissions,
-                        "resource": resource_pattern,
-                    }
+                rule = {
+                    "name": f"{role_name}_{policy.action}_{resource_pattern}",
+                    "roles": [role_name],
+                    "permissions": permissions,
+                    "resource": resource_pattern,
+                }
 
-                    artifacts.append(
-                        BackendArtifact(
-                            backend=self.backend_name,
-                            artifact_type="authz_rule",
-                            name=f"{effective_role}_{policy.action}_{resource_pattern}",
-                            statement=json.dumps(rule, indent=2),
-                            managed=True,
-                            metadata={
-                                "role": effective_role,
-                                "permissions": permissions,
-                                "resource": resource_pattern,
-                                "policy_id": policy.policy_id,
-                            },
-                        )
+                artifacts.append(
+                    BackendArtifact(
+                        backend=self.backend_name,
+                        artifact_type="authz_rule",
+                        name=f"{role_name}_{policy.action}_{resource_pattern}",
+                        statement=json.dumps(rule, indent=2),
+                        managed=True,
+                        metadata={
+                            "role": role_name,
+                            "permissions": permissions,
+                            "resource": resource_pattern,
+                            "policy_id": policy.policy_id,
+                        },
                     )
+                )
 
         return artifacts
 

@@ -6,7 +6,14 @@ from typing import cast
 
 from phlo.capabilities.interfaces import GovernanceBackend
 from phlo.rbac.compiler import CompilerContext, TrinoCompiler
-from phlo.rbac.models import BackendArtifact, PolicyChange, SyncPlan
+from phlo.rbac.models import (
+    BackendArtifact,
+    CanonicalRBAC,
+    PoliciesConfig,
+    PolicyChange,
+    RolesConfig,
+    SyncPlan,
+)
 
 
 class _FakeTrinoBackend:
@@ -116,3 +123,39 @@ def test_trino_read_current_state_uses_compile_compatible_names() -> None:
     assert len(artifacts) == 1
     assert artifacts[0].name == "phlo_admin_dataset_analytics.table"
     assert artifacts[0].metadata["resource_type"] == "dataset"
+
+
+def test_trino_compile_does_not_grant_to_inherited_roles() -> None:
+    compiler = TrinoCompiler()
+    roles = RolesConfig.from_dict(
+        {
+            "version": 1,
+            "roles": {
+                "viewer": {"inherits": []},
+                "analyst": {"inherits": ["viewer"]},
+                "admin": {"inherits": ["analyst"]},
+            },
+        }
+    )
+    policies = PoliciesConfig.from_dict(
+        {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "allow_admin_manage",
+                    "effect": "allow",
+                    "principal": {"roles": ["admin"]},
+                    "action": "admin.manage",
+                    "resource": {"type": "dataset", "id_pattern": "analytics.table"},
+                }
+            ],
+        }
+    )
+    rbac = CanonicalRBAC.from_configs(roles, policies)
+    context = CompilerContext(environment="test", backend_name="trino")
+
+    artifacts = compiler.compile(rbac, context)
+
+    assert len(artifacts) == 1
+    assert artifacts[0].metadata["role"] == "admin"
+    assert artifacts[0].name == "admin_dataset_analytics.table"
