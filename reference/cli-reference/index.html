@@ -334,6 +334,15 @@
 </a>
 </li>
 <li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-ports">
+<span class="md-ellipsis">
+      
+        phlo services ports
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
 <a class="md-nav__link" href="#phlo-services-add">
 <span class="md-ellipsis">
       
@@ -1228,6 +1237,15 @@
 <span class="md-ellipsis">
       
         phlo services list
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-ports">
+<span class="md-ellipsis">
+      
+        phlo services ports
       
     </span>
 </a>
@@ -2144,6 +2162,38 @@ phlo services list --json
 </ul>
 <pre><code class="language-bash">phlo services list --json
 # Error: Failed to discover services. Verify service plugins are installed and run `phlo plugins list` for diagnostics.
+</code></pre>
+<h3 id="phlo-services-ports">phlo services ports</h3>
+<p>Show port mappings for all services.</p>
+<pre><code class="language-bash">phlo services ports [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--json               # Output as JSON
+--all                # Include stopped services with defaults
+</code></pre>
+<p><strong>Source values</strong>:</p>
+<ul>
+<li><code>env</code>: Port set via compose env resolution, including shell vars, <code>phlo.yaml</code> <code>env:</code>, or <code>.phlo/.env*</code></li>
+<li><code>compose</code>: Literal host port from the compose mapping</li>
+<li><code>default</code>: Using the service.yaml default</li>
+<li><code>runtime</code>: Live port detected from the running container</li>
+</ul>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo services ports
+phlo services ports --json
+phlo services ports --all
+</code></pre>
+<p><strong>Output</strong>:</p>
+<pre><code>Service            Host Port   Container Port   Source     Status
+----------------------------------------------------------------------
+postgres           10000       5432             env       Running
+minio-api          10001       9000             env       Running
+dagster-webserver  10006       3000             env       Running
+clickhouse-http    8123        8123             default   Stopped
+</code></pre>
+<p><strong>Conflict detection</strong>:</p>
+<p>When two services resolve to the same host port, both rows are highlighted with a <code>⚠</code> prefix:</p>
+<pre><code class="language-bash">⚠ Port conflict: trino and hasura both map to host port 8080
 </code></pre>
 <h3 id="phlo-services-add">phlo services add</h3>
 <p>Add an optional service to the project.</p>
