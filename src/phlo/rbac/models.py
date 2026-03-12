@@ -126,6 +126,9 @@ class RolesConfig:
             if name in result_set:
                 return []
 
+            if name not in self.roles:
+                raise ValueError(f"Role '{name}' referenced in hierarchy does not exist")
+
             path.append(name)
             result_set.add(name)
 

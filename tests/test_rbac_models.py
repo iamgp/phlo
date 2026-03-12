@@ -102,6 +102,19 @@ class TestRolesConfig:
         assert "viewer" in expanded
         assert len(expanded) == 4
 
+    def test_expand_missing_inherited_role_raises_value_error(self):
+        """Test missing inherited roles fail with a validation-friendly error."""
+        data = {
+            "version": 1,
+            "roles": {
+                "admin": {"inherits": ["nonexistent_role"]},
+            },
+        }
+        config = RolesConfig.from_dict(data)
+
+        with pytest.raises(ValueError, match="referenced in hierarchy does not exist"):
+            config.expand_role_hierarchy("admin")
+
 
 class TestPoliciesConfig:
     """Tests for PoliciesConfig."""
@@ -218,6 +231,26 @@ class TestCanonicalRBAC:
         errors = rbac.validate()
         assert len(errors) > 0
         assert "nonexistent_role" in errors[0]
+
+    def test_validate_reports_missing_inherited_role(self):
+        """Test validation returns an error string for missing inherited roles."""
+        roles_data = {
+            "version": 1,
+            "roles": {
+                "admin": {"inherits": ["nonexistent_role"]},
+            },
+        }
+        policies_data = {
+            "version": 1,
+            "policies": [],
+        }
+
+        roles = RolesConfig.from_dict(roles_data)
+        policies = PoliciesConfig.from_dict(policies_data)
+        rbac = CanonicalRBAC.from_configs(roles, policies)
+
+        errors = rbac.validate()
+        assert errors == ["Role 'nonexistent_role' referenced in hierarchy does not exist"]
 
 
 class TestRBACConfigLoader:
