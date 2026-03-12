@@ -11,6 +11,15 @@ compose:
     phlo.metrics.enabled: "true"
     phlo.metrics.port: "minio:9000"
     phlo.metrics.path: "/minio/v2/metrics/cluster"
+    traefik.enable: "true"
+    traefik.http.routers.minio.rule: "Host(`minio.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+    traefik.http.routers.minio.entrypoints: "web"
+    traefik.http.routers.minio.service: "minio"
+    traefik.http.services.minio.loadbalancer.server.port: "9001"
+    traefik.http.routers.minio-api.rule: "Host(`minio-api.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+    traefik.http.routers.minio-api.entrypoints: "web"
+    traefik.http.routers.minio-api.service: "minio-api"
+    traefik.http.services.minio-api.loadbalancer.server.port: "9000"
   environment:
     MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
     MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}

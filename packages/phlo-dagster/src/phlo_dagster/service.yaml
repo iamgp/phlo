@@ -27,6 +27,10 @@ compose:
     phlo.metrics.enabled: "true"
     phlo.metrics.port: "dagster:3000"
     phlo.metrics.path: "/metrics"
+    traefik.enable: "true"
+    traefik.http.routers.dagster.rule: "Host(`dagster.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+    traefik.http.routers.dagster.entrypoints: "web"
+    traefik.http.services.dagster.loadbalancer.server.port: "3000"
   environment:
     DAGSTER_HOME: /opt/dagster
     PYTHONPATH: /opt/dagster:/app
