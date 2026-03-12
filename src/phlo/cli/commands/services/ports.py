@@ -315,7 +315,8 @@ def _get_traefik_routes(
             else f"http://{hostname}:{traefik.host_port}"
         )
 
-        port = service_ports.get(router_name)
+        traefik_svc_name = router_services.get(router_name, router_name)
+        port = service_ports.get(traefik_svc_name)
         if port:
             routes[port] = url
             continue
