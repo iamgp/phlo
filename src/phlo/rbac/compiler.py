@@ -389,7 +389,7 @@ class TrinoCompiler(GovernanceCompiler):
                     principal=role,
                     table_pattern=table,
                     action=privilege,
-                    effect="GRANT",
+                    effect="ALLOW",
                     columns=None,
                     row_filter=None,
                     data_masking=None,
@@ -490,18 +490,20 @@ class TrinoCompiler(GovernanceCompiler):
                     continue
 
                 resource = f"{schema}.{table}" if schema and table else (schema or table)
+                resource_type = "dataset" if table else "service"
 
                 artifacts.append(
                     BackendArtifact(
                         backend=self.backend_name,
                         artifact_type="grant",
-                        name=f"{grantee}_{resource}",
+                        name=f"{grantee}_{resource_type}_{resource}",
                         statement=f"GRANT {privilege} ON TABLE {resource} TO ROLE {grantee}",
                         managed=True,
                         metadata={
                             "role": grantee,
                             "privilege": privilege,
                             "resource": resource,
+                            "resource_type": resource_type,
                         },
                     )
                 )

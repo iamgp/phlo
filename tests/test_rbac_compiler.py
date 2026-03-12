@@ -44,6 +44,7 @@ def test_trino_apply_uses_privilege_as_action() -> None:
 
     assert len(backend.applied_policies) == 1
     assert backend.applied_policies[0].action == "SELECT"
+    assert backend.applied_policies[0].effect == "ALLOW"
     assert backend.applied_policies[0].table_pattern == "analytics.table"
 
 
@@ -58,7 +59,7 @@ def test_trino_revert_decodes_revert_id_to_artifact_name() -> None:
         }
     ]
     compiler = TrinoCompiler(backend=cast(GovernanceBackend, backend))
-    artifact_name = "phlo_admin_analytics.table"
+    artifact_name = "phlo_admin_dataset_analytics.table"
     revert_id = compiler._encode_revert_id(artifact_name)
     context = CompilerContext(environment="test", backend_name="trino")
 
@@ -95,3 +96,23 @@ def test_trino_plan_emits_revert_ids_that_round_trip() -> None:
 
     assert revert_id is not None
     assert compiler._decode_revert_id(revert_id) == artifact.name
+
+
+def test_trino_read_current_state_uses_compile_compatible_names() -> None:
+    backend = _FakeTrinoBackend()
+    backend._policies = [
+        {
+            "grantee": "phlo_admin",
+            "schema": "analytics",
+            "table": "table",
+            "privilege": "SELECT",
+        }
+    ]
+    compiler = TrinoCompiler(backend=cast(GovernanceBackend, backend))
+    context = CompilerContext(environment="test", backend_name="trino")
+
+    artifacts = compiler.read_current_state(context)
+
+    assert len(artifacts) == 1
+    assert artifacts[0].name == "phlo_admin_dataset_analytics.table"
+    assert artifacts[0].metadata["resource_type"] == "dataset"
