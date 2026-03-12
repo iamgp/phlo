@@ -280,6 +280,55 @@ phlo services list --json
 # Error: Failed to discover services. Verify service plugins are installed and run `phlo plugins list` for diagnostics.
 ```
 
+### phlo services ports
+
+Show port mappings for all services.
+
+```bash
+phlo services ports [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--json               # Output as JSON
+--all                # Include stopped services with defaults
+```
+
+**Source values**:
+
+- `env`: Port set via compose env resolution, including shell vars, `phlo.yaml` `env:`, or `.phlo/.env*`
+- `compose`: Literal host port from the compose mapping
+- `default`: Using the service.yaml default
+- `runtime`: Live port detected from the running container
+
+**Examples**:
+
+```bash
+phlo services ports
+phlo services ports --json
+phlo services ports --all
+```
+
+**Output**:
+
+```
+Service            Host Port   Container Port   Source     Status
+----------------------------------------------------------------------
+postgres           10000       5432             env       Running
+minio-api          10001       9000             env       Running
+dagster-webserver  10006       3000             env       Running
+clickhouse-http    8123        8123             default   Stopped
+```
+
+**Conflict detection**:
+
+When two services resolve to the same host port, both rows are highlighted with a `⚠` prefix:
+
+```bash
+⚠ Port conflict: trino and hasura both map to host port 8080
+```
+
 ### phlo services add
 
 Add an optional service to the project.
