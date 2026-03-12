@@ -163,11 +163,15 @@ def _apply_principal_type_roles(
 
 
 def _default_principal() -> Principal:
-    """Return the default anonymous principal."""
+    """Return the default anonymous principal.
+
+    Returns a principal with no roles to ensure fail-closed behavior.
+    Unauthenticated requests will be denied by the PDP's default-deny policy.
+    """
     return Principal(
         subject="anonymous",
         principal_type="user",
-        roles=("viewer",),
+        roles=(),
     )
 
 
