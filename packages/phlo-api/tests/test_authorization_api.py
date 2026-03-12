@@ -42,7 +42,7 @@ def test_resolve_request_principal_ignores_forwarded_identity_headers() -> None:
     assert principal == Principal(
         subject="anonymous",
         principal_type="user",
-        roles=("viewer",),
+        roles=(),
     )
 
 
