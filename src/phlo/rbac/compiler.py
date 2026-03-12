@@ -6,6 +6,7 @@ RBAC policies into backend-native artifacts.
 
 from __future__ import annotations
 
+import base64
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -231,6 +232,24 @@ class TrinoCompiler(GovernanceCompiler):
     def supports_action(self, action: str) -> bool:
         return action in self.ACTION_MAPPING
 
+    def _encode_revert_id(self, artifact_name: str) -> str:
+        """Encode a Trino artifact name into a reversible revert ID."""
+        encoded = base64.urlsafe_b64encode(artifact_name.encode()).decode().rstrip("=")
+        return f"{self.backend_name}:{encoded}"
+
+    def _decode_revert_id(self, revert_id: str) -> str:
+        """Decode a Trino revert ID back into an artifact name."""
+        prefix = f"{self.backend_name}:"
+        if not revert_id.startswith(prefix):
+            raise ValueError(f"Invalid Trino revert ID: {revert_id}")
+
+        encoded = revert_id[len(prefix) :]
+        padding = "=" * (-len(encoded) % 4)
+        try:
+            return base64.urlsafe_b64decode(f"{encoded}{padding}").decode()
+        except Exception as exc:  # pragma: no cover - defensive decode guard
+            raise ValueError(f"Invalid Trino revert ID: {revert_id}") from exc
+
     def compile(
         self,
         rbac: CanonicalRBAC,
@@ -303,7 +322,7 @@ class TrinoCompiler(GovernanceCompiler):
                         change_type="create",
                         backend=self.backend_name,
                         artifact=artifact,
-                        revert_id=self._generate_revert_id(),
+                        revert_id=self._encode_revert_id(artifact.name),
                     )
                 )
 
@@ -356,7 +375,7 @@ class TrinoCompiler(GovernanceCompiler):
         if self._backend is None:
             raise RuntimeError("No backend configured")
 
-        artifact.metadata.get("privilege", "SELECT")
+        privilege = artifact.metadata.get("privilege", "SELECT")
         role = artifact.metadata.get("role", "")
         resource = artifact.metadata.get("resource", "")
 
@@ -365,18 +384,11 @@ class TrinoCompiler(GovernanceCompiler):
                 return
             parts = artifact.statement.split(" TO ROLE ")
             if len(parts) == 2:
-                action_part, role_part = parts
-                action = (
-                    action_part.replace("GRANT ", "")
-                    .replace(" ON TABLE ", " ")
-                    .replace(" ON SCHEMA ", " ")
-                    .split()[-1]
-                )
                 table = resource
                 policy = AccessPolicy(
                     principal=role,
                     table_pattern=table,
-                    action=action,
+                    action=privilege,
                     effect="GRANT",
                     columns=None,
                     row_filter=None,
@@ -390,12 +402,13 @@ class TrinoCompiler(GovernanceCompiler):
         if self._backend is None:
             raise RuntimeError("No backend configured")
 
+        privilege = artifact.metadata.get("privilege", "SELECT")
         role = artifact.metadata.get("role", "")
         resource = artifact.metadata.get("resource", "")
 
         if artifact.artifact_type == "grant":
             self._backend.revoke_policy(
-                policy_id=f"SELECT:{resource}:{role}",
+                policy_id=f"{privilege}:{resource}:{role}",
             )
 
     def verify(
@@ -434,15 +447,24 @@ class TrinoCompiler(GovernanceCompiler):
         success_ids: list[str] = []
         errors: list[str] = []
 
-        current = self.read_current_state(context)
+        current_by_name = {artifact.name: artifact for artifact in self.read_current_state(context)}
         for revert_id in revert_ids:
-            for artifact in current:
-                if artifact.metadata.get("revert_id") == revert_id:
-                    try:
-                        self._revert_artifact(artifact)
-                        success_ids.append(revert_id)
-                    except Exception as e:
-                        errors.append(f"Failed to revert {revert_id}: {e}")
+            try:
+                artifact_name = self._decode_revert_id(revert_id)
+            except ValueError as e:
+                errors.append(str(e))
+                continue
+
+            artifact = current_by_name.get(artifact_name)
+            if artifact is None:
+                errors.append(f"Failed to revert {revert_id}: artifact {artifact_name!r} not found")
+                continue
+
+            try:
+                self._revert_artifact(artifact)
+                success_ids.append(revert_id)
+            except Exception as e:
+                errors.append(f"Failed to revert {revert_id}: {e}")
 
         return success_ids, errors
 
