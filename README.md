@@ -115,7 +115,8 @@ Phlo is a monorepo of composable packages — install only what you need:
 | **Ingestion**     | `phlo-dlt`                                                                                |
 | **Quality**       | `phlo-pandera`                                                                            |
 | **Transforms**    | `phlo-dbt`                                                                                |
-| **Table formats** | `phlo-iceberg`, `phlo-delta`                                                              |
+| **Table formats** | `phlo-iceberg`, `phlo-delta`, `phlo-clickhouse`                                           |
+| **Infrastructure**  | `phlo-traefik`, `phlo-postgres`                                                                           |
 | **Storage**       | `phlo-minio`                                                                              |
 | **Catalog**       | `phlo-nessie`, `phlo-openmetadata`                                                        |
 | **Query**         | `phlo-trino`                                                                              |
