@@ -119,29 +119,38 @@ dev-dependencies = [
 
 [tool.uv.sources]
 phlo = { workspace = true }
+phlo-alerting = { workspace = true }
+phlo-alloy = { workspace = true }
+phlo-api = { workspace = true }
+phlo-clickhouse = { workspace = true }
 phlo-clickstack = { workspace = true }
 phlo-core-plugins = { workspace = true }
-phlo-iceberg = { workspace = true }
+phlo-dagster = { workspace = true }
+phlo-dbt = { workspace = true }
 phlo-delta = { workspace = true }
 phlo-dlt = { workspace = true }
-phlo-dbt = { workspace = true }
-phlo-dagster = { workspace = true }
-phlo-api = { workspace = true }
-phlo-pandera = { workspace = true }
+phlo-grafana = { workspace = true }
+phlo-hasura = { workspace = true }
+phlo-iceberg = { workspace = true }
 phlo-lineage = { workspace = true }
-phlo-alerting = { workspace = true }
-phlo-observatory = { workspace = true }
-phlo-postgres = { workspace = true }
+phlo-loki = { workspace = true }
 phlo-minio = { workspace = true }
 phlo-nessie = { workspace = true }
-phlo-rustfs = { workspace = true }
-phlo-trino = { workspace = true }
+phlo-observatory = { workspace = true }
+phlo-observatory-example = { workspace = true }
 phlo-openmetadata = { workspace = true }
 phlo-otel = { workspace = true }
-phlo-testing = { workspace = true }
-phlo-observatory-example = { workspace = true }
-phlo-clickhouse = { workspace = true }
+phlo-pandera = { workspace = true }
+phlo-pgweb = { workspace = true }
+phlo-postgres = { workspace = true }
+phlo-postgrest = { workspace = true }
+phlo-prometheus = { workspace = true }
+phlo-rustfs = { workspace = true }
 phlo-sling = { workspace = true }
+phlo-superset = { workspace = true }
+phlo-testing = { workspace = true }
+phlo-traefik = { workspace = true }
+phlo-trino = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -230,5 +239,6 @@ extra-paths = [
   "packages/phlo-rustfs/src",
   "packages/phlo-superset/src",
   "packages/phlo-testing/src",
+  "packages/phlo-traefik/src",
   "packages/phlo-trino/src",
 ]
