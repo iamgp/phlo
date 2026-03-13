@@ -311,6 +311,92 @@ def test_get_service_ports_filters_stopped_by_default(monkeypatch: pytest.Monkey
     assert ports == []
 
 
+def test_get_service_routes_requires_active_traefik() -> None:
+    service = ServiceDefinition(
+        name="dagster",
+        description="Dagster",
+        compose={
+            "labels": {
+                "traefik.enable": "true",
+                "traefik.http.routers.dagster.rule": "Host(`dagster.${TRAEFIK_DOMAIN:-phlo.localhost}`)",
+                "traefik.http.services.dagster.loadbalancer.server.port": "3000",
+            }
+        },
+    )
+
+    routes = ports_module._get_service_routes({"dagster": service}, None)
+    assert routes == {}
+
+
+def test_get_active_traefik_context_uses_runtime_or_override_port() -> None:
+    services = {
+        "traefik": ServiceDefinition(
+            name="traefik",
+            description="Traefik",
+            compose={"ports": ["${TRAEFIK_HTTP_PORT:-80}:80"]},
+        )
+    }
+    env = {"TRAEFIK_HTTP_PORT": "80", "TRAEFIK_DOMAIN": "phlo.localhost"}
+    running_containers = {
+        "traefik": {
+            "status": "running",
+            "ports": [{"host_port": "8088", "container_port": "80/tcp"}],
+        }
+    }
+
+    context = ports_module._get_active_traefik_context(
+        services,
+        env,
+        running_containers,
+        disabled_services=set(),
+        service_overrides={"traefik": {"ports": ["8088:80"]}},
+    )
+
+    assert context == ports_module.TraefikContext(domain="phlo.localhost", host_port=8088)
+
+
+def test_get_service_routes_use_resolved_traefik_port() -> None:
+    service = ServiceDefinition(
+        name="dagster",
+        description="Dagster",
+        compose={
+            "labels": {
+                "traefik.enable": "true",
+                "traefik.http.routers.dagster.rule": "Host(`dagster.${TRAEFIK_DOMAIN:-phlo.localhost}`)",
+                "traefik.http.services.dagster.loadbalancer.server.port": "3000",
+            }
+        },
+    )
+
+    routes = ports_module._get_service_routes(
+        {"dagster": service},
+        ports_module.TraefikContext(domain="phlo.localhost", host_port=8088),
+    )
+    assert routes == {"dagster": {"3000": "http://dagster.phlo.localhost:8088"}}
+
+
+def test_get_service_routes_support_traefik_dashboard_api_internal() -> None:
+    service = ServiceDefinition(
+        name="traefik",
+        description="Traefik",
+        compose={
+            "labels": {
+                "traefik.enable": "true",
+                "traefik.http.routers.traefik.rule": (
+                    "Host(`traefik.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+                ),
+                "traefik.http.routers.traefik.service": "api@internal",
+            }
+        },
+    )
+
+    routes = ports_module._get_service_routes(
+        {"traefik": service},
+        ports_module.TraefikContext(domain="phlo.localhost", host_port=80),
+    )
+    assert routes == {"traefik": {"80": "http://traefik.phlo.localhost"}}
+
+
 def test_ports_cmd_uses_phlo_yaml_env_and_service_port_overrides(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
@@ -352,7 +438,104 @@ services:
         '    "container_port": 5432,\n'
         '    "source": "compose",\n'
         '    "status": "stopped",\n'
-        '    "env_var": null\n'
+        '    "env_var": null,\n'
+        '    "url": null\n'
         "  }\n"
         "]"
     )
+
+
+def test_ports_cmd_does_not_advertise_urls_without_running_traefik(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    (tmp_path / ".phlo").mkdir()
+    (tmp_path / "phlo.yaml").write_text("name: test\n")
+
+    class FakeDiscovery:
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {
+                "dagster": ServiceDefinition(
+                    name="dagster",
+                    description="Dagster",
+                    compose={
+                        "ports": ["${DAGSTER_PORT:-3000}:3000"],
+                        "labels": {
+                            "traefik.enable": "true",
+                            "traefik.http.routers.dagster.rule": (
+                                "Host(`dagster.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+                            ),
+                            "traefik.http.services.dagster.loadbalancer.server.port": "3000",
+                        },
+                    },
+                )
+            }
+
+    monkeypatch.setattr(ports_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
+    monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda _project_name: {})
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(ports_module.ports_cmd, ["--all", "--json"])
+    assert result.exit_code == 0
+    assert '"url": null' in result.output
+
+
+def test_ports_cmd_uses_effective_traefik_override_port_in_urls(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    (tmp_path / ".phlo").mkdir()
+    (tmp_path / "phlo.yaml").write_text(
+        """
+name: test
+services:
+  traefik:
+    ports:
+      - "8088:80"
+"""
+    )
+
+    class FakeDiscovery:
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {
+                "traefik": ServiceDefinition(
+                    name="traefik",
+                    description="Traefik",
+                    compose={"ports": ["${TRAEFIK_HTTP_PORT:-80}:80"]},
+                ),
+                "dagster": ServiceDefinition(
+                    name="dagster",
+                    description="Dagster",
+                    compose={
+                        "ports": ["${DAGSTER_PORT:-3000}:3000"],
+                        "labels": {
+                            "traefik.enable": "true",
+                            "traefik.http.routers.dagster.rule": (
+                                "Host(`dagster.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+                            ),
+                            "traefik.http.services.dagster.loadbalancer.server.port": "3000",
+                        },
+                    },
+                ),
+            }
+
+    monkeypatch.setattr(ports_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
+    monkeypatch.setattr(
+        ports_module,
+        "_get_running_container_ports",
+        lambda _project_name: {
+            "traefik": {
+                "status": "running",
+                "ports": [{"host_port": "8088", "container_port": "80/tcp"}],
+            },
+            "dagster": {
+                "status": "running",
+                "ports": [{"host_port": "3000", "container_port": "3000/tcp"}],
+            },
+        },
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(ports_module.ports_cmd, ["--json"])
+    assert result.exit_code == 0
+    assert '"url": "http://dagster.phlo.localhost:8088"' in result.output

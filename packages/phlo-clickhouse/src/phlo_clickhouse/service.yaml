@@ -15,6 +15,10 @@ compose:
     phlo.grafana.datasource.type: "grafana-clickhouse-datasource"
     phlo.grafana.datasource.name: "ClickHouse"
     phlo.grafana.datasource.url: "clickhouse:9000"
+    traefik.enable: "true"
+    traefik.http.routers.clickhouse.rule: "Host(`clickhouse.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+    traefik.http.routers.clickhouse.entrypoints: "web"
+    traefik.http.services.clickhouse.loadbalancer.server.port: "8123"
   environment:
     CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
     CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
