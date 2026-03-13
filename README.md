@@ -120,7 +120,6 @@ Phlo is a monorepo of composable packages — install only what you need:
 | **Storage**       | `phlo-minio`                                                                              |
 | **Catalog**       | `phlo-nessie`, `phlo-openmetadata`                                                        |
 | **Query**         | `phlo-trino`                                                                              |
-| **Metadata**      | `phlo-postgres`                                                                           |
 | **Observability** | `phlo-otel`, `phlo-clickstack`, `phlo-grafana`, `phlo-prometheus`, `phlo-loki`, `phlo-alloy` |
 | **UI**            | `phlo-observatory`, `phlo-pgweb`, `phlo-superset`                                         |
 | **API**           | `phlo-api`, `phlo-hasura`, `phlo-postgrest`                                               |
