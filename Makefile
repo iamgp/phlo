@@ -9,9 +9,12 @@ TY_CHECK_SCOPE ?= src/phlo \
 	packages/phlo-alerting/src \
 	packages/phlo-alloy/src \
 	packages/phlo-api/src \
+	packages/phlo-clickhouse/src \
+	packages/phlo-clickstack/src \
 	packages/phlo-core-plugins/src \
 	packages/phlo-dagster/src \
 	packages/phlo-dbt/src \
+	packages/phlo-delta/src \
 	packages/phlo-dlt/src \
 	packages/phlo-grafana/src \
 	packages/phlo-hasura/src \
@@ -23,12 +26,16 @@ TY_CHECK_SCOPE ?= src/phlo \
 	packages/phlo-observatory-example/src \
 	packages/phlo-observatory/src \
 	packages/phlo-openmetadata/src \
+	packages/phlo-otel/src \
+	packages/phlo-pandera/src \
 	packages/phlo-pgweb/src \
 	packages/phlo-postgres/src \
 	packages/phlo-postgrest/src \
 	packages/phlo-prometheus/src \
-	packages/phlo-pandera/src \
+	packages/phlo-rustfs/src \
+	packages/phlo-sling/src \
 	packages/phlo-superset/src \
+	packages/phlo-traefik/src \
 	packages/phlo-trino/src
 CHECK_CMD := scripts/run-parallel \
 	"py lint" "uv run ruff check ." \
