@@ -70,6 +70,7 @@ Configure additional services:
 
 Package-specific reference:
 
+- [phlo-traefik](packages/phlo-traefik.md) - Local reverse proxy for named service URLs
 - [phlo-clickstack](packages/phlo-clickstack.md) - Preferred all-in-one observability backend
 - [phlo-otel](packages/phlo-otel.md) - OpenTelemetry traces, metrics, and OTLP log export
 - [phlo-delta](packages/phlo-delta.md) - Delta Lake table format (alternative to Iceberg)

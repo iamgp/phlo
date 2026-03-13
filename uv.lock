@@ -56,6 +56,7 @@ members = [
     "phlo-sling",
     "phlo-superset",
     "phlo-testing",
+    "phlo-traefik",
     "phlo-trino",
 ]
 
@@ -3853,6 +3854,29 @@ requires-dist = [
     { name = "pyarrow", specifier = ">=21.0.0" },
     { name = "pyiceberg", specifier = ">=0.10.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+
+[[package]]
+name = "phlo-traefik"
+version = "0.1.0"
+source = { editable = "packages/phlo-traefik" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 

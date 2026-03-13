@@ -32,6 +32,7 @@ class PortMapping:
     source: str
     status: str
     env_var: str | None = None
+    url: str | None = None
 
 
 @dataclass
@@ -41,6 +42,14 @@ class ComposePortSpec:
     env_var: str | None
     host_port: str | None
     container_port: str
+
+
+@dataclass
+class TraefikContext:
+    """Resolved Traefik route context for URL generation."""
+
+    domain: str
+    host_port: int
 
 
 def _parse_compose_port(port_str: str) -> tuple[str | None, str]:
@@ -182,12 +191,164 @@ def _get_default_host_port(port_str: str, port_spec: ComposePortSpec) -> int | N
     return None
 
 
+def _resolve_host_port(
+    *,
+    port_str: str,
+    port_spec: ComposePortSpec,
+    service_name: str,
+    container_port: int,
+    env: dict[str, str],
+    running_containers: dict[str, Any],
+) -> tuple[int | None, str, str | None]:
+    """Resolve the effective host port for a service/container port pair."""
+    resolved_host_port: int | None = None
+    source = "default"
+    resolved_env_var: str | None = None
+
+    resolved_host_port = _get_runtime_host_port(running_containers, service_name, container_port)
+    if resolved_host_port is not None:
+        return resolved_host_port, "runtime", None
+
+    if port_spec.env_var:
+        resolved_value = _resolve_env_var(port_spec.env_var, env)
+        if resolved_value and resolved_value.isdigit():
+            return int(resolved_value), "env", port_spec.env_var
+
+    resolved_host_port = _get_default_host_port(port_str, port_spec)
+    if resolved_host_port is not None and port_spec.env_var is None and port_spec.host_port:
+        source = "compose"
+
+    return resolved_host_port, source, resolved_env_var
+
+
+def _get_active_traefik_context(
+    services: dict[str, ServiceDefinition],
+    env: dict[str, str],
+    running_containers: dict[str, Any],
+    disabled_services: set[str],
+    service_overrides: dict[str, Any],
+) -> TraefikContext | None:
+    """Return Traefik routing context when the proxy is available and running."""
+    traefik_service = services.get("traefik")
+    if traefik_service is None or "traefik" in disabled_services:
+        return None
+
+    if "traefik" not in running_containers:
+        return None
+
+    traefik_override = service_overrides.get("traefik", {})
+    compose_ports = traefik_service.compose.get("ports", [])
+    if isinstance(traefik_override, dict) and traefik_override.get("ports"):
+        compose_ports = traefik_override["ports"]
+
+    for port_str in compose_ports:
+        port_spec = _parse_compose_port_spec(port_str)
+        if port_spec.container_port != "80":
+            continue
+        host_port, _, _ = _resolve_host_port(
+            port_str=port_str,
+            port_spec=port_spec,
+            service_name="traefik",
+            container_port=80,
+            env=env,
+            running_containers=running_containers,
+        )
+        if host_port is not None:
+            return TraefikContext(
+                domain=env.get("TRAEFIK_DOMAIN", "phlo.localhost"),
+                host_port=host_port,
+            )
+
+    return None
+
+
+def _get_traefik_routes(
+    service: ServiceDefinition,
+    traefik: TraefikContext | None,
+) -> dict[str, str]:
+    """Extract Traefik routes from service labels. Returns {container_port: url}."""
+    routes: dict[str, str] = {}
+    if traefik is None:
+        return routes
+
+    labels = service.compose.get("labels", {})
+    if not labels:
+        return routes
+
+    if labels.get("traefik.enable") != "true":
+        return routes
+
+    router_rule_pattern = re.compile(r"Host\(`([^`]+)`\)")
+
+    router_hostnames: dict[str, str] = {}
+    router_services: dict[str, str] = {}
+    service_ports: dict[str, str] = {}
+
+    for key, value in labels.items():
+        key_str = str(key)
+
+        if key_str.startswith("traefik.http.routers.") and ".rule" in key_str:
+            router_name = key_str.replace("traefik.http.routers.", "").replace(".rule", "")
+            match = router_rule_pattern.search(str(value))
+            if match:
+                hostname = match.group(1)
+                hostname = hostname.replace(
+                    "${TRAEFIK_DOMAIN:-phlo.localhost}",
+                    traefik.domain,
+                )
+                router_hostnames[router_name] = hostname
+
+        if key_str.startswith("traefik.http.routers.") and ".service" in key_str:
+            router_name = key_str.replace("traefik.http.routers.", "").replace(".service", "")
+            router_services[router_name] = str(value)
+
+        if key_str.startswith("traefik.http.services.") and ".loadbalancer.server.port" in key_str:
+            service_name = key_str.replace("traefik.http.services.", "").replace(
+                ".loadbalancer.server.port", ""
+            )
+            service_ports[service_name] = str(value)
+
+    for router_name, hostname in router_hostnames.items():
+        url = (
+            f"http://{hostname}"
+            if traefik.host_port == 80
+            else f"http://{hostname}:{traefik.host_port}"
+        )
+
+        traefik_svc_name = router_services.get(router_name, router_name)
+        port = service_ports.get(traefik_svc_name)
+        if port:
+            routes[port] = url
+            continue
+
+        if router_services.get(router_name) == "api@internal":
+            routes["80"] = url
+
+    return routes
+
+
+def _get_service_routes(
+    services: dict[str, ServiceDefinition],
+    traefik: TraefikContext | None,
+) -> dict[str, dict[str, str]]:
+    """Get all Traefik routes indexed by service name."""
+    service_routes: dict[str, dict[str, str]] = {}
+
+    for svc in services.values():
+        routes = _get_traefik_routes(svc, traefik)
+        if routes:
+            service_routes[svc.name] = routes
+
+    return service_routes
+
+
 def _get_service_ports(
     service: ServiceDefinition,
     env: dict[str, str],
     running_containers: dict[str, Any],
     show_all: bool,
     service_override: dict[str, Any] | None = None,
+    service_routes: dict[str, dict[str, str]] | None = None,
 ) -> list[PortMapping]:
     """Get port mappings for a service."""
     ports: list[PortMapping] = []
@@ -202,37 +363,26 @@ def _get_service_ports(
     if not show_all and not is_running:
         return ports
 
+    routes = service_routes.get(service.name, {}) if service_routes else {}
+
     for port_str in compose_ports:
         port_spec = _parse_compose_port_spec(port_str)
         container_port = int(port_spec.container_port)
-
-        resolved_host_port: int | None = None
-        source = "default"
-        resolved_env_var: str | None = None
-
-        if is_running:
-            resolved_host_port = _get_runtime_host_port(
-                running_containers, service.name, container_port
-            )
-            if resolved_host_port is not None:
-                source = "runtime"
-
-        if resolved_host_port is None and port_spec.env_var:
-            resolved_value = _resolve_env_var(port_spec.env_var, env)
-            if resolved_value and resolved_value.isdigit():
-                resolved_host_port = int(resolved_value)
-                source = "env"
-                resolved_env_var = port_spec.env_var
-
-        if resolved_host_port is None:
-            resolved_host_port = _get_default_host_port(port_str, port_spec)
-            if resolved_host_port is not None and port_spec.env_var is None and port_spec.host_port:
-                source = "compose"
+        resolved_host_port, source, resolved_env_var = _resolve_host_port(
+            port_str=port_str,
+            port_spec=port_spec,
+            service_name=service.name,
+            container_port=container_port,
+            env=env,
+            running_containers=running_containers,
+        )
 
         if resolved_host_port is None:
             continue
 
         status = "Running" if is_running else "Stopped"
+
+        url = routes.get(str(container_port))
 
         ports.append(
             PortMapping(
@@ -242,6 +392,7 @@ def _get_service_ports(
                 source=source,
                 status=status,
                 env_var=resolved_env_var,
+                url=url,
             )
         )
 
@@ -273,23 +424,38 @@ def _format_table(port_mappings: list[PortMapping], conflicts: list[tuple[str, s
 
     conflict_ports = {c[2] for c in conflicts}
 
-    header = (
-        f"{'Service':<20} {'Host Port':<12} {'Container Port':<16} {'Source':<10} {'Status':<10}"
-    )
-    separator = "-" * 70
+    has_urls = any(pm.url for pm in port_mappings)
+
+    if has_urls:
+        header = f"{'Service':<20} {'Host Port':<12} {'Container Port':<16} {'URL':<35} {'Source':<10} {'Status':<10}"
+        separator = "-" * 105
+    else:
+        header = f"{'Service':<20} {'Host Port':<12} {'Container Port':<16} {'Source':<10} {'Status':<10}"
+        separator = "-" * 70
 
     click.echo(header)
     click.echo(separator)
 
     for pm in sorted(port_mappings, key=lambda x: x.service):
         prefix = "⚠ " if pm.host_port in conflict_ports else "  "
-        row = (
-            f"{prefix}{pm.service:<18} "
-            f"{pm.host_port:<12} "
-            f"{pm.container_port:<16} "
-            f"{pm.source:<10} "
-            f"{pm.status:<10}"
-        )
+        if has_urls:
+            url_str = pm.url or ""
+            row = (
+                f"{prefix}{pm.service:<18} "
+                f"{pm.host_port:<12} "
+                f"{pm.container_port:<16} "
+                f"{url_str:<35} "
+                f"{pm.source:<10} "
+                f"{pm.status:<10}"
+            )
+        else:
+            row = (
+                f"{prefix}{pm.service:<18} "
+                f"{pm.host_port:<12} "
+                f"{pm.container_port:<16} "
+                f"{pm.source:<10} "
+                f"{pm.status:<10}"
+            )
         click.echo(row)
 
     if conflicts:
@@ -310,6 +476,7 @@ def _format_json(port_mappings: list[PortMapping]) -> None:
                 "source": pm.source,
                 "status": pm.status.lower(),
                 "env_var": pm.env_var,
+                "url": pm.url,
             }
         )
     click.echo(json.dumps(output, indent=2))
@@ -366,6 +533,15 @@ def ports_cmd(output_json: bool, show_all: bool):
     project_name = get_project_name()
     running_containers = _get_running_container_ports(project_name)
 
+    traefik = _get_active_traefik_context(
+        available_services,
+        env,
+        running_containers,
+        disabled_services,
+        service_overrides if isinstance(service_overrides, dict) else {},
+    )
+    service_routes = _get_service_routes(available_services, traefik)
+
     port_mappings: list[PortMapping] = []
 
     for svc in available_services.values():
@@ -380,6 +556,7 @@ def ports_cmd(output_json: bool, show_all: bool):
             running_containers,
             show_all,
             service_override=service_override if isinstance(service_override, dict) else None,
+            service_routes=service_routes,
         )
         port_mappings.extend(ports)
 

@@ -26,6 +26,7 @@ Phlo is organized as a monorepo with individual packages that provide specific f
 
 | Package                           | Description                         |
 | --------------------------------- | ----------------------------------- |
+| [phlo-traefik](phlo-traefik.md)  | Local reverse proxy for named URLs  |
 | [phlo-postgres](phlo-postgres.md) | PostgreSQL database service         |
 | [phlo-nessie](phlo-nessie.md)     | Git-like catalog for Iceberg tables |
 | [phlo-trino](phlo-trino.md)       | Distributed SQL query engine        |
