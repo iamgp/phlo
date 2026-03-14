@@ -117,7 +117,7 @@ Watch the execution in the Dagster UI. You'll see:
 
 ```bash
 # Connect to Trino
-docker exec -it trino trino --catalog iceberg_dev --schema raw
+phlo trino --catalog iceberg_dev --schema raw
 
 # Query your data
 SELECT _id, sgv, dateString

@@ -149,7 +149,7 @@ df = table.scan().to_pandas()
 4. **Verify S3 data files**
 
    ```bash
-   docker exec minio mc ls local/warehouse/bronze/dlt_weather_observations/
+   phlo minio ls local/warehouse/bronze/dlt_weather_observations/
    ```
 
 ## Related Errors

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import importlib
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import pyarrow as pa
 from pandera.pandas import DataFrameModel
@@ -22,6 +23,11 @@ from phlo_delta.tables import (
 )
 
 logger = get_logger(__name__)
+
+
+def _load_delta_table() -> type[Any]:
+    """Load the optional DeltaTable runtime only when needed."""
+    return cast(Any, importlib.import_module("deltalake")).DeltaTable
 
 
 def _resolve_delta_ref(override_ref: str | None) -> None:
@@ -342,15 +348,14 @@ class DeltaResource:
         Returns:
             dict[str, object]: Compaction results.
         """
-        from deltalake import DeltaTable
-
         from phlo_delta.tables import _resolve_table_uri
 
         table_uri = _resolve_table_uri(table_name)
         opts = get_settings().get_storage_options()
+        delta_table_cls = _load_delta_table()
 
         logger.info("delta_resource_compact_requested", table_name=table_name)
-        dt = DeltaTable(table_uri, storage_options=opts)
+        dt = delta_table_cls(table_uri, storage_options=opts)
         result = dt.optimize.compact()
         logger.info("delta_resource_compact_completed", table_name=table_name)
         return {"compaction": result}

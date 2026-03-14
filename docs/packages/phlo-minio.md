@@ -63,18 +63,13 @@ Access the MinIO console at `http://localhost:9001`:
 ### AWS CLI
 
 ```bash
-# Configure AWS CLI for MinIO
-aws configure set aws_access_key_id minio
-aws configure set aws_secret_access_key minio123
+# Run MinIO client inside the service
+phlo minio ls local/
+phlo minio ls --recursive local/warehouse/
+phlo minio admin info --json local/
 
-# List buckets
-aws --endpoint-url http://localhost:9000 s3 ls
-
-# List warehouse contents
-aws --endpoint-url http://localhost:9000 s3 ls s3://lake/warehouse/
-
-# Copy file to staging
-aws --endpoint-url http://localhost:9000 s3 cp data.parquet s3://lake/stage/
+# Pass through to raw mc commands
+phlo minio cp local/data.parquet local/lake/stage/data.parquet
 ```
 
 ### Python (boto3)

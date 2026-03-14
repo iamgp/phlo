@@ -62,11 +62,17 @@ phlo services start --service postgres,postgres-exporter
 ### Connecting
 
 ```bash
-# Via psql
-psql -h localhost -p 5432 -U phlo -d phlo
+# Interactive psql shell
+phlo postgres
 
-# Via Docker
-docker exec -it phlo-postgres-1 psql -U phlo
+# Open a specific database
+phlo postgres --dbname phlo
+
+# Non-interactive query
+phlo postgres query "SELECT current_database()"
+
+# Logical backup
+phlo postgres dump --file backups/phlo.sql.gz
 ```
 
 ### SQLAlchemy Connection

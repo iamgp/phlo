@@ -95,10 +95,10 @@ df["station_id"] = df["station_id"].astype(str)
 curl -s http://localhost:9000/minio/health/live
 
 # Check bucket exists
-docker exec minio mc ls local/warehouse/
+phlo minio ls local/warehouse/
 
 # Check disk space
-docker exec minio mc admin info local/
+phlo minio admin info local/
 ```
 
 ### Solution 4: Verify write permissions
@@ -181,10 +181,10 @@ table.append(df)  # ✅ Columns match table schema
    curl -s http://localhost:9000/minio/health/live
 
    # List warehouse contents
-   docker exec minio mc ls local/warehouse/ --recursive | head -20
+   phlo minio ls --recursive local/warehouse/
 
    # Check disk usage
-   docker exec minio mc admin info local/
+   phlo minio admin info local/
    ```
 
 3. **Review write error details**
@@ -230,7 +230,7 @@ table.append(df)  # ✅ Columns match table schema
 
    ```bash
    # Add to monitoring/alerting
-   docker exec minio mc admin info local/ --json | python -c "
+   phlo minio admin info --json local/ | python -c "
    import sys, json
    info = json.load(sys.stdin)
    print(f'Used: {info.get(\"used\", \"unknown\")}')

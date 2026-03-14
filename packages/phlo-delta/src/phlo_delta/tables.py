@@ -6,17 +6,25 @@ Provides standalone functions for Delta table operations using the deltalake lib
 
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-from deltalake import DeltaTable, write_deltalake
 
 from phlo.logging import get_logger
 from phlo_delta.settings import get_settings
 
 logger = get_logger(__name__)
+
+DeltaTable = Any
+
+
+def _load_deltalake() -> tuple[type[Any], Any]:
+    """Load optional deltalake runtime symbols on demand."""
+    deltalake = cast(Any, importlib.import_module("deltalake"))
+    return deltalake.DeltaTable, deltalake.write_deltalake
 
 
 def _resolve_table_uri(table_name: str) -> str:
@@ -75,9 +83,10 @@ def ensure_table(
     """
     table_uri = _resolve_table_uri(table_name)
     opts = _default_storage_options(storage_options)
+    delta_table_cls, write_deltalake = _load_deltalake()
 
     try:
-        dt = DeltaTable(table_uri, storage_options=opts)
+        dt = delta_table_cls(table_uri, storage_options=opts)
         logger.info(
             "delta_table_loaded",
             table_name=table_name,
@@ -105,7 +114,7 @@ def ensure_table(
         storage_options=opts,
     )
 
-    dt = DeltaTable(table_uri, storage_options=opts)
+    dt = delta_table_cls(table_uri, storage_options=opts)
     logger.info(
         "delta_table_created",
         table_name=table_name,
@@ -131,6 +140,7 @@ def append_to_table(
     """
     table_uri = _resolve_table_uri(table_name)
     opts = _default_storage_options(storage_options)
+    _delta_table_cls, write_deltalake = _load_deltalake()
     source_path = str(data_path)
     source_row_count = 0
     rows_inserted = 0
@@ -203,6 +213,7 @@ def merge_to_table(
         source=source_path,
         unique_key=unique_key,
     )
+    delta_table_cls, _write_deltalake = _load_deltalake()
 
     try:
         arrow_table = _read_parquet(data_path)
@@ -214,7 +225,7 @@ def merge_to_table(
                 f"Available columns: {arrow_table.schema.names}"
             )
 
-        dt = DeltaTable(table_uri, storage_options=opts)
+        dt = delta_table_cls(table_uri, storage_options=opts)
         merge_result = (
             dt.merge(
                 source=arrow_table,
@@ -277,6 +288,7 @@ def overwrite_table(
     """
     table_uri = _resolve_table_uri(table_name)
     opts = _default_storage_options(storage_options)
+    _delta_table_cls, write_deltalake = _load_deltalake()
     source_path = str(data_path)
     source_row_count = 0
     rows_inserted = 0
@@ -344,9 +356,10 @@ def delete_rows_from_table(
         table_name=table_name,
         predicate=predicate,
     )
+    delta_table_cls, _write_deltalake = _load_deltalake()
 
     try:
-        dt = DeltaTable(table_uri, storage_options=opts)
+        dt = delta_table_cls(table_uri, storage_options=opts)
         dt.delete(predicate)
     except Exception as exc:
         logger.error(
@@ -412,9 +425,10 @@ def remove_orphan_files(
         table_name=table_name,
         retain_hours=retain_hours,
     )
+    delta_table_cls, _write_deltalake = _load_deltalake()
 
     try:
-        dt = DeltaTable(table_uri, storage_options=opts)
+        dt = delta_table_cls(table_uri, storage_options=opts)
         removed = dt.vacuum(retention_hours=retain_hours, enforce_retention_duration=False)
     except Exception as exc:
         logger.error(
@@ -452,13 +466,15 @@ def get_table_stats(
     """
     table_uri = _resolve_table_uri(table_name)
     opts = _default_storage_options(storage_options)
+    delta_table_cls, _write_deltalake = _load_deltalake()
 
-    dt = DeltaTable(table_uri, storage_options=opts)
-    files = dt.files()
+    dt = delta_table_cls(table_uri, storage_options=opts)
+    dt_runtime = dt
+    files = dt_runtime.files()
     metadata = dt.metadata()
     version = dt.version()
 
-    total_size_bytes = sum(dt.get_add_actions().to_pydict().get("size", []))
+    total_size_bytes = sum(dt_runtime.get_add_actions().to_pydict().get("size", []))
 
     return {
         "table_name": table_name,
@@ -489,8 +505,9 @@ def list_table_versions(
     """
     table_uri = _resolve_table_uri(table_name)
     opts = _default_storage_options(storage_options)
+    delta_table_cls, _write_deltalake = _load_deltalake()
 
-    dt = DeltaTable(table_uri, storage_options=opts)
+    dt = delta_table_cls(table_uri, storage_options=opts)
     history = dt.history(limit=limit)
 
     results: list[dict[str, Any]] = []
@@ -529,9 +546,10 @@ def rollback_table_to_version(
         table_name=table_name,
         version=version,
     )
+    delta_table_cls, _write_deltalake = _load_deltalake()
 
     try:
-        dt = DeltaTable(table_uri, storage_options=opts)
+        dt = delta_table_cls(table_uri, storage_options=opts)
         dt.restore(version)
     except Exception as exc:
         logger.error(

@@ -1,0 +1,211 @@
+"""Tests for PostgreSQL CLI commands."""
+
+from __future__ import annotations
+
+import gzip
+from pathlib import Path
+from subprocess import CompletedProcess, TimeoutExpired
+
+from click.testing import CliRunner
+
+from phlo_postgres.cli import postgres_group
+from phlo_postgres.cli_plugin import PostgresCliPlugin
+
+
+def test_postgres_cli_plugin_metadata() -> None:
+    plugin = PostgresCliPlugin()
+
+    assert plugin.metadata.name == "postgres"
+    assert plugin.get_cli_commands()[0].name == "postgres"
+
+
+def test_postgres_query_runs_psql(monkeypatch) -> None:
+    def _run_command(cmd, **_kwargs):
+        if cmd[:2] == ["docker", "info"]:
+            return CompletedProcess(cmd, 0, stdout="", stderr="")
+        assert cmd[-9:] == [
+            "psql",
+            "-U",
+            "phlo",
+            "-d",
+            "phlo",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-c",
+            "SELECT 1",
+        ]
+        return CompletedProcess(cmd, 0, stdout="1\n", stderr="")
+
+    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
+    monkeypatch.setattr(
+        "phlo_postgres.cli.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr("phlo_postgres.cli.run_command", _run_command)
+
+    result = CliRunner().invoke(postgres_group, ["query", "SELECT 1"])
+
+    assert result.exit_code == 0
+    assert result.output == "1\n"
+
+
+def test_postgres_dump_writes_gzip_file(monkeypatch, tmp_path) -> None:
+    output_file = tmp_path / "backup.sql.gz"
+
+    def _run_command(cmd, **_kwargs):
+        if cmd[:2] == ["docker", "info"]:
+            return CompletedProcess(cmd, 0, stdout="", stderr="")
+        assert cmd[-4:] == ["pg_dump", "-U", "phlo", "phlo"]
+        return CompletedProcess(cmd, 0, stdout="CREATE TABLE test ();", stderr="")
+
+    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
+    monkeypatch.setattr(
+        "phlo_postgres.cli.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr("phlo_postgres.cli.run_command", _run_command)
+
+    result = CliRunner().invoke(postgres_group, ["dump", "--file", str(output_file)])
+
+    assert result.exit_code == 0
+    assert output_file.exists()
+    with gzip.open(output_file, "rt", encoding="utf-8") as handle:
+        assert handle.read() == "CREATE TABLE test ();"
+
+
+def test_postgres_restore_reads_file(monkeypatch, tmp_path) -> None:
+    input_file = tmp_path / "backup.sql"
+    input_file.write_text("SELECT 1;", encoding="utf-8")
+    captured: list[tuple[list[str], str]] = []
+
+    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
+    monkeypatch.setattr(
+        "phlo_postgres.cli.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr(
+        "phlo_postgres.cli.run_command",
+        lambda cmd, **_kwargs: CompletedProcess(cmd, 0, stdout="", stderr=""),
+    )
+
+    def _subprocess_run(cmd, input, text, capture_output, timeout, check):
+        captured.append((cmd, input))
+        return CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("phlo_postgres.cli.subprocess.run", _subprocess_run)
+
+    result = CliRunner().invoke(postgres_group, ["restore", "--file", str(input_file)])
+
+    assert result.exit_code == 0
+    assert captured == [
+        (
+            [
+                "docker",
+                "compose",
+                "-p",
+                "demo",
+                "exec",
+                "-T",
+                "postgres",
+                "psql",
+                "-U",
+                "phlo",
+                "-d",
+                "phlo",
+                "-v",
+                "ON_ERROR_STOP=1",
+            ],
+            "SELECT 1;",
+        )
+    ]
+
+
+def test_postgres_vacuum_runs_vacuumdb(monkeypatch) -> None:
+    def _run_command(cmd, **_kwargs):
+        if cmd[:2] == ["docker", "info"]:
+            return CompletedProcess(cmd, 0, stdout="", stderr="")
+        assert cmd[-5:] == ["vacuumdb", "-U", "phlo", "-z", "phlo"]
+        return CompletedProcess(cmd, 0, stdout="VACUUM\n", stderr="")
+
+    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
+    monkeypatch.setattr(
+        "phlo_postgres.cli.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr("phlo_postgres.cli.run_command", _run_command)
+
+    result = CliRunner().invoke(postgres_group, ["vacuum"])
+
+    assert result.exit_code == 0
+    assert result.output == "VACUUM\n"
+
+
+def test_postgres_shell_passthrough(monkeypatch) -> None:
+    captured: list[list[str]] = []
+
+    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
+    monkeypatch.setattr(
+        "phlo_postgres.cli.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr(
+        "phlo_postgres.cli.run_command",
+        lambda cmd, **_kwargs: CompletedProcess(cmd, 0, stdout="", stderr=""),
+    )
+
+    def _subprocess_run(cmd, check):
+        captured.append(cmd)
+        return CompletedProcess(cmd, 0, stdout=None, stderr=None)
+
+    monkeypatch.setattr("phlo_postgres.cli.subprocess.run", _subprocess_run)
+
+    result = CliRunner().invoke(postgres_group, ["--dbname=analytics"])
+
+    assert result.exit_code == 0
+    assert captured == [
+        [
+            "docker",
+            "compose",
+            "-p",
+            "demo",
+            "exec",
+            "postgres",
+            "psql",
+            "-U",
+            "phlo",
+            "-d",
+            "phlo",
+            "--dbname=analytics",
+        ]
+    ]
+
+
+def test_postgres_query_timeout(monkeypatch) -> None:
+    def _run_command(cmd, **_kwargs):
+        if cmd[:2] == ["docker", "info"]:
+            return CompletedProcess(cmd, 0, stdout="", stderr="")
+        raise TimeoutExpired(cmd=cmd, timeout=30)
+
+    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
+    monkeypatch.setattr(
+        "phlo_postgres.cli.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr("phlo_postgres.cli.run_command", _run_command)
+
+    result = CliRunner().invoke(postgres_group, ["query", "SELECT 1"])
+
+    assert result.exit_code != 0
+    assert "Query timed out after 30 seconds." in result.output

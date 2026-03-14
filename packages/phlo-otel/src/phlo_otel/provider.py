@@ -15,28 +15,53 @@ Configured via standard OTEL_* environment variables:
 from __future__ import annotations
 
 import atexit
+import importlib
 import os
 import socket
-from typing import Any
-
-from opentelemetry import metrics, trace
-from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.metrics import Meter
-from opentelemetry.sdk._logs import LoggerProvider
-from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace import Tracer
+from typing import Any, cast
 
 from phlo.config import get_settings
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+metrics = cast(Any, importlib.import_module("opentelemetry.metrics"))
+trace = cast(Any, importlib.import_module("opentelemetry.trace"))
+OTLPMetricExporter = cast(
+    Any,
+    importlib.import_module("opentelemetry.exporter.otlp.proto.grpc.metric_exporter"),
+).OTLPMetricExporter
+OTLPLogExporter = cast(
+    Any,
+    importlib.import_module("opentelemetry.exporter.otlp.proto.grpc._log_exporter"),
+).OTLPLogExporter
+OTLPSpanExporter = cast(
+    Any,
+    importlib.import_module("opentelemetry.exporter.otlp.proto.grpc.trace_exporter"),
+).OTLPSpanExporter
+LoggerProvider = cast(Any, importlib.import_module("opentelemetry.sdk._logs")).LoggerProvider
+BatchLogRecordProcessor = cast(
+    Any,
+    importlib.import_module("opentelemetry.sdk._logs.export"),
+).BatchLogRecordProcessor
+MeterProvider = cast(
+    Any,
+    importlib.import_module("opentelemetry.sdk.metrics"),
+).MeterProvider
+PeriodicExportingMetricReader = cast(
+    Any,
+    importlib.import_module("opentelemetry.sdk.metrics.export"),
+).PeriodicExportingMetricReader
+resources = cast(Any, importlib.import_module("opentelemetry.sdk.resources"))
+SERVICE_NAME = resources.SERVICE_NAME
+Resource = resources.Resource
+TracerProvider = cast(Any, importlib.import_module("opentelemetry.sdk.trace")).TracerProvider
+BatchSpanProcessor = cast(
+    Any,
+    importlib.import_module("opentelemetry.sdk.trace.export"),
+).BatchSpanProcessor
+Meter = Any
+Tracer = Any
 
 _initialized = False
 _logger_provider: LoggerProvider | None = None

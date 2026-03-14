@@ -80,16 +80,16 @@ phlo materialize --select "tag:nightscout"
 
 ```bash
 # Backup
-docker exec phlo-postgres-1 pg_dump -U postgres cascade > backup.sql
+phlo postgres dump --user postgres --db cascade --file backup.sql
 
 # Backup with compression
-docker exec phlo-postgres-1 pg_dump -U postgres cascade | gzip > backup.sql.gz
+phlo postgres dump --user postgres --db cascade --file backup.sql.gz
 
 # Restore
-cat backup.sql | docker exec -i phlo-postgres-1 psql -U postgres cascade
+phlo postgres restore --user postgres --db cascade --file backup.sql
 
 # Restore from compressed
-gunzip -c backup.sql.gz | docker exec -i phlo-postgres-1 psql -U postgres cascade
+phlo postgres restore --user postgres --db cascade --file backup.sql.gz
 ```
 
 **Automated backups**:
@@ -594,7 +594,7 @@ SLACK_CHANNEL=#data-alerts
 phlo services stop
 
 # Restore database
-gunzip -c backup.sql.gz | docker exec -i phlo-postgres-1 psql -U postgres cascade
+phlo postgres restore --user postgres --db cascade --file backup.sql.gz
 
 # Start services
 phlo services start
@@ -716,7 +716,7 @@ done
 ./backup-minio.sh
 
 # 4. Perform maintenance
-docker exec phlo-postgres-1 vacuumdb -U postgres -z cascade
+phlo postgres vacuum --user postgres --db cascade
 
 # 5. Optimize Iceberg tables
 python -m phlo.maintenance.optimize_tables
