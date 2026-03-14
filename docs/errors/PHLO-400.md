@@ -143,7 +143,7 @@ except Exception as e:
 5. **Verify S3 buckets exist**
 
    ```bash
-   docker exec minio mc ls local/
+   phlo minio ls local/
    ```
 
 6. **Test PyIceberg connection**

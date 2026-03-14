@@ -74,7 +74,10 @@ phlo services start
 phlo trino query "SELECT * FROM iceberg.bronze.users LIMIT 10"
 
 # Interactive shell
-docker exec -it phlo-trino-1 trino
+phlo trino
+
+# Start in a specific catalog/schema
+phlo trino --catalog iceberg --schema raw
 ```
 
 ### SQL Examples

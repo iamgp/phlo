@@ -65,6 +65,12 @@ phlo services start --service trino
 
 # Query via CLI
 phlo trino query "SELECT * FROM iceberg.bronze.users LIMIT 10"
+
+# Interactive shell
+phlo trino
+
+# Interactive shell with catalog/schema selected
+phlo trino --catalog iceberg --schema raw
 ```
 
 ## Endpoints

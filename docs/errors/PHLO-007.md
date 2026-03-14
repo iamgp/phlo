@@ -143,7 +143,7 @@ table = catalog.load_table("default.dlt_weather_observations")
 
    ```bash
    # List buckets
-   docker exec minio mc ls local/
+   phlo minio ls local/
    ```
 
 ## Related Errors

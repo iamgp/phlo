@@ -31,6 +31,9 @@ postgres-exporter = "phlo_postgres.plugin:PostgresExporterServicePlugin"
 [project.entry-points."phlo.plugins.resources"]
 postgres = "phlo_postgres.plugin:PostgresResourceProvider"
 
+[project.entry-points."phlo.plugins.cli"]
+postgres = "phlo_postgres.cli_plugin:PostgresCliPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true

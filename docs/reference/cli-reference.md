@@ -77,10 +77,93 @@ phlo migrate             # Run declarative data migration specs
 ```bash
 phlo postgrest           # PostgREST management
 phlo hasura              # Hasura GraphQL management
+phlo minio               # MinIO client and admin helpers
+phlo postgres            # PostgreSQL shell and maintenance
+phlo trino               # Trino shell and queries
 phlo publishing          # dbt publishing layer
 phlo metrics             # Metrics summary (built-in)
 phlo alerts              # Alerting rules
 phlo openmetadata        # OpenMetadata catalog
+```
+
+### phlo minio
+
+Run the MinIO client inside the project MinIO service.
+
+```bash
+phlo minio [MC_ARGS...]
+phlo minio ls [OPTIONS] [TARGET]
+phlo minio admin info [OPTIONS] [TARGET]
+```
+
+**Examples**:
+
+```bash
+# List buckets
+phlo minio ls local/
+
+# Inspect warehouse contents
+phlo minio ls --recursive local/warehouse/
+
+# Show MinIO admin info
+phlo minio admin info --json local/
+
+# Pass through to raw mc commands
+phlo minio cp local/file.txt local/warehouse/file.txt
+```
+
+### phlo postgres
+
+Run `psql` and common PostgreSQL maintenance tasks inside the project database service.
+
+```bash
+phlo postgres [PSQL_ARGS...]
+phlo postgres query [OPTIONS] [QUERY]
+phlo postgres dump --file PATH
+phlo postgres restore --file PATH
+phlo postgres vacuum [OPTIONS]
+```
+
+**Examples**:
+
+```bash
+# Interactive psql shell
+phlo postgres
+
+# Connect to a specific database
+phlo postgres --dbname analytics
+
+# Run a query
+phlo postgres query "SELECT now()"
+
+# Backup and restore
+phlo postgres dump --file backups/phlo.sql.gz
+phlo postgres restore --file backups/phlo.sql.gz
+```
+
+### phlo trino
+
+Run the Trino CLI inside the project Trino service without reaching for `docker exec`.
+
+```bash
+phlo trino [TRINO_CLI_ARGS...]
+phlo trino query [OPTIONS] [QUERY]
+```
+
+**Examples**:
+
+```bash
+# Interactive Trino shell
+phlo trino
+
+# Interactive shell with catalog/schema preselected
+phlo trino --catalog iceberg --schema raw
+
+# Non-interactive query
+phlo trino query "SELECT * FROM iceberg.bronze.users LIMIT 10"
+
+# Query from a file
+phlo trino query --file query.sql --catalog iceberg --schema bronze
 ```
 
 ## Services Commands

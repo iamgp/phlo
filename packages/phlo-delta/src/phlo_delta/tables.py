@@ -7,7 +7,7 @@ Provides standalone functions for Delta table operations using the deltalake lib
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -454,11 +454,12 @@ def get_table_stats(
     opts = _default_storage_options(storage_options)
 
     dt = DeltaTable(table_uri, storage_options=opts)
-    files = dt.files()
+    dt_runtime = cast(Any, dt)
+    files = dt_runtime.files()
     metadata = dt.metadata()
     version = dt.version()
 
-    total_size_bytes = sum(dt.get_add_actions().to_pydict().get("size", []))
+    total_size_bytes = sum(dt_runtime.get_add_actions().to_pydict().get("size", []))
 
     return {
         "table_name": table_name,
