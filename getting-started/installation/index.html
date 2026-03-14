@@ -1857,7 +1857,7 @@ phlo services start
 <p>For production deployments, see the <a href="../operations/production-deployment.md">Production Deployment Guide</a>.</p>
 <h2 id="verify-components">Verify Components</h2>
 <h3 id="postgresql">PostgreSQL</h3>
-<pre><code class="language-bash">docker exec -it phlo-postgres-1 psql -U postgres
+<pre><code class="language-bash">phlo postgres
 </code></pre>
 <h3 id="minio">MinIO</h3>
 <p>Open http://localhost:10001 in browser</p>
@@ -1869,7 +1869,7 @@ phlo services start
 <pre><code class="language-bash">curl http://localhost:10003/api/v2/config
 </code></pre>
 <h3 id="trino">Trino</h3>
-<pre><code class="language-bash">docker exec -it phlo-trino-1 trino
+<pre><code class="language-bash">phlo trino
 </code></pre>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <h3 id="services-wont-start">Services won't start</h3>

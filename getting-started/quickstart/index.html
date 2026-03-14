@@ -1507,7 +1507,7 @@ docker exec dagster-webserver dagster asset materialize --select dlt_glucose_ent
 <h2 id="step-5-query-your-data-2-minutes">Step 5: Query Your Data (2 minutes)</h2>
 <h3 id="option-a-trino-sql">Option A: Trino (SQL)</h3>
 <pre><code class="language-bash"># Connect to Trino
-docker exec -it trino trino --catalog iceberg_dev --schema raw
+phlo trino --catalog iceberg_dev --schema raw
 
 # Query your data
 SELECT _id, sgv, dateString

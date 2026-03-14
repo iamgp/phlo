@@ -1972,18 +1972,13 @@ phlo plugin install minio
 <li>Password: <code>minio123</code> (or <code>MINIO_ROOT_PASSWORD</code>)</li>
 </ul>
 <h3 id="aws-cli">AWS CLI</h3>
-<pre><code class="language-bash"># Configure AWS CLI for MinIO
-aws configure set aws_access_key_id minio
-aws configure set aws_secret_access_key minio123
+<pre><code class="language-bash"># Run MinIO client inside the service
+phlo minio ls local/
+phlo minio ls --recursive local/warehouse/
+phlo minio admin info --json local/
 
-# List buckets
-aws --endpoint-url http://localhost:9000 s3 ls
-
-# List warehouse contents
-aws --endpoint-url http://localhost:9000 s3 ls s3://lake/warehouse/
-
-# Copy file to staging
-aws --endpoint-url http://localhost:9000 s3 cp data.parquet s3://lake/stage/
+# Pass through to raw mc commands
+phlo minio cp local/data.parquet local/lake/stage/data.parquet
 </code></pre>
 <h3 id="python-boto3">Python (boto3)</h3>
 <pre><code class="language-python">import boto3
