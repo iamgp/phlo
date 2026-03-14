@@ -250,7 +250,7 @@ For production deployments, see the [Production Deployment Guide](../operations/
 ### PostgreSQL
 
 ```bash
-docker exec -it phlo-postgres-1 psql -U postgres
+phlo postgres
 ```
 
 ### MinIO
@@ -269,7 +269,7 @@ curl http://localhost:10003/api/v2/config
 ### Trino
 
 ```bash
-docker exec -it phlo-trino-1 trino
+phlo trino
 ```
 
 ## Troubleshooting

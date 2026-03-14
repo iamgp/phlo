@@ -989,7 +989,7 @@ mc ls local
 curl http://localhost:10003/api/v2/config
 
 # Test Trino
-docker exec -it phlo-trino-1 trino
+phlo trino
 ```
 
 ### Port Conflicts

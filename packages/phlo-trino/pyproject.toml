@@ -40,6 +40,9 @@ trino = "phlo_trino.plugin:TrinoServicePlugin"
 [project.entry-points."phlo.plugins.observatory"]
 trino = "phlo_trino.observatory_plugin:TrinoObservatoryExtension"
 
+[project.entry-points."phlo.plugins.cli"]
+trino = "phlo_trino.cli_plugin:TrinoCliPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
