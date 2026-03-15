@@ -10,10 +10,12 @@ from pydantic import ValidationError
 from phlo.config_schema import InfrastructureConfig, ServiceConfig
 from phlo.infrastructure import (
     clear_config_cache,
+    get_capability_defaults_from_config,
     get_container_name,
     get_project_name_from_config,
     get_service_config,
     load_infrastructure_config,
+    load_project_config,
 )
 
 
@@ -92,6 +94,41 @@ def test_infrastructure_config_defaults():
     assert config.container_naming_pattern == "{project}-{service}-1"
     assert len(config.services) == 0
     assert config.network.driver == "bridge"
+
+
+def test_load_project_config_reads_phlo_yaml_root_keys(tmp_path: Path) -> None:
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(
+        config_path,
+        {
+            "name": "demo",
+            "capabilities": {"defaults": {"table_store": "iceberg"}},
+        },
+    )
+
+    loaded = load_project_config(tmp_path)
+
+    assert loaded["name"] == "demo"
+    assert loaded["capabilities"]["defaults"]["table_store"] == "iceberg"
+
+
+def test_get_capability_defaults_from_config_reads_defaults_block(tmp_path: Path) -> None:
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(
+        config_path,
+        {
+            "capabilities": {
+                "defaults": {
+                    "table_store": "iceberg",
+                    "query_engine": "trino",
+                }
+            }
+        },
+    )
+
+    defaults = get_capability_defaults_from_config(tmp_path)
+
+    assert defaults == {"table_store": "iceberg", "query_engine": "trino"}
 
 
 def test_infrastructure_config_pattern_validation():
@@ -246,9 +283,11 @@ def test_get_project_name_from_config_handles_missing_and_invalid_config(tmp_pat
 
     config_path = tmp_path / "phlo.yaml"
     _write_phlo_yaml(config_path, {"name": "test-project"})
+    clear_config_cache()
     assert get_project_name_from_config(tmp_path) == "test-project"
 
     config_path.write_text("name: [")
+    clear_config_cache()
     assert get_project_name_from_config(tmp_path) is None
 
 

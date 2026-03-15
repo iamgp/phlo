@@ -12,9 +12,13 @@ from phlo.capabilities import (
     PartitionSpec,
     RunResult,
     RunSpec,
+    configured_capability_name,
+    list_capabilities,
+    resolve_capability,
 )
 from phlo.contracts import Consumer, SLA, normalize_consumers, serialize_consumers, serialize_sla
 from phlo.capabilities.runtime import RuntimeContext
+from phlo.capabilities.discovery import discover_capabilities
 from phlo.exceptions import PhloConfigError
 from phlo.logging import log_event
 from phlo_dlt.pandera_checks import (
@@ -131,53 +135,36 @@ def _default_merge_config(
     return config
 
 
-def _resolve_table_store_resource(context: RuntimeContext) -> Any:
-    """Resolve the table-store resource from runtime resources.
+def _resolve_table_store_capability(context: RuntimeContext) -> tuple[Any, str]:
+    """Resolve the effective table-store capability for an ingestion run."""
+    discover_capabilities()
+    resolution = resolve_capability("table_store", runtime=context)
+    if resolution is not None:
+        return resolution.provider, resolution.name
 
-    Args:
-        context: Runtime context passed to the ingestion run function.
-
-    Returns:
-        The resolved table-store resource object.
-
-    Raises:
-        PhloConfigError: If no table-store resource can be resolved.
-    """
-    table_store = None
-    resources = context.resources
-    if isinstance(resources, dict):
-        table_store = resources.get("table_store")
-    elif resources is not None:
-        table_store = getattr(resources, "table_store", None)
-    if table_store is None:
-        try:
-            table_store = context.get_resource("table_store")
-        except Exception:
-            table_store = None
-    if table_store is None:
+    available = list_capabilities("table_store")
+    configured_name = configured_capability_name("table_store", runtime=context)
+    if configured_name:
         raise PhloConfigError(
-            message="Table store resource not available in runtime context",
-            suggestions=["Configure a `table_store` resource provider."],
+            message=f"Configured table_store '{configured_name}' is not installed",
+            suggestions=[
+                f"Install the '{configured_name}' table_store provider",
+                f"Or update PHLO_DEFAULT_CAPABILITIES / phlo/capability/table_store to one of: {available}",
+            ],
         )
-    return table_store
-
-
-def _resolve_table_store_name(table_store: Any) -> str:
-    """Best-effort table-store provider name for logs and metadata."""
-    metadata = getattr(table_store, "metadata", None)
-    if isinstance(metadata, dict):
-        name = metadata.get("name")
-        if isinstance(name, str) and name:
-            return name
-
-    plugin_name = getattr(table_store, "name", None)
-    if isinstance(plugin_name, str) and plugin_name:
-        return plugin_name
-
-    class_name = table_store.__class__.__name__
-    if class_name.endswith("Resource") and len(class_name) > len("Resource"):
-        class_name = class_name[: -len("Resource")]
-    return class_name.lower()
+    if available:
+        raise PhloConfigError(
+            message="Multiple table_store providers are installed but none was selected",
+            suggestions=[
+                f'Set PHLO_DEFAULT_CAPABILITIES={{"table_store": "{available[0]}"}}',
+                "Or set workflow tag phlo/capability/table_store=<provider>",
+                'Or set asset capability_overrides={"table_store": "<provider>"}',
+            ],
+        )
+    raise PhloConfigError(
+        message="No table_store capability is installed",
+        suggestions=["Install a table-store provider such as phlo-iceberg or phlo-delta"],
+    )
 
 
 def phlo_ingestion(
@@ -200,6 +187,7 @@ def phlo_ingestion(
     owner: str | None = None,
     consumers: list[Consumer | str] | None = None,
     sla: SLA | None = None,
+    capabilities: dict[str, str] | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Register a function as a DLT-backed ingestion asset.
 
@@ -223,6 +211,7 @@ def phlo_ingestion(
         owner: Optional asset owner/team identifier.
         consumers: Optional downstream consumer metadata or names.
         sla: Optional SLA metadata for freshness/quality alerting.
+        capabilities: Optional capability provider overrides for this asset.
 
     Returns:
         A decorator that registers ingestion metadata and returns the original function.
@@ -304,8 +293,7 @@ def phlo_ingestion(
             try:
                 from phlo_dlt.executor import DltIngester
 
-                table_store = _resolve_table_store_resource(runtime)
-                table_store_name = _resolve_table_store_name(table_store)
+                table_store, table_store_name = _resolve_table_store_capability(runtime)
 
                 ingester = DltIngester(
                     context=runtime,
@@ -512,7 +500,7 @@ def phlo_ingestion(
                 "sla": serialize_sla(sla),
             },
             partitions=PartitionSpec(kind="daily"),
-            resources={"table_store"},
+            capability_overrides=dict(capabilities or {}),
             run=RunSpec(
                 fn=run,
                 max_runtime_seconds=max_runtime_seconds,

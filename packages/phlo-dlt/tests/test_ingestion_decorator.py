@@ -670,8 +670,8 @@ class TestAssetAttributes:
         assert spec.partitions is not None
         assert spec.partitions.kind == "daily"
 
-    def test_asset_requires_table_store_resource(self):
-        """Test asset requires canonical table_store resource key."""
+    def test_asset_can_override_capability_selection(self):
+        """Test asset stores explicit capability overrides."""
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
@@ -683,6 +683,7 @@ class TestAssetAttributes:
             unique_key="id",
             validation_schema=TestSchema,
             group="test",
+            capabilities={"table_store": "delta"},
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
@@ -693,7 +694,8 @@ class TestAssetAttributes:
             pass
 
         spec = get_asset_spec("dlt_test_table")
-        assert spec.resources == {"table_store"}
+        assert spec.capability_overrides == {"table_store": "delta"}
+        assert spec.resources == set()
 
 
 class TestComplexSchemas:

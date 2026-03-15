@@ -39,6 +39,13 @@ description: "{description}"
 #   POSTGRES_PORT: 10000
 #   DAGSTER_PORT: 10006
 #
+# Project capability defaults:
+#
+# capabilities:
+#   defaults:
+#     table_store: iceberg
+#     query_engine: trino
+#
 # Secrets belong in .phlo/.env.local (not committed).
 """
 

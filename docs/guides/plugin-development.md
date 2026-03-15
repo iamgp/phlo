@@ -87,6 +87,11 @@ Guidelines:
 - Keep only true hard requirements in `requires_capabilities`.
 - Put integrations and enhancements in `optional_capabilities`.
 
+When your asset should bind to a specific provider for a generic capability type, set
+`AssetSpec.capability_overrides`, for example `{"table_store": "iceberg"}`. Runtime/workflow tags
+can also override capability selection with `phlo/capability/<capability_type>=<provider>`, and
+project-wide defaults belong in `phlo.yaml` under `capabilities.defaults`.
+
 ### Quick Start: Create a Plugin Scaffold
 
 ```bash
