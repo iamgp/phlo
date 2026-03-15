@@ -71,9 +71,16 @@ Notes:
 
 ### Capability Selection
 
+```yaml
+# phlo.yaml
+capabilities:
+  defaults:
+    table_store: iceberg
+    query_engine: trino
+```
+
 ```bash
-# Default provider names keyed by capability type.
-# Example:
+# Optional environment override for the same mapping.
 PHLO_DEFAULT_CAPABILITIES='{"table_store":"iceberg","query_engine":"trino"}'
 ```
 
@@ -83,6 +90,7 @@ Capability resolution order:
 - runtime/workflow tag: `phlo/capability/<capability_type>=<provider>`
 - asset-level `capability_overrides`
 - `PHLO_DEFAULT_CAPABILITIES`
+- `phlo.yaml` `capabilities.defaults`
 - implicit selection only when exactly one provider of that capability type is installed
 
 If multiple providers are installed and none of the rules above selects one, Phlo fails with the

@@ -10,7 +10,7 @@ When multiple `table_store` providers are installed, selection is deterministic:
 
 - asset override via `capabilities={"table_store": "..."}`
 - workflow/runtime tag via `phlo/capability/table_store=...`
-- global default via `PHLO_DEFAULT_CAPABILITIES`
+- global default via `phlo.yaml` `capabilities.defaults` or `PHLO_DEFAULT_CAPABILITIES`
 
 ## Installation
 

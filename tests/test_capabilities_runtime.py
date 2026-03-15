@@ -39,6 +39,9 @@ pytestmark = pytest.mark.core_regression
 def teardown_function() -> None:
     """Reset global capability registry between tests."""
     _get_config.cache_clear()
+    from phlo.infrastructure import clear_config_cache
+
+    clear_config_cache()
     clear_capabilities()
 
 
@@ -201,6 +204,40 @@ def test_resolve_capability_uses_global_default(monkeypatch: pytest.MonkeyPatch)
     assert resolved is not None
     assert resolved.name == "delta"
     assert resolved.provider == {"engine": "delta"}
+
+
+def test_resolve_capability_uses_phlo_yaml_default(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "phlo.yaml").write_text(
+        "capabilities:\n  defaults:\n    table_store: iceberg\n",
+        encoding="utf-8",
+    )
+    register_table_store(TableStoreSpec(name="iceberg", provider={"engine": "iceberg"}))
+    register_table_store(TableStoreSpec(name="delta", provider={"engine": "delta"}))
+
+    resolved = resolve_capability("table_store")
+
+    assert resolved is not None
+    assert resolved.name == "iceberg"
+
+
+def test_env_default_overrides_phlo_yaml_default(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "phlo.yaml").write_text(
+        "capabilities:\n  defaults:\n    table_store: iceberg\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PHLO_DEFAULT_CAPABILITIES", '{"table_store":"delta"}')
+    _get_config.cache_clear()
+    register_table_store(TableStoreSpec(name="iceberg", provider={"engine": "iceberg"}))
+    register_table_store(TableStoreSpec(name="delta", provider={"engine": "delta"}))
+
+    resolved = resolve_capability("table_store")
+
+    assert resolved is not None
+    assert resolved.name == "delta"
 
 
 def test_resolve_capability_uses_runtime_override_over_global_default() -> None:

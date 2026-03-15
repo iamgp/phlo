@@ -9,6 +9,7 @@ from phlo.capabilities.registry import CapabilityRegistry, get_capability_regist
 from phlo.capabilities.runtime import RuntimeContext, routing_from_context
 from phlo.capabilities.support import CapabilitySupport
 from phlo.config import get_settings
+from phlo.infrastructure import get_capability_defaults_from_config
 from phlo.logging import get_logger
 
 if TYPE_CHECKING:
@@ -150,7 +151,10 @@ def configured_capability_name(
         override = routing.capability_overrides.get(capability_type)
         if override:
             return override
-    return get_settings().phlo_default_capabilities.get(capability_type)
+    env_override = get_settings().phlo_default_capabilities.get(capability_type)
+    if env_override:
+        return env_override
+    return get_capability_defaults_from_config().get(capability_type)
 
 
 def missing_required_capabilities(

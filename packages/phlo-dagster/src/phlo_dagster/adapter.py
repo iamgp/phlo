@@ -197,7 +197,8 @@ class DagsterRuntime(RuntimeContext):
             if key.startswith("feature/")
         }
         capability_overrides = capability_overrides_from_tags(tags)
-        capability_overrides.update(self.asset_capability_overrides)
+        for capability_type, provider_name in self.asset_capability_overrides.items():
+            capability_overrides.setdefault(capability_type, provider_name)
         return RuntimeRouting(
             environment=tags.get("environment") or tags.get("env"),
             ref=tags.get("phlo/ref") or tags.get("ref") or tags.get("branch"),
