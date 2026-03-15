@@ -8,8 +8,8 @@ DLT (Data Load Tool) ingestion engine for Phlo.
 
 When multiple `table_store` providers are installed, selection is deterministic:
 
-- asset override via `capabilities={"table_store": "..."}`
 - workflow/runtime tag via `phlo/capability/table_store=...`
+- asset override via `capabilities={"table_store": "..."}`
 - global default via `phlo.yaml` `capabilities.defaults` or `PHLO_DEFAULT_CAPABILITIES`
 
 ## Installation
