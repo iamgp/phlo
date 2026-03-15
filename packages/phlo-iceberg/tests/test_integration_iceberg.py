@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
+from pyiceberg.exceptions import TableAlreadyExistsError
 from pyiceberg.schema import Schema
 from pyiceberg.types import LongType, NestedField, StringType, TimestampType
 
@@ -194,6 +195,24 @@ class TestEnsureTableUnit:
 
                 mock_catalog.create_table.assert_called_once()
                 assert result == mock_new_table
+
+    def test_ensure_table_loads_existing_after_conflict(self):
+        """Test ensure_table loads the table if create races with another writer."""
+        from phlo_iceberg.tables import ensure_table
+
+        mock_catalog = MagicMock()
+        mock_existing = MagicMock()
+        mock_catalog.load_table.side_effect = [Exception("Table not found"), mock_existing]
+        mock_catalog.create_table.side_effect = TableAlreadyExistsError("exists")
+
+        mock_schema = Schema(NestedField(1, "id", LongType(), required=True))
+
+        with patch("phlo_iceberg.tables.get_catalog", return_value=mock_catalog):
+            with patch("phlo_iceberg.tables.create_namespace"):
+                result = ensure_table("ns.raced_table", mock_schema)
+
+                assert result == mock_existing
+                assert mock_catalog.load_table.call_count == 2
 
 
 class TestPartitionSpecGeneration:

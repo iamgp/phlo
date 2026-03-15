@@ -10,6 +10,22 @@ from rich.table import Table
 logger = get_logger(__name__)
 
 
+def _default_schema_search_paths() -> list[str]:
+    """Return default schema search paths rooted at the project when available."""
+    env_paths = os.getenv("PHLO_SCHEMA_SEARCH_PATHS")
+    if env_paths:
+        return [path.strip() for path in env_paths.split(",") if path.strip()]
+
+    project_root = os.getenv("PHLO_PROJECT_PATH")
+    if project_root:
+        return [
+            str(Path(project_root) / "examples"),
+            str(Path(project_root) / "workflows"),
+        ]
+
+    return ["examples", "workflows"]
+
+
 def format_table(title: str, columns: list[str], rows: list[tuple]) -> Table:
     """
     Create a Rich Table with given data.
@@ -51,14 +67,7 @@ def discover_pandera_schemas(
     from pandera.pandas import DataFrameModel
 
     if search_paths is None:
-        env_paths = os.getenv("PHLO_SCHEMA_SEARCH_PATHS")
-        if env_paths:
-            search_paths = [path.strip() for path in env_paths.split(",") if path.strip()]
-        else:
-            search_paths = [
-                "examples",
-                "workflows",
-            ]
+        search_paths = _default_schema_search_paths()
 
     schemas = {}
 

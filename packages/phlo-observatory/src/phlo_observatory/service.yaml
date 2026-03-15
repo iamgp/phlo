@@ -1,7 +1,8 @@
 name: observatory
 description: Phlo Observatory - Data platform visibility and lineage UI
 category: orchestration
-default: true
+default: false
+profile: api
 
 build:
   context: source

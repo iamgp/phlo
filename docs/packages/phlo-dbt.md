@@ -61,18 +61,19 @@ The discovery module searches these paths in order:
 # Compile dbt project
 phlo dbt compile
 
-# Run dbt models
+# Run dbt in the dagster service container
 phlo dbt run
 
 # Run specific models
 phlo dbt run --select silver.*
 
-# Generate dbt docs
-phlo dbt docs generate
-
-# Serve dbt docs
-phlo dbt docs serve
+# Run host dbt directly
+phlo dbt test --local --select gold.*
 ```
+
+When `.phlo/` exists, `phlo dbt compile|run|test` executes inside the running `dagster`
+service by default. That keeps dbt aligned with the project's active Trino, Iceberg, and
+generated profile configuration. Use `--local` when you explicitly want host dbt.
 
 ### Programmatic Access
 

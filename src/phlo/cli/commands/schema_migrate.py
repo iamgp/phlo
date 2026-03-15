@@ -103,7 +103,12 @@ def _discover_pandera_schemas_from_files() -> dict[str, type[Any]]:
     if env_paths:
         search_paths = [Path(path.strip()) for path in env_paths.split(",") if path.strip()]
     else:
-        search_paths = [Path("examples"), Path("workflows")]
+        project_root = os.getenv("PHLO_PROJECT_PATH")
+        if project_root:
+            root = Path(project_root)
+            search_paths = [root / "examples", root / "workflows"]
+        else:
+            search_paths = [Path("examples"), Path("workflows")]
 
     discovered: dict[str, type[Any]] = {}
     for root in search_paths:

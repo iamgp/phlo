@@ -10,6 +10,7 @@ import warnings
 from pathlib import Path
 
 import pyarrow.parquet as pq
+from pyiceberg.exceptions import TableAlreadyExistsError
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 
@@ -24,6 +25,30 @@ warnings.filterwarnings(
 )
 
 logger = get_logger(__name__)
+
+
+def _align_arrow_table_to_target_schema(arrow_table, target_schema, *, table_name: str):
+    """Align an Arrow table to an Iceberg target schema.
+
+    Missing nullable target columns are backfilled with nulls. Missing required columns fail
+    explicitly so callers get a useful schema error.
+    """
+    import pyarrow as pa
+
+    arrow_column_names = set(arrow_table.schema.names)
+    for field in target_schema:
+        if field.name in arrow_column_names:
+            continue
+        if not field.nullable:
+            raise ValueError(
+                f"Required target column '{field.name}' is missing from source data for {table_name}"
+            )
+        arrow_table = arrow_table.append_column(
+            field.name,
+            pa.nulls(len(arrow_table), type=field.type),
+        )
+
+    return arrow_table.select(target_schema.names)
 
 
 def ensure_table(
@@ -92,11 +117,15 @@ def ensure_table(
 
     spec = PartitionSpec(*partition_fields) if partition_fields else PartitionSpec()
 
-    return catalog.create_table(
-        identifier=table_name,
-        schema=schema,
-        partition_spec=spec,
-    )
+    try:
+        return catalog.create_table(
+            identifier=table_name,
+            schema=schema,
+            partition_spec=spec,
+        )
+    except TableAlreadyExistsError:
+        logger.info("iceberg_table_exists_during_create", table_name=table_name, ref=ref)
+        return catalog.load_table(table_name)
 
 
 def append_to_table(
@@ -149,19 +178,9 @@ def append_to_table(
 
         target_schema = schema_to_pyarrow(table.schema())
 
-        arrow_column_names_set = set(arrow_table.schema.names)
-        missing_columns = []
-
-        for field in target_schema:
-            if field.name not in arrow_column_names_set:
-                null_array = pa.nulls(len(arrow_table), type=field.type)
-                missing_columns.append((field.name, null_array))
-
-        for col_name, null_array in missing_columns:
-            arrow_table = arrow_table.append_column(col_name, null_array)
-
-        target_field_names = target_schema.names
-        arrow_table = arrow_table.select(target_field_names)
+        arrow_table = _align_arrow_table_to_target_schema(
+            arrow_table, target_schema, table_name=table_name
+        )
 
         try:
             arrow_table = arrow_table.cast(target_schema)
@@ -287,8 +306,9 @@ def merge_to_table(
 
         target_schema = schema_to_pyarrow(table.schema())
 
-        target_field_names = target_schema.names
-        arrow_table = arrow_table.select(target_field_names)
+        arrow_table = _align_arrow_table_to_target_schema(
+            arrow_table, target_schema, table_name=table_name
+        )
 
         try:
             arrow_table = arrow_table.cast(target_schema)
@@ -379,19 +399,9 @@ def overwrite_table(
 
         target_schema = schema_to_pyarrow(table.schema())
 
-        arrow_column_names_set = set(arrow_table.schema.names)
-        missing_columns = []
-
-        for field in target_schema:
-            if field.name not in arrow_column_names_set:
-                null_array = pa.nulls(len(arrow_table), type=field.type)
-                missing_columns.append((field.name, null_array))
-
-        for col_name, null_array in missing_columns:
-            arrow_table = arrow_table.append_column(col_name, null_array)
-
-        target_field_names = target_schema.names
-        arrow_table = arrow_table.select(target_field_names)
+        arrow_table = _align_arrow_table_to_target_schema(
+            arrow_table, target_schema, table_name=table_name
+        )
 
         try:
             arrow_table = arrow_table.cast(target_schema)

@@ -3,6 +3,9 @@ description: PostgreSQL database for metadata and operational storage
 category: core
 default: true
 
+depends_on:
+  - postgres-volume-setup
+
 image: postgres:16-alpine
 
 compose:

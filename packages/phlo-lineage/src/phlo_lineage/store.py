@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 import psycopg2
 import ulid
@@ -45,12 +47,37 @@ _LINEAGE_DB_KEYS = (
 
 
 def resolve_lineage_db_url() -> str | None:
-    """Resolve the lineage database URL from environment variables."""
+    """Resolve the lineage database URL from environment or Postgres defaults."""
     for key in _LINEAGE_DB_KEYS:
         value = os.environ.get(key)
         if value:
             return value
-    return None
+    host, port = _resolve_postgres_host(
+        os.environ.get("POSTGRES_HOST", "postgres"),
+        int(os.environ.get("POSTGRES_PORT", "5432")),
+    )
+    user = quote_plus(os.environ.get("POSTGRES_USER", "phlo"))
+    password = quote_plus(os.environ.get("POSTGRES_PASSWORD", "phlo"))
+    database = quote_plus(os.environ.get("POSTGRES_DB", "phlo"))
+    return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+
+
+def _resolve_postgres_host(host: str, port: int) -> tuple[str, int]:
+    """Resolve Docker Postgres hostnames to localhost when running on the host."""
+    if host in {"localhost", "127.0.0.1"}:
+        return host, port
+    try:
+        socket.gethostbyname(host)
+        return host, port
+    except socket.gaierror:
+        exposed_port = int(os.environ.get("POSTGRES_PORT", str(port)))
+        logger.debug(
+            "lineage_db_host_resolved_to_localhost",
+            original_host=host,
+            original_port=port,
+            resolved_port=exposed_port,
+        )
+        return "localhost", exposed_port
 
 
 def generate_row_id() -> str:

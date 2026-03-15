@@ -7,6 +7,7 @@ Provides commands to:
 - Show branch differences
 """
 
+import builtins
 import json
 
 import click
@@ -19,6 +20,19 @@ from phlo_nessie.settings import get_settings as get_nessie_settings
 
 console = Console()
 logger = get_logger(__name__)
+
+
+def _list_references(client) -> list[object]:
+    """Return a normalized reference list across pynessie client versions."""
+    references = client.list_references()
+    if hasattr(references, "references"):
+        return builtins.list(references.references)
+    return builtins.list(references)
+
+
+def _ref_hash(ref: object) -> str | None:
+    """Return reference hash across pynessie model variants."""
+    return getattr(ref, "hash", None) or getattr(ref, "hash_", None)
 
 
 def get_nessie_client():
@@ -84,12 +98,13 @@ def list(all: bool, format: str):
         refs = []
 
         # Get branches
-        for branch_ref in client.list_references():
+        for branch_ref in _list_references(client):
+            ref_hash = _ref_hash(branch_ref)
             refs.append(
                 {
                     "name": branch_ref.name,
                     "type": "branch",
-                    "hash": branch_ref.hash[:8] if branch_ref.hash else "unknown",
+                    "hash": ref_hash[:8] if ref_hash else "unknown",
                     "is_default": branch_ref.name == get_nessie_settings().nessie_default_ref,
                 }
             )
@@ -172,7 +187,7 @@ def create(branch_name: str, from_ref: str):
 
         # Get reference to branch from
         source_ref = None
-        for ref in client.list_references():
+        for ref in _list_references(client):
             if ref.name == from_ref:
                 source_ref = ref
                 break
@@ -189,17 +204,19 @@ def create(branch_name: str, from_ref: str):
         # Create branch
         try:
             new_branch = client.create_branch(
-                branch_name=branch_name,
-                reference=source_ref.hash,
+                branch=branch_name,
+                ref=from_ref,
+                hash_on_ref=_ref_hash(source_ref),
             )
             console.print(f"[green]✓ Created branch: {branch_name}[/green]")
             console.print(f"  From: {from_ref}")
-            console.print(f"  Head: {new_branch[:8] if new_branch else 'unknown'}")
+            new_hash = _ref_hash(new_branch)
+            console.print(f"  Head: {new_hash[:8] if new_hash else 'unknown'}")
             logger.info(
                 "nessie_branch_create_succeeded",
                 branch_name=branch_name,
                 from_ref=from_ref,
-                head=(new_branch[:8] if new_branch else "unknown"),
+                head=(new_hash[:8] if new_hash else "unknown"),
             )
         except Exception as e:
             if "already exists" in str(e).lower():
@@ -265,7 +282,7 @@ def delete(branch_name: str, force: bool):
 
         # Find branch
         branch_ref = None
-        for ref in client.list_references():
+        for ref in _list_references(client):
             if ref.name == branch_name:
                 branch_ref = ref
                 break
@@ -280,7 +297,10 @@ def delete(branch_name: str, force: bool):
 
         # Delete branch
         try:
-            client.delete_branch(branch_name=branch_name, reference=branch_ref.hash)
+            branch_hash = _ref_hash(branch_ref)
+            if not branch_hash:
+                raise click.ClickException(f"Branch hash unavailable: {branch_name}")
+            client.delete_branch(branch=branch_name, hash_=branch_hash)
             console.print(f"[green]✓ Deleted branch: {branch_name}[/green]")
             logger.info(
                 "nessie_branch_delete_succeeded",
@@ -344,7 +364,7 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
         source_ref = None
         target_ref = None
 
-        for ref in client.list_references():
+        for ref in _list_references(client):
             if ref.name == source_branch:
                 source_ref = ref
             if ref.name == target_branch:
@@ -368,25 +388,32 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
             raise click.ClickException(f"Target branch not found: {target_branch}")
         assert target_ref is not None
 
+        source_hash = _ref_hash(source_ref)
+        target_hash = _ref_hash(target_ref)
+        if not source_hash or not target_hash:
+            raise click.ClickException("Source or target branch hash unavailable")
+
         if dry_run:
             logger.info(
                 "nessie_branch_merge_dry_run",
                 source_branch=source_branch,
                 target_branch=target_branch,
-                source_hash=source_ref.hash[:8],
-                target_hash=target_ref.hash[:8],
+                source_hash=source_hash[:8],
+                target_hash=target_hash[:8],
             )
             console.print(f"\n[bold]Dry-run: Merge {source_branch} into {target_branch}[/bold]")
-            console.print(f"Source hash: {source_ref.hash[:8]}")
-            console.print(f"Target hash: {target_ref.hash[:8]}")
+            console.print(f"Source hash: {source_hash[:8]}")
+            console.print(f"Target hash: {target_hash[:8]}")
             console.print("[yellow]No changes will be made (--dry-run)[/yellow]")
             return
 
         # Perform merge
         try:
             client.merge(
-                branch_name=target_branch,
-                reference=source_ref.hash,
+                from_ref=source_branch,
+                onto_branch=target_branch,
+                from_hash=source_hash,
+                old_hash=target_hash,
             )
             console.print(f"[green]✓ Merged {source_branch} into {target_branch}[/green]")
             logger.info(
@@ -397,7 +424,7 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
 
             if not no_delete_source:
                 try:
-                    client.delete_branch(branch_name=source_branch, reference=source_ref.hash)
+                    client.delete_branch(branch=source_branch, hash_=source_hash)
                     console.print(f"[green]✓ Deleted source branch: {source_branch}[/green]")
                     logger.info(
                         "nessie_branch_merge_source_deleted",
@@ -480,7 +507,7 @@ def diff(source_branch: str, target_branch: str, format: str):
         source_ref = None
         target_ref = None
 
-        for ref in client.list_references():
+        for ref in _list_references(client):
             if ref.name == source_branch:
                 source_ref = ref
             if ref.name == target_branch:

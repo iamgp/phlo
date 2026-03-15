@@ -10,7 +10,7 @@ compose:
   restart: unless-stopped
   environment:
     discovery.type: single-node
-    ES_JAVA_OPTS: ${OPENMETADATA_ES_JAVA_OPTS:--Xms512m -Xmx512m}
+    ES_JAVA_OPTS: ${OPENMETADATA_ES_JAVA_OPTS:--Xms256m -Xmx256m}
     xpack.security.enabled: "false"
   healthcheck:
     test:
@@ -23,8 +23,9 @@ compose:
     interval: 15s
     timeout: 10s
     retries: 10
+    start_period: 120s
 
 env_vars:
   OPENMETADATA_ES_JAVA_OPTS:
-    default: "-Xms512m -Xmx512m"
+    default: "-Xms256m -Xmx256m"
     description: JVM heap settings for the bundled OpenMetadata Elasticsearch service

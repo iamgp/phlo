@@ -69,6 +69,11 @@ def evaluate_pandera_contract(
 ) -> PanderaContractEvaluation:
     """Validate a dataframe against a Pandera schema class."""
     schema = schema_class.to_schema()
+    for column_name, column in schema.columns.items():
+        if column_name in df.columns or not column.nullable:
+            continue
+        df[column_name] = None
+
     datetime_columns = [
         name
         for name, column in schema.columns.items()

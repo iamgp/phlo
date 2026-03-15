@@ -15,20 +15,9 @@ from phlo.cli.infrastructure.utils import get_project_name
 
 
 def _require_docker() -> None:
-    """Validate that Docker is installed and responsive."""
+    """Validate that Docker CLI is installed."""
     if which("docker") is None:
         raise click.ClickException("docker command not found.")
-    try:
-        result = run_command(
-            ["docker", "info"],
-            timeout_seconds=10,
-            capture_output=True,
-            check=False,
-        )
-    except TimeoutExpired as exc:
-        raise click.ClickException("docker info timed out.") from exc
-    if result.returncode != 0:
-        raise click.ClickException("Docker is not running.")
 
 
 def _mc_exec_base(*, tty: bool) -> list[str]:

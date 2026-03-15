@@ -50,12 +50,15 @@ The discovery module searches these paths in order:
 # Compile dbt project
 phlo dbt compile
 
-# Run dbt models
+# Run dbt in the dagster service container
 phlo dbt run
 
-# Generate dbt docs
-phlo dbt docs generate
+# Run host dbt directly
+phlo dbt test --local
 ```
+
+When `.phlo/` exists, `phlo dbt compile|run|test` executes inside the running `dagster`
+service by default. Use `--local` when you explicitly want host dbt.
 
 ### Programmatic
 

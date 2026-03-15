@@ -21,6 +21,38 @@ from phlo.plugins.compose import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 
+def _expand_selected_services(
+    discovery: ServiceDiscovery,
+    services: list[ServiceDefinition],
+) -> list[ServiceDefinition]:
+    """Expand selected services with declared dependencies and setup companions."""
+    if not services:
+        return []
+
+    all_services = discovery.discover()
+    selected: dict[str, ServiceDefinition] = {service.name: service for service in services}
+    queue = list(services)
+    while queue:
+        service = queue.pop(0)
+        for dependency_name in service.depends_on:
+            dependency = all_services.get(dependency_name)
+            if dependency and dependency.name not in selected:
+                selected[dependency.name] = dependency
+                queue.append(dependency)
+
+    bootstrap_companions = [
+        service
+        for service in all_services.values()
+        if service.name.endswith("-setup")
+        and service.depends_on
+        and all(dependency in selected for dependency in service.depends_on)
+    ]
+    for companion in bootstrap_companions:
+        selected.setdefault(companion.name, companion)
+
+    return discovery.resolve_dependencies(list(selected.values()))
+
+
 @click.command("init")
 @click.option("--force", is_flag=True, help="Overwrite existing configuration")
 @click.option("--name", "project_name", help="Project name (default: directory name)")
@@ -40,6 +72,11 @@ from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
     help="Path to phlo repo root or `src/phlo` (default: auto-detect or PHLO_DEV_SOURCE env var)",
 )
 @click.option(
+    "--service-dev",
+    is_flag=True,
+    help="Also apply service-specific `dev:` runtime overrides (opt-in)",
+)
+@click.option(
     "--profile",
     "profiles",
     multiple=True,
@@ -51,6 +88,7 @@ def init_cmd(
     dev: bool,
     no_dev: bool,
     phlo_source: str | None,
+    service_dev: bool,
     profiles: tuple[str, ...],
 ):
     """Initialize Phlo infrastructure in .phlo/ directory.
@@ -66,6 +104,7 @@ def init_cmd(
     - Optional: PostgREST, Hasura (--profile api)
 
     Use --dev to mount local phlo source for development iteration.
+    Use --service-dev to opt into service-specific `dev:` runtimes as well.
     Use --no-dev to explicitly generate config without dev mounts.
 
     Examples:
@@ -76,6 +115,7 @@ def init_cmd(
         phlo services init --profile api --profile observability
         phlo services init --dev
         phlo services init --dev --phlo-source ../../src/phlo
+        phlo services init --dev --service-dev
         phlo services init --no-dev --force  # Regenerate without dev mode
     """
     phlo_dir = get_phlo_dir()
@@ -90,6 +130,9 @@ def init_cmd(
     if dev and no_dev:
         click.echo("Error: Cannot specify both --dev and --no-dev.", err=True)
         sys.exit(1)
+    if service_dev and no_dev:
+        click.echo("Error: Cannot specify both --service-dev and --no-dev.", err=True)
+        sys.exit(1)
 
     # --no-dev takes precedence
     if no_dev:
@@ -101,6 +144,9 @@ def init_cmd(
         dev = True
         phlo_src_path = detected
         click.echo(f"Dev mode: auto-enabled (path: {phlo_src_path})")
+
+    if service_dev and not dev:
+        dev = True
 
     # Derive project name from directory if not specified
     if not project_name:
@@ -211,7 +257,7 @@ def init_cmd(
     deduped_services: dict[str, ServiceDefinition] = {}
     for service in [*default_services, *profile_services, *inline_services]:
         deduped_services[service.name] = service
-    services_to_install = list(deduped_services.values())
+    services_to_install = _expand_selected_services(discovery, list(deduped_services.values()))
     _warn_secret_env_overrides(env_overrides, services_to_install)
 
     # Generate docker-compose.yml
@@ -220,6 +266,7 @@ def init_cmd(
         services_to_install,
         phlo_dir,
         dev_mode=dev,
+        service_dev_mode=service_dev,
         phlo_src_path=phlo_src_path,
         user_overrides=user_overrides,
     )

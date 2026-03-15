@@ -1,10 +1,11 @@
 """Unit tests for row-level lineage store."""
 
+import socket
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from phlo_lineage.store import LineageStore, generate_row_id
+from phlo_lineage.store import LineageStore, generate_row_id, resolve_lineage_db_url
 
 
 class TestGenerateRowId:
@@ -118,6 +119,41 @@ class TestLineageStore:
         result = store.get_row("nonexistent")
 
         assert result is None
+
+
+class TestResolveLineageDbUrl:
+    """Tests for lineage DB URL resolution."""
+
+    @pytest.fixture
+    def mock_connection(self):
+        """Create a mock psycopg2 connection."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        return mock_conn, mock_cursor
+
+    def test_prefers_explicit_env_url(self, monkeypatch) -> None:
+        monkeypatch.setenv("PHLO_LINEAGE_DB_URL", "postgresql://explicit")
+
+        assert resolve_lineage_db_url() == "postgresql://explicit"
+
+    @patch("phlo_lineage.store.socket.gethostbyname", side_effect=socket.gaierror())
+    def test_falls_back_to_localhost_for_unresolvable_postgres_host(
+        self, _mock_resolve, monkeypatch
+    ) -> None:
+        monkeypatch.delenv("LINEAGE_DB_URL", raising=False)
+        monkeypatch.delenv("PHLO_LINEAGE_DB_URL", raising=False)
+        monkeypatch.delenv("DAGSTER_PG_DB_CONNECTION_STRING", raising=False)
+        monkeypatch.setenv("POSTGRES_HOST", "postgres")
+        monkeypatch.setenv("POSTGRES_PORT", "15432")
+        monkeypatch.setenv("POSTGRES_USER", "phlo")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "secret")
+        monkeypatch.setenv("POSTGRES_DB", "warehouse")
+
+        assert resolve_lineage_db_url() == "postgresql://phlo:secret@localhost:15432/warehouse"
 
     @patch("phlo_lineage.store.psycopg2")
     def test_get_row_returns_dict_when_found(self, mock_psycopg2, mock_connection):
