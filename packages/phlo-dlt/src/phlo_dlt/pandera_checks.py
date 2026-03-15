@@ -72,6 +72,12 @@ def evaluate_pandera_contract(
     for column_name, column in schema.columns.items():
         if column_name in df.columns or not column.nullable:
             continue
+        df = df.copy()
+        df[column_name] = None
+        break
+    for column_name, column in schema.columns.items():
+        if column_name in df.columns or not column.nullable:
+            continue
         df[column_name] = None
 
     datetime_columns = [
