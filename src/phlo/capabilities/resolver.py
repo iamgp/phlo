@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from phlo.capabilities.registry import CapabilityRegistry, get_capability_registry
+from phlo.capabilities.runtime import RuntimeContext, routing_from_context
 from phlo.capabilities.support import CapabilitySupport
+from phlo.config import get_settings
 from phlo.logging import get_logger
 
 if TYPE_CHECKING:
@@ -71,6 +73,7 @@ def resolve_capability(
     capability_type: str,
     name: str | None = None,
     *,
+    runtime: RuntimeContext | None = None,
     registry: CapabilityRegistry | None = None,
 ) -> ResolutionResult | None:
     """Resolve a capability provider by type and optional name.
@@ -88,10 +91,11 @@ def resolve_capability(
         )
         return None
 
+    requested_name = name or configured_capability_name(capability_type, runtime=runtime)
     specs = getattr(registry, list_method)()
-    if name is not None:
+    if requested_name is not None:
         for spec in specs:
-            if spec.name == name:
+            if spec.name == requested_name:
                 logger.debug(
                     "capability_resolved",
                     capability_type=capability_type,
@@ -107,7 +111,7 @@ def resolve_capability(
         logger.debug(
             "capability_resolution_name_not_found",
             capability_type=capability_type,
-            requested_name=name,
+            requested_name=requested_name,
             available_names=[spec.name for spec in specs],
         )
         return None
@@ -133,6 +137,20 @@ def resolve_capability(
         metadata=spec.metadata,
         support=spec.support,
     )
+
+
+def configured_capability_name(
+    capability_type: str,
+    *,
+    runtime: RuntimeContext | None = None,
+) -> str | None:
+    """Return the configured provider name for a capability type, if any."""
+    if runtime is not None:
+        routing = routing_from_context(runtime)
+        override = routing.capability_overrides.get(capability_type)
+        if override:
+            return override
+    return get_settings().phlo_default_capabilities.get(capability_type)
 
 
 def missing_required_capabilities(

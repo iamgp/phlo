@@ -11,8 +11,9 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from phlo.capabilities import get_capability_registry
+from phlo.capabilities import configured_capability_name, get_capability_registry, list_capabilities
 from phlo.capabilities.discovery import discover_capabilities
+from phlo.capabilities.resolver import resolve_capability
 from phlo.hooks import DataMigrationEventContext, DataMigrationEventEmitter, HookCorrelation
 from phlo.logging import get_logger
 from phlo.migrations.adapters import list_source_adapter_types, resolve_source_adapter
@@ -85,7 +86,24 @@ class MigrationExecutor:
 
         table_store = None
         if not dry_run:
-            table_store = get_capability_registry().list_table_stores()[0].provider
+            resolution = resolve_capability("table_store")
+            if resolution is None:
+                configured_name = configured_capability_name("table_store")
+                available = list_capabilities("table_store")
+                if configured_name:
+                    raise MigrationExecutionError(
+                        f"Configured table_store '{configured_name}' is not registered. "
+                        f"Available providers: {available}"
+                    )
+                if available:
+                    raise MigrationExecutionError(
+                        "Multiple table_store providers are registered. "
+                        f"Configure PHLO_DEFAULT_CAPABILITIES to select one: {available}"
+                    )
+                raise MigrationExecutionError(
+                    "No table store registered. Install a table-store provider or run with --dry-run"
+                )
+            table_store = resolution.provider
 
         request_id = uuid4().hex
         emitter = DataMigrationEventEmitter(

@@ -56,6 +56,14 @@ class Settings(BaseConfig):
         validation_alias=AliasChoices("PHLO_PROJECT"),
         description="Optional project identifier attached to observability resources",
     )
+    phlo_default_capabilities: dict[str, str] = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices("PHLO_DEFAULT_CAPABILITIES"),
+        description=(
+            "Default capability provider names keyed by capability type "
+            "(for example {'table_store': 'iceberg'})"
+        ),
+    )
 
     plugins_enabled: bool = Field(default=True, description="Enable plugin system")
     plugins_auto_discover: bool = Field(

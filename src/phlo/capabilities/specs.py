@@ -75,6 +75,7 @@ class AssetSpec:
     kinds: set[str] = field(default_factory=set)
     tags: dict[str, str] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    capability_overrides: dict[str, str] = field(default_factory=dict)
     partitions: PartitionSpec | None = None
     deps: list[str] = field(default_factory=list)
     resources: set[str] = field(default_factory=set)

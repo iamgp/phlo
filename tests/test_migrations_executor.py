@@ -179,3 +179,27 @@ def test_execute_emits_stable_correlation(monkeypatch: pytest.MonkeyPatch) -> No
     assert len(request_ids) == 1
     assert request_ids != {None}
     assert {event.correlation.asset_key for event in migration_events} == {"warehouse.demo"}
+
+
+def test_execute_requires_configured_default_when_multiple_table_stores_registered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Multiple table stores should fail with deterministic guidance."""
+
+    class _Registry:
+        def list_table_stores(self) -> list[object]:
+            return [object(), object()]
+
+    monkeypatch.setattr(migration_executor, "discover_capabilities", lambda: None)
+    monkeypatch.setattr(migration_executor, "resolve_source_adapter", lambda _: _FakeAdapter())
+    monkeypatch.setattr(migration_executor, "get_capability_registry", lambda: _Registry())
+    monkeypatch.setattr(migration_executor, "list_capabilities", lambda _: ["iceberg", "delta"])
+    monkeypatch.setattr(migration_executor, "resolve_capability", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        migration_executor,
+        "configured_capability_name",
+        lambda *_args, **_kwargs: None,
+    )
+
+    with pytest.raises(MigrationExecutionError, match="Multiple table_store providers"):
+        MigrationExecutor().execute(_spec(dry_run=False))

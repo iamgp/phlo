@@ -19,6 +19,25 @@ class RuntimeRouting:
     run_id: str | None = None
     resources: dict[str, Any] = field(default_factory=dict)
     feature_flags: dict[str, str] = field(default_factory=dict)
+    capability_overrides: dict[str, str] = field(default_factory=dict)
+
+
+def capability_overrides_from_tags(tags: Mapping[str, str]) -> dict[str, str]:
+    """Extract capability overrides from canonical runtime tags."""
+    overrides: dict[str, str] = {}
+    for key, value in tags.items():
+        if not value:
+            continue
+        if key.startswith("phlo/capability/"):
+            capability_type = key.removeprefix("phlo/capability/")
+        elif key.startswith("capability/"):
+            capability_type = key.removeprefix("capability/")
+        else:
+            continue
+        capability_type = capability_type.strip()
+        if capability_type:
+            overrides[capability_type] = value
+    return overrides
 
 
 class RuntimeContext(Protocol):
@@ -80,6 +99,7 @@ def routing_from_context(context: RuntimeContext) -> RuntimeRouting:
         for key, value in tags.items()
         if key.startswith("feature/")
     }
+    capability_overrides = capability_overrides_from_tags(tags)
     environment = tags.get("environment") or tags.get("env")
     ref = tags.get("phlo/ref") or tags.get("ref") or tags.get("branch")
 
@@ -90,6 +110,7 @@ def routing_from_context(context: RuntimeContext) -> RuntimeRouting:
         run_id=getattr(context, "run_id", None),
         resources=resources,
         feature_flags=feature_flags,
+        capability_overrides=capability_overrides,
     )
 
 

@@ -169,6 +169,7 @@ __all__ = [
     "TableStore",
     "coerce_capability_support",
     "clear_capabilities",
+    "configured_capability_name",
     "get_capability_registry",
     "list_capabilities",
     "missing_required_capabilities",
@@ -209,6 +210,7 @@ def __getattr__(name: str):
     """Lazily expose resolver symbols to avoid circular imports."""
     if name in {
         "ResolutionResult",
+        "configured_capability_name",
         "list_capabilities",
         "missing_required_capabilities",
         "resolve_capability",

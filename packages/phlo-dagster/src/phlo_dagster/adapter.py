@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any, Iterable, Mapping
 
 import dagster as dg
 
-from phlo.capabilities.runtime import RuntimeContext, RuntimeRouting
+from phlo.capabilities.runtime import (
+    RuntimeContext,
+    RuntimeRouting,
+    capability_overrides_from_tags,
+)
 from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
@@ -121,6 +125,7 @@ class DagsterRuntime(RuntimeContext):
     """Runtime context wrapper around ``dagster.AssetExecutionContext``."""
 
     context: dg.AssetExecutionContext
+    asset_capability_overrides: dict[str, str] = field(default_factory=dict)
 
     @property
     def run_id(self) -> str | None:
@@ -191,6 +196,8 @@ class DagsterRuntime(RuntimeContext):
             for key, value in tags.items()
             if key.startswith("feature/")
         }
+        capability_overrides = capability_overrides_from_tags(tags)
+        capability_overrides.update(self.asset_capability_overrides)
         return RuntimeRouting(
             environment=tags.get("environment") or tags.get("env"),
             ref=tags.get("phlo/ref") or tags.get("ref") or tags.get("branch"),
@@ -198,6 +205,7 @@ class DagsterRuntime(RuntimeContext):
             run_id=self.run_id,
             resources=self.resources,
             feature_flags=feature_flags,
+            capability_overrides=capability_overrides,
         )
 
     def get_resource(self, name: str) -> Any:
@@ -357,7 +365,9 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
             Yields:
                 Dagster materialization or asset check results.
             """
-            runtime = DagsterRuntime(context)
+            runtime = DagsterRuntime(
+                context, asset_capability_overrides=dict(spec.capability_overrides)
+            )
             results = spec.run.fn(runtime) if spec.run else []
             if results is None:
                 return
