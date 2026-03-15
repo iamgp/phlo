@@ -22,7 +22,7 @@ def exec_cmd(service_name: str, command: tuple[str, ...], tty: bool) -> None:
     """Run a command inside a running Phlo service container.
 
     Examples:
-        phlo services exec dagster -- dbt run --select my_model
+        phlo services exec <service> -- dbt run --select my_model
         phlo services exec trino -- trino --execute "SELECT 1"
         phlo services exec --tty postgres -- psql
     """

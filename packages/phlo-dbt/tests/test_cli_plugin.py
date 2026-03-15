@@ -17,7 +17,7 @@ def test_dbt_cli_plugin_metadata() -> None:
     assert plugin.get_cli_commands()[0].name == "dbt"
 
 
-def test_dbt_run_uses_dagster_container_by_default(monkeypatch, tmp_path) -> None:
+def test_dbt_run_uses_active_orchestrator_container_by_default(monkeypatch, tmp_path) -> None:
     project_dir = tmp_path / "workflows" / "transforms" / "dbt"
     profiles_dir = project_dir / "profiles"
     profiles_dir.mkdir(parents=True)
@@ -26,6 +26,10 @@ def test_dbt_run_uses_dagster_container_by_default(monkeypatch, tmp_path) -> Non
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("phlo_dbt.cli_plugin.ensure_phlo_dir", lambda: tmp_path / ".phlo")
     monkeypatch.setattr("phlo_dbt.cli_plugin.get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        "phlo_dbt.cli_plugin.get_active_orchestrator",
+        lambda: SimpleNamespace(exec_service_name=lambda: "orchestrator"),
+    )
     monkeypatch.setattr(
         "phlo_dbt.cli_plugin.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -59,7 +63,7 @@ def test_dbt_run_uses_dagster_container_by_default(monkeypatch, tmp_path) -> Non
             "demo",
             "exec",
             "-T",
-            "dagster",
+            "orchestrator",
             "dbt",
             "run",
             "--project-dir",
@@ -116,6 +120,29 @@ def test_dbt_run_local_uses_host_dbt(monkeypatch, tmp_path) -> None:
     ]
 
 
+def test_dbt_run_container_requires_exec_service(monkeypatch, tmp_path) -> None:
+    project_dir = tmp_path / "workflows" / "transforms" / "dbt"
+    profiles_dir = project_dir / "profiles"
+    profiles_dir.mkdir(parents=True)
+    (project_dir / "dbt_project.yml").write_text("name: demo\n", encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("phlo_dbt.cli_plugin.ensure_phlo_dir", lambda: tmp_path / ".phlo")
+    monkeypatch.setattr(
+        "phlo_dbt.cli_plugin.get_active_orchestrator",
+        lambda: SimpleNamespace(exec_service_name=lambda: None),
+    )
+    monkeypatch.setattr(
+        "phlo_dbt.settings.get_settings",
+        lambda: SimpleNamespace(dbt_project_path=project_dir, dbt_profiles_path=profiles_dir),
+    )
+
+    result = CliRunner().invoke(dbt_group, ["run", "--select", "dim_pokemon"])
+
+    assert result.exit_code != 0
+    assert "does not expose a container execution service" in result.output
+
+
 def test_dbt_run_joins_multiple_select_flags(monkeypatch, tmp_path) -> None:
     project_dir = tmp_path / "workflows" / "transforms" / "dbt"
     profiles_dir = project_dir / "profiles"
@@ -125,6 +152,10 @@ def test_dbt_run_joins_multiple_select_flags(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("phlo_dbt.cli_plugin.ensure_phlo_dir", lambda: tmp_path / ".phlo")
     monkeypatch.setattr("phlo_dbt.cli_plugin.get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        "phlo_dbt.cli_plugin.get_active_orchestrator",
+        lambda: SimpleNamespace(exec_service_name=lambda: "orchestrator"),
+    )
     monkeypatch.setattr(
         "phlo_dbt.cli_plugin.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],

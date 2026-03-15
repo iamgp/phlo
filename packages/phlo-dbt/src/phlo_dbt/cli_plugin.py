@@ -12,13 +12,14 @@ from phlo.cli.commands.services.utils import ensure_phlo_dir
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
+from phlo.orchestrators import get_active_orchestrator
 from phlo.plugins.base import CliCommandPlugin, PluginMetadata
 from phlo_dbt.cli_publishing import publishing
 from phlo_dbt.runtime_config import DEFAULT_DBT_TARGET, ensure_dbt_profile
 
 
 def _container_path(path: Path, *, project_root: Path) -> str:
-    """Translate a project-local host path into the Dagster container mount path."""
+    """Translate a project-local host path into the orchestrator container mount path."""
     relative = path.resolve().relative_to(project_root.resolve())
     return str(Path("/app") / relative)
 
@@ -34,13 +35,25 @@ def _should_run_in_container(local: bool) -> bool:
     return True
 
 
+def _resolve_exec_service_name() -> str:
+    """Resolve the execution service from the active orchestrator adapter."""
+    adapter = get_active_orchestrator()
+    service_name = adapter.exec_service_name()
+    if not service_name:
+        raise click.ClickException(
+            "The active orchestrator does not expose a container execution service. "
+            "Use --local to run dbt on the host."
+        )
+    return service_name
+
+
 def _run_dbt_in_container(
     *,
     subcommand: str,
     target: str,
     select_expr: str | None = None,
 ) -> None:
-    """Run dbt inside the Dagster service container."""
+    """Run dbt inside the active orchestrator service container."""
     from phlo_dbt.settings import get_settings
 
     logger = get_logger(f"phlo.dbt.{subcommand}")
@@ -48,6 +61,7 @@ def _run_dbt_in_container(
     project_root = Path.cwd()
     project_dir = settings.dbt_project_path
     profiles_dir = settings.dbt_profiles_path
+    exec_service_name = _resolve_exec_service_name()
 
     if not (project_dir / "dbt_project.yml").exists():
         click.echo(f"No dbt project found at {project_dir}", err=True)
@@ -55,17 +69,18 @@ def _run_dbt_in_container(
 
     phlo_dir = ensure_phlo_dir()
     compose_cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=get_project_name())
-    cmd = [*compose_cmd, "exec", "-T", "dagster", "dbt", subcommand]
+    cmd = [*compose_cmd, "exec", "-T", exec_service_name, "dbt", subcommand]
     cmd.extend(["--project-dir", _container_path(project_dir, project_root=project_root)])
     cmd.extend(["--profiles-dir", _container_path(profiles_dir, project_root=project_root)])
     cmd.extend(["--target", target])
     if select_expr is not None:
         cmd.extend(["--select", select_expr])
 
-    click.echo(f"Running dbt {subcommand} in dagster...")
+    click.echo(f"Running dbt {subcommand} in {exec_service_name}...")
     logger.debug(
         f"dbt_{subcommand}_container_started",
         project_dir=str(project_dir),
+        service_name=exec_service_name,
         target=target,
         select=select_expr,
     )
@@ -131,7 +146,7 @@ def _run_dbt(
     *,
     local: bool,
 ) -> None:
-    """Run a dbt subcommand locally or inside the Dagster container."""
+    """Run a dbt subcommand locally or inside the orchestrator container."""
     if _should_run_in_container(local):
         _run_dbt_in_container(subcommand=subcommand, target=target, select_expr=select_expr)
         return
@@ -145,7 +160,9 @@ def dbt_group() -> None:
 
 @dbt_group.command("compile")
 @click.option("--target", default=DEFAULT_DBT_TARGET, help="dbt target profile")
-@click.option("--local", is_flag=True, help="Run dbt on the host instead of in dagster.")
+@click.option(
+    "--local", is_flag=True, help="Run dbt on the host instead of in the orchestrator container."
+)
 def compile_cmd(target: str, local: bool) -> None:
     """Compile dbt models in the local project."""
     _run_dbt("compile", target, local=local)
@@ -154,7 +171,9 @@ def compile_cmd(target: str, local: bool) -> None:
 @dbt_group.command("run")
 @click.option("--target", default=DEFAULT_DBT_TARGET, help="dbt target profile")
 @click.option("--select", "select_exprs", multiple=True, help="dbt model selector")
-@click.option("--local", is_flag=True, help="Run dbt on the host instead of in dagster.")
+@click.option(
+    "--local", is_flag=True, help="Run dbt on the host instead of in the orchestrator container."
+)
 def run_cmd(target: str, select_exprs: tuple[str, ...], local: bool) -> None:
     """Run dbt models in the local project."""
     _run_dbt("run", target, " ".join(select_exprs) or None, local=local)
@@ -163,7 +182,9 @@ def run_cmd(target: str, select_exprs: tuple[str, ...], local: bool) -> None:
 @dbt_group.command("test")
 @click.option("--target", default=DEFAULT_DBT_TARGET, help="dbt target profile")
 @click.option("--select", "select_exprs", multiple=True, help="dbt model selector")
-@click.option("--local", is_flag=True, help="Run dbt on the host instead of in dagster.")
+@click.option(
+    "--local", is_flag=True, help="Run dbt on the host instead of in the orchestrator container."
+)
 def test_cmd(target: str, select_exprs: tuple[str, ...], local: bool) -> None:
     """Run dbt tests in the local project."""
     _run_dbt("test", target, " ".join(select_exprs) or None, local=local)

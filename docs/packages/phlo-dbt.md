@@ -61,7 +61,7 @@ The discovery module searches these paths in order:
 # Compile dbt project
 phlo dbt compile
 
-# Run dbt in the dagster service container
+# Run dbt in the active orchestrator service container
 phlo dbt run
 
 # Run specific models

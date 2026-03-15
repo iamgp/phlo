@@ -340,7 +340,7 @@ phlo services exec [OPTIONS] SERVICE -- COMMAND [ARGS...]
 
 ```bash
 # Run dbt inside dagster
-phlo services exec dagster -- dbt run --select gold.*
+phlo services exec <service> -- dbt run --select gold.*
 
 # Open an interactive psql shell in postgres
 phlo services exec --tty postgres -- psql -U postgres
