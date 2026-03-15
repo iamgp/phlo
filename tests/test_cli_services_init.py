@@ -180,6 +180,7 @@ def test_compose_generator_resolves_source_path_dev_volumes(tmp_path) -> None:
         services=[service],
         output_dir=tmp_path / ".phlo",
         dev_mode=True,
+        service_dev_mode=True,
     )
 
     data = yaml.safe_load(compose_yaml)
@@ -197,6 +198,11 @@ def test_services_init_excludes_profile_services_by_default(
                 "postgres": _service("postgres", default=True),
                 "prometheus": _service("prometheus", profile="observability"),
             }
+
+        def resolve_dependencies(
+            self, services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
+            return services
 
         def get_default_services(self, disabled_services=None) -> list[ServiceDefinition]:
             return [_service("postgres", default=True)]
@@ -251,6 +257,11 @@ def test_services_init_includes_requested_profile_services(
                 "postgres": _service("postgres", default=True),
                 "prometheus": _service("prometheus", profile="observability"),
             }
+
+        def resolve_dependencies(
+            self, services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
+            return services
 
         def get_default_services(self, disabled_services=None) -> list[ServiceDefinition]:
             return [_service("postgres", default=True)]

@@ -9,6 +9,7 @@ Provides commands to:
 
 import builtins
 import json
+from typing import Protocol
 
 import click
 import requests
@@ -22,7 +23,13 @@ console = Console()
 logger = get_logger(__name__)
 
 
-def _list_references(client) -> list[object]:
+class _ReferenceLike(Protocol):
+    """Structural type for pynessie references used by this CLI."""
+
+    name: str
+
+
+def _list_references(client) -> list[_ReferenceLike]:
     """Return a normalized reference list across pynessie client versions."""
     references = client.list_references()
     if hasattr(references, "references"):

@@ -95,8 +95,9 @@ def test_dbt_run_local_uses_host_dbt(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
         "phlo_dbt.cli_plugin.subprocess",
         SimpleNamespace(
-            run=lambda cmd, cwd=None, check=False: captured.append((cmd, cwd))
-            or CompletedProcess(cmd, 0)
+            run=lambda cmd, cwd=None, check=False: (
+                captured.append((cmd, cwd)) or CompletedProcess(cmd, 0)
+            )
         ),
     )
 
