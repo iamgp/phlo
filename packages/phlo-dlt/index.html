@@ -836,6 +836,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#selecting-a-table-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selecting a Table Store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#running-ingestion" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1811,6 +1822,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#selecting-a-table-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selecting a Table Store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#running-ingestion" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1891,6 +1913,12 @@
 <p>DLT (Data Load Tool) ingestion engine for Phlo.</p>
 <h2 id="overview">Overview</h2>
 <p><code>phlo-dlt</code> provides the <code>@phlo_ingestion</code> decorator for defining data ingestion pipelines using DLT. It materializes data into the active <code>table_store</code> with schema evolution and full lineage tracking.</p>
+<p>When multiple <code>table_store</code> providers are installed, selection is deterministic:</p>
+<ul>
+<li>workflow/runtime tag via <code>phlo/capability/table_store=...</code></li>
+<li>asset override via <code>capabilities={"table_store": "..."}</code></li>
+<li>global default via <code>phlo.yaml</code> <code>capabilities.defaults</code> or <code>PHLO_DEFAULT_CAPABILITIES</code></li>
+</ul>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-dlt
 # or
@@ -2058,6 +2086,11 @@ def api_events(partition_date: str):
 <td><code>SLA</code></td>
 <td>Optional freshness/quality contract metadata</td>
 </tr>
+<tr>
+<td><code>capabilities</code></td>
+<td><code>dict[str, str]</code></td>
+<td>Optional capability provider overrides for the asset</td>
+</tr>
 </tbody>
 </table>
 <h3 id="merge-strategies">Merge Strategies</h3>
@@ -2077,6 +2110,19 @@ def api_events(partition_date: str):
 </code></pre>
 <p>When <code>table_schema</code> is omitted, the active <code>table_store</code> provider must implement
 schema derivation from <code>validation_schema</code> (for example Iceberg provider conversion).</p>
+<h3 id="selecting-a-table-store">Selecting a Table Store</h3>
+<pre><code class="language-python">@phlo_ingestion(
+    table_name=&quot;events&quot;,
+    unique_key=&quot;id&quot;,
+    validation_schema=EventSchema,
+    group=&quot;api&quot;,
+    capabilities={&quot;table_store&quot;: &quot;delta&quot;},
+)
+def api_events(partition_date: str):
+    ...
+</code></pre>
+<p>For workflow-wide selection, set the Dagster run tag
+<code>phlo/capability/table_store=&lt;provider&gt;</code>.</p>
 <h3 id="running-ingestion">Running Ingestion</h3>
 <pre><code class="language-bash"># Via Phlo CLI
 phlo materialize dlt_api_events

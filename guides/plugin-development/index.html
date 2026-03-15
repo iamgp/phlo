@@ -2524,6 +2524,10 @@
 - Use <code>capability_type</code> when any provider of that type is acceptable.
 - Keep only true hard requirements in <code>requires_capabilities</code>.
 - Put integrations and enhancements in <code>optional_capabilities</code>.</p>
+<p>When your asset should bind to a specific provider for a generic capability type, set
+<code>AssetSpec.capability_overrides</code>, for example <code>{"table_store": "iceberg"}</code>. Runtime/workflow tags
+can also override capability selection with <code>phlo/capability/&lt;capability_type&gt;=&lt;provider&gt;</code>, and
+project-wide defaults belong in <code>phlo.yaml</code> under <code>capabilities.defaults</code>.</p>
 <h3 id="quick-start-create-a-plugin-scaffold">Quick Start: Create a Plugin Scaffold</h3>
 <pre><code class="language-bash"># Create source connector plugin
 phlo plugin create my-api-source --type source

@@ -810,6 +810,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#capability-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capability Selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#database-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1906,6 +1917,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#capability-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capability Selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#database-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2685,6 +2707,27 @@ PHLO_ENVIRONMENT=dev
 <li><code>PHLO_SERVICE_NAMESPACE</code>, <code>PHLO_SERVICE_VERSION</code>, <code>PHLO_SERVICE_INSTANCE_ID</code>, and <code>PHLO_PROJECT</code> provide Phlo-native defaults for OTel resource metadata.</li>
 <li>Standard <code>OTEL_*</code> variables still take precedence when set.</li>
 </ul>
+<h3 id="capability-selection">Capability Selection</h3>
+<pre><code class="language-yaml"># phlo.yaml
+capabilities:
+  defaults:
+    table_store: iceberg
+    query_engine: trino
+</code></pre>
+<pre><code class="language-bash"># Optional environment override for the same mapping.
+PHLO_DEFAULT_CAPABILITIES='{&quot;table_store&quot;:&quot;iceberg&quot;,&quot;query_engine&quot;:&quot;trino&quot;}'
+</code></pre>
+<p>Capability resolution order:</p>
+<ul>
+<li>explicit provider name passed by the caller</li>
+<li>runtime/workflow tag: <code>phlo/capability/&lt;capability_type&gt;=&lt;provider&gt;</code></li>
+<li>asset-level <code>capability_overrides</code></li>
+<li><code>PHLO_DEFAULT_CAPABILITIES</code></li>
+<li><code>phlo.yaml</code> <code>capabilities.defaults</code></li>
+<li>implicit selection only when exactly one provider of that capability type is installed</li>
+</ul>
+<p>If multiple providers are installed and none of the rules above selects one, Phlo fails with the
+installed provider names instead of picking one implicitly.</p>
 <h3 id="database-configuration">Database Configuration</h3>
 <p>PostgreSQL database settings:</p>
 <pre><code class="language-bash"># Host and port
