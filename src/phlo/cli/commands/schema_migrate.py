@@ -20,7 +20,12 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from phlo.capabilities import FieldSpec, NormalizedSchema, get_capability_registry
+from phlo.capabilities import (
+    FieldSpec,
+    NormalizedSchema,
+    get_capability_registry,
+    resolve_capability,
+)
 from phlo.cli.commands import schema_migrate_contracts
 from phlo.logging import get_logger
 
@@ -142,21 +147,15 @@ def _resolve_desired_schema(table_name: str, schema_class: str | None) -> tuple[
 
 
 def _select_default_table_store_name() -> str | None:
-    """Return first registered table-store name, if available."""
-    registry = get_capability_registry()
-    specs = registry.list_table_stores()
-    if not specs:
-        return None
-    return specs[0].name
+    """Return the selected default table-store name, if available."""
+    resolution = resolve_capability("table_store")
+    return resolution.name if resolution is not None else None
 
 
 def _select_default_migrator_name() -> str | None:
-    """Return first registered schema-migrator name, if available."""
-    registry = get_capability_registry()
-    specs = registry.list_schema_migrators()
-    if not specs:
-        return None
-    return specs[0].name
+    """Return the selected default schema-migrator name, if available."""
+    resolution = resolve_capability("schema_migrator")
+    return resolution.name if resolution is not None else None
 
 
 def _collect_quality_checks(table_name: str) -> list[dict[str, Any]]:

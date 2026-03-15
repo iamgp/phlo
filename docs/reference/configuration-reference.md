@@ -69,6 +69,33 @@ Notes:
 - `PHLO_SERVICE_NAMESPACE`, `PHLO_SERVICE_VERSION`, `PHLO_SERVICE_INSTANCE_ID`, and `PHLO_PROJECT` provide Phlo-native defaults for OTel resource metadata.
 - Standard `OTEL_*` variables still take precedence when set.
 
+### Capability Selection
+
+```yaml
+# phlo.yaml
+capabilities:
+  defaults:
+    table_store: iceberg
+    query_engine: trino
+```
+
+```bash
+# Optional environment override for the same mapping.
+PHLO_DEFAULT_CAPABILITIES='{"table_store":"iceberg","query_engine":"trino"}'
+```
+
+Capability resolution order:
+
+- explicit provider name passed by the caller
+- runtime/workflow tag: `phlo/capability/<capability_type>=<provider>`
+- asset-level `capability_overrides`
+- `PHLO_DEFAULT_CAPABILITIES`
+- `phlo.yaml` `capabilities.defaults`
+- implicit selection only when exactly one provider of that capability type is installed
+
+If multiple providers are installed and none of the rules above selects one, Phlo fails with the
+installed provider names instead of picking one implicitly.
+
 ### Database Configuration
 
 PostgreSQL database settings:

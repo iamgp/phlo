@@ -6,6 +6,12 @@ DLT (Data Load Tool) ingestion engine for Phlo.
 
 `phlo-dlt` provides the `@phlo_ingestion` decorator for defining data ingestion pipelines using DLT. It materializes data into the active `table_store` with schema evolution and full lineage tracking.
 
+When multiple `table_store` providers are installed, selection is deterministic:
+
+- workflow/runtime tag via `phlo/capability/table_store=...`
+- asset override via `capabilities={"table_store": "..."}`
+- global default via `phlo.yaml` `capabilities.defaults` or `PHLO_DEFAULT_CAPABILITIES`
+
 ## Installation
 
 ```bash
@@ -89,6 +95,7 @@ def api_events(partition_date: str):
 | `owner`             | `str`             | Optional owner/team metadata for contracts          |
 | `consumers`         | `list[Consumer \| str]` | Optional downstream consumer metadata         |
 | `sla`               | `SLA`             | Optional freshness/quality contract metadata        |
+| `capabilities`      | `dict[str, str]`  | Optional capability provider overrides for the asset |
 
 ### Merge Strategies
 
@@ -110,6 +117,23 @@ def api_events(partition_date: str):
 
 When `table_schema` is omitted, the active `table_store` provider must implement
 schema derivation from `validation_schema` (for example Iceberg provider conversion).
+
+### Selecting a Table Store
+
+```python
+@phlo_ingestion(
+    table_name="events",
+    unique_key="id",
+    validation_schema=EventSchema,
+    group="api",
+    capabilities={"table_store": "delta"},
+)
+def api_events(partition_date: str):
+    ...
+```
+
+For workflow-wide selection, set the Dagster run tag
+`phlo/capability/table_store=<provider>`.
 
 ### Running Ingestion
 

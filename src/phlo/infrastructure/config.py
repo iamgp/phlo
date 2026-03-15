@@ -9,6 +9,7 @@ from __future__ import annotations
 import time
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import yaml
 from pydantic import ValidationError
@@ -19,39 +20,69 @@ from phlo.logging import get_logger
 logger = get_logger(__name__)
 
 
-@lru_cache(maxsize=1)
-def load_infrastructure_config(project_root: Path | None = None) -> InfrastructureConfig:
-    """Load infrastructure configuration from phlo.yaml."""
+@lru_cache(maxsize=16)
+def load_project_config(project_root: Path | None = None) -> dict[str, Any]:
+    """Load raw project configuration from phlo.yaml."""
     started = time.perf_counter()
     if project_root is None:
         project_root = Path.cwd()
 
     config_path = project_root / "phlo.yaml"
     logger.debug(
-        "infrastructure_config_load_started",
+        "project_config_load_started",
         project_root=str(project_root),
         path=str(config_path),
     )
 
     if not config_path.exists():
         logger.info(
-            "infrastructure_config_load_completed",
+            "project_config_load_completed",
             source="default",
             reason="missing_file",
-            services_count=0,
             elapsed_ms=round((time.perf_counter() - started) * 1000, 2),
         )
-        return InfrastructureConfig()
+        return {}
 
     try:
         with config_path.open() as f:
             project_config = yaml.safe_load(f)
+    except yaml.YAMLError as exc:
+        logger.error("invalid_phlo_yaml", path=str(config_path), error=str(exc))
+        raise
 
+    if not isinstance(project_config, dict):
+        logger.info(
+            "project_config_load_completed",
+            source="default",
+            reason="empty_or_non_mapping",
+            elapsed_ms=round((time.perf_counter() - started) * 1000, 2),
+        )
+        return {}
+
+    logger.info(
+        "project_config_load_completed",
+        source="file",
+        key_count=len(project_config),
+        elapsed_ms=round((time.perf_counter() - started) * 1000, 2),
+    )
+    return project_config
+
+
+@lru_cache(maxsize=16)
+def load_infrastructure_config(project_root: Path | None = None) -> InfrastructureConfig:
+    """Load infrastructure configuration from phlo.yaml."""
+    started = time.perf_counter()
+    if project_root is None:
+        project_root = Path.cwd()
+    logger.debug("infrastructure_config_load_started", project_root=str(project_root))
+
+    try:
+        project_config = load_project_config(project_root)
         if not project_config:
             logger.info(
                 "infrastructure_config_load_completed",
                 source="default",
-                reason="empty_config",
+                reason="missing_project_config",
                 services_count=0,
                 elapsed_ms=round((time.perf_counter() - started) * 1000, 2),
             )
@@ -77,11 +108,12 @@ def load_infrastructure_config(project_root: Path | None = None) -> Infrastructu
         )
         return config
 
-    except yaml.YAMLError as exc:
-        logger.error("invalid_phlo_yaml", path=str(config_path), error=str(exc))
-        raise
     except ValidationError as exc:
-        logger.error("invalid_infrastructure_config", path=str(config_path), error=str(exc))
+        logger.error(
+            "invalid_infrastructure_config",
+            path=str(project_root / "phlo.yaml"),
+            error=str(exc),
+        )
         raise
 
 
@@ -90,18 +122,30 @@ def get_project_name_from_config(project_root: Path | None = None) -> str | None
     if project_root is None:
         project_root = Path.cwd()
 
-    config_path = project_root / "phlo.yaml"
-
-    if not config_path.exists():
-        return None
-
     try:
-        with config_path.open() as f:
-            project_config = yaml.safe_load(f)
+        project_config = load_project_config(project_root)
         return project_config.get("name") if project_config else None
     except Exception:
-        logger.warning("failed_to_read_project_name", path=str(config_path))
+        logger.warning("failed_to_read_project_name", path=str(project_root / "phlo.yaml"))
         return None
+
+
+def get_capability_defaults_from_config(project_root: Path | None = None) -> dict[str, str]:
+    """Return capability defaults declared in phlo.yaml."""
+    project_config = load_project_config(project_root)
+    capabilities = project_config.get("capabilities", {})
+    if not isinstance(capabilities, dict):
+        return {}
+
+    defaults = capabilities.get("defaults", {})
+    if not isinstance(defaults, dict):
+        return {}
+
+    normalized: dict[str, str] = {}
+    for key, value in defaults.items():
+        if isinstance(key, str) and isinstance(value, str) and key and value:
+            normalized[key] = value
+    return normalized
 
 
 def get_service_config(service_key: str, project_root: Path | None = None) -> ServiceConfig | None:
@@ -122,4 +166,5 @@ def get_container_name(
 
 def clear_config_cache() -> None:
     """Clear the configuration cache."""
+    load_project_config.cache_clear()
     load_infrastructure_config.cache_clear()

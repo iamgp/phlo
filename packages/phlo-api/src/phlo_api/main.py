@@ -141,24 +141,20 @@ def load_phlo_config() -> dict[str, Any]:
 
 def _default_table_store_name() -> str | None:
     try:
-        from phlo.capabilities import get_capability_registry
+        from phlo.capabilities import resolve_capability
 
-        specs = get_capability_registry().list_table_stores()
-        if not specs:
-            return None
-        return specs[0].name
+        resolution = resolve_capability("table_store")
+        return resolution.name if resolution is not None else None
     except Exception:
         return None
 
 
 def _default_schema_migrator_name() -> str | None:
     try:
-        from phlo.capabilities import get_capability_registry
+        from phlo.capabilities import resolve_capability
 
-        specs = get_capability_registry().list_schema_migrators()
-        if not specs:
-            return None
-        return specs[0].name
+        resolution = resolve_capability("schema_migrator")
+        return resolution.name if resolution is not None else None
     except Exception:
         return None
 
