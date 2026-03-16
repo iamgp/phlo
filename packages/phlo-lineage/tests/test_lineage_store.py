@@ -5,7 +5,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from phlo_lineage.store import LineageStore, generate_row_id, resolve_lineage_db_url
+from phlo_lineage.store import (
+    LineageStore,
+    generate_row_id,
+    resolve_lineage_db_url,
+    resolve_lineage_db_url_with_postgres_fallback,
+)
 
 
 class TestGenerateRowId:
@@ -176,6 +181,18 @@ class TestResolveLineageDbUrl:
 
         assert resolve_lineage_db_url() == "postgresql://explicit"
 
+    def test_returns_none_without_explicit_lineage_env(self, monkeypatch) -> None:
+        monkeypatch.delenv("LINEAGE_DB_URL", raising=False)
+        monkeypatch.delenv("PHLO_LINEAGE_DB_URL", raising=False)
+        monkeypatch.delenv("DAGSTER_PG_DB_CONNECTION_STRING", raising=False)
+        monkeypatch.delenv("POSTGRES_HOST", raising=False)
+        monkeypatch.delenv("POSTGRES_PORT", raising=False)
+        monkeypatch.delenv("POSTGRES_USER", raising=False)
+        monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+        monkeypatch.delenv("POSTGRES_DB", raising=False)
+
+        assert resolve_lineage_db_url() is None
+
     @patch("phlo_lineage.store.socket.gethostbyname", side_effect=socket.gaierror())
     def test_falls_back_to_localhost_for_unresolvable_postgres_host(
         self, _mock_resolve, monkeypatch
@@ -189,7 +206,10 @@ class TestResolveLineageDbUrl:
         monkeypatch.setenv("POSTGRES_PASSWORD", "secret")
         monkeypatch.setenv("POSTGRES_DB", "warehouse")
 
-        assert resolve_lineage_db_url() == "postgresql://phlo:secret@localhost:15432/warehouse"
+        assert (
+            resolve_lineage_db_url_with_postgres_fallback()
+            == "postgresql://phlo:secret@localhost:15432/warehouse"
+        )
 
     @patch("phlo_lineage.store.psycopg2")
     def test_get_row_returns_dict_when_found(self, mock_psycopg2, mock_connection):

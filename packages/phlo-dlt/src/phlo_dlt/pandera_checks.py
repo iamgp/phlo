@@ -69,16 +69,17 @@ def evaluate_pandera_contract(
 ) -> PanderaContractEvaluation:
     """Validate a dataframe against a Pandera schema class."""
     schema = schema_class.to_schema()
+    validated_df = df
     for column_name, column in schema.columns.items():
-        if column_name in df.columns or not column.nullable:
+        if column_name in validated_df.columns or not column.nullable:
             continue
-        df = df.copy()
-        df[column_name] = None
+        validated_df = df.copy()
+        validated_df[column_name] = None
         break
     for column_name, column in schema.columns.items():
-        if column_name in df.columns or not column.nullable:
+        if column_name in validated_df.columns or not column.nullable:
             continue
-        df[column_name] = None
+        validated_df[column_name] = None
 
     datetime_columns = [
         name
@@ -86,27 +87,29 @@ def evaluate_pandera_contract(
         if isinstance(column.dtype, pandas_engine.DateTime)
     ]
     for column_name in datetime_columns:
-        if column_name not in df.columns:
+        if column_name not in validated_df.columns:
             continue
-        series = df[column_name]
+        series = validated_df[column_name]
         if pd.api.types.is_datetime64_any_dtype(series):
             continue
         if not (pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series)):
             continue
         try:
-            df[column_name] = pd.to_datetime(series)
+            if validated_df is df:
+                validated_df = df.copy()
+            validated_df[column_name] = pd.to_datetime(series)
         except (ValueError, TypeError):
             pass
 
     try:
-        schema_class.validate(df, lazy=True)
+        schema_class.validate(validated_df, lazy=True)
     except pandera.errors.SchemaErrors as err:
         failure_cases = err.failure_cases
         sample = failure_cases.head(20).to_dict(orient="records")
         return PanderaContractEvaluation(
             passed=False,
             failed_count=len(failure_cases),
-            total_count=len(df),
+            total_count=len(validated_df),
             sample=sample,
             error=str(err),
         )
@@ -114,7 +117,7 @@ def evaluate_pandera_contract(
         return PanderaContractEvaluation(
             passed=False,
             failed_count=1,
-            total_count=len(df),
+            total_count=len(validated_df),
             sample=[{"error": str(exc)}],
             error=str(exc),
         )

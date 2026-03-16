@@ -68,8 +68,8 @@ def ensure_phlo_dir() -> Path:
     return phlo_dir
 
 
-def check_docker_running() -> bool:
-    """Check if Docker CLI is available.
+def check_docker_available() -> bool:
+    """Check if the Docker CLI is available.
 
     Docker daemon round-trips like `docker info`/`docker version` can time out under
     heavy local load even when subsequent compose commands succeed. For services
@@ -84,11 +84,11 @@ def check_docker_running() -> bool:
 
 
 def require_docker():
-    """Exit with helpful message if Docker is not running."""
-    if not check_docker_running():
-        click.echo("Error: Docker is not running.", err=True)
+    """Exit with helpful message if the Docker CLI is unavailable."""
+    if not check_docker_available():
+        click.echo("Error: Docker CLI is not available.", err=True)
         click.echo("", err=True)
-        click.echo("Please start Docker Desktop and try again.", err=True)
+        click.echo("Install Docker Desktop or ensure `docker` is on PATH.", err=True)
         click.echo("Download: https://docs.docker.com/get-docker/", err=True)
         sys.exit(1)
 

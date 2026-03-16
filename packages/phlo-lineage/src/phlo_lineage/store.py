@@ -47,11 +47,18 @@ _LINEAGE_DB_KEYS = (
 
 
 def resolve_lineage_db_url() -> str | None:
-    """Resolve the lineage database URL from environment or Postgres defaults."""
+    """Resolve the lineage database URL from explicit lineage environment variables."""
     for key in _LINEAGE_DB_KEYS:
         value = os.environ.get(key)
         if value:
             return value
+    return None
+
+
+def resolve_lineage_db_url_with_postgres_fallback() -> str | None:
+    """Resolve the lineage database URL from environment or Postgres defaults."""
+    if connection_string := resolve_lineage_db_url():
+        return connection_string
     host, port = _resolve_postgres_host(
         os.environ.get("POSTGRES_HOST", "postgres"),
         int(os.environ.get("POSTGRES_PORT", "5432")),

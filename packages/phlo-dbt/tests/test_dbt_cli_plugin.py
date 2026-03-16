@@ -27,7 +27,7 @@ def test_dbt_run_uses_active_orchestrator_container_by_default(monkeypatch, tmp_
     monkeypatch.setattr("phlo_dbt.cli_plugin.ensure_phlo_dir", lambda: tmp_path / ".phlo")
     monkeypatch.setattr("phlo_dbt.cli_plugin.get_project_name", lambda: "demo")
     monkeypatch.setattr(
-        "phlo_dbt.cli_plugin.get_active_orchestrator",
+        "phlo.orchestrators.get_active_orchestrator",
         lambda: SimpleNamespace(exec_service_name=lambda: "orchestrator"),
     )
     monkeypatch.setattr(
@@ -130,7 +130,7 @@ def test_dbt_run_container_requires_exec_service(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("phlo_dbt.cli_plugin.ensure_phlo_dir", lambda: tmp_path / ".phlo")
     monkeypatch.setattr(
-        "phlo_dbt.cli_plugin.get_active_orchestrator",
+        "phlo.orchestrators.get_active_orchestrator",
         lambda: SimpleNamespace(exec_service_name=lambda: None),
     )
     monkeypatch.setattr(
@@ -154,7 +154,7 @@ def test_dbt_run_joins_multiple_select_flags(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("phlo_dbt.cli_plugin.ensure_phlo_dir", lambda: tmp_path / ".phlo")
     monkeypatch.setattr("phlo_dbt.cli_plugin.get_project_name", lambda: "demo")
     monkeypatch.setattr(
-        "phlo_dbt.cli_plugin.get_active_orchestrator",
+        "phlo.orchestrators.get_active_orchestrator",
         lambda: SimpleNamespace(exec_service_name=lambda: "orchestrator"),
     )
     monkeypatch.setattr(

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Set
 
 from phlo.logging import get_logger
-from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
 
 logger = get_logger(__name__)
 
@@ -248,7 +248,7 @@ def get_lineage_graph() -> LineageGraph:
 def _build_lineage_from_store() -> LineageGraph:
     """Build lineage graph from the persistent lineage store."""
     graph = LineageGraph()
-    connection_string = resolve_lineage_db_url()
+    connection_string = resolve_lineage_db_url_with_postgres_fallback()
     if not connection_string:
         logger.debug("Lineage graph initialized (no lineage DB configured)")
         return graph

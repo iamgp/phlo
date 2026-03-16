@@ -52,3 +52,14 @@ def test_evaluate_pandera_contract_backfills_missing_nullable_columns() -> None:
     assert evaluation.passed is True
     assert evaluation.total_count == 1
     assert evaluation.failed_count == 0
+
+
+def test_evaluate_pandera_contract_does_not_mutate_input_dataframe() -> None:
+    df = pd.DataFrame([{"id": 1}])
+
+    evaluate_pandera_contract(
+        df,
+        schema_class=NullableFieldSchema,
+    )
+
+    assert list(df.columns) == ["id"]
