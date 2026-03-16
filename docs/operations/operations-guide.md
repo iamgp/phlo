@@ -656,30 +656,30 @@ phlo materialize --select "tag:critical" --partition $(date -d "yesterday" +%Y-%
 
 ## Release Management
 
-Phlo uses Release Please to manage versions and changelogs on `main`.
+Phlo uses [ReleaseX](https://github.com/iamgp/ReleaseX) (`relx`) to manage versions, changelogs, and publishing on `main`.
 
-### Release Please Configuration
+### Configuration
 
-- Workflow: `.github/workflows/release-please.yml`
-- Config: `.github/release-please-config.json`
-- Manifest: `.github/release-please-manifest.json`
+- Config: `relx.toml` (repo root)
+- Workflow: `.github/workflows/release.yml`
 
-The manifest tracks the current release version used to generate tags and changelogs.
+ReleaseX auto-discovers workspace packages via `tool.uv.workspace.members` in `pyproject.toml` and manages independent versioning with cascade bumps enabled.
 
 ### Local Validation (Dry Run)
 
-Use the Release Please CLI with a GitHub token to preview the next release.
-
 ```bash
-export RELEASE_PLEASE_TOKEN="ghp_your_token"
-npx release-please manifest-pr \
-  --config-file .github/release-please-config.json \
-  --manifest-file .github/release-please-manifest.json \
-  --dry-run
+# Check current status — pending bump, changelog preview, package plan
+relx status
+
+# Preview what the release PR would contain
+relx release pr --dry-run
 ```
 
-If the output shows the next version incrementing as expected and the compare link
-targets the previous tag, the configuration is working as expected.
+### Validate Configuration
+
+```bash
+relx validate
+```
 
 ## Maintenance Windows
 
