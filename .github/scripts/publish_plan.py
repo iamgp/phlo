@@ -77,7 +77,7 @@ def collect_internal_deps(
 def find_base_ref(event: str, base_ref_env: str, current_tag: str) -> str:
     if base_ref_env:
         return base_ref_env
-    if event == "release" and current_tag:
+    if current_tag:
         return try_run(["git", "describe", "--tags", "--abbrev=0", f"{current_tag}^"])
     return try_run(["git", "describe", "--tags", "--abbrev=0"])
 
@@ -182,7 +182,9 @@ def main() -> None:
 
     event = os.environ.get("GITHUB_EVENT_NAME", "")
     base_ref_env = os.environ.get("BASE_REF", "").strip()
-    current_tag = os.environ.get("GITHUB_REF_NAME", "") if event == "release" else ""
+    current_tag = os.environ.get("CURRENT_TAG", "").strip()
+    if not current_tag and event == "release":
+        current_tag = os.environ.get("GITHUB_REF_NAME", "")
 
     base_ref = find_base_ref(event, base_ref_env, current_tag)
     changed_files = collect_changed_files(base_ref)
