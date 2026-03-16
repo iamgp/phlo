@@ -315,6 +315,15 @@
     </span>
 </a>
 </li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-dbt">
+<span class="md-ellipsis">
+      
+        phlo dbt
+      
+    </span>
+</a>
+</li>
 </ul>
 </nav>
 </li>
@@ -342,6 +351,15 @@
 <span class="md-ellipsis">
       
         phlo services start
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-exec">
+<span class="md-ellipsis">
+      
+        phlo services exec
       
     </span>
 </a>
@@ -1254,6 +1272,15 @@
     </span>
 </a>
 </li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-dbt">
+<span class="md-ellipsis">
+      
+        phlo dbt
+      
+    </span>
+</a>
+</li>
 </ul>
 </nav>
 </li>
@@ -1281,6 +1308,15 @@
 <span class="md-ellipsis">
       
         phlo services start
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-exec">
+<span class="md-ellipsis">
+      
+        phlo services exec
       
     </span>
 </a>
@@ -2079,6 +2115,7 @@ phlo hasura              # Hasura GraphQL management
 phlo minio               # MinIO client and admin helpers
 phlo postgres            # PostgreSQL shell and maintenance
 phlo trino               # Trino shell and queries
+phlo dbt                 # dbt compile/run/test helpers
 phlo publishing          # dbt publishing layer
 phlo metrics             # Metrics summary (built-in)
 phlo alerts              # Alerting rules
@@ -2143,6 +2180,24 @@ phlo trino query "SELECT * FROM iceberg.bronze.users LIMIT 10"
 # Query from a file
 phlo trino query --file query.sql --catalog iceberg --schema bronze
 </code></pre>
+<h3 id="phlo-dbt">phlo dbt</h3>
+<p>Run dbt against the project dbt workspace. When <code>.phlo/</code> exists, Phlo runs dbt inside the
+Dagster service container by default so the command matches the running stack. Use <code>--local</code>
+to run host dbt directly.</p>
+<pre><code class="language-bash">phlo dbt compile [OPTIONS]
+phlo dbt run [OPTIONS]
+phlo dbt test [OPTIONS]
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Run dbt inside the dagster service
+phlo dbt run --select silver.*
+
+# Compile with an explicit target
+phlo dbt compile --target prod
+
+# Run host dbt instead of the container
+phlo dbt test --local --select gold.*
+</code></pre>
 <h2 id="services-commands">Services Commands</h2>
 <p>Manage Docker infrastructure services.</p>
 <p>Services are provided by installed service packages (e.g., <code>phlo-dagster</code>, <code>phlo-trino</code>). Install
@@ -2167,6 +2222,7 @@ core services with:</p>
 <pre><code class="language-bash">--force              # Overwrite existing configuration
 --name NAME          # Project name (default: directory name)
 --dev                # Development mode: mount local phlo source
+--service-dev        # Also apply service-specific dev runtimes
 --no-dev             # Explicitly disable dev mode
 --phlo-source PATH   # Path to phlo repo or src/phlo for dev mode
 </code></pre>
@@ -2182,6 +2238,9 @@ phlo services init --name my-lakehouse
 
 # Development mode with local source
 phlo services init --dev --phlo-source /path/to/phlo
+
+# Development mode plus service-level dev runtimes
+phlo services init --dev --service-dev
 </code></pre>
 <h3 id="phlo-services-start">phlo services start</h3>
 <p>Start all infrastructure services.</p>
@@ -2238,6 +2297,21 @@ phlo services start --build
 <li>Dagster webserver (port 10006)</li>
 <li>Dagster daemon</li>
 </ul>
+<h3 id="phlo-services-exec">phlo services exec</h3>
+<p>Run a command inside a running Phlo service container without hardcoding the Compose project
+name or compose file path.</p>
+<pre><code class="language-bash">phlo services exec [OPTIONS] SERVICE -- COMMAND [ARGS...]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--tty / --no-tty      # Allocate a TTY (default: no tty)
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Run dbt inside dagster
+phlo services exec &lt;service&gt; -- dbt run --select gold.*
+
+# Open an interactive psql shell in postgres
+phlo services exec --tty postgres -- psql -U postgres
+</code></pre>
 <h3 id="phlo-services-stop">phlo services stop</h3>
 <p>Stop all running services.</p>
 <pre><code class="language-bash">phlo services stop [OPTIONS]

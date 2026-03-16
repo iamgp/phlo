@@ -2120,18 +2120,18 @@ phlo plugin install dbt
 <pre><code class="language-bash"># Compile dbt project
 phlo dbt compile
 
-# Run dbt models
+# Run dbt in the active orchestrator service container
 phlo dbt run
 
 # Run specific models
 phlo dbt run --select silver.*
 
-# Generate dbt docs
-phlo dbt docs generate
-
-# Serve dbt docs
-phlo dbt docs serve
+# Run host dbt directly
+phlo dbt test --local --select gold.*
 </code></pre>
+<p>When <code>.phlo/</code> exists, <code>phlo dbt compile|run|test</code> executes inside the running <code>dagster</code>
+service by default. That keeps dbt aligned with the project's active Trino, Iceberg, and
+generated profile configuration. Use <code>--local</code> when you explicitly want host dbt.</p>
 <h3 id="programmatic-access">Programmatic Access</h3>
 <pre><code class="language-python">from phlo_dbt.discovery import find_dbt_projects, get_dbt_project_dir
 
