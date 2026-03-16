@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.7.0](https://github.com/phlohouse/phlo/compare/v0.6.0...v0.7.0) (2026-03-16)
+
+
+### Features
+
+* add authentication provider capability ([#291](https://github.com/phlohouse/phlo/issues/291)) ([978fbdb](https://github.com/phlohouse/phlo/commit/978fbdb20c9cd04d234dada1c5b47d979f740d04))
+* add authorization policy backend capability ([#290](https://github.com/phlohouse/phlo/issues/290)) ([2a55298](https://github.com/phlohouse/phlo/commit/2a55298b77a41ba5e3ff25c700ccce37584eb195))
+* add clickstack observability package ([#285](https://github.com/phlohouse/phlo/issues/285)) ([7b610b1](https://github.com/phlohouse/phlo/commit/7b610b15e14c2b8450394d4a3a06978e0f35c6b8))
+* add column-level lineage tracking with dbt manifest parser ([#268](https://github.com/phlohouse/phlo/issues/268)) ([641a19f](https://github.com/phlohouse/phlo/commit/641a19f390eb8a5c52f8f0ff6f869f6af5ab6336))
+* add deterministic capability selection ([#296](https://github.com/phlohouse/phlo/issues/296)) ([6391b60](https://github.com/phlohouse/phlo/commit/6391b600bbfbf5f24e7841efa0d43c7f769a9ba0))
+* add local Traefik reverse proxy ([#294](https://github.com/phlohouse/phlo/issues/294)) ([069bd23](https://github.com/phlohouse/phlo/commit/069bd237fd31506ed9935dfeb14e91988caac80c))
+* add observability backend capability ([#278](https://github.com/phlohouse/phlo/issues/278)) ([c241268](https://github.com/phlohouse/phlo/commit/c24126828e6a178e327a1d939393dcf12ef0c9c9))
+* add OTEL observability plugin ([#282](https://github.com/phlohouse/phlo/issues/282)) ([e394b84](https://github.com/phlohouse/phlo/commit/e394b84136ab4ce3b47ab6ba219354e9715b67ff))
+* add package CLI wrappers for service containers ([#295](https://github.com/phlohouse/phlo/issues/295)) ([2ed0bf5](https://github.com/phlohouse/phlo/commit/2ed0bf5ad126e8e2fbf51f9982ac1c2f75481242))
+* add phlo-clickhouse package for ClickHouse data plane ([#287](https://github.com/phlohouse/phlo/issues/287)) ([88ce96e](https://github.com/phlohouse/phlo/commit/88ce96e64eb16102f73613cc55a8291c954b65d8))
+* add phlo-delta package for Delta Lake table storage ([#280](https://github.com/phlohouse/phlo/issues/280)) ([5c5e9de](https://github.com/phlohouse/phlo/commit/5c5e9defe206b64cb580d87d30cba6b51099843b))
+* add phlo-rustfs package for RustFS S3-compatible storage ([#288](https://github.com/phlohouse/phlo/issues/288)) ([1de1089](https://github.com/phlohouse/phlo/commit/1de1089b625997097af8587417e76e43dd93ef61))
+* add phlo-sling package for database replication ([#289](https://github.com/phlohouse/phlo/issues/289)) ([61b1733](https://github.com/phlohouse/phlo/commit/61b173387d1cf07cde677c55c3ddbdf2e033d067))
+* add policy-driven table maintenance sensor ([#267](https://github.com/phlohouse/phlo/issues/267)) ([67b245f](https://github.com/phlohouse/phlo/commit/67b245f3c5990924abc16605de32508f731d2920))
+* add RBAC sync controller and authz CLI ([#292](https://github.com/phlohouse/phlo/issues/292)) ([ea1b39b](https://github.com/phlohouse/phlo/commit/ea1b39b3d51824a84d250b9426f41a7fa2ccf32e))
+* add schema registry for data contract enforcement ([#269](https://github.com/phlohouse/phlo/issues/269)) ([b180cb6](https://github.com/phlohouse/phlo/commit/b180cb6eaa6c2dfc207480f8f2b5aab7d57166a8))
+* add services ports command ([#293](https://github.com/phlohouse/phlo/issues/293)) ([64143fd](https://github.com/phlohouse/phlo/commit/64143fd647214f06f4d41f06ff210eb5407d106f))
+* add transformation_providers plugin type and plugin architecture docs ([#265](https://github.com/phlohouse/phlo/issues/265)) ([915bf83](https://github.com/phlohouse/phlo/commit/915bf83ea440bd9d001487955bbfc615aa6b90fb))
+* add WAP lifecycle sensors for automated write-audit-publish ([#266](https://github.com/phlohouse/phlo/issues/266)) ([4656510](https://github.com/phlohouse/phlo/commit/46565106f1be736af8b7ac082875ce83348d04ff))
+* broaden OTEL observability coverage ([#283](https://github.com/phlohouse/phlo/issues/283)) ([ba13754](https://github.com/phlohouse/phlo/commit/ba137542668151e904c07fee59011784d7383b1f))
+* capability-native integration hardening ([#276](https://github.com/phlohouse/phlo/issues/276)) ([1380e9a](https://github.com/phlohouse/phlo/commit/1380e9a1c612d6dbf6c2410ecfe49d2ef91576e7))
+* complete capability-boundary decoupling ([#277](https://github.com/phlohouse/phlo/issues/277)) ([f902df0](https://github.com/phlohouse/phlo/commit/f902df0759cb426b909d6f6b291ab860bd8fe8c3))
+* extend otel readiness ([#284](https://github.com/phlohouse/phlo/issues/284)) ([f6dd31c](https://github.com/phlohouse/phlo/commit/f6dd31ccdad15c600de838531f966c4185b4eeb6))
+* **phlo-nessie, phlo-postgres:** retry logic, connection pooling, real branch diff ([#273](https://github.com/phlohouse/phlo/issues/273)) ([1b82ba1](https://github.com/phlohouse/phlo/commit/1b82ba1b0122fa98cc877724d4d6ba0f426f4dd9))
+
+
+### Bug Fixes
+
+* grant oidc to publish workflow callers ([#299](https://github.com/phlohouse/phlo/issues/299)) ([dc99747](https://github.com/phlohouse/phlo/commit/dc99747b3916e56ffe639ff179db919c211f0dbb))
+* **phlo-iceberg:** fix cache, add partition transforms, deduplicate catalog properties ([#272](https://github.com/phlohouse/phlo/issues/272)) ([1a9e3df](https://github.com/phlohouse/phlo/commit/1a9e3dfe44a1ea96ff3de85b86f313b991cdb446))
+* remove stale package-specific artifacts ([#275](https://github.com/phlohouse/phlo/issues/275)) ([7df8aa1](https://github.com/phlohouse/phlo/commit/7df8aa1bbbba5aec84bdf606fcae6e50c80f6d61))
+* skip release-please if tag already exists ([1780edc](https://github.com/phlohouse/phlo/commit/1780edcd65c8eda41a39a9903b6d824afa3fb3f9))
+* stabilize workshop integration runtime ([#297](https://github.com/phlohouse/phlo/issues/297)) ([3b73d93](https://github.com/phlohouse/phlo/commit/3b73d93be94481fbe94a9010f60fb22716c40e4a))
+* unify release publish automation ([#298](https://github.com/phlohouse/phlo/issues/298)) ([2532f0e](https://github.com/phlohouse/phlo/commit/2532f0e1aa6cf049792f3ce82f92ebb8d48b859e))
+
+
+### Documentation
+
+* update ([c6b5252](https://github.com/phlohouse/phlo/commit/c6b52526f9687b412402bcba76448a4671299122))
+
 ## [0.6.0](https://github.com/phlohouse/phlo/compare/v0.5.0...v0.6.0) (2026-03-01)
 
 
