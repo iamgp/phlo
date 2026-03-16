@@ -1,0 +1,60 @@
+from __future__ import annotations
+
+from pathlib import Path
+from subprocess import CompletedProcess
+from types import SimpleNamespace
+
+from click.testing import CliRunner
+
+from phlo.cli.commands.services.exec import exec_cmd
+
+
+def test_services_exec_runs_command_in_service_container(monkeypatch) -> None:
+    captured: list[list[str]] = []
+
+    monkeypatch.setattr("phlo.cli.commands.services.exec.require_docker", lambda: None)
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.exec.ensure_phlo_dir", lambda: Path("/tmp/.phlo")
+    )
+    monkeypatch.setattr("phlo.cli.commands.services.exec.get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.exec.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.exec.subprocess",
+        SimpleNamespace(
+            run=lambda cmd, check=False: captured.append(cmd) or CompletedProcess(cmd, 0)
+        ),
+    )
+
+    result = CliRunner().invoke(
+        exec_cmd,
+        ["dagster", "--no-tty", "--", "dbt", "run", "--select", "dim_pokemon"],
+    )
+
+    assert result.exit_code == 0
+    assert captured == [
+        [
+            "docker",
+            "compose",
+            "-p",
+            "demo",
+            "exec",
+            "-T",
+            "dagster",
+            "dbt",
+            "run",
+            "--select",
+            "dim_pokemon",
+        ]
+    ]
+
+
+def test_services_exec_requires_command(monkeypatch) -> None:
+    monkeypatch.setattr("phlo.cli.commands.services.exec.require_docker", lambda: None)
+
+    result = CliRunner().invoke(exec_cmd, ["dagster"])
+
+    assert result.exit_code != 0
+    assert "Provide a command after `--`." in result.output

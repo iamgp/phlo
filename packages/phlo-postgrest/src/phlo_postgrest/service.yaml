@@ -19,7 +19,7 @@ compose:
   ports:
     - "${POSTGREST_PORT:-3002}:3000"
   healthcheck:
-    test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
+    test: ["CMD", "pgrep", "postgrest"]
     interval: 10s
     timeout: 5s
     retries: 5

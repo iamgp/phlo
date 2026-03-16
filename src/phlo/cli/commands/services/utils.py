@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import signal
 import sys
 import time
@@ -67,22 +68,27 @@ def ensure_phlo_dir() -> Path:
     return phlo_dir
 
 
-def check_docker_running() -> bool:
-    """Check if Docker daemon is running."""
+def check_docker_available() -> bool:
+    """Check if the Docker CLI is available.
+
+    Docker daemon round-trips like `docker info`/`docker version` can time out under
+    heavy local load even when subsequent compose commands succeed. For services
+    commands, a CLI-availability check avoids false negatives and lets the real
+    compose invocation surface daemon errors directly.
+    """
     try:
-        run_command(["docker", "info"], timeout_seconds=10, check=True)
-        return True
+        return shutil.which("docker") is not None
     except Exception:
         logger.debug("docker_check_failed")
         return False
 
 
 def require_docker():
-    """Exit with helpful message if Docker is not running."""
-    if not check_docker_running():
-        click.echo("Error: Docker is not running.", err=True)
+    """Exit with helpful message if the Docker CLI is unavailable."""
+    if not check_docker_available():
+        click.echo("Error: Docker CLI is not available.", err=True)
         click.echo("", err=True)
-        click.echo("Please start Docker Desktop and try again.", err=True)
+        click.echo("Install Docker Desktop or ensure `docker` is on PATH.", err=True)
         click.echo("Download: https://docs.docker.com/get-docker/", err=True)
         sys.exit(1)
 
@@ -662,6 +668,27 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
         enabled_names=enabled_names,
         disabled_names=disabled_names,
     )
+    selected_by_name = {service.name: service for service in services_to_install}
+    queue = list(services_to_install)
+    while queue:
+        service = queue.pop(0)
+        for dependency_name in service.depends_on:
+            dependency = all_services.get(dependency_name)
+            if dependency and dependency.name not in selected_by_name:
+                selected_by_name[dependency.name] = dependency
+                queue.append(dependency)
+
+    bootstrap_companions = [
+        service
+        for service in all_services.values()
+        if service.name.endswith("-setup")
+        and service.depends_on
+        and all(dependency in selected_by_name for dependency in service.depends_on)
+    ]
+    for companion in bootstrap_companions:
+        selected_by_name.setdefault(companion.name, companion)
+
+    services_to_install = discovery.resolve_dependencies(list(selected_by_name.values()))
 
     # Get user service overrides from config
     user_overrides = config.get("services", {})

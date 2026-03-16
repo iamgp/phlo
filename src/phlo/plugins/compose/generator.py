@@ -35,6 +35,7 @@ class ComposeGenerator:
         services: list[ServiceDefinition],
         output_dir: Path,
         dev_mode: bool = False,
+        service_dev_mode: bool = False,
         phlo_src_path: str | None = None,
         user_overrides: dict[str, Any] | None = None,
     ) -> str:
@@ -44,6 +45,7 @@ class ComposeGenerator:
             services: List of services to include.
             output_dir: Target directory (for resolving relative paths).
             dev_mode: If True, add phlo source mounts for dev services.
+            service_dev_mode: If True, apply service-specific `dev:` overrides.
             phlo_src_path: Path to phlo source (relative to project root).
             user_overrides: Dict of service name to ServiceOverride config from phlo.yaml.
 
@@ -64,6 +66,7 @@ class ComposeGenerator:
                 service,
                 output_dir,
                 dev_mode=dev_mode,
+                service_dev_mode=service_dev_mode,
                 phlo_src_path=phlo_src_path,
                 user_override=service_override,
             )
@@ -83,6 +86,7 @@ class ComposeGenerator:
         service: ServiceDefinition,
         output_dir: Path,
         dev_mode: bool = False,
+        service_dev_mode: bool = False,
         phlo_src_path: str | None = None,
         user_override: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -91,7 +95,8 @@ class ComposeGenerator:
         Args:
             service: Service definition from package/core.
             output_dir: Output directory for relative paths.
-            dev_mode: Whether to apply dev mode overrides.
+            dev_mode: Whether to add Phlo source mounts for dev workflows.
+            service_dev_mode: Whether to apply service-specific `dev:` runtime overrides.
             phlo_src_path: Path to phlo source.
             user_override: User overrides from phlo.yaml services section.
         """
@@ -167,7 +172,7 @@ class ComposeGenerator:
         if not config["volumes"]:
             del config["volumes"]
 
-        if dev_mode and service.dev:
+        if service_dev_mode and service.dev:
             self._apply_dev_overrides(config, service, output_dir)
 
         # Add env_file for phlo_dev services to pick up project secrets (e.g., GITHUB_TOKEN)

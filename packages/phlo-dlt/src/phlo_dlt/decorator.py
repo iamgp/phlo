@@ -18,7 +18,6 @@ from phlo.capabilities import (
 )
 from phlo.contracts import Consumer, SLA, normalize_consumers, serialize_consumers, serialize_sla
 from phlo.capabilities.runtime import RuntimeContext
-from phlo.capabilities.discovery import discover_capabilities
 from phlo.exceptions import PhloConfigError
 from phlo.logging import log_event
 from phlo_dlt.pandera_checks import (
@@ -137,6 +136,8 @@ def _default_merge_config(
 
 def _resolve_table_store_capability(context: RuntimeContext) -> tuple[Any, str]:
     """Resolve the effective table-store capability for an ingestion run."""
+    from phlo.capabilities.discovery import discover_capabilities
+
     discover_capabilities()
     resolution = resolve_capability("table_store", runtime=context)
     if resolution is not None:

@@ -1,4 +1,6 @@
-"""Add command for adding services to the project."""
+"""Add command for rendering optional services into the project stack."""
+
+from __future__ import annotations
 
 import sys
 from pathlib import Path
@@ -11,6 +13,7 @@ from phlo.cli.commands.services.utils import (
     PHLO_CONFIG_FILE,
     _regenerate_compose,
     get_phlo_dir,
+    get_profile_service_names,
     normalize_services_enabled_disabled_config,
 )
 from phlo.cli.infrastructure.command import run_command
@@ -22,22 +25,161 @@ from phlo.plugins.discovery import ServiceDiscovery
 logger = get_logger(__name__)
 
 
+def _load_project_config(config_file: Path) -> dict:
+    """Load project config, ensuring a mapping root."""
+    if config_file.exists():
+        with config_file.open() as handle:
+            config = yaml.safe_load(handle) or {}
+        if not isinstance(config, dict):
+            logger.error("services_add_invalid_config_mapping", config_file=str(config_file))
+            click.echo("Error: phlo.yaml must contain a mapping.", err=True)
+            sys.exit(1)
+        return config
+
+    logger.error("services_add_missing_config", config_file=str(config_file))
+    click.echo("Error: phlo.yaml not found.", err=True)
+    sys.exit(1)
+
+
+def _validate_profiles(
+    discovery: ServiceDiscovery, profile_names: tuple[str, ...]
+) -> tuple[str, ...]:
+    """Normalize and validate requested profile names."""
+    requested_profiles = tuple(
+        dict.fromkeys(name.strip() for name in profile_names if name.strip())
+    )
+    if not requested_profiles:
+        return ()
+
+    available_profiles = discovery.get_available_profiles()
+    unknown_profiles = sorted(set(requested_profiles) - available_profiles)
+    if unknown_profiles:
+        click.echo(
+            f"Error: Unknown profile(s): {', '.join(unknown_profiles)}. "
+            f"Available profiles: {', '.join(sorted(available_profiles)) or '(none)'}",
+            err=True,
+        )
+        sys.exit(1)
+    return requested_profiles
+
+
+def _normalize_service_names(service_names: tuple[str, ...]) -> list[str]:
+    """Normalize repeated/comma-separated service arguments."""
+    normalized: list[str] = []
+    for item in service_names:
+        normalized.extend(name.strip() for name in item.split(",") if name.strip())
+    return list(dict.fromkeys(normalized))
+
+
+def _update_config_enabled_services(
+    config: dict,
+    *,
+    services_to_enable: list[str],
+) -> tuple[list[str], list[str]]:
+    """Persist enabled/disabled service state into phlo.yaml."""
+    enabled_names, disabled_names = normalize_services_enabled_disabled_config(config)
+    enabled_set = set(enabled_names)
+    disabled_set = set(disabled_names)
+
+    for service_name in services_to_enable:
+        enabled_set.add(service_name)
+        disabled_set.discard(service_name)
+
+    services_config = config.setdefault("services", {})
+    if not isinstance(services_config, dict):
+        services_config = {}
+        config["services"] = services_config
+
+    services_config["enabled"] = sorted(enabled_set)
+    services_config["disabled"] = sorted(disabled_set)
+    return services_config["enabled"], services_config["disabled"]
+
+
+def _start_services(
+    *,
+    phlo_dir: Path,
+    project_name: str,
+    profile_names: tuple[str, ...],
+    service_names: list[str],
+) -> None:
+    """Start newly-added services."""
+    cmd = compose_base_cmd(
+        phlo_dir=phlo_dir,
+        project_name=project_name,
+        profiles=profile_names,
+    )
+    cmd.extend(["up", "-d", *service_names])
+    try:
+        result = run_command(cmd, check=False, capture_output=False)
+    except (FileNotFoundError, TimeoutExpired, OSError) as exc:
+        logger.error(
+            "services_add_start_exception",
+            project_name=project_name,
+            profile_count=len(profile_names),
+            service_count=len(service_names),
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
+        click.echo(f"Warning: Could not start services: {exc}", err=True)
+        click.echo(f"Command: {' '.join(cmd)}", err=True)
+        return
+
+    if result.returncode != 0:
+        logger.warning(
+            "services_add_start_failed",
+            project_name=project_name,
+            profile_count=len(profile_names),
+            service_count=len(service_names),
+            returncode=result.returncode,
+        )
+        click.echo("Warning: Could not start requested services.", err=True)
+        click.echo(f"Command: {' '.join(cmd)}", err=True)
+        return
+
+    logger.info(
+        "services_add_start_succeeded",
+        project_name=project_name,
+        profile_count=len(profile_names),
+        service_count=len(service_names),
+    )
+
+
 @click.command("add")
-@click.argument("service_name")
-@click.option("--no-start", is_flag=True, help="Don't start the service after adding")
-def add_cmd(service_name: str, no_start: bool):
-    """Add an optional service to the project.
+@click.argument("service_name", required=False)
+@click.option(
+    "--profile",
+    "profiles",
+    multiple=True,
+    help="Render all services from an optional profile (e.g., --profile api)",
+)
+@click.option(
+    "--service",
+    "services",
+    multiple=True,
+    help="Render explicit service(s) (e.g., --service superset --service phlo-api)",
+)
+@click.option("--no-start", is_flag=True, help="Don't start newly-added services after rendering")
+def add_cmd(
+    service_name: str | None,
+    profiles: tuple[str, ...],
+    services: tuple[str, ...],
+    no_start: bool,
+) -> None:
+    """Add optional services or profiles to the rendered project stack.
 
     Examples:
-        phlo services add prometheus
-        phlo services add grafana --no-start
-        phlo services add hasura
+        phlo services add phlo-api
+        phlo services add --profile api
+        phlo services add --profile proxy --service superset
+        phlo services add --service hasura --service postgrest --no-start
     """
     phlo_dir = get_phlo_dir()
     config_file = Path.cwd() / PHLO_CONFIG_FILE
     logger.info(
         "services_add_requested",
-        service_name=service_name,
+        positional_service=service_name,
+        profile_count=len(profiles),
+        explicit_service_arg_count=len(services),
         no_start=no_start,
     )
 
@@ -47,115 +189,60 @@ def add_cmd(service_name: str, no_start: bool):
         click.echo("Run 'phlo services init' first.", err=True)
         sys.exit(1)
 
-    # Load project config
-    if config_file.exists():
-        with config_file.open() as f:
-            config = yaml.safe_load(f) or {}
-        if not isinstance(config, dict):
-            logger.error("services_add_invalid_config_mapping", config_file=str(config_file))
-            click.echo("Error: phlo.yaml must contain a mapping.", err=True)
-            sys.exit(1)
-    else:
-        logger.error("services_add_missing_config", config_file=str(config_file))
-        click.echo("Error: phlo.yaml not found.", err=True)
-        sys.exit(1)
-
-    # Discover available services
+    config = _load_project_config(config_file)
     discovery = ServiceDiscovery()
     all_services = discovery.discover()
 
-    if service_name not in all_services:
-        logger.warning(
-            "services_add_unknown_service",
-            service_name=service_name,
-            available_count=len(all_services),
-        )
-        click.echo(f"Error: Service '{service_name}' not found.", err=True)
-        click.echo("")
-        click.echo("Available services:")
-        for name in sorted(all_services.keys()):
-            svc = all_services[name]
-            marker = "[optional]" if svc.profile or not svc.default else "[default]"
-            click.echo(f"  {name} {marker}")
+    normalized_profiles = _validate_profiles(discovery, profiles)
+    explicit_services = _normalize_service_names(services)
+    if service_name:
+        explicit_services = [service_name, *explicit_services]
+        explicit_services = list(dict.fromkeys(explicit_services))
+
+    if not normalized_profiles and not explicit_services:
+        click.echo("Error: Specify a service name, --service, or --profile.", err=True)
         sys.exit(1)
 
-    service = all_services[service_name]
+    unknown_services = [name for name in explicit_services if name not in all_services]
+    if unknown_services:
+        click.echo(f"Error: Unknown service name(s): {', '.join(unknown_services)}", err=True)
+        sys.exit(1)
 
-    # Update config
-    enabled, disabled = normalize_services_enabled_disabled_config(config)
-    canonical_service_name = service.name
+    profile_services = get_profile_service_names(normalized_profiles)
+    services_to_enable = list(dict.fromkeys([*profile_services, *explicit_services]))
 
-    is_enabled = canonical_service_name in enabled
-    is_disabled = canonical_service_name in disabled
+    if not services_to_enable:
+        click.echo("Nothing to add.", err=True)
+        sys.exit(1)
 
-    if is_enabled and not is_disabled:
-        logger.info("services_add_already_enabled", service_name=canonical_service_name)
-        click.echo(f"Service '{canonical_service_name}' is already enabled.")
+    _update_config_enabled_services(config, services_to_enable=services_to_enable)
+
+    with config_file.open("w") as handle:
+        yaml.dump(config, handle, default_flow_style=False, sort_keys=False)
+
+    logger.info(
+        "services_add_config_updated",
+        service_count=len(services_to_enable),
+        profile_count=len(normalized_profiles),
+    )
+    click.echo(f"Updated: {PHLO_CONFIG_FILE}")
+
+    _regenerate_compose(discovery, config, phlo_dir)
+
+    if normalized_profiles:
+        click.echo(f"Added profiles: {', '.join(normalized_profiles)}")
+    if explicit_services:
+        click.echo(f"Added services: {', '.join(explicit_services)}")
+
+    if no_start:
         return
 
-    if not is_enabled:
-        enabled.append(canonical_service_name)
-    if is_disabled:
-        disabled = [name for name in disabled if name != canonical_service_name]
-
-    config["services"]["enabled"] = enabled
-    config["services"]["disabled"] = disabled
-    normalize_services_enabled_disabled_config(config)
-
-    # Write updated config
-    with config_file.open("w") as f:
-        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-
-    click.echo(f"Added '{service_name}' to phlo.yaml")
-    logger.info("services_add_config_updated", service_name=service_name)
-
-    # Regenerate docker-compose.yml
-    _regenerate_compose(discovery, config, phlo_dir)
-    logger.info("services_add_compose_regenerated", service_name=service_name)
-
-    click.echo(f"Service '{service_name}' added.")
-
-    if not no_start:
-        click.echo("")
-        click.echo(f"Starting {service_name}...")
-        project_name = get_project_name()
-        logger.info(
-            "services_add_start_started",
-            project_name=project_name,
-            service_name=service_name,
-        )
-
-        cmd = compose_base_cmd(
-            phlo_dir=phlo_dir,
-            project_name=project_name,
-            profiles=() if not service.profile else (service.profile,),
-        )
-        cmd.extend(["up", "-d", service_name])
-        try:
-            result = run_command(cmd, check=False, capture_output=False)
-            if result.returncode == 0:
-                logger.info(
-                    "services_add_start_succeeded",
-                    project_name=project_name,
-                    service_name=service_name,
-                )
-                click.echo(f"Service '{service_name}' started.")
-            else:
-                logger.warning(
-                    "services_add_start_failed",
-                    project_name=project_name,
-                    service_name=service_name,
-                    returncode=result.returncode,
-                )
-                click.echo(f"Warning: Could not start {service_name}.", err=True)
-                click.echo(f"Command: {' '.join(cmd)}", err=True)
-        except (FileNotFoundError, TimeoutExpired, OSError) as e:
-            logger.error(
-                "services_add_start_exception",
-                project_name=project_name,
-                service_name=service_name,
-                error_type=type(e).__name__,
-                exc_info=True,
-            )
-            click.echo(f"Warning: Could not start {service_name}: {e}", err=True)
-            click.echo(f"Command: {' '.join(cmd)}", err=True)
+    click.echo("")
+    click.echo("Starting newly-added services...")
+    _start_services(
+        phlo_dir=phlo_dir,
+        project_name=get_project_name(),
+        profile_names=normalized_profiles,
+        service_names=services_to_enable,
+    )
+    click.echo("Services added and started.")

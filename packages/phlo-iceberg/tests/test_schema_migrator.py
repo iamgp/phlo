@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from pyiceberg.types import (
     BinaryType,
@@ -18,6 +20,7 @@ from pyiceberg.types import (
     TimestamptzType,
 )
 
+from phlo.capabilities.specs import FieldSpec, NormalizedSchema
 from phlo.capabilities.interfaces import SchemaMigrator
 from phlo_iceberg.schema_migrator import IcebergSchemaMigrator, _iceberg_type_to_dtype
 
@@ -133,3 +136,38 @@ class TestIcebergTypeToDtype:
         result = _iceberg_type_to_dtype(list_type)
         assert isinstance(result, str)
         assert result == str(list_type)
+
+
+class TestDiffSchema:
+    def test_ignores_system_metadata_columns(self, monkeypatch):
+        migrator = IcebergSchemaMigrator(ref="main")
+
+        current_schema = SimpleNamespace(
+            fields=[
+                SimpleNamespace(name="name", field_type=StringType(), required=False),
+                SimpleNamespace(name="_dlt_load_id", field_type=StringType(), required=False),
+                SimpleNamespace(
+                    name="_phlo_ingested_at", field_type=TimestamptzType(), required=False
+                ),
+            ]
+        )
+        table = SimpleNamespace(schema=lambda: current_schema)
+        catalog = SimpleNamespace(load_table=lambda table_name: table)
+        monkeypatch.setattr(
+            "phlo_iceberg.schema_migrator.get_catalog",
+            lambda ref: catalog,
+        )
+
+        desired = NormalizedSchema(
+            fields=[
+                FieldSpec(name="name", dtype="string", nullable=True),
+                FieldSpec(name="habitat", dtype="string", nullable=True),
+            ]
+        )
+
+        plan = migrator.diff_schema(table_name="raw.pokemon", desired=desired)
+
+        assert [(change.field_name, change.change_type) for change in plan.changes] == [
+            ("habitat", "add")
+        ]
+        assert plan.classification == "safe"

@@ -53,6 +53,15 @@ _WIDEN_PAIRS: set[tuple[str, str]] = {
     ("date", "timestamptz"),
 }
 
+_SYSTEM_METADATA_FIELDS = {
+    "_dlt_load_id",
+    "_dlt_id",
+    "_phlo_ingested_at",
+    "_phlo_row_id",
+    "_phlo_partition_date",
+    "_phlo_run_id",
+}
+
 
 def _iceberg_type_to_dtype(iceberg_type: IcebergType) -> str:
     """Map a PyIceberg type instance to a canonical dtype string."""
@@ -105,6 +114,8 @@ class IcebergSchemaMigrator:
 
         current_fields: dict[str, tuple[str, bool]] = {}
         for f in current_schema.fields:
+            if f.name in _SYSTEM_METADATA_FIELDS:
+                continue
             current_fields[f.name] = (_iceberg_type_to_dtype(f.field_type), f.required is False)
 
         desired_fields: dict[str, tuple[str, bool]] = {}

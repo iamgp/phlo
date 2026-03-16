@@ -17,6 +17,15 @@ from phlo.plugins.base.plugin import Plugin
 class OrchestratorAdapterPlugin(Plugin, ABC):
     """Base class for orchestrator adapters."""
 
+    def exec_service_name(self) -> str | None:
+        """Return the primary service name for container-based CLI execution.
+
+        Adapters that expose a long-running service container users can exec into
+        should override this method. Adapters without a corresponding container
+        can return ``None`` and callers should fall back to host execution.
+        """
+        return None
+
     @abstractmethod
     def build_definitions(
         self,

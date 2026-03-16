@@ -224,6 +224,10 @@ class DagsterRuntime(RuntimeContext):
 class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
     """Translate capability specs into Dagster definitions."""
 
+    def exec_service_name(self) -> str | None:
+        """Return the service container used for orchestrator-scoped CLI execution."""
+        return "dagster"
+
     @property
     def metadata(self) -> PluginMetadata:
         """Return plugin metadata used by capability discovery."""

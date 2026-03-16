@@ -14,6 +14,10 @@ compose:
   restart: unless-stopped
   labels:
     phlo.metrics.enabled: "false" # Superset doesn't expose native Prometheus metrics
+    traefik.enable: "true"
+    traefik.http.routers.superset.rule: "Host(`superset.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
+    traefik.http.routers.superset.entrypoints: "web"
+    traefik.http.services.superset.loadbalancer.server.port: "8088"
   environment:
     SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-phlo-superset-secret-change-me}
     POSTGRES_HOST: postgres

@@ -272,7 +272,7 @@ def import_dbt(manifest: Path) -> None:
         phlo lineage column import-dbt --manifest target/manifest.json
     """
     from phlo_lineage.dbt_column_lineage import extract_column_lineage
-    from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+    from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
 
     with open(manifest) as f:
         manifest_data = json.load(f)
@@ -283,7 +283,7 @@ def import_dbt(manifest: Path) -> None:
         console.print("[yellow]⚠[/yellow]  No column lineage mappings found in manifest")
         return
 
-    connection_string = resolve_lineage_db_url()
+    connection_string = resolve_lineage_db_url_with_postgres_fallback()
     if not connection_string:
         console.print("[red]✗[/red]  No lineage database configured")
         return
@@ -303,9 +303,9 @@ def column_upstream(asset: str, column: str | None) -> None:
         phlo lineage column upstream silver.stg_orders
         phlo lineage column upstream silver.stg_orders --column order_total
     """
-    from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+    from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
 
-    connection_string = resolve_lineage_db_url()
+    connection_string = resolve_lineage_db_url_with_postgres_fallback()
     if not connection_string:
         console.print("[red]✗[/red]  No lineage database configured")
         return
@@ -339,9 +339,9 @@ def column_downstream(asset: str, column: str | None) -> None:
         phlo lineage column downstream bronze.dlt_orders
         phlo lineage column downstream bronze.dlt_orders --column order_total
     """
-    from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+    from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
 
-    connection_string = resolve_lineage_db_url()
+    connection_string = resolve_lineage_db_url_with_postgres_fallback()
     if not connection_string:
         console.print("[red]✗[/red]  No lineage database configured")
         return

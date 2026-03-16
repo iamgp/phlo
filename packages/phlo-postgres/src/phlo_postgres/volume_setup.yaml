@@ -1,0 +1,20 @@
+name: postgres-volume-setup
+description: Initialize PostgreSQL data volume permissions
+category: core
+default: false
+
+image: alpine:3.20
+
+compose:
+  restart: "no"
+  user: "0:0"
+  entrypoint: /bin/sh
+  command: >
+    -c "
+    mkdir -p /var/lib/postgresql/data &&
+    chown -R 70:70 /var/lib/postgresql/data &&
+    chmod 700 /var/lib/postgresql/data &&
+    echo 'Postgres data volume ownership initialized'
+    "
+  volumes:
+    - ./volumes/postgres:/var/lib/postgresql/data

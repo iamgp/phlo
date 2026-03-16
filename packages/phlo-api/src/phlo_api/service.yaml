@@ -1,10 +1,12 @@
 name: phlo-api
 description: Phlo API - Backend service exposing phlo internals to Observatory
 category: api
-default: true
+default: false
+profile: api
 
-# Production: use published Docker image
-image: ghcr.io/iamgp/phlo-api:latest
+build:
+    context: source
+    dockerfile: Dockerfile
 
 compose:
     restart: unless-stopped
@@ -23,7 +25,13 @@ compose:
     ports:
         - "${PHLO_API_PORT:-4000}:4000"
     healthcheck:
-        test: ["CMD", "curl", "-f", "http://127.0.0.1:4000/health"]
+        test:
+            [
+                "CMD",
+                "python",
+                "-c",
+                "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health')",
+            ]
         interval: 30s
         timeout: 10s
         retries: 3
@@ -45,8 +53,7 @@ dev:
             "--host",
             "0.0.0.0",
             "--port",
-            "${PHLO_API_PORT:-4000}",
-            "--reload",
+            "4000",
         ]
     environment:
         PYTHONUNBUFFERED: "1"
@@ -54,5 +61,5 @@ dev:
         DAGSTER_GRAPHQL_URL: "http://127.0.0.1:${DAGSTER_PORT:-3000}/graphql"
         NESSIE_URL: "http://127.0.0.1:${NESSIE_PORT:-19120}/api/v2"
         TRINO_URL: "http://127.0.0.1:${TRINO_PORT:-8080}"
-    health_check: "http://127.0.0.1:${PHLO_API_PORT:-4000}/health"
+    health_check: "http://127.0.0.1:4000/health"
     cwd: "{project_root}"
