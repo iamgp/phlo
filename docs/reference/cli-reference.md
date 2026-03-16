@@ -80,6 +80,7 @@ phlo hasura              # Hasura GraphQL management
 phlo minio               # MinIO client and admin helpers
 phlo postgres            # PostgreSQL shell and maintenance
 phlo trino               # Trino shell and queries
+phlo dbt                 # dbt compile/run/test helpers
 phlo publishing          # dbt publishing layer
 phlo metrics             # Metrics summary (built-in)
 phlo alerts              # Alerting rules
@@ -166,6 +167,31 @@ phlo trino query "SELECT * FROM iceberg.bronze.users LIMIT 10"
 phlo trino query --file query.sql --catalog iceberg --schema bronze
 ```
 
+### phlo dbt
+
+Run dbt against the project dbt workspace. When `.phlo/` exists, Phlo runs dbt inside the
+Dagster service container by default so the command matches the running stack. Use `--local`
+to run host dbt directly.
+
+```bash
+phlo dbt compile [OPTIONS]
+phlo dbt run [OPTIONS]
+phlo dbt test [OPTIONS]
+```
+
+**Examples**:
+
+```bash
+# Run dbt inside the dagster service
+phlo dbt run --select silver.*
+
+# Compile with an explicit target
+phlo dbt compile --target prod
+
+# Run host dbt instead of the container
+phlo dbt test --local --select gold.*
+```
+
 ## Services Commands
 
 Manage Docker infrastructure services.
@@ -204,6 +230,7 @@ phlo services init [OPTIONS]
 --force              # Overwrite existing configuration
 --name NAME          # Project name (default: directory name)
 --dev                # Development mode: mount local phlo source
+--service-dev        # Also apply service-specific dev runtimes
 --no-dev             # Explicitly disable dev mode
 --phlo-source PATH   # Path to phlo repo or src/phlo for dev mode
 ```
@@ -222,6 +249,9 @@ phlo services init --name my-lakehouse
 
 # Development mode with local source
 phlo services init --dev --phlo-source /path/to/phlo
+
+# Development mode plus service-level dev runtimes
+phlo services init --dev --service-dev
 ```
 
 ### phlo services start
@@ -290,6 +320,31 @@ phlo services start --profile not-a-profile
 - Trino (port 10005)
 - Dagster webserver (port 10006)
 - Dagster daemon
+
+### phlo services exec
+
+Run a command inside a running Phlo service container without hardcoding the Compose project
+name or compose file path.
+
+```bash
+phlo services exec [OPTIONS] SERVICE -- COMMAND [ARGS...]
+```
+
+**Options**:
+
+```bash
+--tty / --no-tty      # Allocate a TTY (default: no tty)
+```
+
+**Examples**:
+
+```bash
+# Run dbt inside dagster
+phlo services exec <service> -- dbt run --select gold.*
+
+# Open an interactive psql shell in postgres
+phlo services exec --tty postgres -- psql -U postgres
+```
 
 ### phlo services stop
 

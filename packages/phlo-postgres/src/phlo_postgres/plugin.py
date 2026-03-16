@@ -71,6 +71,27 @@ class PostgresExporterServicePlugin(ServicePlugin):
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))
 
 
+class PostgresVolumeSetupServicePlugin(ServicePlugin):
+    """Service plugin for PostgreSQL bind-mount ownership bootstrap."""
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the Postgres volume setup service."""
+        return PluginMetadata(
+            name="postgres-volume-setup",
+            version="0.1.0",
+            description="Initialize PostgreSQL data volume permissions",
+            author="Phlo Team",
+            tags=["core", "database", "postgres"],
+        )
+
+    @property
+    def service_definition(self) -> dict[str, Any]:
+        """Load the Postgres volume setup definition from package data."""
+        service_path = resources.files("phlo_postgres").joinpath("volume_setup.yaml")
+        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
+
+
 class PostgresResourceProvider(ResourceProviderPlugin):
     """Resource provider plugin that exposes the Postgres resource."""
 

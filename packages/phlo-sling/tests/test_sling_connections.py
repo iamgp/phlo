@@ -4,6 +4,7 @@ import json
 from types import SimpleNamespace
 
 from phlo_sling.connections import (
+    _resolve_iceberg_connection,
     _resolve_s3_connection,
     export_sling_env,
     resolve_phlo_connections,
@@ -39,6 +40,10 @@ def test_resolve_phlo_connections_respects_auto_connections_setting(monkeypatch)
         lambda: {"PHLO_POSTGRES": {"type": "postgres"}},
     )
     monkeypatch.setattr(
+        "phlo_sling.connections._resolve_iceberg_connection",
+        lambda: {"PHLO_ICEBERG": {"type": "iceberg"}},
+    )
+    monkeypatch.setattr(
         "phlo_sling.connections._resolve_s3_connection",
         lambda: {"PHLO_S3": {"type": "s3"}},
     )
@@ -46,9 +51,37 @@ def test_resolve_phlo_connections_respects_auto_connections_setting(monkeypatch)
     assert resolve_phlo_connections() == {}
 
 
+def test_resolve_iceberg_connection_uses_phlo_iceberg_settings(monkeypatch) -> None:
+    """Iceberg auto-connections should resolve from phlo-iceberg settings."""
+    monkeypatch.setattr(
+        "phlo_sling.connections._get_iceberg_settings",
+        lambda: SimpleNamespace(
+            iceberg_default_ref="main",
+            iceberg_default_namespace="raw",
+            get_pyiceberg_catalog_config=lambda ref: {
+                "uri": f"http://localhost:19120/iceberg/{ref}",
+                "warehouse": f"s3://lake/{ref}",
+                "s3.endpoint": "http://localhost:10001",
+                "s3.access-key-id": "minio",
+                "s3.secret-access-key": "secret",
+                "s3.region": "us-east-1",
+            },
+        ),
+    )
+
+    result = _resolve_iceberg_connection()
+
+    assert result["PHLO_ICEBERG"]["type"] == "iceberg"
+    assert result["PHLO_ICEBERG"]["catalog_type"] == "rest"
+    assert result["PHLO_ICEBERG"]["rest_uri"] == "http://localhost:19120/iceberg/main"
+    assert result["PHLO_ICEBERG"]["rest_warehouse"] == "s3://lake/main"
+    assert result["PHLO_ICEBERG"]["s3_endpoint"] == "http://localhost:10001"
+    assert result["PHLO_ICEBERG"]["schema"] == "raw"
+
+
 def test_resolve_s3_connection_uses_object_store_capability(monkeypatch) -> None:
     """S3 auto-connections should resolve from the active object_store capability."""
-    monkeypatch.setattr("phlo_sling.connections.discover_capabilities", lambda: None)
+    monkeypatch.setattr("phlo_sling.connections._ensure_capabilities_discovered", lambda *_k: None)
     monkeypatch.setattr("phlo_sling.connections.list_capabilities", lambda _kind: ["minio"])
     monkeypatch.setattr(
         "phlo_sling.connections.resolve_capability",
@@ -75,7 +108,7 @@ def test_resolve_s3_connection_uses_object_store_capability(monkeypatch) -> None
 
 def test_resolve_s3_connection_skips_when_object_store_is_ambiguous(monkeypatch) -> None:
     """Auto-connections should not guess when multiple object_store capabilities exist."""
-    monkeypatch.setattr("phlo_sling.connections.discover_capabilities", lambda: None)
+    monkeypatch.setattr("phlo_sling.connections._ensure_capabilities_discovered", lambda *_k: None)
     monkeypatch.setattr(
         "phlo_sling.connections.list_capabilities",
         lambda _kind: ["minio", "rustfs"],

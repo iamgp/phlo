@@ -2,11 +2,44 @@
 
 from __future__ import annotations
 
+import os
+import socket
 from functools import lru_cache
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+def _resolve_service_url(url: str | None, *, port_env_var: str) -> str | None:
+    """Resolve Docker-only service URLs to localhost when running on the host."""
+    if not url:
+        return url
+
+    parsed = urlsplit(url)
+    host = parsed.hostname
+    if not host or host in {"localhost", "127.0.0.1"}:
+        return url
+
+    try:
+        socket.gethostbyname(host)
+        return url
+    except socket.gaierror:
+        resolved_port = int(os.environ.get(port_env_var, parsed.port or 0))
+        netloc = f"localhost:{resolved_port}" if resolved_port else "localhost"
+        resolved = urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+        logger.info(
+            "iceberg_service_url_resolved_to_localhost",
+            original_host=host,
+            original_port=str(parsed.port or ""),
+            resolved_port=str(resolved_port or ""),
+            env_var=port_env_var,
+        )
+        return resolved
 
 
 class IcebergSettings(BaseConfig):
@@ -65,11 +98,13 @@ class IcebergSettings(BaseConfig):
         Returns:
             dict: PyIceberg catalog configuration values.
         """
+        catalog_uri = _resolve_service_url(self.iceberg_catalog_uri, port_env_var="NESSIE_PORT")
+        s3_endpoint = _resolve_service_url(self.iceberg_s3_endpoint, port_env_var="MINIO_API_PORT")
         return {
             "type": "rest",
-            "uri": f"{self.iceberg_catalog_uri}/{ref}",
+            "uri": f"{catalog_uri}/{ref}",
             "warehouse": self.get_iceberg_warehouse_for_branch(ref),
-            "s3.endpoint": self.iceberg_s3_endpoint,
+            "s3.endpoint": s3_endpoint,
             "s3.access-key-id": self.iceberg_s3_access_key,
             "s3.secret-access-key": self.iceberg_s3_secret_key,
             "s3.path-style-access": "true",

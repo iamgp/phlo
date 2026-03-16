@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 import psycopg2
 import ulid
@@ -45,12 +47,44 @@ _LINEAGE_DB_KEYS = (
 
 
 def resolve_lineage_db_url() -> str | None:
-    """Resolve the lineage database URL from environment variables."""
+    """Resolve the lineage database URL from explicit lineage environment variables."""
     for key in _LINEAGE_DB_KEYS:
         value = os.environ.get(key)
         if value:
             return value
     return None
+
+
+def resolve_lineage_db_url_with_postgres_fallback() -> str | None:
+    """Resolve the lineage database URL from environment or Postgres defaults."""
+    if connection_string := resolve_lineage_db_url():
+        return connection_string
+    host, port = _resolve_postgres_host(
+        os.environ.get("POSTGRES_HOST", "postgres"),
+        int(os.environ.get("POSTGRES_PORT", "5432")),
+    )
+    user = quote_plus(os.environ.get("POSTGRES_USER", "phlo"))
+    password = quote_plus(os.environ.get("POSTGRES_PASSWORD", "phlo"))
+    database = quote_plus(os.environ.get("POSTGRES_DB", "phlo"))
+    return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+
+
+def _resolve_postgres_host(host: str, port: int) -> tuple[str, int]:
+    """Resolve Docker Postgres hostnames to localhost when running on the host."""
+    if host in {"localhost", "127.0.0.1"}:
+        return host, port
+    try:
+        socket.gethostbyname(host)
+        return host, port
+    except socket.gaierror:
+        exposed_port = int(os.environ.get("POSTGRES_PORT", str(port)))
+        logger.debug(
+            "lineage_db_host_resolved_to_localhost",
+            original_host=host,
+            original_port=port,
+            resolved_port=exposed_port,
+        )
+        return "localhost", exposed_port
 
 
 def generate_row_id() -> str:
@@ -91,15 +125,38 @@ class LineageStore:
         if LineageStore._schema_initialized:
             return
 
+        if self._schema_exists():
+            LineageStore._schema_initialized = True
+            return
+
         try:
             self.setup_schema()
             LineageStore._schema_initialized = True
         except Exception as e:
-            # Schema might already exist (concurrent init), that's OK
-            if "already exists" in str(e).lower():
+            if self._schema_exists() or "already exists" in str(e).lower():
                 LineageStore._schema_initialized = True
             else:
                 logger.warning("lineage_schema_init_failed", error=str(e))
+
+    def _schema_exists(self) -> bool:
+        """Return True when the lineage schema has already been created."""
+        try:
+            with psycopg2.connect(self.connection_string) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT
+                            to_regclass('phlo.asset_lineage_nodes'),
+                            to_regclass('phlo.asset_lineage_edges'),
+                            to_regclass('phlo.column_lineage')
+                        """
+                    )
+                    result = cur.fetchone()
+        except Exception:
+            return False
+        if result is None:
+            return False
+        return all(value is not None for value in result)
 
     def setup_schema(self) -> None:
         """Create the lineage schema and tables if they don't exist.

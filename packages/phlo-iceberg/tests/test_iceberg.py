@@ -9,7 +9,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from phlo_iceberg.catalog import create_namespace, get_catalog, list_tables, reset_catalog_cache
 from phlo_iceberg.cli_utils import get_iceberg_catalog
-from phlo_iceberg.tables import append_to_table, delete_table, ensure_table, get_table_schema
+from phlo_iceberg.tables import (
+    _align_arrow_table_to_target_schema,
+    append_to_table,
+    delete_table,
+    ensure_table,
+    get_table_schema,
+)
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType, TimestampType
 
@@ -294,6 +300,43 @@ class TestIcebergTablesUnitTests:
         mock_dataset.read.assert_called_once()
         mock_table.append.assert_called_once()
         assert result["rows_inserted"] == 2
+
+    def test_align_arrow_table_to_target_schema_backfills_missing_nullable_columns(self):
+        """Missing nullable target columns should be added as nulls before projection."""
+        import pyarrow as pa
+
+        arrow_table = pa.table({"id": ["1"], "name": ["bulbasaur"]})
+        target_schema = pa.schema(
+            [
+                pa.field("id", pa.string(), nullable=False),
+                pa.field("name", pa.string(), nullable=True),
+                pa.field("habitat", pa.string(), nullable=True),
+            ]
+        )
+
+        aligned = _align_arrow_table_to_target_schema(
+            arrow_table, target_schema, table_name="raw.pokemon"
+        )
+
+        assert aligned.schema.names == ["id", "name", "habitat"]
+        assert aligned.column("habitat").to_pylist() == [None]
+
+    def test_align_arrow_table_to_target_schema_rejects_missing_required_columns(self):
+        """Missing required target columns should fail explicitly."""
+        import pyarrow as pa
+
+        arrow_table = pa.table({"id": ["1"]})
+        target_schema = pa.schema(
+            [
+                pa.field("id", pa.string(), nullable=False),
+                pa.field("name", pa.string(), nullable=False),
+            ]
+        )
+
+        with pytest.raises(ValueError, match="Required target column 'name'"):
+            _align_arrow_table_to_target_schema(
+                arrow_table, target_schema, table_name="raw.pokemon"
+            )
 
     @patch("phlo_iceberg.tables.get_catalog")
     def test_get_table_schema_retrieves_schemas_from_existing_tables(self, mock_get_catalog):

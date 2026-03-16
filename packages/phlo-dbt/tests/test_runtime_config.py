@@ -8,6 +8,7 @@ from phlo_dbt.runtime_config import (
     DbtRuntimeConfig,
     ensure_dbt_profile,
     render_dbt_profile_yaml,
+    resolve_dbt_profile_name,
     resolve_dbt_runtime_config,
     resolve_dbt_target_name,
     write_dbt_profile,
@@ -98,6 +99,34 @@ def test_resolve_dbt_runtime_config_defaults_to_main_catalog() -> None:
     assert config.catalog == "iceberg"
 
 
+def test_resolve_dbt_runtime_config_uses_project_profile_name(tmp_path, monkeypatch) -> None:
+    project_dir = tmp_path / "workflows" / "transforms" / "dbt"
+    project_dir.mkdir(parents=True)
+    (project_dir / "dbt_project.yml").write_text(
+        'name: "workshop_transforms"\nprofile: "workshop_transforms"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "phlo_dbt.runtime_config.get_dbt_settings",
+        lambda: SimpleNamespace(
+            dbt_project_path=project_dir,
+            dbt_query_catalog="iceberg",
+            dbt_query_engine_type="trino",
+            dbt_query_user="dagster",
+            dbt_query_host="trino",
+            dbt_query_port=8080,
+            dbt_query_schema="raw",
+            dbt_query_threads=2,
+            dbt_query_http_scheme="http",
+            dbt_query_auth_method="none",
+        ),
+    )
+
+    config = resolve_dbt_runtime_config()
+
+    assert config.profile_name == "workshop_transforms"
+
+
 def test_resolve_dbt_target_name_defaults_to_canonical_default() -> None:
     assert resolve_dbt_target_name() == DEFAULT_DBT_TARGET
 
@@ -135,3 +164,18 @@ def test_ensure_dbt_profile_uses_runtime_target_and_ref(tmp_path) -> None:
     payload = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
     assert payload["phlo"]["target"] == "ci"
     assert payload["phlo"]["outputs"]["ci"]["catalog"] == "iceberg_feature_orders"
+
+
+def test_resolve_dbt_profile_name_prefers_project_declaration(tmp_path) -> None:
+    project_dir = tmp_path / "workflows" / "transforms" / "dbt"
+    project_dir.mkdir(parents=True)
+    (project_dir / "dbt_project.yml").write_text(
+        'name: "workshop_transforms"\nprofile: "workshop_transforms"\n',
+        encoding="utf-8",
+    )
+
+    assert resolve_dbt_profile_name(project_dir) == "workshop_transforms"
+
+
+def test_resolve_dbt_profile_name_falls_back_when_project_missing(tmp_path) -> None:
+    assert resolve_dbt_profile_name(tmp_path / "missing") == "phlo"

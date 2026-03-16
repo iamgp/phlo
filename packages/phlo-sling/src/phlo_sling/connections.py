@@ -7,7 +7,7 @@ from collections.abc import MutableMapping
 from typing import Any
 
 from phlo.capabilities import list_capabilities, resolve_capability
-from phlo.capabilities.discovery import discover_capabilities
+from phlo.infrastructure.config import load_project_config
 from phlo.logging import get_logger
 from phlo_sling.settings import get_settings
 
@@ -30,9 +30,43 @@ def resolve_phlo_connections() -> dict[str, dict[str, Any]]:
     connections: dict[str, dict[str, Any]] = {}
 
     connections.update(_resolve_postgres_connection())
+    connections.update(_resolve_iceberg_connection())
     connections.update(_resolve_s3_connection())
 
     return connections
+
+
+def _project_env_value(name: str) -> str | None:
+    """Read a non-secret default from phlo.yaml env: when host os.environ lacks it."""
+    try:
+        project_config = load_project_config()
+    except Exception as exc:
+        logger.debug("project_env_lookup_failed", name=name, error=str(exc))
+        return None
+
+    env_config = project_config.get("env", {})
+    if not isinstance(env_config, dict):
+        return None
+
+    value = env_config.get(name)
+    return value if isinstance(value, str) and value else None
+
+
+def _ensure_capabilities_discovered(*kinds: str) -> None:
+    """Populate the capability registry only when the requested kinds are absent."""
+    if any(list_capabilities(kind) for kind in kinds):
+        return
+
+    from phlo.capabilities.discovery import discover_capabilities
+
+    discover_capabilities()
+
+
+def _get_iceberg_settings():
+    """Import phlo-iceberg settings lazily for optional package installs."""
+    from phlo_iceberg.settings import get_settings as get_iceberg_settings
+
+    return get_iceberg_settings()
 
 
 def _resolve_postgres_connection() -> dict[str, dict[str, Any]]:
@@ -57,10 +91,34 @@ def _resolve_postgres_connection() -> dict[str, dict[str, Any]]:
         return {}
 
 
+def _resolve_iceberg_connection() -> dict[str, dict[str, Any]]:
+    """Resolve an Iceberg REST catalog connection from phlo-iceberg settings."""
+    try:
+        settings = _get_iceberg_settings()
+        ref = settings.iceberg_default_ref
+        config = settings.get_pyiceberg_catalog_config(ref)
+        return {
+            "PHLO_ICEBERG": {
+                "type": "iceberg",
+                "catalog_type": "rest",
+                "rest_uri": config["uri"],
+                "rest_warehouse": config["warehouse"],
+                "s3_endpoint": config["s3.endpoint"],
+                "s3_access_key_id": config["s3.access-key-id"],
+                "s3_secret_access_key": config["s3.secret-access-key"],
+                "s3_region": config["s3.region"],
+                "schema": settings.iceberg_default_namespace,
+            }
+        }
+    except (ImportError, Exception) as exc:
+        logger.debug("iceberg_connection_skipped", error=str(exc))
+        return {}
+
+
 def _resolve_s3_connection() -> dict[str, dict[str, Any]]:
     """Resolve S3 connection from the active object-store capability."""
-    discover_capabilities()
-    requested_name = os.environ.get("PHLO_OBJECT_STORE")
+    _ensure_capabilities_discovered("object_store")
+    requested_name = os.environ.get("PHLO_OBJECT_STORE") or _project_env_value("PHLO_OBJECT_STORE")
     resolution = resolve_capability("object_store", requested_name)
     if resolution is None:
         available = list_capabilities("object_store")

@@ -1,10 +1,16 @@
 """Unit tests for row-level lineage store."""
 
+import socket
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from phlo_lineage.store import LineageStore, generate_row_id
+from phlo_lineage.store import (
+    LineageStore,
+    generate_row_id,
+    resolve_lineage_db_url,
+    resolve_lineage_db_url_with_postgres_fallback,
+)
 
 
 class TestGenerateRowId:
@@ -55,6 +61,42 @@ class TestLineageStore:
         """Store should store connection string."""
         store = LineageStore("postgresql://test")
         assert store.connection_string == "postgresql://test"
+
+    @patch("phlo_lineage.store.psycopg2")
+    def test_schema_exists_returns_true_when_tables_are_present(
+        self, mock_psycopg2, mock_connection
+    ):
+        """Schema existence probe should detect initialized lineage tables."""
+        mock_conn, mock_cursor = mock_connection
+        mock_psycopg2.connect.return_value = mock_conn
+        mock_cursor.fetchone.return_value = (
+            "phlo.asset_lineage_nodes",
+            "phlo.asset_lineage_edges",
+            "phlo.column_lineage",
+        )
+
+        store = LineageStore("postgresql://test")
+
+        assert store._schema_exists() is True
+
+    @patch("phlo_lineage.store.psycopg2")
+    def test_ensure_schema_skips_setup_when_schema_already_exists(
+        self, mock_psycopg2, mock_connection
+    ):
+        """Schema setup should be skipped when another process already created it."""
+        mock_conn, mock_cursor = mock_connection
+        mock_psycopg2.connect.return_value = mock_conn
+        mock_cursor.fetchone.return_value = (
+            "phlo.asset_lineage_nodes",
+            "phlo.asset_lineage_edges",
+            "phlo.column_lineage",
+        )
+
+        store = LineageStore("postgresql://test")
+        with patch.object(LineageStore, "setup_schema") as mock_setup:
+            store._ensure_schema()
+
+        mock_setup.assert_not_called()
 
     @patch("phlo_lineage.store.psycopg2")
     def test_record_row_executes_insert(self, mock_psycopg2, mock_connection):
@@ -118,6 +160,56 @@ class TestLineageStore:
         result = store.get_row("nonexistent")
 
         assert result is None
+
+
+class TestResolveLineageDbUrl:
+    """Tests for lineage DB URL resolution."""
+
+    @pytest.fixture
+    def mock_connection(self):
+        """Create a mock psycopg2 connection."""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        return mock_conn, mock_cursor
+
+    def test_prefers_explicit_env_url(self, monkeypatch) -> None:
+        monkeypatch.setenv("PHLO_LINEAGE_DB_URL", "postgresql://explicit")
+
+        assert resolve_lineage_db_url() == "postgresql://explicit"
+
+    def test_returns_none_without_explicit_lineage_env(self, monkeypatch) -> None:
+        monkeypatch.delenv("LINEAGE_DB_URL", raising=False)
+        monkeypatch.delenv("PHLO_LINEAGE_DB_URL", raising=False)
+        monkeypatch.delenv("DAGSTER_PG_DB_CONNECTION_STRING", raising=False)
+        monkeypatch.delenv("POSTGRES_HOST", raising=False)
+        monkeypatch.delenv("POSTGRES_PORT", raising=False)
+        monkeypatch.delenv("POSTGRES_USER", raising=False)
+        monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+        monkeypatch.delenv("POSTGRES_DB", raising=False)
+
+        assert resolve_lineage_db_url() is None
+
+    @patch("phlo_lineage.store.socket.gethostbyname", side_effect=socket.gaierror())
+    def test_falls_back_to_localhost_for_unresolvable_postgres_host(
+        self, _mock_resolve, monkeypatch
+    ) -> None:
+        monkeypatch.delenv("LINEAGE_DB_URL", raising=False)
+        monkeypatch.delenv("PHLO_LINEAGE_DB_URL", raising=False)
+        monkeypatch.delenv("DAGSTER_PG_DB_CONNECTION_STRING", raising=False)
+        monkeypatch.setenv("POSTGRES_HOST", "postgres")
+        monkeypatch.setenv("POSTGRES_PORT", "15432")
+        monkeypatch.setenv("POSTGRES_USER", "phlo")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "secret")
+        monkeypatch.setenv("POSTGRES_DB", "warehouse")
+
+        assert (
+            resolve_lineage_db_url_with_postgres_fallback()
+            == "postgresql://phlo:secret@localhost:15432/warehouse"
+        )
 
     @patch("phlo_lineage.store.psycopg2")
     def test_get_row_returns_dict_when_found(self, mock_psycopg2, mock_connection):

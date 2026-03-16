@@ -2,16 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install phlo and dependencies
+# Install runtime dependencies
 RUN pip install --no-cache-dir phlo fastapi uvicorn pyyaml
 
-# Copy the API application
-COPY main.py .
+# Copy the API package so `phlo_api.main` is importable.
+COPY . /app/phlo_api
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:4000/health || exit 1
+ENV PYTHONPATH=/app
 
 EXPOSE 4000
 
-CMD ["python", "main.py"]
+CMD ["python", "-m", "uvicorn", "phlo_api.main:app", "--host", "0.0.0.0", "--port", "4000"]

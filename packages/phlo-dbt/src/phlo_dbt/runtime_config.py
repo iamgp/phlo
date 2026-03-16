@@ -17,13 +17,14 @@ import yaml
 
 DEFAULT_DBT_TARGET = "dev"
 DBT_QUERY_ENGINE_SUPPORT = CapabilitySupport(supports_refs=True)
+DEFAULT_DBT_PROFILE_NAME = "phlo"
 
 
 @dataclass(frozen=True, slots=True)
 class DbtRuntimeConfig:
     """Canonical dbt runtime configuration for the active execution target."""
 
-    profile_name: str = "phlo"
+    profile_name: str = DEFAULT_DBT_PROFILE_NAME
     target_name: str = DEFAULT_DBT_TARGET
     engine_type: str = "trino"
     user: str = "dagster"
@@ -95,6 +96,7 @@ def resolve_dbt_runtime_config(
         catalog = f"{catalog}_{ref}"
 
     return DbtRuntimeConfig(
+        profile_name=resolve_dbt_profile_name(settings.dbt_project_path),
         target_name=target_name,
         engine_type=settings.dbt_query_engine_type,
         user=settings.dbt_query_user,
@@ -106,6 +108,21 @@ def resolve_dbt_runtime_config(
         http_scheme=settings.dbt_query_http_scheme,
         method=settings.dbt_query_auth_method,
     )
+
+
+def resolve_dbt_profile_name(project_dir: Path) -> str:
+    """Resolve the dbt profile name declared by the project, if any."""
+    project_file = project_dir / "dbt_project.yml"
+    if not project_file.exists():
+        return DEFAULT_DBT_PROFILE_NAME
+    try:
+        payload = yaml.safe_load(project_file.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return DEFAULT_DBT_PROFILE_NAME
+    profile_name = payload.get("profile")
+    if isinstance(profile_name, str) and profile_name:
+        return profile_name
+    return DEFAULT_DBT_PROFILE_NAME
 
 
 def render_dbt_profile_yaml(config: DbtRuntimeConfig) -> str:

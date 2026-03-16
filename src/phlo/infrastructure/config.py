@@ -6,6 +6,7 @@ Loads infrastructure configuration from phlo.yaml.
 
 from __future__ import annotations
 
+import os
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -20,12 +21,20 @@ from phlo.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _default_project_root() -> Path:
+    """Resolve the default project root from environment or current working directory."""
+    project_root = os.environ.get("PHLO_PROJECT_PATH")
+    if project_root:
+        return Path(project_root)
+    return Path.cwd()
+
+
 @lru_cache(maxsize=16)
 def load_project_config(project_root: Path | None = None) -> dict[str, Any]:
     """Load raw project configuration from phlo.yaml."""
     started = time.perf_counter()
     if project_root is None:
-        project_root = Path.cwd()
+        project_root = _default_project_root()
 
     config_path = project_root / "phlo.yaml"
     logger.debug(
@@ -73,7 +82,7 @@ def load_infrastructure_config(project_root: Path | None = None) -> Infrastructu
     """Load infrastructure configuration from phlo.yaml."""
     started = time.perf_counter()
     if project_root is None:
-        project_root = Path.cwd()
+        project_root = _default_project_root()
     logger.debug("infrastructure_config_load_started", project_root=str(project_root))
 
     try:
@@ -120,7 +129,7 @@ def load_infrastructure_config(project_root: Path | None = None) -> Infrastructu
 def get_project_name_from_config(project_root: Path | None = None) -> str | None:
     """Get project name from phlo.yaml."""
     if project_root is None:
-        project_root = Path.cwd()
+        project_root = _default_project_root()
 
     try:
         project_config = load_project_config(project_root)

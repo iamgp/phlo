@@ -27,6 +27,7 @@ dev = [
 [project.entry-points."phlo.plugins.services"]
 postgres = "phlo_postgres.plugin:PostgresServicePlugin"
 postgres-exporter = "phlo_postgres.plugin:PostgresExporterServicePlugin"
+postgres-volume-setup = "phlo_postgres.plugin:PostgresVolumeSetupServicePlugin"
 
 [project.entry-points."phlo.plugins.resources"]
 postgres = "phlo_postgres.plugin:PostgresResourceProvider"
@@ -42,7 +43,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_postgres = ["service.yaml", "exporter_service.yaml"]
+phlo_postgres = ["service.yaml", "exporter_service.yaml", "volume_setup.yaml"]
 
 [tool.ruff]
 line-length = 100

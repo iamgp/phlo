@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import pandas as pd
+from pandera.pandas import Field
 from pandera.pandas import DataFrameModel
 from pandera.typing import Series  # type: ignore[possibly-missing-import]
 
-from phlo_dlt.pandera_checks import evaluate_pandera_contract_parquet_files
+from phlo_dlt.pandera_checks import (
+    evaluate_pandera_contract,
+    evaluate_pandera_contract_parquet_files,
+)
 
 
 class MultiFileSchema(DataFrameModel):
@@ -14,6 +18,13 @@ class MultiFileSchema(DataFrameModel):
 
     id: Series[int]
     name: Series[str]
+
+
+class NullableFieldSchema(DataFrameModel):
+    """Schema used to validate widening changes with nullable columns."""
+
+    id: Series[int]
+    habitat: Series[str] = Field(nullable=True)
 
 
 def test_evaluate_pandera_contract_parquet_files_combines_file_set(tmp_path) -> None:
@@ -30,3 +41,25 @@ def test_evaluate_pandera_contract_parquet_files_combines_file_set(tmp_path) -> 
     assert evaluation.passed is True
     assert evaluation.total_count == 2
     assert evaluation.failed_count == 0
+
+
+def test_evaluate_pandera_contract_backfills_missing_nullable_columns() -> None:
+    evaluation = evaluate_pandera_contract(
+        pd.DataFrame([{"id": 1}]),
+        schema_class=NullableFieldSchema,
+    )
+
+    assert evaluation.passed is True
+    assert evaluation.total_count == 1
+    assert evaluation.failed_count == 0
+
+
+def test_evaluate_pandera_contract_does_not_mutate_input_dataframe() -> None:
+    df = pd.DataFrame([{"id": 1}])
+
+    evaluate_pandera_contract(
+        df,
+        schema_class=NullableFieldSchema,
+    )
+
+    assert list(df.columns) == ["id"]
