@@ -118,15 +118,38 @@ class LineageStore:
         if LineageStore._schema_initialized:
             return
 
+        if self._schema_exists():
+            LineageStore._schema_initialized = True
+            return
+
         try:
             self.setup_schema()
             LineageStore._schema_initialized = True
         except Exception as e:
-            # Schema might already exist (concurrent init), that's OK
-            if "already exists" in str(e).lower():
+            if self._schema_exists() or "already exists" in str(e).lower():
                 LineageStore._schema_initialized = True
             else:
                 logger.warning("lineage_schema_init_failed", error=str(e))
+
+    def _schema_exists(self) -> bool:
+        """Return True when the lineage schema has already been created."""
+        try:
+            with psycopg2.connect(self.connection_string) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT
+                            to_regclass('phlo.asset_lineage_nodes'),
+                            to_regclass('phlo.asset_lineage_edges'),
+                            to_regclass('phlo.column_lineage')
+                        """
+                    )
+                    result = cur.fetchone()
+        except Exception:
+            return False
+        if result is None:
+            return False
+        return all(value is not None for value in result)
 
     def setup_schema(self) -> None:
         """Create the lineage schema and tables if they don't exist.

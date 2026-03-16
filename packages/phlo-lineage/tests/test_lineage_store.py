@@ -58,6 +58,42 @@ class TestLineageStore:
         assert store.connection_string == "postgresql://test"
 
     @patch("phlo_lineage.store.psycopg2")
+    def test_schema_exists_returns_true_when_tables_are_present(
+        self, mock_psycopg2, mock_connection
+    ):
+        """Schema existence probe should detect initialized lineage tables."""
+        mock_conn, mock_cursor = mock_connection
+        mock_psycopg2.connect.return_value = mock_conn
+        mock_cursor.fetchone.return_value = (
+            "phlo.asset_lineage_nodes",
+            "phlo.asset_lineage_edges",
+            "phlo.column_lineage",
+        )
+
+        store = LineageStore("postgresql://test")
+
+        assert store._schema_exists() is True
+
+    @patch("phlo_lineage.store.psycopg2")
+    def test_ensure_schema_skips_setup_when_schema_already_exists(
+        self, mock_psycopg2, mock_connection
+    ):
+        """Schema setup should be skipped when another process already created it."""
+        mock_conn, mock_cursor = mock_connection
+        mock_psycopg2.connect.return_value = mock_conn
+        mock_cursor.fetchone.return_value = (
+            "phlo.asset_lineage_nodes",
+            "phlo.asset_lineage_edges",
+            "phlo.column_lineage",
+        )
+
+        store = LineageStore("postgresql://test")
+        with patch.object(LineageStore, "setup_schema") as mock_setup:
+            store._ensure_schema()
+
+        mock_setup.assert_not_called()
+
+    @patch("phlo_lineage.store.psycopg2")
     def test_record_row_executes_insert(self, mock_psycopg2, mock_connection):
         """record_row should execute INSERT statement."""
         mock_conn, mock_cursor = mock_connection

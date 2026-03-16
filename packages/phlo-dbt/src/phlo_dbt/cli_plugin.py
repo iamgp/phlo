@@ -12,7 +12,6 @@ from phlo.cli.commands.services.utils import ensure_phlo_dir
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
-from phlo.orchestrators import get_active_orchestrator
 from phlo.plugins.base import CliCommandPlugin, PluginMetadata
 from phlo_dbt.cli_publishing import publishing
 from phlo_dbt.runtime_config import DEFAULT_DBT_TARGET, ensure_dbt_profile
@@ -37,6 +36,8 @@ def _should_run_in_container(local: bool) -> bool:
 
 def _resolve_exec_service_name() -> str:
     """Resolve the execution service from the active orchestrator adapter."""
+    from phlo.orchestrators import get_active_orchestrator
+
     adapter = get_active_orchestrator()
     service_name = adapter.exec_service_name()
     if not service_name:
