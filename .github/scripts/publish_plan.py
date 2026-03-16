@@ -77,7 +77,7 @@ def collect_internal_deps(
 def find_base_ref(event: str, base_ref_env: str, current_tag: str) -> str:
     if base_ref_env:
         return base_ref_env
-    if event == "release" and current_tag:
+    if current_tag:
         return try_run(["git", "describe", "--tags", "--abbrev=0", f"{current_tag}^"])
     return try_run(["git", "describe", "--tags", "--abbrev=0"])
 
