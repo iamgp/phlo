@@ -182,7 +182,9 @@ def main() -> None:
 
     event = os.environ.get("GITHUB_EVENT_NAME", "")
     base_ref_env = os.environ.get("BASE_REF", "").strip()
-    current_tag = os.environ.get("GITHUB_REF_NAME", "") if event == "release" else ""
+    current_tag = os.environ.get("CURRENT_TAG", "").strip()
+    if not current_tag and event == "release":
+        current_tag = os.environ.get("GITHUB_REF_NAME", "")
 
     base_ref = find_base_ref(event, base_ref_env, current_tag)
     changed_files = collect_changed_files(base_ref)
