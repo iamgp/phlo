@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phlo-api"
-version = "0.1.0"
+version = "0.2.0"
 description = "Phlo API - Backend service exposing Phlo internals to Observatory"
 readme = {text = "Phlo API backend for Observatory.", content-type = "text/plain"}
 requires-python = ">=3.11"

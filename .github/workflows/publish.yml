@@ -12,11 +12,7 @@ on:
         required: false
         default: "false"
       packages:
-        description: "Comma-separated package names or JSON list to publish (overrides detection/publish_all)"
-        required: false
-        default: ""
-      base_ref:
-        description: "Git ref to compare against for change detection (defaults to previous tag)"
+        description: "Comma-separated package names to publish (overrides publish_all)"
         required: false
         default: ""
 
@@ -25,14 +21,74 @@ permissions:
 
 jobs:
   publish:
+    runs-on: ubuntu-latest
+    environment: pypi
     permissions:
       contents: read
       id-token: write
-    uses: ./.github/workflows/publish-packages.yml
-    with:
-      dry_run: ${{ inputs.dry_run }}
-      publish_all: ${{ inputs.publish_all }}
-      packages: ${{ inputs.packages }}
-      base_ref: ${{ inputs.base_ref }}
-    secrets:
-      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Determine packages and build
+        env:
+          PACKAGES_INPUT: ${{ inputs.packages }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          build_package() {
+            local pkg_dir="$1"
+            echo "::group::Building $pkg_dir"
+            uv build "$pkg_dir" --out-dir dist
+            echo "::endgroup::"
+          }
+
+          if [ -n "$PACKAGES_INPUT" ]; then
+            # Build only the explicitly listed packages
+            IFS=',' read -ra PKGS <<< "$PACKAGES_INPUT"
+            for pkg in "${PKGS[@]}"; do
+              pkg="$(echo "$pkg" | xargs)"  # trim whitespace
+              if [ "$pkg" = "phlo" ]; then
+                build_package "."
+              elif [ -d "packages/$pkg" ]; then
+                build_package "packages/$pkg"
+              else
+                echo "::error::Package directory not found: packages/$pkg"
+                exit 1
+              fi
+            done
+          else
+            # Build root package + all workspace packages
+            build_package "."
+            for pkg_dir in packages/*/; do
+              build_package "$pkg_dir"
+            done
+          fi
+
+          echo "Built artifacts:"
+          ls -lh dist/
+
+      - name: Publish to PyPI
+        if: inputs.dry_run != 'true'
+        run: uv publish dist/* --token "$PYPI_API_TOKEN"
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Dry run summary
+        if: inputs.dry_run == 'true'
+        run: |
+          echo "## Dry run — built packages (not published)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ls -1 dist/ >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
