@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phlo-lineage"
-version = "0.1.0"
+version = "0.2.0"
 description = "Lineage tracking and visualization for Phlo"
 readme = {text = "Lineage tracking and CLI for Phlo.", content-type = "text/plain"}
 requires-python = ">=3.11"

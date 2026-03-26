@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phlo-iceberg"
-version = "0.1.0"
+version = "0.2.0"
 description = "Iceberg table-store capability plugin for Phlo"
 readme = {text = "Iceberg/Nessie catalog capability plugin for Phlo.", content-type = "text/plain"}
 requires-python = ">=3.11"

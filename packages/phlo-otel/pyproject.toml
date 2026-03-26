@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phlo-otel"
-version = "0.1.0"
+version = "0.2.0"
 description = "OpenTelemetry traces and metrics for Phlo"
 readme = {text = "OpenTelemetry instrumentation for Phlo hook events.", content-type = "text/plain"}
 requires-python = ">=3.11"

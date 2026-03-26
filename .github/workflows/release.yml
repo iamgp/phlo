@@ -70,6 +70,7 @@ jobs:
         run: |
           rm -rf dist
           uv build --out-dir dist
+          for pkg in packages/*/; do uv build --directory "$pkg" --out-dir dist; done
 
       - uses: iamgp/ReleaseX@3721a977eade1dade9e64b5963de4fc3b3ddaa54 # v1
         with:

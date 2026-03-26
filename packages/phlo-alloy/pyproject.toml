@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phlo-alloy"
-version = "0.1.0"
+version = "0.2.0"
 description = "alloy service plugin for Phlo"
 readme = {text = "alloy service plugin for Phlo.", content-type = "text/plain"}
 requires-python = ">=3.11"
