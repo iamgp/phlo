@@ -3,6 +3,13 @@
 from phlo_delta.settings import DeltaSettings
 
 
+def test_delta_settings_default_to_localhost_for_host_side_usage() -> None:
+    """Delta settings should default to a host-reachable MinIO endpoint."""
+    settings = DeltaSettings()
+
+    assert settings.delta_s3_endpoint == "http://localhost:9000"
+
+
 def test_delta_settings_use_standard_aws_aliases(monkeypatch) -> None:
     """Delta settings should honor the shared AWS env vars exposed in services."""
     monkeypatch.setenv("AWS_S3_ENDPOINT", "http://minio:9000")
