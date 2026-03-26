@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -1287,10 +1287,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#release-please-configuration" class="md-nav__link">
+  <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Release Please Configuration
+        Configuration
       
     </span>
   </a>
@@ -1302,6 +1302,17 @@
     <span class="md-ellipsis">
       
         Local Validation (Dry Run)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validate-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate Configuration
       
     </span>
   </a>
@@ -1891,10 +1902,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#release-please-configuration" class="md-nav__link">
+  <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Release Please Configuration
+        Configuration
       
     </span>
   </a>
@@ -1906,6 +1917,17 @@
     <span class="md-ellipsis">
       
         Local Validation (Dry Run)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validate-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate Configuration
       
     </span>
   </a>
@@ -2484,24 +2506,23 @@ phlo materialize --select &quot;tag:critical&quot; --partition $(date -d &quot;y
 ./validate-data.sh
 </code></pre>
 <h2 id="release-management">Release Management</h2>
-<p>Phlo uses Release Please to manage versions and changelogs on <code>main</code>.</p>
-<h3 id="release-please-configuration">Release Please Configuration</h3>
+<p>Phlo uses <a href="https://github.com/iamgp/ReleaseX">ReleaseX</a> (<code>relx</code>) to manage versions, changelogs, and publishing on <code>main</code>.</p>
+<h3 id="configuration">Configuration</h3>
 <ul>
-<li>Workflow: <code>.github/workflows/release-please.yml</code></li>
-<li>Config: <code>.github/release-please-config.json</code></li>
-<li>Manifest: <code>.github/release-please-manifest.json</code></li>
+<li>Config: <code>relx.toml</code> (repo root)</li>
+<li>Workflow: <code>.github/workflows/release.yml</code></li>
 </ul>
-<p>The manifest tracks the current release version used to generate tags and changelogs.</p>
+<p>ReleaseX auto-discovers workspace packages via <code>tool.uv.workspace.members</code> in <code>pyproject.toml</code> and manages independent versioning with cascade bumps enabled.</p>
 <h3 id="local-validation-dry-run">Local Validation (Dry Run)</h3>
-<p>Use the Release Please CLI with a GitHub token to preview the next release.</p>
-<pre><code class="language-bash">export RELEASE_PLEASE_TOKEN=&quot;ghp_your_token&quot;
-npx release-please manifest-pr \
-  --config-file .github/release-please-config.json \
-  --manifest-file .github/release-please-manifest.json \
-  --dry-run
+<pre><code class="language-bash"># Check current status — pending bump, changelog preview, package plan
+relx status
+
+# Preview what the release PR would contain
+relx release pr --dry-run
 </code></pre>
-<p>If the output shows the next version incrementing as expected and the compare link
-targets the previous tag, the configuration is working as expected.</p>
+<h3 id="validate-configuration">Validate Configuration</h3>
+<pre><code class="language-bash">relx validate
+</code></pre>
 <h2 id="maintenance-windows">Maintenance Windows</h2>
 <h3 id="planned-downtime">Planned Downtime</h3>
 <p><strong>Communication</strong>:</p>
