@@ -22,7 +22,7 @@ class DeltaSettings(BaseConfig):
         default="raw", description="Default namespace/schema for Delta tables"
     )
     delta_s3_endpoint: str | None = Field(
-        default="http://minio:9000",
+        default="http://localhost:9000",
         validation_alias=AliasChoices("DELTA_S3_ENDPOINT", "AWS_S3_ENDPOINT"),
         description="S3 endpoint URL for Delta I/O",
     )
