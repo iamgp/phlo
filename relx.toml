@@ -1,0 +1,49 @@
+[project]
+ecosystem = "python"
+
+[release]
+branch = "main"
+tag_prefix = "v"
+changelog_file = "CHANGELOG.md"
+pr_title = "chore(release): {version}"
+
+[versioning]
+strategy = "conventional_commits"
+initial_version = "0.7.0"
+
+[[version_files]]
+path = "pyproject.toml"
+key = "project.version"
+
+[changelog]
+sections.feat = "Added"
+sections.fix = "Fixed"
+sections.refactor = "Changed"
+sections.perf = "Changed"
+sections.docs = false
+sections.chore = false
+sections.ci = false
+sections.build = false
+sections.style = false
+sections.test = false
+
+[publish]
+enabled = true
+provider = "uv"
+repository = "pypi"
+dist_dir = "dist"
+trusted_publishing = true
+oidc = true
+
+[github]
+token_env = "GITHUB_TOKEN"
+release_branch_prefix = "relx/release"
+pending_label = "autorelease: pending"
+tagged_label = "autorelease: tagged"
+
+[monorepo]
+enabled = true
+release_mode = "unified"
+
+[workspace]
+cascade_bumps = true
