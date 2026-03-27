@@ -21,7 +21,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: iamgp/ReleaseX@7eb9a8aa0e107687b9b12023a03f739a409756b6 # v1.0.5
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "latest"
+          enable-cache: false
+
+      - uses: iamgp/ReleaseX@392ed307c6b62ed0a5ffce1cc9e6dd0dde2ec75a # v1.0.6
         with:
           command: release pr
         env:
@@ -40,7 +45,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: iamgp/ReleaseX@7eb9a8aa0e107687b9b12023a03f739a409756b6 # v1.0.5
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "latest"
+          enable-cache: false
+
+      - uses: iamgp/ReleaseX@392ed307c6b62ed0a5ffce1cc9e6dd0dde2ec75a # v1.0.6
         with:
           command: release tag
         env:
@@ -72,7 +82,7 @@ jobs:
           uv build --out-dir dist
           for pkg in packages/*/; do uv build --directory "$pkg" --out-dir dist; done
 
-      - uses: iamgp/ReleaseX@7eb9a8aa0e107687b9b12023a03f739a409756b6 # v1.0.5
+      - uses: iamgp/ReleaseX@392ed307c6b62ed0a5ffce1cc9e6dd0dde2ec75a # v1.0.6
         with:
           command: release publish
         env:
