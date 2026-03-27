@@ -1,5 +1,14 @@
 # Changelog
 
+## [phlo 0.7.2, phlo-alerting 0.2.3, phlo-alloy 0.2.3, phlo-api 0.2.3, phlo-clickhouse 0.2.3, phlo-clickstack 0.2.3, phlo-core-plugins 0.2.3, phlo-dagster 0.2.3, phlo-dbt 0.2.3, phlo-delta 0.2.3, phlo-dlt 0.2.3, phlo-grafana 0.2.3, phlo-hasura 0.2.3, phlo-iceberg 0.2.3, phlo-lineage 0.2.3, phlo-loki 0.2.3, phlo-minio 0.2.3, phlo-nessie 0.2.3, phlo-observatory 0.2.3, phlo-observatory-example 0.2.3, phlo-openmetadata 0.2.3, phlo-otel 0.2.3, phlo-pandera 0.2.3, phlo-pgweb 0.2.3, phlo-postgres 0.2.3, phlo-postgrest 0.2.3, phlo-prometheus 0.2.3, phlo-rustfs 0.2.3, phlo-sling 0.2.3, phlo-superset 0.2.3, phlo-testing 0.2.3, phlo-traefik 0.2.3, phlo-trino 0.2.3] - 2026-03-27
+
+### Fixed
+- phlo: publish releases with PyPI token
+
+### Contributors
+Thanks to our contributors for this release:
+- 🎉 @iamgp — first contribution!
+
 ## [phlo 0.7.1, phlo-alerting 0.2.2, phlo-alloy 0.2.2, phlo-api 0.2.2, phlo-clickhouse 0.2.2, phlo-clickstack 0.2.2, phlo-core-plugins 0.2.2, phlo-dagster 0.2.2, phlo-dbt 0.2.2, phlo-delta 0.2.2, phlo-dlt 0.2.2, phlo-grafana 0.2.2, phlo-hasura 0.2.2, phlo-iceberg 0.2.2, phlo-lineage 0.2.2, phlo-loki 0.2.2, phlo-minio 0.2.2, phlo-nessie 0.2.2, phlo-observatory 0.2.2, phlo-observatory-example 0.2.2, phlo-openmetadata 0.2.2, phlo-otel 0.2.2, phlo-pandera 0.2.2, phlo-pgweb 0.2.2, phlo-postgres 0.2.2, phlo-postgrest 0.2.2, phlo-prometheus 0.2.2, phlo-rustfs 0.2.2, phlo-sling 0.2.2, phlo-superset 0.2.2, phlo-testing 0.2.2, phlo-traefik 0.2.2, phlo-trino 0.2.2] - 2026-03-27
 
 ### Fixed
