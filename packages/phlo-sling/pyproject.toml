@@ -1,22 +1,36 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
 
 [project]
-name = "phlo-sling"
-version = "0.2.0"
-description = "Sling replication ingestion provider for Phlo"
-readme = {text = "Sling-based database replication ingestion provider for Phlo.", content-type = "text/plain"}
-requires-python = ">=3.11"
-authors = [
-    {name = "Phlo Team", email = "team@phlo.dev"},
-]
-license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "sling>=1.0.0",
     "pyarrow>=21.0.0",
 ]
+description = "Sling replication ingestion provider for Phlo"
+name = "phlo-sling"
+requires-python = ">=3.11"
+version = "0.2.1"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.assets"]
+sling = "phlo_sling.plugin:SlingAssetProvider"
+
+[project.entry-points."phlo.plugins.cli"]
+sling = "phlo_sling.cli_plugin:SlingCliPlugin"
+
+[project.entry-points."phlo.plugins.ingestion_providers"]
+sling = "phlo_sling.plugin:SlingIngestionProvider"
+
+[project.license]
+text = "MIT"
 
 [project.optional-dependencies]
 dev = [
@@ -24,21 +38,16 @@ dev = [
     "ruff>=0.1.0",
 ]
 
-[project.entry-points."phlo.plugins.assets"]
-sling = "phlo_sling.plugin:SlingAssetProvider"
-
-[project.entry-points."phlo.plugins.ingestion_providers"]
-sling = "phlo_sling.plugin:SlingIngestionProvider"
-
-[project.entry-points."phlo.plugins.cli"]
-sling = "phlo_sling.cli_plugin:SlingCliPlugin"
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.readme]
+content-type = "text/plain"
+text = "Sling-based database replication ingestion provider for Phlo."
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
