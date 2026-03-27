@@ -1,43 +1,50 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
 
 [project]
-name = "phlo-loki"
-version = "0.2.0"
-description = "loki service plugin for Phlo"
-readme = {text = "loki service plugin for Phlo.", content-type = "text/plain"}
-requires-python = ">=3.11"
-authors = [
-    {name = "Phlo Team", email = "team@phlo.dev"},
-]
-license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "pyyaml>=6.0.1",
 ]
+description = "loki service plugin for Phlo"
+name = "phlo-loki"
+requires-python = ">=3.11"
+version = "0.2.1"
 
-[project.optional-dependencies]
-observatory = [
-    "phlo-observatory>=0.1.0",
-]
-dev = [
-    "pytest>=7.0",
-    "ruff>=0.1.0",
-]
-
-[project.entry-points."phlo.plugins.services"]
-loki = "phlo_loki.plugin:LokiServicePlugin"
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
 
 [project.entry-points."phlo.plugins.observatory"]
 loki = "phlo_loki.observatory_plugin:LokiObservatoryExtension"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-include-package-data = true
+[project.entry-points."phlo.plugins.services"]
+loki = "phlo_loki.plugin:LokiServicePlugin"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+observatory = ["phlo-observatory>=0.1.0"]
+
+[project.readme]
+content-type = "text/plain"
+text = "loki service plugin for Phlo."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.setuptools]
+include-package-data = true
 
 [tool.setuptools.package-data]
 phlo_loki = [
@@ -46,6 +53,8 @@ phlo_loki = [
     "observatory_assets/*",
 ]
 
-[tool.ruff]
-line-length = 100
-target-version = "py311"
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

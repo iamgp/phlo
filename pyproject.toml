@@ -1,131 +1,6 @@
 [build-system]
-requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/phlo"]
-include = ["src/phlo/plugins/registry_data.json", "src/phlo/sql/*.sql"]
-
-[tool.hatch.build.targets.sdist]
-include = [
-    "src/phlo",
-    "registry/schema/v1.json",
-    "registry/plugins.json",
-]
-
-[project]
-name = "phlo"
-version = "0.7.0"
-description = "Lakehouse platform"
-readme = "README.md"
-requires-python = ">=3.11"
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Database",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-]
-dependencies = [
-    "dagster>=1.12.1",
-    "dagster-webserver>=1.12.1",
-    "cachetools>=6.2.1",
-    "pyyaml>=6.0.1",
-    "pydantic-settings>=2.11.0",
-    "pandas>=2.3.3",
-    "pandera>=0.26.1",
-    "requests>=2.32.5",
-    "psycopg2-binary>=2.9.11",
-    "asyncpg>=0.30.0",
-    "click>=8.0",
-    "rich>=13.0",
-    "duckdb>=0.9.0",
-    "python-ulid>=2.0.0",
-    "httpx>=0.28.1",
-    "fastapi>=0.127.0",
-    "structlog>=25.5.0",
-    "jsonschema>=4.23.0",
-]
-
-[project.optional-dependencies]
-core-services = [
-    "phlo-dagster>=0.1.0",
-    "phlo-postgres>=0.1.0",
-    "phlo-minio>=0.1.0",
-    "phlo-nessie>=0.1.0",
-    "phlo-trino>=0.1.0",
-]
-# Convenience alias - install all default services with: pip install phlo[defaults]
-defaults = [
-    "phlo-core-plugins>=0.1.0",
-    "phlo-iceberg>=0.1.0",
-    "phlo-dlt>=0.1.0",
-    "phlo-dbt>=0.1.0",
-    "phlo-dagster>=0.1.0",
-    "phlo-postgres>=0.1.0",
-    "phlo-minio>=0.1.0",
-    "phlo-nessie>=0.1.0",
-    "phlo-trino>=0.1.0",
-]
-openmetadata = [
-    "phlo-openmetadata>=0.1.0",
-]
-
-[project.scripts]
-phlo = "phlo.cli.main:cli"
-
-# Plugin entry point groups
-# External plugins can register themselves in these groups
-[project.entry-points."phlo.plugins.sources"]
-# Example: my_source = "my_package.my_module:MySourceConnector"
-
-[project.entry-points."phlo.plugins.quality"]
-# Example: my_check = "my_package.my_module:MyQualityCheck"
-
-[project.entry-points."phlo.plugins.transforms"]
-# Example: my_transform = "my_package.my_module:MyTransform"
-
-[tool.uv.workspace]
-members = [".", "packages/*"]
-
-[tool.uv.sources]
-phlo = { workspace = true }
-phlo-alerting = { workspace = true }
-phlo-alloy = { workspace = true }
-phlo-api = { workspace = true }
-phlo-clickhouse = { workspace = true }
-phlo-clickstack = { workspace = true }
-phlo-core-plugins = { workspace = true }
-phlo-dagster = { workspace = true }
-phlo-dbt = { workspace = true }
-phlo-delta = { workspace = true }
-phlo-dlt = { workspace = true }
-phlo-grafana = { workspace = true }
-phlo-hasura = { workspace = true }
-phlo-iceberg = { workspace = true }
-phlo-lineage = { workspace = true }
-phlo-loki = { workspace = true }
-phlo-minio = { workspace = true }
-phlo-nessie = { workspace = true }
-phlo-observatory = { workspace = true }
-phlo-observatory-example = { workspace = true }
-phlo-openmetadata = { workspace = true }
-phlo-otel = { workspace = true }
-phlo-pandera = { workspace = true }
-phlo-pgweb = { workspace = true }
-phlo-postgres = { workspace = true }
-phlo-postgrest = { workspace = true }
-phlo-prometheus = { workspace = true }
-phlo-rustfs = { workspace = true }
-phlo-sling = { workspace = true }
-phlo-superset = { workspace = true }
-phlo-testing = { workspace = true }
-phlo-traefik = { workspace = true }
-phlo-trino = { workspace = true }
+requires = ["hatchling"]
 
 [dependency-groups]
 dev = [
@@ -172,24 +47,106 @@ dev = [
     "testcontainers-minio>=0.0.1rc1",
 ]
 
+[project]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "dagster>=1.12.1",
+    "dagster-webserver>=1.12.1",
+    "cachetools>=6.2.1",
+    "pyyaml>=6.0.1",
+    "pydantic-settings>=2.11.0",
+    "pandas>=2.3.3",
+    "pandera>=0.26.1",
+    "requests>=2.32.5",
+    "psycopg2-binary>=2.9.11",
+    "asyncpg>=0.30.0",
+    "click>=8.0",
+    "rich>=13.0",
+    "duckdb>=0.9.0",
+    "python-ulid>=2.0.0",
+    "httpx>=0.28.1",
+    "fastapi>=0.127.0",
+    "structlog>=25.5.0",
+    "jsonschema>=4.23.0",
+]
+description = "Lakehouse platform"
+name = "phlo"
+readme = "README.md"
+requires-python = ">=3.11"
+version = "0.1.1"
+
+[project.entry-points."phlo.plugins.quality"]
+
+[project.entry-points."phlo.plugins.sources"]
+
+[project.entry-points."phlo.plugins.transforms"]
+
+[project.optional-dependencies]
+core-services = [
+    "phlo-dagster>=0.1.0",
+    "phlo-postgres>=0.1.0",
+    "phlo-minio>=0.1.0",
+    "phlo-nessie>=0.1.0",
+    "phlo-trino>=0.1.0",
+]
+defaults = [
+    "phlo-core-plugins>=0.1.0",
+    "phlo-iceberg>=0.1.0",
+    "phlo-dlt>=0.1.0",
+    "phlo-dbt>=0.1.0",
+    "phlo-dagster>=0.1.0",
+    "phlo-postgres>=0.1.0",
+    "phlo-minio>=0.1.0",
+    "phlo-nessie>=0.1.0",
+    "phlo-trino>=0.1.0",
+]
+openmetadata = ["phlo-openmetadata>=0.1.0"]
+
+[project.scripts]
+phlo = "phlo.cli.main:cli"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/phlo",
+    "registry/schema/v1.json",
+    "registry/plugins.json",
+]
+
+[tool.hatch.build.targets.wheel]
+include = [
+    "src/phlo/plugins/registry_data.json",
+    "src/phlo/sql/*.sql",
+]
+packages = ["src/phlo"]
+
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/*/tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-norecursedirs = ["src", ".venv"]
-# Skip integration tests by default - they require dbt manifest and running services
-# Run integration tests with: pytest -m integration
 addopts = "--ignore=src --continue-on-collection-errors -m 'not integration'"
+filterwarnings = ["ignore:Using `@model_validator` with mode='after' on a classmethod is deprecated:DeprecationWarning"]
 markers = [
     "integration: marks tests as requiring external services or dbt manifest (run with '-m integration')",
     "unit: marks fast tests that do not require external services (run with '-m unit')",
     "core_regression: marks high-signal core runtime regression checks (run with '-m core_regression')",
 ]
-filterwarnings = [
-    # pyiceberg emits Pydantic v2.12 deprecations from @model_validator usage.
-    # Suppress until upstream fixes: https://github.com/apache/iceberg-python/issues
-    "ignore:Using `@model_validator` with mode='after' on a classmethod is deprecated:DeprecationWarning",
+norecursedirs = [
+    "src",
+    ".venv",
+]
+python_classes = ["Test*"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+testpaths = [
+    "tests",
+    "packages/*/tests",
 ]
 
 [tool.ruff]
@@ -197,46 +154,163 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "SIM", "RET", "C4", "PIE", "B", "DTZ", "PTH"]
-ignore = ["E501"]  # Line too long - let the formatter handle this
-
-[tool.ty.src]
-exclude = ["**/testing/**"]  # Mock/placeholder code with dynamic imports
+ignore = ["E501"]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "SIM",
+    "RET",
+    "C4",
+    "PIE",
+    "B",
+    "DTZ",
+    "PTH",
+]
 
 [tool.ty.environment]
-root = ["./src"]
-python-version = "3.11"
 extra-paths = [
-  "packages/phlo-alerting/src",
-  "packages/phlo-alloy/src",
-  "packages/phlo-api/src",
-  "packages/phlo-clickstack/src",
-  "packages/phlo-clickhouse/src",
-  "packages/phlo-core-plugins/src",
-  "packages/phlo-dagster/src",
-  "packages/phlo-dbt/src",
-  "packages/phlo-delta/src",
-  "packages/phlo-dlt/src",
-  "packages/phlo-sling/src",
-  "packages/phlo-grafana/src",
-  "packages/phlo-hasura/src",
-  "packages/phlo-iceberg/src",
-  "packages/phlo-lineage/src",
-  "packages/phlo-loki/src",
-  "packages/phlo-otel/src",
-  "packages/phlo-minio/src",
-  "packages/phlo-nessie/src",
-  "packages/phlo-observatory-example/src",
-  "packages/phlo-observatory/src",
-  "packages/phlo-openmetadata/src",
-  "packages/phlo-pgweb/src",
-  "packages/phlo-postgres/src",
-  "packages/phlo-postgrest/src",
-  "packages/phlo-prometheus/src",
-  "packages/phlo-pandera/src",
-  "packages/phlo-rustfs/src",
-  "packages/phlo-superset/src",
-  "packages/phlo-testing/src",
-  "packages/phlo-traefik/src",
-  "packages/phlo-trino/src",
+    "packages/phlo-alerting/src",
+    "packages/phlo-alloy/src",
+    "packages/phlo-api/src",
+    "packages/phlo-clickstack/src",
+    "packages/phlo-clickhouse/src",
+    "packages/phlo-core-plugins/src",
+    "packages/phlo-dagster/src",
+    "packages/phlo-dbt/src",
+    "packages/phlo-delta/src",
+    "packages/phlo-dlt/src",
+    "packages/phlo-sling/src",
+    "packages/phlo-grafana/src",
+    "packages/phlo-hasura/src",
+    "packages/phlo-iceberg/src",
+    "packages/phlo-lineage/src",
+    "packages/phlo-loki/src",
+    "packages/phlo-otel/src",
+    "packages/phlo-minio/src",
+    "packages/phlo-nessie/src",
+    "packages/phlo-observatory-example/src",
+    "packages/phlo-observatory/src",
+    "packages/phlo-openmetadata/src",
+    "packages/phlo-pgweb/src",
+    "packages/phlo-postgres/src",
+    "packages/phlo-postgrest/src",
+    "packages/phlo-prometheus/src",
+    "packages/phlo-pandera/src",
+    "packages/phlo-rustfs/src",
+    "packages/phlo-superset/src",
+    "packages/phlo-testing/src",
+    "packages/phlo-traefik/src",
+    "packages/phlo-trino/src",
+]
+python-version = "3.11"
+root = ["./src"]
+
+[tool.ty.src]
+exclude = ["**/testing/**"]
+
+[tool.uv.sources.phlo]
+workspace = true
+
+[tool.uv.sources.phlo-alerting]
+workspace = true
+
+[tool.uv.sources.phlo-alloy]
+workspace = true
+
+[tool.uv.sources.phlo-api]
+workspace = true
+
+[tool.uv.sources.phlo-clickhouse]
+workspace = true
+
+[tool.uv.sources.phlo-clickstack]
+workspace = true
+
+[tool.uv.sources.phlo-core-plugins]
+workspace = true
+
+[tool.uv.sources.phlo-dagster]
+workspace = true
+
+[tool.uv.sources.phlo-dbt]
+workspace = true
+
+[tool.uv.sources.phlo-delta]
+workspace = true
+
+[tool.uv.sources.phlo-dlt]
+workspace = true
+
+[tool.uv.sources.phlo-grafana]
+workspace = true
+
+[tool.uv.sources.phlo-hasura]
+workspace = true
+
+[tool.uv.sources.phlo-iceberg]
+workspace = true
+
+[tool.uv.sources.phlo-lineage]
+workspace = true
+
+[tool.uv.sources.phlo-loki]
+workspace = true
+
+[tool.uv.sources.phlo-minio]
+workspace = true
+
+[tool.uv.sources.phlo-nessie]
+workspace = true
+
+[tool.uv.sources.phlo-observatory]
+workspace = true
+
+[tool.uv.sources.phlo-observatory-example]
+workspace = true
+
+[tool.uv.sources.phlo-openmetadata]
+workspace = true
+
+[tool.uv.sources.phlo-otel]
+workspace = true
+
+[tool.uv.sources.phlo-pandera]
+workspace = true
+
+[tool.uv.sources.phlo-pgweb]
+workspace = true
+
+[tool.uv.sources.phlo-postgres]
+workspace = true
+
+[tool.uv.sources.phlo-postgrest]
+workspace = true
+
+[tool.uv.sources.phlo-prometheus]
+workspace = true
+
+[tool.uv.sources.phlo-rustfs]
+workspace = true
+
+[tool.uv.sources.phlo-sling]
+workspace = true
+
+[tool.uv.sources.phlo-superset]
+workspace = true
+
+[tool.uv.sources.phlo-testing]
+workspace = true
+
+[tool.uv.sources.phlo-traefik]
+workspace = true
+
+[tool.uv.sources.phlo-trino]
+workspace = true
+
+[tool.uv.workspace]
+members = [
+    ".",
+    "packages/*",
 ]

@@ -1,51 +1,56 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
 
 [project]
-name = "phlo-dbt"
-version = "0.2.0"
-description = "dbt integration capability plugin for Phlo"
-readme = {text = "dbt integration capability plugin for Phlo.", content-type = "text/plain"}
-requires-python = ">=3.11"
-authors = [
-    {name = "Phlo Team", email = "team@phlo.dev"},
-]
-license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "dbt-core>=1.10.8",
     "dbt-trino>=1.9.3",
     "dbt-postgres>=1.9.1",
 ]
+description = "dbt integration capability plugin for Phlo"
+name = "phlo-dbt"
+requires-python = ">=3.11"
+version = "0.2.1"
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "ruff>=0.1.0",
-]
-dagster = [
-    "phlo-dagster>=0.1.0",
-]
-quality = [
-    "phlo-pandera>=0.1.0",
-]
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
 
 [project.entry-points."phlo.plugins.assets"]
 dbt = "phlo_dbt.plugin:DbtAssetProvider"
 
-[project.entry-points."phlo.plugins.transformation_providers"]
-dbt = "phlo_dbt.plugin:DbtTransformationProvider"
-
 [project.entry-points."phlo.plugins.cli"]
 dbt = "phlo_dbt.cli_plugin:DbtCliPlugin"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
+[project.entry-points."phlo.plugins.transformation_providers"]
+dbt = "phlo_dbt.plugin:DbtTransformationProvider"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.license]
+text = "MIT"
+
+[project.optional-dependencies]
+dagster = ["phlo-dagster>=0.1.0"]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+quality = ["phlo-pandera>=0.1.0"]
+
+[project.readme]
+content-type = "text/plain"
+text = "dbt integration capability plugin for Phlo."
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
