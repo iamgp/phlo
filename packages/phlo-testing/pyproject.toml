@@ -18,7 +18,7 @@ dependencies = [
 description = "Testing utilities for Phlo"
 name = "phlo-testing"
 requires-python = ">=3.11"
-version = "0.2.2"
+version = "0.2.3"
 
 [[project.authors]]
 email = "team@phlo.dev"

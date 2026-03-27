@@ -11,7 +11,7 @@ description = "Example Observatory extension plugin"
 name = "phlo-observatory-example"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.2.2"
+version = "0.2.3"
 
 [[project.authors]]
 email = "team@phlo.dev"
