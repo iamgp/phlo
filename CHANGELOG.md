@@ -1,5 +1,19 @@
 # Changelog
 
+## [phlo 0.7.1, phlo-alerting 0.2.2, phlo-alloy 0.2.2, phlo-api 0.2.2, phlo-clickhouse 0.2.2, phlo-clickstack 0.2.2, phlo-core-plugins 0.2.2, phlo-dagster 0.2.2, phlo-dbt 0.2.2, phlo-delta 0.2.2, phlo-dlt 0.2.2, phlo-grafana 0.2.2, phlo-hasura 0.2.2, phlo-iceberg 0.2.2, phlo-lineage 0.2.2, phlo-loki 0.2.2, phlo-minio 0.2.2, phlo-nessie 0.2.2, phlo-observatory 0.2.2, phlo-observatory-example 0.2.2, phlo-openmetadata 0.2.2, phlo-otel 0.2.2, phlo-pandera 0.2.2, phlo-pgweb 0.2.2, phlo-postgres 0.2.2, phlo-postgrest 0.2.2, phlo-prometheus 0.2.2, phlo-rustfs 0.2.2, phlo-sling 0.2.2, phlo-superset 0.2.2, phlo-testing 0.2.2, phlo-traefik 0.2.2, phlo-trino 0.2.2] - 2026-03-27
+
+### Fixed
+- phlo: default Delta S3 endpoint to localhost (#302)
+- phlo: pin ReleaseX v1.0.5 for releases
+- phlo: install uv for release automation
+- phlo: add manual publish path for releases
+- phlo: restore phlo release line and publish via ReleaseX
+- phlo-delta: default Delta S3 endpoint to localhost (#302)
+
+### Contributors
+Thanks to our contributors for this release:
+- 🎉 @iamgp — first contribution!
+
 ## [phlo 0.1.1, phlo-alerting 0.2.1, phlo-alloy 0.2.1, phlo-api 0.2.1, phlo-clickhouse 0.2.1, phlo-clickstack 0.2.1, phlo-core-plugins 0.2.1, phlo-dagster 0.2.1, phlo-dbt 0.2.1, phlo-delta 0.2.1, phlo-dlt 0.2.1, phlo-grafana 0.2.1, phlo-hasura 0.2.1, phlo-iceberg 0.2.1, phlo-lineage 0.2.1, phlo-loki 0.2.1, phlo-minio 0.2.1, phlo-nessie 0.2.1, phlo-observatory 0.2.1, phlo-observatory-example 0.2.1, phlo-openmetadata 0.2.1, phlo-otel 0.2.1, phlo-pandera 0.2.1, phlo-pgweb 0.2.1, phlo-postgres 0.2.1, phlo-postgrest 0.2.1, phlo-prometheus 0.2.1, phlo-rustfs 0.2.1, phlo-sling 0.2.1, phlo-superset 0.2.1, phlo-testing 0.2.1, phlo-traefik 0.2.1, phlo-trino 0.2.1] - 2026-03-27
 
 ### Fixed
