@@ -4,12 +4,6 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      publish_ref:
-        description: "Git ref to publish from"
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -32,7 +26,7 @@ jobs:
           version: "latest"
           enable-cache: false
 
-      - uses: iamgp/ReleaseX@392ed307c6b62ed0a5ffce1cc9e6dd0dde2ec75a # v1.0.6
+      - uses: iamgp/ReleaseX@f78e16a7dfd987149e08137c0157cdb75d578d0c
         with:
           command: release pr
         env:
@@ -56,14 +50,14 @@ jobs:
           version: "latest"
           enable-cache: false
 
-      - uses: iamgp/ReleaseX@392ed307c6b62ed0a5ffce1cc9e6dd0dde2ec75a # v1.0.6
+      - uses: iamgp/ReleaseX@f78e16a7dfd987149e08137c0157cdb75d578d0c
         with:
           command: release tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -72,7 +66,6 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ inputs.publish_ref || github.ref }}
           persist-credentials: false
 
       - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
@@ -85,9 +78,13 @@ jobs:
 
       - name: Build packages
         run: |
+          repo_root="$PWD"
           rm -rf dist
-          uv build --out-dir dist
-          for pkg in packages/*/; do uv build --directory "$pkg" --out-dir dist; done
+          uv build --out-dir "$repo_root/dist"
+          for pkg in packages/*/; do uv build --directory "$pkg" --out-dir "$repo_root/dist"; done
 
-      - name: Publish packages
-        run: uv publish dist/*
+      - uses: iamgp/ReleaseX@f78e16a7dfd987149e08137c0157cdb75d578d0c
+        with:
+          command: release publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
