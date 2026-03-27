@@ -16,4 +16,4 @@ __all__ = [
     "ClickHouseSettings",
     "get_settings",
 ]
-__version__ = "0.2.1"
+__version__ = "0.2.2"
