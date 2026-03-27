@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: iamgp/ReleaseX@3721a977eade1dade9e64b5963de4fc3b3ddaa54 # v1
+      - uses: iamgp/ReleaseX@7eb9a8aa0e107687b9b12023a03f739a409756b6 # v1.0.5
         with:
           command: release pr
         env:
@@ -40,7 +40,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: iamgp/ReleaseX@3721a977eade1dade9e64b5963de4fc3b3ddaa54 # v1
+      - uses: iamgp/ReleaseX@7eb9a8aa0e107687b9b12023a03f739a409756b6 # v1.0.5
         with:
           command: release tag
         env:
@@ -72,7 +72,7 @@ jobs:
           uv build --out-dir dist
           for pkg in packages/*/; do uv build --directory "$pkg" --out-dir dist; done
 
-      - uses: iamgp/ReleaseX@3721a977eade1dade9e64b5963de4fc3b3ddaa54 # v1
+      - uses: iamgp/ReleaseX@7eb9a8aa0e107687b9b12023a03f739a409756b6 # v1.0.5
         with:
           command: release publish
         env:
