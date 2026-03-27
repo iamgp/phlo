@@ -1,29 +1,25 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
 
 [project]
-name = "phlo-alerting"
-version = "0.2.0"
-description = "Alerting destinations and hooks for Phlo"
-readme = {text = "Alerting support for Phlo.", content-type = "text/plain"}
-requires-python = ">=3.11"
-authors = [
-    {name = "Phlo Team", email = "team@phlo.dev"},
-]
-license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "click>=8.3.0",
     "rich>=14.2.0",
     "requests>=2.32.5",
 ]
+description = "Alerting destinations and hooks for Phlo"
+name = "phlo-alerting"
+requires-python = ">=3.11"
+version = "0.2.1"
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "ruff>=0.1.0",
-]
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
 
 [project.entry-points."phlo.plugins.cli"]
 alerts = "phlo_alerting.cli_plugin:AlertingCliPlugin"
@@ -34,13 +30,28 @@ alerting = "phlo_alerting.hooks_plugin:AlertingHookPlugin"
 [project.entry-points."phlo.plugins.resources"]
 alerting = "phlo_alerting.resource_provider:AlertingResourceProvider"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-include-package-data = true
+[project.license]
+text = "MIT"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+
+[project.readme]
+content-type = "text/plain"
+text = "Alerting support for Phlo."
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

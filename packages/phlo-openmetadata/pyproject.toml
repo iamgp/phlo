@@ -1,45 +1,23 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
 
 [project]
-name = "phlo-openmetadata"
-version = "0.2.0"
-description = "OpenMetadata integration for Phlo"
-readme = {text = "OpenMetadata integration for Phlo.", content-type = "text/plain"}
-requires-python = ">=3.11"
-authors = [
-    {name = "Phlo Team", email = "team@phlo.dev"},
-]
-license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "pyyaml>=6.0.1",
 ]
+description = "OpenMetadata integration for Phlo"
+name = "phlo-openmetadata"
+requires-python = ">=3.11"
+version = "0.2.1"
 
-[project.optional-dependencies]
-postgres = [
-    "phlo-postgres>=0.1.0",
-]
-dev = [
-    "pytest>=7.0",
-    "ruff>=0.1.0",
-]
-dbt = [
-    "phlo-dbt>=0.1.0",
-]
-quality = [
-    "phlo-pandera>=0.1.0",
-]
-lineage = [
-    "phlo-lineage>=0.1.0",
-]
-nessie = [
-    "phlo-nessie>=0.1.0",
-]
-trino = [
-    "phlo-trino>=0.1.0",
-]
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
 
 [project.entry-points."phlo.plugins.cli"]
 openmetadata = "phlo_openmetadata.cli_plugin:OpenMetadataCliPlugin"
@@ -53,21 +31,42 @@ openmetadata = "phlo_openmetadata.resource_provider:OpenMetadataResourceProvider
 [project.entry-points."phlo.plugins.services"]
 openmetadata = "phlo_openmetadata.plugin:OpenMetadataServicePlugin"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-include-package-data = true
+[project.license]
+text = "MIT"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-phlo_openmetadata = [
-  "service.yaml",
-  "openmetadata-setup.yaml",
-  "openmetadata-mysql-setup.yaml",
-  "openmetadata-elasticsearch-setup.yaml",
+[project.optional-dependencies]
+dbt = ["phlo-dbt>=0.1.0"]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
 ]
+lineage = ["phlo-lineage>=0.1.0"]
+nessie = ["phlo-nessie>=0.1.0"]
+postgres = ["phlo-postgres>=0.1.0"]
+quality = ["phlo-pandera>=0.1.0"]
+trino = ["phlo-trino>=0.1.0"]
+
+[project.readme]
+content-type = "text/plain"
+text = "OpenMetadata integration for Phlo."
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+phlo_openmetadata = [
+    "service.yaml",
+    "openmetadata-setup.yaml",
+    "openmetadata-mysql-setup.yaml",
+    "openmetadata-elasticsearch-setup.yaml",
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

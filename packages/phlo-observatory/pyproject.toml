@@ -1,39 +1,44 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
 
 [project]
-name = "phlo-observatory"
-version = "0.2.0"
+dependencies = ["phlo>=0.1.0"]
 description = "Phlo Observatory - Data platform UI (bundled with phlo core)"
-readme = {text = "Phlo Observatory - Data platform visibility and lineage UI.", content-type = "text/plain"}
+name = "phlo-observatory"
 requires-python = ">=3.11"
-authors = [
-    {name = "Phlo Team", email = "team@phlo.dev"},
-]
-license = {text = "MIT"}
-dependencies = [
-    "phlo>=0.1.0",
-]
+version = "0.2.1"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.services"]
+observatory = "phlo_observatory.plugin:ObservatoryServicePlugin"
+
+[project.license]
+text = "MIT"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",
 ]
-postgres = [
-    "phlo-postgres>=0.1.0",
-]
+postgres = ["phlo-postgres>=0.1.0"]
 
-[project.entry-points."phlo.plugins.services"]
-observatory = "phlo_observatory.plugin:ObservatoryServicePlugin"
+[project.readme]
+content-type = "text/plain"
+text = "Phlo Observatory - Data platform visibility and lineage UI."
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
 include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.setuptools.package-data]
 phlo_observatory = [
@@ -52,6 +57,8 @@ phlo_observatory = [
     "src/**",
 ]
 
-[tool.ruff]
-line-length = 100
-target-version = "py311"
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,21 +1,29 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
 
 [project]
-name = "phlo-superset"
-version = "0.2.0"
-description = "superset service plugin for Phlo"
-readme = {text = "superset service plugin for Phlo.", content-type = "text/plain"}
-requires-python = ">=3.11"
-authors = [
-    {name = "Phlo Team", email = "team@phlo.dev"},
-]
-license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "pyyaml>=6.0.1",
 ]
+description = "superset service plugin for Phlo"
+name = "phlo-superset"
+requires-python = ">=3.11"
+version = "0.2.1"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.entry-points."phlo.plugins.services"]
+superset = "phlo_superset.plugin:SupersetServicePlugin"
+
+[project.license]
+text = "MIT"
 
 [project.optional-dependencies]
 dev = [
@@ -23,19 +31,25 @@ dev = [
     "ruff>=0.1.0",
 ]
 
-[project.entry-points."phlo.plugins.services"]
-superset = "phlo_superset.plugin:SupersetServicePlugin"
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-phlo_superset = ["service.yaml", "dashboards/**"]
+[project.readme]
+content-type = "text/plain"
+text = "superset service plugin for Phlo."
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+phlo_superset = [
+    "service.yaml",
+    "dashboards/**",
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

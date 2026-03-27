@@ -1,17 +1,11 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "wheel",
+]
 
 [project]
-name = "phlo-testing"
-version = "0.2.0"
-description = "Testing utilities for Phlo"
-readme = {text = "Testing utilities for Phlo.", content-type = "text/plain"}
-requires-python = ">=3.11"
-authors = [
-    {name = "Phlo Team", email = "team@phlo.dev"},
-]
-license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "duckdb>=0.9.0",
@@ -21,25 +15,36 @@ dependencies = [
     "pandera>=0.26.1",
     "dlt>=1.18.2",
 ]
+description = "Testing utilities for Phlo"
+name = "phlo-testing"
+requires-python = ">=3.11"
+version = "0.2.1"
+
+[[project.authors]]
+email = "team@phlo.dev"
+name = "Phlo Team"
+
+[project.license]
+text = "MIT"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",
 ]
-dlt = [
-    "phlo-dlt>=0.1.0",
-]
-trino = [
-    "phlo-trino>=0.1.0",
-]
+dlt = ["phlo-dlt>=0.1.0"]
+trino = ["phlo-trino>=0.1.0"]
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.readme]
+content-type = "text/plain"
+text = "Testing utilities for Phlo."
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
