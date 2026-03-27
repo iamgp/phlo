@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release-pr:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !startsWith(github.event.head_commit.message, 'chore(release):')
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -35,8 +35,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   release-tag:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: release-pr
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore(release):')
     runs-on: ubuntu-latest
     environment: release
     permissions:
