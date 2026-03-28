@@ -37,7 +37,7 @@ jobs:
           version: "latest"
           enable-cache: false
 
-      - uses: iamgp/ReleaseX@a3c235d3f35b5b52d6151452504010a814f4d57e
+      - uses: iamgp/ReleaseX@81af2b33865d393c0afa339a71a8b0b98aff0951
         with:
           command: release pr
         env:
@@ -62,7 +62,7 @@ jobs:
           version: "latest"
           enable-cache: false
 
-      - uses: iamgp/ReleaseX@a3c235d3f35b5b52d6151452504010a814f4d57e
+      - uses: iamgp/ReleaseX@81af2b33865d393c0afa339a71a8b0b98aff0951
         with:
           command: release tag
         env:
@@ -99,7 +99,7 @@ jobs:
             uv build --directory "$pkg"
           done
 
-      - uses: iamgp/ReleaseX@a3c235d3f35b5b52d6151452504010a814f4d57e
+      - uses: iamgp/ReleaseX@81af2b33865d393c0afa339a71a8b0b98aff0951
         with:
           command: release publish
         env:
