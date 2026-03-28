@@ -16,7 +16,7 @@ dependencies = [
 description = "Quality checks and schema utilities for Phlo"
 name = "phlo-pandera"
 requires-python = ">=3.11"
-version = "0.2.3"
+version = "0.2.4"
 
 [[project.authors]]
 email = "team@phlo.dev"
