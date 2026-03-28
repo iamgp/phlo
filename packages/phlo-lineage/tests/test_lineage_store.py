@@ -193,7 +193,7 @@ class TestResolveLineageDbUrl:
 
         assert resolve_lineage_db_url() is None
 
-    @patch("phlo_lineage.store.socket.gethostbyname", side_effect=socket.gaierror())
+    @patch("phlo.config.network.socket.gethostbyname", side_effect=socket.gaierror())
     def test_falls_back_to_localhost_for_unresolvable_postgres_host(
         self, _mock_resolve, monkeypatch
     ) -> None:

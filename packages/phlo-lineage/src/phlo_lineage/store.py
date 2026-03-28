@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import os
-import socket
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -22,6 +21,7 @@ from urllib.parse import quote_plus
 import psycopg2
 import ulid
 
+from phlo.config.network import resolve_host
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -70,21 +70,7 @@ def resolve_lineage_db_url_with_postgres_fallback() -> str | None:
 
 
 def _resolve_postgres_host(host: str, port: int) -> tuple[str, int]:
-    """Resolve Docker Postgres hostnames to localhost when running on the host."""
-    if host in {"localhost", "127.0.0.1"}:
-        return host, port
-    try:
-        socket.gethostbyname(host)
-        return host, port
-    except socket.gaierror:
-        exposed_port = int(os.environ.get("POSTGRES_PORT", str(port)))
-        logger.debug(
-            "lineage_db_host_resolved_to_localhost",
-            original_host=host,
-            original_port=port,
-            resolved_port=exposed_port,
-        )
-        return "localhost", exposed_port
+    return resolve_host(host, port, port_env_var="POSTGRES_PORT")
 
 
 def generate_row_id() -> str:

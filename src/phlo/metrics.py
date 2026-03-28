@@ -16,6 +16,7 @@ from pydantic import Field
 from phlo.capabilities import QueryEngine, resolve_capability
 from phlo.capabilities.discovery import discover_capabilities
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -40,6 +41,16 @@ class MetricsBackendSettings(BaseConfig):
         default=None,
         description="Catalog name used for query-engine table stats lookups",
     )
+
+    def model_post_init(self, __context: Any) -> None:
+        host, port = resolve_host(
+            self.postgres_host, self.postgres_port, port_env_var="POSTGRES_PORT"
+        )
+        object.__setattr__(self, "postgres_host", host)
+        object.__setattr__(self, "postgres_port", port)
+        nhost, nport = resolve_host(self.nessie_host, self.nessie_port, port_env_var="NESSIE_PORT")
+        object.__setattr__(self, "nessie_host", nhost)
+        object.__setattr__(self, "nessie_port", nport)
 
     def nessie_api_uri(self) -> str:
         """Return the versioned Nessie API URI."""

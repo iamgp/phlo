@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Any
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 
 
 def build_trino_dsn(host: str, port: int, catalog: str) -> str:
@@ -34,6 +36,11 @@ class TrinoSettings(BaseConfig):
         default="main",
         description="Default branch/tag suffix",
     )
+
+    def model_post_init(self, __context: Any) -> None:
+        host, port = resolve_host(self.trino_host, self.trino_port, port_env_var="TRINO_PORT")
+        object.__setattr__(self, "trino_host", host)
+        object.__setattr__(self, "trino_port", port)
 
     def trino_connection_string(self) -> str:
         """Return the Trino DSN for current settings.
