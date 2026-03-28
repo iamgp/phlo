@@ -1,5 +1,15 @@
 # Changelog
 
+## [phlo 0.7.8] - 2026-03-28
+
+### Fixed
+- phlo: build package-local dist artifacts for release publish
+- phlo: honor configured schema migrator defaults in schema-migrate (#318)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (2 commits)
+
 ## [phlo 0.7.7] - 2026-03-28
 
 ### Fixed
