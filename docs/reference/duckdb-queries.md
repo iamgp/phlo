@@ -352,7 +352,7 @@ Error: Connection failed to localhost:10001
 
 ```bash
 # Check if MinIO is running
-docker compose ps minio
+docker ps | grep minio
 
 # Verify MinIO endpoint
 curl http://localhost:10001/minio/health/ready

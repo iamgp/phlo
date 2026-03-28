@@ -23,7 +23,10 @@ phlo plugin install delta
 | `DELTA_WAREHOUSE_PATH`         | Yes      | `s3://lake/warehouse/delta` | S3 path for Delta tables       |
 | `DELTA_STAGING_PATH`           | No       | `s3://lake/stage`           | S3 path for staging            |
 | `DELTA_DEFAULT_NAMESPACE`      | No       | `raw`                       | Default namespace/schema       |
-| `DELTA_S3_ENDPOINT`            | No       | `http://minio:10001`        | S3 endpoint URL for Delta I/O  |
+| `DELTA_S3_ENDPOINT`            | No       | `http://localhost:9000`     | S3 endpoint URL for Delta I/O  |
+| `DELTA_S3_ACCESS_KEY`          | No       | `minio`                     | S3 access key                  |
+| `DELTA_S3_SECRET_KEY`          | No       | `minio123`                  | S3 secret key                  |
+| `DELTA_S3_REGION`              | No       | `us-east-1`                 | S3 region                      |
 | `DELTA_S3_ALLOW_UNSAFE_RENAME` | No       | `true`                      | Allow unsafe rename for S3     |
 
 > **S3 Access**: Configure AWS credentials via `~/.aws/credentials` or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` env vars. When using MinIO, these are set automatically.

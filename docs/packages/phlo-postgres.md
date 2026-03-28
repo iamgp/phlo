@@ -73,6 +73,12 @@ phlo postgres query "SELECT current_database()"
 
 # Logical backup
 phlo postgres dump --file backups/phlo.sql.gz
+
+# Restore from backup
+phlo postgres restore --file backups/phlo.sql.gz
+
+# Vacuum and analyze tables
+phlo postgres vacuum --analyze
 ```
 
 ### SQLAlchemy Connection
@@ -145,9 +151,10 @@ compose:
 
 ## Entry Points
 
-| Entry Point             | Plugin                                                   |
-| ----------------------- | -------------------------------------------------------- |
-| `phlo.plugins.services` | `PostgresServicePlugin`, `PostgresExporterServicePlugin` |
+| Entry Point                     | Plugin                                                   |
+| ------------------------------- | -------------------------------------------------------- |
+| `phlo.plugins.services`         | `PostgresServicePlugin`, `PostgresExporterServicePlugin`, `PostgresVolumeSetupServicePlugin` |
+| `phlo.plugins.resource_providers` | `PostgresResourceProvider`                             |
 
 ## Related Packages
 

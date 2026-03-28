@@ -22,12 +22,11 @@ phlo plugin install dlt
 
 ## Configuration
 
-| Variable                 | Default               | Description                |
-| ------------------------ | --------------------- | -------------------------- |
-| `ICEBERG_WAREHOUSE_PATH` | `s3://lake/warehouse` | Iceberg warehouse S3 path  |
-| `ICEBERG_STAGING_PATH`   | `s3://lake/stage`     | Staging path for ingestion |
-| `NESSIE_HOST`            | `nessie`              | Nessie catalog host        |
-| `NESSIE_PORT`            | `19120`               | Nessie catalog port        |
+| Variable                    | Default | Description                              |
+| --------------------------- | ------- | ---------------------------------------- |
+| `PHLO_DLT_DEFAULT_NAMESPACE`| `raw`   | Default namespace/schema for table names |
+
+Note: Additional configuration for table storage comes from the active table_store provider (e.g., `phlo-iceberg` or `phlo-delta`).
 
 ## Features
 
@@ -51,11 +50,10 @@ phlo plugin install dlt
 ### Basic Ingestion
 
 ```python
-from phlo import Consumer, SLA
-from phlo.ingestion import phlo_ingestion
+from phlo import ingestion
 from workflows.schemas.events import EventSchema
 
-@phlo_ingestion(
+@ingestion.phlo_ingestion(
     table_name="events",
     unique_key="id",
     validation_schema=EventSchema,
@@ -79,6 +77,13 @@ def api_events(partition_date: str):
     )
 ```
 
+Or import directly from the package:
+
+```python
+from phlo_dlt import phlo_ingestion
+from phlo.contracts import Consumer, SLA
+```
+
 ### Decorator Options
 
 | Option              | Type              | Description                                         |
@@ -96,6 +101,12 @@ def api_events(partition_date: str):
 | `consumers`         | `list[Consumer \| str]` | Optional downstream consumer metadata         |
 | `sla`               | `SLA`             | Optional freshness/quality contract metadata        |
 | `capabilities`      | `dict[str, str]`  | Optional capability provider overrides for the asset |
+| `validate`          | `bool`            | Run Pandera validation (default: True)            |
+| `strict_validation` | `bool`            | Fail on validation errors (default: True)           |
+| `max_runtime_seconds`| `int`            | Maximum runtime before timeout (default: 300)       |
+| `max_retries`       | `int`             | Maximum retry attempts (default: 3)                 |
+| `retry_delay_seconds`| `int`            | Delay between retries (default: 30)                 |
+| `add_metadata_columns`| `bool`          | Inject Phlo metadata columns (default: True)        |
 
 ### Merge Strategies
 
@@ -121,7 +132,7 @@ schema derivation from `validation_schema` (for example Iceberg provider convers
 ### Selecting a Table Store
 
 ```python
-@phlo_ingestion(
+@ingestion.phlo_ingestion(
     table_name="events",
     unique_key="id",
     validation_schema=EventSchema,
@@ -137,12 +148,14 @@ For workflow-wide selection, set the Dagster run tag
 
 ### Running Ingestion
 
-```bash
-# Via Phlo CLI
-phlo materialize dlt_api_events
+Ingestion assets are materialized via the orchestrator (e.g., Dagster). The asset key is
+`dlt_{table_name}` (for example, `dlt_events` for table_name="events").
 
-# Via Phlo CLI
-phlo materialize dlt_api_events --partition 2025-01-15
+Use the orchestrator's UI or API to trigger materialization:
+
+```bash
+# Example with Dagster (when configured)
+dagster asset materialize --select dlt_events
 ```
 
 ## Data Flow
@@ -163,9 +176,11 @@ Physical Table (for active store)
 
 ## Entry Points
 
-| Entry Point            | Plugin                                  |
-| ---------------------- | --------------------------------------- |
-| `phlo.plugins.assets`  | `DltAssetProvider` for ingestion specs |
+| Entry Point                   | Plugin                                  |
+| ----------------------------- | --------------------------------------- |
+| `phlo.asset_providers`        | `DltAssetProvider` for ingestion specs  |
+| `phlo.ingestion_providers`    | `DLTIngestionProvider` for decorator    |
+| `phlo.cli_commands`           | `DltCliPlugin` for workflow scaffolding |
 
 ## Related Packages
 

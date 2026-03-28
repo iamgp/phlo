@@ -16,12 +16,12 @@ phlo plugin install trino
 
 ## Configuration
 
-| Variable        | Default   | Description     |
-| --------------- | --------- | --------------- |
-| `TRINO_PORT`    | `8080`    | Trino HTTP port |
-| `TRINO_VERSION` | `467`     | Trino version   |
-| `TRINO_HOST`    | `trino`   | Trino hostname  |
-| `TRINO_CATALOG` | `iceberg` | Default catalog |
+| Variable        | Default    | Description     |
+| --------------- | ---------- | --------------- |
+| `TRINO_PORT`    | `10005`    | Trino HTTP port |
+| `TRINO_VERSION` | `477`      | Trino version   |
+| `TRINO_HOST`    | `trino`    | Trino hostname  |
+| `TRINO_CATALOG` | `iceberg`  | Default catalog |
 
 ## Features
 
@@ -49,11 +49,11 @@ Catalog plugins declare `targets` in code; Trino loads only those that target `t
 
 ### Default Catalogs
 
-| Catalog       | Description                              |
-| ------------- | ---------------------------------------- |
-| `iceberg`     | Main Iceberg catalog (main branch)       |
-| `iceberg_dev` | Development Iceberg catalog (dev branch) |
-| `postgres`    | PostgreSQL connection for marts          |
+| Catalog         | Description                                                |
+| --------------- | ---------------------------------------------------------- |
+| `iceberg`       | Main Iceberg catalog (main branch)                       |
+| `iceberg_{ref}` | Branch-specific catalogs (e.g., `iceberg_dev`, `iceberg_feature_x`) |
+| `postgres`      | PostgreSQL connection for marts                            |
 
 ## Usage
 
@@ -144,11 +144,11 @@ compose:
 
 ## Entry Points
 
-| Entry Point               | Plugin                    |
-| ------------------------- | ------------------------- |
-| `phlo.plugins.services`   | `TrinoServicePlugin`      |
-| `phlo.plugins.resources`  | `TrinoResourceProvider`   |
-| `phlo.plugins.catalogs`   | Discovers external catalog adapters targeting Trino |
+| Entry Point                     | Plugin                                               |
+| ------------------------------- | ---------------------------------------------------- |
+| `phlo.plugins.services`         | `TrinoServicePlugin`                                 |
+| `phlo.plugins.resource_providers` | `TrinoResourceProvider`                              |
+| `phlo.plugins.catalogs`       | Discovers external catalog adapters targeting Trino |
 
 ## Related Packages
 

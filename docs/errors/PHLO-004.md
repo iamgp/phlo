@@ -1,6 +1,6 @@
 # PHLO-004: Validation Failed
 
-**Error Type:** Discovery and Configuration Error
+**Error Type:** Validation Error
 **Severity:** High
 **Exception Class:** `PhloValidationError`
 

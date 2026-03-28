@@ -75,7 +75,7 @@ includes a versioned catalog capability.
 
 ```python
 # Automatic ref creation on job start
-# workflows/sensors/branch_lifecycle.py
+# packages/phlo-dagster/src/phlo_dagster/wap_sensors.py
 @sensor(name="branch_creation_sensor")
 def branch_creation_sensor(context):
     # Creates isolated run ref when a VersionedCatalog is available
@@ -469,7 +469,9 @@ def silver_events():
 Automatic publishing of marts to PostgreSQL for BI:
 
 ```python
-# workflows/publishing/trino_to_postgres.py
+# Publishing asset example using phlo_trino.publishing
+from phlo_trino.publishing import publish_marts_to_postgres
+
 @asset(deps=[marts.daily_aggregates])
 def publish_daily_aggregates(context, trino, postgres):
     publish_marts_to_postgres(
@@ -529,7 +531,7 @@ Complete end-to-end flow:
 
 **Configuration**: `.phlo/.env.local`, `phlo.yaml`, package settings (e.g., `phlo_postgres.settings`)
 
-**Sensors**: `workflows/sensors/branch_lifecycle.py`
+**Sensors**: `packages/phlo-dagster/src/phlo_dagster/wap_sensors.py`
 
 ## Next Steps
 

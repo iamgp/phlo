@@ -22,7 +22,6 @@ For a minimal secure setup, configure these environment variables in your `.phlo
 # Strong passwords (required)
 POSTGRES_PASSWORD=<generate-strong-password>
 MINIO_ROOT_PASSWORD=<generate-strong-password>
-JWT_SECRET=<generate-strong-password>
 
 # Enable TLS (recommended for production)
 POSTGRES_SSL_MODE=require

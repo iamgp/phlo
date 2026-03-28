@@ -1,8 +1,8 @@
 # PHLO-201: Type Conversion Error
 
-**Error Type:** Schema and Type Error
+**Error Type:** Type Conversion Error
 **Severity:** Medium
-**Exception Class:** `PhloError` (code `PHLO-201`)
+**Exception Class:** `PhloError`
 
 ## Description
 

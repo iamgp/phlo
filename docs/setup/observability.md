@@ -47,22 +47,30 @@ export OTEL_LOGS_EXPORTER=otlp
 
 ```bash
 # Start core services
-make up-core
+phlo services start --profile core
 
 # Start observability stack
-make up-observability
+phlo services start --profile observability
 
 # Check health
-make health-observability
+phlo services status --profile observability
 
 # Open Grafana
-make grafana
+# http://localhost:10016
 ```
 
 Default credentials:
 
 - **Grafana**: admin / admin123 (change in `.phlo/.env.local`)
 - **Prometheus**: No authentication (localhost only)
+
+**Service Ports:**
+
+- Prometheus: 10013
+- Loki: 10014
+- Grafana Alloy: 10015
+- Grafana: 10016
+- Postgres Exporter: 10017
 
 ## Architecture
 
@@ -95,7 +103,7 @@ Default credentials:
 
 ### Component Details
 
-#### Prometheus (Port 9090)
+#### Prometheus (Port 10013)
 
 - Scrapes metrics from all services every 15 seconds
 - 30-day retention period
@@ -106,7 +114,7 @@ Default credentials:
   - Postgres metrics (connections, transactions, database size)
   - Container metrics (CPU, memory, network)
 
-#### Loki (Port 3100)
+#### Loki (Port 10014)
 
 - Aggregates logs from all Docker containers
 - 30-day retention period
@@ -114,7 +122,7 @@ Default credentials:
 - Supports LogQL for powerful log queries
 - Integrated with Grafana for log exploration
 
-#### Grafana Alloy (Port 12345)
+#### Grafana Alloy (Port 10015)
 
 - Modern replacement for Prometheus exporters + Promtail
 - Discovers Docker containers automatically
@@ -123,144 +131,15 @@ Default credentials:
 - Can also receive OTLP telemetry and forward traces, metrics, and logs onward
 - Forwards metrics to Prometheus, logs to Loki, and can route OTLP signals to other backends
 
-## Collector Topologies
-
-### Local Grafana Stack
-
-Use Alloy as the in-cluster collector and point `phlo-otel` at its OTLP receiver.
-
-```text
-phlo-otel -> OTLP -> Alloy -> Prometheus / Loki / Tempo
-```
-
-Good default for:
-
-- local development
-- Grafana-first deployments
-- one collector handling both infrastructure and application telemetry
-
-### Preferred ClickStack Stack
-
-Use ClickStack directly when you want the default Phlo observability path with a
-single OTLP-native backend and a unified UI.
-
-```text
-phlo-otel -> OTLP -> ClickStack
-```
-
-Good default for:
-
-- Phlo's recommended observability install
-- teams that want one backend for logs, traces, and metrics
-- minimal local setup without separate Prometheus/Loki/Grafana services
-
-### Generic OpenTelemetry Collector
-
-Use OpenTelemetry Collector when you want backend-neutral routing or multiple downstream consumers.
-
-```text
-phlo-otel -> OTLP -> OpenTelemetry Collector -> backend-specific exporters
-```
-
-Good default for:
-
-- mixed vendor environments
-- multiple observability backends
-- production routing policies and tail-based processing
-
-### ClickStack-Compatible Routing
-
-When you need extra routing or host log collection, treat ClickStack as a
-downstream OTLP consumer behind Alloy or OpenTelemetry Collector.
-
-```text
-phlo-otel -> OTLP -> Collector -> ClickStack
-                           -> Tempo
-                           -> Prometheus-compatible backend
-```
-
-The important constraint is cardinality discipline:
-
-- keep `run_id`, `asset_key`, and `partition_key` in traces/logs
-- keep metric labels bounded and low-cardinality
-- prefer append-only event semantics with explicit units
-
-## Example Collector Config
-
-Minimal OpenTelemetry Collector topology:
-
-```yaml
-receivers:
-  otlp:
-    protocols:
-      grpc:
-      http:
-
-processors:
-  batch:
-  memory_limiter:
-    check_interval: 1s
-    limit_mib: 512
-
-exporters:
-  debug: {}
-
-service:
-  pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [debug]
-    metrics:
-      receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [debug]
-    logs:
-      receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [debug]
-```
-
-Swap `debug` for your destination exporters:
-
-- Tempo or another trace backend for traces
-- Prometheus-compatible remote write or OTLP metrics backend for metrics
-- Loki or ClickStack-compatible OTLP/log pipeline for logs
-
-## Example Alloy OTLP Receiver
-
-Minimal Alloy OTLP receiver shape:
-
-```hcl
-otelcol.receiver.otlp "phlo" {
-  grpc {}
-  http {}
-
-  output {
-    traces  = [otelcol.processor.batch.default.input]
-    metrics = [otelcol.processor.batch.default.input]
-    logs    = [otelcol.processor.batch.default.input]
-  }
-}
-
-otelcol.processor.batch "default" {
-  output {
-    traces  = [otelcol.exporter.otlp.default.input]
-    metrics = [otelcol.exporter.otlp.default.input]
-    logs    = [otelcol.exporter.otlp.default.input]
-  }
-}
-```
-
-Use backend-specific exporters downstream from there. Keep the receiver stable and move routing changes into collector config.
-
-#### Grafana (Port 3003)
+#### Grafana (Port 10016)
 
 - Pre-configured datasources (Prometheus + Loki)
 - Pre-built dashboards:
   - **Phlo Overview** - Service health, errors, key metrics
   - **Infrastructure** - Detailed per-service metrics and logs
 - Custom dashboards stored in `.phlo/grafana/dashboards/`
+
+**Note:** Grafana is available at port 10016 by default. Access at http://localhost:10016.
 
 ## Metrics
 
@@ -361,7 +240,7 @@ rule_files:
 
 ### Viewing Logs in Grafana
 
-1. Open Grafana: `make grafana`
+1. Open Grafana: http://localhost:10016
 2. Navigate to **Explore** (compass icon)
 3. Select **Loki** datasource
 4. Use LogQL queries:
@@ -430,7 +309,7 @@ Organized by service layer:
 
 ### Creating Custom Dashboards
 
-1. Open Grafana (`make grafana`)
+1. Open Grafana (http://localhost:10016)
 2. Create Dashboard → Add Visualization
 3. Select datasource (Prometheus or Loki)
 4. Build query using visual builder or code
@@ -505,10 +384,10 @@ def pipeline_failure_sensor(context):
 Check logs:
 
 ```bash
-docker compose logs prometheus
-docker compose logs loki
-docker compose logs alloy
-docker compose logs grafana
+phlo services logs -f prometheus
+phlo services logs -f loki
+phlo services logs -f alloy
+phlo services logs -f grafana
 ```
 
 Common issues:
@@ -519,11 +398,11 @@ Common issues:
 
 ### No Metrics Appearing
 
-1. Check Prometheus targets: http://localhost:9090/targets
+1. Check Prometheus targets: http://localhost:10013/targets
    - All targets should show "UP"
-   - If "DOWN", check service health: `make health`
+   - If "DOWN", check service health: `phlo services status`
 
-2. Check Alloy status: http://localhost:12345
+2. Check Alloy status: http://localhost:10015
    - Verify components are running
    - Check for collection errors
 
@@ -536,8 +415,8 @@ Common issues:
 
 1. Check Alloy is running: `docker ps | grep alloy`
 2. Verify Docker socket mount: `docker inspect alloy | grep docker.sock`
-3. Check Alloy logs: `docker compose logs alloy`
-4. Test Loki endpoint: `curl http://localhost:3100/ready`
+3. Check Alloy logs: `phlo services logs -f alloy`
+4. Test Loki endpoint: `curl http://localhost:10014/ready`
 
 ### High Resource Usage
 
@@ -674,7 +553,7 @@ See [phlo-otel](../packages/phlo-otel.md) for trace instrumentation details and
 
 For issues specific to Phlo observability:
 
-1. Check logs: `docker compose logs <service>`
-2. Verify health: `make health-observability`
+1. Check logs: `phlo services logs -f <service>`
+2. Verify health: `phlo services status --profile observability`
 3. Review configurations in `.phlo/prometheus/`, `.phlo/loki/`, `.phlo/alloy/`
 4. Consult upstream documentation for Prometheus, Loki, Grafana

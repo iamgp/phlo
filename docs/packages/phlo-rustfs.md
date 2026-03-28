@@ -18,12 +18,12 @@ phlo plugin install rustfs
 
 | Variable                              | Default       | Description                  |
 | ------------------------------------- | ------------- | ---------------------------- |
+| `RUSTFS_HOST`                        | `rustfs`      | RustFS service hostname      |
 | `RUSTFS_ACCESS_KEY`                   | `rustfsadmin` | Access key (username)        |
 | `RUSTFS_SECRET_KEY`                   | `rustfsadmin` | Secret key (password)        |
 | `RUSTFS_API_PORT`                     | `9000`        | S3 API port                 |
 | `RUSTFS_CONSOLE_PORT`                 | `9001`        | Web console port            |
-| `RUSTFS_CORS_ALLOWED_ORIGINS`         | `*`           | CORS origins for S3 API      |
-| `RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS` | `*`           | CORS origins for console     |
+| `S3_REGION`                          | `us-east-1`   | S3 region identifier         |
 
 ## Features
 

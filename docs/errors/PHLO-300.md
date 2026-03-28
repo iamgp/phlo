@@ -1,6 +1,6 @@
 # PHLO-300: DLT Pipeline Failed
 
-**Error Type:** DLT Error
+**Error Type:** DLT Pipeline Error
 **Severity:** High
 **Exception Class:** `DLTPipelineError`
 

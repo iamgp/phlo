@@ -4,7 +4,7 @@ Data quality checks and validation for Phlo.
 
 ## Overview
 
-`phlo-pandera` enables defining and executing data quality checks using the `@phlo_quality` decorator. Checks emit capability specs that adapters translate into orchestrator-native checks.
+`phlo-pandera` enables defining and executing data quality checks using the `@phlo_pandera` decorator. Checks emit capability specs that adapters translate into orchestrator-native checks.
 
 ## Installation
 
@@ -34,7 +34,7 @@ phlo plugin install quality
 ### Event Flow
 
 ```
-@phlo_quality → QualityEventEmitter → quality.result → [Alerting, Metrics, OpenMetadata]
+@phlo_pandera → QualityEventEmitter → quality.result → [Alerting, Metrics, OpenMetadata]
 ```
 
 ## Usage
@@ -42,11 +42,10 @@ phlo plugin install quality
 ### Defining Checks
 
 ```python
-from phlo import Consumer, SLA
-from phlo.quality import phlo_quality
-from phlo_quality import NullCheck, UniqueCheck, RangeCheck
+from phlo.contracts import Consumer, SLA
+from phlo_pandera import phlo_pandera, NullCheck, UniqueCheck, RangeCheck
 
-@phlo_quality(
+@phlo_pandera(
     table="bronze.users",
     checks=[
         NullCheck(columns=["id"]),
@@ -66,17 +65,24 @@ def validate_users():
 
 ### Decorator Options
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `table` | `str` | Fully-qualified table to validate (for example `bronze.users`) |
-| `checks` | `list[QualityCheck]` | Checks to execute |
-| `asset_key` | `str \| None` | Override asset key (derived from table by default) |
-| `group` | `str \| None` | Optional asset group |
-| `blocking` | `bool` | Whether failed checks block downstream |
-| `partition_aware` | `bool` | Scope checks to active partition when available |
-| `owner` | `str \| None` | Optional owner/team metadata for contracts |
-| `consumers` | `list[Consumer \| str] \| None` | Optional downstream consumer metadata |
-| `sla` | `SLA \| None` | Optional freshness/quality contract metadata |
+| Option              | Type                           | Description                                              |
+| ------------------- | ------------------------------ | -------------------------------------------------------- |
+| `table`             | `str`                          | Fully-qualified table to validate (for example `bronze.users`) |
+| `checks`            | `list[QualityCheck]`           | Checks to execute                                        |
+| `asset_key`         | `str \| None`                  | Override asset key (derived from table by default)     |
+| `group`             | `str \| None`                  | Optional asset group                                     |
+| `blocking`          | `bool`                         | Whether failed checks block downstream (default: True) |
+| `partition_aware`   | `bool`                         | Scope checks to active partition when available (default: True) |
+| `warn_threshold`    | `float`                        | Max failed-check fraction for WARN vs ERROR (default: 0.0) |
+| `partition_column`  | `str`                          | Partition column for scoping queries (default: `_phlo_partition_date`) |
+| `rolling_window_days`| `int \| None`                 | Scope to last N days when unpartitioned (default: 7)     |
+| `full_table`        | `bool`                         | Disable partition scoping (default: False)               |
+| `description`       | `str \| None`                  | Auto-generated if not provided                           |
+| `query`             | `str \| None`                  | Custom SQL query (defaults to `SELECT * FROM {table}`) |
+| `backend`           | `str`                          | Query backend: `"trino"` or `"duckdb"` (default: `"trino"`) |
+| `owner`             | `str \| None`                  | Optional owner/team metadata for contracts             |
+| `consumers`         | `list[Consumer \| str] \| None`| Optional downstream consumer metadata                    |
+| `sla`               | `SLA \| None`                  | Optional freshness/quality contract metadata             |
 
 ### Using Pandera Schemas
 
@@ -84,7 +90,7 @@ def validate_users():
 import pandera as pa
 from pandera.typing import Series
 
-from phlo.ingestion import phlo_ingestion
+from phlo import ingestion
 
 class UserSchema(pa.DataFrameModel):
     id: Series[str] = pa.Field(nullable=False, unique=True)
@@ -95,8 +101,8 @@ class UserSchema(pa.DataFrameModel):
         strict = True
         coerce = True
 
-# Use with @phlo_ingestion for automatic validation
-@phlo_ingestion(
+# Use with ingestion decorator for automatic validation
+@ingestion.phlo_ingestion(
     table_name="users",
     validation_schema=UserSchema,
     # ...
@@ -111,11 +117,14 @@ def ingest_users():
 # List discovered schemas
 phlo schema list
 
-# Validate a schema file
-phlo validate-schema workflows/schemas/users.py
+# Show schema details
+phlo schema show OrderSchema
 
-# Validate workflow decorators and contracts
-phlo validate-workflow workflows/ingestion/
+# Validate a schema file
+phlo schema validate workflows/schemas/users.py
+
+# Compare schema versions
+phlo schema diff OrderSchema --old HEAD~1
 ```
 
 ## Built-in Checks
@@ -164,10 +173,10 @@ See [Plugin Development Guide](../guides/plugin-development.md) for details.
 
 ## Entry Points
 
-| Entry Point            | Plugin                 |
-| ---------------------- | ---------------------- |
-| `phlo.plugins.cli`     | `quality` CLI commands |
-| `phlo.plugins.observatory` | Quality observatory extension |
+| Entry Point                   | Plugin                    |
+| ----------------------------- | ------------------------- |
+| `phlo.quality_providers`      | `PanderaQualityProvider`  |
+| `phlo.cli_commands`           | Quality CLI commands      |
 
 ## Related Packages
 

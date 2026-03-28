@@ -7,7 +7,7 @@ Complete guide to building data pipelines with Phlo's decorator-driven framework
 Phlo provides powerful decorators that transform simple functions into complete data pipelines. This guide covers:
 
 - Using `@phlo_ingestion` for data ingestion
-- Using `@phlo_quality` for data quality checks
+- Using `@phlo_pandera` for data quality checks
 - Schema definition with Pandera
 - Integration with dbt
 - Publishing to BI tools
@@ -52,9 +52,9 @@ def api_events(partition_date: str):
     )
 
 # workflows/quality/api.py
-from phlo_quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck
+from phlo_pandera import phlo_quality, NullCheck, RangeCheck, UniqueCheck
 
-@phlo_quality(
+@phlo_pandera(
     table="bronze.events",
     checks=[
         NullCheck(columns=["id", "timestamp"]),
@@ -522,7 +522,7 @@ FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_reading
 - 50% less code to maintain
 - No schema drift between dbt and Pandera
 - dbt data_tests automatically become Pandera Field constraints
-- Works seamlessly with `@phlo_quality` decorator
+- Works seamlessly with `@phlo_pandera` decorator
 
 #### Step 1: Define Schema in dbt YAML
 
@@ -612,17 +612,17 @@ FactGlucoseReadings = dbt_model_to_pandera(
 
 The generated schema automatically inherits from `PhloSchema` and includes all constraints from dbt tests.
 
-#### Step 3: Use with @phlo_quality
+#### Step 3: Use with @phlo_pandera
 
 The generated schema works seamlessly with quality checks:
 
 ```python
 # workflows/quality/nightscout.py
-from phlo_quality import phlo_quality
-from phlo_quality.checks import SchemaCheck
+from phlo_pandera import phlo_quality
+from phlo_pandera.checks import SchemaCheck
 from workflows.schemas.nightscout import FactGlucoseReadings
 
-@phlo_quality(
+@phlo_pandera(
     table="silver.fct_glucose_readings",
     checks=[
         SchemaCheck(schema=FactGlucoseReadings)  # Uses auto-generated schema
@@ -698,7 +698,7 @@ Fact layer schema is GENERATED from dbt model YAML (single source of truth).
 
 from pathlib import Path
 from phlo_dbt.dbt_schema import dbt_model_to_pandera
-from phlo_quality.schemas import PhloSchema
+from phlo_pandera.schemas import PhloSchema
 
 # =============================================================================
 # RAW LAYER - Manual schemas (internal, not published)
@@ -766,15 +766,15 @@ Schema(
 )
 ```
 
-## @phlo_quality Decorator
+## @phlo_pandera Decorator
 
 ### Basic Usage
 
 ```python
-from phlo_quality import phlo_quality
-from phlo_quality.checks import NullCheck, RangeCheck
+from phlo_pandera import phlo_quality
+from phlo_pandera.checks import NullCheck, RangeCheck
 
-@phlo_quality(
+@phlo_pandera(
     table="bronze.events",
     checks=[
         NullCheck(columns=["id", "timestamp"]),
@@ -844,7 +844,7 @@ CustomSQLCheck(
 
 ### Reconciliation Checks (Cross-table)
 
-Reconciliation checks live in `phlo_quality.reconciliation` and use the Trino resource
+Reconciliation checks live in `phlo_pandera.reconciliation` and use the Trino resource
 from the Dagster context to query source tables.
 
 **ReconciliationCheck**: Row count parity / coverage between source and target
@@ -853,7 +853,7 @@ from the Dagster context to query source tables.
 - `check_type="rowcount_gte"`: target must be >= source (within tolerance)
 
 ```python
-from phlo_quality.reconciliation import ReconciliationCheck
+from phlo_pandera.reconciliation import ReconciliationCheck
 
 ReconciliationCheck(
     source_table="silver.stg_github_events",
@@ -867,7 +867,7 @@ ReconciliationCheck(
 **AggregateConsistencyCheck**: Compare target aggregates to source aggregates
 
 ```python
-from phlo_quality.reconciliation import AggregateConsistencyCheck
+from phlo_pandera.reconciliation import AggregateConsistencyCheck
 
 AggregateConsistencyCheck(
     source_table="silver.stg_github_events",
@@ -883,7 +883,7 @@ AggregateConsistencyCheck(
 **KeyParityCheck**: Ensure keys match between source and target
 
 ```python
-from phlo_quality.reconciliation import KeyParityCheck
+from phlo_pandera.reconciliation import KeyParityCheck
 
 KeyParityCheck(
     source_table="silver.stg_github_events",
@@ -896,7 +896,7 @@ KeyParityCheck(
 **MultiAggregateConsistencyCheck**: Compare multiple aggregates in one check
 
 ```python
-from phlo_quality.reconciliation import AggregateSpec, MultiAggregateConsistencyCheck
+from phlo_pandera.reconciliation import AggregateSpec, MultiAggregateConsistencyCheck
 
 MultiAggregateConsistencyCheck(
     source_table="silver.stg_github_events",
@@ -914,7 +914,7 @@ MultiAggregateConsistencyCheck(
 **ChecksumReconciliationCheck**: Compare row-level hashes across tables
 
 ```python
-from phlo_quality.reconciliation import ChecksumReconciliationCheck
+from phlo_pandera.reconciliation import ChecksumReconciliationCheck
 
 ChecksumReconciliationCheck(
     source_table="silver.stg_github_events",
@@ -939,7 +939,7 @@ ChecksumReconciliationCheck(
 **Multiple tables**:
 
 ```python
-@phlo_quality(
+@phlo_pandera(
     table="bronze.events",
     checks=[
         CustomSQLCheck(
@@ -963,7 +963,7 @@ def referential_integrity():
 ```python
 import pandas as pd
 from datetime import datetime
-from phlo_quality.checks import QualityCheck, QualityCheckResult
+from phlo_pandera.checks import QualityCheck, QualityCheckResult
 
 class ConditionalCheck(QualityCheck):
     def execute(self, df: pd.DataFrame, context) -> QualityCheckResult:
@@ -983,7 +983,7 @@ class ConditionalCheck(QualityCheck):
             message=f"Validated {len(df)} rows"
         )
 
-@phlo_quality(
+@phlo_pandera(
     table="bronze.events",
     checks=[ConditionalCheck()]
 )

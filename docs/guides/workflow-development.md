@@ -71,7 +71,7 @@ Superset Dashboard
 
 Before starting, make sure you have:
 
-1. ✅ Phlo running (`make up-core up-query`)
+1. ✅ Phlo running (`phlo services start --profile core --profile query`)
 2. ✅ Basic understanding of SQL
 3. ✅ OpenWeather API key (free at https://openweathermap.org/api)
 4. ✅ Text editor or IDE

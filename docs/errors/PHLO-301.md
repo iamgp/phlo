@@ -1,8 +1,8 @@
 # PHLO-301: DLT Source Error
 
-**Error Type:** DLT Error
+**Error Type:** DLT Source Error
 **Severity:** High
-**Exception Class:** `PhloError` (code `PHLO-301`)
+**Exception Class:** `PhloError`
 
 ## Description
 

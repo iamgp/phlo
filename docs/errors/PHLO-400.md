@@ -1,6 +1,6 @@
 # PHLO-400: Iceberg Catalog Error
 
-**Error Type:** Iceberg Error
+**Error Type:** Iceberg Catalog Error
 **Severity:** Critical
 **Exception Class:** `IcebergCatalogError`
 

@@ -20,8 +20,8 @@ phlo plugin install minio
 | ----------------------- | ---------- | ------------------------ |
 | `MINIO_ROOT_USER`       | `minio`    | Root username            |
 | `MINIO_ROOT_PASSWORD`   | `minio123` | Root password            |
-| `MINIO_API_PORT`        | `9000`     | S3 API port              |
-| `MINIO_CONSOLE_PORT`    | `9001`     | Web console port         |
+| `MINIO_API_PORT`        | `10001`    | S3 API port              |
+| `MINIO_CONSOLE_PORT`    | `10002`    | Web console port         |
 | `MINIO_SERVER_URL`      | -          | TLS server URL           |
 | `MINIO_OIDC_CONFIG_URL` | -          | OIDC provider config URL |
 | `MINIO_AUTO_ENCRYPTION` | `off`      | Auto-encryption mode     |
@@ -55,7 +55,7 @@ phlo services start --service minio
 
 ### Web Console
 
-Access the MinIO console at `http://localhost:9001`:
+Access the MinIO console at `http://localhost:10002`:
 
 - Username: `minio` (or `MINIO_ROOT_USER`)
 - Password: `minio123` (or `MINIO_ROOT_PASSWORD`)
@@ -79,7 +79,7 @@ import boto3
 
 s3 = boto3.client(
     's3',
-    endpoint_url='http://localhost:9000',
+    endpoint_url='http://localhost:10001',
     aws_access_key_id='minio',
     aws_secret_access_key='minio123'
 )
@@ -92,11 +92,11 @@ for obj in response.get('Contents', []):
 
 ## Endpoints
 
-| Endpoint    | URL                                              |
-| ----------- | ------------------------------------------------ |
-| **S3 API**  | `http://localhost:9000`                          |
-| **Console** | `http://localhost:9001`                          |
-| **Metrics** | `http://localhost:9000/minio/v2/metrics/cluster` |
+| Endpoint    | URL                                               |
+| ----------- | ------------------------------------------------- |
+| **S3 API**  | `http://localhost:10001`                          |
+| **Console** | `http://localhost:10002`                          |
+| **Metrics** | `http://localhost:10001/minio/v2/metrics/cluster` |
 
 ## Metrics Integration
 
@@ -106,19 +106,19 @@ MinIO metrics are automatically scraped by Prometheus:
 compose:
   labels:
     phlo.metrics.enabled: "true"
-    phlo.metrics.port: "minio:9000"
+    phlo.metrics.port: "minio:10001"
     phlo.metrics.path: "/minio/v2/metrics/cluster"
 ```
 
 ## Entry Points
 
-| Entry Point             | Plugin               |
-| ----------------------- | -------------------- |
-| `phlo.plugins.services` | `MinioServicePlugin` |
+| Entry Point                     | Plugin                                  |
+| ------------------------------- | --------------------------------------- |
+| `phlo.plugins.services`         | `MinioServicePlugin`, `MinioSetupServicePlugin` |
+| `phlo.plugins.resource_providers` | `MinioResourceProvider`                |
 
 ## Related Packages
 
-- [phlo-rustfs](phlo-rustfs.md) - Alternative S3 storage (RustFS)
 - [phlo-iceberg](phlo-iceberg.md) - Table format
 - [phlo-nessie](phlo-nessie.md) - Catalog service
 - [phlo-prometheus](phlo-prometheus.md) - Metrics collection

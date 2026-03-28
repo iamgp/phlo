@@ -1,6 +1,6 @@
 # PHLO-007: Table Not Found
 
-**Error Type:** Runtime and Integration Error
+**Error Type:** Runtime Error
 **Severity:** High
 **Exception Class:** `PhloTableError`
 
