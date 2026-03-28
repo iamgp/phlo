@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
-from phlo_lineage.store import ColumnLineage
-
-from phlo_dbt.lineage_import import collect_asset_lineage, import_manifest_lineage
+from phlo_dbt.lineage_import import (
+    collect_asset_lineage,
+    extract_column_lineage,
+    import_manifest_lineage,
+)
 
 
 def test_collect_asset_lineage_returns_edges_and_targets() -> None:
@@ -71,9 +73,11 @@ def test_import_manifest_lineage_persists_assets_and_columns(monkeypatch, tmp_pa
 
     sink = SimpleNamespace()
     sink_calls: list[tuple[list[tuple[str, str]], list[str] | None, dict[str, object] | None]] = []
+    column_calls: list[list[dict[str, object]]] = []
     sink.record_asset_edges = lambda edges, *, asset_keys=None, metadata=None, tags=None: (
         sink_calls.append((edges, asset_keys, metadata)) or len(edges)
     )
+    sink.record_column_lineage = lambda mappings: column_calls.append(mappings) or len(mappings)
     monkeypatch.setattr("phlo_dbt.lineage_import.discover_capabilities", lambda: None)
     monkeypatch.setattr(
         "phlo_dbt.lineage_import.resolve_capability",
@@ -84,37 +88,9 @@ def test_import_manifest_lineage_persists_assets_and_columns(monkeypatch, tmp_pa
         ),
     )
 
-    recorded_mappings: list[list[ColumnLineage]] = []
-    monkeypatch.setattr(
-        "phlo_lineage.dbt_column_lineage.extract_column_lineage",
-        lambda payload: [
-            ColumnLineage(
-                source_asset="silver.stg_pokemon",
-                source_column="id",
-                target_asset="gold.dim_pokemon",
-                target_column="id",
-                source_type="dbt_heuristic",
-            )
-        ],
-    )
-    monkeypatch.setattr(
-        "phlo_lineage.store.resolve_lineage_db_url_with_postgres_fallback",
-        lambda: "postgresql://lineage",
-    )
-
-    class _Store:
-        def __init__(self, connection_string: str) -> None:
-            assert connection_string == "postgresql://lineage"
-
-        def record_column_lineage(self, mappings: list[ColumnLineage]) -> int:
-            recorded_mappings.append(mappings)
-            return len(mappings)
-
-    monkeypatch.setattr("phlo_lineage.store.LineageStore", _Store)
-
     summary = import_manifest_lineage(manifest_path)
 
-    assert summary == {"asset_edges": 1, "column_mappings": 1}
+    assert summary == {"asset_edges": 1, "column_mappings": 2}
     assert sink_calls == [
         (
             [("stg_pokemon", "dim_pokemon")],
@@ -122,7 +98,24 @@ def test_import_manifest_lineage_persists_assets_and_columns(monkeypatch, tmp_pa
             {"source": "dbt", "manifest_path": str(manifest_path)},
         )
     ]
-    assert len(recorded_mappings) == 1
+    assert column_calls == [
+        [
+            {
+                "source_asset": "silver.stg_pokemon",
+                "source_column": "id",
+                "target_asset": "gold.dim_pokemon",
+                "target_column": "id",
+                "source_type": "dbt_heuristic",
+            },
+            {
+                "source_asset": "silver.stg_pokemon",
+                "source_column": "name",
+                "target_asset": "gold.dim_pokemon",
+                "target_column": "name",
+                "source_type": "dbt_heuristic",
+            },
+        ]
+    ]
 
 
 def test_import_manifest_lineage_skips_when_no_sink(monkeypatch, tmp_path) -> None:
@@ -137,3 +130,41 @@ def test_import_manifest_lineage_skips_when_no_sink(monkeypatch, tmp_path) -> No
     )
 
     assert import_manifest_lineage(manifest_path) == {"asset_edges": 0, "column_mappings": 0}
+
+
+def test_extract_column_lineage_uses_same_name_heuristic() -> None:
+    manifest = {
+        "nodes": {
+            "model.demo.dim_pokemon": {
+                "resource_type": "model",
+                "schema": "gold",
+                "name": "dim_pokemon",
+                "depends_on": {"nodes": ["model.demo.stg_pokemon"]},
+                "columns": {"id": {}, "name": {}, "generation": {}},
+            },
+            "model.demo.stg_pokemon": {
+                "resource_type": "model",
+                "schema": "silver",
+                "name": "stg_pokemon",
+                "depends_on": {"nodes": []},
+                "columns": {"id": {}, "name": {}, "type": {}},
+            },
+        }
+    }
+
+    assert extract_column_lineage(manifest) == [
+        {
+            "source_asset": "silver.stg_pokemon",
+            "source_column": "id",
+            "target_asset": "gold.dim_pokemon",
+            "target_column": "id",
+            "source_type": "dbt_heuristic",
+        },
+        {
+            "source_asset": "silver.stg_pokemon",
+            "source_column": "name",
+            "target_asset": "gold.dim_pokemon",
+            "target_column": "name",
+            "source_type": "dbt_heuristic",
+        },
+    ]

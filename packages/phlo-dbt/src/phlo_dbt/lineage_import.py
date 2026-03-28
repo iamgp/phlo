@@ -95,6 +95,65 @@ def collect_asset_lineage(
     return edges, sorted(target_keys)
 
 
+def extract_column_lineage(manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Extract column lineage from a dbt manifest using same-name heuristics."""
+    nodes = manifest.get("nodes") or {}
+    if not isinstance(nodes, Mapping):
+        return []
+
+    mappings: list[dict[str, Any]] = []
+    model_nodes = {
+        key: node
+        for key, node in nodes.items()
+        if isinstance(node, Mapping) and node.get("resource_type") == "model"
+    }
+
+    for node in model_nodes.values():
+        target_asset = _resolve_manifest_asset_name(node)
+        target_columns = _get_manifest_columns(node)
+        if not target_columns:
+            continue
+
+        upstream_keys = node.get("depends_on", {}).get("nodes", [])
+        if not isinstance(upstream_keys, list):
+            continue
+
+        for upstream_key in upstream_keys:
+            upstream_node = nodes.get(upstream_key)
+            if not isinstance(upstream_node, Mapping):
+                continue
+
+            source_asset = _resolve_manifest_asset_name(upstream_node)
+            shared_columns = target_columns & _get_manifest_columns(upstream_node)
+            for column_name in sorted(shared_columns):
+                mappings.append(
+                    {
+                        "source_asset": source_asset,
+                        "source_column": column_name,
+                        "target_asset": target_asset,
+                        "target_column": column_name,
+                        "source_type": "dbt_heuristic",
+                    }
+                )
+
+    return mappings
+
+
+def _resolve_manifest_asset_name(node: Mapping[str, Any]) -> str:
+    """Derive a qualified asset name from a dbt manifest node."""
+    schema = str(node.get("schema") or "")
+    name = str(node.get("alias") or node.get("name") or "")
+    return f"{schema}.{name}" if schema else name
+
+
+def _get_manifest_columns(node: Mapping[str, Any]) -> set[str]:
+    """Return declared dbt column names for a manifest node."""
+    columns = node.get("columns") or {}
+    if not isinstance(columns, Mapping):
+        return set()
+    return {str(column_name) for column_name in columns}
+
+
 def import_manifest_lineage(manifest_path: Path) -> dict[str, int]:
     """Import asset lineage and best-effort column lineage from a dbt manifest."""
     manifest = load_dbt_manifest(manifest_path)
@@ -120,20 +179,10 @@ def import_manifest_lineage(manifest_path: Path) -> dict[str, int]:
         )
 
     column_mappings = 0
-    try:
-        from phlo_lineage.dbt_column_lineage import extract_column_lineage
-        from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
-    except ImportError:
-        logger.debug(
-            "dbt_column_lineage_import_unavailable",
-            manifest_path=str(manifest_path),
-        )
-    else:
-        connection_string = resolve_lineage_db_url_with_postgres_fallback()
-        if connection_string:
-            mappings = extract_column_lineage(manifest)
-            if mappings:
-                column_mappings = LineageStore(connection_string).record_column_lineage(mappings)
+    if hasattr(resolution.provider, "record_column_lineage"):
+        mappings = extract_column_lineage(manifest)
+        if mappings:
+            column_mappings = resolution.provider.record_column_lineage(mappings)
 
     logger.info(
         "dbt_lineage_import_completed",
