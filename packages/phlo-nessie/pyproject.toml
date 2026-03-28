@@ -16,7 +16,7 @@ dependencies = [
 description = "Nessie service plugin for Phlo"
 name = "phlo-nessie"
 requires-python = ">=3.11"
-version = "0.2.3"
+version = "0.2.4"
 
 [[project.authors]]
 email = "team@phlo.dev"
