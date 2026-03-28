@@ -56,6 +56,15 @@ In-depth tutorials and how-tos:
 - [Data Modelling](guides/data-modeling.md) - Bronze/Silver/Gold architecture
 - [dbt Development](guides/dbt-development.md) - SQL transformations
 - [Dagster Assets](guides/dagster-assets.md) - Orchestration patterns
+- [Testing Strategy](guides/testing-strategy.md) - Testing your Phlo workflows
+- [Hook Event Bus](guides/hook-event-bus.md) - Event-driven plugin communication
+- [Logging](guides/logging.md) - Structured logging and log routing
+- [Semantic Layer](guides/semantic-layer.md) - Define metrics and dimensions
+- [Orchestrator Adapters](guides/orchestrator-adapters.md) - Switch between Dagster, Airflow, etc.
+- [Operations Contracts](guides/operations-contracts.md) - Consumer/SLA definitions
+- [Compose Generation](guides/compose-generation.md) - Docker Compose file generation
+- [Plugin Registry](guides/plugin-registry.md) - Plugin discovery and installation
+- [Discovery Registry Benchmarks](guides/discovery-registry-benchmarks.md) - Performance testing
 
 ### Setup
 
@@ -65,11 +74,19 @@ Configure additional services:
 - [PostgREST](setup/postgrest.md) - REST API from PostgreSQL
 - [Hasura](setup/hasura.md) - GraphQL API
 - [Observability](setup/observability.md) - Monitoring, OTLP collectors, and backend routing
+- [Security](setup/security.md) - Security configuration and best practices
+
+### Observatory
+
+UI extensions and customization:
+
+- [Extensions](observatory/extensions.md) - Build custom Observatory UI extensions
 
 ### Packages
 
 Package-specific reference:
 
+- [All Packages](packages/index.md) - Complete list of all 32 Phlo packages
 - [phlo-traefik](packages/phlo-traefik.md) - Local reverse proxy for named service URLs
 - [phlo-clickstack](packages/phlo-clickstack.md) - Preferred all-in-one observability backend
 - [phlo-otel](packages/phlo-otel.md) - OpenTelemetry traces, metrics, and OTLP log export
@@ -85,7 +102,10 @@ Technical documentation:
 - [Plugin Architecture](reference/plugin-architecture.md) - Plugin types and how they connect
 - [API Reference](reference/phlo-api.md) - REST and GraphQL APIs
 - [DuckDB Queries](reference/duckdb-queries.md) - Ad-hoc analysis
+- [Plugin API](reference/plugin-api.md) - Plugin development reference
+- [Quality Checks Catalog](reference/quality-checks-catalog.md) - Available quality checks
 - [Common Errors](reference/common-errors.md) - Error messages explained
+- [Error Codes Reference](errors/README.md) - Complete error code index
 
 ### Operations
 
