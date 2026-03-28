@@ -23,7 +23,9 @@ from rich.table import Table
 from phlo.capabilities import (
     FieldSpec,
     NormalizedSchema,
+    configured_capability_name,
     get_capability_registry,
+    list_capabilities,
     resolve_capability,
 )
 from phlo.cli.commands import schema_migrate_contracts
@@ -47,7 +49,38 @@ def _resolve_migrator() -> Any:
             "Install a storage provider (e.g. phlo-iceberg) that implements SchemaMigrator."
         )
         sys.exit(1)
-    return migrators[0].provider
+
+    migrators_by_name = {migrator.name: migrator for migrator in migrators}
+
+    configured_migrator = configured_capability_name("schema_migrator")
+    if configured_migrator:
+        selected = migrators_by_name.get(configured_migrator)
+        if selected is None:
+            available = list_capabilities("schema_migrator")
+            console.print(
+                f"[red]Configured schema migrator '{configured_migrator}' is not registered.[/red]"
+            )
+            console.print(f"Available schema migrators: {available}")
+            sys.exit(1)
+        return selected.provider
+
+    default_table_store = configured_capability_name("table_store")
+    if default_table_store:
+        selected = migrators_by_name.get(default_table_store)
+        if selected is not None:
+            return selected.provider
+
+    if len(migrators) == 1:
+        return migrators[0].provider
+
+    available = list_capabilities("schema_migrator")
+    table_store_options = list_capabilities("table_store")
+    console.print("[red]Multiple schema migrators are registered and none was selected.[/red]")
+    console.print("Configure `schema_migrator` directly or set a matching default `table_store`.")
+    console.print(f"Available schema migrators: {available}")
+    if table_store_options:
+        console.print(f"Available table stores: {table_store_options}")
+    sys.exit(1)
 
 
 def _resolve_extractor() -> Any:
