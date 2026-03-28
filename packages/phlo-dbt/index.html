@@ -2131,7 +2131,9 @@ phlo dbt test --local --select gold.*
 </code></pre>
 <p>When <code>.phlo/</code> exists, <code>phlo dbt compile|run|test</code> executes inside the running <code>dagster</code>
 service by default. That keeps dbt aligned with the project's active Trino, Iceberg, and
-generated profile configuration. Use <code>--local</code> when you explicitly want host dbt.</p>
+generated profile configuration. Use <code>--local</code> when you explicitly want host dbt.
+After a successful <code>phlo dbt run</code>, Phlo also imports manifest asset lineage into the
+configured lineage sink when one is installed.</p>
 <h3 id="programmatic-access">Programmatic Access</h3>
 <pre><code class="language-python">from phlo_dbt.discovery import find_dbt_projects, get_dbt_project_dir
 
