@@ -171,7 +171,8 @@ phlo trino query --file query.sql --catalog iceberg --schema bronze
 
 Run dbt against the project dbt workspace. When `.phlo/` exists, Phlo runs dbt inside the
 Dagster service container by default so the command matches the running stack. Use `--local`
-to run host dbt directly.
+to run host dbt directly. Successful `phlo dbt run` commands also import manifest asset
+lineage into the configured lineage sink when one is installed.
 
 ```bash
 phlo dbt compile [OPTIONS]

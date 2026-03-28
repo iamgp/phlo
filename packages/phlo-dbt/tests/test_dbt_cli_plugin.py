@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from subprocess import CompletedProcess
 from types import SimpleNamespace
 
 from click.testing import CliRunner
 
+import phlo_dbt.settings as dbt_settings
 from phlo_dbt.cli_plugin import DbtCliPlugin, dbt_group
 
 
@@ -40,8 +42,15 @@ def test_dbt_run_uses_active_orchestrator_container_by_default(monkeypatch, tmp_
         raising=False,
     )
     monkeypatch.setattr(
-        "phlo_dbt.settings.get_settings",
+        dbt_settings,
+        "get_settings",
         lambda: SimpleNamespace(dbt_project_path=project_dir, dbt_profiles_path=profiles_dir),
+    )
+    imported_manifests: list[Path] = []
+    monkeypatch.setattr(
+        "phlo_dbt.cli_plugin.import_manifest_lineage",
+        lambda manifest_path: imported_manifests.append(manifest_path)
+        or {"asset_edges": 1, "column_mappings": 0},
     )
 
     captured: list[list[str]] = []
@@ -76,6 +85,7 @@ def test_dbt_run_uses_active_orchestrator_container_by_default(monkeypatch, tmp_
             "dim_pokemon",
         ]
     ]
+    assert imported_manifests == [project_dir / "target" / "manifest.json"]
 
 
 def test_dbt_run_local_uses_host_dbt(monkeypatch, tmp_path) -> None:
@@ -86,10 +96,17 @@ def test_dbt_run_local_uses_host_dbt(monkeypatch, tmp_path) -> None:
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
-        "phlo_dbt.settings.get_settings",
+        dbt_settings,
+        "get_settings",
         lambda: SimpleNamespace(dbt_project_path=project_dir, dbt_profiles_path=profiles_dir),
     )
     monkeypatch.setattr("phlo_dbt.cli_plugin.ensure_dbt_profile", lambda *_args, **_kwargs: None)
+    imported_manifests: list[Path] = []
+    monkeypatch.setattr(
+        "phlo_dbt.cli_plugin.import_manifest_lineage",
+        lambda manifest_path: imported_manifests.append(manifest_path)
+        or {"asset_edges": 1, "column_mappings": 0},
+    )
 
     captured: list[tuple[list[str], str | None]] = []
     monkeypatch.setattr(
@@ -119,6 +136,7 @@ def test_dbt_run_local_uses_host_dbt(monkeypatch, tmp_path) -> None:
             str(project_dir),
         )
     ]
+    assert imported_manifests == [project_dir / "target" / "manifest.json"]
 
 
 def test_dbt_run_container_requires_exec_service(monkeypatch, tmp_path) -> None:
@@ -134,7 +152,8 @@ def test_dbt_run_container_requires_exec_service(monkeypatch, tmp_path) -> None:
         lambda: SimpleNamespace(exec_service_name=lambda: None),
     )
     monkeypatch.setattr(
-        "phlo_dbt.settings.get_settings",
+        dbt_settings,
+        "get_settings",
         lambda: SimpleNamespace(dbt_project_path=project_dir, dbt_profiles_path=profiles_dir),
     )
 
@@ -162,8 +181,13 @@ def test_dbt_run_joins_multiple_select_flags(monkeypatch, tmp_path) -> None:
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
     )
     monkeypatch.setattr(
-        "phlo_dbt.settings.get_settings",
+        dbt_settings,
+        "get_settings",
         lambda: SimpleNamespace(dbt_project_path=project_dir, dbt_profiles_path=profiles_dir),
+    )
+    monkeypatch.setattr(
+        "phlo_dbt.cli_plugin.import_manifest_lineage",
+        lambda _manifest_path: {"asset_edges": 1, "column_mappings": 0},
     )
 
     captured: list[list[str]] = []
@@ -181,3 +205,65 @@ def test_dbt_run_joins_multiple_select_flags(monkeypatch, tmp_path) -> None:
 
     assert result.exit_code == 0
     assert captured[0][-2:] == ["--select", "stg_pokemon dim_pokemon"]
+
+
+def test_dbt_run_skips_lineage_import_on_failure(monkeypatch, tmp_path) -> None:
+    project_dir = tmp_path / "workflows" / "transforms" / "dbt"
+    profiles_dir = project_dir / "profiles"
+    profiles_dir.mkdir(parents=True)
+    (project_dir / "dbt_project.yml").write_text("name: demo\n", encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        dbt_settings,
+        "get_settings",
+        lambda: SimpleNamespace(dbt_project_path=project_dir, dbt_profiles_path=profiles_dir),
+    )
+    monkeypatch.setattr("phlo_dbt.cli_plugin.ensure_dbt_profile", lambda *_args, **_kwargs: None)
+
+    imported_manifests: list[Path] = []
+    monkeypatch.setattr(
+        "phlo_dbt.cli_plugin.import_manifest_lineage",
+        lambda manifest_path: imported_manifests.append(manifest_path)
+        or {"asset_edges": 1, "column_mappings": 0},
+    )
+    monkeypatch.setattr(
+        "phlo_dbt.cli_plugin.subprocess",
+        SimpleNamespace(run=lambda cmd, cwd=None, check=False: CompletedProcess(cmd, 1)),
+    )
+
+    result = CliRunner().invoke(dbt_group, ["run", "--local", "--select", "dim_pokemon"])
+
+    assert result.exit_code == 1
+    assert imported_manifests == []
+
+
+def test_dbt_compile_does_not_import_lineage(monkeypatch, tmp_path) -> None:
+    project_dir = tmp_path / "workflows" / "transforms" / "dbt"
+    profiles_dir = project_dir / "profiles"
+    profiles_dir.mkdir(parents=True)
+    (project_dir / "dbt_project.yml").write_text("name: demo\n", encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        dbt_settings,
+        "get_settings",
+        lambda: SimpleNamespace(dbt_project_path=project_dir, dbt_profiles_path=profiles_dir),
+    )
+    monkeypatch.setattr("phlo_dbt.cli_plugin.ensure_dbt_profile", lambda *_args, **_kwargs: None)
+
+    imported_manifests: list[Path] = []
+    monkeypatch.setattr(
+        "phlo_dbt.cli_plugin.import_manifest_lineage",
+        lambda manifest_path: imported_manifests.append(manifest_path)
+        or {"asset_edges": 1, "column_mappings": 0},
+    )
+    monkeypatch.setattr(
+        "phlo_dbt.cli_plugin.subprocess",
+        SimpleNamespace(run=lambda cmd, cwd=None, check=False: CompletedProcess(cmd, 0)),
+    )
+
+    result = CliRunner().invoke(dbt_group, ["compile", "--local"])
+
+    assert result.exit_code == 0
+    assert imported_manifests == []
