@@ -2850,6 +2850,11 @@ phlo schema-migrate scaffold-yaml-recent --since-hours 1 --limit 5
 </code></pre>
 <h3 id="phlo-schema-migrate-planapplyhistory">phlo schema-migrate plan/apply/history</h3>
 <p>Existing migration lifecycle commands remain available:</p>
+<p>Schema migrator selection order:
+- explicit <code>schema_migrator</code> capability default
+- migrator matching the configured default <code>table_store</code>
+- the only installed schema migrator, when exactly one exists</p>
+<p>If multiple schema migrators are installed and neither default selects one, Phlo fails and asks for explicit configuration instead of choosing the first registered provider.</p>
 <pre><code class="language-bash">phlo schema-migrate plan warehouse.customers
 phlo schema-migrate apply warehouse.customers
 phlo schema-migrate history warehouse.customers --limit 5
