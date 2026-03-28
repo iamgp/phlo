@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from phlo_lineage.graph import get_lineage_graph
-from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
 
 
 class PhloLineageSink:
@@ -61,7 +61,7 @@ class PhloLineageSink:
     @staticmethod
     def _get_store() -> LineageStore:
         """Return a configured lineage store."""
-        connection_string = resolve_lineage_db_url()
+        connection_string = resolve_lineage_db_url_with_postgres_fallback()
         if not connection_string:
             raise RuntimeError("Lineage sink requires PHLO_LINEAGE_DB_URL to be configured.")
         return LineageStore(connection_string)

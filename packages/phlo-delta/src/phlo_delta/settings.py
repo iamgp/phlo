@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Any
 
 from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_url
 
 
 class DeltaSettings(BaseConfig):
@@ -45,6 +47,11 @@ class DeltaSettings(BaseConfig):
         default=True,
         description="Allow unsafe rename for S3 (non-HDFS) backends",
     )
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.delta_s3_endpoint:
+            resolved = resolve_url(self.delta_s3_endpoint, port_env_var="MINIO_API_PORT")
+            object.__setattr__(self, "delta_s3_endpoint", resolved)
 
     def get_storage_options(self) -> dict[str, str]:
         """Build deltalake storage options dict for S3 access.

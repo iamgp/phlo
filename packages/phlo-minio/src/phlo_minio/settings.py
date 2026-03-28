@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Any
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 
 
 class MinioSettings(BaseConfig):
@@ -18,6 +20,13 @@ class MinioSettings(BaseConfig):
     minio_api_port: int = Field(default=10001, description="MinIO API port")
     minio_console_port: int = Field(default=10002, description="MinIO console port")
     s3_region: str = Field(default="us-east-1", description="S3 region")
+
+    def model_post_init(self, __context: Any) -> None:
+        host, port = resolve_host(
+            self.minio_host, self.minio_api_port, port_env_var="MINIO_API_PORT"
+        )
+        object.__setattr__(self, "minio_host", host)
+        object.__setattr__(self, "minio_api_port", port)
 
     def minio_endpoint(self) -> str:
         """Return host:port endpoint for MinIO API."""

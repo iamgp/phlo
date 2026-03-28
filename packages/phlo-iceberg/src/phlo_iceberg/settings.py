@@ -2,44 +2,12 @@
 
 from __future__ import annotations
 
-import os
-import socket
 from functools import lru_cache
-from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
-from phlo.logging import get_logger
-
-logger = get_logger(__name__)
-
-
-def _resolve_service_url(url: str | None, *, port_env_var: str) -> str | None:
-    """Resolve Docker-only service URLs to localhost when running on the host."""
-    if not url:
-        return url
-
-    parsed = urlsplit(url)
-    host = parsed.hostname
-    if not host or host in {"localhost", "127.0.0.1"}:
-        return url
-
-    try:
-        socket.gethostbyname(host)
-        return url
-    except socket.gaierror:
-        resolved_port = int(os.environ.get(port_env_var, parsed.port or 0))
-        netloc = f"localhost:{resolved_port}" if resolved_port else "localhost"
-        resolved = urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
-        logger.info(
-            "iceberg_service_url_resolved_to_localhost",
-            original_host=host,
-            original_port=str(parsed.port or ""),
-            resolved_port=str(resolved_port or ""),
-            env_var=port_env_var,
-        )
-        return resolved
+from phlo.config.network import resolve_url as _resolve_service_url
 
 
 class IcebergSettings(BaseConfig):

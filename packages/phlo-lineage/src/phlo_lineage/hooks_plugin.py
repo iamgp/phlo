@@ -10,7 +10,7 @@ from phlo.plugins.base import PluginMetadata
 from phlo.plugins.hooks import HookFilter, HookPlugin, HookRegistration
 
 from phlo_lineage.graph import get_lineage_graph
-from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
 
 logger = get_logger(__name__)
 
@@ -50,7 +50,7 @@ class LineageHookPlugin(HookPlugin):
         for source, target in event.edges:
             graph.add_edge(source, target)
 
-        connection_string = resolve_lineage_db_url()
+        connection_string = resolve_lineage_db_url_with_postgres_fallback()
         if not connection_string:
             logger.info(
                 "lineage_sync_skipped_missing_db_url",

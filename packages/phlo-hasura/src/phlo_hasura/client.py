@@ -2,61 +2,17 @@
 
 import json
 import os
-import socket
 from typing import Any
 
 import requests
+from phlo.config.network import resolve_url
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 def _resolve_hasura_url(url: str) -> str:
-    """Resolve Hasura URL, falling back to localhost if Docker hostname unreachable.
-
-    When running hooks from the host machine, Docker internal hostnames like 'hasura'
-    won't resolve. In that case, use localhost with the exposed port.
-
-    Args:
-        url: Hasura URL (may contain Docker internal hostname)
-
-    Returns:
-        Resolved URL
-    """
-    # Parse the URL to extract host
-    if "://" in url:
-        protocol, rest = url.split("://", 1)
-        host_port = rest.split("/")[0]
-        path = "/" + "/".join(rest.split("/")[1:]) if "/" in rest else ""
-
-        if ":" in host_port:
-            host, port = host_port.rsplit(":", 1)
-        else:
-            host = host_port
-            port = "8080"
-    else:
-        return url  # Can't parse, return as-is
-
-    # If already localhost, use as-is
-    if host in ("localhost", "127.0.0.1"):
-        return url
-
-    # Try to resolve the hostname
-    try:
-        socket.gethostbyname(host)
-        return url
-    except socket.gaierror:
-        # Can't resolve - we're likely running on the host, not in Docker
-        # Use localhost with the exposed port from environment
-        exposed_port = os.environ.get("HASURA_PORT", port)
-        resolved_url = f"{protocol}://localhost:{exposed_port}{path}"
-        logger.info(
-            "hasura_url_resolved_to_localhost",
-            original_host=host,
-            original_port=port,
-            resolved_port=str(exposed_port),
-        )
-        return resolved_url
+    return resolve_url(url, port_env_var="HASURA_PORT")
 
 
 class HasuraClient:

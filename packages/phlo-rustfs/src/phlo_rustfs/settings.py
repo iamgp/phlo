@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Any
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 
 
 class RustfsSettings(BaseConfig):
@@ -18,6 +20,13 @@ class RustfsSettings(BaseConfig):
     rustfs_api_port: int = Field(default=9000, description="RustFS S3 API port")
     rustfs_console_port: int = Field(default=9001, description="RustFS console port")
     s3_region: str = Field(default="us-east-1", description="S3 region")
+
+    def model_post_init(self, __context: Any) -> None:
+        host, port = resolve_host(
+            self.rustfs_host, self.rustfs_api_port, port_env_var="RUSTFS_API_PORT"
+        )
+        object.__setattr__(self, "rustfs_host", host)
+        object.__setattr__(self, "rustfs_api_port", port)
 
     def rustfs_endpoint(self) -> str:
         """Return host:port endpoint for RustFS S3 API."""

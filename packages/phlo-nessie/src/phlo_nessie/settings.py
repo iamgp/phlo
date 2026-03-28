@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Any
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 
 
 class NessieSettings(BaseConfig):
@@ -24,6 +26,11 @@ class NessieSettings(BaseConfig):
         default=None,
         description="Optional query_engine capability name for catalog scan fallbacks",
     )
+
+    def model_post_init(self, __context: Any) -> None:
+        host, port = resolve_host(self.nessie_host, self.nessie_port, port_env_var="NESSIE_PORT")
+        object.__setattr__(self, "nessie_host", host)
+        object.__setattr__(self, "nessie_port", port)
 
     def nessie_uri(self) -> str:
         """Return the base Nessie API URI.
