@@ -58,7 +58,9 @@ phlo dbt test --local
 ```
 
 When `.phlo/` exists, `phlo dbt compile|run|test` executes inside the active orchestrator's
-execution service by default. Use `--local` when you explicitly want host dbt.
+execution service by default. Use `--local` when you explicitly want host dbt. Successful
+`phlo dbt run` commands also import manifest asset lineage into the configured lineage sink
+when one is installed.
 
 ### Programmatic
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -14,6 +15,7 @@ from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
 from phlo.plugins.base import CliCommandPlugin, PluginMetadata
 from phlo_dbt.cli_publishing import publishing
+from phlo_dbt.lineage_import import import_manifest_lineage
 from phlo_dbt.runtime_config import DEFAULT_DBT_TARGET, ensure_dbt_profile
 
 
@@ -87,10 +89,41 @@ def _run_dbt_in_container(
     )
     try:
         result = subprocess.run(cmd, check=False)
+        if result.returncode == 0:
+            _import_lineage_after_run(subcommand=subcommand, project_dir=project_dir, logger=logger)
         sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: docker command not found", err=True)
         sys.exit(1)
+
+
+def _import_lineage_after_run(
+    *,
+    subcommand: str,
+    project_dir: Path,
+    logger: Any,
+) -> None:
+    """Import manifest lineage after a successful dbt CLI run."""
+    if subcommand != "run":
+        return
+
+    manifest_path = project_dir / "target" / "manifest.json"
+    try:
+        summary = import_manifest_lineage(manifest_path)
+    except Exception:
+        logger.warning(
+            "dbt_cli_lineage_import_failed",
+            manifest_path=str(manifest_path),
+            exc_info=True,
+        )
+        return
+
+    logger.info(
+        "dbt_cli_lineage_import_succeeded",
+        manifest_path=str(manifest_path),
+        asset_edge_count=summary["asset_edges"],
+        column_mapping_count=summary["column_mappings"],
+    )
 
 
 def _run_dbt_local(subcommand: str, target: str, select_expr: str | None = None) -> None:
@@ -134,6 +167,8 @@ def _run_dbt_local(subcommand: str, target: str, select_expr: str | None = None)
     )
     try:
         result = subprocess.run(cmd, cwd=str(project_dir), check=False)
+        if result.returncode == 0:
+            _import_lineage_after_run(subcommand=subcommand, project_dir=project_dir, logger=logger)
         sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: dbt command not found", err=True)
