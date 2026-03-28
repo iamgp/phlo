@@ -1,5 +1,18 @@
 # Changelog
 
+## [phlo 0.7.8 + 2 packages] - 2026-03-28
+
+### Fixed
+- phlo: build package-local dist artifacts for release publish
+- phlo: honor configured schema migrator defaults in schema-migrate (#318)
+- phlo: restore dbt CLI lineage import (#320)
+- phlo-dbt: restore dbt CLI lineage import (#320)
+- phlo-lineage: restore dbt CLI lineage import (#320)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (5 commits)
+
 ## [phlo 0.7.7] - 2026-03-28
 
 ### Fixed
