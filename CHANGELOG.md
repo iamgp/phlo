@@ -1,5 +1,14 @@
 # Changelog
 
+## [phlo 0.7.5] - 2026-03-28
+
+### Fixed
+- phlo: fetch tags for release publish
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (1 commit)
+
 ## [phlo 0.7.4] - 2026-03-28
 
 ### Fixed
