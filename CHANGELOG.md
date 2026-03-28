@@ -1,5 +1,14 @@
 # Changelog
 
+## [phlo 0.7.4] - 2026-03-28
+
+### Fixed
+- phlo: skip release-pr on non-releasable commits
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (2 commits)
+
 ## [phlo 0.7.3 + 9 packages] - 2026-03-28
 
 ### Fixed
