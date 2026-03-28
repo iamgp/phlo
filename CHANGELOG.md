@@ -1,5 +1,14 @@
 # Changelog
 
+## [phlo 0.7.8] - 2026-03-28
+
+### Fixed
+- phlo: build package-local dist artifacts for release publish
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (1 commit)
+
 ## [phlo 0.7.7] - 2026-03-28
 
 ### Fixed
