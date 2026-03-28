@@ -25,7 +25,7 @@ def test_lineage_sink_records_asset_edges():
     with (
         patch("phlo_lineage.lineage_sink.LineageStore", return_value=store),
         patch(
-            "phlo_lineage.lineage_sink.resolve_lineage_db_url",
+            "phlo_lineage.lineage_sink.resolve_lineage_db_url_with_postgres_fallback",
             return_value="postgresql://lineage",
         ),
     ):
@@ -46,7 +46,7 @@ def test_lineage_sink_gets_row_journey():
     with (
         patch("phlo_lineage.lineage_sink.LineageStore", return_value=store),
         patch(
-            "phlo_lineage.lineage_sink.resolve_lineage_db_url",
+            "phlo_lineage.lineage_sink.resolve_lineage_db_url_with_postgres_fallback",
             return_value="postgresql://lineage",
         ),
     ):

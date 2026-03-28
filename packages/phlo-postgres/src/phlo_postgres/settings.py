@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Any
 from urllib.parse import quote_plus
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 
 
 class PostgresSettings(BaseConfig):
@@ -21,6 +23,13 @@ class PostgresSettings(BaseConfig):
     postgres_mart_schema: str = Field(
         default="marts", description="Schema for published mart tables"
     )
+
+    def model_post_init(self, __context: Any) -> None:
+        host, port = resolve_host(
+            self.postgres_host, self.postgres_port, port_env_var="POSTGRES_PORT"
+        )
+        object.__setattr__(self, "postgres_host", host)
+        object.__setattr__(self, "postgres_port", port)
 
     def get_postgres_connection_string(self, include_db: bool = True) -> str:
         """Build a PostgreSQL connection URI from current settings.

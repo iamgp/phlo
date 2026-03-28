@@ -9,7 +9,7 @@ def test_get_pyiceberg_catalog_config_resolves_host_service_urls(monkeypatch) ->
     def _raise_unresolvable(_host: str) -> str:
         raise socket.gaierror()
 
-    monkeypatch.setattr("phlo_iceberg.settings.socket.gethostbyname", _raise_unresolvable)
+    monkeypatch.setattr("phlo.config.network.socket.gethostbyname", _raise_unresolvable)
     monkeypatch.setenv("NESSIE_PORT", "19120")
     monkeypatch.setenv("MINIO_API_PORT", "9000")
 
@@ -25,7 +25,7 @@ def test_get_pyiceberg_catalog_config_resolves_host_service_urls(monkeypatch) ->
 
 
 def test_get_pyiceberg_catalog_config_preserves_resolvable_urls(monkeypatch) -> None:
-    monkeypatch.setattr("phlo_iceberg.settings.socket.gethostbyname", lambda _host: "127.0.0.1")
+    monkeypatch.setattr("phlo.config.network.socket.gethostbyname", lambda _host: "127.0.0.1")
 
     settings = IcebergSettings(
         iceberg_catalog_uri="http://localhost:19120/iceberg",
