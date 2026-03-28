@@ -1,4 +1,44 @@
-"""Dagster settings."""
+"""Configuration settings for Dagster orchestration.
+
+This module defines the DagsterSettings class for configuring the
+Dagster adapter behavior. Settings control executor selection,
+workflow discovery paths, and service port configuration.
+
+Configuration Sources:
+    - Environment variables (PHLO_* prefix)
+    - .phlo/.env and .phlo/.env.local files
+    - Default values defined in DagsterSettings
+
+Key Settings:
+    - dagster_port: Webserver port (default: 10006)
+    - workflows_path: User workflow discovery path (default: workflows)
+    - phlo_force_in_process_executor: Force single-process execution
+    - phlo_force_multiprocess_executor: Force multiprocess execution
+    - phlo_host_platform: Override platform detection
+
+Executor Selection:
+    The module implements platform-aware executor selection to handle
+    Docker Desktop/Colima on macOS where multiprocessing can cause
+    DuckDB crashes. Priority:
+    1. PHLO_FORCE_IN_PROCESS_EXECUTOR
+    2. PHLO_FORCE_MULTIPROCESS_EXECUTOR
+    3. PHLO_HOST_PLATFORM detection
+    4. platform.system() fallback
+
+Example:
+    Accessing settings::
+
+        from phlo_dagster.settings import get_settings
+
+        settings = get_settings()
+        port = settings.dagster_port
+
+    Environment configuration::
+
+        PHLO_DAGSTER_PORT=3000
+        PHLO_WORKFLOWS_PATH=./custom_workflows
+
+"""
 
 from __future__ import annotations
 
@@ -33,11 +73,15 @@ class DagsterSettings(BaseConfig):
     def validate_executor_flags(self) -> "DagsterSettings":
         """Validate mutually exclusive executor override flags.
 
+        Args:
+            None (operates on self).
+
         Returns:
             Validated settings instance.
 
         Raises:
             ValueError: If both force flags are set simultaneously.
+
         """
         if self.phlo_force_in_process_executor and self.phlo_force_multiprocess_executor:
             raise ValueError(

@@ -38,8 +38,7 @@ def validate_schema(
     check_constraints: bool,
     check_descriptions: bool,
 ):
-    """
-    Validate a Pandera schema file.
+    """Validate a Pandera schema file.
 
     Checks for:
     - Valid Pandera DataFrameModel syntax
@@ -47,13 +46,23 @@ def validate_schema(
     - Appropriate constraints
     - Type annotations
 
-    \b
-    Examples:
-      # Validate a schema
-      phlo validate-schema workflows/schemas/weather.py
+    Args:
+        schema_file: Path to the schema file to validate.
+        check_constraints: Whether to check that constraints are defined.
+        check_descriptions: Whether to check that fields have descriptions.
 
-      # Validate without checking descriptions
-      phlo validate-schema workflows/schemas/weather.py --no-check-descriptions
+    Returns:
+        None. Exits with code 0 if valid, code 1 if issues found.
+
+    Example:
+        ```bash
+        # Validate a schema
+        phlo validate-schema workflows/schemas/weather.py
+
+        # Validate without checking descriptions
+        phlo validate-schema workflows/schemas/weather.py --no-check-descriptions
+        ```
+
     """
     console.print(f"\n[bold blue]🔍 Validating Schema[/bold blue]: {schema_file}\n")
 
@@ -91,7 +100,15 @@ def validate_schema(
 
 
 def _load_module_from_file(file_path: Path) -> Any:
-    """Load a Python module from file path."""
+    """Load a Python module from file path.
+
+    Args:
+        file_path: Path to the Python file to load.
+
+    Returns:
+        Loaded module object, or None if loading fails.
+
+    """
     try:
         spec = importlib.util.spec_from_file_location("schema_module", file_path)
         if spec and spec.loader:
@@ -109,7 +126,15 @@ def _load_module_from_file(file_path: Path) -> Any:
 
 
 def _find_pandera_schemas(module: Any) -> List[Any]:
-    """Find all Pandera DataFrameModel classes in module."""
+    """Find all Pandera DataFrameModel classes in a module.
+
+    Args:
+        module: Python module object to search.
+
+    Returns:
+        List of Pandera DataFrameModel subclasses found in the module.
+
+    """
     import pandera as pa
 
     dataframe_model = getattr(pa, "DataFrameModel", None)
@@ -132,7 +157,17 @@ def _validate_single_schema(
     check_constraints: bool,
     check_descriptions: bool,
 ) -> bool:
-    """Validate a single Pandera schema."""
+    """Validate a single Pandera schema class.
+
+    Args:
+        schema_class: Pandera DataFrameModel class to validate.
+        check_constraints: Whether to check for field constraints.
+        check_descriptions: Whether to check for field descriptions.
+
+    Returns:
+        True if schema is valid (no issues), False otherwise.
+
+    """
     console.print(f"[bold cyan]{schema_class.__name__}[/bold cyan]")
 
     issues: List[Tuple[str, str]] = []
@@ -213,8 +248,7 @@ def _validate_single_schema(
     help="Auto-fix issues where possible",
 )
 def validate_workflow(asset_file: str, fix: bool):
-    """
-    Validate a workflow asset file for correctness before deployment.
+    """Validate a workflow asset file for correctness before deployment.
 
     Checks for:
     - @phlo_ingestion decorator usage
@@ -223,11 +257,20 @@ def validate_workflow(asset_file: str, fix: bool):
     - Proper function signature
     - Return type validation
 
-    \b
-    Examples:
-      phlo validate-workflow workflows/ingestion/weather/observations.py
-      phlo validate-workflow workflows/ingestion/  # Validate directory
-      phlo validate-workflow weather.py --fix     # Auto-fix where possible
+    Args:
+        asset_file: Path to the workflow file or directory to validate.
+        fix: Whether to auto-fix issues where possible.
+
+    Returns:
+        None. Exits with code 0 if valid, code 1 if issues found.
+
+    Example:
+        ```bash
+        phlo validate-workflow workflows/ingestion/weather/observations.py
+        phlo validate-workflow workflows/ingestion/  # Validate directory
+        phlo validate-workflow weather.py --fix     # Auto-fix where possible
+        ```
+
     """
     from pathlib import Path
 
@@ -266,15 +309,15 @@ def validate_workflow(asset_file: str, fix: bool):
 
 
 def _validate_workflow_file(file_path: Path, fix: bool = False) -> bool:
-    """
-    Validate a single workflow file.
+    """Validate a single workflow file.
 
     Args:
-        file_path: Path to the workflow file
-        fix: Whether to auto-fix issues
+        file_path: Path to the workflow file.
+        fix: Whether to auto-fix issues.
 
     Returns:
-        True if valid, False otherwise
+        True if file is valid, False otherwise.
+
     """
 
     console.print(f"[bold cyan]{file_path.name}[/bold cyan]")
@@ -305,11 +348,14 @@ def _validate_workflow_file(file_path: Path, fix: bool = False) -> bool:
 
 
 def _find_phlo_ingestion_functions(module: Any) -> List[Tuple[str, Any, dict]]:
-    """
-    Find all functions decorated with @phlo_ingestion.
+    """Find all functions decorated with @phlo_ingestion.
+
+    Args:
+        module: Python module object to search.
 
     Returns:
-        List of tuples: (func_name, func_obj, decorator_params)
+        List of tuples: (func_name, func_obj, decorator_params).
+
     """
     results = []
 
@@ -344,11 +390,15 @@ def _find_phlo_ingestion_functions(module: Any) -> List[Tuple[str, Any, dict]]:
 
 
 def _extract_decorator_params(func: Any) -> dict:
-    """
-    Extract decorator parameters from a decorated function.
+    """Extract decorator parameters from a decorated function.
+
+    Args:
+        func: Decorated function object.
 
     Returns:
-        Dict of parameters if this is a @phlo_ingestion function, empty dict otherwise
+        Dictionary of parameters if this is a @phlo_ingestion function,
+        otherwise empty dict.
+
     """
     # The @phlo_ingestion decorator doesn't expose params directly,
     # so we'll mark functions that look like ingestion functions
@@ -367,18 +417,18 @@ def _validate_workflow_function(
     file_path: Path,
     fix: bool = False,
 ) -> bool:
-    """
-    Validate a single workflow function.
+    """Validate a single workflow function.
 
     Args:
-        func_name: Name of the function
-        func_obj: The function object
-        decorator_params: Decorator parameters (if available)
-        file_path: Path to the file for reading source
-        fix: Whether to auto-fix issues
+        func_name: Name of the function.
+        func_obj: The function object.
+        decorator_params: Decorator parameters (if available).
+        file_path: Path to the file for reading source.
+        fix: Whether to auto-fix issues.
 
     Returns:
-        True if valid, False otherwise
+        True if valid, False otherwise.
+
     """
     import inspect
 
@@ -477,14 +527,17 @@ def _validate_workflow_function(
 def _validate_decorator_params(
     deco_text: str, func_line_idx: int, issues: List[str], warnings: List[str]
 ) -> None:
-    """
-    Validate @phlo_ingestion decorator parameters.
+    """Validate @phlo_ingestion decorator parameters.
 
     Args:
-        deco_text: The decorator text
-        func_line_idx: Line number of the function
-        issues: List to append issues to
-        warnings: List to append warnings to
+        deco_text: The decorator text.
+        func_line_idx: Line number of the function.
+        issues: List to append issues to.
+        warnings: List to append warnings to.
+
+    Returns:
+        None. Modifies issues and warnings lists in place.
+
     """
     import re
 
@@ -524,11 +577,14 @@ def _validate_decorator_params(
 
 
 def _validate_cron_format(cron: str) -> List[str]:
-    """
-    Validate cron expression format.
+    """Validate cron expression format.
+
+    Args:
+        cron: Cron expression string to validate.
 
     Returns:
-        List of validation errors, empty if valid
+        List of validation errors, empty if valid.
+
     """
     errors = []
     parts = cron.strip().split()
@@ -570,7 +626,17 @@ def _validate_cron_format(cron: str) -> List[str]:
 
 
 def _is_valid_cron_field(field: str, min_val: int, max_val: int) -> bool:
-    """Check if a cron field is valid."""
+    """Check if a cron field is valid.
+
+    Args:
+        field: Cron field string to validate.
+        min_val: Minimum allowed value for the field.
+        max_val: Maximum allowed value for the field.
+
+    Returns:
+        True if field is valid, False otherwise.
+
+    """
     if field == "*":
         return True
     if field == "?":
@@ -612,14 +678,30 @@ def _is_valid_cron_field(field: str, min_val: int, max_val: int) -> bool:
 
 
 def _is_valid_table_name(name: str) -> bool:
-    """Check if table name follows naming conventions."""
+    """Check if table name follows naming conventions.
+
+    Args:
+        name: Table name to validate.
+
+    Returns:
+        True if name follows conventions, False otherwise.
+
+    """
     import re
 
     return bool(re.match(r"^[a-z_][a-z0-9_]*$", name)) and "__" not in name
 
 
 def _is_valid_field_name(name: str) -> bool:
-    """Check if field name follows naming conventions."""
+    """Check if field name follows naming conventions.
+
+    Args:
+        name: Field name to validate.
+
+    Returns:
+        True if name follows conventions, False otherwise.
+
+    """
     import re
 
     return bool(re.match(r"^[a-z_][a-z0-9_]*$", name)) and "__" not in name

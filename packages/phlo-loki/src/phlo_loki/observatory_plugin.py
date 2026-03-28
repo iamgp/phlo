@@ -1,4 +1,19 @@
-"""Observatory extension for Loki logs UI."""
+"""Observatory extension for Loki logs UI.
+
+This module provides the LokiObservatoryExtension class which integrates
+Loki log viewing capabilities into the Phlo Observatory web interface. It
+registers a navigation item for accessing logs and serves static UI assets.
+
+Example:
+    The extension is auto-discovered by the Observatory::
+
+        from phlo.plugins import load_plugin
+        extension = load_plugin("phlo_loki.observatory")
+
+Attributes:
+    LokiObservatoryExtension: Observatory extension class for log visualization.
+
+"""
 
 from __future__ import annotations
 
@@ -16,7 +31,23 @@ from phlo.plugins.observatory import (
 
 
 class LokiObservatoryExtension(ObservatoryExtensionPlugin):
-    """Observatory extension metadata for Loki logs UI."""
+    """Observatory extension for Loki log aggregation UI.
+
+    This extension integrates Loki log viewing capabilities into the Phlo
+    Observatory web interface. It provides navigation to the logs view and
+    serves bundled static assets for the log UI components.
+
+    Attributes:
+        None - Properties are computed dynamically.
+
+    Example:
+        Extension is instantiated by the discovery system::
+
+            extension = LokiObservatoryExtension()
+            manifest = extension.manifest
+            nav_items = manifest.ui.nav
+
+    """
 
     @property
     def metadata(self) -> PluginMetadata:
@@ -24,6 +55,7 @@ class LokiObservatoryExtension(ObservatoryExtensionPlugin):
 
         Returns:
             Plugin metadata for the Loki observatory extension.
+
         """
         return PluginMetadata(
             name="loki",
@@ -37,6 +69,7 @@ class LokiObservatoryExtension(ObservatoryExtensionPlugin):
 
         Returns:
             Extension manifest for the Loki logs UI.
+
         """
         return ObservatoryExtensionManifest(
             name="loki",
@@ -51,5 +84,6 @@ class LokiObservatoryExtension(ObservatoryExtensionPlugin):
 
         Returns:
             Traversable root containing bundled UI assets.
+
         """
         return resources.files("phlo_loki").joinpath("observatory_assets")

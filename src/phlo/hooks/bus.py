@@ -106,7 +106,6 @@ class HookBus:
 
     def _ensure_discovered(self) -> None:
         """Discover plugins and register hook providers on first use."""
-
         if self._discovered:
             return
         from phlo.hooks.telemetry import CoreTelemetryHookProvider
@@ -131,7 +130,6 @@ class HookBus:
         event: HookEvent,
     ) -> None:
         """Dispatch a hook handler regardless of implementation style."""
-
         if isinstance(handler, AsyncHookHandler):
             raise TypeError(
                 "Async hook handler requires HookBus.emit_async(). "
@@ -160,7 +158,6 @@ class HookBus:
         event: HookEvent,
     ) -> None:
         """Dispatch a hook handler from an async execution context."""
-
         if isinstance(handler, AsyncHookHandler):
             await handler.handle_event_async(event)
             return
@@ -174,7 +171,6 @@ class HookBus:
     @staticmethod
     def _handle_failure(*, hook: RegisteredHook, error: Exception) -> bool:
         """Apply failure policy, returning True when dispatch should continue."""
-
         policy = hook.failure_policy
         if policy == FailurePolicy.IGNORE:
             return True
@@ -191,7 +187,6 @@ class HookBus:
     @staticmethod
     def _matches_filters(filters: HookFilter, event: HookEvent) -> bool:
         """Return whether an event satisfies the provided hook filters."""
-
         if filters.event_types and event.event_type not in filters.event_types:
             return False
         if filters.asset_keys:
@@ -205,7 +200,6 @@ class HookBus:
 
 def _event_asset_keys(event: HookEvent) -> set[str]:
     """Collect asset keys from hook event payloads."""
-
     keys: set[str] = set()
     asset_key = getattr(event, "asset_key", None)
     if isinstance(asset_key, str):
@@ -220,7 +214,6 @@ def _event_asset_keys(event: HookEvent) -> set[str]:
 
 def _resolve_plugin_name(provider: Any) -> str | None:
     """Resolve a plugin name from a provider metadata attribute."""
-
     metadata = getattr(provider, "metadata", None)
     if metadata is None:
         return None
@@ -232,5 +225,4 @@ _GLOBAL_HOOK_BUS = HookBus()
 
 def get_hook_bus() -> HookBus:
     """Return the global hook bus singleton."""
-
     return _GLOBAL_HOOK_BUS

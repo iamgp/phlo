@@ -1,7 +1,22 @@
-"""Schema-aware type mapping utilities.
+"""Schema-aware type mapping utilities for Trino to Pandas conversion.
 
 Provides centralized Trino-to-Pandas type mappings and schema-aware
 data loading to eliminate manual type conversion boilerplate.
+
+Constants:
+    TRINO_TO_PANDAS_TYPES: Mapping of Trino types to Pandas dtypes.
+
+Functions:
+    trino_type_to_pandas: Convert Trino data type to Pandas dtype.
+    apply_schema_types: Apply Pandera schema types to a DataFrame.
+
+Example:
+    >>> from phlo_trino.type_mapping import trino_type_to_pandas
+    >>> trino_type_to_pandas("bigint")
+    'int64'
+    >>> trino_type_to_pandas("varchar(255)")
+    'string'
+
 """
 
 from __future__ import annotations
@@ -46,8 +61,7 @@ TRINO_TO_PANDAS_TYPES: dict[str, str] = {
 
 
 def trino_type_to_pandas(trino_type: str) -> str:
-    """
-    Convert a Trino data type to the corresponding Pandas dtype.
+    """Convert a Trino data type to the corresponding Pandas dtype.
 
     Args:
         trino_type: Trino column type (e.g., "bigint", "varchar", "timestamp")
@@ -62,6 +76,7 @@ def trino_type_to_pandas(trino_type: str) -> str:
         'string'
         >>> trino_type_to_pandas("timestamp")
         'datetime64[ns]'
+
     """
     # Normalize: lowercase and strip parameters like varchar(255)
     normalized = trino_type.lower().strip()
@@ -75,8 +90,7 @@ def apply_schema_types(
     df: pd.DataFrame,
     schema_class: type[Any],
 ) -> pd.DataFrame:
-    """
-    Apply types from a Pandera schema to a DataFrame.
+    """Apply types from a Pandera schema to a DataFrame.
 
     This eliminates manual type conversion code in quality checks.
     Uses the schema's type hints to coerce DataFrame columns.
@@ -95,6 +109,7 @@ def apply_schema_types(
         df = trino.query("SELECT * FROM gold.fct_orders")
         df = apply_schema_types(df, FactOrders)
         # Types are now correct for validation
+
     """
     import types
     from typing import get_args, get_origin, get_type_hints

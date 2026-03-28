@@ -1,4 +1,22 @@
-"""dbt project discovery for auto-wiring."""
+"""dbt project discovery for auto-wiring.
+
+This module provides utilities for automatically discovering dbt projects
+within the workspace. It searches common locations and environment variables
+to locate dbt_project.yml files, enabling zero-configuration setup in many cases.
+
+Example:
+    >>> from phlo_dbt.discovery import find_dbt_projects, get_dbt_project_dir
+    >>>
+    >>> # Find all dbt projects in workspace
+    >>> projects = find_dbt_projects()
+    >>> for project in projects:
+    ...     print(f"Found: {project}")
+    >>>
+    >>> # Get the primary project directory
+    >>> project_dir = get_dbt_project_dir()
+    >>> print(f"Using: {project_dir}")
+
+"""
 
 from __future__ import annotations
 
@@ -19,15 +37,31 @@ def find_dbt_projects(
     root_dir: str | Path | None = None,
     search_paths: list[str] | None = None,
 ) -> list[Path]:
-    """
-    Discover dbt projects in the workspace.
+    """Discover dbt projects in the workspace.
+
+    Searches for dbt_project.yml files in specified paths relative to the root
+    directory. Returns paths to directories containing valid dbt projects.
 
     Args:
-        root_dir: Root directory to search from. Defaults to current directory.
-        search_paths: List of relative paths to search. Defaults to common locations.
+        root_dir: Root directory to search from. Defaults to current working directory.
+        search_paths: List of relative paths to search. Defaults to DEFAULT_SEARCH_PATHS.
 
     Returns:
-        List of paths to discovered dbt_project.yml files
+        List of paths to discovered dbt project directories (parent directories
+        of dbt_project.yml files).
+
+    Example:
+        >>> # Find projects in default locations
+        >>> projects = find_dbt_projects()
+        >>> print(projects)
+        [PosixPath('workflows/transforms/dbt')]
+        >>>
+        >>> # Search custom locations
+        >>> projects = find_dbt_projects(
+        ...     root_dir="/custom/path",
+        ...     search_paths=["analytics/dbt", "data/transforms"]
+        ... )
+
     """
     if root_dir is None:
         root_dir = Path.cwd()
@@ -49,16 +83,29 @@ def find_dbt_projects(
 
 
 def get_dbt_project_dir() -> Path:
-    """
-    Get the dbt project directory, auto-discovering if not explicitly set.
+    """Get the dbt project directory, auto-discovering if not explicitly set.
 
-    Priority:
+    Resolves the dbt project directory using a priority system:
     1. DBT_PROJECT_DIR environment variable
     2. Auto-discovered project in workspace
     3. Default: workflows/transforms/dbt
 
     Returns:
-        Path to dbt project directory
+        Path to dbt project directory. May not exist if falling back to default
+        and project hasn't been scaffolded yet.
+
+    Example:
+        >>> # With environment variable set
+        >>> import os
+        >>> os.environ["DBT_PROJECT_DIR"] = "/custom/dbt"
+        >>> project_dir = get_dbt_project_dir()
+        >>> print(project_dir)
+        PosixPath('/custom/dbt')
+        >>>
+        >>> # With auto-discovery
+        >>> project_dir = get_dbt_project_dir()
+        >>> # Returns first discovered project or default path
+
     """
     # Check explicit environment variable
     env_path = os.environ.get("DBT_PROJECT_DIR")

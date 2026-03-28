@@ -1,3 +1,18 @@
+"""Phlo dbt integration package.
+
+This package provides dbt integration for the Phlo data platform, including:
+- Asset specification generation from dbt manifests
+- Runtime configuration management for dbt profiles
+- Project scaffolding utilities
+- CLI commands for dbt operations
+
+Example:
+    >>> from phlo_dbt import build_dbt_asset_specs, DbtRuntimeConfig
+    >>> specs = build_dbt_asset_specs()
+    >>> config = DbtRuntimeConfig(target_name="prod")
+
+"""
+
 from phlo_dbt.assets import build_dbt_asset_specs
 from phlo_dbt.runtime_config import (
     DEFAULT_DBT_TARGET,

@@ -1,7 +1,69 @@
-"""Quality public API for Phlo.
+"""Data quality public API for Phlo.
 
-This module provides the quality primitives by discovering and loading
-quality provider plugins. The primary provider is phlo-pandera.
+This module provides comprehensive data quality validation primitives for Phlo.
+It discovers and loads quality provider plugins (primarily ``phlo-pandera``)
+to offer a rich set of validation checks that can be applied to data assets.
+
+Quality checks ensure data integrity, consistency, and compliance with business
+rules before data is committed to the lakehouse. The checks can be applied
+automatically during the Write-Audit-Publish lifecycle or manually for
+data exploration.
+
+Key Components:
+    - :func:`phlo_quality`: Primary decorator for applying quality checks
+    - :func:`get_quality_checks`: Retrieve registered quality checks
+    - :func:`clear_quality_checks`: Clear the quality check registry
+    - Quality check classes: Validation primitives for various data checks
+
+Quality Check Types:
+    - :class:`QualityCheck`: Base class for all quality checks
+    - :class:`NullCheck`: Validate absence/presence of null values
+    - :class:`RangeCheck`: Validate numeric value ranges
+    - :class:`FreshnessCheck`: Validate data recency
+    - :class:`UniqueCheck`: Validate column uniqueness
+    - :class:`CountCheck`: Validate row counts
+    - :class:`SchemaCheck`: Validate schema compliance
+    - :class:`PatternCheck`: Validate regex patterns
+    - :class:`CustomSQLCheck`: Validate with custom SQL queries
+    - :class:`ReconciliationCheck`: Compare datasets across sources
+    - :class:`AggregateConsistencyCheck`: Validate aggregate values
+    - :class:`KeyParityCheck`: Validate key presence across tables
+    - :class:`MultiAggregateConsistencyCheck`: Multi-table aggregate validation
+    - :class:`ChecksumReconciliationCheck`: Row-level checksum validation
+
+Provider Discovery:
+    The module uses plugin discovery to load the quality provider. The primary
+    provider is ``phlo-pandera``, which uses Pandera schemas for validation.
+
+Note:
+    This module requires a quality provider to be installed. Install with:
+    ``pip install phlo[defaults]`` or ``pip install phlo-pandera``.
+
+Example:
+    ```python
+    from phlo.quality import phlo_quality, NullCheck, RangeCheck
+    import pandera as pa
+
+    # Define a schema with validation rules
+    class UserSchema(pa.DataFrameModel):
+        id: int = pa.Field(nullable=False, unique=True)
+        email: str = pa.Field(nullable=False)
+        age: int = pa.Field(ge=0, le=150)
+
+    # Apply quality checks to an asset
+    @phlo_quality(schema=UserSchema)
+    def validated_users():
+        return load_user_data()
+    ```
+
+See Also:
+    - :mod:`phlo.ingestion`: Data ingestion operations
+    - :mod:`phlo.hooks.events.QualityResultEvent`: Quality result events
+    - ``phlo-pandera`` package for Pandera integration
+
+Raises:
+    ModuleNotFoundError: If no quality provider is installed.
+
 """
 
 from __future__ import annotations

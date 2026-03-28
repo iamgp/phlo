@@ -1,5 +1,4 @@
-"""
-Helper to execute assets with mocked dependencies and capture results.
+"""Helper to execute assets with mocked dependencies and capture results.
 
 Provides `test_asset_execution()` for running `@phlo_ingestion` assets in tests
 with mocked Iceberg, Trino, and DLT dependencies.
@@ -12,6 +11,7 @@ Example:
     ... )
     >>> assert result.success
     >>> assert len(result.data) == 1
+
 """
 
 from __future__ import annotations
@@ -30,17 +30,20 @@ from phlo_testing.mock_trino import MockTrinoResource
 
 @dataclass
 class AssetTestResult:
-    """
-    Result of executing an asset in test mode.
+    """Result of executing an asset in test mode.
+
+    Encapsulates all information about an asset test execution including
+    success status, resulting data, metadata, logs, timing, and errors.
 
     Attributes:
-        success: Whether asset execution succeeded
-        data: Resulting DataFrame (if available)
-        metadata: Metadata from MaterializeResult
-        logs: Captured log messages
-        duration: Execution time in seconds
-        error: Exception if execution failed
-        raw_result: Raw Dagster ExecuteInProcessResult (advanced use)
+        success: Whether asset execution succeeded.
+        data: Resulting DataFrame (if available).
+        metadata: Metadata from MaterializeResult.
+        logs: Captured log messages.
+        duration: Execution time in seconds.
+        error: Exception if execution failed.
+        raw_result: Raw Dagster ExecuteInProcessResult (advanced use).
+
     """
 
     success: bool
@@ -53,10 +56,21 @@ class AssetTestResult:
 
 
 class MockAssetContext:
-    """
-    Mock Dagster context for asset execution.
+    """Mock Dagster context for asset execution.
 
-    Provides mocked resources (Iceberg, Trino, DLT) and logging.
+    Provides mocked resources (Iceberg, Trino, DLT) and logging capabilities
+    for testing assets without requiring a full Dagster environment.
+
+    Attributes:
+        partition_key: Partition identifier (e.g., "2024-01-01").
+        iceberg: MockIcebergCatalog instance for table operations.
+        trino: MockTrinoResource instance for SQL execution.
+
+    Example:
+        >>> context = MockAssetContext(partition_key="2024-01-01")
+        >>> context.log("Processing partition")
+        >>> table_store = context.get_resource("table_store")
+
     """
 
     def __init__(
@@ -65,13 +79,13 @@ class MockAssetContext:
         mock_iceberg: Optional[MockIcebergCatalog] = None,
         mock_trino: Optional[MockTrinoResource] = None,
     ) -> None:
-        """
-        Initialize mock context.
+        """Initialize mock context.
 
         Args:
-            partition_key: Partition identifier (e.g., "2024-01-01")
-            mock_iceberg: MockIcebergCatalog instance (creates new if None)
-            mock_trino: MockTrinoResource instance (creates new if None)
+            partition_key: Partition identifier (e.g., "2024-01-01").
+            mock_iceberg: MockIcebergCatalog instance (creates new if None).
+            mock_trino: MockTrinoResource instance (creates new if None).
+
         """
         self.partition_key = partition_key or "2024-01-01"
         self.iceberg = mock_iceberg or MockIcebergCatalog()
@@ -81,7 +95,12 @@ class MockAssetContext:
         self._logger = self._create_logger()
 
     def _create_logger(self) -> Any:
-        """Create logger that captures to self._logs."""
+        """Create logger that captures to self._logs.
+
+        Returns:
+            Logger instance with capture handler attached.
+
+        """
         name = f"asset_test_{id(self)}"
         logger = get_logger(name)
 
@@ -99,6 +118,7 @@ class MockAssetContext:
 
                 Args:
                     logs_list: Destination list for formatted log messages.
+
                 """
                 super().__init__()
                 self.logs = logs_list
@@ -108,6 +128,7 @@ class MockAssetContext:
 
                 Args:
                     record: Log record emitted by the logger.
+
                 """
                 self.logs.append(self.format(record))
 
@@ -121,12 +142,12 @@ class MockAssetContext:
         return logger
 
     def log(self, message: str, level: str = "INFO") -> None:
-        """
-        Log a message.
+        """Log a message.
 
         Args:
-            message: Message to log
-            level: Log level (DEBUG, INFO, WARNING, ERROR)
+            message: Message to log.
+            level: Log level (DEBUG, INFO, WARNING, ERROR).
+
         """
         resolved_level = level.lower()
         if resolved_level == "warn":
@@ -135,21 +156,26 @@ class MockAssetContext:
 
     @property
     def logs(self) -> list[str]:
-        """Get all captured logs."""
+        """Get all captured logs.
+
+        Returns:
+            List of formatted log messages.
+
+        """
         return self._logs.copy()
 
     def get_resource(self, name: str) -> Any:
-        """
-        Get a mock resource by name.
+        """Get a mock resource by name.
 
         Args:
-            name: Resource name (table_store, trino, etc.)
+            name: Resource name (table_store, trino, etc.).
 
         Returns:
-            Mock resource instance
+            Mock resource instance.
 
         Raises:
-            ValueError: If resource doesn't exist
+            ValueError: If resource doesn't exist.
+
         """
         resources = {
             "table_store": self.iceberg,
@@ -172,26 +198,26 @@ def test_asset_execution(
     materialize_kwargs: Optional[dict[str, Any]] = None,
     _pytest_skip: bool = True,  # Flag to prevent pytest collection
 ) -> AssetTestResult:
-    """
-    Execute an asset with mocked dependencies.
+    """Execute an asset with mocked dependencies.
 
     Runs a `@phlo_ingestion` asset in isolation with mocked Iceberg,
     Trino, and DLT services. Captures results and logs for inspection.
 
     Args:
-        asset_fn: Asset function to test
-        partition: Partition key (e.g., "2024-01-01")
-        mock_data: Mock data to return from DLT source
-        mock_iceberg: Pre-configured MockIcebergCatalog (uses new if None)
-        mock_trino: Pre-configured MockTrinoResource (uses new if None)
-        expected_schema: Pandera schema to validate results
-        materialize_kwargs: Extra kwargs to pass to materialize
+        asset_fn: Asset function to test.
+        partition: Partition key (e.g., "2024-01-01").
+        mock_data: Mock data to return from DLT source.
+        mock_iceberg: Pre-configured MockIcebergCatalog (uses new if None).
+        mock_trino: Pre-configured MockTrinoResource (uses new if None).
+        expected_schema: Pandera schema to validate results.
+        materialize_kwargs: Extra kwargs to pass to materialize.
+        _pytest_skip: Flag to prevent pytest from collecting as test.
 
     Returns:
-        AssetTestResult with execution details
+        AssetTestResult with execution details.
 
     Raises:
-        ValueError: If asset execution fails (and success=False in result)
+        ValueError: If asset execution fails (and success=False in result).
 
     Example:
         >>> @phlo_ingestion(
@@ -207,6 +233,7 @@ def test_asset_execution(
         ... )
         >>> assert result.success
         >>> assert len(result.data) == 1
+
     """
     if mock_data is None:
         mock_data = []
@@ -274,27 +301,27 @@ def test_asset_with_catalog(
     partition: str = "2024-01-01",
     catalog: Optional[MockIcebergCatalog] = None,
 ) -> AssetTestResult:
-    """
-    Execute an asset with access to mock Iceberg catalog.
+    """Execute an asset with access to mock Iceberg catalog.
 
     Useful for testing assets that read from or write to Iceberg tables.
 
     Args:
-        asset_fn: Asset function to test
-        partition: Partition key
-        catalog: Pre-configured MockIcebergCatalog
+        asset_fn: Asset function to test.
+        partition: Partition key.
+        catalog: Pre-configured MockIcebergCatalog.
 
     Returns:
-        AssetTestResult with catalog access
+        AssetTestResult with catalog access.
 
     Example:
         >>> catalog = MockIcebergCatalog()
-        >>> # ... set up tables in catalog ...
+        >>> # Set up tables in catalog
         >>> result = test_asset_with_catalog(
         ...     my_transform_asset,
         ...     partition="2024-01-01",
         ...     catalog=catalog,
         ... )
+
     """
     if catalog is None:
         catalog = MockIcebergCatalog()
@@ -311,26 +338,26 @@ def test_asset_with_trino(
     partition: str = "2024-01-01",
     trino: Optional[MockTrinoResource] = None,
 ) -> AssetTestResult:
-    """
-    Execute an asset with access to mock Trino resource.
+    """Execute an asset with access to mock Trino resource.
 
     Useful for testing quality checks and transform assets.
 
     Args:
-        asset_fn: Asset function to test
-        partition: Partition key
-        trino: Pre-configured MockTrinoResource
+        asset_fn: Asset function to test.
+        partition: Partition key.
+        trino: Pre-configured MockTrinoResource.
 
     Returns:
-        AssetTestResult with Trino access
+        AssetTestResult with Trino access.
 
     Example:
         >>> trino = MockTrinoResource()
-        >>> # ... set up tables ...
+        >>> # Set up tables in Trino
         >>> result = test_asset_with_trino(
         ...     my_quality_check,
         ...     trino=trino,
         ... )
+
     """
     if trino is None:
         trino = MockTrinoResource()
@@ -343,16 +370,21 @@ def test_asset_with_trino(
 
 
 class TestAssetExecutor:
-    """
-    Reusable executor for testing multiple asset runs.
+    """Reusable executor for testing multiple asset runs.
 
     Maintains catalog state across multiple executions for integration testing.
+
+    Attributes:
+        catalog: Shared MockIcebergCatalog instance.
+        trino: Shared MockTrinoResource instance.
+        results: List of all AssetTestResult instances from executions.
 
     Example:
         >>> executor = TestAssetExecutor()
         >>> result1 = executor.execute(asset1, partition="2024-01-01")
         >>> result2 = executor.execute(asset2, partition="2024-01-01")
         >>> # Both use same catalog instance
+
     """
 
     def __init__(
@@ -360,12 +392,12 @@ class TestAssetExecutor:
         catalog: Optional[MockIcebergCatalog] = None,
         trino: Optional[MockTrinoResource] = None,
     ) -> None:
-        """
-        Initialize executor.
+        """Initialize executor.
 
         Args:
-            catalog: Shared MockIcebergCatalog
-            trino: Shared MockTrinoResource
+            catalog: Shared MockIcebergCatalog.
+            trino: Shared MockTrinoResource.
+
         """
         self.catalog = catalog or MockIcebergCatalog()
         self.trino = trino or MockTrinoResource()
@@ -377,16 +409,16 @@ class TestAssetExecutor:
         partition: str = "2024-01-01",
         mock_data: Optional[list[dict[str, Any]]] = None,
     ) -> AssetTestResult:
-        """
-        Execute an asset with shared resources.
+        """Execute an asset with shared resources.
 
         Args:
-            asset_fn: Asset function to test
-            partition: Partition key
-            mock_data: Mock data (not used in executor mode)
+            asset_fn: Asset function to test.
+            partition: Partition key.
+            mock_data: Mock data (not used in executor mode).
 
         Returns:
-            AssetTestResult
+            AssetTestResult with execution details.
+
         """
         result = test_asset_execution(
             asset_fn,
@@ -399,14 +431,14 @@ class TestAssetExecutor:
         return result
 
     def get_results(self, asset_fn: Callable) -> list[AssetTestResult]:
-        """
-        Get results for a specific asset.
+        """Get results for a specific asset.
 
         Args:
-            asset_fn: Asset function to filter by
+            asset_fn: Asset function to filter by.
 
         Returns:
-            List of results for that asset
+            List of results for that asset.
+
         """
         # This is a simplified implementation
         # In practice, you'd track asset names

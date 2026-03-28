@@ -239,6 +239,7 @@ class TestAssetExecution:
 
             Returns:
                 Single-row payload for assertions.
+
             """
             return [{"id": 1, "date": partition_date}]
 
@@ -260,6 +261,7 @@ class TestAssetExecution:
 
             Returns:
                 Three-row DataFrame for assertions.
+
             """
             return pd.DataFrame(
                 {
@@ -286,6 +288,7 @@ class TestAssetExecution:
 
             Returns:
                 Single-row payload containing partition metadata.
+
             """
             return [{"id": 1, "name": "Test", "date": partition_date}]
 
@@ -312,6 +315,7 @@ class TestAssetExecution:
 
             Returns:
                 Single-row payload.
+
             """
             return [{"id": 1}]
 
@@ -331,6 +335,7 @@ class TestAssetExecution:
 
             Raises:
                 ValueError: Always raised for failure-path assertions.
+
             """
             raise ValueError("Asset failed")
 
@@ -351,6 +356,7 @@ class TestAssetExecution:
 
             Returns:
                 Empty list of records.
+
             """
             return []
 
@@ -427,6 +433,7 @@ class TestFixtureRecorder:
 
                 Yields:
                     dict[str, object]: Synthetic user rows.
+
                 """
                 yield {"id": 1, "name": "Alice"}
                 yield {"id": 2, "name": "Bob"}
@@ -453,6 +460,7 @@ class TestFixtureRecorder:
 
                 Yields:
                     dict[str, object]: Synthetic value row.
+
                 """
                 yield {"id": 1, "value": 42}
 
@@ -515,6 +523,7 @@ class TestIntegration:
 
             Returns:
                 DataFrame with partition column for assertions.
+
             """
             return pd.DataFrame(
                 {

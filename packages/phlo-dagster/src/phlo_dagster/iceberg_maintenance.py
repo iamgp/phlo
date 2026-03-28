@@ -1,8 +1,49 @@
-"""
-Iceberg table maintenance jobs and schedules for Dagster.
+"""Iceberg table maintenance jobs and schedules for Dagster.
 
-Provides scheduled maintenance operations including snapshot expiration,
-orphan file cleanup, and table statistics collection for Iceberg tables.
+This module provides scheduled and on-demand maintenance operations for
+Apache Iceberg tables through Dagster jobs and ops. It handles snapshot
+expiration, orphan file cleanup, and table statistics collection.
+
+Maintenance Operations:
+    - expire_table_snapshots: Remove old snapshots based on retention policy
+    - cleanup_orphan_files: Delete unreferenced data files (with dry-run support)
+    - collect_table_stats: Gather table metadata for monitoring and policy evaluation
+
+Jobs Provided:
+    - iceberg_maintenance_job: Runs all maintenance operations
+    - expire_snapshots_job: Snapshot expiration only
+    - orphan_cleanup_job: Orphan file cleanup only
+    - table_stats_job: Statistics collection only
+
+Schedule:
+    Default schedule runs full maintenance daily at 2 AM UTC (stopped by default).
+
+Safety Features:
+    - Dry-run mode for orphan file cleanup (orphan_dry_run=True)
+    - Destructive operation warnings in logs
+    - Table allowlist for targeted maintenance
+    - Error collection and reporting without failing entire job
+
+Configuration:
+    Uses MaintenanceConfig with fields:
+    - namespace: Target namespace (or "all")
+    - snapshot_retention_days: Age threshold for snapshots
+    - snapshot_retain_last: Minimum snapshots to keep
+    - orphan_retention_days: Age threshold for orphan files
+    - orphan_dry_run: List-only mode for orphan cleanup
+    - ref: Nessie branch reference
+
+Integration Requirements:
+    Requires phlo-iceberg package for table operations.
+
+Example:
+    Including maintenance in definitions::
+
+        from phlo_dagster.iceberg_maintenance import get_maintenance_definitions
+
+        maintenance_defs = get_maintenance_definitions()
+        defs = dg.Definitions.merge(your_defs, maintenance_defs)
+
 """
 
 from __future__ import annotations
@@ -27,7 +68,18 @@ logger = get_logger(__name__)
 
 
 def _load_iceberg_maintenance_functions() -> tuple[Any, Any, Any]:
-    """Load iceberg maintenance helpers lazily for optional integration support."""
+    """Load iceberg maintenance helpers lazily for optional integration support.
+
+    Args:
+        None
+
+    Returns:
+        Tuple of (expire_snapshots, get_table_stats, remove_orphan_files) functions.
+
+    Raises:
+        RuntimeError: If phlo-iceberg package is not available.
+
+    """
     try:
         from phlo_iceberg.tables import expire_snapshots, get_table_stats, remove_orphan_files
     except Exception as exc:  # noqa: BLE001 - runtime guidance for optional dependency
@@ -43,7 +95,19 @@ def expire_table_snapshots(
     context: dg.OpExecutionContext,
     config: MaintenanceConfig,
 ) -> dict[str, Any]:
-    """Expire old snapshots from all tables in the specified namespace."""
+    """Expire old snapshots from all tables in the specified namespace.
+
+    Args:
+        context: Dagster operation execution context.
+        config: Maintenance configuration.
+
+    Returns:
+        Summary dict with tables_processed, total_snapshots_deleted, errors.
+
+    Raises:
+        No explicit exceptions raised. Logs warnings on table failures.
+
+    """
     tables_processed = 0
     total_snapshots_deleted = 0
     errors: list[str] = []
@@ -114,12 +178,22 @@ def cleanup_orphan_files(
     context: dg.OpExecutionContext,
     config: MaintenanceConfig,
 ) -> dict[str, Any]:
-    """
-    Remove orphan files from all tables in the specified namespace.
+    """Remove orphan files from all tables in the specified namespace.
 
     WARNING: When orphan_dry_run=False, this operation permanently deletes files
     from storage. Always test with dry_run=True first and ensure no concurrent
     writes are happening during cleanup to avoid data loss.
+
+    Args:
+        context: Dagster operation execution context.
+        config: Maintenance configuration.
+
+    Returns:
+        Results dict with tables_processed, total_orphan_files, dry_run, errors.
+
+    Raises:
+        No explicit exceptions raised. Logs warnings on table failures.
+
     """
     tables_processed = 0
     total_orphan_files = 0
@@ -212,7 +286,19 @@ def collect_table_stats(
     context: dg.OpExecutionContext,
     config: MaintenanceConfig,
 ) -> dict[str, Any]:
-    """Collect statistics for all tables in the specified namespace."""
+    """Collect statistics for all tables in the specified namespace.
+
+    Args:
+        context: Dagster operation execution context.
+        config: Maintenance configuration.
+
+    Returns:
+        Results dict with tables, total_size_mb, total_records, errors.
+
+    Raises:
+        No explicit exceptions raised. Logs warnings on table failures.
+
+    """
     tables: list[dict[str, Any]] = []
     total_size_mb = 0.0
     total_records = 0
@@ -291,7 +377,18 @@ def collect_table_stats(
     ),
 )
 def iceberg_maintenance_job():
-    """Job that runs all maintenance operations: snapshot expiration, orphan file cleanup."""
+    """Job that runs all maintenance operations: snapshot expiration, orphan file cleanup.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised.
+
+    """
     expire_table_snapshots()
     cleanup_orphan_files()
     collect_table_stats()
@@ -301,7 +398,18 @@ def iceberg_maintenance_job():
     description="Expire old snapshots from Iceberg tables",
 )
 def expire_snapshots_job():
-    """Job that only expires snapshots."""
+    """Job that only expires snapshots.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised.
+
+    """
     expire_table_snapshots()
 
 
@@ -309,7 +417,18 @@ def expire_snapshots_job():
     description="Cleanup orphan files from Iceberg tables",
 )
 def orphan_cleanup_job():
-    """Job that only cleans up orphan files."""
+    """Job that only cleans up orphan files.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised.
+
+    """
     cleanup_orphan_files()
 
 
@@ -317,7 +436,18 @@ def orphan_cleanup_job():
     description="Collect statistics for all Iceberg tables",
 )
 def table_stats_job():
-    """Job that only collects table statistics."""
+    """Job that only collects table statistics.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised.
+
+    """
     collect_table_stats()
 
 
@@ -331,19 +461,19 @@ iceberg_maintenance_schedule = dg.ScheduleDefinition(
 
 
 def get_maintenance_definitions() -> dg.Definitions:
-    """
-    Get Dagster definitions for Iceberg maintenance.
+    """Get Dagster definitions for Iceberg maintenance.
 
     Returns definitions that can be merged into a project's main definitions.
 
-    Example:
-        ```python
-        from phlo_dagster.iceberg_maintenance import get_maintenance_definitions
+    Args:
+        None
 
-        # In your definitions file
-        maintenance_defs = get_maintenance_definitions()
-        defs = dg.Definitions.merge(your_defs, maintenance_defs)
-        ```
+    Returns:
+        Dagster Definitions containing maintenance jobs and schedules.
+
+    Raises:
+        No explicit exceptions raised.
+
     """
     logger.info(
         "dagster_iceberg_maintenance_definitions_built",

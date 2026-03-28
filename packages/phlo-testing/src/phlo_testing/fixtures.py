@@ -8,6 +8,7 @@ Example:
     >>> def test_my_asset(mock_iceberg_catalog, sample_partition_date):
     ...     # Use fixtures automatically
     ...     pass
+
 """
 
 from __future__ import annotations
@@ -44,6 +45,7 @@ def mock_iceberg_catalog() -> Iterator[MockIcebergCatalog]:
         ...         "raw.users",
         ...         schema=get_schema(),
         ...     )
+
     """
     catalog = MockIcebergCatalog()
     yield catalog
@@ -61,6 +63,7 @@ def mock_trino() -> Iterator[MockTrinoResource]:
         >>> def test_with_trino(mock_trino):
         ...     cursor = mock_trino.cursor()
         ...     cursor.execute("SELECT 1 as id")
+
     """
     trino = MockTrinoResource()
     yield trino
@@ -78,6 +81,7 @@ def mock_asset_context() -> Iterator[MockAssetContext]:
         >>> def test_with_context(mock_asset_context):
         ...     context.log("test message")
         ...     assert "test message" in context.logs
+
     """
     context = MockAssetContext()
     yield context
@@ -103,6 +107,7 @@ def mock_resources(
         >>> def test_with_resources(mock_resources):
         ...     table_store = mock_resources["table_store"]
         ...     trino = mock_resources["trino"]
+
     """
     return {
         "table_store": mock_iceberg_catalog,
@@ -123,6 +128,7 @@ def sample_partition_date() -> str:
     Example:
         >>> def test_asset(sample_partition_date):
         ...     assert sample_partition_date == "2024-01-15"
+
     """
     return "2024-01-15"
 
@@ -139,6 +145,7 @@ def sample_partition_range() -> tuple[str, str]:
         ...     start, end = sample_partition_range
         ...     # start = "2024-01-01"
         ...     # end = "2024-01-31"
+
     """
     start = "2024-01-01"
     end = "2024-01-31"
@@ -155,6 +162,7 @@ def sample_dlt_data() -> list[dict[str, Any]]:
     Example:
         >>> def test_ingestion(sample_dlt_data):
         ...     source = mock_dlt_source(sample_dlt_data)
+
     """
     return [
         {
@@ -186,6 +194,7 @@ def sample_dataframe() -> pd.DataFrame:
     Example:
         >>> def test_transform(sample_dataframe):
         ...     assert len(sample_dataframe) == 3
+
     """
     return pd.DataFrame(
         {
@@ -206,6 +215,7 @@ def mock_dlt_source_fixture(sample_dlt_data: list[dict]) -> MockDLTResource:
         >>> def test_with_source(mock_dlt_source_fixture):
         ...     for record in mock_dlt_source_fixture:
         ...         # Process record
+
     """
     return mock_dlt_source(sample_dlt_data, resource_name="test_data")
 
@@ -224,6 +234,7 @@ def temp_staging_dir() -> Iterator[Path]:
         >>> def test_with_temp_dir(temp_staging_dir):
         ...     parquet_file = temp_staging_dir / "data.parquet"
         ...     df.to_parquet(parquet_file)
+
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
@@ -239,6 +250,7 @@ def test_data_dir() -> Path:
     Example:
         >>> def test_with_data_dir(test_data_dir):
         ...     data_file = test_data_dir / "users.json"
+
     """
     # Find project root by looking for pyproject.toml
     current = Path(__file__).parent
@@ -267,6 +279,7 @@ def setup_test_catalog(
     Example:
         >>> def test_with_setup_catalog(setup_test_catalog):
         ...     table = setup_test_catalog.load_table("raw.users")
+
     """
     from pyiceberg.schema import Schema
     from pyiceberg.types import DoubleType, IntegerType, NestedField, StringType
@@ -298,6 +311,7 @@ def setup_test_trino(
         >>> def test_with_setup_trino(setup_test_trino):
         ...     cursor = setup_test_trino.cursor()
         ...     cursor.execute("SELECT * FROM test.sample_data")
+
     """
     mock_trino.load_table("test.sample_data", sample_dataframe)
     return mock_trino
@@ -314,6 +328,7 @@ def load_json_fixture(test_data_dir: Path) -> Callable[[str], Any]:
     Example:
         >>> def test_with_json(load_json_fixture):
         ...     data = load_json_fixture("users.json")
+
     """
 
     def _load_json(filename: str) -> Any:
@@ -335,6 +350,7 @@ def load_csv_fixture(test_data_dir: Path) -> Callable[[str], pd.DataFrame]:
     Example:
         >>> def test_with_csv(load_csv_fixture):
         ...     df = load_csv_fixture("users.csv")
+
     """
 
     def _load_csv(filename: str) -> pd.DataFrame:
@@ -360,6 +376,7 @@ def test_config() -> dict[str, Any]:
     Example:
         >>> def test_with_config(test_config, monkeypatch):
         ...     monkeypatch.setenv("PHLO_ENV", "test")
+
     """
     return {
         "environment": "test",
@@ -381,6 +398,7 @@ def session_temp_dir() -> Iterator[Path]:
     Example:
         >>> def test_with_session_dir(session_temp_dir):
         ...     # Shared across all tests in session
+
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
@@ -396,6 +414,7 @@ def session_catalog() -> Iterator[MockIcebergCatalog]:
     Example:
         >>> def test_with_session_catalog(session_catalog):
         ...     # Shared across all tests
+
     """
     catalog = MockIcebergCatalog()
     yield catalog
@@ -420,6 +439,7 @@ def create_partition_dates(start: str, end: str, step_days: int = 1) -> list[str
     Example:
         >>> dates = create_partition_dates("2024-01-01", "2024-01-31", step_days=7)
         >>> # ["2024-01-01", "2024-01-08", "2024-01-15", ...]
+
     """
     start_dt = datetime.fromisoformat(start)
     end_dt = datetime.fromisoformat(end)
@@ -443,5 +463,6 @@ def conftest_template() -> str:
 
     Returns:
         String content for conftest.py
+
     """
     return get_conftest_template()

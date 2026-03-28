@@ -305,6 +305,7 @@ class TestCatalogGenerator:
 
                 Returns:
                     PluginMetadata: Mock plugin metadata.
+
                 """
                 return PluginMetadata("mock", "1.0.0", "Mock catalog")
 
@@ -314,6 +315,7 @@ class TestCatalogGenerator:
 
                 Returns:
                     list[str]: Single Trino target.
+
                 """
                 return ["trino"]
 
@@ -323,6 +325,7 @@ class TestCatalogGenerator:
 
                 Returns:
                     str: Catalog identifier.
+
                 """
                 return "mock_catalog"
 
@@ -331,6 +334,7 @@ class TestCatalogGenerator:
 
                 Returns:
                     dict[str, str]: Connector property map.
+
                 """
                 return {"connector.name": "mock", "key": "value"}
 

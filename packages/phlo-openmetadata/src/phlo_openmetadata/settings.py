@@ -1,4 +1,15 @@
-"""OpenMetadata settings."""
+"""OpenMetadata settings configuration.
+
+Provides Pydantic-based configuration management for OpenMetadata integration,
+including server connection settings, authentication credentials, and sync options.
+
+Example:
+    >>> from phlo_openmetadata.settings import OpenMetadataSettings, get_settings
+    >>> settings = get_settings()
+    >>> settings.openmetadata_uri()
+    'http://openmetadata-server:8585/api'
+
+"""
 
 from __future__ import annotations
 
@@ -14,7 +25,33 @@ from phlo_openmetadata.capabilities import (
 
 
 class OpenMetadataSettings(BaseConfig):
-    """OpenMetadata integration configuration."""
+    """OpenMetadata integration configuration.
+
+    Manages all configuration settings for OpenMetadata integration including
+    connection parameters, authentication credentials, and sync behavior.
+
+    Attributes:
+        openmetadata_host: Server hostname.
+        openmetadata_port: Server port.
+        openmetadata_username: Authentication username.
+        openmetadata_password: Authentication password.
+        openmetadata_verify_ssl: SSL certificate verification flag.
+        openmetadata_service_name: Database service name.
+        openmetadata_service_type: Database service type.
+        openmetadata_catalog_scanner: Catalog scanner capability name.
+        openmetadata_query_engine: Query engine capability name.
+        openmetadata_database_name: Explicit database name.
+        openmetadata_dbt_manifest_path: Path to dbt manifest.json.
+        openmetadata_dbt_catalog_path: Path to dbt catalog.json.
+        openmetadata_sync_enabled: Enable automatic sync flag.
+        openmetadata_sync_interval_seconds: Minimum sync interval.
+
+    Example:
+        >>> settings = OpenMetadataSettings()
+        >>> settings.openmetadata_uri()
+        'http://openmetadata-server:8585/api'
+
+    """
 
     openmetadata_host: str = Field(
         default="openmetadata-server", description="OpenMetadata server hostname"
@@ -65,21 +102,40 @@ class OpenMetadataSettings(BaseConfig):
 
         Returns:
             str: Base API URI for OpenMetadata.
+
         """
         return f"http://{self.openmetadata_host}:{self.openmetadata_port}/api"
 
     def openmetadata_database(self) -> str:
         """Resolve the OpenMetadata database name.
 
+        Uses explicit configuration or discovers from query engine capability.
+
         Returns:
             str: Explicit OpenMetadata database name or discovered query-engine catalog.
+
+        Raises:
+            RuntimeError: If database name cannot be resolved from configuration
+                or query engine metadata.
+
         """
         if self.openmetadata_database_name:
             return self.openmetadata_database_name
         return resolve_query_engine_catalog(self.openmetadata_query_engine)
 
     def openmetadata_database_service_type(self) -> str:
-        """Resolve the OpenMetadata service type."""
+        """Resolve the OpenMetadata service type.
+
+        Uses explicit configuration or discovers from query engine capability.
+
+        Returns:
+            str: Service type for OpenMetadata (e.g., 'Trino', 'Snowflake').
+
+        Raises:
+            RuntimeError: If service type cannot be resolved from configuration
+                or query engine metadata.
+
+        """
         if self.openmetadata_service_type:
             return self.openmetadata_service_type
         return resolve_query_engine_service_type(self.openmetadata_query_engine)
@@ -89,7 +145,11 @@ class OpenMetadataSettings(BaseConfig):
 def get_settings() -> OpenMetadataSettings:
     """Get cached OpenMetadata settings.
 
+    Returns a cached instance to avoid repeated configuration loading.
+    The cache is limited to 1 entry as settings are typically global.
+
     Returns:
         OpenMetadataSettings: Cached OpenMetadata settings instance.
+
     """
     return OpenMetadataSettings()

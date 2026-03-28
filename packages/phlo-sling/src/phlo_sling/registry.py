@@ -1,4 +1,14 @@
-"""Registry for Sling replication table configurations."""
+"""Registry for Sling replication table configurations.
+
+This module defines data structures for representing Sling replication
+configurations within the Phlo platform. It provides both immutable
+configuration objects for runtime execution and Python-first definitions
+for programmatic asset discovery.
+
+Classes:
+    ReplicationConfig: Immutable configuration for a registered replication stream.
+    SlingReplication: Python-first definition for dynamic asset discovery.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +21,10 @@ from phlo_sling.settings import get_settings
 @dataclass(frozen=True)
 class ReplicationConfig:
     """Configuration describing a registered Sling replication stream.
+
+    This immutable dataclass represents the complete configuration for a
+    single Sling replication operation, including source and target connections,
+    replication mode, filtering, and options.
 
     Attributes:
         stream_name: Source stream identifier (e.g., 'public.users').
@@ -26,6 +40,18 @@ class ReplicationConfig:
         where: SQL WHERE clause for source filtering.
         source_options: Additional Sling source options.
         target_options: Additional Sling target options.
+
+    Example:
+        Create a replication config::
+
+            config = ReplicationConfig(
+                stream_name="public.users",
+                table_name="users",
+                source_conn="PHLO_POSTGRES",
+                mode="incremental",
+                update_key="updated_at",
+            )
+
     """
 
     stream_name: str
@@ -46,20 +72,75 @@ class ReplicationConfig:
     def full_table_name(self) -> str:
         """Return fully qualified table name with default namespace.
 
+        Combines the configured namespace with the table name to create
+        a fully qualified identifier for the target table.
+
         Returns:
-            Namespace-prefixed table name.
+            Namespace-prefixed table name (e.g., "raw.users").
+
         """
         return f"{get_settings().sling_default_namespace}.{self.table_name}"
 
     @property
     def asset_key(self) -> str:
-        """Return the Phlo asset key for this replication stream."""
+        """Return the Phlo asset key for this replication stream.
+
+        Generates a unique asset key for referencing this replication
+        within the Phlo orchestration system.
+
+        Returns:
+            Asset key string prefixed with "sling_" (e.g., "sling_users").
+
+        """
         return f"sling_{self.table_name}"
 
 
 @dataclass(frozen=True)
 class SlingReplication:
-    """Python-first replication definition for dynamic Sling asset discovery."""
+    """Python-first replication definition for dynamic Sling asset discovery.
+
+    This dataclass provides a programmatic way to define Sling replication
+    configurations when using the @phlo_sling_assets decorator. It supports
+    all the same options as the individual @phlo_sling_replication decorator
+    but allows for dynamic generation of multiple assets.
+
+    Attributes:
+        stream_name: Source stream identifier (e.g., 'public.users').
+        table_name: Target table name.
+        source_conn: Sling source connection name or URL.
+        target_conn: Sling target connection name or URL.
+        mode: Replication mode (full-refresh, incremental, snapshot, backfill).
+        primary_key: Column(s) used as primary key.
+        update_key: Column used as cursor for incremental replication.
+        group_name: Asset group name (overrides decorator default).
+        object: Target object path for file-based targets.
+        select: Column selection list.
+        where: SQL WHERE clause for source filtering.
+        source_options: Additional Sling source options.
+        target_options: Additional Sling target options.
+        description: Asset description.
+        owner: Asset owner identifier.
+        metadata: Additional asset metadata.
+        tags: Asset tags.
+
+    Example:
+        Use in a discovery function::
+
+            from phlo_sling import phlo_sling_assets, SlingReplication
+
+            @phlo_sling_assets(group="ingestion")
+            def discover_tables():
+                return [
+                    SlingReplication(
+                        stream_name="public.users",
+                        table_name="users",
+                        source_conn="PHLO_POSTGRES",
+                        mode="incremental",
+                        update_key="updated_at",
+                    ),
+                ]
+
+    """
 
     stream_name: str
     table_name: str

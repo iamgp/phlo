@@ -1,4 +1,15 @@
-"""Delta Lake settings."""
+"""Delta Lake settings and configuration management.
+
+This module provides configuration management for Delta Lake storage,
+including S3 endpoints, credentials, warehouse paths, and storage options.
+
+Example:
+    from phlo_delta.settings import get_settings
+
+    settings = get_settings()
+    storage_opts = settings.get_storage_options()
+
+"""
 
 from __future__ import annotations
 
@@ -12,7 +23,27 @@ from phlo.config.network import resolve_url
 
 
 class DeltaSettings(BaseConfig):
-    """Delta Lake storage configuration."""
+    """Delta Lake storage configuration.
+
+    This class manages all configuration settings for Delta Lake operations,
+    including S3 storage paths, endpoints, credentials, and behavior flags.
+
+    Attributes:
+        delta_warehouse_path: S3 URI path for Delta table storage.
+        delta_staging_path: S3 URI path for staging parquet files.
+        delta_default_namespace: Default database/schema namespace for tables.
+        delta_s3_endpoint: S3-compatible endpoint URL for Delta I/O operations.
+        delta_s3_access_key: Access key for S3 authentication.
+        delta_s3_secret_key: Secret key for S3 authentication.
+        delta_s3_region: AWS region for S3 operations.
+        delta_s3_allow_unsafe_rename: Flag to allow unsafe renames on S3 backends.
+
+    Example:
+        settings = DeltaSettings()
+        uri = settings.delta_warehouse_path
+        opts = settings.get_storage_options()
+
+    """
 
     delta_warehouse_path: str = Field(
         default="s3://lake/warehouse/delta", description="S3 path for Delta tables"
@@ -49,6 +80,15 @@ class DeltaSettings(BaseConfig):
     )
 
     def model_post_init(self, __context: Any) -> None:
+        """Post-initialization hook to resolve S3 endpoint URL.
+
+        Resolves the delta_s3_endpoint using the network URL resolver,
+        handling port environment variable substitution.
+
+        Args:
+            __context: Pydantic initialization context.
+
+        """
         if self.delta_s3_endpoint:
             resolved = resolve_url(self.delta_s3_endpoint, port_env_var="MINIO_API_PORT")
             object.__setattr__(self, "delta_s3_endpoint", resolved)
@@ -56,8 +96,18 @@ class DeltaSettings(BaseConfig):
     def get_storage_options(self) -> dict[str, str]:
         """Build deltalake storage options dict for S3 access.
 
+        Constructs a dictionary of storage options compatible with the
+        deltalake library's S3 I/O operations.
+
         Returns:
-            dict[str, str]: Storage options compatible with deltalake I/O.
+            dict[str, str]: Storage options containing AWS credentials,
+                endpoint URL, region, and safety flags.
+
+        Example:
+            settings = DeltaSettings()
+            opts = settings.get_storage_options()
+            # Returns: {"AWS_ACCESS_KEY_ID": "...", ...}
+
         """
         opts: dict[str, str] = {
             "AWS_ACCESS_KEY_ID": self.delta_s3_access_key,
@@ -76,7 +126,15 @@ class DeltaSettings(BaseConfig):
 def get_settings() -> DeltaSettings:
     """Get cached Delta Lake settings.
 
+    Returns a singleton instance of DeltaSettings, cached for performance.
+    The cached instance ensures consistent configuration across the application.
+
     Returns:
         DeltaSettings: Cached Delta Lake settings instance.
+
+    Example:
+        settings = get_settings()
+        path = settings.delta_warehouse_path
+
     """
     return DeltaSettings()

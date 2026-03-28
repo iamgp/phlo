@@ -1,8 +1,50 @@
-"""
-Policy models and evaluation for automated Iceberg table maintenance.
+"""Policy models and evaluation for automated Iceberg table maintenance.
 
-Defines threshold-based policies that determine when maintenance actions
-(snapshot expiration, file optimization) should be triggered for tables.
+This module defines the data models and evaluation logic for policy-driven
+Iceberg table maintenance. Policies specify thresholds that trigger maintenance
+operations like snapshot expiration and file optimization.
+
+Policy Types:
+    - ExpireSnapshotsPolicy: Thresholds for snapshot cleanup
+    - OptimizePolicy: Thresholds for file compaction
+    - NamespacePolicy: Complete policy scoped to a catalog namespace
+
+Thresholds:
+    - Snapshot expiration: snapshot_count_gt, older_than_days, retain_last
+    - File optimization: avg_file_size_mb_lt
+
+Evaluation Logic:
+    Table statistics are compared against policy thresholds to determine
+    required maintenance actions (TableAction). Multiple actions can be
+    triggered for a single table.
+
+Configuration:
+    Policies are loaded from YAML files with structure::
+
+        policies:
+          - namespace: raw
+            ref: main
+            expire:
+              snapshot_count_gt: 20
+              older_than_days: 7
+              retain_last: 5
+            optimize:
+              avg_file_size_mb_lt: 64.0
+
+Example:
+    Loading and evaluating policies::
+
+        from phlo_dagster.maintenance_policy import load_policies, evaluate_table
+
+        policies = load_policies("maintenance_policy.yaml")
+        for policy in policies:
+            for table in list_tables(policy.namespace, policy.ref):
+                stats = get_table_stats(table, policy.ref)
+                action = evaluate_table(table, stats, policy)
+                if action.expire_snapshots:
+                    # Trigger snapshot expiration
+                    pass
+
 """
 
 from __future__ import annotations
@@ -65,6 +107,7 @@ def evaluate_table(
 
     Returns:
         TableAction indicating which maintenance operations to run.
+
     """
     expire = False
     optimize = False
@@ -111,6 +154,7 @@ def load_policies(path: str | Path) -> list[NamespacePolicy]:
 
     Returns:
         List of parsed namespace policies.
+
     """
     try:
         import yaml

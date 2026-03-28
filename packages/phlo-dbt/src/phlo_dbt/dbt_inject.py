@@ -1,4 +1,28 @@
-"""Helpers to inject stable row identifiers into dbt-managed tables."""
+"""Helpers to inject stable row identifiers into dbt-managed tables.
+
+This module provides utilities for adding `_phlo_row_id` columns to dbt-generated
+tables. These stable identifiers enable reliable row-level tracking and lineage
+across the data pipeline, particularly useful for incremental processing and
+auditing.
+
+Example:
+    >>> from phlo_dbt.dbt_inject import inject_row_ids_to_table
+    >>> result = inject_row_ids_to_table(
+    ...     trino_connection=conn,
+    ...     catalog="iceberg",
+    ...     schema="marts",
+    ...     table="mrt_orders"
+    ... )
+    >>> print(f"Updated {result['rows_updated']} rows")
+    >>>
+    >>> # Or inject for all models from a dbt run
+    >>> from phlo_dbt.dbt_inject import inject_row_ids_for_dbt_run
+    >>> results = inject_row_ids_for_dbt_run(
+    ...     trino_connection=conn,
+    ...     run_results=run_results_data
+    ... )
+
+"""
 
 from __future__ import annotations
 
@@ -29,15 +53,41 @@ def inject_row_ids_to_table(
 ) -> dict[str, Any]:
     """Add `_phlo_row_id` to a table and backfill missing values.
 
+    Checks if the `_phlo_row_id` column exists in the specified table. If not,
+    adds the column and populates it with UUID values for all existing rows.
+    This provides stable row identifiers for lineage and auditing.
+
     Args:
         trino_connection: Open Trino connection used for DDL and DML statements.
-        catalog: Trino catalog name.
-        schema: Trino schema name.
-        table: Target table name.
-        context: Optional runtime context with a logger.
+            Must support cursor() method and execute() operations.
+        catalog: Trino catalog name (e.g., "iceberg").
+        schema: Trino schema name (e.g., "marts", "silver").
+        table: Target table name to modify.
+        context: Optional runtime context with a logger (e.g., Dagster context).
+            Used for structured logging during execution.
 
     Returns:
-        Result metadata including updated row count and whether the table was skipped.
+        Result metadata dictionary containing:
+            - rows_updated: Number of rows that received new IDs
+            - skipped: Boolean indicating if column already existed
+
+    Raises:
+        Exception: Any database errors during DDL or DML operations.
+
+    Example:
+        >>> import trino
+        >>> conn = trino.dbapi.connect(host="trino", port=8080, catalog="iceberg")
+        >>> result = inject_row_ids_to_table(
+        ...     trino_connection=conn,
+        ...     catalog="iceberg",
+        ...     schema="marts",
+        ...     table="mrt_orders"
+        ... )
+        >>> if result["skipped"]:
+        ...     print("Column already exists, no changes made")
+        ... else:
+        ...     print(f"Added IDs to {result['rows_updated']} rows")
+
     """
     cursor = trino_connection.cursor()
     logger_ = _resolve_logger(context)
@@ -112,14 +162,43 @@ def inject_row_ids_for_dbt_run(
 ) -> dict[str, Any]:
     """Inject `_phlo_row_id` into successful dbt model outputs.
 
+    Processes dbt run_results.json to identify successfully built models and
+    injects row IDs into each one. Uses model name prefixes to determine the
+    appropriate schema:
+    - stg_* -> silver
+    - dim_*, fct_* -> gold
+    - mrt_* -> marts
+    - others -> silver
+
     Args:
-        trino_connection: Open Trino connection used for table updates.
-        run_results: Parsed dbt `run_results.json` payload.
-        catalog: Trino catalog containing dbt target schemas.
-        context: Optional runtime context with a logger.
+        trino_connection: Open Trino connection for table operations.
+        run_results: Parsed dbt run_results.json payload containing execution results.
+        catalog: Trino catalog name (default: "iceberg").
+        context: Optional runtime context with logger for structured logging.
 
     Returns:
-        Mapping of model name to per-model injection result or error payload.
+        Mapping of model names to their injection results. Each entry contains
+        either the injection result dict or an error message if injection failed.
+
+    Example:
+        >>> import json
+        >>> from pathlib import Path
+        >>>
+        >>> run_results = json.loads(
+        ...     Path("target/run_results.json").read_text()
+        ... )
+        >>> results = inject_row_ids_for_dbt_run(
+        ...     trino_connection=conn,
+        ...     run_results=run_results,
+        ...     catalog="iceberg"
+        ... )
+        >>>
+        >>> for model, result in results.items():
+        ...     if "error" in result:
+        ...         print(f"{model}: FAILED - {result['error']}")
+        ...     else:
+        ...         print(f"{model}: {result['rows_updated']} rows updated")
+
     """
     results: dict[str, Any] = {}
 

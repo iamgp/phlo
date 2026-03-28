@@ -1,12 +1,22 @@
-"""
-Nessie catalog scanner for table discovery.
+"""Nessie catalog scanner for table discovery.
 
 This module provides a lightweight Nessie API client focused on catalog discovery:
 - namespaces (schemas)
 - tables within namespaces
 - per-table metadata payloads
 
-It deliberately does not know about any downstream metadata systems (e.g., OpenMetadata).
+The scanner supports fallback to Trino query engine when direct Nessie REST API
+calls fail. It deliberately does not know about any downstream metadata systems
+(e.g., OpenMetadata), maintaining separation of concerns.
+
+Example:
+    >>> from phlo_nessie.catalog_scanner import NessieTableScanner
+    >>> scanner = NessieTableScanner.from_config()
+    >>> catalog = scanner.scan_all_tables()
+
+Classes:
+    NessieTableScanner: Scan Nessie Iceberg REST catalog for namespaces and tables.
+
 """
 
 from __future__ import annotations
@@ -23,7 +33,24 @@ logger = get_logger(__name__)
 
 
 class NessieTableScanner:
-    """Scan Nessie Iceberg REST catalog for namespaces and tables."""
+    """Scan Nessie Iceberg REST catalog for namespaces and tables.
+
+    Provides a lightweight client for catalog discovery operations against
+    the Nessie REST API. Supports fallback to Trino query engine when
+    direct Nessie API calls fail.
+
+    Attributes:
+        nessie_uri: Base URI for Nessie Iceberg REST endpoint.
+        timeout_seconds: HTTP request timeout in seconds.
+        _scan_fallback_used: Flag indicating if Trino fallback was used.
+
+    Example:
+        >>> scanner = NessieTableScanner("http://nessie:19120/iceberg")
+        >>> catalog = scanner.scan_all_tables()
+        >>> for ns, tables in catalog.items():
+        ...     print(f"{ns}: {len(tables)} tables")
+
+    """
 
     def __init__(self, nessie_uri: str, timeout_seconds: int = 30):
         """Initialize scanner with Nessie base URI and request timeout.
@@ -31,6 +58,10 @@ class NessieTableScanner:
         Args:
             nessie_uri: Base URI for the Nessie Iceberg REST endpoint.
             timeout_seconds: HTTP request timeout in seconds.
+
+        Example:
+            >>> scanner = NessieTableScanner("http://nessie:19120/iceberg", timeout_seconds=60)
+
         """
         self.nessie_uri = nessie_uri.rstrip("/")
         self.timeout_seconds = timeout_seconds
@@ -42,6 +73,7 @@ class NessieTableScanner:
 
         Returns:
             NessieTableScanner: Configured scanner instance.
+
         """
         settings = get_settings()
         return cls(nessie_uri=settings.nessie_iceberg_rest_uri())
@@ -56,6 +88,7 @@ class NessieTableScanner:
 
         Returns:
             Any: Parsed JSON body, or empty dict when response body is empty.
+
         """
         url = f"{self.nessie_uri.rstrip('/')}/{endpoint.lstrip('/')}"
         response = requests.request(
@@ -68,7 +101,25 @@ class NessieTableScanner:
         return response.json() if response.text else {}
 
     def list_namespaces(self) -> list[dict[str, Any]]:
-        """List namespaces from Nessie."""
+        """List namespaces (schemas) from Nessie.
+
+        Retrieves all namespaces from the Nessie REST API. Falls back to
+        Trino query engine if the direct API call fails with 404.
+
+        Returns:
+            list[dict[str, Any]]: Namespace objects with 'namespace' key containing
+                a list of namespace path components.
+
+        Raises:
+            requests.HTTPError: On API errors other than 404.
+
+        Example:
+            >>> scanner = NessieTableScanner.from_config()
+            >>> namespaces = scanner.list_namespaces()
+            >>> print([ns['namespace'] for ns in namespaces])
+            [['raw'], ['bronze'], ['silver']]
+
+        """
         try:
             data = self._request("GET", "/v1/namespaces")
         except requests.HTTPError as exc:
@@ -95,7 +146,27 @@ class NessieTableScanner:
         return normalized
 
     def list_tables_in_namespace(self, namespace: str | list[str]) -> list[dict[str, Any]]:
-        """List all tables in a namespace."""
+        """List all tables in a namespace.
+
+        Retrieves table identifiers from a given namespace. Falls back to
+        Trino query engine if the direct API call fails with 404.
+
+        Args:
+            namespace: Namespace name as string or list of path components.
+
+        Returns:
+            list[dict[str, Any]]: Table objects with 'name' key.
+
+        Raises:
+            requests.HTTPError: On API errors other than 404.
+
+        Example:
+            >>> scanner = NessieTableScanner.from_config()
+            >>> tables = scanner.list_tables_in_namespace("raw")
+            >>> print([t['name'] for t in tables])
+            ['customers', 'orders', 'products']
+
+        """
         namespace_name = ".".join(namespace) if isinstance(namespace, list) else namespace
         try:
             data = self._request("GET", f"/v1/namespaces/{namespace_name}/tables")
@@ -123,7 +194,27 @@ class NessieTableScanner:
         return []
 
     def get_table_metadata(self, namespace: str, table_name: str) -> dict[str, Any] | None:
-        """Fetch table metadata payload from Nessie, or None if not found."""
+        """Fetch table metadata payload from Nessie.
+
+        Retrieves complete table metadata including schema, partitioning,
+        and properties. Falls back to Trino DESCRIBE if direct API fails.
+
+        Args:
+            namespace: Namespace containing the table.
+            table_name: Table identifier name.
+
+        Returns:
+            dict[str, Any] | None: Normalized table metadata, or None if not found.
+
+        Raises:
+            requests.HTTPError: On API errors other than 404.
+
+        Example:
+            >>> scanner = NessieTableScanner.from_config()
+            >>> meta = scanner.get_table_metadata("raw", "customers")
+            >>> print(meta.get('schema', {}).get('fields', []))
+
+        """
         try:
             data = self._request("GET", f"/v1/namespaces/{namespace}/tables/{table_name}")
             return self._normalize_table_metadata(table_name, data)
@@ -139,8 +230,16 @@ class NessieTableScanner:
     def _list_namespaces_via_trino(self) -> list[dict[str, Any]]:
         """List namespaces using Trino as a fallback path.
 
+        Falls back to Trino SHOW SCHEMAS when direct Nessie REST API
+        returns 404 or is unavailable.
+
         Returns:
             list[dict[str, Any]]: Namespace objects with ``namespace`` key.
+
+        Example:
+            >>> namespaces = scanner._list_namespaces_via_trino()
+            >>> print([ns['namespace'] for ns in namespaces])
+
         """
         trino = self._get_query_engine()
         if trino is None:
@@ -168,6 +267,11 @@ class NessieTableScanner:
 
         Returns:
             list[dict[str, Any]]: Table objects with ``name`` key.
+
+        Example:
+            >>> tables = scanner._list_tables_via_trino("raw")
+            >>> print([t['name'] for t in tables])
+
         """
         trino = self._get_query_engine()
         if trino is None:
@@ -199,6 +303,11 @@ class NessieTableScanner:
 
         Returns:
             dict[str, Any] | None: Normalized metadata when available.
+
+        Example:
+            >>> meta = scanner._get_table_metadata_via_trino("raw", "customers")
+            >>> print(meta.get('schema', {}).get('fields', []))
+
         """
         trino = self._get_query_engine()
         if trino is None:
@@ -230,8 +339,17 @@ class NessieTableScanner:
     def _get_query_engine(self) -> QueryEngine | None:
         """Return query engine used for fallback queries.
 
+        Resolves the query engine capability from settings, returning
+        None if no query engine is available.
+
         Returns:
             QueryEngine | None: Query engine provider instance, or ``None`` when unavailable.
+
+        Example:
+            >>> engine = scanner._get_query_engine()
+            >>> if engine:
+            ...     result = engine.execute("SELECT 1")
+
         """
         query_engine_name = get_settings().nessie_query_engine
         resolution = resolve_capability("query_engine", query_engine_name)
@@ -248,12 +366,21 @@ class NessieTableScanner:
     def _normalize_table_metadata(self, table_name: str, data: Any) -> dict[str, Any]:
         """Normalize Nessie table payload into a stable metadata shape.
 
+        Handles various Nessie API response formats and extracts schema,
+        location, and properties into a consistent structure.
+
         Args:
             table_name: Table identifier.
             data: Raw response payload from Nessie.
 
         Returns:
             dict[str, Any]: Normalized metadata payload.
+
+        Example:
+            >>> raw_data = {"metadata": {"schema": {"fields": [...]}}}
+            >>> normalized = scanner._normalize_table_metadata("customers", raw_data)
+            >>> print(normalized.get('schema'))
+
         """
         if not isinstance(data, dict):
             return {"name": table_name}
@@ -292,7 +419,20 @@ class NessieTableScanner:
         return normalized
 
     def _get_catalog_ref_for_logs(self) -> str | None:
-        """Infer Nessie catalog ref from URI path when present."""
+        """Infer Nessie catalog ref from URI path when present.
+
+        Parses the scanner's Nessie URI to extract the reference name
+        (branch/tag) for logging purposes.
+
+        Returns:
+            str | None: Catalog reference name, or None if not present in URI.
+
+        Example:
+            >>> scanner.nessie_uri = "http://nessie:19120/iceberg/main"
+            >>> ref = scanner._get_catalog_ref_for_logs()
+            'main'
+
+        """
         path = urlparse(self.nessie_uri).path.rstrip("/")
         if not path:
             return None
@@ -304,7 +444,29 @@ class NessieTableScanner:
         return path_parts[-1]
 
     def scan_all_tables(self) -> dict[str, list[dict[str, Any]]]:
-        """Return mapping of namespace -> tables list (as returned by Nessie)."""
+        """Return mapping of namespace -> tables list from Nessie.
+
+        Performs a complete catalog scan, discovering all namespaces and
+        their tables. Tracks whether fallback to Trino was used during scan.
+
+        Returns:
+            dict[str, list[dict[str, Any]]]: Mapping of namespace names to
+                lists of table metadata dictionaries.
+
+        Raises:
+            Exception: Propagates errors from underlying API calls.
+
+        Example:
+            >>> scanner = NessieTableScanner.from_config()
+            >>> catalog = scanner.scan_all_tables()
+            >>> for ns, tables in catalog.items():
+            ...     print(f"{ns}: {len(tables)} tables")
+
+        Note:
+            Check `scanner._scan_fallback_used` after scanning to determine
+            if Trino fallback was required.
+
+        """
         self._scan_fallback_used = False
         catalog_ref = self._get_catalog_ref_for_logs()
 

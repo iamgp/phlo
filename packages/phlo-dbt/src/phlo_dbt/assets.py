@@ -1,3 +1,17 @@
+"""dbt asset specification builders for Phlo.
+
+This module provides functionality to discover and build Phlo asset specifications
+from dbt project manifests. It handles manifest parsing, dependency resolution,
+and runtime execution of dbt models within the Phlo orchestration framework.
+
+Example:
+    >>> from phlo_dbt.assets import build_dbt_asset_specs
+    >>> specs = build_dbt_asset_specs()
+    >>> for spec in specs:
+    ...     print(f"Asset: {spec.key}, Group: {spec.group}")
+
+"""
+
 from __future__ import annotations
 
 import json
@@ -53,6 +67,7 @@ def _asset_deps(unique_id: str, nodes: Mapping[str, Any], asset_keys: dict[str, 
 
     Returns:
         Upstream asset keys for the node.
+
     """
     props = nodes.get(unique_id, {})
     depends_on = props.get("depends_on") or {}
@@ -83,6 +98,7 @@ def _run_dbt_model(
 
     Returns:
         Materialization results for the model run.
+
     """
     target = resolve_dbt_target_name(runtime)
     partition_key = runtime.partition_key
@@ -118,6 +134,7 @@ def build_dbt_asset_specs() -> list[AssetSpec]:
 
     Returns:
         Asset specs representing supported dbt nodes.
+
     """
     settings = get_settings()
 
@@ -218,6 +235,7 @@ def build_dbt_asset_specs() -> list[AssetSpec]:
 
             Returns:
                 Materialization results for the selected dbt model.
+
             """
             return _run_dbt_model(
                 model_name=model,

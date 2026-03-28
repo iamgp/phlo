@@ -1,4 +1,19 @@
-"""dbt settings."""
+"""dbt settings and configuration management.
+
+This module provides Pydantic-based configuration management for dbt integration
+within the Phlo platform. It handles query engine settings, project paths, and
+derived artifact locations.
+
+Example:
+    >>> from phlo_dbt.settings import get_settings, DbtSettings
+    >>> settings = get_settings()
+    >>> print(f"Project: {settings.dbt_project_path}")
+    >>> print(f"Catalog: {settings.dbt_query_catalog}")
+    >>>
+    >>> # Create custom settings
+    >>> custom = DbtSettings(dbt_query_catalog="analytics", dbt_query_threads=8)
+
+"""
 
 from __future__ import annotations
 
@@ -11,7 +26,38 @@ from phlo.config.base import BaseConfig
 
 
 class DbtSettings(BaseConfig):
-    """dbt project configuration."""
+    """dbt project configuration settings.
+
+    Pydantic-based configuration class that manages all dbt-related settings
+    including query engine connection parameters, project paths, and artifact
+    locations. Uses environment variables and .env files for configuration.
+
+    Attributes:
+        dbt_query_engine_type: Query engine adapter type (default: "trino").
+        dbt_query_host: Query engine hostname (default: "trino").
+        dbt_query_port: Query engine port (default: 8080).
+        dbt_query_catalog: Base catalog name (default: "iceberg").
+        dbt_query_schema: Default schema (default: "raw").
+        dbt_query_user: Database user (default: "dagster").
+        dbt_query_http_scheme: HTTP scheme (default: "http").
+        dbt_query_auth_method: Auth method (default: "none").
+        dbt_query_threads: Parallel threads (default: 2).
+        dbt_project_dir: Path to dbt project directory (default: "workflows/transforms/dbt").
+        dbt_manifest_path: Path to manifest.json (auto-derived if empty).
+        dbt_catalog_path: Path to catalog.json (auto-derived if empty).
+
+    Example:
+        >>> settings = DbtSettings(
+        ...     dbt_query_catalog="analytics",
+        ...     dbt_query_threads=8,
+        ...     dbt_project_dir="custom/path"
+        ... )
+        >>> print(settings.dbt_project_path)
+        PosixPath('custom/path')
+        >>> print(settings.dbt_profiles_path)
+        PosixPath('custom/path/profiles')
+
+    """
 
     dbt_query_engine_type: str = Field(
         default="trino",
@@ -68,6 +114,7 @@ class DbtSettings(BaseConfig):
 
         Args:
             __context: Pydantic post-init context.
+
         """
         if not self.dbt_manifest_path:
             object.__setattr__(
@@ -85,6 +132,7 @@ class DbtSettings(BaseConfig):
 
         Returns:
             Profiles directory under the dbt project directory.
+
         """
         return f"{self.dbt_project_dir}/profiles"
 
@@ -94,6 +142,7 @@ class DbtSettings(BaseConfig):
 
         Returns:
             Filesystem path to the dbt project root.
+
         """
         return Path(self.dbt_project_dir)
 
@@ -103,6 +152,7 @@ class DbtSettings(BaseConfig):
 
         Returns:
             Filesystem path to the dbt profiles directory.
+
         """
         return Path(self.dbt_profiles_dir)
 
@@ -113,5 +163,6 @@ def get_settings() -> DbtSettings:
 
     Returns:
         Singleton dbt settings instance.
+
     """
     return DbtSettings()

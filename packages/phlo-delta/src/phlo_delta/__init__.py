@@ -1,3 +1,21 @@
+"""Phlo Delta Lake package for Delta Lake table format support.
+
+This package provides Delta Lake table storage capabilities for Phlo,
+including table management, schema conversion, schema migration, and
+resource provider integration.
+
+Example:
+    from phlo_delta import DeltaResource, get_settings
+
+    settings = get_settings()
+    resource = DeltaResource()
+    table = resource.get_table("raw.events")
+
+Attributes:
+    __all__: Public API exports for the package.
+
+"""
+
 from phlo_delta.plugin import DeltaResourceProvider
 from phlo_delta.resource import DeltaResource
 from phlo_delta.schema_conversion import SchemaConversionError, pandera_to_delta

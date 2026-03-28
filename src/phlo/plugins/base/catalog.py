@@ -1,5 +1,4 @@
-"""
-Catalog plugin classes.
+"""Catalog plugin classes.
 
 This module defines plugin types for catalog configuration.
 """
@@ -13,8 +12,7 @@ from phlo.plugins.base.plugin import Plugin
 
 
 class CatalogPlugin(Plugin, ABC):
-    """
-    Base class for engine-agnostic catalog plugins.
+    """Base class for engine-agnostic catalog plugins.
 
     Catalog plugins define logical catalog configuration that engine adapters
     serialize into their native formats (files or programmatic config).
@@ -44,13 +42,13 @@ class CatalogPlugin(Plugin, ABC):
                     "catalog.uri": "http://catalog:1234",
                 }
         ```
+
     """
 
     @property
     @abstractmethod
     def targets(self) -> list[str]:
-        """
-        Return engine identifiers that can consume this catalog.
+        """Return engine identifiers that can consume this catalog.
 
         Examples: ["trino"], ["spark"], ["trino", "spark"].
         """
@@ -58,19 +56,18 @@ class CatalogPlugin(Plugin, ABC):
     @property
     @abstractmethod
     def catalog_name(self) -> str:
-        """
-        Return the catalog name.
+        """Return the catalog name.
 
         This becomes the catalog identifier in the engine.
         """
 
     @abstractmethod
     def get_properties(self) -> dict[str, Any]:
-        """
-        Return catalog configuration as key-value pairs.
+        """Return catalog configuration as key-value pairs.
 
         Returns:
             Dictionary of config key -> value
+
         """
 
     def supports_target(self, target: str) -> bool:

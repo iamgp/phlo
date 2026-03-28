@@ -1,4 +1,22 @@
-"""ClickHouse service and resource plugin package."""
+"""ClickHouse service and resource plugin package.
+
+This package provides ClickHouse integration for the Phlo data platform,
+including service plugins, resource providers, CLI commands, and configuration
+tools for managing ClickHouse databases.
+
+Example:
+    Basic usage of the ClickHouse package:
+
+    >>> from phlo_clickhouse import ClickHouseResource, get_settings
+    >>> settings = get_settings()
+    >>> resource = ClickHouseResource()
+    >>> resource.execute("SELECT 1")
+    [[1]]
+
+Attributes:
+    __version__: Package version string.
+
+"""
 
 from phlo_clickhouse.plugin import (
     ClickHouseResourceProvider,

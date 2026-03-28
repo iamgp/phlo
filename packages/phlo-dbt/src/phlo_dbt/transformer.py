@@ -1,3 +1,32 @@
+"""dbt transformer implementation for Phlo orchestration.
+
+This module provides the DbtTransformer class which executes dbt commands
+within the Phlo transformation framework. It handles dbt build execution,
+event emission for lineage and telemetry, and result parsing.
+
+Example:
+    >>> from phlo_dbt.transformer import DbtTransformer
+    >>> from pathlib import Path
+    >>>
+    >>> transformer = DbtTransformer(
+    ...     context=dagster_context,
+    ...     logger=logger,
+    ...     project_dir=Path("workflows/transforms/dbt"),
+    ...     profiles_dir=Path("workflows/transforms/dbt/profiles"),
+    ...     target="prod"
+    ... )
+    >>>
+    >>> result = transformer.run_transform(
+    ...     partition_key="2024-01-01",
+    ...     parameters={"select": ["mrt_orders"]}
+    ... )
+    >>>
+    >>> print(f"Status: {result.status}")
+    >>> print(f"Models built: {result.models_built}")
+    >>> print(f"Tests passed: {result.tests_passed}")
+
+"""
+
 from __future__ import annotations
 
 import json
@@ -50,6 +79,7 @@ def _resource_type_for_result(result: Mapping[str, Any]) -> str:
 
     Returns:
         Resource type value, or an empty string if unavailable.
+
     """
     resource_type = result.get("resource_type")
     if isinstance(resource_type, str) and resource_type:
@@ -68,6 +98,7 @@ def _parse_run_results_counts(payload: Mapping[str, Any]) -> dict[str, int] | No
 
     Returns:
         Count mapping when parseable; otherwise ``None``.
+
     """
     results = payload.get("results")
     if not isinstance(results, list):
@@ -114,6 +145,7 @@ def _read_run_results_counts(path: Path) -> dict[str, int] | None:
 
     Returns:
         Parsed count mapping when available; otherwise ``None``.
+
     """
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -132,6 +164,7 @@ def _latest_project_mtime(dbt_project_path: Path) -> float:
 
     Returns:
         Unix timestamp of the newest relevant file modification.
+
     """
     candidates: list[Path] = [
         dbt_project_path / "dbt_project.yml",
@@ -171,6 +204,7 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
 
     Returns:
         ``True`` when a valid manifest is present after checks/compile.
+
     """
     manifest_path = dbt_project_path / "target" / "manifest.json"
     ensure_dbt_profile(profiles_path)
@@ -234,6 +268,7 @@ def _emit_dbt_lineage(
         lineage_emitter: Lineage event emitter instance.
         logger: Logger used for warning output.
         reader: JSON loader callable for manifest text.
+
     """
     manifest = load_dbt_manifest(manifest_path)
     if manifest is None:
@@ -250,9 +285,47 @@ def _emit_dbt_lineage(
 
 
 class DbtTransformer(BaseTransformer):
-    """
-    Phlo Transformer implementation for dbt.
-    Encapsulates dbt execution logic and Phlo event emission.
+    """Phlo Transformer implementation for dbt.
+
+    Encapsulates dbt execution logic and Phlo event emission. This class
+    handles:
+    - dbt command execution (build, compile, docs generate)
+    - Profile and target management
+    - Partition-aware execution
+    - Event emission for lineage, telemetry, and transform tracking
+    - Result parsing and transformation result creation
+
+    The transformer integrates with Phlo's hook system to emit events for
+    lineage tracking, performance metrics, and execution monitoring. It
+    supports both local and containerized dbt execution environments.
+
+    Attributes:
+        context: Execution context from the orchestrator.
+        project_dir: Path to the dbt project directory.
+        profiles_dir: Path to the dbt profiles directory.
+        target: dbt target profile name (default: "dev").
+        dbt_executable: dbt binary name or path (default: "dbt").
+
+    Example:
+        >>> transformer = DbtTransformer(
+        ...     context=dagster_context,
+        ...     logger=logger,
+        ...     project_dir=Path("/app/workflows/transforms/dbt"),
+        ...     profiles_dir=Path("/app/profiles"),
+        ...     target="prod"
+        ... )
+        >>>
+        >>> # Run specific models
+        >>> result = transformer.run_transform(
+        ...     partition_key="2024-01-01",
+        ...     parameters={"select": ["mrt_orders", "mrt_customers"]}
+        ... )
+        >>>
+        >>> # Check results
+        >>> if result.status == "success":
+        ...     print(f"Built {result.models_built} models")
+        ...     print(f"Passed {result.tests_passed} tests")
+
     """
 
     def __init__(
@@ -273,6 +346,7 @@ class DbtTransformer(BaseTransformer):
             profiles_dir: dbt profiles directory.
             target: dbt target profile name.
             dbt_executable: dbt binary name or path.
+
         """
         super().__init__(context, logger)
         self.project_dir = project_dir
@@ -328,6 +402,7 @@ class DbtTransformer(BaseTransformer):
 
         Returns:
             Completed subprocess result.
+
         """
         full_env = os.environ.copy()
         if env:
@@ -364,6 +439,7 @@ class DbtTransformer(BaseTransformer):
 
         Returns:
             Transformation result containing status, counts, and metadata.
+
         """
         parameters = parameters or {}
         select_args = parameters.get("select", [])

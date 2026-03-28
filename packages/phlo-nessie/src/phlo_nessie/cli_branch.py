@@ -1,10 +1,26 @@
-"""
-Nessie branch management CLI commands.
+"""Nessie branch management CLI commands.
 
-Provides commands to:
-- List, create, delete branches
-- Merge branches with conflict detection
-- Show branch differences
+This module provides CLI commands for managing Nessie branches, including:
+- Listing, creating, and deleting branches
+- Merging branches with conflict detection
+- Showing branch differences and diffs
+
+The CLI uses pynessie client library when available and provides fallback
+direct HTTP API calls for operations not supported by the client.
+
+Example:
+    $ phlo branch list
+    $ phlo branch create feature/new-model --from main
+    $ phlo branch merge feature/new-model main --dry-run
+    $ phlo branch diff feature/new-model main
+
+Commands:
+    list: List all branches with optional tag inclusion.
+    create: Create a new branch from an existing reference.
+    delete: Delete a branch with optional force flag.
+    merge: Merge source branch into target branch.
+    diff: Show differences between two branches.
+
 """
 
 import builtins
@@ -24,13 +40,37 @@ logger = get_logger(__name__)
 
 
 class _ReferenceLike(Protocol):
-    """Structural type for pynessie references used by this CLI."""
+    """Structural type for pynessie references used by this CLI.
+
+    Defines the minimal interface required for branch/tag references
+    across different pynessie client versions.
+
+    Attributes:
+        name: Reference name (branch or tag identifier).
+
+    """
 
     name: str
 
 
 def _list_references(client) -> list[_ReferenceLike]:
-    """Return a normalized reference list across pynessie client versions."""
+    """Return a normalized reference list across pynessie client versions.
+
+    Handles API variations where references may be wrapped in a 'references'
+    attribute or returned as a direct list.
+
+    Args:
+        client: Initialized pynessie client instance.
+
+    Returns:
+        list[_ReferenceLike]: Normalized list of reference objects.
+
+    Example:
+        >>> client = get_nessie_client()
+        >>> refs = _list_references(client)
+        >>> print([ref.name for ref in refs])
+
+    """
     references = client.list_references()
     if hasattr(references, "references"):
         return builtins.list(references.references)
@@ -38,12 +78,43 @@ def _list_references(client) -> list[_ReferenceLike]:
 
 
 def _ref_hash(ref: object) -> str | None:
-    """Return reference hash across pynessie model variants."""
-    return getattr(ref, "hash", None) or getattr(ref, "hash_", None)
+    """Return reference hash across pynessie model variants.
+
+    Handles attribute naming differences (hash vs hash_) in different
+    pynessie versions.
+
+    Args:
+        ref: Reference object from pynessie client.
+
+    Returns:
+        str | None: Commit hash if available, None otherwise.
+
+    Example:
+        >>> ref = _list_references(client)[0]
+        >>> hash = _ref_hash(ref)
+        'abc123def...'
+
+    """
 
 
 def get_nessie_client():
-    """Get Nessie client configured from settings."""
+    """Get Nessie client configured from settings.
+
+    Initializes and returns a pynessie client instance using the
+    configured Nessie URI. Handles import errors and connection failures
+    with informative error messages.
+
+    Returns:
+        Client: Initialized pynessie client instance.
+
+    Raises:
+        click.ClickException: If pynessie is not installed or connection fails.
+
+    Example:
+        >>> client = get_nessie_client()
+        >>> refs = client.list_references()
+
+    """
     logger.debug("nessie_branch_client_init_requested")
     try:
         from pynessie import init
@@ -83,8 +154,7 @@ def branch():
     help="Output format",
 )
 def list(all: bool, format: str):
-    """
-    List all branches.
+    """List all branches.
 
     Shows branch name, head commit hash, and default branch indicator.
 
@@ -92,6 +162,7 @@ def list(all: bool, format: str):
         phlo branch list
         phlo branch list --all
         phlo branch list --format json
+
     """
     logger.info(
         "nessie_branch_list_requested",
@@ -175,14 +246,14 @@ def list(all: bool, format: str):
     help="Create branch from reference (default: main)",
 )
 def create(branch_name: str, from_ref: str):
-    """
-    Create a new branch.
+    """Create a new branch.
 
     Creates branch from specified reference (default: main).
 
     Examples:
         phlo branch create feature/new-model
         phlo branch create feature/experiment --from dev
+
     """
     logger.info(
         "nessie_branch_create_requested",
@@ -262,14 +333,14 @@ def create(branch_name: str, from_ref: str):
     help="Force delete non-empty branch",
 )
 def delete(branch_name: str, force: bool):
-    """
-    Delete a branch.
+    """Delete a branch.
 
     Prevents accidental deletion of non-empty branches unless --force is used.
 
     Examples:
         phlo branch delete feature/old-branch
         phlo branch delete feature/failed --force
+
     """
     logger.info(
         "nessie_branch_delete_requested",
@@ -347,8 +418,7 @@ def delete(branch_name: str, force: bool):
     help="Keep source branch after merge",
 )
 def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_source: bool):
-    """
-    Merge source branch into target branch.
+    """Merge source branch into target branch.
 
     Detects conflicts and shows merge preview in dry-run mode.
 
@@ -356,6 +426,7 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
         phlo branch merge feature/new-model main
         phlo branch merge feature/new-model main --dry-run
         phlo branch merge dev main --no-delete-source
+
     """
     logger.info(
         "nessie_branch_merge_requested",
@@ -492,14 +563,14 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
     help="Output format",
 )
 def diff(source_branch: str, target_branch: str, format: str):
-    """
-    Show differences between branches.
+    """Show differences between branches.
 
     Lists tables that were added, modified, or deleted.
 
     Examples:
         phlo branch diff feature/new-model main
         phlo branch diff dev main --format json
+
     """
     logger.info(
         "nessie_branch_diff_requested",

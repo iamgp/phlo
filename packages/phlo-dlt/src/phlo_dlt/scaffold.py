@@ -1,7 +1,63 @@
-"""
-Workflow Scaffolding
+"""Workflow Scaffolding.
 
-Generates Phlo workflow files from templates.
+Generates Phlo workflow files from templates for DLT-based ingestion.
+This module provides the scaffolding logic used by the CLI to create
+initial file structures for new data pipelines.
+
+Key Functions:
+    - :func:`create_ingestion_workflow`: Main scaffolding function
+    - :func:`parse_field_specs`: Parse CLI field specifications
+
+Helper Functions:
+    - :func:`_to_snake_case`: Convert string to snake_case
+    - :func:`_to_pascal_case`: Convert string to PascalCase
+
+Data Structures:
+    - :class:`FieldSpec`: Parsed field specification dataclass
+
+Type Mappings:
+    The following type names are supported in field specifications:
+    - ``str``: String type
+    - ``int``: Integer type
+    - ``float``: Float type
+    - ``bool``: Boolean type
+    - ``datetime``: datetime.datetime (requires import)
+    - ``date``: datetime.date (requires import)
+
+Field Specification Syntax:
+    Fields are specified as ``name:type`` with optional modifiers:
+    - ``name:type``: Required field
+    - ``name:type?``: Nullable field
+    - ``name:type!``: Required field (explicit)
+
+Generated Files:
+    1. Schema file (``workflows/schemas/{domain}.py``):
+       Pandera DataFrameModel with field definitions
+    2. Asset file (``workflows/ingestion/{domain}/{table}.py``):
+       DLT ingestion asset with REST API source template
+    3. Test file (``tests/test_{domain}_{table}.py``):
+       Unit tests for schema validation
+
+See Also:
+    - :mod:`phlo_dlt.cli_workflow`: CLI command that uses this module
+    - :mod:`phlo_dlt.decorator`: The @phlo_ingestion decorator used in templates
+    - Pandera documentation: https://pandera.readthedocs.io/
+
+Example:
+    ```python
+    from phlo_dlt.scaffold import create_ingestion_workflow
+
+    files = create_ingestion_workflow(
+        domain="weather",
+        table_name="observations",
+        unique_key="station_id",
+        cron="0 */6 * * *",
+        api_base_url="https://api.weather.com/v1",
+        fields=["temperature:float", "humidity:float?", "recorded_at:datetime!"],
+    )
+    # Returns: ["workflows/schemas/weather.py", "workflows/ingestion/weather/observations.py", ...]
+    ```
+
 """
 
 from __future__ import annotations
@@ -13,14 +69,58 @@ from typing import List, Optional
 
 
 def _to_snake_case(name: str) -> str:
-    """Convert string to snake_case."""
+    """Convert string to snake_case.
+
+    Transforms a string into snake_case format by:
+    1. Replacing spaces and hyphens with underscores
+    2. Inserting underscores between camelCase transitions
+    3. Converting to lowercase
+
+    Args:
+        name: Input string to convert.
+
+    Returns:
+        str: The snake_case version of the input.
+
+    Example:
+        ```python
+        from phlo_dlt.scaffold import _to_snake_case
+
+        _to_snake_case("WeatherData")  # "weather_data"
+        _to_snake_case("API-Response")  # "api_response"
+        _to_snake_case("some name")  # "some_name"
+        ```
+
+    """
     name = re.sub(r"[\s-]+", "_", name)
     name = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
     return name.lower()
 
 
 def _to_pascal_case(name: str) -> str:
-    """Convert string to PascalCase."""
+    """Convert string to PascalCase.
+
+    Transforms a string into PascalCase format by:
+    1. Splitting on underscores, spaces, or hyphens
+    2. Capitalizing each word
+    3. Joining without separators
+
+    Args:
+        name: Input string to convert.
+
+    Returns:
+        str: The PascalCase version of the input.
+
+    Example:
+        ```python
+        from phlo_dlt.scaffold import _to_pascal_case
+
+        _to_pascal_case("weather_data")  # "WeatherData"
+        _to_pascal_case("api-response")  # "ApiResponse"
+        _to_pascal_case("some name")  # "SomeName"
+        ```
+
+    """
     words = re.split(r"[_\s-]+", name)
     return "".join(word.capitalize() for word in words)
 
@@ -29,10 +129,21 @@ def _to_pascal_case(name: str) -> str:
 class FieldSpec:
     """Structured representation of a scaffold field declaration.
 
+    Immutable dataclass representing a parsed field specification with
+    normalized name, type, and nullability information.
+
     Attributes:
         name: Normalized snake_case field name.
-        type_name: Primitive field type name.
-        nullable: Whether the field is nullable.
+        type_name: Primitive field type name (str, int, float, bool, datetime, date).
+        nullable: Whether the field is nullable (True for ? modifier).
+
+    Example:
+        ```python
+        from phlo_dlt.scaffold import FieldSpec
+
+        spec = FieldSpec(name="user_id", type_name="str", nullable=False)
+        ```
+
     """
 
     name: str
@@ -53,14 +164,33 @@ _TYPE_IMPORTS: dict[str, tuple[str, str] | None] = {
 def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
     """Parse raw CLI field specifications.
 
+    Parses field specifications from CLI input into structured FieldSpec objects.
+    Validates type names and normalizes field names to snake_case.
+
     Args:
         raw_specs: Field specs in ``name:type``, ``name:type?``, or ``name:type!`` form.
+            Examples: "user_id:str", "age:int?", "email:str!"
 
     Returns:
-        Parsed and normalized field specs.
+        list[FieldSpec]: Parsed and normalized field specs.
 
     Raises:
-        ValueError: If any field spec format or type is invalid.
+        ValueError: If any field spec format is invalid or type is not recognized.
+
+    Field Specification Format:
+        - ``name:type``: Required field (implicit)
+        - ``name:type?``: Nullable field
+        - ``name:type!``: Required field (explicit)
+        - Type must be one of: str, int, float, bool, datetime, date
+
+    Example:
+        ```python
+        from phlo_dlt.scaffold import parse_field_specs
+
+        specs = parse_field_specs(["user_id:str", "age:int?", "email:str!"])
+        # Returns: [FieldSpec("user_id", "str", False), FieldSpec("age", "int", True), ...]
+        ```
+
     """
     if not raw_specs:
         return []
@@ -106,10 +236,53 @@ def create_ingestion_workflow(
     api_base_url: Optional[str] = None,
     fields: list[str] | None = None,
 ) -> List[str]:
-    """
-    Create ingestion workflow files.
+    """Create ingestion workflow files.
 
-    Creates files in workflows/ and tests/ for the current project.
+    Generates a complete ingestion workflow scaffold including:
+    1. Pandera schema definition file
+    2. DLT ingestion asset file
+    3. Unit test file
+
+    Creates files in workflows/ and tests/ directories relative to
+    the current working directory.
+
+    Args:
+        domain: Domain/category name (e.g., "weather", "stripe"). Used for
+            directory structure and group naming.
+        table_name: Target table name. Will be used for asset naming and
+            file naming.
+        unique_key: Column name to use for deduplication and merge operations.
+        cron: Cron schedule expression for automated runs.
+            Default: "0 */1 * * *" (hourly).
+        api_base_url: Optional REST API base URL for the data source.
+            If not provided, asset will raise RuntimeError until configured.
+        fields: List of additional field specifications in "name:type" format.
+            Example: ["temperature:float", "humidity:float?"]
+
+    Returns:
+        List[str]: Paths to created files (relative to project root):
+            - workflows/schemas/{domain}.py
+            - workflows/ingestion/{domain}/{table}.py
+            - tests/test_{domain}_{table}.py
+
+    Raises:
+        FileExistsError: If any of the target files already exist.
+
+    Example:
+        ```python
+        from phlo_dlt.scaffold import create_ingestion_workflow
+
+        files = create_ingestion_workflow(
+            domain="weather",
+            table_name="observations",
+            unique_key="station_id",
+            cron="0 */6 * * *",
+            api_base_url="https://api.weather.com/v1",
+            fields=["temperature:float", "humidity:float?", "recorded_at:datetime"],
+        )
+        print(f"Created: {files}")
+        ```
+
     """
     domain_snake = _to_snake_case(domain)
     table_snake = _to_snake_case(table_name)

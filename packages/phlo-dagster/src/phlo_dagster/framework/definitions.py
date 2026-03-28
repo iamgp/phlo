@@ -1,10 +1,56 @@
-"""
-Framework Definitions
+"""Framework definitions builder for Phlo-Dagster projects.
 
-This module provides the main Dagster Definitions entry point for user projects.
-It discovers user workflows and merges them with core Phlo framework resources.
+This module provides the primary entry point for building Dagster Definitions
+in Phlo projects. It orchestrates the discovery of user workflows, merges them
+with framework-provided resources, and configures executor and sensor settings.
 
-This is the entry point for user projects using Phlo as an installable package.
+Building Process:
+    1. Setup logging and load configuration
+    2. Discover user workflows from configured path
+    3. Optionally refresh schema contracts
+    4. Collect Dagster extension definitions from plugins
+    5. Collect WAP (Write-Audit-Publish) definitions if catalog supports refs
+    6. Merge all definition sources
+    7. Ensure core resources (Trino, etc.)
+    8. Select appropriate executor based on platform
+    9. Return final Definitions object
+
+Integration Points:
+    - User workflows: Imported from workflows/ directory
+    - Extensions: Discovered via phlo.plugins.dagster entry_points
+    - WAP sensors: Optional, requires VersionedCatalog capability
+    - Core resources: Trino connection, logging, etc.
+
+Executor Selection:
+    Platform-aware selection with priority:
+    1. PHLO_FORCE_IN_PROCESS_EXECUTOR (override)
+    2. PHLO_FORCE_MULTIPROCESS_EXECUTOR (override)
+    3. PHLO_HOST_PLATFORM detection
+    4. platform.system() fallback
+
+    Darwin/macOS defaults to in-process for Docker Desktop compatibility.
+
+Entry Points:
+    - build_definitions(): Programmatic entry point
+    - defs: Global Definitions instance for Dagster to load
+
+    Configured in workspace.yaml::
+
+        load_from:
+          - python_module:
+              module_name: phlo_dagster.framework.definitions
+
+Example:
+    Basic usage::
+
+        from phlo_dagster.framework.definitions import build_definitions
+
+        defs = build_definitions()
+
+    Custom workflows path::
+
+        defs = build_definitions(workflows_path="custom_workflows")
+
 """
 
 from __future__ import annotations
@@ -31,7 +77,18 @@ logger = get_logger(__name__)
 
 
 def _collect_wap_definitions() -> dg.Definitions | None:
-    """Load WAP sensors when a versioned catalog capability is available."""
+    """Load WAP sensors when a versioned catalog capability is available.
+
+    Args:
+        None
+
+    Returns:
+        Dagster Definitions containing WAP sensors, or None if WAP is not available.
+
+    Raises:
+        No explicit exceptions raised. Logs warnings for incompatible providers.
+
+    """
     resolution = resolve_capability("catalog")
     if resolution is None:
         return None
@@ -81,6 +138,7 @@ def _default_executor() -> dg.ExecutorDefinition | None:
 
     Returns:
         Executor definition or None to use default
+
     """
     settings = get_settings()
 
@@ -146,6 +204,7 @@ def build_definitions(
 
         defs = build_definitions()
         ```
+
     """
     setup_logging()
     settings = get_settings()

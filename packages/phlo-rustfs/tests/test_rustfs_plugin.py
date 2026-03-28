@@ -1,10 +1,34 @@
-"""Tests for RustFS service plugin."""
+"""Tests for RustFS service plugin.
+
+This module contains comprehensive tests for the RustFS service and resource
+provider plugins. Tests validate service definitions, plugin metadata, and
+object store capability exposure.
+
+Functions:
+    test_rustfs_service_definition: Validates RustFS service definition fields.
+    test_rustfs_plugin_metadata: Validates RustFS plugin metadata.
+    test_rustfs_setup_service_definition: Validates setup service definition.
+    test_rustfs_setup_plugin_metadata: Validates setup plugin metadata.
+    test_rustfs_resource_provider_exposes_object_store: Tests object store capability.
+"""
 
 from phlo_rustfs.plugin import RustfsResourceProvider, RustfsServicePlugin, RustfsSetupServicePlugin
 
 
 def test_rustfs_service_definition():
-    """Validate RustFS service definition fields."""
+    """Validate RustFS service definition fields.
+
+    Verifies that the RustfsServicePlugin returns a valid service definition
+    with the expected name, category, and dependencies. Checks the Docker
+    image reference and service dependency declarations.
+
+    Asserts:
+        - service_definition["name"] == "rustfs"
+        - service_definition["category"] == "core"
+        - service_definition["default"] is False
+        - "rustfs/rustfs" in service_definition["image"]
+        - "rustfs-volume-setup" in service_definition["depends_on"]
+    """
     plugin = RustfsServicePlugin()
     service_definition = plugin.service_definition
 
@@ -16,7 +40,17 @@ def test_rustfs_service_definition():
 
 
 def test_rustfs_plugin_metadata():
-    """Validate RustFS plugin metadata."""
+    """Validate RustFS plugin metadata.
+
+    Verifies that RustfsServicePlugin returns proper PluginMetadata with
+    expected name, version, and tags for discovery and categorization.
+
+    Asserts:
+        - metadata.name == "rustfs"
+        - metadata.version == "0.1.0"
+        - "storage" in metadata.tags
+        - "s3" in metadata.tags
+    """
     plugin = RustfsServicePlugin()
     metadata = plugin.metadata
 
@@ -27,7 +61,17 @@ def test_rustfs_plugin_metadata():
 
 
 def test_rustfs_setup_service_definition():
-    """Validate RustFS setup service definition fields."""
+    """Validate RustFS setup service definition fields.
+
+    Verifies that the RustfsSetupServicePlugin returns a valid service
+    definition for the bucket initialization container with correct
+    name, category, and dependency on the main rustfs service.
+
+    Asserts:
+        - service_definition["name"] == "rustfs-setup"
+        - service_definition["category"] == "core"
+        - "rustfs" in service_definition["depends_on"]
+    """
     plugin = RustfsSetupServicePlugin()
     service_definition = plugin.service_definition
 
@@ -37,7 +81,15 @@ def test_rustfs_setup_service_definition():
 
 
 def test_rustfs_setup_plugin_metadata():
-    """Validate RustFS setup plugin metadata."""
+    """Validate RustFS setup plugin metadata.
+
+    Verifies that RustfsSetupServicePlugin returns proper PluginMetadata
+    identifying it as a bootstrap/initialization service.
+
+    Asserts:
+        - metadata.name == "rustfs-setup"
+        - "bootstrap" in metadata.tags
+    """
     plugin = RustfsSetupServicePlugin()
     metadata = plugin.metadata
 
@@ -46,7 +98,21 @@ def test_rustfs_setup_plugin_metadata():
 
 
 def test_rustfs_resource_provider_exposes_object_store(monkeypatch) -> None:
-    """RustFS should expose an object_store capability."""
+    """Verify RustFS exposes an object_store capability.
+
+    Tests that RustfsResourceProvider correctly exposes an ObjectStoreSpec
+    through get_object_stores(). Mocks the S3 connection details to avoid
+    external dependencies during testing.
+
+    Args:
+        monkeypatch: Pytest fixture for mocking attributes.
+
+    Asserts:
+        - Object stores list has exactly one entry
+        - Object store name is "rustfs"
+        - Endpoint metadata matches mocked value
+
+    """
     monkeypatch.setattr(
         "phlo_rustfs.plugin.RustfsObjectStoreProvider.to_sling_connection",
         lambda _self: {

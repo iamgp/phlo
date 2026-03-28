@@ -1,4 +1,19 @@
-"""Loki service plugin."""
+"""Loki service plugin for Docker Compose orchestration.
+
+This module provides the LokiServicePlugin class which registers Loki as a
+managed service in the Phlo platform. It loads service configuration from
+a YAML file bundled with the package.
+
+Example:
+    The plugin is auto-discovered by Phlo::
+
+        from phlo.plugins import load_plugin
+        plugin = load_plugin("phlo_loki")
+
+Attributes:
+    LokiServicePlugin: Service plugin class for Loki container management.
+
+"""
 
 from __future__ import annotations
 
@@ -11,7 +26,23 @@ from phlo.plugins import PluginMetadata, ServicePlugin
 
 
 class LokiServicePlugin(ServicePlugin):
-    """Service plugin for loki."""
+    """Service plugin for Loki log aggregation.
+
+    This plugin manages the lifecycle of a Loki container for log aggregation
+    and querying within the Phlo platform. It provides Docker Compose service
+    configuration loaded from package resources.
+
+    Attributes:
+        None - Properties are computed dynamically.
+
+    Example:
+        Plugin is instantiated by the discovery system::
+
+            plugin = LokiServicePlugin()
+            metadata = plugin.metadata
+            services = plugin.service_definition
+
+    """
 
     @property
     def metadata(self) -> PluginMetadata:
@@ -19,6 +50,7 @@ class LokiServicePlugin(ServicePlugin):
 
         Returns:
             Static metadata used for plugin discovery.
+
         """
         return PluginMetadata(
             name="loki",
@@ -34,6 +66,7 @@ class LokiServicePlugin(ServicePlugin):
 
         Returns:
             Parsed compose-style service configuration.
+
         """
         service_path = resources.files("phlo_loki").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

@@ -30,6 +30,7 @@ def resolve_host(host: str, port: int, *, port_env_var: str | None = None) -> tu
     Returns:
         ``(host, port)`` tuple, resolved to ``localhost`` when the original
         hostname cannot be reached from the current environment.
+
     """
     if host in _LOCALHOST:
         return host, port
@@ -58,6 +59,7 @@ def resolve_url(url: str, *, port_env_var: str | None = None) -> str:
     Returns:
         Resolved URL with ``localhost`` substituted when the original host
         cannot be resolved.
+
     """
     if not url:
         return url

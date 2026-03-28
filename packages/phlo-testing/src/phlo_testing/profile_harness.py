@@ -1,4 +1,25 @@
-"""Reusable profile-level test harnesses for real Phlo service stacks."""
+"""Reusable profile-level test harnesses for real Phlo service stacks.
+
+Provides infrastructure for integration testing against live Phlo service
+stacks, including bundled stack setup, service lifecycle management, and
+verification helpers.
+
+This module enables contract tests that validate the full stack works
+correctly with real services (Postgres, MinIO, Nessie, Trino, Dagster, etc.).
+
+Example:
+    >>> from phlo_testing import bootstrap_bundled_stack_harness
+    >>> harness = bootstrap_bundled_stack_harness()
+    >>> harness.materialize("posts", partition_date="2024-01-01")
+    >>> harness.cleanup()
+
+Key Components:
+    - BundledStackHarness: Runtime handle for managing a full Phlo stack
+    - BundledStackPorts: Service port configuration
+    - bootstrap_bundled_stack_harness(): Factory function to create harnesses
+    - Service verification methods for API, observability, and lineage stacks
+
+"""
 
 from __future__ import annotations
 
@@ -32,6 +53,7 @@ BUNDLED_STACK_CORE_SERVICES = (
     "dagster",
     "dagster-daemon",
 )
+# Core services required for the bundled stack.
 
 BUNDLED_STACK_DEV_PACKAGES = (
     "phlo-alerting",
@@ -56,6 +78,7 @@ BUNDLED_STACK_DEV_PACKAGES = (
     "phlo-trino",
     "phlo-api",
 )
+# Development packages included in the bundled stack.
 
 BUNDLED_STACK_OPTIONAL_PACKAGES = (
     "phlo-alerting",
@@ -67,6 +90,7 @@ BUNDLED_STACK_OPTIONAL_PACKAGES = (
     "phlo-pgweb",
     "phlo-prometheus",
 )
+# Optional packages that can be added to the bundled stack.
 
 BUNDLED_STACK_OPTIONAL_SERVICE_PLUGINS = (
     "phlo-alloy",
@@ -76,6 +100,7 @@ BUNDLED_STACK_OPTIONAL_SERVICE_PLUGINS = (
     "phlo-pgweb",
     "phlo-prometheus",
 )
+# Optional service plugins for the bundled stack.
 
 _BUNDLED_STACK_PORT_DEFAULTS = {
     "PHLO_API_PORT": ("Phlo API", 54000),
@@ -96,15 +121,31 @@ _BUNDLED_STACK_PORT_DEFAULTS = {
     "SUPERSET_PORT": ("Superset", 8088),
     "OPENMETADATA_PORT": ("OpenMetadata", 8585),
 }
+# Default port mappings for bundled stack services.
 
 _GOLDEN_PATH_MODULE: Any | None = None
 
 
 def _repo_root() -> Path:
+    """Return the repository root directory.
+
+    Returns:
+        Path to the repository root.
+
+    """
     return Path(__file__).resolve().parents[4]
 
 
 def _load_golden_path_module() -> Any:
+    """Load the golden path module from scripts directory.
+
+    Returns:
+        The loaded golden path module.
+
+    Raises:
+        RuntimeError: If the module cannot be loaded.
+
+    """
     global _GOLDEN_PATH_MODULE
     if _GOLDEN_PATH_MODULE is not None:
         return _GOLDEN_PATH_MODULE
@@ -120,6 +161,12 @@ def _load_golden_path_module() -> Any:
 
 
 def _repo_python_executable() -> Path:
+    """Return the Python executable for the repository.
+
+    Returns:
+        Path to the Python executable, preferring the repo's .venv.
+
+    """
     repo_python = _repo_root() / ".venv" / "bin" / "python"
     if repo_python.exists():
         return repo_python
@@ -127,6 +174,12 @@ def _repo_python_executable() -> Path:
 
 
 def _repo_pythonpath() -> str:
+    """Build PYTHONPATH for repository execution.
+
+    Returns:
+        PYTHONPATH string including repo src and packages.
+
+    """
     repo_root = _repo_root()
     entries = [repo_root / "src", *(repo_root / "packages").glob("*/src")]
     rendered = os.pathsep.join(str(path) for path in entries)
@@ -143,6 +196,21 @@ def _run_repo_phlo(
     timeout: int | None,
     stream_output: bool,
 ) -> subprocess.CompletedProcess[str]:
+    """Execute phlo CLI command in the repository context.
+
+    Args:
+        args: Command line arguments for phlo CLI.
+        cwd: Working directory for command execution.
+        timeout: Maximum time to wait for command completion (seconds).
+        stream_output: If True, stream output in real-time; otherwise capture.
+
+    Returns:
+        CompletedProcess with command results.
+
+    Raises:
+        RuntimeError: If the command fails (non-zero exit code).
+
+    """
     command = [str(_repo_python_executable()), "-m", "phlo.cli.main", *args]
     env = {**os.environ, "PYTHONPATH": _repo_pythonpath()}
 
@@ -188,21 +256,51 @@ def _run_repo_phlo(
 
 
 def bundled_stack_contract_enabled() -> bool:
+    """Check if bundled stack contract tests are enabled.
+
+    Returns:
+        True if PHLO_RUN_BUNDLED_STACK_CONTRACT is set to a truthy value.
+
+    """
     value = os.environ.get("PHLO_RUN_BUNDLED_STACK_CONTRACT", "")
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def keep_bundled_stack_running() -> bool:
+    """Check if bundled stack should be kept running after tests.
+
+    Returns:
+        True if PHLO_KEEP_BUNDLED_STACK is set to a truthy value.
+
+    """
     value = os.environ.get("PHLO_KEEP_BUNDLED_STACK", "")
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def default_bundled_stack_project_dir(base_dir: Path | None = None) -> Path:
+    """Generate a default project directory path for bundled stack tests.
+
+    Args:
+        base_dir: Base directory for project creation. Defaults to .tmp in repo root.
+
+    Returns:
+        Path to a unique project directory with UUID suffix.
+
+    """
     root = base_dir or (_repo_root() / ".tmp")
     return root / f"phlo-bundled-stack-{uuid.uuid4().hex[:8]}"
 
 
 def _cleanup_existing_bundled_stack_projects(base_dir: Path, *, stream_output: bool) -> None:
+    """Clean up existing bundled stack projects and Docker resources.
+
+    Stops services and removes containers/networks from previous test runs.
+
+    Args:
+        base_dir: Directory containing bundled stack projects.
+        stream_output: Whether to stream command output.
+
+    """
     utils = _load_golden_path_module()
     for project_dir in sorted(base_dir.glob("phlo-bundled-stack-*")):
         phlo_dir = project_dir / ".phlo"
@@ -275,6 +373,15 @@ def _cleanup_existing_bundled_stack_projects(base_dir: Path, *, stream_output: b
 
 
 def _port_in_use(port: int) -> bool:
+    """Check if a TCP port is in use.
+
+    Args:
+        port: Port number to check.
+
+    Returns:
+        True if the port is already in use.
+
+    """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return sock.connect_ex(("127.0.0.1", port)) == 0
@@ -287,6 +394,18 @@ def _allocate_unique_port(
     resolve_port: Any,
     used_ports: set[int],
 ) -> int:
+    """Allocate a unique port for a service, avoiding conflicts.
+
+    Args:
+        service_name: Name of the service.
+        default_port: Default port to start from.
+        resolve_port: Function to resolve port (may increment).
+        used_ports: Set of already allocated ports.
+
+    Returns:
+        An available port number.
+
+    """
     candidate = int(resolve_port(service_name, default_port))
     while candidate in used_ports or _port_in_use(candidate):
         candidate += 1
@@ -295,6 +414,15 @@ def _allocate_unique_port(
 
 
 def build_bundled_stack_env_updates(resolve_port: Any) -> dict[str, str]:
+    """Build environment variable updates for bundled stack ports.
+
+    Args:
+        resolve_port: Function to resolve service ports.
+
+    Returns:
+        Dictionary of environment variable updates with unique ports.
+
+    """
     used_ports: set[int] = set()
     updates = {
         env_key: str(
@@ -314,7 +442,17 @@ def build_bundled_stack_env_updates(resolve_port: Any) -> dict[str, str]:
 
 
 def _verify_bind_mount_parent(path: Path, *, attempts: int = 5, delay_seconds: float = 0.5) -> None:
-    """Verify Docker can read a marker file from the target parent path."""
+    """Verify Docker can read a marker file from the target parent path.
+
+    Args:
+        path: Directory path to verify.
+        attempts: Number of retry attempts.
+        delay_seconds: Delay between attempts.
+
+    Raises:
+        RuntimeError: If Docker cannot bind-mount the directory.
+
+    """
     target_path = path.resolve()
     target_path.mkdir(parents=True, exist_ok=True)
     marker = f".phlo_bind_check_{uuid.uuid4().hex}"
@@ -356,7 +494,28 @@ def _verify_bind_mount_parent(path: Path, *, attempts: int = 5, delay_seconds: f
 
 @dataclass(slots=True)
 class BundledStackPorts:
-    """Resolved host ports for the bundled-stack contract harness."""
+    """Resolved host ports for the bundled-stack contract harness.
+
+    Attributes:
+        phlo_api: Port for Phlo API service.
+        dagster: Port for Dagster webserver.
+        observatory: Port for Observatory UI (default: 3001).
+        hasura: Port for Hasura GraphQL (default: 8082).
+        postgrest: Port for PostgREST API (default: 3002).
+        pgweb: Port for pgweb UI (default: 8081).
+        postgres: Port for PostgreSQL (default: 5432).
+        trino: Port for Trino (default: 8080).
+        minio_api: Port for MinIO API (default: 9000).
+        minio_console: Port for MinIO Console (default: 9001).
+        nessie: Port for Nessie catalog (default: 19120).
+        prometheus: Port for Prometheus (default: 9090).
+        loki: Port for Loki logging (default: 3100).
+        grafana: Port for Grafana (default: 3003).
+        alloy: Port for Alloy (default: 12345).
+        superset: Port for Superset (default: 8088).
+        openmetadata: Port for OpenMetadata (default: 8585).
+
+    """
 
     phlo_api: int
     dagster: int
@@ -378,6 +537,15 @@ class BundledStackPorts:
 
     @classmethod
     def from_env(cls, env_vars: dict[str, str]) -> BundledStackPorts:
+        """Create BundledStackPorts from environment variables.
+
+        Args:
+            env_vars: Dictionary of environment variables.
+
+        Returns:
+            BundledStackPorts instance with ports from environment.
+
+        """
         return cls(
             phlo_api=int(env_vars.get("PHLO_API_PORT", "54000")),
             dagster=int(env_vars.get("DAGSTER_PORT", "3000")),
@@ -401,7 +569,26 @@ class BundledStackPorts:
 
 @dataclass(slots=True)
 class BundledStackHarness:
-    """Runtime handle for a real bundled-stack contract environment."""
+    """Runtime handle for a real bundled-stack contract environment.
+
+    Manages a full Phlo service stack for integration testing, providing
+    methods to start/stop services, run materializations, and verify
+    the health of various stack components.
+
+    Attributes:
+        project_dir: Path to the temporary project directory.
+        phlo_source: Path to the Phlo source repository.
+        python_executable: Path to the Python executable for the project.
+        ports: BundledStackPorts with resolved service ports.
+        keep_running: If True, keep services running after tests.
+
+    Example:
+        >>> harness = bootstrap_bundled_stack_harness()
+        >>> harness.materialize("posts", partition_date="2024-01-01")
+        >>> harness.verify_api_stack()
+        >>> harness.cleanup()
+
+    """
 
     project_dir: Path
     phlo_source: Path
@@ -410,7 +597,12 @@ class BundledStackHarness:
     keep_running: bool = False
 
     def dagster_graphql_client(self) -> DagsterGraphQLClient:
-        """Return a Dagster GraphQL client for the live harness."""
+        """Return a Dagster GraphQL client for the live harness.
+
+        Returns:
+            DagsterGraphQLClient configured for the harness's Dagster instance.
+
+        """
         return DagsterGraphQLClient("127.0.0.1", port_number=self.ports.dagster)
 
     def run_phlo(
@@ -421,6 +613,21 @@ class BundledStackHarness:
         check: bool = True,
         stream_output: bool = True,
     ) -> subprocess.CompletedProcess[str]:
+        """Execute a phlo CLI command in the harness project.
+
+        Args:
+            args: Command line arguments for phlo CLI.
+            timeout: Maximum time to wait for command completion (seconds).
+            check: If True, raise RuntimeError on non-zero exit code.
+            stream_output: If True, stream output in real-time.
+
+        Returns:
+            CompletedProcess with command results.
+
+        Raises:
+            RuntimeError: If the command fails and check=True.
+
+        """
         utils = _load_golden_path_module()
         return utils.run_phlo(
             args,
@@ -432,17 +639,51 @@ class BundledStackHarness:
         )
 
     def read_env(self) -> dict[str, str]:
+        """Read environment variables from the project's .phlo/.env file.
+
+        Returns:
+            Dictionary of environment variables.
+
+        """
         utils = _load_golden_path_module()
         return cast(dict[str, str], utils.read_env_file(self.project_dir / ".phlo" / ".env"))
 
     def default_partition_date(self) -> str:
+        """Return a default partition date (yesterday).
+
+        Returns:
+            ISO format date string for yesterday.
+
+        """
         return (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
 
     def _utils(self) -> Any:
+        """Load and return the golden path utilities module.
+
+        Returns:
+            The golden path module with utility functions.
+
+        """
         return _load_golden_path_module()
 
     @contextlib.contextmanager
     def _temporary_env(self, updates: dict[str, str | None]) -> Any:
+        """Temporarily update environment variables.
+
+        Args:
+            updates: Dictionary of environment variable updates.
+                Values of None will delete the variable.
+
+        Yields:
+            None
+
+        Example:
+            >>> with self._temporary_env({"KEY": "value"}):
+            ...     # Environment updated
+            ...     pass
+            >>> # Environment restored
+
+        """
         previous = {key: os.environ.get(key) for key in updates}
         try:
             for key, value in updates.items():
@@ -464,6 +705,16 @@ class BundledStackHarness:
         *,
         timeout: int = 600,
     ) -> None:
+        """Install workspace packages into the harness environment.
+
+        Args:
+            package_names: Names of packages to install from the workspace.
+            timeout: Maximum time for installation (seconds).
+
+        Raises:
+            RuntimeError: If a package is not found in the workspace.
+
+        """
         if not package_names:
             return
 
@@ -476,11 +727,19 @@ class BundledStackHarness:
         self._utils().run_command(install_args, cwd=self.project_dir, timeout=timeout)
 
     def ensure_full_stack_packages(self) -> None:
+        """Install all optional packages for full stack testing."""
         self.install_workspace_packages(BUNDLED_STACK_OPTIONAL_PACKAGES)
 
     def add_services(
         self, service_names: tuple[str, ...] | list[str], *, timeout: int = 180
     ) -> None:
+        """Add services to the project without starting them.
+
+        Args:
+            service_names: Names of services to add.
+            timeout: Maximum time for operation (seconds).
+
+        """
         for service_name in service_names:
             self.run_phlo(
                 ["services", "add", service_name, "--no-start"],
@@ -495,6 +754,14 @@ class BundledStackHarness:
         timeout: int = 600,
         native: bool = False,
     ) -> None:
+        """Start specified services.
+
+        Args:
+            service_names: Names of services to start.
+            timeout: Maximum time for startup (seconds).
+            native: If True, start native services only (no Docker).
+
+        """
         if not service_names:
             return
         args = ["services", "start"]
@@ -505,6 +772,17 @@ class BundledStackHarness:
         self.run_phlo(args, timeout=timeout, stream_output=True)
 
     def wait_for_http(self, url: str, *, name: str, timeout: int = 120) -> None:
+        """Wait for an HTTP endpoint to become available.
+
+        Args:
+            url: URL to poll.
+            name: Service name for error messages.
+            timeout: Maximum time to wait (seconds).
+
+        Raises:
+            RuntimeError: If the endpoint doesn't become ready in time.
+
+        """
         if not self._utils().wait_for_http(url, name=name, timeout=timeout):
             raise RuntimeError(f"{name} did not become ready: {url}")
 
@@ -515,6 +793,17 @@ class BundledStackHarness:
         headers: dict[str, str] | None = None,
         timeout: int = 30,
     ) -> dict[str, Any] | list[Any] | str:
+        """Make an HTTP GET request.
+
+        Args:
+            url: URL to request.
+            headers: Optional request headers.
+            timeout: Request timeout (seconds).
+
+        Returns:
+            Parsed JSON response or raw string.
+
+        """
         return cast(
             dict[str, Any] | list[Any] | str,
             self._utils().http_get(url, headers=headers, timeout=timeout),
@@ -528,6 +817,18 @@ class BundledStackHarness:
         headers: dict[str, str] | None = None,
         timeout: int = 30,
     ) -> dict[str, Any] | list[Any] | str:
+        """Make an HTTP POST request.
+
+        Args:
+            url: URL to request.
+            data: Request body (JSON dict or string).
+            headers: Optional request headers.
+            timeout: Request timeout (seconds).
+
+        Returns:
+            Parsed JSON response or raw string.
+
+        """
         return cast(
             dict[str, Any] | list[Any] | str,
             self._utils().http_post(url, data, headers=headers, timeout=timeout),
@@ -541,6 +842,18 @@ class BundledStackHarness:
         timeout: int = 60,
         check: bool = True,
     ) -> subprocess.CompletedProcess[str]:
+        """Execute Python code in the harness environment.
+
+        Args:
+            code: Python code to execute.
+            env_updates: Environment variable updates for execution.
+            timeout: Maximum execution time (seconds).
+            check: If True, raise on non-zero exit code.
+
+        Returns:
+            CompletedProcess with execution results.
+
+        """
         env = os.environ.copy()
         if env_updates:
             env.update(env_updates)
@@ -561,6 +874,17 @@ class BundledStackHarness:
         timeout: int = 60,
         check: bool = True,
     ) -> subprocess.CompletedProcess[str]:
+        """Execute a shell command in the project directory.
+
+        Args:
+            args: Command arguments.
+            timeout: Maximum execution time (seconds).
+            check: If True, raise on non-zero exit code.
+
+        Returns:
+            CompletedProcess with execution results.
+
+        """
         return subprocess.run(
             args,
             cwd=self.project_dir,
@@ -571,6 +895,12 @@ class BundledStackHarness:
         )
 
     def host_lineage_db_url(self) -> str:
+        """Build a PostgreSQL connection URL for the lineage database.
+
+        Returns:
+            PostgreSQL connection string for host access.
+
+        """
         env_vars = self.read_env()
         return (
             "postgresql://"
@@ -580,6 +910,15 @@ class BundledStackHarness:
         )
 
     def verify_default_frontends(self) -> None:
+        """Verify Phlo API and Observatory are accessible.
+
+        Starts the services and performs health checks.
+
+        Raises:
+            RuntimeError: If services fail to start or respond.
+            AssertionError: If health checks fail.
+
+        """
         self.start_services(["phlo-api", "observatory"], timeout=600, native=True)
         self.wait_for_http(
             f"http://127.0.0.1:{self.ports.phlo_api}/health",
@@ -599,6 +938,16 @@ class BundledStackHarness:
         assert "text/html" in observatory_response.headers.get("content-type", "")
 
     def verify_api_stack(self) -> None:
+        """Verify the API stack (Hasura, PostgREST, pgweb) is functional.
+
+        Adds services if needed, starts them, and performs health checks
+        and basic functionality tests.
+
+        Raises:
+            RuntimeError: If services fail to start.
+            AssertionError: If health checks or API tests fail.
+
+        """
         self.add_services(["hasura", "postgrest", "pgweb"])
         self.start_services(["hasura", "postgrest", "pgweb"], timeout=600)
 
@@ -660,6 +1009,16 @@ class BundledStackHarness:
         )
 
     def verify_observability_stack(self) -> None:
+        """Verify the observability stack (Prometheus, Loki, Alloy, Grafana).
+
+        Adds services if needed, starts them, and performs health checks
+        and basic functionality tests.
+
+        Raises:
+            RuntimeError: If services fail to start.
+            AssertionError: If health checks or API tests fail.
+
+        """
         self.add_services(["prometheus", "loki", "alloy", "grafana"])
         self.start_services(["prometheus", "loki", "alloy", "grafana"], timeout=900)
 
@@ -706,6 +1065,15 @@ class BundledStackHarness:
         assert grafana_datasources
 
     def verify_superset(self) -> None:
+        """Verify Apache Superset is functional.
+
+        Adds the service if needed, starts it, and performs health checks.
+
+        Raises:
+            RuntimeError: If service fails to start.
+            AssertionError: If health check fails.
+
+        """
         self.add_services(["superset"])
         self.start_services(["superset"], timeout=900)
         self.wait_for_http(
@@ -721,6 +1089,14 @@ class BundledStackHarness:
         assert health.strip().upper() == "OK"
 
     def verify_metrics_cli(self) -> None:
+        """Verify the metrics CLI command works.
+
+        Runs 'phlo metrics summary' and checks output.
+
+        Raises:
+            AssertionError: If command output doesn't contain expected content.
+
+        """
         result = self.run_phlo(
             ["metrics", "summary", "--period", "24h"],
             timeout=120,
@@ -729,6 +1105,14 @@ class BundledStackHarness:
         assert "Platform Metrics Summary" in result.stdout
 
     def verify_alerting_cli(self) -> None:
+        """Verify the alerting CLI command works.
+
+        Runs 'phlo alerts list' with a mock webhook and checks output.
+
+        Raises:
+            AssertionError: If command output doesn't contain expected content.
+
+        """
         env_updates = {"PHLO_ALERT_SLACK_WEBHOOK": "https://example.com/mock"}
         with self._temporary_env(env_updates):
             result = self.run_phlo(
@@ -746,6 +1130,15 @@ class BundledStackHarness:
         metadata: dict[str, Any] | None = None,
         env_updates: dict[str, str] | None = None,
     ) -> None:
+        """Emit lineage events for smoke testing.
+
+        Args:
+            source_asset: Source asset key (e.g., "raw.posts").
+            target_asset: Target asset key (e.g., "raw_marts.posts_mart").
+            metadata: Optional metadata to include with the event.
+            env_updates: Optional environment variable updates.
+
+        """
         metadata_json = json.dumps(metadata or {"source": "bundled_stack_contract"})
         code = f"""
 from phlo.hooks.emitters import LineageEventContext, LineageEventEmitter
@@ -759,6 +1152,15 @@ LineageEventEmitter(LineageEventContext(tags={{"source": "bundled_stack_contract
         self.run_python(code, env_updates=env_updates, timeout=60)
 
     def verify_lineage_cli(self) -> None:
+        """Verify the lineage CLI command works.
+
+        Emits smoke events, exports lineage, and verifies the export contains
+        expected assets and edges.
+
+        Raises:
+            AssertionError: If export doesn't contain expected content.
+
+        """
         lineage_db_url = self.host_lineage_db_url()
         self.emit_lineage_smoke_events(
             source_asset="raw.posts",
@@ -787,6 +1189,16 @@ LineageEventEmitter(LineageEventContext(tags={{"source": "bundled_stack_contract
         assert "raw_marts.posts_mart" in payload.get("edges", {}).get("raw.posts", [])
 
     def verify_openmetadata(self) -> None:
+        """Verify OpenMetadata integration works.
+
+        Starts OpenMetadata, syncs metadata, emits events, and verifies
+        the lineage and quality data appears in OpenMetadata.
+
+        Raises:
+            RuntimeError: If service fails to start or sync fails.
+            AssertionError: If metadata or lineage checks fail.
+
+        """
         self.add_services(["openmetadata"])
         result = self.run_phlo(
             ["services", "start", "--service", "openmetadata"],
@@ -934,6 +1346,18 @@ QualityResultEventEmitter(
         timeout: int = 1200,
         stream_output: bool = True,
     ) -> subprocess.CompletedProcess[str]:
+        """Materialize a Dagster asset.
+
+        Args:
+            asset_name: Name of the asset to materialize.
+            partition_date: Optional partition date for partitioned assets.
+            timeout: Maximum time for materialization (seconds).
+            stream_output: If True, stream output in real-time.
+
+        Returns:
+            CompletedProcess with materialization results.
+
+        """
         args = ["materialize", asset_name]
         if partition_date is not None:
             args.extend(["--partition", partition_date])
@@ -945,7 +1369,22 @@ QualityResultEventEmitter(
         *,
         partition_date: str | None = None,
     ) -> tuple[str, str]:
-        """Launch a Dagster asset run tagged to an isolated WAP branch."""
+        """Launch a Dagster asset run tagged to an isolated WAP branch.
+
+        Creates a temporary Nessie branch, tags the run with the branch name,
+        and submits the job to Dagster.
+
+        Args:
+            asset_name: Name of the asset to materialize.
+            partition_date: Optional partition date for partitioned assets.
+
+        Returns:
+            Tuple of (run_id, branch_name).
+
+        Raises:
+            RuntimeError: If unable to create branch or launch run.
+
+        """
         from phlo_nessie.resource import NessieResource
 
         branch_name = f"pipeline-run-{uuid.uuid4().hex[:12]}"
@@ -975,7 +1414,19 @@ QualityResultEventEmitter(
         raise RuntimeError("Unable to launch Dagster versioned materialization") from last_error
 
     def wait_for_run_completion(self, run_id: str, *, timeout: int = 1200) -> DagsterRunStatus:
-        """Poll Dagster until a launched run reaches a terminal status."""
+        """Poll Dagster until a launched run reaches a terminal status.
+
+        Args:
+            run_id: ID of the Dagster run to wait for.
+            timeout: Maximum time to wait (seconds).
+
+        Returns:
+            Final DagsterRunStatus.
+
+        Raises:
+            RuntimeError: If run finishes with non-success status.
+
+        """
         status = self.wait_for_run_status(
             run_id,
             expected_statuses={
@@ -997,7 +1448,20 @@ QualityResultEventEmitter(
         expected_statuses: set[DagsterRunStatus],
         timeout: int = 1200,
     ) -> DagsterRunStatus:
-        """Poll persisted Dagster metadata until a run reaches an expected status."""
+        """Poll persisted Dagster metadata until a run reaches an expected status.
+
+        Args:
+            run_id: ID of the Dagster run to wait for.
+            expected_statuses: Set of statuses that indicate completion.
+            timeout: Maximum time to wait (seconds).
+
+        Returns:
+            DagsterRunStatus when run reaches expected status.
+
+        Raises:
+            TimeoutError: If timeout is reached without expected status.
+
+        """
         deadline = time.time() + timeout
         while time.time() < deadline:
             status = self.get_run_status(run_id)
@@ -1007,7 +1471,18 @@ QualityResultEventEmitter(
         raise TimeoutError(f"Timed out waiting for Dagster run {run_id}")
 
     def get_run_status(self, run_id: str) -> DagsterRunStatus:
-        """Read Dagster run status from the metadata database."""
+        """Read Dagster run status from the metadata database.
+
+        Args:
+            run_id: ID of the Dagster run.
+
+        Returns:
+            Current DagsterRunStatus.
+
+        Raises:
+            RuntimeError: If run is not found in database.
+
+        """
         env_vars = self.read_env()
         connection = psycopg2.connect(
             host="127.0.0.1",
@@ -1031,7 +1506,15 @@ QualityResultEventEmitter(
         return DagsterRunStatus(str(row[0]))
 
     def get_run_tags(self, run_id: str) -> dict[str, str]:
-        """Read persisted Dagster run tags from the metadata database."""
+        """Read persisted Dagster run tags from the metadata database.
+
+        Args:
+            run_id: ID of the Dagster run.
+
+        Returns:
+            Dictionary of run tags.
+
+        """
         env_vars = self.read_env()
         connection = psycopg2.connect(
             host="127.0.0.1",
@@ -1054,7 +1537,17 @@ QualityResultEventEmitter(
     def list_table_snapshots(
         self, *, table_name: str, ref: str, limit: int = 10
     ) -> list[dict[str, Any]]:
-        """List Iceberg snapshots for a table on a given ref using host-accessible settings."""
+        """List Iceberg snapshots for a table on a given ref using host-accessible settings.
+
+        Args:
+            table_name: Name of the table.
+            ref: Git ref or branch name.
+            limit: Maximum number of snapshots to return.
+
+        Returns:
+            List of snapshot dictionaries.
+
+        """
         from phlo_iceberg.catalog import reset_catalog_cache
         from phlo_iceberg.resource import IcebergResource
         from phlo_iceberg.settings import get_settings as get_iceberg_settings
@@ -1088,7 +1581,16 @@ QualityResultEventEmitter(
             reset_catalog_cache()
 
     def wait_for_branch_absence(self, branch_name: str, *, timeout: int = 120) -> None:
-        """Wait until a promoted WAP branch is cleaned up."""
+        """Wait until a promoted WAP branch is cleaned up.
+
+        Args:
+            branch_name: Name of the branch to wait for removal.
+            timeout: Maximum time to wait (seconds).
+
+        Raises:
+            TimeoutError: If branch still exists after timeout.
+
+        """
         from phlo_nessie.resource import NessieResource
 
         nessie = NessieResource(base_url=f"http://127.0.0.1:{self.ports.nessie}")
@@ -1107,6 +1609,15 @@ QualityResultEventEmitter(
         native: bool | None = None,
         stream_output: bool = True,
     ) -> None:
+        """Stop services in the bundled stack.
+
+        Args:
+            services: List of service names to stop. If None, stops all services.
+            timeout: Maximum time for shutdown (seconds).
+            native: If True, stop native services only. If None, stop both.
+            stream_output: If True, stream output in real-time.
+
+        """
         if services:
             args = ["services", "stop"]
             if native:
@@ -1144,6 +1655,16 @@ QualityResultEventEmitter(
         stream_output: bool = True,
         force: bool = False,
     ) -> None:
+        """Clean up the harness and all resources.
+
+        Stops services and removes the project directory unless keep_running
+        is set and force is False.
+
+        Args:
+            stream_output: If True, stream output during cleanup.
+            force: If True, clean up even if keep_running is set.
+
+        """
         if self.keep_running and not force:
             return
         utils = _load_golden_path_module()
@@ -1158,6 +1679,17 @@ def _write_bundled_stack_workflow(
     python_executable: Path,
     stream_output: bool,
 ) -> None:
+    """Write default workflow files for bundled stack testing.
+
+    Creates sample ingestion, transformation, and publishing assets
+    for testing the bundled stack.
+
+    Args:
+        project_dir: Project directory path.
+        python_executable: Python executable path.
+        stream_output: Whether to stream command output.
+
+    """
     utils = _load_golden_path_module()
     env_vars = cast(dict[str, str], utils.read_env_file(project_dir / ".phlo" / ".env"))
 
@@ -1197,11 +1729,35 @@ def _write_bundled_stack_workflow(
 
     utils.write_file(
         project_dir / "workflows" / "transforms" / "dbt" / "profiles" / "profiles.yml",
-        f"""phlo:\n  target: dev\n  outputs:\n    dev:\n      type: trino\n      method: none\n      user: {env_vars.get("TRINO_USER", "dagster")}\n      host: trino\n      port: 8080\n      catalog: {env_vars.get("TRINO_CATALOG", "iceberg")}\n      schema: {env_vars.get("TRINO_SCHEMA", "raw")}\n      http_scheme: http\n      threads: 2\n""",
+        f"""phlo:
+  target: dev
+  outputs:
+    dev:
+      type: trino
+      method: none
+      user: {env_vars.get("TRINO_USER", "dagster")}
+      host: trino
+      port: 8080
+      catalog: {env_vars.get("TRINO_CATALOG", "iceberg")}
+      schema: {env_vars.get("TRINO_SCHEMA", "raw")}
+      http_scheme: http
+      threads: 2
+""",
     )
     utils.write_file(
         project_dir / "workflows" / "transforms" / "dbt" / "models" / "sources" / "raw.yml",
-        f"""version: 2\n\nsources:\n  - name: raw\n    database: {env_vars.get("TRINO_CATALOG", "iceberg")}\n    schema: {env_vars.get("TRINO_SCHEMA", "raw")}\n    tables:\n      - name: posts\n        columns:\n          - name: id\n          - name: user_id\n          - name: title\n          - name: body\n""",
+        f"""version: 2\n\nsources:
+  - name: raw
+    database: {env_vars.get("TRINO_CATALOG", "iceberg")}
+    schema: {env_vars.get("TRINO_SCHEMA", "raw")}
+    tables:
+      - name: posts
+        columns:
+          - name: id
+          - name: user_id
+          - name: title
+          - name: body
+""",
     )
     utils.write_file(
         project_dir / "workflows" / "transforms" / "dbt" / "models" / "marts" / "posts_mart.sql",
@@ -1213,11 +1769,54 @@ def _write_bundled_stack_workflow(
     )
     utils.write_file(
         project_dir / "workflows" / "publishing" / "jsonplaceholder.py",
-        """import dagster as dg\nimport psycopg2\nfrom phlo_postgres.settings import get_settings\nfrom phlo_trino import TrinoResource\nfrom phlo_trino.publishing import publish_marts_to_postgres\n\n\n@dg.asset(\n    name="publish_jsonplaceholder_marts",\n    group_name="publishing",\n    deps=[dg.AssetKey(\"posts_mart\")],\n)\ndef publish_jsonplaceholder_marts(context):\n    settings = get_settings()\n    trino = TrinoResource()\n    postgres = psycopg2.connect(\n        host=settings.postgres_host,\n        port=settings.postgres_port,\n        user=settings.postgres_user,\n        password=settings.postgres_password,\n        dbname=settings.postgres_db,\n    )\n    try:\n        return publish_marts_to_postgres(\n            context=context,\n            trino=trino,\n            postgres=postgres,\n            tables_to_publish={\"posts_mart\": \"raw_marts.posts_mart\"},\n            data_source=\"jsonplaceholder\",\n        )\n    finally:\n        postgres.close()\n""",
+        """import dagster as dg
+import psycopg2
+from phlo_postgres.settings import get_settings
+from phlo_trino import TrinoResource
+from phlo_trino.publishing import publish_marts_to_postgres
+
+
+@dg.asset(
+    name="publish_jsonplaceholder_marts",
+    group_name="publishing",
+    deps=[dg.AssetKey("posts_mart")],
+)
+def publish_jsonplaceholder_marts(context):
+    settings = get_settings()
+    trino = TrinoResource()
+    postgres = psycopg2.connect(
+        host=settings.postgres_host,
+        port=settings.postgres_port,
+        user=settings.postgres_user,
+        password=settings.postgres_password,
+        dbname=settings.postgres_db,
+    )
+    try:
+        return publish_marts_to_postgres(
+            context=context,
+            trino=trino,
+            postgres=postgres,
+            tables_to_publish={"posts_mart": "raw_marts.posts_mart"},
+            data_source="jsonplaceholder",
+        )
+    finally:
+        postgres.close()
+""",
     )
 
 
 def _wait_for_bundled_stack_services(ports: BundledStackPorts) -> None:
+    """Wait for all bundled stack services to become ready.
+
+    Polls Dagster, MinIO, Trino, Postgres, and Nessie until they respond.
+
+    Args:
+        ports: BundledStackPorts with resolved service ports.
+
+    Raises:
+        RuntimeError: If any service fails to become ready.
+
+    """
     utils = _load_golden_path_module()
     if not utils.wait_for_tcp("127.0.0.1", ports.dagster, name="Dagster", timeout=120):
         raise RuntimeError("Dagster did not become ready")
@@ -1241,7 +1840,16 @@ def _wait_for_bundled_stack_services(ports: BundledStackPorts) -> None:
 
 
 def _wait_for_dagster_graphql(ports: BundledStackPorts, *, timeout: int = 180) -> None:
-    """Wait until Dagster GraphQL is responsive."""
+    """Wait until Dagster GraphQL is responsive.
+
+    Args:
+        ports: BundledStackPorts with resolved service ports.
+        timeout: Maximum time to wait (seconds).
+
+    Raises:
+        RuntimeError: If Dagster GraphQL doesn't become ready.
+
+    """
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
@@ -1266,7 +1874,34 @@ def bootstrap_bundled_stack_harness(
     stream_output: bool = True,
     keep_running: bool | None = None,
 ) -> BundledStackHarness:
-    """Create a real project, boot the bundled stack, and return a harness."""
+    """Create a real project, boot the bundled stack, and return a harness.
+
+    This is the main entry point for bundled stack contract testing. It:
+    1. Creates a temporary project directory
+    2. Initializes a Phlo project
+    3. Starts core services (Postgres, MinIO, Nessie, Trino, Dagster)
+    4. Waits for services to be ready
+    5. Returns a BundledStackHarness for test interaction
+
+    Args:
+        project_dir: Optional project directory path. If None, creates a temp directory.
+        stream_output: Whether to stream command output during setup.
+        keep_running: Whether to keep services running after tests. If None,
+            uses the PHLO_KEEP_BUNDLED_STACK environment variable.
+
+    Returns:
+        BundledStackHarness ready for testing.
+
+    Raises:
+        RuntimeError: If Docker is unavailable or setup fails.
+
+    Example:
+        >>> harness = bootstrap_bundled_stack_harness()
+        >>> harness.materialize("posts", partition_date="2024-01-01")
+        >>> harness.verify_api_stack()
+        >>> harness.cleanup()
+
+    """
     utils = _load_golden_path_module()
     phlo_source = _repo_root()
     target_project_dir = project_dir or default_bundled_stack_project_dir()

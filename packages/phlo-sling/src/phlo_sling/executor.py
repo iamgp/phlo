@@ -1,4 +1,13 @@
-"""Sling replication executor with hook event emission."""
+"""Sling replication executor with hook event emission.
+
+This module provides the execution engine for Sling-based data replication
+within the Phlo platform. It wraps the Sling library with Phlo's hook system
+to enable event emission, telemetry collection, and standardized result
+handling.
+
+Classes:
+    SlingIngester: Implements the BaseIngester interface for Sling replication.
+"""
 
 from __future__ import annotations
 
@@ -23,7 +32,28 @@ class SlingIngester(BaseIngester):
     """Sling-specific implementation of the ingestion engine.
 
     Mirrors DltIngester: wraps Sling execution with hook event emission,
-    timing, and standardised IngestionResult output.
+    timing, and standardised IngestionResult output. This class handles
+    the actual execution of Sling replications within the Phlo runtime.
+
+    Attributes:
+        context: Execution context from the orchestrator runtime.
+        logger: Logger used for replication lifecycle messages.
+        replication_config: Replication-level configuration.
+        source_func: The decorated user function (for reference).
+        overrides: Optional runtime overrides from the user function.
+
+    Example:
+        Execute a Sling replication::
+
+            ingester = SlingIngester(
+                context=runtime_context,
+                logger=logger,
+                replication_config=config,
+                source_func=user_func,
+                overrides={"where": "updated_at > '2024-01-01'"},
+            )
+            result = ingester.run_ingestion(partition_key="2024-01-15")
+
     """
 
     def __init__(
@@ -42,6 +72,7 @@ class SlingIngester(BaseIngester):
             replication_config: Replication-level configuration.
             source_func: The decorated user function (for reference).
             overrides: Optional runtime overrides returned by the user function.
+
         """
         super().__init__(context, logger)
         self.replication_config = replication_config
@@ -53,12 +84,21 @@ class SlingIngester(BaseIngester):
     ) -> IngestionResult:
         """Run the Sling replication flow.
 
+        Executes the configured Sling replication with event emission,
+        timing metrics, and standardized result handling. Emits hook
+        events for start, completion, and failure scenarios.
+
         Args:
             partition_key: Partition date string.
             parameters: Additional runtime parameters (run_id, etc.).
 
         Returns:
             IngestionResult with status, row counts, and metadata.
+
+        Raises:
+            Exception: Re-raises any exception from Sling execution after
+                emitting failure events.
+
         """
         parameters = parameters or {}
         run_id = parameters.get("run_id", "unknown")
@@ -173,13 +213,18 @@ class SlingIngester(BaseIngester):
         """Build keyword arguments for the Sling constructor.
 
         Merges static configuration from the ReplicationConfig with runtime
-        overrides from the user function.
+        overrides from the user function. Validates that a target object
+        is defined.
 
         Args:
             partition_key: Partition date for dynamic WHERE clause injection.
 
         Returns:
             Dict of kwargs suitable for `Sling(**kwargs)`.
+
+        Raises:
+            PhloConfigError: If no target object can be determined.
+
         """
         config = self.replication_config
 

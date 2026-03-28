@@ -45,6 +45,7 @@ def test_schema_check_plugin():
 
             Returns:
                 The unmodified input dataframe.
+
             """
             return df
 

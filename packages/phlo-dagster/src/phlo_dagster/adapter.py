@@ -1,4 +1,46 @@
-"""Dagster orchestrator adapter for capability specs."""
+"""Dagster orchestrator adapter for Phlo capability specs.
+
+This module provides the core translation layer between Phlo's capability-based
+architecture and Dagster's asset-centric execution model. It converts capability
+specifications (AssetSpec, AssetCheckSpec, ResourceSpec) into Dagster definitions.
+
+Translation Mapping:
+    - AssetSpec → @asset decorated functions
+    - AssetCheckSpec → @asset_check decorated functions
+    - ResourceSpec → Dagster ResourceDefinition
+    - Partitions → Dagster PartitionsDefinition
+    - Cron schedules → Dagster AutomationCondition
+    - Freshness windows → Dagster FreshnessPolicy
+
+Key Components:
+    - DagsterOrchestratorAdapter: Main adapter implementing OrchestratorAdapterPlugin
+    - DagsterRuntime: Runtime context wrapper providing Dagster integration
+    - Metadata conversion helpers for Dagster-compatible types
+
+Dagster Integration Points:
+    - AssetExecutionContext: Wrapped to provide Phlo RuntimeContext interface
+    - MaterializeResult/CheckResult: Converted to Dagster result types
+    - Retry policies and op tags from spec configuration
+    - Dependencies mapped to AssetKey relationships
+
+Example:
+    Adapter instantiation::
+
+        from phlo_dagster.adapter import DagsterOrchestratorAdapter
+        from phlo.capabilities.discovery import discover_capabilities
+
+        # Discover capabilities from user code
+        discover_capabilities()
+
+        # Build Dagster definitions
+        adapter = DagsterOrchestratorAdapter()
+        defs = adapter.build_definitions(
+            assets=registry.list_assets(),
+            checks=registry.list_checks(),
+            resources=registry.list_resources(),
+        )
+
+"""
 
 from __future__ import annotations
 
@@ -34,6 +76,7 @@ def _asset_key_from_string(key: str) -> dg.AssetKey:
 
     Returns:
         Dagster asset key object.
+
     """
     if "." in key:
         return dg.AssetKey(key.split("."))
@@ -48,6 +91,7 @@ def _metadata_value(value: Any) -> dg.MetadataValue:
 
     Returns:
         Dagster metadata wrapper for the provided value.
+
     """
     if isinstance(value, dg.MetadataValue):
         return value
@@ -75,6 +119,7 @@ def _convert_metadata(metadata: dict[str, Any]) -> dict[str, dg.MetadataValue]:
 
     Returns:
         Metadata mapping with Dagster-compatible values.
+
     """
     converted: dict[str, dg.MetadataValue] = {}
     for key, value in metadata.items():
@@ -107,6 +152,7 @@ def _severity_from_string(value: str | None) -> dg.AssetCheckSeverity | None:
 
     Returns:
         Dagster severity if recognized, otherwise ``None``.
+
     """
     if not value:
         return None
@@ -217,6 +263,7 @@ class DagsterRuntime(RuntimeContext):
 
         Returns:
             Resolved resource object.
+
         """
         return getattr(self.context.resources, name)
 
@@ -253,6 +300,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
 
         Returns:
             Dagster definitions bundle for assets, checks, and resources.
+
         """
         assets_list = list(assets)
         checks_list = list(checks)
@@ -296,6 +344,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
 
         Returns:
             Dagster assets definition function.
+
         """
         check_specs = [
             dg.AssetCheckSpec(
@@ -369,6 +418,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
 
             Yields:
                 Dagster materialization or asset check results.
+
             """
             runtime = DagsterRuntime(
                 context, asset_capability_overrides=dict(spec.capability_overrides)
@@ -417,6 +467,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
 
         Returns:
             Dagster asset check definition function.
+
         """
         asset_key = _asset_key_from_string(spec.asset_key)
         default_severity = _severity_from_string(spec.severity) or dg.AssetCheckSeverity.ERROR
@@ -435,6 +486,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
 
             Returns:
                 Dagster asset check result.
+
             """
             runtime = DagsterRuntime(context)
             result = spec.fn(runtime) if spec.fn else None

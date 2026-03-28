@@ -11,7 +11,13 @@ logger = get_logger(__name__)
 
 
 def _default_schema_search_paths() -> list[str]:
-    """Return default schema search paths rooted at the project when available."""
+    """Return default schema search paths rooted at the project when available.
+
+    Returns:
+        List of search path strings. Uses PHLO_SCHEMA_SEARCH_PATHS env var
+        if set, otherwise defaults to examples/ and workflows/ directories.
+
+    """
     env_paths = os.getenv("PHLO_SCHEMA_SEARCH_PATHS")
     if env_paths:
         return [path.strip() for path in env_paths.split(",") if path.strip()]
@@ -27,16 +33,16 @@ def _default_schema_search_paths() -> list[str]:
 
 
 def format_table(title: str, columns: list[str], rows: list[tuple]) -> Table:
-    """
-    Create a Rich Table with given data.
+    """Create a Rich Table with given data.
 
     Args:
-        title: Table title
-        columns: List of column headers
-        rows: List of tuples (one per row)
+        title: Table title.
+        columns: List of column headers.
+        rows: List of tuples (one per row).
 
     Returns:
-        Rich Table instance
+        Rich Table instance with data populated.
+
     """
     table = Table(title=title)
     for col in columns:
@@ -60,6 +66,7 @@ def discover_pandera_schemas(
 
     Returns:
         Dictionary mapping schema name to schema class
+
     """
     import inspect
     from importlib import import_module
@@ -122,6 +129,7 @@ def classify_schema_change(old_schema: dict, new_schema: dict) -> tuple[str, lis
 
     Returns:
         Tuple of (classification, details_list)
+
     """
     old_cols = set(old_schema.keys())
     new_cols = set(new_schema.keys())

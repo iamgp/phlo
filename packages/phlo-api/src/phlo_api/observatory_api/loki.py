@@ -2,6 +2,28 @@
 
 Endpoints for querying logs from Loki.
 Supports correlation by run_id, asset_key, job_name, and partition_key.
+
+This module provides a unified interface to query structured logs from
+the Loki log aggregation system. It supports filtering by various
+correlation IDs to enable debugging of data pipelines and operations.
+
+Key Endpoints:
+    GET /connection: Check Loki connectivity.
+    GET /query: Query logs with filters.
+    GET /runs/{run_id}: Query logs for a specific Dagster run.
+    GET /assets/{asset_key}: Query logs for a specific asset.
+    GET /labels: Get available log label keys.
+
+Environment Variables:
+    LOKI_URL: URL for the Loki server.
+
+Example:
+    Querying logs for a Dagster run:
+
+    .. code-block:: bash
+
+        curl http://localhost:4000/api/loki/runs/abc-123
+
 """
 
 from __future__ import annotations
@@ -34,6 +56,7 @@ def resolve_loki_url(override: str | None = None) -> str:
 
     Returns:
         Loki URL from override, environment, or default.
+
     """
     if override and override.strip():
         return override
@@ -51,6 +74,7 @@ class LogEntry(BaseModel):
         level: Log severity level.
         message: Log message text.
         metadata: Correlation metadata extracted from the payload.
+
     """
 
     timestamp: str
@@ -65,6 +89,7 @@ class LogQueryResult(BaseModel):
     Attributes:
         entries: Parsed log entries for the request.
         has_more: Whether additional entries may exist beyond the returned limit.
+
     """
 
     entries: list[LogEntry]
@@ -78,6 +103,7 @@ class LokiConnectionStatus(BaseModel):
         connected: Whether the Loki endpoint is reachable.
         error: Error message when the connection check fails.
         version: Loki version string when available.
+
     """
 
     connected: bool
@@ -110,6 +136,7 @@ def build_log_query(
 
     Returns:
         LogQL query string.
+
     """
     label_matchers = []
     json_filters = []
@@ -148,6 +175,7 @@ def parse_loki_response(response: dict[str, Any]) -> list[LogEntry]:
 
     Returns:
         Parsed log entries sorted by timestamp descending.
+
     """
     entries = []
 
@@ -208,7 +236,11 @@ async def check_connection(loki_url: str | None = None) -> LokiConnectionStatus:
         loki_url: Optional Loki URL override.
 
     Returns:
-        Loki connectivity status.
+        LokiConnectionStatus with connection state and version info.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
     """
     url = resolve_loki_url(loki_url)
 
@@ -254,21 +286,28 @@ async def query_logs(
 ) -> LogQueryResult | dict[str, str]:
     """Query logs with correlation filters.
 
+    Executes a LogQL query against Loki with optional filters for run_id,
+    asset_key, job, partition_key, check_name, level, and service.
+
     Args:
         start: Query start time as ISO 8601 timestamp.
         end: Query end time as ISO 8601 timestamp.
-        run_id: Optional Dagster run identifier.
+        run_id: Optional Dagster run identifier filter.
         asset_key: Optional asset key filter.
         job: Optional job name filter.
         partition_key: Optional partition key filter.
         check_name: Optional check name filter.
-        level: Optional log level filter.
+        level: Optional log level filter (debug, info, warn, error).
         service: Optional service/container selector.
-        limit: Maximum number of log entries.
+        limit: Maximum number of log entries (default: 100, max: 1000).
         loki_url: Optional Loki URL override.
 
     Returns:
-        Query result with log entries or an error dictionary.
+        LogQueryResult with entries and has_more flag, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
     """
     url = resolve_loki_url(loki_url)
 
@@ -319,6 +358,7 @@ async def query_run_logs(
 
     Returns:
         Query result with log entries or an error dictionary.
+
     """
     # Query last 24 hours
     end = datetime.now()
@@ -355,6 +395,7 @@ async def query_asset_logs(
 
     Returns:
         Query result with log entries or an error dictionary.
+
     """
     end = datetime.now()
     start = end - timedelta(hours=hours_back)
@@ -379,6 +420,7 @@ async def get_log_labels(loki_url: str | None = None) -> dict[str, Any]:
 
     Returns:
         Label key list payload or an error dictionary.
+
     """
     url = resolve_loki_url(loki_url)
 

@@ -1,6 +1,32 @@
-"""Status Command
+"""Status command for Dagster assets and services.
 
-Display current state of assets, jobs, and services.
+This module implements the `phlo status` CLI command, providing visibility
+into Dagster asset materialization status, freshness, and service health.
+It queries the Dagster GraphQL API to retrieve real-time state information.
+
+Features:
+    - Asset status: Materialization state, last run time, freshness indicators
+    - Service health: Dagster, Trino, MinIO, Nessie connectivity checks
+    - Filtering: By asset group, stale status
+    - Output formats: Rich tables or JSON for scripting
+    - Color-coded indicators for quick assessment
+
+GraphQL Queries:
+    The command queries Dagster's GraphQL API for:
+    - Asset definitions and their metadata
+    - Materialization history
+    - Service health endpoints
+
+Example:
+    CLI usage::
+
+        phlo status                    # All assets and services
+        phlo status --assets           # Assets only
+        phlo status --services         # Services only
+        phlo status --group ingestion  # Filter by group
+        phlo status --stale            # Only stale assets
+        phlo status --json             # JSON output
+
 """
 
 import json
@@ -59,22 +85,26 @@ def status(
     stale: bool,
     output_json: bool,
 ) -> None:
-    """
-    Show current state of assets, jobs, and services.
+    """Show current state of assets, jobs, and services.
 
     Displays:
     - Asset materialization status and freshness
     - Service health (Dagster, Trino, MinIO, Nessie)
     - Color-coded status indicators
 
-    \b
-    Examples:
-      phlo status                    # All assets and services
-      phlo status --assets           # Assets only
-      phlo status --services         # Services only
-      phlo status --group ingestion  # Filter by group
-      phlo status --stale            # Only stale assets
-      phlo status --json             # JSON output for scripting
+    Args:
+        assets: If True, show assets only.
+        services: If True, show services only.
+        group: Filter assets by group name.
+        stale: If True, show only stale assets.
+        output_json: If True, output as JSON.
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised. Logs warnings on query failures.
+
     """
     if not output_json:
         console.print("\n[bold blue]📊 Status Report[/bold blue]\n")
@@ -142,6 +172,7 @@ def _get_asset_status(
 
     Returns:
         List of asset status dicts with name, last_run, status, freshness
+
     """
     assets: list[dict[str, Any]] = []
     logger.debug(

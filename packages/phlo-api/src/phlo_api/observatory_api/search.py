@@ -2,6 +2,21 @@
 
 Endpoint to aggregate searchable entities for the command palette.
 Combines data from Dagster (assets) and Iceberg/Trino (tables, columns).
+
+This module builds a unified search index that enables quick navigation
+and discovery across the data platform, including Dagster assets,
+Iceberg tables, and table columns.
+
+Key Endpoints:
+    GET /index: Build the observability search index.
+
+Example:
+    Building search index:
+
+    .. code-block:: bash
+
+        curl "http://localhost:4000/api/search/index?include_columns=true"
+
 """
 
 from __future__ import annotations
@@ -33,6 +48,7 @@ class SearchableAsset(BaseModel):
         key_path: Asset key path.
         group_name: Optional Dagster group name.
         compute_kind: Optional compute engine label.
+
     """
 
     id: str
@@ -50,6 +66,7 @@ class SearchableTable(BaseModel):
         name: Table name.
         full_name: Fully qualified table name.
         layer: Medallion/data layer classification.
+
     """
 
     catalog: str
@@ -67,6 +84,7 @@ class SearchableColumn(BaseModel):
         table_schema: Parent schema name.
         name: Column name.
         type: Column data type.
+
     """
 
     table_name: str
@@ -83,6 +101,7 @@ class SearchIndex(BaseModel):
         tables: Searchable tables.
         columns: Searchable columns.
         last_updated: ISO timestamp when the index was built.
+
     """
 
     assets: list[SearchableAsset]
@@ -104,15 +123,21 @@ async def get_search_index(
 ) -> SearchIndex | dict[str, str]:
     """Build the observability search index.
 
+    Aggregates searchable entities from Dagster (assets) and Trino (tables, columns).
+
     Args:
-        dagster_url: Optional Dagster URL override.
+        dagster_url: Optional Dagster GraphQL URL override.
         trino_url: Optional Trino URL override.
-        catalog: Trino catalog name.
+        catalog: Trino catalog name (default from resolve_default_catalog).
         branch: Trino schema/branch context.
-        include_columns: Whether to include column metadata.
+        include_columns: Whether to include column metadata in results (default: True).
 
     Returns:
-        Aggregated search index or an error dictionary.
+        SearchIndex with assets, tables, and columns, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
     """
     try:
         effective_catalog = catalog or resolve_default_catalog()

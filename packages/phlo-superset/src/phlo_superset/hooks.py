@@ -1,4 +1,18 @@
-"""Superset hooks for auto-configuration."""
+"""Superset hooks for automatic configuration.
+
+This module provides hooks for configuring Apache Superset integration with
+Phlo's query engine capabilities. It handles automatic database connection
+setup, authentication, and health checking.
+
+Functions in this module are designed to be called during service startup
+or manually via the CLI to provision Superset with database connections
+from discovered query engine capabilities.
+
+Example:
+    >>> from phlo_superset.hooks import add_query_engine_database
+    >>> add_query_engine_database()
+
+"""
 
 from __future__ import annotations
 
@@ -15,12 +29,55 @@ logger = get_logger(__name__)
 
 
 def _superset_auth_provider() -> str:
-    """Return the configured Superset auth provider for API logins."""
+    """Return the configured Superset authentication provider for API logins.
+
+    This function retrieves the authentication provider type from environment
+    variables. It supports multiple authentication backends for Superset's
+    security API.
+
+    Returns:
+        The authentication provider name (e.g., 'db' for database authentication).
+        Defaults to 'db' if not explicitly configured.
+
+    Raises:
+        None
+
+    Example:
+        >>> provider = _superset_auth_provider()
+        >>> print(provider)
+        'db'
+
+    Environment:
+        SUPERSET_AUTH_PROVIDER: The auth provider name (default: 'db').
+
+    """
     return os.environ.get("SUPERSET_AUTH_PROVIDER", "db")
 
 
 def _superset_database_name() -> str:
-    """Return the configured logical database name shown in Superset."""
+    """Return the configured logical database name shown in Superset.
+
+    This function determines the display name for the database connection in
+    Superset's UI. It first checks for an explicit configuration, then attempts
+    to discover the name from query engine capability metadata by looking for
+    catalog-related keys.
+
+    Returns:
+        The logical database name to display in Superset.
+
+    Raises:
+        RuntimeError: If no database name is configured and no query engine
+            capability provides a default catalog name.
+
+    Example:
+        >>> name = _superset_database_name()
+        >>> print(name)
+        'my_catalog'
+
+    Environment:
+        SUPERSET_DATABASE_NAME: Explicit database display name.
+
+    """
     configured = os.environ.get("SUPERSET_DATABASE_NAME")
     if configured:
         return configured
@@ -40,12 +97,53 @@ def _superset_database_name() -> str:
 
 
 def _query_engine_name() -> str | None:
-    """Return the configured query_engine capability name for Superset integration."""
+    """Return the configured query_engine capability name for Superset integration.
+
+    This function retrieves the name of the query engine capability that
+    Superset should connect to. When None, the system will attempt to
+    auto-discover an appropriate query engine.
+
+    Returns:
+        The query engine capability name, or None if not configured.
+
+    Raises:
+        None
+
+    Example:
+        >>> engine = _query_engine_name()
+        >>> print(engine)
+        'trino'
+
+    Environment:
+        SUPERSET_QUERY_ENGINE: The target query engine capability name.
+
+    """
     return os.environ.get("SUPERSET_QUERY_ENGINE")
 
 
 def _configured_database_uri() -> str | None:
-    """Return an explicit SQLAlchemy URI override when configured."""
+    """Return an explicit SQLAlchemy URI override when configured.
+
+    This function provides a way to bypass capability-based URI discovery
+    and directly specify the database connection string via environment
+    variables.
+
+    Returns:
+        The configured SQLAlchemy URI, or None if not set.
+
+    Raises:
+        None
+
+    Example:
+        >>> uri = _configured_database_uri()
+        >>> if uri:
+        ...     print(uri)
+        'trino://localhost:8080/mycatalog'
+
+    Environment:
+        SUPERSET_DATABASE_URI: Direct SQLAlchemy connection URI.
+
+    """
     uri = os.environ.get("SUPERSET_DATABASE_URI")
     if uri:
         return uri
@@ -53,7 +151,32 @@ def _configured_database_uri() -> str | None:
 
 
 def _discover_query_engine_database_uri() -> str:
-    """Resolve a SQLAlchemy URI from query_engine capability metadata."""
+    """Resolve a SQLAlchemy URI from query_engine capability metadata.
+
+    This function discovers the appropriate query engine capability and
+    extracts or builds a SQLAlchemy connection URI from its metadata.
+    It supports both direct URI metadata and URI templates with variable
+    substitution.
+
+    Returns:
+        A complete SQLAlchemy connection URI for the discovered query engine.
+
+    Raises:
+        RuntimeError: If the query_engine capability cannot be resolved.
+        RuntimeError: If the capability metadata lacks URI information.
+        RuntimeError: If URI template formatting fails due to missing keys.
+
+    Example:
+        >>> uri = _discover_query_engine_database_uri()
+        >>> print(uri)
+        'trino://user:pass@localhost:8080/catalog'
+
+    Capability Metadata:
+        The query engine capability should provide either:
+        - sqlalchemy_uri: Direct connection URI string.
+        - sqlalchemy_uri_template: Template with placeholders like {host}, {port}.
+
+    """
     discover_capabilities()
     resolution = resolve_capability("query_engine", _query_engine_name())
     if resolution is None:
@@ -85,7 +208,39 @@ def _discover_query_engine_database_uri() -> str:
 
 
 def add_query_engine_database() -> None:
-    """Add the configured query-engine database connection to Superset."""
+    """Add the configured query-engine database connection to Superset.
+
+    This function provisions a database connection in Apache Superset by:
+    1. Waiting for the Superset service to be healthy (up to 60 seconds).
+    2. Authenticating via the security API to obtain an access token.
+    3. Retrieving a CSRF token for state-changing operations.
+    4. Checking if the database connection already exists.
+    5. Creating the database connection via Superset's REST API.
+
+    The database connection is configured with SQL Lab access enabled and
+    supports async queries, CTAS, CVAS, and DML operations.
+
+    Returns:
+        None
+
+    Raises:
+        None: Errors are logged but not raised. Failed operations return
+            early without throwing exceptions.
+
+    Example:
+        >>> from phlo_superset.hooks import add_query_engine_database
+        >>> add_query_engine_database()
+        # Database connection is now available in Superset
+
+    Environment:
+        SUPERSET_URL: Superset base URL (default: http://localhost:8088).
+        SUPERSET_ADMIN_USER: Admin username for API authentication.
+        SUPERSET_ADMIN_PASSWORD: Admin password for API authentication.
+        SUPERSET_DATABASE_NAME: Logical name for the database in Superset UI.
+        SUPERSET_DATABASE_URI: Direct SQLAlchemy URI (optional).
+        SUPERSET_QUERY_ENGINE: Query engine capability name for auto-discovery.
+
+    """
     start = time.perf_counter()
     superset_url = os.environ.get("SUPERSET_URL", "http://localhost:8088")
     admin_user = os.environ.get("SUPERSET_ADMIN_USER", "admin")

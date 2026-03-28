@@ -1,4 +1,37 @@
-"""Iceberg settings."""
+"""Iceberg settings configuration.
+
+This module provides configuration management for Iceberg connections,
+including warehouse paths, S3 storage settings, and Nessie catalog endpoints.
+
+Settings are loaded from environment variables and ``.phlo/.env`` files,
+following Phlo's standard configuration pattern.
+
+Configuration precedence:
+    1. Environment variables (``PHLO_ICEBERG_*``)
+    2. ``.phlo/.env.local`` (local overrides)
+    3. ``.phlo/.env`` (project defaults)
+    4. Default values defined in this module
+
+Example:
+    Basic settings usage::
+
+        from phlo_iceberg.settings import get_settings
+
+        settings = get_settings()
+        print(f"Warehouse: {settings.iceberg_warehouse_path}")
+        print(f"Default branch: {settings.iceberg_default_ref}")
+
+        # Get catalog config for PyIceberg
+        catalog_config = settings.get_pyiceberg_catalog_config(ref="main")
+
+    Environment variables::
+
+        export PHLO_ICEBERG_WAREHOUSE_PATH=s3://my-bucket/warehouse
+        export PHLO_ICEBERG_DEFAULT_REF=main
+        export PHLO_ICEBERG_S3_ACCESS_KEY=mykey
+        export PHLO_ICEBERG_S3_SECRET_KEY=mysecret
+
+"""
 
 from __future__ import annotations
 
@@ -11,7 +44,48 @@ from phlo.config.network import resolve_url as _resolve_service_url
 
 
 class IcebergSettings(BaseConfig):
-    """Iceberg catalog configuration."""
+    """Iceberg catalog and storage configuration.
+
+    Defines all configuration parameters for connecting to Iceberg via
+    Nessie REST catalog and S3-compatible storage (MinIO).
+
+    Attributes:
+        iceberg_warehouse_path: S3 path for the Iceberg warehouse.
+            Default: ``s3://lake/warehouse``.
+        iceberg_staging_path: S3 path for staging Parquet files.
+            Default: ``s3://lake/stage``.
+        iceberg_default_namespace: Default namespace for new tables.
+            Default: ``raw``.
+        iceberg_default_ref: Default Nessie branch/tag reference.
+            Default: ``main``.
+        iceberg_s3_endpoint: S3-compatible endpoint URL (MinIO).
+            Default: ``http://minio:10001``.
+        iceberg_s3_access_key: S3 access key for storage operations.
+            Default: ``minio``.
+        iceberg_s3_secret_key: S3 secret key for storage operations.
+            Default: ``minio123``.
+        iceberg_s3_region: AWS-style region for S3 operations.
+            Default: ``us-east-1``.
+        iceberg_catalog_uri: Nessie REST catalog endpoint base URI.
+            Default: ``http://nessie:19120/iceberg``.
+
+    Example:
+        Configure via environment::
+
+            export PHLO_ICEBERG_WAREHOUSE_PATH=s3://production/warehouse
+            export PHLO_ICEBERG_CATALOG_URI=http://nessie.prod:19120/iceberg
+            export PHLO_ICEBERG_S3_ACCESS_KEY=prod-key
+            export PHLO_ICEBERG_S3_SECRET_KEY=prod-secret
+
+        Access in code::
+
+            from phlo_iceberg.settings import get_settings
+
+            settings = get_settings()
+            config = settings.get_pyiceberg_catalog_config(ref="main")
+            catalog = load_catalog(**config)
+
+    """
 
     iceberg_warehouse_path: str = Field(
         default="s3://lake/warehouse", description="S3 path for Iceberg warehouse"
@@ -47,24 +121,61 @@ class IcebergSettings(BaseConfig):
     )
 
     def get_iceberg_warehouse_for_branch(self, branch: str = "main") -> str:
-        """Get the warehouse path for a branch.
+        """Get the warehouse path for a specific branch.
+
+        Currently returns the same warehouse path for all branches.
+        Future versions may support branch-specific warehouse locations.
 
         Args:
             branch: Nessie branch name.
 
         Returns:
             str: Warehouse path for the requested branch.
+
+        Example:
+            Get warehouse path::
+
+                settings = get_settings()
+                path = settings.get_iceberg_warehouse_for_branch("main")
+                print(f"Warehouse: {path}")  # s3://lake/warehouse
+
         """
         return self.iceberg_warehouse_path
 
     def get_pyiceberg_catalog_config(self, ref: str = "main") -> dict:
-        """Build PyIceberg REST catalog configuration.
+        """Build PyIceberg REST catalog configuration dictionary.
+
+        Constructs a configuration dict suitable for passing to
+        ``pyiceberg.catalog.load_catalog()``. Resolves service URLs
+        dynamically based on environment configuration.
 
         Args:
-            ref: Nessie reference to target.
+            ref: Nessie reference (branch or tag) to target.
 
         Returns:
-            dict: PyIceberg catalog configuration values.
+            dict: PyIceberg catalog configuration with keys:
+                - ``type``: Always "rest"
+                - ``uri``: Full catalog URI including ref path
+                - ``warehouse``: Warehouse path
+                - ``s3.endpoint``: S3 endpoint URL
+                - ``s3.access-key-id``: S3 access key
+                - ``s3.secret-access-key``: S3 secret key
+                - ``s3.path-style-access``: Always "true" (MinIO compatibility)
+                - ``s3.region``: S3 region
+
+        Example:
+            Configure PyIceberg catalog::
+
+                from pyiceberg.catalog import load_catalog
+                from phlo_iceberg.settings import get_settings
+
+                settings = get_settings()
+                config = settings.get_pyiceberg_catalog_config(ref="dev")
+                catalog = load_catalog("dev_catalog", **config)
+
+                # Now use catalog
+                tables = catalog.list_tables("raw")
+
         """
         catalog_uri = _resolve_service_url(self.iceberg_catalog_uri, port_env_var="NESSIE_PORT")
         s3_endpoint = _resolve_service_url(self.iceberg_s3_endpoint, port_env_var="MINIO_API_PORT")
@@ -82,9 +193,29 @@ class IcebergSettings(BaseConfig):
 
 @lru_cache(maxsize=1)
 def get_settings() -> IcebergSettings:
-    """Get cached Iceberg settings.
+    """Get cached Iceberg settings instance.
+
+    Uses LRU cache to avoid repeatedly loading and parsing configuration.
+    The cache has size 1, meaning only one settings instance is kept.
 
     Returns:
-        IcebergSettings: Cached Iceberg settings instance.
+        IcebergSettings: Cached Iceberg settings instance with all
+            configuration values resolved from environment and files.
+
+    Example:
+        Get settings::
+
+            from phlo_iceberg.settings import get_settings
+
+            settings = get_settings()
+            print(f"Warehouse: {settings.iceberg_warehouse_path}")
+            print(f"Default namespace: {settings.iceberg_default_namespace}")
+
+    Note:
+        Settings are cached. To force reload after configuration changes,
+        restart the Python process or clear the cache with::
+
+            get_settings.cache_clear()
+
     """
     return IcebergSettings()

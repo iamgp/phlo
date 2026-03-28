@@ -1,4 +1,23 @@
-"""Trino settings."""
+"""Trino settings and configuration management.
+
+This module provides configuration management for Trino connections,
+including host resolution, port configuration, and DSN generation.
+
+Functions:
+    build_trino_dsn: Build a Trino DSN string from components.
+    get_settings: Return cached Trino settings instance.
+
+Classes:
+    TrinoSettings: Configuration model for Trino query engine.
+
+Example:
+    >>> from phlo_trino.settings import TrinoSettings, get_settings
+    >>> settings = get_settings()
+    >>> dsn = settings.trino_connection_string()
+    >>> print(dsn)
+    trino://trino:10005/iceberg
+
+"""
 
 from __future__ import annotations
 
@@ -21,6 +40,7 @@ def build_trino_dsn(host: str, port: int, catalog: str) -> str:
 
     Returns:
         DSN string for Trino connections.
+
     """
     return f"trino://{host}:{port}/{catalog}"
 
@@ -38,6 +58,7 @@ class TrinoSettings(BaseConfig):
     )
 
     def model_post_init(self, __context: Any) -> None:
+        """Post-initialization hook to resolve host and port."""
         host, port = resolve_host(self.trino_host, self.trino_port, port_env_var="TRINO_PORT")
         object.__setattr__(self, "trino_host", host)
         object.__setattr__(self, "trino_port", port)
@@ -47,6 +68,7 @@ class TrinoSettings(BaseConfig):
 
         Returns:
             DSN string derived from configured host, port, and catalog.
+
         """
         return build_trino_dsn(self.trino_host, self.trino_port, self.trino_catalog)
 
@@ -57,5 +79,6 @@ def get_settings() -> TrinoSettings:
 
     Returns:
         Trino settings instance.
+
     """
     return TrinoSettings()

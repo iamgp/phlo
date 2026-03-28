@@ -1,4 +1,34 @@
-"""Dagster development server command."""
+"""Development server command for local Dagster development.
+
+This module implements the `phlo dev` CLI command, which starts a local
+Dagster development server for iterative workflow development. It wraps
+the `dagster dev` command with Phlo-specific configuration.
+
+Features:
+    - Automatic workflows directory creation
+    - Project validation (pyproject.toml check)
+    - Configurable host and port binding
+    - Environment variable injection for Phlo configuration
+    - Keyboard interrupt handling for clean shutdown
+    - Process lifecycle logging
+
+Environment Setup:
+    Sets PHLO_WORKFLOWS_PATH to enable framework definitions discovery.
+    Validates project structure before starting server.
+
+Requirements:
+    - pyproject.toml in current directory
+    - Dagster installed in environment
+    - Workflows directory (auto-created if missing)
+
+Example:
+    CLI usage::
+
+        phlo dev                                    # Default host/port
+        phlo dev --host 0.0.0.0 --port 8080        # Custom binding
+        phlo dev --workflows-path custom_workflows  # Non-standard path
+
+"""
 
 from __future__ import annotations
 
@@ -19,7 +49,20 @@ logger = get_logger(__name__)
 @click.option("--port", default=3000, type=int, help="Port to bind to")
 @click.option("--workflows-path", default="workflows", help="Path to workflows directory")
 def dev(host: str, port: int, workflows_path: str) -> None:
-    """Start Dagster development server with your workflows."""
+    """Start Dagster development server with your workflows.
+
+    Args:
+        host: Host address to bind the server to.
+        port: Port number to bind the server to.
+        workflows_path: Path to the workflows directory.
+
+    Returns:
+        None
+
+    Raises:
+        SystemExit: If pyproject.toml not found or dagster command fails.
+
+    """
     click.echo("Starting Phlo development server...\n")
     logger.info(
         "dagster_dev_command_started",

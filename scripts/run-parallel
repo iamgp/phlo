@@ -12,6 +12,7 @@ Options:
 
 import argparse
 import asyncio
+import contextlib
 import os
 import pty
 import re
@@ -133,13 +134,13 @@ class ParallelRunner:
 
         if task.status == TaskStatus.SUCCESS:
             return prefix
-        elif task.status == TaskStatus.FAILURE:
+        if task.status == TaskStatus.FAILURE:
             return f"{prefix} {DIM}(exit {task.exit_code}){RESET}"
-        elif task.status == TaskStatus.PENDING:
+        if task.status == TaskStatus.PENDING:
             if self.should_stop:
                 return f"{prefix} {DIM}(skipped){RESET}"
             return prefix
-        elif task.last_line:
+        if task.last_line:
             # Clean and truncate the last line
             clean_line = strip_ansi(task.last_line).strip()
             # Remove any control characters
@@ -242,7 +243,7 @@ class ParallelRunner:
                         except (BlockingIOError, OSError):
                             pass
                         break
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         pass  # Process still running
 
                     try:
@@ -285,14 +286,10 @@ class ParallelRunner:
 
             finally:
                 if slave_fd != -1:
-                    try:
+                    with contextlib.suppress(OSError):
                         os.close(slave_fd)
-                    except OSError:
-                        pass
-                try:
+                with contextlib.suppress(OSError):
                     os.close(master_fd)
-                except OSError:
-                    pass
 
     async def _spinner_loop(self):
         """Update spinner animation."""

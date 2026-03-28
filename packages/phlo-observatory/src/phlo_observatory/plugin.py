@@ -1,4 +1,30 @@
-"""Observatory service plugin."""
+"""Observatory service plugin for container orchestration.
+
+This module defines the ServicePlugin implementation for the Observatory UI,
+enabling Docker Compose-based deployment and lifecycle management through
+the Phlo service orchestration system.
+
+The ObservatoryServicePlugin provides:
+    - Plugin metadata for discovery and versioning
+    - Service definition loading from package resources
+    - Integration with Phlo's service management CLI
+
+Service Configuration:
+    The service definition is loaded from service.yaml in the package resources,
+    defining container images, ports, volumes, and environment variables.
+
+Example:
+    >>> from phlo_observatory.plugin import ObservatoryServicePlugin
+    >>> plugin = ObservatoryServicePlugin()
+    >>> print(plugin.metadata.name)
+    'observatory'
+    >>> service_def = plugin.service_definition
+
+See Also:
+    phlo.plugins.ServicePlugin: Base class for service plugins.
+    phlo_observatory.service.yaml: Service definition configuration.
+
+"""
 
 from __future__ import annotations
 
@@ -11,14 +37,41 @@ from phlo.plugins import PluginMetadata, ServicePlugin
 
 
 class ObservatoryServicePlugin(ServicePlugin):
-    """Service plugin for the Observatory UI."""
+    """Service plugin for the Observatory UI container orchestration.
+
+    This plugin integrates the Observatory web interface with Phlo's service
+    management system, enabling deployment via Docker Compose.
+
+    Attributes:
+        metadata: Plugin metadata including name, version, description, and tags.
+        service_definition: Parsed Docker Compose service configuration.
+
+    Example:
+        >>> plugin = ObservatoryServicePlugin()
+        >>> plugin.metadata.name
+        'observatory'
+        >>> 'image' in plugin.service_definition
+        True
+
+    """
 
     @property
     def metadata(self) -> PluginMetadata:
         """Return plugin metadata for the Observatory service.
 
+        Provides static metadata used by Phlo's plugin discovery system to
+        identify and categorize the Observatory service plugin.
+
         Returns:
-            Static metadata used for plugin discovery.
+            PluginMetadata with name, version, description, author, and tags.
+
+        Example:
+            >>> plugin = ObservatoryServicePlugin()
+            >>> plugin.metadata.name
+            'observatory'
+            >>> 'ui' in plugin.metadata.tags
+            True
+
         """
         return PluginMetadata(
             name="observatory",
@@ -32,8 +85,23 @@ class ObservatoryServicePlugin(ServicePlugin):
     def service_definition(self) -> dict[str, Any]:
         """Load the Observatory service definition from package resources.
 
+        Reads and parses the service.yaml file containing Docker Compose
+        configuration for the Observatory UI container.
+
         Returns:
-            Parsed compose-style service configuration.
+            Dictionary containing the parsed service definition with keys
+            such as 'image', 'ports', 'environment', and 'volumes'.
+
+        Raises:
+            FileNotFoundError: If service.yaml is not found in package resources.
+            yaml.YAMLError: If service.yaml contains invalid YAML syntax.
+
+        Example:
+            >>> plugin = ObservatoryServicePlugin()
+            >>> service = plugin.service_definition
+            >>> service.get('image')
+            'phlo/observatory:latest'
+
         """
         service_path = resources.files("phlo_observatory").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

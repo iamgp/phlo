@@ -2,6 +2,33 @@
 
 Endpoints for interacting with the Nessie REST API.
 Enables git-like data versioning features in Observatory.
+
+This module provides a proxy to the Project Nessie REST API, enabling
+branching, tagging, merging, and history tracking for Iceberg tables.
+It abstracts the Nessie API complexity and provides Observatory-compatible
+response formats.
+
+Key Endpoints:
+    GET /connection: Check Nessie connectivity.
+    GET /branches: List all branches and tags.
+    GET /branches/{name}: Get specific branch info.
+    GET /branches/{name}/history: Get commit history.
+    GET /branches/{name}/entries: List branch contents.
+    GET /diff/{from}/{to}: Compare two branches.
+    POST /branches: Create a new branch.
+    DELETE /branches/{name}: Delete a branch.
+    POST /merge: Merge branches.
+
+Environment Variables:
+    NESSIE_URL: URL for the Nessie server.
+
+Example:
+    Listing branches:
+
+    .. code-block:: bash
+
+        curl http://localhost:4000/api/nessie/branches
+
 """
 
 from __future__ import annotations
@@ -31,6 +58,7 @@ def resolve_nessie_url(override: str | None = None) -> str:
 
     Returns:
         Nessie URL from override, environment, or default.
+
     """
     env_url = os.environ.get("NESSIE_URL")
     if override and override.strip():
@@ -50,6 +78,7 @@ class Branch(BaseModel):
         type: Reference kind (`BRANCH` or `TAG`).
         name: Reference name.
         hash: Head commit hash.
+
     """
 
     type: Literal["BRANCH", "TAG"]
@@ -68,6 +97,7 @@ class CommitMeta(BaseModel):
         commit_time: Commit timestamp.
         author_time: Author timestamp.
         parent_commit_hashes: Parent commit hashes.
+
     """
 
     hash: str
@@ -86,6 +116,7 @@ class LogEntry(BaseModel):
         commit_meta: Metadata for the commit.
         parent_commit_hash: Direct parent hash when present.
         operations: Change operations included in the entry.
+
     """
 
     commit_meta: CommitMeta
@@ -100,6 +131,7 @@ class NessieConnectionStatus(BaseModel):
         connected: Whether Nessie is reachable.
         error: Error message when connection fails.
         default_branch: Nessie default branch when available.
+
     """
 
     connected: bool
@@ -114,6 +146,7 @@ class NessieContent(BaseModel):
         name: Content identifier structure.
         type: Nessie content type.
         content: Optional content payload.
+
     """
 
     name: dict[str, Any]
@@ -127,6 +160,7 @@ class MergeResult(BaseModel):
     Attributes:
         success: Whether merge succeeded.
         hash: Resulting target hash after merge.
+
     """
 
     success: bool
@@ -146,7 +180,11 @@ async def check_connection(
         nessie_url: Optional Nessie URL override.
 
     Returns:
-        Nessie connectivity status.
+        NessieConnectionStatus with connection state and default branch info.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
     """
     url = resolve_nessie_url(nessie_url)
 
@@ -171,13 +209,17 @@ async def check_connection(
 
 @router.get("/branches", response_model=list[Branch] | dict)
 async def get_branches(nessie_url: str | None = None) -> list[Branch] | dict[str, str]:
-    """List Nessie references.
+    """List all Nessie references (branches and tags).
 
     Args:
         nessie_url: Optional Nessie URL override.
 
     Returns:
-        List of branches/tags or an error dictionary.
+        List of Branch objects (includes tags), or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
     """
     url = resolve_nessie_url(nessie_url)
 
@@ -213,6 +255,7 @@ async def get_branch(branch_name: str, nessie_url: str | None = None) -> Branch 
 
     Returns:
         Branch details or an error dictionary.
+
     """
     url = resolve_nessie_url(nessie_url)
 
@@ -250,6 +293,7 @@ async def get_commits(
 
     Returns:
         Commit log entries or an error dictionary.
+
     """
     url = resolve_nessie_url(nessie_url)
 
@@ -303,6 +347,7 @@ async def get_contents(
 
     Returns:
         Content entries or an error dictionary.
+
     """
     url = resolve_nessie_url(nessie_url)
 
@@ -341,6 +386,7 @@ async def compare_branches(
 
     Returns:
         Diff payload or an error dictionary.
+
     """
     url = resolve_nessie_url(nessie_url)
 
@@ -373,6 +419,7 @@ async def create_branch(
 
     Returns:
         Created branch or an error dictionary.
+
     """
     url = resolve_nessie_url(nessie_url)
 
@@ -425,6 +472,7 @@ async def delete_branch(
 
     Returns:
         Success payload or an error dictionary.
+
     """
     url = resolve_nessie_url(nessie_url)
 
@@ -461,6 +509,7 @@ async def merge_branch(
 
     Returns:
         Merge result or an error dictionary.
+
     """
     url = resolve_nessie_url(nessie_url)
 

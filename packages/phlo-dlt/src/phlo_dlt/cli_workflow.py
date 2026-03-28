@@ -1,4 +1,49 @@
-"""Workflow management commands."""
+"""Workflow management commands.
+
+This module provides CLI commands for creating and managing DLT-based
+workflows. It implements the ``phlo workflow`` command group with
+subcommands for scaffolding new ingestion pipelines.
+
+Command Groups:
+    - ``workflow``: Main workflow management group
+    - ``workflow create``: Create new ingestion workflow scaffold
+
+Command Options:
+    --type: Workflow type (currently only "ingestion")
+    --domain: Domain name (e.g., weather, stripe)
+    --table: Table name for the ingestion
+    --unique-key: Field name for deduplication
+    --cron: Cron schedule expression
+    --api-base-url: REST API base URL (optional)
+    --field: Additional schema fields (repeatable)
+
+Generated Files:
+    For each workflow, creates three files:
+    1. ``workflows/schemas/{domain}.py``: Pandera schema definition
+    2. ``workflows/ingestion/{domain}/{table}.py``: Ingestion asset
+    3. ``tests/test_{domain}_{table}.py``: Unit tests
+
+See Also:
+    - :mod:`phlo_dlt.scaffold`: Scaffolding implementation
+    - :mod:`phlo_dlt.cli_plugin`: Plugin that exposes these commands
+    - Click documentation: https://click.palletsprojects.com/
+
+Example:
+    ```bash
+    # Create a new ingestion workflow
+    phlo workflow create --domain weather --table observations --unique-key id
+
+    # With additional fields
+    phlo workflow create \
+        --domain weather \
+        --table observations \
+        --unique-key station_id \
+        --field temperature:float \
+        --field humidity:float \
+        --field recorded_at:datetime
+    ```
+
+"""
 
 from __future__ import annotations
 
@@ -13,7 +58,21 @@ logger = get_logger(__name__)
 
 @click.group(name="workflow")
 def workflow_group() -> None:
-    """Manage workflows."""
+    """Manage workflows.
+
+    Command group for workflow operations including creation,
+    listing, and management of ingestion and transformation workflows.
+
+    Subcommands:
+        create: Create a new workflow scaffold
+
+    Example:
+        ```bash
+        phlo workflow --help
+        phlo workflow create --help
+        ```
+
+    """
 
 
 @workflow_group.command("create")
@@ -58,7 +117,52 @@ def create_workflow_cmd(
     api_base_url: str,
     fields: tuple[str, ...],
 ) -> None:
-    """Create a workflow scaffold."""
+    """Create a workflow scaffold.
+
+    Generates the initial file structure for a new DLT ingestion workflow:
+    - Pandera schema in workflows/schemas/{domain}.py
+    - Ingestion asset in workflows/ingestion/{domain}/{table}.py
+    - Unit tests in tests/test_{domain}_{table}.py
+
+    Args:
+        workflow_type: Type of workflow (currently only "ingestion" supported)
+        domain: Domain/category name for the data (e.g., "weather", "stripe")
+        table: Target table name
+        unique_key: Column name to use for deduplication
+        cron: Cron expression for scheduling (default: "0 */1 * * *")
+        api_base_url: Base URL for REST API source (optional)
+        fields: Additional schema fields as "name:type" strings
+
+    Exits:
+        0: Success
+        1: Error (unsupported type or exception)
+
+    Example:
+        ```bash
+        # Interactive mode (prompts for all values)
+        phlo workflow create
+
+        # Non-interactive with all options
+        phlo workflow create \
+            --type ingestion \
+            --domain weather \
+            --table observations \
+            --unique-key station_id \
+            --cron "0 */6 * * *" \
+            --api-base-url "https://api.weather.com/v1" \
+            --field temperature:float \
+            --field humidity:float
+
+        # Nullable and required fields
+        phlo workflow create \
+            --domain users \
+            --table profiles \
+            --unique-key user_id \
+            --field middle_name:str? \
+            --field email:str!
+        ```
+
+    """
     from phlo_dlt.scaffold import create_ingestion_workflow
 
     logger.info(

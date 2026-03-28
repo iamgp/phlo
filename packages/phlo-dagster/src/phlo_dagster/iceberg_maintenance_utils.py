@@ -1,8 +1,59 @@
-"""
-Shared helpers for Iceberg table maintenance operations.
+"""Shared utilities for Iceberg table maintenance operations.
 
-Provides configuration, tagging, payload construction, logging helpers,
-metrics emission, and catalog listing utilities used by maintenance ops.
+This module provides common helpers used by Iceberg maintenance jobs
+and sensors. It includes configuration models, telemetry tagging, logging
+utilities, and catalog interaction functions.
+
+Configuration:
+    MaintenanceConfig: Pydantic model for maintenance parameters:
+    - namespace: Target namespace or "all"
+    - snapshot_retention_days: Age threshold for snapshot expiration
+    - snapshot_retain_last: Minimum snapshots to preserve
+    - orphan_retention_days: Age threshold for orphan file deletion
+    - orphan_dry_run: List-only mode for orphan cleanup
+    - ref: Nessie branch reference (default: main)
+    - table_allowlist: Optional restriction to specific tables
+
+Telemetry Support:
+    - maintenance_tags(): Build telemetry context tags
+    - maintenance_payload(): Construct structured event payloads
+    - maintenance_log_extra(): Prepare logging extra fields
+    - start_maintenance_op(): Emit start telemetry and logs
+    - finish_maintenance_op(): Emit completion telemetry and metrics
+    - emit_maintenance_metrics(): Publish standard metrics
+
+Catalog Operations:
+    - list_tables(): Get fully qualified table names in a namespace
+    - list_namespaces(): Get all namespaces for a reference
+    - resolve_namespaces(): Expand "all" or return specific namespace
+
+Integration Requirements:
+    Requires phlo-iceberg package for catalog operations.
+    Functions lazily load dependencies for optional integration support.
+
+Example:
+    Configuration and telemetry::
+
+        from phlo_dagster.iceberg_maintenance_utils import (
+            MaintenanceConfig,
+            start_maintenance_op,
+            finish_maintenance_op,
+        )
+
+        config = MaintenanceConfig(
+            namespace="raw",
+            snapshot_retention_days=7,
+            ref="main",
+        )
+
+        telemetry = start_maintenance_op(context, config, "expire_snapshots")
+        # ... perform maintenance ...
+        summary = finish_maintenance_op(
+            context, config, telemetry, "expire_snapshots",
+            duration_seconds=elapsed, errors=errors,
+            tables_processed=10, snapshots_deleted=50,
+        )
+
 """
 
 from __future__ import annotations
@@ -19,7 +70,18 @@ logger = get_logger(__name__)
 
 
 def _load_get_catalog():
-    """Load phlo-iceberg catalog helper lazily for optional integration support."""
+    """Load phlo-iceberg catalog helper lazily for optional integration support.
+
+    Args:
+        None
+
+    Returns:
+        get_catalog function from phlo_iceberg.catalog.
+
+    Raises:
+        RuntimeError: If phlo-iceberg package is not available.
+
+    """
     try:
         from phlo_iceberg.catalog import get_catalog
     except Exception as exc:  # noqa: BLE001
@@ -40,6 +102,7 @@ class MaintenanceConfig(dg.Config):
         orphan_retention_days: Orphan file age threshold for deletion in days.
         orphan_dry_run: If ``True``, list orphan files without deleting.
         ref: Nessie reference (branch or tag) used for catalog operations.
+
     """
 
     # Namespace to run maintenance on (or 'all' for all namespaces)
@@ -75,6 +138,7 @@ def maintenance_tags(
 
     Returns:
         Tag dictionary suitable for telemetry event context.
+
     """
 
     tags = {
@@ -107,6 +171,7 @@ def maintenance_payload(
 
     Returns:
         Base payload merged with any extra fields.
+
     """
 
     payload = {
@@ -137,6 +202,7 @@ def maintenance_log_extra(
 
     Returns:
         Dictionary for the logging ``extra`` parameter.
+
     """
 
     return {
@@ -171,6 +237,7 @@ def emit_maintenance_metrics(
         orphan_files: Optional number of orphan files processed.
         total_records: Optional total records affected.
         total_size_mb: Optional total data size affected in MB.
+
     """
 
     payload = dict(emitter._context.tags)
@@ -231,6 +298,7 @@ def resolve_namespaces(config: MaintenanceConfig) -> list[str]:
 
     Returns:
         List of namespaces to target for maintenance.
+
     """
 
     if config.namespace == "all":
@@ -254,6 +322,7 @@ def start_maintenance_op(
 
     Returns:
         Telemetry emitter initialized with maintenance tags.
+
     """
 
     telemetry = TelemetryEventEmitter(
@@ -301,6 +370,7 @@ def finish_maintenance_op(
 
     Returns:
         Summary payload emitted for operation completion.
+
     """
 
     tag_extras = extra_tags or {}
@@ -363,6 +433,7 @@ def list_tables(namespace: str, ref: str) -> list[str]:
 
     Returns:
         Fully qualified table names, or an empty list on errors.
+
     """
     from pyiceberg.exceptions import NoSuchNamespaceError
 
@@ -386,6 +457,7 @@ def list_namespaces(ref: str) -> list[str]:
 
     Returns:
         Namespace names, or an empty list on errors.
+
     """
 
     catalog = _load_get_catalog()(ref=ref)

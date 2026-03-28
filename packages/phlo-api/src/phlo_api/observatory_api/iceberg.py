@@ -2,6 +2,29 @@
 
 Endpoints for querying Iceberg tables via Trino.
 Provides table listing, schema info, and metadata.
+
+This module enables data exploration by exposing Iceberg table metadata
+through Trino, including table listings, column schemas, row counts,
+and storage metrics. Tables are classified by medallion layer (bronze,
+silver, gold, publish) based on naming conventions.
+
+Key Endpoints:
+    GET /tables: List all tables in the catalog.
+    GET /tables/{table}/schema: Get column schema for a table.
+    GET /tables/{table}/row-count: Get estimated row count.
+    GET /tables/{table}/metadata: Get combined table metadata.
+
+Environment Variables:
+    PHLO_QUERY_CATALOG: Default Trino catalog.
+    PHLO_DEFAULT_REF: Default schema/branch.
+
+Example:
+    Listing tables in the warehouse:
+
+    .. code-block:: bash
+
+        curl "http://localhost:4000/api/iceberg/tables?branch=main"
+
 """
 
 from __future__ import annotations
@@ -41,6 +64,7 @@ def _cache_get(key: str, ttl: float) -> Any | None:
 
     Returns:
         Cached value or `None` when missing/expired.
+
     """
     entry = _cache.get(key)
     if not entry:
@@ -58,6 +82,7 @@ def _cache_set(key: str, value: Any) -> None:
     Args:
         key: Cache key.
         value: Value to cache.
+
     """
     _cache[key] = (time.time(), value)
 
@@ -76,6 +101,7 @@ class IcebergTable(BaseModel):
         name: Table name.
         full_name: Fully qualified table identifier.
         layer: Inferred medallion layer classification.
+
     """
 
     catalog: str
@@ -93,6 +119,7 @@ class TableColumn(BaseModel):
         type: SQL type string.
         nullable: Whether the column allows NULL values.
         comment: Optional column comment from catalog metadata.
+
     """
 
     name: str
@@ -109,6 +136,7 @@ class TableMetadata(BaseModel):
         columns: Table column definitions.
         row_count: Optional row count when available.
         last_modified: Optional last-modified timestamp when available.
+
     """
 
     table: IcebergTable
@@ -128,6 +156,7 @@ def infer_layer(name: str) -> Layer:
 
     Returns:
         Inferred medallion layer.
+
     """
     lower = name.lower()
     # Bronze: raw ingestion tables from DLT
@@ -159,6 +188,7 @@ def infer_layer_from_schema(schema: str, table_name: str) -> Layer:
 
     Returns:
         Inferred medallion layer.
+
     """
     # First try table name (most reliable)
     from_table = infer_layer(table_name)
@@ -200,6 +230,7 @@ async def fetch_tables(
 
     Returns:
         Table list or an error dictionary.
+
     """
     all_tables: list[IcebergTable] = []
     seen_tables: set[str] = set()
@@ -277,6 +308,7 @@ async def fetch_table_schema(
 
     Returns:
         Column list or an error dictionary.
+
     """
     sql = (
         f"DESCRIBE {quote_identifier(catalog)}.{quote_identifier(schema)}.{quote_identifier(table)}"
@@ -319,15 +351,21 @@ async def get_tables(
 ) -> list[IcebergTable] | dict[str, str]:
     """Get tables from the Iceberg catalog.
 
+    Discovers tables across configured schemas with optional caching.
+
     Args:
-        branch: Branch/schema fallback name.
+        branch: Optional branch/schema fallback name.
         catalog: Optional Trino catalog override.
-        preferred_schema: Optional schema to prioritize.
+        preferred_schema: Optional schema to prioritize in discovery.
         trino_url: Optional Trino URL override.
-        timeout_ms: Query timeout in milliseconds.
+        timeout_ms: Query timeout in milliseconds (default: 30000, max: 120000).
 
     Returns:
-        Table list or an error dictionary.
+        List of IcebergTable objects, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
     """
     try:
         effective_catalog = catalog or resolve_default_catalog()
@@ -360,16 +398,22 @@ async def get_table_schema(
 ) -> list[TableColumn] | dict[str, str]:
     """Get table column schema.
 
+    Returns column definitions with types, nullability, and comments.
+
     Args:
-        table: Table name.
+        table: Table name or fully qualified table path.
         schema: Optional schema override.
-        branch: Default schema/branch.
+        branch: Optional default schema/branch.
         catalog: Optional Trino catalog override.
         trino_url: Optional Trino URL override.
-        timeout_ms: Query timeout in milliseconds.
+        timeout_ms: Query timeout in milliseconds (default: 30000, max: 120000).
 
     Returns:
-        Column list or an error dictionary.
+        List of TableColumn objects, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
     """
     try:
         effective_catalog = catalog or resolve_default_catalog()
@@ -400,15 +444,21 @@ async def get_table_row_count(
 ) -> int | dict[str, str]:
     """Get row count for a table.
 
+    Executes a COUNT(*) query against the specified table.
+
     Args:
-        table: Table name.
-        branch: Schema/branch name.
+        table: Table name or fully qualified table path.
+        branch: Optional schema/branch name.
         catalog: Optional Trino catalog override.
         trino_url: Optional Trino URL override.
-        timeout_ms: Query timeout in milliseconds.
+        timeout_ms: Query timeout in milliseconds (default: 30000, max: 120000).
 
     Returns:
-        Row count or an error dictionary.
+        Integer row count, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
     """
     try:
         effective_catalog = catalog or resolve_default_catalog()
@@ -439,15 +489,21 @@ async def get_table_metadata(
 ) -> TableMetadata | dict[str, str]:
     """Get table metadata including schema and optional row count.
 
+    Combines schema information with row count in a single response.
+
     Args:
-        table: Table name.
-        branch: Schema/branch name.
+        table: Table name or fully qualified table path.
+        branch: Optional schema/branch name.
         catalog: Optional Trino catalog override.
         trino_url: Optional Trino URL override.
-        timeout_ms: Query timeout in milliseconds.
+        timeout_ms: Query timeout in milliseconds (default: 30000, max: 120000).
 
     Returns:
-        Table metadata or an error dictionary.
+        TableMetadata with table info, columns, and row count, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
     """
     try:
         effective_catalog = catalog or resolve_default_catalog()

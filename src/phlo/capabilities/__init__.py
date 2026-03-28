@@ -1,4 +1,81 @@
-"""Capability primitives and registry."""
+"""Capability primitives and registry for Phlo.
+
+This module provides the capability system that enables runtime feature discovery
+and dependency injection. Capabilities abstract concrete implementations of
+features like query engines, table stores, and authentication providers.
+
+The capability system allows Phlo to:
+    - Register and discover implementations at runtime
+    - Resolve capabilities based on configuration and availability
+    - Provide a unified interface for diverse backends
+    - Support plugin-based extensibility
+
+Key Concepts:
+    - **Capability**: An abstract feature (e.g., "query_engine")
+    - **Provider**: A concrete implementation (e.g., TrinoQueryEngine)
+    - **Specification**: Configuration for a capability instance
+    - **Registry**: Thread-safe storage for capability specifications
+    - **Resolution**: Selecting the best available provider
+
+Capability Types:
+    - ``query_engine``: SQL query execution (Trino, DuckDB, etc.)
+    - ``table_store``: Table storage (Iceberg, Delta, etc.)
+    - ``catalog``: Metadata catalog (Nessie, OpenMetadata, etc.)
+    - ``object_store``: Object storage (MinIO, S3, etc.)
+    - ``authentication``: User authentication providers
+    - ``authorization``: Policy-based access control
+    - ``observability``: Metrics and monitoring backends
+    - ``alert_sink``: Alert notification destinations
+    - ``quality_backend``: Data quality validation
+    - ``schema_migrator``: Schema evolution management
+    - ``maintenance_read_model``: Maintenance status tracking
+
+Main Components:
+    - :class:`CapabilityRegistry`: Thread-safe capability storage
+    - :func:`get_capability_registry`: Access the global registry
+    - :func:`resolve_capability`: Resolve a capability to a provider
+    - :func:`register_*`: Functions to register capability implementations
+    - :class:`CapabilitySupport`: Declare operational guarantees
+    - :class:`RuntimeContext`: Context for capability resolution
+
+Example:
+    ```python
+    from phlo.capabilities import (
+        get_capability_registry,
+        resolve_capability,
+        register_query_engine,
+        QueryEngineSpec,
+    )
+    from phlo.capabilities.interfaces import QueryEngine
+
+    # Register a query engine
+    registry = get_capability_registry()
+    register_query_engine(
+        "trino",
+        QueryEngineSpec(
+            provider=MyTrinoEngine(),
+            metadata={"default_catalog": "iceberg"}
+        )
+    )
+
+    # Resolve the best available query engine
+    result = resolve_capability("query_engine")
+    if result:
+        engine: QueryEngine = result.provider
+        rows = engine.execute("SELECT * FROM iceberg.my_table")
+    ```
+
+See Also:
+    - :mod:`phlo.plugins.base`: Plugin base classes using capabilities
+    - :mod:`phlo.capabilities.registry`: Capability registration
+    - :mod:`phlo.capabilities.resolver`: Capability resolution
+    - :mod:`phlo.capabilities.specs`: Capability specifications
+    - :mod:`phlo.capabilities.interfaces`: Capability interfaces
+
+Note:
+    This module uses lazy loading for resolver functions to prevent
+    circular imports during plugin discovery.
+"""
 
 from typing import TYPE_CHECKING
 

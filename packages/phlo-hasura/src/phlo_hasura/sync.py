@@ -1,4 +1,23 @@
-"""Hasura metadata export, import and schema management."""
+"""Hasura metadata export, import and schema management.
+
+This module provides classes and functions for managing Hasura metadata
+lifecycle operations including export, import, diff calculation, and
+version control integration.
+
+Classes:
+    HasuraMetadataSync: Manages metadata export/import and version control.
+
+Functions:
+    export_metadata: Convenience function to export metadata.
+    apply_metadata: Convenience function to apply metadata from file.
+
+Example:
+    >>> from phlo_hasura.sync import HasuraMetadataSync, export_metadata
+    >>> syncer = HasuraMetadataSync()
+    >>> metadata = syncer.export_metadata("backup.json")
+    >>> syncer.import_metadata("backup.json")
+
+"""
 
 import json
 from pathlib import Path
@@ -11,24 +30,57 @@ logger = get_logger(__name__)
 
 
 class HasuraMetadataSync:
-    """Manage Hasura metadata export/import and version control."""
+    """Manage Hasura metadata export/import and version control.
+
+    Provides methods for exporting metadata to files, importing from files,
+    calculating diffs between metadata versions, and generating reports.
+
+    Attributes:
+        client: HasuraClient instance for API operations.
+
+    Example:
+        >>> syncer = HasuraMetadataSync()
+        >>> syncer.export_metadata("backup.json")
+        >>> current = syncer.export_metadata()
+        >>> diff = syncer.get_diff(old_metadata, current)
+
+    """
 
     def __init__(self, client: Optional[HasuraClient] = None):
         """Initialize metadata sync.
 
         Args:
-            client: HasuraClient instance
+            client: HasuraClient instance for API operations. If not provided,
+                a new HasuraClient will be instantiated with default settings.
+
+        Example:
+            >>> syncer = HasuraMetadataSync()
+            >>> custom_syncer = HasuraMetadataSync(HasuraClient())
+
         """
         self.client = client or HasuraClient()
 
     def export_metadata(self, output_path: Optional[str | Path] = None) -> dict[str, Any]:
         """Export Hasura metadata.
 
+        Retrieves the complete Hasura metadata and optionally saves it
+        to a JSON file.
+
         Args:
-            output_path: Optional path to save metadata
+            output_path: Optional path to save metadata as JSON.
+                If provided, metadata is written to this file.
 
         Returns:
-            Metadata dictionary
+            Complete metadata dictionary.
+
+        Raises:
+            IOError: If writing to the output file fails.
+
+        Example:
+            >>> syncer = HasuraMetadataSync()
+            >>> metadata = syncer.export_metadata()
+            >>> syncer.export_metadata("backup.json")
+
         """
         metadata = self.client.export_metadata()
 
@@ -42,11 +94,24 @@ class HasuraMetadataSync:
     def import_metadata(self, input_path: str | Path) -> dict[str, Any]:
         """Import Hasura metadata from file.
 
+        Reads metadata from a JSON file and applies it to Hasura,
+        replacing the current metadata.
+
         Args:
-            input_path: Path to metadata file
+            input_path: Path to the metadata JSON file.
 
         Returns:
-            API response
+            API response dictionary.
+
+        Raises:
+            FileNotFoundError: If the input file does not exist.
+            json.JSONDecodeError: If the file contains invalid JSON.
+            requests.RequestException: If the API call fails.
+
+        Example:
+            >>> syncer = HasuraMetadataSync()
+            >>> syncer.import_metadata("backup.json")
+
         """
         input_path = Path(input_path)
 
@@ -58,12 +123,21 @@ class HasuraMetadataSync:
     def merge_metadata(self, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
         """Merge two metadata dictionaries (override over base).
 
+        Combines two metadata dictionaries, with values from override
+        taking precedence over base. Handles top-level keys and sources.
+
         Args:
-            base: Base metadata
-            override: Metadata to override with
+            base: Base metadata dictionary.
+            override: Metadata dictionary to merge on top of base.
 
         Returns:
-            Merged metadata
+            Merged metadata dictionary.
+
+        Example:
+            >>> base = syncer.export_metadata()
+            >>> override = {"version": 3}
+            >>> merged = syncer.merge_metadata(base, override)
+
         """
         merged = base.copy()
 
@@ -82,12 +156,28 @@ class HasuraMetadataSync:
     def get_diff(self, current: dict[str, Any], desired: dict[str, Any]) -> dict[str, Any]:
         """Calculate diff between current and desired metadata.
 
+        Analyzes two metadata dictionaries and returns a structured diff
+        showing what would need to be added, removed, or modified.
+
         Args:
-            current: Current metadata
-            desired: Desired metadata
+            current: Current metadata state.
+            desired: Desired metadata state to compare against.
 
         Returns:
-            Diff summary
+            Diff dictionary with structure:
+            {
+                "sources": {"added": [...], "removed": [...], "modified": [...]},
+                "tables": {"added": [...], "removed": [...], "modified": [...]},
+                "relationships": {"added": [...], "removed": [...]},
+                "permissions": {"added": [...], "removed": [...]}
+            }
+
+        Example:
+            >>> current = syncer.export_metadata()
+            >>> desired = json.load(open("target.json"))
+            >>> diff = syncer.get_diff(current, desired)
+            >>> print(f"Tables to add: {len(diff['tables']['added'])}")
+
         """
         diff = {
             "sources": {"added": [], "removed": [], "modified": []},
@@ -136,11 +226,21 @@ class HasuraMetadataSync:
     def _extract_tables(self, metadata: dict[str, Any]) -> dict[str, dict]:
         """Extract table information from metadata.
 
+        Internal method to extract all tracked tables from metadata
+        and organize them by their fully qualified path.
+
         Args:
-            metadata: Metadata dictionary
+            metadata: Metadata dictionary to extract from.
 
         Returns:
-            Dict of table_path -> table_info
+            Dictionary mapping table_path -> table_info.
+            Example: {"api.orders": {...table metadata...}}
+
+        Example:
+            >>> tables = syncer._extract_tables(metadata)
+            >>> print(list(tables.keys()))
+            ['api.orders', 'api.customers']
+
         """
         tables = {}
 
@@ -159,11 +259,21 @@ class HasuraMetadataSync:
     def _extract_relationships(self, metadata: dict[str, Any]) -> list[tuple]:
         """Extract relationships from metadata.
 
+        Internal method to extract all object and array relationships
+        from metadata, organizing them as tuples for comparison.
+
         Args:
-            metadata: Metadata dictionary
+            metadata: Metadata dictionary to extract from.
 
         Returns:
-            List of (table, relationship_name) tuples
+            List of (table_path, relationship_name, relationship_type) tuples.
+            Example: [("api.orders", "customer", "object"), ...]
+
+        Example:
+            >>> rels = syncer._extract_relationships(metadata)
+            >>> for table, name, type_ in rels:
+            ...     print(f"{table}.{name} ({type_})")
+
         """
         rels = []
 
@@ -188,12 +298,26 @@ class HasuraMetadataSync:
     def generate_diff_report(self, current: dict[str, Any], desired: dict[str, Any]) -> str:
         """Generate human-readable diff report.
 
+        Creates a formatted string report showing the differences
+        between two metadata states.
+
         Args:
-            current: Current metadata
-            desired: Desired metadata
+            current: Current metadata state.
+            desired: Desired metadata state.
 
         Returns:
-            Formatted diff report
+            Formatted diff report as a string.
+
+        Example:
+            >>> report = syncer.generate_diff_report(current, desired)
+            >>> print(report)
+            Hasura Metadata Diff Report
+            ============================
+            Tables to track: 5
+              + api.orders
+              + api.customers
+            ...
+
         """
         diff = self.get_diff(current, desired)
 
@@ -240,19 +364,43 @@ class HasuraMetadataSync:
         return "\n".join(lines)
 
     def reload_metadata(self) -> None:
-        """Reload metadata from database."""
+        """Reload metadata from database.
+
+        Forces Hasura to reload its metadata from the underlying database.
+        This is useful after direct database schema changes.
+
+        Raises:
+            requests.RequestException: If the API call fails.
+
+        Example:
+            >>> syncer.reload_metadata()  # After manual DB changes
+
+        """
         self.client.reload_metadata()
 
 
 def export_metadata(output_path: Optional[str] = None, verbose: bool = True) -> str:
     """Convenience function to export metadata.
 
+    Simple wrapper around HasuraMetadataSync.export_metadata() for
+    quick metadata exports without instantiating the class.
+
     Args:
-        output_path: Path to save metadata
-        verbose: Print progress messages
+        output_path: Path to save metadata JSON file. If None, returns
+            metadata as a JSON string.
+        verbose: Print progress messages.
 
     Returns:
-        Path where metadata was saved (if output_path provided)
+        Path where metadata was saved (if output_path provided) or
+        JSON string of the metadata.
+
+    Example:
+        >>> export_metadata("backup.json")
+        'backup.json'
+        >>> json_str = export_metadata()
+        >>> print(json_str[:50])
+        {"version": 3, "sources": [...]}
+
     """
     if verbose:
         logger.info("Exporting Hasura metadata...")
@@ -273,9 +421,21 @@ def export_metadata(output_path: Optional[str] = None, verbose: bool = True) -> 
 def apply_metadata(input_path: str, verbose: bool = True) -> None:
     """Convenience function to apply metadata.
 
+    Simple wrapper around HasuraMetadataSync.import_metadata() for
+    quick metadata imports without instantiating the class.
+
     Args:
-        input_path: Path to metadata file
-        verbose: Print progress messages
+        input_path: Path to the metadata JSON file to import.
+        verbose: Print progress messages.
+
+    Raises:
+        FileNotFoundError: If the input file does not exist.
+        requests.RequestException: If the API call fails.
+
+    Example:
+        >>> apply_metadata("backup.json")
+        >>> apply_metadata("production-metadata.json", verbose=False)
+
     """
     if verbose:
         logger.info("Applying metadata from %s...", input_path)

@@ -166,6 +166,7 @@ class TestInjectRowIdsForDbtRun:
 
             Returns:
                 Mapping with updated row count for successful tables.
+
             """
             if kwargs["table"] == "stg_bad":
                 raise Exception("Connection failed")

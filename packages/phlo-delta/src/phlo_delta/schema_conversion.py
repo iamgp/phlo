@@ -1,4 +1,16 @@
-"""Pandera-to-Delta (PyArrow) schema conversion utilities."""
+"""Pandera-to-Delta (PyArrow) schema conversion utilities.
+
+This module provides functions to convert Pandera DataFrameModel schemas
+to PyArrow schemas suitable for Delta Lake table creation. It handles
+type mapping, metadata column injection, and validation.
+
+Example:
+    from phlo_delta.schema_conversion import pandera_to_delta
+    from my_schemas import EventSchema
+
+    arrow_schema = pandera_to_delta(EventSchema)
+
+"""
 
 from __future__ import annotations
 
@@ -15,7 +27,18 @@ logger = get_logger(__name__)
 
 
 class SchemaConversionError(Exception):
-    """Raised when a Pandera schema cannot be converted to a Delta-compatible Arrow schema."""
+    """Raised when a Pandera schema cannot be converted to a Delta-compatible Arrow schema.
+
+    This exception indicates that the source Pandera schema contains unsupported
+    types, invalid annotations, or other conversion-blocking issues.
+
+    Example:
+        try:
+            schema = pandera_to_delta(InvalidSchema)
+        except SchemaConversionError as e:
+            print(f"Conversion failed: {e}")
+
+    """
 
     pass
 
@@ -27,16 +50,34 @@ def pandera_to_delta(
 ) -> pa.Schema:
     """Convert a Pandera DataFrameModel schema to a PyArrow schema for Delta Lake.
 
+    Transforms Pandera field annotations and constraints into equivalent
+    PyArrow types. Optionally injects DLT and Phlo metadata columns.
+
     Args:
-        pandera_schema: Source Pandera model class.
-        add_dlt_metadata: Whether to append standard DLT metadata columns.
-        add_phlo_metadata: Whether to append standard Phlo metadata columns.
+        pandera_schema: Source Pandera model class with field annotations.
+        add_dlt_metadata: Whether to append standard DLT metadata columns
+            (_dlt_load_id, _dlt_id).
+        add_phlo_metadata: Whether to append standard Phlo metadata columns
+            (_phlo_row_id, _phlo_ingested_at, _phlo_partition_date, _phlo_run_id).
 
     Returns:
-        pa.Schema: Equivalent PyArrow schema.
+        pa.Schema: Equivalent PyArrow schema ready for Delta Lake table creation.
 
     Raises:
-        SchemaConversionError: If conversion fails or schema is invalid.
+        SchemaConversionError: If conversion fails due to missing annotations,
+            type mapping failures, or invalid schema structure.
+
+    Example:
+        from pandera.pandas import DataFrameModel
+        from typing import Annotated
+        import pandera as pa
+
+        class EventSchema(DataFrameModel):
+            event_id: Annotated[str, pa.Field(nullable=False)]
+            timestamp: Annotated[datetime, pa.Field(nullable=False)]
+
+        arrow_schema = pandera_to_delta(EventSchema)
+
     """
     fields: list[pa.Field] = []
     user_field_count = 0
@@ -141,15 +182,23 @@ def pandera_to_delta(
 def _map_type(field_name: str, pandera_type: Any) -> pa.DataType:
     """Map a Pandera-annotated type to a PyArrow type.
 
+    Handles complex types (Optional, List, Dict) and delegates scalar
+    types to _map_scalar. Rejects unsupported container types.
+
     Args:
         field_name: Source field name for error reporting.
         pandera_type: Annotated Python/Pandera type.
 
     Returns:
-        Corresponding PyArrow type.
+        pa.DataType: Corresponding PyArrow data type.
 
     Raises:
-        SchemaConversionError: If type cannot be represented.
+        SchemaConversionError: If type cannot be represented in PyArrow/Delta.
+
+    Example:
+        arrow_type = _map_type("user_id", str)
+        # Returns: pa.string()
+
     """
     origin = get_origin(pandera_type)
     if origin is None:
@@ -179,15 +228,23 @@ def _map_type(field_name: str, pandera_type: Any) -> pa.DataType:
 def _map_scalar(field_name: str, t: Any) -> pa.DataType:
     """Map a scalar Python type to a PyArrow type.
 
+    Converts basic Python types to their PyArrow equivalents for
+    Delta Lake storage.
+
     Args:
         field_name: Source field name for error reporting.
         t: Scalar Python type.
 
     Returns:
-        Corresponding PyArrow type.
+        pa.DataType: Corresponding PyArrow type.
 
     Raises:
         SchemaConversionError: If type is unsupported.
+
+    Example:
+        arrow_type = _map_scalar("price", float)
+        # Returns: pa.float64()
+
     """
     if t in (str,):
         return pa.string()

@@ -91,6 +91,7 @@ class TestIcebergCatalogUnitTests:
 
             Returns:
                 List of mocked table objects for that namespace.
+
             """
             if namespace == "raw":
                 return [mock_table1, mock_table2]

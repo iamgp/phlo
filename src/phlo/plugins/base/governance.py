@@ -1,5 +1,4 @@
-"""
-Governance plugin classes.
+"""Governance plugin classes.
 
 This module defines plugin types for access control, data masking,
 and policy enforcement.
@@ -44,6 +43,7 @@ class GovernancePlugin(Plugin, ABC):
             def check_access(self, principal, table_name, action):
                 return self._query_access(principal, table_name, action)
         ```
+
     """
 
     @abstractmethod

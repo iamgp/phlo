@@ -1,5 +1,4 @@
-"""
-Mock DLT sources for testing without API calls.
+"""Mock DLT sources for testing without API calls.
 
 Provides mock implementations of DLT sources that return predefined data,
 enabling tests to run without external dependencies or network calls.
@@ -9,6 +8,7 @@ Example:
     >>> source = mock_dlt_source(data, resource_name="users")
     >>> for record in source:
     ...     print(record)
+
 """
 
 from __future__ import annotations
@@ -21,11 +21,22 @@ import pandas as pd
 
 @dataclass
 class MockDLTResource:
-    """
-    Mock DLT resource that yields predefined data.
+    """Mock DLT resource that yields predefined data.
 
     Mimics the interface of a DLT resource but returns fixed data
     instead of fetching from an API.
+
+    Attributes:
+        name: Name of the resource.
+        data: List of records to yield.
+        _index: Current iteration index (internal use).
+
+    Example:
+        >>> resource = MockDLTResource(name="users", data=[{"id": 1}])
+        >>> for record in resource:
+        ...     print(record)
+        {"id": 1}
+
     """
 
     name: str
@@ -33,12 +44,25 @@ class MockDLTResource:
     _index: int = 0
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
-        """Iterate over resource data."""
+        """Iterate over resource data.
+
+        Yields:
+            Dictionary representing each record.
+
+        """
         self._index = 0
         return self
 
     def __next__(self) -> dict[str, Any]:
-        """Get next record."""
+        """Get next record.
+
+        Returns:
+            Next record dictionary.
+
+        Raises:
+            StopIteration: When all records have been yielded.
+
+        """
         if self._index >= len(self.data):
             raise StopIteration
         record = self.data[self._index]
@@ -47,7 +71,12 @@ class MockDLTResource:
 
     @property
     def resources(self) -> dict[str, Any]:
-        """Get resource metadata."""
+        """Get resource metadata.
+
+        Returns:
+            Dictionary with resource metadata including schema info.
+
+        """
         return {
             self.name: {
                 "name": self.name,
@@ -57,7 +86,12 @@ class MockDLTResource:
         }
 
     def _infer_schema(self) -> dict[str, str]:
-        """Infer schema from data."""
+        """Infer schema from data.
+
+        Returns:
+            Dictionary mapping column names to inferred types.
+
+        """
         if not self.data:
             return {}
 
@@ -83,11 +117,22 @@ class MockDLTResource:
 
 @dataclass
 class MockDLTSource:
-    """
-    Mock DLT source with multiple resources.
+    """Mock DLT source with multiple resources.
 
     Mimics the interface of a DLT source but returns fixed data
     instead of fetching from an API. Supports multiple resources.
+
+    Attributes:
+        resources: Dictionary mapping resource names to data lists.
+        _current_resource: Currently selected resource (internal use).
+        _current_index: Current iteration index (internal use).
+
+    Example:
+        >>> source = MockDLTSource()
+        >>> source.add_resource("users", [{"id": 1}])
+        >>> for record in source:
+        ...     print(record)
+
     """
 
     resources: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
@@ -95,31 +140,31 @@ class MockDLTSource:
     _current_index: int = 0
 
     def add_resource(self, name: str, data: list[dict[str, Any]]) -> MockDLTResource:
-        """
-        Add a resource to the source.
+        """Add a resource to the source.
 
         Args:
-            name: Resource name
-            data: List of records
+            name: Resource name.
+            data: List of records.
 
         Returns:
-            MockDLTResource instance
+            MockDLTResource instance.
+
         """
         self.resources[name] = data
         return MockDLTResource(name=name, data=data)
 
     def get_resource(self, name: str) -> MockDLTResource:
-        """
-        Get a resource by name.
+        """Get a resource by name.
 
         Args:
-            name: Resource name
+            name: Resource name.
 
         Returns:
-            MockDLTResource instance
+            MockDLTResource instance.
 
         Raises:
-            ValueError: If resource doesn't exist
+            ValueError: If resource doesn't exist.
+
         """
         if name not in self.resources:
             raise ValueError(f"Resource {name} not found")
@@ -127,17 +172,22 @@ class MockDLTSource:
         return MockDLTResource(name=name, data=self.resources[name])
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
-        """Iterate over all resources."""
+        """Iterate over all resources.
+
+        Yields:
+            Dictionary representing each record from all resources.
+
+        """
         for resource_name, data in self.resources.items():
             for record in data:
                 yield record
 
     def for_each(self, func: Any) -> None:
-        """
-        Apply a function to each record.
+        """Apply a function to each record.
 
         Args:
-            func: Function to apply (for dlt compatibility)
+            func: Function to apply (for dlt compatibility).
+
         """
         for record in self:
             func(record)
@@ -147,18 +197,17 @@ def mock_dlt_source(
     data: list[dict[str, Any]],
     resource_name: str = "default",
 ) -> MockDLTResource:
-    """
-    Create a mock DLT source with a single resource.
+    """Create a mock DLT source with a single resource.
 
     Drop-in replacement for `dlt.resource()` that returns predefined data
     without making API calls.
 
     Args:
-        data: List of records to return
-        resource_name: Name of the resource
+        data: List of records to return.
+        resource_name: Name of the resource.
 
     Returns:
-        MockDLTResource instance
+        MockDLTResource instance.
 
     Example:
         >>> data = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
@@ -167,6 +216,7 @@ def mock_dlt_source(
         ...     print(record)
         {"id": 1, "name": "Alice"}
         {"id": 2, "name": "Bob"}
+
     """
     return MockDLTResource(name=resource_name, data=data)
 
@@ -174,14 +224,13 @@ def mock_dlt_source(
 def mock_dlt_source_multi(
     resources: dict[str, list[dict[str, Any]]],
 ) -> MockDLTSource:
-    """
-    Create a mock DLT source with multiple resources.
+    """Create a mock DLT source with multiple resources.
 
     Args:
-        resources: Dict mapping resource names to data lists
+        resources: Dict mapping resource names to data lists.
 
     Returns:
-        MockDLTSource instance
+        MockDLTSource instance.
 
     Example:
         >>> source = mock_dlt_source_multi({
@@ -190,6 +239,7 @@ def mock_dlt_source_multi(
         ... })
         >>> for record in source:
         ...     print(record)
+
     """
     mock_source = MockDLTSource()
     for name, data in resources.items():
@@ -209,19 +259,18 @@ def mock_dlt_source_with_error(
     error_after: int | None = None,
     error_message: str = "Mock DLT error",
 ) -> MockDLTResource:
-    """
-    Create a mock DLT source that raises an error after N records.
+    """Create a mock DLT source that raises an error after N records.
 
     Useful for testing error handling in ingestion pipelines.
 
     Args:
-        data: List of records to return before error
-        resource_name: Name of the resource
-        error_after: Number of records before error (None = no error)
-        error_message: Error message to raise
+        data: List of records to return before error.
+        resource_name: Name of the resource.
+        error_after: Number of records before error (None = no error).
+        error_message: Error message to raise.
 
     Returns:
-        MockDLTResource instance
+        MockDLTResource instance that raises error at specified point.
 
     Example:
         >>> source = mock_dlt_source_with_error(
@@ -230,6 +279,7 @@ def mock_dlt_source_with_error(
         ...     error_message="API rate limit exceeded"
         ... )
         >>> records = list(source)  # Raises after 1 record
+
     """
 
     class ErrorRaisingResource(MockDLTResource):
@@ -243,6 +293,7 @@ def mock_dlt_source_with_error(
 
             Raises:
                 MockDLTError: If the configured error threshold is reached.
+
             """
             if error_after is not None and self._index >= error_after:
                 raise MockDLTError(error_message)
@@ -254,22 +305,22 @@ def mock_dlt_source_with_error(
 def mock_dlt_pipeline(
     data: dict[str, list[dict[str, Any]]],
 ) -> MockDLTSource:
-    """
-    Create a mock DLT pipeline with multiple resources.
+    """Create a mock DLT pipeline with multiple resources.
 
     Convenience function for creating a complete mock pipeline.
 
     Args:
-        data: Dict mapping table names to records
+        data: Dict mapping table names to records.
 
     Returns:
-        MockDLTSource instance
+        MockDLTSource instance.
 
     Example:
         >>> pipeline = mock_dlt_pipeline({
         ...     "users": [{"id": 1, "name": "Alice"}],
         ...     "orders": [{"order_id": 1, "user_id": 1}],
         ... })
+
     """
     return mock_dlt_source_multi(data)
 
@@ -277,19 +328,19 @@ def mock_dlt_pipeline(
 def create_mock_dlt_dataframe(
     resource: MockDLTResource,
 ) -> pd.DataFrame:
-    """
-    Convert mock DLT resource to pandas DataFrame.
+    """Convert mock DLT resource to pandas DataFrame.
 
     Helper for testing data transformations.
 
     Args:
-        resource: MockDLTResource instance
+        resource: MockDLTResource instance.
 
     Returns:
-        DataFrame with resource data
+        DataFrame with resource data.
 
     Example:
         >>> source = mock_dlt_source([{"id": 1}, {"id": 2}])
         >>> df = create_mock_dlt_dataframe(source)
+
     """
     return pd.DataFrame(list(resource))

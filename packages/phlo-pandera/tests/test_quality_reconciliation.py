@@ -595,6 +595,7 @@ class TestChecksumReconciliationCheck:
 
             Returns:
                 list[tuple[int, str]]: Mocked row hash tuples.
+
             """
             if "FROM silver.stg_github_events" in query:
                 return [(1, "hash1"), (2, "hash2")]
@@ -629,6 +630,7 @@ class TestChecksumReconciliationCheck:
 
             Returns:
                 list[tuple[int, str]]: Mocked row hash tuples.
+
             """
             if "FROM silver.stg_github_events" in query:
                 return [(1, "hash1"), (2, "hash2")]
@@ -665,6 +667,7 @@ class TestChecksumReconciliationCheck:
 
             Returns:
                 list[tuple[int, str]]: Mocked row hash tuples.
+
             """
             if "FROM silver.stg_github_events" in query:
                 return [(1, "hash1"), (2, "hash2"), (3, "hash3")]
