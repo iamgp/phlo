@@ -71,18 +71,17 @@ def test_import_manifest_lineage_persists_assets_and_columns(monkeypatch, tmp_pa
 
     sink = SimpleNamespace()
     sink_calls: list[tuple[list[tuple[str, str]], list[str] | None, dict[str, object] | None]] = []
-    sink.record_asset_edges = (
-        lambda edges, *, asset_keys=None, metadata=None, tags=None: sink_calls.append(
-            (edges, asset_keys, metadata)
-        )
-        or len(edges)
+    sink.record_asset_edges = lambda edges, *, asset_keys=None, metadata=None, tags=None: (
+        sink_calls.append((edges, asset_keys, metadata)) or len(edges)
     )
     monkeypatch.setattr("phlo_dbt.lineage_import.discover_capabilities", lambda: None)
     monkeypatch.setattr(
         "phlo_dbt.lineage_import.resolve_capability",
-        lambda capability_type: SimpleNamespace(name="phlo-lineage", provider=sink)
-        if capability_type == "lineage_sink"
-        else None,
+        lambda capability_type: (
+            SimpleNamespace(name="phlo-lineage", provider=sink)
+            if capability_type == "lineage_sink"
+            else None
+        ),
     )
 
     recorded_mappings: list[list[ColumnLineage]] = []
