@@ -28,7 +28,7 @@ jobs:
           version: "latest"
           enable-cache: false
 
-      - uses: iamgp/ReleaseX@f78e16a7dfd987149e08137c0157cdb75d578d0c
+      - uses: iamgp/ReleaseX@49e3d84855c598eb6df369d586865aa41db5d921
         with:
           command: release pr
         env:
@@ -53,7 +53,7 @@ jobs:
           version: "latest"
           enable-cache: false
 
-      - uses: iamgp/ReleaseX@f78e16a7dfd987149e08137c0157cdb75d578d0c
+      - uses: iamgp/ReleaseX@49e3d84855c598eb6df369d586865aa41db5d921
         with:
           command: release tag
         env:
@@ -85,7 +85,7 @@ jobs:
           uv build --out-dir "$repo_root/dist"
           for pkg in packages/*/; do uv build --directory "$pkg" --out-dir "$repo_root/dist"; done
 
-      - uses: iamgp/ReleaseX@f78e16a7dfd987149e08137c0157cdb75d578d0c
+      - uses: iamgp/ReleaseX@49e3d84855c598eb6df369d586865aa41db5d921
         with:
           command: release publish
         env:

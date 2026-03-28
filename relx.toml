@@ -44,7 +44,7 @@ tagged_label = "autorelease: tagged"
 
 [monorepo]
 enabled = true
-release_mode = "unified"
+release_mode = "release_set"
 
 [workspace]
-cascade_bumps = true
+cascade_bumps = false
