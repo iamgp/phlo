@@ -1,5 +1,25 @@
 # Changelog
 
+## [phlo 0.7.3 + 9 packages] - 2026-03-28
+
+### Fixed
+- phlo: only tag merged release commits
+- phlo: centralize Docker hostname resolution for host-side CLI portability (#308)
+- phlo: adopt ReleaseX release_set mode
+- phlo-delta: centralize Docker hostname resolution for host-side CLI portability (#308)
+- phlo-hasura: centralize Docker hostname resolution for host-side CLI portability (#308)
+- phlo-iceberg: centralize Docker hostname resolution for host-side CLI portability (#308)
+- phlo-lineage: centralize Docker hostname resolution for host-side CLI portability (#308)
+- phlo-minio: centralize Docker hostname resolution for host-side CLI portability (#308)
+- phlo-nessie: centralize Docker hostname resolution for host-side CLI portability (#308)
+- phlo-postgres: centralize Docker hostname resolution for host-side CLI portability (#308)
+- phlo-rustfs: centralize Docker hostname resolution for host-side CLI portability (#308)
+- phlo-trino: centralize Docker hostname resolution for host-side CLI portability (#308)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (13 commits)
+
 ## [phlo 0.7.2, phlo-alerting 0.2.3, phlo-alloy 0.2.3, phlo-api 0.2.3, phlo-clickhouse 0.2.3, phlo-clickstack 0.2.3, phlo-core-plugins 0.2.3, phlo-dagster 0.2.3, phlo-dbt 0.2.3, phlo-delta 0.2.3, phlo-dlt 0.2.3, phlo-grafana 0.2.3, phlo-hasura 0.2.3, phlo-iceberg 0.2.3, phlo-lineage 0.2.3, phlo-loki 0.2.3, phlo-minio 0.2.3, phlo-nessie 0.2.3, phlo-observatory 0.2.3, phlo-observatory-example 0.2.3, phlo-openmetadata 0.2.3, phlo-otel 0.2.3, phlo-pandera 0.2.3, phlo-pgweb 0.2.3, phlo-postgres 0.2.3, phlo-postgrest 0.2.3, phlo-prometheus 0.2.3, phlo-rustfs 0.2.3, phlo-sling 0.2.3, phlo-superset 0.2.3, phlo-testing 0.2.3, phlo-traefik 0.2.3, phlo-trino 0.2.3] - 2026-03-27
 
 ### Fixed
