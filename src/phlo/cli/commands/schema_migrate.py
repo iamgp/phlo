@@ -77,6 +77,11 @@ def _resolve_migrator() -> Any:
     table_store_options = list_capabilities("table_store")
     console.print("[red]Multiple schema migrators are registered and none was selected.[/red]")
     console.print("Configure `schema_migrator` directly or set a matching default `table_store`.")
+    if default_table_store:
+        console.print(
+            f"[yellow]Configured table_store '{default_table_store}' does not match any "
+            "registered schema migrator.[/yellow]"
+        )
     console.print(f"Available schema migrators: {available}")
     if table_store_options:
         console.print(f"Available table stores: {table_store_options}")

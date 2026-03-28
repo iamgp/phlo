@@ -77,6 +77,58 @@ def test_resolve_migrator_prefers_matching_table_store_default(monkeypatch) -> N
     assert resolved is iceberg_migrator
 
 
+def test_resolve_migrator_prefers_explicit_schema_migrator_default(monkeypatch) -> None:
+    """Explicit schema_migrator config wins over table_store-derived selection."""
+
+    iceberg_migrator = object()
+    delta_migrator = object()
+
+    class FakeRegistry:
+        def list_schema_migrators(self) -> list[SchemaMigrationSpec]:
+            return [
+                SchemaMigrationSpec(name="delta", provider=delta_migrator),
+                SchemaMigrationSpec(name="iceberg", provider=iceberg_migrator),
+            ]
+
+    monkeypatch.setattr(schema_migrate_commands, "get_capability_registry", lambda: FakeRegistry())
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "configured_capability_name",
+        lambda capability_type: "delta" if capability_type == "schema_migrator" else "iceberg",
+    )
+    monkeypatch.setattr("phlo.capabilities.discovery.discover_capabilities", lambda: None)
+
+    resolved = schema_migrate_commands._resolve_migrator()
+
+    assert resolved is delta_migrator
+
+
+def test_resolve_migrator_fails_when_configured_schema_migrator_missing(monkeypatch) -> None:
+    """Missing explicit schema_migrator config errors deterministically."""
+
+    class FakeRegistry:
+        def list_schema_migrators(self) -> list[SchemaMigrationSpec]:
+            return [SchemaMigrationSpec(name="iceberg", provider=object())]
+
+    monkeypatch.setattr(schema_migrate_commands, "get_capability_registry", lambda: FakeRegistry())
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "configured_capability_name",
+        lambda capability_type: "delta" if capability_type == "schema_migrator" else None,
+    )
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "list_capabilities",
+        lambda capability_type: ["iceberg"] if capability_type == "schema_migrator" else [],
+    )
+    monkeypatch.setattr("phlo.capabilities.discovery.discover_capabilities", lambda: None)
+
+    with pytest.raises(SystemExit) as exc_info:
+        schema_migrate_commands._resolve_migrator()
+
+    assert exc_info.value.code == 1
+
+
 def test_resolve_migrator_fails_when_multiple_installed_without_selection(monkeypatch) -> None:
     """Ambiguous schema migrators require config instead of first-provider fallback."""
 
@@ -92,6 +144,37 @@ def test_resolve_migrator_fails_when_multiple_installed_without_selection(monkey
         schema_migrate_commands,
         "configured_capability_name",
         lambda capability_type: None,
+    )
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "list_capabilities",
+        lambda capability_type: (
+            ["delta", "iceberg"] if capability_type == "schema_migrator" else []
+        ),
+    )
+    monkeypatch.setattr("phlo.capabilities.discovery.discover_capabilities", lambda: None)
+
+    with pytest.raises(SystemExit) as exc_info:
+        schema_migrate_commands._resolve_migrator()
+
+    assert exc_info.value.code == 1
+
+
+def test_resolve_migrator_reports_table_store_mismatch_when_ambiguous(monkeypatch) -> None:
+    """Ambiguous error explains when configured table_store did not match any migrator."""
+
+    class FakeRegistry:
+        def list_schema_migrators(self) -> list[SchemaMigrationSpec]:
+            return [
+                SchemaMigrationSpec(name="delta", provider=object()),
+                SchemaMigrationSpec(name="iceberg", provider=object()),
+            ]
+
+    monkeypatch.setattr(schema_migrate_commands, "get_capability_registry", lambda: FakeRegistry())
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "configured_capability_name",
+        lambda capability_type: None if capability_type == "schema_migrator" else "delta_lake",
     )
     monkeypatch.setattr(
         schema_migrate_commands,
