@@ -114,7 +114,7 @@ def extract_column_lineage(manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
         if not target_columns:
             continue
 
-        upstream_keys = node.get("depends_on", {}).get("nodes", [])
+        upstream_keys = (node.get("depends_on") or {}).get("nodes") or []
         if not isinstance(upstream_keys, list):
             continue
 
