@@ -94,7 +94,6 @@ jobs:
           repo_root="$PWD"
           rm -rf dist
           uv build --out-dir "$repo_root/dist"
-          for pkg in packages/*/; do uv build --directory "$pkg" --out-dir "$repo_root/dist"; done
 
       - uses: iamgp/ReleaseX@24492b6809d16699dc785f93eaeed27aad1bc2f2
         with:
