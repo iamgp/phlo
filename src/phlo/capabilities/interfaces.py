@@ -252,6 +252,10 @@ class LineageSink(Protocol):
         """Persist one row-level lineage record."""
         ...
 
+    def record_column_lineage(self, mappings: list[dict[str, Any]]) -> int:
+        """Persist column-level lineage mappings."""
+        ...
+
     def get_asset_graph(self) -> Any:
         """Return the current asset-level lineage graph representation."""
         ...

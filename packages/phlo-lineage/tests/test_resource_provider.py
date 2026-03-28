@@ -57,3 +57,32 @@ def test_lineage_sink_gets_row_journey():
         "ancestors": [{"row_id": "parent"}],
         "descendants": [{"row_id": "child"}],
     }
+
+
+def test_lineage_sink_records_column_lineage():
+    """Lineage sink forwards column lineage persistence to the store."""
+    sink = LineageResourceProvider().get_lineage_sinks()[0].provider
+    store = Mock()
+    store.record_column_lineage.return_value = 1
+
+    with (
+        patch("phlo_lineage.lineage_sink.LineageStore", return_value=store),
+        patch(
+            "phlo_lineage.lineage_sink.resolve_lineage_db_url_with_postgres_fallback",
+            return_value="postgresql://lineage",
+        ),
+    ):
+        persisted = sink.record_column_lineage(
+            [
+                {
+                    "source_asset": "silver.orders",
+                    "source_column": "order_id",
+                    "target_asset": "gold.orders",
+                    "target_column": "order_id",
+                    "source_type": "dbt_heuristic",
+                }
+            ]
+        )
+
+    assert persisted == 1
+    store.record_column_lineage.assert_called_once()

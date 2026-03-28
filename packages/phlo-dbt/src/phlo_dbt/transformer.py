@@ -20,6 +20,7 @@ from phlo.hooks import (
     TransformEventContext,
     TransformEventEmitter,
 )
+from phlo_dbt.lineage_import import collect_asset_lineage, load_dbt_manifest
 from phlo_dbt.translator import DbtSpecTranslator
 from phlo_dbt.runtime_config import ensure_dbt_profile
 
@@ -234,59 +235,16 @@ def _emit_dbt_lineage(
         logger: Logger used for warning output.
         reader: JSON loader callable for manifest text.
     """
-    if not manifest_path.exists():
-        logger.warning("dbt manifest not found at %s; skipping lineage emit", manifest_path)
-        return
-    try:
-        manifest = reader(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        logger.warning("Failed to read dbt manifest for lineage: %s", exc)
-        return
-    if not isinstance(manifest, Mapping):
-        logger.warning("dbt manifest payload is not a mapping; skipping lineage emit")
+    manifest = load_dbt_manifest(manifest_path)
+    if manifest is None:
         return
 
-    nodes = manifest.get("nodes") or {}
-    sources = manifest.get("sources") or {}
-    if not isinstance(nodes, Mapping) or not isinstance(sources, Mapping):
-        logger.warning("dbt manifest nodes or sources missing; skipping lineage emit")
-        return
-
-    asset_keys: dict[str, str] = {}
-    for unique_id, props in {**nodes, **sources}.items():
-        if not isinstance(props, Mapping):
-            continue
-        try:
-            asset_key = translator.get_asset_key(props)
-        except Exception:
-            continue
-        asset_keys[str(unique_id)] = str(asset_key)
-
-    edges: list[tuple[str, str]] = []
-    target_keys: list[str] = []
-    for unique_id, props in nodes.items():
-        if not isinstance(props, Mapping):
-            continue
-        resource_type = str(props.get("resource_type") or "")
-        if resource_type not in {"model", "seed", "snapshot"}:
-            continue
-        target_key = asset_keys.get(str(unique_id))
-        if not target_key:
-            continue
-        depends_on = props.get("depends_on") or {}
-        depends_nodes = depends_on.get("nodes") or []
-        if not isinstance(depends_nodes, list):
-            continue
-        for upstream_id in depends_nodes:
-            source_key = asset_keys.get(str(upstream_id))
-            if source_key:
-                edges.append((source_key, target_key))
-        target_keys.append(target_key)
+    edges, target_keys = collect_asset_lineage(manifest, translator=translator)
 
     if edges:
         lineage_emitter.emit_edges(
             edges=edges,
-            asset_keys=sorted(set(target_keys)),
+            asset_keys=target_keys,
             metadata={"source": "dbt", "manifest_path": str(manifest_path)},
         )
 

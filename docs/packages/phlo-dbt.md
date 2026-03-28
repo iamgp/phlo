@@ -74,6 +74,8 @@ phlo dbt test --local --select gold.*
 When `.phlo/` exists, `phlo dbt compile|run|test` executes inside the running `dagster`
 service by default. That keeps dbt aligned with the project's active Trino, Iceberg, and
 generated profile configuration. Use `--local` when you explicitly want host dbt.
+After a successful `phlo dbt run`, Phlo also imports manifest asset lineage into the
+configured lineage sink when one is installed.
 
 ### Programmatic Access
 
