@@ -1,5 +1,14 @@
 # Changelog
 
+## [phlo 0.7.7] - 2026-03-28
+
+### Fixed
+- phlo: publish only phlo artifacts from release workflow
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (1 commit)
+
 ## [phlo 0.7.6] - 2026-03-28
 
 ### Fixed
