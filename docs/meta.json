@@ -1,0 +1,15 @@
+{
+  "title": "Phlo Documentation",
+  "root": true,
+  "pages": [
+    "index",
+    "getting-started",
+    "guides",
+    "setup",
+    "packages",
+    "reference",
+    "errors",
+    "observatory",
+    "operations"
+  ]
+}

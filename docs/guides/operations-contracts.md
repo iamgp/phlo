@@ -9,21 +9,17 @@ sync contracts while new implementations opt into async contracts incrementally.
 
 ## Architecture
 
-```text
-┌─────────────────────┐     ┌──────────────────────┐
-│ BaseIngester /       │    │ BaseTransformer /     │
-│ AsyncIngester        │    │ AsyncTransformer      │
-└─────────┬────────────┘    └──────────┬────────────┘
-          │ implements                  │ implements
-          ▼                            ▼
-┌─────────────────────┐     ┌──────────────────────┐
-│ phlo-dlt ingester   │     │ phlo-dbt transformer │
-└─────────┬───────────┘     └──────────┬───────────┘
-          │ returns                     │ returns
-          ▼                            ▼
-┌─────────────────────┐     ┌──────────────────────┐
-│ IngestionResult     │     │ TransformationResult │
-└─────────────────────┘     └──────────────────────┘
+```mermaid
+flowchart TB
+    base_ingester["BaseIngester<br/>AsyncIngester"]
+    base_transformer["BaseTransformer<br/>AsyncTransformer"]
+    dlt["phlo-dlt ingester"]
+    dbt["phlo-dbt transformer"]
+    ingestion_result["IngestionResult"]
+    transformation_result["TransformationResult"]
+
+    base_ingester -->|implements| dlt -->|returns| ingestion_result
+    base_transformer -->|implements| dbt -->|returns| transformation_result
 ```
 
 ## BaseIngester

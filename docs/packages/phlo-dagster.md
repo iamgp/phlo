@@ -111,23 +111,13 @@ phlo materialize my_asset
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────┐
-│           Dagster Webserver              │
-│  - Asset UI                              │
-│  - Run monitoring                        │
-│  - Schedule management                   │
-├──────────────────────────────────────────┤
-│           Dagster Daemon                 │
-│  - Schedule execution                    │
-│  - Sensor polling                        │
-│  - Auto-materialization                  │
-├──────────────────────────────────────────┤
-│         Capability Providers             │
-│  - Asset specs                           │
-│  - Check specs                            │
-│  - Resource specs                        │
-└──────────────────────────────────────────┘
+```mermaid
+flowchart BT
+    providers["Capability Providers<br/>Asset specs<br/>Check specs<br/>Resource specs"]
+    daemon["Dagster Daemon<br/>Schedule execution<br/>Sensor polling<br/>Auto-materialization"]
+    web["Dagster Webserver<br/>Asset UI<br/>Run monitoring<br/>Schedule management"]
+
+    providers --> daemon --> web
 ```
 
 ## Entry Points

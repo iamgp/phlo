@@ -27,28 +27,18 @@ OpenMetadata integrates seamlessly with Phlo's tech stack:
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────┐
-│         OpenMetadata Server (UI)           │
-│         http://localhost:10020              │
-└─────────────┬───────────────────────────────┘
-              │
-       ┌──────┴──────┐
-       │             │
-┌──────▼──────┐ ┌───▼────────────┐
-│    MySQL    │ │ Elasticsearch  │
-│  (metadata) │ │   (search)     │
-└─────────────┘ └────────────────┘
-       │
-       │ Ingests metadata from:
-       │
-┌──────▼──────────────────────────────┐
-│  Trino → Iceberg Tables (Nessie)   │
-│  - bronze.entries_cleaned          │
-│  - silver.glucose_daily_stats      │
-│  - gold.dim_date                   │
-│  - marts.glucose_analytics_mart    │
-└────────────────────────────────────┘
+```mermaid
+flowchart TB
+    ui["OpenMetadata Server<br/>http://localhost:10020"]
+    mysql["MySQL<br/>(metadata)"]
+    elastic["Elasticsearch<br/>(search)"]
+    trino["Trino"]
+    iceberg["Iceberg Tables<br/>Nessie catalog<br/><br/>bronze.entries_cleaned<br/>silver.glucose_daily_stats<br/>gold.dim_date<br/>marts.glucose_analytics_mart"]
+
+    trino --> iceberg
+    iceberg -->|metadata ingestion| ui
+    ui --> mysql
+    ui --> elastic
 ```
 
 ## Quick Start

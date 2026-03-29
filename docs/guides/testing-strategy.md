@@ -2,6 +2,15 @@
 
 This document outlines the testing requirements for all components in the Phlo ecosystem. It defines **where** tests should live and **what** they should verify at each level of the [Test Pyramid](testing_architecture_proposal.md).
 
+```mermaid
+flowchart TB
+    l1["Level 1<br/>Unit tests<br/>fast and mocked"]
+    l2["Level 2<br/>Functional and integration tests<br/>real I/O, single-service"]
+    l3["Level 3<br/>System and E2E tests<br/>full platform flows"]
+
+    l1 --> l2 --> l3
+```
+
 ## Test Levels Definition
 1.  **Level 1: Unit Tests** (Mocked, Fast, Logic-focused)
 2.  **Level 2: Functional/Integration Tests** (Real I/O, Containerized Single-Service)
@@ -88,6 +97,18 @@ This document outlines the testing requirements for all components in the Phlo e
 ---
 
 ## Implementation Priority
+
+```mermaid
+flowchart LR
+    core["1. Core data flow<br/>dlt, iceberg, dbt"]
+    orchestration["2. Orchestration<br/>dagster"]
+    infra["3. Core infrastructure<br/>minio, nessie"]
+    observability["4. Observability<br/>pandera, otel, clickstack"]
+    extended["5. Extended services"]
+
+    core --> orchestration --> infra --> observability --> extended
+```
+
 1.  **Core Data Flow**: `phlo-dlt` (Ingest), `phlo-iceberg` (Store), `phlo-dbt` (Transform).
 2.  **Orchestration**: `phlo-dagster` (Run).
 3.  **Core Infrastructure**: `phlo-minio`, `phlo-nessie` (if used in Golden Path).

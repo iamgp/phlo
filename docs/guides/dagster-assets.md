@@ -221,10 +221,10 @@ def asset_c(asset_a, asset_b):  # Depends on both
 
 Graph:
 
-```
-asset_a ─┐
-         ├─> asset_c
-asset_b ─┘
+```mermaid
+flowchart LR
+    asset_a[asset_a] --> asset_c[asset_c]
+    asset_b[asset_b] --> asset_c
 ```
 
 ### Conditional Dependencies

@@ -39,30 +39,22 @@ A weather data pipeline that:
 
 ### Architecture
 
-```
-OpenWeather API
-    ↓
-[Dagster Asset: weather_data]
-    ↓
-Iceberg: raw.weather_observations
-    ↓
-[dbt: stg_weather_observations]
-    ↓
-Iceberg: bronze.stg_weather_observations
-    ↓
-[dbt: fct_weather_readings]
-    ↓
-Iceberg: silver.fct_weather_readings
-    ↓
-[dbt: mrt_daily_weather_summary]
-    ↓
-Iceberg: marts.mrt_daily_weather_summary
-    ↓
-[Dagster Asset: publish_weather_marts]
-    ↓
-PostgreSQL: marts.mrt_daily_weather_summary
-    ↓
-Superset Dashboard
+```mermaid
+flowchart LR
+    weather[OpenWeather API]
+    asset["Dagster asset<br/>weather_data"]
+    raw["Iceberg<br/>raw.weather_observations"]
+    bronze["dbt<br/>stg_weather_observations"]
+    bronze_table["Iceberg<br/>bronze.stg_weather_observations"]
+    silver["dbt<br/>fct_weather_readings"]
+    silver_table["Iceberg<br/>silver.fct_weather_readings"]
+    gold["dbt<br/>mrt_daily_weather_summary"]
+    marts_table["Iceberg<br/>marts.mrt_daily_weather_summary"]
+    publish["Dagster asset<br/>publish_weather_marts"]
+    postgres["PostgreSQL marts"]
+    superset[Superset dashboard]
+
+    weather --> asset --> raw --> bronze --> bronze_table --> silver --> silver_table --> gold --> marts_table --> publish --> postgres --> superset
 ```
 
 ---

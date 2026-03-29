@@ -28,38 +28,13 @@ For the orchestrator-agnostic spec model, read
 
 Phlo uses Python entry points to automatically discover plugins:
 
-```
-┌──────────────────────────────────────┐
-│     Python Environment               │
-│  - phlo (core framework)             │
-│  - phlo-dagster (service plugin)     │
-│  - phlo-custom-source (your plugin)  │
-└──────────────────────────────────────┘
-              │
-              ▼
-┌──────────────────────────────────────┐
-│   Entry Point Discovery              │
-│   (importlib.metadata)               │
-│                                      │
-│   Groups scanned:                    │
-│     • phlo.plugins.services          │
-│     • phlo.plugins.sources           │
-│     • phlo.plugins.quality           │
-│     • phlo.plugins.transforms        │
-│     • phlo.plugins.cli               │
-│     • phlo.plugins.hooks             │
-│     • phlo.plugins.catalogs          │
-│     • phlo.plugins.assets            │
-│     • phlo.plugins.resources         │
-│     • phlo.plugins.orchestrators     │
-└──────────────────────────────────────┘
-              │
-              ▼
-┌──────────────────────────────────────┐
-│   Plugin Registry                    │
-│   - Installed plugins cached         │
-│   - Available via CLI commands       │
-└──────────────────────────────────────┘
+```mermaid
+flowchart TB
+    env["Python Environment<br/>phlo<br/>phlo-dagster<br/>phlo-custom-source"]
+    discovery["Entry Point Discovery<br/>importlib.metadata<br/><br/>Groups scanned:<br/>phlo.plugins.services<br/>phlo.plugins.sources<br/>phlo.plugins.quality<br/>phlo.plugins.transforms<br/>phlo.plugins.cli<br/>phlo.plugins.hooks<br/>phlo.plugins.catalogs<br/>phlo.plugins.assets<br/>phlo.plugins.resources<br/>phlo.plugins.orchestrators"]
+    registry["Plugin Registry<br/>Installed plugins cached<br/>Available via CLI commands"]
+
+    env --> discovery --> registry
 ```
 
 Benefits:

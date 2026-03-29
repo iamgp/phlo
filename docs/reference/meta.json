@@ -1,0 +1,13 @@
+{
+  "title": "Reference",
+  "pages": [
+    "architecture",
+    "phlo-api",
+    "cli-reference",
+    "configuration-reference",
+    "plugin-api",
+    "quality-checks-catalog",
+    "duckdb-queries",
+    "common-errors"
+  ]
+}

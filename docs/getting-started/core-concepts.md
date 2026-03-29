@@ -15,19 +15,20 @@ Phlo is a data lakehouse framework that combines best-in-class tools into a cohe
 
 ### The Stack
 
-```
-┌─────────────────────────────────────────┐
-│         Dagster (Orchestration)         │
-├─────────────────────────────────────────┤
-│  DLT      │  dbt    │  Pandera          │
-│ (Ingest)  │ (Trans) │  (Quality)        │
-├─────────────────────────────────────────┤
-│  Trino (Query Engine)                   │
-├─────────────────────────────────────────┤
-│  Iceberg (Table Format) | Nessie (Cat.) │
-├─────────────────────────────────────────┤
-│  MinIO (S3 Storage) | PostgreSQL        │
-└─────────────────────────────────────────┘
+```mermaid
+flowchart BT
+    storage["MinIO (S3 Storage)<br/>PostgreSQL"]
+    catalog["Iceberg (Table Format)<br/>Nessie (Catalog)"]
+    query["Trino (Query Engine)"]
+    subgraph execution["Execution Layer"]
+        direction LR
+        ingest["DLT<br/>(Ingest)"]
+        transform["dbt<br/>(Transform)"]
+        quality["Pandera<br/>(Quality)"]
+    end
+    orchestration["Dagster (Orchestration)"]
+
+    storage --> catalog --> query --> execution --> orchestration
 ```
 
 **Storage**: MinIO provides S3-compatible object storage for data files and Iceberg metadata.
@@ -52,6 +53,22 @@ Phlo is a data lakehouse framework that combines best-in-class tools into a cohe
 
 Phlo implements an automated Write-Audit-Publish pattern when the active profile
 includes a versioned catalog capability.
+
+```mermaid
+flowchart LR
+    start[Pipeline run starts]
+    branch["Create isolated ref<br/>pipeline-run-{run_id}"]
+    write[Write data on isolated ref]
+    audit[Run quality and asset checks]
+    decision{Checks pass?}
+    promote[Promote back to durable ref]
+    cleanup[Clean up old run refs]
+    fail[Keep failed ref for investigation]
+
+    start --> branch --> write --> audit --> decision
+    decision -->|yes| promote --> cleanup
+    decision -->|no| fail
+```
 
 **Write Phase**
 
@@ -102,6 +119,21 @@ Phlo reduces boilerplate through powerful decorators that auto-generate Dagster 
 #### @phlo_ingestion Decorator
 
 Transforms a simple function into a complete ingestion pipeline:
+
+```mermaid
+flowchart LR
+    fn["Python function<br/>@phlo_ingestion"]
+    asset[Dagster asset]
+    dlt[DLT pipeline]
+    stage[Parquet staging]
+    schema[Pandera to Iceberg schema]
+    merge[Table merge and dedupe]
+    checks[Validation and metrics]
+
+    fn --> asset --> dlt --> stage
+    fn --> schema --> merge
+    stage --> merge --> checks
+```
 
 ```python
 @phlo_ingestion(
@@ -495,28 +527,18 @@ def publish_daily_aggregates(context, trino, postgres):
 
 Complete end-to-end flow:
 
-```
-1. API Source
-   ↓
-2. @phlo_ingestion decorator
-   ↓ DLT → Parquet staging
-   ↓
-3. Iceberg table (bronze.events)
-   ↓ on branch: pipeline/run-abc123
-   ↓
-4. @phlo_quality checks
-   ↓ validation passes
-   ↓
-5. Auto-promotion sensor
-   ↓ merge to main
-   ↓
-6. dbt transformations
-   ↓ bronze → silver → gold
-   ↓
-7. Publishing asset
-   ↓ Iceberg → PostgreSQL
-   ↓
-8. Superset dashboards
+```mermaid
+flowchart LR
+    source[API source]
+    ingest["@phlo_ingestion"]
+    branch["Iceberg table on<br/>pipeline/run-abc123"]
+    quality["@phlo_quality checks"]
+    promote[Auto-promotion sensor]
+    dbt[dbt transformations]
+    publish[Publishing asset]
+    dashboards[Superset dashboards]
+
+    source --> ingest --> branch --> quality --> promote --> dbt --> publish --> dashboards
 ```
 
 ## Key Files & Locations

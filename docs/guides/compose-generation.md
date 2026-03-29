@@ -6,12 +6,16 @@ power this process: `env.py`, `generator.py`, and `native.py`.
 
 ## Module roles
 
-```text
-phlo services init
-    │
-    ├── generator.py   → docker-compose.yml
-    ├── env.py         → .phlo/.env, .phlo/.env.local
-    └── native.py      → subprocess services (--native mode)
+```mermaid
+flowchart TB
+    init["phlo services init"]
+    generator["generator.py<br/>docker-compose.yml"]
+    env["env.py<br/>.phlo/.env<br/>.phlo/.env.local"]
+    native["native.py<br/>subprocess services<br/>--native mode"]
+
+    init --> generator
+    init --> env
+    init --> native
 ```
 
 ### env.py — environment variable materialization
@@ -52,6 +56,19 @@ class ComposeGenerator:
 
 The generator:
 
+```mermaid
+flowchart LR
+    discover[Discover service definitions]
+    order[Resolve dependency order]
+    configs[Build per-service configs]
+    depends[Resolve depends_on conditions]
+    dev[Apply dev mode overrides]
+    user[Apply phlo.yaml overrides]
+    emit[Emit compose YAML]
+
+    discover --> order --> configs --> depends --> dev --> user --> emit
+```
+
 1. Sorts services by dependency order via `discovery.resolve_dependencies()`.
 2. Builds per-service configs — image/build, ports, volumes, healthchecks, env_file.
 3. Resolves `depends_on` conditions (`service_healthy`, `service_started`,
@@ -80,6 +97,18 @@ class NativeProcessManager:
 ```
 
 Features:
+
+```mermaid
+flowchart LR
+    command[Expand commands and env]
+    build[Run optional build step]
+    start[Start subprocess in new session]
+    health[Poll health checks]
+    logs[Write per-service logs]
+    stop[Graceful shutdown]
+
+    command --> build --> start --> health --> logs --> stop
+```
 
 - Expands `${VAR}` and `${VAR:-default}` placeholders in commands and environment.
 - Runs optional build steps (`requires_build`, `build_command`, `build_if_missing`).

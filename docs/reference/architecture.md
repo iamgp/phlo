@@ -38,94 +38,173 @@ Phlo is built on modern lakehouse principles using Apache Iceberg as the table f
 
 ```mermaid
 graph TB
-    subgraph "Data Sources"
-        NS[Nightscout API]
-        FILES[CSV/Excel Files]
-        EXTERNAL[External APIs]
-    end
-
-    subgraph "User Interface"
+    subgraph ui["User Interface"]
         OBS[Observatory UI]
         DAGUI[Dagster Web UI]
+        SUPERSET[Superset Dashboards]
     end
 
-    subgraph "API Layer"
+    subgraph control["Control Plane"]
         PAPI[phlo-api]
-        POSTGREST[PostgREST]
         HASURA[Hasura GraphQL]
+        POSTGREST[PostgREST]
+        SCHEDULES[Schedules & Sensors]
+        DAGSTER[Dagster Assets]
     end
 
-    subgraph "Ingestion Layer"
+    subgraph ingest["Ingestion"]
+        NS[Nightscout API]
+        FILES[CSV and Excel Files]
+        EXTERNAL[External APIs]
         DLT[DLT Python]
         STAGE[S3 Staging Area]
         PYI[PyIceberg Writer]
     end
 
-    subgraph "Storage Layer"
+    subgraph storage["Storage and Catalog"]
         MINIO[MinIO S3 Storage]
         NESSIE[Nessie Catalog]
         PG[PostgreSQL]
     end
 
-    subgraph "Compute Layer"
+    subgraph compute["Compute"]
         TRINO[Trino Query Engine]
         DBT[dbt Transformations]
         DUCK[DuckDB Ad-hoc]
+        MARTS[PostgreSQL Marts]
     end
 
-    subgraph "Orchestration"
-        DAGSTER[Dagster Assets]
-        SCHEDULES[Schedules & Sensors]
-    end
-
-    subgraph "Observability"
+    subgraph observability["Observability"]
         OTEL[phlo-otel]
         CLICKSTACK[ClickStack]
-    end
-
-    subgraph "Analytics Layer"
-        MARTS[PostgreSQL Marts]
-        SUPERSET[Superset Dashboards]
     end
 
     NS --> DLT
     FILES --> DLT
     EXTERNAL --> DLT
-    DLT --> STAGE
-    STAGE --> PYI
+    DLT --> STAGE --> PYI
     PYI --> MINIO
     PYI --> NESSIE
 
-    NESSIE --> TRINO
     MINIO --> TRINO
-    TRINO --> DBT
+    NESSIE --> TRINO
     MINIO --> DUCK
+    TRINO --> DBT --> MARTS
+    TRINO --> MARTS
 
+    SCHEDULES --> DAGSTER
     DAGSTER --> DLT
     DAGSTER --> DBT
     DAGSTER --> TRINO
-    SCHEDULES --> DAGSTER
-
-    DAGSTER --> OTEL
-    OTEL --> CLICKSTACK
-
-    DBT --> MARTS
-    TRINO --> MARTS
-    MARTS --> SUPERSET
-    TRINO --> SUPERSET
-
-    PG --> NESSIE
-    PG --> DAGSTER
-    PG --> SUPERSET
-    PG --> POSTGREST
-    PG --> HASURA
 
     OBS --> PAPI
+    DAGUI --> DAGSTER
     PAPI --> TRINO
     PAPI --> NESSIE
     PAPI --> DAGSTER
-    PAPI --> MINIO
+    PG --> PAPI
+    PG --> HASURA
+    PG --> POSTGREST
+    MARTS --> SUPERSET
+
+    DAGSTER --> OTEL --> CLICKSTACK
+```
+
+The high-level diagram keeps the main layers readable. The detailed views below preserve the
+cross-system connections that would otherwise turn the overview into a wire bundle.
+
+### Interface and API Detail
+
+```mermaid
+flowchart LR
+    subgraph ui["User Interface"]
+        OBS[Observatory UI]
+        DAGUI[Dagster Web UI]
+        SUPERSET[Superset Dashboards]
+    end
+
+    subgraph api["API Layer"]
+        PAPI[phlo-api]
+        HASURA[Hasura GraphQL]
+        POSTGREST[PostgREST]
+    end
+
+    subgraph services["Platform Services"]
+        TRINO[Trino Query Engine]
+        NESSIE[Nessie Catalog]
+        MINIO[MinIO S3 Storage]
+        DAGSTER[Dagster Assets]
+        PG[PostgreSQL]
+        MARTS[PostgreSQL Marts]
+    end
+
+    OBS --> PAPI
     DAGUI --> DAGSTER
+
+    PAPI --> TRINO
+    PAPI --> NESSIE
+    PAPI --> MINIO
+    PAPI --> DAGSTER
+
+    PG --> PAPI
+    PG --> HASURA
+    PG --> POSTGREST
+    PG --> NESSIE
+    PG --> DAGSTER
+    PG --> SUPERSET
+
+    TRINO --> SUPERSET
+    MARTS --> SUPERSET
+```
+
+### Data and Orchestration Detail
+
+```mermaid
+flowchart LR
+    subgraph sources["Data Sources"]
+        NS[Nightscout API]
+        FILES[CSV and Excel Files]
+        EXTERNAL[External APIs]
+    end
+
+    subgraph ingest["Ingestion"]
+        DLT[DLT Python]
+        STAGE[S3 Staging Area]
+        PYI[PyIceberg Writer]
+    end
+
+    subgraph platform["Platform Runtime"]
+        SCHEDULES[Schedules and Sensors]
+        DAGSTER[Dagster Assets]
+        MINIO[MinIO S3 Storage]
+        NESSIE[Nessie Catalog]
+        TRINO[Trino Query Engine]
+        DBT[dbt Transformations]
+        DUCK[DuckDB Ad-hoc]
+        MARTS[PostgreSQL Marts]
+        OTEL[phlo-otel]
+        CLICKSTACK[ClickStack]
+    end
+
+    NS --> DLT
+    FILES --> DLT
+    EXTERNAL --> DLT
+    DLT --> STAGE --> PYI
+    PYI --> MINIO
+    PYI --> NESSIE
+
+    SCHEDULES --> DAGSTER
+    DAGSTER --> DLT
+    DAGSTER --> DBT
+    DAGSTER --> TRINO
+    DAGSTER --> OTEL --> CLICKSTACK
+
+    MINIO --> TRINO
+    NESSIE --> TRINO
+    MINIO --> DUCK
+    TRINO --> DBT
+    DBT --> MARTS
+    TRINO --> MARTS
 ```
 
 ## Key Components
@@ -196,26 +275,13 @@ Phlo uses a unified plugin system for extending functionality:
 
 Plugins are automatically discovered using Python entry points:
 
-```
-┌──────────────────────────────────────┐
-│     Python Environment               │
-│  - phlo (core framework)             │
-│  - phlo-dagster (service plugin)     │
-│  - phlo-custom-source (data plugin)  │
-└──────────────────────────────────────┘
-              │
-              ▼
-┌──────────────────────────────────────┐
-│   Entry Point Discovery              │
-│   (importlib.metadata)               │
-└──────────────────────────────────────┘
-              │
-              ▼
-┌──────────────────────────────────────┐
-│   Plugin Registry                    │
-│   - Installed plugins                │
-│   - Available plugins (remote)       │
-└──────────────────────────────────────┘
+```mermaid
+flowchart TB
+    env["Python Environment<br/>phlo<br/>phlo-dagster<br/>phlo-custom-source"]
+    discovery["Entry Point Discovery<br/>importlib.metadata"]
+    registry["Plugin Registry<br/>Installed plugins<br/>Available plugins (remote)"]
+
+    env --> discovery --> registry
 ```
 
 ### Plugin Registry

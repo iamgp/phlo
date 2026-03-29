@@ -75,7 +75,16 @@ phlo materialize --select "dlt_glucose_entries+"
 
 ## Documentation
 
-Full documentation at [docs/index.md](docs/index.md):
+Full documentation source lives under [docs/index.md](docs/index.md). The Fumadocs site now builds from `docs-app/` against that same Markdown tree:
+
+```bash
+npm --prefix docs-app install
+npm --prefix docs-app run dev
+```
+
+The docs app serves locally on `http://localhost:3101`.
+
+Primary entry points:
 
 - [Installation Guide](docs/getting-started/installation.md)
 - [Quickstart Guide](docs/getting-started/quickstart.md)

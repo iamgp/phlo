@@ -1,0 +1,23 @@
+{
+  "title": "Guides",
+  "pages": [
+    "developer-guide",
+    "workflow-development",
+    "data-migrations",
+    "dbt-development",
+    "data-modeling",
+    "dagster-assets",
+    "capability-primitives",
+    "orchestrator-adapters",
+    "operations-contracts",
+    "logging",
+    "hook-event-bus",
+    "semantic-layer",
+    "plugin-development",
+    "plugin-registry",
+    "compose-generation",
+    "service-packages",
+    "discovery-registry-benchmarks",
+    "testing-strategy"
+  ]
+}

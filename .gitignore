@@ -166,6 +166,11 @@ context/
 
 .claude
 .ralph/
+docs-app/.next/
+docs-app/.source/
+docs-app/content/
+docs-app/node_modules/
+docs-app/out/
 
 # Local-only docs
 docs/architecture/decisions/

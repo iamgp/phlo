@@ -41,8 +41,14 @@ Note: Additional configuration for table storage comes from the active table_sto
 
 ### Event Flow
 
-```
-@phlo_ingestion → IngestionEventEmitter → HookBus → [Alerting, Metrics, Lineage plugins]
+```mermaid
+flowchart LR
+    ingestion["@phlo_ingestion"]
+    emitter[IngestionEventEmitter]
+    hookbus[HookBus]
+    plugins["Alerting, Metrics, Lineage plugins"]
+
+    ingestion --> emitter --> hookbus --> plugins
 ```
 
 ## Usage

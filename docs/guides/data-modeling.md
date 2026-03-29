@@ -24,8 +24,9 @@ This guide explains how to design and organize your data using the Bronze/Silver
 
 ### The Layers
 
-```
-RAW → BRONZE → SILVER → GOLD → MARTS
+```mermaid
+flowchart LR
+    raw[Raw] --> bronze[Bronze] --> silver[Silver] --> gold[Gold] --> marts[Marts]
 ```
 
 **Purpose of each layer:**
@@ -44,11 +45,11 @@ Why This Pattern?
 
 **Benefits:**
 
-- ✅ **Reproducibility** - Can always rebuild from raw
-- ✅ **Debuggability** - Easy to isolate issues
-- ✅ **Flexibility** - Change downstream without reingesting
-- ✅ **Performance** - Each layer optimized for its purpose
-- ✅ **Governance** - Clear data quality progression
+- **Reproducibility** - Can always rebuild from raw
+- **Debuggability** - Easy to isolate issues
+- **Flexibility** - Change downstream without reingesting
+- **Performance** - Each layer optimized for its purpose
+- **Governance** - Clear data quality progression
 
 **Real-world analogy:**
 
@@ -112,10 +113,10 @@ WHERE created_at IS NOT NULL
 
 ### What DOESN'T Happen Here
 
-❌ **NO business logic** (no "is*active", "status_category", etc.)
-❌ **NO aggregations** (no GROUP BY)
-❌ **NO enrichments** (no calculated fields like "days_since*")
-❌ **NO joins** (single-source transformations only)
+- **No business logic** (no "is_active", "status_category", etc.)
+- **No aggregations** (no GROUP BY)
+- **No enrichments** (no calculated fields like "days_since_*")
+- **No joins** (single-source transformations only)
 
 ### Bronze Layer Best Practices
 

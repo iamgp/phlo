@@ -13,6 +13,21 @@ Phlo provides powerful decorators that transform simple functions into complete 
 - Publishing to BI tools
 - Advanced patterns and best practices
 
+```mermaid
+flowchart LR
+    source[Source function]
+    ingestion["@phlo_ingestion"]
+    staging[DLT staging]
+    tables[Table-store writes]
+    quality["@phlo_pandera"]
+    dbt[dbt models]
+    publish[Publishing assets]
+    bi[BI tools]
+
+    source --> ingestion --> staging --> tables --> dbt --> publish --> bi
+    tables --> quality
+```
+
 ## Quick Example
 
 A complete ingestion pipeline in ~30 lines:

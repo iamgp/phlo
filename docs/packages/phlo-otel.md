@@ -42,6 +42,21 @@ Resource attributes emitted by default include:
 
 Recommended topologies:
 
+```mermaid
+flowchart LR
+    otel[phlo-otel]
+    clickstack[ClickStack]
+    alloy[Alloy]
+    collector[OpenTelemetry Collector]
+    grafana[Grafana, Loki, Tempo]
+    multi[Multiple downstream backends]
+
+    otel --> clickstack
+    otel --> alloy --> grafana
+    otel --> collector --> multi
+    collector --> clickstack
+```
+
 - `phlo-otel -> ClickStack`
 - `phlo-otel -> Alloy -> Grafana / Loki / Tempo`
 - `phlo-otel -> OpenTelemetry Collector -> multiple downstream backends`

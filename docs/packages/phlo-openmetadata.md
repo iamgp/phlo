@@ -47,8 +47,14 @@ phlo plugin install openmetadata
 
 ### Event Flow
 
-```
-Pipeline Events → HookBus → OpenMetadataHookPlugin → OpenMetadata API
+```mermaid
+flowchart LR
+    events["Pipeline events<br/>lineage.edges<br/>quality.result<br/>publish.end"]
+    hookbus[HookBus]
+    plugin[OpenMetadataHookPlugin]
+    api[OpenMetadata API]
+
+    events --> hookbus --> plugin --> api
 ```
 
 ### Synced Data

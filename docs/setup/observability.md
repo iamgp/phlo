@@ -19,13 +19,16 @@ All observability services are optional and run under the `observability` docker
 
 Phlo's OpenTelemetry path is OTLP-first:
 
-```text
-Phlo workflow packages
-  -> HookBus events
-  -> phlo-otel
-  -> OTLP
-  -> Alloy / OpenTelemetry Collector
-  -> Tempo / Prometheus-compatible backend / Loki / ClickStack
+```mermaid
+flowchart LR
+    workflows["Phlo workflow packages"]
+    hookbus["HookBus events"]
+    otel["phlo-otel"]
+    otlp["OTLP"]
+    collector["Alloy / OpenTelemetry Collector"]
+    backends["Tempo / Prometheus-compatible backend / Loki / ClickStack"]
+
+    workflows --> hookbus --> otel --> otlp --> collector --> backends
 ```
 
 This keeps backend routing outside workflow code:
@@ -74,31 +77,29 @@ Default credentials:
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Grafana Dashboards                      │
-│         (Visualization + Alerting + Exploration)            │
-└────────────┬───────────────────────────┬───────────────────┘
-             │                           │
-             │ Queries                   │ Queries
-             ▼                           ▼
-┌────────────────────────┐   ┌────────────────────────┐
-│      Prometheus         │   │         Loki           │
-│   (Metrics Storage)     │   │   (Log Aggregation)    │
-└────────────┬────────────┘   └────────────┬───────────┘
-             │                             │
-             │ Scrape                      │ Push
-             │                             │
-             ▼                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Grafana Alloy                          │
-│        (Unified Collection Agent + Label Processing)         │
-└────┬────────┬────────┬────────┬────────┬────────┬──────────┘
-     │        │        │        │        │        │
-     ▼        ▼        ▼        ▼        ▼        ▼
-  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
-  │Trino │ │Nessie│ │MinIO │ │Dagster│ │Postgres│ │Containers│
-  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘
+```mermaid
+flowchart BT
+    grafana["Grafana Dashboards<br/>Visualization, alerting, exploration"]
+    prometheus["Prometheus<br/>Metrics storage"]
+    loki["Loki<br/>Log aggregation"]
+    alloy["Grafana Alloy<br/>Unified collection agent<br/>Label processing"]
+    trino[Trino]
+    nessie[Nessie]
+    minio[MinIO]
+    dagster[Dagster]
+    postgres[Postgres]
+    containers[Containers]
+
+    prometheus -->|queries| grafana
+    loki -->|queries| grafana
+    trino --> alloy
+    nessie --> alloy
+    minio --> alloy
+    dagster --> alloy
+    postgres --> alloy
+    containers --> alloy
+    alloy -->|scrape| prometheus
+    alloy -->|push| loki
 ```
 
 ### Component Details

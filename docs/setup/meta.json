@@ -1,0 +1,10 @@
+{
+  "title": "Setup",
+  "pages": [
+    "hasura",
+    "postgrest",
+    "observability",
+    "openmetadata",
+    "security"
+  ]
+}
