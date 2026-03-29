@@ -5,11 +5,12 @@
     "index",
     "getting-started",
     "guides",
+    "architecture",
     "setup",
+    "operations",
     "packages",
     "reference",
-    "errors",
-    "observatory",
-    "operations"
+    "python-reference",
+    "errors"
   ]
 }

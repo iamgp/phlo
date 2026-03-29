@@ -1,204 +1,126 @@
 # Phlo Documentation
 
-Welcome to Phlo - a modern data lakehouse platform combining Apache Iceberg, Project Nessie, Trino, dbt, and Dagster.
+Phlo is a modular lakehouse platform for ingestion, quality, transformation, orchestration, and data access.
 
-## What is Phlo?
+## Platform Map
 
-Phlo is a decorator-driven data lakehouse framework that reduces boilerplate by 74% while providing:
+```mermaid
+flowchart TD
+    project["Phlo project"]
 
-- Write-Audit-Publish pattern with Git-like branching
-- Type-safe data quality with automatic validation
-- Production-ready patterns out of the box
-- Schema-first development with Pandera
+    subgraph core["Core runtime"]
+        cli["CLI and config"]
+        hooks["Hooks and plugin discovery"]
+        workflows["Ingestion, quality, transforms"]
+    end
 
-## Quick Start
+    subgraph data["Lakehouse data plane"]
+        storage["Object storage + table format"]
+        catalog["Catalog + metadata store"]
+        query["Query engine"]
+        orch["Orchestrator"]
+    end
 
-```bash
-# Install and start
-git clone https://github.com/iamgp/phlo.git
-cd phlo
-phlo services init
-# Update secrets in .phlo/.env.local and port defaults in phlo.yaml (env:)
-phlo services start
+    subgraph optional["Optional operator-facing surfaces"]
+        hasura["Hasura"]
+        postgrest["PostgREST"]
+        openmetadata["OpenMetadata"]
+        observability["Observability backends"]
+    end
 
-# Materialize example pipeline
-phlo materialize dlt_glucose_entries
+    project --> core
+    core --> data
+    data --> optional
 ```
 
-## Quick Links
+## Documentation Map
 
-- **New to Phlo?** Start with the [Installation Guide](getting-started/installation.md) then [Core Concepts](getting-started/core-concepts.md)
-- **Build pipelines:** Follow the [Developer Guide](guides/developer-guide.md)
-- **Production deployment:** Check the [Operations Guide](operations/operations-guide.md)
-- **Troubleshoot issues:** See [Troubleshooting](operations/troubleshooting.md)
+- [Getting Started](getting-started/installation.md): install, run, first pipeline.
+- [Guides](guides/developer-guide.md): workflows, patterns, and cross-package how-to material.
+- [Architecture](architecture/index.md): public system shape, topology, and platform boundaries.
+- [Packages](packages/index.md): what each installable package contributes to the platform.
+- [Setup](setup/index.md): operator runbooks for optional external surfaces that need extra configuration after install.
+- [Reference](reference/index.md): canonical contracts, commands, configuration, and API surfaces.
+- [Python Reference](python-reference/index.mdx): generated symbol-level API and docstring reference for the core runtime.
+- [Operations](operations/operations-guide.md): production operation, troubleshooting, and maintenance.
 
-## Documentation Structure
+## Recommended Paths
 
-### Getting Started
+### Data engineer
 
-Essential guides for new users:
+1. [Getting Started](getting-started/index.md)
+2. [Developer Workflow](guides/developer-workflow.md)
+3. [Data Lifecycle](guides/data-lifecycle.md)
+4. [Workflow Development](guides/workflow-development.md)
+5. [Testing Strategy](guides/testing-strategy.md)
 
-- [Installation Guide](getting-started/installation.md) - Complete installation instructions
-- [Quickstart Guide](getting-started/quickstart.md) - Get running in 10 minutes
-- [Core Concepts](getting-started/core-concepts.md) - Understand Phlo's architecture and patterns
+### Platform engineer
 
-### Guides
+1. [Platform Topology](reference/platform-topology.md)
+2. [Public System Design](architecture/public-system-design.md)
+3. [Choosing Components](guides/choosing-components.md)
+4. [Deployment Profiles](guides/deployment-profiles.md)
+5. [Setup](setup/index.md)
+6. [Production Readiness](operations/production-readiness.md)
 
-In-depth tutorials and how-tos:
+### Plugin or package author
 
-- [Developer Guide](guides/developer-guide.md) - Master decorators and workflow development
-- [Service Packages](guides/service-packages.md) - Installable infrastructure services
-- [Plugin Development](guides/plugin-development.md) - Build custom plugins to extend Phlo
-- [Capability Primitives](guides/capability-primitives.md) - Orchestrator-agnostic specs
-- [Integration Profiles](guides/integration-profiles.md) - Supported capability combinations
-- [Workflow Development](guides/workflow-development.md) - Build complete data pipelines
-- [Data Migrations](guides/data-migrations.md) - Run declarative backfills and reshapes
-- [Data Modelling](guides/data-modeling.md) - Bronze/Silver/Gold architecture
-- [dbt Development](guides/dbt-development.md) - SQL transformations
-- [Dagster Assets](guides/dagster-assets.md) - Orchestration patterns
-- [Testing Strategy](guides/testing-strategy.md) - Testing your Phlo workflows
-- [Hook Event Bus](guides/hook-event-bus.md) - Event-driven plugin communication
-- [Logging](guides/logging.md) - Structured logging and log routing
-- [Semantic Layer](guides/semantic-layer.md) - Define metrics and dimensions
-- [Orchestrator Adapters](guides/orchestrator-adapters.md) - Switch between Dagster, Airflow, etc.
-- [Operations Contracts](guides/operations-contracts.md) - Consumer/SLA definitions
-- [Compose Generation](guides/compose-generation.md) - Docker Compose file generation
-- [Plugin Registry](guides/plugin-registry.md) - Plugin discovery and installation
-- [Discovery Registry Benchmarks](guides/discovery-registry-benchmarks.md) - Performance testing
+1. [Extension Model](guides/extension-model.md)
+2. [Plugin Development](guides/plugin-development.md)
+3. [Plugin API](reference/plugin-api.md)
+4. [Packages](packages/index.md)
+5. [Python Reference](python-reference/index.mdx)
 
-### Setup
+## Setup Surfaces
 
-Configure additional services:
+Phlo can expose optional surfaces around the core data plane and runtime stack.
 
-- [OpenMetadata](setup/openmetadata.md) - Data catalog and governance
-- [PostgREST](setup/postgrest.md) - REST API from PostgreSQL
-- [Hasura](setup/hasura.md) - GraphQL API
-- [Observability](setup/observability.md) - Monitoring, OTLP collectors, and backend routing
-- [Security](setup/security.md) - Security configuration and best practices
+- [Hasura](setup/hasura.md) and [PostgREST](setup/postgrest.md) for external API exposure
+- [OpenMetadata](setup/openmetadata.md) for catalog and metadata workflows
+- [Observability](setup/observability.md) for logs, traces, and metrics routing
+- [Security](setup/security.md) for authentication, secrets, and hardening
 
-### Observatory
+Use [Packages](packages/index.md) for component detail and [Reference](reference/index.md) for commands, config, and contracts.
 
-UI extensions and customization:
+## Start Here
 
-- [Extensions](observatory/extensions.md) - Build custom Observatory UI extensions
+- New project: [Installation Guide](getting-started/installation.md), then [Quickstart Guide](getting-started/quickstart.md)
+- Building workflows: [Developer Guide](guides/developer-guide.md)
+- Understanding the platform model: [Core Concepts](getting-started/core-concepts.md)
+- Running the stack: [Operations Guide](operations/operations-guide.md)
+- Looking for a specific package: [Packages](packages/index.md)
+- Looking for commands and settings: [Reference](reference/index.md)
 
-### Packages
+## Common Paths
 
-Package-specific reference:
+### First Pipeline
 
-- [All Packages](packages/index.md) - Complete list of all 32 Phlo packages
-- [phlo-traefik](packages/phlo-traefik.md) - Local reverse proxy for named service URLs
-- [phlo-clickstack](packages/phlo-clickstack.md) - Preferred all-in-one observability backend
-- [phlo-otel](packages/phlo-otel.md) - OpenTelemetry traces, metrics, and OTLP log export
-- [phlo-delta](packages/phlo-delta.md) - Delta Lake table format (alternative to Iceberg)
+1. [Installation Guide](getting-started/installation.md)
+2. [Core Concepts](getting-started/core-concepts.md)
+3. [Quickstart Guide](getting-started/quickstart.md)
+4. [Developer Guide](guides/developer-guide.md)
 
-### Reference
+### Platform Setup
 
-Technical documentation:
+1. [Installation Guide](getting-started/installation.md)
+2. [Service Packages](guides/service-packages.md)
+3. [Packages](packages/index.md)
+4. [Setup](setup/index.md)
+5. [Operations Guide](operations/operations-guide.md)
 
-- [CLI Reference](reference/cli-reference.md) - Complete command-line interface guide
-- [Configuration Reference](reference/configuration-reference.md) - Environment variables and settings
-- [Architecture](reference/architecture.md) - System design and components
-- [Plugin Architecture](reference/plugin-architecture.md) - Plugin types and how they connect
-- [API Reference](reference/phlo-api.md) - REST and GraphQL APIs
-- [DuckDB Queries](reference/duckdb-queries.md) - Ad-hoc analysis
-- [Plugin API](reference/plugin-api.md) - Plugin development reference
-- [Quality Checks Catalog](reference/quality-checks-catalog.md) - Available quality checks
-- [Common Errors](reference/common-errors.md) - Error messages explained
-- [Error Codes Reference](errors/README.md) - Complete error code index
+### Command and Contract Lookup
 
-### Operations
+1. [CLI Reference](reference/cli-reference.md)
+2. [Configuration Reference](reference/configuration-reference.md)
+3. [Plugin API](reference/plugin-api.md)
+4. [Common Errors](reference/common-errors.md)
 
-Production operations and maintenance:
+## Key Reference Pages
 
-- [Operations Guide](operations/operations-guide.md) - Daily operations, backups, scaling, security
-- [Troubleshooting](operations/troubleshooting.md) - Debug common issues
-- [Best Practices](operations/best-practices.md) - Production patterns
-- [Testing Guide](operations/testing.md) - Testing strategies
-
-### Blog
-
-Tutorial series and deep dives:
-
-- [Data Engineering Fundamentals with Phlo](blog/data-engineering-fundamentals/README.md) is
-  the canonical blog series.
-
-## Learning Paths
-
-### Path 1: Complete Beginner to First Pipeline
-
-```
-1. getting-started/installation.md        (Install Phlo)
-2. getting-started/core-concepts.md       (Understand architecture)
-3. getting-started/quickstart.md          (Run first pipeline)
-4. guides/developer-guide.md              (Build custom workflows)
-5. operations/troubleshooting.md          (Fix issues)
-```
-
-**Outcome:** Working data pipeline with custom ingestion and quality checks
-
-### Path 2: Developer to Production Expert
-
-```
-1. getting-started/core-concepts.md       (Understand patterns)
-2. guides/developer-guide.md              (Master decorators)
-3. reference/cli-reference.md             (Learn CLI tools)
-4. guides/dbt-development.md              (SQL transformations)
-5. operations/operations-guide.md         (Production operations)
-6. setup/observability.md                 (Monitoring)
-```
-
-**Outcome:** Production-ready pipelines with monitoring and automation
-
-### Path 3: Quick Setup to Running System
-
-```
-1. getting-started/installation.md        (Install)
-2. getting-started/quickstart.md          (Start services)
-3. reference/configuration-reference.md   (Configure)
-4. operations/troubleshooting.md          (Debug)
-```
-
-**Outcome:** Running Phlo instance ready for development
-
-## Getting Help
-
-1. **Search this documentation** - Use your editor's search
-2. **Check troubleshooting** - [operations/troubleshooting.md](operations/troubleshooting.md)
-3. **Review common errors** - [reference/common-errors.md](reference/common-errors.md)
-4. **Official documentation:**
-   - [Dagster](https://docs.dagster.io)
-   - [dbt](https://docs.getdbt.com)
-   - [Trino](https://trino.io/docs)
-   - [Iceberg](https://iceberg.apache.org/docs)
-   - [Nessie](https://projectnessie.org/docs/)
-
-## Contributing
-
-Phlo is open source. Contributions welcome!
-
-- Report bugs via GitHub Issues
-- Submit improvements via Pull Requests
-- See [Developer Guide](guides/developer-guide.md) for workflow
-
-## Key Features
-
-### Decorator-Driven Development
-
-Reduce boilerplate by 74% with `@phlo_ingestion` and `@phlo_quality` decorators.
-
-### Write-Audit-Publish Pattern
-
-Automated branch lifecycle with quality gates and auto-promotion to production.
-
-### Schema-First Development
-
-Pandera schemas auto-generate Iceberg schemas and enforce validation.
-
-### Production-Ready
-
-Built-in monitoring, alerting, backups, and disaster recovery patterns.
-
----
-
-**Version:** 2.0 | **Last Updated:** 2026-03-08
+- [Architecture](reference/architecture.md)
+- [CLI Reference](reference/cli-reference.md)
+- [Configuration Reference](reference/configuration-reference.md)
+- [Plugin API](reference/plugin-api.md)
+- [phlo-api](reference/phlo-api.md)
+- [Python Reference](python-reference/index.mdx)
+- [Error Codes](errors/README.md)

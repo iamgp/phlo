@@ -1,6 +1,16 @@
 # Phlo Packages Reference
 
-Phlo is organized as a monorepo with 32 individual packages that provide specific functionality. Each package can be installed independently or as part of a complete installation.
+Phlo is organized as a modular monorepo. Each package contributes a capability, runtime surface, or operator tool.
+
+Use this section to answer:
+
+- what does this package add to a Phlo stack?
+- is it core, optional, or profile-specific?
+- which other packages or capabilities does it connect to?
+
+For environment-specific setup of external surfaces such as Hasura, PostgREST, or OpenMetadata, use [Setup](../setup/index.md).
+
+Use [Python Reference](../python-reference/index.mdx) when you need symbol-level docstring and API reference for the package modules themselves.
 
 ## Complete Package Index
 

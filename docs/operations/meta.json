@@ -1,7 +1,10 @@
 {
   "title": "Operations",
   "pages": [
+    "index",
     "operations-guide",
+    "production-readiness",
+    "local-development-troubleshooting",
     "best-practices",
     "testing",
     "troubleshooting"

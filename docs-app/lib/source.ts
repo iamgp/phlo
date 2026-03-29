@@ -1,4 +1,4 @@
-import { docs } from "collections/server";
+import { docs } from "../.source/dynamic";
 import { type InferPageType, loader } from "fumadocs-core/source";
 import { docsContentRoute, docsImageRoute, docsRoute } from "@/lib/shared";
 

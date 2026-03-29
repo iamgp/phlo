@@ -307,4 +307,4 @@ See the [Core Concepts guide](../getting-started/core-concepts.md) for branching
 
 ## For More Details
 
-See the [Plugin Architecture](plugin-architecture.md) for the full plugin system specification.
+See the [Plugin API](plugin-api.md) and [Extension Model](../guides/extension-model.md) for the public plugin system documentation.

@@ -17,6 +17,12 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "latest"
+      - name: Set up Python
+        run: uv python install 3.11
       - uses: actions/setup-node@0f02c547dbf1c7b6cb3329322436c6e7b4dc4197
         with:
           node-version: "22"
@@ -39,6 +45,12 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "latest"
+      - name: Set up Python
+        run: uv python install 3.11
       - uses: actions/setup-node@0f02c547dbf1c7b6cb3329322436c6e7b4dc4197
         with:
           node-version: "22"

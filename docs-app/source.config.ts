@@ -14,6 +14,7 @@ const phloPageSchema = z.object({
 export const docs = defineDocs({
   dir: "content/docs",
   docs: {
+    dynamic: true,
     schema: phloPageSchema,
     postprocess: {
       includeProcessedMarkdown: true,
