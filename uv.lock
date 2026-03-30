@@ -3071,7 +3071,7 @@ wheels = [
 
 [[package]]
 name = "phlo"
-version = "0.7.8"
+version = "0.7.9"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
@@ -3479,7 +3479,7 @@ provides-extras = ["alerting", "dev", "iceberg", "nessie", "observatory"]
 
 [[package]]
 name = "phlo-dbt"
-version = "0.2.4"
+version = "0.2.5"
 source = { editable = "packages/phlo-dbt" }
 dependencies = [
     { name = "dbt-core" },
