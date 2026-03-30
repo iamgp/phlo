@@ -22,12 +22,29 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from phlo.capabilities.discovery import discover_capabilities
-from phlo.capabilities.resolver import resolve_capability
 from phlo.logging import get_logger
 from phlo_dbt.translator import DbtSpecTranslator
 
 logger = get_logger(__name__)
+
+
+def _discover_capabilities() -> None:
+    """Import and run capability discovery lazily.
+
+    This avoids importing capability discovery while dbt plugins are themselves
+    being discovered, which can otherwise create a circular import through
+    ``phlo.plugins.discovery``.
+    """
+    from phlo.capabilities.discovery import discover_capabilities
+
+    discover_capabilities()
+
+
+def _resolve_capability(capability_type: str) -> Any:
+    """Import capability resolution lazily to avoid discovery-time cycles."""
+    from phlo.capabilities.resolver import resolve_capability
+
+    return resolve_capability(capability_type)
 
 
 def load_dbt_manifest(manifest_path: Path) -> dict[str, Any] | None:
@@ -203,8 +220,8 @@ def import_manifest_lineage(manifest_path: Path) -> dict[str, int]:
     if manifest is None:
         return {"asset_edges": 0, "column_mappings": 0}
 
-    discover_capabilities()
-    resolution = resolve_capability("lineage_sink")
+    _discover_capabilities()
+    resolution = _resolve_capability("lineage_sink")
     if resolution is None:
         logger.info(
             "dbt_lineage_import_skipped_no_sink",

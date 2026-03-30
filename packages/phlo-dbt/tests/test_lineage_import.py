@@ -78,9 +78,9 @@ def test_import_manifest_lineage_persists_assets_and_columns(monkeypatch, tmp_pa
         sink_calls.append((edges, asset_keys, metadata)) or len(edges)
     )
     sink.record_column_lineage = lambda mappings: column_calls.append(mappings) or len(mappings)
-    monkeypatch.setattr("phlo_dbt.lineage_import.discover_capabilities", lambda: None)
+    monkeypatch.setattr("phlo_dbt.lineage_import._discover_capabilities", lambda: None)
     monkeypatch.setattr(
-        "phlo_dbt.lineage_import.resolve_capability",
+        "phlo_dbt.lineage_import._resolve_capability",
         lambda capability_type: (
             SimpleNamespace(name="phlo-lineage", provider=sink)
             if capability_type == "lineage_sink"
@@ -123,9 +123,9 @@ def test_import_manifest_lineage_skips_when_no_sink(monkeypatch, tmp_path) -> No
     manifest_path.parent.mkdir(parents=True)
     manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}), encoding="utf-8")
 
-    monkeypatch.setattr("phlo_dbt.lineage_import.discover_capabilities", lambda: None)
+    monkeypatch.setattr("phlo_dbt.lineage_import._discover_capabilities", lambda: None)
     monkeypatch.setattr(
-        "phlo_dbt.lineage_import.resolve_capability",
+        "phlo_dbt.lineage_import._resolve_capability",
         lambda capability_type: None,
     )
 

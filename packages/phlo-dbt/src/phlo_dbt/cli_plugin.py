@@ -32,7 +32,6 @@ from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
 from phlo.plugins.base import CliCommandPlugin, PluginMetadata
 from phlo_dbt.cli_publishing import publishing
-from phlo_dbt.lineage_import import import_manifest_lineage
 from phlo_dbt.runtime_config import DEFAULT_DBT_TARGET, ensure_dbt_profile
 
 
@@ -109,6 +108,13 @@ def _resolve_exec_service_name() -> str:
     return service_name
 
 
+def _import_manifest_lineage(manifest_path: Path) -> dict[str, int]:
+    """Import dbt lineage lazily to avoid plugin discovery-time import cycles."""
+    from phlo_dbt.lineage_import import import_manifest_lineage
+
+    return import_manifest_lineage(manifest_path)
+
+
 def _run_dbt_in_container(
     *,
     subcommand: str,
@@ -168,7 +174,7 @@ def _import_lineage_after_run(
 
     manifest_path = project_dir / "target" / "manifest.json"
     try:
-        summary = import_manifest_lineage(manifest_path)
+        summary = _import_manifest_lineage(manifest_path)
     except Exception:
         logger.warning(
             "dbt_cli_lineage_import_failed",
