@@ -48,7 +48,7 @@ def test_dbt_run_uses_active_orchestrator_container_by_default(monkeypatch, tmp_
     )
     imported_manifests: list[Path] = []
     monkeypatch.setattr(
-        "phlo_dbt.cli_plugin.import_manifest_lineage",
+        "phlo_dbt.cli_plugin._import_manifest_lineage",
         lambda manifest_path: (
             imported_manifests.append(manifest_path) or {"asset_edges": 1, "column_mappings": 0}
         ),
@@ -104,7 +104,7 @@ def test_dbt_run_local_uses_host_dbt(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("phlo_dbt.cli_plugin.ensure_dbt_profile", lambda *_args, **_kwargs: None)
     imported_manifests: list[Path] = []
     monkeypatch.setattr(
-        "phlo_dbt.cli_plugin.import_manifest_lineage",
+        "phlo_dbt.cli_plugin._import_manifest_lineage",
         lambda manifest_path: (
             imported_manifests.append(manifest_path) or {"asset_edges": 1, "column_mappings": 0}
         ),
@@ -188,7 +188,7 @@ def test_dbt_run_joins_multiple_select_flags(monkeypatch, tmp_path) -> None:
         lambda: SimpleNamespace(dbt_project_path=project_dir, dbt_profiles_path=profiles_dir),
     )
     monkeypatch.setattr(
-        "phlo_dbt.cli_plugin.import_manifest_lineage",
+        "phlo_dbt.cli_plugin._import_manifest_lineage",
         lambda _manifest_path: {"asset_edges": 1, "column_mappings": 0},
     )
 
@@ -225,7 +225,7 @@ def test_dbt_run_skips_lineage_import_on_failure(monkeypatch, tmp_path) -> None:
 
     imported_manifests: list[Path] = []
     monkeypatch.setattr(
-        "phlo_dbt.cli_plugin.import_manifest_lineage",
+        "phlo_dbt.cli_plugin._import_manifest_lineage",
         lambda manifest_path: (
             imported_manifests.append(manifest_path) or {"asset_edges": 1, "column_mappings": 0}
         ),
@@ -257,7 +257,7 @@ def test_dbt_compile_does_not_import_lineage(monkeypatch, tmp_path) -> None:
 
     imported_manifests: list[Path] = []
     monkeypatch.setattr(
-        "phlo_dbt.cli_plugin.import_manifest_lineage",
+        "phlo_dbt.cli_plugin._import_manifest_lineage",
         lambda manifest_path: (
             imported_manifests.append(manifest_path) or {"asset_edges": 1, "column_mappings": 0}
         ),
