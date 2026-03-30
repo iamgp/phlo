@@ -22,6 +22,51 @@ Example:
 
 <Tabs items="[&#x22;Functions&#x22;]">
   <Tab value="&#x22;Functions&#x22;">
+    <PyFunction name="&#x22;_discover_capabilities&#x22;" type="&#x22;() -> None&#x22;">
+      Import and run capability discovery lazily.
+
+      This avoids importing capability discovery while dbt plugins are themselves
+      being discovered, which can otherwise create a circular import through
+      `phlo.plugins.discovery`.
+
+      <PySourceCode>
+        ```python
+        def _discover_capabilities() -> None:
+            """Import and run capability discovery lazily.
+
+            This avoids importing capability discovery while dbt plugins are themselves
+            being discovered, which can otherwise create a circular import through
+            ``phlo.plugins.discovery``.
+            """
+            from phlo.capabilities.discovery import discover_capabilities
+
+            discover_capabilities()
+        ```
+      </PySourceCode>
+
+      <PyFunctionReturn type="&#x22;None&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_resolve_capability&#x22;" type="&#x22;(capability_type) -> Any&#x22;">
+      Import capability resolution lazily to avoid discovery-time cycles.
+
+      <PySourceCode>
+        ```python
+        def _resolve_capability(capability_type: str) -> Any:
+            """Import capability resolution lazily to avoid discovery-time cycles."""
+            from phlo.capabilities.resolver import resolve_capability
+
+            return resolve_capability(capability_type)
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;capability_type&#x22;" type="&#x22;str&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;typing.Any&#x22;" />
+    </PyFunction>
+
     <PyFunction name="&#x22;load_dbt_manifest&#x22;" type="&#x22;(manifest_path) -> dict[str, Any] | None&#x22;">
       Return a parsed dbt manifest payload when available.
 
@@ -288,8 +333,8 @@ Example:
             if manifest is None:
                 return {"asset_edges": 0, "column_mappings": 0}
 
-            discover_capabilities()
-            resolution = resolve_capability("lineage_sink")
+            _discover_capabilities()
+            resolution = _resolve_capability("lineage_sink")
             if resolution is None:
                 logger.info(
                     "dbt_lineage_import_skipped_no_sink",

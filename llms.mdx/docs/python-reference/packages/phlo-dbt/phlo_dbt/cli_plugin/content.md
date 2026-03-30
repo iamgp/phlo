@@ -181,6 +181,26 @@ Example:
       <PyFunctionReturn type="&#x22;str&#x22;" />
     </PyFunction>
 
+    <PyFunction name="&#x22;_import_manifest_lineage&#x22;" type="&#x22;(manifest_path) -> dict[str, int]&#x22;">
+      Import dbt lineage lazily to avoid plugin discovery-time import cycles.
+
+      <PySourceCode>
+        ```python
+        def _import_manifest_lineage(manifest_path: Path) -> dict[str, int]:
+            """Import dbt lineage lazily to avoid plugin discovery-time import cycles."""
+            from phlo_dbt.lineage_import import import_manifest_lineage
+
+            return import_manifest_lineage(manifest_path)
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;manifest_path&#x22;" type="&#x22;Path&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;dict[str, int]&#x22;" />
+    </PyFunction>
+
     <PyFunction name="&#x22;_run_dbt_in_container&#x22;" type="&#x22;(*, subcommand, target, select_expr=None) -> None&#x22;">
       Run dbt inside the active orchestrator service container.
 
@@ -262,7 +282,7 @@ Example:
 
             manifest_path = project_dir / "target" / "manifest.json"
             try:
-                summary = import_manifest_lineage(manifest_path)
+                summary = _import_manifest_lineage(manifest_path)
             except Exception:
                 logger.warning(
                     "dbt_cli_lineage_import_failed",
