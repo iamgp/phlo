@@ -1,9 +1,50 @@
-"""
-User Workflow Discovery
+"""User workflow discovery for Phlo-Dagster framework.
 
-This module discovers and loads workflow files from a user's project directory.
-It dynamically imports Python modules which triggers capability registration,
-then delegates to the active orchestrator adapter.
+This module discovers and loads user workflow files from project directories,
+dynamically importing Python modules which triggers capability registration,
+then building Dagster definitions through the active orchestrator adapter.
+
+Discovery Process:
+    1. Locate workflows directory (default: ./workflows)
+    2. Import all Python modules (excluding __init__.py and private files)
+    3. Trigger capability discovery from registered specs
+    4. Collect Dagster definitions from modules
+    5. Merge with core framework resources
+    6. Apply WAP sensors if versioned catalog available
+    7. Select appropriate executor
+
+Module Import:
+    Files are imported with paths converted to module names:
+    workflows/ingestion/orders.py → workflows.ingestion.orders
+
+Capability Integration:
+    Imported modules register capabilities via @asset/@check decorators.
+    The orchestrator adapter (typically DagsterOrchestratorAdapter) converts
+these specs into Dagster definitions.
+
+Extension Discovery:
+    Additional DagsterExtensionPlugins are discovered via entry_points
+    (phlo.plugins.dagster) and merged into definitions.
+
+Executor Selection:
+    Platform-aware selection:
+    - Darwin/macOS: in_process_executor (Docker Desktop SIGBUS workaround)
+    - Linux: multiprocess_executor
+    - Overridable via PHLO_FORCE_*_EXECUTOR
+
+Example:
+    Framework entry point::
+
+        from phlo_dagster.framework.discovery import discover_user_workflows
+
+        defs = discover_user_workflows("workflows")
+
+    Getting workflows path::
+
+        from phlo_dagster.framework.discovery import get_workflows_path_from_config
+
+        path = get_workflows_path_from_config()
+
 """
 
 from __future__ import annotations
@@ -31,11 +72,21 @@ def discover_user_workflows(
     workflows_path: Path | str,
     clear_registries: bool = False,
 ) -> Any:
-    """
-    Discover and load user workflow files from a directory.
+    """Discover and load user workflow files from a directory.
 
     Imports workflow modules (which registers capability specs) and builds
     orchestrator definitions using the active adapter.
+
+    Args:
+        workflows_path: Path to the workflows directory to discover.
+        clear_registries: If True, clear capability registries before discovery.
+
+    Returns:
+        Dagster Definitions object containing discovered assets, checks, and resources.
+
+    Raises:
+        ValueError: If workflows_path is not a directory.
+
     """
     workflows_path = Path(workflows_path)
 
@@ -124,6 +175,7 @@ def _import_workflow_modules(workflows_path: Path) -> list[Any]:
 
     Returns:
         List of imported module objects
+
     """
     imported_modules = []
 
@@ -296,7 +348,18 @@ def _default_trino_resource() -> Any | None:
 
 
 def _clear_capability_registries() -> None:
-    """Clear capability registries (for testing)."""
+    """Clear capability registries (for testing).
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised. Logs warnings for cleanup failures.
+
+    """
     from phlo.plugins.discovery import discover_plugins, get_global_registry
 
     clear_capabilities()
@@ -401,6 +464,7 @@ def get_workflows_path_from_config() -> Path:
         workflows_path = get_workflows_path_from_config()
         defs = discover_user_workflows(workflows_path)
         ```
+
     """
     try:
         from phlo_dagster.settings import get_settings

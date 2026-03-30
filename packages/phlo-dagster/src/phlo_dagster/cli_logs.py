@@ -1,6 +1,35 @@
-"""Logs Command
+"""Logs command for accessing Dagster run logs.
 
-Access and filter Dagster run logs from CLI.
+This module implements the `phlo logs` CLI command, providing access to
+Dagster run logs with filtering capabilities. It queries Dagster's
+GraphQL API to retrieve structured log data from pipeline executions.
+
+Features:
+    - Filtering: By asset, job, log level, time range, specific run ID
+    - Tail mode: Real-time log following with --follow flag
+    - Output formats: Rich formatted tables or JSON
+    - Time-based filtering: Human-readable formats (1h, 30m, 2d)
+    - Message truncation control with --full flag
+
+GraphQL Integration:
+    The command constructs GraphQL queries to fetch run events including:
+    - Log messages with levels
+    - Execution step events
+    - Step failures and successes
+    - Pipeline status changes
+
+Example:
+    CLI usage::
+
+        phlo logs                           # Recent logs (last 100)
+        phlo logs --asset dlt_orders        # Filter by asset
+        phlo logs --job orders_pipeline     # Filter by job
+        phlo logs --level ERROR             # Errors only
+        phlo logs --since 1h                # Last hour
+        phlo logs --follow                  # Tail mode
+        phlo logs --run-id abc123           # Specific run
+        phlo logs --full                    # Don't truncate messages
+
 """
 
 import os
@@ -81,8 +110,7 @@ def logs(
     limit: int,
     output_json: bool,
 ):
-    """
-    Access and filter Dagster run logs from CLI.
+    """Access and filter Dagster run logs from CLI.
 
     Supports multiple filtering options:
     - By asset name: --asset dlt_orders
@@ -92,16 +120,23 @@ def logs(
     - By specific run: --run-id abc123
     - Tail mode: --follow (real-time updates)
 
-    \b
-    Examples:
-      phlo logs                           # Recent logs (last 100)
-      phlo logs --asset dlt_orders        # Filter by asset
-      phlo logs --job orders_pipeline     # Filter by job
-      phlo logs --level ERROR             # Errors only
-      phlo logs --since 1h                # Last hour
-      phlo logs --follow                  # Tail mode
-      phlo logs --run-id abc123           # Specific run
-      phlo logs --full                    # Don't truncate
+    Args:
+        asset: Filter by asset name.
+        job: Filter by job name.
+        level: Filter by log level (DEBUG, INFO, WARNING, ERROR).
+        since: Time filter (e.g., 1h, 30m, 2d).
+        run_id: Filter by specific run ID.
+        follow: If True, tail logs in real-time.
+        full: If True, don't truncate long messages.
+        limit: Number of logs to retrieve (default: 100).
+        output_json: If True, output as JSON.
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised. Logs warnings on query failures.
+
     """
     if not output_json:
         console.print("\n[bold blue]📋 Logs[/bold blue]\n")
@@ -156,6 +191,7 @@ def _parse_since(since_str: str) -> datetime:
 
     Returns:
         datetime object for the cutoff time
+
     """
     try:
         # Extract numeric part and unit
@@ -194,6 +230,7 @@ def _get_logs(filters: dict) -> list[dict]:
 
     Returns:
         List of log dictionaries
+
     """
     try:
         settings = get_settings()
@@ -279,6 +316,7 @@ def _build_logs_query(filters: dict) -> str:
 
     Returns:
         GraphQL query string
+
     """
     # Simplified query structure - in production would be more comprehensive
     query = """
@@ -328,7 +366,15 @@ def _build_logs_query(filters: dict) -> str:
 
 
 def _get_log_level(event_type: str) -> str:
-    """Map event type to log level."""
+    """Map event type to log level.
+
+    Args:
+        event_type: Dagster event type string.
+
+    Returns:
+        Log level string (ERROR, WARNING, INFO, DEBUG).
+
+    """
     if "ERROR" in event_type or "FAILURE" in event_type:
         return "ERROR"
     elif "WARNING" in event_type:

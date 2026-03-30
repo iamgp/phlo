@@ -46,6 +46,7 @@ def get_db_connection(
 
     Returns:
         psycopg2 connection object
+
     """
     conn_params = {
         "host": host or os.getenv("POSTGRES_HOST", "localhost"),
@@ -67,6 +68,7 @@ def execute_sql_file(conn, filepath: Path, verbose: bool = True):
         conn: Database connection
         filepath: Path to SQL file
         verbose: Print progress messages
+
     """
     if verbose:
         logger.info("Executing: %s", filepath.name)
@@ -91,6 +93,7 @@ def check_if_setup_complete(conn) -> bool:
 
     Returns:
         True if setup is complete, False otherwise
+
     """
     cursor = conn.cursor()
     try:
@@ -147,6 +150,7 @@ def setup_postgrest(
         ✓ 001_extensions.sql completed successfully
         ...
         ✓ PostgREST setup completed successfully!
+
     """
     if verbose:
         logger.info("=" * 50)

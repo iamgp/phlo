@@ -1,5 +1,4 @@
-"""
-CLI command plugin classes.
+"""CLI command plugin classes.
 
 This module defines plugin types for extending the Phlo CLI.
 """
@@ -14,8 +13,7 @@ from phlo.plugins.base.plugin import Plugin
 
 
 class CliCommandPlugin(Plugin, ABC):
-    """
-    Base class for CLI command plugins.
+    """Base class for CLI command plugins.
 
     These plugins contribute Click commands/groups to the `phlo` CLI at runtime.
 

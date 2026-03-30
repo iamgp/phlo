@@ -1,5 +1,4 @@
-"""
-Service plugin classes.
+"""Service plugin classes.
 
 This module defines plugin types for Docker-based infrastructure components.
 """
@@ -13,8 +12,7 @@ from phlo.plugins.base.plugin import Plugin
 
 
 class ServicePlugin(Plugin, ABC):
-    """
-    Base class for service plugins.
+    """Base class for service plugins.
 
     Service plugins provide Docker-based infrastructure components
     that can be composed into a Phlo stack.
@@ -23,8 +21,7 @@ class ServicePlugin(Plugin, ABC):
     @property
     @abstractmethod
     def service_definition(self) -> dict[str, Any]:
-        """
-        Return the service definition.
+        """Return the service definition.
 
         This is equivalent to the content of a service.yaml file.
         """

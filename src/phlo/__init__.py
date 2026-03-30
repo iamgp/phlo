@@ -1,4 +1,80 @@
-"""Phlo core glue package."""
+"""Phlo - A modern data lakehouse platform.
+
+Phlo is a decorator-driven data lakehouse framework that combines Apache Iceberg,
+Project Nessie, Trino, dbt, and Dagster into an integrated platform.
+
+This package provides the core Phlo API with lazy-loaded exports to avoid
+circular dependencies during plugin discovery. All major functionality is
+available through this top-level module.
+
+Key Features:
+    - Write-Audit-Publish pattern with Git-like branching
+    - Type-safe data quality with automatic validation
+    - Production-ready patterns out of the box
+    - Schema-first development with Pandera
+
+Lazy-Loaded Modules:
+    The following modules are loaded on first access to avoid circular imports:
+    - ``phlo.ingestion``: Data ingestion operations
+    - ``phlo.quality``: Data quality validation
+    - ``phlo.metrics``: Platform metrics collection
+
+Direct Exports:
+    - :class:`Consumer`: Data consumer contract
+    - :class:`SLA`: Service level agreement contract
+    - :func:`phlo_ingestion`: Ingestion decorator
+    - :func:`get_ingestion_assets`: Retrieve ingestion assets
+    - :func:`phlo_quality`: Quality decorator
+    - :func:`get_quality_checks`: Retrieve quality checks
+    - Quality check classes: NullCheck, RangeCheck, FreshnessCheck, etc.
+
+Plugin Entry Points:
+    Phlo uses the following entry point groups for plugin discovery:
+    - ``phlo.sources``: Data source connectors
+    - ``phlo.quality``: Quality check implementations
+    - ``phlo.ingestion_providers``: Ingestion providers
+    - ``phlo.transformation_providers``: Transformation providers
+    - ``phlo.transforms``: Data transformation tools
+    - ``phlo.services``: Infrastructure services
+    - ``phlo.cli_commands``: CLI command extensions
+    - ``phlo.hooks``: Hook handlers
+    - ``phlo.catalogs``: Metadata catalogs
+    - ``phlo.asset_providers``: Asset definitions
+    - ``phlo.resource_providers``: Resource definitions
+    - ``phlo.orchestrators``: Orchestrator adapters
+
+Version Information:
+    - ``__version__``: Current Phlo version string
+
+Example:
+    ```python
+    import phlo
+
+    # Access ingestion decorator
+    @phlo.ingestion.phlo_ingestion(source="api", table_name="events")
+    def load_events():
+        return fetch_events()
+
+    # Access quality decorator
+    @phlo.quality.phlo_quality(schema=UserSchema)
+    def validate_users():
+        return load_users()
+
+    # Access quality check classes
+    from phlo import NullCheck, RangeCheck
+    ```
+
+See Also:
+    - Documentation: https://docs.phlo.dev
+    - Repository: https://github.com/phlohouse/phlo
+    - Plugin API: :mod:`phlo.plugins.base`
+    - Configuration: :mod:`phlo.config`
+
+Note:
+    This module uses ``__getattr__`` for lazy loading to prevent circular
+    imports during plugin discovery. All public exports are listed in ``__all__``.
+
+"""
 
 from __future__ import annotations
 
@@ -55,6 +131,7 @@ def __getattr__(name: str) -> Any:
 
     Raises:
         AttributeError: If the attribute is not exported by this module.
+
     """
     if name in _SUBMODULE_EXPORTS:
         module = import_module(f"{__name__}.{name}")

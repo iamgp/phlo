@@ -1,4 +1,14 @@
-"""OpenMetadata CLI commands."""
+"""OpenMetadata CLI commands.
+
+Provides CLI commands for managing OpenMetadata integration:
+    - health: Check OpenMetadata connectivity
+    - sync: Sync Nessie catalog and dbt documentation to OpenMetadata
+
+Example:
+    $ phlo openmetadata health
+    $ phlo openmetadata sync --include-namespace bronze --dbt
+
+"""
 
 from __future__ import annotations
 
@@ -20,7 +30,15 @@ logger = get_logger(__name__)
 
 
 def _resolve_database_name() -> str:
-    """Resolve the database name or exit with a clear configuration error."""
+    """Resolve the database name or exit with a clear configuration error.
+
+    Returns:
+        str: The resolved database name.
+
+    Raises:
+        SystemExit: If database resolution fails (exit code 1).
+
+    """
     try:
         return get_settings().openmetadata_database()
     except RuntimeError as exc:
@@ -30,7 +48,15 @@ def _resolve_database_name() -> str:
 
 
 def _resolve_service_type() -> str:
-    """Resolve the service type or exit with a clear configuration error."""
+    """Resolve the service type or exit with a clear configuration error.
+
+    Returns:
+        str: The resolved service type (e.g., 'Trino').
+
+    Raises:
+        SystemExit: If service type resolution fails (exit code 1).
+
+    """
     try:
         return get_settings().openmetadata_database_service_type()
     except RuntimeError as exc:
@@ -41,12 +67,30 @@ def _resolve_service_type() -> str:
 
 @click.group()
 def openmetadata():
-    """Manage OpenMetadata integration (optional)."""
+    """Manage OpenMetadata integration (optional).
+
+    Provides commands to check health and sync metadata to OpenMetadata.
+
+    Commands:
+        health: Check OpenMetadata connectivity
+        sync: Sync catalog tables and dbt documentation
+    """
 
 
 @openmetadata.command()
 def health() -> None:
-    """Check OpenMetadata connectivity using configured credentials."""
+    """Check OpenMetadata connectivity using configured credentials.
+
+    Attempts to connect to OpenMetadata server and reports health status.
+    Exits with code 1 if the server is unreachable.
+
+    Returns:
+        None
+
+    Raises:
+        SystemExit: With code 1 if OpenMetadata is not reachable.
+
+    """
     cfg = get_settings()
     database_name = _resolve_database_name()
     service_type = _resolve_service_type()
@@ -82,7 +126,25 @@ def sync(
     dbt: bool,
     dbt_schema: str | None,
 ) -> None:
-    """Sync Nessie catalog (and optionally dbt docs) into OpenMetadata."""
+    """Sync Nessie catalog (and optionally dbt docs) into OpenMetadata.
+
+    Discovers tables from the configured catalog scanner and syncs them to
+    OpenMetadata. Optionally syncs dbt model documentation if a manifest
+    file is available.
+
+    Args:
+        include_namespace: Namespaces to include in sync.
+        exclude_namespace: Namespaces to exclude from sync.
+        dbt: Whether to sync dbt documentation.
+        dbt_schema: Specific schema to sync for dbt models.
+
+    Returns:
+        None
+
+    Raises:
+        SystemExit: With code 1 if sync fails or OpenMetadata is unreachable.
+
+    """
     logger.info(
         "openmetadata_sync_started",
         include_namespaces=list(include_namespace),

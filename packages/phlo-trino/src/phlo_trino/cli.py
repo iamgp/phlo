@@ -1,4 +1,23 @@
-"""CLI commands for the Trino query engine service."""
+"""CLI commands for the Trino query engine service.
+
+This module provides CLI commands for interacting with Trino, including:
+    - Running the Trino interactive shell
+    - Executing SQL queries from command line or files
+    - Managing query output formats and timeouts
+
+Functions:
+    trino_group: Main CLI command group for Trino operations.
+    trino_query: Execute SQL queries against Trino.
+    _read_query: Read SQL from inline argument or file.
+    _require_docker: Validate Docker CLI availability.
+    _trino_exec_base: Build docker compose exec command.
+
+Example:
+    $ phlo trino
+    $ phlo trino query "SELECT 1"
+    $ phlo trino query --file query.sql --catalog iceberg --schema my_schema
+
+"""
 
 from __future__ import annotations
 

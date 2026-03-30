@@ -1,4 +1,24 @@
-"""Service and resource provider plugins for Trino."""
+"""Service and resource provider plugins for Trino.
+
+This module implements the plugin interfaces for Trino integration with Phlo.
+It provides service orchestration, resource provisioning, and capability
+registration for the Trino query engine.
+
+Classes:
+    TrinoServicePlugin: Service plugin for Trino container orchestration.
+    TrinoResourceProvider: Resource provider for Trino query capabilities.
+
+The plugins register Trino as:
+    - A query engine with time-travel and ref support
+    - A governance backend for SQL-based access control
+    - A service managed via Docker Compose
+
+Example:
+    Plugins are automatically discovered via entry points:
+    >>> from phlo.plugins import discover_plugins
+    >>> plugins = discover_plugins()
+
+"""
 
 from __future__ import annotations
 
@@ -24,6 +44,7 @@ class TrinoServicePlugin(ServicePlugin):
 
         Returns:
             Plugin metadata used by plugin discovery.
+
         """
         return PluginMetadata(
             name="trino",
@@ -39,6 +60,7 @@ class TrinoServicePlugin(ServicePlugin):
 
         Returns:
             Parsed service definition from `service.yaml`.
+
         """
         service_path = resources.files("phlo_trino").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))
@@ -53,6 +75,7 @@ class TrinoResourceProvider(ResourceProviderPlugin):
 
         Returns:
             Plugin metadata used by plugin discovery.
+
         """
         return PluginMetadata(
             name="trino",
@@ -66,6 +89,7 @@ class TrinoResourceProvider(ResourceProviderPlugin):
 
         Returns:
             Resource specifications for Trino integrations.
+
         """
         return [ResourceSpec(name="trino", resource=TrinoResource())]
 
@@ -74,6 +98,7 @@ class TrinoResourceProvider(ResourceProviderPlugin):
 
         Returns:
             Query engine capability specifications for Trino.
+
         """
         return [
             QueryEngineSpec(
@@ -96,6 +121,7 @@ class TrinoResourceProvider(ResourceProviderPlugin):
 
         Returns:
             Governance backend specifications for Trino SQL grants.
+
         """
         return [
             GovernanceBackendSpec(

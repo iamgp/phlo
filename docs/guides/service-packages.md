@@ -7,6 +7,19 @@ definition and registers a `phlo.plugins.services` entry point for CLI discovery
 
 Phlo services are organized into **core** and **package** services:
 
+```mermaid
+flowchart TB
+    core["Core services<br/>Observatory<br/>phlo-api"]
+    packages["Installed service packages<br/>dagster, postgres, minio, nessie, trino, ..."]
+    discovery["Service discovery<br/>phlo.plugins.services"]
+    definitions["ServiceDefinition objects"]
+    compose["Compose and env generation"]
+    runtime["Runtime services"]
+
+    core --> discovery
+    packages --> discovery --> definitions --> compose --> runtime
+```
+
 ### Core Services
 
 Core services are bundled with `pip install phlo` and cannot be removed:

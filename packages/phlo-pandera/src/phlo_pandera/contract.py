@@ -1,42 +1,68 @@
-"""Quality check naming + metadata contract.
+"""Quality check naming and metadata contract.
 
-This module defines a small contract for asset checks so downstream consumers (e.g. Observatory)
-can render results consistently without special-casing check implementations.
+This module defines a contract for asset check metadata so downstream consumers
+(e.g., Observatory UI) can render results consistently without special-casing
+check implementations. The contract standardizes naming conventions, severity
+policies, partition semantics, and metadata keys across different check types
+(Pandera, dbt, and Phlo native checks).
 
-Contract
---------
+Contract Overview:
 
-Naming:
-- Pandera schema contract check name: ``pandera_contract``
-- dbt test check name: ``dbt__<test_type>__<target>``
+Naming Convention:
+    - Pandera schema contract check name: ``pandera_contract``
+    - dbt test check name: ``dbt__<test_type>__<target>``
+    - Quality check names are derived from the check class or user-provided name
 
-Severity policy
----------------
+Severity Policy:
+    - Pandera schema contract checks are blocking and emit ERROR on failure
+    - dbt tests default to ERROR for ``not_null``, ``unique``, ``relationships``
+    - Other dbt test types default to WARN
+    - dbt tag overrides:
+        - ``tag:blocking`` forces ERROR severity
+        - ``tag:warn`` or ``tag:anomaly`` forces WARN severity
 
-- Pandera schema contract checks are blocking and emit ``ERROR`` on failure.
-- dbt tests default to ``ERROR`` for ``not_null``, ``unique``, and ``relationships``; other test
-  types default to ``WARN``.
-- dbt tag overrides:
-  - ``tag:blocking`` forces ``ERROR``
-  - ``tag:warn`` or ``tag:anomaly`` forces ``WARN``
+Partition Semantics:
+    - If a Dagster run provides a partition key, checks are scoped to that
+      partition by default
+    - Default partition column: ``_phlo_partition_date`` (YYYY-MM-DD format)
+    - Override per-check via ``partition_column`` parameter
+    - Unpartitioned checks may use rolling window via ``rolling_window_days``
+    - Set ``full_table=True`` to explicitly run without partition scoping
 
-Partition semantics
--------------------
+Required Metadata Keys:
+    - ``source``: Check source type (``pandera``, ``dbt``, ``phlo``)
+    - ``partition_key``: Partition key string when applicable
+    - ``failed_count``: Number of failures (schema errors, failed tests, etc.)
+    - ``total_count``: Total evaluated (rows, tests run, etc.) when available
+    - ``query_or_sql``: SQL/query/command string used for evaluation
+    - ``sample``: List of up to 20 sample rows/ids/errors when available
 
-- If a Dagster run provides a partition key, checks are scoped to that partition by default.
-- Default partition column: ``_phlo_partition_date`` (YYYY-MM-DD). Override per check if needed.
-- Unpartitioned checks may use a rolling window via ``rolling_window_days``; set ``full_table=True``
-  to explicitly run without scoping.
+Optional Metadata Keys:
+    - ``repro_sql``: Safe SQL snippet for reproducing failures in Trino
+      (e.g., with LIMIT clause added)
 
-Required metadata keys:
-- ``source``: ``pandera``, ``dbt``, or ``phlo``
-- ``partition_key``: partition key string (when applicable)
-- ``failed_count``: number of failures (schema errors, failed tests, etc.)
-- ``total_count``: total evaluated (rows, tests run, etc.) when available
-- ``query_or_sql``: SQL/query/command string that produced the evaluation (when applicable)
-- ``sample``: <= 20 sample rows/ids/errors (when available)
-Optional metadata keys:
-- ``repro_sql``: safe SQL snippet for reproducing failures in Trino (e.g. add LIMIT)
+Example:
+    ```python
+    from phlo_pandera.contract import QualityCheckContract
+
+    contract = QualityCheckContract(
+        source="pandera",
+        failed_count=5,
+        total_count=1000,
+        partition_key="2024-01-15",
+        query_or_sql="SELECT * FROM bronze.events WHERE _phlo_partition_date = '2024-01-15'",
+        sample=[{"row_index": 42, "error": "type mismatch"}],
+    )
+
+    metadata = contract.to_metadata()
+    # Returns dict with standardized keys
+    ```
+
+See Also:
+    - ``severity.py``: Severity mapping functions
+    - ``decorator.py``: ``@phlo_pandera`` decorator that produces these contracts
+    - ``pandera_asset_checks.py``: Pandera contract evaluation
+
 """
 
 from __future__ import annotations
@@ -50,12 +76,27 @@ PANDERA_CONTRACT_CHECK_NAME = "pandera_contract"
 def dbt_check_name(test_type: str, target: str) -> str:
     """Build a canonical Dagster-safe check name for a dbt test.
 
+    Constructs check names in the format ``dbt__<test_type>__<target>``,
+    sanitizing the components to ensure compatibility with Dagster's naming
+    constraints.
+
     Args:
-        test_type: dbt test type (for example, ``not_null``).
-        target: Target model/column identifier for the test.
+        test_type: dbt test type (e.g., ``not_null``, ``unique``, ``accepted_values``).
+        target: Target model/column identifier for the test (e.g., ``orders.status``).
 
     Returns:
-        Canonical check name in ``dbt__<test_type>__<target>`` format.
+        Canonical check name in ``dbt__<test_type>__<target>`` format,
+        with special characters replaced for Dagster compatibility.
+
+    Example:
+        ```python
+        dbt_check_name("not_null", "orders.id")
+        # Returns: "dbt__not_null__orders_id"
+
+        dbt_check_name("accepted_values", "orders.status")
+        # Returns: "dbt__accepted_values__orders_status"
+        ```
+
     """
     return f"dbt__{_sanitize_dagster_name(test_type)}__{_sanitize_dagster_name(target)}"
 
@@ -63,11 +104,28 @@ def dbt_check_name(test_type: str, target: str) -> str:
 def _sanitize_dagster_name(value: str) -> str:
     """Normalize a string into a Dagster-safe identifier segment.
 
+    Replaces non-alphanumeric characters with underscores and collapses
+    consecutive underscores to produce a clean identifier.
+
     Args:
-        value: Raw identifier value.
+        value: Raw identifier value that may contain special characters.
 
     Returns:
-        Lower-risk identifier segment containing alphanumerics and underscores.
+        Lower-risk identifier containing only alphanumerics and single
+        underscores. Returns "unknown" if the result would be empty.
+
+    Example:
+        ```python
+        _sanitize_dagster_name("orders.id")
+        # Returns: "orders_id"
+
+        _sanitize_dagster_name("schema.table.column")
+        # Returns: "schema_table_column"
+
+        _sanitize_dagster_name("!!!")
+        # Returns: "unknown"
+        ```
+
     """
     cleaned = "".join(char if char.isalnum() else "_" for char in value.strip())
     cleaned = "_".join(part for part in cleaned.split("_") if part)
@@ -78,14 +136,39 @@ def _sanitize_dagster_name(value: str) -> str:
 class QualityCheckContract:
     """Canonical metadata payload for quality checks.
 
+    This dataclass provides a standardized structure for quality check results
+    that can be serialized to metadata and consumed by downstream systems like
+    the Observatory UI or alerting systems.
+
+    Using ``frozen=True`` and ``slots=True`` provides immutability and memory
+    efficiency for these frequently created objects.
+
     Attributes:
-        source: Check source type.
-        failed_count: Number of observed failures.
-        partition_key: Optional partition key for scoped checks.
-        total_count: Optional total evaluated count.
+        source: Check source type (``pandera``, ``dbt``, or ``phlo``).
+        failed_count: Number of observed failures during check execution.
+        partition_key: Optional partition key for scoped checks (YYYY-MM-DD format).
+        total_count: Optional total evaluated count (rows, tests, etc.).
         query_or_sql: Optional query or SQL used for evaluation.
-        repro_sql: Optional reproduction SQL snippet.
-        sample: Optional failure samples (trimmed to 20 on export).
+        repro_sql: Optional reproduction SQL snippet for debugging.
+        sample: Optional failure samples, trimmed to 20 items on export.
+
+    Example:
+        ```python
+        contract = QualityCheckContract(
+            source="phlo",
+            failed_count=3,
+            total_count=500,
+            partition_key="2024-01-15",
+            query_or_sql="SELECT * FROM bronze.events",
+            repro_sql="SELECT * FROM bronze.events LIMIT 100",
+            sample=[
+                {"row_index": 10, "error": "null value in required column"},
+            ],
+        )
+
+        metadata = contract.to_metadata()
+        ```
+
     """
 
     source: Literal["pandera", "dbt", "phlo"]
@@ -99,8 +182,25 @@ class QualityCheckContract:
     def to_metadata(self) -> dict[str, Any]:
         """Export contract fields as a metadata dictionary.
 
+        Converts the contract dataclass into a dictionary with standardized
+        keys for consumption by Dagster metadata and downstream systems.
+        Automatically limits samples to 20 items.
+
         Returns:
-            Metadata dictionary using the quality-check contract keys.
+            Dictionary containing all non-None contract fields using the
+            quality-check contract key naming convention.
+
+        Example:
+            ```python
+            contract = QualityCheckContract(
+                source="pandera",
+                failed_count=5,
+                partition_key="2024-01-15",
+            )
+            metadata = contract.to_metadata()
+            # Returns: {"source": "pandera", "failed_count": 5, "partition_key": "2024-01-15"}
+            ```
+
         """
         metadata: dict[str, Any] = {
             "source": self.source,
@@ -125,5 +225,14 @@ class QualityCheckContract:
         return metadata
 
     def to_dagster_metadata(self) -> dict[str, Any]:
-        """Backwards-compatible alias for metadata consumers."""
+        """Backwards-compatible alias for metadata consumers.
+
+        This method provides compatibility with older code that expects
+        the ``to_dagster_metadata`` method name. It simply delegates to
+        ``to_metadata()``.
+
+        Returns:
+            Dictionary from ``to_metadata()``.
+
+        """
         return self.to_metadata()

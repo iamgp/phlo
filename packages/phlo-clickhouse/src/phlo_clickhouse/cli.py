@@ -1,4 +1,20 @@
-"""CLI commands for the ClickHouse data plane service."""
+"""CLI commands for the ClickHouse data plane service.
+
+This module provides command-line interface commands for interacting with
+ClickHouse services, including SQL query execution and status monitoring.
+
+Example:
+    Using the CLI commands:
+
+    $ phlo clickhouse query "SELECT version()"
+    24.3.0
+
+    $ phlo clickhouse status
+    version: 24.3.0
+    uptime_seconds: 3600
+    current_database: default
+
+"""
 
 from __future__ import annotations
 
@@ -17,7 +33,28 @@ logger = get_logger(__name__)
 
 
 def _read_query(*, query: str | None, file: Path | None) -> str:
-    """Return SQL text from inline query or file input."""
+    """Read and validate SQL query from inline string or file.
+
+    Extracts SQL text from either an inline query string or a file path.
+    Validates that exactly one source is provided and the content is non-empty.
+
+    Args:
+        query: Inline SQL query string, or None if using file.
+        file: Path to SQL file, or None if using inline query.
+
+    Returns:
+        Validated SQL query string with whitespace stripped.
+
+    Raises:
+        click.ClickException: If both query and file are provided,
+            if file cannot be read, if file is empty, or if neither is provided.
+
+    Example:
+        >>> from pathlib import Path
+        >>> _read_query(query="SELECT 1", file=None)
+        'SELECT 1'
+
+    """
     if query and file:
         raise click.ClickException("Use either an inline query or --file, not both.")
     if file is not None:
@@ -34,7 +71,24 @@ def _read_query(*, query: str | None, file: Path | None) -> str:
 
 
 def _ensure_phlo_dir() -> Path:
-    """Return the local .phlo directory or exit with a clear error."""
+    """Verify and return the Phlo project directory.
+
+    Checks for the presence of a .phlo directory in the current working directory,
+    which indicates a valid Phlo project.
+
+    Returns:
+        Path to the .phlo directory.
+
+    Raises:
+        click.ClickException: If the .phlo directory does not exist.
+
+    Example:
+        >>> # In a directory with .phlo/ subdirectory
+        >>> path = _ensure_phlo_dir()
+        >>> path.name
+        '.phlo'
+
+    """
     phlo_dir = Path.cwd() / ".phlo"
     if phlo_dir.exists():
         return phlo_dir
@@ -42,7 +96,19 @@ def _ensure_phlo_dir() -> Path:
 
 
 def _require_docker() -> None:
-    """Validate that Docker is installed and responsive."""
+    """Validate Docker installation and daemon status.
+
+    Verifies that Docker is installed on the system and the Docker daemon
+    is running and responsive.
+
+    Raises:
+        click.ClickException: If Docker is not installed, not in PATH,
+            or if the Docker daemon is not running.
+
+    Example:
+        >>> _require_docker()  # Raises exception if Docker unavailable
+
+    """
     if which("docker") is None:
         raise click.ClickException("docker command not found.")
     try:
@@ -61,7 +127,16 @@ def _require_docker() -> None:
 
 @click.group(name="clickhouse")
 def clickhouse_group() -> None:
-    """Query and inspect the ClickHouse data plane service."""
+    """Query and inspect the ClickHouse data plane service.
+
+    This command group provides tools for interacting with ClickHouse,
+    including SQL query execution and service status monitoring.
+
+    Example:
+        $ phlo clickhouse --help
+        $ phlo clickhouse query "SELECT 1"
+
+    """
 
 
 @clickhouse_group.command(name="query")
@@ -70,16 +145,48 @@ def clickhouse_group() -> None:
     "--file",
     "query_file",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Path to SQL file containing the query to execute.",
 )
-@click.option("--format", "output_format", default="TabSeparatedRaw", show_default=True)
-@click.option("--timeout", "timeout_seconds", default=30, show_default=True, type=int)
+@click.option(
+    "--format",
+    "output_format",
+    default="TabSeparatedRaw",
+    show_default=True,
+    help="Output format for query results (e.g., TabSeparatedRaw, JSON, CSV).",
+)
+@click.option(
+    "--timeout",
+    "timeout_seconds",
+    default=30,
+    show_default=True,
+    type=int,
+    help="Query execution timeout in seconds.",
+)
 def clickhouse_query(
     query: str | None,
     query_file: Path | None,
     output_format: str,
     timeout_seconds: int,
 ) -> None:
-    """Execute a SQL query against the running ClickHouse service."""
+    """Execute a SQL query against the running ClickHouse service.
+
+    Runs the specified SQL query against ClickHouse using the clickhouse-client
+    utility within the Docker container. Results are printed to stdout.
+
+    Args:
+        query: SQL query string provided as command argument.
+        query_file: Path to file containing SQL query (alternative to query arg).
+        output_format: Format string for result output (ClickHouse format name).
+        timeout_seconds: Maximum time to wait for query execution.
+
+    Raises:
+        click.ClickException: If Docker is unavailable, query fails, or times out.
+
+    Example:
+        $ phlo clickhouse query "SELECT version()"
+        $ phlo clickhouse query --file queries/analysis.sql --format CSV
+
+    """
     _require_docker()
     phlo_dir = _ensure_phlo_dir()
     project_name = get_project_name()
@@ -119,7 +226,20 @@ def clickhouse_query(
 
 @clickhouse_group.command(name="status")
 def clickhouse_status() -> None:
-    """Show ClickHouse service status and basic server info."""
+    """Show ClickHouse service status and basic server info.
+
+    Displays version, uptime, and current database information from the
+    running ClickHouse service.
+
+    Raises:
+        click.ClickException: If Docker is unavailable or status check fails.
+
+    Example:
+        $ phlo clickhouse status
+        version    uptime_seconds    current_database
+        24.3.0     3600              default
+
+    """
     _require_docker()
     phlo_dir = _ensure_phlo_dir()
     project_name = get_project_name()

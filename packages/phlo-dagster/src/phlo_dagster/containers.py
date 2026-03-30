@@ -1,4 +1,27 @@
-from __future__ import annotations
+"""Docker container discovery for Dagster services.
+
+This module provides utilities for finding and managing Dagster-related
+Docker containers within a Docker Compose environment. It handles
+candidate container name generation and resolution across different
+naming conventions.
+
+Naming Conventions:
+    - Legacy: {project_name}-dagster-webserver-1
+    - New: {project_name}-dagster-1
+    - Configured: From infrastructure settings
+
+The module attempts resolution in order: configured → new → legacy,
+falling back through available patterns until a running container is found.
+
+Example:
+    Finding the Dagster container::
+
+        from phlo_dagster.containers import find_dagster_container
+
+        container_name = find_dagster_container("my_project")
+        # Returns: "my_project-dagster-1" or similar
+
+"""
 
 import re
 from dataclasses import dataclass
@@ -21,6 +44,7 @@ class DagsterContainerCandidates:
         configured: Name resolved from infrastructure config.
         new: Current compose naming pattern candidate.
         legacy: Legacy compose naming pattern candidate.
+
     """
 
     configured: str
@@ -39,6 +63,7 @@ def dagster_container_candidates(
 
     Returns:
         Ordered candidate names for Dagster webserver discovery.
+
     """
 
     configured = configured_name or ""
@@ -56,13 +81,22 @@ def _resolve_container_name(service_name: str, project_name: str) -> str:
 
     Returns:
         Configured or derived container name for the service.
+
     """
 
     return resolve_container_name(service_name, project_name)
 
 
 def _list_running_containers(project_name: str) -> list[str]:
-    """List running compose container names for a project."""
+    """List running compose container names for a project.
+
+    Args:
+        project_name: Compose project name.
+
+    Returns:
+        List of running container names.
+
+    """
     return list_running_containers(project_name)
 
 
@@ -77,6 +111,7 @@ def find_dagster_container(project_name: str) -> str:
 
     Raises:
         RuntimeError: If no matching Dagster webserver container is running.
+
     """
 
     logger.info(

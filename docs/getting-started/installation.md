@@ -159,10 +159,10 @@ Create a workflow using the interactive wizard:
 phlo workflow create
 ```
 
-Or materialize the example assets (if using a template with examples):
+Or materialize all example assets (if using a template with examples):
 
 ```bash
-phlo materialize --all
+phlo materialize --select "*"
 ```
 
 You can also use the Dagster UI at http://localhost:10006 to materialize assets.

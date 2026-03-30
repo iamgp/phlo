@@ -1,12 +1,29 @@
 """Row-level and column-level lineage store for Phlo.
 
-Tracks individual row provenance across the data pipeline using ULIDs.
-Stores lineage metadata in PostgreSQL for deterministic querying.
+This module provides PostgreSQL-backed persistence for tracking data lineage
+at both the row and column levels. It uses ULIDs (Universally Unique
+Lexicographically Sortable Identifiers) for row identification and supports
+deterministic querying of provenance information.
+
+The LineageStore class is the primary interface, providing:
+    - Row-level lineage tracking with parent-child relationships
+    - Column-level lineage mappings between assets
+    - Asset node and edge management for graph construction
+    - Batch operations for efficient bulk inserts
+    - Recursive queries for ancestor/descendant traversal
 
 Example:
-    >>> from phlo_lineage.store import LineageStore
-    >>> store = LineageStore("postgresql://...")
-    >>> store.record_row("01ARZ3NDEKTSV4RRFFQ69G5FAV", "bronze.dlt_events", "dlt")
+    >>> from phlo_lineage.store import LineageStore, generate_row_id
+    >>> store = LineageStore("postgresql://user:pass@localhost:5432/phlo")
+    >>> row_id = generate_row_id()
+    >>> store.record_row(row_id, "bronze.orders", "dlt")
+
+Architecture:
+    - Schema auto-creation on first use via SQL migration files
+    - Class-level schema initialization flag for performance
+    - Connection pooling via psycopg2 context managers
+    - JSONB columns for flexible metadata storage
+
 """
 
 from __future__ import annotations
@@ -29,7 +46,33 @@ logger = get_logger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class ColumnLineage:
-    """A single column-to-column lineage mapping between two assets."""
+    """Represents a single column-to-column lineage mapping between two assets.
+
+    This dataclass captures the relationship between a source column in an
+    upstream asset and a target column in a downstream asset, along with
+    metadata about how the mapping was derived.
+
+    Attributes:
+        source_asset: Fully qualified name of the upstream asset (e.g., "bronze.orders").
+        source_column: Name of the column in the source asset.
+        target_asset: Fully qualified name of the downstream asset (e.g., "silver.stg_orders").
+        target_column: Name of the column in the target asset.
+        source_type: Origin of the mapping, typically "dbt_heuristic" for
+            name-based matching or "manual" for user-defined mappings.
+        metadata: Optional dictionary containing additional context such as
+            transformation logic, confidence scores, or data quality metrics.
+
+    Example:
+        >>> lineage = ColumnLineage(
+        ...     source_asset="bronze.orders",
+        ...     source_column="order_id",
+        ...     target_asset="silver.stg_orders",
+        ...     target_column="order_id",
+        ...     source_type="dbt_heuristic",
+        ...     metadata={"confidence": 0.95},
+        ... )
+
+    """
 
     source_asset: str
     source_column: str
@@ -47,7 +90,26 @@ _LINEAGE_DB_KEYS = (
 
 
 def resolve_lineage_db_url() -> str | None:
-    """Resolve the lineage database URL from explicit lineage environment variables."""
+    """Resolve the lineage database URL from explicit lineage environment variables.
+
+    Checks a prioritized list of environment variables for the PostgreSQL
+    connection string used by the lineage store.
+
+    Priority order:
+        1. LINEAGE_DB_URL
+        2. PHLO_LINEAGE_DB_URL
+        3. DAGSTER_PG_DB_CONNECTION_STRING
+
+    Returns:
+        PostgreSQL connection string if found, otherwise None.
+
+    Example:
+        >>> import os
+        >>> os.environ["LINEAGE_DB_URL"] = "postgresql://localhost/lineage"
+        >>> resolve_lineage_db_url()
+        'postgresql://localhost/lineage'
+
+    """
     for key in _LINEAGE_DB_KEYS:
         value = os.environ.get(key)
         if value:
@@ -56,7 +118,29 @@ def resolve_lineage_db_url() -> str | None:
 
 
 def resolve_lineage_db_url_with_postgres_fallback() -> str | None:
-    """Resolve the lineage database URL from environment or Postgres defaults."""
+    """Resolve the lineage database URL with PostgreSQL fallback.
+
+    First attempts to resolve from explicit lineage environment variables.
+    If not found, constructs a connection string from standard PostgreSQL
+    environment variables with sensible defaults.
+
+    Environment variables used for fallback:
+        - POSTGRES_HOST (default: "postgres")
+        - POSTGRES_PORT (default: 5432)
+        - POSTGRES_USER (default: "phlo")
+        - POSTGRES_PASSWORD (default: "phlo")
+        - POSTGRES_DB (default: "phlo")
+
+    Returns:
+        PostgreSQL connection string or None if resolution fails.
+
+    Example:
+        >>> import os
+        >>> os.environ["POSTGRES_HOST"] = "localhost"
+        >>> url = resolve_lineage_db_url_with_postgres_fallback()
+        >>> assert "localhost" in url
+
+    """
     if connection_string := resolve_lineage_db_url():
         return connection_string
     host, port = _resolve_postgres_host(
@@ -70,43 +154,130 @@ def resolve_lineage_db_url_with_postgres_fallback() -> str | None:
 
 
 def _resolve_postgres_host(host: str, port: int) -> tuple[str, int]:
+    """Resolve PostgreSQL host and port with network configuration.
+
+    Uses the phlo network configuration system to resolve hostnames and
+    handle Docker network scenarios.
+
+    Args:
+        host: Hostname or IP address of the PostgreSQL server.
+        port: Port number for the PostgreSQL connection.
+
+    Returns:
+        Tuple of (resolved_host, resolved_port).
+
+    Note:
+        This is an internal helper function used by resolve_lineage_db_url_with_postgres_fallback.
+
+    """
     return resolve_host(host, port, port_env_var="POSTGRES_PORT")
 
 
 def generate_row_id() -> str:
-    """Generate a new ULID for a row.
+    """Generate a new ULID for row-level lineage tracking.
 
-    ULIDs are:
-    - Lexicographically sortable (timestamp prefix)
-    - Globally unique (128-bit)
-    - URL-safe (Crockford's Base32)
+    ULIDs (Universally Unique Lexicographically Sortable Identifiers) provide:
+        - Lexicographic sortability by timestamp (48-bit timestamp prefix)
+        - Global uniqueness (128-bit total entropy)
+        - URL safety (Crockford's Base32 encoding)
+        - Monotonic sort order within the same millisecond
+
+    Returns:
+        String representation of a new ULID.
+
+    Example:
+        >>> row_id = generate_row_id()
+        >>> len(row_id)  # ULIDs are 26 characters
+        26
+        >>> import time
+        >>> # ULIDs sort by time
+        >>> id1 = generate_row_id()
+        >>> time.sleep(0.01)
+        >>> id2 = generate_row_id()
+        >>> id1 < id2
+        True
+
+    See Also:
+        https://github.com/ulid/spec for ULID specification details.
+
     """
     return str(ulid.ULID())
 
 
 class LineageStore:
-    """Row-level lineage store backed by PostgreSQL.
+    """PostgreSQL-backed store for row-level and column-level lineage.
 
-    Provides CRUD operations for tracking row provenance.
-    Schema is auto-created on first use - zero configuration needed.
+    This class provides comprehensive CRUD operations for tracking data provenance
+    across the pipeline. The schema is auto-created on first use, requiring
+    zero manual configuration.
+
+    Features:
+        - Row-level lineage with recursive parent-child relationships
+        - Column-level lineage mappings between assets
+        - Asset node and edge management for graph construction
+        - Batch operations for efficient bulk inserts
+        - JSONB metadata storage for flexible extensibility
+        - Class-level schema caching to avoid redundant checks
+
+    Schema:
+        The following tables are created in the phlo schema:
+            - row_lineage: Individual row provenance records
+            - asset_lineage_nodes: Asset metadata and status
+            - asset_lineage_edges: Directed asset dependencies
+            - column_lineage: Column-to-column mappings
+
+    Args:
+        connection_string: PostgreSQL connection string in standard format:
+            "postgresql://user:password@host:port/database"
+
+    Example:
+        >>> store = LineageStore("postgresql://phlo:phlo@localhost:5432/phlo")
+        >>> store.record_row("01ARZ3NDEKTSV4RRFFQ69G5FAV", "bronze.orders", "dlt")
+        >>> ancestors = store.get_ancestors("01ARZ3NDEKTSV4RRFFQ69G5FAV")
+
+    Note:
+        Schema initialization is lazy and thread-safe via a class-level flag.
+        The first operation on any LineageStore instance will trigger schema
+        creation if it doesn't already exist.
+
     """
 
     _schema_initialized: bool = False
 
     def __init__(self, connection_string: str):
-        """Initialize LineageStore.
+        """Initialize a LineageStore instance.
 
         Args:
-            connection_string: PostgreSQL connection string
-                e.g., "postgresql://user:pass@localhost:5432/dagster"
+            connection_string: PostgreSQL connection string. Must include all
+                necessary authentication and host information.
+
+        Example:
+            >>> store = LineageStore("postgresql://user:pass@localhost:5432/dagster")
+
         """
         self.connection_string = connection_string
 
     def _ensure_schema(self) -> None:
-        """Ensure schema exists, creating it if necessary.
+        """Ensure the lineage schema exists, creating it if necessary.
 
-        Called automatically on first database operation.
-        Uses class-level flag to only run once per process.
+        This method is called automatically before any database operation.
+        It uses a class-level flag to ensure schema initialization only happens
+        once per process, even with multiple LineageStore instances.
+
+        The initialization process:
+            1. Check if the class-level flag indicates schema is ready
+            2. Verify schema existence via to_regclass queries
+            3. If missing, execute all SQL migration files in order
+            4. Handle race conditions gracefully (duplicate creation attempts)
+
+        Raises:
+            Exception: If schema creation fails for reasons other than
+                already-exists conditions. Warnings are logged for errors.
+
+        Note:
+            This is an internal method called automatically by public methods.
+            Manual invocation is not required.
+
         """
         if LineageStore._schema_initialized:
             return
@@ -125,7 +296,24 @@ class LineageStore:
                 logger.warning("lineage_schema_init_failed", error=str(e))
 
     def _schema_exists(self) -> bool:
-        """Return True when the lineage schema has already been created."""
+        """Check if the lineage schema tables exist.
+
+        Verifies existence of the three core lineage tables using PostgreSQL's
+        to_regclass function, which returns the OID if the relation exists.
+
+        Tables checked:
+            - phlo.asset_lineage_nodes
+            - phlo.asset_lineage_edges
+            - phlo.column_lineage
+
+        Returns:
+            True if all three core tables exist, False otherwise.
+
+        Note:
+            This is an internal helper method. Connection errors are caught
+            and result in a False return value rather than propagating.
+
+        """
         try:
             with psycopg2.connect(self.connection_string) as conn:
                 with conn.cursor() as cur:
@@ -145,10 +333,27 @@ class LineageStore:
         return all(value is not None for value in result)
 
     def setup_schema(self) -> None:
-        """Create the lineage schema and tables if they don't exist.
+        """Create the lineage schema and tables by executing SQL migrations.
 
-        Executes all ``sql/*.sql`` files in sorted order to support
-        incremental schema migrations.
+        Reads all .sql files from the package's sql/ directory and executes them
+        in sorted order. This supports incremental schema migrations through
+        numbered migration files (e.g., 001_initial.sql, 002_add_indexes.sql).
+
+        Migration files are located relative to this module at:
+            {package_root}/sql/*.sql
+
+        Raises:
+            Exception: If SQL execution fails for any migration file.
+
+        Example:
+            >>> store = LineageStore("postgresql://...")
+            >>> store.setup_schema()  # Creates tables if they don't exist
+
+        Note:
+            This method is typically called automatically by _ensure_schema().
+            Manual invocation is useful for explicit schema management or
+            when integrating with external migration systems.
+
         """
         sql_dir = Path(__file__).parent / "sql"
         sql_files = sorted(sql_dir.glob("*.sql"))
@@ -169,14 +374,43 @@ class LineageStore:
         parent_row_ids: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        """Record a single row's lineage.
+        """Record lineage information for a single row.
+
+        Inserts or updates a row lineage record with full provenance information.
+        Uses UPSERT semantics (INSERT ... ON CONFLICT) to handle duplicate row IDs
+        by updating the existing record with new values.
 
         Args:
-            row_id: ULID of the row
-            table_name: Fully qualified table name (e.g., "bronze.dlt_events")
-            source_type: Origin type ("dlt", "dbt", "external")
-            parent_row_ids: List of parent row ULIDs (for transforms/aggregations)
-            metadata: Additional metadata (run_id, partition, etc.)
+            row_id: ULID identifier for the row, typically generated via
+                generate_row_id(). Must be unique across all tables.
+            table_name: Fully qualified table name in "schema.table" format
+                (e.g., "bronze.dlt_events", "silver.stg_orders").
+            source_type: Origin classification for the row. Common values:
+                - "dlt": Data loaded via dlt (data load tool)
+                - "dbt": Data transformed via dbt
+                - "external": Data from external systems
+                - "manual": User-inserted data
+            parent_row_ids: List of ULIDs for parent rows that this row was
+                derived from. Empty or None for root-level (source) rows.
+            metadata: Optional dictionary with additional context such as
+                run_id, partition keys, or custom attributes. Stored as JSONB.
+
+        Raises:
+            Exception: Re-raised after logging if database operation fails.
+
+        Example:
+            >>> store.record_row(
+            ...     row_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            ...     table_name="bronze.orders",
+            ...     source_type="dlt",
+            ...     parent_row_ids=[],
+            ...     metadata={"run_id": "run-123", "source": "api"},
+            ... )
+
+        Note:
+            This operation is logged at INFO level on success and WARNING
+            level on failure. Parent row count is included in log context.
+
         """
         parent_count = len(parent_row_ids or [])
         logger.info(
@@ -232,16 +466,41 @@ class LineageStore:
         source_type: str = "dlt",
         metadata: dict[str, Any] | None = None,
     ) -> int:
-        """Record multiple rows' lineage in a batch.
+        """Record lineage for multiple rows in a single batch operation.
+
+        Efficiently inserts lineage records for many rows using execute_values
+        for bulk loading. Rows without "_phlo_row_id" field are silently skipped.
 
         Args:
-            rows: List of row dicts, each must have "_phlo_row_id" key
-            table_name: Fully qualified table name
-            source_type: Origin type
-            metadata: Metadata applied to all rows
+            rows: List of row dictionaries, each must contain "_phlo_row_id" key
+                with a valid ULID value.
+            table_name: Fully qualified destination table name.
+            source_type: Origin classification (see record_row() for options).
+            metadata: Metadata dictionary applied to all rows in the batch.
 
         Returns:
-            Number of rows recorded
+            Number of rows successfully recorded (may be less than input length
+            if some rows lack _phlo_row_id).
+
+        Raises:
+            Exception: Re-raised after logging if batch insert fails.
+
+        Example:
+            >>> rows = [
+            ...     {"_phlo_row_id": "01ARZ...", "order_id": 1},
+            ...     {"_phlo_row_id": "01ARZ...", "order_id": 2},
+            ... ]
+            >>> count = store.record_rows_batch(rows, "bronze.orders", "dlt")
+            >>> print(f"Recorded {count} rows")
+
+        Performance:
+            Uses psycopg2.extras.execute_values for O(1) round trips regardless
+            of batch size (up to PostgreSQL parameter limits).
+
+        Note:
+            Duplicate row_ids are silently ignored (ON CONFLICT DO NOTHING).
+            To update existing records, use record_row() individually.
+
         """
         if not rows:
             return 0
@@ -325,7 +584,48 @@ class LineageStore:
         metadata: dict[str, Any] | None = None,
         tags: dict[str, Any] | None = None,
     ) -> int:
-        """Record asset nodes seen in lineage events."""
+        """Record or update asset nodes in the lineage graph.
+
+        Creates or updates asset metadata records. Duplicate keys trigger
+        UPSERT semantics with COALESCE for optional fields (existing non-null
+        values are preserved if new values are None).
+
+        Args:
+            asset_keys: List of unique asset identifiers (e.g., "bronze.orders",
+                "silver.stg_orders").
+            asset_type: Classification of the asset. Common values:
+                - "ingestion": Raw loaded data
+                - "transform": dbt model or transformation output
+                - "publish": Final published dataset
+            status: Current status of the asset:
+                - "success": Successfully materialized
+                - "warning": Completed with warnings
+                - "failure": Failed or stale
+                - "unknown": Status not determined
+            description: Human-readable description of the asset.
+            metadata: JSON-serializable dictionary with arbitrary asset metadata.
+            tags: Dictionary of string tags for categorization and filtering.
+
+        Returns:
+            Number of asset nodes successfully persisted.
+
+        Raises:
+            Exception: Re-raised after logging if database operation fails.
+
+        Example:
+            >>> store.record_asset_nodes(
+            ...     ["bronze.orders", "silver.stg_orders"],
+            ...     asset_type="ingestion",
+            ...     status="success",
+            ...     metadata={"owner": "data-team"},
+            ... )
+
+        Note:
+            The updated_at timestamp is automatically refreshed on every UPSERT.
+            COALESCE logic preserves existing non-null values when upserting
+            partial updates.
+
+        """
         if not asset_keys:
             return 0
 
@@ -398,7 +698,43 @@ class LineageStore:
         metadata: dict[str, Any] | None = None,
         tags: dict[str, Any] | None = None,
     ) -> int:
-        """Record asset lineage edges."""
+        """Record directed edges between assets in the lineage graph.
+
+        Creates or updates lineage edges representing data dependencies (source
+        -> target). Also creates/updates node entries for all assets mentioned
+        in edges or the explicit asset_keys list.
+
+        Args:
+            edges: List of (source, target) tuples representing data flow
+                direction (data flows from source to target).
+            asset_keys: Optional additional asset keys to register as nodes
+                even if not connected by edges.
+            metadata: JSON-serializable dictionary for all edges in this batch.
+            tags: Dictionary of string tags for all edges in this batch.
+
+        Returns:
+            Number of edges successfully persisted.
+
+        Raises:
+            Exception: Re-raised after logging if database operation fails.
+
+        Example:
+            >>> edges = [
+            ...     ("bronze.orders", "silver.stg_orders"),
+            ...     ("silver.stg_orders", "gold.fct_orders"),
+            ... ]
+            >>> store.record_asset_edges(edges, metadata={"run_id": "abc123"})
+
+        Transaction Behavior:
+            Nodes are persisted before edges in the same logical operation,
+            but there is no atomic transaction guarantee across the two calls.
+            Edge records use UPSERT semantics with updated_at refresh.
+
+        Note:
+            Edge persistence is skipped if the edges list is empty, but node
+            creation still occurs if asset_keys is provided.
+
+        """
         if not edges and not asset_keys:
             return 0
 
@@ -478,7 +814,28 @@ class LineageStore:
         return persisted_edge_count
 
     def list_asset_nodes(self) -> list[dict[str, Any]]:
-        """List all asset nodes."""
+        """List all asset nodes with their metadata.
+
+        Queries the phlo.asset_lineage_nodes table and returns a list of
+        dictionaries containing asset metadata.
+
+        Returns:
+            List of dictionaries with keys:
+                - asset_key: Unique identifier
+                - asset_type: Classification (ingestion, transform, publish)
+                - status: Current status (success, warning, failure, unknown)
+                - description: Human-readable description
+                - metadata: Parsed JSON metadata dict
+                - tags: Parsed JSON tags dict
+                - created_at: ISO format timestamp
+                - updated_at: ISO format timestamp
+
+        Example:
+            >>> nodes = store.list_asset_nodes()
+            >>> for node in nodes:
+            ...     print(f"{node['asset_key']}: {node['status']}")
+
+        """
         self._ensure_schema()
         with psycopg2.connect(self.connection_string) as conn:
             with conn.cursor() as cur:
@@ -508,7 +865,26 @@ class LineageStore:
         return results
 
     def list_asset_edges(self) -> list[dict[str, Any]]:
-        """List all asset lineage edges."""
+        """List all directed edges in the lineage graph.
+
+        Queries the phlo.asset_lineage_edges table and returns a list of
+        dictionaries containing edge information.
+
+        Returns:
+            List of dictionaries with keys:
+                - source_asset: Upstream asset key
+                - target_asset: Downstream asset key
+                - metadata: Parsed JSON metadata dict
+                - tags: Parsed JSON tags dict
+                - created_at: ISO format timestamp
+                - updated_at: ISO format timestamp
+
+        Example:
+            >>> edges = store.list_asset_edges()
+            >>> for edge in edges:
+            ...     print(f"{edge['source_asset']} -> {edge['target_asset']}")
+
+        """
         self._ensure_schema()
         with psycopg2.connect(self.connection_string) as conn:
             with conn.cursor() as cur:
@@ -535,13 +911,26 @@ class LineageStore:
         return results
 
     def get_row(self, row_id: str) -> dict[str, Any] | None:
-        """Get lineage info for a single row.
+        """Retrieve lineage information for a single row by ID.
 
         Args:
-            row_id: ULID of the row
+            row_id: ULID string identifier for the row.
 
         Returns:
-            Dict with row lineage info, or None if not found
+            Dictionary with row lineage information if found, otherwise None.
+            Dictionary keys:
+                - row_id: The row ULID
+                - table_name: Fully qualified table name
+                - source_type: Origin classification
+                - parent_row_ids: List of parent ULIDs
+                - created_at: ISO format timestamp
+                - metadata: Parsed JSON metadata dict
+
+        Example:
+            >>> row = store.get_row("01ARZ3NDEKTSV4RRFFQ69G5FAV")
+            >>> if row:
+            ...     print(f"Found in table: {row['table_name']}")
+
         """
         with psycopg2.connect(self.connection_string) as conn:
             with conn.cursor() as cur:
@@ -569,16 +958,32 @@ class LineageStore:
         }
 
     def get_ancestors(self, row_id: str, max_depth: int = 10) -> list[dict[str, Any]]:
-        """Get all ancestor rows recursively.
+        """Recursively retrieve all ancestor rows (upstream lineage).
 
-        Uses a recursive CTE to traverse parent relationships.
+        Uses a PostgreSQL recursive CTE to traverse parent relationships
+        up to the specified maximum depth.
 
         Args:
-            row_id: ULID of the starting row
-            max_depth: Maximum traversal depth
+            row_id: ULID of the starting row to find ancestors for.
+            max_depth: Maximum number of parent levels to traverse (default 10).
+                Prevents infinite recursion in case of circular references.
 
         Returns:
-            List of ancestor row lineage records
+            List of dictionaries containing ancestor row information, sorted by
+            creation time descending (most recent first).
+
+        Raises:
+            Exception: If database query fails.
+
+        Example:
+            >>> ancestors = store.get_ancestors("01ARZ3NDEKTSV4RRFFQ69G5FAV")
+            >>> for ancestor in ancestors:
+            ...     print(f"Derived from: {ancestor['table_name']}")
+
+        Performance:
+            Uses recursive CTE with DISTINCT to avoid duplicate rows when
+            multiple paths converge on the same ancestor.
+
         """
         with psycopg2.connect(self.connection_string) as conn:
             with conn.cursor() as cur:
@@ -629,14 +1034,32 @@ class LineageStore:
         ]
 
     def get_descendants(self, row_id: str, max_depth: int = 10) -> list[dict[str, Any]]:
-        """Get all descendant rows recursively.
+        """Recursively retrieve all descendant rows (downstream lineage).
+
+        Uses a PostgreSQL recursive CTE to traverse child relationships
+        (reverse parent lookup) up to the specified maximum depth.
 
         Args:
-            row_id: ULID of the starting row
-            max_depth: Maximum traversal depth
+            row_id: ULID of the starting row to find descendants for.
+            max_depth: Maximum number of child levels to traverse (default 10).
+                Prevents infinite recursion in case of circular references.
 
         Returns:
-            List of descendant row lineage records
+            List of dictionaries containing descendant row information, sorted by
+            creation time ascending (oldest first).
+
+        Raises:
+            Exception: If database query fails.
+
+        Example:
+            >>> descendants = store.get_descendants("01ARZ3NDEKTSV4RRFFQ69G5FAV")
+            >>> for descendant in descendants:
+            ...     print(f"Used in: {descendant['table_name']}")
+
+        Performance:
+            Uses recursive CTE with reverse index lookup (row_id = ANY(parent_row_ids)).
+            Ensure GIN index exists on parent_row_ids for large datasets.
+
         """
         with psycopg2.connect(self.connection_string) as conn:
             with conn.cursor() as cur:
@@ -682,14 +1105,24 @@ class LineageStore:
         ]
 
     def get_table_rows(self, table_name: str, limit: int = 100) -> list[dict[str, Any]]:
-        """Get recent rows for a table.
+        """Retrieve recent lineage records for a specific table.
 
         Args:
-            table_name: Fully qualified table name
-            limit: Maximum rows to return
+            table_name: Fully qualified table name (e.g., "bronze.orders").
+            limit: Maximum number of rows to return (default 100).
 
         Returns:
-            List of row lineage records
+            List of row lineage dictionaries sorted by creation time descending
+            (most recent first), limited to specified count.
+
+        Example:
+            >>> rows = store.get_table_rows("bronze.orders", limit=10)
+            >>> print(f"Recent rows: {len(rows)}")
+
+        Note:
+            This is a simple query without pagination. For large tables,
+            consider adding offset or time-range filtering.
+
         """
         with psycopg2.connect(self.connection_string) as conn:
             with conn.cursor() as cur:
@@ -725,14 +1158,40 @@ class LineageStore:
     def record_column_lineage(self, mappings: list[ColumnLineage]) -> int:
         """Batch-insert column lineage mappings.
 
-        Uses ``execute_values`` for efficiency.  Duplicate primary keys
-        are silently skipped (``ON CONFLICT DO NOTHING``).
+        Persists column-to-column lineage relationships using efficient bulk
+        insert via execute_values. Duplicate mappings (same source/target asset
+        and column combination) are silently skipped.
 
         Args:
-            mappings: Column lineage records to persist.
+            mappings: List of ColumnLineage records to persist.
 
         Returns:
-            Number of mappings submitted for insert.
+            Number of mappings submitted for insert (may differ from persisted
+            count if duplicates exist).
+
+        Raises:
+            Exception: Re-raised after logging if batch insert fails.
+
+        Example:
+            >>> from phlo_lineage.store import ColumnLineage
+            >>> mappings = [
+            ...     ColumnLineage(
+            ...         source_asset="bronze.orders",
+            ...         source_column="order_id",
+            ...         target_asset="silver.stg_orders",
+            ...         target_column="order_id",
+            ...     ),
+            ... ]
+            >>> count = store.record_column_lineage(mappings)
+
+        Performance:
+            Uses psycopg2.extras.execute_values for efficient bulk loading.
+            Single round-trip regardless of batch size.
+
+        Note:
+            This method does not distinguish between new inserts and skipped
+            duplicates in the return value. Use ON CONFLICT DO NOTHING behavior.
+
         """
         if not mappings:
             return 0
@@ -786,12 +1245,28 @@ class LineageStore:
     ) -> list[ColumnLineage]:
         """Query upstream column lineage for a target asset.
 
+        Retrieves ColumnLineage records showing which upstream columns feed into
+        the specified target asset and optionally a specific column.
+
         Args:
-            target_asset: Asset key of the downstream asset.
-            target_column: Optional column name to narrow the query.
+            target_asset: Asset key of the downstream asset to query.
+            target_column: Optional column name to narrow results. If None,
+                returns lineage for all columns in the target asset.
 
         Returns:
-            List of ``ColumnLineage`` records.
+            List of ColumnLineage records representing upstream dependencies.
+
+        Example:
+            >>> # All upstream columns for the asset
+            >>> upstream = store.get_upstream_columns("silver.stg_orders")
+            >>>
+            >>> # Specific column only
+            >>> upstream = store.get_upstream_columns("silver.stg_orders", "order_id")
+
+        Query Pattern:
+            - Without target_column: WHERE target_asset = %s
+            - With target_column: WHERE target_asset = %s AND target_column = %s
+
         """
         self._ensure_schema()
 
@@ -836,12 +1311,28 @@ class LineageStore:
     ) -> list[ColumnLineage]:
         """Query downstream column lineage for a source asset.
 
+        Retrieves ColumnLineage records showing which downstream columns are
+        derived from the specified source asset and optionally a specific column.
+
         Args:
-            source_asset: Asset key of the upstream asset.
-            source_column: Optional column name to narrow the query.
+            source_asset: Asset key of the upstream asset to query.
+            source_column: Optional column name to narrow results. If None,
+                returns lineage for all columns in the source asset.
 
         Returns:
-            List of ``ColumnLineage`` records.
+            List of ColumnLineage records representing downstream dependents.
+
+        Example:
+            >>> # All downstream columns for the asset
+            >>> downstream = store.get_downstream_columns("bronze.orders")
+            >>>
+            >>> # Specific column only
+            >>> downstream = store.get_downstream_columns("bronze.orders", "order_id")
+
+        Query Pattern:
+            - Without source_column: WHERE source_asset = %s
+            - With source_column: WHERE source_asset = %s AND source_column = %s
+
         """
         self._ensure_schema()
 

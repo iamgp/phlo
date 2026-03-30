@@ -1,4 +1,20 @@
-"""Service hooks for dbt-related setup."""
+"""Service hooks for dbt-related setup.
+
+This module provides lifecycle hooks for dbt compilation and setup during
+Phlo service operations. It handles compiling dbt models and restarting services
+to pick up manifest changes, typically used during development workflows.
+
+Example:
+    >>> # Run via command line
+    >>> # python -m phlo_dbt.hooks compile
+    >>>
+    >>> # Or use in service lifecycle
+    >>> from phlo_dbt.hooks import compile_dbt
+    >>> exit_code = compile_dbt()
+    >>> if exit_code == 0:
+    ...     print("Compilation successful")
+
+"""
 
 from __future__ import annotations
 
@@ -30,8 +46,31 @@ def _find_dagster_container(project_name: str) -> str:
 def compile_dbt() -> int:
     """Compile dbt models in the Dagster container when a dbt project exists.
 
+    Checks for the existence of a dbt project and, if found, compiles it within
+    the Dagster webserver container. This includes:
+    - Installing dbt dependencies (dbt deps)
+    - Compiling models (dbt compile)
+    - Restarting Dagster services to pick up the new manifest
+
+    Designed to be called as a service hook during Phlo startup or development
+    workflows.
+
     Returns:
-        Process-style status code.
+        Process-style status code (0 for success, non-zero for failure).
+        Returns 0 if no dbt project exists.
+
+    Raises:
+        No explicit exceptions raised; errors are logged and reported via
+        return code and print statements.
+
+    Example:
+        >>> from phlo_dbt.hooks import compile_dbt
+        >>> exit_code = compile_dbt()
+        >>> if exit_code == 0:
+        ...     print("dbt models compiled and Dagster restarted")
+        ... else:
+        ...     print("Warning: Compilation had issues")
+
     """
     settings = get_settings()
     dbt_project_dir = Path(settings.dbt_project_dir)
@@ -156,6 +195,7 @@ def main() -> int:
 
     Returns:
         Process-style status code.
+
     """
     parser = argparse.ArgumentParser(description="Phlo dbt hooks")
     parser.add_argument("action", choices=["compile"])

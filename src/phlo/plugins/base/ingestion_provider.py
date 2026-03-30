@@ -38,6 +38,7 @@ class IngestionProviderPlugin(Plugin, ABC):
                 from phlo_dlt import get_ingestion_assets
                 return get_ingestion_assets
         ```
+
     """
 
     @property
@@ -58,6 +59,7 @@ class IngestionProviderPlugin(Plugin, ABC):
                 from phlo_dlt import phlo_ingestion
                 return phlo_ingestion
             ```
+
         """
 
     @abstractmethod
@@ -73,4 +75,5 @@ class IngestionProviderPlugin(Plugin, ABC):
                 from phlo_dlt import get_ingestion_assets
                 return get_ingestion_assets
             ```
+
         """

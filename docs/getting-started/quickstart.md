@@ -28,7 +28,7 @@ phlo services init
 # Edit .phlo/.env.local if needed (defaults work for local development)
 
 # Start core services
-make up-core up-query
+phlo services start --profile core --profile query
 ```
 
 Wait for services to start (~60 seconds).
@@ -36,7 +36,7 @@ Wait for services to start (~60 seconds).
 ## Step 2: View Dagster UI (30 seconds)
 
 ```bash
-make dagster
+open http://localhost:10006
 # Opens http://localhost:10006
 ```
 
@@ -98,7 +98,7 @@ def glucose_entries(partition_date: str):
 
 ```bash
 # Materialize for today's date
-docker exec dagster-webserver dagster asset materialize --select dlt_glucose_entries
+phlo materialize dlt_glucose_entries
 
 # Or in Dagster UI:
 # Navigate to Assets → dlt_glucose_entries → Materialize
@@ -265,11 +265,11 @@ This covers:
 docker ps
 
 # Check logs
-make logs
+phlo services logs -f dagster
 
 # Restart services
-make down
-make up-core up-query
+phlo services stop
+phlo services start --profile core --profile query
 ```
 
 **"Asset not showing in UI"**
@@ -319,7 +319,7 @@ phlo services restart --service dagster
 
 ## Get Help
 
-- **Documentation**: [docs/index.md](./index.md)
+- **Documentation**: [docs/index.md](../index.md)
 - **GitHub Issues**: Report bugs and request features
 - **GitHub Discussions**: Ask questions and share ideas
 

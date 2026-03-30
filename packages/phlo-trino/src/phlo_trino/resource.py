@@ -1,4 +1,27 @@
-"""Trino resource for executing queries."""
+"""Trino resource for executing queries and managing connections.
+
+This module provides the TrinoResource class for interacting with Trino,
+including connection management, query execution, and wait-for-readiness
+functionality with automatic retry logic.
+
+Classes:
+    TrinoResource: Resource wrapper for Trino connections and queries.
+    _ConfigFacade: Backward-compatible config shim for test patching.
+
+Constants:
+    TRINO_QUERY_ENGINE_SUPPORT: Capability support flags for query engine.
+
+Functions:
+    _is_transient_trino_error: Check if an exception indicates transient error.
+    _iter_exception_chain: Yield exception and its chained causes.
+
+Example:
+    >>> from phlo_trino.resource import TrinoResource
+    >>> trino = TrinoResource()
+    >>> results = trino.execute("SELECT * FROM iceberg.my_schema.my_table")
+    >>> trino.wait_ready(timeout=30.0)
+
+"""
 
 from __future__ import annotations
 
@@ -30,6 +53,7 @@ class _ConfigFacade:
 
         Returns:
             Trino service hostname.
+
         """
         return get_trino_settings().trino_host
 
@@ -39,6 +63,7 @@ class _ConfigFacade:
 
         Returns:
             Trino HTTP port.
+
         """
         return get_trino_settings().trino_port
 
@@ -48,6 +73,7 @@ class _ConfigFacade:
 
         Returns:
             Default Trino catalog name.
+
         """
         return get_trino_settings().trino_catalog
 
@@ -57,6 +83,7 @@ class _ConfigFacade:
 
         Returns:
             Branch or tag reference.
+
         """
         return get_trino_settings().trino_default_ref
 
@@ -75,6 +102,7 @@ class TrinoResource:
         catalog: Optional catalog override.
         ref: Optional Nessie ref override for catalog resolution.
         runtime: Optional runtime context providing canonical ref routing.
+
     """
 
     host: str | None = None
@@ -85,7 +113,12 @@ class TrinoResource:
     runtime: RuntimeContext | None = None
 
     def _resolved_ref(self) -> str | None:
-        """Resolve the effective ref for Trino catalog routing."""
+        """Resolve the effective ref for Trino catalog routing.
+
+        Returns:
+            Resolved reference string or None if using default.
+
+        """
         return resolve_runtime_ref(
             self.runtime,
             support=TRINO_QUERY_ENGINE_SUPPORT,
@@ -97,6 +130,7 @@ class TrinoResource:
 
         Returns:
             Catalog name used for Trino connections.
+
         """
         base_catalog = self.catalog or config.trino_catalog
         ref = self._resolved_ref()
@@ -112,6 +146,7 @@ class TrinoResource:
 
         Returns:
             Open Trino DB-API connection.
+
         """
         return connect(
             host=self.host or config.trino_host,
@@ -130,6 +165,7 @@ class TrinoResource:
 
         Yields:
             Active Trino cursor.
+
         """
         conn = self.get_connection(schema=schema)
         cursor = conn.cursor()
@@ -151,6 +187,7 @@ class TrinoResource:
 
         Returns:
             List of query result rows, or an empty list for statements without results.
+
         """
         params = list(params or [])
         with self.cursor(schema=schema) as cursor:
@@ -166,7 +203,25 @@ class TrinoResource:
         interval: float = 1.0,
         schema: str | None = None,
     ) -> None:
-        """Wait for Trino to accept queries, retrying on startup/connection errors."""
+        """Wait for Trino to accept queries, retrying on startup/connection errors.
+
+        Polls Trino with "SELECT 1" until successful or timeout exceeded.
+        Automatically retries on transient connection errors.
+
+        Args:
+            timeout: Maximum seconds to wait before raising TimeoutError.
+            interval: Seconds between retry attempts.
+            schema: Optional schema name for the test query.
+
+        Raises:
+            TimeoutError: If Trino is not ready within the timeout period.
+            Exception: If a non-transient error occurs.
+
+        Example:
+            >>> trino = TrinoResource()
+            >>> trino.wait_ready(timeout=30.0, interval=2.0)
+
+        """
         deadline = time.monotonic() + timeout
         last_error: Exception | None = None
         interval = max(interval, 0.0)
@@ -216,6 +271,7 @@ def _is_transient_trino_error(exc: Exception) -> bool:
 
     Returns:
         True when retrying is likely useful; otherwise False.
+
     """
     for error in _iter_exception_chain(exc):
         message = str(error).lower()
@@ -265,6 +321,7 @@ def _iter_exception_chain(exc: BaseException) -> Iterable[BaseException]:
 
     Yields:
         Exception objects from the chain, root first.
+
     """
     current: BaseException | None = exc
     while current is not None:

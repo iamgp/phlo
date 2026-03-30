@@ -1,4 +1,35 @@
-"""Schema-contract refresh integration for Dagster materialization flows."""
+"""Schema contract refresh integration for Dagster materialization flows.
+
+This module provides automatic schema contract refresh functionality
+that integrates with Dagster asset materialization. When enabled via
+environment variables, it refreshes Pandera schema contracts before
+materializing assets to ensure data contracts stay synchronized with
+the actual data.
+
+Environment Variables:
+    PHLO_AUTO_REFRESH_CONTRACTS: Enable automatic refresh (1/true/yes)
+    PHLO_CONTRACT_REFRESH_SELECTION: Asset selection for contract refresh
+
+Integration Point:
+    Called during framework definitions building, before user workflows
+    are discovered. This ensures contracts are fresh before any
+    materialization occurs.
+
+Schema Contract Purpose:
+    Pandera schema contracts define expected data schemas and
+    validation rules. Keeping them synchronized with actual table
+    schemas helps catch schema drift and maintain data quality.
+
+Example:
+    Enabling auto-refresh::
+
+        export PHLO_AUTO_REFRESH_CONTRACTS=1
+        export PHLO_CONTRACT_REFRESH_SELECTION="tag:bronze"
+
+        phlo materialize my_asset
+        # Contracts will be refreshed before materialization
+
+"""
 
 from __future__ import annotations
 
@@ -8,7 +39,19 @@ from typing import Any
 
 
 def maybe_refresh_contracts(workflows_path: Path, logger: Any) -> None:
-    """Refresh schema contracts when explicitly enabled via env vars."""
+    """Refresh schema contracts when explicitly enabled via env vars.
+
+    Args:
+        workflows_path: Path to workflows directory used for contract resolution.
+        logger: Logger instance for operation logging.
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised. Logs warnings on failure.
+
+    """
     enabled = os.getenv("PHLO_AUTO_REFRESH_CONTRACTS", "").strip().lower()
     if enabled not in {"1", "true", "yes"}:
         return

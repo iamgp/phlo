@@ -1,6 +1,27 @@
 """Publishing configuration scaffolding.
 
 Generates `publishing.yaml` entries from a dbt manifest.
+
+This module provides utilities to scaffold and manage publishing configuration
+for dbt models. It extracts model metadata from dbt manifests and generates
+configuration for publishing data to downstream systems like Postgres.
+
+Example:
+    >>> # Via CLI:
+    >>> # phlo dbt publishing scaffold --select mrt_* --output publishing.yaml
+    >>>
+    >>> # Programmatically:
+    >>> from phlo_dbt.cli_publishing import scaffold_publishing_config
+    >>> config = scaffold_publishing_config(
+    ...     existing_config={},
+    ...     model_names=["mrt_orders", "mrt_customers"],
+    ...     source_key="analytics",
+    ...     iceberg_schema="marts",
+    ...     group="publishing",
+    ...     asset_name="publish_analytics_marts",
+    ...     description="Published analytics marts"
+    ... )
+
 """
 
 from __future__ import annotations
@@ -28,6 +49,7 @@ def _normalize_select_patterns(select: Iterable[str]) -> list[str]:
 
     Returns:
         Flattened, trimmed pattern list.
+
     """
     patterns: list[str] = []
     for raw in select:
@@ -47,6 +69,7 @@ def _select_models(model_names: list[str], patterns: list[str]) -> list[str]:
 
     Returns:
         Selected model names preserving input order.
+
     """
     if not patterns:
         return model_names
@@ -69,6 +92,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
     Raises:
         ValueError: If root YAML value is not a mapping.
+
     """
     if not path.exists():
         return {}
@@ -87,6 +111,7 @@ def _dump_yaml(data: dict[str, Any]) -> str:
 
     Returns:
         YAML string.
+
     """
     return yaml.safe_dump(data, sort_keys=False)
 
@@ -102,6 +127,7 @@ def _load_manifest_models(manifest_path: Path) -> dict[str, dict[str, Any]]:
 
     Raises:
         click.ClickException: If file read or JSON parsing fails.
+
     """
     try:
         manifest = json.loads(manifest_path.read_text())
@@ -150,6 +176,7 @@ def scaffold_publishing_config(
 
     Raises:
         ValueError: If existing config shape is invalid.
+
     """
     config: dict[str, Any] = dict(existing_config)
     publishing = config.get("publishing", {})
@@ -192,7 +219,7 @@ def scaffold_publishing_config(
 
 @click.group()
 def publishing():
-    """Publishing configuration management commands."""
+    """Manage publishing configuration."""
 
 
 @publishing.command("scaffold")

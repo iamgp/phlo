@@ -15,11 +15,10 @@ Hasura auto-generates a GraphQL API from your Postgres `marts` schema, providing
 
 ```bash
 # Start Hasura (requires Postgres running)
-make up-api
+phlo services start --profile api
 
 # Open Hasura console
-make hasura
-# Or: http://localhost:8081/console
+# http://localhost:10011/console
 ```
 
 **Admin Secret:** `phlo-admin-secret-change-me` (set in `.phlo/.env.local`)
@@ -32,7 +31,7 @@ make hasura
 
 Hasura needs to "track" tables to generate GraphQL schema.
 
-1. Open Hasura console: http://localhost:8081/console
+1. Open Hasura console: http://localhost:10011/console
 2. Navigate to **Data** tab
 3. Click **public** schema (or marts if you have it)
 4. You'll see available tables:
@@ -477,7 +476,7 @@ Hasura reads `x-hasura-*` claims for permission checks.
 1. Verify Postgres connection: Check `HASURA_GRAPHQL_DATABASE_URL` in docker-compose.yml
 2. Check schema: Ensure tables are in correct schema (`marts` or `public`)
 3. Reload metadata: **Data** tab → gear icon → **Reload**
-4. Check Postgres logs: `docker compose logs postgres`
+4. Check Postgres logs: `phlo services logs postgres`
 
 ---
 
@@ -522,8 +521,8 @@ CREATE INDEX idx_glucose_date ON marts.mrt_glucose_overview(date);
 1. Verify JWT secret matches between FastAPI and Hasura:
 
 ```bash
-docker compose exec api env | grep JWT_SECRET
-docker compose exec hasura env | grep JWT_SECRET
+docker exec phlo-api env | grep JWT_SECRET
+docker exec hasura env | grep JWT_SECRET
 ```
 
 2. Check token expiration (default 60 minutes)

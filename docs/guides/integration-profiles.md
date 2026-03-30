@@ -6,6 +6,16 @@ The core runtime contract is:
 
 `ingestion -> table store -> query/transform -> publish`
 
+```mermaid
+flowchart LR
+    ingest[Ingestion]
+    store[Table store]
+    transform[Query and transform]
+    publish[Publish target]
+
+    ingest --> store --> transform --> publish
+```
+
 Optional capabilities refine that contract:
 
 - `versioned catalog`: refs, branch isolation, promotion
@@ -44,6 +54,18 @@ Control plane:
 
 `Dagster + capability registry + runtime routing`
 
+```mermaid
+flowchart LR
+    dlt[phlo-dlt]
+    parquet[Staged parquet]
+    iceberg[phlo-iceberg]
+    trino[phlo-trino]
+    dbt[phlo-dbt]
+    postgres[phlo-postgres]
+
+    dlt --> parquet --> iceberg --> trino --> dbt --> postgres
+```
+
 ### Guarantees
 
 - DLT consumes all staged parquet files, not just the first shard
@@ -56,6 +78,17 @@ Control plane:
 ### Versioned flow
 
 When the active catalog supports refs and promotion, the normal Dagster WAP flow is:
+
+```mermaid
+flowchart LR
+    create[Create isolated run branch]
+    write[Write data on isolated ref]
+    checks[Run checks]
+    promote[Promote durable ref]
+    cleanup[Clean up run branch]
+
+    create --> write --> checks --> promote --> cleanup
+```
 
 1. create isolated run branch
 2. write data on the isolated ref
@@ -95,6 +128,20 @@ This profile is for fast local verification of transform and workflow wiring wit
 ## Runtime routing
 
 Runtime routing is the shared contract that ties profiles together.
+
+```mermaid
+flowchart LR
+    routing[Runtime routing]
+    dlt[DLT]
+    dbt[dbt]
+    dagster[Dagster sensors]
+    publish[Publish target]
+
+    routing --> dlt
+    routing --> dbt
+    routing --> dagster
+    routing --> publish
+```
 
 The main fields are:
 

@@ -1,4 +1,16 @@
-"""Nessie settings."""
+"""Nessie configuration settings module.
+
+This module provides Pydantic-based configuration management for the Nessie
+catalog service, including host resolution, port configuration, and URI builders
+for various Nessie API endpoints.
+
+Example:
+    >>> from phlo_nessie.settings import get_settings
+    >>> settings = get_settings()
+    >>> print(settings.nessie_uri())
+    'http://nessie:19120/api'
+
+"""
 
 from __future__ import annotations
 
@@ -28,6 +40,7 @@ class NessieSettings(BaseConfig):
     )
 
     def model_post_init(self, __context: Any) -> None:
+        """Post-initialization hook to resolve host and port."""
         host, port = resolve_host(self.nessie_host, self.nessie_port, port_env_var="NESSIE_PORT")
         object.__setattr__(self, "nessie_host", host)
         object.__setattr__(self, "nessie_port", port)
@@ -37,6 +50,7 @@ class NessieSettings(BaseConfig):
 
         Returns:
             str: Base URI for Nessie API endpoints.
+
         """
         return f"http://{self.nessie_host}:{self.nessie_port}/api"
 
@@ -45,6 +59,7 @@ class NessieSettings(BaseConfig):
 
         Returns:
             str: Versioned URI for Nessie API endpoints.
+
         """
         return f"http://{self.nessie_host}:{self.nessie_port}/api/{self.nessie_api_version}"
 
@@ -53,6 +68,7 @@ class NessieSettings(BaseConfig):
 
         Returns:
             str: URI for Iceberg REST catalog integration.
+
         """
         return f"http://{self.nessie_host}:{self.nessie_port}/iceberg"
 
@@ -63,5 +79,6 @@ def get_settings() -> NessieSettings:
 
     Returns:
         NessieSettings: Singleton settings instance.
+
     """
     return NessieSettings()

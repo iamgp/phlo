@@ -29,6 +29,7 @@ def _is_nessie_unreachable_error(exc: Exception) -> bool:
 
     Returns:
         True when the exception message matches known connectivity failures.
+
     """
     message = str(exc).lower()
     patterns = (

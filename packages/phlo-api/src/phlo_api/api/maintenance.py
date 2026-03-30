@@ -1,6 +1,41 @@
 """Maintenance API Router.
 
 Endpoints for Iceberg maintenance observability data.
+
+This module provides API endpoints for querying maintenance operation status
+and metrics from the maintenance read-model capability. It enables monitoring
+of data lifecycle operations like compaction, cleanup, and optimization.
+
+Key Endpoints:
+    GET /status: Get maintenance status snapshot.
+    GET /metrics: Get Prometheus-formatted maintenance metrics.
+
+Environment Variables:
+    PHLO_MAINTENANCE_READ_MODEL: Name of the maintenance read model provider.
+
+Example:
+    Querying maintenance status:
+
+    .. code-block:: bash
+
+        curl http://localhost:4000/api/maintenance/status
+
+    Response:
+
+    .. code-block:: json
+
+        {
+            "last_updated": "2024-01-15T10:30:00",
+            "operations": [
+                {
+                    "operation": "OPTIMIZE",
+                    "namespace": "warehouse",
+                    "ref": "main",
+                    "status": "COMPLETED"
+                }
+            ]
+        }
+
 """
 
 from __future__ import annotations
@@ -75,8 +110,20 @@ class MaintenanceStatusSnapshot(BaseModel):
 
 @router.get("/status", response_model=MaintenanceStatusSnapshot | dict)
 def get_maintenance_status() -> MaintenanceStatusSnapshot | dict[str, str]:
-    """Get maintenance status derived from telemetry logs."""
+    """Get maintenance status derived from telemetry logs.
 
+    Returns the current maintenance operation snapshot from the read model.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        MaintenanceStatusSnapshot with operations and timestamp, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         snapshot = _resolve_maintenance_read_model().load_maintenance_status()
         logger.debug("maintenance_status_loaded", operation_count=len(snapshot.operations))
@@ -88,8 +135,20 @@ def get_maintenance_status() -> MaintenanceStatusSnapshot | dict[str, str]:
 
 @router.get("/metrics", response_class=PlainTextResponse)
 def get_maintenance_metrics() -> PlainTextResponse:
-    """Expose maintenance metrics in Prometheus text format."""
+    """Expose maintenance metrics in Prometheus text format.
 
+    Returns maintenance operation metrics formatted for Prometheus scraping.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        PlainTextResponse with Prometheus-formatted metrics.
+
+    Raises:
+        None: Exceptions are caught and returned with status 500.
+
+    """
     try:
         metrics_payload = _resolve_maintenance_read_model().render_maintenance_prometheus()
         logger.debug("maintenance_metrics_rendered", payload_length=len(metrics_payload))

@@ -6,6 +6,17 @@ Complete reference for configuring Phlo.
 
 Phlo uses multiple configuration sources:
 
+```mermaid
+flowchart TB
+    defaults["Infrastructure defaults<br/>phlo.yaml"]
+    local["Local secrets and overrides<br/>.phlo/.env.local"]
+    runtime[Runtime environment variables]
+    python[Python package settings]
+    runconfig[Dagster run config]
+
+    defaults --> local --> runtime --> python --> runconfig
+```
+
 1. **Infrastructure defaults** (`phlo.yaml`, `env:`)
 2. **Local secrets/overrides** (`.phlo/.env.local`)
 3. **Runtime environment** (process environment variables)
@@ -85,6 +96,19 @@ PHLO_DEFAULT_CAPABILITIES='{"table_store":"iceberg","query_engine":"trino"}'
 ```
 
 Capability resolution order:
+
+```mermaid
+flowchart TB
+    explicit[Explicit provider passed by caller]
+    tag["Runtime tag<br/>phlo/capability/<capability_type>=<provider>"]
+    asset[Asset capability_overrides]
+    env[PHLO_DEFAULT_CAPABILITIES]
+    yaml["phlo.yaml capabilities.defaults"]
+    implicit[Implicit single installed provider]
+    fail[Fail with installed provider names]
+
+    explicit --> tag --> asset --> env --> yaml --> implicit --> fail
+```
 
 - explicit provider name passed by the caller
 - runtime/workflow tag: `phlo/capability/<capability_type>=<provider>`

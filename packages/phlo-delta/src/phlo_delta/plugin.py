@@ -1,3 +1,16 @@
+"""Delta Lake plugin for Phlo resource provider system.
+
+This module provides the DeltaResourceProvider plugin that integrates
+Delta Lake table storage capabilities into the Phlo framework.
+
+Example:
+    from phlo_delta.plugin import DeltaResourceProvider
+
+    provider = DeltaResourceProvider()
+    resources = provider.get_resources()
+
+"""
+
 from __future__ import annotations
 
 from phlo.capabilities import CapabilitySupport, ResourceSpec, SchemaMigrationSpec, TableStoreSpec
@@ -8,14 +21,28 @@ from phlo_delta.schema_migrator import DeltaSchemaMigrator
 
 
 class DeltaResourceProvider(ResourceProviderPlugin):
-    """Resource provider plugin for Delta Lake access."""
+    """Resource provider plugin for Delta Lake access.
+
+    This plugin exposes Delta Lake resources to the Phlo framework,
+    providing table storage, schema migration, and time travel capabilities.
+
+    Attributes:
+        metadata: Plugin metadata including name, version, and capabilities.
+
+    Example:
+        provider = DeltaResourceProvider()
+        table_stores = provider.get_table_stores()
+
+    """
 
     @property
     def metadata(self) -> PluginMetadata:
         """Get plugin metadata.
 
         Returns:
-            PluginMetadata: Metadata for the Delta Lake resource plugin.
+            PluginMetadata: Metadata for the Delta Lake resource plugin,
+                including name, version, description, and capability support.
+
         """
         return PluginMetadata(
             name="delta",
@@ -32,7 +59,9 @@ class DeltaResourceProvider(ResourceProviderPlugin):
         """Get resource specs exposed by this plugin.
 
         Returns:
-            list[ResourceSpec]: Delta resource specifications.
+            list[ResourceSpec]: Delta resource specifications containing
+                the DeltaResource instance.
+
         """
         return [ResourceSpec(name="table_store", resource=DeltaResource())]
 
@@ -40,7 +69,9 @@ class DeltaResourceProvider(ResourceProviderPlugin):
         """Get table-store capability specs exposed by this plugin.
 
         Returns:
-            list[TableStoreSpec]: Delta table-store capability specifications.
+            list[TableStoreSpec]: Delta table-store capability specifications
+                with snapshot, schema evolution, and time travel support.
+
         """
         return [
             TableStoreSpec(
@@ -58,7 +89,9 @@ class DeltaResourceProvider(ResourceProviderPlugin):
         """Get schema-migrator capability specs exposed by this plugin.
 
         Returns:
-            list[SchemaMigrationSpec]: Delta schema migrator specifications.
+            list[SchemaMigrationSpec]: Delta schema migrator specifications
+                with schema evolution support.
+
         """
         return [
             SchemaMigrationSpec(

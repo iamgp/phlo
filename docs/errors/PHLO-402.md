@@ -1,8 +1,8 @@
 # PHLO-402: Iceberg Write Error
 
-**Error Type:** Iceberg Error
+**Error Type:** Iceberg Write Error
 **Severity:** High
-**Exception Class:** `PhloError` (code `PHLO-402`)
+**Exception Class:** `PhloError`
 
 ## Description
 

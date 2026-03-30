@@ -42,7 +42,7 @@ Works out-of-the-box when MinIO and Nessie are running:
 ### Resource Usage
 
 ```python
-from phlo_iceberg.resource import IcebergResource
+from phlo_iceberg import IcebergResource
 
 iceberg = IcebergResource()
 catalog = iceberg.get_catalog()
@@ -104,7 +104,7 @@ SELECT * FROM iceberg.bronze.users FOR VERSION AS OF 123456789;
 
 | Entry Point                   | Plugin                               |
 | ----------------------------- | ------------------------------------ |
-| `phlo.plugins.resources`      | `IcebergResourceProvider`            |
+| `phlo.resource_providers`     | `IcebergResourceProvider`            |
 
 ## Related Packages
 

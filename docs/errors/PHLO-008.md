@@ -1,6 +1,6 @@
 # PHLO-008: Infrastructure Error
 
-**Error Type:** Runtime and Integration Error
+**Error Type:** Infrastructure Error
 **Severity:** Critical
 **Exception Class:** `PhloInfrastructureError`
 
@@ -62,7 +62,7 @@ phlo services restart
 phlo services logs -f dagster-webserver
 
 # Check all services
-docker compose -f .phlo/docker-compose.yml logs --tail=50
+phlo services logs -f
 ```
 
 ### Solution 4: Verify connection settings

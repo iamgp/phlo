@@ -1,5 +1,4 @@
-"""
-Local test mode for running tests without Docker.
+"""Local test mode for running tests without Docker.
 
 Enables `phlo test --local` by automatically swapping production resources
 with mock implementations backed by DuckDB.
@@ -7,6 +6,7 @@ with mock implementations backed by DuckDB.
 Example:
     >>> os.environ["PHLO_TEST_LOCAL"] = "1"
     >>> # Assets automatically use mocks
+
 """
 
 from __future__ import annotations
@@ -24,16 +24,22 @@ from phlo_testing.mock_trino import MockTrinoResource
 
 
 class LocalTestMode:
-    """
-    Context manager to enable local test mode.
+    """Context manager to enable local test mode.
 
     Replaces production resources with mocks for fast local testing.
+
+    Attributes:
+        fixture_dir: Directory for fixture recording/playback.
+        use_recorded_fixtures: Whether to use pre-recorded fixtures.
+        table_store: MockIcebergCatalog instance for table operations.
+        trino: MockTrinoResource instance for SQL execution.
 
     Example:
         >>> with LocalTestMode() as mode:
         ...     # All resources are mocked
         ...     table_store = mode.table_store
         ...     trino = mode.trino
+
     """
 
     def __init__(
@@ -41,12 +47,12 @@ class LocalTestMode:
         fixture_dir: Optional[Path] = None,
         use_recorded_fixtures: bool = False,
     ) -> None:
-        """
-        Initialize local test mode.
+        """Initialize local test mode.
 
         Args:
-            fixture_dir: Directory for fixture recording/playback
-            use_recorded_fixtures: Whether to use pre-recorded fixtures
+            fixture_dir: Directory for fixture recording/playback.
+            use_recorded_fixtures: Whether to use pre-recorded fixtures.
+
         """
         self.fixture_dir = fixture_dir or Path(tempfile.gettempdir()) / "phlo_test_fixtures"
         self.fixture_dir.mkdir(exist_ok=True)
@@ -59,8 +65,15 @@ class LocalTestMode:
         self.table_store = MockIcebergCatalog()
         self.trino = MockTrinoResource()
 
-    def __enter__(self) -> LocalTestMode:
-        """Enter local test mode."""
+    def __enter__(self) -> "LocalTestMode":
+        """Enter local test mode.
+
+        Saves original environment and sets local test flags.
+
+        Returns:
+            Self for context manager use.
+
+        """
         # Save original environment
         self._original_env = os.environ.copy()
 
@@ -75,7 +88,10 @@ class LocalTestMode:
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Exit local test mode."""
+        """Exit local test mode.
+
+        Restores original environment and cleans up resources.
+        """
         # Restore original environment
         os.environ.clear()
         os.environ.update(self._original_env)
@@ -85,12 +101,12 @@ class LocalTestMode:
         self.trino.close()
 
     def record_fixture(self, name: str, data: Any) -> None:
-        """
-        Record a fixture for later playback.
+        """Record a fixture for later playback.
 
         Args:
-            name: Fixture name
-            data: Data to record
+            name: Fixture name.
+            data: Data to record.
+
         """
         fixture_file = self.fixture_dir / f"{name}.json"
 
@@ -104,17 +120,17 @@ class LocalTestMode:
             json.dump(data, f, indent=2, default=str)
 
     def load_fixture(self, name: str) -> Any:
-        """
-        Load a recorded fixture.
+        """Load a recorded fixture.
 
         Args:
-            name: Fixture name
+            name: Fixture name.
 
         Returns:
-            Fixture data
+            Fixture data.
 
         Raises:
-            FileNotFoundError: If fixture doesn't exist
+            FileNotFoundError: If fixture doesn't exist.
+
         """
         fixture_file = self.fixture_dir / f"{name}.json"
 
@@ -135,17 +151,17 @@ class LocalTestMode:
                 self._fixtures[name] = json.load(f)
 
     def get_resource(self, name: str) -> Any:
-        """
-        Get a mock resource.
+        """Get a mock resource.
 
         Args:
-            name: Resource name (table_store, trino)
+            name: Resource name (table_store, trino).
 
         Returns:
-            Mock resource
+            Mock resource.
 
         Raises:
-            ValueError: If resource doesn't exist
+            ValueError: If resource doesn't exist.
+
         """
         resources = {
             "table_store": self.table_store,
@@ -161,20 +177,20 @@ class LocalTestMode:
 @contextmanager
 def local_test_mode(
     fixture_dir: Optional[Path] = None,
-) -> Iterator[LocalTestMode]:
-    """
-    Context manager for local test mode.
+) -> Iterator["LocalTestMode"]:
+    """Context manager for local test mode.
 
     Args:
-        fixture_dir: Directory for fixtures
+        fixture_dir: Directory for fixtures.
 
     Yields:
-        LocalTestMode instance
+        LocalTestMode instance.
 
     Example:
         >>> with local_test_mode() as mode:
         ...     # Test with mocked resources
         ...     table = mode.table_store.create_table(...)
+
     """
     mode = LocalTestMode(fixture_dir=fixture_dir)
 
@@ -183,18 +199,26 @@ def local_test_mode(
 
 
 class LocalTestDecorator:
-    """
-    Decorator to mark tests that should use local mode.
+    """Decorator to mark tests that should use local mode.
 
     Example:
         >>> @local_test
         ... def test_my_asset():
         ...     # Runs with mocked resources
         ...     pass
+
     """
 
     def __call__(self, func: Any) -> Any:
-        """Apply decorator."""
+        """Apply decorator.
+
+        Args:
+            func: Function to wrap.
+
+        Returns:
+            Wrapped function that runs inside local test mode.
+
+        """
 
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             """Run the wrapped callable inside local test mode.
@@ -205,6 +229,7 @@ class LocalTestDecorator:
 
             Returns:
                 The wrapped callable result.
+
             """
             with local_test_mode():
                 return func(*args, **kwargs)
@@ -217,33 +242,36 @@ local_test = LocalTestDecorator()
 
 
 def is_local_test_mode() -> bool:
-    """
-    Check if running in local test mode.
+    """Check if running in local test mode.
 
     Returns:
-        True if PHLO_TEST_LOCAL environment variable is set
+        True if PHLO_TEST_LOCAL environment variable is set.
+
     """
     return os.environ.get("PHLO_TEST_LOCAL", "").lower() in ("1", "true")
 
 
 class FixtureRecorder:
-    """
-    Helper to record fixtures from real services.
+    """Helper to record fixtures from real services.
 
     Captures responses from production services and saves them for
     replay in local mode.
 
+    Attributes:
+        fixture_dir: Directory to store fixtures.
+
     Example:
         >>> recorder = FixtureRecorder(fixture_dir)
         >>> data = recorder.record_dlt_fetch("users", fetch_users_api)
+
     """
 
     def __init__(self, fixture_dir: Optional[Path] = None) -> None:
-        """
-        Initialize recorder.
+        """Initialize recorder.
 
         Args:
-            fixture_dir: Directory to store fixtures
+            fixture_dir: Directory to store fixtures.
+
         """
         self.fixture_dir = fixture_dir or Path(tempfile.gettempdir()) / "phlo_fixtures"
         self.fixture_dir.mkdir(exist_ok=True)
@@ -255,17 +283,17 @@ class FixtureRecorder:
         *args: Any,
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
-        """
-        Record data from a DLT source.
+        """Record data from a DLT source.
 
         Args:
-            name: Fixture name
-            source_func: Function that returns DLT source
-            *args: Args to pass to source_func
-            **kwargs: Kwargs to pass to source_func
+            name: Fixture name.
+            source_func: Function that returns DLT source.
+            *args: Args to pass to source_func.
+            **kwargs: Kwargs to pass to source_func.
 
         Returns:
-            List of records from source
+            List of records from source.
+
         """
         # Call source function to get data
         source = source_func(*args, **kwargs)
@@ -286,17 +314,17 @@ class FixtureRecorder:
         *args: Any,
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
-        """
-        Record results from a SQL query.
+        """Record results from a SQL query.
 
         Args:
-            name: Fixture name
-            query_func: Function that executes query
-            *args: Args to pass to query_func
-            **kwargs: Kwargs to pass to query_func
+            name: Fixture name.
+            query_func: Function that executes query.
+            *args: Args to pass to query_func.
+            **kwargs: Kwargs to pass to query_func.
 
         Returns:
-            Query results
+            Query results.
+
         """
         # Execute query
         results = query_func(*args, **kwargs)
@@ -316,14 +344,14 @@ class FixtureRecorder:
         return data
 
     def load_dlt_fixture(self, name: str) -> MockDLTResource:
-        """
-        Load a recorded DLT fixture.
+        """Load a recorded DLT fixture.
 
         Args:
-            name: Fixture name
+            name: Fixture name.
 
         Returns:
-            MockDLTResource with recorded data
+            MockDLTResource with recorded data.
+
         """
         fixture_file = self.fixture_dir / f"{name}_dlt.json"
 
@@ -336,11 +364,21 @@ class FixtureRecorder:
         return mock_dlt_source(data, resource_name=name)
 
     def get_fixture_dir(self) -> Path:
-        """Get fixture directory path."""
+        """Get fixture directory path.
+
+        Returns:
+            Path to fixture directory.
+
+        """
         return self.fixture_dir
 
     def list_fixtures(self) -> list[str]:
-        """List all recorded fixtures."""
+        """List all recorded fixtures.
+
+        Returns:
+            List of fixture names.
+
+        """
         if not self.fixture_dir.exists():
             return []
 
@@ -361,12 +399,22 @@ def disable_local_test_mode() -> None:
 
 
 def set_fixture_dir(path: Path) -> None:
-    """Set fixture directory path."""
+    """Set fixture directory path.
+
+    Args:
+        path: Path to fixture directory.
+
+    """
     os.environ["PHLO_FIXTURE_DIR"] = str(path)
 
 
 def get_fixture_dir() -> Path:
-    """Get fixture directory path."""
+    """Get fixture directory path.
+
+    Returns:
+        Path to fixture directory.
+
+    """
     env_path = os.environ.get("PHLO_FIXTURE_DIR")
 
     if env_path:

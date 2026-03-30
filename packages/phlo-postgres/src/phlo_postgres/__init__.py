@@ -1,4 +1,19 @@
-"""Postgres service plugin package."""
+"""Phlo PostgreSQL metadata store package.
+
+This package provides the PostgreSQL integration for Phlo, including:
+- Service plugin for managing PostgreSQL containers
+- Resource management with connection pooling
+- CLI commands for database operations
+- Configuration settings management
+- Publish targets for serving data
+
+Example:
+    >>> from phlo_postgres import PostgresResource, get_settings
+    >>> settings = get_settings()
+    >>> with PostgresResource() as db:
+    ...     rows = db.query("SELECT * FROM users LIMIT 10")
+
+"""
 
 from phlo_postgres.plugin import PostgresServicePlugin
 from phlo_postgres.publish_target import PostgresPublishTarget

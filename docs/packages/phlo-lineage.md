@@ -20,6 +20,11 @@ phlo plugin install lineage
 | ---------------- | ------- | -------------------------------- |
 | `LINEAGE_DB_URL` | -       | PostgreSQL DSN for lineage store |
 
+The lineage database URL is resolved from the first available source:
+1. `LINEAGE_DB_URL` (primary)
+2. `PHLO_LINEAGE_DB_URL` (fallback)
+3. `DAGSTER_PG_DB_CONNECTION_STRING` (tertiary - reuses Dagster's database)
+
 ## Features
 
 ### Auto-Configuration

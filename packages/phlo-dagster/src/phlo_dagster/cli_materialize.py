@@ -1,4 +1,42 @@
-"""Materialize Dagster assets via Docker."""
+"""Materialize command for Dagster assets via Docker.
+
+This module implements the `phlo materialize` CLI command, providing a
+convenient interface for materializing Dagster assets through Docker
+container execution. It handles environment setup and passes through
+to Dagster's asset materialization CLI.
+
+Features:
+    - Single asset or asset selection expression materialization
+    - Partition support for time-sliced assets
+    - Schema contract refresh control
+    - Dry-run mode for command preview
+    - Platform-aware environment injection (PHLO_HOST_PLATFORM)
+    - Automatic Dagster container discovery
+    - Streaming output from container execution
+
+Environment Variables:
+    - PHLO_HOST_PLATFORM: Host OS platform for DuckDB compatibility
+    - PHLO_PROJECT_PATH: Project path within container
+    - PHLO_AUTO_REFRESH_CONTRACTS: Enable schema contract refresh
+    - PHLO_CONTRACT_REFRESH_SELECTION: Assets to refresh contracts for
+
+Docker Integration:
+    The command uses `docker exec` to run Dagster CLI commands within
+the running Dagster container. This ensures:
+    - Access to configured resources (Trino, MinIO, etc.)
+    - Consistent Python environment
+    - Proper logging context
+
+Example:
+    CLI usage::
+
+        phlo materialize dlt_orders
+        phlo materialize dlt_orders --partition 2025-01-15
+        phlo materialize --select "tag:bronze"
+        phlo materialize dlt_orders --dry-run
+        phlo materialize dlt_orders --no-contract-refresh
+
+"""
 
 from __future__ import annotations
 
@@ -32,14 +70,21 @@ def materialize(
     no_contract_refresh: bool,
     dry_run: bool,
 ) -> None:
-    """
-    Materialize Dagster assets via Docker.
+    """Materialize Dagster assets via Docker.
 
-    Examples:
-        phlo materialize dlt_orders
-        phlo materialize dlt_orders --partition 2025-01-15
-        phlo materialize --select "tag:bronze"
-        phlo materialize dlt_orders --dry-run
+    Args:
+        asset_name: Name of the asset to materialize.
+        partition: Optional partition date (YYYY-MM-DD) for partitioned assets.
+        select: Optional asset selector expression to override asset_name.
+        no_contract_refresh: If True, skip automatic schema contract refresh.
+        dry_run: If True, show command without executing.
+
+    Returns:
+        None
+
+    Raises:
+        SystemExit: On command failure or Docker not found.
+
     """
     logger = get_logger("phlo.dagster.materialize", service="dagster")
     started_at = time.perf_counter()

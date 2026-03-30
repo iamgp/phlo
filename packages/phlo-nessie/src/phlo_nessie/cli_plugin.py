@@ -1,4 +1,17 @@
-"""CLI plugin for Nessie commands."""
+"""CLI plugin for Nessie commands.
+
+This module registers Nessie branch and catalog CLI commands with the Phlo
+plugin system, making them available through the main phlo CLI.
+
+Example:
+    >>> from phlo_nessie.cli_plugin import NessieCliPlugin
+    >>> plugin = NessieCliPlugin()
+    >>> commands = plugin.get_cli_commands()
+
+Classes:
+    NessieCliPlugin: Register Nessie CLI commands with Phlo.
+
+"""
 
 from __future__ import annotations
 
@@ -18,6 +31,7 @@ class NessieCliPlugin(CliCommandPlugin):
 
         Returns:
             PluginMetadata: Plugin identity, version, and description.
+
         """
         return PluginMetadata(
             name="nessie",
@@ -30,5 +44,6 @@ class NessieCliPlugin(CliCommandPlugin):
 
         Returns:
             list[click.Command]: Registered Nessie command groups.
+
         """
         return [catalog, branch]

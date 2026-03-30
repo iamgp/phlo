@@ -9,39 +9,23 @@ without importing any orchestrator libraries.
 
 ## System diagram
 
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│                          Installed Packages                       │
-│  phlo-dlt   phlo-dbt   phlo-pandera   phlo-iceberg   phlo-trino    │
-└──────────────────────────────────────────────────────────────────┘
-              │                       │
-              │ entry points           │ entry points
-              ▼                       ▼
-┌───────────────────────┐   ┌───────────────────────────┐
-│ Capability Providers  │   │ Catalog Providers         │
-│ phlo.plugins.assets   │   │ phlo.plugins.catalogs      │
-│ phlo.plugins.resources│   └───────────────────────────┘
-└───────────────────────┘               │
-              │                         │ catalog configs
-              │ specs                   ▼
-              ▼               ┌───────────────────────────┐
-┌───────────────────────┐     │ Catalog Generator         │
-│ Capability Registry   │     │ (per engine)              │
-│ (Asset/Check/Resource)│     └───────────────────────────┘
-└───────────────────────┘
-              │
-              │ active orchestrator
-              ▼
-┌───────────────────────┐
-│ Orchestrator Adapter  │
-│ phlo.plugins.orchestrators
-└───────────────────────┘
-              │
-              ▼
-┌───────────────────────┐
-│ Orchestrator Runtime  │
-│ (Dagster/Spark/etc.)  │
-└───────────────────────┘
+```mermaid
+flowchart TB
+    packages["Installed Packages<br/>phlo-dlt, phlo-dbt, phlo-pandera, phlo-iceberg, phlo-trino"]
+    capabilities["Capability Providers<br/>phlo.plugins.assets<br/>phlo.plugins.resources"]
+    catalogs["Catalog Providers<br/>phlo.plugins.catalogs"]
+    registry["Capability Registry<br/>(Asset / Check / Resource)"]
+    generator["Catalog Generator<br/>(per engine)"]
+    adapter["Orchestrator Adapter<br/>phlo.plugins.orchestrators"]
+    runtime["Orchestrator Runtime<br/>(Dagster / Spark / etc.)"]
+
+    packages -->|entry points| capabilities
+    packages -->|entry points| catalogs
+    capabilities -->|specs| registry
+    catalogs -->|catalog configs| generator
+    registry -->|active orchestrator| adapter
+    generator --> adapter
+    adapter --> runtime
 ```
 
 ## Why capability primitives

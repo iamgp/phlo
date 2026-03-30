@@ -61,12 +61,12 @@ PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(
 .PHONY: up down stop restart build rebuild pull ps logs exec clean clean-all fresh-start \
 	setup install install-dagster health test \
 	up-core up-query up-bi up-docs up-observability up-api up-catalog up-all \
-	dagster superset hub minio pgweb trino nessie grafana prometheus api hasura mkdocs openmetadata catalog \
+	dagster superset hub minio pgweb trino nessie grafana prometheus api hasura mkdocs openmetadata catalog docs-open \
 	dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
 	health-observability health-api health-catalog \
 	check lint lint-sql lint-python format-python typecheck-python \
 	lint-ts format-ts typecheck-ts test-core-regression fix-sql \
-	prek-install prek-run prek-validate zizmor
+	prek-install prek-run prek-validate zizmor docs-install docs-dev docs-build docs-serve
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -161,8 +161,10 @@ api:
 hasura:
 	@open http://localhost:$${HASURA_PORT:-10011}/console
 
-docs:
-	@open http://localhost:$${MKDOCS_PORT:-10012}
+docs: docs-serve
+
+docs-open:
+	@open http://localhost:3101
 
 openmetadata:
 	@open http://localhost:$${OPENMETADATA_PORT:-10020}
@@ -193,6 +195,18 @@ up-catalog:
 
 up-all:
 	$(COMPOSE) up -d $(PROFILE_ALL)
+
+docs-dev:
+	npm --prefix docs-app run dev
+
+docs-build:
+	npm --prefix docs-app run build
+
+docs-install:
+	@if [ ! -d docs-app/node_modules ]; then npm --prefix docs-app install; fi
+
+docs-serve: docs-install
+	npm --prefix docs-app run dev
 
 # Health check target
 health:

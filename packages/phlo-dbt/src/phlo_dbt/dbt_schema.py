@@ -2,6 +2,30 @@
 
 Enables single source of truth: define schema in dbt model YAML,
 generate Pandera schema automatically.
+
+This module bridges dbt and Pandera by parsing dbt model YAML files and
+generating corresponding Pandera DataFrameModel classes. This enables
+data validation using the same schema definitions used for documentation
+and testing in dbt.
+
+Example:
+    >>> from phlo_dbt.dbt_schema import dbt_model_to_pandera
+    >>> Schema = dbt_model_to_pandera(
+    ...     "workflows/transforms/dbt/models/silver/fct_orders.yml",
+    ...     "fct_orders"
+    ... )
+    >>>
+    >>> # Use for validation
+    >>> import pandas as pd
+    >>> df = pd.read_csv("orders.csv")
+    >>> validated_df = Schema.validate(df)
+    >>>
+    >>> # Schema can also be used with Phlo's quality checks
+    >>> from phlo.quality import phlo_quality
+    >>> @phlo_quality(schema=Schema)
+    ... def load_orders():
+    ...     return df
+
 """
 
 from __future__ import annotations
@@ -23,6 +47,8 @@ except Exception:  # noqa: BLE001 - optional dependency
         """Fallback schema base with PhloSchema defaults when phlo-pandera is unavailable."""
 
         class Config:
+            """Pandera configuration for fallback schema."""
+
             strict = False
             coerce = True
 
@@ -127,6 +153,7 @@ def dbt_model_to_pandera(
             "fct_orders"
         )
         validated_df = Schema.validate(df)
+
     """
     yaml_path = Path(yaml_path)
     configured_column_count: int | None = None

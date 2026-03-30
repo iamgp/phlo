@@ -1,4 +1,23 @@
-"""Hook plugin that translates Phlo events into OTel spans and metrics."""
+"""Hook plugin that translates Phlo events into OTel spans and metrics.
+
+This module implements the OtelHookPlugin, which integrates Phlo's hook system
+with OpenTelemetry. It translates various Phlo events (ingestion, transforms,
+quality checks, lineage, etc.) into OTel spans and metrics for comprehensive
+observability across the data platform.
+
+The plugin handles event correlation, trace context propagation, and metric
+collection, ensuring distributed traces can follow data pipelines across
+multiple services and operations.
+
+Example:
+    The plugin is automatically discovered and loaded by Phlo's plugin system:
+
+    from phlo.plugins.hooks import HookPlugin
+
+    # Events are emitted via Phlo's hook bus and automatically translated:
+    bus.emit(IngestionEvent(...))  # Creates OTel span + metrics
+
+"""
 
 from __future__ import annotations
 
@@ -38,9 +57,34 @@ from phlo_otel.provider import get_log_emitter, get_meter, get_tracer
 
 
 class OtelHookPlugin(HookPlugin):
-    """Emit OTel traces and metrics from Phlo hook events."""
+    """Emit OTel traces and metrics from Phlo hook events.
+
+        This plugin translates Phlo hook events into OpenTelemetry spans and metrics,
+        providing comprehensive observability for data pipelines. It handles event
+    correlation, trace context propagation, and standardized metric collection.
+
+        The plugin supports the following event types:
+        - Ingestion: Tracks data ingestion operations with row counts and duration
+        - Transform: Monitors transformation tools (dbt, etc.) with metrics
+        - Quality: Records quality check results with pass/fail status
+        - Lineage: Captures data lineage edge information
+        - Publish: Tracks data publishing to external systems
+        - Service Lifecycle: Monitors service startup/shutdown phases
+        - Schema Migration: Records DDL changes and schema evolution
+        - Data Migration: Tracks data movement operations
+        - Telemetry: Handles custom telemetry metrics
+        - Logs: Exports structured logs to OTel
+
+    Attributes:
+            _counter_cache: Cache for counter instruments to avoid recreation.
+            _gauge_cache: Cache for gauge instruments to avoid recreation.
+            _histogram_cache: Cache for histogram instruments to avoid recreation.
+            _up_down_counter_cache: Cache for up-down counter instruments.
+
+    """
 
     def __init__(self) -> None:
+        """Initialize the OtelHookPlugin with empty instrument caches."""
         self._counter_cache: dict[tuple[str, str], Any] = {}
         self._gauge_cache: dict[tuple[str, str], Any] = {}
         self._histogram_cache: dict[tuple[str, str], Any] = {}
@@ -48,6 +92,12 @@ class OtelHookPlugin(HookPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for discovery and identification.
+
+        Returns:
+            PluginMetadata: Metadata including name, version, and description.
+
+        """
         return PluginMetadata(
             name="otel",
             version="0.1.0",
@@ -55,6 +105,16 @@ class OtelHookPlugin(HookPlugin):
         )
 
     def get_hooks(self) -> list[HookRegistration]:
+        """Return list of hook registrations for event handling.
+
+                Registers handlers for all supported Phlo event types, mapping each
+        event to the appropriate OTel instrumentation logic.
+
+        Returns:
+                    list[HookRegistration]: List of 10 hook registrations covering
+                        all major Phlo event types.
+
+        """
         return [
             HookRegistration(
                 hook_name="otel_ingestion",
@@ -99,6 +159,25 @@ class OtelHookPlugin(HookPlugin):
         ]
 
     def _handle_ingestion(self, event: Any) -> None:
+        """Handle IngestionEvent and emit OTel spans and metrics.
+
+        Creates a span representing the ingestion operation with attributes
+        for table name, group, status, and metrics. Also records counters for
+        ingestion runs and rows processed, plus a duration histogram.
+
+        Args:
+            event: The IngestionEvent to process. Expected to be an instance
+                of IngestionEvent with table_name, group_name, status, and
+                metrics attributes.
+
+        Side Effects:
+            - Creates OTel span with ingestion attributes
+            - Records phlo.ingestion.runs counter
+            - Records phlo.ingestion.rows counter (if rows_loaded available)
+            - Records phlo.ingestion.duration histogram (if duration available)
+            - Records phlo.errors counter on failure
+
+        """
         if not isinstance(event, IngestionEvent):
             return
 
@@ -157,6 +236,23 @@ class OtelHookPlugin(HookPlugin):
         )
 
     def _handle_transform(self, event: Any) -> None:
+        """Handle TransformEvent and emit OTel spans and metrics.
+
+        Creates a span for transformation operations (dbt, etc.) with
+        attributes for tool, target, and model names. Records transform
+        runs counter and duration histogram.
+
+        Args:
+            event: The TransformEvent to process. Expected to have tool,
+                target, model_names, status, and metrics attributes.
+
+        Side Effects:
+            - Creates OTel span with transform attributes
+            - Records phlo.transform.runs counter
+            - Records phlo.transform.duration histogram (if duration available)
+            - Records phlo.errors counter on failure
+
+        """
         if not isinstance(event, TransformEvent):
             return
 
@@ -208,6 +304,23 @@ class OtelHookPlugin(HookPlugin):
         )
 
     def _handle_quality(self, event: Any) -> None:
+        """Handle QualityResultEvent and emit OTel spans and metrics.
+
+        Creates a span for quality check results with pass/fail status,
+        severity, and check metadata. Sets error status on the span for
+        failed checks and records quality check counter.
+
+        Args:
+            event: The QualityResultEvent to process. Expected to have
+                check_name, passed, severity, check_type, and metadata.
+
+        Side Effects:
+            - Creates OTel span with quality check attributes
+            - Sets span status to ERROR for failed checks
+            - Records phlo.quality.checks counter with pass/fail result
+            - Records phlo.errors counter on failure
+
+        """
         if not isinstance(event, QualityResultEvent):
             return
 
@@ -258,6 +371,21 @@ class OtelHookPlugin(HookPlugin):
         counter.add(1, {"check_name": event.check_name, "result": result})
 
     def _handle_lineage(self, event: Any) -> None:
+        """Handle LineageEvent and emit OTel spans and metrics.
+
+        Creates a span for lineage tracking with edge count and asset keys.
+        Records counters for lineage events and edges with attributes from tags.
+
+        Args:
+            event: The LineageEvent to process. Expected to have edges,
+                asset_keys, metadata, and tags.
+
+        Side Effects:
+            - Creates OTel span with lineage attributes
+            - Records phlo.lineage.events counter
+            - Records phlo.lineage.edges counter
+
+        """
         if not isinstance(event, LineageEvent):
             return
 
@@ -295,6 +423,24 @@ class OtelHookPlugin(HookPlugin):
         edge_counter.add(len(event.edges), attributes)
 
     def _handle_publish(self, event: Any) -> None:
+        """Handle PublishEvent and emit OTel spans and metrics.
+
+                Creates a span for data publishing operations with attributes for
+        target system, tables, and metrics. Records publish runs counter and
+        table count, plus duration histogram.
+
+        Args:
+                    event: The PublishEvent to process. Expected to have target_system,
+                        tables, status, metrics, and optional error.
+
+                Side Effects:
+                    - Creates OTel span with publish attributes
+                    - Records phlo.publish.runs counter
+                    - Records phlo.publish.tables counter (if tables present)
+                    - Records phlo.publish.duration histogram (if duration available)
+                    - Records phlo.errors counter on failure
+
+        """
         if not isinstance(event, PublishEvent):
             return
 
@@ -350,6 +496,23 @@ class OtelHookPlugin(HookPlugin):
         )
 
     def _handle_service_lifecycle(self, event: Any) -> None:
+        """Handle ServiceLifecycleEvent and emit OTel spans and metrics.
+
+        Creates a span for service lifecycle phases (start, stop, health check)
+        with service name and phase attributes. Sets error status for failed
+        phases and records lifecycle event counter.
+
+        Args:
+            event: The ServiceLifecycleEvent to process. Expected to have
+                service_name, phase, status, and optional project/container info.
+
+        Side Effects:
+            - Creates OTel span with service lifecycle attributes
+            - Sets span status to ERROR for failed phases
+            - Records phlo.service.lifecycle.events counter
+            - Records phlo.errors counter on failure
+
+        """
         if not isinstance(event, ServiceLifecycleEvent):
             return
 
@@ -401,6 +564,24 @@ class OtelHookPlugin(HookPlugin):
         )
 
     def _handle_schema_migration(self, event: Any) -> None:
+        """Handle SchemaMigrationEvent and emit OTel spans and metrics.
+
+        Creates a span for DDL/schema changes with table name, classification,
+        and change count. Records migration runs counter and changes counter,
+        setting error status for failed migrations.
+
+        Args:
+            event: The SchemaMigrationEvent to process. Expected to have
+                table_name, classification, change_count, status, and changes.
+
+        Side Effects:
+            - Creates OTel span with schema migration attributes
+            - Sets span status to ERROR for failed migrations
+            - Records phlo.schema_migration.runs counter
+            - Records phlo.schema_migration.changes counter
+            - Records phlo.errors counter on failure
+
+        """
         if not isinstance(event, SchemaMigrationEvent):
             return
 
@@ -447,6 +628,27 @@ class OtelHookPlugin(HookPlugin):
         changes_counter.add(event.change_count, labels)
 
     def _handle_data_migration(self, event: Any) -> None:
+        """Handle DataMigrationEvent and emit OTel spans and metrics.
+
+        Creates a span for data migration operations with source type,
+        destination table, and row counts. Records migration runs counter,
+        rows read/written counters, and duration histogram.
+
+        Args:
+            event: The DataMigrationEvent to process. Expected to have
+                migration_name, source_type, destination_table, rows_read,
+                rows_written, status, and metrics.
+
+        Side Effects:
+            - Creates OTel span with data migration attributes
+            - Sets span status to ERROR for failed migrations
+            - Records phlo.data_migration.runs counter
+            - Records phlo.data_migration.rows_read counter
+            - Records phlo.data_migration.rows_written counter
+            - Records phlo.data_migration.duration histogram
+            - Records phlo.errors counter on failure
+
+        """
         if not isinstance(event, DataMigrationEvent):
             return
 
@@ -512,6 +714,26 @@ class OtelHookPlugin(HookPlugin):
         )
 
     def _handle_telemetry(self, event: Any) -> None:
+        """Handle TelemetryEvent and emit OTel metrics.
+
+                Routes telemetry events to the appropriate metric instrument based on
+        the metric_kind in the payload. Supports counter, gauge, histogram, and
+        up_down_counter metric types.
+
+        Args:
+                    event: The TelemetryEvent to process. Expected to have name,
+                        value (numeric), unit, and payload with metric_kind.
+
+                Side Effects:
+                    - Creates or retrieves cached metric instrument
+                    - Records value to the appropriate instrument
+
+        Note:
+                    Non-numeric values are silently ignored.
+                    Special handling for iceberg.maintenance.* metrics which are
+                    promoted to standard phlo.maintenance.* metrics.
+
+        """
         if not isinstance(event, TelemetryEvent):
             return
         if event.event_type != "telemetry.metric":
@@ -561,6 +783,22 @@ class OtelHookPlugin(HookPlugin):
         gauge.set(event.value, attributes)
 
     def _handle_maintenance_telemetry(self, event: TelemetryEvent) -> bool:
+        """Handle Iceberg maintenance telemetry events.
+
+        Maps iceberg.maintenance.* telemetry events to standard Phlo maintenance
+        metrics with consistent naming and attributes.
+
+        Args:
+            event: The TelemetryEvent to check and process.
+
+        Returns:
+            bool: True if the event was handled (is a maintenance event),
+                False otherwise.
+
+        Side Effects:
+            - Records maintenance metrics to counter or histogram instruments
+
+        """
         if not event.name.startswith("iceberg.maintenance."):
             return False
 
@@ -607,6 +845,24 @@ class OtelHookPlugin(HookPlugin):
         return True
 
     def _handle_log_record(self, event: Any) -> None:
+        """Handle LogEvent and export to OTel logs.
+
+                Converts Phlo log events to OpenTelemetry LogRecord format and emits
+        to the configured log exporter. Preserves trace context from correlation
+        or derives it from run_id.
+
+        Args:
+                    event: The LogEvent to process. Expected to have timestamp,
+                        level, message, service, and metadata.
+
+                Side Effects:
+                    - Emits LogRecord to OTel log emitter if configured
+
+        Note:
+                    If log emitter is not configured (logs export disabled),
+                    this method silently returns without emitting.
+
+        """
         if not isinstance(event, LogEvent):
             return
 
@@ -629,6 +885,17 @@ class OtelHookPlugin(HookPlugin):
         emitter.emit(log_record)
 
     def _get_counter(self, name: str, *, description: str, unit: str = "") -> Any:
+        """Get or create a counter instrument with caching.
+
+        Args:
+            name: The metric name.
+            description: Human-readable description of the metric.
+            unit: Unit of measurement (default: empty string).
+
+        Returns:
+            Counter: Cached or newly created counter instrument.
+
+        """
         cache_key = (name, unit)
         counter = self._counter_cache.get(cache_key)
         if counter is None:
@@ -637,6 +904,17 @@ class OtelHookPlugin(HookPlugin):
         return counter
 
     def _get_gauge(self, name: str, *, unit: str, description: str) -> Any:
+        """Get or create a gauge instrument with caching.
+
+        Args:
+            name: The metric name.
+            unit: Unit of measurement.
+            description: Human-readable description of the metric.
+
+        Returns:
+            Gauge: Cached or newly created gauge instrument.
+
+        """
         cache_key = (name, unit)
         gauge = self._gauge_cache.get(cache_key)
         if gauge is None:
@@ -645,6 +923,17 @@ class OtelHookPlugin(HookPlugin):
         return gauge
 
     def _get_histogram(self, name: str, *, unit: str, description: str) -> Any:
+        """Get or create a histogram instrument with caching.
+
+        Args:
+            name: The metric name.
+            unit: Unit of measurement.
+            description: Human-readable description of the metric.
+
+        Returns:
+            Histogram: Cached or newly created histogram instrument.
+
+        """
         cache_key = (name, unit)
         histogram = self._histogram_cache.get(cache_key)
         if histogram is None:
@@ -653,6 +942,17 @@ class OtelHookPlugin(HookPlugin):
         return histogram
 
     def _get_up_down_counter(self, name: str, *, unit: str, description: str) -> Any:
+        """Get or create an up-down counter instrument with caching.
+
+        Args:
+            name: The metric name.
+            unit: Unit of measurement.
+            description: Human-readable description of the metric.
+
+        Returns:
+            UpDownCounter: Cached or newly created up-down counter instrument.
+
+        """
         cache_key = (name, unit)
         counter = self._up_down_counter_cache.get(cache_key)
         if counter is None:
@@ -661,7 +961,16 @@ class OtelHookPlugin(HookPlugin):
         return counter
 
     def _resolve_metric_kind(self, payload: dict[str, Any]) -> str:
-        """Resolve telemetry metric type from reserved payload attributes."""
+        """Resolve telemetry metric type from reserved payload attributes.
+
+        Args:
+            payload: Telemetry event payload dictionary.
+
+        Returns:
+            str: One of "counter", "gauge", "histogram", "up_down_counter".
+                Defaults to "gauge" if not specified or invalid.
+
+        """
         raw_kind = payload.get("metric_kind", payload.get("otel_metric_kind", "gauge"))
         if not isinstance(raw_kind, str):
             return "gauge"
@@ -673,6 +982,19 @@ class OtelHookPlugin(HookPlugin):
         return metric_kind
 
     def _normalize_metric_attributes(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Normalize telemetry payload attributes for metrics.
+
+        Filters payload to only allowed metric label keys and coerces
+        values to valid metric attribute types.
+
+        Args:
+            payload: Raw telemetry payload dictionary.
+
+        Returns:
+            dict[str, Any]: Filtered and coerced attributes suitable for
+                metric dimensions.
+
+        """
         normalized: dict[str, Any] = {}
         for key, value in payload.items():
             if key not in self._allowed_metric_label_keys():
@@ -681,15 +1003,36 @@ class OtelHookPlugin(HookPlugin):
         return normalized
 
     def _set_numeric_span_attributes(self, span: Span, metrics: dict[str, Any]) -> None:
+        """Set numeric metrics as span attributes.
+
+        Args:
+            span: The span to set attributes on.
+            metrics: Dictionary of metric name to numeric value.
+
+        """
         for key, value in metrics.items():
             if isinstance(value, (int, float)):
                 span.set_attribute(f"phlo.metrics.{key}", value)
 
     def _set_event_tags(self, span: Span, tags: dict[str, str]) -> None:
+        """Set event tags as span attributes with phlo.tags prefix.
+
+        Args:
+            span: The span to set attributes on.
+            tags: Dictionary of tag key-value pairs.
+
+        """
         for key, value in tags.items():
             span.set_attribute(f"phlo.tags.{key}", value)
 
     def _set_correlation_attributes(self, span: Span, correlation: HookCorrelation) -> None:
+        """Set correlation attributes on a span.
+
+        Args:
+            span: The span to set attributes on.
+            correlation: HookCorrelation with request_id, run_id, asset_key, etc.
+
+        """
         if correlation.request_id:
             span.set_attribute("phlo.request_id", correlation.request_id)
         if correlation.run_id:
@@ -704,15 +1047,41 @@ class OtelHookPlugin(HookPlugin):
             span.set_attribute("phlo.check_name", correlation.check_name)
 
     def _set_attribute_if_present(self, span: Span, key: str, value: str | None) -> None:
+        """Set a span attribute only if value is present and non-empty.
+
+        Args:
+            span: The span to set attribute on.
+            key: The attribute key.
+            value: The attribute value (set only if truthy).
+
+        """
         if value:
             span.set_attribute(key, value)
 
     def _metric_attributes_from_tags(self, tags: dict[str, str]) -> dict[str, str]:
+        """Extract allowed metric label keys from tags.
+
+        Args:
+            tags: Dictionary of tag key-value pairs.
+
+        Returns:
+            dict[str, str]: Filtered tags containing only allowed metric labels.
+
+        """
         return {
             key: value for key, value in tags.items() if key in self._allowed_metric_label_keys()
         }
 
     def _allowed_metric_label_keys(self) -> set[str]:
+        """Return the set of allowed metric label keys.
+
+        These keys are allowed as metric dimensions to prevent high-cardinality
+        issues while still providing useful filtering capabilities.
+
+        Returns:
+            set[str]: Set of allowed metric attribute keys.
+
+        """
         return {
             "backend",
             "classification",
@@ -731,6 +1100,16 @@ class OtelHookPlugin(HookPlugin):
         }
 
     def _build_log_attributes(self, event: LogEvent) -> dict[str, Any]:
+        """Build OTel log attributes from a LogEvent.
+
+        Args:
+            event: The LogEvent to convert.
+
+        Returns:
+            dict[str, Any]: Dictionary of OTel log attributes including
+                phlo-specific metadata and event tags.
+
+        """
         correlation = self._merge_correlation(
             event.correlation,
             run_id=event.run_id,
@@ -771,6 +1150,18 @@ class OtelHookPlugin(HookPlugin):
         return attributes
 
     def _coerce_attribute_value(self, value: Any) -> Any:
+        """Coerce a value to a valid OTel attribute type.
+
+        OTel attributes must be primitive types (bool, int, float, str) or
+        homogeneous lists of primitives.
+
+        Args:
+            value: The value to coerce.
+
+        Returns:
+            Any: Coerced value suitable for OTel attributes.
+
+        """
         if isinstance(value, (bool, int, float, str)):
             return value
         if isinstance(value, (list, tuple)):
@@ -780,6 +1171,18 @@ class OtelHookPlugin(HookPlugin):
         return str(value)
 
     def _coerce_metric_attribute_value(self, value: Any) -> Any:
+        """Coerce a value to a valid metric attribute type.
+
+        Similar to _coerce_attribute_value but returns tuples for lists
+        to ensure immutability for metric dimensions.
+
+        Args:
+            value: The value to coerce.
+
+        Returns:
+            Any: Coerced value suitable for metric attributes.
+
+        """
         if isinstance(value, (bool, int, float, str)):
             return value
         if isinstance(value, (list, tuple)):
@@ -789,6 +1192,15 @@ class OtelHookPlugin(HookPlugin):
         return str(value)
 
     def _map_severity(self, level: str) -> SeverityNumber:
+        """Map log level string to OTel SeverityNumber.
+
+        Args:
+            level: Log level string (debug, info, warning, error, critical, etc.)
+
+        Returns:
+            SeverityNumber: OTel severity number. Defaults to INFO for unknown levels.
+
+        """
         normalized = level.strip().lower()
         if normalized == "debug":
             return SeverityNumber.DEBUG
@@ -801,6 +1213,16 @@ class OtelHookPlugin(HookPlugin):
         return SeverityNumber.INFO
 
     def _event_stage(self, event_type: str) -> str:
+        """Determine the pipeline stage from event type.
+
+        Args:
+            event_type: The event type string (e.g., "ingestion.complete").
+
+        Returns:
+            str: The pipeline stage (ingestion, transform, quality, lineage,
+                publish, service, migration, telemetry, log).
+
+        """
         prefix = event_type.split(".", maxsplit=1)[0]
         if prefix in {"schema_migration", "data_migration"}:
             return "migration"
@@ -813,6 +1235,15 @@ class OtelHookPlugin(HookPlugin):
         return prefix
 
     def _is_failure_status(self, status: str) -> bool:
+        """Check if a status string indicates failure.
+
+        Args:
+            status: The status string to check.
+
+        Returns:
+            bool: True if status indicates an error/failure state.
+
+        """
         return status.lower() in {"error", "failed", "failure", "rejected"}
 
     def _record_duration(
@@ -823,6 +1254,15 @@ class OtelHookPlugin(HookPlugin):
         attributes: dict[str, str],
         description: str,
     ) -> None:
+        """Record duration metric from event metrics if available.
+
+        Args:
+            metric_name: The name of the duration histogram.
+            metrics: Event metrics dictionary containing duration.
+            attributes: Metric attributes/dimensions.
+            description: Metric description.
+
+        """
         duration = self._extract_duration_seconds(metrics)
         if duration is None:
             return
@@ -831,6 +1271,15 @@ class OtelHookPlugin(HookPlugin):
         histogram.record(duration, attributes)
 
     def _extract_duration_seconds(self, metrics: dict[str, Any]) -> float | None:
+        """Extract duration in seconds from metrics dictionary.
+
+        Args:
+            metrics: Dictionary of metric key-value pairs.
+
+        Returns:
+            float | None: Duration in seconds if found, None otherwise.
+
+        """
         for key in ("duration_seconds", "total_elapsed_seconds", "elapsed_seconds"):
             value = metrics.get(key)
             if isinstance(value, (int, float)):
@@ -844,6 +1293,14 @@ class OtelHookPlugin(HookPlugin):
         status: str | None,
         error: str | None = None,
     ) -> None:
+        """Record failure/error counter if event indicates failure.
+
+        Args:
+            event_name: Name of the event type for the error label.
+            status: Event status string (checked for failure indicators).
+            error: Optional error message (if present, counts as failure).
+
+        """
         if not (error or (status and self._is_failure_status(status))):
             return
 
@@ -854,9 +1311,31 @@ class OtelHookPlugin(HookPlugin):
         counter.add(1, {"event": event_name, "status": status or "error"})
 
     def _datetime_to_unix_nanos(self, value: datetime) -> int:
+        """Convert datetime to Unix nanoseconds timestamp.
+
+        Args:
+            value: Datetime to convert.
+
+        Returns:
+            int: Unix timestamp in nanoseconds.
+
+        """
         return int(value.timestamp() * 1_000_000_000)
 
     def _resolve_log_context(self, event: LogEvent) -> tuple[int | None, int | None, Any | None]:
+        """Resolve trace context for a log event.
+
+        Attempts to extract trace_id, span_id, and trace_flags from event
+        correlation, metadata, or derives stable identifiers from run_id.
+
+        Args:
+            event: The LogEvent to extract context from.
+
+        Returns:
+            tuple: (trace_id, span_id, trace_flags) where values may be None
+                if context cannot be determined.
+
+        """
         correlation = self._merge_correlation(
             event.correlation,
             trace_id=event.metadata.get("trace_id"),
@@ -897,6 +1376,16 @@ class OtelHookPlugin(HookPlugin):
         return trace_id, span_id, trace_flags
 
     def _merge_correlation(self, correlation: HookCorrelation, **overrides: Any) -> HookCorrelation:
+        """Merge override values into a HookCorrelation.
+
+        Args:
+            correlation: Base correlation object.
+            **overrides: Keyword arguments to override in the correlation.
+
+        Returns:
+            HookCorrelation: New correlation with overrides applied.
+
+        """
         merged = HookCorrelation(**vars(correlation))
         for key, value in overrides.items():
             if value is not None:
@@ -904,6 +1393,19 @@ class OtelHookPlugin(HookPlugin):
         return merged
 
     def _build_parent_context(self, correlation: HookCorrelation) -> Context | None:
+        """Build OTel parent context from correlation for distributed tracing.
+
+        Creates a SpanContext from correlation trace_id/span_id or derives
+        stable identifiers from run_id/request_id for trace continuity.
+
+        Args:
+            correlation: HookCorrelation with trace context information.
+
+        Returns:
+            Context | None: OTel context with parent span, or None if no
+                valid context can be constructed.
+
+        """
         trace_id = self._parse_trace_identifier(correlation.trace_id)
         span_id = self._parse_trace_identifier(correlation.span_id)
         if trace_id is None or span_id is None:
@@ -931,6 +1433,20 @@ class OtelHookPlugin(HookPlugin):
         self,
         correlation: HookCorrelation,
     ) -> tuple[int | None, int | None]:
+        """Derive stable trace_id and span_id from correlation.
+
+        Uses run_id or request_id to generate deterministic trace identifiers,
+        enabling trace continuity across process boundaries without explicit
+        trace context propagation.
+
+        Args:
+            correlation: HookCorrelation with run_id or request_id.
+
+        Returns:
+            tuple: (trace_id, span_id) as integers, or (None, None) if
+                no grouping key is available.
+
+        """
         grouping_key = self._trace_grouping_key(correlation)
         if grouping_key is None:
             return None, None
@@ -940,6 +1456,16 @@ class OtelHookPlugin(HookPlugin):
         return trace_id, span_id
 
     def _trace_grouping_key(self, correlation: HookCorrelation) -> str | None:
+        """Determine the trace grouping key from correlation.
+
+        Args:
+            correlation: HookCorrelation with run_id and request_id.
+
+        Returns:
+            str | None: Grouping key for trace derivation, or None if neither
+                run_id nor request_id is available.
+
+        """
         if correlation.run_id:
             return f"run:{correlation.run_id}"
         if correlation.request_id:
@@ -947,10 +1473,36 @@ class OtelHookPlugin(HookPlugin):
         return None
 
     def _stable_identifier(self, value: str, *, bytes_length: int) -> int:
+        """Generate a stable integer identifier from a string value.
+
+        Uses SHA-256 hash to create deterministic identifiers for consistent
+        trace context across distributed components processing the same event.
+
+        Args:
+            value: The string value to hash.
+            bytes_length: Number of bytes to use from the hash (8 for span_id,
+                16 for trace_id).
+
+        Returns:
+            int: Stable integer identifier derived from the hash.
+
+        """
         digest = hashlib.sha256(value.encode("utf-8")).digest()
         return int.from_bytes(digest[:bytes_length], byteorder="big", signed=False)
 
     def _parse_trace_identifier(self, value: Any) -> int | None:
+        """Parse a trace identifier from various input formats.
+
+        Handles hex strings (with or without 0x prefix), integers, and None.
+
+        Args:
+            value: The value to parse (str, int, or None).
+
+        Returns:
+            int | None: Parsed trace identifier, or None if parsing fails
+                or value is None/empty.
+
+        """
         if value is None:
             return None
         if isinstance(value, int):
@@ -969,6 +1521,15 @@ class OtelHookPlugin(HookPlugin):
             return None
 
     def _parse_trace_flags(self, value: Any) -> TraceFlags | None:
+        """Parse trace flags from a value.
+
+        Args:
+            value: The value to parse (str, int, or None).
+
+        Returns:
+            TraceFlags | None: Parsed trace flags, or None if parsing fails.
+
+        """
         trace_flags = self._parse_trace_identifier(value)
         if trace_flags is None:
             return None

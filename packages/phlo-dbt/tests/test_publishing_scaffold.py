@@ -14,6 +14,7 @@ def _write_manifest(path: Path, model_names: list[str]) -> None:
     Args:
         path: Manifest file path.
         model_names: Model names to include as dbt nodes.
+
     """
 
     nodes = {}
@@ -60,6 +61,7 @@ def test_scaffold_command_writes_file(tmp_path: Path, monkeypatch: pytest.Monkey
     Args:
         tmp_path: Temporary directory fixture.
         monkeypatch: Pytest monkeypatch fixture.
+
     """
 
     from click.testing import CliRunner

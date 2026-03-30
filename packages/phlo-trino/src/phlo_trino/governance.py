@@ -1,4 +1,30 @@
-"""Trino governance backend for access control via SQL grants."""
+"""Trino governance backend for access control via SQL grants.
+
+This module implements the GovernanceBackend interface using Trino's
+native SQL GRANT/DENY/REVOKE commands for access control management.
+
+Classes:
+    TrinoGovernanceBackend: Governance backend for Trino access control.
+
+Functions:
+    _validate_identifier: Validate SQL identifiers to prevent injection.
+
+Constants:
+    _ALLOWED_ACTIONS: Set of supported SQL privilege actions.
+
+Example:
+    >>> from phlo_trino.governance import TrinoGovernanceBackend
+    >>> from phlo.capabilities.interfaces import AccessPolicy
+    >>> backend = TrinoGovernanceBackend()
+    >>> policy = AccessPolicy(
+    ...     table_pattern="my_schema.my_table",
+    ...     principal="analyst_role",
+    ...     action="SELECT",
+    ...     effect="GRANT"
+    ... )
+    >>> backend.apply_policy(policy=policy)
+
+"""
 
 from __future__ import annotations
 
@@ -36,6 +62,7 @@ def _validate_identifier(value: str, label: str) -> str:
 
     Raises:
         ValueError: If the identifier contains invalid characters.
+
     """
     if not _IDENTIFIER_RE.match(value):
         raise ValueError(f"Invalid {label}: {value!r}")
@@ -46,6 +73,7 @@ class TrinoGovernanceBackend:
     """GovernanceBackend implementation using Trino SQL grants."""
 
     def __init__(self, trino: TrinoResource | None = None) -> None:
+        """Initialize the governance backend with optional Trino resource."""
         self._trino = trino or TrinoResource()
 
     def list_policies(self, *, table_name: str | None = None) -> list[dict[str, Any]]:

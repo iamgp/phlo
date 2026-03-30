@@ -1,4 +1,23 @@
-"""Trino catalog generator from discovered plugins."""
+"""Trino catalog generator from discovered plugins.
+
+This module generates Trino catalog configuration files (.properties)
+from discovered catalog plugins. It supports both modern plugin discovery
+and legacy entry-point based catalog loading.
+
+Functions:
+    discover_trino_catalogs: Discover Trino-compatible catalog plugins.
+    generate_catalog_files: Generate catalog .properties files.
+    _load_entry_points: Load catalog plugins from entry points.
+    _filter_catalogs: Filter catalogs by target runtime.
+    _to_properties_file: Serialize properties to Java format.
+
+Example:
+    >>> from phlo_trino.catalog_generator import generate_catalog_files
+    >>> files = generate_catalog_files("./trino/catalog")
+    >>> print(files)
+    {'iceberg': PosixPath('.../iceberg.properties')}
+
+"""
 
 from __future__ import annotations
 
@@ -21,6 +40,7 @@ def _load_entry_points(group: str) -> list[CatalogPlugin]:
 
     Returns:
         Instantiated catalog plugins that inherit from ``CatalogPlugin``.
+
     """
     try:
         entry_points = importlib.metadata.entry_points(group=group)
@@ -55,6 +75,7 @@ def _filter_catalogs(catalogs: list[CatalogPlugin], target: str) -> list[Catalog
 
     Returns:
         Catalog plugins compatible with the requested target.
+
     """
     filtered: list[CatalogPlugin] = []
     for catalog in catalogs:
@@ -103,6 +124,7 @@ def _to_properties_file(properties: dict[str, object]) -> str:
 
     Returns:
         Newline-delimited ``key=value`` content with escaped values.
+
     """
 
     def escape_value(value: object) -> str:
@@ -113,6 +135,7 @@ def _to_properties_file(properties: dict[str, object]) -> str:
 
         Returns:
             Escaped text safe for ``.properties`` files.
+
         """
         text = str(value)
         text = text.replace("\\", "\\\\")
@@ -131,14 +154,14 @@ def _to_properties_file(properties: dict[str, object]) -> str:
 
 
 def generate_catalog_files(output_dir: str | Path | None = None) -> dict[str, Path]:
-    """
-    Generate Trino catalog .properties files from discovered plugins.
+    """Generate Trino catalog .properties files from discovered plugins.
 
     Args:
         output_dir: Directory to write catalog files. Defaults to ./trino/catalog/
 
     Returns:
         Dictionary mapping catalog name to generated file path
+
     """
     if output_dir is None:
         output_dir = Path(os.environ.get("TRINO_CATALOG_DIR", "./trino/catalog"))

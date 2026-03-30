@@ -2,9 +2,19 @@
 Phlo API - Backend service exposing phlo internals to Observatory.
 
 This FastAPI service provides endpoints for Observatory to:
-- List installed plugins
+- List installed plugins and services
 - Get service status and configuration
 - Read phlo.yaml config
+- Query data contracts and lineage
+- Access maintenance and observability data
+
+The API is organized into multiple router modules under `api/` and
+`observatory_api/` directories, auto-discovered and registered at startup.
+
+Environment Variables:
+    HOST: API server bind address (default: "0.0.0.0").
+    PORT: API server port (default: 4000).
+    PHLO_PROJECT_PATH: Path to the phlo project directory (default: "/app/project").
 """
 
 from __future__ import annotations
@@ -63,7 +73,30 @@ _OBSERVATORY_ROUTERS_NO_PREFIX = [
 
 
 def _register_observatory_routers() -> None:
-    """Register Observatory API routers if available."""
+    """Register Observatory API routers if available.
+
+    Auto-discovers and registers routers from the _ROUTERS and
+    _OBSERVATORY_ROUTERS_NO_PREFIX lists. Each module is expected to
+    expose a FastAPI `router` object.
+
+    Routers with a prefix are mounted at that path; routers without
+    a prefix are mounted at the root.
+
+    Import errors are logged as debug messages to allow graceful
+    degradation when optional dependencies are not installed.
+
+    Example:
+        On startup, this function attempts to import each module
+        and register its router:
+
+        .. code-block:: python
+
+            # Module: phlo_api.observatory_api.trino
+            # Prefix: /api/trino
+            from phlo_api.observatory_api.trino import router
+            app.include_router(router, prefix="/api/trino")
+
+    """
     # Combine routers with prefix and without prefix into single iterable
     all_routers = [
         *_ROUTERS,
@@ -88,7 +121,23 @@ _register_observatory_routers()
 
 @app.middleware("http")
 async def bind_request_logging_context(request: Request, call_next: Any) -> Any:
-    """Bind per-request correlation fields for structured logging."""
+    """Bind per-request correlation fields for structured logging.
+
+    This middleware extracts or generates request tracking identifiers
+    and binds them to the logging context for the duration of the
+    request. This enables correlation of logs across the request lifecycle.
+
+    Args:
+        request: The incoming FastAPI request.
+        call_next: The next middleware or route handler in the chain.
+
+    Returns:
+        The response from the next handler in the chain.
+
+    Raises:
+        Any exception raised by call_next will propagate after context cleanup.
+
+    """
     request_id = request.headers.get("x-request-id") or str(uuid4())
     trace_id = request.headers.get("traceparent") or request.headers.get("x-trace-id")
     bind_context(
@@ -104,13 +153,45 @@ async def bind_request_logging_context(request: Request, call_next: Any) -> Any:
 
 
 def get_project_path() -> Path:
-    """Get the phlo project path from environment or default."""
+    """Get the phlo project path from environment or default.
+
+    The project path is used to locate configuration files like
+    phlo.yaml and contract artifacts.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        Path: The resolved project directory path.
+
+    Environment Variables:
+        PHLO_PROJECT_PATH: Overrides the default path.
+
+    """
     project_path = os.environ.get("PHLO_PROJECT_PATH", "/app/project")
     return Path(project_path)
 
 
 def load_phlo_config() -> dict[str, Any]:
-    """Load phlo.yaml configuration."""
+    """Load phlo.yaml configuration from the project directory.
+
+    Reads and parses the phlo.yaml configuration file from the
+    project path. If the file is missing or unreadable, returns
+    a fallback configuration.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        dict[str, Any]: Parsed configuration dictionary.
+
+    Raises:
+        Exception: If the file exists but cannot be parsed.
+
+    Logging:
+        Logs configuration load events for observability.
+
+    """
     config_path = get_project_path() / "phlo.yaml"
     logger.info("phlo_config_load_started", config_path=str(config_path))
     if not config_path.exists():
@@ -140,6 +221,20 @@ def load_phlo_config() -> dict[str, Any]:
 
 
 def _default_table_store_name() -> str | None:
+    """Resolve the default table store capability name.
+
+    Returns:
+        str | None: The name of the resolved table_store capability,
+            or None if not available or an error occurs.
+
+    Example:
+        .. code-block:: python
+
+            store = _default_table_store_name()
+            if store:
+                print(f"Using table store: {store}")
+
+    """
     try:
         from phlo.capabilities import resolve_capability
 
@@ -150,6 +245,20 @@ def _default_table_store_name() -> str | None:
 
 
 def _default_schema_migrator_name() -> str | None:
+    """Resolve the default schema migrator capability name.
+
+    Returns:
+        str | None: The name of the resolved schema_migrator capability,
+            or None if not available or an error occurs.
+
+    Example:
+        .. code-block:: python
+
+            migrator = _default_schema_migrator_name()
+            if migrator:
+                print(f"Using schema migrator: {migrator}")
+
+    """
     try:
         from phlo.capabilities import resolve_capability
 
@@ -160,7 +269,26 @@ def _default_schema_migrator_name() -> str | None:
 
 
 def _list_api_backends() -> list[dict[str, Any]]:
-    """List capability-backed API backends and their current health."""
+    """List capability-backed API backends and their current health.
+
+    Discovers all registered API backend capabilities and performs
+    health checks on each provider.
+
+    Returns:
+        list[dict[str, Any]]: List of backend dictionaries containing:
+            - name: Backend identifier
+            - healthy: Health check status
+            - metadata: Capability metadata
+            - description: Provider description
+
+    Example:
+        .. code-block:: python
+
+            backends = _list_api_backends()
+            healthy_count = sum(1 for b in backends if b["healthy"])
+            print(f"Healthy backends: {healthy_count}/{len(backends)}")
+
+    """
     try:
         from phlo.capabilities import get_capability_registry
         from phlo.capabilities.discovery import discover_capabilities
@@ -192,7 +320,22 @@ def _list_api_backends() -> list[dict[str, Any]]:
 
 
 def _get_api_backend(name: str) -> dict[str, Any] | None:
-    """Get one capability-backed API backend by name."""
+    """Get one capability-backed API backend by name.
+
+    Args:
+        name: Backend identifier to search for.
+
+    Returns:
+        dict[str, Any] | None: The backend dictionary if found, None otherwise.
+
+    Example:
+        .. code-block:: python
+
+            backend = _get_api_backend("postgres")
+            if backend:
+                print(f"Backend status: {backend['healthy']}")
+
+    """
     for backend in _list_api_backends():
         if backend["name"] == name:
             return backend
@@ -200,6 +343,33 @@ def _get_api_backend(name: str) -> dict[str, Any] | None:
 
 
 def _parse_quality_contract_tags(tags: dict[str, str]) -> dict[str, Any]:
+    """Parse quality contract metadata from asset tags.
+
+    Extracts owner, consumer list, and SLA from contract-related
+    tags attached to quality checks or assets.
+
+    Args:
+        tags: Dictionary of tag key-value pairs.
+
+    Returns:
+        dict[str, Any]: Parsed contract metadata containing:
+            - owner: Contract owner identifier
+            - consumers: List of consumer identifiers
+            - sla: Service level agreement as dict (if parseable)
+
+    Example:
+        .. code-block:: python
+
+            tags = {
+                "contract_owner": "data-team",
+                "contract_consumers": "analytics,ml",
+                "contract_sla": '{"freshness_hours": 24}'
+            }
+            result = _parse_quality_contract_tags(tags)
+            assert result["owner"] == "data-team"
+            assert len(result["consumers"]) == 2
+
+    """
     owner = tags.get("contract_owner")
     consumers_raw = tags.get("contract_consumers", "")
     consumers = [c for c in consumers_raw.split(",") if c]
@@ -218,6 +388,23 @@ def _parse_quality_contract_tags(tags: dict[str, str]) -> dict[str, Any]:
 
 
 def _load_contract_artifacts() -> dict[str, dict[str, Any]]:
+    """Load contract artifacts from the .phlo/contracts directory.
+
+    Reads JSON contract files and returns them keyed by table name.
+    Invalid or malformed files are silently skipped.
+
+    Returns:
+        dict[str, dict[str, Any]]: Dictionary mapping table names to
+            their contract artifact payloads.
+
+    Example:
+        .. code-block:: python
+
+            artifacts = _load_contract_artifacts()
+            for table, contract in artifacts.items():
+                print(f"{table}: {contract['contract_version']}")
+
+    """
     contracts_dir = get_project_path() / ".phlo" / "contracts"
     if not contracts_dir.exists():
         return {}
@@ -351,20 +538,59 @@ def _get_contract_by_table(table_name: str) -> dict[str, Any] | None:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    """Health check endpoint."""
+    """Health check endpoint.
+
+    Returns the API service health status.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        Dictionary with "status" key set to "healthy".
+
+    Raises:
+        None: No exceptions raised directly.
+
+    """
     return {"status": "healthy"}
 
 
 @app.get("/api/config")
 def get_config() -> dict[str, Any]:
-    """Get phlo.yaml configuration."""
+    """Get phlo.yaml configuration.
+
+    Returns the parsed phlo.yaml configuration from the project directory.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        Dictionary containing the project configuration.
+
+    Raises:
+        None: Exceptions are caught and returned as error responses.
+
+    """
     logger.info("api_config_get_started")
     return load_phlo_config()
 
 
 @app.get("/api/plugins")
 def get_plugins() -> dict[str, list[str]]:
-    """List all installed plugins by type."""
+    """List all installed plugins by type.
+
+    Returns plugins organized by their type/category.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        Dictionary mapping plugin types to lists of plugin names.
+
+    Raises:
+        None: Exceptions are caught and fallback returned.
+
+    """
     logger.info("api_plugins_list_started")
     try:
         from phlo.plugins.discovery import list_plugins
@@ -456,7 +682,20 @@ def get_plugin_info(plugin_type: str, name: str) -> dict[str, Any]:
 
 @app.get("/api/services")
 def get_services() -> list[dict[str, Any]]:
-    """List all discovered services."""
+    """List all discovered services.
+
+    Returns metadata for all services discovered via the ServiceDiscovery.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        List of service metadata dictionaries.
+
+    Raises:
+        None: Exceptions are caught and empty list returned.
+
+    """
     logger.info("api_services_list_started")
     try:
         from phlo.plugins.discovery import ServiceDiscovery
@@ -552,7 +791,21 @@ def get_api_backend_info(name: str) -> dict[str, Any]:
 
 @app.get("/api/contracts")
 def get_contracts() -> list[dict[str, Any]]:
-    """List resolved table contracts from registry and generated artifacts."""
+    """List resolved table contracts from registry and generated artifacts.
+
+    Combines contract data from the capability registry with stored artifacts
+    to produce a comprehensive list of table contracts.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        List of contract dictionaries with metadata, quality checks, and refs.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     logger.info("api_contracts_list_started")
     contracts = _list_contracts()
     logger.info("api_contracts_list_succeeded", contract_count=len(contracts))
@@ -561,7 +814,18 @@ def get_contracts() -> list[dict[str, Any]]:
 
 @app.get("/api/contracts/{table_name:path}")
 def get_contract(table_name: str) -> dict[str, Any]:
-    """Get resolved contract payload for a single table."""
+    """Get resolved contract payload for a single table.
+
+    Args:
+        table_name: Table name to look up (supports path-style names).
+
+    Returns:
+        Contract dictionary for the specified table.
+
+    Raises:
+        HTTPException: 404 if contract not found.
+
+    """
     logger.info("api_contract_get_started", table_name=table_name)
     contract = _get_contract_by_table(table_name)
     if contract is None:

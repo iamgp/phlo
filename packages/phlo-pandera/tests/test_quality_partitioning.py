@@ -41,6 +41,7 @@ def test_apply_partition_scope_rolling_window(monkeypatch) -> None:
 
     Args:
         monkeypatch: Pytest fixture for patching module state.
+
     """
 
     class _Date(date):

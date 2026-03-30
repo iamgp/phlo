@@ -2,6 +2,31 @@
 
 Endpoints for interacting with the Dagster GraphQL API.
 Provides health metrics, asset listing, and materialization history.
+
+This module acts as a proxy to the Dagster GraphQL API, translating
+requests/responses into Observatory-compatible formats and providing
+higher-level operations like asset graph construction and impact analysis.
+
+Key Endpoints:
+    GET /connection: Check Dagster connectivity.
+    GET /health: Get platform health metrics.
+    GET /assets: List all assets.
+    GET /assets/{key}: Get asset details.
+    GET /assets/{key}/history: Get materialization history.
+    GET /graph: Get full asset dependency graph.
+    GET /graph/neighbors: Get subgraph around an asset.
+    GET /graph/impact: Get downstream impact analysis.
+
+Environment Variables:
+    DAGSTER_GRAPHQL_URL: URL for Dagster GraphQL endpoint.
+
+Example:
+    Fetching the asset graph:
+
+    .. code-block:: bash
+
+        curl http://localhost:4000/api/dagster/graph
+
 """
 
 from __future__ import annotations
@@ -26,7 +51,18 @@ DEFAULT_DAGSTER_URL = "http://dagster:3000/graphql"
 
 
 def resolve_dagster_url(override: str | None = None) -> str:
-    """Resolve the Dagster GraphQL URL from override, environment, or default."""
+    """Resolve the Dagster GraphQL URL from override, environment, or default.
+
+    Args:
+        override: Optional explicit Dagster GraphQL URL override.
+
+    Returns:
+        Resolved Dagster GraphQL URL string.
+
+    Raises:
+        None: No exceptions raised directly.
+
+    """
     env_url = os.environ.get("DAGSTER_GRAPHQL_URL")
     if override and override.strip():
         if env_url and override.strip() == "http://localhost:3000/graphql":
@@ -328,7 +364,21 @@ class ImpactedAsset(BaseModel):
 async def graphql_request(
     url: str, query: str, variables: dict[str, Any] | None = None, timeout: float = 10.0
 ) -> dict[str, Any]:
-    """Execute a GraphQL request."""
+    """Execute a GraphQL request against the Dagster API.
+
+    Args:
+        url: Dagster GraphQL endpoint URL.
+        query: GraphQL query string.
+        variables: Optional GraphQL variables dictionary.
+        timeout: Request timeout in seconds (default: 10.0).
+
+    Returns:
+        GraphQL response data as a dictionary.
+
+    Raises:
+        httpx.HTTPStatusError: If the HTTP request fails.
+
+    """
     async with httpx.AsyncClient(timeout=timeout) as client:
         response = await client.post(
             url,
@@ -340,7 +390,18 @@ async def graphql_request(
 
 
 def infer_layer(key_path: str) -> str:
-    """Infer logical data layer from asset key path."""
+    """Infer logical data layer from asset key path.
+
+    Args:
+        key_path: Asset key path string (e.g., "bronze/raw_events").
+
+    Returns:
+        Inferred layer name: "source", "bronze", "silver", "gold", "marts", "publish", or "unknown".
+
+    Raises:
+        None: No exceptions raised directly.
+
+    """
     path = key_path.lower()
     if "publish" in path or path.startswith("publish_"):
         return "publish"
@@ -360,7 +421,18 @@ def infer_layer(key_path: str) -> str:
 
 
 def build_asset_graph_payload(asset_nodes: list[dict[str, Any]]) -> AssetGraphPayload:
-    """Build the normalized Observatory graph payload from Dagster nodes."""
+    """Build the normalized Observatory graph payload from Dagster nodes.
+
+    Args:
+        asset_nodes: List of Dagster asset node dictionaries from GraphQL.
+
+    Returns:
+        AssetGraphPayload containing nodes and edges for the asset graph.
+
+    Raises:
+        None: No exceptions raised directly.
+
+    """
     nodes: list[GraphNode] = []
     edges: list[GraphEdge] = []
     known_nodes: set[str] = set()
@@ -405,7 +477,21 @@ def filter_asset_neighbors(
     direction: str,
     depth: int,
 ) -> AssetGraphPayload:
-    """Return a focused subgraph around an asset."""
+    """Return a focused subgraph around an asset using BFS traversal.
+
+    Args:
+        graph: Full asset graph payload containing nodes and edges.
+        asset_key: Key of the focal asset to center the subgraph around.
+        direction: Direction to traverse: "upstream", "downstream", or "both".
+        depth: Maximum depth to traverse from the focal asset.
+
+    Returns:
+        AssetGraphPayload containing the filtered subgraph.
+
+    Raises:
+        None: No exceptions raised directly.
+
+    """
     upstream: dict[str, list[str]] = {}
     downstream: dict[str, list[str]] = {}
 
@@ -416,6 +502,20 @@ def filter_asset_neighbors(
     included_nodes = {asset_key}
 
     def bfs(start_key: str, adjacency: dict[str, list[str]], max_depth: int) -> None:
+        """Breadth-first search to find neighbors within a given depth.
+
+        Args:
+            start_key: The starting node key for the search.
+            adjacency: Adjacency list mapping nodes to their neighbors.
+            max_depth: Maximum depth to traverse from the start node.
+
+        Returns:
+            None: Modifies the `included_nodes` set in the enclosing scope.
+
+        Raises:
+            None: No exceptions raised directly.
+
+        """
         queue: list[tuple[str, int]] = [(start_key, 0)]
         visited = {start_key}
 
@@ -449,7 +549,20 @@ def filter_asset_neighbors(
 def compute_asset_impact(
     graph: AssetGraphPayload, asset_key: str, max_depth: int
 ) -> list[ImpactedAsset]:
-    """Compute all downstream assets impacted by a given asset."""
+    """Compute all downstream assets impacted by a given asset.
+
+    Args:
+        graph: Full asset graph payload containing nodes and edges.
+        asset_key: Key of the source asset to analyze impact from.
+        max_depth: Maximum depth to traverse downstream.
+
+    Returns:
+        List of ImpactedAsset objects sorted by depth and label.
+
+    Raises:
+        None: No exceptions raised directly.
+
+    """
     node_map = {node.key_path: node for node in graph.nodes}
     downstream: dict[str, list[str]] = {}
     for edge in graph.edges:
@@ -488,7 +601,18 @@ def compute_asset_impact(
 
 @router.get("/connection", response_model=DagsterConnectionStatus)
 async def check_connection(dagster_url: str | None = None) -> DagsterConnectionStatus:
-    """Check if Dagster is reachable."""
+    """Check if Dagster GraphQL endpoint is reachable.
+
+    Args:
+        dagster_url: Optional Dagster GraphQL URL override.
+
+    Returns:
+        DagsterConnectionStatus with connection state and version.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     url = resolve_dagster_url(dagster_url)
 
     try:
@@ -510,7 +634,18 @@ async def check_connection(dagster_url: str | None = None) -> DagsterConnectionS
 async def get_health_metrics(
     dagster_url: str | None = None,
 ) -> HealthMetrics | dict[str, str]:
-    """Get health metrics from Dagster."""
+    """Get aggregated platform health metrics from Dagster.
+
+    Args:
+        dagster_url: Optional Dagster GraphQL URL override.
+
+    Returns:
+        HealthMetrics object or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     url = resolve_dagster_url(dagster_url)
 
     try:
@@ -575,7 +710,18 @@ async def get_health_metrics(
 
 @router.get("/assets", response_model=list[Asset] | dict)
 async def get_assets(dagster_url: str | None = None) -> list[Asset] | dict[str, str]:
-    """Get all assets from Dagster."""
+    """Get all assets from Dagster.
+
+    Args:
+        dagster_url: Optional Dagster GraphQL URL override.
+
+    Returns:
+        List of Asset objects or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     url = resolve_dagster_url(dagster_url)
 
     try:
@@ -624,7 +770,19 @@ async def get_assets(dagster_url: str | None = None) -> list[Asset] | dict[str, 
 async def get_asset_details(
     asset_key_path: str, dagster_url: str | None = None
 ) -> AssetDetails | dict[str, str]:
-    """Get detailed information about a single asset."""
+    """Get detailed information about a single asset.
+
+    Args:
+        asset_key_path: Slash-delimited asset key path.
+        dagster_url: Optional Dagster GraphQL URL override.
+
+    Returns:
+        AssetDetails object or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     if not asset_key_path:
         return {"error": "Asset key is required"}
 
@@ -714,7 +872,20 @@ async def get_materialization_history(
     limit: int = Query(default=20, le=100),
     dagster_url: str | None = None,
 ) -> list[MaterializationEvent] | dict[str, str]:
-    """Get materialization history for an asset."""
+    """Get materialization history for an asset.
+
+    Args:
+        asset_key_path: Slash-delimited asset key path.
+        limit: Maximum number of materialization events to return.
+        dagster_url: Optional Dagster GraphQL URL override.
+
+    Returns:
+        List of MaterializationEvent objects or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     url = resolve_dagster_url(dagster_url)
     asset_key = asset_key_path.split("/")
 
@@ -764,7 +935,18 @@ async def get_materialization_history(
 async def get_asset_graph(
     dagster_url: str | None = None,
 ) -> AssetGraphPayload | dict[str, str]:
-    """Get the full asset dependency graph from Dagster."""
+    """Get the full asset dependency graph from Dagster.
+
+    Args:
+        dagster_url: Optional Dagster GraphQL URL override.
+
+    Returns:
+        AssetGraphPayload containing nodes and edges, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     url = resolve_dagster_url(dagster_url)
 
     try:
@@ -789,7 +971,21 @@ async def get_asset_neighbors(
     depth: int = Query(default=2, ge=1, le=10),
     dagster_url: str | None = None,
 ) -> AssetGraphPayload | dict[str, str]:
-    """Get a focused graph around a single asset."""
+    """Get a focused graph around a single asset.
+
+    Args:
+        asset_key: Key of the focal asset.
+        direction: Direction to traverse: "upstream", "downstream", or "both".
+        depth: Maximum depth to traverse (1-10).
+        dagster_url: Optional Dagster GraphQL URL override.
+
+    Returns:
+        AssetGraphPayload containing the filtered subgraph, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     graph = await get_asset_graph(dagster_url=dagster_url)
     if isinstance(graph, dict):
         return graph
@@ -802,7 +998,20 @@ async def get_asset_impact(
     max_depth: int = Query(default=99, ge=1, le=100),
     dagster_url: str | None = None,
 ) -> list[ImpactedAsset] | dict[str, str]:
-    """Get downstream impact analysis for a single asset."""
+    """Get downstream impact analysis for a single asset.
+
+    Args:
+        asset_key: Key of the source asset to analyze.
+        max_depth: Maximum depth to traverse downstream (1-100).
+        dagster_url: Optional Dagster GraphQL URL override.
+
+    Returns:
+        List of ImpactedAsset objects or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     graph = await get_asset_graph(dagster_url=dagster_url)
     if isinstance(graph, dict):
         return graph

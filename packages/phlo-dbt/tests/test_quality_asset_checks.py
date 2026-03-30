@@ -28,6 +28,7 @@ def test_pandera_contract_asset_check_fails_for_invalid_parquet(tmp_path) -> Non
 
     Args:
         tmp_path: Temporary test directory provided by pytest.
+
     """
     parquet_path = tmp_path / "data.parquet"
     df = pd.DataFrame([{"id": 1, "created_at": "not-a-date"}])
@@ -60,6 +61,7 @@ def test_pandera_contract_asset_check_passes_for_valid_parquet(tmp_path) -> None
 
     Args:
         tmp_path: Temporary test directory provided by pytest.
+
     """
     parquet_path = tmp_path / "data.parquet"
     df = pd.DataFrame([{"id": 1, "created_at": "2025-01-01T00:00:00Z"}])
@@ -86,6 +88,7 @@ def test_dbt_test_results_emit_asset_checks_with_severity(tags, expected_severit
     Args:
         tags: dbt test tags used to derive severity.
         expected_severity: Expected severity value in emitted check metadata.
+
     """
     manifest = {
         "nodes": {

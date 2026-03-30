@@ -1,4 +1,40 @@
-"""Dagster service plugin."""
+"""Dagster service plugins for Phlo infrastructure management.
+
+This module provides ServicePlugin implementations that register Dagster
+services with Phlo's infrastructure management system. It handles service
+definition loading from YAML files and provides metadata for the
+Dagster webserver and daemon components.
+
+Service Components:
+    - DagsterServicePlugin: Main webserver service
+    - DagsterDaemonServicePlugin: Background scheduler/sensor daemon
+
+Service Definitions:
+    Services are defined in YAML files (service.yaml, dagster-daemon.yaml)
+    that specify Docker Compose configuration, ports, dependencies, and
+    startup behavior. These files are loaded from the package resources.
+
+Plugin Registration:
+    Plugins are auto-discovered via entry_points (group: phlo.plugins.services)
+    and contribute service definitions to the infrastructure orchestrator.
+
+Service Responsibilities:
+    - Dagster Webserver: Serves UI, handles GraphQL queries, executes runs
+    - Dagster Daemon: Runs schedules, sensors, and daemon loops
+
+Example:
+    Service definition structure (service.yaml)::
+
+        service:
+          name: dagster
+          description: Data orchestration platform
+          ports:
+            - "3000:3000"
+          depends_on:
+            - postgres
+            - trino
+
+"""
 
 from __future__ import annotations
 
@@ -21,6 +57,10 @@ def _load_service_definition(plugin_name: str, filename: str) -> dict[str, Any]:
 
     Returns:
         Parsed service configuration dict.
+
+    Raises:
+        Exception: If file cannot be read or parsed.
+
     """
     service_path = resources.files("phlo_dagster").joinpath(filename)
     logger.info(
@@ -56,6 +96,7 @@ class DagsterServicePlugin(ServicePlugin):
 
         Returns:
             PluginMetadata: Plugin identity and display metadata.
+
         """
         return PluginMetadata(
             name="dagster",
@@ -71,6 +112,7 @@ class DagsterServicePlugin(ServicePlugin):
 
         Returns:
             dict[str, Any]: Parsed service configuration from YAML.
+
         """
         return _load_service_definition("dagster", "service.yaml")
 
@@ -84,6 +126,7 @@ class DagsterDaemonServicePlugin(ServicePlugin):
 
         Returns:
             PluginMetadata: Plugin identity and display metadata.
+
         """
         return PluginMetadata(
             name="dagster-daemon",
@@ -99,5 +142,6 @@ class DagsterDaemonServicePlugin(ServicePlugin):
 
         Returns:
             dict[str, Any]: Parsed service configuration from YAML.
+
         """
         return _load_service_definition("dagster_daemon", "dagster-daemon.yaml")

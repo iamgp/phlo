@@ -1,4 +1,22 @@
-"""CLI commands for Sling replication management."""
+"""CLI commands for Sling replication management.
+
+This module implements the Click command-line interface for Sling replication
+operations. It provides commands for running ad-hoc replications, listing
+available connections, and discovering source streams from connections.
+
+Commands:
+    sling_group: Main command group for Sling operations.
+    run_command: Execute a Sling replication.
+    conns_command: List available Sling connections.
+    discover_command: Discover available streams from a connection.
+
+Functions:
+    _resolve_target_object: Resolve the destination object for ad-hoc runs.
+    _get_sling_binary: Return the Sling binary path.
+    _run_sling_cli_command: Execute the Sling CLI and capture output.
+    _parse_discovery_output: Parse Sling's ASCII table into JSON.
+    _normalize_column_name: Normalize table headers for JSON output.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +34,12 @@ logger = get_logger(__name__)
 
 @click.group("sling")
 def sling_group() -> None:
-    """Sling replication commands."""
+    """Sling replication commands.
+
+    This command group provides operations for managing Sling-based data
+    replications within the Phlo platform. Commands include running
+    replications, listing connections, and discovering source streams.
+    """
 
 
 @sling_group.command("run")
@@ -40,7 +63,22 @@ def run_command(
 ) -> None:
     """Run a Sling replication.
 
-    Either provide --replication YAML or --source/--stream/--target for ad-hoc runs.
+    Execute a data replication using Sling. Either provide a replication
+    YAML configuration file or specify source/target/stream parameters
+    for ad-hoc execution.
+
+    Args:
+        replication: Path to a Sling replication YAML file.
+        source: Source connection name (for ad-hoc runs).
+        target: Target connection name (for ad-hoc runs).
+        stream: Source stream identifier (e.g., "public.users").
+        target_object: Target object/table name.
+        mode: Replication mode override.
+
+    Raises:
+        click.UsageError: If neither replication file nor source/stream
+            parameters are provided.
+
     """
     from sling import Replication, Sling
 
@@ -74,7 +112,12 @@ def conns_command(auto: bool) -> None:
     """List available Sling connections.
 
     Shows auto-discovered connections from Phlo capability metadata and any
-    connections from explicit env.yaml files.
+    connections from explicit env.yaml files. This helps verify that Phlo
+    packages are properly configured and connections are available.
+
+    Args:
+        auto: Whether to include auto-discovered Phlo connections.
+
     """
     if auto:
         from phlo_sling.connections import resolve_phlo_connections
@@ -112,7 +155,17 @@ def discover_command(connection: str, schema: str | None, output_format: str) ->
     """Discover available streams from a Sling connection.
 
     Lists tables/views available in the source connection for use as
-    stream_name in @phlo_sling_replication decorators.
+    stream_name in @phlo_sling_replication decorators. This is useful
+    for exploring source databases before defining replications.
+
+    Args:
+        connection: Connection name to discover streams from.
+        schema: Optional schema name filter (uses pattern matching).
+        output_format: Output format - "table" or "json".
+
+    Raises:
+        click.ClickException: If discovery fails.
+
     """
     apply_sling_connection_env()
 
@@ -133,7 +186,22 @@ def discover_command(connection: str, schema: str | None, output_format: str) ->
 
 
 def _resolve_target_object(stream: str, target_object: str | None) -> str:
-    """Resolve the destination object for an ad-hoc Sling run."""
+    """Resolve the destination object for an ad-hoc Sling run.
+
+    Determines the target object name from the stream or explicit parameter.
+    Rejects wildcards without explicit target specification.
+
+    Args:
+        stream: Source stream identifier.
+        target_object: Optional explicit target object name.
+
+    Returns:
+        Resolved target object name.
+
+    Raises:
+        click.UsageError: If stream contains wildcard without explicit target.
+
+    """
     if target_object:
         return target_object
     if "*" in stream:
@@ -142,7 +210,18 @@ def _resolve_target_object(stream: str, target_object: str | None) -> str:
 
 
 def _get_sling_binary() -> str:
-    """Return the Sling binary path, honoring package settings."""
+    """Return the Sling binary path, honoring package settings.
+
+    Checks for an override in settings first, then falls back to the
+    bundled binary from the sling package.
+
+    Returns:
+        Path to the Sling binary executable.
+
+    Raises:
+        ImportError: If sling package is not installed.
+
+    """
     settings = get_settings()
     if settings.sling_binary_path:
         return settings.sling_binary_path
@@ -153,7 +232,21 @@ def _get_sling_binary() -> str:
 
 
 def _run_sling_cli_command(args: list[str]) -> subprocess.CompletedProcess[str]:
-    """Execute the Sling CLI and return captured output."""
+    """Execute the Sling CLI and return captured output.
+
+    Runs a Sling CLI command with the specified arguments and captures
+    stdout/stderr.
+
+    Args:
+        args: List of command arguments (not including binary path).
+
+    Returns:
+        CompletedProcess with stdout and stderr captured.
+
+    Raises:
+        subprocess.CalledProcessError: If the command exits non-zero.
+
+    """
     return subprocess.run(
         [_get_sling_binary(), *args],
         check=True,
@@ -163,7 +256,18 @@ def _run_sling_cli_command(args: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def _parse_discovery_output(output: str) -> list[dict[str, str]]:
-    """Parse Sling's ASCII discovery table into JSON-serializable rows."""
+    """Parse Sling's ASCII discovery table into JSON-serializable rows.
+
+    Converts the ASCII table output from Sling's discover command into
+    a list of dictionaries suitable for JSON serialization.
+
+    Args:
+        output: Raw ASCII table output from Sling discover.
+
+    Returns:
+        List of dictionaries with normalized column headers as keys.
+
+    """
     lines = [line.rstrip() for line in output.splitlines() if line.strip()]
     table_lines = [line for line in lines if "|" in line]
     if len(table_lines) < 2:
@@ -183,5 +287,16 @@ def _parse_discovery_output(output: str) -> list[dict[str, str]]:
 
 
 def _normalize_column_name(value: str) -> str:
-    """Normalize discovery table headers for JSON output."""
+    """Normalize discovery table headers for JSON output.
+
+    Converts column headers from Sling's table format to snake_case
+    suitable for JSON keys.
+
+    Args:
+        value: Raw column header string.
+
+    Returns:
+        Normalized snake_case column name.
+
+    """
     return value.strip().lower().replace(" ", "_")

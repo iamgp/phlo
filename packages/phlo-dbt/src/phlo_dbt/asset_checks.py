@@ -1,3 +1,23 @@
+"""dbt test result extraction and conversion to Phlo check results.
+
+This module provides utilities for extracting dbt test results from run results
+and converting them into Phlo's CheckResult format. It handles test type detection,
+severity mapping, and metadata extraction for quality checks.
+
+Example:
+    >>> from phlo_dbt.asset_checks import extract_dbt_asset_checks
+    >>> from phlo_dbt.translator import DbtSpecTranslator
+    >>> checks = extract_dbt_asset_checks(
+    ...     run_results=run_results_data,
+    ...     manifest=manifest_data,
+    ...     translator=DbtSpecTranslator(),
+    ...     partition_key="2024-01-01"
+    ... )
+    >>> for check in checks:
+    ...     print(f"{check.check_name}: {'PASS' if check.passed else 'FAIL'}")
+
+"""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
@@ -13,7 +33,31 @@ logger = get_logger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class _CheckContract:
-    """Minimal check metadata contract used for dbt test outputs."""
+    """Minimal check metadata contract used for dbt test outputs.
+
+    Internal dataclass for normalizing dbt test result data before converting
+    to Phlo CheckResult objects. Provides a consistent interface for test
+    metadata including failure counts, SQL queries, and sample data.
+
+    Attributes:
+        source: Source identifier (always "dbt" for dbt tests).
+        failed_count: Number of rows that failed the test.
+        partition_key: Optional partition identifier for the test run.
+        total_count: Optional total row count tested.
+        query_or_sql: Compiled SQL query used for the test.
+        repro_sql: Reproducible SQL for debugging (with LIMIT).
+        sample: Sample failed rows for diagnostics.
+
+    Example:
+        >>> contract = _CheckContract(
+        ...     source="dbt",
+        ...     failed_count=5,
+        ...     partition_key="2024-01-01",
+        ...     query_or_sql="SELECT * FROM table WHERE condition"
+        ... )
+        >>> metadata = contract.to_metadata()
+
+    """
 
     source: str
     failed_count: int
@@ -24,7 +68,16 @@ class _CheckContract:
     sample: list[Any] | None = None
 
     def to_metadata(self) -> dict[str, Any]:
-        """Export contract fields as metadata dict."""
+        """Export contract fields as metadata dict.
+
+        Converts the check contract into a metadata dictionary suitable
+        for inclusion in Phlo CheckResult objects. Only includes non-None
+        values to keep metadata clean.
+
+        Returns:
+            Dictionary with check metadata, excluding None values.
+
+        """
         metadata: dict[str, Any] = {
             "source": self.source,
             "failed_count": self.failed_count,
@@ -80,15 +133,42 @@ def extract_dbt_asset_checks(
 ) -> list[CheckResult]:
     """Convert dbt run results into Phlo check results.
 
+    Extracts test results from dbt run_results.json and manifest.json files,
+    converting them into Phlo CheckResult objects. Handles various test types,
+    severity mapping, and SQL extraction for quality reporting.
+
     Args:
-        run_results: Parsed dbt run results payload.
-        manifest: Parsed dbt manifest payload.
-        translator: Translator used to resolve target asset keys.
-        partition_key: Optional partition key for emitted checks.
-        max_sql_chars: Maximum SQL length to include in metadata.
+        run_results: Parsed dbt run results payload from run_results.json.
+        manifest: Parsed dbt manifest payload from manifest.json.
+        translator: Translator used to resolve target asset keys from dbt nodes.
+        partition_key: Optional partition key for emitted checks (e.g., "2024-01-01").
+        max_sql_chars: Maximum SQL length to include in metadata (default: 100,000).
 
     Returns:
-        Check results derived from dbt test nodes.
+        List of CheckResult objects derived from dbt test nodes.
+
+    Raises:
+        Exception: May raise exceptions during asset key translation (logged, not propagated).
+
+    Example:
+        >>> import json
+        >>> from pathlib import Path
+        >>> from phlo_dbt.translator import DbtSpecTranslator
+        >>>
+        >>> run_results = json.loads(Path("target/run_results.json").read_text())
+        >>> manifest = json.loads(Path("target/manifest.json").read_text())
+        >>>
+        >>> checks = extract_dbt_asset_checks(
+        ...     run_results=run_results,
+        ...     manifest=manifest,
+        ...     translator=DbtSpecTranslator(),
+        ...     partition_key="2024-01-01"
+        ... )
+        >>>
+        >>> passed = sum(1 for c in checks if c.passed)
+        >>> failed = len(checks) - passed
+        >>> print(f"Tests: {passed} passed, {failed} failed")
+
     """
     nodes = manifest.get("nodes") or {}
     checks: list[CheckResult] = []
@@ -202,6 +282,7 @@ def _first_str(values: Iterable[object], prefix: str | None = None) -> str | Non
 
     Returns:
         First matching string, or ``None``.
+
     """
     for value in values:
         if not isinstance(value, str):
@@ -221,6 +302,7 @@ def _dbt_test_type(test_props: Mapping[str, Any], *, fallback_unique_id: str) ->
 
     Returns:
         Normalized dbt test type string.
+
     """
     test_metadata = test_props.get("test_metadata")
     if isinstance(test_metadata, Mapping):
@@ -241,6 +323,7 @@ def _dbt_tags(test_props: Mapping[str, Any]) -> set[str]:
 
     Returns:
         Unique trimmed tag values.
+
     """
     tags = test_props.get("tags")
     if not isinstance(tags, list):
@@ -260,6 +343,7 @@ def _dbt_compiled_sql(test_props: Mapping[str, Any]) -> str | None:
 
     Returns:
         Compiled SQL text when available, otherwise ``None``.
+
     """
     for key in ("compiled_code", "compiled_sql", "raw_code"):
         value = test_props.get(key)
@@ -277,6 +361,7 @@ def _sample_for_result(result: Mapping[str, Any], *, passed: bool) -> list[dict[
 
     Returns:
         Sample metadata rows for quality diagnostics.
+
     """
     if passed:
         return []
@@ -299,6 +384,7 @@ def _truncate(value: str | None, *, max_chars: int) -> str | None:
 
     Returns:
         Original value when short enough; truncated value otherwise.
+
     """
     if value is None:
         return None
@@ -315,6 +401,7 @@ def _repro_sql_from_sql(sql: str | None) -> str | None:
 
     Returns:
         SQL with a row limit appended when missing, or ``None``.
+
     """
     if sql is None:
         return None
@@ -335,6 +422,7 @@ def _int_or_none(value: object) -> int | None:
 
     Returns:
         Parsed integer value, or ``None`` when coercion fails.
+
     """
     if value is None:
         return None

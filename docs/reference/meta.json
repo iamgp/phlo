@@ -1,0 +1,19 @@
+{
+  "title": "Reference",
+  "pages": [
+    "index",
+    "architecture",
+    "platform-topology",
+    "api-surfaces",
+    "auth-and-access",
+    "glossary",
+    "faq",
+    "phlo-api",
+    "cli-reference",
+    "configuration-reference",
+    "plugin-api",
+    "quality-checks-catalog",
+    "duckdb-queries",
+    "common-errors"
+  ]
+}

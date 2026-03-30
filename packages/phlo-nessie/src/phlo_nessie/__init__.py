@@ -1,4 +1,18 @@
-"""Nessie service plugin package."""
+"""Nessie service plugin package.
+
+This package provides integration with Apache Nessie, a Git-like catalog for
+Iceberg tables. It includes service management, resource providers, branch
+management, and CLI commands for the Nessie catalog backend.
+
+Example:
+    >>> from phlo_nessie import NessieServicePlugin, NessieResource
+    >>> plugin = NessieServicePlugin()
+    >>> resource = NessieResource()
+
+Attributes:
+    __version__: Package version string.
+
+"""
 
 from phlo_nessie.plugin import NessieServicePlugin
 from phlo_nessie.resource_provider import NessieResourceProvider

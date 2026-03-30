@@ -1,10 +1,22 @@
-"""
-Catalog CLI commands.
+"""Catalog CLI commands for Nessie-backed Iceberg.
 
-This CLI is intentionally shipped with `phlo-nessie` because Nessie is the
-current catalog backend.
+This module provides CLI commands for managing and querying the lakehouse
+catalog backed by Nessie. It uses PyIceberg for direct Iceberg table operations
+when available.
 
-Implementation uses PyIceberg against the Nessie REST catalog when available.
+Commands include listing tables, describing table metadata, and viewing table
+snapshot history across Nessie branches.
+
+Example:
+    $ phlo catalog tables --ref main
+    $ phlo catalog describe raw.customers --ref dev
+    $ phlo catalog history raw.customers --limit 5
+
+Commands:
+    tables: List all Iceberg tables in the catalog.
+    describe: Show detailed table metadata including schema and properties.
+    history: Show table snapshot history with operation details.
+
 """
 
 from __future__ import annotations
@@ -24,6 +36,25 @@ logger = get_logger(__name__)
 
 
 def _get_iceberg_catalog(ref: str = "main"):
+    """Load the PyIceberg catalog for the specified Nessie reference.
+
+    Returns a PyIceberg catalog instance configured to access tables
+    through the Nessie REST catalog for the given branch or tag.
+
+    Args:
+        ref: Nessie reference (branch or tag). Defaults to "main".
+
+    Returns:
+        Catalog: PyIceberg catalog instance.
+
+    Raises:
+        RuntimeError: If catalog backend or pyiceberg is not installed.
+
+    Example:
+        >>> catalog = _get_iceberg_catalog("main")
+        >>> print(list(catalog.list_namespaces()))
+
+    """
     logger.debug(
         "nessie_catalog_catalog_load_requested",
         ref=ref,

@@ -1,4 +1,19 @@
-"""Metadata catalog provider for OpenMetadata."""
+"""Metadata catalog provider for OpenMetadata.
+
+Provides a capability-based interface for publishing metadata into OpenMetadata,
+including tables, quality results, and lineage edges.
+
+This module implements the MetadataCatalogSpec interface for OpenMetadata,
+allowing it to be discovered and used by the phlo capability system.
+
+Example:
+    >>> from phlo_openmetadata.metadata_catalog import OpenMetadataCatalogProvider
+    >>> provider = OpenMetadataCatalogProvider()
+    >>> provider.health_check()
+    True
+    >>> provider.upsert_table(namespace="bronze", table=table_obj)
+
+"""
 
 from __future__ import annotations
 
@@ -17,22 +32,64 @@ from phlo_openmetadata.settings import get_settings as get_openmetadata_settings
 
 
 class OpenMetadataCatalogProvider:
-    """Capability provider for publishing metadata into OpenMetadata."""
+    """Capability provider for publishing metadata into OpenMetadata.
+
+    Wraps the OpenMetadataClient to provide a standardized interface
+    for the phlo capability system. Handles lazy client initialization
+    and configuration resolution.
+
+    Attributes:
+        _client: Cached OpenMetadataClient instance (initialized lazily).
+
+    Example:
+        >>> provider = OpenMetadataCatalogProvider()
+        >>> provider.publish_quality_result(event=quality_event)
+
+    """
 
     def __init__(self) -> None:
-        """Initialize with lazy client construction."""
+        """Initialize with lazy client construction.
+
+        The OpenMetadata client is created on first use to avoid
+        unnecessary connections.
+        """
         self._client: OpenMetadataClient | None = None
 
     def health_check(self) -> bool:
-        """Check OpenMetadata connectivity."""
+        """Check OpenMetadata connectivity.
+
+        Returns:
+            bool: True if OpenMetadata is reachable, False otherwise.
+
+        """
         return self._get_client().health_check()
 
     def upsert_table(self, *, namespace: str, table: Any) -> Any:
-        """Create or update a table entity in OpenMetadata."""
+        """Create or update a table entity in OpenMetadata.
+
+        Args:
+            namespace: Schema/namespace for the table.
+            table: Table object (typically OpenMetadataTable).
+
+        Returns:
+            Any: Response from OpenMetadata API.
+
+        """
         return self._get_client().create_or_update_table(schema_name=namespace, table=table)
 
     def publish_quality_result(self, *, event: Any) -> None:
-        """Publish a quality result into OpenMetadata test metadata."""
+        """Publish a quality result into OpenMetadata test metadata.
+
+        Creates test definitions, test cases, and publishes results
+        for quality checks.
+
+        Args:
+            event: QualityResultEvent containing check results.
+
+        Returns:
+            None
+
+        """
         if not isinstance(event, QualityResultEvent):
             return
 
@@ -66,13 +123,28 @@ class OpenMetadataCatalogProvider:
         )
 
     def publish_lineage_edges(self, *, edges: list[tuple[str, str]]) -> None:
-        """Publish lineage edges into OpenMetadata."""
+        """Publish lineage edges into OpenMetadata.
+
+        Args:
+            edges: List of (from_fqn, to_fqn) tuples representing lineage.
+
+        Returns:
+            None
+
+        """
         client = self._get_client()
         for from_fqn, to_fqn in edges:
             client.create_lineage(from_fqn, to_fqn)
 
     def _get_client(self) -> OpenMetadataClient:
-        """Return the lazily initialized OpenMetadata client."""
+        """Return the lazily initialized OpenMetadata client.
+
+        Creates the client on first call using configured settings.
+
+        Returns:
+            OpenMetadataClient: Client instance.
+
+        """
         if self._client is None:
             settings = get_openmetadata_settings()
             self._client = OpenMetadataClient(

@@ -1,5 +1,4 @@
-"""
-Provider plugin classes.
+"""Provider plugin classes.
 
 This module defines plugin types that provide asset and resource specifications.
 """
@@ -55,8 +54,8 @@ class AssetProviderPlugin(Plugin, ABC):
 
         Returns:
             Iterable of asset specifications.
-        """
 
+        """
         raise NotImplementedError
 
     def get_checks(self) -> Iterable[AssetCheckSpec]:
@@ -64,8 +63,8 @@ class AssetProviderPlugin(Plugin, ABC):
 
         Returns:
             Iterable of asset check specifications.
-        """
 
+        """
         return []
 
 
@@ -88,8 +87,8 @@ class ResourceProviderPlugin(Plugin, ABC):
 
         Returns:
             Iterable of resource specifications.
-        """
 
+        """
         raise NotImplementedError
 
     def get_table_stores(self) -> Iterable[TableStoreSpec]:

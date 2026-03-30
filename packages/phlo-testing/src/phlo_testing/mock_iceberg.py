@@ -1,5 +1,4 @@
-"""
-Mock Iceberg catalog backed by DuckDB for fast unit testing.
+"""Mock Iceberg catalog backed by DuckDB for fast unit testing.
 
 Implements a subset of PyIceberg's Catalog interface using an in-memory
 DuckDB database, enabling tests to run without the full Iceberg/Nessie stack.
@@ -11,6 +10,7 @@ Example:
     >>> df = pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]})
     >>> table.append(df)
     >>> result = table.scan().to_pandas()
+
 """
 
 from __future__ import annotations
@@ -27,10 +27,16 @@ logger = get_logger(__name__)
 
 
 def _normalize_type(dtype: str) -> str:
-    """
-    Normalize type string to DuckDB type.
+    """Normalize type string to DuckDB type.
 
     Handles PyIceberg types, Python types, and plain strings.
+
+    Args:
+        dtype: Type string to normalize.
+
+    Returns:
+        Normalized DuckDB type string.
+
     """
     dtype_str = str(dtype).lower()
 
@@ -63,16 +69,22 @@ def _normalize_type(dtype: str) -> str:
 
 @dataclass
 class MockTable:
-    """
-    Mock Iceberg table backed by DuckDB.
+    """Mock Iceberg table backed by DuckDB.
 
     Stores metadata in Python, actual data in DuckDB in-memory database.
+
+    Attributes:
+        name: Table identifier (e.g., "raw.users").
+        schema: Schema dict or PyIceberg Schema object.
+        _db: DuckDB connection for data storage.
+        _catalog: Reference to parent catalog.
+
     """
 
     name: str
     schema: Union[dict[str, str], Any]  # Dict or PyIceberg Schema
     _db: duckdb.DuckDBPyConnection
-    _catalog: Optional[MockIcebergCatalog] = None
+    _catalog: Optional["MockIcebergCatalog"] = None
 
     def __post_init__(self) -> None:
         """Initialize table in DuckDB."""
@@ -110,14 +122,14 @@ class MockTable:
             )
 
     def append(self, df: pd.DataFrame) -> None:
-        """
-        Append DataFrame to table.
+        """Append DataFrame to table.
 
         Args:
-            df: Data to append
+            df: Data to append.
 
         Raises:
-            ValueError: If schema doesn't match
+            ValueError: If schema doesn't match.
+
         """
         namespace, table_name = self.name.split(".")
         full_name = f"{namespace}_{table_name}"
@@ -129,11 +141,11 @@ class MockTable:
         self._db.from_df(df).insert_into(full_name)
 
     def overwrite(self, df: pd.DataFrame) -> None:
-        """
-        Replace table contents with DataFrame.
+        """Replace table contents with DataFrame.
 
         Args:
-            df: Data to replace with
+            df: Data to replace with.
+
         """
         namespace, table_name = self.name.split(".")
         full_name = f"{namespace}_{table_name}"
@@ -145,17 +157,25 @@ class MockTable:
         self._db.execute(f"DELETE FROM {full_name}")
         self._db.from_df(df).insert_into(full_name)
 
-    def scan(self) -> MockTableScan:
-        """
-        Scan table data.
+    def scan(self) -> "MockTableScan":
+        """Scan table data.
 
         Returns:
-            MockTableScan object for querying
+            MockTableScan object for querying.
+
         """
         return MockTableScan(self)
 
     def _validate_schema(self, df: pd.DataFrame) -> None:
-        """Validate DataFrame schema against table schema."""
+        """Validate DataFrame schema against table schema.
+
+        Args:
+            df: DataFrame to validate.
+
+        Raises:
+            ValueError: If schema doesn't match.
+
+        """
         df_cols = set(df.columns)
 
         if isinstance(self.schema, dict):
@@ -176,24 +196,41 @@ class MockTable:
 
     @property
     def full_name(self) -> str:
-        """Get full table name with namespace."""
+        """Get full table name with namespace.
+
+        Returns:
+            Full table name.
+
+        """
         namespace, table_name = self.name.split(".")
         return f"{namespace}_{table_name}"
 
 
 class MockTableScan:
-    """Results from scanning a MockTable."""
+    """Results from scanning a MockTable.
+
+    Provides methods to execute scans and return results in various formats.
+
+    Attributes:
+        table: MockTable being scanned.
+
+    """
 
     def __init__(self, table: MockTable) -> None:
-        """Initialize scan for a table."""
+        """Initialize scan for a table.
+
+        Args:
+            table: MockTable to scan.
+
+        """
         self.table = table
 
     def to_pandas(self) -> pd.DataFrame:
-        """
-        Execute scan and return as pandas DataFrame.
+        """Execute scan and return as pandas DataFrame.
 
         Returns:
-            Query results as DataFrame
+            Query results as DataFrame.
+
         """
         query = f"SELECT * FROM {self.table.full_name}"
         result = self.table._db.execute(query).fetchall()
@@ -210,11 +247,14 @@ class MockTableScan:
         return pd.DataFrame(result, columns=col_names)
 
     def to_arrow(self) -> Any:
-        """
-        Execute scan and return as PyArrow Table.
+        """Execute scan and return as PyArrow Table.
 
         Returns:
-            Query results as Arrow Table
+            Query results as Arrow Table.
+
+        Raises:
+            ImportError: If PyArrow is not installed.
+
         """
         try:
             import pyarrow as pa
@@ -226,11 +266,15 @@ class MockTableScan:
 
 
 class MockIcebergCatalog:
-    """
-    In-memory Iceberg catalog mock using DuckDB backend.
+    """In-memory Iceberg catalog mock using DuckDB backend.
 
     Implements a subset of PyIceberg's Catalog interface for testing.
     Tables are stored in DuckDB with metadata tracked in Python dicts.
+
+    Attributes:
+        _db: DuckDB connection for data storage.
+        _tables: Dictionary of table metadata.
+        _namespaces: Set of namespace names.
 
     Example:
         >>> catalog = MockIcebergCatalog()
@@ -238,6 +282,7 @@ class MockIcebergCatalog:
         >>> table = catalog.create_table("raw.users", schema=schema)
         >>> df = pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]})
         >>> table.append(df)
+
     """
 
     def __init__(self) -> None:
@@ -251,14 +296,14 @@ class MockIcebergCatalog:
             self.create_namespace(ns)
 
     def create_namespace(self, namespace: str) -> None:
-        """
-        Create a namespace.
+        """Create a namespace.
 
         Args:
-            namespace: Namespace name
+            namespace: Namespace name.
 
         Raises:
-            ValueError: If namespace already exists
+            ValueError: If namespace already exists.
+
         """
         if namespace in self._namespaces:
             raise ValueError(f"Namespace {namespace} already exists")
@@ -273,11 +318,11 @@ class MockIcebergCatalog:
             logger.debug("mock_iceberg_namespace_exists", namespace=namespace)
 
     def drop_namespace(self, namespace: str) -> None:
-        """
-        Drop a namespace.
+        """Drop a namespace.
 
         Args:
-            namespace: Namespace name
+            namespace: Namespace name.
+
         """
         self._namespaces.discard(namespace)
         try:
@@ -291,19 +336,19 @@ class MockIcebergCatalog:
         schema: Union[dict[str, str], Any],
         partition_spec: Optional[Sequence[tuple[str, str]]] = None,
     ) -> MockTable:
-        """
-        Create a new table.
+        """Create a new table.
 
         Args:
-            identifier: Table name (namespace.table)
-            schema: Schema dict like {"col": "type"} or PyIceberg Schema
-            partition_spec: Optional partitioning (not fully supported)
+            identifier: Table name (namespace.table).
+            schema: Schema dict like {"col": "type"} or PyIceberg Schema.
+            partition_spec: Optional partitioning (not fully supported).
 
         Returns:
-            MockTable instance
+            MockTable instance.
 
         Raises:
-            ValueError: If table already exists
+            ValueError: If table already exists.
+
         """
         if identifier in self._tables:
             raise ValueError(f"Table {identifier} already exists")
@@ -324,17 +369,17 @@ class MockIcebergCatalog:
         return table
 
     def load_table(self, identifier: str) -> MockTable:
-        """
-        Load an existing table.
+        """Load an existing table.
 
         Args:
-            identifier: Table name (namespace.table)
+            identifier: Table name (namespace.table).
 
         Returns:
-            MockTable instance
+            MockTable instance.
 
         Raises:
-            ValueError: If table doesn't exist
+            ValueError: If table doesn't exist.
+
         """
         if identifier not in self._tables:
             raise ValueError(f"Table {identifier} not found")
@@ -342,11 +387,11 @@ class MockIcebergCatalog:
         return self._tables[identifier]
 
     def drop_table(self, identifier: str) -> None:
-        """
-        Drop a table.
+        """Drop a table.
 
         Args:
-            identifier: Table name (namespace.table)
+            identifier: Table name (namespace.table).
+
         """
         if identifier in self._tables:
             table = self._tables.pop(identifier)
@@ -360,14 +405,14 @@ class MockIcebergCatalog:
                 )
 
     def list_tables(self, namespace: str) -> list[str]:
-        """
-        List tables in a namespace.
+        """List tables in a namespace.
 
         Args:
-            namespace: Namespace name
+            namespace: Namespace name.
 
         Returns:
-            List of table identifiers
+            List of table identifiers.
+
         """
         return [
             identifier
@@ -376,21 +421,24 @@ class MockIcebergCatalog:
         ]
 
     def list_namespaces(self) -> list[str]:
-        """
-        List all namespaces.
+        """List all namespaces.
 
         Returns:
-            List of namespace names
+            List of namespace names.
+
         """
         return sorted(self._namespaces)
 
     def rename_table(self, old_identifier: str, new_identifier: str) -> None:
-        """
-        Rename a table.
+        """Rename a table.
 
         Args:
-            old_identifier: Current table name
-            new_identifier: New table name
+            old_identifier: Current table name.
+            new_identifier: New table name.
+
+        Raises:
+            ValueError: If table doesn't exist.
+
         """
         if old_identifier not in self._tables:
             raise ValueError(f"Table {old_identifier} not found")
@@ -413,24 +461,24 @@ class MockIcebergCatalog:
             )
 
     def table_exists(self, identifier: str) -> bool:
-        """
-        Check if a table exists.
+        """Check if a table exists.
 
         Args:
-            identifier: Table name (namespace.table)
+            identifier: Table name (namespace.table).
 
         Returns:
-            True if table exists
+            True if table exists.
+
         """
         return identifier in self._tables
 
     @contextmanager
     def transaction(self) -> Iterator[None]:
-        """
-        Context manager for transactions (no-op in mock).
+        """Context manager for transactions (no-op in mock).
 
         Yields:
             None
+
         """
         try:
             yield
@@ -443,8 +491,13 @@ class MockIcebergCatalog:
         if self._db:
             self._db.close()
 
-    def __enter__(self) -> MockIcebergCatalog:
-        """Context manager entry."""
+    def __enter__(self) -> "MockIcebergCatalog":
+        """Context manager entry.
+
+        Returns:
+            Self for context manager use.
+
+        """
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:

@@ -54,6 +54,7 @@ class QualityProviderPlugin(Plugin, ABC):
                 from phlo_pandera import PanderaSchemaExtractor
                 return PanderaSchemaExtractor
         ```
+
     """
 
     @abstractmethod
@@ -69,6 +70,7 @@ class QualityProviderPlugin(Plugin, ABC):
                 from phlo_pandera import phlo_quality
                 return phlo_quality
             ```
+
         """
 
     @abstractmethod
@@ -84,6 +86,7 @@ class QualityProviderPlugin(Plugin, ABC):
                 from phlo_pandera import NullCheck, RangeCheck
                 return {"null": NullCheck, "range": RangeCheck}
             ```
+
         """
 
     def get_schema_extractor(self) -> Any | None:
@@ -91,6 +94,7 @@ class QualityProviderPlugin(Plugin, ABC):
 
         Returns:
             Schema extractor class, or None if not available.
+
         """
         return None
 
@@ -99,5 +103,6 @@ class QualityProviderPlugin(Plugin, ABC):
 
         Returns:
             Dictionary mapping check names to classes, or None.
+
         """
         return None

@@ -1,11 +1,23 @@
-"""
-OpenMetadata REST API client for metadata synchronization.
+"""OpenMetadata REST API client for metadata synchronization.
 
 Provides authenticated access to OpenMetadata for:
 - Creating/updating table entities
 - Publishing lineage information
 - Managing quality test results
 - Syncing column-level documentation
+
+Example:
+    >>> from phlo_openmetadata import OpenMetadataClient, OpenMetadataSettings
+    >>> settings = OpenMetadataSettings()
+    >>> client = OpenMetadataClient(
+    ...     base_url=settings.openmetadata_uri(),
+    ...     username=settings.openmetadata_username,
+    ...     password=settings.openmetadata_password,
+    ... )
+    >>> client.health_check()
+    True
+    >>> client.create_or_update_table("bronze", table_obj)
+
 """
 
 from __future__ import annotations
@@ -29,7 +41,21 @@ logger = get_logger(__name__)
 
 @dataclass(slots=True)
 class OpenMetadataColumn:
-    """Represents a column in OpenMetadata."""
+    """Represents a column in OpenMetadata.
+
+    Attributes:
+        name: Column name.
+        displayName: Display name (optional).
+        description: Column description.
+        dataType: Data type (default 'UNKNOWN').
+        dataLength: Length for string types.
+        precision: Precision for numeric types.
+        scale: Scale for numeric types.
+        tags: List of tag dictionaries.
+        constraint: Constraint type (e.g., 'PRIMARY_KEY').
+        ordinalPosition: Column position in table.
+
+    """
 
     name: str
     displayName: Optional[str] = None
@@ -43,13 +69,30 @@ class OpenMetadataColumn:
     ordinalPosition: Optional[int] = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dict, excluding None values."""
+        """Convert to dict, excluding None values.
+
+        Returns:
+            Dictionary representation of the column.
+
+        """
         return compact_dict(asdict(self))
 
 
 @dataclass(slots=True)
 class OpenMetadataTable:
-    """Represents a table entity in OpenMetadata."""
+    """Represents a table entity in OpenMetadata.
+
+    Attributes:
+        name: Table name.
+        description: Table description.
+        columns: List of column definitions.
+        tableType: Table type (default 'Regular').
+        owner: Owner dictionary with name and type.
+        tags: List of tag dictionaries.
+        sourceUrl: Source URL for the table.
+        location: Storage location path.
+
+    """
 
     name: str
     description: Optional[str] = None
@@ -61,7 +104,12 @@ class OpenMetadataTable:
     location: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dict, converting columns to dicts."""
+        """Convert to dict, converting columns to dicts.
+
+        Returns:
+            Dictionary representation of the table.
+
+        """
         return compact_dict(
             {
                 "name": self.name,
@@ -78,14 +126,26 @@ class OpenMetadataTable:
 
 @dataclass(slots=True)
 class OpenMetadataLineageEdge:
-    """Represents a lineage edge in OpenMetadata."""
+    """Represents a lineage edge in OpenMetadata.
+
+    Attributes:
+        fromEntity: Source entity FQN.
+        toEntity: Target entity FQN.
+        description: Optional edge description.
+
+    """
 
     fromEntity: str
     toEntity: str
     description: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dict for API submission."""
+        """Convert to dict for API submission.
+
+        Returns:
+            Dictionary representation of the lineage edge.
+
+        """
         return compact_dict(
             {
                 "fromEntity": self.fromEntity,
@@ -96,11 +156,33 @@ class OpenMetadataLineageEdge:
 
 
 class OpenMetadataClient:
-    """
-    Client for OpenMetadata REST API.
+    """Client for OpenMetadata REST API.
 
     Provides methods for interacting with OpenMetadata entities and
     publishing metadata, lineage, and quality results.
+
+    The client handles authentication automatically and supports connection
+    pooling via requests.Session.
+
+    Attributes:
+        base_url: Base URL of OpenMetadata API.
+        username: Authentication username.
+        password: Authentication password.
+        verify_ssl: Whether to verify SSL certificates.
+        timeout: Request timeout in seconds.
+        service_name: Default service name for operations.
+        service_type: Default service type (e.g., 'Trino').
+        database_name: Default database name.
+
+    Example:
+        >>> client = OpenMetadataClient(
+        ...     base_url="http://openmetadata:8585/api",
+        ...     username="admin",
+        ...     password="admin",
+        ... )
+        >>> client.health_check()
+        True
+
     """
 
     def __init__(
@@ -114,15 +196,18 @@ class OpenMetadataClient:
         service_type: str | None = None,
         database_name: str | None = None,
     ):
-        """
-        Initialize OpenMetadata client.
+        """Initialize OpenMetadata client.
 
         Args:
-            base_url: Base URL of OpenMetadata API (e.g., http://openmetadata:8585/api)
-            username: OpenMetadata username
-            password: OpenMetadata password
-            verify_ssl: Whether to verify SSL certificates
-            timeout: Request timeout in seconds
+            base_url: Base URL of OpenMetadata API (e.g., http://openmetadata:8585/api).
+            username: OpenMetadata username.
+            password: OpenMetadata password.
+            verify_ssl: Whether to verify SSL certificates.
+            timeout: Request timeout in seconds.
+            service_name: Default service name for operations.
+            service_type: Default service type.
+            database_name: Default database name.
+
         """
         self.base_url = base_url.rstrip("/")
         self.username = username
@@ -152,17 +237,21 @@ class OpenMetadataClient:
         *,
         log_errors: bool = True,
     ) -> dict[str, Any]:
-        """
-        Make authenticated request to OpenMetadata API.
+        """Make authenticated request to OpenMetadata API.
 
         Args:
-            method: HTTP method
-            endpoint: API endpoint path
-            data: JSON payload for request body
-            params: Query parameters
+            method: HTTP method.
+            endpoint: API endpoint path.
+            data: JSON payload for request body.
+            params: Query parameters.
+            log_errors: Whether to log request errors.
 
         Returns:
-            Response JSON
+            Response JSON as dictionary.
+
+        Raises:
+            requests_exceptions.RequestException: On request failure.
+
         """
         url = urljoin(self.base_url + "/", endpoint.lstrip("/"))
 
@@ -202,7 +291,15 @@ class OpenMetadataClient:
 
     @staticmethod
     def _extract_token(payload: Any) -> Optional[str]:
-        """Extract a bearer token from common OpenMetadata auth responses."""
+        """Extract a bearer token from common OpenMetadata auth responses.
+
+        Args:
+            payload: Response payload to search for token.
+
+        Returns:
+            JWT token string or None if not found.
+
+        """
         if isinstance(payload, dict):
             for key in ("accessToken", "token", "jwtToken", "idToken"):
                 value = payload.get(key)
@@ -221,7 +318,12 @@ class OpenMetadataClient:
         return None
 
     def _authenticate(self) -> bool:
-        """Attempt to authenticate and store a bearer token for future requests."""
+        """Attempt to authenticate and store a bearer token for future requests.
+
+        Returns:
+            True if authentication succeeded, False otherwise.
+
+        """
         if self._jwt_token:
             return False
 
@@ -271,7 +373,18 @@ class OpenMetadataClient:
         return False
 
     def _get_optional(self, endpoint: str) -> Optional[dict[str, Any]]:
-        """GET an endpoint and return None if not found."""
+        """GET an endpoint and return None if not found.
+
+        Args:
+            endpoint: API endpoint path.
+
+        Returns:
+            Response dict or None if 404.
+
+        Raises:
+            requests_exceptions.HTTPError: For non-404 errors.
+
+        """
         try:
             return self._request("GET", endpoint)
         except requests_exceptions.HTTPError as e:
@@ -280,7 +393,15 @@ class OpenMetadataClient:
             raise
 
     def _get_optional_any(self, endpoints: list[str]) -> Optional[dict[str, Any]]:
-        """GET the first available endpoint, return None if all are missing."""
+        """GET the first available endpoint, return None if all are missing.
+
+        Args:
+            endpoints: List of endpoint paths to try.
+
+        Returns:
+            Response dict from first available endpoint, or None.
+
+        """
         for endpoint in endpoints:
             try:
                 return self._request("GET", endpoint)
@@ -299,7 +420,22 @@ class OpenMetadataClient:
         retry_statuses: tuple[int, ...] = (404, 405),
         log_errors: bool = True,
     ) -> dict[str, Any]:
-        """Try multiple request targets, falling back on specific statuses."""
+        """Try multiple request targets, falling back on specific statuses.
+
+        Args:
+            attempts: List of (method, endpoint) tuples to try.
+            data: JSON payload for request body.
+            params: Query parameters.
+            retry_statuses: Status codes that trigger fallback.
+            log_errors: Whether to log errors.
+
+        Returns:
+            Response dict from first successful request.
+
+        Raises:
+            requests_exceptions.HTTPError: If all attempts fail.
+
+        """
         last_exc: requests_exceptions.HTTPError | None = None
         for method, endpoint in attempts:
             try:
@@ -318,23 +454,40 @@ class OpenMetadataClient:
 
     @staticmethod
     def _sanitize_name(value: str) -> str:
-        """Sanitize entity names for OpenMetadata compatibility."""
+        """Sanitize entity names for OpenMetadata compatibility.
+
+        Args:
+            value: Raw entity name.
+
+        Returns:
+            Sanitized name with only alphanumeric and underscore characters.
+
+        """
         cleaned = re.sub(r"[^A-Za-z0-9_]", "_", value).strip("_")
         return cleaned or "phlo"
 
     @staticmethod
     def _build_entity_link(table_fqn: str, column: str | None = None) -> str:
-        """Build an OpenMetadata entityLink string."""
+        """Build an OpenMetadata entityLink string.
+
+        Args:
+            table_fqn: Fully qualified table name.
+            column: Optional column name.
+
+        Returns:
+            Entity link string for OpenMetadata.
+
+        """
         if column:
             return f"<#E::table::{table_fqn}::columns::{column}>"
         return f"<#E::table::{table_fqn}>"
 
     def health_check(self) -> bool:
-        """
-        Check if OpenMetadata is reachable and healthy.
+        """Check if OpenMetadata is reachable and healthy.
 
         Returns:
-            True if OpenMetadata is healthy, False otherwise
+            True if OpenMetadata is healthy, False otherwise.
+
         """
         endpoints = ["/v1/system/version", "/health"]
         for endpoint in endpoints:
@@ -354,19 +507,27 @@ class OpenMetadataClient:
         return False
 
     def get_table(self, table_fqn: str) -> Optional[dict[str, Any]]:
-        """
-        Get table entity by fully qualified name.
+        """Get table entity by fully qualified name.
 
         Args:
-            table_fqn: Fully qualified table name (service.database.schema.table or schema.table)
+            table_fqn: Fully qualified table name (service.database.schema.table or schema.table).
 
         Returns:
-            Table entity dict or None if not found
+            Table entity dict or None if not found.
+
         """
         return self._get_optional(f"/v1/tables/name/{table_fqn}")
 
     def get_database_service(self, name: str) -> Optional[dict[str, Any]]:
-        """Get database service by name."""
+        """Get database service by name.
+
+        Args:
+            name: Service name.
+
+        Returns:
+            Service entity dict or None if not found.
+
+        """
         return self._get_optional(f"/v1/services/databaseServices/name/{name}")
 
     def create_database_service(
@@ -375,7 +536,17 @@ class OpenMetadataClient:
         service_type: str,
         connection: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
-        """Create a database service."""
+        """Create a database service.
+
+        Args:
+            name: Service name.
+            service_type: Service type (e.g., 'Trino', 'Snowflake').
+            connection: Optional connection configuration.
+
+        Returns:
+            Created service entity dict.
+
+        """
         payload: dict[str, Any] = {"name": name, "serviceType": service_type}
         if connection is not None:
             payload["connection"] = connection
@@ -387,7 +558,20 @@ class OpenMetadataClient:
         service_type: Optional[str] = None,
         connection: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
-        """Ensure database service exists, creating it if needed."""
+        """Ensure database service exists, creating it if needed.
+
+        Args:
+            name: Service name.
+            service_type: Service type (uses instance default if not provided).
+            connection: Optional connection configuration.
+
+        Returns:
+            Existing or created service entity dict.
+
+        Raises:
+            ValueError: If service_type is required but not provided.
+
+        """
         if name in self._ensured_services:
             return {"name": name}
         existing = self.get_database_service(name)
@@ -402,16 +586,42 @@ class OpenMetadataClient:
         return created
 
     def get_database(self, database_fqn: str) -> Optional[dict[str, Any]]:
-        """Get database by fully qualified name."""
+        """Get database by fully qualified name.
+
+        Args:
+            database_fqn: Fully qualified database name.
+
+        Returns:
+            Database entity dict or None if not found.
+
+        """
         return self._get_optional(f"/v1/databases/name/{database_fqn}")
 
     def create_database(self, name: str, service_fqn: str) -> dict[str, Any]:
-        """Create a database within a service."""
+        """Create a database within a service.
+
+        Args:
+            name: Database name.
+            service_fqn: Parent service FQN.
+
+        Returns:
+            Created database entity dict.
+
+        """
         payload = {"name": name, "service": service_fqn}
         return self._request("POST", "/v1/databases", data=payload)
 
     def ensure_database(self, service_name: str, database_name: str) -> dict[str, Any]:
-        """Ensure database exists within a service."""
+        """Ensure database exists within a service.
+
+        Args:
+            service_name: Parent service name.
+            database_name: Database name to ensure.
+
+        Returns:
+            Existing or created database entity dict.
+
+        """
         database_fqn = f"{service_name}.{database_name}"
         if database_fqn in self._ensured_databases:
             return {"name": database_name}
@@ -424,11 +634,28 @@ class OpenMetadataClient:
         return created
 
     def get_database_schema(self, schema_fqn: str) -> Optional[dict[str, Any]]:
-        """Get database schema by fully qualified name."""
+        """Get database schema by fully qualified name.
+
+        Args:
+            schema_fqn: Fully qualified schema name.
+
+        Returns:
+            Schema entity dict or None if not found.
+
+        """
         return self._get_optional(f"/v1/databaseSchemas/name/{schema_fqn}")
 
     def create_database_schema(self, name: str, database_fqn: str) -> dict[str, Any]:
-        """Create a schema within a database."""
+        """Create a schema within a database.
+
+        Args:
+            name: Schema name.
+            database_fqn: Parent database FQN.
+
+        Returns:
+            Created schema entity dict.
+
+        """
         payload = {"name": name, "database": database_fqn}
         return self._request("POST", "/v1/databaseSchemas", data=payload)
 
@@ -441,7 +668,19 @@ class OpenMetadataClient:
         service_type: Optional[str] = None,
         connection: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
-        """Ensure database schema exists, creating service/database if needed."""
+        """Ensure database schema exists, creating service/database if needed.
+
+        Args:
+            service_name: Service name.
+            database_name: Database name.
+            schema_name: Schema name to ensure.
+            service_type: Optional service type override.
+            connection: Optional connection configuration.
+
+        Returns:
+            Existing or created schema entity dict.
+
+        """
         schema_fqn = f"{service_name}.{database_name}.{schema_name}"
         cached_id = self._ensured_schemas.get(schema_fqn)
         if cached_id:
@@ -466,20 +705,31 @@ class OpenMetadataClient:
         service_name: Optional[str],
         database_name: Optional[str],
     ) -> str:
+        """Build fully qualified schema name.
+
+        Args:
+            schema_name: Schema name.
+            service_name: Service name (optional).
+            database_name: Database name (optional).
+
+        Returns:
+            Fully qualified schema name.
+
+        """
         if service_name and database_name:
             return f"{service_name}.{database_name}.{schema_name}"
         return schema_name
 
     def search_tables(self, query: str, limit: int = 100) -> list[dict[str, Any]]:
-        """
-        Search for tables matching a query.
+        """Search for tables matching a query.
 
         Args:
-            query: Search query string
-            limit: Maximum results
+            query: Search query string.
+            limit: Maximum results.
 
         Returns:
-            List of matching table entities
+            List of matching table entities.
+
         """
         result = self._request(
             "GET",
@@ -498,15 +748,18 @@ class OpenMetadataClient:
         database_name: Optional[str] = None,
         service_type: Optional[str] = None,
     ) -> dict[str, Any]:
-        """
-        Create or update a table entity in OpenMetadata.
+        """Create or update a table entity in OpenMetadata.
 
         Args:
-            schema_name: Database schema name
-            table: OpenMetadataTable object
+            schema_name: Database schema name.
+            table: OpenMetadataTable object.
+            service_name: Optional service name override.
+            database_name: Optional database name override.
+            service_type: Optional service type override.
 
         Returns:
-            Created/updated table entity from OpenMetadata
+            Created/updated table entity from OpenMetadata.
+
         """
         resolved_service = service_name or self.service_name
         resolved_database = database_name or self.database_name
@@ -530,15 +783,16 @@ class OpenMetadataClient:
     def create_lineage(
         self, from_fqn: str, to_fqn: str, description: Optional[str] = None
     ) -> dict[str, Any]:
-        """
-        Create lineage edge between two entities.
+        """Create lineage edge between two entities.
 
         Args:
-            from_fqn: Source entity FQN
-            to_fqn: Target entity FQN
+            from_fqn: Source entity FQN.
+            to_fqn: Target entity FQN.
+            description: Optional edge description.
 
         Returns:
-            Lineage creation result
+            Lineage creation result.
+
         """
         from_entity = self.get_table(from_fqn) or {}
         to_entity = self.get_table(to_fqn) or {}
@@ -565,7 +819,12 @@ class OpenMetadataClient:
         return self._request("PUT", "/v1/lineage", data=payload)
 
     def list_databases(self) -> list[dict[str, Any]]:
-        """List databases from OpenMetadata."""
+        """List databases from OpenMetadata.
+
+        Returns:
+            List of database entities.
+
+        """
         try:
             result = self._request("GET", "/v1/databases")
             data = result.get("data", [])
@@ -575,7 +834,19 @@ class OpenMetadataClient:
             return []
 
     def add_owner(self, table_fqn: str, owner_name: str) -> dict[str, Any]:
-        """Set the owner for a table entity."""
+        """Set the owner for a table entity.
+
+        Args:
+            table_fqn: Fully qualified table name.
+            owner_name: Name of the owner.
+
+        Returns:
+            Updated table entity.
+
+        Raises:
+            ValueError: If table not found.
+
+        """
         entity = self.get_table(table_fqn)
         if not entity:
             raise ValueError(f"Table not found: {table_fqn}")
@@ -595,13 +866,19 @@ class OpenMetadataClient:
         parameter_definition: Optional[list[dict[str, Any]]] = None,
         test_platforms: Optional[list[str]] = None,
     ) -> dict[str, Any]:
-        """
-        Create a test definition in OpenMetadata.
+        """Create a test definition in OpenMetadata.
 
         Args:
-            test_name: Name of the test definition
-            test_type: Type of test (e.g., nullCheck, rangeCheck)
-            description: Optional description
+            test_name: Name of the test definition.
+            test_type: Type of test (e.g., nullCheck, rangeCheck).
+            description: Optional description.
+            entity_type: Entity type (TABLE or COLUMN).
+            parameter_definition: Parameter definitions for the test.
+            test_platforms: List of test platforms.
+
+        Returns:
+            Created or existing test definition entity.
+
         """
         resolved_description = description or f"Phlo test definition: {test_name}"
         sanitized_name = self._sanitize_name(test_name)
@@ -641,7 +918,15 @@ class OpenMetadataClient:
             raise
 
     def get_test_definition(self, name: str) -> Optional[dict[str, Any]]:
-        """Get a test definition by name."""
+        """Get a test definition by name.
+
+        Args:
+            name: Test definition name.
+
+        Returns:
+            Test definition entity or None if not found.
+
+        """
         sanitized_name = self._sanitize_name(name)
         return self._get_optional_any(
             [
@@ -651,7 +936,15 @@ class OpenMetadataClient:
         )
 
     def get_test_suite(self, name: str) -> Optional[dict[str, Any]]:
-        """Get a test suite by name."""
+        """Get a test suite by name.
+
+        Args:
+            name: Test suite name.
+
+        Returns:
+            Test suite entity or None if not found.
+
+        """
         return self._get_optional_any([f"/v1/dataQuality/testSuites/name/{name}"])
 
     def create_test_suite(
@@ -660,7 +953,17 @@ class OpenMetadataClient:
         table_fqn: str,
         description: Optional[str] = None,
     ) -> dict[str, Any]:
-        """Create a test suite for a table."""
+        """Create a test suite for a table.
+
+        Args:
+            name: Suite name.
+            table_fqn: Table FQN to associate with suite.
+            description: Optional description.
+
+        Returns:
+            Created test suite entity.
+
+        """
         suite_name = name or f"{table_fqn}.testSuite"
         data: dict[str, Any] = {
             "name": suite_name,
@@ -676,7 +979,17 @@ class OpenMetadataClient:
         table_fqn: str,
         description: Optional[str] = None,
     ) -> dict[str, Any]:
-        """Ensure a test suite exists for a table."""
+        """Ensure a test suite exists for a table.
+
+        Args:
+            name: Suite name.
+            table_fqn: Table FQN.
+            description: Optional description.
+
+        Returns:
+            Existing or created test suite entity.
+
+        """
         suite_name = name or f"{table_fqn}.testSuite"
         existing = self.get_test_suite(suite_name)
         if existing:
@@ -701,8 +1014,20 @@ class OpenMetadataClient:
         entity_link: str | None = None,
         test_suite_name: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Create a test case for a table.
+        """Create a test case for a table.
+
+        Args:
+            test_case_name: Name for the test case.
+            table_fqn: Table FQN to test.
+            test_definition_name: Associated test definition name.
+            parameters: Test parameters as dict.
+            description: Optional description.
+            entity_link: Optional entity link override.
+            test_suite_name: Optional test suite name.
+
+        Returns:
+            Created test case entity.
+
         """
         sanitized_case_name = self._sanitize_name(test_case_name)
         payload: dict[str, Any] = {
@@ -743,8 +1068,17 @@ class OpenMetadataClient:
         test_execution_date: datetime,
         result_value: Optional[str] = None,
     ) -> dict[str, Any]:
-        """
-        Publish a test execution result.
+        """Publish a test execution result.
+
+        Args:
+            test_case_fqn: Test case FQN.
+            result: Test result ('Success' or 'Failed').
+            test_execution_date: Execution timestamp.
+            result_value: Optional result value/metric.
+
+        Returns:
+            Published result response or empty dict if skipped.
+
         """
         data = {
             "result": result,
@@ -768,10 +1102,21 @@ class OpenMetadataClient:
             raise
 
     def close(self) -> None:
-        """Close underlying HTTP session."""
+        """Close underlying HTTP session.
+
+        Should be called when done using the client to release connections.
+        """
         self.session.close()
 
     @staticmethod
     def format_timestamp(dt: datetime) -> str:
-        """Format timestamp for OpenMetadata."""
+        """Format timestamp for OpenMetadata.
+
+        Args:
+            dt: Datetime to format.
+
+        Returns:
+            ISO 8601 formatted string with Z suffix.
+
+        """
         return dt.isoformat() + "Z"

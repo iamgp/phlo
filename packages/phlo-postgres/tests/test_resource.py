@@ -12,6 +12,7 @@ def _resource() -> PostgresResource:
 
     Returns:
         Configured `PostgresResource` instance.
+
     """
     return PostgresResource(
         host="localhost",

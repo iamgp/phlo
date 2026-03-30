@@ -1,5 +1,4 @@
-"""
-Orchestrator adapter plugin classes.
+"""Orchestrator adapter plugin classes.
 
 This module defines plugin types for orchestrator integration.
 """
@@ -43,5 +42,6 @@ class OrchestratorAdapterPlugin(Plugin, ABC):
 
         Returns:
             Orchestrator-native definitions object.
+
         """
         raise NotImplementedError

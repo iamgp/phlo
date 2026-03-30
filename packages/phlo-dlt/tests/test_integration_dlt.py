@@ -40,6 +40,7 @@ def test_phlo_ingestion_execution_real(tmp_path, iceberg_catalog):
 
         Yields:
             dict[str, object]: Source row payloads.
+
         """
 
         yield {"id": 1, "name": "foo"}

@@ -1,4 +1,24 @@
-"""Observatory extension for Nessie branches UI."""
+"""Observatory extension for Nessie branches UI.
+
+This module provides an Observatory UI extension that adds a "Branches" view
+to the Phlo observatory interface, allowing users to browse and manage Nessie
+branches through a web UI.
+
+The extension serves static assets from the package and registers navigation
+items for the branches management page.
+
+Example:
+    >>> from phlo_nessie.observatory_plugin import NessieObservatoryExtension
+    >>> plugin = NessieObservatoryExtension()
+    >>> manifest = plugin.manifest
+
+Classes:
+    NessieObservatoryExtension: Observatory extension for Nessie branches UI.
+
+Attributes:
+    VERSION: Extension version string.
+
+"""
 
 from __future__ import annotations
 
@@ -26,6 +46,7 @@ class NessieObservatoryExtension(ObservatoryExtensionPlugin):
 
         Returns:
             PluginMetadata: Plugin identity, version, and description.
+
         """
         return PluginMetadata(
             name="nessie",
@@ -39,6 +60,7 @@ class NessieObservatoryExtension(ObservatoryExtensionPlugin):
 
         Returns:
             ObservatoryExtensionManifest: Manifest defining UI navigation and compatibility.
+
         """
         return ObservatoryExtensionManifest(
             name="nessie",
@@ -55,5 +77,6 @@ class NessieObservatoryExtension(ObservatoryExtensionPlugin):
 
         Returns:
             Traversable: Package resource path for observatory static assets.
+
         """
         return resources.files("phlo_nessie").joinpath("observatory_assets")

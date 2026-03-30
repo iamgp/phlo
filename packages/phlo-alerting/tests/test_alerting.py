@@ -24,6 +24,7 @@ class MockDestination(AlertDestination):
 
         Returns:
             Always returns ``True`` for successful test delivery.
+
         """
         self.alerts.append(alert)
         return True

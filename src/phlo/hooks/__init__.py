@@ -1,7 +1,54 @@
-"""Hook bus for capability plugins.
+"""Hook event system for Phlo plugins.
 
-This module intentionally avoids importing submodules at import time to prevent
-cycles during plugin discovery. Exports are resolved lazily via __getattr__.
+The hook system provides an event-driven architecture for plugin communication.
+Plugins can emit events during various lifecycle stages (ingestion, transformation,
+quality checks, etc.) and other plugins can register handlers to react to these
+events.
+
+This module uses lazy loading to prevent circular imports during plugin discovery.
+All exports are resolved on first access via ``__getattr__`` to avoid loading
+submodules at import time.
+
+Key Components:
+    - :class:`~phlo.hooks.bus.HookBus`: Central event dispatcher
+    - :class:`~phlo.hooks.events.HookEvent`: Base event payload
+    - :class:`~phlo.hooks.emitters.IngestionEventEmitter`: Ingestion lifecycle events
+    - :class:`~phlo.hooks.emitters.TransformEventEmitter`: Transform lifecycle events
+    - :class:`~phlo.hooks.emitters.QualityResultEventEmitter`: Quality check events
+
+Event Types:
+    The system supports multiple event types for different lifecycle stages:
+    - ``ingestion.start``, ``ingestion.end``: Ingestion operations
+    - ``transform.start``, ``transform.end``: dbt transformations
+    - ``quality.result``: Data quality check results
+    - ``service.start``, ``service.stop``: Service lifecycle
+    - ``schema_migration.applied``, ``data_migration.completed``: Migrations
+
+Example:
+    ```python
+    from phlo.hooks import get_hook_bus, IngestionEventEmitter, IngestionEventContext
+
+    # Get the global hook bus
+    bus = get_hook_bus()
+
+    # Create an emitter for ingestion events
+    context = IngestionEventContext(
+        asset_key="my_table",
+        table_name="my_table",
+        group_name="ingestion"
+    )
+    emitter = IngestionEventEmitter(context)
+
+    # Emit events during your operation
+    emitter.emit_start()
+    # ... perform ingestion ...
+    emitter.emit_end(status="success")
+    ```
+
+Note:
+    This module intentionally avoids importing submodules at import time to prevent
+    cycles during plugin discovery. Exports are resolved lazily via ``__getattr__``.
+
 """
 
 from __future__ import annotations
@@ -132,8 +179,8 @@ def __getattr__(name: str):  # noqa: ANN001
 
     Raises:
         AttributeError: If name is not an exported hook symbol.
-    """
 
+    """
     if name in _BUS_EXPORTS:
         from phlo.hooks import bus as _bus
 
@@ -151,5 +198,4 @@ def __getattr__(name: str):  # noqa: ANN001
 
 def __dir__() -> list[str]:
     """Return module attribute names for introspection tools."""
-
     return sorted(set(__all__))

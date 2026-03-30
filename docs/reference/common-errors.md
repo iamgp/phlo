@@ -233,16 +233,16 @@ requests.exceptions.ConnectionError: ('Connection aborted.', ConnectionRefusedEr
 
 ```bash
 # Check service status
-docker compose ps
+docker ps
 
 # Start services
-make up-core up-query
+phlo services start
 
 # Check logs
-docker logs nessie
-docker logs minio
-docker logs trino
-docker logs dagster-webserver
+phlo services logs -f nessie
+phlo services logs -f minio
+phlo services logs -f trino
+phlo services logs -f dagster-webserver
 
 # Verify connection
 curl http://localhost:19120/api/v2/config  # Nessie
@@ -271,7 +271,7 @@ docker exec -it dagster-webserver bash
 pip install -e /app
 
 # Or set PYTHONPATH
-export PYTHONPATH=/home/user/phlo/src:$PYTHONPATH
+export PYTHONPATH=/path/to/phlo/src:$PYTHONPATH
 ```
 
 ---
@@ -299,7 +299,6 @@ docker logs dagster-webserver | tail -100
 
 # 4. Restart services if needed
 docker restart dagster-webserver
-docker restart nessie
 ```
 
 ---
@@ -349,10 +348,10 @@ When you encounter an error:
 
    ```bash
    # Dagster logs
-   docker logs dagster-webserver | tail -100
+   phlo services logs -f dagster-webserver | tail -100
 
    # All service logs
-   make logs
+   phlo services logs
    ```
 
 4. **Verify configuration**
@@ -371,8 +370,8 @@ When you encounter an error:
    - [Workflow Development Guide](../guides/workflow-development.md)
 
 7. **Ask for help**
-   - [GitHub Discussions](https://github.com/iamgp/phlo/discussions)
-   - [GitHub Issues](https://github.com/iamgp/phlo/issues)
+   - [GitHub Discussions](https://github.com/phlohouse/phlo/discussions)
+   - [GitHub Issues](https://github.com/phlohouse/phlo/issues)
 
 ---
 
@@ -420,7 +419,7 @@ api_key = os.getenv("API_KEY")
 
 ```bash
 # Quick health check
-docker compose ps
+docker ps
 
 # All services should show "Up" or "healthy"
 ```
@@ -460,8 +459,8 @@ def my_asset(partition_date: str):
 
 ### Community
 
-- **GitHub Discussions**: https://github.com/iamgp/phlo/discussions
-- **GitHub Issues**: https://github.com/iamgp/phlo/issues
+- **GitHub Discussions**: https://github.com/phlohouse/phlo/discussions
+- **GitHub Issues**: https://github.com/phlohouse/phlo/issues
 
 ### Tips for Asking Questions
 
