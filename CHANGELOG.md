@@ -1,5 +1,15 @@
 # Changelog
 
+## [phlo 0.7.9 + 1 packages] - 2026-03-30
+
+### Fixed
+- phlo: dbt lineage import discovery cycle (#323)
+- phlo-dbt: dbt lineage import discovery cycle (#323)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (5 commits)
+
 ## [phlo 0.7.8 + 2 packages] - 2026-03-28
 
 ### Fixed
