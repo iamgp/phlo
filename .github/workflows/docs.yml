@@ -23,7 +23,7 @@ jobs:
           version: "latest"
       - name: Set up Python
         run: uv python install 3.11
-      - uses: actions/setup-node@0f02c547dbf1c7b6cb3329322436c6e7b4dc4197
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
         with:
           node-version: "22"
           cache: npm
@@ -51,7 +51,7 @@ jobs:
           version: "latest"
       - name: Set up Python
         run: uv python install 3.11
-      - uses: actions/setup-node@0f02c547dbf1c7b6cb3329322436c6e7b4dc4197
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
         with:
           node-version: "22"
           cache: npm
