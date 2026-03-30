@@ -95,6 +95,11 @@ def _ref_hash(ref: object) -> str | None:
         'abc123def...'
 
     """
+    for attr_name in ("hash_", "hash"):
+        ref_hash = getattr(ref, attr_name, None)
+        if isinstance(ref_hash, str) and ref_hash:
+            return ref_hash
+    return None
 
 
 def get_nessie_client():

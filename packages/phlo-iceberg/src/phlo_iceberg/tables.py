@@ -849,6 +849,8 @@ def delete_table(table_name: str, ref: str = "main") -> None:
         :func:`remove_orphan_files`: To clean up underlying storage files.
 
     """
+    catalog = get_catalog(ref=ref)
+    catalog.drop_table(table_name)
 
 
 def expire_snapshots(

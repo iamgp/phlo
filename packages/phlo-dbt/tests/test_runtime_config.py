@@ -3,6 +3,7 @@ from __future__ import annotations
 import yaml
 from types import SimpleNamespace
 
+import phlo_dbt.runtime_config as runtime_config
 from phlo_dbt.runtime_config import (
     DEFAULT_DBT_TARGET,
     DbtRuntimeConfig,
@@ -107,7 +108,8 @@ def test_resolve_dbt_runtime_config_uses_project_profile_name(tmp_path, monkeypa
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        "phlo_dbt.runtime_config.get_dbt_settings",
+        runtime_config,
+        "get_dbt_settings",
         lambda: SimpleNamespace(
             dbt_project_path=project_dir,
             dbt_query_catalog="iceberg",
