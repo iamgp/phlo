@@ -535,7 +535,6 @@ class IcebergResource:
 
         """
         return list_table_snapshots(table_name=table_name, limit=limit, ref=self.ref)
-        return list_table_snapshots(table_name=table_name, limit=limit, ref=self.ref)
 
     def rollback_to_snapshot(self, *, table_name: str, snapshot_id: int | str) -> dict:
         """Roll back a table to a previous snapshot.

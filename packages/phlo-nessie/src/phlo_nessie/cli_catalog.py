@@ -55,6 +55,20 @@ def _get_iceberg_catalog(ref: str = "main"):
         >>> print(list(catalog.list_namespaces()))
 
     """
+    logger.debug(
+        "nessie_catalog_catalog_load_requested",
+        ref=ref,
+    )
+    try:
+        from phlo_nessie.catalog_backend import load_pyiceberg_catalog
+    except ImportError as exc:  # pragma: no cover
+        logger.error("nessie_catalog_catalog_backend_missing", ref=ref, exc_info=True)
+        raise RuntimeError(
+            "Iceberg catalog support is not installed. "
+            "Install `phlo-nessie[iceberg-cli]` or `pyiceberg`."
+        ) from exc
+
+    return load_pyiceberg_catalog(ref=ref)
 
 
 @click.group()
