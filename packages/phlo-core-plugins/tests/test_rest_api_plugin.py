@@ -11,6 +11,7 @@ class DummyResponse:
 
         Args:
             payload: JSON-serializable data returned by ``json()``.
+
         """
         self._payload = payload
 

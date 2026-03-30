@@ -1,4 +1,25 @@
-"""Nessie resources for branch management."""
+"""Nessie resources for branch management.
+
+This module provides low-level and high-level Nessie REST clients for branch
+operations. Includes retry logic, hash management, branch creation/deletion,
+and merge operations.
+
+Example:
+    >>> from phlo_nessie.resource import NessieResource, BranchManagerResource
+    >>> nessie = NessieResource()
+    >>> branches = nessie.list_branches()
+    >>> manager = BranchManagerResource(nessie)
+    >>> manager.cleanup_branch("feature/old")
+
+Classes:
+    NessieResource: Low-level Nessie REST client with retry logic.
+    BranchManagerResource: High-level convenience wrapper for branch operations.
+
+Attributes:
+    _MAX_RETRIES: Maximum retry attempts for failed requests.
+    _BACKOFF_SCHEDULE: Exponential backoff delays between retries.
+
+"""
 
 from __future__ import annotations
 
@@ -26,6 +47,7 @@ class BranchInfo:
         name: Branch name.
         hash: Current branch hash, if available.
         created_at: Branch creation timestamp, if provided by Nessie.
+
     """
 
     name: str
@@ -34,15 +56,37 @@ class BranchInfo:
 
 
 class NessieResource:
-    """Lightweight Nessie REST client."""
+    """Lightweight Nessie REST client.
+
+    Provides low-level Nessie API operations with automatic retry logic
+    for transient failures. Supports branch management operations including
+    list, create, delete, and merge.
+
+    Attributes:
+        base_url: Full Nessie base URL including host and port.
+
+    Example:
+        >>> nessie = NessieResource()
+        >>> branches = nessie.list_branches()
+        >>> nessie.create_branch("feature/new", from_ref="main")
+
+    Note:
+        Uses exponential backoff retry for connection errors and 5xx responses.
+
+    """
 
     def __init__(self, base_url: str | None = None):
         """Initialize a Nessie client.
 
         Args:
             base_url: Optional explicit Nessie base URL.
-        """
+                If not provided, uses settings from configuration.
 
+        Example:
+            >>> nessie = NessieResource()  # Uses default settings
+            >>> nessie = NessieResource("http://custom:19120")  # Explicit URL
+
+        """
         if base_url:
             self.base_url = base_url.rstrip("/")
         else:
@@ -62,8 +106,8 @@ class NessieResource:
 
         Returns:
             Fully qualified API URL.
-        """
 
+        """
         return f"{self.base_url}{path}"
 
     def _request(
@@ -88,8 +132,8 @@ class NessieResource:
         Raises:
             requests.exceptions.ConnectionError: After all retries exhausted.
             requests.exceptions.RequestException: On non-retryable failures.
-        """
 
+        """
         request_fn = getattr(requests, method.lower())
         last_exc: Exception | None = None
         for attempt in range(1, _MAX_RETRIES + 1):
@@ -124,10 +168,22 @@ class NessieResource:
     def list_branches(self) -> list[BranchInfo]:
         """List all branch references from Nessie.
 
-        Returns:
-            Parsed branch information for each branch reference.
-        """
+        Fetches branch metadata including name, hash, and creation timestamp
+        from the Nessie API.
 
+        Returns:
+            list[BranchInfo]: Parsed branch information for each branch reference.
+
+        Raises:
+            Exception: Propagates HTTP or parsing errors.
+
+        Example:
+            >>> nessie = NessieResource()
+            >>> branches = nessie.list_branches()
+            >>> for branch in branches:
+            ...     print(f"{branch.name}: {branch.hash[:8]}")
+
+        """
         logger.info(
             "nessie_resource_list_branches_requested",
             base_url=self.base_url,
@@ -178,9 +234,14 @@ class NessieResource:
             name: Branch name.
 
         Returns:
-            Branch hash when found, otherwise ``None``.
-        """
+            str | None: Branch hash when found, otherwise ``None``.
 
+        Example:
+            >>> nessie = NessieResource()
+            >>> hash = nessie.get_branch_hash("main")
+            'abc123def456...'
+
+        """
         logger.debug(
             "nessie_resource_get_branch_hash_requested",
             branch_name=name,
@@ -210,9 +271,14 @@ class NessieResource:
             name: Branch name.
 
         Returns:
-            ``True`` if deletion succeeded, else ``False``.
-        """
+            bool: ``True`` if deletion succeeded, else ``False``.
 
+        Example:
+            >>> nessie = NessieResource()
+            >>> deleted = nessie.delete_branch("feature/old")
+            True
+
+        """
         logger.info(
             "nessie_resource_delete_branch_requested",
             branch_name=name,
@@ -247,7 +313,13 @@ class NessieResource:
             from_ref: Source reference to branch from.
 
         Returns:
-            Hash of the new branch, or ``None`` on failure.
+            str | None: Hash of the new branch, or ``None`` on failure.
+
+        Example:
+            >>> nessie = NessieResource()
+            >>> new_hash = nessie.create_branch("feature/new", from_ref="main")
+            'abc123def456...'
+
         """
         logger.info(
             "nessie_resource_create_branch_requested",
@@ -294,7 +366,13 @@ class NessieResource:
             target: Target branch name to merge into.
 
         Returns:
-            ``True`` if merge succeeded, else ``False``.
+            bool: ``True`` if merge succeeded, else ``False``.
+
+        Example:
+            >>> nessie = NessieResource()
+            >>> merged = nessie.merge_branch("feature/new", target="main")
+            True
+
         """
         logger.info(
             "nessie_resource_merge_branch_requested",
@@ -335,24 +413,52 @@ class NessieResource:
 
 
 class BranchManagerResource:
-    """Convenience wrapper for cleaning up Nessie branches."""
+    """Convenience wrapper for cleaning up Nessie branches.
+
+    Provides high-level operations for managing pipeline branches,
+    filtering out system branches like 'main' and 'dev'.
+
+    Attributes:
+        _nessie: Internal NessieResource instance.
+
+    Example:
+        >>> manager = BranchManagerResource()
+        >>> old_branches = manager.get_all_pipeline_branches()
+        >>> for branch in old_branches:
+        ...     manager.cleanup_branch(branch.name)
+
+    """
 
     def __init__(self, nessie: NessieResource | None = None):
         """Initialize a branch manager.
 
         Args:
             nessie: Optional Nessie client instance.
-        """
+                If not provided, creates a new NessieResource.
 
+        Example:
+            >>> manager = BranchManagerResource()  # Uses default NessieResource
+            >>> custom = BranchManagerResource(NessieResource("http://custom:19120"))
+
+        """
         self._nessie = nessie or NessieResource()
 
     def get_all_pipeline_branches(self) -> list[BranchInfo]:
         """Return non-system branches used for pipelines.
 
-        Returns:
-            Branches excluding ``main`` and ``dev``.
-        """
+        Excludes 'main' and 'dev' branches which are considered
+        system branches.
 
+        Returns:
+            list[BranchInfo]: Branches excluding ``main`` and ``dev``.
+
+        Example:
+            >>> manager = BranchManagerResource()
+            >>> pipeline_branches = manager.get_all_pipeline_branches()
+            >>> print([b.name for b in pipeline_branches])
+            ['feature/analytics', 'feature/ml-pipeline']
+
+        """
         branches = self._nessie.list_branches()
         pipeline_branches = [branch for branch in branches if branch.name not in {"main", "dev"}]
         logger.info(
@@ -369,9 +475,14 @@ class BranchManagerResource:
             name: Branch name.
 
         Returns:
-            ``True`` when cleanup succeeds, else ``False``.
-        """
+            bool: ``True`` when cleanup succeeds, else ``False``.
 
+        Example:
+            >>> manager = BranchManagerResource()
+            >>> cleaned = manager.cleanup_branch("feature/old-experiment")
+            True
+
+        """
         logger.info(
             "nessie_branch_manager_cleanup_requested",
             branch_name=name,

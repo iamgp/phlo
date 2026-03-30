@@ -1,7 +1,63 @@
-"""
-Source connector plugin classes.
+"""Source connector plugin classes.
 
-This module defines plugin types for data ingestion from external sources.
+This module defines the :class:`SourceConnectorPlugin` base class for implementing
+data source connectors. Source connectors enable Phlo to ingest data from external
+systems like APIs, databases, file systems, and message queues.
+
+Source connectors are responsible for:
+    - Connecting to external data sources
+    - Fetching data in record-by-record fashion
+    - Providing schema information when available
+    - Testing connectivity before ingestion
+
+Example Implementations:
+    - HTTP API connectors (REST, GraphQL)
+    - Database connectors (PostgreSQL, MySQL, etc.)
+    - File system connectors (CSV, JSON, Parquet)
+    - Message queue connectors (Kafka, RabbitMQ)
+    - Cloud storage connectors (S3, GCS, Azure Blob)
+
+Key Methods:
+    - :meth:`fetch_data`: Required. Yields records from the source
+    - :meth:`get_schema`: Optional. Returns column type mapping
+    - :meth:`test_connection`: Optional. Validates connectivity
+
+See Also:
+    - :class:`IngestionProviderPlugin`: For advanced ingestion customization
+    - :mod:`phlo.ingestion`: Public API for ingestion operations
+
+Example:
+    ```python
+    from phlo.plugins.base import SourceConnectorPlugin, PluginMetadata
+    from collections.abc import Iterator
+    import requests
+
+    class JSONPlaceholderConnector(SourceConnectorPlugin):
+        @property
+        def metadata(self) -> PluginMetadata:
+            return PluginMetadata(
+                name="jsonplaceholder",
+                version="1.0.0",
+                description="Fetch posts from JSONPlaceholder API",
+                author="Example Author",
+            )
+
+        def fetch_data(self, config: dict[str, Any]) -> Iterator[dict[str, Any]]:
+            endpoint = config.get("endpoint", "posts")
+            response = requests.get(f"https://jsonplaceholder.typicode.com/{endpoint}")
+            response.raise_for_status()
+            for item in response.json():
+                yield item
+
+        def get_schema(self, config: dict[str, Any]) -> dict[str, str]:
+            return {
+                "userId": "int",
+                "id": "int",
+                "title": "string",
+                "body": "string",
+            }
+    ```
+
 """
 
 from __future__ import annotations
@@ -17,8 +73,7 @@ logger = get_logger(__name__)
 
 
 class SourceConnectorPlugin(Plugin, ABC):
-    """
-    Base class for source connector plugins.
+    """Base class for source connector plugins.
 
     Source connectors enable ingesting data from external sources
     like APIs, databases, file systems, etc.
@@ -51,12 +106,12 @@ class SourceConnectorPlugin(Plugin, ABC):
                     "actor": "object",
                 }
         ```
+
     """
 
     @abstractmethod
     def fetch_data(self, config: dict[str, Any]) -> Iterator[dict[str, Any]]:
-        """
-        Fetch data from the source.
+        """Fetch data from the source.
 
         This method should yield dictionaries representing individual records.
         It will be called by Phlo's ingestion framework to load data.
@@ -85,11 +140,11 @@ class SourceConnectorPlugin(Plugin, ABC):
                         "timestamp": item["created_at"],
                     }
             ```
+
         """
 
     def get_schema(self, config: dict[str, Any]) -> dict[str, str] | None:
-        """
-        Get the schema of data returned by this connector.
+        """Get the schema of data returned by this connector.
 
         This method is optional but recommended. It helps with:
         - Type inference
@@ -113,12 +168,12 @@ class SourceConnectorPlugin(Plugin, ABC):
                     "location": "string",
                 }
             ```
+
         """
         return None
 
     def test_connection(self, config: dict[str, Any]) -> bool:
-        """
-        Test if the source is reachable with given configuration.
+        """Test if the source is reachable with given configuration.
 
         This method is optional but recommended for debugging.
 
@@ -127,6 +182,7 @@ class SourceConnectorPlugin(Plugin, ABC):
 
         Returns:
             True if connection successful, False otherwise
+
         """
         try:
             iterator = iter(self.fetch_data(config))

@@ -18,6 +18,7 @@ class PanderaCliPlugin(CliCommandPlugin):
 
         Returns:
             PluginMetadata: Metadata used for plugin discovery and display.
+
         """
         return PluginMetadata(
             name="quality",
@@ -30,5 +31,6 @@ class PanderaCliPlugin(CliCommandPlugin):
 
         Returns:
             list[click.Command]: Quality command set registered by the plugin.
+
         """
         return [schema, validate_schema, validate_workflow]

@@ -80,16 +80,10 @@ phlo materialize --select "tag:nightscout"
 
 ```bash
 # Backup
-phlo postgres dump --user postgres --db cascade --file backup.sql
-
-# Backup with compression
-phlo postgres dump --user postgres --db cascade --file backup.sql.gz
+docker exec phlo-postgres-1 pg_dump -U postgres cascade | gzip > backup.sql.gz
 
 # Restore
-phlo postgres restore --user postgres --db cascade --file backup.sql
-
-# Restore from compressed
-phlo postgres restore --user postgres --db cascade --file backup.sql.gz
+gunzip < backup.sql.gz | docker exec -i phlo-postgres-1 psql -U postgres -d cascade
 ```
 
 **Automated backups**:
@@ -492,15 +486,13 @@ services:
 
 ### Prometheus Metrics
 
-**Enable Prometheus** in Dagster:
+**Enable Prometheus** in Dagster (via environment variables):
 
-```yaml
-# dagster.yaml
-telemetry:
-  enabled: true
-  prometheus:
-    enabled: true
-    port: 9090
+```bash
+# .phlo/.env.local
+DAGSTER_TELEMETRY_ENABLED=true
+DAGSTER_PROMETHEUS_ENABLED=true
+DAGSTER_PROMETHEUS_PORT=9090
 ```
 
 **Key metrics to monitor**:
@@ -594,7 +586,7 @@ SLACK_CHANNEL=#data-alerts
 phlo services stop
 
 # Restore database
-phlo postgres restore --user postgres --db cascade --file backup.sql.gz
+gunzip < backup.sql.gz | docker exec -i phlo-postgres-1 psql -U postgres -d cascade
 
 # Start services
 phlo services start
@@ -656,30 +648,7 @@ phlo materialize --select "tag:critical" --partition $(date -d "yesterday" +%Y-%
 
 ## Release Management
 
-Phlo uses [ReleaseX](https://github.com/iamgp/ReleaseX) (`relx`) to manage versions, changelogs, and publishing on `main`.
-
-### Configuration
-
-- Config: `relx.toml` (repo root)
-- Workflow: `.github/workflows/release.yml`
-
-ReleaseX auto-discovers workspace packages via `tool.uv.workspace.members` in `pyproject.toml` and manages independent versioning with cascade bumps enabled.
-
-### Local Validation (Dry Run)
-
-```bash
-# Check current status — pending bump, changelog preview, package plan
-relx status
-
-# Preview what the release PR would contain
-relx release pr --dry-run
-```
-
-### Validate Configuration
-
-```bash
-relx validate
-```
+Phlo uses standard git workflows with conventional commits and tags.
 
 ## Maintenance Windows
 
@@ -707,16 +676,16 @@ curl -X POST $SLACK_WEBHOOK_URL \
 docker stop phlo-dagster-daemon-1
 
 # 2. Wait for running jobs to complete
-while [ $(dagster job list --running) -gt 0 ]; do
+while [ $(docker exec phlo-dagster-webserver-1 dagster job list --running | wc -l) -gt 0 ]; do
   sleep 60
 done
 
 # 3. Backup databases
-./backup-postgres.sh
-./backup-minio.sh
+docker exec phlo-postgres-1 pg_dump -U postgres cascade | gzip > backup_$(date +%Y%m%d).sql.gz
+mc mirror local/lake /backups/minio/lake
 
 # 4. Perform maintenance
-phlo postgres vacuum --user postgres --db cascade
+docker exec phlo-postgres-1 psql -U postgres -d cascade -c "VACUUM ANALYZE;"
 
 # 5. Optimize Iceberg tables
 python -m phlo.maintenance.optimize_tables

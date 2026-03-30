@@ -1,4 +1,21 @@
-"""CLI plugin for dbt-related commands."""
+"""CLI plugin for dbt-related commands.
+
+This module provides the dbt CLI command group for the Phlo CLI, enabling
+dbt operations like compile, run, and test to be executed either locally or
+within the orchestrator container. It also handles lineage import after successful runs.
+
+Example:
+    >>> # Via CLI:
+    >>> # phlo dbt compile
+    >>> # phlo dbt run --target prod --select mrt_orders
+    >>> # phlo dbt test --select tag:orders
+    >>>
+    >>> # Programmatically:
+    >>> from phlo_dbt.cli_plugin import DbtCliPlugin
+    >>> plugin = DbtCliPlugin()
+    >>> commands = plugin.get_cli_commands()
+
+"""
 
 from __future__ import annotations
 
@@ -20,13 +37,55 @@ from phlo_dbt.runtime_config import DEFAULT_DBT_TARGET, ensure_dbt_profile
 
 
 def _container_path(path: Path, *, project_root: Path) -> str:
-    """Translate a project-local host path into the orchestrator container mount path."""
+    """Translate a project-local host path into the orchestrator container mount path.
+
+    Converts a local filesystem path to the corresponding path inside the
+    Docker container where the project is mounted (typically under /app).
+
+    Args:
+        path: Local filesystem path to convert.
+        project_root: Project root directory used as reference point.
+
+    Returns:
+        Container-mounted path as a string (e.g., "/app/workflows/transforms/dbt").
+
+    Example:
+        >>> from pathlib import Path
+        >>> local = Path("workflows/transforms/dbt")
+        >>> container = _container_path(local, project_root=Path("."))
+        >>> print(container)
+        /app/workflows/transforms/dbt
+
+    """
     relative = path.resolve().relative_to(project_root.resolve())
     return str(Path("/app") / relative)
 
 
 def _should_run_in_container(local: bool) -> bool:
-    """Choose the default execution environment for dbt commands."""
+    """Choose the default execution environment for dbt commands.
+
+    Determines whether dbt commands should run in the orchestrator container
+    or on the local host. Container execution is preferred when a Phlo
+    project directory exists.
+
+    Args:
+        local: If True, force local execution regardless of environment.
+
+    Returns:
+        True if commands should run in container, False for local execution.
+
+    Example:
+        >>> # In a project with .phlo directory
+        >>> should_container = _should_run_in_container(local=False)
+        >>> print(should_container)
+        True
+        >>>
+        >>> # Force local execution
+        >>> should_local = _should_run_in_container(local=True)
+        >>> print(should_local)
+        False
+
+    """
     if local:
         return False
     try:
@@ -133,6 +192,7 @@ def _run_dbt_local(subcommand: str, target: str, select_expr: str | None = None)
         subcommand: dbt subcommand to execute (compile, run, test).
         target: dbt target profile name.
         select_expr: Optional dbt model selector expression.
+
     """
     from phlo_dbt.settings import get_settings
 
@@ -191,7 +251,7 @@ def _run_dbt(
 
 @click.group("dbt")
 def dbt_group() -> None:
-    """dbt commands (compile, run, test, publishing)."""
+    """Dbt commands (compile, run, test, publishing)."""
 
 
 @dbt_group.command("compile")
@@ -238,6 +298,7 @@ class DbtCliPlugin(CliCommandPlugin):
 
         Returns:
             Metadata describing the dbt CLI plugin.
+
         """
         return PluginMetadata(
             name="dbt",
@@ -250,5 +311,6 @@ class DbtCliPlugin(CliCommandPlugin):
 
         Returns:
             List of click commands to register.
+
         """
         return [dbt_group]

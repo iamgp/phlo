@@ -22,6 +22,7 @@ class _FakeCursor:
 
         Args:
             trino: Parent fake Trino client.
+
         """
         self._trino = trino
         self._rows: list[tuple[object, ...]] = []
@@ -37,6 +38,7 @@ class _FakeCursor:
             exc_type: Exception type raised in the context block.
             exc: Exception instance raised in the context block.
             tb: Traceback raised in the context block.
+
         """
         return None
 
@@ -45,6 +47,7 @@ class _FakeCursor:
 
         Args:
             query: SQL query text used as response lookup key.
+
         """
         self._trino.queries.append(query)
         response = self._trino.get_response(query)
@@ -70,6 +73,7 @@ class _FakeTrino:
         Args:
             responses: Static response map by SQL query.
             sequence_responses: Queued responses consumed per repeated query.
+
         """
         self.responses = responses
         self.sequence_responses = {
@@ -85,6 +89,7 @@ class _FakeTrino:
 
         Returns:
             The next queued response when configured, otherwise static response.
+
         """
         queued = self.sequence_responses.get(query)
         if queued:

@@ -27,7 +27,6 @@ def _merge_correlation(
     overrides: dict[str, Any] | None = None,
 ) -> HookCorrelation:
     """Merge bound, explicit, and event-specific correlation fields."""
-
     correlation = HookCorrelation(**vars(get_bound_correlation_context()))
     if base is not None:
         for key, value in vars(base).items():
@@ -63,13 +62,13 @@ class IngestionEventEmitter:
         Args:
             context: Shared ingestion context to include in each emitted event.
             hook_bus: Hook bus used to publish events. Defaults to the global bus.
+
         """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 
     def emit_start(self, *, status: str = "started") -> None:
         """Emit an ingestion start event."""
-
         self._emit(event_type="ingestion.start", status=status, metrics=None, error=None)
 
     def emit_end(
@@ -80,7 +79,6 @@ class IngestionEventEmitter:
         error: str | None = None,
     ) -> None:
         """Emit an ingestion end event."""
-
         self._emit(event_type="ingestion.end", status=status, metrics=metrics, error=error)
 
     def _emit(
@@ -98,6 +96,7 @@ class IngestionEventEmitter:
             status: Lifecycle status value.
             metrics: Optional metric payload.
             error: Optional error message.
+
         """
         self._hook_bus.emit(
             IngestionEvent(
@@ -148,13 +147,13 @@ class TransformEventEmitter:
         Args:
             context: Shared transform context to include in each emitted event.
             hook_bus: Hook bus used to publish events. Defaults to the global bus.
+
         """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 
     def emit_start(self, *, status: str = "started") -> None:
         """Emit a transform start event."""
-
         self._emit(event_type="transform.start", status=status, metrics=None, error=None)
 
     def emit_end(
@@ -165,7 +164,6 @@ class TransformEventEmitter:
         error: str | None = None,
     ) -> None:
         """Emit a transform end event."""
-
         self._emit(event_type="transform.end", status=status, metrics=metrics, error=error)
 
     def _emit(
@@ -183,6 +181,7 @@ class TransformEventEmitter:
             status: Lifecycle status value.
             metrics: Optional metric payload.
             error: Optional error message.
+
         """
         self._hook_bus.emit(
             TransformEvent(
@@ -231,13 +230,13 @@ class PublishEventEmitter:
         Args:
             context: Shared publish context to include in each emitted event.
             hook_bus: Hook bus used to publish events. Defaults to the global bus.
+
         """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 
     def emit_start(self, *, status: str = "started") -> None:
         """Emit a publish start event."""
-
         self._emit(event_type="publish.start", status=status, metrics=None, error=None)
 
     def emit_end(
@@ -248,7 +247,6 @@ class PublishEventEmitter:
         error: str | None = None,
     ) -> None:
         """Emit a publish end event."""
-
         self._emit(event_type="publish.end", status=status, metrics=metrics, error=error)
 
     def _emit(
@@ -266,6 +264,7 @@ class PublishEventEmitter:
             status: Lifecycle status value.
             metrics: Optional metric payload.
             error: Optional error message.
+
         """
         self._hook_bus.emit(
             PublishEvent(
@@ -313,6 +312,7 @@ class QualityResultEventEmitter:
         Args:
             context: Shared quality-result context to include in each emitted event.
             hook_bus: Hook bus used to publish events. Defaults to the global bus.
+
         """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
@@ -327,7 +327,6 @@ class QualityResultEventEmitter:
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Emit a quality result event."""
-
         self._hook_bus.emit(
             QualityResultEvent(
                 event_type="quality.result",
@@ -369,6 +368,7 @@ class LineageEventEmitter:
         Args:
             context: Shared lineage context to include in each emitted event.
             hook_bus: Hook bus used to publish events. Defaults to the global bus.
+
         """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
@@ -381,7 +381,6 @@ class LineageEventEmitter:
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Emit a lineage edges event."""
-
         self._hook_bus.emit(
             LineageEvent(
                 event_type="lineage.edges",
@@ -411,6 +410,7 @@ class TelemetryEventEmitter:
         Args:
             context: Shared telemetry context to include in each emitted event.
             hook_bus: Hook bus used to publish events. Defaults to the global bus.
+
         """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
@@ -424,7 +424,6 @@ class TelemetryEventEmitter:
         payload: dict[str, Any] | None = None,
     ) -> None:
         """Emit a telemetry metric event."""
-
         self._emit(
             event_type="telemetry.metric",
             name=name,
@@ -444,7 +443,6 @@ class TelemetryEventEmitter:
         payload: dict[str, Any] | None = None,
     ) -> None:
         """Emit a telemetry log event."""
-
         self._emit(
             event_type="telemetry.log",
             name=name,
@@ -473,6 +471,7 @@ class TelemetryEventEmitter:
             level: Optional log level for log events.
             unit: Optional unit for the value.
             payload: Optional event payload.
+
         """
         self._hook_bus.emit(
             TelemetryEvent(
@@ -511,6 +510,7 @@ class ServiceLifecycleEventEmitter:
         Args:
             context: Shared service context to include in each emitted event.
             hook_bus: Hook bus used to publish events. Defaults to the global bus.
+
         """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
@@ -523,7 +523,6 @@ class ServiceLifecycleEventEmitter:
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Emit a service lifecycle event for the given phase."""
-
         tags = self._context.tags.copy()
         tags["service"] = self._context.service_name
         tags["phase"] = phase
@@ -565,6 +564,7 @@ class SchemaMigrationEventEmitter:
         Args:
             context: Shared schema migration context for each emitted event.
             hook_bus: Hook bus used to publish events. Defaults to the global bus.
+
         """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
@@ -584,6 +584,7 @@ class SchemaMigrationEventEmitter:
             classification: Worst classification across changes.
             change_count: Number of schema changes in the plan.
             changes: Optional list of change detail dicts.
+
         """
         self._hook_bus.emit(
             SchemaMigrationEvent(

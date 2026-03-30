@@ -84,6 +84,7 @@ def test_custom_dbt_translator_group_name_prefers_folder(props: dict, expected: 
     Args:
         props: dbt node properties for group-resolution.
         expected: Expected group name.
+
     """
     translator = DbtSpecTranslator()
     assert translator.get_group_name(props) == expected
@@ -105,6 +106,7 @@ def test_custom_dbt_translator_group_name_fallbacks(model_name: str, expected: s
     Args:
         model_name: Model name used for fallback inference.
         expected: Expected fallback group.
+
     """
     translator = DbtSpecTranslator()
     assert translator.get_group_name({"name": model_name}) == expected
@@ -126,6 +128,7 @@ def test_custom_dbt_translator_metadata_compiled_sql_is_capped(
 
     Args:
         monkeypatch: Pytest monkeypatch fixture for env overrides.
+
     """
     monkeypatch.setenv("PHLO_DBT_COMPILED_SQL_MAX_BYTES", "64")
     translator = DbtSpecTranslator()
@@ -143,6 +146,7 @@ def test_run_transform_skip_build_returns_success(tmp_path: Path) -> None:
 
     Args:
         tmp_path: Temporary dbt project directory fixture.
+
     """
     transformer = DbtTransformer(
         context=None,
@@ -161,6 +165,7 @@ def test_run_transform_skip_build_returns_success(tmp_path: Path) -> None:
 
         Returns:
             Completed process with successful summary output.
+
         """
         run_calls.append(args)
         return subprocess.CompletedProcess(
@@ -221,6 +226,7 @@ def test_run_transform_counts_models_and_tests_from_run_results(tmp_path: Path) 
 
     Args:
         tmp_path: Temporary dbt project directory fixture.
+
     """
     transformer = DbtTransformer(
         context=None,
@@ -253,6 +259,7 @@ def test_run_transform_counts_models_and_tests_from_run_results(tmp_path: Path) 
 
         Returns:
             Completed process with summary-style stdout.
+
         """
         return subprocess.CompletedProcess(
             args=["dbt"] + args,
@@ -332,6 +339,7 @@ def test_run_transform_falls_back_when_run_results_missing(tmp_path: Path) -> No
 
     Args:
         tmp_path: Temporary dbt project directory fixture.
+
     """
     transformer = DbtTransformer(
         context=None,
@@ -349,6 +357,7 @@ def test_run_transform_falls_back_when_run_results_missing(tmp_path: Path) -> No
 
         Returns:
             Completed process with summary-style stdout.
+
         """
         return subprocess.CompletedProcess(
             args=["dbt"] + args,

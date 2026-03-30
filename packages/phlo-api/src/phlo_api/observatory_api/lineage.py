@@ -1,4 +1,28 @@
-"""Lineage API Router backed by the neutral lineage sink capability."""
+"""Lineage API Router backed by the neutral lineage sink capability.
+
+Provides endpoints for querying row-level and asset-level lineage data.
+Enables data lineage tracking from ingestion through transformation to
+consumption, supporting both fine-grained row journeys and coarse-grained
+asset dependencies.
+
+Key Endpoints:
+    GET /rows/{id}: Get lineage info for a single row.
+    GET /rows/{id}/ancestors: Get upstream row lineage.
+    GET /rows/{id}/descendants: Get downstream row lineage.
+    GET /rows/{id}/journey: Get full row journey (ancestors + descendants).
+    GET /assets: Get asset lineage graph.
+
+Environment Variables:
+    PHLO_LINEAGE_SINK: Name of the lineage sink provider to use.
+
+Example:
+    Querying row lineage:
+
+    .. code-block:: bash
+
+        curl http://localhost:4000/api/lineage/rows/uuid-123/journey
+
+"""
 
 from __future__ import annotations
 
@@ -240,7 +264,18 @@ def _optional_dict(value: Any) -> dict[str, Any] | None:
 
 @router.get("/rows/{row_id}", response_model=RowLineageInfo | dict)
 async def get_row_lineage(row_id: str) -> RowLineageInfo | dict[str, str]:
-    """Get lineage info for one row."""
+    """Get lineage info for a single row.
+
+    Args:
+        row_id: The unique row identifier to look up.
+
+    Returns:
+        RowLineageInfo for the current row, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         journey = _resolve_lineage_sink().get_row_journey(row_id=row_id, depth=1)
         current = _row_to_lineage_info(journey.get("current"))
@@ -259,7 +294,19 @@ async def get_row_ancestors(
     row_id: str,
     max_depth: int = Query(default=10, le=50),
 ) -> list[RowLineageInfo] | dict[str, str]:
-    """Get ancestor rows recursively."""
+    """Get ancestor rows recursively upstream.
+
+    Args:
+        row_id: The unique row identifier to trace upstream.
+        max_depth: Maximum depth to traverse (default: 10, max: 50).
+
+    Returns:
+        List of RowLineageInfo for ancestor rows, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         journey = _resolve_lineage_sink().get_row_journey(row_id=row_id, depth=max_depth)
         return [_row_to_lineage_info(row) for row in journey.get("ancestors", []) if row]
@@ -275,7 +322,19 @@ async def get_row_descendants(
     row_id: str,
     max_depth: int = Query(default=10, le=50),
 ) -> list[RowLineageInfo] | dict[str, str]:
-    """Get descendant rows recursively."""
+    """Get descendant rows recursively downstream.
+
+    Args:
+        row_id: The unique row identifier to trace downstream.
+        max_depth: Maximum depth to traverse (default: 10, max: 50).
+
+    Returns:
+        List of RowLineageInfo for descendant rows, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         journey = _resolve_lineage_sink().get_row_journey(row_id=row_id, depth=max_depth)
         return [_row_to_lineage_info(row) for row in journey.get("descendants", []) if row]
@@ -288,7 +347,18 @@ async def get_row_descendants(
 
 @router.get("/rows/{row_id}/journey", response_model=LineageJourney | dict)
 async def get_row_journey(row_id: str) -> LineageJourney | dict[str, str]:
-    """Get lineage journey for a row."""
+    """Get full lineage journey for a row (current, ancestors, descendants).
+
+    Args:
+        row_id: The unique row identifier to trace.
+
+    Returns:
+        LineageJourney with current, ancestors, and descendants, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         journey = _resolve_lineage_sink().get_row_journey(row_id=row_id, depth=10)
         return LineageJourney(
@@ -311,7 +381,22 @@ async def get_asset_lineage_graph(
     direction: str = Query(default="both", pattern="^(upstream|downstream|both)$"),
     depth: int | None = Query(default=None, ge=1, le=50),
 ) -> AssetLineageGraph | dict[str, str]:
-    """Get the asset lineage graph."""
+    """Get the asset lineage graph.
+
+    Returns the full asset graph or a filtered subgraph around a focal asset.
+
+    Args:
+        asset_key: Optional focal asset key to filter the graph around.
+        direction: Direction to traverse: "upstream", "downstream", or "both".
+        depth: Optional maximum depth to traverse (1-50).
+
+    Returns:
+        AssetLineageGraph with assets and edges, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         assets, edges, edge_details = _build_asset_graph(_resolve_lineage_sink().get_asset_graph())
         if asset_key:

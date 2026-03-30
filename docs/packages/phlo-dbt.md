@@ -19,9 +19,6 @@ phlo plugin install dbt
 | Variable                  | Default                               | Description                                  |
 | ------------------------- | ------------------------------------- | -------------------------------------------- |
 | `DBT_PROJECT_DIR`         | `workflows/transforms/dbt`            | Path to dbt project directory                |
-| `DBT_PROFILES_DIR`        | `workflows/transforms/dbt/profiles`   | Path to generated dbt profiles               |
-| `DBT_MANIFEST_PATH`       | `workflows/transforms/dbt/target/manifest.json` | Path to dbt manifest              |
-| `DBT_CATALOG_PATH`        | `workflows/transforms/dbt/target/catalog.json`  | Path to dbt catalog               |
 | `DBT_QUERY_ENGINE_TYPE`   | `trino`                               | Adapter type written into generated profiles |
 | `DBT_QUERY_HOST`          | `trino`                               | Query engine host                            |
 | `DBT_QUERY_PORT`          | `8080`                                | Query engine port                            |
@@ -31,6 +28,11 @@ phlo plugin install dbt
 | `DBT_QUERY_HTTP_SCHEME`   | `http`                                | Query engine scheme                          |
 | `DBT_QUERY_AUTH_METHOD`   | `none`                                | Query engine auth method                     |
 | `DBT_QUERY_THREADS`       | `2`                                   | dbt worker threads                           |
+
+Paths for `profiles/` and `target/` artifacts are derived from `DBT_PROJECT_DIR`:
+- Profiles: `{DBT_PROJECT_DIR}/profiles`
+- Manifest: `{DBT_PROJECT_DIR}/target/manifest.json`
+- Catalog: `{DBT_PROJECT_DIR}/target/catalog.json`
 
 ## Features
 
@@ -183,10 +185,11 @@ GROUP BY 1, 2
 
 ## Entry Points
 
-| Entry Point            | Plugin                                   |
-| ---------------------- | ---------------------------------------- |
-| `phlo.plugins.assets` | `DbtAssetProvider` for asset specs       |
-| `phlo.plugins.cli`    | `dbt` CLI commands                       |
+| Entry Point                   | Plugin                                   |
+| ----------------------------- | ---------------------------------------- |
+| `phlo.asset_providers`        | `DbtAssetProvider` for asset specs       |
+| `phlo.transformation_providers` | `DbtTransformationProvider` for transforms |
+| `phlo.cli_commands`           | `DbtCliPlugin` for dbt CLI commands      |
 
 ## Related Packages
 

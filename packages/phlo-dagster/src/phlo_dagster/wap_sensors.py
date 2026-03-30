@@ -1,10 +1,47 @@
-"""
-Write-Audit-Publish (WAP) lifecycle sensors for Dagster.
+"""Write-Audit-Publish (WAP) lifecycle sensors for Dagster.
 
-Automates the versioned-catalog WAP pattern:
-1. Branch creation sensor — creates pipeline-run-{run_id} on job start.
-2. Auto-promotion sensor — merges to main when all asset checks pass.
-3. Branch cleanup sensor — deletes stale pipeline branches after retention.
+This module implements automated WAP pattern orchestration for versioned data
+catalogs (e.g., Nessie). The WAP pattern ensures data quality by isolating
+writes on branches, auditing with automated checks, and only publishing
+(promoting to main) after validation passes.
+
+WAP Phases:
+    1. Write: Data is written to an isolated branch (pipeline-run-{run_id})
+    2. Audit: Asset checks validate data quality on the branch
+    3. Publish: Successful runs are merged to main, branches cleaned up
+
+Sensor Components:
+    - wap_branch_creation_sensor: Creates isolated branches for new runs
+    - wap_auto_promotion_sensor: Promotes branches after successful audit
+    - wap_branch_cleanup_sensor: Removes stale branches past retention
+
+Catalog Requirements:
+    Requires a catalog capability with:
+    - Branch/ref support (supports_refs)
+    - Branch promotion support (supports_promote)
+    - VersionedCatalog interface implementation
+
+    Typically provided by phlo-nessie package.
+
+Configuration:
+    Environment variables control sensor behavior::
+
+    PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS: Branch sensor poll interval (default: 30)
+    PHLO_WAP_PROMOTION_INTERVAL_SECONDS: Promotion sensor poll interval (default: 60)
+    PHLO_WAP_CLEANUP_INTERVAL_SECONDS: Cleanup sensor poll interval (default: 3600)
+
+Branch Naming:
+    Branches follow pattern: pipeline-run-{run_id}
+    Example: pipeline-run-abc123def456
+
+Example:
+    Enabling WAP sensors in definitions::
+
+        from phlo_dagster.wap_sensors import get_wap_definitions
+
+        wap_defs = get_wap_definitions()
+        defs = dg.Definitions.merge(your_defs, wap_defs)
+
 """
 
 from __future__ import annotations
@@ -32,7 +69,18 @@ DEFAULT_PROMOTION_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_PROMOTION_INTERVAL_
 
 
 def _load_versioned_catalog() -> VersionedCatalog:
-    """Resolve the active versioned catalog capability for WAP flows."""
+    """Resolve the active versioned catalog capability for WAP flows.
+
+    Args:
+        None
+
+    Returns:
+        VersionedCatalog provider instance.
+
+    Raises:
+        RuntimeError: If catalog capability is not available or doesn't support refs/promotion.
+
+    """
     resolution = resolve_capability("catalog")
     if resolution is None:
         raise RuntimeError("WAP sensors require a catalog capability with ref/promotion support.")
@@ -49,7 +97,15 @@ def _load_versioned_catalog() -> VersionedCatalog:
 
 
 def _wap_branch_name(run_id: str) -> str:
-    """Derive the WAP branch name for a run."""
+    """Derive the WAP branch name for a run.
+
+    Args:
+        run_id: Dagster run ID.
+
+    Returns:
+        WAP branch name string.
+
+    """
     return f"{WAP_BRANCH_PREFIX}run-{run_id}"
 
 
@@ -70,6 +126,16 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
     Scans for STARTED runs that don't yet have a WAP branch tag, creates the
     branch in the versioned catalog, and tags the run so downstream sensors can
     track it.
+
+    Args:
+        context: Dagster sensor evaluation context.
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised. Logs warnings on failures.
+
     """
     instance = context.instance
     catalog = _load_versioned_catalog()
@@ -150,6 +216,16 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
 
     Scans for SUCCESS runs tagged with a WAP branch. For each, verifies that
     no asset checks failed, then merges the branch to main and cleans up.
+
+    Args:
+        context: Dagster sensor evaluation context.
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised. Logs warnings on failures.
+
     """
     instance = context.instance
     catalog = _load_versioned_catalog()
@@ -226,7 +302,16 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
 
 
 def _all_checks_passed(instance: Any, run_id: str) -> bool:
-    """Return True if every asset check in the run passed (or none were executed)."""
+    """Return True if every asset check in the run passed (or none were executed).
+
+    Args:
+        instance: Dagster instance.
+        run_id: Dagster run ID.
+
+    Returns:
+        True if all checks passed or no checks executed.
+
+    """
     try:
         check_records = instance.get_records_for_run(
             run_id,
@@ -264,6 +349,16 @@ def wap_branch_cleanup_sensor(context: dg.SensorEvaluationContext):
     Scans the versioned catalog for branches matching the pipeline- prefix and deletes those
     whose associated runs have terminated (SUCCESS or FAILURE) and whose
     creation time exceeds the retention window.
+
+    Args:
+        context: Dagster sensor evaluation context.
+
+    Returns:
+        None
+
+    Raises:
+        No explicit exceptions raised. Logs warnings on failures.
+
     """
     catalog = _load_versioned_catalog()
 
@@ -311,13 +406,17 @@ def get_wap_definitions() -> dg.Definitions:
     """Return Dagster definitions for the WAP lifecycle sensors.
 
     Merge into your project definitions to enable automated
-    Write-Audit-Publish:
+    Write-Audit-Publish.
 
-        ```python
-        from phlo_dagster.wap_sensors import get_wap_definitions
+    Args:
+        None
 
-        defs = dg.Definitions.merge(your_defs, get_wap_definitions())
-        ```
+    Returns:
+        Dagster Definitions containing WAP sensors.
+
+    Raises:
+        No explicit exceptions raised.
+
     """
     logger.info(
         "dagster_wap_definitions_built",

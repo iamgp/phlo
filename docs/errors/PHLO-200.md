@@ -1,6 +1,6 @@
 # PHLO-200: Schema Conversion Error
 
-**Error Type:** Schema and Type Error
+**Error Type:** Schema Conversion Error
 **Severity:** High
 **Exception Class:** `SchemaConversionError`
 

@@ -182,6 +182,7 @@ class TestLineageGraphConstruction:
 
             Returns:
                 True if a back-edge cycle is found, otherwise False.
+
             """
             visited.add(node)
             rec_stack.add(node)

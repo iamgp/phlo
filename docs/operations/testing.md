@@ -423,12 +423,12 @@ Use this checklist after a fresh install or when core service definitions change
 
 ```bash
 phlo services start
-docker compose ps
-docker compose logs postgres
-docker compose logs minio
-docker compose logs nessie
-docker compose logs trino
-docker compose logs dagster
+docker ps
+docker logs postgres
+docker logs minio
+docker logs nessie
+docker logs trino
+docker logs dagster
 ```
 
 Edge cases to watch:
@@ -440,10 +440,10 @@ Edge cases to watch:
 
 ```bash
 # Start Docker services
-make up-core up-query
+phlo services start --profile core --profile query
 
 # Wait for services to be healthy
-docker compose ps
+docker ps
 ```
 
 ### Testing Asset Materialization
@@ -508,7 +508,7 @@ pytest tests/ -m "not integration" -v
 pytest tests/ -m unit -v
 
 # Run focused core runtime regression suite
-make test-core-regression
+pytest tests/ -m core_regression -v
 
 # Equivalent direct pytest invocation
 pytest tests/ -m core_regression -v
@@ -856,7 +856,7 @@ export PYTHONPATH=/home/user/phlo/src:$PYTHONPATH
 
 ```bash
 # Check Docker services are running
-docker compose ps
+docker ps
 
 # Check service health
 docker logs dagster-webserver
@@ -864,8 +864,8 @@ docker logs nessie
 docker logs minio
 
 # Restart services if needed
-make down
-make up-core up-query
+phlo services stop
+phlo services start --profile core --profile query
 ```
 
 ---
@@ -892,7 +892,7 @@ jobs:
           pip install -e ".[dev]"
       - name: Run focused core runtime regression checks
         run: |
-          make test-core-regression CORE_REGRESSION_PYTEST_ARGS="--tb=short --cov=phlo --cov-report=term-missing"
+          pytest tests/ -m core_regression -v --tb=short --cov=phlo --cov-report=term-missing
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -914,7 +914,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Start Docker services
         run: |
-          make up-core up-query
+          phlo services start --profile core --profile query
           sleep 30  # Wait for services
       - name: Run integration tests
         run: |

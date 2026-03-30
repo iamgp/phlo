@@ -28,9 +28,8 @@ pip install phlo-core-plugins
 | ------------------ | ---------------------- | ------------------------ |
 | `null_check`       | `phlo.plugins.quality` | Validates no NULL values |
 | `uniqueness_check` | `phlo.plugins.quality` | Validates unique values  |
-| `range_check`      | `phlo.plugins.quality` | Validates value ranges   |
-| `regex_check`      | `phlo.plugins.quality` | Validates regex patterns |
 | `freshness_check`  | `phlo.plugins.quality` | Validates data freshness |
+| `schema_check`     | `phlo.plugins.quality` | Validates column presence and data types |
 
 ### Quality Check Usage
 
@@ -110,15 +109,14 @@ range_check(
 )
 ```
 
-### regex_check
+### schema_check
 
-Validates that string values match a pattern.
+Validates column presence and data types.
 
 ```python
-regex_check(
-    column="email",
-    pattern=r"^[\w.-]+@[\w.-]+\.\w+$",  # Regex pattern
-    tolerance=0.0
+schema_check(
+    column="id",           # Column to check
+    expected_type="string" # Expected data type
 )
 ```
 

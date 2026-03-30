@@ -1,7 +1,72 @@
-"""
-Structured logging helpers for Phlo.
+"""Structured logging configuration for Phlo.
 
-Provides centralized logging setup and a hook-based log router.
+This module provides centralized logging infrastructure with structured output
+via structlog. It configures both standard library logging and structlog for
+consistent, queryable log output across the framework.
+
+Key Features:
+    - Structured JSON logging for production environments
+    - Human-readable console output for development
+    - Automatic sensitive data redaction (passwords, tokens, secrets)
+    - Correlation context propagation (trace IDs, run IDs, asset keys)
+    - Hook-based log routing for centralized log aggregation
+    - Configurable log levels, formats, and output destinations
+
+Main Components:
+    - :class:`LoggingSettings`: Configuration dataclass for logging
+    - :func:`setup_logging`: Initialize logging with custom configuration
+    - :func:`get_logger`: Get a configured structlog logger instance
+    - :func:`bind_context`: Add context fields to current scope
+    - :func:`clear_context`: Remove all context fields
+    - :func:`suppress_log_routing`: Temporarily disable hook bus routing
+    - :class:`LogRouterHandler`: Routes log records to hook bus
+
+Configuration:
+    Logging is configured through the :class:`~phlo.config.settings.Settings`
+    class with the following options:
+    - ``phlo_log_level``: Log level (DEBUG, INFO, WARNING, ERROR)
+    - ``phlo_log_format``: Output format (auto, json, console)
+    - ``phlo_log_router_enabled``: Enable routing to hook bus
+    - ``phlo_log_service_name``: Default service name in logs
+    - ``phlo_log_file_template``: Optional file output path
+
+Sensitive Data Redaction:
+    The logging system automatically redacts sensitive fields including:
+    - password, token, secret, authorization, api_key, apikey
+    - credential, cookie, bearer
+
+    Values are replaced with ``<redacted>`` before output.
+
+Correlation Context:
+    The system maintains correlation fields for distributed tracing:
+    - request_id: HTTP request identifier
+    - trace_id, span_id: OpenTelemetry trace context
+    - run_id: Dagster run identifier
+    - asset_key: Dagster asset key
+    - job_name, partition_key, check_name: Dagster metadata
+
+Example:
+    ```python
+    from phlo.logging import get_logger, bind_context, clear_context
+
+    # Get a logger
+    logger = get_logger(__name__)
+
+    # Log with structured fields
+    logger.info("data_loaded", rows=1000, table="users", duration_ms=452)
+
+    # Bind context for multiple log entries
+    bind_context(trace_id="abc-123", run_id="run-456")
+    logger.info("processing_started")
+    logger.info("processing_completed", records=100)
+    clear_context()
+    ```
+
+See Also:
+    - :mod:`phlo.config.settings`: Logging configuration settings
+    - :mod:`phlo.hooks.events.LogEvent`: Log event for hook routing
+    - structlog documentation: https://www.structlog.org/
+
 """
 
 from __future__ import annotations
@@ -71,6 +136,7 @@ class LoggingSettings:
 
         Returns:
             LoggingSettings: Logging settings resolved from app configuration.
+
         """
         settings = get_settings()
         return cls(
@@ -85,7 +151,6 @@ class LoggingSettings:
 
 def setup_logging(settings: LoggingSettings | None = None, *, force: bool = False) -> None:
     """Configure structlog + stdlib logging with configurable output and routing."""
-
     global _LOGGING_CONFIGURED
     if _LOGGING_CONFIGURED and not force:
         return
@@ -199,7 +264,6 @@ def get_logger(
     name: str | None = None, *, service: str | None = None
 ) -> structlog.stdlib.BoundLogger:
     """Return a structlog logger, configuring logging on first use."""
-
     if not _LOGGING_CONFIGURED:
         setup_logging()
     logger = structlog.get_logger(name)
@@ -216,6 +280,7 @@ def log_event(logger: Any, level: str, event: str, **fields: Any) -> None:
         level: Log level method name (for example ``"info"``).
         event: Event/message string.
         **fields: Optional structured fields to attach.
+
     """
     log_method = getattr(logger, level)
     try:
@@ -230,19 +295,16 @@ def log_event(logger: Any, level: str, event: str, **fields: Any) -> None:
 
 def bind_context(**fields: Any) -> None:
     """Bind fields to the current contextvars scope for structured logging."""
-
     structlog.contextvars.bind_contextvars(**fields)
 
 
 def clear_context() -> None:
     """Clear all structlog contextvars fields for the current scope."""
-
     structlog.contextvars.clear_contextvars()
 
 
 def get_bound_correlation_context() -> HookCorrelation:
     """Return the current correlation fields bound in logging contextvars."""
-
     values = {
         field: _coerce_optional_string(structlog.contextvars.get_contextvars().get(field))
         for field in _CORRELATION_FIELDS
@@ -253,7 +315,6 @@ def get_bound_correlation_context() -> HookCorrelation:
 @contextmanager
 def suppress_log_routing() -> Any:
     """Temporarily disable log routing to the hook bus."""
-
     token = _ROUTER_ACTIVE.set(True)
     try:
         yield
@@ -270,6 +331,7 @@ class LogRouterHandler(logging.Handler):
         Args:
             service_name: Default service name for emitted log events.
             level: Minimum log level accepted by this handler.
+
         """
         super().__init__(level=level)
         self._service_name = service_name
@@ -279,6 +341,7 @@ class LogRouterHandler(logging.Handler):
 
         Args:
             record: Standard library log record to route.
+
         """
         if _ROUTER_ACTIVE.get():
             return
@@ -305,6 +368,7 @@ def _record_to_event(record: logging.LogRecord, default_service: str) -> LogEven
 
     Returns:
         LogEvent | None: Converted event, or `None` when no message is available.
+
     """
     message, extra = _extract_message_and_extra(record)
     if message is None:
@@ -355,6 +419,7 @@ def _extract_message_and_extra(
 
     Returns:
         tuple[str | None, dict[str, Any]]: Normalized message and extra fields.
+
     """
     extra = {
         key: value
@@ -397,6 +462,7 @@ def _build_metadata(record: logging.LogRecord, extra: dict[str, Any]) -> dict[st
 
     Returns:
         dict[str, Any]: Metadata dictionary merged with record context.
+
     """
     metadata = {
         **extra,
@@ -444,6 +510,7 @@ def _build_file_handler(
 
     Returns:
         logging.Handler | None: Configured file handler, or `None` on template errors.
+
     """
     path = _render_log_file_path(template)
     if path is None:
@@ -461,6 +528,7 @@ def _render_log_file_path(template: str) -> Path | None:
 
     Returns:
         Path | None: Resolved path with parent directory created, or `None` if invalid.
+
     """
     now = datetime.now(UTC)
     tokens = {
@@ -503,6 +571,7 @@ def _pop_tags(extra: dict[str, Any]) -> dict[str, str]:
 
     Returns:
         dict[str, str]: Tag dictionary with string keys and values.
+
     """
     tags_value = extra.pop("tags", None)
     if isinstance(tags_value, Mapping):
@@ -519,6 +588,7 @@ def _pop_value(extra: dict[str, Any], key: str) -> str | None:
 
     Returns:
         str | None: Stringified value or `None` when absent.
+
     """
     value = extra.pop(key, None)
     if value is None:
@@ -528,7 +598,6 @@ def _pop_value(extra: dict[str, Any], key: str) -> str | None:
 
 def _coerce_optional_string(value: Any) -> str | None:
     """Normalize correlation values into optional strings."""
-
     if value is None:
         return None
     return str(value)
@@ -542,6 +611,7 @@ def _coerce_log_level(level: str) -> int:
 
     Returns:
         int: Numeric logging level.
+
     """
     return logging._nameToLevel.get(level.upper(), logging.INFO)
 
@@ -551,6 +621,7 @@ def _mark_phlo_handler(handler: logging.Handler) -> None:
 
     Args:
         handler: Logging handler to mark.
+
     """
     setattr(handler, "_phlo_handler", True)  # noqa: B010
 
@@ -560,6 +631,7 @@ def _remove_phlo_handlers(root: logging.Logger) -> None:
 
     Args:
         root: Logger from which managed handlers are removed.
+
     """
     for handler in list(root.handlers):
         if getattr(handler, "_phlo_handler", False):

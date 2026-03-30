@@ -67,6 +67,10 @@ def phlo_pandera(
         owner: Optional quality-check owner/team identifier.
         consumers: Optional downstream consumer metadata or names.
         sla: Optional SLA metadata for quality/freshness alerting.
+
+    Returns:
+        Decorator function that wraps the target asset function.
+
     """
     normalized_consumers = normalize_consumers(consumers)
     serialized_sla = serialize_sla(sla)
@@ -79,7 +83,15 @@ def phlo_pandera(
         contract_tags["contract_sla"] = json.dumps(serialized_sla, sort_keys=True)
 
     def decorator(func: Callable) -> Callable:
-        """Register contract and quality checks for the decorated asset function."""
+        """Register contract and quality checks for the decorated asset function.
+
+        Args:
+            func: Asset function being decorated.
+
+        Returns:
+            The original function after registering checks.
+
+        """
         # Derive asset key from table name if not provided
         nonlocal asset_key, description, full_table
 
@@ -112,7 +124,15 @@ def phlo_pandera(
         if schema_checks:
 
             def pandera_contract_check(runtime: RuntimeContext) -> CheckResult:
-                """Execute schema-based checks and emit a contract-style result."""
+                """Execute schema-based checks and emit a contract-style result.
+
+                Args:
+                    runtime: Runtime context with resources and logging.
+
+                Returns:
+                    CheckResult with pass/fail status and metadata.
+
+                """
                 partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
                 emitter, telemetry = _make_emitters(
@@ -287,7 +307,15 @@ def phlo_pandera(
         if non_schema_checks:
 
             def quality_check_wrapper(runtime: RuntimeContext) -> CheckResult:
-                """Execute non-schema checks and emit aggregated quality metadata."""
+                """Execute non-schema checks and emit aggregated quality metadata.
+
+                Args:
+                    runtime: Runtime context with resources and logging.
+
+                Returns:
+                    CheckResult with pass/fail status and aggregated metadata.
+
+                """
                 partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
                 emitter, telemetry = _make_emitters(
@@ -531,12 +559,22 @@ def phlo_pandera(
 
 
 def get_quality_checks() -> list[AssetCheckSpec]:
-    """Get all asset check specs registered with @phlo_pandera decorator."""
+    """Get all asset check specs registered with @phlo_pandera decorator.
+
+    Returns:
+        List of registered AssetCheckSpec objects.
+
+    """
     registry = get_capability_registry()
     return registry.list_checks()
 
 
 def clear_quality_checks() -> None:
-    """Clear registered quality check specs (useful for tests)."""
+    """Clear registered quality check specs (useful for tests).
+
+    Returns:
+        None.
+
+    """
     registry = get_capability_registry()
     registry.clear_checks()

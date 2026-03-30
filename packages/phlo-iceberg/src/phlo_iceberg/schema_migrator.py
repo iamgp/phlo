@@ -1,4 +1,52 @@
-"""Iceberg implementation of the SchemaMigrator protocol."""
+"""Iceberg implementation of the SchemaMigrator protocol.
+
+This module provides the ``IcebergSchemaMigrator`` class which implements
+Phlo's schema migration capability for Iceberg tables. It supports detecting
+schema changes, classifying their impact (safe/warning/breaking), and
+applying migrations with approval workflows.
+
+Supported change types:
+    - ``add``: Add new columns (safe if nullable, breaking if required without default)
+    - ``drop``: Remove columns (warning - data loss risk but recoverable via snapshots)
+    - ``rename``: Rename columns (safe in Iceberg via native rename)
+    - ``widen_type``: Type promotion (e.g., int32 -> int64, date -> timestamptz)
+    - ``narrow_type``: Type restriction (breaking - potential data loss)
+    - ``nullability_relaxed``: Make column nullable (safe)
+    - ``nullability_tightened``: Make column required (breaking without default)
+
+Example:
+    Detect and apply schema migrations::
+
+        from phlo_iceberg.schema_migrator import IcebergSchemaMigrator
+        from phlo.capabilities.specs import NormalizedSchema, NormalizedField
+
+        # Create migrator for specific branch
+        migrator = IcebergSchemaMigrator(ref="main")
+
+        # Define desired schema
+        desired = NormalizedSchema(
+            fields=[
+                NormalizedField(name="id", dtype="int64", nullable=False),
+                NormalizedField(name="name", dtype="string", nullable=True),
+                NormalizedField(name="score", dtype="float64", nullable=True),
+            ]
+        )
+
+        # Detect changes
+        plan = migrator.diff_schema(table_name="raw.users", desired=desired)
+        print(f"Changes: {len(plan.changes)}")
+        print(f"Classification: {plan.classification}")
+
+        # Apply if safe or approved
+        if not plan.requires_approval:
+            result = migrator.apply_plan(plan=plan)
+            print(f"Applied {result['applied_count']} changes")
+        else:
+            print("Breaking changes require approval")
+            # After review:
+            # result = migrator.apply_plan(plan=plan, approved=True)
+
+"""
 
 from __future__ import annotations
 
@@ -73,12 +121,81 @@ def _iceberg_type_to_dtype(iceberg_type: IcebergType) -> str:
 
 @dataclass
 class IcebergSchemaMigrator:
-    """SchemaMigrator backed by a PyIceberg catalog."""
+    """SchemaMigrator implementation for Iceberg-backed tables.
+
+    Detects schema differences between a desired state and current table schema,
+    classifies changes by impact level, and applies migrations with optional
+    approval workflows.
+
+    Iceberg's native capabilities allow safe operations like column rename
+    and time-travel recovery for dropped columns.
+
+    Attributes:
+        ref: Nessie branch/tag reference for catalog operations.
+            Defaults to settings value (typically ``main``).
+
+    Example:
+        Basic migration workflow::
+
+            migrator = IcebergSchemaMigrator(ref="main")
+
+            # Define target schema
+            desired = NormalizedSchema(
+                fields=[
+                    NormalizedField(name="user_id", dtype="int64", nullable=False),
+                    NormalizedField(name="email", dtype="string", nullable=True),
+                    NormalizedField(name="created_at", dtype="timestamptz", nullable=False),
+                ]
+            )
+
+            # Detect changes
+            plan = migrator.diff_schema(
+                table_name="raw.users",
+                desired=desired
+            )
+
+            # Review and apply
+            for change in plan.changes:
+                print(f"{change.change_type}: {change.field_name} ({change.classification})")
+
+            if plan.requires_approval:
+                print("WARNING: Breaking changes detected!")
+            else:
+                result = migrator.apply_plan(plan=plan)
+                print(f"Applied {result['applied_count']} changes")
+
+    See Also:
+        Phlo capabilities system for schema migration protocols.
+
+    """
 
     ref: str = field(default_factory=lambda: get_settings().iceberg_default_ref)
 
     def supported_changes(self) -> set[str]:
-        """Return the set of change types supported natively by Iceberg."""
+        """Return the set of change types supported by Iceberg.
+
+        Iceberg's native schema evolution supports all common change types
+        including safe renames, type widening, and nullability changes.
+
+        Returns:
+            set[str]: Supported change type identifiers:
+                - ``add``: Add new columns
+                - ``drop``: Remove columns
+                - ``rename``: Rename columns (native support)
+                - ``widen_type``: Type promotion
+                - ``narrow_type``: Type restriction
+                - ``reorder``: Column reordering
+                - ``nullability_relaxed``: Make nullable
+                - ``nullability_tightened``: Make required
+
+        Example:
+            Check supported changes::
+
+                migrator = IcebergSchemaMigrator()
+                supported = migrator.supported_changes()
+                print(f"Can rename columns: {'rename' in supported}")
+
+        """
         return {
             "add",
             "drop",
@@ -91,11 +208,37 @@ class IcebergSchemaMigrator:
         }
 
     def classify_change(self, change_type: str, **details: Any) -> str:
-        """Classify a change with Iceberg-specific overrides.
+        """Classify a schema change by impact level.
 
-        Iceberg supports native rename (safe) and native drop (warning,
-        data-loss risk but reversible via snapshots).  All other change
-        types fall through to the default classifier.
+        Iceberg-specific overrides:
+        - ``rename``: Always "safe" (native rename support)
+        - ``drop``: "warning" (data loss risk but recoverable via snapshots)
+        - Other types: Delegate to default classifier
+
+        Args:
+            change_type: Type of change (e.g., ``add``, ``drop``, ``rename``).
+            **details: Additional context for classification.
+
+        Returns:
+            str: Classification level:
+                - ``safe``: No risk of data loss
+                - ``warning``: Potential issues but recoverable
+                - ``breaking``: Risk of data loss or errors
+
+        Example:
+            Classify individual changes::
+
+                migrator = IcebergSchemaMigrator()
+
+                # Safe operations
+                assert migrator.classify_change("rename") == "safe"
+
+                # Warning level
+                assert migrator.classify_change("drop") == "warning"
+
+                # Breaking without default
+                assert migrator.classify_change("add", nullable=False, has_default=False) == "breaking"
+
         """
         if change_type == "rename":
             return "safe"
@@ -104,9 +247,55 @@ class IcebergSchemaMigrator:
         return default_classify_change(change_type, **details)
 
     def diff_schema(self, *, table_name: str, desired: NormalizedSchema) -> SchemaMigrationPlan:
-        """Compare *desired* schema against current table schema.
+        """Compare desired schema against current table schema.
 
-        Returns a ``SchemaMigrationPlan`` describing every detected change.
+        Detects all differences between the desired schema and the current
+        table schema, classifying each change by impact level.
+
+        Detected changes:
+            - Added columns (not in current schema)
+            - Dropped columns (not in desired schema)
+            - Type changes (widening or narrowing)
+            - Nullability changes (relaxed or tightened)
+
+        Args:
+            table_name: Fully qualified table name (``namespace.table``).
+            desired: Target schema definition as NormalizedSchema.
+
+        Returns:
+            SchemaMigrationPlan: Complete migration plan including:
+                - List of SchemaChange objects with classifications
+                - Overall classification (worst of all changes)
+                - Recommendations for handling
+                - Whether approval is required
+
+        Example:
+            Detect schema drift::
+
+                migrator = IcebergSchemaMigrator()
+
+                # Current table has columns: id (int), name (string)
+                # Desired adds: email (string), changes id to int64
+                desired = NormalizedSchema(
+                    fields=[
+                        NormalizedField(name="id", dtype="int64", nullable=False),
+                        NormalizedField(name="name", dtype="string", nullable=True),
+                        NormalizedField(name="email", dtype="string", nullable=True),
+                    ]
+                )
+
+                plan = migrator.diff_schema(
+                    table_name="raw.users",
+                    desired=desired
+                )
+
+                print(f"Changes: {len(plan.changes)}")
+                for change in plan.changes:
+                    print(f"  {change.field_name}: {change.change_type} ({change.classification})")
+
+                if plan.requires_approval:
+                    print("Requires approval before applying")
+
         """
         catalog = get_catalog(ref=self.ref)
         table = catalog.load_table(table_name)
@@ -220,8 +409,47 @@ class IcebergSchemaMigrator:
     def apply_plan(self, *, plan: SchemaMigrationPlan, approved: bool = False) -> dict[str, Any]:
         """Execute a migration plan against the Iceberg catalog.
 
-        Raises ``ValueError`` if the plan contains breaking changes and
-        ``approved`` is not ``True``.
+        Applies all changes in the plan using Iceberg's schema update API.
+        Breaking changes require explicit approval via the ``approved`` flag.
+
+        Supported operations:
+            - Add column: ``update.add_column()```
+            - Drop column: ``update.delete_column()```
+            - Rename column: ``update.rename_column()```
+            - Type change: ``update.update_column()```
+            - Nullability: ``update.set_column_optional()`` / ``set_column_required()``
+
+        Args:
+            plan: Migration plan from ``diff_schema()``.
+            approved: Must be ``True`` to apply breaking changes.
+
+        Returns:
+            dict[str, Any]: Application results containing:
+                - ``status``: "applied"
+                - ``applied_count``: Number of changes applied
+                - ``changes_applied``: List of change descriptions
+
+        Raises:
+            ValueError: If plan contains breaking changes and ``approved`` is False.
+            Exception: Any Iceberg catalog errors during update.
+
+        Example:
+            Apply safe changes automatically::
+
+                plan = migrator.diff_schema(table_name="raw.users", desired=schema)
+
+                if not plan.requires_approval:
+                    result = migrator.apply_plan(plan=plan)
+                    print(f"Applied {result['applied_count']} changes")
+                else:
+                    print("Manual approval required")
+
+            Apply with approval::
+
+                # After reviewing the plan...
+                result = migrator.apply_plan(plan=plan, approved=True)
+                print(f"Applied changes: {result['changes_applied']}")
+
         """
         if plan.requires_approval and not approved:
             raise ValueError(
@@ -295,7 +523,42 @@ class IcebergSchemaMigrator:
         }
 
     def get_schema_history(self, *, table_name: str, limit: int = 10) -> list[dict[str, Any]]:
-        """Return snapshot-level history for *table_name*."""
+        """Return snapshot-level schema history for a table.
+
+        Retrieves Iceberg snapshots which capture schema state at each
+        table modification. Includes metadata about operation type,
+        timestamp, and parent snapshot relationships.
+
+        Args:
+            table_name: Fully qualified table name (``namespace.table``).
+            limit: Maximum number of snapshots to return (default: 10).
+
+        Returns:
+            list[dict[str, Any]]: Snapshot history sorted by timestamp
+                (newest first), each containing:
+                - ``snapshot_id``: Unique snapshot identifier
+                - ``timestamp_ms``: Unix timestamp in milliseconds
+                - ``summary``: Operation summary dict
+                - ``parent_id``: Parent snapshot ID (if any)
+
+        Example:
+            Review table history::
+
+                history = migrator.get_schema_history(
+                    table_name="raw.users",
+                    limit=5
+                )
+
+                for snapshot in history:
+                    ts = datetime.fromtimestamp(snapshot['timestamp_ms'] / 1000)
+                    print(f"{ts}: {snapshot['summary']}")
+
+        Note:
+            Schema history is derived from Iceberg snapshots, which
+            capture the entire table state including schema at each
+            commit point.
+
+        """
         catalog = get_catalog(ref=self.ref)
         table = catalog.load_table(table_name)
 

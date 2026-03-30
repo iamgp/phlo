@@ -1,4 +1,37 @@
-"""Shared helper utilities for DLT ingestion execution."""
+"""Shared helper utilities for DLT ingestion execution.
+
+This module provides common utilities used across the DLT ingestion pipeline,
+including branch resolution, metadata injection, schema validation, and
+table store operations. These helpers abstract away common patterns to keep
+the main executor and decorator logic clean.
+
+Key Functions:
+    - :func:`generate_row_id`: Generate unique ULID-based row identifiers
+    - :func:`get_branch_from_context`: Resolve target branch from runtime context
+    - :func:`get_write_branch_from_context`: Determine effective write branch
+    - :func:`inject_metadata_columns`: Add Phlo metadata columns to Parquet files
+    - :func:`validate_with_pandera`: Validate records against Pandera schema
+    - :func:`setup_dlt_pipeline`: Configure filesystem-backed DLT pipeline
+    - :func:`stage_to_parquet`: Extract data to Parquet via DLT
+    - :func:`merge_to_table_store`: Write staged data to table store
+
+Constants:
+    - ``DLT_TABLE_STORE_SUPPORT``: Capability support config for refs
+    - ``WAP_TAG_KEY``: Tag key for Write-Audit-Publish branch isolation
+
+Metadata Columns:
+    The following columns are injected into ingested data:
+    - ``_phlo_row_id``: ULID-based unique row identifier
+    - ``_phlo_ingested_at``: UTC timestamp of ingestion
+    - ``_phlo_partition_date``: Partition date (YYYY-MM-DD)
+    - ``_phlo_run_id``: Orchestrator run identifier
+
+See Also:
+    - :mod:`phlo_dlt.executor`: Uses these helpers for ingestion execution
+    - :mod:`phlo_dlt.decorator`: Orchestrates helper usage
+    - DLT documentation: https://dlthub.com/docs
+
+"""
 
 from __future__ import annotations
 
@@ -28,18 +61,49 @@ WAP_TAG_KEY = "phlo/wap_branch"
 
 
 def generate_row_id() -> str:
-    """Return a globally unique row identifier for ingestion metadata."""
+    """Return a globally unique row identifier for ingestion metadata.
+
+    Generates a ULID (Universally Unique Lexicographically Sortable Identifier)
+    for tracking individual rows through the ingestion pipeline.
+
+    Returns:
+        str: ULID string representation.
+
+    Example:
+        ```python
+        from phlo_dlt.dlt_helpers import generate_row_id
+
+        row_id = generate_row_id()
+        print(row_id)  # "01HV8J3K2M4N5P6Q7R8S9T0UV"
+        ```
+
+    See Also:
+        https://github.com/ulid/spec for ULID specification.
+
+    """
     return str(ulid.ULID())
 
 
 def get_branch_from_context(context: Any) -> str:
     """Return the target ref from canonical runtime routing.
 
+    Resolves the appropriate table store branch from the runtime context,
+    defaulting to "main" if no specific routing is configured.
+
     Args:
-        context: Runtime context or compatible object.
+        context: Runtime context or compatible object with capability routing.
 
     Returns:
-        Ref resolved from canonical runtime routing, defaulting to ``"main"``.
+        str: Resolved branch name (e.g., "main", "feature-branch").
+
+    Example:
+        ```python
+        from phlo_dlt.dlt_helpers import get_branch_from_context
+
+        branch = get_branch_from_context(runtime_context)
+        print(f"Writing to branch: {branch}")
+        ```
+
     """
     return (
         resolve_runtime_ref(
@@ -55,7 +119,28 @@ def get_write_branch_from_context(context: Any, *, strict_validation: bool) -> s
     """Return the effective write ref for the current ingestion run.
 
     When strict validation is enabled and the runtime carries an isolated WAP
-    branch tag, writes should land there first so promotion remains explicit.
+    (Write-Audit-Publish) branch tag, writes should land there first so promotion
+    remains explicit. This supports the WAP pattern where data is written to
+    an isolated branch, validated, then promoted to the main branch.
+
+    Args:
+        context: Runtime context or compatible object with tags.
+        strict_validation: Whether strict validation (and thus WAP) is enabled.
+
+    Returns:
+        str: The branch to write to - either the WAP branch or the target branch.
+
+    Example:
+        ```python
+        from phlo_dlt.dlt_helpers import get_write_branch_from_context
+
+        write_branch = get_write_branch_from_context(
+            runtime_context,
+            strict_validation=True
+        )
+        # Returns WAP branch tag value if present, else "main"
+        ```
+
     """
     if strict_validation:
         tags = getattr(context, "tags", {}) or {}
@@ -74,16 +159,36 @@ def inject_metadata_columns(
 ) -> Path:
     """Append Phlo metadata columns to a staged parquet file.
 
+    Injects four metadata columns into a Parquet file to enable lineage
+    tracking and auditing:
+    - _phlo_row_id: Unique ULID per row
+    - _phlo_ingested_at: UTC timestamp
+    - _phlo_partition_date: Partition date
+    - _phlo_run_id: Orchestrator run ID
+
     Args:
         parquet_path: Absolute path to the parquet file to mutate.
-        partition_date: Partition date associated with this ingestion run.
+        partition_date: Partition date associated with this ingestion run (YYYY-MM-DD).
         run_id: Orchestrator run identifier.
         context: Optional Dagster context used for structured logging.
 
     Returns:
-        The same parquet path after metadata columns are written.
-    """
+        Path: The same parquet path after metadata columns are written.
 
+    Example:
+        ```python
+        from pathlib import Path
+        from phlo_dlt.dlt_helpers import inject_metadata_columns
+
+        inject_metadata_columns(
+            parquet_path=Path("/tmp/data.parquet"),
+            partition_date="2024-01-01",
+            run_id="run-123",
+            context=dagster_context,
+        )
+        ```
+
+    """
     import pyarrow as pa
     import pyarrow.parquet as pq
 
@@ -136,17 +241,38 @@ def validate_with_pandera(
 ) -> bool:
     """Validate extracted records against a Pandera schema.
 
+    Validates a list of dictionaries (records) against a Pandera DataFrameModel
+    schema. Supports column name remapping and datetime coercion.
+
     Args:
         context: Dagster context used for logging validation outcomes.
-        data: Extracted records to validate.
-        schema_class: Pandera ``DataFrameModel`` defining validation rules.
+        data: Extracted records to validate (list of dicts).
+        schema_class: Pandera DataFrameModel defining validation rules.
         column_mapping: Optional source-to-schema column rename mapping.
-        strict: Whether to re-raise schema errors instead of returning ``False``.
+            Keys are source column names, values are schema column names.
+        strict: Whether to re-raise schema errors instead of returning False.
 
     Returns:
-        ``True`` when validation passes, ``False`` when it fails in non-strict mode.
-    """
+        bool: True when validation passes, False when it fails in non-strict mode.
 
+    Raises:
+        pandera.errors.SchemaErrors: If strict=True and validation fails.
+
+    Example:
+        ```python
+        from phlo_dlt.dlt_helpers import validate_with_pandera
+
+        data = [{"user_id": 1, "name": "Alice"}, {"user_id": 2, "name": "Bob"}]
+        passed = validate_with_pandera(
+            context,
+            data,
+            schema_class=UserSchema,
+            column_mapping={"user_id": "id"},  # Remap user_id -> id
+            strict=False,
+        )
+        ```
+
+    """
     try:
         logger.info(
             "dlt_pandera_validation_started",
@@ -200,14 +326,27 @@ def setup_dlt_pipeline(
 ) -> tuple[Any, Path]:
     """Create a filesystem-backed DLT pipeline.
 
+    Configures a DLT pipeline with filesystem destination for staging
+    extracted data to Parquet files before table store loading.
+
     Args:
-        pipeline_name: DLT pipeline identifier.
+        pipeline_name: DLT pipeline identifier (unique per run).
         dataset_name: Target dataset name for staged output.
 
     Returns:
-        Tuple of ``(pipeline, pipeline_working_directory)``.
-    """
+        tuple[Any, Path]: Tuple of (pipeline, pipeline_working_directory).
 
+    Example:
+        ```python
+        from phlo_dlt.dlt_helpers import setup_dlt_pipeline
+
+        pipeline, working_dir = setup_dlt_pipeline(
+            pipeline_name="users_2024_01_01",
+            dataset_name="raw",
+        )
+        ```
+
+    """
     pipelines_dir = Path("/tmp/phlo/dlt")
     pipelines_dir.mkdir(parents=True, exist_ok=True)
     bucket_url = str((pipelines_dir / "bucket").resolve())
@@ -231,16 +370,33 @@ def stage_to_parquet(
 ) -> tuple[list[Path], float]:
     """Run DLT extraction and locate the staged parquet output.
 
+    Executes the DLT pipeline to extract data from the source and stage
+    it as Parquet files. Returns the paths and timing information.
+
     Args:
-        context: Dagster context for logs.
+        context: Dagster context for logs and progress tracking.
         pipeline: Configured DLT pipeline object.
         dlt_source: DLT source/resource object to execute.
         local_staging_root: Root directory used to resolve relative parquet paths.
 
     Returns:
-        Tuple of ``(parquet_paths, elapsed_seconds)``.
-    """
+        tuple[list[Path], float]: Tuple of (parquet_paths, elapsed_seconds).
 
+    Raises:
+        RuntimeError: If DLT returns no load info or no parquet files.
+
+    Example:
+        ```python
+        from phlo_dlt.dlt_helpers import setup_dlt_pipeline, stage_to_parquet
+
+        pipeline, working_dir = setup_dlt_pipeline("users", "raw")
+        dlt_source = fetch_users_source()
+        parquet_paths, elapsed = stage_to_parquet(
+            context, pipeline, dlt_source, working_dir
+        )
+        ```
+
+    """
     start_time = time.time()
     logger.info(
         "dlt_stage_to_parquet_started",
@@ -307,19 +463,44 @@ def merge_to_table_store(
 ) -> dict[str, int]:
     """Write staged parquet data into the configured table store via append or merge.
 
+    Loads staged Parquet files into the table store using either append or
+    merge (upsert) strategy. Handles schema derivation, table creation,
+    and merge metrics.
+
     Args:
         context: Dagster context used for progress logging.
         table_store: Table store capability used for table operations.
         table_config: Table configuration including schema, partitioning, and keys.
         parquet_paths: Paths to staged parquet data.
         branch_name: Nessie branch to write into.
-        merge_strategy: Write strategy (``"append"`` or ``"merge"``).
+        merge_strategy: Write strategy ("append" or "merge").
         merge_config: Reserved merge configuration payload.
 
     Returns:
-        Merge metrics emitted by the underlying table-store write operation.
-    """
+        dict[str, int]: Merge metrics with keys:
+            - "rows_inserted": Number of rows written
+            - "rows_deleted": Number of rows replaced (merge only)
 
+    Raises:
+        PhloConfigError: If no schema is available or table_store cannot derive schema.
+        ValueError: If merge_strategy is not "append" or "merge".
+
+    Example:
+        ```python
+        from phlo_dlt.dlt_helpers import merge_to_table_store
+
+        metrics = merge_to_table_store(
+            context,
+            table_store=iceberg_store,
+            table_config=user_table_config,
+            parquet_paths=[Path("/tmp/data.parquet")],
+            branch_name="main",
+            merge_strategy="merge",
+        )
+        print(f"Inserted {metrics['rows_inserted']} rows")
+        ```
+
+    """
     merge_config = merge_config or {}
     table_name = table_config.full_table_name
     logger.info(
@@ -365,6 +546,18 @@ def merge_to_table_store(
     )
 
     def _coerce_parquet_to_table_schema(parquet_file: Path) -> Path:
+        """Coerce Parquet file columns to match table schema.
+
+        Internal helper that reads a Parquet file and projects its columns
+        to match the target table schema, handling type coercion.
+
+        Args:
+            parquet_file: Path to the Parquet file to coerce.
+
+        Returns:
+            Path: Path to the coerced Parquet file (in temp directory).
+
+        """
         import tempfile
 
         import pyarrow as pa

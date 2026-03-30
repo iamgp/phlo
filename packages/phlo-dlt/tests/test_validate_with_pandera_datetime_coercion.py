@@ -22,6 +22,7 @@ def test_validate_with_pandera_only_coerces_datetime_columns(monkeypatch) -> Non
 
     Args:
         monkeypatch: Pytest monkeypatch fixture.
+
     """
 
     captured: dict[str, pd.DataFrame] = {}
@@ -37,6 +38,7 @@ def test_validate_with_pandera_only_coerces_datetime_columns(monkeypatch) -> Non
 
         Returns:
             pd.DataFrame: Unmodified DataFrame.
+
         """
 
         captured["df"] = df.copy()

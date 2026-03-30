@@ -51,6 +51,7 @@ def test_alert_destination_registration():
 
             Returns:
                 Always ``True``.
+
             """
             self.alerts.append(alert)
             return True
@@ -82,6 +83,7 @@ def test_alert_sending_to_destination():
 
             Returns:
                 Always ``True``.
+
             """
             self.alerts.append(alert)
             return True
@@ -123,6 +125,7 @@ def test_alert_deduplication():
 
             Returns:
                 Always ``True``.
+
             """
             self.alerts.append(alert)
             return True
@@ -162,6 +165,7 @@ def test_alert_to_specific_destination():
 
             Args:
                 name: Destination identifier.
+
             """
             self.name = name
             self.alerts = []
@@ -174,6 +178,7 @@ def test_alert_to_specific_destination():
 
             Returns:
                 Always ``True``.
+
             """
             self.alerts.append(alert)
             return True

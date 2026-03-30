@@ -1,5 +1,4 @@
-"""
-Quality check plugin classes.
+"""Quality check plugin classes.
 
 This module defines plugin types for custom data quality validation.
 """
@@ -15,8 +14,7 @@ TQualityCheck = TypeVar("TQualityCheck")
 
 
 class QualityCheckPlugin(Plugin, ABC, Generic[TQualityCheck]):
-    """
-    Base class for quality check plugins.
+    """Base class for quality check plugins.
 
     Quality check plugins enable custom data validation logic
     beyond the built-in checks.
@@ -57,12 +55,12 @@ class QualityCheckPlugin(Plugin, ABC, Generic[TQualityCheck]):
             def name(self) -> str:
                 return f"business_rule_{self.rule}"
         ```
+
     """
 
     @abstractmethod
     def create_check(self, **kwargs) -> TQualityCheck:
-        """
-        Create a quality check instance.
+        """Create a quality check instance.
 
         This factory method creates instances of quality checks
         that can be used with @phlo_quality decorator.
@@ -78,4 +76,5 @@ class QualityCheckPlugin(Plugin, ABC, Generic[TQualityCheck]):
             def create_check(self, column: str, threshold: float) -> QualityCheck:
                 return CustomQualityCheck(column=column, threshold=threshold)
             ```
+
         """

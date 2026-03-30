@@ -231,7 +231,7 @@ class GitHubConnector(SourceConnectorPlugin):
 
 **Inherits:** `Plugin`, `ABC`, `Generic[TQualityCheck]`
 
-Factory for custom data quality checks that integrate with the `@phlo_quality` decorator.
+Factory for custom data quality checks that integrate with the `@phlo_pandera` decorator.
 
 ### Abstract methods
 
@@ -243,7 +243,7 @@ Factory for custom data quality checks that integrate with the `@phlo_quality` d
 
 ```python
 from phlo.plugins.base import QualityCheckPlugin, PluginMetadata
-from phlo_quality.checks import QualityCheck, QualityCheckResult
+from phlo_pandera.checks import QualityCheck, QualityCheckResult
 
 class BusinessRuleCheck(QualityCheckPlugin):
     @property

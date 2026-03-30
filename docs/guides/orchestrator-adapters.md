@@ -7,11 +7,17 @@ runtime context, the registry, and discovery.
 
 ## Design overview
 
-```text
-Packages → Capability Specs → CapabilityRegistry → Orchestrator Adapter → Runtime
-                                                          ▲
-                                              get_active_orchestrator()
-                                              reads PHLO_ORCHESTRATOR
+```mermaid
+flowchart LR
+    packages[Packages]
+    specs[Capability Specs]
+    registry[CapabilityRegistry]
+    adapter[Orchestrator Adapter]
+    runtime[Runtime]
+    selector["get_active_orchestrator()<br/>reads PHLO_ORCHESTRATOR"]
+
+    packages --> specs --> registry --> adapter --> runtime
+    selector --> adapter
 ```
 
 Packages never import orchestrator libraries. They declare specs; the active adapter

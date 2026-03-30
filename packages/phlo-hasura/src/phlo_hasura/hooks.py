@@ -1,4 +1,21 @@
-"""Hasura hooks for auto-configuration."""
+"""Hasura hooks for auto-configuration.
+
+This module provides hook functions for automatically configuring Hasura
+during project initialization or deployment. It handles environment loading
+and table tracking operations.
+
+The hooks are designed to be called from the phlo CLI or programmatically
+to automate Hasura setup.
+
+Example:
+    $ python -m phlo_hasura.hooks track-tables auto
+    $ python -m phlo_hasura.hooks track-tables api,marts
+
+Functions:
+    track_tables: Auto-track tables in the specified schema(s).
+    _load_env_files: Load environment variables from .phlo/.env files.
+
+"""
 
 from __future__ import annotations
 
@@ -12,7 +29,25 @@ logger = get_logger(__name__)
 
 
 def _load_env_files() -> None:
-    """Load environment variables from .phlo/.env and .phlo/.env.local."""
+    """Load environment variables from .phlo/.env and .phlo/.env.local.
+
+    Attempts to load environment variables using python-dotenv if available,
+    falling back to manual parsing if dotenv is not installed.
+
+    Files are loaded in order:
+        1. .phlo/.env
+        2. .phlo/.env.local (overrides .env)
+
+    Environment variables set in .env.local take precedence over .env.
+
+    Raises:
+        No exceptions are raised; failures are silently ignored.
+
+    Example:
+        >>> _load_env_files()
+        # Environment variables are now loaded from .phlo/.env files
+
+    """
     try:
         from dotenv import load_dotenv
 
@@ -42,9 +77,21 @@ def _load_env_files() -> None:
 def track_tables(schemas: str = "api") -> None:
     """Auto-track tables in the specified schema(s).
 
+    Automatically discovers and tracks all tables in the specified schemas.
+    Can track multiple schemas at once or auto-discover all user schemas.
+
     Args:
         schemas: Comma-separated list of schemas to track (e.g., "marts,api"),
-                 or "auto" to discover all user schemas automatically
+                 or "auto" to discover all user schemas automatically.
+
+    Raises:
+        Exception: If auto-tracking fails (propagated from underlying operations).
+
+    Example:
+        >>> track_tables("api")  # Track single schema
+        >>> track_tables("marts,api")  # Track multiple schemas
+        >>> track_tables("auto")  # Auto-discover all schemas
+
     """
     from phlo_hasura.track import auto_track, auto_track_all
 

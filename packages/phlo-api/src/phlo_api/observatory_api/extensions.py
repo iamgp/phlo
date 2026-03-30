@@ -1,4 +1,24 @@
-"""Observatory extension manifest and asset endpoints."""
+"""Observatory extension manifest and asset endpoints.
+
+Provides endpoints for discovering and serving Observatory extension plugins.
+Extensions are Python packages that register via entry points and provide
+UI components, pages, and asset files to customize the Observatory interface.
+
+Key Endpoints:
+    GET /api/observatory/extensions: List all installed extensions.
+    GET /api/observatory/extensions/{name}: Get single extension manifest.
+    GET /api/observatory/extensions/{name}/assets/{path}: Serve extension assets.
+
+Example:
+    Listing available extensions:
+
+    .. code-block:: bash
+
+        curl http://localhost:4000/api/observatory/extensions
+
+    Response includes manifest and base paths for each extension's assets.
+
+"""
 
 from __future__ import annotations
 
@@ -94,14 +114,38 @@ def _is_compatible(plugin: Any, observatory_version: str | None) -> bool:
 
 @router.get("/extensions")
 def list_extensions() -> dict[str, list[dict[str, Any]]]:
-    """List all installed Observatory extensions."""
+    """List all installed Observatory extensions.
+
+    Returns manifest and asset paths for each discovered extension.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        Dictionary with "extensions" key containing list of extension payloads.
+
+    Raises:
+        None: No exceptions raised directly.
+
+    """
     extensions = _load_extensions()
     return {"extensions": [_extension_payload(plugin) for plugin in extensions]}
 
 
 @router.get("/extensions/{name}")
 def get_extension(name: str) -> dict[str, Any]:
-    """Get a single Observatory extension manifest."""
+    """Get a single Observatory extension manifest.
+
+    Args:
+        name: Extension name to retrieve.
+
+    Returns:
+        Extension payload dictionary with manifest and assets_base_path.
+
+    Raises:
+        HTTPException: If extension not found (404).
+
+    """
     extensions = _load_extensions()
     plugin = next((p for p in extensions if p.metadata.name == name), None)
     if not plugin:
@@ -116,7 +160,21 @@ def _cleanup_temp_dir(dir_path: Path) -> None:
 
 @router.get("/extensions/{name}/assets/{asset_path:path}")
 def get_extension_asset(name: str, asset_path: str, background_tasks: BackgroundTasks):
-    """Serve extension asset files."""
+    """Serve extension asset files.
+
+    Args:
+        name: Extension name.
+        asset_path: Relative path to the asset file.
+        background_tasks: FastAPI background tasks for cleanup.
+
+    Returns:
+        FileResponse with the asset content.
+
+    Raises:
+        HTTPException: If extension not found (404), asset path invalid (400),
+            or asset not found (404).
+
+    """
     extensions = _load_extensions()
     plugin = next((p for p in extensions if p.metadata.name == name), None)
     if not plugin:

@@ -1,4 +1,25 @@
-"""Decorator helpers for registering Sling-backed Phlo assets."""
+"""Decorator helpers for registering Sling-backed Phlo assets.
+
+This module provides decorators and helper functions for registering Sling-based
+data replication assets within the Phlo orchestration platform. It supports both
+single asset registration via @phlo_sling_replication and batch registration
+via @phlo_sling_assets.
+
+Functions:
+    get_sling_assets: Retrieve all registered Sling asset specifications.
+    clear_sling_assets: Clear the internal asset registry.
+    phlo_sling_replication: Decorator for registering a single Sling asset.
+    phlo_sling_assets: Decorator for registering multiple Sling assets
+        from a discovery function.
+
+Private Functions:
+    _validate_replication_mode: Validates replication mode strings.
+    _validate_incremental_config: Validates incremental mode requirements.
+    _normalize_primary_key: Normalizes primary key input to a list.
+    _build_replication_config: Builds a ReplicationConfig from decorator args.
+    _build_asset_run: Creates the runtime execution function for assets.
+    _register_sling_asset: Registers a Sling asset in the internal registry.
+"""
 
 from __future__ import annotations
 
@@ -18,17 +39,46 @@ _SLING_ASSETS: list[AssetSpec] = []
 
 
 def get_sling_assets() -> list[AssetSpec]:
-    """Return registered Sling replication asset specifications."""
+    """Return registered Sling replication asset specifications.
+
+        Retrieves all Sling replication assets that have been registered via
+    the
+        @phlo_sling_replication or @phlo_sling_assets decorators.
+
+    Returns:
+            List of AssetSpec objects representing all registered Sling
+            replication pipelines.
+
+    """
     return list(_SLING_ASSETS)
 
 
 def clear_sling_assets() -> None:
-    """Clear all registered Sling replication asset specifications."""
+    """Clear all registered Sling replication asset specifications.
+
+    Removes all registered Sling assets from the internal registry. This
+    is primarily used for testing and plugin reload scenarios.
+
+    Returns:
+        None
+
+    """
     _SLING_ASSETS.clear()
 
 
 def _validate_replication_mode(mode: str) -> None:
-    """Validate the replication mode is supported."""
+    """Validate the replication mode is supported.
+
+    Checks that the provided replication mode is one of the supported
+    Sling replication modes.
+
+    Args:
+        mode: The replication mode string to validate.
+
+    Raises:
+        PhloConfigError: If the mode is not in the set of valid modes.
+
+    """
     valid_modes = {"full-refresh", "incremental", "snapshot", "backfill"}
     if mode not in valid_modes:
         raise PhloConfigError(
@@ -38,7 +88,19 @@ def _validate_replication_mode(mode: str) -> None:
 
 
 def _validate_incremental_config(mode: str, update_key: str | None) -> None:
-    """Validate incremental mode has a required update key."""
+    """Validate incremental mode has a required update key.
+
+    Ensures that incremental replication mode has an update_key configured
+    for change detection.
+
+    Args:
+        mode: The replication mode string.
+        update_key: The update key column name (optional).
+
+    Raises:
+        PhloConfigError: If mode is "incremental" but update_key is None.
+
+    """
     if mode == "incremental" and not update_key:
         raise PhloConfigError(
             message="Incremental mode requires an update_key",
@@ -47,7 +109,18 @@ def _validate_incremental_config(mode: str, update_key: str | None) -> None:
 
 
 def _normalize_primary_key(primary_key: list[str] | str | None) -> list[str]:
-    """Normalize primary key input into a list of column names."""
+    """Normalize primary key input into a list of column names.
+
+    Converts various primary key input formats into a consistent list
+    of column name strings.
+
+    Args:
+        primary_key: Input primary key specification (string, list, or None).
+
+    Returns:
+        List of column name strings.
+
+    """
     return [primary_key] if isinstance(primary_key, str) else list(primary_key or [])
 
 
@@ -67,7 +140,34 @@ def _build_replication_config(
     source_options: dict[str, Any] | None,
     target_options: dict[str, Any] | None,
 ) -> ReplicationConfig:
-    """Validate and normalize decorator-style replication inputs."""
+    """Validate and normalize decorator-style replication inputs.
+
+    Processes decorator arguments to create a validated ReplicationConfig
+    with defaults applied and constraints checked.
+
+    Args:
+        stream_name: Source stream identifier.
+        table_name: Target table name.
+        source_conn: Source connection name.
+        group: Asset group name.
+        target_conn: Target connection name (optional).
+        mode: Replication mode (optional, defaults to settings).
+        primary_key: Primary key column(s) (optional).
+        update_key: Update key column for incremental mode (optional).
+        object: Target object path for file-based targets (optional).
+        select: Column selection list (optional).
+        where: SQL WHERE clause (optional).
+        source_options: Additional source options dict (optional).
+        target_options: Additional target options dict (optional).
+
+    Returns:
+        Validated ReplicationConfig instance.
+
+    Raises:
+        PhloConfigError: If validation fails (invalid mode, missing
+            update_key, etc.).
+
+    """
     resolved_mode = mode or get_settings().sling_default_mode
     _validate_replication_mode(resolved_mode)
     _validate_incremental_config(resolved_mode, update_key)
@@ -94,7 +194,21 @@ def _build_asset_run(
     source_func: Callable[..., Any],
     override_resolver: Callable[[RuntimeContext], dict[str, Any] | None],
 ) -> Callable[[RuntimeContext], Iterator[MaterializeResult]]:
-    """Build the runtime function used by Sling-backed asset specs."""
+    """Build the runtime function used by Sling-backed asset specs.
+
+    Creates the execution function that orchestrates Sling replication
+    runs and yields MaterializeResult objects.
+
+    Args:
+        repl_config: The replication configuration.
+        source_func: The decorated user function.
+        override_resolver: Callable that resolves runtime overrides from
+            the user function.
+
+    Returns:
+        Callable that executes the Sling replication and yields results.
+
+    """
 
     def run(runtime: RuntimeContext) -> Iterator[MaterializeResult]:
         partition_date = runtime.partition_key or "latest"
@@ -171,7 +285,32 @@ def _register_sling_asset(
     extra_metadata: dict[str, Any] | None = None,
     extra_tags: dict[str, str] | None = None,
 ) -> AssetSpec:
-    """Register a Sling asset spec and return it."""
+    """Register a Sling asset spec and return it.
+
+    Creates an AssetSpec from the replication configuration and registers
+    it in the internal asset registry.
+
+    Args:
+        repl_config: The replication configuration.
+        source_func: The decorated user function.
+        override_resolver: Callable for resolving runtime overrides.
+        description: Asset description (optional).
+        owner: Asset owner identifier (optional).
+        consumers: List of data consumers (optional).
+        sla: Service level agreement definition (optional).
+        max_runtime_seconds: Maximum execution time allowed.
+        max_retries: Maximum retry attempts on failure.
+        retry_delay_seconds: Delay between retry attempts.
+        cron: Cron schedule string (optional).
+        freshness_hours: Data freshness requirements as (warning, error)
+            tuple (optional).
+        extra_metadata: Additional metadata dict (optional).
+        extra_tags: Additional tags dict (optional).
+
+    Returns:
+        The registered AssetSpec instance.
+
+    """
     normalized_consumers = normalize_consumers(consumers)
     asset_spec = AssetSpec(
         key=repl_config.asset_key,
@@ -235,9 +374,57 @@ def phlo_sling_replication(
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Register a function as a Sling-backed replication asset.
 
-    The decorated function receives a ``RuntimeContext`` and may return a dict
-    of Sling overrides such as a dynamically resolved ``src_stream`` or
-    partition-specific ``where`` clause.
+    Decorator that registers a function as a Sling-based data replication
+    asset within the Phlo orchestration platform. The decorated function
+    receives a ``RuntimeContext`` and may return a dict of Sling overrides
+    such as a dynamically resolved ``src_stream`` or partition-specific
+    ``where`` clause.
+
+    Args:
+        stream_name: Source stream identifier (e.g., "public.users").
+        table_name: Target table name in the destination.
+        source_conn: Sling source connection name.
+        group: Asset group name for organization.
+        target_conn: Sling target connection name (optional, auto-resolved).
+        mode: Replication mode - "full-refresh", "incremental", "snapshot",
+            or "backfill" (optional, defaults to settings).
+        primary_key: Primary key column(s) for merge operations (optional).
+        update_key: Update key column for incremental replication (required
+            for incremental mode).
+        object: Target object path for file-based destinations (optional).
+        select: List of columns to select (optional, empty = all columns).
+        where: SQL WHERE clause for source filtering (optional).
+        source_options: Additional source-specific Sling options (optional).
+        target_options: Additional target-specific Sling options (optional).
+        cron: Cron schedule for automatic execution (optional).
+        freshness_hours: Data freshness SLA as (warning_hours, error_hours)
+            tuple (optional).
+        max_runtime_seconds: Maximum execution time before timeout
+            (default: 600).
+        max_retries: Maximum retry attempts on failure (default: 3).
+        retry_delay_seconds: Seconds between retry attempts (default: 30).
+        owner: Asset owner identifier (optional).
+        consumers: List of data consumers (optional).
+        sla: Service level agreement definition (optional).
+
+    Returns:
+        Decorator function that wraps the user function.
+
+    Example:
+        Basic incremental replication::
+
+            @phlo_sling_replication(
+                stream_name="public.users",
+                table_name="users",
+                source_conn="PHLO_POSTGRES",
+                group="ingestion",
+                mode="incremental",
+                update_key="updated_at",
+            )
+            def replicate_users(context):
+                # Optional: return runtime overrides
+                return {"where": f"updated_at >= '{context.partition_key}'"}
+
     """
     repl_config = _build_replication_config(
         stream_name=stream_name,
@@ -296,9 +483,44 @@ def phlo_sling_assets(
 ) -> Callable[[Callable[[], Iterable[SlingReplication]]], Callable[[], Iterable[SlingReplication]]]:
     """Register multiple Sling-backed assets from a Python discovery function.
 
-    The decorated function runs at definition time and yields
+    Decorator that runs at definition time to discover and register multiple
+    Sling replication assets. The decorated function yields
     ``SlingReplication`` objects, one per asset to register. This is the
-    Python-first API for filesystem scans and similar discovery logic.
+    Python-first API for filesystem scans, schema discovery, and similar
+    dynamic asset generation.
+
+    Args:
+        group: Default asset group name (can be overridden per-asset).
+        cron: Cron schedule for automatic execution (optional).
+        freshness_hours: Data freshness SLA as (warning_hours, error_hours)
+            tuple (optional).
+        max_runtime_seconds: Maximum execution time before timeout
+            (default: 600).
+        max_retries: Maximum retry attempts on failure (default: 3).
+        retry_delay_seconds: Seconds between retry attempts (default: 30).
+        owner: Default asset owner identifier (can be overridden per-asset).
+        consumers: List of data consumers (optional).
+        sla: Service level agreement definition (optional).
+
+    Returns:
+        Decorator function that processes the discovery function.
+
+    Example:
+        Discover and register multiple tables::
+
+            from phlo_sling import phlo_sling_assets, SlingReplication
+
+            @phlo_sling_assets(group="ingestion")
+            def discover_all_tables():
+                tables = ["users", "orders", "products"]
+                for table in tables:
+                    yield SlingReplication(
+                        stream_name=f"public.{table}",
+                        table_name=table,
+                        source_conn="PHLO_POSTGRES",
+                        mode="full-refresh",
+                    )
+
     """
 
     def decorator(

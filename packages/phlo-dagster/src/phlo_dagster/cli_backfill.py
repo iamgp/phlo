@@ -1,6 +1,37 @@
-"""Backfill Command
+"""Backfill command for partitioned asset materialization.
 
-Run asset materialization across a date range with parallel execution.
+This module implements the `phlo backfill` CLI command, enabling batch
+materialization of partitioned Dagster assets across date ranges. It
+supports parallel execution, resume capability, and dry-run preview.
+
+Features:
+    - Date range or explicit partition list modes
+    - Parallel execution with configurable workers
+    - Resume capability via state file persistence
+    - Dry-run mode for previewing operations
+    - Rate limiting with delay between executions
+    - Progress tracking with Rich UI
+    - Docker container execution
+
+State Management:
+    Backfill state is persisted to `.phlo/backfill_state.json` to enable
+    resume after interruption. State includes asset name, completed
+    partitions, and remaining work.
+
+Execution:
+    Backfills run via Docker exec into the Dagster container, enabling
+    access to the full Dagster environment while maintaining isolation
+    from the host system.
+
+Example:
+    CLI usage::
+
+        phlo backfill dlt_orders --start-date 2024-01-01 --end-date 2024-01-31
+        phlo backfill dlt_orders --partitions 2024-01-01,2024-01-15,2024-01-31
+        phlo backfill dlt_orders --start-date 2024-01-01 --end-date 2024-12-31 --parallel 4
+        phlo backfill --resume
+        phlo backfill dlt_orders --start-date 2024-01-01 --end-date 2024-01-31 --dry-run
+
 """
 
 import json
@@ -76,21 +107,29 @@ def backfill(
     dry_run: bool,
     delay: float,
 ):
-    """
-    Run asset materialization across a date range with parallel execution.
+    """Run asset materialization across a date range with parallel execution.
 
     Supports multiple invocation modes:
     - Date range: --start-date and --end-date
     - Explicit partitions: --partitions comma-separated
     - Resume: --resume to continue interrupted backfill
 
-    \b
-    Examples:
-      phlo backfill dlt_orders --start-date 2024-01-01 --end-date 2024-01-31
-      phlo backfill dlt_orders --partitions 2024-01-01,2024-01-15,2024-01-31
-      phlo backfill dlt_orders --start-date 2024-01-01 --end-date 2024-12-31 --parallel 4
-      phlo backfill --resume
-      phlo backfill dlt_orders --start-date 2024-01-01 --end-date 2024-01-31 --dry-run
+    Args:
+        asset_name: Name of the asset to backfill.
+        start_date: Start date (YYYY-MM-DD) for date range mode.
+        end_date: End date (YYYY-MM-DD) for date range mode.
+        partitions: Comma-separated partition dates for explicit mode.
+        parallel: Number of concurrent workers (default: 1).
+        resume: If True, resume from previous backfill state.
+        dry_run: If True, show commands without executing.
+        delay: Delay between parallel executions in seconds.
+
+    Returns:
+        None
+
+    Raises:
+        SystemExit: On validation failure or backfill failure.
+
     """
     console.print("\n[bold blue]📦 Asset Backfill[/bold blue]\n")
     logger.info(
@@ -222,6 +261,7 @@ def _generate_partition_dates(start_date: str, end_date: str) -> list[str]:
 
     Returns:
         List of date strings in YYYY-MM-DD format
+
     """
     try:
         start = datetime.strptime(start_date, "%Y-%m-%d")
@@ -268,6 +308,7 @@ def _validate_partition_dates(dates: list[str]) -> None:
 
     Raises:
         SystemExit if validation fails
+
     """
     for date in dates:
         try:
@@ -294,6 +335,7 @@ def _build_materialize_command(asset_name: str, partition_date: str) -> list[str
 
     Returns:
         List of command components
+
     """
     import platform
 
@@ -339,6 +381,7 @@ def _run_backfill(
         parallel: Number of concurrent workers
         delay: Delay between executions in seconds
         completed_partitions: List of already-completed partitions
+
     """
     if completed_partitions is None:
         completed_partitions = []
@@ -452,7 +495,18 @@ def _run_backfill(
 
 
 def _load_backfill_state() -> dict[str, Any]:
-    """Load persisted backfill state from disk."""
+    """Load persisted backfill state from disk.
+
+    Args:
+        None
+
+    Returns:
+        Dictionary containing backfill state.
+
+    Raises:
+        Exception: If state file cannot be read.
+
+    """
     logger.info(
         "dagster_backfill_state_load_started",
         state_file=str(BACKFILL_STATE_FILE),
@@ -492,6 +546,7 @@ def _materialize_partition(
 
     Returns:
         Tuple of (success, output_message)
+
     """
     import time
 
@@ -563,6 +618,7 @@ def _save_backfill_state(
         asset_name: Asset name
         remaining_partitions: Partitions still to process
         completed_partitions: Completed partitions
+
     """
     state_dir = BACKFILL_STATE_FILE.parent
     state_dir.mkdir(exist_ok=True)
@@ -607,7 +663,18 @@ def _save_backfill_state(
 
 
 def _remove_backfill_state() -> None:
-    """Remove persisted backfill state file if present."""
+    """Remove persisted backfill state file if present.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If state file cannot be removed.
+
+    """
     if not BACKFILL_STATE_FILE.exists():
         return
     logger.info(
@@ -636,6 +703,7 @@ def _display_backfill_results(results: dict[str, Any]) -> None:
 
     Args:
         results: Backfill results dictionary
+
     """
     successful = len(results["successful"])
     failed = len(results["failed"])

@@ -1,140 +1,208 @@
 # Phlo Packages Reference
 
-Phlo is organized as a monorepo with individual packages that provide specific functionality. Each package can be installed independently or as part of a complete installation.
+Phlo is organized as a modular monorepo. Each package contributes a capability, runtime surface, or operator tool.
 
-## Package Categories
+Use this section to answer:
 
-### Core Framework
+- what does this package add to a Phlo stack?
+- is it core, optional, or profile-specific?
+- which other packages or capabilities does it connect to?
 
-| Package  | Description                                                      |
-| -------- | ---------------------------------------------------------------- |
-| **phlo** | Core framework with CLI, plugin system, configuration, and hooks |
+For environment-specific setup of external surfaces such as Hasura, PostgREST, or OpenMetadata, use [Setup](../setup/index.md).
 
-### Data Processing
+Use [Python Reference](../python-reference/index.mdx) when you need symbol-level docstring and API reference for the package modules themselves.
 
-| Package                         | Description                                                         |
-| ------------------------------- | ------------------------------------------------------------------- |
-| [phlo-dagster](phlo-dagster.md) | Data orchestration platform for scheduling and monitoring pipelines |
-| [phlo-dbt](phlo-dbt.md)         | dbt integration for SQL transformations                             |
-| [phlo-dlt](phlo-dlt.md)         | Data Load Tool integration for ingestion                            |
-| [phlo-iceberg](phlo-iceberg.md) | Apache Iceberg catalog and table format support                     |
-| [phlo-delta](phlo-delta.md)     | Delta Lake table format support (alternative to Iceberg)            |
-| [phlo-pandera](phlo-pandera.md) | Data quality validation and checks                                  |
-| [phlo-lineage](phlo-lineage.md) | Data lineage tracking and visualization                             |
+## Complete Package Index
 
-### Infrastructure Services
+### Core Framework (1 package)
 
-| Package                           | Description                         |
-| --------------------------------- | ----------------------------------- |
-| [phlo-traefik](phlo-traefik.md)  | Local reverse proxy for named URLs  |
-| [phlo-postgres](phlo-postgres.md) | PostgreSQL database service         |
-| [phlo-nessie](phlo-nessie.md)     | Git-like catalog for Iceberg tables |
-| [phlo-trino](phlo-trino.md)       | Distributed SQL query engine        |
-| [phlo-minio](phlo-minio.md)       | S3-compatible object storage        |
-| [phlo-rustfs](phlo-rustfs.md)     | RustFS S3-compatible storage        |
-| [phlo-clickhouse](phlo-clickhouse.md) | ClickHouse analytical database |
+| Package | Description | Entry Points |
+| ------- | ----------- | ------------ |
+| **phlo** | Core framework with CLI, plugin system, configuration, and hooks | CLI, hooks, catalogs |
 
-### Observability
+---
 
-| Package                               | Description                          |
-| ------------------------------------- | ------------------------------------ |
-| [phlo-clickstack](phlo-clickstack.md) | All-in-one observability backend     |
-| [phlo-grafana](phlo-grafana.md)       | Metrics visualization and dashboards |
-| [phlo-prometheus](phlo-prometheus.md) | Metrics collection and alerting      |
-| [phlo-loki](phlo-loki.md)             | Log aggregation                      |
-| [phlo-alloy](phlo-alloy.md)           | OpenTelemetry collector              |
-| [phlo-otel](phlo-otel.md)             | OpenTelemetry signal emission        |
-| [phlo-alerting](phlo-alerting.md)     | Alert management and routing         |
+### Data Processing & Orchestration (7 packages)
 
-### API Layer
+| Package | Description | Category |
+|---------|-------------|----------|
+| [phlo-dagster](phlo-dagster.md) | Orchestration adapter for Dagster pipelines | Orchestration |
+| [phlo-dbt](phlo-dbt.md) | dbt integration for SQL transformations | Transformation |
+| [phlo-dlt](phlo-dlt.md) | Data Load Tool integration for data ingestion | Ingestion |
+| [phlo-sling](phlo-sling.md) | Sling-based data replication pipelines | Ingestion |
+| [phlo-iceberg](phlo-iceberg.md) | Apache Iceberg table format and catalog | Storage |
+| [phlo-delta](phlo-delta.md) | Delta Lake table format support | Storage |
+| [phlo-pandera](phlo-pandera.md) | Data quality validation with Pandera | Quality |
 
-| Package                             | Description                              |
-| ----------------------------------- | ---------------------------------------- |
-| [phlo-api](phlo-api.md)             | FastAPI REST endpoints for Phlo          |
-| [phlo-postgrest](phlo-postgrest.md) | Auto-generated REST API from PostgreSQL  |
-| [phlo-hasura](phlo-hasura.md)       | GraphQL API with real-time subscriptions |
+---
 
-### Data Catalog & Governance
+### Query & Analytics (2 packages)
 
-| Package                                   | Description                          |
-| ----------------------------------------- | ------------------------------------ |
-| [phlo-openmetadata](phlo-openmetadata.md) | Data catalog and governance platform |
+| Package | Description | Features |
+|---------|-------------|----------|
+| [phlo-trino](phlo-trino.md) | Distributed SQL query engine | Query federation, governance |
+| [phlo-clickhouse](phlo-clickhouse.md) | High-performance analytical database | Fast aggregations |
 
-### User Interface
+---
 
-| Package                                 | Description                                        |
-| --------------------------------------- | -------------------------------------------------- |
-| [phlo-observatory](phlo-observatory.md) | Web UI for exploring data and monitoring pipelines |
-| [phlo-superset](phlo-superset.md)       | Business intelligence and visualization            |
-| [phlo-pgweb](phlo-pgweb.md)             | PostgreSQL web interface                           |
+### Data Lineage & Metadata (2 packages)
 
-### Testing & Development
+| Package | Description | Integration |
+|---------|-------------|-------------|
+| [phlo-lineage](phlo-lineage.md) | Data lineage tracking and graph storage | Dagster, dbt |
+| [phlo-openmetadata](phlo-openmetadata.md) | Data catalog and governance platform | Nessie, Trino |
 
-| Package                                   | Description                           |
-| ----------------------------------------- | ------------------------------------- |
-| [phlo-testing](phlo-testing.md)           | Testing utilities and fixtures        |
-| [phlo-core-plugins](phlo-core-plugins.md) | Built-in plugins for common use cases |
+---
 
-## Installation
+### Storage & Catalog (4 packages)
+
+| Package | Description | Protocol |
+|---------|-------------|----------|
+| [phlo-nessie](phlo-nessie.md) | Git-like catalog for Iceberg tables | Nessie API |
+| [phlo-postgres](phlo-postgres.md) | PostgreSQL metadata and state store | PostgreSQL |
+| [phlo-minio](phlo-minio.md) | S3-compatible object storage | S3 API |
+| [phlo-rustfs](phlo-rustfs.md) | High-performance S3-compatible storage | S3 API |
+
+---
+
+### Networking & Proxy (1 package)
+
+| Package | Description | Use Case |
+|---------|-------------|----------|
+| [phlo-traefik](phlo-traefik.md) | Reverse proxy with automatic service discovery | Local development URLs |
+
+---
+
+### Observability Stack (7 packages)
+
+| Package | Description | Signal Type |
+|---------|-------------|---------------|
+| [phlo-clickstack](phlo-clickstack.md) | All-in-one observability (ClickHouse + Grafana) | All-in-one |
+| [phlo-otel](phlo-otel.md) | OpenTelemetry trace/metric/log emission | Emission |
+| [phlo-alloy](phlo-alloy.md) | OpenTelemetry collector and routing | Collection |
+| [phlo-prometheus](phlo-prometheus.md) | Metrics collection and storage | Metrics |
+| [phlo-grafana](phlo-grafana.md) | Metrics visualization dashboards | Visualization |
+| [phlo-loki](phlo-loki.md) | Log aggregation and querying | Logs |
+| [phlo-alerting](phlo-alerting.md) | Alert routing and notification management | Alerting |
+
+---
+
+### API Layer (3 packages)
+
+| Package | Description | Protocol |
+|---------|-------------|----------|
+| [phlo-api](phlo-api.md) | REST API for Phlo internals | REST |
+| [phlo-postgrest](phlo-postgrest.md) | Auto-generated REST API from PostgreSQL | REST |
+| [phlo-hasura](phlo-hasura.md) | GraphQL API with real-time subscriptions | GraphQL |
+
+---
+
+### User Interface (3 packages)
+
+| Package | Description | Purpose |
+|---------|-------------|---------|
+| [phlo-observatory](phlo-observatory.md) | Web UI for data exploration and monitoring | Primary UI |
+| [phlo-superset](phlo-superset.md) | Business intelligence and visualization | BI/Reporting |
+| [phlo-pgweb](phlo-pgweb.md) | PostgreSQL web administration interface | DB Admin |
+
+---
+
+### Development & Testing (2 packages)
+
+| Package | Description | Use Case |
+|---------|-------------|----------|
+| [phlo-testing](phlo-testing.md) | Testing utilities, fixtures, and mocks | Development |
+| [phlo-core-plugins](phlo-core-plugins.md) | Built-in quality checks and source connectors | Core functionality |
+
+---
+
+### Examples & Templates (1 package)
+
+| Package | Description | Purpose |
+|---------|-------------|---------|
+| [phlo-observatory-example](phlo-observatory-example.md) | Example Observatory extension plugin | Reference implementation |
+
+---
+
+## Installation Profiles
 
 ### Full Installation (Recommended)
 
-Install Phlo with all default services:
+Install all default packages:
 
 ```bash
 uv pip install phlo[defaults]
 ```
 
-This includes core data processing packages and infrastructure services.
+**Includes:** Core framework + dagster, postgres, trino, minio, nessie, iceberg, dlt, dbt, pandera
 
 ### Minimal Installation
 
-Install only the core framework:
+Core framework only:
 
 ```bash
 uv pip install phlo
 ```
 
-Then add packages as needed:
+### Profile-Based Installation
 
 ```bash
-uv pip install phlo-dagster phlo-postgres phlo-trino
+# Observability stack (monitoring, logging, tracing)
+uv pip install phlo[observability]
+
+# API layer (REST, GraphQL)
+uv pip install phlo[api]
+
+# Data catalog (OpenMetadata)
+uv pip install phlo[catalog]
+
+# Query engines (Trino + ClickHouse)
+uv pip install phlo[query]
+
+# UI layer (Observatory + BI tools)
+uv pip install phlo[ui]
 ```
 
-### With Optional Profiles
+### Development Installation
+
+For contributors and plugin developers:
 
 ```bash
-# With observability stack
-uv pip install phlo[defaults,observability]
+# Clone the repository
+git clone https://github.com/phlohouse/phlo.git
+cd phlo
 
-# With API layer
-uv pip install phlo[defaults,api]
+# Install with all dev dependencies
+uv pip install -e ".[dev]"
 
-# With data catalog
-uv pip install phlo[defaults,catalog]
+# Or install specific packages in editable mode
+uv pip install -e ./packages/phlo-dlt -e ./packages/phlo-pandera
 ```
 
-## Plugin System
+---
 
-All packages integrate through Phlo's unified plugin system using Python entry points. When a package is installed, its plugins are automatically discovered and registered.
+## Plugin Entry Points
 
-### Entry Point Groups
+All packages register plugins through Python entry points. These are the available entry point groups:
 
-| Entry Point                   | Description                                    |
-| ----------------------------- | ---------------------------------------------- |
-| `phlo.plugins.services`       | Infrastructure service definitions             |
-| `phlo.plugins.assets`         | Asset spec providers                            |
-| `phlo.plugins.resources`      | Resource spec providers                         |
-| `phlo.plugins.orchestrators`  | Orchestrator adapters                           |
-| `phlo.plugins.sources`        | Data source connectors                         |
-| `phlo.plugins.quality`        | Quality check implementations                  |
-| `phlo.plugins.transforms`     | Data transformation plugins                    |
-| `phlo.plugins.cli`            | CLI command extensions                         |
-| `phlo.plugins.hooks`          | Event hook handlers                            |
-| `phlo.plugins.observatory`    | Observatory UI extension manifests             |
-| `phlo.plugins.catalogs`       | Catalog configurations (filter by target)      |
+| Entry Point Group | Description | Example Provider |
+|-------------------|-------------|------------------|
+| `phlo.plugins.services` | Infrastructure service definitions | phlo-postgres, phlo-minio |
+| `phlo.sources` | Data source connectors | phlo-core-plugins |
+| `phlo.ingestion_providers` | Ingestion system providers | phlo-dlt, phlo-sling |
+| `phlo.quality` | Quality check implementations | phlo-core-plugins |
+| `phlo.quality_providers` | Quality validation providers | phlo-pandera |
+| `phlo.transformation_providers` | Transformation providers | phlo-dbt |
+| `phlo.transforms` | Data transformation tools | phlo-dbt |
+| `phlo.plugins.catalogs` | Catalog configurations | phlo-nessie, phlo-openmetadata |
+| `phlo.orchestrators` | Orchestrator adapters | phlo-dagster |
+| `phlo.asset_providers` | Asset definition providers | phlo-dagster, phlo-dbt |
+| `phlo.resource_providers` | Resource definition providers | phlo-iceberg, phlo-trino |
+| `phlo.cli_commands` | CLI command extensions | phlo-nessie, phlo-dbt |
+| `phlo.plugins.hooks` | Event hook handlers | phlo-otel, phlo-alerting |
+| `phlo.plugins.observatory` | Observatory UI extensions | phlo-observatory-example |
 
-### Discovering Installed Plugins
+### Discovering Plugins
 
 ```bash
 # List all installed plugins
@@ -142,27 +210,85 @@ phlo plugin list
 
 # List by type
 phlo plugin list --type services
+phlo plugin list --type sources
+phlo plugin list --type quality
 
-# Get plugin details
+# Get detailed plugin information
 phlo plugin info dagster
+phlo plugin info pandera
 ```
+
+---
+
+## Common Package Combinations
+
+### Basic Lakehouse (Minimal)
+
+```bash
+uv pip install phlo phlo-dagster phlo-postgres phlo-trino phlo-minio phlo-nessie
+```
+
+### Full Pipeline Stack
+
+```bash
+uv pip install phlo phlo-dagster phlo-postgres phlo-trino phlo-minio \
+  phlo-nessie phlo-iceberg phlo-dlt phlo-dbt phlo-pandera
+```
+
+### With Observability
+
+```bash
+uv pip install phlo phlo-dagster phlo-postgres phlo-trino phlo-minio \
+  phlo-nessie phlo-iceberg phlo-dlt phlo-dbt phlo-pandera \
+  phlo-otel phlo-prometheus phlo-grafana phlo-loki phlo-alerting
+```
+
+### With API Layer
+
+```bash
+uv pip install phlo phlo-dagster phlo-postgres phlo-trino phlo-minio \
+  phlo-nessie phlo-iceberg phlo-dlt phlo-dbt phlo-pandera \
+  phlo-api phlo-postgrest phlo-hasura
+```
+
+### Complete Stack
+
+```bash
+uv pip install phlo[defaults] phlo[observability] phlo[api] phlo[catalog] phlo[ui]
+```
+
+---
 
 ## Package Versioning
 
-All packages in the monorepo share a synchronized version number. When installing, ensure all Phlo packages are at the same version to avoid compatibility issues.
-
-Check installed versions:
+All packages share synchronized versioning with the core phlo package. Always keep packages at the same version to ensure compatibility.
 
 ```bash
+# Check installed versions
 pip list | grep phlo
+
+# Example output:
+# phlo              0.7.8
+# phlo-dagster      0.7.8
+# phlo-dbt          0.7.8
+# phlo-dlt          0.7.8
 ```
+
+---
 
 ## Creating Custom Packages
 
-See the [Plugin Development Guide](../guides/plugin-development.md) for creating custom packages that integrate with Phlo.
+Build your own packages that integrate with Phlo:
+
+1. See [Plugin Development Guide](../guides/plugin-development.md) for API details
+2. Use [phlo-observatory-example](phlo-observatory-example.md) as a reference
+3. Register through entry points for automatic discovery
+
+---
 
 ## Next Steps
 
-- [Plugin Development Guide](../guides/plugin-development.md) - Build custom plugins
-- [Installation Guide](../getting-started/installation.md) - Complete installation instructions
-- [CLI Reference](../reference/cli-reference.md) - CLI commands for managing packages
+- [Getting Started](../getting-started/quickstart.md) - Run your first pipeline
+- [Plugin Development Guide](../guides/plugin-development.md) - Build custom integrations
+- [CLI Reference](../reference/cli-reference.md) - Manage packages and services
+- [Architecture Overview](../reference/architecture.md) - Understand the system design

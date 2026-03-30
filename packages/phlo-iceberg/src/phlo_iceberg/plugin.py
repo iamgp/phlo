@@ -1,4 +1,38 @@
-from __future__ import annotations
+"""Phlo plugin for Iceberg resource provider capabilities.
+
+This module registers the Iceberg plugin with Phlo's plugin system,
+exposing ``IcebergResource`` as a table store and ``IcebergSchemaMigrator``
+as a schema migration provider.
+
+The plugin advertises full Iceberg capability support including:
+- Branch/tag references (via Nessie)
+- Snapshot-based time travel
+- Native schema evolution
+- Snapshot management
+
+Example:
+    Plugin is auto-discovered by Phlo's plugin system::
+
+        # In pyproject.toml or entry_points:
+        [project.entry-points."phlo.resource_providers"]
+        iceberg = "phlo_iceberg.plugin:IcebergResourceProvider"
+
+        # The plugin automatically registers IcebergResource
+        # and IcebergSchemaMigrator for use in Dagster assets.
+
+    Access via Phlo capability system::
+
+        from phlo.capabilities import get_resource
+
+        # Get Iceberg resource
+        iceberg = get_resource("table_store", name="iceberg")
+        result = iceberg.append_parquet("raw.events", "/data/events.parquet")
+
+        # Get schema migrator
+        migrator = get_resource("schema_migrator", name="iceberg")
+        plan = migrator.diff_schema(table_name="raw.users", desired=schema)
+
+"""
 
 from phlo.capabilities import CapabilitySupport, ResourceSpec, SchemaMigrationSpec, TableStoreSpec
 from phlo.plugins.base import PluginMetadata, ResourceProviderPlugin
@@ -8,14 +42,60 @@ from phlo_iceberg.schema_migrator import IcebergSchemaMigrator
 
 
 class IcebergResourceProvider(ResourceProviderPlugin):
-    """Resource provider plugin for Iceberg access."""
+    """Resource provider plugin for Iceberg/Nessie catalog access.
+
+    Registers Iceberg capabilities with Phlo's plugin system, providing:
+    - Table storage via ``IcebergResource``
+    - Schema migration via ``IcebergSchemaMigrator``
+
+    The plugin advertises full Iceberg capability support for versioning,
+    snapshots, and schema evolution.
+
+    Example:
+        Plugin registration::
+
+            # Plugin is auto-registered via entry points
+            # In pyproject.toml:
+            [project.entry-points."phlo.resource_providers"]
+            iceberg = "phlo_iceberg.plugin:IcebergResourceProvider"
+
+        Access resources::
+
+            from phlo.plugins import get_resource_provider
+
+            provider = get_resource_provider("iceberg")
+            resources = provider.get_resources()
+
+            # Get table store
+            table_store = provider.get_table_stores()[0]
+            resource = table_store.provider
+
+            # Use resource
+            resource.append_parquet("raw.events", "/data/events.parquet")
+
+    """
 
     @property
     def metadata(self) -> PluginMetadata:
         """Get plugin metadata.
 
         Returns:
-            PluginMetadata: Metadata for the Iceberg resource plugin.
+            PluginMetadata: Plugin information including:
+                - name: "iceberg"
+                - version: "0.1.0"
+                - description: "Iceberg/Nessie catalog resource for Phlo"
+                - support: Full capability support flags
+
+        Example:
+            Check plugin capabilities::
+
+                provider = IcebergResourceProvider()
+                meta = provider.metadata
+
+                print(f"Plugin: {meta.name} v{meta.version}")
+                print(f"Supports refs: {meta.support.supports_refs}")
+                print(f"Supports snapshots: {meta.support.supports_snapshots}")
+
         """
         return PluginMetadata(
             name="iceberg",
@@ -32,8 +112,22 @@ class IcebergResourceProvider(ResourceProviderPlugin):
     def get_resources(self) -> list[ResourceSpec]:
         """Get resource specs exposed by this plugin.
 
+        Returns the primary Iceberg resource for table operations.
+
         Returns:
-            list[ResourceSpec]: Iceberg resource specifications.
+            list[ResourceSpec]: Resource specifications containing
+                ``IcebergResource`` instances.
+
+        Example:
+            Get resources::
+
+                provider = IcebergResourceProvider()
+                specs = provider.get_resources()
+
+                for spec in specs:
+                    print(f"Resource: {spec.name}")
+                    # Use spec.resource for table operations
+
         """
         return [ResourceSpec(name="table_store", resource=IcebergResource())]
 
@@ -41,7 +135,20 @@ class IcebergResourceProvider(ResourceProviderPlugin):
         """Get table-store capability specs exposed by this plugin.
 
         Returns:
-            list[TableStoreSpec]: Iceberg table-store capability specifications.
+            list[TableStoreSpec]: Table store specifications with
+                full Iceberg capability support.
+
+        Example:
+            Get table store capabilities::
+
+                provider = IcebergResourceProvider()
+                stores = provider.get_table_stores()
+
+                for store in stores:
+                    print(f"Store: {store.name}")
+                    print(f"Supports refs: {store.support.supports_refs}")
+                    # Access store.provider for IcebergResource
+
         """
         return [
             TableStoreSpec(
@@ -60,7 +167,20 @@ class IcebergResourceProvider(ResourceProviderPlugin):
         """Get schema-migrator capability specs exposed by this plugin.
 
         Returns:
-            list[SchemaMigrationSpec]: Iceberg schema migrator specifications.
+            list[SchemaMigrationSpec]: Schema migration specifications
+                using ``IcebergSchemaMigrator``.
+
+        Example:
+            Get schema migrator::
+
+                provider = IcebergResourceProvider()
+                migrators = provider.get_schema_migrators()
+
+                for migrator in migrators:
+                    print(f"Migrator: {migrator.name}")
+                    # Use migrator.provider for schema operations
+                    # migrator.provider.diff_schema(...)
+
         """
         return [
             SchemaMigrationSpec(

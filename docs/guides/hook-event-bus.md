@@ -11,20 +11,13 @@ emitted.
 
 ## Architecture
 
-```
-Producer (emitter)
-   │
-   ▼
-┌────────────────────────────┐
-│  HookBus (singleton)       │
-│  ─ lazy plugin discovery   │
-│  ─ priority-ordered dispatch│
-│  ─ filter matching          │
-│  ─ failure policy handling  │
-└────────────────────────────┘
-   │
-   ▼
-Registered handlers (sorted by priority → plugin name → hook name)
+```mermaid
+flowchart TB
+    producer["Producer<br/>(emitter)"]
+    hookbus["HookBus<br/>singleton<br/><br/>Lazy plugin discovery<br/>Priority-ordered dispatch<br/>Filter matching<br/>Failure policy handling"]
+    handlers["Registered handlers<br/>sorted by priority, plugin name, hook name"]
+
+    producer --> hookbus --> handlers
 ```
 
 Key behaviours:

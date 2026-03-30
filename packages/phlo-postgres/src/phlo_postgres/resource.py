@@ -1,4 +1,25 @@
-"""Postgres resource for publishing and operational writes."""
+"""PostgreSQL connection resource with pooling for publishing and operational writes.
+
+This module provides a lightweight, context-managed PostgreSQL resource that handles
+connection pooling, transaction management, and health checks. It is designed for
+operational writes and data publishing workflows.
+
+Example:
+    >>> from phlo_postgres import PostgresResource
+    >>>
+    >>> # Context manager usage (recommended)
+    >>> with PostgresResource() as db:
+    ...     db.execute("INSERT INTO logs (msg) VALUES (%s)", ("hello",))
+    ...     rows = db.query("SELECT * FROM logs")
+    ...
+    >>> # Manual lifecycle management
+    >>> db = PostgresResource(host="localhost", port=5432)
+    >>> db.connect()
+    >>> if db.is_healthy():
+    ...     result = db.query_one("SELECT COUNT(*) FROM users")
+    >>> db.close()
+
+"""
 
 from __future__ import annotations
 
@@ -17,7 +38,34 @@ logger = get_logger(__name__)
 
 @dataclass
 class PostgresResource:
-    """Lightweight Postgres connection resource with connection pooling."""
+    """Lightweight PostgreSQL connection resource with connection pooling.
+
+    This class manages PostgreSQL connections using a connection pool for efficiency.
+    It supports both context manager usage (recommended) and manual lifecycle management.
+    Transactions are automatically handled when using the transactional_cursor context manager.
+
+    Attributes:
+        host: PostgreSQL server hostname. Uses settings default if None.
+        port: PostgreSQL server port. Uses settings default if None.
+        user: Database username. Uses settings default if None.
+        password: Database password. Uses settings default if None.
+        database: Database name. Uses settings default if None.
+        min_connections: Minimum number of connections to maintain in the pool.
+        max_connections: Maximum number of connections allowed in the pool.
+        _pool: Internal connection pool instance (initialized on first use).
+        _connection: Active connection from the pool (acquired on demand).
+
+    Example:
+        >>> # Basic usage with defaults from settings
+        >>> with PostgresResource() as db:
+        ...     db.ensure_schema("analytics")
+        ...     db.execute("CREATE TABLE IF NOT EXISTS analytics.events (id SERIAL)")
+        >>>
+        >>> # Custom connection parameters
+        >>> with PostgresResource(host="prod.db.internal", database="analytics") as db:
+        ...     rows = db.query("SELECT * FROM events WHERE date > %s", ("2024-01-01",))
+
+    """
 
     host: str | None = None
     port: int | None = None
@@ -30,21 +78,38 @@ class PostgresResource:
     _connection: Any | None = field(default=None, init=False, repr=False)
 
     def __enter__(self) -> "PostgresResource":
-        """Open a connection for context-managed usage.
+        """Initialize the resource for context-managed usage.
+
+        This method ensures a connection is available when entering the context.
+        The connection is automatically returned to the pool when exiting.
 
         Returns:
-            PostgresResource: The initialized resource instance.
+            PostgresResource: The initialized resource instance ready for queries.
+
+        Example:
+            >>> with PostgresResource() as db:
+            ...     # Connection is now active
+            ...     db.execute("SELECT 1")
+
         """
         self._ensure_connection()
         return self
 
     def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
-        """Close the resource on context exit.
+        """Clean up the resource on context exit.
+
+        Performs rollback if an exception occurred, then returns the connection
+        to the pool and closes the pool.
 
         Args:
             exc_type: Exception type raised in the context, if any.
             exc: Exception instance raised in the context, if any.
             tb: Traceback object for the raised exception, if any.
+
+        Note:
+            Rollback is attempted on exception but failures are logged, not raised,
+            to ensure the original exception propagates.
+
         """
         if exc_type is not None:
             try:
@@ -57,7 +122,12 @@ class PostgresResource:
             self.close_pool()
 
     def __del__(self) -> None:
-        """Best-effort connection and pool cleanup during object destruction."""
+        """Best-effort cleanup during object destruction.
+
+        Attempts to close the connection and pool if the object is garbage collected
+        without proper cleanup. Failures are silently logged to prevent destruction
+        errors from interfering with program termination.
+        """
         try:
             self.close()
         except Exception:  # noqa: BLE001 - destructor must never raise
@@ -68,10 +138,23 @@ class PostgresResource:
             logger.debug("postgres_resource_pool_close_on_del_failed", exc_info=True)
 
     def _ensure_pool(self) -> pool.SimpleConnectionPool:
-        """Create the connection pool if it does not already exist.
+        """Create or return the connection pool.
+
+        Lazy-initializes the connection pool on first access using configured or
+        default settings. Connection parameters are resolved in order:
+        explicit attribute > settings default > built-in default.
 
         Returns:
             pool.SimpleConnectionPool: The active connection pool.
+
+        Raises:
+            psycopg2.Error: If pool creation fails (e.g., bad credentials, host unreachable).
+
+        Example:
+            >>> db = PostgresResource()
+            >>> pool = db._ensure_pool()  # Creates pool on first call
+            >>> same_pool = db._ensure_pool()  # Returns existing pool
+
         """
         if self._pool is None or self._pool.closed:
             settings = get_settings()
@@ -117,10 +200,23 @@ class PostgresResource:
         return self._pool
 
     def _ensure_connection(self):
-        """Get a connection from the pool, creating the pool if needed.
+        """Acquire a connection from the pool.
+
+        Returns a healthy connection from the pool, creating the pool if needed.
+        Stale connections are detected and replaced automatically.
 
         Returns:
             Any: Active psycopg2 connection object.
+
+        Raises:
+            psycopg2.Error: If connection acquisition fails.
+
+        Example:
+            >>> db = PostgresResource()
+            >>> conn = db._ensure_connection()
+            >>> with conn.cursor() as cur:
+            ...     cur.execute("SELECT 1")
+
         """
         if self._connection is None or getattr(self._connection, "closed", 1):
             connection_pool = self._ensure_pool()
@@ -150,8 +246,24 @@ class PostgresResource:
 
     @contextmanager
     def cursor(self):
-        """Yield a cursor; caller owns transaction commit/rollback."""
+        """Provide a cursor for manual transaction control.
 
+        Yields a psycopg2 cursor. The caller is responsible for committing or
+        rolling back transactions. Useful when you need fine-grained control
+        over transaction boundaries.
+
+        Yields:
+            psycopg2.cursor: Database cursor ready for query execution.
+
+        Example:
+            >>> with PostgresResource() as db:
+            ...     with db.cursor() as cur:
+            ...         cur.execute("BEGIN")
+            ...         cur.execute("INSERT INTO logs VALUES (%s)", ("entry",))
+            ...         # Manual commit/rollback based on business logic
+            ...         cur.execute("COMMIT")
+
+        """
         connection = self._ensure_connection()
         cursor = connection.cursor()
         try:
@@ -161,8 +273,29 @@ class PostgresResource:
 
     @contextmanager
     def transactional_cursor(self):
-        """Yield a cursor and commit/rollback automatically."""
+        """Provide a cursor with automatic commit/rollback handling.
 
+        Yields a cursor and automatically commits on success or rolls back on
+        exception. This is the recommended way to perform write operations.
+
+        Yields:
+            psycopg2.cursor: Database cursor ready for query execution.
+
+        Raises:
+            Exception: Re-raises any exception after performing rollback.
+
+        Example:
+            >>> with PostgresResource() as db:
+            ...     try:
+            ...         with db.transactional_cursor() as cur:
+            ...             cur.execute("INSERT INTO events (msg) VALUES (%s)", ("click",))
+            ...             cur.execute("UPDATE counters SET count = count + 1")
+            ...             # Both operations committed atomically on success
+            ...     except psycopg2.Error:
+            ...         # Both operations rolled back on failure
+            ...         pass
+
+        """
         connection = self._ensure_connection()
         cursor = connection.cursor()
         start = perf_counter()
@@ -187,7 +320,18 @@ class PostgresResource:
             cursor.close()
 
     def commit(self) -> None:
-        """Commit the current transaction."""
+        """Commit the current transaction explicitly.
+
+        Commits any pending changes in the current connection. Use this when
+        managing transactions manually with the cursor() context manager.
+
+        Example:
+            >>> with PostgresResource() as db:
+            ...     with db.cursor() as cur:
+            ...         cur.execute("INSERT INTO logs VALUES (%s)", ("entry",))
+            ...     db.commit()  # Explicit commit
+
+        """
         start = perf_counter()
         self._ensure_connection().commit()
         logger.info(
@@ -196,7 +340,21 @@ class PostgresResource:
         )
 
     def rollback(self) -> None:
-        """Roll back the current transaction."""
+        """Roll back the current transaction explicitly.
+
+        Reverts any pending changes in the current connection. Use this when
+        managing transactions manually and an error occurs.
+
+        Example:
+            >>> with PostgresResource() as db:
+            ...     with db.cursor() as cur:
+            ...         try:
+            ...             cur.execute("INSERT INTO logs VALUES (%s)", ("entry",))
+            ...         except psycopg2.Error:
+            ...             db.rollback()
+            ...             raise
+
+        """
         start = perf_counter()
         self._ensure_connection().rollback()
         logger.info(
@@ -205,7 +363,18 @@ class PostgresResource:
         )
 
     def close(self) -> None:
-        """Return the current connection to the pool."""
+        """Return the current connection to the pool.
+
+        Returns the active connection to the pool for reuse by other operations.
+        Safe to call multiple times; subsequent calls are no-ops.
+
+        Example:
+            >>> db = PostgresResource()
+            >>> db._ensure_connection()
+            >>> # ... do work ...
+            >>> db.close()  # Return connection to pool
+
+        """
         if self._connection is not None and self._pool is not None:
             start = perf_counter()
             logger.info("postgres_resource_connection_return_started")
@@ -221,7 +390,21 @@ class PostgresResource:
         self._connection = None
 
     def close_pool(self) -> None:
-        """Tear down the connection pool entirely."""
+        """Close all connections in the pool.
+
+        Closes all connections in the pool and releases associated resources.
+        Safe to call multiple times; subsequent calls are no-ops.
+
+        Warning:
+            This terminates all pooled connections. Ensure no operations are
+            in progress before calling.
+
+        Example:
+            >>> db = PostgresResource()
+            >>> # ... do work ...
+            >>> db.close_pool()  # Clean shutdown
+
+        """
         if self._pool is not None and not self._pool.closed:
             start = perf_counter()
             logger.info("postgres_pool_close_started")
@@ -237,7 +420,22 @@ class PostgresResource:
         self._pool = None
 
     def is_healthy(self) -> bool:
-        """Check if the database connection is alive."""
+        """Check if the database connection is alive and responsive.
+
+        Performs a simple health check by executing "SELECT 1" and returns
+        True if the query succeeds.
+
+        Returns:
+            bool: True if the connection is healthy, False otherwise.
+
+        Example:
+            >>> with PostgresResource() as db:
+            ...     if db.is_healthy():
+            ...         print("Database is up")
+            ...     else:
+            ...         print("Database connection failed")
+
+        """
         try:
             conn = self._ensure_connection()
             with conn.cursor() as cur:
@@ -248,7 +446,27 @@ class PostgresResource:
             return False
 
     def execute(self, sql_stmt: str, params: tuple | None = None) -> None:
-        """Execute a SQL statement (no return value)."""
+        """Execute a SQL statement without returning results.
+
+        Executes a SQL statement (INSERT, UPDATE, DELETE, DDL, etc.) and
+        commits the transaction immediately. For queries that return data,
+        use query() or query_one() instead.
+
+        Args:
+            sql_stmt: SQL statement to execute. Can include placeholders (%s).
+            params: Tuple of parameters to substitute into the SQL statement.
+
+        Raises:
+            psycopg2.Error: If the SQL execution fails.
+
+        Example:
+            >>> with PostgresResource() as db:
+            ...     # DDL
+            ...     db.execute("CREATE TABLE users (id SERIAL PRIMARY KEY)")
+            ...     # DML with parameters
+            ...     db.execute("INSERT INTO users (name) VALUES (%s)", ("Alice",))
+
+        """
         start = perf_counter()
         logger.info("postgres_execute_started")
         with self.cursor() as cur:
@@ -260,7 +478,31 @@ class PostgresResource:
         )
 
     def query(self, sql_stmt: str, params: tuple | None = None) -> list[tuple]:
-        """Execute a SQL query and return all rows."""
+        """Execute a SQL query and return all result rows.
+
+        Executes a SELECT query and returns all rows as a list of tuples.
+        For large result sets, consider using a cursor directly to stream results.
+
+        Args:
+            sql_stmt: SQL SELECT statement. Can include placeholders (%s).
+            params: Tuple of parameters to substitute into the SQL statement.
+
+        Returns:
+            list[tuple]: All rows returned by the query. Empty list if no results.
+
+        Raises:
+            psycopg2.Error: If the query execution fails.
+
+        Example:
+            >>> with PostgresResource() as db:
+            ...     # Simple query
+            ...     rows = db.query("SELECT id, name FROM users")
+            ...     # Parameterized query
+            ...     rows = db.query("SELECT * FROM users WHERE age > %s", (18,))
+            ...     for user_id, name in rows:
+            ...         print(f"{user_id}: {name}")
+
+        """
         start = perf_counter()
         logger.info("postgres_query_started")
         with self.cursor() as cur:
@@ -274,7 +516,33 @@ class PostgresResource:
         return rows
 
     def query_one(self, sql_stmt: str, params: tuple | None = None) -> tuple | None:
-        """Execute a SQL query and return the first row."""
+        """Execute a SQL query and return the first result row.
+
+        Executes a SELECT query and returns only the first row, or None if
+        no results. Useful for queries expected to return at most one row
+        (e.g., lookups by primary key).
+
+        Args:
+            sql_stmt: SQL SELECT statement. Can include placeholders (%s).
+            params: Tuple of parameters to substitute into the SQL statement.
+
+        Returns:
+            tuple | None: First row as a tuple, or None if query returns no rows.
+
+        Raises:
+            psycopg2.Error: If the query execution fails.
+
+        Example:
+            >>> with PostgresResource() as db:
+            ...     # Lookup by ID
+            ...     row = db.query_one("SELECT * FROM users WHERE id = %s", (42,))
+            ...     if row:
+            ...         user_id, name, email = row
+            ...     # Aggregate query
+            ...     count_row = db.query_one("SELECT COUNT(*) FROM users")
+            ...     user_count = count_row[0] if count_row else 0
+
+        """
         start = perf_counter()
         logger.info("postgres_query_one_started")
         with self.cursor() as cur:
@@ -288,7 +556,26 @@ class PostgresResource:
         return row
 
     def ensure_schema(self, schema_name: str) -> None:
-        """Create a schema if it does not exist."""
+        """Create a database schema if it does not exist.
+
+        Idempotent schema creation using CREATE SCHEMA IF NOT EXISTS.
+        Safe to call multiple times; subsequent calls are no-ops if the
+        schema already exists.
+
+        Args:
+            schema_name: Name of the schema to create.
+
+        Raises:
+            psycopg2.Error: If schema creation fails (e.g., permission denied).
+
+        Example:
+            >>> with PostgresResource() as db:
+            ...     # Create analytics schema
+            ...     db.ensure_schema("analytics")
+            ...     # Create table in the new schema
+            ...     db.execute("CREATE TABLE analytics.events (id SERIAL)")
+
+        """
         with self.transactional_cursor() as cur:
             cur.execute(
                 sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema_name))

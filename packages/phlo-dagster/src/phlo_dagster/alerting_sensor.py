@@ -1,4 +1,30 @@
-"""Dagster sensors for automated alerting."""
+"""Dagster sensors for automated alerting on pipeline failures.
+
+This module provides Dagster sensors that monitor run events and send alerts
+when pipeline failures occur. It integrates with Phlo's alerting capabilities
+to provide notifications via configured alert sinks (Slack, PagerDuty, etc.).
+
+Key Features:
+    - failure_alert_sensor: Polls for failed runs and sends alerts
+    - Automatic error message extraction from run events
+    - Configurable alert sink resolution
+    - Deduplication via cursor tracking
+
+Alert Sink Requirements:
+    Requires an alert_sink:alerting capability. Install phlo-alerting or another
+    provider exposing that capability.
+
+Example:
+    To enable alerting in your Dagster deployment::
+
+        from phlo_dagster.alerting_sensor import failure_alert_sensor
+
+        defs = dg.Definitions(
+            sensors=[failure_alert_sensor],
+            # ... other definitions
+        )
+
+"""
 
 from __future__ import annotations
 
@@ -13,7 +39,18 @@ logger = get_logger(__name__)
 
 
 def _load_alert_sink() -> AlertSink:
-    """Resolve the configured alert sink capability."""
+    """Resolve the configured alert sink capability.
+
+    Args:
+        None
+
+    Returns:
+        AlertSink provider instance.
+
+    Raises:
+        RuntimeError: If alert_sink:alerting capability is not available.
+
+    """
     resolution = resolve_capability("alert_sink", "alerting")
     if resolution is None:
         raise RuntimeError(
@@ -29,11 +66,20 @@ def _load_alert_sink() -> AlertSink:
     minimum_interval_seconds=300,  # Check every 5 minutes
 )
 def failure_alert_sensor(context):
-    """
-    Sensor that triggers alerts when asset materializations fail.
+    """Sensor that triggers alerts when asset materializations fail.
 
     Uses cursor to track the last-seen run creation time cutoff to avoid
     re-alerting across sensor ticks.
+
+    Args:
+        context: Dagster sensor evaluation context.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: Re-raises any exception during alert processing.
+
     """
     instance = context.instance
 
@@ -114,7 +160,15 @@ def failure_alert_sensor(context):
 
 
 def _extract_error_message(event) -> str | None:
-    """Extract error message from event."""
+    """Extract error message from event.
+
+    Args:
+        event: Dagster event log entry.
+
+    Returns:
+        Error message string or None.
+
+    """
     if hasattr(event, "step_output_event"):
         return event.step_output_event.get("error")
     return None
@@ -129,19 +183,19 @@ def send_alert(
     run_id: str | None = None,
     error_message: str | None = None,
 ) -> bool:
-    """
-    Send a custom alert.
+    """Send a custom alert.
 
     Args:
-        title: Alert title
-        message: Alert message
-        severity: Alert severity (default: ERROR)
-        asset_name: Optional asset name
-        run_id: Optional run ID
-        error_message: Optional detailed error message
+        title: Alert title.
+        message: Alert message.
+        severity: Alert severity (default: ERROR).
+        asset_name: Optional asset name.
+        run_id: Optional run ID.
+        error_message: Optional detailed error message.
 
     Returns:
-        True if alert was sent successfully
+        True if alert was sent successfully.
+
     """
     return _load_alert_sink().send_alert(
         title=title,

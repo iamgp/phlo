@@ -1,5 +1,4 @@
-"""
-Transformation plugin classes.
+"""Transformation plugin classes.
 
 This module defines plugin types for custom data transformations.
 """
@@ -15,8 +14,7 @@ from phlo.plugins.base.plugin import Plugin
 
 
 class TransformationPlugin(Plugin, ABC):
-    """
-    Base class for transformation plugins.
+    """Base class for transformation plugins.
 
     Transformation plugins enable custom data processing steps
     that can be composed in data pipelines.
@@ -48,12 +46,12 @@ class TransformationPlugin(Plugin, ABC):
                 # Return schema of transformed data
                 return {...}
         ```
+
     """
 
     @abstractmethod
     def transform(self, df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
-        """
-        Transform a DataFrame.
+        """Transform a DataFrame.
 
         Args:
             df: Input DataFrame
@@ -72,13 +70,13 @@ class TransformationPlugin(Plugin, ABC):
                 df[column] = df[column] * multiplier
                 return df
             ```
+
         """
 
     def get_output_schema(
         self, input_schema: dict[str, str], config: dict[str, Any]
     ) -> dict[str, str] | None:
-        """
-        Get the schema of transformed data.
+        """Get the schema of transformed data.
 
         This method is optional but recommended for type inference.
 
@@ -88,12 +86,12 @@ class TransformationPlugin(Plugin, ABC):
 
         Returns:
             Schema of output DataFrame or None if unknown
+
         """
         return None
 
     def validate_config(self, config: dict[str, Any]) -> bool:
-        """
-        Validate transformation configuration.
+        """Validate transformation configuration.
 
         This method is optional but recommended for catching errors early.
 
@@ -102,5 +100,6 @@ class TransformationPlugin(Plugin, ABC):
 
         Returns:
             True if configuration is valid, False otherwise
+
         """
         return True

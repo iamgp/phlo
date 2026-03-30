@@ -1,7 +1,39 @@
 """PhloSchema base class with smart defaults.
 
-Provides a base Pandera DataFrameModel with phlo's default configuration,
-eliminating the need to specify Config on every schema.
+This module provides the PhloSchema base class which extends Pandera's
+DataFrameModel with standard phlo configuration. Using PhloSchema eliminates
+the need to specify Config on every schema definition.
+
+Default Configuration:
+    - ``strict=False``: Allows extra columns (useful for DLT metadata like
+      ``_dlt_id``, ``_dlt_load_id``)
+    - ``coerce=True``: Automatically coerce types to match schema definitions
+
+Important Notes:
+    - For optional fields (e.g., ``str | None``), you must use ``Field(nullable=True)``.
+      This is a Pandera requirement when ``coerce=True``.
+    - The base class is designed to be extended, not instantiated directly.
+
+Example:
+    ```python
+    from phlo_pandera.schemas import PhloSchema
+    from pandera.pandas import Field
+
+    class RawUserEvents(PhloSchema):
+        '''Schema for raw user events with DLT metadata.'''
+        id: str = Field(unique=True)
+        type: str
+        actor_login: str | None = Field(nullable=True)  # Required for nullable!
+        created_at: str
+        # No Config needed - defaults are applied automatically
+        # Extra columns like _dlt_id, _dlt_load_id are allowed (strict=False)
+    ```
+
+See Also:
+    - Pandera documentation for DataFrameModel configuration
+    - ``phlo_pandera.schema_extractor``: Schema extraction utilities
+    - ``phlo_pandera.checks_extra``: SchemaCheck for validation
+
 """
 
 from __future__ import annotations
@@ -13,22 +45,51 @@ class PhloSchema(DataFrameModel):
     """Base schema with phlo smart defaults.
 
     Extends Pandera DataFrameModel with standard phlo configuration:
-    - strict=False: Allow extra columns (DLT metadata like _dlt_id, _dlt_load_id)
-    - coerce=True: Automatically coerce types to match schema
+    - ``strict=False``: Allow extra columns (DLT metadata like ``_dlt_id``, ``_dlt_load_id``)
+    - ``coerce=True``: Automatically coerce types to match schema
 
-    Note: For optional fields (str | None), you must use Field(nullable=True).
-    This is a Pandera requirement when coerce=True.
+    This eliminates the need to define Config on every schema subclass.
+
+    Note:
+        For optional fields (e.g., ``str | None``), you must use ``Field(nullable=True)``.
+        This is a Pandera requirement when ``coerce=True``.
+
+    Attributes:
+        Config: Inner class with Pandera model configuration.
+            - strict = False
+            - coerce = True
 
     Example:
+        Basic usage with automatic defaults:
+
+        ```python
         from phlo_pandera.schemas import PhloSchema
         from pandera.pandas import Field
 
-        class RawUserEvents(PhloSchema):
-            id: str = Field(unique=True)
-            type: str
-            actor_login: str | None = Field(nullable=True)  # Required for nullable!
+        class RawEvents(PhloSchema):
+            event_id: str = Field(unique=True)
+            event_type: str
+            payload: str | None = Field(nullable=True)
             created_at: str
-            # No Config needed - defaults are applied automatically
+            # Extra columns like _dlt_id are automatically allowed
+        ```
+
+        The schema above is equivalent to:
+
+        ```python
+        from pandera.pandas import DataFrameModel, Field
+
+        class RawEvents(DataFrameModel):
+            class Config:
+                strict = False
+                coerce = True
+
+            event_id: str = Field(unique=True)
+            event_type: str
+            payload: str | None = Field(nullable=True)
+            created_at: str
+        ```
+
     """
 
     class Config:

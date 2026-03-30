@@ -170,45 +170,7 @@ sequenceDiagram
 
     D->>P: phlo materialize load_users
     P->>DAGT: trigger materialization
-    DAGT->>DAGT: execute load_users<br/>→ dbt run<br/>→ quality check
-┌─────────────────────────────────────────────────────────────────┐
-│                        Package Layer                             │
-│  phlo-dlt   phlo-dbt   phlo-pandera   phlo-trino   phlo-dagster│
-└─────────────────────────────────────────────────────────────────┘
-         │               │              │              │
-         │ entry points  │              │              │
-         ▼               ▼              ▼              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Plugin Discovery Layer                       │
-│  discover_plugins() → PluginRegistry                            │
-│  - quality_providers: PanderaQualityProvider                   │
-│  - ingestion_providers: DLTIngestionProvider                   │
-│  - transformation_providers: DbtTransformationProvider        │
-│  - orchestrators: DagsterOrchestrator                          │
-│  - resources: TrinoResourceProvider, PostgresResourceProvider │
-└─────────────────────────────────────────────────────────────────┘
-         │               │              │              │
-         │ gets specs    │ gets assets  │ gets checks  │
-         ▼               ▼              ▼              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     Capability Specs Layer                      │
-│  AssetSpec   ResourceSpec   CheckSpec   CatalogSpec           │
-└─────────────────────────────────────────────────────────────────┘
-         │               │              │              │
-         │ wires to      │              │              │
-         ▼               ▼              ▼              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Orchestrator Adapter Layer                    │
-│  DagsterAdapter (phlo-dagster)                                 │
-│  - build_definitions() → Definitions                           │
-│  - Translates specs → Dagster assets/checks/resources          │
-└─────────────────────────────────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     Runtime Layer                                │
-│  Dagster + dlt + dbt + Trino + Iceberg + etc.                  │
-└─────────────────────────────────────────────────────────────────┘
+    DAGT->>DAGT: execute load_users<br/>dbt run<br/>quality check
 ```
 
 ## Provider Pattern

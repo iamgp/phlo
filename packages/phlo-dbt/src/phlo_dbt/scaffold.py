@@ -1,4 +1,20 @@
-"""Project scaffold helpers for dbt assets."""
+"""Project scaffold helpers for dbt assets.
+
+This module provides utilities for scaffolding new dbt projects with
+Phlo-compatible configuration. It generates dbt_project.yml files with
+appropriate settings and SQLFluff configuration for linting.
+
+Example:
+    >>> from phlo_dbt.scaffold import write_dbt_scaffold
+    >>> from pathlib import Path
+    >>> write_dbt_scaffold(
+    ...     project_name="analytics",
+    ...     transforms_dir=Path("workflows/transforms/dbt"),
+    ...     project_dir=Path(".")
+    ... )
+    # Creates dbt_project.yml and .sqlfluff configuration files
+
+"""
 
 from __future__ import annotations
 
@@ -8,11 +24,26 @@ from pathlib import Path
 def build_dbt_project(project_name: str) -> str:
     """Build dbt_project.yml content for a scaffolded project.
 
+    Generates a standard dbt_project.yml configuration with Phlo-compatible
+    defaults, including proper paths, materialization settings, and SSL flags.
+
     Args:
-        project_name: User-provided project name.
+        project_name: User-provided project name. Will be sanitized (hyphens
+            converted to underscores) for use in dbt configuration.
 
     Returns:
-        dbt project YAML content.
+        dbt project YAML content as a string, ready to write to dbt_project.yml.
+
+    Example:
+        >>> content = build_dbt_project("my-analytics")
+        >>> print(content)
+        name: my_analytics
+        version: 1.0.0
+        ...
+
+        >>> # Write to file
+        >>> Path("dbt_project.yml").write_text(content)
+
     """
     safe_name = project_name.replace("-", "_")
     return f"""name: {safe_name}
@@ -37,8 +68,18 @@ models:
 def build_sqlfluff_config() -> str:
     """Build SQLFluff configuration content for Trino + dbt templating.
 
+    Generates a comprehensive SQLFluff configuration optimized for dbt projects
+    using Trino as the query engine. Includes settings for Jinja templating,
+    indentation, capitalization, and aliasing rules.
+
     Returns:
-        SQLFluff configuration text.
+        SQLFluff configuration text as a string, ready to write to .sqlfluff.
+
+    Example:
+        >>> config = build_sqlfluff_config()
+        >>> Path(".sqlfluff").write_text(config)
+        >>> # Now SQLFluff will properly lint your dbt SQL files
+
     """
     return """[sqlfluff]
 dialect = trino
@@ -75,7 +116,34 @@ aliasing = explicit
 
 
 def write_dbt_scaffold(project_name: str, transforms_dir: Path, project_dir: Path) -> None:
-    """Write dbt project and sqlfluff config files for a new project."""
+    """Write dbt project and sqlfluff config files for a new project.
+
+    Creates the necessary directory structure and configuration files for a new
+    dbt project integrated with Phlo. This includes:
+    - dbt_project.yml in the transforms directory
+    - .sqlfluff in the project root for SQL linting
+
+    Args:
+        project_name: Name of the dbt project to create.
+        transforms_dir: Directory where dbt_project.yml will be written.
+            Created if it doesn't exist.
+        project_dir: Project root directory where .sqlfluff will be written.
+
+    Raises:
+        OSError: If directory creation or file writing fails.
+
+    Example:
+        >>> from pathlib import Path
+        >>> write_dbt_scaffold(
+        ...     "analytics_project",
+        ...     transforms_dir=Path("workflows/transforms/dbt"),
+        ...     project_dir=Path(".")
+        ... )
+        # Creates:
+        #   workflows/transforms/dbt/dbt_project.yml
+        #   .sqlfluff
+
+    """
     transforms_dir.mkdir(parents=True, exist_ok=True)
 
     dbt_project_content = build_dbt_project(project_name)

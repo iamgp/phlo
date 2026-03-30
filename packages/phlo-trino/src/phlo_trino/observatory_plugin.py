@@ -1,4 +1,22 @@
-"""Observatory extension for Trino data explorer UI."""
+"""Observatory extension for Trino data explorer UI.
+
+This module provides an Observatory extension plugin for integrating
+Trino data exploration capabilities into the Phlo Observatory web UI.
+
+Classes:
+    TrinoObservatoryExtension: Extension for Trino data explorer.
+
+Constants:
+    VERSION: Extension version string.
+
+Example:
+    The plugin is automatically discovered and loaded by Observatory:
+    >>> from phlo_trino.observatory_plugin import TrinoObservatoryExtension
+    >>> ext = TrinoObservatoryExtension()
+    >>> print(ext.manifest.name)
+    trino
+
+"""
 
 from __future__ import annotations
 
@@ -26,6 +44,7 @@ class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
 
         Returns:
             PluginMetadata: Plugin identity, version, and description.
+
         """
         return PluginMetadata(
             name="trino",
@@ -39,6 +58,7 @@ class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
 
         Returns:
             ObservatoryExtensionManifest: Manifest defining UI navigation and compatibility.
+
         """
         return ObservatoryExtensionManifest(
             name="trino",
@@ -55,5 +75,6 @@ class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
 
         Returns:
             Traversable: Package resource path for observatory static assets.
+
         """
         return resources.files("phlo_trino").joinpath("observatory_assets")

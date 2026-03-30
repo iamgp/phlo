@@ -1,8 +1,14 @@
-"""
-Lineage extraction and publishing for OpenMetadata.
+"""Lineage extraction and publishing for OpenMetadata.
 
 Extracts lineage information from Dagster and dbt,
 and publishes it to OpenMetadata for data discovery and impact analysis.
+
+Example:
+    >>> from phlo_openmetadata.lineage import LineageExtractor
+    >>> extractor = LineageExtractor()
+    >>> extractor.extract_from_dbt_manifest(manifest_dict)
+    >>> stats = extractor.publish_to_openmetadata(client)
+
 """
 
 from __future__ import annotations
@@ -13,13 +19,24 @@ from typing import Any, Callable, ParamSpec, TypeVar
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
-
 P = ParamSpec("P")
 R = TypeVar("R")
 
 
 def log_extraction_errors(source_name: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    """Decorator that logs exceptions with context and re-raises them."""
+    """Decorator that logs exceptions with context and re-raises them.
+
+    Wraps lineage extraction functions to provide consistent error logging
+    with source identification.
+
+    Args:
+        source_name: Identifier for the lineage source (e.g., 'Dagster', 'dbt').
+
+    Returns:
+        Callable[[Callable[P, R]], Callable[P, R]]: Decorator function that
+            adds error logging.
+
+    """
 
     def decorator(fn: Callable[P, R]) -> Callable[P, R]:
         """Wrap an extraction function with source-aware error logging.
@@ -28,7 +45,8 @@ def log_extraction_errors(source_name: str) -> Callable[[Callable[P, R]], Callab
             fn: Extraction function to wrap.
 
         Returns:
-            Wrapped function that logs failures with source context.
+            Callable[P, R]: Wrapped function that logs failures with source context.
+
         """
 
         @wraps(fn)
@@ -40,7 +58,11 @@ def log_extraction_errors(source_name: str) -> Callable[[Callable[P, R]], Callab
                 **kwargs: Keyword arguments forwarded to the wrapped callable.
 
             Returns:
-                Result produced by the wrapped callable.
+                R: Result produced by the wrapped callable.
+
+            Raises:
+                Exception: Re-raises any exception after logging.
+
             """
             try:
                 return fn(*args, **kwargs)
@@ -58,25 +80,40 @@ def log_extraction_errors(source_name: str) -> Callable[[Callable[P, R]], Callab
 
 
 class LineageExtractor:
-    """
-    Extracts lineage from various sources (Dagster, dbt, Iceberg).
+    """Extracts lineage from various sources (Dagster, dbt, Iceberg).
 
     Builds a unified lineage graph and publishes to OpenMetadata.
+
+    Attributes:
+        graph: OpenMetadataLineageGraph storing extracted lineage.
+
+    Example:
+        >>> extractor = LineageExtractor()
+        >>> extractor.extract_from_dbt_manifest(manifest)
+        >>> print(extractor.export_lineage("mermaid"))
+
     """
 
     def __init__(self):
-        """Initialize lineage extractor."""
+        """Initialize lineage extractor.
+
+        Creates a new OpenMetadataLineageGraph instance for tracking
+        lineage between assets.
+        """
         from phlo_openmetadata.graph import OpenMetadataLineageGraph
 
         self.graph = OpenMetadataLineageGraph()
 
     @log_extraction_errors("Dagster")
     def extract_from_dagster(self, context: Any) -> None:
-        """
-        Extract lineage from Dagster context.
+        """Extract lineage from Dagster context.
 
         Args:
-            context: Dagster context with run and asset information
+            context: Dagster context with run and asset information.
+
+        Returns:
+            None
+
         """
         if not hasattr(context, "get_asset_materialization_events"):
             logger.warning(
@@ -111,11 +148,14 @@ class LineageExtractor:
 
     @log_extraction_errors("dbt")
     def extract_from_dbt_manifest(self, manifest: dict[str, Any]) -> None:
-        """
-        Extract lineage from dbt manifest.json.
+        """Extract lineage from dbt manifest.json.
 
         Args:
-            manifest: Parsed dbt manifest dictionary
+            manifest: Parsed dbt manifest dictionary.
+
+        Returns:
+            None
+
         """
         for unique_id, node in manifest.get("nodes", {}).items():
             if unique_id.startswith("model."):
@@ -183,11 +223,14 @@ class LineageExtractor:
         self,
         nessie_tables: dict[str, list[dict[str, Any]]],
     ) -> None:
-        """
-        Add Iceberg tables to lineage graph.
+        """Add Iceberg tables to lineage graph.
 
         Args:
-            nessie_tables: Dictionary of namespace -> tables from Nessie
+            nessie_tables: Dictionary of namespace -> tables from Nessie.
+
+        Returns:
+            None
+
         """
         for namespace, tables in nessie_tables.items():
             for table in tables:
@@ -213,11 +256,19 @@ class LineageExtractor:
         manifest: dict[str, Any],
         postgres_schema: str,
     ) -> dict[str, list[str]]:
-        """
-        Build source -> published tables mapping.
+        """Build source -> published tables mapping.
 
         Identifies dbt models in `postgres_schema` as "published" tables, then returns
         which of those tables are downstream of each ingestion source.
+
+        Args:
+            manifest: Parsed dbt manifest dictionary.
+            postgres_schema: Schema name identifying published models.
+
+        Returns:
+            dict[str, list[str]]: Dictionary mapping source FQN to list of
+                published downstream tables.
+
         """
         published_models: set[str] = set()
         for unique_id, node in manifest.get("nodes", {}).items():
@@ -244,14 +295,16 @@ class LineageExtractor:
         om_client: Any,  # OpenMetadataClient
         include_edges: bool = True,
     ) -> dict[str, int]:
-        """
-        Publish lineage graph to OpenMetadata.
+        """Publish lineage graph to OpenMetadata.
 
         Args:
-            om_client: OpenMetadataClient instance
+            om_client: OpenMetadataClient instance.
+            include_edges: Whether to publish edges (default True).
 
         Returns:
-            Publication statistics
+            dict[str, int]: Publication statistics with 'edges_published'
+                and 'failed' counts.
+
         """
         stats = {"edges_published": 0, "failed": 0}
 
@@ -285,12 +338,32 @@ class LineageExtractor:
         return stats
 
     def get_impact_analysis(self, asset_name: str) -> dict[str, Any]:
-        """Return downstream impact analysis for an asset."""
+        """Return downstream impact analysis for an asset.
+
+        Args:
+            asset_name: Name of the asset to analyze.
+
+        Returns:
+            dict[str, Any]: Dictionary with 'affected_assets' list
+                and 'total_affected' count.
+
+        """
         affected = sorted(self.graph.get_downstream(asset_name))
         return {"affected_assets": affected, "total_affected": len(affected)}
 
     def export_lineage(self, format_type: str = "json") -> str:
-        """Export lineage graph in a supported format."""
+        """Export lineage graph in a supported format.
+
+        Args:
+            format_type: Export format - 'json', 'dot', or 'mermaid'.
+
+        Returns:
+            str: Formatted lineage graph string.
+
+        Raises:
+            ValueError: If format_type is not supported.
+
+        """
         if format_type == "json":
             return self.graph.to_json()
         if format_type == "dot":
@@ -301,5 +374,13 @@ class LineageExtractor:
 
     @staticmethod
     def _normalize_fqn(fqn: str) -> str:
-        """Normalize unqualified table names to `default.<name>`."""
+        """Normalize unqualified table names to `default.<name>`.
+
+        Args:
+            fqn: Table name that may or may not include schema prefix.
+
+        Returns:
+            str: Fully qualified name with 'default.' prefix if needed.
+
+        """
         return fqn if "." in fqn else f"default.{fqn}"

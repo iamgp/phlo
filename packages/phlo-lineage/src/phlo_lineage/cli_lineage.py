@@ -1,4 +1,49 @@
-"""CLI commands for lineage visualization and analysis."""
+"""CLI commands for lineage visualization and analysis.
+
+This module implements the complete lineage CLI command group using Click and
+Rich for formatting. It provides commands for:
+    - Displaying lineage trees (ASCII visualization)
+    - Exporting to various formats (DOT, Mermaid, JSON)
+    - Impact analysis (downstream dependency counting)
+    - Status overview (graph statistics)
+    - Column-level lineage import and querying
+
+Command Structure:
+    lineage
+    ├── show          Display ASCII tree for an asset
+    ├── export        Export to external formats
+    ├── impact        Analyze downstream impact
+    ├── status        Show graph statistics
+    └── column
+        ├── import-dbt  Import from dbt manifest
+        ├── upstream    Query upstream columns
+        └── downstream  Query downstream columns
+
+Asset Name Resolution:
+    Commands accepting asset names implement fuzzy matching:
+    1. Exact match on asset key
+    2. Replace "/" with "." and retry
+    3. Suffix matching on path segments
+    4. List all candidates if ambiguous
+
+Example:
+    >>> # Display lineage for an asset
+    $ phlo lineage show orders
+    $ phlo lineage show orders --direction upstream --depth 2
+    >>>
+    >>> # Export to Graphviz
+    $ phlo lineage export orders --format dot --output lineage.dot
+    >>>
+    >>> # Check impact before changes
+    $ phlo lineage impact silver.stg_orders
+
+Dependencies:
+    - click: Command-line interface framework
+    - rich: Terminal formatting and styling
+    - phlo_lineage.graph: Lineage graph operations
+    - phlo_lineage.store: Database operations
+
+"""
 
 from __future__ import annotations
 
@@ -18,10 +63,43 @@ console = Console()
 
 
 def _resolve_asset_name(graph, asset_name: str) -> tuple[str | None, list[str]]:
-    """Resolve a user-provided asset name to a known asset key.
+    """Resolve a user-provided asset name to a known graph asset key.
 
-    Returns a tuple of (resolved_name, matches). If resolved_name is None,
-    matches contains candidate asset keys (possibly empty).
+    Implements a multi-stage resolution strategy for flexible asset naming:
+    1. Exact match on asset_name
+    2. Normalized match ("/" replaced with ".")
+    3. Suffix matching on path segments (handles partial paths)
+
+    Args:
+        graph: LineageGraph instance to search.
+        asset_name: User-provided asset identifier (may be partial).
+
+    Returns:
+        Tuple of (resolved_name, matches):
+        - resolved_name: The matched asset key, or None if ambiguous/no match
+        - matches: List of candidate asset keys (for disambiguation hints)
+
+    Resolution Logic:
+        - Exact match: "orders" matches asset "orders"
+        - Normalized: "bronze/orders" matches "bronze.orders"
+        - Suffix: "stg_orders" matches "silver.stg_orders"
+        - Multiple suffix matches → ambiguous (return None with candidates)
+
+    Example:
+        >>> graph = LineageGraph()
+        >>> graph.add_asset("silver.stg_orders")
+        >>> graph.add_asset("bronze.raw_orders")
+        >>>
+        >>> name, matches = _resolve_asset_name(graph, "stg_orders")
+        >>> print(name)  # "silver.stg_orders"
+        >>>
+        >>> name, matches = _resolve_asset_name(graph, "orders")
+        >>> print(name)  # None (ambiguous)
+        >>> print(matches)  # ["bronze.raw_orders", "silver.stg_orders"]
+
+    Note:
+        This is an internal helper function. Resolution is case-sensitive.
+
     """
     if asset_name in graph.assets:
         return asset_name, [asset_name]
@@ -48,7 +126,29 @@ def _resolve_asset_name(graph, asset_name: str) -> tuple[str | None, list[str]]:
 
 @click.group(name="lineage")
 def lineage_group():
-    """Asset dependency and lineage visualization."""
+    """Asset dependency and lineage visualization commands.
+
+    This command group provides tools for exploring data lineage:
+    - Visualize dependencies as ASCII trees
+    - Export to external formats (Graphviz, Mermaid, JSON)
+    - Analyze impact of changes
+    - Query column-level lineage
+
+    The lineage graph is loaded from the persistent store on first access
+    and cached for the duration of the CLI session.
+
+    Example:
+        $ phlo lineage show orders
+        $ phlo lineage export orders --format dot -o lineage.dot
+        $ phlo lineage impact silver.stg_orders
+
+    Quick Start:
+        1. Ensure lineage database is configured (LINEAGE_DB_URL)
+        2. Run pipeline to populate lineage graph
+        3. Use 'phlo lineage status' to verify graph population
+        4. Explore with 'phlo lineage show <asset>'
+
+    """
     pass
 
 
@@ -67,15 +167,43 @@ def lineage_group():
     help="Maximum depth to traverse",
 )
 def show_lineage(asset_name: str, direction: str, depth: Optional[int]) -> None:
-    """
-    Display asset dependencies in ASCII tree format.
+    """Display asset dependencies in ASCII tree format.
 
-    Shows upstream dependencies and downstream dependents.
+    Shows upstream dependencies (sources) and/or downstream dependents
+    (assets that depend on this one) in a visual tree structure.
+
+    Args:
+        asset_name: Asset to display lineage for. Supports fuzzy matching.
+        direction: Which relationships to show:
+            - upstream: Show only dependencies (what this asset depends on)
+            - downstream: Show only dependents (what depends on this asset)
+            - both: Show both directions (default)
+        depth: Maximum traversal depth. Unlimited if not specified.
+
+    Fuzzy Matching:
+        The asset_name argument supports partial matching:
+        - Exact: "silver.stg_orders"
+        - Short: "stg_orders" (matches "silver.stg_orders")
+        - Slash: "bronze/orders" (matches "bronze.orders")
+
+        If multiple assets match, candidates are displayed for selection.
+
+    Visual Indicators:
+        - [upstream] / [downstream]: Section labels
+        - ✓: Asset with status="success"
+        - ✗: Asset with status="warning" or "failure"
+        - (ingestion), (transform), (publish): Asset type annotations
 
     Examples:
-        phlo lineage show orders
-        phlo lineage show orders --direction upstream
-        phlo lineage show orders --direction downstream --depth 2
+        $ phlo lineage show orders
+        $ phlo lineage show orders --direction upstream
+        $ phlo lineage show orders --direction downstream --depth 2
+        $ phlo lineage show silver.stg_orders --depth 3
+
+    Exit Codes:
+        0: Success
+        1: Asset not found or ambiguous
+
     """
     graph = get_lineage_graph()
 
@@ -126,15 +254,49 @@ def show_lineage(asset_name: str, direction: str, depth: Optional[int]) -> None:
     help="Output file path",
 )
 def export_lineage(asset_name: str, format: str, output: Path) -> None:
-    """
-    Export lineage to external formats.
+    """Export lineage to external visualization formats.
 
-    Supports Graphviz DOT, Mermaid diagram, and JSON formats.
+    Generates lineage diagrams in formats suitable for external tools:
+    - dot: Graphviz format (render to PNG/SVG/PDF)
+    - mermaid: Markdown-native diagrams (GitHub/GitLab/Notion)
+    - json: Machine-readable serialization
+
+    Args:
+        asset_name: Asset to export lineage for (fuzzy matching supported).
+        format: Output format (dot, mermaid, json).
+        output: Path to write the exported file.
+
+    Format Details:
+        dot:
+            Graphviz DOT language. Render with:
+            $ dot -Tpng lineage.dot -o lineage.png
+            $ dot -Tsvg lineage.dot -o lineage.svg
+
+        mermaid:
+            Mermaid.js flowchart syntax. Embed in markdown:
+            ```mermaid
+            graph TD
+            ...
+            ```
+
+        json:
+            Structured data with assets and edges. Schema:
+            {
+              "assets": {"name": {"type": "...", "status": "..."}},
+              "edges": {"source": ["target1", "target2"]}
+            }
 
     Examples:
-        phlo lineage export orders --format dot --output lineage.dot
-        phlo lineage export orders --format mermaid --output lineage.md
-        phlo lineage export orders --format json --output lineage.json
+        $ phlo lineage export orders --format dot --output lineage.dot
+        $ phlo lineage export orders --format mermaid --output lineage.md
+        $ phlo lineage export orders --format json --output lineage.json
+
+        $ dot -Tpng lineage.dot -o lineage.png
+
+    Exit Codes:
+        0: Success
+        1: Empty graph or unknown format
+
     """
     graph = get_lineage_graph()
 
@@ -172,15 +334,36 @@ def export_lineage(asset_name: str, format: str, output: Path) -> None:
 @lineage_group.command(name="impact")
 @click.argument("asset_name")
 def analyze_impact(asset_name: str) -> None:
-    """
-    Analyze downstream impact of an asset.
+    """Analyze downstream impact of an asset.
 
-    Shows which assets would be affected by a failure or change
-    to the specified asset.
+    Calculates the scope of potential impact if the specified asset were
+    to fail or change. This is useful for:
+    - Pre-deployment impact assessment
+    - Incident scope evaluation
+    - Change management workflows
+
+    Args:
+        asset_name: Asset to analyze for downstream impact.
+
+    Metrics Reported:
+        - Directly Affected: Assets with direct dependency (depth=1)
+        - Indirectly Affected: Transitively dependent assets
+        - Publishing Assets Affected: Whether any "publish" type assets impacted
+        - Affected Assets: Complete list with types
+
+    Warning:
+        A warning is displayed if any "publish" type assets are affected,
+        as this indicates potential external impact.
 
     Examples:
-        phlo lineage impact orders
-        phlo lineage impact stg_orders
+        $ phlo lineage impact orders
+        $ phlo lineage impact stg_orders
+        $ phlo lineage impact silver.stg_orders --depth 5
+
+    Exit Codes:
+        0: Analysis complete (regardless of impact level)
+        1: Asset not found
+
     """
     graph = get_lineage_graph()
 
@@ -216,7 +399,30 @@ def analyze_impact(asset_name: str) -> None:
 
 @lineage_group.command(name="status")
 def lineage_status() -> None:
-    """Show lineage graph status and statistics."""
+    """Show lineage graph status and statistics.
+
+    Displays summary statistics about the current lineage graph:
+    - Total number of assets
+    - Total number of dependency edges
+    - Distribution by asset type
+    - Distribution by materialization status
+
+    Use this command to verify that the lineage graph is populated
+    and to get a high-level view of the data landscape.
+
+    Statistics Shown:
+        - Total Assets: Count of unique asset nodes
+        - Total Dependencies: Sum of all edges
+        - Assets by Type: Breakdown of ingestion/transform/publish
+        - Assets by Status: Breakdown of success/warning/failure
+
+    Examples:
+        $ phlo lineage status
+
+    Exit Codes:
+        0: Always succeeds (empty graph is valid status)
+
+    """
     graph = get_lineage_graph()
 
     console.print("[bold]Lineage Graph Status[/bold]\n")
@@ -251,7 +457,25 @@ def lineage_status() -> None:
 
 @lineage_group.group(name="column")
 def column_group():
-    """Column-level lineage commands."""
+    """Column-level lineage commands.
+
+        This subcommand group provides operations for importing and querying
+    column-level lineage information:
+
+        Commands:
+            import-dbt: Import column mappings from dbt manifest.json
+            upstream: Show upstream columns for an asset
+            downstream: Show downstream columns for an asset
+
+        Column lineage tracks data flow at the column level, showing which
+        source columns contribute to which target columns through transformations.
+
+    Examples:
+            $ phlo lineage column import-dbt --manifest target/manifest.json
+            $ phlo lineage column upstream silver.stg_orders --column order_id
+            $ phlo lineage column downstream bronze.raw_orders
+
+    """
     pass
 
 
@@ -263,13 +487,40 @@ def column_group():
     help="Path to dbt manifest.json",
 )
 def import_dbt(manifest: Path) -> None:
-    """Import column lineage from a dbt manifest.json.
+    """Import column lineage from a dbt manifest.json file.
 
-    Uses same-name heuristic matching between upstream and downstream
-    model columns.
+    Extracts column-level lineage from dbt's compiled manifest using same-name
+    heuristics. For each model, it compares column names with upstream models
+    and creates lineage mappings for matching names.
+
+    Args:
+        manifest: Path to dbt's manifest.json file (typically at
+            target/manifest.json after dbt compile or build).
+
+    Heuristic Method:
+        A column is considered to have lineage from an upstream model if:
+        1. The column exists in both the model and upstream model
+        2. The upstream model is listed in the model's depends_on.nodes
+
+        This is a naming-based heuristic, not SQL parsing. Column renames
+        are not detected.
+
+    Requirements:
+        - dbt must have been compiled (dbt compile or dbt build)
+        - Models must have columns defined in YAML or inferred by dbt
+        - Lineage database must be configured
 
     Examples:
-        phlo lineage column import-dbt --manifest target/manifest.json
+        $ phlo lineage column import-dbt --manifest target/manifest.json
+        $ phlo lineage column import-dbt --manifest /path/to/manifest.json
+
+    Exit Codes:
+        0: Success (or no mappings found - not an error)
+        1: Database not configured or file not found
+
+    See Also:
+        phlo_lineage.dbt_column_lineage for extraction logic.
+
     """
     from phlo_lineage.dbt_column_lineage import extract_column_lineage
     from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
@@ -299,9 +550,34 @@ def import_dbt(manifest: Path) -> None:
 def column_upstream(asset: str, column: str | None) -> None:
     """Show upstream column lineage for an asset.
 
+    Queries the lineage database for columns that feed into the specified
+    asset. Shows which source columns from upstream assets map to columns
+    in this asset.
+
+    Args:
+        asset: Fully qualified asset name (e.g., "silver.stg_orders").
+        column: Optional column name to filter results. If provided, only
+            lineage for this specific column is shown.
+
+    Output Format:
+        Results are displayed as a Rich table with columns:
+        - Source Asset: Upstream table/model name
+        - Source Column: Column name in upstream asset
+        - Target Column: Column name in this asset
+        - Source Type: Origin of mapping (e.g., "dbt_heuristic")
+
     Examples:
-        phlo lineage column upstream silver.stg_orders
-        phlo lineage column upstream silver.stg_orders --column order_total
+        $ phlo lineage column upstream silver.stg_orders
+        $ phlo lineage column upstream silver.stg_orders --column order_id
+        $ phlo lineage column upstream gold.fct_orders --column customer_id
+
+    Database Required:
+        This command requires the lineage database to be configured.
+
+    Exit Codes:
+        0: Success (or no results found - not an error)
+        1: Database not configured
+
     """
     from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
 
@@ -335,9 +611,34 @@ def column_upstream(asset: str, column: str | None) -> None:
 def column_downstream(asset: str, column: str | None) -> None:
     """Show downstream column lineage for an asset.
 
+    Queries the lineage database for columns derived from the specified asset.
+    Shows which columns in downstream assets are mapped from columns in this
+    asset.
+
+    Args:
+        asset: Fully qualified asset name (e.g., "bronze.dlt_orders").
+        column: Optional column name to filter results. If provided, only
+            lineage for this specific column is shown.
+
+    Output Format:
+        Results are displayed as a Rich table with columns:
+        - Target Asset: Downstream table/model name
+        - Target Column: Column name in downstream asset
+        - Source Column: Column name in this asset
+        - Source Type: Origin of mapping (e.g., "dbt_heuristic")
+
     Examples:
-        phlo lineage column downstream bronze.dlt_orders
-        phlo lineage column downstream bronze.dlt_orders --column order_total
+        $ phlo lineage column downstream bronze.dlt_orders
+        $ phlo lineage column downstream bronze.dlt_orders --column order_total
+        $ phlo lineage column downstream silver.stg_customers --column customer_id
+
+    Database Required:
+        This command requires the lineage database to be configured.
+
+    Exit Codes:
+        0: Success (or no results found - not an error)
+        1: Database not configured
+
     """
     from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
 

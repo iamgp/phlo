@@ -1,4 +1,23 @@
-"""Server-wide Observatory settings endpoints."""
+"""Server-wide Observatory settings endpoints.
+
+Provides CRUD operations for global Observatory configuration.
+Settings are persisted via the settings service and validated
+against a strict JSON schema to ensure UI compatibility.
+
+Key Endpoints:
+    GET /api/observatory/settings: Get global Observatory settings.
+    PUT /api/observatory/settings: Update global Observatory settings.
+
+Example:
+    Getting settings:
+
+    .. code-block:: bash
+
+        curl http://localhost:4000/api/observatory/settings
+
+    Response includes connections, defaults, query, and UI configuration.
+
+"""
 
 from __future__ import annotations
 
@@ -102,6 +121,7 @@ def _fetch_settings_sync() -> ObservatorySettingsResponse:
 
     Returns:
         ObservatorySettingsResponse: Stored settings and update timestamp.
+
     """
     service = get_settings_service()
     record = service.get(SettingsScope.GLOBAL, OBSERVATORY_SETTINGS_NAMESPACE)
@@ -121,6 +141,7 @@ def _upsert_settings_sync(payload: ObservatorySettingsPayload) -> ObservatorySet
 
     Returns:
         ObservatorySettingsResponse: Saved settings and update timestamp.
+
     """
     service = get_settings_service()
     record = service.put(
@@ -137,7 +158,18 @@ def _upsert_settings_sync(payload: ObservatorySettingsPayload) -> ObservatorySet
 
 @router.get("/settings", response_model=ObservatorySettingsResponse)
 async def get_observatory_settings(request: Request) -> ObservatorySettingsResponse:
-    """Fetch server-wide Observatory settings."""
+    """Fetch server-wide Observatory settings.
+
+    Args:
+        request: FastAPI request object for authorization checks.
+
+    Returns:
+        ObservatorySettingsResponse with current settings and update timestamp.
+
+    Raises:
+        HTTPException: If settings service is unavailable (503) or on other errors (500).
+
+    """
     check_admin_read(request, "observatory_settings")
     try:
         return await run_sync(_fetch_settings_sync)
@@ -153,7 +185,20 @@ async def put_observatory_settings(
     request: Request,
     payload: ObservatorySettingsPayload,
 ) -> ObservatorySettingsResponse:
-    """Replace server-wide Observatory settings."""
+    """Replace server-wide Observatory settings.
+
+    Args:
+        request: FastAPI request object for authorization checks.
+        payload: ObservatorySettingsPayload with new settings values.
+
+    Returns:
+        ObservatorySettingsResponse with saved settings and update timestamp.
+
+    Raises:
+        HTTPException: If settings service is unavailable (503), validation fails (422),
+            or on other errors (500).
+
+    """
     check_admin_manage(request, "observatory_settings")
     try:
         return await run_sync(_upsert_settings_sync, payload)

@@ -1,16 +1,133 @@
+"""Phlo DLT - DLT-based data ingestion package for Phlo.
+
+This package provides DLT (Data Load Tool) based ingestion capabilities for Phlo,
+enabling decorator-driven data extraction and loading into the lakehouse. It
+integrates with Pandera for schema validation and supports multiple table store
+backends through the Phlo capability system.
+
+Key Features:
+    - Decorator-based ingestion definition (@phlo_ingestion)
+    - Automatic schema validation with Pandera
+    - Support for append and merge strategies
+    - Partitioned ingestion with daily scheduling
+    - Write-Audit-Publish (WAP) pattern support
+    - Metadata column injection for lineage tracking
+
+Main Exports:
+    - :func:`phlo_ingestion`: Primary decorator for defining ingestion pipelines
+    - :func:`get_ingestion_assets`: Retrieve all registered ingestion assets
+
+Internal Modules:
+    - :mod:`phlo_dlt.decorator`: Core ingestion decorator implementation
+    - :mod:`phlo_dlt.executor`: DLT ingestion execution engine
+    - :mod:`phlo_dlt.dlt_helpers`: Shared utilities for DLT operations
+    - :mod:`phlo_dlt.pandera_checks`: Pandera schema validation integration
+    - :mod:`phlo_dlt.registry`: Table configuration and registration
+    - :mod:`phlo_dlt.settings`: Package configuration settings
+    - :mod:`phlo_dlt.plugin`: Plugin interface for Phlo integration
+    - :mod:`phlo_dlt.scaffold`: Workflow scaffolding utilities
+    - :mod:`phlo_dlt.cli_plugin`: CLI command plugin
+    - :mod:`phlo_dlt.cli_workflow`: Workflow management CLI commands
+
+Dependencies:
+    - dlt: Data Load Tool for extraction
+    - pandera: Schema validation
+    - pyarrow: Parquet file handling
+    - pandas: Data manipulation
+
+Example:
+    ```python
+    from phlo_dlt import phlo_ingestion
+    from my_schemas import UserSchema
+
+    @phlo_ingestion(
+        table_name="users",
+        unique_key="id",
+        group="raw",
+        validation_schema=UserSchema,
+        cron="0 */6 * * *",
+    )
+    def load_users(partition_date: str):
+        # Return DLT source or data
+        return fetch_user_data(partition_date)
+
+    # Get all registered assets
+    assets = get_ingestion_assets()
+    ```
+
+See Also:
+    - :mod:`phlo.ingestion`: Public API for ingestion operations
+    - :mod:`phlo_dlt.decorator`: Detailed decorator documentation
+    - Documentation: https://docs.phlo.dev/packages/phlo-dlt
+
+Note:
+    This package is typically accessed through ``phlo.ingestion`` rather than
+    directly. Use ``import phlo`` or ``from phlo.ingestion import phlo_ingestion``.
+
+"""
+
+from __future__ import annotations
+
 from collections.abc import Callable
 from typing import Any
 
 
 def phlo_ingestion(*args: Any, **kwargs: Any) -> Callable[..., Any]:
-    """Lazily resolve and forward to the ingestion decorator factory."""
+    """Lazily resolve and forward to the ingestion decorator factory.
+
+    This function provides a lazy-loading mechanism for the actual
+    ``phlo_ingestion`` decorator from ``phlo_dlt.decorator``. It avoids
+    eager imports to prevent circular dependencies during plugin discovery.
+
+    Args:
+        *args: Positional arguments passed to the actual decorator.
+        **kwargs: Keyword arguments passed to the actual decorator.
+
+    Returns:
+        Callable[..., Any]: The configured ingestion decorator.
+
+    Example:
+        ```python
+        from phlo_dlt import phlo_ingestion
+
+        @phlo_ingestion(table_name="events", unique_key="id", group="raw")
+        def load_events(partition_date: str):
+            return fetch_events(partition_date)
+        ```
+
+    See Also:
+        :func:`phlo_dlt.decorator.phlo_ingestion`: The actual decorator implementation.
+
+    """
     from phlo_dlt.decorator import phlo_ingestion as _phlo_ingestion
 
     return _phlo_ingestion(*args, **kwargs)
 
 
 def get_ingestion_assets() -> list[Any]:
-    """Lazily resolve and return registered ingestion assets."""
+    """Lazily resolve and return registered ingestion assets.
+
+    This function retrieves all ingestion assets that have been registered
+    via the ``@phlo_ingestion`` decorator. Assets are collected in a
+    global registry during module import.
+
+    Returns:
+        list[Any]: List of registered asset specifications.
+
+    Example:
+        ```python
+        from phlo_dlt import get_ingestion_assets
+
+        assets = get_ingestion_assets()
+        for asset in assets:
+            print(f"Asset: {asset.key}")
+        ```
+
+    See Also:
+        :func:`phlo_dlt.decorator.get_ingestion_assets`: The actual implementation.
+        :func:`phlo_ingestion`: Decorator that registers assets.
+
+    """
     from phlo_dlt.decorator import get_ingestion_assets as _get_ingestion_assets
 
     return _get_ingestion_assets()

@@ -1,4 +1,27 @@
-"""CLI commands for alert management."""
+"""CLI commands for alert management.
+
+This module provides the Click command implementations for managing
+alerts through the Phlo CLI. It includes commands for testing alert
+configuration, listing destinations, and checking system status.
+
+Commands:
+    test: Send a test alert to verify configuration.
+    list: Display configured alert destinations.
+    status: Show overall alert system status and statistics.
+
+Examples:
+    Testing alert configuration:
+        $ phlo alerts test
+        $ phlo alerts test --severity critical
+        $ phlo alerts test --destination slack
+
+    Listing destinations:
+        $ phlo alerts list
+
+    Checking status:
+        $ phlo alerts status
+
+"""
 
 from __future__ import annotations
 
@@ -16,7 +39,17 @@ console = Console()
 
 @click.group(name="alerts")
 def alerts_group():
-    """Alert management and configuration."""
+    """Alert management and configuration.
+
+    Command group for managing Phlo alert destinations and testing
+    configuration. Supports Slack, PagerDuty, and Email destinations.
+
+    Examples:
+        $ phlo alerts --help
+        $ phlo alerts test
+        $ phlo alerts list
+
+    """
     pass
 
 
@@ -25,7 +58,7 @@ def alerts_group():
     "--severity",
     type=click.Choice(["info", "warning", "error", "critical"]),
     default="warning",
-    help="Alert severity",
+    help="Alert severity level for test",
 )
 @click.option(
     "--destination",
@@ -34,10 +67,32 @@ def alerts_group():
     help="Specific destination to test (default: all)",
 )
 def test_alerts(severity: str, destination: Optional[str]) -> None:
-    """
-    Send a test alert to configured destinations.
+    """Send a test alert to configured destinations.
 
-    Useful for verifying alert configuration.
+        Sends a test alert through the alerting system to verify that
+    destinations are properly configured and receiving notifications.
+    Useful for validating alert setup after configuration changes.
+
+    Args:
+            severity: Alert severity level (info, warning, error, critical).
+            destination: Optional specific destination name to test.
+
+    Returns:
+            None; results are printed to console.
+
+    Examples:
+            $ phlo alerts test
+            ✓ Test alert sent successfully!
+
+            $ phlo alerts test --severity critical
+            ✓ Test alert sent successfully!
+
+            $ phlo alerts test --destination slack
+            ✓ Test alert sent successfully!
+
+            $ phlo alerts test (no destinations configured)
+            ✗ No alert destinations configured...
+
     """
     from phlo_alerting import Alert
 
@@ -52,7 +107,7 @@ def test_alerts(severity: str, destination: Optional[str]) -> None:
 
     # Create test alert
     alert = Alert(
-        title="🧪 Phlo Test Alert",
+        title="Phlo Test Alert",
         message="This is a test alert from the Phlo CLI. If you see this, alerts are working!",
         severity=AlertSeverity(severity),
         asset_name="phlo_test",
@@ -74,7 +129,30 @@ def test_alerts(severity: str, destination: Optional[str]) -> None:
 
 @alerts_group.command(name="list")
 def list_destinations() -> None:
-    """List configured alert destinations."""
+    """List configured alert destinations.
+
+        Displays all currently configured alert destinations with their
+    types and status. Shows configuration guidance if no destinations
+        are configured.
+
+    Returns:
+            None; results are printed to console as a table or instructions.
+
+    Examples:
+            With destinations configured:
+                $ phlo alerts list
+                ┌───────────┬────────────────────┬────────┐
+                │ Name      │ Type               │ Status │
+                ├───────────┼────────────────────┼────────┤
+                │ slack     │ SlackAlertDestination  │ ✓ Ready │
+                └───────────┴────────────────────┴────────┘
+
+            Without destinations:
+                $ phlo alerts list
+                ⚠ No alert destinations configured.
+                (shows environment variable setup instructions)
+
+    """
     manager = get_alert_manager()
 
     if not manager.destinations:
@@ -112,7 +190,29 @@ def list_destinations() -> None:
 
 @alerts_group.command(name="status")
 def check_status() -> None:
-    """Check alert system status."""
+    """Check alert system status.
+
+        Displays overall alert system health including configured destinations,
+    recent alert statistics, and next steps for configuration.
+
+    Returns:
+            None; results are printed to console.
+
+    Examples:
+            $ phlo alerts status
+            Alert System Status
+
+            Configured Destinations: 2
+              • slack
+              • email
+
+            Recent Alerts Sent: 5
+            Deduplication Window: 60 minutes
+
+            Next Steps
+            1. Configure at least one alert destination...
+
+    """
     manager = get_alert_manager()
 
     console.print("[bold]Alert System Status[/bold]\n")

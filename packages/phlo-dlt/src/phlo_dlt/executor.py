@@ -1,3 +1,59 @@
+"""DLT ingestion executor implementation.
+
+This module provides the DltIngester class, which implements the full ingestion
+pipeline from DLT extraction through Parquet staging to table store loading.
+It orchestrates the helpers from :mod:`phlo_dlt.dlt_helpers` and validation
+from :mod:`phlo_dlt.pandera_checks` to execute complete ingestion runs.
+
+The executor follows the Write-Audit-Publish (WAP) pattern when strict
+validation is enabled, writing to isolated branches for validation before
+promotion to the main branch.
+
+Key Class:
+    - :class:`DltIngester`: Main ingestion executor implementing BaseIngester
+
+Execution Flow:
+    1. Setup DLT pipeline for extraction
+    2. Stage data to Parquet files
+    3. Inject metadata columns (_phlo_row_id, etc.)
+    4. Validate against Pandera schema (if configured)
+    5. Merge to table store (append or upsert)
+    6. Emit telemetry and return results
+
+Hook Integration:
+    The executor integrates with Phlo's hook system for event emission:
+    - IngestionEventEmitter: Lifecycle events (start, end)
+    - TelemetryEventEmitter: Metrics and logs
+
+See Also:
+    - :class:`phlo.operations.ingestion.BaseIngester`: Abstract base class
+    - :mod:`phlo_dlt.dlt_helpers`: Helper functions used by executor
+    - :mod:`phlo_dlt.pandera_checks`: Validation integration
+    - :mod:`phlo.hooks`: Event emission system
+
+Example:
+    ```python
+    from phlo_dlt.executor import DltIngester
+    from phlo_dlt.registry import TableConfig
+
+    ingester = DltIngester(
+        context=dagster_context,
+        logger=logger,
+        table_config=table_config,
+        table_store_resource=iceberg_store,
+        dlt_source_func=fetch_users,
+        validation_schema=UserSchema,
+        validate=True,
+        strict_validation=True,
+    )
+    result = ingester.run_ingestion(
+        partition_key="2024-01-01",
+        parameters={"branch_name": "main", "run_id": "run-123"}
+    )
+    ```
+
+"""
+
 from __future__ import annotations
 
 import time
@@ -29,9 +85,48 @@ from phlo_dlt.registry import TableConfig
 
 
 class DltIngester(BaseIngester):
-    """
-    DLT-specific implementation of the ingestion engine.
-    Orchestrator-agnostic.
+    """DLT-specific implementation of the ingestion engine.
+
+    This class orchestrates the complete DLT-based ingestion flow, from
+    extracting data via DLT to loading it into the configured table store.
+    It implements the orchestrator-agnostic BaseIngester interface.
+
+    The ingester supports:
+    - DLT extraction to Parquet
+    - Automatic metadata column injection
+    - Pandera schema validation
+    - Strict validation with WAP pattern
+    - Append and merge strategies
+    - Telemetry and event emission
+
+    Attributes:
+        table_config: Table-level ingestion configuration.
+        table_store: Table store capability for merge operations.
+        dlt_source_func: Callable that builds a DLT source for a partition.
+        validation_schema: Optional Pandera schema for validation.
+        validate: Whether to run Pandera validation.
+        strict_validation: Whether to fail on validation errors.
+        add_metadata_columns: Whether to inject metadata columns.
+        merge_strategy: Merge strategy ("append" or "merge").
+        merge_config: Additional merge configuration options.
+
+    Example:
+        ```python
+        from phlo_dlt.executor import DltIngester
+
+        ingester = DltIngester(
+            context=dagster_context,
+            logger=structlog_logger,
+            table_config=table_config,
+            table_store_resource=iceberg_table_store,
+            dlt_source_func=lambda partition_date: rest_api_source(...),
+            validation_schema=UserSchema,
+            validate=True,
+            strict_validation=True,
+            merge_strategy="merge",
+        )
+        ```
+
     """
 
     def __init__(
@@ -52,16 +147,21 @@ class DltIngester(BaseIngester):
 
         Args:
             context: Execution context from the orchestrator runtime.
+                Should have log/run_id attributes or be compatible.
             logger: Logger used for ingestion lifecycle messages.
             table_config: Table-level ingestion configuration.
             table_store_resource: Table store resource used for merge operations.
             dlt_source_func: Callable that builds a DLT source for a partition.
+                Signature: (partition_date: str) -> DltSource
             validation_schema: Optional Pandera schema used for staged-data validation.
             validate: Whether Pandera validation should run for staged data.
             strict_validation: Whether failed validation should abort before visible writes.
+                When True, enables WAP pattern with isolated branches.
             add_metadata_columns: Whether to inject metadata columns into staged parquet.
             merge_strategy: Merge strategy name for table-store writes.
-            merge_config: Optional merge strategy configuration.
+                Options: "append" (insert only), "merge" (upsert on unique_key).
+            merge_config: Optional merge strategy configuration dictionary.
+
         """
         super().__init__(context, logger)
         self.table_config = table_config
@@ -77,8 +177,44 @@ class DltIngester(BaseIngester):
     def run_ingestion(
         self, partition_key: str, parameters: Dict[str, Any] | None = None
     ) -> IngestionResult:
-        """
-        Run the full DLT -> Parquet -> table_store flow.
+        """Run the full DLT -> Parquet -> table_store flow.
+
+        Executes the complete ingestion pipeline:
+        1. Calls dlt_source_func to get DLT source
+        2. If no data, returns no_data result
+        3. Stages data to Parquet via DLT
+        4. Injects metadata columns (if enabled)
+        5. Runs Pandera validation (if enabled)
+        6. Merges to table store
+        7. Emits events and returns result
+
+        Args:
+            partition_key: The partition date (YYYY-MM-DD) to ingest.
+            parameters: Optional dict with:
+                - branch_name: Target branch for writing
+                - target_branch_name: Final target branch (for WAP)
+                - run_id: Orchestrator run identifier
+
+        Returns:
+            IngestionResult: Result with status, row counts, and metadata.
+
+        Raises:
+            PanderaContractValidationError: If strict validation fails.
+            RuntimeError: If any other error occurs during ingestion.
+
+        Example:
+            ```python
+            result = ingester.run_ingestion(
+                partition_key="2024-01-01",
+                parameters={
+                    "branch_name": "main",
+                    "target_branch_name": "main",
+                    "run_id": "dagster-run-123",
+                }
+            )
+            print(f"Status: {result.status}, Rows: {result.rows_inserted}")
+            ```
+
         """
         parameters = parameters or {}
         branch_name = parameters.get("branch_name", "main")
@@ -156,6 +292,7 @@ class DltIngester(BaseIngester):
 
                     Args:
                         logger: Logger instance consumed by helper functions.
+
                     """
                     self.log = logger
 

@@ -1,4 +1,35 @@
-"""Alerting settings."""
+"""Alerting settings configuration.
+
+This module provides configuration management for the phlo-alerting package
+using Pydantic models. It supports configuration via environment variables
+with automatic type validation and default values.
+
+All configuration values are read from environment variables with the
+"PHLO_ALERT_" prefix. The get_settings() function provides a cached
+singleton instance for efficient repeated access.
+
+Examples:
+    Retrieving settings:
+        >>> from phlo_alerting.settings import get_settings
+        >>> settings = get_settings()
+        >>> settings.phlo_alert_slack_webhook
+        'https://hooks.slack.com/services/...'
+
+    Checking configuration status:
+        >>> settings.phlo_alert_slack_webhook is not None
+        True
+
+Environment Variables:
+    PHLO_ALERT_SLACK_WEBHOOK: Slack incoming webhook URL.
+    PHLO_ALERT_SLACK_CHANNEL: Default Slack channel for alerts (optional).
+    PHLO_ALERT_PAGERDUTY_KEY: PagerDuty Events API v2 integration key.
+    PHLO_ALERT_EMAIL_SMTP_HOST: SMTP server hostname.
+    PHLO_ALERT_EMAIL_SMTP_PORT: SMTP server port (default: 587).
+    PHLO_ALERT_EMAIL_SMTP_USER: SMTP username.
+    PHLO_ALERT_EMAIL_SMTP_PASSWORD: SMTP password.
+    PHLO_ALERT_EMAIL_RECIPIENTS: Comma-separated list of email recipients.
+
+"""
 
 from __future__ import annotations
 
@@ -10,7 +41,30 @@ from phlo.config.base import BaseConfig
 
 
 class AlertingSettings(BaseConfig):
-    """Alert integration configuration (Slack, PagerDuty, Email)."""
+    """Alert integration configuration for Slack, PagerDuty, and Email.
+
+    Pydantic-based configuration class that automatically loads settings
+    from environment variables with "PHLO_ALERT_" prefix. Provides
+    type-safe access to alerting configuration with validation.
+
+    Attributes:
+        phlo_alert_slack_webhook: Slack incoming webhook URL for posting alerts.
+        phlo_alert_slack_channel: Optional default channel override (e.g., "#alerts").
+        phlo_alert_pagerduty_key: PagerDuty Events API v2 integration key.
+        phlo_alert_email_smtp_host: SMTP server hostname for email alerts.
+        phlo_alert_email_smtp_port: SMTP server port, defaults to 587.
+        phlo_alert_email_smtp_user: SMTP authentication username.
+        phlo_alert_email_smtp_password: SMTP authentication password.
+        phlo_alert_email_recipients: List of email addresses to receive alerts.
+
+    Examples:
+        >>> settings = AlertingSettings()
+        >>> settings.phlo_alert_email_smtp_port
+        587
+        >>> isinstance(settings.phlo_alert_email_recipients, list)
+        True
+
+    """
 
     phlo_alert_slack_webhook: str | None = Field(
         default=None, description="Slack incoming webhook URL"
@@ -32,5 +86,20 @@ class AlertingSettings(BaseConfig):
 
 @lru_cache(maxsize=1)
 def get_settings() -> AlertingSettings:
-    """Return cached alerting settings."""
+    """Return cached alerting settings instance.
+
+    Provides a singleton AlertingSettings instance with caching for
+    efficient repeated access. The instance is created once and reused
+    across the application lifecycle.
+
+    Returns:
+        AlertingSettings instance with loaded configuration.
+
+    Examples:
+        >>> settings1 = get_settings()
+        >>> settings2 = get_settings()
+        >>> settings1 is settings2
+        True
+
+    """
     return AlertingSettings()

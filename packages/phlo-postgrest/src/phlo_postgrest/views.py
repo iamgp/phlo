@@ -1,10 +1,25 @@
 """PostgREST API view generation from dbt models.
 
-This module automates the generation of PostgREST API views from dbt models:
-- Parses dbt manifest.json
-- Generates CREATE VIEW statements
-- Manages permissions based on dbt tags
-- Supports CLI commands for viewing/applying/diffing changes
+This module automates the generation of PostgREST-compatible API views from
+dbt models. It parses dbt's manifest.json, generates CREATE VIEW statements,
+manages database permissions based on dbt tags, and provides tools for
+applying or diffing view changes.
+
+Classes:
+    PostgrestViewsSettings: Configuration settings for view generation.
+    DbtModel: Data class representing a parsed dbt model.
+    DbtManifestParser: Parser for dbt manifest.json files.
+    ViewGenerator: Generator for CREATE VIEW SQL statements.
+    PostgreSTViewManager: Database operations for view management.
+
+Functions:
+    generate_views: Main entry point for view generation workflow.
+
+Example:
+    >>> from phlo_postgrest.views import generate_views
+    >>> generate_views(apply=True, models="mrt_*")
+    Views applied successfully
+
 """
 
 import json
@@ -24,7 +39,27 @@ logger = get_logger(__name__)
 
 
 class PostgrestViewsSettings(BaseConfig):
-    """Settings for PostgREST view generation."""
+    """Configuration settings for PostgREST view generation.
+
+    Pydantic-based configuration class that loads settings from environment
+    variables and configuration files. Controls paths, database connections,
+    and schema selection for view generation.
+
+    Attributes:
+        dbt_manifest_path: Path to dbt's manifest.json output.
+        dbt_api_source_schema: Source schema to expose via PostgREST.
+        postgres_host: PostgreSQL server hostname.
+        postgres_port: PostgreSQL server port.
+        postgres_user: Database username.
+        postgres_password: Database password.
+        postgres_db: Database name.
+
+    Example:
+        >>> settings = PostgrestViewsSettings()
+        >>> settings.postgres_host
+        'postgres'
+
+    """
 
     dbt_manifest_path: str = Field(
         default="workflows/transforms/dbt/target/manifest.json",
@@ -43,7 +78,30 @@ class PostgrestViewsSettings(BaseConfig):
 
 @dataclass
 class DbtModel:
-    """Represents a dbt model from manifest."""
+    """Represents a dbt model extracted from manifest.json.
+
+    Data class containing metadata about a dbt model including its
+    name, schema, columns, tags, and description for view generation.
+
+    Attributes:
+        name: Model identifier (table/view name).
+        schema: Database schema where model resides.
+        description: Documentation string from dbt model YAML.
+        columns: Dictionary of column metadata from manifest.
+        tags: List of dbt tags applied to the model.
+        unique_id: Full unique identifier from manifest (e.g., 'model.project.name').
+
+    Example:
+        >>> model = DbtModel(
+        ...     name="mrt_orders",
+        ...     schema="marts",
+        ...     description="Order metrics",
+        ...     columns={"order_id": {...}},
+        ...     tags=["analyst"],
+        ...     unique_id="model.phlo.mrt_orders"
+        ... )
+
+    """
 
     name: str
     schema: str
@@ -54,14 +112,41 @@ class DbtModel:
 
 
 class DbtManifestParser:
-    """Parses dbt manifest.json to extract model metadata."""
+    """Parser for dbt manifest.json files.
+
+    Extracts model metadata from dbt's compilation output, supporting
+    schema filtering and dependency graph construction for view
+    generation and ordering.
+
+    Attributes:
+        manifest_path: Path to manifest.json file.
+        source_schema: Schema to filter models (e.g., 'marts').
+
+    Example:
+        >>> parser = DbtManifestParser(
+        ...     manifest_path="target/manifest.json",
+        ...     source_schema="marts"
+        ... )
+        >>> models = parser.parse()
+
+    """
 
     def __init__(self, manifest_path: Optional[str] = None, source_schema: Optional[str] = None):
-        """Initialize manifest parser.
+        """Initialize manifest parser with configuration.
 
         Args:
-            manifest_path: Path to manifest.json. If None, uses config value.
-            source_schema: dbt schema to expose. If None, uses config value.
+            manifest_path: Path to manifest.json. Uses settings if None.
+            source_schema: Schema to filter models. Uses settings if None.
+
+        Raises:
+            FileNotFoundError: If manifest.json doesn't exist at specified path.
+
+        Example:
+            >>> parser = DbtManifestParser(
+            ...     "workflows/transforms/dbt/target/manifest.json",
+            ...     "marts"
+            ... )
+
         """
         settings = PostgrestViewsSettings()
         if manifest_path is None:
@@ -76,10 +161,24 @@ class DbtManifestParser:
             raise FileNotFoundError(f"dbt manifest not found at {manifest_path}")
 
     def parse(self) -> dict[str, DbtModel]:
-        """Parse manifest and extract models.
+        """Parse manifest and extract filtered models.
+
+        Reads manifest.json and extracts all model nodes matching the
+        configured source_schema, constructing DbtModel instances.
 
         Returns:
-            Dictionary of model_name -> DbtModel
+            dict[str, DbtModel]: Mapping of model names to DbtModel objects.
+
+        Raises:
+            FileNotFoundError: If manifest file is missing.
+            json.JSONDecodeError: If manifest contains invalid JSON.
+
+        Example:
+            >>> parser = DbtManifestParser(source_schema="marts")
+            >>> models = parser.parse()
+            >>> list(models.keys())
+            ['mrt_orders', 'mrt_customers']
+
         """
         with open(self.manifest_path) as f:
             manifest = json.load(f)
@@ -108,7 +207,27 @@ class DbtManifestParser:
         return models
 
     def _infer_source_schema(self, manifest: dict) -> str:
-        """Infer the source schema when configuration is omitted."""
+        """Infer source schema when not explicitly configured.
+
+        Analyzes all models in manifest and determines schema when only
+        one unique schema is present. Raises error if multiple schemas
+        exist and none is specified.
+
+        Args:
+            manifest: Parsed manifest.json dictionary.
+
+        Returns:
+            str: The inferred schema name.
+
+        Raises:
+            ValueError: If multiple schemas exist without explicit configuration.
+
+        Example:
+            >>> schema = parser._infer_source_schema(manifest)
+            >>> print(schema)
+            'marts'
+
+        """
         schemas = {
             node.get("schema")
             for unique_id, node in manifest.get("nodes", {}).items()
@@ -124,8 +243,18 @@ class DbtManifestParser:
     def build_dependency_graph(self) -> dict[str, list[str]]:
         """Build model dependency graph from manifest.
 
+        Constructs a directed graph of model dependencies for topological
+        sorting during view generation, ensuring views are created in
+        correct order.
+
         Returns:
-            Dictionary of model_name -> list of dependent model names
+            dict[str, list[str]]: Mapping of model names to their dependencies.
+
+        Example:
+            >>> graph = parser.build_dependency_graph()
+            >>> graph.get("mrt_orders")
+            ['stg_orders', 'stg_customers']
+
         """
         with open(self.manifest_path) as f:
             manifest = json.load(f)
@@ -149,7 +278,21 @@ class DbtManifestParser:
 
 
 class ViewGenerator:
-    """Generates PostgREST API views from dbt models."""
+    """Generator for PostgREST-compatible database views.
+
+    Generates CREATE VIEW statements from dbt models, including proper
+    column ordering, SQL comments, permissions based on tags, and
+    Row-Level Security policies.
+
+    Attributes:
+        parser: DbtManifestParser instance for reading model metadata.
+        api_schema: Target schema for generated views (default: 'api').
+
+    Example:
+        >>> generator = ViewGenerator(api_schema="api")
+        >>> sql = generator.generate_all_views(models="mrt_*")
+
+    """
 
     def __init__(
         self,
@@ -157,24 +300,43 @@ class ViewGenerator:
         api_schema: str = "api",
         source_schema: Optional[str] = None,
     ):
-        """Initialize view generator.
+        """Initialize view generator with configuration.
 
         Args:
-            manifest_path: Path to dbt manifest.json
-            api_schema: Schema for API views (default: api)
-            source_schema: dbt schema to expose through API views
+            manifest_path: Path to dbt manifest.json file.
+            api_schema: Target schema for API views (default: 'api').
+            source_schema: Source dbt schema to expose.
+
+        Example:
+            >>> generator = ViewGenerator(
+            ...     manifest_path="target/manifest.json",
+            ...     api_schema="api",
+            ...     source_schema="marts"
+            ... )
+
         """
         self.parser = DbtManifestParser(manifest_path, source_schema=source_schema)
         self.api_schema = api_schema
 
     def generate_view_sql(self, model: DbtModel) -> str:
-        """Generate CREATE VIEW statement for a model.
+        """Generate CREATE VIEW SQL for a single model.
+
+        Creates a complete CREATE OR REPLACE VIEW statement with column
+        selection, table references, and SQL COMMENT documentation.
 
         Args:
-            model: DbtModel instance
+            model: DbtModel instance to generate view for.
 
         Returns:
-            SQL CREATE VIEW statement
+            str: Complete SQL statement for view creation.
+
+        Example:
+            >>> sql = generator.generate_view_sql(model)
+            >>> print(sql)
+            CREATE OR REPLACE VIEW api.mrt_orders AS
+            SELECT order_id, customer_id, total
+            FROM marts.mrt_orders;
+
         """
         # Extract column names in order
         columns = list(model.columns.keys())
@@ -196,11 +358,26 @@ COMMENT ON VIEW {self.api_schema}.{model.name} IS '{self._escape_string(model.de
     def generate_permissions_sql(self, model: DbtModel) -> str:
         """Generate GRANT and RLS policy SQL for a model.
 
+        Maps dbt tags to database roles and generates appropriate
+        GRANT statements and Row-Level Security policies.
+
+        Tag-to-Role Mapping:
+            - 'public' -> anon role
+            - 'analyst' -> analyst and admin roles
+            - 'admin' -> admin role only
+
         Args:
-            model: DbtModel instance
+            model: DbtModel instance with tags to process.
 
         Returns:
-            SQL permission and RLS statements
+            str: SQL statements for grants and policies.
+
+        Example:
+            >>> sql = generator.generate_permissions_sql(model)
+            >>> print(sql)
+            GRANT SELECT ON api.mrt_orders TO analyst;
+            CREATE POLICY analyst_access ON api.mrt_orders ...
+
         """
         sql_parts = ["\n-- Permissions"]
 
@@ -230,13 +407,24 @@ COMMENT ON VIEW {self.api_schema}.{model.name} IS '{self._escape_string(model.de
         return "\n".join(sql_parts)
 
     def generate_all_views(self, model_filter: Optional[str] = None) -> str:
-        """Generate SQL for all views.
+        """Generate SQL for all views matching filter.
+
+        Processes all models from manifest, optionally filtered by glob
+        pattern, and generates complete SQL including views and permissions
+        in dependency order.
 
         Args:
-            model_filter: Glob pattern to filter models (e.g., 'mrt_*')
+            model_filter: Glob pattern to filter models (e.g., 'mrt_*', 'stg_*').
 
         Returns:
-            Combined SQL for all views and permissions
+            str: Complete SQL script for all views and permissions.
+            Returns empty string if no models match.
+
+        Example:
+            >>> sql = generator.generate_all_views(model_filter="mrt_*")
+            >>> len(sql) > 0
+            True
+
         """
         models = self.parser.parse()
 
@@ -271,23 +459,36 @@ COMMENT ON VIEW {self.api_schema}.{model.name} IS '{self._escape_string(model.de
     def _topological_sort(
         self, models: dict[str, DbtModel], graph: dict[str, list[str]]
     ) -> list[str]:
-        """Topologically sort models by dependencies.
+        """Sort models by dependencies using topological sort.
+
+        Ensures views are created in correct order so that dependent
+        views reference already-created views.
 
         Args:
-            models: Dictionary of models to sort
-            graph: Dependency graph
+            models: Dictionary of models to sort.
+            graph: Dependency graph from build_dependency_graph().
 
         Returns:
-            List of model names in dependency order
+            list[str]: Model names in dependency-respecting order.
+
+        Example:
+            >>> sorted_names = generator._topological_sort(models, graph)
+            >>> sorted_names[0]  # Least dependent model first
+            'stg_orders'
+
         """
         visited = set()
         order = []
 
         def visit(name: str) -> None:
-            """Depth-first visit helper for dependency ordering.
+            """Visit model and its dependencies recursively.
+
+            Depth-first traversal helper that visits dependencies before
+            the model itself to establish correct creation order.
 
             Args:
                 name: Model name to visit.
+
             """
             if name in visited:
                 return
@@ -307,19 +508,42 @@ COMMENT ON VIEW {self.api_schema}.{model.name} IS '{self._escape_string(model.de
 
     @staticmethod
     def _escape_string(s: str) -> str:
-        """Escape string for SQL comments.
+        """Escape single quotes in strings for SQL safety.
+
+        Doubles single quotes to prevent SQL injection in COMMENT statements.
 
         Args:
-            s: String to escape
+            s: Input string potentially containing single quotes.
 
         Returns:
-            Escaped string
+            str: Escaped string safe for SQL COMMENT.
+
+        Example:
+            >>> ViewGenerator._escape_string("It's a test")
+            "It''s a test"
+
         """
         return s.replace("'", "''")
 
 
 class PostgreSTViewManager:
-    """Manages PostgreSQL views and permissions."""
+    """Manager for PostgreSQL view operations and database connectivity.
+
+        Handles database connections, SQL execution, view discovery, and
+    diff generation for PostgREST view management.
+
+    Attributes:
+            host: PostgreSQL server hostname.
+            port: PostgreSQL server port.
+            database: Database name.
+            user: Database username.
+            password: Database password.
+
+    Example:
+            >>> manager = PostgreSTViewManager(host="postgres", port=5432)
+            >>> manager.execute_sql("CREATE VIEW test AS SELECT 1")
+
+    """
 
     def __init__(
         self,
@@ -329,14 +553,25 @@ class PostgreSTViewManager:
         user: Optional[str] = None,
         password: Optional[str] = None,
     ):
-        """Initialize PostgreSQL connection manager.
+        """Initialize PostgreSQL connection manager with settings.
+
+        Loads configuration from PostgrestViewsSettings for any
+        parameters not explicitly provided.
 
         Args:
-            host: Database host
-            port: Database port
-            database: Database name
-            user: Database user
-            password: Database password
+            host: Database server hostname.
+            port: Database server port.
+            database: Database name.
+            user: Database username.
+            password: Database password.
+
+        Example:
+            >>> manager = PostgreSTViewManager(
+            ...     host="db.example.com",
+            ...     port=5432,
+            ...     database="phlo"
+            ... )
+
         """
         settings = PostgrestViewsSettings()
         self.host = host or settings.postgres_host
@@ -346,7 +581,23 @@ class PostgreSTViewManager:
         self.password = password or settings.postgres_password
 
     def get_connection(self):
-        """Get PostgreSQL connection."""
+        """Establish and return a PostgreSQL database connection.
+
+        Creates a new psycopg2 connection with autocommit enabled
+        for executing DDL statements.
+
+        Returns:
+            psycopg2 connection object with autocommit enabled.
+
+        Raises:
+            psycopg2.Error: If connection fails due to network or auth issues.
+
+        Example:
+            >>> conn = manager.get_connection()
+            >>> cursor = conn.cursor()
+            >>> cursor.execute("SELECT 1")
+
+        """
         conn = psycopg2.connect(
             host=self.host,
             port=self.port,
@@ -358,11 +609,22 @@ class PostgreSTViewManager:
         return conn
 
     def execute_sql(self, sql: str, verbose: bool = True) -> None:
-        """Execute SQL statements.
+        """Execute SQL statements against the database.
+
+        Runs the provided SQL with optional progress logging.
+        Automatically manages connection lifecycle.
 
         Args:
-            sql: SQL to execute
-            verbose: Print execution messages
+            sql: SQL statement(s) to execute.
+            verbose: Log execution progress if True.
+
+        Raises:
+            Exception: If SQL execution fails (re-raised after logging).
+
+        Example:
+            >>> manager.execute_sql("CREATE VIEW test AS SELECT 1")
+            ✓ SQL executed successfully
+
         """
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -381,13 +643,22 @@ class PostgreSTViewManager:
             conn.close()
 
     def get_existing_views(self, schema: str = "api") -> set[str]:
-        """Get list of existing views in schema.
+        """Query database for existing views in a schema.
+
+        Retrieves all view names from information_schema.tables for
+        the specified schema.
 
         Args:
-            schema: Schema name
+            schema: Schema name to query (default: 'api').
 
         Returns:
-            Set of view names
+            set[str]: Set of existing view names in the schema.
+
+        Example:
+            >>> views = manager.get_existing_views("api")
+            >>> print(views)
+            {'mrt_orders', 'mrt_customers'}
+
         """
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -406,14 +677,25 @@ class PostgreSTViewManager:
             conn.close()
 
     def generate_diff(self, new_sql: str, schema: str = "api") -> str:
-        """Generate diff of new views vs existing.
+        """Generate human-readable diff between existing and new views.
+
+        Compares currently deployed views against newly generated SQL
+        to identify created, updated, and removed views.
 
         Args:
-            new_sql: Generated SQL
-            schema: Schema name
+            new_sql: Generated SQL containing CREATE VIEW statements.
+            schema: Schema name to compare (default: 'api').
 
         Returns:
-            Diff summary
+            str: Formatted diff summary showing view changes.
+
+        Example:
+            >>> diff = manager.generate_diff(sql, "api")
+            >>> print(diff)
+            Views to be created/updated:
+              mrt_orders (updated)
+              mrt_customers (new)
+
         """
         existing_views = self.get_existing_views(schema)
 
@@ -448,18 +730,46 @@ def generate_views(
 ) -> str:
     """Generate PostgREST API views from dbt models.
 
+        Main entry point for view generation workflow. Orchestrates parsing
+    the dbt manifest, generating SQL, and optionally applying to database or
+    showing diffs.
+
+        Supports three output modes:
+            - Default: Return SQL string
+            - output: Write SQL to file
+            - apply: Execute SQL directly against database
+            - diff: Show comparison with existing views
+
     Args:
-        output: Output file path (default: stdout)
-        apply: Apply SQL directly to database
-        diff: Show diff only
-        models: Model filter pattern (e.g., 'mrt_*')
-        manifest_path: Path to dbt manifest.json
-        api_schema: Schema for API views
-        source_schema: dbt schema to expose
-        verbose: Print progress messages
+            output: File path to write SQL (default: return string).
+            apply: Execute SQL against database if True.
+            diff: Show diff summary instead of SQL.
+            models: Glob pattern to filter models (e.g., 'mrt_*').
+            manifest_path: Path to dbt manifest.json.
+            api_schema: Target schema for views (default: 'api').
+            source_schema: Source dbt schema to expose.
+            verbose: Enable progress logging.
 
     Returns:
-        Generated SQL or diff summary
+            str: Generated SQL, diff summary, or status message depending on mode.
+            Returns empty string if no models match filter.
+
+    Raises:
+            Exception: If database operations fail when apply=True.
+
+    Example:
+            >>> # Generate SQL to stdout
+            >>> sql = generate_views()
+
+            >>> # Apply directly to database
+            >>> result = generate_views(apply=True, models="mrt_*")
+            >>> print(result)
+            Views applied successfully
+
+            >>> # Show what's changing
+            >>> diff = generate_views(diff=True)
+            >>> print(diff)
+
     """
     if verbose:
         logger.info("=" * 60)

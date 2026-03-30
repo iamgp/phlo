@@ -59,7 +59,7 @@ phlo services start --service nessie
 phlo branch list
 
 # Create a new branch
-phlo branch create feature/my-feature
+phlo branch create feature/my-feature --from main
 
 # Delete a branch
 phlo branch delete feature/my-feature
@@ -87,18 +87,18 @@ Phlo uses Nessie branches for the Write-Audit-Publish (WAP) pattern:
 
 ```python
 # Create feature branch
-from phlo_nessie.client import NessieClient
+from phlo_nessie import NessieResource
 
-client = NessieClient()
-client.create_branch("feature/new-data", from_ref="main")
+nessie = NessieResource()
+nessie.create_branch("feature/new-data", from_ref="main")
 
 # Work on the branch...
 
 # Merge when ready
-client.merge("feature/new-data", "main")
+nessie.merge_branch("feature/new-data", target="main")
 
 # Clean up
-client.delete_branch("feature/new-data")
+nessie.delete_branch("feature/new-data")
 ```
 
 ## Branching Strategy
@@ -134,11 +134,12 @@ curl http://localhost:19120/api/v2/trees/main
 
 ## Entry Points
 
-| Entry Point             | Plugin                |
-| ----------------------- | --------------------- |
-| `phlo.plugins.services` | `NessieServicePlugin` |
-| `phlo.plugins.cli`      | Nessie CLI commands   |
-| `phlo.plugins.catalogs` | Nessie-owned catalog adapters (for example the optional Trino adapter) |
+| Entry Point                     | Plugin                                          |
+| ------------------------------- | ----------------------------------------------- |
+| `phlo.plugins.services`         | `NessieServicePlugin`                           |
+| `phlo.plugins.cli`              | Branch management CLI (`branch` group)         |
+| `phlo.plugins.catalogs`         | Nessie catalog adapters (optional Trino adapter in `phlo-nessie[trino]`) |
+| `phlo.plugins.resource_providers` | `NessieResourceProvider`                       |
 ## Related Packages
 
 - [phlo-iceberg](phlo-iceberg.md) - Iceberg table format

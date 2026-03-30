@@ -1,6 +1,6 @@
 # PHLO-006: Ingestion Failed
 
-**Error Type:** Runtime and Integration Error
+**Error Type:** Runtime Error
 **Severity:** High
 **Exception Class:** `PhloIngestionError`
 

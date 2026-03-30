@@ -2,6 +2,28 @@
 
 Moves row-provenance query construction and execution behind phlo-api so
 Observatory does not talk to Trino directly for this flow.
+
+This module provides endpoints for tracing data lineage at the row level,
+enabling users to identify upstream rows that contributed to downstream
+aggregated or transformed records.
+
+Key Endpoints:
+    POST /query: Generate SQL query for contributing rows.
+    POST /page: Execute query and return paginated results.
+
+Example:
+    Finding contributing rows:
+
+    .. code-block:: bash
+
+        curl -X POST http://localhost:4000/api/contributing/query \
+          -H "Content-Type: application/json" \
+          -d '{
+            "downstream_asset_key": "marts/fct_daily_metrics",
+            "upstream_asset_key": "bronze/raw_events",
+            "row_data": {"date": "2024-01-15"}
+          }'
+
 """
 
 from __future__ import annotations
@@ -427,7 +449,22 @@ async def resolve_iceberg_table(
 async def get_contributing_rows_query(
     request: ContributingRowsQueryRequest,
 ) -> ContributingRowsQueryResponse | dict[str, str]:
-    """Generate the contributing rows query for a row journey selection."""
+    """Generate the contributing rows query for a row journey selection.
+
+    Builds a SQL query to find upstream rows that contributed to a downstream row.
+
+    Args:
+        request: ContributingRowsQueryRequest with downstream/upstream asset keys
+            and row data for predicate construction.
+
+    Returns:
+        ContributingRowsQueryResponse with generated query and upstream reference,
+        or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         catalog = request.catalog or resolve_default_catalog()
     except RuntimeError as exc:
@@ -470,7 +507,21 @@ async def get_contributing_rows_query(
 async def get_contributing_rows_page(
     request: ContributingRowsPageRequest,
 ) -> ContributingRowsPageResponse | dict[str, str]:
-    """Return paginated contributing rows for the selected upstream/downstream pair."""
+    """Return paginated contributing rows for the selected upstream/downstream pair.
+
+    Executes the generated query and returns paginated results with has_more flag.
+
+    Args:
+        request: ContributingRowsPageRequest with asset keys, row data, and pagination.
+
+    Returns:
+        ContributingRowsPageResponse with mode, rows, columns, and pagination info,
+        or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         catalog = request.catalog or resolve_default_catalog()
         default_ref = resolve_default_ref()

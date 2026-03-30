@@ -1,6 +1,28 @@
-"""Logs Display
+"""Rich formatting and display functions for log output.
 
-Rich formatting and display functions for log output.
+This module provides formatted display functions for Dagster logs, utilizing
+the Rich library for visually appealing output in the terminal. It handles
+both batch display and real-time tailing modes.
+
+Features:
+    - Rich table formatting with color-coded log levels
+    - Real-time log tailing with Live display
+    - JSON syntax highlighting for structured log messages
+    - Message truncation control for readability
+    - Duplicate detection in tail mode
+
+Color Coding:
+    - ERROR: Red
+    - WARNING: Yellow
+    - DEBUG: Dimmed
+    - INFO: Green
+    - Timestamps: Cyan
+
+Display Components:
+    - _tail_logs: Real-time following with Live updates
+    - _display_logs: Batch display in formatted table
+    - Log level badges and timestamps
+    - Run ID and job name columns
 """
 
 import json
@@ -25,13 +47,19 @@ def _tail_logs(
     full: bool = False,
     output_json: bool = False,
 ) -> None:
-    """
-    Tail logs in real-time (follow mode).
+    """Tail logs in real-time (follow mode).
 
     Args:
-        filters: Filter criteria
-        full: Whether to show full messages
-        output_json: JSON output format
+        filters: Filter criteria.
+        full: Whether to show full messages.
+        output_json: JSON output format.
+
+    Returns:
+        None
+
+    Raises:
+        KeyboardInterrupt: When user stops tailing.
+
     """
     from phlo_dagster.cli_logs import _get_logs
 
@@ -54,6 +82,7 @@ def _tail_logs(
 
         Returns:
             Rich renderable containing log rows or an empty-state message.
+
         """
         nonlocal last_fetch_time
 
@@ -123,13 +152,16 @@ def _display_logs(
     full: bool = False,
     output_json: bool = False,
 ) -> None:
-    """
-    Display logs in formatted output.
+    """Display logs in formatted output.
 
     Args:
-        logs_data: List of log dictionaries
-        full: Whether to show full messages
-        output_json: JSON output format
+        logs_data: List of log dictionaries.
+        full: Whether to show full messages.
+        output_json: JSON output format.
+
+    Returns:
+        None
+
     """
     if not logs_data:
         logger.info("dagster_logs_display_no_results", output_json=output_json)
@@ -197,7 +229,15 @@ def _display_logs(
 
 
 def _is_json(text: str) -> bool:
-    """Check if text is valid JSON."""
+    """Check if text is valid JSON.
+
+    Args:
+        text: String to check.
+
+    Returns:
+        True if valid JSON, False otherwise.
+
+    """
     try:
         json.loads(text)
         return True

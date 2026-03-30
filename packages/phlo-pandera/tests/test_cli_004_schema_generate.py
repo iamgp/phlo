@@ -16,6 +16,7 @@ def _write(path: Path, content: str) -> None:
     Args:
         path: File path to write.
         content: File contents to write.
+
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)

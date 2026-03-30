@@ -145,6 +145,7 @@ class TestSchemaAutoGeneration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -177,6 +178,7 @@ class TestSchemaAutoGeneration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -201,6 +203,7 @@ class TestSchemaAutoGeneration:
 
                 Args:
                     partition_date: Partition key passed by the orchestrator.
+
                 """
                 pass
 
@@ -227,6 +230,7 @@ class TestDecoratorConfiguration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -253,6 +257,7 @@ class TestDecoratorConfiguration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -278,6 +283,7 @@ class TestDecoratorConfiguration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -344,6 +350,7 @@ class TestAutomationConfiguration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -371,6 +378,7 @@ class TestAutomationConfiguration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -403,6 +411,7 @@ class TestFreshnessConfiguration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -430,6 +439,7 @@ class TestFreshnessConfiguration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -461,6 +471,7 @@ class TestRetryConfiguration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -490,6 +501,7 @@ class TestRetryConfiguration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -525,6 +537,7 @@ class TestAssetRegistration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -552,6 +565,7 @@ class TestAssetRegistration:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -588,6 +602,7 @@ class TestAssetAttributes:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -636,6 +651,7 @@ class TestAssetAttributes:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -662,6 +678,7 @@ class TestAssetAttributes:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -690,6 +707,7 @@ class TestAssetAttributes:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -790,6 +808,7 @@ class TestEdgeCases:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -816,6 +835,7 @@ class TestEdgeCases:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 
@@ -842,6 +862,7 @@ class TestEdgeCases:
 
             Args:
                 partition_date: Partition key passed by the orchestrator.
+
             """
             pass
 

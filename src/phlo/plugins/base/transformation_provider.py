@@ -39,6 +39,7 @@ class TransformationProviderPlugin(Plugin, ABC):
                 from phlo_dbt.cli_plugin import DbtCliPlugin
                 return DbtCliPlugin
         ```
+
     """
 
     @property
@@ -59,6 +60,7 @@ class TransformationProviderPlugin(Plugin, ABC):
                 from phlo_dbt.assets import build_dbt_asset_specs
                 return build_dbt_asset_specs
             ```
+
         """
 
     def get_cli_plugin(self) -> Any | None:
@@ -66,6 +68,7 @@ class TransformationProviderPlugin(Plugin, ABC):
 
         Returns:
             CLI plugin class, or None if not available.
+
         """
         return None
 
@@ -74,6 +77,7 @@ class TransformationProviderPlugin(Plugin, ABC):
 
         Returns:
             Compiler function, or None if not available.
+
         """
         return None
 
@@ -82,5 +86,6 @@ class TransformationProviderPlugin(Plugin, ABC):
 
         Returns:
             Manifest loader function, or None if not available.
+
         """
         return None

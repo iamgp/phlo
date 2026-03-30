@@ -1,4 +1,19 @@
-"""PostgREST CLI commands for Phlo."""
+"""PostgREST CLI commands for Phlo.
+
+This module defines the Click-based CLI commands for managing PostgREST,
+including view generation from dbt models and authentication infrastructure
+setup.
+
+Commands:
+    postgrest: Main command group for PostgREST operations.
+    generate-views: Generate API views from dbt models.
+    setup-auth: Configure authentication infrastructure.
+
+Example:
+    $ phlo postgrest generate-views --apply --schema api
+    $ phlo postgrest setup-auth --force
+
+"""
 
 from typing import Optional
 
@@ -13,7 +28,20 @@ logger = get_logger(__name__)
 
 @click.group()
 def postgrest():
-    """PostgREST API management."""
+    """PostgREST API management commands.
+
+    This command group provides operations for managing PostgREST
+    configuration, including view generation and authentication setup.
+
+    Subcommands:
+        generate-views: Create API views from dbt models.
+        setup-auth: Configure JWT authentication infrastructure.
+
+    Example:
+        $ phlo postgrest --help
+        $ phlo postgrest generate-views --output views.sql
+
+    """
     pass
 
 
@@ -50,7 +78,29 @@ def generate_postgrest_views(
     models: Optional[str],
     schema: str,
 ):
-    """Generate PostgREST API views from dbt models."""
+    """Generate PostgREST API views from dbt models.
+
+    Parses dbt manifest.json to discover models and generates CREATE VIEW
+    statements that expose them through PostgREST's REST API. Can output
+    to file, stdout, or apply directly to the database.
+
+    Args:
+        output: Path to write SQL file (default: stdout if neither apply nor
+            output specified).
+        apply: If True, execute SQL directly against the database.
+        diff: If True, show diff of changes without applying.
+        models: Glob pattern to filter models (e.g., 'mrt_*', 'stg_*').
+        schema: Target schema for API views (default: 'api').
+
+    Raises:
+        click.ClickException: If view generation or database application fails.
+
+    Example:
+        $ phlo postgrest generate-views
+        $ phlo postgrest generate-views --apply --models mrt_*
+        $ phlo postgrest generate-views --diff --output views.sql
+
+    """
     logger.info(
         "postgrest_generate_views_started",
         output=output,
@@ -89,7 +139,33 @@ def generate_postgrest_views(
 @click.option("--force", is_flag=True, help="Force re-setup even if already exists")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress output")
 def setup_postgrest_cmd(host, port, database, user, password, force, quiet):
-    """Set up PostgREST authentication infrastructure."""
+    """Set up PostgREST authentication infrastructure.
+
+        Configures the PostgreSQL database with JWT authentication functions,
+        database roles (anon, authenticated, analyst, admin), user management
+    tables, and Row-Level Security policies required by PostgREST.
+
+        This command is idempotent - safe to run multiple times. It will skip
+        setup if infrastructure already exists unless --force is specified.
+
+    Args:
+            host: PostgreSQL server hostname (env: POSTGRES_HOST).
+            port: PostgreSQL server port (env: POSTGRES_PORT).
+            database: Database name (env: POSTGRES_DB).
+            user: Superuser username with privileges to create roles (env: POSTGRES_USER).
+            password: Database password (env: POSTGRES_PASSWORD).
+            force: Re-apply setup even if already configured.
+            quiet: Suppress progress output.
+
+    Raises:
+            click.ClickException: If setup fails due to connection or permission errors.
+
+    Example:
+            $ phlo postgrest setup-auth
+            $ phlo postgrest setup-auth --force --quiet
+            $ phlo postgrest setup-auth --host db.example.com --port 5433
+
+    """
     logger.info(
         "postgrest_setup_started",
         host=host,

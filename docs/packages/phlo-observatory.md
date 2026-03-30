@@ -16,13 +16,21 @@ phlo plugin install observatory
 
 ## Configuration
 
+Observatory configuration is primarily managed through the service definition (`service.yaml`). The following environment variables are used by the Observatory container:
+
 | Variable              | Default                       | Description              |
 | --------------------- | ----------------------------- | ------------------------ |
-| `OBSERVATORY_PORT`    | `3001`                        | Observatory web UI port  |
+| `OBSERVATORY_PORT`    | `3001`                        | Observatory web UI port (container) |
 | `DAGSTER_GRAPHQL_URL` | `http://dagster:3000/graphql` | Dagster GraphQL endpoint |
 | `NESSIE_URL`          | `http://nessie:19120/api/v2`  | Nessie API URL           |
 | `TRINO_URL`           | `http://trino:8080`           | Trino HTTP URL           |
 | `PHLO_API_URL`        | `http://phlo-api:4000`        | Phlo API URL             |
+
+For persistent settings storage:
+
+| Variable                        | Default | Description                                |
+| ------------------------------- | ------- | ------------------------------------------ |
+| `PHLO_OBSERVATORY_SETTINGS_DB_URL` | -    | PostgreSQL DSN for settings storage        |
 
 ## Features
 

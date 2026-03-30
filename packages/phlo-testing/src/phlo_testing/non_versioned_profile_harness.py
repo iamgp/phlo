@@ -1,4 +1,27 @@
-"""Lightweight non-versioned profile harness built on DuckDB and dbt."""
+"""Lightweight non-versioned profile harness built on DuckDB and dbt.
+
+Provides a fast, lightweight testing harness for dbt transformations using
+DuckDB as the backend. Ideal for unit testing dbt models without requiring
+the full Phlo service stack.
+
+Unlike the bundled stack harness, this uses DuckDB instead of Trino/Nessie
+for faster test execution and simpler setup.
+
+Example:
+    >>> from phlo_testing import bootstrap_non_versioned_profile_harness
+    >>> harness = bootstrap_non_versioned_profile_harness()
+    >>> harness.ingest_rows("raw.posts", [
+    ...     {"id": 1, "title": "Hello", "body": "World"}
+    ... ])
+    >>> harness.run_transform()
+    >>> result = harness.query("SELECT * FROM marts.posts_mart")
+    >>> harness.cleanup()
+
+Key Components:
+    - NonVersionedProfileHarness: DuckDB-backed dbt test harness
+    - bootstrap_non_versioned_profile_harness(): Factory function
+
+"""
 
 from __future__ import annotations
 
@@ -19,6 +42,12 @@ from phlo.logging import get_logger
 
 
 def _find_dbt_executable() -> str | None:
+    """Find the dbt executable in the system PATH.
+
+    Returns:
+        Path to dbt executable or None if not found.
+
+    """
     candidate = Path(sys.executable).parent / "dbt"
     if candidate.exists():
         return str(candidate)
@@ -26,6 +55,15 @@ def _find_dbt_executable() -> str | None:
 
 
 def _is_missing_duckdb_adapter(output: str) -> bool:
+    """Check if dbt output indicates missing DuckDB adapter.
+
+    Args:
+        output: dbt command output to check.
+
+    Returns:
+        True if output indicates DuckDB adapter is missing.
+
+    """
     normalized = output.lower()
     patterns = (
         "could not find adapter type duckdb",
@@ -38,6 +76,16 @@ def _is_missing_duckdb_adapter(output: str) -> bool:
 
 
 def _assert_duckdb_adapter_available(dbt_executable: str, project_dir: Path) -> None:
+    """Verify dbt-duckdb adapter is installed and working.
+
+    Args:
+        dbt_executable: Path to dbt executable.
+        project_dir: dbt project directory.
+
+    Raises:
+        RuntimeError: If dbt-duckdb adapter is not installed or debug fails.
+
+    """
     env = {**os.environ, "DBT_PROFILES_DIR": str(project_dir)}
     result = subprocess.run(
         [dbt_executable, "debug", "--profiles-dir", str(project_dir)],
@@ -57,14 +105,33 @@ def _assert_duckdb_adapter_available(dbt_executable: str, project_dir: Path) -> 
 
 @dataclass(slots=True)
 class NonVersionedProfileHarness:
-    """Local DuckDB-backed harness for a non-versioned profile."""
+    """Local DuckDB-backed harness for a non-versioned profile.
+
+    Provides methods to ingest data, run dbt transforms, and query results
+    using DuckDB as the backend.
+
+    Attributes:
+        project_dir: Path to the temporary dbt project directory.
+        duckdb_path: Path to the DuckDB database file.
+        dbt_executable: Path to the dbt executable.
+
+    """
 
     project_dir: Path
     duckdb_path: Path
     dbt_executable: str
 
     def ingest_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
-        """Create or replace a raw DuckDB table from row dictionaries."""
+        """Create or replace a raw DuckDB table from row dictionaries.
+
+        Args:
+            table_name: Schema-qualified table name (e.g., "raw.posts").
+            rows: List of dictionaries representing rows.
+
+        Raises:
+            ValueError: If table_name is not schema-qualified.
+
+        """
         if "." not in table_name:
             raise ValueError("Expected schema-qualified table name like 'raw.posts'")
         schema_name, table_name_only = table_name.split(".", 1)
@@ -81,7 +148,15 @@ class NonVersionedProfileHarness:
             connection.close()
 
     def query(self, query: str) -> list[tuple[Any, ...]]:
-        """Execute a DuckDB SQL query against the local profile database."""
+        """Execute a DuckDB SQL query against the local profile database.
+
+        Args:
+            query: SQL query string.
+
+        Returns:
+            List of result tuples.
+
+        """
         connection = duckdb.connect(str(self.duckdb_path))
         try:
             return connection.execute(query).fetchall()
@@ -89,14 +164,27 @@ class NonVersionedProfileHarness:
             connection.close()
 
     def query_scalar(self, query: str) -> Any:
-        """Execute a SQL query and return the first scalar value."""
+        """Execute a SQL query and return the first scalar value.
+
+        Args:
+            query: SQL query string.
+
+        Returns:
+            First column of first row, or None if no results.
+
+        """
         rows = self.query(query)
         if not rows:
             return None
         return rows[0][0]
 
     def run_transform(self) -> Any:
-        """Run the dbt transform project against the local DuckDB profile."""
+        """Run the dbt transform project against the local DuckDB profile.
+
+        Returns:
+            dbt run result.
+
+        """
         from phlo_dbt.transformer import DbtTransformer
 
         transformer = DbtTransformer(
@@ -119,7 +207,21 @@ def bootstrap_non_versioned_profile_harness(
     *,
     project_dir: Path | None = None,
 ) -> NonVersionedProfileHarness:
-    """Create a local DuckDB-backed dbt project for non-versioned profile tests."""
+    """Create a local DuckDB-backed dbt project for non-versioned profile tests.
+
+    Sets up a temporary dbt project with DuckDB as the backend, including
+    default source and model configurations.
+
+    Args:
+        project_dir: Optional project directory path. If None, creates a temp directory.
+
+    Returns:
+        NonVersionedProfileHarness ready for testing.
+
+    Raises:
+        RuntimeError: If dbt CLI is not available or dbt-duckdb adapter is missing.
+
+    """
     target_project_dir = project_dir or Path(tempfile.mkdtemp(prefix="phlo-non-versioned-"))
     dbt_executable = _find_dbt_executable()
     if dbt_executable is None:
@@ -129,7 +231,7 @@ def bootstrap_non_versioned_profile_harness(
     target_project_dir.mkdir(parents=True, exist_ok=True)
 
     (target_project_dir / "dbt_project.yml").write_text(
-        """name: phlo_non_versioned\nversion: 1.0.0\nconfig-version: 2\nprofile: phlo_non_versioned\nmodel-paths: [\"models\"]\nmodels:\n  phlo_non_versioned:\n    marts:\n      +materialized: table\n"""
+        """name: phlo_non_versioned\nversion: 1.0.0\nconfig-version: 2\nprofile: phlo_non_versioned\nmodel-paths: ["models"]\nmodels:\n  phlo_non_versioned:\n    marts:\n      +materialized: table\n"""
     )
     (target_project_dir / "profiles.yml").write_text(
         f"""phlo_non_versioned:\n  target: dev\n  outputs:\n    dev:\n      type: duckdb\n      path: {duckdb_path}\n      threads: 1\n"""

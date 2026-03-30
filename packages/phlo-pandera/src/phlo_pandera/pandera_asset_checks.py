@@ -1,3 +1,55 @@
+"""Pandera contract evaluation and asset check utilities.
+
+This module provides functions for evaluating Pandera schema contracts against
+pandas DataFrames and parquet files. It handles schema validation, error collection,
+and conversion to Phlo's standardized CheckResult format.
+
+The module is designed to integrate Pandera's powerful schema validation with
+Phlo's quality check framework, providing:
+
+1. **Schema Evaluation**: Validate DataFrames against Pandera DataFrameModel classes
+2. **Type Coercion**: Automatic datetime conversion for improved compatibility
+3. **Parquet Support**: Load and validate parquet files directly
+4. **Result Conversion**: Convert Pandera results to Phlo CheckResult format
+
+Example:
+    ```python
+    import pandas as pd
+    from pandera.pandas import DataFrameModel, Field
+    from phlo_pandera.pandera_asset_checks import (
+        evaluate_pandera_contract,
+        pandera_contract_asset_check_result,
+    )
+
+    class CustomerSchema(DataFrameModel):
+        customer_id: int = Field(gt=0)
+        email: str = Field(nullable=True)
+
+    # Validate a DataFrame
+    df = pd.DataFrame({
+        "customer_id": [1, 2, 3],
+        "email": ["alice@example.com", "bob@example.com", None],
+    })
+
+    evaluation = evaluate_pandera_contract(df, schema_class=CustomerSchema)
+
+    # Convert to Phlo CheckResult
+    result = pandera_contract_asset_check_result(
+        evaluation=evaluation,
+        partition_key="2024-01-15",
+        asset_key="customers",
+        schema_class=CustomerSchema,
+        query_or_sql="SELECT * FROM bronze.customers",
+    )
+    ```
+
+See Also:
+    - ``checks_extra.py``: SchemaCheck class that uses these utilities
+    - ``decorator.py``: ``@phlo_pandera`` decorator with Pandera integration
+    - ``contract.py``: QualityCheckContract for metadata standardization
+
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,12 +73,28 @@ logger = get_logger(__name__)
 class PanderaContractEvaluation:
     """Result summary for Pandera schema contract evaluation.
 
+    This dataclass encapsulates the outcome of validating a DataFrame against
+    a Pandera schema. It provides a standardized summary independent of Pandera's
+    internal error types.
+
     Attributes:
         passed: Whether validation passed without contract failures.
         failed_count: Number of failing rows or checks.
         total_count: Total number of evaluated rows.
-        sample: Sample failure payload for metadata/debugging.
-        error: Optional top-level validation error message.
+        sample: Sample failure payload for metadata and debugging.
+        error: Optional top-level validation error message for catastrophic failures.
+
+    Example:
+        ```python
+        evaluation = PanderaContractEvaluation(
+            passed=False,
+            failed_count=5,
+            total_count=1000,
+            sample=[{"column": "age", "error": "value 200 exceeds maximum 150"}],
+            error=None,
+        )
+        ```
+
     """
 
     passed: bool
@@ -41,14 +109,43 @@ def evaluate_pandera_contract(
     *,
     schema_class: type[DataFrameModel],
 ) -> PanderaContractEvaluation:
-    """Validate a dataframe against a Pandera schema class.
+    """Validate a DataFrame against a Pandera schema class.
+
+    Performs schema validation using Pandera's lazy validation mode to collect
+    all errors. Handles automatic datetime conversion for columns defined as
+    datetime in the schema to improve compatibility.
 
     Args:
-        df: Input dataframe to validate.
-        schema_class: Pandera ``DataFrameModel`` class defining the contract.
+        df: Input DataFrame to validate. Must contain columns matching the
+            schema definition.
+        schema_class: Pandera ``DataFrameModel`` class (not an instance) that
+            defines the expected structure and constraints.
 
     Returns:
-        Evaluation summary with pass/fail status and sampled failures.
+        PanderaContractEvaluation with pass/fail status, failure counts,
+        and sampled failure details.
+
+    Raises:
+        Exception: Catches and logs unexpected errors, returning failed evaluation.
+
+    Example:
+        ```python
+        from pandera.pandas import DataFrameModel, Field
+
+        class ProductSchema(DataFrameModel):
+            product_id: int = Field(gt=0)
+            price: float = Field(ge=0)
+
+        df = pd.DataFrame({
+            "product_id": [1, 2, -3],  # -3 fails gt=0 constraint
+            "price": [9.99, -1.0, 5.0],  # -1.0 fails ge=0 constraint
+        })
+
+        evaluation = evaluate_pandera_contract(df, schema_class=ProductSchema)
+        # evaluation.passed == False
+        # evaluation.failed_count >= 2
+        ```
+
     """
 
     schema = schema_class.to_schema()
@@ -111,12 +208,30 @@ def evaluate_pandera_contract_parquet(
 ) -> PanderaContractEvaluation:
     """Load parquet data and validate it against a Pandera schema class.
 
+    Convenience function that loads a parquet file into a DataFrame and
+    immediately validates it against the provided schema.
+
     Args:
-        parquet_path: Path to the parquet file.
+        parquet_path: Path to the parquet file. Must exist and be readable.
         schema_class: Pandera ``DataFrameModel`` class defining the contract.
 
     Returns:
-        Evaluation summary for the loaded dataframe.
+        PanderaContractEvaluation for the loaded DataFrame.
+
+    Raises:
+        Exception: Re-raises parquet read errors after logging them.
+
+    Example:
+        ```python
+        from pathlib import Path
+
+        path = Path("data/products.parquet")
+        evaluation = evaluate_pandera_contract_parquet(
+            parquet_path=path,
+            schema_class=ProductSchema,
+        )
+        ```
+
     """
 
     try:
@@ -141,15 +256,39 @@ def pandera_contract_asset_check_result(
 ) -> CheckResult:
     """Build a Phlo quality check result from Pandera evaluation output.
 
+    Converts a PanderaContractEvaluation into a standardized Phlo CheckResult
+    with proper metadata, severity assignment, and contract information.
+
     Args:
-        evaluation: Pandera contract evaluation summary.
-        partition_key: Optional partition key associated with the checked data.
-        asset_key: Asset identifier for the check result.
+        evaluation: Pandera contract evaluation summary from
+            ``evaluate_pandera_contract()``.
+        partition_key: Optional partition key associated with the checked data,
+            typically in YYYY-MM-DD format.
+        asset_key: Asset identifier for the check result (e.g., "customers").
         schema_class: Pandera schema class used for evaluation.
         query_or_sql: Query or SQL used to produce the evaluated dataset.
 
     Returns:
-        Normalized quality check result with metadata and severity.
+        Normalized CheckResult with metadata and severity appropriate for
+        consumption by Dagster and the Observatory UI.
+
+    Example:
+        ```python
+        evaluation = evaluate_pandera_contract(df, schema_class=CustomerSchema)
+
+        result = pandera_contract_asset_check_result(
+            evaluation=evaluation,
+            partition_key="2024-01-15",
+            asset_key="customers",
+            schema_class=CustomerSchema,
+            query_or_sql="SELECT * FROM bronze.customers",
+        )
+
+        # result.passed: bool
+        # result.check_name: "pandera_contract"
+        # result.severity: None if passed, "error" if failed
+        ```
+
     """
 
     contract = QualityCheckContract(

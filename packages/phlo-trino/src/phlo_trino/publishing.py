@@ -1,4 +1,42 @@
-"""Publish Trino marts into Postgres with hook events."""
+"""Publish Trino marts into Postgres with hook events.
+
+This module provides functionality for publishing analytical outputs from
+Trino into Postgres with full lifecycle event emission, telemetry, and
+lineage tracking.
+
+Functions:
+    publish_marts_to_target: Copy outputs to a structured publish target.
+    publish_marts_to_postgres: Copy tables to Postgres with event emission.
+
+Classes:
+    TrinoPublishingSettings: Configuration for publish target defaults.
+    TablePublishStats: Summary statistics for published tables.
+
+Internal Functions:
+    _resolve_publish_target: Resolve target wrapper to primitives.
+    _publish_marts: Shared publish implementation.
+    _ensure_schema: Create target schema if missing.
+    _split_trino_qualified_name: Parse qualified table names.
+    _quote_trino_identifier: Quote identifiers preserving case.
+    _quote_trino_qualified_name: Quote fully qualified names.
+    _copy_table: Copy single table with batch processing.
+    _trino_table_ref_candidates: Build introspection query candidates.
+    _describe_trino_table: Get column metadata with retry logic.
+    _is_retryable_introspection_error: Check if error allows retry.
+    _trino_type_to_postgres: Map Trino types to Postgres.
+    _resolve_asset_key: Resolve Dagster asset key for events.
+
+Example:
+    >>> from phlo_trino.publishing import publish_marts_to_postgres
+    >>> stats = publish_marts_to_postgres(
+    ...     context=context,
+    ...     trino=trino_resource,
+    ...     postgres=postgres_resource,
+    ...     tables_to_publish={"fct_orders": "gold.fct_orders"},
+    ...     data_source="orders_pipeline",
+    ... )
+
+"""
 
 from __future__ import annotations
 
@@ -32,14 +70,25 @@ logger = get_logger(__name__)
 
 
 class TrinoPublishingSettings(BaseConfig):
-    """Settings for Trino publish target defaults."""
+    """Settings for Trino publish target defaults.
+
+    Attributes:
+        postgres_mart_schema: Default PostgreSQL schema for published marts.
+
+    """
 
     postgres_mart_schema: str = Field(default="marts", description="Default mart schema")
 
 
 @dataclass(frozen=True)
 class TablePublishStats:
-    """Summary stats for a published table."""
+    """Summary stats for a published table.
+
+    Attributes:
+        row_count: Number of rows copied to the target table.
+        column_count: Number of columns in the published table.
+
+    """
 
     row_count: int
     column_count: int
@@ -55,8 +104,35 @@ def publish_marts_to_target(
     target_schema: str | None = None,
     batch_size: int = 10_000,
 ) -> dict[str, TablePublishStats]:
-    """Copy analytical outputs into a structured publish target."""
+    """Copy analytical outputs into a structured publish target.
 
+    Publishes multiple tables from Trino to a configured target system
+    (e.g., PostgreSQL) with automatic schema management.
+
+    Args:
+        context: Execution context with run_id and asset information.
+        trino: Trino resource for reading source data.
+        publish_target: Target wrapper or raw resource for destination.
+        tables_to_publish: Mapping of target_table -> source_table qualified names.
+        data_source: Identifier for the data source being published.
+        target_schema: Override schema name for target tables.
+        batch_size: Number of rows per batch during copy operation.
+
+    Returns:
+        Dictionary mapping target table names to their publish statistics.
+
+    Example:
+        >>> stats = publish_marts_to_target(
+        ...     context=dagster_context,
+        ...     trino=trino_resource,
+        ...     publish_target=postgres_target,
+        ...     tables_to_publish={"fct_orders": "gold.fct_orders"},
+        ...     data_source="orders_pipeline",
+        ... )
+        >>> print(stats["fct_orders"].row_count)
+        1000
+
+    """
     postgres, target_system, resolved_schema = _resolve_publish_target(
         publish_target,
         target_schema=target_schema,
@@ -83,7 +159,38 @@ def publish_marts_to_postgres(
     target_schema: str | None = None,
     batch_size: int = 10_000,
 ) -> dict[str, TablePublishStats]:
-    """Copy Trino tables into Postgres and emit publish lifecycle events."""
+    """Copy Trino tables into Postgres and emit publish lifecycle events.
+
+    Publishes tables with full event emission for observability, including
+    start/completion/failure events, telemetry metrics, and lineage tracking.
+
+    Args:
+        context: Execution context with run_id and asset information.
+        trino: Trino resource for reading source data.
+        postgres: PostgreSQL resource for writing target data.
+        tables_to_publish: Mapping of target_table -> source_table qualified names.
+        data_source: Identifier for the data source being published.
+        target_schema: Override schema name for target tables (default: "marts").
+        batch_size: Number of rows per batch during copy operation.
+
+    Returns:
+        Dictionary mapping target table names to their publish statistics.
+
+    Raises:
+        RuntimeError: If table introspection fails after retries.
+        Exception: If publishing fails, emits failure event before raising.
+
+    Example:
+        >>> stats = publish_marts_to_postgres(
+        ...     context=dagster_context,
+        ...     trino=trino_resource,
+        ...     postgres=pg_resource,
+        ...     tables_to_publish={"fct_orders": "gold.fct_orders"},
+        ...     data_source="orders_pipeline",
+        ...     target_schema="analytics",
+        ... )
+
+    """
     return _publish_marts(
         context=context,
         trino=trino,
@@ -256,7 +363,6 @@ def _publish_marts(
 
 def _ensure_schema(postgres: Any, schema: str) -> None:
     """Create the target schema if it is missing."""
-
     with postgres.cursor() as cursor:
         cursor.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema)))
     postgres.commit()
@@ -264,7 +370,6 @@ def _ensure_schema(postgres: Any, schema: str) -> None:
 
 def _split_trino_qualified_name(name: str) -> list[tuple[str, bool]]:
     """Split a Trino qualified name into parts and track quoted identifiers."""
-
     parts: list[tuple[str, bool]] = []
     buffer: list[str] = []
     in_quotes = False
@@ -302,7 +407,6 @@ def _split_trino_qualified_name(name: str) -> list[tuple[str, bool]]:
 
 def _quote_trino_identifier(identifier: str, *, was_quoted: bool) -> str:
     """Quote a single Trino identifier, preserving case when already quoted."""
-
     if not identifier:
         raise ValueError("Trino identifier cannot be empty.")
     normalized = identifier if was_quoted else identifier.lower()
@@ -312,7 +416,6 @@ def _quote_trino_identifier(identifier: str, *, was_quoted: bool) -> str:
 
 def _quote_trino_qualified_name(name: str) -> str:
     """Quote a fully qualified Trino table name for safe SQL usage."""
-
     parts = _split_trino_qualified_name(name)
     return ".".join(
         _quote_trino_identifier(part, was_quoted=was_quoted) for part, was_quoted in parts
@@ -329,7 +432,6 @@ def _copy_table(
     batch_size: int,
 ) -> tuple[int, int]:
     """Copy a single Trino table into Postgres and return row/column counts."""
-
     columns, source_table_ref = _describe_trino_table(trino, source_table)
     column_defs = [
         sql.SQL("{} {}").format(sql.Identifier(name), sql.SQL(pg_type))
@@ -377,7 +479,6 @@ def _copy_table(
 
 def _trino_table_ref_candidates(name: str) -> list[str]:
     """Build likely-valid Trino table references for introspection queries."""
-
     parts = _split_trino_qualified_name(name)
     quoted_all = ".".join(
         _quote_trino_identifier(part, was_quoted=was_quoted) for part, was_quoted in parts
@@ -399,7 +500,6 @@ def _trino_table_ref_candidates(name: str) -> list[str]:
 
 def _describe_trino_table(trino: Any, source_table: str) -> tuple[list[tuple[str, str, str]], str]:
     """Return column metadata and the resolved source table reference."""
-
     last_error: Exception | None = None
     table_refs = _trino_table_ref_candidates(source_table)
     max_attempts = 5
@@ -562,7 +662,6 @@ def _trino_type_to_postgres(column: str, trino_type: str) -> tuple[str, str]:
 
 def _resolve_asset_key(context: Any, data_source: str) -> str | None:
     """Resolve the Dagster asset key for publish events."""
-
     asset_key = getattr(context, "asset_key", None)
     if asset_key is None:
         return f"publish_{data_source}_marts"

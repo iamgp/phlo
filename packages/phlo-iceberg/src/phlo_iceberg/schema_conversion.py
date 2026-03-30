@@ -1,4 +1,45 @@
-"""Pandera-to-Iceberg schema conversion utilities."""
+"""Pandera-to-Iceberg schema conversion utilities.
+
+This module provides utilities for converting Pandera DataFrameModel schemas
+to PyIceberg Schema objects. It handles type mapping, metadata field injection,
+and field ID assignment.
+
+Supported type mappings:
+    - str -> StringType
+    - int -> LongType
+    - float -> DoubleType
+    - bool -> BooleanType
+    - datetime -> TimestamptzType
+    - date -> DateType
+    - bytes -> BinaryType
+    - Decimal -> DoubleType
+
+The conversion automatically adds standard metadata columns for DLT and Phlo
+traceability including ``_dlt_load_id``, ``_dlt_id``, ``_phlo_ingested_at``,
+``_phlo_row_id``, ``_phlo_partition_date``, and ``_phlo_run_id``.
+
+Example:
+    Convert Pandera model to Iceberg schema::
+
+        from pandera import DataFrameModel, Column, Int64, String, Bool
+        from phlo_iceberg.schema_conversion import pandera_to_iceberg
+
+        class UserSchema(DataFrameModel):
+            id: Column[Int64]
+            name: Column[String]
+            active: Column[Bool] = Field(nullable=True)
+
+        iceberg_schema = pandera_to_iceberg(UserSchema)
+
+        # Use with table creation
+        from phlo_iceberg import ensure_table
+        table = ensure_table("raw.users", schema=iceberg_schema)
+
+See Also:
+    Pandera documentation: https://pandera.readthedocs.io/
+    PyIceberg schema docs: https://py.iceberg.apache.org/
+
+"""
 
 from __future__ import annotations
 
@@ -24,9 +65,28 @@ logger = get_logger(__name__)
 
 
 class SchemaConversionError(Exception):
-    """Raised when a Pandera schema cannot be converted to Iceberg schema."""
+    """Raised when a Pandera schema cannot be converted to an Iceberg schema.
 
-    pass
+    This exception indicates that the schema conversion failed due to:
+    - Unsupported field types
+    - Missing type annotations
+    - Invalid Pandera schema structure
+    - Type mapping failures
+
+    Example:
+        Handle conversion errors::
+
+            from phlo_iceberg.schema_conversion import (
+                pandera_to_iceberg, SchemaConversionError
+            )
+
+            try:
+                schema = pandera_to_iceberg(MyComplexModel)
+            except SchemaConversionError as e:
+                print(f"Schema conversion failed: {e}")
+                # Fall back to manual schema definition
+
+    """
 
 
 def pandera_to_iceberg(
@@ -35,19 +95,55 @@ def pandera_to_iceberg(
     add_dlt_metadata: bool = True,
     add_phlo_metadata: bool = True,
 ) -> Schema:
-    """Convert a Pandera DataFrameModel schema to a PyIceberg schema.
+    """Convert a Pandera DataFrameModel schema to a PyIceberg Schema.
+
+    Maps Pandera column types to Iceberg types, preserving nullability and
+    descriptions. Automatically assigns field IDs and can inject standard
+    metadata columns for data lineage.
 
     Args:
-        pandera_schema: Source Pandera model class.
-        start_field_id: Starting field identifier for user columns.
-        add_dlt_metadata: Whether to append standard DLT metadata columns.
-        add_phlo_metadata: Whether to append standard Phlo metadata columns.
+        pandera_schema: Pandera DataFrameModel class to convert.
+        start_field_id: Starting field ID for user-defined columns (default: 1).
+            Metadata columns use reserved IDs 100-105.
+        add_dlt_metadata: Whether to add DLT metadata columns
+            (``_dlt_load_id``, ``_dlt_id``).
+        add_phlo_metadata: Whether to add Phlo metadata columns
+            (``_phlo_ingested_at``, ``_phlo_row_id``, ``_phlo_partition_date``,
+            ``_phlo_run_id``).
 
     Returns:
-        Equivalent Iceberg schema.
+        Schema: Equivalent Iceberg schema with all fields and metadata.
 
     Raises:
-        SchemaConversionError: If conversion fails or schema is invalid.
+        SchemaConversionError: If conversion fails due to unsupported types,
+            missing annotations, or invalid schema structure.
+
+    Example:
+        Basic conversion::
+
+            from pandera import DataFrameModel, Column, Int64, String
+            from phlo_iceberg.schema_conversion import pandera_to_iceberg
+
+            class EventSchema(DataFrameModel):
+                event_id: Column[Int64]
+                event_type: Column[String]
+
+            schema = pandera_to_iceberg(EventSchema)
+            print(f"Schema has {len(schema.fields)} fields")
+
+        Conversion without metadata::
+
+            schema = pandera_to_iceberg(
+                EventSchema,
+                add_dlt_metadata=False,
+                add_phlo_metadata=False
+            )
+            # Only has event_id and event_type fields
+
+    Note:
+        Reserved field IDs 100-105 are used for metadata columns.
+        User columns start from ``start_field_id`` and increment sequentially.
+
     """
     reserved_field_ids: dict[str, int] = {
         "_dlt_load_id": 100,
@@ -223,15 +319,31 @@ def pandera_to_iceberg(
 def _map_type(field_name: str, pandera_type: Any) -> Any:
     """Map a Pandera-annotated type to an Iceberg type.
 
+    Handles Optional types, generic types, and scalar mappings. Lists and
+    dictionaries are explicitly not supported and will raise an error.
+
     Args:
         field_name: Source field name for error reporting.
-        pandera_type: Annotated Python/Pandera type.
+        pandera_type: Annotated Python/Pandera type from the model.
 
     Returns:
         Corresponding Iceberg type instance.
 
     Raises:
-        SchemaConversionError: If type cannot be represented.
+        SchemaConversionError: If the type is a list, dict, or otherwise
+            cannot be represented in Iceberg.
+
+    Example:
+        Mapping types::
+
+            str_type = _map_type("name", str)  # Returns StringType()
+            opt_int = _map_type("age", Optional[int])  # Returns LongType()
+
+    Note:
+        Lists and dictionaries are explicitly unsupported and will raise
+        ``SchemaConversionError``. Complex nested types should be flattened
+        or stored as JSON strings.
+
     """
     origin = get_origin(pandera_type)
     if origin is None:
@@ -262,15 +374,33 @@ def _map_type(field_name: str, pandera_type: Any) -> Any:
 def _map_scalar(field_name: str, t: Any) -> Any:
     """Map a scalar Python type to an Iceberg type.
 
+    Supports standard Python types and some common extensions like Decimal.
+
     Args:
         field_name: Source field name for error reporting.
-        t: Scalar Python type.
+        t: Scalar Python type (e.g., ``str``, ``int``, ``datetime``).
 
     Returns:
-        Corresponding Iceberg type instance.
+        Corresponding Iceberg type instance:
+            - ``str`` -> ``StringType()``
+            - ``int`` -> ``LongType()``
+            - ``float`` -> ``DoubleType()``
+            - ``bool`` -> ``BooleanType()``
+            - ``datetime`` -> ``TimestamptzType()``
+            - ``date`` -> ``DateType()``
+            - ``bytes`` -> ``BinaryType()``
+            - ``Decimal`` -> ``DoubleType()``
 
     Raises:
-        SchemaConversionError: If type is unsupported.
+        SchemaConversionError: If the type is not supported.
+
+    Example:
+        Scalar mappings::
+
+            assert isinstance(_map_scalar("id", int), LongType)
+            assert isinstance(_map_scalar("name", str), StringType)
+            assert isinstance(_map_scalar("score", float), DoubleType)
+
     """
     if t in (str,):
         return StringType()

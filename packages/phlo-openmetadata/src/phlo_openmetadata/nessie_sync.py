@@ -1,8 +1,14 @@
-"""
-Sync Nessie-discovered tables to OpenMetadata.
+"""Sync Nessie-discovered tables to OpenMetadata.
 
 This module bridges the Nessie catalog backend (`phlo-nessie`) with the OpenMetadata publisher
 (`phlo-openmetadata`).
+
+Example:
+    >>> from phlo_openmetadata.nessie_sync import sync_nessie_tables_to_openmetadata
+    >>> from phlo.capabilities import resolve_capability
+    >>> scanner = resolve_capability("catalog_scanner").provider
+    >>> stats = sync_nessie_tables_to_openmetadata(scanner, om_client)
+
 """
 
 from __future__ import annotations
@@ -23,7 +29,8 @@ def _map_iceberg_to_openmetadata_type(iceberg_type: str) -> str:
         iceberg_type: Raw Iceberg type string from table schema metadata.
 
     Returns:
-        OpenMetadata-compatible type name.
+        str: OpenMetadata-compatible type name.
+
     """
     type_map = {
         "boolean": "BOOLEAN",
@@ -58,7 +65,8 @@ def nessie_table_metadata_to_openmetadata_table(
         description: Optional override for the table description.
 
     Returns:
-        OpenMetadata table model built from Nessie metadata.
+        OpenMetadataTable: OpenMetadata table model built from Nessie metadata.
+
     """
     table_name = table_metadata.get("name", "unknown")
     schema = (
@@ -110,7 +118,8 @@ def sync_nessie_tables_to_openmetadata(
         exclude_namespaces: Optional namespace denylist.
 
     Returns:
-        Counts for successful and failed sync operations.
+        dict[str, int]: Counts for successful and failed sync operations.
+
     """
     stats = {"created": 0, "failed": 0}
     include = set(include_namespaces) if include_namespaces else None

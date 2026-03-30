@@ -1,3 +1,27 @@
+"""Translate dbt manifest entries into Phlo asset specifications.
+
+This module provides the DbtSpecTranslator class which bridges dbt's manifest
+format with Phlo's asset specification system. It handles conversion of dbt
+metadata including asset keys, descriptions, group names, and SQL compilation.
+
+Example:
+    >>> from phlo_dbt.translator import DbtSpecTranslator
+    >>> import json
+    >>>
+    >>> translator = DbtSpecTranslator()
+    >>>
+    >>> # Load manifest node
+    >>> manifest = json.loads(Path("target/manifest.json").read_text())
+    >>> node = manifest["nodes"]["model.my_project.fct_orders"]
+    >>>
+    >>> # Translate to Phlo specs
+    >>> asset_key = translator.get_asset_key(node)
+    >>> description = translator.get_description(node)
+    >>> group = translator.get_group_name(node)
+    >>> metadata = translator.get_metadata(node)
+
+"""
+
 from __future__ import annotations
 
 import os
@@ -90,6 +114,7 @@ def get_compiled_sql_from_resource_props(
     Returns:
         A tuple of compiled SQL text, truncation flag, original byte length,
         and SQL source indicator.
+
     """
     compiled_sql = ""
     source = "none"
@@ -136,7 +161,41 @@ def get_compiled_sql_from_resource_props(
 
 
 class DbtSpecTranslator:
-    """Translate dbt manifest entries into orchestrator-agnostic spec fields."""
+    """Translate dbt manifest entries into orchestrator-agnostic spec fields.
+
+    This class converts dbt manifest node data into Phlo-compatible asset
+    specifications. It handles:
+    - Asset key generation (including special handling for sources)
+    - Description extraction with optional SQL inclusion
+    - Group name inference from paths and naming conventions
+    - Metadata extraction (columns, compiled SQL)
+    - Kind labeling
+
+    The translator uses dbt metadata like schema, path, and FQN to determine
+    appropriate groupings and follows dbt naming conventions (stg_, dim_, fct_,
+    mrt_) for layer detection.
+
+    Example:
+        >>> from phlo_dbt.translator import DbtSpecTranslator
+        >>> translator = DbtSpecTranslator()
+        >>>
+        >>> node = {
+        ...     "name": "fct_orders",
+        ...     "resource_type": "model",
+        ...     "schema": "gold",
+        ...     "description": "Orders fact table"
+        ... }
+        >>>
+        >>> key = translator.get_asset_key(node)
+        >>> print(key)  # "fct_orders"
+        >>>
+        >>> group = translator.get_group_name(node)
+        >>> print(group)  # "gold" (from schema)
+        >>>
+        >>> kinds = translator.get_kinds(node)
+        >>> print(kinds)  # {"dbt"}
+
+    """
 
     def get_asset_key(self, dbt_resource_props: Mapping[str, Any]) -> str:
         """Build the asset key for a dbt resource.
@@ -146,6 +205,7 @@ class DbtSpecTranslator:
 
         Returns:
             Canonical asset key string.
+
         """
         resource_type = dbt_resource_props.get("resource_type")
         is_source = resource_type == "source" or (
@@ -169,6 +229,7 @@ class DbtSpecTranslator:
 
         Returns:
             Description text for the translated asset.
+
         """
         model_name = str(dbt_resource_props.get("name", ""))
         docstring = str(dbt_resource_props.get("description") or "")
@@ -195,6 +256,7 @@ class DbtSpecTranslator:
 
         Returns:
             Group name used for asset organization.
+
         """
         meta = dbt_resource_props.get("meta", {})
         if isinstance(meta, dict) and "group" in meta:
@@ -225,6 +287,7 @@ class DbtSpecTranslator:
 
         Returns:
             Metadata dictionary for the translated asset.
+
         """
         metadata: dict[str, Any] = {}
         columns = dbt_resource_props.get("columns", {})
@@ -264,5 +327,6 @@ class DbtSpecTranslator:
 
         Returns:
             Set of kind labels.
+
         """
         return {"dbt"}

@@ -1,6 +1,33 @@
 """Authorization helpers for phlo-api.
 
 This module provides authorization capability integration for FastAPI routes.
+It implements role-based access control (RBAC) with canonical role mapping
+from authentication groups.
+
+Key Functions:
+    get_authorization_backend: Resolve the configured authorization backend.
+    check_dataset_read: Verify read permission on a dataset.
+    check_dataset_query: Verify query permission on a dataset.
+    check_asset_read: Verify read permission on an asset.
+    filter_datasets: Filter datasets by access permission.
+
+Environment Variables:
+    PHLO_AUTHORIZATION_BACKEND: Name of the authorization backend to use.
+        Required when multiple backends are installed.
+
+Example:
+    Enforcing authorization in a FastAPI route:
+
+    .. code-block:: python
+
+        from fastapi import Request
+        from phlo_api.api.authorization import check_dataset_read
+
+        @app.get("/datasets/{dataset_id}")
+        async def get_dataset(dataset_id: str, request: Request):
+            check_dataset_read(request, dataset_id)
+            return {"dataset": dataset_id}
+
 """
 
 from __future__ import annotations
@@ -41,8 +68,19 @@ _AUTHORIZATION_BACKEND_ENV = "PHLO_AUTHORIZATION_BACKEND"
 def get_authorization_backend() -> AuthorizationPolicyBackend | None:
     """Resolve the authorization policy backend capability.
 
-    Returns None if no backend is configured.
-    Raises when multiple backends are installed without an explicit selection.
+    Returns None if no backend is configured. Raises when multiple backends
+    are installed without an explicit selection.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        AuthorizationPolicyBackend instance, or None if not configured.
+
+    Raises:
+        RuntimeError: If the configured backend is not registered, or if multiple
+            backends are available without explicit selection.
+
     """
     backend_name = os.environ.get(_AUTHORIZATION_BACKEND_ENV)
     result = resolve_capability("authorization_policy_backend", backend_name)
@@ -68,7 +106,18 @@ def get_authorization_backend() -> AuthorizationPolicyBackend | None:
 
 
 def require_authorization_backend() -> AuthorizationPolicyBackend:
-    """Resolve the authorization policy backend or raise if not available."""
+    """Resolve the authorization policy backend or raise if not available.
+
+    Args:
+        None: No arguments required.
+
+    Returns:
+        AuthorizationPolicyBackend instance.
+
+    Raises:
+        RuntimeError: If no authorization backend is configured.
+
+    """
     backend = get_authorization_backend()
     if backend is None:
         raise RuntimeError("Authorization backend not configured")
@@ -79,7 +128,19 @@ def create_decision_context(
     request: Request,
     environment: str | None = None,
 ) -> DecisionContext:
-    """Create a DecisionContext from a FastAPI request."""
+    """Create a DecisionContext from a FastAPI request.
+
+    Args:
+        request: The FastAPI request object.
+        environment: Optional environment identifier.
+
+    Returns:
+        DecisionContext populated with request metadata.
+
+    Raises:
+        None: No exceptions raised directly.
+
+    """
     return DecisionContext(
         environment=environment,
         request_id=request.state.request_id if hasattr(request.state, "request_id") else None,
@@ -98,12 +159,17 @@ def resolve_request_principal(request: Request, require_auth: bool = False) -> P
     then applies canonical role mapping to produce the authz Principal.
 
     Args:
-        request: The FastAPI request
+        request: The FastAPI request object.
         require_auth: If True, returns None when authentication fails or is not configured.
-                     If False (default), falls back to anonymous principal for backward compat.
+            If False (default), falls back to anonymous principal for backward compat.
 
     Returns:
-        Principal if authenticated (or require_auth=False), None if require_auth=True and not authenticated.
+        Principal if authenticated (or require_auth=False), None if require_auth=True
+            and not authenticated.
+
+    Raises:
+        None: No exceptions raised directly.
+
     """
     auth_principal = get_request_principal(request)
     if auth_principal is None:

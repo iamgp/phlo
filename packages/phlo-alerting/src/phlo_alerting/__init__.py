@@ -1,4 +1,28 @@
-"""Alerting integration for Phlo pipelines."""
+"""Phlo Alerting package for multi-destination notification management.
+
+This package provides a comprehensive alerting system for Phlo pipelines,
+supporting multiple notification destinations including Slack, PagerDuty,
+and Email. It integrates with the Phlo hook system to automatically trigger
+alerts on quality check failures and telemetry events.
+
+Examples:
+    Basic usage:
+        >>> from phlo_alerting import AlertManager, Alert, AlertSeverity
+        >>> manager = AlertManager()
+        >>> alert = Alert(
+        ...     title="Pipeline Failed",
+        ...     message="Data quality check failed",
+        ...     severity=AlertSeverity.ERROR
+        ... )
+        >>> manager.send(alert)
+
+Attributes:
+    AlertManager: Central manager for alert destinations and deduplication.
+    Alert: Data class representing an alert payload.
+    AlertSeverity: Enum defining alert severity levels.
+    AlertingSettings: Configuration class for alert destinations.
+
+"""
 
 from phlo_alerting.manager import (
     Alert,

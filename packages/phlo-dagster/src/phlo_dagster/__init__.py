@@ -1,4 +1,37 @@
-"""Dagster service plugin package."""
+"""Dagster orchestration adapter package for Phlo.
+
+This package provides the Dagster-based orchestration layer for Phlo data pipelines.
+It bridges Phlo's capability-based architecture with Dagster's asset-centric execution model.
+
+Key Components:
+    - DagsterOrchestratorAdapter: Translates Phlo capability specs into Dagster definitions
+    - DagsterServicePlugin: Manages Dagster webserver and daemon services
+    - DagsterExtensionPlugin: Extensibility interface for custom Dagster plugins
+    - Framework definitions: Entry point for user workflow discovery
+
+Integration Points:
+    - Translates AssetSpec objects into @asset decorated functions
+    - Converts AssetCheckSpec into Dagster asset checks
+    - Maps ResourceSpec to Dagster resources
+    - Supports partitioned assets (daily, etc.)
+    - Handles Dagster-specific configuration (freshness policies, automation conditions)
+
+Example:
+    Basic usage within a Phlo project::
+
+        from phlo_dagster import DagsterServicePlugin
+
+        # Service plugin handles container orchestration
+        plugin = DagsterServicePlugin()
+
+    Framework definitions entry point::
+
+        # In workspace.yaml
+        load_from:
+          - python_module:
+              module_name: phlo_dagster.framework.definitions
+
+"""
 
 from phlo_dagster.dagster_ext import DagsterExtensionPlugin, IngestionEnginePlugin
 from phlo_dagster.plugin import DagsterServicePlugin

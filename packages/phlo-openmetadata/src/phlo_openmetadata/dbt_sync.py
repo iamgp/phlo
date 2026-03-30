@@ -1,8 +1,20 @@
-"""
-dbt manifest parser and synchronizer.
+"""dbt manifest parser and synchronizer.
 
 Parses dbt manifest.json and catalog.json to extract model documentation,
 column descriptions, and tests for syncing to OpenMetadata.
+
+This module enables bi-directional sync between dbt projects and OpenMetadata,
+ensuring documentation and lineage are consistent across both systems.
+
+Example:
+    >>> from phlo_openmetadata.dbt_sync import DbtManifestParser
+    >>> parser = DbtManifestParser(
+    ...     manifest_path="target/manifest.json",
+    ...     catalog_path="target/catalog.json",
+    ... )
+    >>> manifest = parser.load_manifest()
+    >>> models = parser.get_models(manifest)
+
 """
 
 from __future__ import annotations
@@ -19,20 +31,32 @@ logger = get_logger(__name__)
 
 
 class DbtManifestParser:
-    """
-    Parses dbt manifest.json for metadata extraction.
+    """Parses dbt manifest.json for metadata extraction.
 
     Extracts model descriptions, column-level documentation, tests,
     and freshness policies for syncing to OpenMetadata.
+
+    Attributes:
+        manifest_path: Path to dbt manifest.json file.
+        catalog_path: Path to dbt catalog.json file (optional).
+        manifest: Cached manifest dictionary.
+        catalog: Cached catalog dictionary.
+
+    Example:
+        >>> parser = DbtManifestParser("target/manifest.json", "target/catalog.json")
+        >>> models = parser.get_models()
+        >>> for model_id, model in models.items():
+        ...     print(model.get("name"))
+
     """
 
     def __init__(self, manifest_path: str, catalog_path: Optional[str] = None):
-        """
-        Initialize dbt manifest parser.
+        """Initialize dbt manifest parser.
 
         Args:
-            manifest_path: Path to dbt manifest.json
-            catalog_path: Path to dbt catalog.json (optional, for column docs)
+            manifest_path: Path to dbt manifest.json.
+            catalog_path: Path to dbt catalog.json (optional, for column docs).
+
         """
         self.manifest_path = Path(manifest_path)
         self.catalog_path = Path(catalog_path) if catalog_path else None
@@ -40,23 +64,31 @@ class DbtManifestParser:
         self.catalog = None
 
     @classmethod
-    def from_settings(cls, settings: OpenMetadataSettings) -> DbtManifestParser:
-        """Create parser from OpenMetadata-owned config."""
+    def from_settings(cls, settings: OpenMetadataSettings) -> "DbtManifestParser":
+        """Create parser from OpenMetadata-owned config.
+
+        Args:
+            settings: OpenMetadataSettings instance with configured paths.
+
+        Returns:
+            DbtManifestParser: Initialized parser using settings paths.
+
+        """
         return cls(
             manifest_path=settings.openmetadata_dbt_manifest_path,
             catalog_path=settings.openmetadata_dbt_catalog_path,
         )
 
     def load_manifest(self) -> dict[str, Any]:
-        """
-        Load and parse dbt manifest.json.
+        """Load and parse dbt manifest.json.
 
         Returns:
-            Parsed manifest dictionary
+            dict[str, Any]: Parsed manifest dictionary.
 
         Raises:
-            FileNotFoundError: If manifest file not found
-            json.JSONDecodeError: If manifest is invalid JSON
+            FileNotFoundError: If manifest file not found.
+            json.JSONDecodeError: If manifest is invalid JSON.
+
         """
         if not self.manifest_path.exists():
             raise FileNotFoundError(f"dbt manifest not found: {self.manifest_path}")
@@ -75,14 +107,14 @@ class DbtManifestParser:
             raise
 
     def load_catalog(self) -> dict[str, Any]:
-        """
-        Load and parse dbt catalog.json for column documentation.
+        """Load and parse dbt catalog.json for column documentation.
 
         Returns:
-            Parsed catalog dictionary, or empty dict if not found
+            dict[str, Any]: Parsed catalog dictionary, or empty dict if not found.
 
         Raises:
-            json.JSONDecodeError: If catalog is invalid JSON
+            json.JSONDecodeError: If catalog is invalid JSON.
+
         """
         if not self.catalog_path or not self.catalog_path.exists():
             logger.warning(
@@ -106,14 +138,14 @@ class DbtManifestParser:
             raise
 
     def get_models(self, manifest: Optional[dict[str, Any]] = None) -> dict[str, dict[str, Any]]:
-        """
-        Extract all models from manifest.
+        """Extract all models from manifest.
 
         Args:
-            manifest: Parsed manifest dict (uses loaded manifest if not provided)
+            manifest: Parsed manifest dict (uses loaded manifest if not provided).
 
         Returns:
-            Dictionary mapping model unique_id to model metadata
+            dict[str, dict[str, Any]]: Dictionary mapping model unique_id to model metadata.
+
         """
         if manifest is None:
             manifest = self.manifest or self.load_manifest()
@@ -132,16 +164,16 @@ class DbtManifestParser:
         schema_name: str,
         catalog: Optional[dict[str, Any]] = None,
     ) -> dict[str, dict[str, Any]]:
-        """
-        Get column information for a model from catalog.json.
+        """Get column information for a model from catalog.json.
 
         Args:
-            model_name: Model name
-            schema_name: Schema name
-            catalog: Parsed catalog dict (uses loaded catalog if not provided)
+            model_name: Model name.
+            schema_name: Schema name.
+            catalog: Parsed catalog dict (uses loaded catalog if not provided).
 
         Returns:
-            Dictionary mapping column name to column metadata
+            dict[str, dict[str, Any]]: Dictionary mapping column name to column metadata.
+
         """
         if catalog is None:
             catalog = self.catalog or self.load_catalog()
@@ -156,7 +188,8 @@ class DbtManifestParser:
                 columns: Catalog column payload.
 
             Returns:
-                Mapping of column name to column metadata.
+                dict[str, dict[str, Any]]: Mapping of column name to column metadata.
+
             """
             if isinstance(columns, dict):
                 return columns
@@ -196,15 +229,15 @@ class DbtManifestParser:
         model_unique_id: str,
         manifest: Optional[dict[str, Any]] = None,
     ) -> list[dict[str, Any]]:
-        """
-        Extract tests associated with a model.
+        """Extract tests associated with a model.
 
         Args:
-            model_unique_id: Model unique_id (e.g., model.project.table)
-            manifest: Parsed manifest dict
+            model_unique_id: Model unique_id (e.g., model.project.table).
+            manifest: Parsed manifest dict.
 
         Returns:
-            List of test metadata dicts
+            list[dict[str, Any]]: List of test metadata dicts.
+
         """
         if manifest is None:
             manifest = self.manifest or self.load_manifest()
@@ -223,16 +256,16 @@ class DbtManifestParser:
         schema_name: str,
         columns_info: Optional[dict[str, Any]] = None,
     ) -> OpenMetadataTable:
-        """
-        Convert dbt model metadata to OpenMetadataTable format.
+        """Convert dbt model metadata to OpenMetadataTable format.
 
         Args:
-            model: dbt model metadata
-            schema_name: Schema name
-            columns_info: Optional column info from catalog.json
+            model: dbt model metadata.
+            schema_name: Schema name.
+            columns_info: Optional column info from catalog.json.
 
         Returns:
-            OpenMetadataTable object
+            OpenMetadataTable: OpenMetadata table object.
+
         """
         name = model.get("name", "unknown")
         description = model.get("description")
@@ -282,16 +315,16 @@ class DbtManifestParser:
         schema_name: str,
         model_filter: Optional[list[str]] = None,
     ) -> dict[str, int]:
-        """
-        Sync dbt models to OpenMetadata.
+        """Sync dbt models to OpenMetadata.
 
         Args:
-            om_client: OpenMetadataClient instance
-            schema_name: Target OpenMetadata schema name
-            model_filter: Optional list of dbt model names to sync
+            om_client: OpenMetadataClient instance.
+            schema_name: Target OpenMetadata schema name.
+            model_filter: Optional list of dbt model names to sync.
 
         Returns:
-            Stats dict with created/failed counts
+            dict[str, int]: Stats dict with created/failed counts.
+
         """
         stats = {"created": 0, "failed": 0}
 

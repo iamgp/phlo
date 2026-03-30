@@ -4,6 +4,8 @@
 
 OpenMetadata is an open-source data catalog that provides a unified platform for data discovery, governance, and collaboration. This guide explains how to set up and use OpenMetadata with Phlo to enable self-service data discovery.
 
+**Version:** 1.9.7 (see `packages/phlo-openmetadata/src/phlo_openmetadata/service.yaml`)
+
 ## What is a Data Catalog?
 
 A data catalog is a searchable inventory of your data assets that helps users:
@@ -25,28 +27,18 @@ OpenMetadata integrates seamlessly with Phlo's tech stack:
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────┐
-│         OpenMetadata Server (UI)           │
-│         http://localhost:10020              │
-└─────────────┬───────────────────────────────┘
-              │
-       ┌──────┴──────┐
-       │             │
-┌──────▼──────┐ ┌───▼────────────┐
-│    MySQL    │ │ Elasticsearch  │
-│  (metadata) │ │   (search)     │
-└─────────────┘ └────────────────┘
-       │
-       │ Ingests metadata from:
-       │
-┌──────▼──────────────────────────────┐
-│  Trino → Iceberg Tables (Nessie)   │
-│  - bronze.entries_cleaned          │
-│  - silver.glucose_daily_stats      │
-│  - gold.dim_date                   │
-│  - marts.glucose_analytics_mart    │
-└────────────────────────────────────┘
+```mermaid
+flowchart TB
+    ui["OpenMetadata Server<br/>http://localhost:10020"]
+    mysql["MySQL<br/>(metadata)"]
+    elastic["Elasticsearch<br/>(search)"]
+    trino["Trino"]
+    iceberg["Iceberg Tables<br/>Nessie catalog<br/><br/>bronze.entries_cleaned<br/>silver.glucose_daily_stats<br/>gold.dim_date<br/>marts.glucose_analytics_mart"]
+
+    trino --> iceberg
+    iceberg -->|metadata ingestion| ui
+    ui --> mysql
+    ui --> elastic
 ```
 
 ## Quick Start
@@ -55,10 +47,10 @@ OpenMetadata integrates seamlessly with Phlo's tech stack:
 
 ```bash
 # Start the data catalog stack
-make up-catalog
+phlo services start --profile catalog
 
 # Check health status
-make health-catalog
+phlo services status --profile catalog
 ```
 
 **Expected output:**
@@ -79,7 +71,6 @@ Elasticsearch:
 
 ```bash
 # Open in browser
-make catalog
 # Or manually visit: http://localhost:10020
 ```
 
@@ -712,7 +703,7 @@ models:
 
 ```bash
 # Check service health
-make health-catalog
+phlo services status --profile catalog
 
 # Check logs
 docker logs openmetadata-server
@@ -856,10 +847,10 @@ openmetadata-elasticsearch:
 Ensure Trino is running:
 
 ```bash
-make health
+phlo services status
 
 # Start Trino if not running
-make up-query
+phlo services start --profile query
 ```
 
 Check connection from OpenMetadata container:
@@ -873,8 +864,8 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 1. Check logs in OpenMetadata UI → **Settings** → **Services** → **Ingestion Logs**
 2. Verify schemas exist in Trino:
    ```bash
-   make trino-shell
-   SHOW SCHEMAS FROM iceberg;
+    docker exec -it trino trino
+    SHOW SCHEMAS FROM iceberg;
    ```
 
 ### Tables Not Appearing After Ingestion

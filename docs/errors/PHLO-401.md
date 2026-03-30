@@ -1,8 +1,8 @@
 # PHLO-401: Iceberg Table Error
 
-**Error Type:** Iceberg Error
+**Error Type:** Iceberg Table Error
 **Severity:** High
-**Exception Class:** `PhloError` (code `PHLO-401`)
+**Exception Class:** `PhloError`
 
 ## Description
 

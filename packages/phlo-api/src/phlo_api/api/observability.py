@@ -1,6 +1,43 @@
 """Observability API Router.
 
 Endpoints for platform observability backed by the observability backend capability.
+
+This module provides a unified interface to query platform health, service status,
+metrics, alerts, and dashboard links from various observability backends like
+Prometheus, Grafana, and the ClickHouse-based observability stack.
+
+Key Endpoints:
+    GET /health: Get overall platform health summary.
+    GET /services: Get status of all services.
+    GET /metrics: Get platform metrics for a time period.
+    GET /alerts: Get recent alerts.
+    GET /dashboards: Get links to monitoring dashboards.
+    GET /links/logs: Get log query link.
+    GET /links/metrics: Get metrics query link.
+
+Environment Variables:
+    PHLO_OBSERVABILITY_BACKEND: Name of the observability backend to use.
+
+Example:
+    Checking platform health:
+
+    .. code-block:: bash
+
+        curl http://localhost:4000/api/observability/health
+
+    Response:
+
+    .. code-block:: json
+
+        {
+            "overall_status": "healthy",
+            "components": {
+                "trino": "healthy",
+                "dagster": "healthy"
+            },
+            "timestamp": "2024-01-15T10:30:00"
+        }
+
 """
 
 from __future__ import annotations
@@ -97,8 +134,18 @@ class DashboardLinkResponse(BaseModel):
 def get_health_summary(
     backend: str | None = Query(default=None, description="Observability backend name"),
 ) -> HealthSummaryResponse | dict[str, str]:
-    """Get platform health summary from observability backend."""
+    """Get platform health summary from observability backend.
 
+    Args:
+        backend: Optional observability backend name override.
+
+    Returns:
+        HealthSummaryResponse with overall status and component health, or error dict.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         provider = _resolve_observability_backend(backend)
         health = provider.health_summary()
@@ -116,8 +163,18 @@ def get_health_summary(
 def get_service_status(
     backend: str | None = Query(default=None, description="Observability backend name"),
 ) -> list[ServiceStatusResponse] | dict[str, str]:
-    """Get service status list from observability backend."""
+    """Get service status list from observability backend.
 
+    Args:
+        backend: Optional observability backend name override.
+
+    Returns:
+        List of ServiceStatusResponse objects, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         provider = _resolve_observability_backend(backend)
         services = provider.service_status()
@@ -139,8 +196,19 @@ def get_platform_metrics(
     period: str = Query(default="24h"),
     backend: str | None = Query(default=None, description="Observability backend name"),
 ) -> PlatformMetricsResponse | dict[str, str]:
-    """Get platform metrics from observability backend."""
+    """Get platform metrics from observability backend.
 
+    Args:
+        period: Time period for metrics (default: "24h").
+        backend: Optional observability backend name override.
+
+    Returns:
+        PlatformMetricsResponse with metrics data, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         provider = _resolve_observability_backend(backend)
         metrics = provider.platform_metrics(period)
@@ -159,8 +227,19 @@ def get_recent_alerts(
     limit: int = Query(default=10, le=100),
     backend: str | None = Query(default=None, description="Observability backend name"),
 ) -> list[AlertResponse] | dict[str, str]:
-    """Get recent alerts from observability backend."""
+    """Get recent alerts from observability backend.
 
+    Args:
+        limit: Maximum number of alerts to return (default: 10, max: 100).
+        backend: Optional observability backend name override.
+
+    Returns:
+        List of AlertResponse objects, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         provider = _resolve_observability_backend(backend)
         alerts = provider.recent_alerts(limit)
@@ -182,8 +261,18 @@ def get_recent_alerts(
 def get_dashboard_links(
     backend: str | None = Query(default=None, description="Observability backend name"),
 ) -> list[DashboardLinkResponse] | dict[str, str]:
-    """Get dashboard links from observability backend."""
+    """Get dashboard links from observability backend.
 
+    Args:
+        backend: Optional observability backend name override.
+
+    Returns:
+        List of DashboardLinkResponse objects, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         provider = _resolve_observability_backend(backend)
         links = provider.dashboard_links()
@@ -205,8 +294,19 @@ def get_logs_query_link(
     service: str | None = None,
     backend: str | None = Query(default=None, description="Observability backend name"),
 ) -> dict[str, str | None]:
-    """Get log query link from observability backend."""
+    """Get log query link from observability backend.
 
+    Args:
+        service: Optional service name to include in the query.
+        backend: Optional observability backend name override.
+
+    Returns:
+        Dictionary with "url" key containing the query link, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         provider = _resolve_observability_backend(backend)
         link = provider.logs_query_link(service)
@@ -221,8 +321,19 @@ def get_metrics_query_link(
     metric: str | None = None,
     backend: str | None = Query(default=None, description="Observability backend name"),
 ) -> dict[str, str | None]:
-    """Get metrics query link from observability backend."""
+    """Get metrics query link from observability backend.
 
+    Args:
+        metric: Optional metric name to include in the query.
+        backend: Optional observability backend name override.
+
+    Returns:
+        Dictionary with "url" key containing the query link, or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
     try:
         provider = _resolve_observability_backend(backend)
         link = provider.metrics_query_link(metric)

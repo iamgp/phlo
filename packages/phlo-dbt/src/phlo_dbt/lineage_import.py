@@ -1,4 +1,19 @@
-"""Helpers for importing dbt manifest lineage into configured Phlo sinks."""
+"""Helpers for importing dbt manifest lineage into configured Phlo sinks.
+
+This module provides utilities for extracting lineage information from dbt
+manifest files and importing it into Phlo's lineage tracking system. It handles
+both asset-level lineage (dependencies between models) and column-level lineage
+(where available).
+
+Example:
+    >>> from phlo_dbt.lineage_import import import_manifest_lineage
+    >>> from pathlib import Path
+    >>>
+    >>> summary = import_manifest_lineage(Path("target/manifest.json"))
+    >>> print(f"Imported {summary['asset_edges']} asset edges")
+    >>> print(f"Imported {summary['column_mappings']} column mappings")
+
+"""
 
 from __future__ import annotations
 
@@ -155,7 +170,35 @@ def _get_manifest_columns(node: Mapping[str, Any]) -> set[str]:
 
 
 def import_manifest_lineage(manifest_path: Path) -> dict[str, int]:
-    """Import asset lineage and best-effort column lineage from a dbt manifest."""
+    """Import asset lineage and best-effort column lineage from a dbt manifest.
+
+    Loads a dbt manifest.json file and imports lineage information into the
+    configured Phlo lineage sink. This includes:
+    - Asset-level dependencies (edges between models)
+    - Column-level lineage using same-name heuristics
+
+    Requires a lineage sink capability to be available (e.g., phlo-lineage package).
+
+    Args:
+        manifest_path: Path to the dbt manifest.json file to import.
+
+    Returns:
+        Summary dictionary with counts:
+            - asset_edges: Number of asset dependency edges imported
+            - column_mappings: Number of column-level lineage mappings imported
+
+    Example:
+        >>> from pathlib import Path
+        >>> from phlo_dbt.lineage_import import import_manifest_lineage
+        >>>
+        >>> summary = import_manifest_lineage(Path("target/manifest.json"))
+        >>> print(f"Assets: {summary['asset_edges']}")
+        >>> print(f"Columns: {summary['column_mappings']}")
+        >>>
+        >>> # Typically called after dbt run
+        >>> # Can be integrated into CI/CD or post-run hooks
+
+    """
     manifest = load_dbt_manifest(manifest_path)
     if manifest is None:
         return {"asset_edges": 0, "column_mappings": 0}

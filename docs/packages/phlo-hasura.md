@@ -42,7 +42,7 @@ Part of the `api` profile.
 hooks:
   post_start:
     - name: track-tables
-      command: python -m phlo_hasura.hooks track-tables api
+      command: python -m phlo_hasura.hooks track-tables auto
 ```
 
 ## Usage
