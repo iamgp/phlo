@@ -271,7 +271,7 @@ docker exec -it dagster-webserver bash
 pip install -e /app
 
 # Or set PYTHONPATH
-export PYTHONPATH=/Users/garethprice/Developer/phlo/src:$PYTHONPATH
+export PYTHONPATH=/path/to/phlo/src:$PYTHONPATH
 ```
 
 ---
