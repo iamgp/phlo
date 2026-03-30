@@ -1,0 +1,693 @@
+# start (/docs/python-reference/core/phlo/cli/commands/services/start)
+
+
+
+Start command for starting services.
+
+<PyAttribute name="&#x22;logger&#x22;" type="null" value="&#x22;get_logger(__name__)&#x22;" />
+
+<Tabs items="[&#x22;Functions&#x22;]">
+  <Tab value="&#x22;Functions&#x22;">
+    <PyFunction name="&#x22;_load_native_env_overrides&#x22;" type="&#x22;(project_root) -> dict[str, str]&#x22;">
+      Load project env values for native service subprocesses.
+
+      <PySourceCode>
+        ```python
+        def _load_native_env_overrides(project_root: Path) -> dict[str, str]:
+            """Load project env values for native service subprocesses."""
+            env_values: dict[str, str] = {}
+            for path in (project_root / ".phlo" / ".env", project_root / ".phlo" / ".env.local"):
+                if not path.exists():
+                    continue
+                try:
+                    lines = path.read_text().splitlines()
+                except OSError:
+                    logger.warning("services_start_env_file_read_failed", env_file=str(path), exc_info=True)
+                    continue
+                for line in lines:
+                    stripped = line.strip()
+                    if not stripped or stripped.startswith("#") or "=" not in stripped:
+                        continue
+                    key, value = stripped.split("=", 1)
+                    value = value.strip()
+                    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                        value = value[1:-1]
+                    env_values[key.strip()] = value
+            return env_values
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;project_root&#x22;" type="&#x22;Path&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;dict[str, str]&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_validate_requested_profiles&#x22;" type="&#x22;(profile_names) -> tuple[str, ...]&#x22;">
+      Normalize and validate requested profile names.
+
+      <PySourceCode>
+        ```python
+        def _validate_requested_profiles(profile_names: tuple[str, ...]) -> tuple[str, ...]:
+            """Normalize and validate requested profile names."""
+            requested_profiles = tuple(
+                dict.fromkeys(name.strip() for name in profile_names if name.strip())
+            )
+            if not requested_profiles:
+                return ()
+
+            available_profiles = ServiceDiscovery().get_available_profiles()
+            unknown_profiles = sorted(set(requested_profiles) - available_profiles)
+            if unknown_profiles:
+                invalid_label = "profile" if len(unknown_profiles) == 1 else "profiles"
+                raise click.ClickException(
+                    f"Invalid {invalid_label}: {', '.join(unknown_profiles)}. "
+                    f"Valid profile options: {', '.join(sorted(available_profiles)) or '(none)'}"
+                )
+
+            return requested_profiles
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;profile_names&#x22;" type="&#x22;tuple[str, ...]&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;tuple[str, ...]&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_load_disabled_service_names&#x22;" type="&#x22;(project_root) -> set[str]&#x22;">
+      Load disabled service names from project config, tolerating missing/bad files.
+
+      <PySourceCode>
+        ```python
+        def _load_disabled_service_names(project_root: Path) -> set[str]:
+            """Load disabled service names from project config, tolerating missing/bad files."""
+            config_file = project_root / "phlo.yaml"
+            if not config_file.exists():
+                return set()
+
+            try:
+                config = yaml.safe_load(config_file.read_text()) or {}
+            except (OSError, yaml.YAMLError):
+                logger.warning(
+                    "services_start_config_read_failed",
+                    config_file=str(config_file),
+                    exc_info=True,
+                )
+                return set()
+
+            _, disabled_names = get_enabled_disabled_service_names(
+                config if isinstance(config, dict) else {}
+            )
+            return disabled_names
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;project_root&#x22;" type="&#x22;Path&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;set[str]&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_expand_requested_services&#x22;" type="&#x22;(discovery, service_names) -> list[ServiceDefinition]&#x22;">
+      Expand explicit service targets with dependencies and setup companions.
+
+      <PySourceCode>
+        ```python
+        def _expand_requested_services(
+            discovery: ServiceDiscovery,
+            service_names: list[str],
+        ) -> list[ServiceDefinition]:
+            """Expand explicit service targets with dependencies and setup companions."""
+            if not service_names:
+                return []
+
+            all_services = discovery.discover()
+            unknown_services = [name for name in service_names if name not in all_services]
+            if unknown_services:
+                raise click.ClickException(f"Unknown service name(s): {', '.join(unknown_services)}")
+
+            requested = [all_services[name] for name in service_names]
+
+            selected: dict[str, ServiceDefinition] = {service.name: service for service in requested}
+            queue = list(requested)
+            while queue:
+                service = queue.pop(0)
+                for dependency_name in service.depends_on:
+                    dependency = all_services.get(dependency_name)
+                    if dependency and dependency.name not in selected:
+                        selected[dependency.name] = dependency
+                        queue.append(dependency)
+
+            bootstrap_companions = [
+                service
+                for service in all_services.values()
+                if service.name.endswith("-setup")
+                and service.depends_on
+                and all(dependency in selected for dependency in service.depends_on)
+            ]
+            for companion in bootstrap_companions:
+                selected.setdefault(companion.name, companion)
+
+            return discovery.resolve_dependencies(list(selected.values()))
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;discovery&#x22;" type="&#x22;ServiceDiscovery&#x22;" value="null" />
+
+        <PyParameter name="&#x22;service_names&#x22;" type="&#x22;list[str]&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;phlo.cli.commands.services.list[phlo.plugins.discovery.ServiceDefinition]&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;start_cmd&#x22;" type="&#x22;(detach, build, profile, service, native)&#x22;">
+      Start Phlo infrastructure services.
+
+      <PySourceCode>
+        ```python
+        @click.command("start")
+        @click.option(
+            "-d",
+            "--detach/--no-detach",
+            default=True,
+            help="Run in background",
+        )
+        @click.option("--build", is_flag=True, help="Build images before starting")
+        @click.option(
+            "--profile",
+            multiple=True,
+            help="Enable optional profiles (e.g., observability, api)",
+        )
+        @click.option(
+            "--service",
+            multiple=True,
+            help="Start only specific service(s) (e.g., --service postgres,minio or --service postgres --service minio)",
+        )
+        @click.option(
+            "--native",
+            is_flag=True,
+            help="Run services with a native dev command as subprocesses (e.g., phlo-api, Observatory)",
+        )
+        def start_cmd(
+            detach: bool,
+            build: bool,
+            profile: tuple[str, ...],
+            service: tuple[str, ...],
+            native: bool,
+        ):
+            """Start Phlo infrastructure services.
+
+            Examples:
+                phlo services start
+                phlo services start --build
+                phlo services start --profile observability
+                phlo services start --service postgres
+                phlo services start --native  # Run Observatory/phlo-api as subprocesses
+            """
+            phlo_dir = ensure_phlo_dir()
+            compose_file = phlo_dir / "docker-compose.yml"
+            project_name = get_project_name()
+            lifecycle_request_id = uuid4().hex
+            logger.info(
+                "services_start_requested",
+                project_name=project_name,
+                detach=detach,
+                build=build,
+                native=native,
+                profile_count=len(profile),
+                service_args_count=len(service),
+            )
+
+            if not compose_file.exists():
+                logger.error(
+                    "services_start_missing_compose_file",
+                    project_name=project_name,
+                    compose_file=str(compose_file),
+                )
+                raise click.ClickException("docker-compose.yml not found. Run 'phlo services init' first.")
+
+            profile = _validate_requested_profiles(profile)
+
+            # Parse comma-separated services
+            services_list = []
+            for s in service:
+                services_list.extend(s.split(","))
+            services_list = [s.strip() for s in services_list if s.strip()]
+
+            # When --profile is specified without --service, target only profile services
+            # This prevents restarting already-running core services
+            if profile and not services_list:
+                disabled_names = _load_disabled_service_names(Path.cwd())
+                services_list = [
+                    name for name in get_profile_service_names(profile) if name not in disabled_names
+                ]
+                if not services_list:
+                    profile_list = ", ".join(profile)
+                    logger.warning(
+                        "services_start_profile_resolved_empty",
+                        project_name=project_name,
+                        profiles=profile_list,
+                    )
+                    raise click.UsageError(f"profile(s) resolve to no services: {profile_list}")
+            logger.info(
+                "services_start_targets_resolved",
+                project_name=project_name,
+                service_count=len(services_list),
+                service_names=services_list,
+            )
+
+            if services_list:
+                click.echo(f"Starting services: {', '.join(services_list)}...")
+            elif native:
+                click.echo(f"Starting {project_name} infrastructure (native dev services enabled)...")
+            else:
+                click.echo(f"Starting {project_name} infrastructure...")
+
+            discovery = ServiceDiscovery()
+            resolved_services: list[ServiceDefinition] = []
+            if services_list:
+                try:
+                    resolved_services = _expand_requested_services(discovery, services_list)
+                except ValueError as exc:
+                    logger.warning(
+                        "services_start_dependency_resolution_failed",
+                        project_name=project_name,
+                        service_names=services_list,
+                        error=str(exc),
+                    )
+                    raise click.ClickException(str(exc)) from exc
+
+            # If native dev services are enabled, start Docker services excluding native ones,
+            # then start native processes for the excluded services.
+            native_service_names: set[str] = set()
+            if native:
+                from phlo.plugins.compose.native import NativeProcessManager
+
+                project_root = Path.cwd()
+                dev_manager = NativeProcessManager(
+                    project_root, log_dir=project_root / ".phlo" / "native-logs"
+                )
+
+                for _, svc in discovery.discover().items():
+                    if dev_manager.can_run_dev(svc):
+                        native_service_names.add(svc.name)
+                logger.info(
+                    "services_start_native_capabilities_resolved",
+                    project_name=project_name,
+                    native_capable_count=len(native_service_names),
+                )
+
+                if not native_service_names:
+                    logger.warning(
+                        "services_start_native_unavailable",
+                        project_name=project_name,
+                    )
+                    click.echo("Warning: No services support native mode; starting Docker only.", err=True)
+                    native = False
+
+            docker_services_list = (
+                [service.name for service in resolved_services] if resolved_services else services_list
+            )
+            if native and not docker_services_list and not profile:
+                try:
+                    compose_config = yaml.safe_load(compose_file.read_text()) or {}
+                except OSError as e:
+                    logger.error(
+                        "services_start_compose_read_failed",
+                        project_name=project_name,
+                        compose_file=str(compose_file),
+                        exc_info=True,
+                    )
+                    raise click.ClickException(f"Failed to read {compose_file}: {e}") from e
+                except yaml.YAMLError as e:
+                    logger.error(
+                        "services_start_compose_parse_failed",
+                        project_name=project_name,
+                        compose_file=str(compose_file),
+                        exc_info=True,
+                    )
+                    raise click.ClickException(f"Failed to parse {compose_file}: {e}") from e
+                compose_service_names = list((compose_config.get("services") or {}).keys())
+                docker_services_list = [n for n in compose_service_names if n not in native_service_names]
+
+            if native and docker_services_list:
+                docker_services_list = [n for n in docker_services_list if n not in native_service_names]
+
+            if native and resolved_services:
+                required_docker_services = [
+                    service.name
+                    for service in resolved_services
+                    if service.name not in native_service_names
+                ]
+                docker_services_list = required_docker_services
+
+            # If the user explicitly requested services and all of them are native-capable,
+            # avoid running `docker compose up` with no service args (which would start the entire stack).
+            skip_docker_compose = bool(native and services_list and not docker_services_list)
+            logger.info(
+                "services_start_execution_mode_resolved",
+                project_name=project_name,
+                skip_docker_compose=skip_docker_compose,
+                docker_service_count=len(docker_services_list),
+                docker_service_names=docker_services_list,
+                native=native,
+            )
+
+            docker_service_names: list[str] = []
+            if not skip_docker_compose:
+                if docker_services_list:
+                    docker_service_names = docker_services_list
+                else:
+                    try:
+                        compose_config = yaml.safe_load(compose_file.read_text()) or {}
+                    except (OSError, yaml.YAMLError):
+                        compose_config = {}
+                    docker_service_names = list((compose_config.get("services") or {}).keys())
+                _emit_service_lifecycle_events(
+                    "pre_start",
+                    docker_service_names,
+                    project_name=project_name,
+                    project_root=Path.cwd(),
+                    request_id=lifecycle_request_id,
+                    metadata={"native": False},
+                )
+
+            if not skip_docker_compose:
+                require_docker()
+            elif build:
+                logger.warning(
+                    "services_start_build_ignored_native_only",
+                    project_name=project_name,
+                )
+                click.echo("Warning: --build ignored when starting native-only services.", err=True)
+
+            def _stop_docker_services(service_names: set[str]) -> None:
+                if not service_names:
+                    return
+                stop_cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
+                stop_cmd.append("stop")
+                stop_cmd.extend(sorted(service_names))
+                run_command(stop_cmd, check=False, capture_output=False)
+
+            cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
+            cmd.append("up")
+
+            if detach:
+                cmd.append("-d")
+
+            if build:
+                cmd.append("--build")
+
+            # Add specific services if specified
+            if docker_services_list:
+                cmd.extend(docker_services_list)
+            if not skip_docker_compose:
+                logger.info(
+                    "services_start_docker_started",
+                    project_name=project_name,
+                    detach=detach,
+                    build=build,
+                    service_count=len(docker_services_list),
+                    service_names=docker_services_list,
+                )
+
+            try:
+                if skip_docker_compose:
+                    # Skip docker-compose - create a successful result
+                    result = subprocess.CompletedProcess(args=[], returncode=0)
+                else:
+                    result = run_command(cmd, check=False, capture_output=False)
+                    if result.returncode != 0:
+                        logger.error(
+                            "services_start_docker_failed",
+                            project_name=project_name,
+                            returncode=result.returncode,
+                            service_count=len(docker_service_names),
+                            service_names=docker_service_names,
+                        )
+                    else:
+                        logger.info(
+                            "services_start_docker_completed",
+                            project_name=project_name,
+                            service_count=len(docker_service_names),
+                            service_names=docker_service_names,
+                        )
+
+                if result.returncode == 0:
+                    if native:
+                        from phlo.plugins.compose.native import NativeProcessManager
+
+                        discovery = ServiceDiscovery()
+                        project_root = Path.cwd()
+                        dev_manager = NativeProcessManager(
+                            project_root, log_dir=project_root / ".phlo" / "native-logs"
+                        )
+
+                        available = {
+                            svc.name: svc
+                            for svc in discovery.discover().values()
+                            if dev_manager.can_run_dev(svc)
+                        }
+
+                        if services_list:
+                            requested = [available[n] for n in services_list if n in available]
+                            expanded: dict[str, ServiceDefinition] = {svc.name: svc for svc in requested}
+                            queue = list(requested)
+                            while queue:
+                                svc = queue.pop(0)
+                                for dep_name in svc.depends_on:
+                                    dep = available.get(dep_name)
+                                    if dep and dep.name not in expanded:
+                                        expanded[dep.name] = dep
+                                        queue.append(dep)
+                            try:
+                                native_to_start = discovery.resolve_dependencies(list(expanded.values()))
+                            except ValueError as exc:
+                                logger.warning(
+                                    "services_start_native_dependency_resolution_failed",
+                                    project_name=project_name,
+                                    service_names=[svc.name for svc in expanded.values()],
+                                    error=str(exc),
+                                )
+                                raise click.ClickException(str(exc)) from exc
+                        else:
+                            native_to_start = [available[n] for n in sorted(available)]
+                        logger.info(
+                            "services_start_native_targets_resolved",
+                            project_name=project_name,
+                            service_count=len(native_to_start),
+                            service_names=[svc.name for svc in native_to_start],
+                        )
+
+                        # Avoid port collisions by ensuring any previously-started Docker containers for the
+                        # target native services are stopped before launching subprocesses.
+                        if not skip_docker_compose and native_to_start:
+                            _stop_docker_services({svc.name for svc in native_to_start})
+
+                        # Avoid port collisions by stopping previously-started native processes for the
+                        # target services (do not stop unrelated native services).
+                        _stop_native_processes(project_root, [svc.name for svc in native_to_start])
+
+                        click.echo("")
+                        if native_to_start:
+                            click.echo(
+                                f"Starting native services: {', '.join(s.name for s in native_to_start)}..."
+                            )
+                        else:
+                            click.echo("No native services to start.")
+
+                        async def start_native_services():
+                            """Start selected native services and collect runtime state.
+
+                            Returns:
+                                Mapping of started service names to persisted process metadata.
+                            """
+                            started: dict[str, dict] = {}
+                            env_overrides = {
+                                **_load_native_env_overrides(project_root),
+                                "PHLO_PROJECT_PATH": str(project_root),
+                                "ENV_FILE_PATH": str(project_root / ".phlo" / ".env"),
+                            }
+                            for svc in native_to_start:
+                                _emit_service_lifecycle_events(
+                                    "pre_start",
+                                    [svc.name],
+                                    project_name=project_name,
+                                    project_root=project_root,
+                                    request_id=lifecycle_request_id,
+                                    metadata={"native": True},
+                                )
+                                click.echo(f"  Starting {svc.name}...")
+                                process = await dev_manager.start_service(svc, env_overrides=env_overrides)
+                                if process:
+                                    click.echo(f"    ✓ {svc.name} started (pid {process.pid})")
+                                    started[svc.name] = {
+                                        "pid": process.pid,
+                                        "started_at": time.time(),
+                                        "log": str(
+                                            project_root / ".phlo" / "native-logs" / f"{svc.name}.log"
+                                        ),
+                                    }
+                                    _emit_service_lifecycle_events(
+                                        "post_start",
+                                        [svc.name],
+                                        project_name=project_name,
+                                        project_root=project_root,
+                                        request_id=lifecycle_request_id,
+                                        status="success",
+                                        metadata={"native": True, "pid": process.pid},
+                                    )
+                                else:
+                                    click.echo(f"    ✗ {svc.name} failed to start", err=True)
+                                    _emit_service_lifecycle_events(
+                                        "post_start",
+                                        [svc.name],
+                                        project_name=project_name,
+                                        project_root=project_root,
+                                        request_id=lifecycle_request_id,
+                                        status="failure",
+                                        metadata={"native": True},
+                                    )
+                            return started
+
+                        started = asyncio.run(start_native_services())
+                        logger.info(
+                            "services_start_native_completed",
+                            project_name=project_name,
+                            requested_count=len(native_to_start),
+                            started_count=len(started),
+                            failed_count=max(len(native_to_start) - len(started), 0),
+                            service_names=[svc.name for svc in native_to_start],
+                        )
+                        if started:
+                            state = _load_native_state(project_root)
+                            state.update(started)
+                            _save_native_state(project_root, state)
+
+                        if skip_docker_compose:
+                            click.echo("")
+                            if native_to_start:
+                                click.echo(
+                                    f"Native services started: {', '.join(s.name for s in native_to_start)}"
+                                )
+                            else:
+                                click.echo("No native services started.")
+
+                            if detach or not native_to_start:
+                                return
+
+                            def _stop_and_exit(_signum=None, _frame=None) -> None:
+                                """Stop native services for this invocation and exit cleanly."""
+                                click.echo("\nStopping native services...")
+                                _stop_native_processes(project_root, [svc.name for svc in native_to_start])
+                                raise SystemExit(0)
+
+                            old_sigterm = signal.signal(signal.SIGTERM, _stop_and_exit)
+                            try:
+                                click.echo("Press Ctrl+C to stop native services...")
+                                while True:
+                                    time.sleep(1)
+                            except KeyboardInterrupt:
+                                _stop_and_exit()
+                            finally:
+                                signal.signal(signal.SIGTERM, old_sigterm)
+                            return
+
+                    started_services: list[str] = []
+                    if not skip_docker_compose:
+                        try:
+                            compose_config = yaml.safe_load(compose_file.read_text()) or {}
+                        except (OSError, yaml.YAMLError):
+                            compose_config = {}
+                        compose_service_names = list((compose_config.get("services") or {}).keys())
+                        if docker_services_list:
+                            started_services = [
+                                name for name in docker_services_list if name in compose_service_names
+                            ]
+                        else:
+                            started_services = compose_service_names
+
+                    _emit_service_lifecycle_events(
+                        "post_start",
+                        started_services,
+                        project_name=project_name,
+                        project_root=Path.cwd(),
+                        request_id=lifecycle_request_id,
+                        status="success",
+                        metadata={"native": False},
+                    )
+                    _run_service_hooks(
+                        "post_start",
+                        started_services,
+                        project_name=project_name,
+                        project_root=Path.cwd(),
+                    )
+
+                    click.echo("")
+                    click.echo("Phlo infrastructure started.")
+                    if started_services:
+                        click.echo(f"Services running: {', '.join(sorted(started_services))}")
+                    logger.info(
+                        "services_start_completed",
+                        project_name=project_name,
+                        started_count=len(started_services),
+                        started_services=sorted(started_services),
+                        native=native,
+                    )
+                else:
+                    _emit_service_lifecycle_events(
+                        "post_start",
+                        docker_service_names,
+                        project_name=project_name,
+                        project_root=Path.cwd(),
+                        request_id=lifecycle_request_id,
+                        status="failure",
+                        metadata={"native": False, "returncode": result.returncode},
+                    )
+                    logger.error(
+                        "services_start_failed",
+                        project_name=project_name,
+                        returncode=result.returncode,
+                        service_count=len(docker_service_names),
+                        service_names=docker_service_names,
+                    )
+                    raise click.ClickException(
+                        f"docker compose failed (exit {result.returncode}): {' '.join(cmd)}"
+                    )
+            except FileNotFoundError:
+                logger.error("services_start_docker_not_found", project_name=project_name, exc_info=True)
+                raise click.ClickException(
+                    "docker command not found. Install Docker: https://docs.docker.com/get-docker/"
+                ) from None
+            except (subprocess.SubprocessError, OSError) as exc:
+                logger.error(
+                    "services_start_unexpected_error",
+                    project_name=project_name,
+                    error_type=type(exc).__name__,
+                    exc_info=True,
+                )
+                raise click.ClickException(f"docker compose failed unexpectedly: {exc}") from exc
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;detach&#x22;" type="&#x22;bool&#x22;" value="null" />
+
+        <PyParameter name="&#x22;build&#x22;" type="&#x22;bool&#x22;" value="null" />
+
+        <PyParameter name="&#x22;profile&#x22;" type="&#x22;tuple[str, ...]&#x22;" value="null" />
+
+        <PyParameter name="&#x22;service&#x22;" type="&#x22;tuple[str, ...]&#x22;" value="null" />
+
+        <PyParameter name="&#x22;native&#x22;" type="&#x22;bool&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="null" />
+    </PyFunction>
+  </Tab>
+</Tabs>

@@ -1,0 +1,713 @@
+# contributing (/docs/python-reference/packages/phlo-api/phlo_api/observatory_api/contributing)
+
+
+
+Contributing rows API router.
+
+Moves row-provenance query construction and execution behind phlo-api so
+Observatory does not talk to Trino directly for this flow.
+
+This module provides endpoints for tracing data lineage at the row level,
+enabling users to identify upstream rows that contributed to downstream
+aggregated or transformed records.
+
+Key Endpoints:
+POST /query: Generate SQL query for contributing rows.
+POST /page: Execute query and return paginated results.
+
+Example:
+Finding contributing rows:
+
+.. code-block:: bash
+
+curl -X POST [http://localhost:4000/api/contributing/query](http://localhost:4000/api/contributing/query)           -H "Content-Type: application/json"           -d '\{
+"downstream\_asset\_key": "marts/fct\_daily\_metrics",
+"upstream\_asset\_key": "bronze/raw\_events",
+"row\_data": \{"date": "2024-01-15"}
+}'
+
+<PyAttribute name="&#x22;router&#x22;" type="null" value="&#x22;APIRouter(tags=['contributing'])&#x22;" />
+
+<PyAttribute name="&#x22;DEFAULT_PAGE_SIZE&#x22;" type="null" value="&#x22;50&#x22;" />
+
+<PyAttribute name="&#x22;MAX_PAGE_SIZE&#x22;" type="null" value="&#x22;200&#x22;" />
+
+<PyAttribute name="&#x22;MAX_PAGE&#x22;" type="null" value="&#x22;200&#x22;" />
+
+<PyAttribute name="&#x22;DEFAULT_SAMPLE_SEED&#x22;" type="null" value="&#x22;'phlo'&#x22;" />
+
+<PyAttribute name="&#x22;Primitive&#x22;" type="null" value="&#x22;str | int | float | bool | None&#x22;" />
+
+<PyAttribute name="&#x22;ContributingRowsMode&#x22;" type="null" value="&#x22;Literal['entity', 'aggregate']&#x22;" />
+
+<PyAttribute name="&#x22;EXPLICIT_COLUMN_MAPPINGS&#x22;" type="&#x22;dict[str, dict[str, dict[str, str]]]&#x22;" value="&#x22;{'fct_daily_github_metrics': {'fct_github_events': {'activity_date': 'event_date', '_phlo_partition_date': '_phlo_partition_date'}}, 'fct_repository_languages': {'fct_repository_stats': {'primary_language': 'language_category', '_phlo_partition_date': '_phlo_partition_date'}}, 'mrt_github_activity_overview': {'fct_daily_github_metrics': {'activity_date': 'activity_date', '_phlo_partition_date': '_phlo_partition_date'}}, 'mrt_language_distribution': {'fct_repository_languages': {'primary_language': 'primary_language', '_phlo_partition_date': '_phlo_partition_date'}}, 'mrt_contribution_patterns': {'fct_github_events': {'hour_of_day': 'hour_of_day', 'day_of_week': 'day_of_week', '_phlo_partition_date': '_phlo_partition_date'}}}&#x22;" />
+
+<Tabs items="[&#x22;Class&#x22;,&#x22;Functions&#x22;]">
+  <Tab value="&#x22;Class&#x22;">
+    <Cards>
+      <Card title="&#x22;ResolveTableResult&#x22;" href="&#x22;/docs/python-reference/packages/phlo-api/phlo_api/observatory_api/contributing/ResolveTableResult&#x22;" />
+
+      <Card title="&#x22;UpstreamTableRef&#x22;" href="&#x22;/docs/python-reference/packages/phlo-api/phlo_api/observatory_api/contributing/UpstreamTableRef&#x22;" />
+
+      <Card title="&#x22;ContributingRowsQueryRequest&#x22;" href="&#x22;/docs/python-reference/packages/phlo-api/phlo_api/observatory_api/contributing/ContributingRowsQueryRequest&#x22;" />
+
+      <Card title="&#x22;ContributingRowsQueryResponse&#x22;" href="&#x22;/docs/python-reference/packages/phlo-api/phlo_api/observatory_api/contributing/ContributingRowsQueryResponse&#x22;" />
+
+      <Card title="&#x22;ContributingRowsPageRequest&#x22;" href="&#x22;/docs/python-reference/packages/phlo-api/phlo_api/observatory_api/contributing/ContributingRowsPageRequest&#x22;" />
+
+      <Card title="&#x22;ContributingRowsPageResponse&#x22;" href="&#x22;/docs/python-reference/packages/phlo-api/phlo_api/observatory_api/contributing/ContributingRowsPageResponse&#x22;" />
+    </Cards>
+  </Tab>
+
+  <Tab value="&#x22;Functions&#x22;">
+    <PyFunction name="&#x22;escape_sql_string&#x22;" type="&#x22;(value) -> str&#x22;">
+      Escape a string for inclusion in SQL literals.
+
+      <PySourceCode>
+        ```python
+        def escape_sql_string(value: str) -> str:
+            """Escape a string for inclusion in SQL literals."""
+            return value.replace("'", "''")
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;value&#x22;" type="&#x22;str&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;str&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;to_sql_equality&#x22;" type="&#x22;(column_name, column_type, value) -> str | None&#x22;">
+      Build a safe equality predicate for a typed Trino column.
+
+      <PySourceCode>
+        ```python
+        def to_sql_equality(column_name: str, column_type: str, value: Primitive) -> str | None:
+            """Build a safe equality predicate for a typed Trino column."""
+            if value is None:
+                return None
+
+            normalized_type = column_type.lower()
+
+            if normalized_type.startswith("timestamp") or normalized_type.startswith("time"):
+                raw = str(value)
+                normalized = raw
+                if "." in raw:
+                    head, tail = raw.split(".", 1)
+                    normalized = f"{head}.{tail[:6].ljust(6, '0')}"
+                if len(normalized) == 19 and normalized[4] == "-" and normalized[10] == " ":
+                    normalized = f"{normalized}.000000"
+                return (
+                    f"cast({quote_identifier(column_name)} as varchar) = '{escape_sql_string(normalized)}'"
+                )
+
+            if normalized_type.startswith("varchar") or normalized_type == "varbinary":
+                return f"{quote_identifier(column_name)} = '{escape_sql_string(str(value))}'"
+
+            if normalized_type.startswith(
+                ("bigint", "integer", "smallint", "tinyint", "double", "real", "decimal")
+            ):
+                numeric = str(value).strip()
+                try:
+                    parsed = float(numeric)
+                except ValueError:
+                    return None
+                if not math.isfinite(parsed):
+                    return None
+                return f"{quote_identifier(column_name)} = {numeric}"
+
+            if normalized_type == "boolean":
+                if isinstance(value, bool):
+                    return f"{quote_identifier(column_name)} = {'true' if value else 'false'}"
+                lower = str(value).lower()
+                if lower in {"true", "false"}:
+                    return f"{quote_identifier(column_name)} = {lower}"
+                return None
+
+            if normalized_type == "date":
+                as_string = str(value)[:10]
+                if len(as_string) == 10 and as_string[4] == "-" and as_string[7] == "-":
+                    return f"{quote_identifier(column_name)} = date '{as_string}'"
+                return None
+
+            return f"cast({quote_identifier(column_name)} as varchar) = '{escape_sql_string(str(value))}'"
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;column_name&#x22;" type="&#x22;str&#x22;" value="null" />
+
+        <PyParameter name="&#x22;column_type&#x22;" type="&#x22;str&#x22;" value="null" />
+
+        <PyParameter name="&#x22;value&#x22;" type="&#x22;Primitive&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;str | None&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;should_use_as_dimension&#x22;" type="&#x22;(column_name) -> bool&#x22;">
+      Decide whether a row field is safe to use as a grain predicate.
+
+      <PySourceCode>
+        ```python
+        def should_use_as_dimension(column_name: str) -> bool:
+            """Decide whether a row field is safe to use as a grain predicate."""
+            lower = column_name.lower()
+            if lower.startswith("_phlo_"):
+                return True
+            if lower.endswith("_date") or lower.endswith("_name") or lower.endswith("_id"):
+                return True
+            if any(token in lower for token in ("count", "total", "avg", "score", "ratio", "pct")):
+                return False
+            if "rank" in lower or lower.startswith("is_"):
+                return False
+            return True
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;column_name&#x22;" type="&#x22;str&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;bool&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;to_safe_page_size&#x22;" type="&#x22;(page_size) -> int&#x22;">
+      Clamp page size to the supported range.
+
+      <PySourceCode>
+        ```python
+        def to_safe_page_size(page_size: int | None) -> int:
+            """Clamp page size to the supported range."""
+            if page_size is None:
+                return DEFAULT_PAGE_SIZE
+            if page_size != page_size:
+                return DEFAULT_PAGE_SIZE
+            return max(1, min(MAX_PAGE_SIZE, int(page_size)))
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;page_size&#x22;" type="&#x22;int | None&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;int&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;to_safe_page&#x22;" type="&#x22;(page) -> int&#x22;">
+      Clamp page number to the supported range.
+
+      <PySourceCode>
+        ```python
+        def to_safe_page(page: int | None) -> int:
+            """Clamp page number to the supported range."""
+            if page is None:
+                return 0
+            if page != page:
+                return 0
+            return max(0, min(MAX_PAGE, int(page)))
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;page&#x22;" type="&#x22;int | None&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;int&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;build_deterministic_order_expression&#x22;" type="&#x22;(column_types) -> str&#x22;">
+      Build a stable pseudo-random order expression for aggregate samples.
+
+      <PySourceCode>
+        ```python
+        def build_deterministic_order_expression(column_types: dict[str, str]) -> str:
+            """Build a stable pseudo-random order expression for aggregate samples."""
+            seed_sql = escape_sql_string(DEFAULT_SAMPLE_SEED)
+            columns = list(column_types.keys())
+
+            if "_phlo_row_id" in column_types:
+                quoted = quote_identifier("_phlo_row_id")
+                return f"xxhash64(to_utf8(concat('{seed_sql}', '|', cast({quoted} as varchar))))"
+
+            order_key_columns = sorted(
+                col
+                for col in columns
+                if not col.lower().startswith("_phlo_")
+                and not column_types[col].lower().startswith(("array(", "map(", "row(", "json"))
+            )[:5]
+
+            if not order_key_columns:
+                return f"xxhash64(to_utf8('{seed_sql}'))"
+
+            concat_parts = ", '|' , ".join(
+                f"coalesce(cast({quote_identifier(col)} as varchar), '')" for col in order_key_columns
+            )
+            return f"xxhash64(to_utf8(concat('{seed_sql}', '|', {concat_parts})))"
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;column_types&#x22;" type="&#x22;dict[str, str]&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;str&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;get_table_from_asset_key&#x22;" type="&#x22;(asset_key) -> str&#x22;">
+      Extract the table name from an asset key path.
+
+      <PySourceCode>
+        ```python
+        def get_table_from_asset_key(asset_key: str) -> str:
+            """Extract the table name from an asset key path."""
+            return asset_key.split("/")[-1] or asset_key
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;asset_key&#x22;" type="&#x22;str&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;str&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_result_rows&#x22;" type="&#x22;(payload) -> list[dict[str, Any]]&#x22;">
+      <PySourceCode>
+        ```python
+        def _result_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+            rows = payload.get("rows")
+            if not isinstance(rows, list):
+                return []
+            return [cast(dict[str, Any], row) for row in rows if isinstance(row, dict)]
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;payload&#x22;" type="&#x22;dict[str, Any]&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;list[dict[str, typing.Any]]&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_result_columns&#x22;" type="&#x22;(payload) -> list[str]&#x22;">
+      <PySourceCode>
+        ```python
+        def _result_columns(payload: dict[str, Any]) -> list[str]:
+            columns = payload.get("columns")
+            if not isinstance(columns, list):
+                return []
+            return [str(column) for column in columns]
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;payload&#x22;" type="&#x22;dict[str, Any]&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;list[str]&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_result_column_types&#x22;" type="&#x22;(payload) -> list[str]&#x22;">
+      <PySourceCode>
+        ```python
+        def _result_column_types(payload: dict[str, Any]) -> list[str]:
+            column_types = payload.get("column_types")
+            if not isinstance(column_types, list):
+                return []
+            return [str(column_type) for column_type in column_types]
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;payload&#x22;" type="&#x22;dict[str, Any]&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;list[str]&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;build_contributing_rows_query&#x22;" type="&#x22;(downstream_table_name, upstream, row_data, page_size, page) -> tuple[bool, ContributingRowsMode | None, str]&#x22;">
+      Build the contributing rows SQL query.
+
+      <PySourceCode>
+        ```python
+        def build_contributing_rows_query(
+            downstream_table_name: str,
+            upstream: ResolveTableResult,
+            row_data: dict[str, Primitive],
+            page_size: int,
+            page: int,
+        ) -> tuple[bool, ContributingRowsMode | None, str]:
+            """Build the contributing rows SQL query."""
+            upstream_cols = upstream.column_types
+            predicates: list[str] = []
+
+            row_id = row_data.get("_phlo_row_id")
+            if row_id is not None and "_phlo_row_id" in upstream_cols:
+                predicate = to_sql_equality("_phlo_row_id", upstream_cols["_phlo_row_id"], row_id)
+                if predicate:
+                    predicates.append(predicate)
+            else:
+                mappings = EXPLICIT_COLUMN_MAPPINGS.get(downstream_table_name, {}).get(upstream.table, {})
+
+                for down_col, up_col in mappings.items():
+                    value = row_data.get(down_col)
+                    column_type = upstream_cols.get(up_col)
+                    if not column_type:
+                        continue
+                    predicate = to_sql_equality(up_col, column_type, value)
+                    if predicate:
+                        predicates.append(predicate)
+
+                for column, value in row_data.items():
+                    if not should_use_as_dimension(column):
+                        continue
+                    column_type = upstream_cols.get(column)
+                    if not column_type:
+                        continue
+                    predicate = to_sql_equality(column, column_type, value)
+                    if predicate:
+                        predicates.append(predicate)
+
+            unique_predicates = list(dict.fromkeys(predicates))
+            if not unique_predicates:
+                return (
+                    False,
+                    None,
+                    "No safe predicates could be derived for contributing rows. "
+                    "Add an explicit mapping for this model pair.",
+                )
+
+            where = " and ".join(unique_predicates)
+            offset = page * page_size
+            limit_plus_one = page_size + 1
+
+            mode: ContributingRowsMode = (
+                "entity" if row_id is not None and "_phlo_row_id" in upstream_cols else "aggregate"
+            )
+            order_expr = (
+                quote_identifier("_phlo_row_id")
+                if mode == "entity"
+                else build_deterministic_order_expression(upstream_cols)
+            )
+            query = (
+                f"SELECT * FROM {upstream.full_name} WHERE {where} "
+                f"ORDER BY {order_expr} OFFSET {offset} LIMIT {limit_plus_one}"
+            )
+            return True, mode, query
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;downstream_table_name&#x22;" type="&#x22;str&#x22;" value="null" />
+
+        <PyParameter name="&#x22;upstream&#x22;" type="&#x22;ResolveTableResult&#x22;" value="null" />
+
+        <PyParameter name="&#x22;row_data&#x22;" type="&#x22;dict[str, Primitive]&#x22;" value="null" />
+
+        <PyParameter name="&#x22;page_size&#x22;" type="&#x22;int&#x22;" value="null" />
+
+        <PyParameter name="&#x22;page&#x22;" type="&#x22;int&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;tuple[bool, phlo_api.observatory_api.contributing.ContributingRowsMode | None, str]&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_execute_trino_or_error&#x22;" type="&#x22;(query, catalog, schema, trino_url, timeout_ms) -> dict[str, Any] | dict[str, str]&#x22;">
+      <PySourceCode>
+        ```python
+        async def _execute_trino_or_error(
+            query: str,
+            catalog: str,
+            schema: str,
+            trino_url: str | None,
+            timeout_ms: int | None,
+        ) -> dict[str, Any] | dict[str, str]:
+            result = await execute_trino_query(query, catalog, schema, trino_url, timeout_ms or 30000)
+            if isinstance(result, QueryExecutionError):
+                return {"error": result.error}
+            return result
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;query&#x22;" type="&#x22;str&#x22;" value="null" />
+
+        <PyParameter name="&#x22;catalog&#x22;" type="&#x22;str&#x22;" value="null" />
+
+        <PyParameter name="&#x22;schema&#x22;" type="&#x22;str&#x22;" value="null" />
+
+        <PyParameter name="&#x22;trino_url&#x22;" type="&#x22;str | None&#x22;" value="null" />
+
+        <PyParameter name="&#x22;timeout_ms&#x22;" type="&#x22;int | None&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;dict[str, typing.Any] | dict[str, str]&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;resolve_iceberg_table&#x22;" type="&#x22;(table_name, *, trino_url, timeout_ms, catalog) -> ResolveTableResult | None&#x22;">
+      Resolve schema and columns for an Iceberg table by name.
+
+      <PySourceCode>
+        ```python
+        async def resolve_iceberg_table(
+            table_name: str,
+            *,
+            trino_url: str | None,
+            timeout_ms: int | None,
+            catalog: str,
+        ) -> ResolveTableResult | None:
+            """Resolve schema and columns for an Iceberg table by name."""
+            try:
+                default_ref = resolve_default_ref()
+            except RuntimeError:
+                return None
+
+            safe_name = escape_sql_string(table_name)
+            schema_query = (
+                f"select table_schema from {quote_identifier(catalog)}.information_schema.tables "
+                f"where table_name = '{safe_name}'"
+            )
+            schemas_result = await _execute_trino_or_error(
+                schema_query, catalog, default_ref, trino_url, timeout_ms
+            )
+            if "error" in schemas_result:
+                return None
+
+            schema_rows = _result_rows(schemas_result)
+            schemas = [
+                str(row["table_schema"])
+                for row in schema_rows
+                if row.get("table_schema") and row.get("table_schema") != "information_schema"
+            ]
+            if not schemas:
+                return None
+
+            preference = ["raw", "bronze", "silver", "gold", "marts", "publish", "main"]
+            schemas.sort(
+                key=lambda schema: (
+                    preference.index(schema) if schema in preference else len(preference),
+                    schema,
+                )
+            )
+            schema = schemas[0]
+
+            columns_query = (
+                f"select column_name, data_type from {quote_identifier(catalog)}.information_schema.columns "
+                f"where table_schema = '{escape_sql_string(schema)}' and table_name = '{safe_name}'"
+            )
+            columns_result = await _execute_trino_or_error(
+                columns_query,
+                catalog,
+                default_ref,
+                trino_url,
+                timeout_ms,
+            )
+            if "error" in columns_result:
+                return None
+
+            column_rows = _result_rows(columns_result)
+            column_types = {
+                str(row["column_name"]): str(row["data_type"])
+                for row in column_rows
+                if row.get("column_name") and row.get("data_type")
+            }
+
+            return ResolveTableResult(
+                schema_name=schema,
+                table=table_name,
+                full_name=".".join(
+                    [quote_identifier(catalog), quote_identifier(schema), quote_identifier(table_name)]
+                ),
+                column_types=column_types,
+            )
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;table_name&#x22;" type="&#x22;str&#x22;" value="null" />
+
+        <PyParameter name="&#x22;trino_url&#x22;" type="&#x22;str | None&#x22;" value="null" />
+
+        <PyParameter name="&#x22;timeout_ms&#x22;" type="&#x22;int | None&#x22;" value="null" />
+
+        <PyParameter name="&#x22;catalog&#x22;" type="&#x22;str&#x22;" value="null" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;phlo_api.observatory_api.contributing.ResolveTableResult | None&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;get_contributing_rows_query&#x22;" type="&#x22;(request) -> ContributingRowsQueryResponse | dict[str, str]&#x22;">
+      Generate the contributing rows query for a row journey selection.
+
+      Builds a SQL query to find upstream rows that contributed to a downstream row.
+
+      <PySourceCode>
+        ```python
+        @router.post("/query", response_model=ContributingRowsQueryResponse | dict)
+        async def get_contributing_rows_query(
+            request: ContributingRowsQueryRequest,
+        ) -> ContributingRowsQueryResponse | dict[str, str]:
+            """Generate the contributing rows query for a row journey selection.
+
+            Builds a SQL query to find upstream rows that contributed to a downstream row.
+
+            Args:
+                request: ContributingRowsQueryRequest with downstream/upstream asset keys
+                    and row data for predicate construction.
+
+            Returns:
+                ContributingRowsQueryResponse with generated query and upstream reference,
+                or error dictionary.
+
+            Raises:
+                None: Exceptions are caught and returned in the response.
+
+            """
+            try:
+                catalog = request.catalog or resolve_default_catalog()
+            except RuntimeError as exc:
+                return {"error": str(exc)}
+            upstream_table_name = get_table_from_asset_key(request.upstream_asset_key)
+            downstream_table_name = get_table_from_asset_key(request.downstream_asset_key)
+
+            upstream = await resolve_iceberg_table(
+                upstream_table_name,
+                trino_url=request.trino_url,
+                timeout_ms=request.timeout_ms,
+                catalog=catalog,
+            )
+            if upstream is None:
+                return {"error": f"Could not resolve upstream table for {upstream_table_name}"}
+
+            row_data = {key: value for key, value in request.row_data.items()}
+            ok, _mode, query_or_error = build_contributing_rows_query(
+                downstream_table_name=downstream_table_name,
+                upstream=upstream,
+                row_data=row_data,
+                page_size=max(1, min(MAX_PAGE_SIZE, int(request.limit or 100))),
+                page=0,
+            )
+            if not ok:
+                return {"error": query_or_error}
+
+            query = (
+                query_or_error.rsplit(" OFFSET ", 1)[0]
+                + f" LIMIT {max(1, min(MAX_PAGE_SIZE, int(request.limit or 100)))}"
+            )
+
+            return ContributingRowsQueryResponse(
+                query=query,
+                upstream=UpstreamTableRef(schema_name=upstream.schema_name, table=upstream.table),
+            )
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;request&#x22;" type="&#x22;ContributingRowsQueryRequest&#x22;" value="undefined">
+          ContributingRowsQueryRequest with downstream/upstream asset keys
+          and row data for predicate construction.
+        </PyParameter>
+      </div>
+
+      <PyFunctionReturn type="&#x22;ContributingRowsQueryResponse | dict[str, str]&#x22;">
+        ContributingRowsQueryResponse with generated query and upstream reference,
+      </PyFunctionReturn>
+    </PyFunction>
+
+    <PyFunction name="&#x22;get_contributing_rows_page&#x22;" type="&#x22;(request) -> ContributingRowsPageResponse | dict[str, str]&#x22;">
+      Return paginated contributing rows for the selected upstream/downstream pair.
+
+      Executes the generated query and returns paginated results with has\_more flag.
+
+      <PySourceCode>
+        ```python
+        @router.post("/page", response_model=ContributingRowsPageResponse | dict)
+        async def get_contributing_rows_page(
+            request: ContributingRowsPageRequest,
+        ) -> ContributingRowsPageResponse | dict[str, str]:
+            """Return paginated contributing rows for the selected upstream/downstream pair.
+
+            Executes the generated query and returns paginated results with has_more flag.
+
+            Args:
+                request: ContributingRowsPageRequest with asset keys, row data, and pagination.
+
+            Returns:
+                ContributingRowsPageResponse with mode, rows, columns, and pagination info,
+                or error dictionary.
+
+            Raises:
+                None: Exceptions are caught and returned in the response.
+
+            """
+            try:
+                catalog = request.catalog or resolve_default_catalog()
+                default_ref = resolve_default_ref()
+            except RuntimeError as exc:
+                return {"error": str(exc)}
+            upstream_table_name = get_table_from_asset_key(request.upstream_asset_key)
+            downstream_table_name = get_table_from_asset_key(request.downstream_asset_key)
+
+            upstream = await resolve_iceberg_table(
+                upstream_table_name,
+                trino_url=request.trino_url,
+                timeout_ms=request.timeout_ms,
+                catalog=catalog,
+            )
+            if upstream is None:
+                return {"error": f"Could not resolve upstream table for {upstream_table_name}"}
+
+            page_size = to_safe_page_size(request.page_size)
+            page = to_safe_page(request.page)
+            row_data = {key: value for key, value in request.row_data.items()}
+
+            ok, mode, query_or_error = build_contributing_rows_query(
+                downstream_table_name=downstream_table_name,
+                upstream=upstream,
+                row_data=row_data,
+                page_size=page_size,
+                page=page,
+            )
+            if not ok or mode is None:
+                return {"error": query_or_error}
+
+            result = await _execute_trino_or_error(
+                query_or_error, catalog, default_ref, request.trino_url, request.timeout_ms
+            )
+            if "error" in result:
+                return result
+
+            rows = _result_rows(result)
+            columns = _result_columns(result)
+            column_types = _result_column_types(result)
+            has_more = len(rows) > page_size
+            rows = rows[:page_size] if has_more else rows
+
+            return ContributingRowsPageResponse(
+                mode=mode,
+                page=page,
+                page_size=page_size,
+                has_more=has_more,
+                query=query_or_error,
+                upstream=UpstreamTableRef(schema_name=upstream.schema_name, table=upstream.table),
+                columns=columns,
+                column_types=column_types,
+                rows=rows,
+            )
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;request&#x22;" type="&#x22;ContributingRowsPageRequest&#x22;" value="undefined">
+          ContributingRowsPageRequest with asset keys, row data, and pagination.
+        </PyParameter>
+      </div>
+
+      <PyFunctionReturn type="&#x22;ContributingRowsPageResponse | dict[str, str]&#x22;">
+        ContributingRowsPageResponse with mode, rows, columns, and pagination info,
+      </PyFunctionReturn>
+    </PyFunction>
+  </Tab>
+</Tabs>

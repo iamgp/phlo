@@ -1,0 +1,236 @@
+# PagerDutyAlertDestination (/docs/python-reference/packages/phlo-alerting/phlo_alerting/destinations/pagerduty/PagerDutyAlertDestination)
+
+
+
+Send alerts to PagerDuty via Events API.
+
+Concrete implementation of AlertDestination that creates PagerDuty
+incidents via the Events API v2. Maps internal severity levels to
+PagerDuty severities and provides deduplication through custom keys.
+
+Attributes [#attributes]
+
+<PyAttribute name="&#x22;integration_key&#x22;" type="null" value="&#x22;integration_key&#x22;">
+  PagerDuty Events API v2 integration key.
+</PyAttribute>
+
+<PyAttribute name="&#x22;api_url&#x22;" type="null" value="&#x22;'https://events.pagerduty.com/v2/enqueue'&#x22;">
+  PagerDuty Events API endpoint URL.
+</PyAttribute>
+
+Functions [#functions]
+
+<PyFunction name="&#x22;__init__&#x22;" type="&#x22;(self, integration_key)&#x22;">
+  Initialize PagerDuty destination.
+
+  Creates a PagerDutyAlertDestination instance configured with
+  the provided integration key. The integration key identifies which
+  PagerDuty service should receive the alerts.
+
+  <PySourceCode>
+    ```python
+    def __init__(self, integration_key: str):
+        """Initialize PagerDuty destination.
+
+                Creates a PagerDutyAlertDestination instance configured with
+        the provided integration key. The integration key identifies which
+        PagerDuty service should receive the alerts.
+
+        Args:
+                    integration_key: PagerDuty Events API v2 integration key.
+                        This key is specific to a service integration in PagerDuty
+                        and can be found in the integration settings.
+
+        Returns:
+                    None
+
+        Raises:
+                    None; key validation occurs at PagerDuty during send().
+
+        Examples:
+                    >>> dest = PagerDutyAlertDestination("abcdef1234567890abcdef1234567890")
+                    >>> dest.integration_key
+                    'abcdef1234567890abcdef1234567890'
+
+        """
+        self.integration_key = integration_key
+        self.api_url = "https://events.pagerduty.com/v2/enqueue"
+    ```
+  </PySourceCode>
+
+  <div>
+    <PyParameter name="&#x22;self&#x22;" type="null" value="null" />
+
+    <PyParameter name="&#x22;integration_key&#x22;" type="&#x22;str&#x22;" value="undefined">
+      PagerDuty Events API v2 integration key.
+      This key is specific to a service integration in PagerDuty
+      and can be found in the integration settings.
+    </PyParameter>
+  </div>
+
+  <PyFunctionReturn type="null">
+    None
+  </PyFunctionReturn>
+</PyFunction>
+
+<PyFunction name="&#x22;send&#x22;" type="&#x22;(self, alert) -> bool&#x22;">
+  Send alert to PagerDuty.
+
+  Posts the alert to PagerDuty's Events API v2 as an incident
+  trigger event. Returns success based on HTTP 202 (Accepted) response.
+
+  <PySourceCode>
+    ```python
+    def send(self, alert: Alert) -> bool:
+        """Send alert to PagerDuty.
+
+                Posts the alert to PagerDuty's Events API v2 as an incident
+        trigger event. Returns success based on HTTP 202 (Accepted) response.
+
+        Args:
+                    alert: Alert object containing incident details.
+
+        Returns:
+                    True if PagerDuty accepted the event (HTTP 202), False otherwise.
+
+        Raises:
+                    None; network and API errors are caught and logged.
+
+        Examples:
+                    >>> from phlo_alerting.manager import Alert, AlertSeverity
+                    >>> alert = Alert(
+                    ...     title="Critical System Failure",
+                    ...     message="Database connection lost",
+                    ...     severity=AlertSeverity.CRITICAL,
+                    ...     asset_name="prod_db"
+                    ... )
+                    >>> result = dest.send(alert)
+                    >>> isinstance(result, bool)
+                    True
+
+        """
+        try:
+            payload = self._build_payload(alert)
+            response = requests.post(self.api_url, json=payload, timeout=10)
+            return response.status_code == 202  # Accepted
+        except Exception:
+            logger.exception(
+                "pagerduty_alert_send_failed",
+                alert_title=alert.title,
+                severity=alert.severity.value,
+                asset_name=alert.asset_name,
+                run_id=alert.run_id,
+            )
+            return False
+    ```
+  </PySourceCode>
+
+  <div>
+    <PyParameter name="&#x22;self&#x22;" type="null" value="null" />
+
+    <PyParameter name="&#x22;alert&#x22;" type="&#x22;Alert&#x22;" value="undefined">
+      Alert object containing incident details.
+    </PyParameter>
+  </div>
+
+  <PyFunctionReturn type="&#x22;bool&#x22;">
+    True if PagerDuty accepted the event (HTTP 202), False otherwise.
+  </PyFunctionReturn>
+</PyFunction>
+
+<PyFunction name="&#x22;_build_payload&#x22;" type="&#x22;(self, alert) -> dict&#x22;">
+  Build PagerDuty event payload.
+
+  Constructs a PagerDuty Events API v2 payload with proper severity
+  mapping, custom details, and deduplication key. The dedup key groups
+  related alerts to prevent incident spam.
+
+  <PySourceCode>
+    ```python
+    def _build_payload(self, alert: Alert) -> dict:
+        """Build PagerDuty event payload.
+
+                Constructs a PagerDuty Events API v2 payload with proper severity
+        mapping, custom details, and deduplication key. The dedup key groups
+        related alerts to prevent incident spam.
+
+        Args:
+                    alert: Alert object to convert to PagerDuty format.
+
+        Returns:
+                    Dictionary representing PagerDuty event payload.
+
+        Examples:
+                    >>> from phlo_alerting.manager import Alert, AlertSeverity
+                    >>> alert = Alert(
+                    ...     title="Test Incident",
+                    ...     message="Test description",
+                    ...     severity=AlertSeverity.ERROR,
+                    ...     asset_name="test_service",
+                    ...     run_id="run_123"
+                    ... )
+                    >>> payload = dest._build_payload(alert)
+                    >>> payload["event_action"]
+                    'trigger'
+                    >>> payload["payload"]["severity"]
+                    'error'
+
+        """
+        # Map severity to PagerDuty severity
+        severity_map = {
+            AlertSeverity.INFO: "info",
+            AlertSeverity.WARNING: "warning",
+            AlertSeverity.ERROR: "error",
+            AlertSeverity.CRITICAL: "critical",
+        }
+
+        pd_severity = severity_map.get(alert.severity, "error")
+
+        # Build custom details
+        custom_details = {
+            "severity": alert.severity.value,
+            "message": alert.message,
+            "timestamp": alert.timestamp.isoformat() if alert.timestamp else None,
+        }
+
+        if alert.asset_name:
+            custom_details["asset"] = alert.asset_name
+
+        if alert.run_id:
+            custom_details["run_id"] = alert.run_id
+
+        if alert.error_message:
+            custom_details["error"] = alert.error_message
+
+        # Generate dedup key for alert grouping
+        dedup_key = f"phlo-{alert.asset_name or 'unknown'}-{alert.run_id or 'unknown'}"
+
+        payload = {
+            "routing_key": self.integration_key,
+            "event_action": "trigger",
+            "dedup_key": dedup_key,
+            "payload": {
+                "summary": alert.title,
+                "severity": pd_severity,
+                "source": "Phlo",
+                "timestamp": alert.timestamp.isoformat() if alert.timestamp else None,
+                "custom_details": custom_details,
+            },
+        }
+
+        return payload
+    ```
+  </PySourceCode>
+
+  <div>
+    <PyParameter name="&#x22;self&#x22;" type="null" value="null" />
+
+    <PyParameter name="&#x22;alert&#x22;" type="&#x22;Alert&#x22;" value="undefined">
+      Alert object to convert to PagerDuty format.
+    </PyParameter>
+  </div>
+
+  <PyFunctionReturn type="&#x22;dict&#x22;">
+    Dictionary representing PagerDuty event payload.
+  </PyFunctionReturn>
+</PyFunction>

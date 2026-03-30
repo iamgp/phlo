@@ -1,0 +1,515 @@
+1:"$Sreact.fragment"
+2:I[98330,["/_next/static/chunks/0hgorhw.-nmlk.js","/_next/static/chunks/0j-09bllz5f6w.js","/_next/static/chunks/0qid5lwcbx9s0.js","/_next/static/chunks/0nln0wj6bx487.js","/_next/static/chunks/00-7jy2t-e8a-.js","/_next/static/chunks/06jfzp8jnp3ys.js","/_next/static/chunks/09gz_w1jr6-zr.js","/_next/static/chunks/0hiq312uci58f.js","/_next/static/chunks/0oq-lzu4y7kl2.js","/_next/static/chunks/1335b13jkzplm.js"],"DocsPage"]
+3:I[98330,["/_next/static/chunks/0hgorhw.-nmlk.js","/_next/static/chunks/0j-09bllz5f6w.js","/_next/static/chunks/0qid5lwcbx9s0.js","/_next/static/chunks/0nln0wj6bx487.js","/_next/static/chunks/00-7jy2t-e8a-.js","/_next/static/chunks/06jfzp8jnp3ys.js","/_next/static/chunks/09gz_w1jr6-zr.js","/_next/static/chunks/0hiq312uci58f.js","/_next/static/chunks/0oq-lzu4y7kl2.js","/_next/static/chunks/1335b13jkzplm.js"],"DocsTitle"]
+4:I[98330,["/_next/static/chunks/0hgorhw.-nmlk.js","/_next/static/chunks/0j-09bllz5f6w.js","/_next/static/chunks/0qid5lwcbx9s0.js","/_next/static/chunks/0nln0wj6bx487.js","/_next/static/chunks/00-7jy2t-e8a-.js","/_next/static/chunks/06jfzp8jnp3ys.js","/_next/static/chunks/09gz_w1jr6-zr.js","/_next/static/chunks/0hiq312uci58f.js","/_next/static/chunks/0oq-lzu4y7kl2.js","/_next/static/chunks/1335b13jkzplm.js"],"DocsDescription"]
+5:I[98330,["/_next/static/chunks/0hgorhw.-nmlk.js","/_next/static/chunks/0j-09bllz5f6w.js","/_next/static/chunks/0qid5lwcbx9s0.js","/_next/static/chunks/0nln0wj6bx487.js","/_next/static/chunks/00-7jy2t-e8a-.js","/_next/static/chunks/06jfzp8jnp3ys.js","/_next/static/chunks/09gz_w1jr6-zr.js","/_next/static/chunks/0hiq312uci58f.js","/_next/static/chunks/0oq-lzu4y7kl2.js","/_next/static/chunks/1335b13jkzplm.js"],"MarkdownCopyButton"]
+6:I[98330,["/_next/static/chunks/0hgorhw.-nmlk.js","/_next/static/chunks/0j-09bllz5f6w.js","/_next/static/chunks/0qid5lwcbx9s0.js","/_next/static/chunks/0nln0wj6bx487.js","/_next/static/chunks/00-7jy2t-e8a-.js","/_next/static/chunks/06jfzp8jnp3ys.js","/_next/static/chunks/09gz_w1jr6-zr.js","/_next/static/chunks/0hiq312uci58f.js","/_next/static/chunks/0oq-lzu4y7kl2.js","/_next/static/chunks/1335b13jkzplm.js"],"ViewOptionsPopover"]
+7:I[98330,["/_next/static/chunks/0hgorhw.-nmlk.js","/_next/static/chunks/0j-09bllz5f6w.js","/_next/static/chunks/0qid5lwcbx9s0.js","/_next/static/chunks/0nln0wj6bx487.js","/_next/static/chunks/00-7jy2t-e8a-.js","/_next/static/chunks/06jfzp8jnp3ys.js","/_next/static/chunks/09gz_w1jr6-zr.js","/_next/static/chunks/0hiq312uci58f.js","/_next/static/chunks/0oq-lzu4y7kl2.js","/_next/static/chunks/1335b13jkzplm.js"],"DocsBody"]
+8:I[58541,["/_next/static/chunks/0hgorhw.-nmlk.js","/_next/static/chunks/0j-09bllz5f6w.js","/_next/static/chunks/0qid5lwcbx9s0.js","/_next/static/chunks/0nln0wj6bx487.js","/_next/static/chunks/00-7jy2t-e8a-.js","/_next/static/chunks/06jfzp8jnp3ys.js","/_next/static/chunks/09gz_w1jr6-zr.js","/_next/static/chunks/0hiq312uci58f.js","/_next/static/chunks/0oq-lzu4y7kl2.js","/_next/static/chunks/1335b13jkzplm.js"],"default"]
+3a:I[47873,["/_next/static/chunks/0hgorhw.-nmlk.js","/_next/static/chunks/0j-09bllz5f6w.js","/_next/static/chunks/0qid5lwcbx9s0.js","/_next/static/chunks/0nln0wj6bx487.js","/_next/static/chunks/00-7jy2t-e8a-.js","/_next/static/chunks/06jfzp8jnp3ys.js","/_next/static/chunks/09gz_w1jr6-zr.js","/_next/static/chunks/0hiq312uci58f.js","/_next/static/chunks/0oq-lzu4y7kl2.js","/_next/static/chunks/1335b13jkzplm.js"],"default"]
+3b:I[97367,["/_next/static/chunks/0hgorhw.-nmlk.js","/_next/static/chunks/0j-09bllz5f6w.js","/_next/static/chunks/0qid5lwcbx9s0.js","/_next/static/chunks/0nln0wj6bx487.js","/_next/static/chunks/00-7jy2t-e8a-.js","/_next/static/chunks/06jfzp8jnp3ys.js"],"OutletBoundary"]
+3c:"$Sreact.suspense"
+0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"children":[["$","$L3",null,{"children":"Architecture Overview"}],["$","$L4",null,{"className":"mb-0"}],["$","div",null,{"className":"flex flex-row items-center gap-2 border-b pb-6","children":[["$","$L5",null,{"markdownUrl":"/llms.mdx/docs/reference/architecture/content.md"}],["$","$L6",null,{"markdownUrl":"/llms.mdx/docs/reference/architecture/content.md","githubUrl":"https://github.com/phlohouse/phlo/blob/main/docs/reference/architecture.md"}]]}],["$","$L7",null,{"children":[["$","p",null,{"children":"Phlo is built on modern lakehouse principles using Apache Iceberg as the table format and Project Nessie as a Git-like catalog. This architecture provides ACID transactions, schema evolution, time travel, and branch isolation for data engineering workflows."}],"\n",["$","h2",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"design-principles","children":[["$","a",null,{"data-card":"","href":"#design-principles","className":"peer","children":"Design Principles"}],["$","$L8",null,{"iconNode":[["path",{"d":"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71","key":"1cjeqo"}],["path",{"d":"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71","key":"19qd67"}]],"className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}],"\n",["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"1-open-standards","children":[["$","a",null,{"data-card":"","href":"#1-open-standards","className":"peer","children":"1. Open Standards"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}],"\n",["$","ul",null,{"children":["\n",["$","li",null,{"children":"Apache Iceberg for table format (open spec, multi-engine support)"}],"\n",["$","li",null,{"children":"S3-compatible storage (portable across cloud providers)"}],"\n",["$","li",null,{"children":"Standard SQL via Trino"}],"\n",["$","li",null,{"children":"Open-source components throughout"}],"\n"]}],"\n",["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"2-stateless-services","children":[["$","a",null,{"data-card":"","href":"#2-stateless-services","className":"peer","children":"2. Stateless Services"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}],"\n",["$","ul",null,{"children":["\n",["$","li",null,{"children":"All state stored in volumes (MinIO, PostgreSQL)"}],"\n",["$","li",null,{"children":"Services can be restarted without data loss"}],"\n",["$","li",null,{"children":"Configuration via environment variables"}],"\n",["$","li",null,{"children":"12-factor app compliance"}],"\n"]}],"\n",["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"3-git-like-workflows","children":[["$","a",null,{"data-card":"","href":"#3-git-like-workflows","className":"peer","children":"3. Git-Like Workflows"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}],"\n",["$","ul",null,{"children":["\n",["$","li",null,{"children":"Branch isolation (dev/staging/prod)"}],"\n",["$","li",null,{"children":"Atomic multi-table commits"}],"\n",["$","li",null,{"children":"Time travel to any point in history"}],"\n",["$","li",null,{"children":"Tag releases for reproducibility"}],"\n"]}],"\n",["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"4-asset-based-orchestration","children":[["$","a",null,{"data-card":"","href":"#4-asset-based-orchestration","className":"peer","children":"4. Asset-Based Orchestration"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}],"\n",["$","ul",null,{"children":["\n",["$","li",null,{"children":"Declarative data assets in Dagster"}],"\n",["$","li",null,{"children":"Automatic lineage tracking"}],"\n","$L9","\n","$La","\n"]}],"\n","$Lb","\n","$Lc","\n","$Ld","\n","$Le","\n","$Lf","\n","$L10","\n","$L11","\n","$L12","\n","$L13","\n","$L14","\n","$L15","\n","$L16","\n","$L17","\n","$L18","\n","$L19","\n","$L1a","\n","$L1b","\n","$L1c","\n","$L1d","\n","$L1e","\n","$L1f","\n","$L20","\n","$L21","\n","$L22","\n","$L23","\n","$L24","\n","$L25","\n","$L26","\n","$L27","\n","$L28","\n","$L29","\n","$L2a","\n","$L2b","\n","$L2c","\n","$L2d","\n","$L2e","\n","$L2f","\n","$L30","\n","$L31","\n","$L32"]}]]}],["$L33","$L34"],"$L35"]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"9C2JA6Y9TXC1sGw6BiUFO"}
+9:["$","li",null,{"children":"Partition-aware dependencies"}]
+a:["$","li",null,{"children":"Freshness policies for monitoring"}]
+b:["$","h2",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"system-architecture","children":[["$","a",null,{"data-card":"","href":"#system-architecture","className":"peer","children":"System Architecture"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+c:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"high-level-component-diagram","children":[["$","a",null,{"data-card":"","href":"#high-level-component-diagram","className":"peer","children":"High-Level Component Diagram"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+36:T5c28,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1358.3588 1018.1" width="1358.3588" height="1018.1" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="ui" data-label="User Interface">
+  <rect x="246.77160000000003" y="86" width="500.32899999999995" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="246.77160000000003" y="86" width="500.32899999999995" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="258.77160000000003" y="100" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">User Interface</text>
+</g>
+<g class="subgraph" data-id="control" data-label="Control Plane">
+  <rect x="497.12129999999996" y="222.9" width="604.106" height="161.8" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="497.12129999999996" y="222.9" width="604.106" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="509.12129999999996" y="236.9" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Control Plane</text>
+</g>
+<g class="subgraph" data-id="ingest" data-label="Ingestion">
+  <rect x="47.039999999999964" y="628.5" width="486.135" height="299.6" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="47.039999999999964" y="628.5" width="486.135" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="59.039999999999964" y="642.5" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Ingestion</text>
+</g>
+<g class="subgraph" data-id="storage" data-label="Storage and Catalog">
+  <rect x="815.2128" y="54" width="453.64599999999996" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="815.2128" y="54" width="453.64599999999996" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="827.2128" y="68" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Storage and Catalog</text>
+</g>
+<g class="subgraph" data-id="compute" data-label="Compute">
+  <rect x="842.8242166666666" y="701.4" width="405.6003333333333" height="226.70000000000002" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="842.8242166666666" y="701.4" width="405.6003333333333" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="854.8242166666666" y="715.4" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Compute</text>
+</g>
+<g class="subgraph" data-id="observability" data-label="Observability">
+  <rect x="527.175" y="432.70000000000005" width="137.676" height="161.8" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="527.175" y="432.70000000000005" width="137.676" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="539.175" y="446.70000000000005" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Observability</text>
+</g>
+<polyline class="edge" data-from="PYI" data-to="MINIO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="386.27616666666665,912.1 386.27616666666665,946.1 1310.3588,946.1 1310.3588,36 1181.1253,36 1181.1253,98" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PYI" data-to="NESSIE" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="338.7008333333333,912.1 338.7008333333333,970.1 24.039999999999964,970.1 24.039999999999964,36 1006.6391333333333,36 1006.6391333333333,98" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="MINIO" data-to="TRINO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1181.1253,134.9 1181.1253,440.15 1002.33555,440.15 1002.33555,745.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="NESSIE" data-to="TRINO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1028.3273,134.9 1028.3273,204.9 1170.6916,204.9 1170.6916,659.4 1018.09015,659.4 1018.09015,745.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="MINIO" data-to="DUCK" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1181.1253,134.9 1181.1253,440.15 1164.7665499999998,440.15 1164.7665499999998,745.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DAGSTER" data-to="DLT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="608.8222999999999,368.70000000000005 608.8222999999999,422.70000000000005 362.48849999999993,422.70000000000005 362.48849999999993,745.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DAGSTER" data-to="DBT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="608.8222999999999,368.70000000000005 608.8222999999999,422.70000000000005 938.7087166666666,422.70000000000005 938.7087166666666,810.3" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DAGSTER" data-to="TRINO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="608.8222999999999,368.70000000000005 608.8222999999999,422.70000000000005 1002.33555,422.70000000000005 1002.33555,745.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="OBS" data-to="PAPI" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="665.2951,166.9 665.2951,204.9 866.6716333333334,204.9 866.6716333333333,266.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DAGUI" data-to="DAGSTER" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="517.6841,166.9 517.6841,317.79999999999995 608.8222999999999,317.79999999999995 608.8222999999999,331.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PAPI" data-to="TRINO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="881.4437999999999,303.79999999999995 881.4437999999999,317.79999999999995 1002.33555,317.79999999999995 1002.33555,745.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PAPI" data-to="NESSIE" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="903.60205,303.79999999999995 903.60205,647.4 1158.6915999999999,647.4 1158.6915999999999,192.89999999999998 1278.8588,192.89999999999998 1278.8588,23.99999999999997 1050.0154666666667,23.99999999999997 1050.0154666666667,97.99999999999997" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PG" data-to="PAPI" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="889.2378,134.9 889.2378,200.89999999999998 881.4437999999999,200.89999999999998 881.4437999999999,266.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PG" data-to="HASURA" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="889.2378,134.9 889.2378,200.89999999999998 1013.4938,200.89999999999998 1013.4938,266.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PG" data-to="POSTGREST" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="889.2378,134.9 889.2378,200.89999999999998 765.3253,200.89999999999998 765.3253,266.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="MARTS" data-to="SUPERSET" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="983.6509666666666,912.1 983.6509666666666,958.1 37.039999999999964,958.1 37.039999999999964,68 349.3251,68 349.3251,130" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DAGSTER" data-to="OTEL" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="608.8222999999999,368.70000000000005 608.8222999999999,422.70000000000005 596.0129999999999,422.70000000000005 596.0129999999999,476.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SCHEDULES" data-to="DAGSTER" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="608.8223,303.79999999999995 608.8223,317.79999999999995 608.8222999999999,317.79999999999995 608.8222999999999,331.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PAPI" data-to="DAGSTER" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="881.4437999999999,303.79999999999995 881.4437999999999,317.79999999999995 608.8222999999999,317.79999999999995 608.8222999999999,331.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="NS" data-to="DLT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="442.5925,709.4 442.5925,727.4 362.48849999999993,727.4 362.48849999999993,745.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="FILES" data-to="DLT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="282.38449999999995,709.4 282.38449999999995,727.4 362.48849999999993,727.4 362.48849999999993,745.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="EXTERNAL" data-to="DLT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="124.39949999999996,709.4 124.39949999999996,727.4 362.48849999999993,727.4 362.48849999999993,745.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DLT" data-to="STAGE" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="362.48849999999993,782.3 362.48849999999993,810.3" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="STAGE" data-to="PYI" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="362.48849999999993,847.2 362.48849999999993,875.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TRINO" data-to="DBT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1002.33555,782.3 1002.33555,796.3 938.7087166666666,796.3 938.7087166666666,810.3" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DBT" data-to="MARTS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="938.7087166666666,847.2 938.7087166666666,859.2 958.1342999999999,859.2 958.1342999999999,875.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TRINO" data-to="MARTS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1002.33555,782.3 1002.33555,796.3 983.6509666666666,796.3 983.6509666666666,875.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="OTEL" data-to="CLICKSTACK" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="596.0129999999999,513.6 596.0129999999999,541.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="node" data-id="OBS" data-label="Observatory UI" data-shape="rectangle">
+  <rect x="599.4896" y="130" width="131.611" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="665.2951" y="148.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Observatory UI</text>
+</g>
+<g class="node" data-id="DAGUI" data-label="Dagster Web UI" data-shape="rectangle">
+  <rect x="451.8786" y="130" width="131.611" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="517.6841" y="148.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Dagster Web UI</text>
+</g>
+<g class="node" data-id="SUPERSET" data-label="Superset Dashboards" data-shape="rectangle">
+  <rect x="262.77160000000003" y="130" width="173.107" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="349.3251" y="148.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Superset Dashboards</text>
+</g>
+<g class="node" data-id="PAPI" data-label="phlo-api" data-shape="rectangle">
+  <rect x="837.1272999999999" y="266.9" width="88.63300000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="881.4437999999999" y="285.34999999999997" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">phlo-api</text>
+</g>
+<g class="node" data-id="HASURA" data-label="Hasura GraphQL" data-shape="rectangle">
+  <rect x="941.7602999999999" y="266.9" width="143.46699999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1013.4938" y="285.34999999999997" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Hasura GraphQL</text>
+</g>
+<g class="node" data-id="POSTGREST" data-label="PostgREST" data-shape="rectangle">
+  <rect x="709.5233" y="266.9" width="111.60399999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="765.3253" y="285.34999999999997" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">PostgREST</text>
+</g>
+<g class="node" data-id="SCHEDULES" data-label="Schedules &amp; Sensors" data-shape="rectangle">
+  <rect x="524.1213" y="266.9" width="169.402" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="608.8223" y="285.34999999999997" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Schedules &amp; Sensors</text>
+</g>
+<g class="node" data-id="DAGSTER" data-label="Dagster Assets" data-shape="rectangle">
+  <rect x="542.2757999999999" y="331.8" width="133.09300000000002" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="608.8222999999999" y="350.25" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Dagster Assets</text>
+</g>
+<g class="node" data-id="NS" data-label="Nightscout API" data-shape="rectangle">
+  <rect x="379.01" y="672.5" width="127.16499999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="442.5925" y="690.95" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Nightscout API</text>
+</g>
+<g class="node" data-id="FILES" data-label="CSV and Excel Files" data-shape="rectangle">
+  <rect x="201.75899999999996" y="672.5" width="161.251" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="282.38449999999995" y="690.95" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">CSV and Excel Files</text>
+</g>
+<g class="node" data-id="EXTERNAL" data-label="External APIs" data-shape="rectangle">
+  <rect x="63.039999999999964" y="672.5" width="122.71900000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="124.39949999999996" y="690.95" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">External APIs</text>
+</g>
+<g class="node" data-id="DLT" data-label="DLT Python" data-shape="rectangle">
+  <rect x="306.3159999999999" y="745.4" width="112.345" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="362.48849999999993" y="763.85" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">DLT Python</text>
+</g>
+<g class="node" data-id="STAGE" data-label="S3 Staging Area" data-shape="rectangle">
+  <rect x="294.08949999999993" y="810.3" width="136.798" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="362.48849999999993" y="828.75" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">S3 Staging Area</text>
+</g>
+<g class="node" data-id="PYI" data-label="PyIceberg Writer" data-shape="rectangle">
+  <rect x="291.1255" y="875.2" width="142.726" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="362.4885" y="893.6500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">PyIceberg Writer</text>
+</g>
+<g class="node" data-id="MINIO" data-label="MinIO S3 Storage" data-shape="rectangle">
+  <rect x="1109.3917999999999" y="98" width="143.467" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1181.1253" y="116.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">MinIO S3 Storage</text>
+</g>
+<g class="node" data-id="NESSIE" data-label="Nessie Catalog" data-shape="rectangle">
+  <rect x="963.2628" y="98" width="130.12900000000002" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1028.3273" y="116.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Nessie Catalog</text>
+</g>
+<g class="node" data-id="PG" data-label="PostgreSQL" data-shape="rectangle">
+  <rect x="831.2128" y="98" width="116.04999999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="889.2378" y="116.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">PostgreSQL</text>
+</g>
+<g class="node" data-id="TRINO" data-label="Trino Query Engine" data-shape="rectangle">
+  <rect x="923.56255" y="745.4" width="157.546" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1002.33555" y="763.85" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Trino Query Engine</text>
+</g>
+<g class="node" data-id="DBT" data-label="dbt Transformations" data-shape="rectangle">
+  <rect x="858.8242166666666" y="810.3" width="159.769" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="938.7087166666666" y="828.75" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">dbt Transformations</text>
+</g>
+<g class="node" data-id="DUCK" data-label="DuckDB Ad-hoc" data-shape="rectangle">
+  <rect x="1097.10855" y="745.4" width="135.31599999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1164.7665499999998" y="763.85" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">DuckDB Ad-hoc</text>
+</g>
+<g class="node" data-id="MARTS" data-label="PostgreSQL Marts" data-shape="rectangle">
+  <rect x="907.1009666666666" y="875.2" width="153.1" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="983.6509666666666" y="893.6500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">PostgreSQL Marts</text>
+</g>
+<g class="node" data-id="OTEL" data-label="phlo-otel" data-shape="rectangle">
+  <rect x="550.2144999999999" y="476.70000000000005" width="91.59700000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="596.0129999999999" y="495.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">phlo-otel</text>
+</g>
+<g class="node" data-id="CLICKSTACK" data-label="ClickStack" data-shape="rectangle">
+  <rect x="543.175" y="541.6" width="105.676" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="596.0129999999999" y="560.0500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">ClickStack</text>
+</g>
+</svg>d:["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$36"}}]
+e:["$","p",null,{"children":"The high-level diagram keeps the main layers readable. The detailed views below preserve the\ncross-system connections that would otherwise turn the overview into a wire bundle."}]
+f:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"interface-and-api-detail","children":[["$","a",null,{"data-card":"","href":"#interface-and-api-detail","className":"peer","children":"Interface and API Detail"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+37:T350f,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1063.2199999999998 485.09" width="1063.2199999999998" height="485.09" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="ui" data-label="User Interface">
+  <rect x="504.64599999999996" y="212.39" width="229.107" height="202.70000000000002" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="504.64599999999996" y="212.39" width="229.107" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="516.646" y="226.39" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">User Interface</text>
+</g>
+<g class="subgraph" data-id="api" data-label="API Layer">
+  <rect x="773.7529999999999" y="68.44" width="199.46699999999998" height="202.70000000000002" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="773.7529999999999" y="68.44" width="199.46699999999998" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="785.7529999999999" y="82.44" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">API Layer</text>
+</g>
+<g class="subgraph" data-id="services" data-label="Platform Services">
+  <rect x="66" y="68.51499999999993" width="390.64599999999996" height="308.35" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="66" y="68.51499999999993" width="390.64599999999996" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="78" y="82.51499999999993" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Platform Services</text>
+</g>
+<polyline class="edge" data-from="OBS" data-to="PAPI" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="717.7529999999999,327.73999999999995 755.7529999999999,327.74000000000007 755.7529999999999,242.84000000000006 826.309,242.83999999999995" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DAGUI" data-to="DAGSTER" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="717.7529999999999,380.64 979.2199999999999,380.6400000000001 979.2199999999999,425.09000000000003 48,425.09000000000003 48,355.415 251.546,355.41499999999996 251.546,351.64 287.546,351.64" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PAPI" data-to="TRINO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="914.9419999999999,240.38 945.2199999999999,240.38 945.2199999999999,241.69 1015.2199999999999,241.69 1015.2199999999999,24.039999999999964 24,24.039999999999964 24,260.06499999999994 82,260.06499999999994" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PAPI" data-to="NESSIE" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="914.9419999999999,225.62 945.2199999999999,225.62 945.2199999999999,221.69 991.2199999999999,221.69 991.2199999999999,50.039999999999964 48,50.039999999999964 48,124.81499999999994 287.546,124.81499999999993" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PAPI" data-to="MINIO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="914.9419999999999,233 945.2199999999999,233 945.2199999999999,231.69 1003.2199999999999,231.69 1003.2199999999999,37.039999999999964 36,37.039999999999964 36,154.26499999999993 82,154.26499999999993" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PAPI" data-to="DAGSTER" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="914.9419999999999,247.76 945.2199999999999,247.76 945.2199999999999,251.69 991.2199999999999,251.69 991.2199999999999,437.09 36,437.09 36,342.41499999999996 287.546,342.41499999999996" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PG" data-to="PAPI" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.546,207.16499999999996 263.546,207.16499999999996 263.546,236.69 826.309,236.69" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PG" data-to="HASURA" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.546,207.16499999999996 263.546,207.16499999999996 263.546,183.79000000000002 789.7529999999999,183.79000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PG" data-to="POSTGREST" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.546,207.16499999999996 263.546,207.16499999999996 263.546,130.89 789.7529999999999,130.89" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PG" data-to="SUPERSET" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.546,207.16499999999996 263.546,207.16499999999996 263.546,274.84 544.646,274.84" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TRINO" data-to="SUPERSET" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.546,260.06499999999994 492.64599999999996,260.06499999999994 492.64599999999996,274.84 544.646,274.84" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="MARTS" data-to="SUPERSET" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="440.64599999999996,289.51499999999993 492.64599999999996,289.51499999999993 492.64599999999996,274.84 544.646,274.84" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PG" data-to="NESSIE" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.546,207.16499999999996 263.546,207.16499999999996 263.546,130.96499999999992 287.546,130.96499999999992" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PG" data-to="DAGSTER" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="239.546,207.16499999999996 263.546,207.16499999999996 263.546,342.4149999999999 287.546,342.4149999999999" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="node" data-id="OBS" data-label="Observatory UI" data-shape="rectangle">
+  <rect x="586.1419999999999" y="309.28999999999996" width="131.611" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="651.9475" y="327.73999999999995" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Observatory UI</text>
+</g>
+<g class="node" data-id="DAGUI" data-label="Dagster Web UI" data-shape="rectangle">
+  <rect x="586.1419999999999" y="362.19" width="131.611" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="651.9475" y="380.64" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Dagster Web UI</text>
+</g>
+<g class="node" data-id="SUPERSET" data-label="Superset Dashboards" data-shape="rectangle">
+  <rect x="544.646" y="256.39" width="173.107" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="631.1995" y="274.84" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Superset Dashboards</text>
+</g>
+<g class="node" data-id="PAPI" data-label="phlo-api" data-shape="rectangle">
+  <rect x="826.309" y="218.24" width="88.63300000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="870.6255" y="236.69" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">phlo-api</text>
+</g>
+<g class="node" data-id="HASURA" data-label="Hasura GraphQL" data-shape="rectangle">
+  <rect x="789.7529999999999" y="165.34" width="143.46699999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="861.4865" y="183.79000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Hasura GraphQL</text>
+</g>
+<g class="node" data-id="POSTGREST" data-label="PostgREST" data-shape="rectangle">
+  <rect x="789.7529999999999" y="112.44" width="111.60399999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="845.555" y="130.89" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">PostgREST</text>
+</g>
+<g class="node" data-id="TRINO" data-label="Trino Query Engine" data-shape="rectangle">
+  <rect x="82" y="241.61499999999995" width="157.546" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="160.773" y="260.06499999999994" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Trino Query Engine</text>
+</g>
+<g class="node" data-id="NESSIE" data-label="Nessie Catalog" data-shape="rectangle">
+  <rect x="287.546" y="112.51499999999993" width="130.12900000000002" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="352.6105" y="130.96499999999992" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Nessie Catalog</text>
+</g>
+<g class="node" data-id="MINIO" data-label="MinIO S3 Storage" data-shape="rectangle">
+  <rect x="82" y="135.81499999999994" width="143.467" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="153.7335" y="154.26499999999993" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">MinIO S3 Storage</text>
+</g>
+<g class="node" data-id="DAGSTER" data-label="Dagster Assets" data-shape="rectangle">
+  <rect x="287.546" y="323.9649999999999" width="133.09300000000002" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="354.0925" y="342.4149999999999" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Dagster Assets</text>
+</g>
+<g class="node" data-id="PG" data-label="PostgreSQL" data-shape="rectangle">
+  <rect x="123.49600000000001" y="188.71499999999995" width="116.04999999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="181.52100000000002" y="207.16499999999996" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">PostgreSQL</text>
+</g>
+<g class="node" data-id="MARTS" data-label="PostgreSQL Marts" data-shape="rectangle">
+  <rect x="287.546" y="271.06499999999994" width="153.1" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="364.096" y="289.51499999999993" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">PostgreSQL Marts</text>
+</g>
+</svg>10:["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$37"}}]
+11:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"data-and-orchestration-detail","children":[["$","a",null,{"data-card":"","href":"#data-and-orchestration-detail","className":"peer","children":"Data and Orchestration Detail"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+38:T3e90,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1837.224 331.73" width="1837.224" height="331.73" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="sources" data-label="Data Sources">
+  <rect x="24" y="24" width="193.251" height="202.70000000000002" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="24" y="24" width="193.251" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="36" y="38" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Data Sources</text>
+</g>
+<g class="subgraph" data-id="ingest" data-label="Ingestion">
+  <rect x="277.251" y="59.30000000000001" width="503.869" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="277.251" y="59.30000000000001" width="503.869" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="289.251" y="73.30000000000001" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Ingestion</text>
+</g>
+<g class="subgraph" data-id="platform" data-label="Platform Runtime">
+  <rect x="821.12" y="26.7" width="950.1039999999999" height="247.03000000000003" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="821.12" y="26.7" width="950.1039999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="833.12" y="40.7" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Platform Runtime</text>
+</g>
+<polyline class="edge" data-from="NS" data-to="DLT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="203.474,139.35000000000002 260.36249999999995,139.35000000000002 260.36249999999995,121.75000000000001 317.251,121.75000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="FILES" data-to="DLT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="201.251,192.25 260.36249999999995,192.25 260.36249999999995,121.75000000000001 317.251,121.75000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="EXTERNAL" data-to="DLT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="199.02800000000002,86.45 260.36249999999995,86.45 260.36249999999995,121.75000000000001 317.251,121.75000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PYI" data-to="MINIO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="765.12,121.75000000000001 809.12,121.75000000000001 809.12,95.30000000000001 1053.4916,95.30000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PYI" data-to="NESSIE" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="765.12,121.75000000000001 809.12,121.75000000000001 809.12,148.2 1053.4916,148.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DAGSTER" data-to="DLT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1186.5846,204.79000000000002 1216.809,204.79000000000002 1216.809,209.83 1789.224,209.83 1789.224,283.73 259.251,283.73 259.251,136.75 305.251,136.75 305.251,132.82 317.251,132.82" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DLT" data-to="STAGE" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="429.596,121.75000000000001 457.596,121.75000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="STAGE" data-to="PYI" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="594.394,121.75000000000001 622.394,121.75000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SCHEDULES" data-to="DAGSTER" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1021.342,201.10000000000002 1053.4916,201.10000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DAGSTER" data-to="DBT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1186.5846000000001,201.10000000000002 1207.6968000000002,201.10000000000002 1207.6968000000002,181.38 1414.355,181.38" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DAGSTER" data-to="TRINO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1186.5846000000001,201.10000000000002 1207.6968000000002,201.10000000000002 1207.6968000000002,148.2 1228.809,148.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DAGSTER" data-to="OTEL" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1186.5846000000001,201.10000000000002 1207.6968000000002,201.10000000000002 1207.6968000000002,239.28000000000003 1261.7835,239.28000000000003" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="OTEL" data-to="CLICKSTACK" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1353.3805,239.28 1414.355,239.28" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="MINIO" data-to="TRINO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1196.9586000000002,95.30000000000001 1212.8838,95.30000000000001 1212.8838,148.2 1228.809,148.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="NESSIE" data-to="TRINO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1183.6206,148.20000000000002 1228.809,148.20000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="MINIO" data-to="DUCK" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1196.9586000000002,95.30000000000001 1212.8838,95.30000000000001 1212.8838,89.15 1228.809,89.15" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TRINO" data-to="DBT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1386.355,148.2 1400.355,148.2 1400.355,181.38 1414.355,181.38" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DBT" data-to="MARTS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1574.1239999999998,181.38 1586.1239999999998,181.38 1586.1239999999998,162.925 1602.1239999999998,162.925" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TRINO" data-to="MARTS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1386.355,148.2 1400.355,148.2 1400.355,156.77499999999998 1602.1239999999998,156.77499999999998" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="node" data-id="NS" data-label="Nightscout API" data-shape="rectangle">
+  <rect x="76.309" y="120.9" width="127.16499999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="139.8915" y="139.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Nightscout API</text>
+</g>
+<g class="node" data-id="FILES" data-label="CSV and Excel Files" data-shape="rectangle">
+  <rect x="40" y="173.8" width="161.251" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="120.6255" y="192.25" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">CSV and Excel Files</text>
+</g>
+<g class="node" data-id="EXTERNAL" data-label="External APIs" data-shape="rectangle">
+  <rect x="76.309" y="68" width="122.71900000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="137.6685" y="86.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">External APIs</text>
+</g>
+<g class="node" data-id="DLT" data-label="DLT Python" data-shape="rectangle">
+  <rect x="317.251" y="103.30000000000001" width="112.345" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="373.4235" y="121.75000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">DLT Python</text>
+</g>
+<g class="node" data-id="STAGE" data-label="S3 Staging Area" data-shape="rectangle">
+  <rect x="457.596" y="103.30000000000001" width="136.798" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="525.995" y="121.75000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">S3 Staging Area</text>
+</g>
+<g class="node" data-id="PYI" data-label="PyIceberg Writer" data-shape="rectangle">
+  <rect x="622.394" y="103.30000000000001" width="142.726" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="693.7570000000001" y="121.75000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">PyIceberg Writer</text>
+</g>
+<g class="node" data-id="SCHEDULES" data-label="Schedules and Sensors" data-shape="rectangle">
+  <rect x="837.12" y="182.65" width="184.22199999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="929.231" y="201.10000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Schedules and Sensors</text>
+</g>
+<g class="node" data-id="DAGSTER" data-label="Dagster Assets" data-shape="rectangle">
+  <rect x="1053.4916" y="182.65" width="133.09300000000002" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1120.0381" y="201.10000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Dagster Assets</text>
+</g>
+<g class="node" data-id="MINIO" data-label="MinIO S3 Storage" data-shape="rectangle">
+  <rect x="1053.4916" y="76.85000000000001" width="143.467" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1125.2251" y="95.30000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">MinIO S3 Storage</text>
+</g>
+<g class="node" data-id="NESSIE" data-label="Nessie Catalog" data-shape="rectangle">
+  <rect x="1053.4916" y="129.75" width="130.12900000000002" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1118.5561" y="148.2" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Nessie Catalog</text>
+</g>
+<g class="node" data-id="TRINO" data-label="Trino Query Engine" data-shape="rectangle">
+  <rect x="1228.809" y="129.75" width="157.546" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1307.5819999999999" y="148.2" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Trino Query Engine</text>
+</g>
+<g class="node" data-id="DBT" data-label="dbt Transformations" data-shape="rectangle">
+  <rect x="1414.355" y="162.93" width="159.769" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1494.2395000000001" y="181.38" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">dbt Transformations</text>
+</g>
+<g class="node" data-id="DUCK" data-label="DuckDB Ad-hoc" data-shape="rectangle">
+  <rect x="1228.809" y="70.7" width="135.31599999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1296.4669999999999" y="89.15" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">DuckDB Ad-hoc</text>
+</g>
+<g class="node" data-id="MARTS" data-label="PostgreSQL Marts" data-shape="rectangle">
+  <rect x="1602.1239999999998" y="138.325" width="153.1" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1678.6739999999998" y="156.77499999999998" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">PostgreSQL Marts</text>
+</g>
+<g class="node" data-id="OTEL" data-label="phlo-otel" data-shape="rectangle">
+  <rect x="1261.7835" y="220.83" width="91.59700000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1307.582" y="239.28000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">phlo-otel</text>
+</g>
+<g class="node" data-id="CLICKSTACK" data-label="ClickStack" data-shape="rectangle">
+  <rect x="1414.355" y="220.83" width="105.676" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1467.193" y="239.28000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">ClickStack</text>
+</g>
+</svg>12:["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$38"}}]
+13:["$","h2",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"key-components","children":[["$","a",null,{"data-card":"","href":"#key-components","className":"peer","children":"Key Components"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+14:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"user-interface-layer","children":[["$","a",null,{"data-card":"","href":"#user-interface-layer","className":"peer","children":"User Interface Layer"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+15:["$","ul",null,{"children":["\n",["$","li",null,{"children":[["$","strong",null,{"children":"Observatory"}],": Web-based UI for exploring data, viewing lineage, managing branches, and monitoring data quality. Provides a unified interface for all Phlo operations."]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Dagster Web UI"}],": Native Dagster interface for asset materialization, run monitoring, and workflow debugging."]}],"\n"]}]
+16:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"api-layer","children":[["$","a",null,{"data-card":"","href":"#api-layer","className":"peer","children":"API Layer"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+17:["$","ul",null,{"children":["\n",["$","li",null,{"children":[["$","strong",null,{"children":"phlo-api"}],": Python FastAPI service exposing Phlo internals (plugins, services, configs) and providing data access endpoints for Observatory."]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"PostgREST"}]," (optional): Auto-generated REST API from PostgreSQL schemas."]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Hasura"}]," (optional): GraphQL API with real-time subscriptions."]}],"\n"]}]
+18:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"storage-layer","children":[["$","a",null,{"data-card":"","href":"#storage-layer","className":"peer","children":"Storage Layer"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+19:["$","ul",null,{"children":["\n",["$","li",null,{"children":[["$","strong",null,{"children":"MinIO"}],": S3-compatible object storage for data files and Iceberg metadata"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Nessie"}],": Git-like catalog for table metadata and branching"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"PostgreSQL"}],": Relational database for operational metadata and analytics marts"]}],"\n"]}]
+1a:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"compute-layer","children":[["$","a",null,{"data-card":"","href":"#compute-layer","className":"peer","children":"Compute Layer"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+1b:["$","ul",null,{"children":["\n",["$","li",null,{"children":[["$","strong",null,{"children":"Trino"}],": Distributed SQL query engine for analytics"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"dbt"}],": Data transformation framework with SQL"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"DuckDB"}],": Embedded analytical database for ad-hoc queries"]}],"\n"]}]
+1c:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"orchestration","children":[["$","a",null,{"data-card":"","href":"#orchestration","className":"peer","children":"Orchestration"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+1d:["$","ul",null,{"children":["\n",["$","li",null,{"children":[["$","strong",null,{"children":"Dagster"}],": Asset-based data orchestration platform"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Schedules & Sensors"}],": Automated pipeline triggers"]}],"\n"]}]
+1e:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"analytics-layer","children":[["$","a",null,{"data-card":"","href":"#analytics-layer","className":"peer","children":"Analytics Layer"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+1f:["$","ul",null,{"children":["\n",["$","li",null,{"children":[["$","strong",null,{"children":"PostgreSQL Marts"}],": Curated datasets for BI tools"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Superset"}]," (optional): Business intelligence and visualization"]}],"\n"]}]
+20:["$","h2",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"data-flow","children":[["$","a",null,{"data-card":"","href":"#data-flow","className":"peer","children":"Data Flow"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+21:["$","ol",null,{"children":["\n",["$","li",null,{"children":[["$","strong",null,{"children":"Ingestion"}],": Data sources → DLT → S3 staging → PyIceberg → Iceberg tables"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Transformation"}],": Iceberg tables → dbt → PostgreSQL marts"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Querying"}],": Multiple engines can query Iceberg tables directly"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Visualization"}],": BI tools connect to PostgreSQL marts or query engines"]}],"\n"]}]
+22:["$","h2",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"plugin-system-architecture","children":[["$","a",null,{"data-card":"","href":"#plugin-system-architecture","className":"peer","children":"Plugin System Architecture"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+23:["$","p",null,{"children":"Phlo uses a unified plugin system for extending functionality:"}]
+24:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"plugin-types","children":[["$","a",null,{"data-card":"","href":"#plugin-types","className":"peer","children":"Plugin Types"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+25:["$","ol",null,{"children":["\n",["$","li",null,{"children":["\n",["$","p",null,{"children":[["$","strong",null,{"children":"Service Plugins"}],": Infrastructure services (Dagster, Postgres, Trino, etc.)"]}],"\n",["$","ul",null,{"children":["\n",["$","li",null,{"children":["Distributed as Python packages (e.g., ",["$","code",null,{"children":"phlo-dagster"}],", ",["$","code",null,{"children":"phlo-trino"}],")"]}],"\n",["$","li",null,{"children":["Contain Docker service definitions via ",["$","code",null,{"children":"service.yaml"}]]}],"\n",["$","li",null,{"children":["Auto-discovered via ",["$","code",null,{"children":"phlo.plugins.services"}]," entry points"]}],"\n"]}],"\n"]}],"\n",["$","li",null,{"children":["\n",["$","p",null,{"children":[["$","strong",null,{"children":"Data Plugins"}],": Data processing extensions"]}],"\n",["$","ul",null,{"children":["\n",["$","li",null,{"children":[["$","strong",null,{"children":"Source Connectors"}],": Fetch data from external systems"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Quality Checks"}],": Custom validation rules"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Transformations"}],": Reusable transformation logic"]}],"\n"]}],"\n"]}],"\n",["$","li",null,{"children":["\n",["$","p",null,{"children":[["$","strong",null,{"children":"Dagster Extension Plugins"}],": Extend Dagster functionality"]}],"\n",["$","ul",null,{"children":["\n",["$","li",null,{"children":"Custom resources, sensors, schedules"}],"\n",["$","li",null,{"children":"Integration with external systems"}],"\n"]}],"\n"]}],"\n",["$","li",null,{"children":["\n",["$","p",null,{"children":[["$","strong",null,{"children":"CLI Plugins"}],": Add custom CLI commands"]}],"\n"]}],"\n"]}]
+26:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"plugin-discovery","children":[["$","a",null,{"data-card":"","href":"#plugin-discovery","className":"peer","children":"Plugin Discovery"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+27:["$","p",null,{"children":"Plugins are automatically discovered using Python entry points:"}]
+39:T11fb,<svg class="phlo-mermaid-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 239.63199999999995 316.1" width="239.63199999999995" height="316.1" style="--bg:var(--color-fd-card);--fg:var(--color-fd-foreground);--line:var(--color-fd-foreground);--accent:var(--color-fd-primary);--muted:var(--color-fd-muted-foreground);--surface:var(--color-fd-secondary);--border:var(--color-fd-border)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="env" data-to="discovery" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="119.81599999999997,111.60000000000001 119.81599999999997,139.60000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="discovery" data-to="registry" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="119.81599999999997,193.40000000000003 119.81599999999997,221.40000000000003" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="node" data-id="env" data-label="Python Environment
+phlo
+phlo-dagster
+phlo-custom-source" data-shape="rectangle">
+  <rect x="39.93149999999997" y="24" width="159.769" height="87.60000000000001" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="119.81599999999997" y="67.80000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="119.81599999999997" dy="-20.8">Python Environment</tspan><tspan x="119.81599999999997" dy="16.900000000000002">phlo</tspan><tspan x="119.81599999999997" dy="16.900000000000002">phlo-dagster</tspan><tspan x="119.81599999999997" dy="16.900000000000002">phlo-custom-source</tspan></text>
+</g>
+<g class="node" data-id="discovery" data-label="Entry Point Discovery
+importlib.metadata" data-shape="rectangle">
+  <rect x="34.37399999999998" y="139.60000000000002" width="170.884" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="119.81599999999997" y="166.50000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="119.81599999999997" dy="-3.9000000000000012">Entry Point Discovery</tspan><tspan x="119.81599999999997" dy="16.900000000000002">importlib.metadata</tspan></text>
+</g>
+<g class="node" data-id="registry" data-label="Plugin Registry
+Installed plugins
+Available plugins (remote)" data-shape="rectangle">
+  <rect x="24" y="221.40000000000003" width="191.63199999999995" height="70.7" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="119.81599999999997" y="256.75000000000006" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="119.81599999999997" dy="-12.350000000000001">Plugin Registry</tspan><tspan x="119.81599999999997" dy="16.900000000000002">Installed plugins</tspan><tspan x="119.81599999999997" dy="16.900000000000002">Available plugins (remote)</tspan></text>
+</g>
+</svg>28:["$","div",null,{"className":"phlo-mermaid overflow-x-auto rounded-xl border bg-fd-card p-4","dangerouslySetInnerHTML":{"__html":"$39"}}]
+29:["$","h3",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"plugin-registry","children":[["$","a",null,{"data-card":"","href":"#plugin-registry","className":"peer","children":"Plugin Registry"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+2a:["$","ul",null,{"children":["\n",["$","li",null,{"children":[["$","strong",null,{"children":"registry/plugins.json"}],": Authoritative catalog of available plugins"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"Remote + Bundled"}],": Fetches from remote, falls back to bundled version offline"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"CLI Management"}],": ",["$","code",null,{"children":"phlo plugin search/install/list"}]," commands"]}],"\n"]}]
+2b:["$","p",null,{"children":"For more details, see:"}]
+2c:["$","ul",null,{"children":["\n",["$","li",null,{"children":["$","$L3a",null,{"href":"../blog/data-engineering-fundamentals/12-extending-phlo-with-plugins-and-observatory.md","children":"Data Engineering Fundamentals Part 12"}]}],"\n",["$","li",null,{"children":["$","$L3a",null,{"href":"../architecture/decisions/0030-unified-plugin-system-with-registry.md","children":"ADR 0030: Unified Plugin System"}]}],"\n",["$","li",null,{"children":["$","$L3a",null,{"href":"../architecture/decisions/0046-phlo-contracts-for-schema-migration-scaffolding.md","children":"ADR 0046: Phlo Contracts for Migration Scaffolding"}]}],"\n"]}]
+2d:["$","h2",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"branching-strategy","children":[["$","a",null,{"data-card":"","href":"#branching-strategy","className":"peer","children":"Branching Strategy"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+2e:["$","p",null,{"children":"Phlo uses a Git-like branching model for data:"}]
+2f:["$","ul",null,{"children":["\n",["$","li",null,{"children":[["$","strong",null,{"children":"main"}],": Production data (read-only for most users)"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"dev"}],": Development workspace (read-write)"]}],"\n",["$","li",null,{"children":[["$","strong",null,{"children":"feature branches"}],": Isolated development environments"]}],"\n"]}]
+30:["$","p",null,{"children":["See the ",["$","$L3a",null,{"href":"../getting-started/core-concepts.md","children":"Core Concepts guide"}]," for branching patterns."]}]
+31:["$","h2",null,{"className":"flex scroll-m-28 flex-row items-center gap-2","id":"for-more-details","children":[["$","a",null,{"data-card":"","href":"#for-more-details","className":"peer","children":"For More Details"}],["$","$L8",null,{"iconNode":"$0:rsc:props:children:0:props:children:3:props:children:2:props:children:1:props:iconNode","className":"lucide-link size-3.5 shrink-0 text-fd-muted-foreground opacity-0 transition-opacity peer-hover:opacity-100","aria-hidden":true}]]}]
+32:["$","p",null,{"children":["See the ",["$","$L3a",null,{"href":"plugin-api.md","children":"Plugin API"}]," and ",["$","$L3a",null,{"href":"../guides/extension-model.md","children":"Extension Model"}]," for the public plugin system documentation."]}]
+33:["$","script","script-0",{"src":"/_next/static/chunks/0oq-lzu4y7kl2.js","async":true}]
+34:["$","script","script-1",{"src":"/_next/static/chunks/1335b13jkzplm.js","async":true}]
+35:["$","$L3b",null,{"children":["$","$3c",null,{"name":"Next.MetadataOutlet","children":"$@3d"}]}]
+3d:null

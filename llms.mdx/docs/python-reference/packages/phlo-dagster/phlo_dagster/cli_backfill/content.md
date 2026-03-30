@@ -1,0 +1,967 @@
+# cli_backfill (/docs/python-reference/packages/phlo-dagster/phlo_dagster/cli_backfill)
+
+
+
+Backfill command for partitioned asset materialization.
+
+This module implements the `phlo backfill` CLI command, enabling batch
+materialization of partitioned Dagster assets across date ranges. It
+supports parallel execution, resume capability, and dry-run preview.
+
+Features:
+
+* Date range or explicit partition list modes
+* Parallel execution with configurable workers
+* Resume capability via state file persistence
+* Dry-run mode for previewing operations
+* Rate limiting with delay between executions
+* Progress tracking with Rich UI
+* Docker container execution
+
+State Management:
+Backfill state is persisted to `.phlo/backfill_state.json` to enable
+resume after interruption. State includes asset name, completed
+partitions, and remaining work.
+
+Execution:
+Backfills run via Docker exec into the Dagster container, enabling
+access to the full Dagster environment while maintaining isolation
+from the host system.
+
+Example:
+CLI usage::
+
+phlo backfill dlt\_orders --start-date 2024-01-01 --end-date 2024-01-31
+phlo backfill dlt\_orders --partitions 2024-01-01,2024-01-15,2024-01-31
+phlo backfill dlt\_orders --start-date 2024-01-01 --end-date 2024-12-31 --parallel 4
+phlo backfill --resume
+phlo backfill dlt\_orders --start-date 2024-01-01 --end-date 2024-01-31 --dry-run
+
+<PyAttribute name="&#x22;console&#x22;" type="null" value="&#x22;Console()&#x22;" />
+
+<PyAttribute name="&#x22;logger&#x22;" type="null" value="&#x22;get_logger(__name__)&#x22;" />
+
+<PyAttribute name="&#x22;BACKFILL_STATE_FILE&#x22;" type="null" value="&#x22;Path('.phlo/backfill_state.json')&#x22;" />
+
+<Tabs items="[&#x22;Functions&#x22;]">
+  <Tab value="&#x22;Functions&#x22;">
+    <PyFunction name="&#x22;backfill&#x22;" type="&#x22;(asset_name, start_date, end_date, partitions, parallel, resume, dry_run, delay)&#x22;">
+      Run asset materialization across a date range with parallel execution.
+
+      Supports multiple invocation modes:
+
+      * Date range: --start-date and --end-date
+      * Explicit partitions: --partitions comma-separated
+      * Resume: --resume to continue interrupted backfill
+
+      <PySourceCode>
+        ```python
+        @click.command()
+        @click.argument("asset_name", required=False)
+        @click.option(
+            "--start-date",
+            type=str,
+            help="Start date (YYYY-MM-DD)",
+        )
+        @click.option(
+            "--end-date",
+            type=str,
+            help="End date (YYYY-MM-DD)",
+        )
+        @click.option(
+            "--partitions",
+            type=str,
+            help="Comma-separated partition dates (YYYY-MM-DD,YYYY-MM-DD,...)",
+        )
+        @click.option(
+            "--parallel",
+            type=int,
+            default=1,
+            help="Number of concurrent partitions to process (default: 1)",
+        )
+        @click.option(
+            "--resume",
+            is_flag=True,
+            default=False,
+            help="Resume last backfill, skipping completed partitions",
+        )
+        @click.option(
+            "--dry-run",
+            is_flag=True,
+            default=False,
+            help="Show what would be executed without running",
+        )
+        @click.option(
+            "--delay",
+            type=float,
+            default=0.0,
+            help="Delay between parallel executions in seconds (rate limiting)",
+        )
+        def backfill(
+            asset_name: str | None,
+            start_date: str | None,
+            end_date: str | None,
+            partitions: str | None,
+            parallel: int,
+            resume: bool,
+            dry_run: bool,
+            delay: float,
+        ):
+            """Run asset materialization across a date range with parallel execution.
+
+            Supports multiple invocation modes:
+            - Date range: --start-date and --end-date
+            - Explicit partitions: --partitions comma-separated
+            - Resume: --resume to continue interrupted backfill
+
+            Args:
+                asset_name: Name of the asset to backfill.
+                start_date: Start date (YYYY-MM-DD) for date range mode.
+                end_date: End date (YYYY-MM-DD) for date range mode.
+                partitions: Comma-separated partition dates for explicit mode.
+                parallel: Number of concurrent workers (default: 1).
+                resume: If True, resume from previous backfill state.
+                dry_run: If True, show commands without executing.
+                delay: Delay between parallel executions in seconds.
+
+            Returns:
+                None
+
+            Raises:
+                SystemExit: On validation failure or backfill failure.
+
+            """
+            console.print("\n[bold blue]📦 Asset Backfill[/bold blue]\n")
+            logger.info(
+                "dagster_backfill_command_started",
+                asset_name=asset_name,
+                start_date=start_date,
+                end_date=end_date,
+                has_partitions=partitions is not None,
+                parallel=parallel,
+                resume=resume,
+                dry_run=dry_run,
+                delay=delay,
+            )
+
+            # Validate inputs
+            if resume:
+                # Resume mode: load from state file
+                if not BACKFILL_STATE_FILE.exists():
+                    logger.error(
+                        "dagster_backfill_resume_state_missing",
+                        state_file=str(BACKFILL_STATE_FILE),
+                    )
+                    click.echo(
+                        "Error: No backfill state found. Cannot resume.",
+                        err=True,
+                    )
+                    sys.exit(1)
+
+                try:
+                    state = _load_backfill_state()
+                    asset_name = state.get("asset_name")
+                    partition_dates = state.get("remaining_partitions", [])
+                    completed_partitions = state.get("completed_partitions", [])
+                except Exception as e:
+                    logger.error(
+                        "dagster_backfill_resume_state_read_failed",
+                        state_file=str(BACKFILL_STATE_FILE),
+                        error=str(e),
+                        exc_info=True,
+                    )
+                    click.echo(f"Error reading backfill state: {e}", err=True)
+                    sys.exit(1)
+            else:
+                # Determine partition list
+                if partitions:
+                    # Explicit partitions
+                    partition_dates = [p.strip() for p in partitions.split(",")]
+                    _validate_partition_dates(partition_dates)
+                elif start_date and end_date:
+                    # Generate from date range
+                    partition_dates = _generate_partition_dates(start_date, end_date)
+                else:
+                    logger.error("dagster_backfill_partitions_missing")
+                    click.echo(
+                        "Error: Must specify either --start-date/--end-date or --partitions",
+                        err=True,
+                    )
+                    sys.exit(1)
+
+                if not asset_name:
+                    logger.error("dagster_backfill_asset_name_missing")
+                    click.echo("Error: Asset name is required", err=True)
+                    sys.exit(1)
+
+                completed_partitions = []
+
+            # Validate asset name
+            if not asset_name:
+                logger.error("dagster_backfill_asset_name_missing")
+                click.echo("Error: Asset name is required", err=True)
+                sys.exit(1)
+            asset_name = str(asset_name)
+
+            # Validate parallel value
+            if parallel < 1:
+                logger.error("dagster_backfill_parallel_invalid", parallel=parallel)
+                click.echo(
+                    "Error: Parallel must be >= 1",
+                    err=True,
+                )
+                sys.exit(1)
+
+            # Display backfill plan
+            console.print(f"[cyan]Asset:[/cyan] {asset_name}")
+            console.print(f"[cyan]Total partitions:[/cyan] {len(partition_dates)}")
+            console.print(f"[cyan]Parallel workers:[/cyan] {parallel}")
+
+            if completed_partitions:
+                console.print(f"[yellow]Already completed:[/yellow] {len(completed_partitions)}")
+                console.print(f"[yellow]Remaining:[/yellow] {len(partition_dates)}")
+
+            if dry_run:
+                logger.info(
+                    "dagster_backfill_dry_run",
+                    asset_name=asset_name,
+                    partition_count=len(partition_dates),
+                )
+                console.print("\n[yellow]Dry run - showing first 5 commands:[/yellow]\n")
+                for date in partition_dates[:5]:
+                    cmd = _build_materialize_command(asset_name, date)
+                    console.print(f"[dim]{' '.join(cmd)}[/dim]")
+                if len(partition_dates) > 5:
+                    console.print(f"[dim]... and {len(partition_dates) - 5} more[/dim]")
+                return
+
+            if not partition_dates:
+                logger.info("dagster_backfill_no_partitions", asset_name=asset_name)
+                console.print("[yellow]No partitions to backfill[/yellow]")
+                return
+
+            # Run backfill with progress tracking
+            console.print()
+            _run_backfill(
+                asset_name,
+                partition_dates,
+                parallel=parallel,
+                delay=delay,
+                completed_partitions=completed_partitions,
+            )
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;asset_name&#x22;" type="&#x22;str | None&#x22;" value="undefined">
+          Name of the asset to backfill.
+        </PyParameter>
+
+        <PyParameter name="&#x22;start_date&#x22;" type="&#x22;str | None&#x22;" value="undefined">
+          Start date (YYYY-MM-DD) for date range mode.
+        </PyParameter>
+
+        <PyParameter name="&#x22;end_date&#x22;" type="&#x22;str | None&#x22;" value="undefined">
+          End date (YYYY-MM-DD) for date range mode.
+        </PyParameter>
+
+        <PyParameter name="&#x22;partitions&#x22;" type="&#x22;str | None&#x22;" value="undefined">
+          Comma-separated partition dates for explicit mode.
+        </PyParameter>
+
+        <PyParameter name="&#x22;parallel&#x22;" type="&#x22;int&#x22;" value="undefined">
+          Number of concurrent workers (default: 1).
+        </PyParameter>
+
+        <PyParameter name="&#x22;resume&#x22;" type="&#x22;bool&#x22;" value="undefined">
+          If True, resume from previous backfill state.
+        </PyParameter>
+
+        <PyParameter name="&#x22;dry_run&#x22;" type="&#x22;bool&#x22;" value="undefined">
+          If True, show commands without executing.
+        </PyParameter>
+
+        <PyParameter name="&#x22;delay&#x22;" type="&#x22;float&#x22;" value="undefined">
+          Delay between parallel executions in seconds.
+        </PyParameter>
+      </div>
+
+      <PyFunctionReturn type="null">
+        None
+      </PyFunctionReturn>
+    </PyFunction>
+
+    <PyFunction name="&#x22;_generate_partition_dates&#x22;" type="&#x22;(start_date, end_date) -> list[str]&#x22;">
+      Generate list of partition dates for a date range.
+
+      <PySourceCode>
+        ```python
+        def _generate_partition_dates(start_date: str, end_date: str) -> list[str]:
+            """
+            Generate list of partition dates for a date range.
+
+            Args:
+                start_date: Start date in YYYY-MM-DD format
+                end_date: End date in YYYY-MM-DD format
+
+            Returns:
+                List of date strings in YYYY-MM-DD format
+
+            """
+            try:
+                start = datetime.strptime(start_date, "%Y-%m-%d")
+                end = datetime.strptime(end_date, "%Y-%m-%d")
+            except ValueError:
+                logger.error(
+                    "dagster_backfill_date_parse_failed",
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                click.echo(
+                    "Error: Invalid date format. Use YYYY-MM-DD",
+                    err=True,
+                )
+                sys.exit(1)
+
+            if start > end:
+                logger.error(
+                    "dagster_backfill_date_range_invalid",
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                click.echo(
+                    "Error: Start date must be before end date",
+                    err=True,
+                )
+                sys.exit(1)
+
+            dates = []
+            current = start
+            while current <= end:
+                dates.append(current.strftime("%Y-%m-%d"))
+                current += timedelta(days=1)
+
+            return dates
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;start_date&#x22;" type="&#x22;str&#x22;" value="undefined">
+          Start date in YYYY-MM-DD format
+        </PyParameter>
+
+        <PyParameter name="&#x22;end_date&#x22;" type="&#x22;str&#x22;" value="undefined">
+          End date in YYYY-MM-DD format
+        </PyParameter>
+      </div>
+
+      <PyFunctionReturn type="&#x22;list&#x22;">
+        List of date strings in YYYY-MM-DD format
+      </PyFunctionReturn>
+    </PyFunction>
+
+    <PyFunction name="&#x22;_validate_partition_dates&#x22;" type="&#x22;(dates) -> None&#x22;">
+      Validate partition date format.
+
+      <PySourceCode>
+        ```python
+        def _validate_partition_dates(dates: list[str]) -> None:
+            """
+            Validate partition date format.
+
+            Args:
+                dates: List of date strings to validate
+
+            Raises:
+                SystemExit if validation fails
+
+            """
+            for date in dates:
+                try:
+                    datetime.strptime(date.strip(), "%Y-%m-%d")
+                except ValueError:
+                    logger.error(
+                        "dagster_backfill_partition_date_invalid",
+                        partition_date=date,
+                    )
+                    click.echo(
+                        f"Error: Invalid partition date: {date}. Use YYYY-MM-DD",
+                        err=True,
+                    )
+                    sys.exit(1)
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;dates&#x22;" type="&#x22;list[str]&#x22;" value="undefined">
+          List of date strings to validate
+        </PyParameter>
+      </div>
+
+      <PyFunctionReturn type="&#x22;None&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_build_materialize_command&#x22;" type="&#x22;(asset_name, partition_date) -> list[str]&#x22;">
+      Build the docker exec command for materializing an asset.
+
+      <PySourceCode>
+        ```python
+        def _build_materialize_command(asset_name: str, partition_date: str) -> list[str]:
+            """
+            Build the docker exec command for materializing an asset.
+
+            Args:
+                asset_name: Name of the asset to materialize
+                partition_date: Partition date in YYYY-MM-DD format
+
+            Returns:
+                List of command components
+
+            """
+            import platform
+
+            project_name = get_project_name()
+            container_name = find_dagster_container(project_name)
+            host_platform = platform.system()
+
+            return [
+                "docker",
+                "exec",
+                "-e",
+                f"PHLO_HOST_PLATFORM={host_platform}",
+                "-e",
+                "PHLO_PROJECT_PATH=/app",
+                "-w",
+                "/app",
+                container_name,
+                "dagster",
+                "asset",
+                "materialize",
+                "-m",
+                "phlo_dagster.framework.definitions",
+                "--select",
+                asset_name,
+                "--partition",
+                partition_date,
+            ]
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;asset_name&#x22;" type="&#x22;str&#x22;" value="undefined">
+          Name of the asset to materialize
+        </PyParameter>
+
+        <PyParameter name="&#x22;partition_date&#x22;" type="&#x22;str&#x22;" value="undefined">
+          Partition date in YYYY-MM-DD format
+        </PyParameter>
+      </div>
+
+      <PyFunctionReturn type="&#x22;list&#x22;">
+        List of command components
+      </PyFunctionReturn>
+    </PyFunction>
+
+    <PyFunction name="&#x22;_run_backfill&#x22;" type="&#x22;(asset_name, partition_dates, parallel=1, delay=0.0, completed_partitions=None) -> None&#x22;">
+      Execute backfill with progress tracking.
+
+      <PySourceCode>
+        ```python
+        def _run_backfill(
+            asset_name: str,
+            partition_dates: list[str],
+            parallel: int = 1,
+            delay: float = 0.0,
+            completed_partitions: list[str] | None = None,
+        ) -> None:
+            """
+            Execute backfill with progress tracking.
+
+            Args:
+                asset_name: Asset to backfill
+                partition_dates: List of partition dates
+                parallel: Number of concurrent workers
+                delay: Delay between executions in seconds
+                completed_partitions: List of already-completed partitions
+
+            """
+            if completed_partitions is None:
+                completed_partitions = []
+
+            # Filter out completed partitions
+            remaining = [d for d in partition_dates if d not in completed_partitions]
+            total = len(partition_dates)
+            already_done = len(completed_partitions)
+
+            successful: list[str] = []
+            failed: list[dict[str, str]] = []
+            start_time = datetime.now(timezone.utc).isoformat()
+            logger.info(
+                "dagster_backfill_execution_started",
+                asset_name=asset_name,
+                total_partitions=total,
+                remaining_partitions=len(remaining),
+                completed_partitions=already_done,
+                parallel=parallel,
+                delay=delay,
+            )
+
+            # Use ThreadPoolExecutor for parallel execution
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                task = progress.add_task(f"[cyan]Backfilling {asset_name}...", total=total)
+
+                with ThreadPoolExecutor(max_workers=parallel) as executor:
+                    # Submit all tasks
+                    future_to_date = {
+                        executor.submit(
+                            _materialize_partition,
+                            asset_name,
+                            date,
+                            delay if i > 0 else 0,
+                        ): date
+                        for i, date in enumerate(remaining)
+                    }
+
+                    # Process completed tasks
+                    completed_count = already_done
+                    for future in as_completed(future_to_date):
+                        date = future_to_date[future]
+                        try:
+                            success, output = future.result()
+                            if success:
+                                successful.append(date)
+                                completed_count += 1
+                                progress.update(
+                                    task,
+                                    completed=completed_count,
+                                    description=f"[green]✓ Completed {completed_count}/{total}[/green]",
+                                )
+                            else:
+                                logger.warning(
+                                    "dagster_backfill_partition_failed",
+                                    asset_name=asset_name,
+                                    partition_date=date,
+                                )
+                                failed.append({"date": date, "error": output})
+                                progress.update(
+                                    task,
+                                    description=f"[yellow]⚠ Failed {date}[/yellow]",
+                                )
+                        except Exception as e:
+                            logger.error(
+                                "dagster_backfill_partition_execution_failed",
+                                asset_name=asset_name,
+                                partition_date=date,
+                                error=str(e),
+                                exc_info=True,
+                            )
+                            failed.append({"date": date, "error": str(e)})
+                            progress.update(
+                                task,
+                                description=f"[red]✗ Error {date}[/red]",
+                            )
+
+                        # Update state file periodically
+                        _save_backfill_state(asset_name, remaining, successful, emit_log=False)
+
+            # Display results
+            console.print()
+            results = {
+                "asset_name": asset_name,
+                "start_time": start_time,
+                "total_partitions": total,
+                "completed_partitions": completed_partitions,
+                "successful": successful,
+                "failed": failed,
+            }
+            _display_backfill_results(results)
+            logger.info(
+                "dagster_backfill_execution_finished",
+                asset_name=asset_name,
+                total_partitions=total,
+                successful=len(successful),
+                failed=len(failed),
+            )
+
+            # Clean up state file on success
+            if not failed:
+                _remove_backfill_state()
+            else:
+                # Save final state for resume
+                remaining_after = [d for d in partition_dates if d not in successful]
+                _save_backfill_state(asset_name, remaining_after, successful, emit_log=True)
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;asset_name&#x22;" type="&#x22;str&#x22;" value="undefined">
+          Asset to backfill
+        </PyParameter>
+
+        <PyParameter name="&#x22;partition_dates&#x22;" type="&#x22;list[str]&#x22;" value="undefined">
+          List of partition dates
+        </PyParameter>
+
+        <PyParameter name="&#x22;parallel&#x22;" type="&#x22;int&#x22;" value="&#x22;1&#x22;">
+          Number of concurrent workers
+        </PyParameter>
+
+        <PyParameter name="&#x22;delay&#x22;" type="&#x22;float&#x22;" value="&#x22;0.0&#x22;">
+          Delay between executions in seconds
+        </PyParameter>
+
+        <PyParameter name="&#x22;completed_partitions&#x22;" type="&#x22;list[str] | None&#x22;" value="&#x22;None&#x22;">
+          List of already-completed partitions
+        </PyParameter>
+      </div>
+
+      <PyFunctionReturn type="&#x22;None&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_load_backfill_state&#x22;" type="&#x22;() -> dict[str, Any]&#x22;">
+      Load persisted backfill state from disk.
+
+      <PySourceCode>
+        ```python
+        def _load_backfill_state() -> dict[str, Any]:
+            """Load persisted backfill state from disk.
+
+            Args:
+                None
+
+            Returns:
+                Dictionary containing backfill state.
+
+            Raises:
+                Exception: If state file cannot be read.
+
+            """
+            logger.info(
+                "dagster_backfill_state_load_started",
+                state_file=str(BACKFILL_STATE_FILE),
+            )
+            try:
+                state = json.loads(BACKFILL_STATE_FILE.read_text())
+                logger.info(
+                    "dagster_backfill_state_load_completed",
+                    state_file=str(BACKFILL_STATE_FILE),
+                    asset_name=state.get("asset_name"),
+                    remaining_partition_count=len(state.get("remaining_partitions", [])),
+                    completed_partition_count=len(state.get("completed_partitions", [])),
+                )
+                return state
+            except Exception as exc:
+                logger.error(
+                    "dagster_backfill_state_load_failed",
+                    state_file=str(BACKFILL_STATE_FILE),
+                    error=str(exc),
+                    exc_info=True,
+                )
+                raise
+        ```
+      </PySourceCode>
+
+      <PyFunctionReturn type="&#x22;dict&#x22;">
+        Dictionary containing backfill state.
+      </PyFunctionReturn>
+    </PyFunction>
+
+    <PyFunction name="&#x22;_materialize_partition&#x22;" type="&#x22;(asset_name, partition_date, delay=0.0) -> tuple[bool, str]&#x22;">
+      Materialize a single partition.
+
+      <PySourceCode>
+        ```python
+        def _materialize_partition(
+            asset_name: str,
+            partition_date: str,
+            delay: float = 0.0,
+        ) -> tuple[bool, str]:
+            """
+            Materialize a single partition.
+
+            Args:
+                asset_name: Asset to materialize
+                partition_date: Partition date
+                delay: Delay before execution in seconds
+
+            Returns:
+                Tuple of (success, output_message)
+
+            """
+            import time
+
+            if delay > 0:
+                time.sleep(delay)
+
+            cmd = _build_materialize_command(asset_name, partition_date)
+            logger.debug(
+                "dagster_backfill_partition_materialize_started",
+                asset_name=asset_name,
+                partition_date=partition_date,
+            )
+
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=3600,  # 1 hour timeout per partition
+                )
+
+                if result.returncode == 0:
+                    return True, f"Materialized {partition_date}"
+                else:
+                    error_msg = result.stderr if result.stderr else result.stdout
+                    logger.warning(
+                        "dagster_backfill_partition_materialize_nonzero_exit",
+                        asset_name=asset_name,
+                        partition_date=partition_date,
+                        returncode=result.returncode,
+                    )
+                    return False, error_msg
+            except subprocess.TimeoutExpired:
+                logger.warning(
+                    "dagster_backfill_partition_materialize_timeout",
+                    asset_name=asset_name,
+                    partition_date=partition_date,
+                    timeout_seconds=3600,
+                )
+                return False, f"Timeout after 1 hour for partition {partition_date}"
+            except FileNotFoundError:
+                logger.error(
+                    "dagster_backfill_partition_materialize_binary_missing",
+                    asset_name=asset_name,
+                    partition_date=partition_date,
+                )
+                return False, "Docker not found or container not running"
+            except Exception as e:
+                logger.error(
+                    "dagster_backfill_partition_materialize_failed",
+                    asset_name=asset_name,
+                    partition_date=partition_date,
+                    error=str(e),
+                    exc_info=True,
+                )
+                return False, str(e)
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;asset_name&#x22;" type="&#x22;str&#x22;" value="undefined">
+          Asset to materialize
+        </PyParameter>
+
+        <PyParameter name="&#x22;partition_date&#x22;" type="&#x22;str&#x22;" value="undefined">
+          Partition date
+        </PyParameter>
+
+        <PyParameter name="&#x22;delay&#x22;" type="&#x22;float&#x22;" value="&#x22;0.0&#x22;">
+          Delay before execution in seconds
+        </PyParameter>
+      </div>
+
+      <PyFunctionReturn type="&#x22;tuple&#x22;">
+        Tuple of (success, output\_message)
+      </PyFunctionReturn>
+    </PyFunction>
+
+    <PyFunction name="&#x22;_save_backfill_state&#x22;" type="&#x22;(asset_name, remaining_partitions, completed_partitions, emit_log=False) -> None&#x22;">
+      Save backfill state for resume capability.
+
+      <PySourceCode>
+        ```python
+        def _save_backfill_state(
+            asset_name: str,
+            remaining_partitions: list[str],
+            completed_partitions: list[str],
+            emit_log: bool = False,
+        ) -> None:
+            """
+            Save backfill state for resume capability.
+
+            Args:
+                asset_name: Asset name
+                remaining_partitions: Partitions still to process
+                completed_partitions: Completed partitions
+
+            """
+            state_dir = BACKFILL_STATE_FILE.parent
+            state_dir.mkdir(exist_ok=True)
+
+            state = {
+                "asset_name": asset_name,
+                "remaining_partitions": remaining_partitions,
+                "completed_partitions": completed_partitions,
+                "last_updated": datetime.now(timezone.utc).isoformat(),
+            }
+
+            if emit_log:
+                logger.info(
+                    "dagster_backfill_state_save_started",
+                    state_file=str(BACKFILL_STATE_FILE),
+                    asset_name=asset_name,
+                    remaining_partition_count=len(remaining_partitions),
+                    completed_partition_count=len(completed_partitions),
+                )
+
+            try:
+                BACKFILL_STATE_FILE.write_text(json.dumps(state, indent=2))
+                if emit_log:
+                    logger.info(
+                        "dagster_backfill_state_save_completed",
+                        state_file=str(BACKFILL_STATE_FILE),
+                        asset_name=asset_name,
+                        remaining_partition_count=len(remaining_partitions),
+                        completed_partition_count=len(completed_partitions),
+                    )
+            except Exception as exc:
+                logger.error(
+                    "dagster_backfill_state_save_failed",
+                    state_file=str(BACKFILL_STATE_FILE),
+                    asset_name=asset_name,
+                    remaining_partition_count=len(remaining_partitions),
+                    completed_partition_count=len(completed_partitions),
+                    error=str(exc),
+                    exc_info=True,
+                )
+                raise
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;asset_name&#x22;" type="&#x22;str&#x22;" value="undefined">
+          Asset name
+        </PyParameter>
+
+        <PyParameter name="&#x22;remaining_partitions&#x22;" type="&#x22;list[str]&#x22;" value="undefined">
+          Partitions still to process
+        </PyParameter>
+
+        <PyParameter name="&#x22;completed_partitions&#x22;" type="&#x22;list[str]&#x22;" value="undefined">
+          Completed partitions
+        </PyParameter>
+
+        <PyParameter name="&#x22;emit_log&#x22;" type="&#x22;bool&#x22;" value="&#x22;False&#x22;" />
+      </div>
+
+      <PyFunctionReturn type="&#x22;None&#x22;" />
+    </PyFunction>
+
+    <PyFunction name="&#x22;_remove_backfill_state&#x22;" type="&#x22;() -> None&#x22;">
+      Remove persisted backfill state file if present.
+
+      <PySourceCode>
+        ```python
+        def _remove_backfill_state() -> None:
+            """Remove persisted backfill state file if present.
+
+            Args:
+                None
+
+            Returns:
+                None
+
+            Raises:
+                Exception: If state file cannot be removed.
+
+            """
+            if not BACKFILL_STATE_FILE.exists():
+                return
+            logger.info(
+                "dagster_backfill_state_remove_started",
+                state_file=str(BACKFILL_STATE_FILE),
+            )
+            try:
+                BACKFILL_STATE_FILE.unlink()
+                logger.info(
+                    "dagster_backfill_state_remove_completed",
+                    state_file=str(BACKFILL_STATE_FILE),
+                )
+            except Exception as exc:
+                logger.error(
+                    "dagster_backfill_state_remove_failed",
+                    state_file=str(BACKFILL_STATE_FILE),
+                    error=str(exc),
+                    exc_info=True,
+                )
+                raise
+        ```
+      </PySourceCode>
+
+      <PyFunctionReturn type="&#x22;None&#x22;">
+        None
+      </PyFunctionReturn>
+    </PyFunction>
+
+    <PyFunction name="&#x22;_display_backfill_results&#x22;" type="&#x22;(results) -> None&#x22;">
+      Display backfill results in a formatted table.
+
+      <PySourceCode>
+        ```python
+        def _display_backfill_results(results: dict[str, Any]) -> None:
+            """
+            Display backfill results in a formatted table.
+
+            Args:
+                results: Backfill results dictionary
+
+            """
+            successful = len(results["successful"])
+            failed = len(results["failed"])
+            total = results["total_partitions"]
+
+            console.print("[bold blue]Backfill Results[/bold blue]\n")
+
+            # Summary
+            table = Table(show_header=False)
+            table.add_row("[cyan]Asset[/cyan]", results["asset_name"])
+            table.add_row(
+                "[cyan]Status[/cyan]",
+                "[green]✓ Success[/green]" if failed == 0 else "[yellow]⚠ Partial[/yellow]",
+            )
+            table.add_row("[cyan]Completed[/cyan]", f"[green]{successful}[/green]")
+            table.add_row("[cyan]Failed[/cyan]", f"[red]{failed}[/red]" if failed > 0 else "0")
+            table.add_row("[cyan]Total[/cyan]", str(total))
+
+            console.print(table)
+
+            # Show failures if any
+            if results["failed"]:
+                console.print("\n[bold yellow]Failed Partitions[/bold yellow]\n")
+                fail_table = Table(show_header=True, header_style="bold")
+                fail_table.add_column("Date", style="cyan")
+                fail_table.add_column("Error", style="red")
+
+                for item in results["failed"]:
+                    if isinstance(item, dict):
+                        date = item.get("date", "unknown")
+                        error = item.get("error", "unknown error")
+                    else:
+                        date = item
+                        error = "unknown"
+
+                    fail_table.add_row(date, error[:100])
+
+                console.print(fail_table)
+
+                console.print("\n[yellow]To resume, run: phlo backfill --resume[/yellow]")
+                sys.exit(1)
+
+            console.print("\n[green]✓ Backfill complete![/green]")
+        ```
+      </PySourceCode>
+
+      <div>
+        <PyParameter name="&#x22;results&#x22;" type="&#x22;dict[str, Any]&#x22;" value="undefined">
+          Backfill results dictionary
+        </PyParameter>
+      </div>
+
+      <PyFunctionReturn type="&#x22;None&#x22;" />
+    </PyFunction>
+  </Tab>
+</Tabs>

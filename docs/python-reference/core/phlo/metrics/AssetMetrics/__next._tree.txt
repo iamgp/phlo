@@ -1,0 +1,2 @@
+:HL["/_next/static/chunks/04zm.1.g2wmrc.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"docs","param":null,"prefetchHints":0,"slots":{"children":{"name":"slug","param":{"type":"oc","key":"python-reference/core/phlo/metrics/AssetMetrics","siblings":null},"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}},"staleTime":300,"buildId":"9C2JA6Y9TXC1sGw6BiUFO"}
