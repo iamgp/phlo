@@ -201,6 +201,13 @@ jobs:
               print(f"- {item}")
           PY
 
+      - name: Gather remaining artifacts into root dist
+        run: |
+          mkdir -p dist
+          find packages -path '*/dist/*' -type f ! -name '.gitignore' -exec cp {} dist/ \;
+          echo "Root dist contents after gather:"
+          find dist -maxdepth 1 -type f | sort
+
       - uses: iamgp/ReleaseX@81af2b33865d393c0afa339a71a8b0b98aff0951
         with:
           command: release publish
