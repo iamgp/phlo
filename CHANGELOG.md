@@ -1,5 +1,14 @@
 # Changelog
 
+## [phlo 0.7.10] - 2026-03-31
+
+### Fixed
+- phlo: make release publish rerun-safe
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (1 commit)
+
 ## [phlo 0.7.9 + 1 packages] - 2026-03-30
 
 ### Fixed
