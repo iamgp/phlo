@@ -144,7 +144,7 @@ Plugins are loaded from installed Python packages only. Ensure you:
 
 <PyAttribute name="&#x22;__all__&#x22;" type="null" value="&#x22;['Plugin', 'PluginMetadata', 'SourceConnectorPlugin', 'QualityCheckPlugin', 'QualityProviderPlugin', 'ServicePlugin', 'TransformationPlugin', 'AssetProviderPlugin', 'CatalogPlugin', 'ResourceProviderPlugin', 'OrchestratorAdapterPlugin', 'HookPlugin', 'HookProvider', 'HookHandler', 'HookFilter', 'FailurePolicy', 'ObservatoryExtensionPlugin', 'ObservatoryExtensionManifest', 'ObservatoryExtensionCompatibility', 'ObservatoryExtensionSettings', 'ObservatoryExtensionRoute', 'ObservatoryExtensionNavItem', 'ObservatoryExtensionSlot', 'ObservatoryExtensionSettingsPanel', 'ObservatoryExtensionUI', 'discover_observatory_extensions', 'get_observatory_extension', 'SettingsScope', 'SettingsRecord', 'SettingsService', 'get_settings_service', 'SemanticLayerProvider', 'SemanticModel', 'discover_plugins', 'list_plugins', 'get_plugin', 'get_plugin_info', 'get_source_connector', 'get_quality_check', 'get_quality_provider', 'get_ingestion_provider', 'get_transformation', 'get_transformation_provider', 'get_service', 'validate_plugins', 'PluginRegistry']&#x22;" />
 
-<PyAttribute name="&#x22;__version__&#x22;" type="null" value="&#x22;'0.7.9'&#x22;" />
+<PyAttribute name="&#x22;__version__&#x22;" type="null" value="&#x22;'0.7.10'&#x22;" />
 
 <Tabs items="[&#x22;Functions&#x22;,&#x22;Modules&#x22;]">
   <Tab value="&#x22;Functions&#x22;">

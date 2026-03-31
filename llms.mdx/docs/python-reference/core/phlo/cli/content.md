@@ -12,7 +12,7 @@ Available commands:
 * phlo workflow create - Interactive workflow scaffolding
 * plus plugin commands from installed packages
 
-<PyAttribute name="&#x22;__version__&#x22;" type="null" value="&#x22;'0.7.9'&#x22;" />
+<PyAttribute name="&#x22;__version__&#x22;" type="null" value="&#x22;'0.7.10'&#x22;" />
 
 <Tabs items="[&#x22;Modules&#x22;]">
   <Tab value="&#x22;Modules&#x22;">
