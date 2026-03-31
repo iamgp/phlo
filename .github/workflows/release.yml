@@ -89,7 +89,12 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            ref="refs/tags/$INPUT_TAG"
+            tag_input="$INPUT_TAG"
+            case "$tag_input" in
+              v*) ;;
+              *) tag_input="v$tag_input" ;;
+            esac
+            ref="refs/tags/$tag_input"
           else
             ref="$GITHUB_REF_NAME"
           fi
