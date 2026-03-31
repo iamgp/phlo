@@ -95,9 +95,76 @@ jobs:
           rm -rf dist
           uv build --out-dir "$repo_root/dist"
           for pkg in packages/*/; do
-            rm -rf "${pkg}dist"
-            uv build --directory "$pkg"
+            package_dist="$repo_root/${pkg%/}/dist"
+            rm -rf "$package_dist"
+            uv build --directory "$pkg" --out-dir "$package_dist"
           done
+
+      - name: Remove already-published artifacts
+        run: |
+          python3 - <<'PY'
+          import email
+          import json
+          import tarfile
+          import urllib.request
+          import zipfile
+          from pathlib import Path
+
+          def artifact_metadata(path: Path) -> tuple[str, str]:
+              if path.suffix == ".whl":
+                  with zipfile.ZipFile(path) as wheel:
+                      metadata_name = next(
+                          name for name in wheel.namelist() if name.endswith(".dist-info/METADATA")
+                      )
+                      payload = wheel.read(metadata_name).decode("utf-8")
+              elif path.suffixes[-2:] == [".tar", ".gz"]:
+                  with tarfile.open(path, "r:gz") as sdist:
+                      member = next(
+                          member
+                          for member in sdist.getmembers()
+                          if member.name.endswith("/PKG-INFO")
+                      )
+                      extracted = sdist.extractfile(member)
+                      if extracted is None:
+                          raise RuntimeError(f"failed to extract PKG-INFO from {path}")
+                      payload = extracted.read().decode("utf-8")
+              else:
+                  raise RuntimeError(f"unsupported artifact type: {path}")
+
+              message = email.message_from_string(payload)
+              name = message["Name"]
+              version = message["Version"]
+              if not name or not version:
+                  raise RuntimeError(f"missing Name/Version metadata in {path}")
+              return name, version
+
+          def published(name: str, version: str) -> bool:
+              with urllib.request.urlopen(f"https://pypi.org/pypi/{name}/json", timeout=20) as response:
+                  payload = json.load(response)
+              return bool(payload.get("releases", {}).get(version))
+
+          dist_dirs = [Path("dist"), *sorted(Path("packages").glob("*/dist"))]
+          removed = []
+          kept = []
+
+          for dist_dir in dist_dirs:
+              if not dist_dir.exists():
+                  continue
+              for artifact in sorted(path for path in dist_dir.iterdir() if path.is_file() and path.name != ".gitignore"):
+                  name, version = artifact_metadata(artifact)
+                  if published(name, version):
+                      artifact.unlink()
+                      removed.append(f"{artifact} ({name} {version})")
+                  else:
+                      kept.append(f"{artifact} ({name} {version})")
+
+          print("Removed already-published artifacts:")
+          for item in removed:
+              print(f"- {item}")
+          print("Kept unpublished artifacts:")
+          for item in kept:
+              print(f"- {item}")
+          PY
 
       - uses: iamgp/ReleaseX@81af2b33865d393c0afa339a71a8b0b98aff0951
         with:
