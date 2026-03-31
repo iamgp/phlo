@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish or recover, for example `v0.7.9`
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -69,14 +75,38 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
       contents: read
     steps:
+      - name: Resolve publish ref
+        id: publish-ref
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          GITHUB_REF_NAME: ${{ github.ref }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            ref="refs/tags/$INPUT_TAG"
+          else
+            ref="$GITHUB_REF_NAME"
+          fi
+
+          case "$ref" in
+            refs/tags/v*) ;;
+            *)
+              echo "::error::Publish ref must be a version tag like refs/tags/v0.7.9"
+              exit 1
+              ;;
+          esac
+
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          ref: ${{ steps.publish-ref.outputs.ref }}
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
