@@ -3087,6 +3087,7 @@ dependencies = [
     { name = "pandera" },
     { name = "psycopg2-binary" },
     { name = "pydantic-settings" },
+    { name = "pymdx" },
     { name = "python-ulid" },
     { name = "pyyaml" },
     { name = "requests" },
@@ -3195,6 +3196,7 @@ requires-dist = [
     { name = "phlo-trino", marker = "extra == 'defaults'", editable = "packages/phlo-trino" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pydantic-settings", specifier = ">=2.11.0" },
+    { name = "pymdx", specifier = ">=0.1.1" },
     { name = "python-ulid", specifier = ">=2.0.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "requests", specifier = ">=2.32.5" },
@@ -4726,6 +4728,17 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ba/63/06673d1eb6d8f83c0ea1f677d770e12565fb516928b4109c9e2055656a9e/pymdown_extensions-10.21.tar.gz", hash = "sha256:39f4a020f40773f6b2ff31d2cd2546c2c04d0a6498c31d9c688d2be07e1767d5", size = 853363, upload-time = "2026-02-15T20:44:06.748Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6f/2c/5b079febdc65e1c3fb2729bf958d18b45be7113828528e8a0b5850dd819a/pymdown_extensions-10.21-py3-none-any.whl", hash = "sha256:91b879f9f864d49794c2d9534372b10150e6141096c3908a455e45ca72ad9d3f", size = 268877, upload-time = "2026-02-15T20:44:05.464Z" },
+]
+
+[[package]]
+name = "pymdx"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/69/08/cac36ec727ea2a8d24ff8a5a463ed7fe32ab90465f777319076b7a4cb7fe/pymdx-0.1.1-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:10d10828433ac67977ca16ab82f51fc4d4f7844924861010cc3cb71a72e47fea", size = 4168131, upload-time = "2026-03-31T21:56:50.905Z" },
+    { url = "https://files.pythonhosted.org/packages/83/be/e900e04af5aab12fac4a19f1e06c7b4e4f55b0237f68c01246fd13868419/pymdx-0.1.1-py3-none-macosx_11_0_arm64.whl", hash = "sha256:7bf2fb7bb83cc68219938bb00d58bf093022e8a1d18e06fa10ff7915c8cd4e06", size = 3963504, upload-time = "2026-03-31T21:56:52.734Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/21/d364a56512d60d2c1d16673913d867196ddb71850ffa3c81a882972b3349/pymdx-0.1.1-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:d46d272aaa8049ed0a473695436c1de8465934b92481d9407de740ed1dea3df8", size = 4402198, upload-time = "2026-03-31T21:56:54.214Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/af/ea079c1e9771c030f7f840553b5f3339e83f9adb0904b33007e717ff0122/pymdx-0.1.1-py3-none-win_amd64.whl", hash = "sha256:4312adb4d990ddb014a9ed0a29effee54c4a3024f1837826b1319edde234ed4d", size = 3894162, upload-time = "2026-03-31T21:56:55.585Z" },
 ]
 
 [[package]]
