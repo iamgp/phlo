@@ -58,9 +58,15 @@ jobs:
       - name: Build static site
         run: pymdx build docs-site
 
+      - name: Preserve cairn reports
+        run: |
+          git fetch origin gh-pages --depth=1 || true
+          git checkout origin/gh-pages -- cairn previews 2>/dev/null || true
+          cp -r cairn docs-site/out/cairn 2>/dev/null || true
+          cp -r previews docs-site/out/previews 2>/dev/null || true
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@e9c66a37f080288a11235e32cbe2dc5fb3a679cc # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs-site/out
-          keep_files: true
