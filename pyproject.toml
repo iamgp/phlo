@@ -48,6 +48,7 @@ dev = [
     "mkdocs-material>=9.5.0",
     "mkdocs-mermaid2-plugin>=1.2.0",
     "mkdocstrings[python]>=1.0.0",
+    "pymdx>=0.1.1",
 ]
 
 [project]
@@ -81,7 +82,6 @@ dependencies = [
     "fastapi>=0.127.0",
     "structlog>=25.5.0",
     "jsonschema>=4.23.0",
-    "pymdx>=0.1.1",
 ]
 description = "Lakehouse platform"
 name = "phlo"
