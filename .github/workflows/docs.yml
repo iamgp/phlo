@@ -3,42 +3,28 @@ name: Docs
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+    paths:
+      - "src/phlo/**"
+      - "packages/**"
+      - "docs/**"
+      - "pymdx.toml"
+      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  PYMDX_VERSION: "0.1.4"
 
 jobs:
-  build:
-    if: false
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
-      - name: Install uv
-        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
-        with:
-          version: "latest"
-      - name: Set up Python
-        run: uv python install 3.11
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: docs-app/package-lock.json
-      - name: Install docs app dependencies
-        working-directory: docs-app
-        run: npm ci
-      - name: Build docs
-        working-directory: docs-app
-        run: npm run build
-
-  deploy:
-    needs: build
-    if: false
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -46,26 +32,34 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
-      - name: Install uv
-        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
           version: "latest"
-      - name: Set up Python
-        run: uv python install 3.11
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+
+      - name: Install pymdx
+        run: uv tool install "pymdx==${PYMDX_VERSION}"
+
+      - name: Cache bun
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: docs-app/package-lock.json
-      - name: Install docs app dependencies
-        working-directory: docs-app
-        run: npm ci
-      - name: Build docs
-        working-directory: docs-app
-        run: npm run build
+          path: ~/.cache/pymdx/bun
+          key: pymdx-bun-${{ hashFiles('pymdx.toml') }}
+
+      - name: Generate docs site
+        run: pymdx generate src/phlo --docs docs --output docs-site
+
+      - name: Cache node_modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: docs-site/node_modules
+          key: docs-node-modules-${{ env.PYMDX_VERSION }}-${{ hashFiles('pymdx.toml') }}
+
+      - name: Build static site
+        run: pymdx build docs-site
+
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e
+        uses: peaceiris/actions-gh-pages@e9c66a37f080288a11235e32cbe2dc5fb3a679cc # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs-app/out
-          keep_files: true
+          publish_dir: ./docs-site/out
