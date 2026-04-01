@@ -21,7 +21,7 @@ exclude = [
 
 [output]
 dir = "docs-site"
-base_path = ""
+base_path = "/phlo"
 
 [theme]
 primary_color = "#2563eb"
