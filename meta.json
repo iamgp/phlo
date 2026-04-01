@@ -1,0 +1,16 @@
+{
+  "title": "Phlo Documentation",
+  "root": true,
+  "pages": [
+    "index",
+    "getting-started",
+    "guides",
+    "architecture",
+    "setup",
+    "operations",
+    "packages",
+    "reference",
+    "python-reference",
+    "errors"
+  ]
+}
