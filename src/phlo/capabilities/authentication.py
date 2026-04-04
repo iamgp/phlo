@@ -63,10 +63,10 @@ def _log_auth_event(
         log_args["auth_method"] = auth_method
     log_args.update(extra)
 
-    if event_type == "authentication_success":
+    if event_type == "success":
         logger.info("authentication_success", **log_args)
     else:
-        logger.warning(f"authentication_{event_type.replace('_', '_')}", **log_args)
+        logger.warning(f"authentication_{event_type}", **log_args)
 
 
 class StaticAuthenticationProvider:
@@ -424,6 +424,20 @@ def _load_static_config() -> tuple[dict[str, dict[str, Any]], bool]:
     """Load static authentication configuration from environment."""
     static_users = {}
     dev_mode = os.environ.get("PHLO_AUTH_DEV_MODE", "").lower() in ("1", "true", "yes")
+
+    if dev_mode:
+        environment = os.environ.get("PHLO_ENVIRONMENT", "dev").lower()
+        if environment in ("production", "prod"):
+            logger.error(
+                "auth_dev_mode_blocked",
+                reason="PHLO_AUTH_DEV_MODE is enabled but PHLO_ENVIRONMENT is production",
+            )
+            dev_mode = False
+        else:
+            logger.warning(
+                "auth_dev_mode_active",
+                reason="All requests authenticate as dev_user with admin privileges",
+            )
 
     users_json = os.environ.get("PHLO_AUTH_STATIC_USERS")
     if users_json:
