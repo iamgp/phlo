@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import ipaddress
 import json
 import os
@@ -178,8 +179,13 @@ class StaticAuthenticationProvider:
 
     def validate_token(self, token: str) -> AuthenticatedSession | None:
         """Validate a bearer token."""
-        if token in self._static_users:
-            user_data = self._static_users[token]
+        matched_key: str | None = None
+        for key in self._static_users:
+            if hmac.compare_digest(key, token):
+                matched_key = key
+                break
+        if matched_key is not None:
+            user_data = self._static_users[matched_key]
             principal = AuthPrincipal(
                 subject=user_data.get("subject", token),
                 principal_type=user_data.get("principal_type", "user"),
@@ -388,8 +394,13 @@ class ServiceTokenAuthenticationProvider:
 
     def validate_token(self, token: str) -> AuthenticatedSession | None:
         """Validate a service token."""
-        if token in self._service_tokens:
-            service_data = self._service_tokens[token]
+        matched_key: str | None = None
+        for key in self._service_tokens:
+            if hmac.compare_digest(key, token):
+                matched_key = key
+                break
+        if matched_key is not None:
+            service_data = self._service_tokens[matched_key]
             principal = AuthPrincipal(
                 subject=service_data.get("subject", token),
                 principal_type="service",

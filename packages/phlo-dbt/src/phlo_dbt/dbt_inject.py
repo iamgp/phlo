@@ -26,11 +26,21 @@ Example:
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+_SQL_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+def _validate_identifier(value: str, label: str) -> str:
+    """Validate that *value* is a safe SQL identifier (alphanumeric + underscore)."""
+    if not _SQL_IDENTIFIER_RE.match(value):
+        raise ValueError(f"Unsafe SQL identifier for {label}: {value!r}")
+    return value
 
 
 def _resolve_logger(context: Any | None) -> Any:
@@ -89,6 +99,9 @@ def inject_row_ids_to_table(
         ...     print(f"Added IDs to {result['rows_updated']} rows")
 
     """
+    _validate_identifier(catalog, "catalog")
+    _validate_identifier(schema, "schema")
+    _validate_identifier(table, "table")
     cursor = trino_connection.cursor()
     logger_ = _resolve_logger(context)
 
