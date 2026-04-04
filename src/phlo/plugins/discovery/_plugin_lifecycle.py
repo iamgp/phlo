@@ -25,11 +25,10 @@ def register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: bo
     register_method = getattr(registry, register_method_name)
     existing_plugin = getattr(registry, getter_method_name)(plugin.metadata.name)
 
-    # Let registry raise duplicate registration errors without initializing a plugin that
-    # cannot be registered.
     if existing_plugin and not replace:
-        register_method(plugin, replace=False)
-        return
+        raise ValueError(
+            f"Plugin '{plugin.metadata.name}' of type '{plugin_type}' is already registered"
+        )
 
     try:
         plugin.initialize({})

@@ -235,17 +235,15 @@ def evaluate_pandera_contract(
 
     """
     schema = schema_class.to_schema()
-    validated_df = df
-    for column_name, column in schema.columns.items():
-        if column_name in validated_df.columns or not column.nullable:
-            continue
+    missing_nullable = [
+        name for name, col in schema.columns.items() if col.nullable and name not in df.columns
+    ]
+    if missing_nullable:
         validated_df = df.copy()
-        validated_df[column_name] = None
-        break
-    for column_name, column in schema.columns.items():
-        if column_name in validated_df.columns or not column.nullable:
-            continue
-        validated_df[column_name] = None
+        for column_name in missing_nullable:
+            validated_df[column_name] = None
+    else:
+        validated_df = df
 
     datetime_columns = [
         name

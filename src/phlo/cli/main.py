@@ -7,6 +7,7 @@ Provides command-line interface for Phlo workflows.
 import os
 import subprocess
 import sys
+from importlib.metadata import version
 from pathlib import Path
 
 import click
@@ -29,7 +30,7 @@ logger = get_logger(__name__, service="phlo-cli")
 
 
 @click.group()
-@click.version_option(version="1.0.0", prog_name="phlo")
+@click.version_option(version=version("phlo"), prog_name="phlo")
 def cli() -> None:
     """
     Phlo - Modern Data Lakehouse Framework
