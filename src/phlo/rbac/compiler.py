@@ -7,6 +7,7 @@ RBAC policies into backend-native artifacts.
 from __future__ import annotations
 
 import base64
+import re
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -21,6 +22,19 @@ from phlo.rbac.models import (
     SyncPlan,
     VerifyResult,
 )
+
+_SQL_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.%* -]*$")
+
+
+def _validate_sql_identifier(value: str, label: str) -> str:
+    """Validate that *value* is a safe SQL identifier fragment.
+
+    Raises ``ValueError`` when *value* contains characters outside the
+    allowed set (alphanumeric, underscore, dot, percent, asterisk, hyphen).
+    """
+    if not _SQL_IDENTIFIER_RE.match(value):
+        raise ValueError(f"Unsafe {label}: {value!r}")
+    return value
 
 
 @dataclass
@@ -268,10 +282,13 @@ class TrinoCompiler(GovernanceCompiler):
             privileges = self.ACTION_MAPPING.get(policy.action, ())
 
             for role_name in policy.principal_roles:
+                _validate_sql_identifier(role_name, "role_name")
                 resource_id = policy.resource_id_pattern.replace("*", "%")
+                _validate_sql_identifier(resource_id, "resource_id")
                 artifact_name = f"{role_name}_{policy.resource_type}_{resource_id}"
 
                 for privilege in privileges:
+                    _validate_sql_identifier(privilege, "privilege")
                     if policy.resource_type == "dataset":
                         statement = f"GRANT {privilege} ON TABLE {resource_id} TO ROLE {role_name}"
                     elif policy.resource_type == "service":
@@ -551,9 +568,12 @@ class PostgreSQLCompiler(GovernanceCompiler):
             privileges = self.ACTION_MAPPING.get(policy.action, ())
 
             for role_name in policy.principal_roles:
+                _validate_sql_identifier(role_name, "role_name")
                 resource_id = policy.resource_id_pattern.replace("*", "%")
+                _validate_sql_identifier(resource_id, "resource_id")
 
                 for privilege in privileges:
+                    _validate_sql_identifier(privilege, "privilege")
                     statement = f"GRANT {privilege} ON SCHEMA {resource_id} TO {role_name}"
 
                     artifacts.append(
@@ -659,7 +679,7 @@ class PostgreSQLCompiler(GovernanceCompiler):
         revert_ids: list[str],
         context: CompilerContext,
     ) -> tuple[list[str], list[str]]:
-        return [], []
+        raise NotImplementedError("PostgreSQLCompiler.revert is not implemented")
 
     def read_current_state(
         self,
@@ -826,7 +846,7 @@ class HasuraCompiler(GovernanceCompiler):
         revert_ids: list[str],
         context: CompilerContext,
     ) -> tuple[list[str], list[str]]:
-        return [], []
+        raise NotImplementedError("HasuraCompiler.revert is not implemented")
 
     def read_current_state(
         self,
@@ -995,7 +1015,7 @@ class MinIOCompiler(GovernanceCompiler):
         revert_ids: list[str],
         context: CompilerContext,
     ) -> tuple[list[str], list[str]]:
-        return [], []
+        raise NotImplementedError("MinIOCompiler.revert is not implemented")
 
     def read_current_state(
         self,
@@ -1154,7 +1174,7 @@ class NessieCompiler(GovernanceCompiler):
         revert_ids: list[str],
         context: CompilerContext,
     ) -> tuple[list[str], list[str]]:
-        return [], []
+        raise NotImplementedError("NessieCompiler.revert is not implemented")
 
     def read_current_state(
         self,
