@@ -27,7 +27,8 @@ def register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: bo
 
     if existing_plugin and not replace:
         raise ValueError(
-            f"Plugin '{plugin.metadata.name}' of type '{plugin_type}' is already registered"
+            f"Plugin '{plugin.metadata.name}' of type '{plugin_type}' is already registered. "
+            "Use replace=True to overwrite."
         )
 
     try:

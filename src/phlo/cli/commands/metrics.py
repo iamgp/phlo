@@ -157,7 +157,9 @@ def _parse_period(period_str: str) -> int:
         except ValueError:
             logger.debug("metrics_period_parse_invalid_weeks", period=raw_period)
             return fallback_hours
-    logger.debug("metrics_period_parse_defaulted", period=raw_period)
+    logger.warning(
+        "metrics_period_parse_defaulted", period=raw_period, fallback_hours=fallback_hours
+    )
     return fallback_hours
 
 

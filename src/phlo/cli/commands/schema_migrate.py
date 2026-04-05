@@ -351,7 +351,7 @@ def refresh_contracts_for_selection(
             try:
                 export_contract_for_table(table_name=candidate, force=force)
             except SystemExit:
-                continue
+                raise
             except Exception:
                 logger.warning(
                     "schema_contract_refresh_failed",
