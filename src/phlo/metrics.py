@@ -27,8 +27,8 @@ class MetricsBackendSettings(BaseConfig):
 
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
     postgres_port: int = Field(default=5432, description="PostgreSQL port")
-    postgres_user: str = Field(default="phlo", description="PostgreSQL username")
-    postgres_password: str = Field(default="phlo", description="PostgreSQL password")
+    postgres_user: str = Field(description="PostgreSQL username")
+    postgres_password: str = Field(description="PostgreSQL password")
     postgres_db: str = Field(default="phlo", description="PostgreSQL database name")
     nessie_host: str = Field(default="nessie", description="Nessie host")
     nessie_port: int = Field(default=19120, description="Nessie port")
