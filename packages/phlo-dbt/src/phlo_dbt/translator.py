@@ -121,16 +121,16 @@ def get_compiled_sql_from_resource_props(
 
     compiled_path = dbt_resource_props.get("compiled_path")
     if compiled_path:
-        compiled_path_str = str(compiled_path)
-        if ".." in compiled_path_str.split("/") or compiled_path_str.startswith("/"):
+        dbt_project_path = get_settings().dbt_project_path
+        compiled_file = (dbt_project_path / str(compiled_path)).resolve()
+        if not str(compiled_file).startswith(str(dbt_project_path.resolve())):
             logger.warning(
                 "dbt_translator_compiled_path_rejected",
-                compiled_path=compiled_path_str,
+                compiled_path=str(compiled_path),
                 reason="path_traversal",
             )
             compiled_path = None
     if compiled_path:
-        compiled_file = get_settings().dbt_project_path / str(compiled_path)
         try:
             if compiled_file.exists():
                 compiled_sql = compiled_file.read_text()

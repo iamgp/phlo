@@ -183,7 +183,6 @@ class StaticAuthenticationProvider:
         for key in self._static_users:
             if hmac.compare_digest(key, token):
                 matched_key = key
-                break
         if matched_key is not None:
             user_data = self._static_users[matched_key]
             principal = AuthPrincipal(
@@ -398,7 +397,6 @@ class ServiceTokenAuthenticationProvider:
         for key in self._service_tokens:
             if hmac.compare_digest(key, token):
                 matched_key = key
-                break
         if matched_key is not None:
             service_data = self._service_tokens[matched_key]
             principal = AuthPrincipal(

@@ -23,7 +23,8 @@ from phlo.rbac.models import (
     VerifyResult,
 )
 
-_SQL_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.%* -]*$")
+_SQL_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.%*-]*$")
+_SQL_PRIVILEGE_RE = re.compile(r"^[A-Z][A-Z ]*$")
 
 
 def _validate_sql_identifier(value: str, label: str) -> str:
@@ -34,6 +35,13 @@ def _validate_sql_identifier(value: str, label: str) -> str:
     """
     if not _SQL_IDENTIFIER_RE.match(value):
         raise ValueError(f"Unsafe {label}: {value!r}")
+    return value
+
+
+def _validate_sql_privilege(value: str) -> str:
+    """Validate that *value* is a safe SQL privilege keyword (e.g. ``SELECT``, ``ALL PRIVILEGES``)."""
+    if not _SQL_PRIVILEGE_RE.match(value):
+        raise ValueError(f"Unsafe privilege: {value!r}")
     return value
 
 
@@ -285,10 +293,11 @@ class TrinoCompiler(GovernanceCompiler):
                 _validate_sql_identifier(role_name, "role_name")
                 resource_id = policy.resource_id_pattern.replace("*", "%")
                 _validate_sql_identifier(resource_id, "resource_id")
+                _validate_sql_identifier(policy.resource_type, "resource_type")
                 artifact_name = f"{role_name}_{policy.resource_type}_{resource_id}"
 
                 for privilege in privileges:
-                    _validate_sql_identifier(privilege, "privilege")
+                    _validate_sql_privilege(privilege)
                     if policy.resource_type == "dataset":
                         statement = f"GRANT {privilege} ON TABLE {resource_id} TO ROLE {role_name}"
                     elif policy.resource_type == "service":
@@ -573,7 +582,7 @@ class PostgreSQLCompiler(GovernanceCompiler):
                 _validate_sql_identifier(resource_id, "resource_id")
 
                 for privilege in privileges:
-                    _validate_sql_identifier(privilege, "privilege")
+                    _validate_sql_privilege(privilege)
                     statement = f"GRANT {privilege} ON SCHEMA {resource_id} TO {role_name}"
 
                     artifacts.append(

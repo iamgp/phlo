@@ -2,7 +2,6 @@
 
 import json
 import os
-import shlex
 import shutil
 import signal
 import sys
@@ -323,7 +322,9 @@ def _format_hook_command(command: object, substitutions: dict[str, str]) -> list
     if not isinstance(command, list):
         return []
 
-    safe_substitutions = {k: shlex.quote(v) for k, v in substitutions.items()}
+    safe_substitutions = {
+        k: v.replace("{", "{{").replace("}", "}}") for k, v in substitutions.items()
+    }
 
     class _SafeDict(dict):
         def __missing__(self, key: str) -> str:
