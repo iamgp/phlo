@@ -123,7 +123,7 @@ def get_compiled_sql_from_resource_props(
     if compiled_path:
         dbt_project_path = get_settings().dbt_project_path
         compiled_file = (dbt_project_path / str(compiled_path)).resolve()
-        if not str(compiled_file).startswith(str(dbt_project_path.resolve())):
+        if not str(compiled_file).startswith(str(dbt_project_path.resolve()) + os.sep):
             logger.warning(
                 "dbt_translator_compiled_path_rejected",
                 compiled_path=str(compiled_path),
