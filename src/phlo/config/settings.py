@@ -178,10 +178,3 @@ def get_settings() -> Settings:
 
     """
     return _get_config()
-
-
-config = _get_config()
-# Global cached configuration instance.
-# This module-level variable provides direct access to the cached settings
-# for convenience. Prefer using :func:`get_settings` in new code for better
-# testability.
