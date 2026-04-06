@@ -107,7 +107,7 @@ class DbtTransformationProvider(TransformationProviderPlugin):
         >>>
         >>> # Get CLI plugin for dbt commands
         >>> cli = provider.get_cli_plugin()
-            >>> commands = cli.get_cli_commands()
+        >>> commands = cli.get_cli_commands()
 
     """
 

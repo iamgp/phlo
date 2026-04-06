@@ -200,6 +200,8 @@ jobs:
             extra: ""
           - package: phlo-dbt
             extra: ""
+          - package: phlo-delta
+            extra: ""
           - package: phlo-dlt
             extra: ""
           - package: phlo-grafana
@@ -221,6 +223,8 @@ jobs:
           - package: phlo-observatory-example
             extra: ""
           - package: phlo-openmetadata
+            extra: ""
+          - package: phlo-otel
             extra: ""
           - package: phlo-pgweb
             extra: ""
