@@ -5,6 +5,7 @@ from __future__ import annotations
 from phlo.exceptions import (
     PhloError,
     PhloErrorCode,
+    _redact_sensitive,
     format_field_list,
     suggest_similar_field_names,
 )
@@ -85,3 +86,32 @@ def test_format_field_list_handles_empty_field_list() -> None:
     formatted = format_field_list([])
 
     assert formatted == ""
+
+
+def test_phlo_error_redacts_sensitive_data_in_cause() -> None:
+    """Sensitive patterns in cause messages are redacted."""
+    error = PhloError(
+        message="Connection failed",
+        code=PhloErrorCode.INFRASTRUCTURE_ERROR,
+        cause=ValueError("connection string: password=secret123"),
+    )
+    message = str(error)
+    assert "Caused by: ValueError: connection string=<redacted>" in message
+    assert "secret123" not in message
+
+
+def test_redact_sensitive_handles_colon_delimited_secret_values() -> None:
+    """Common `key: value` secret formats are redacted."""
+    assert _redact_sensitive("password: secret123") == "password=<redacted>"
+    assert _redact_sensitive("token: abc123") == "token=<redacted>"
+    assert _redact_sensitive("connection string: Server=db;Password=hunter2") == (
+        "connection string=<redacted>"
+    )
+
+
+def test_redact_sensitive_removes_private_key_material() -> None:
+    """Key labels and their body are redacted together."""
+    redacted = _redact_sensitive("private_key PEM_BLOCK_BODY_XYZ")
+
+    assert redacted == "private_key=<redacted>"
+    assert "PEM_BLOCK_BODY_XYZ" not in redacted
