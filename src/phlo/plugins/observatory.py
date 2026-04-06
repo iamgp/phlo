@@ -108,10 +108,10 @@ class ObservatoryExtensionPlugin(Plugin, ABC):
 def _is_plugin_allowed(plugin_name: str) -> bool:
     settings = get_settings()
     if plugin_name in settings.plugins_blacklist:
-        logger.debug("Plugin '%s' is blacklisted, skipping", plugin_name)
+        logger.debug("plugin_blacklisted", plugin_name=plugin_name)
         return False
     if settings.plugins_whitelist and plugin_name not in settings.plugins_whitelist:
-        logger.debug("Plugin '%s' is not in whitelist, skipping", plugin_name)
+        logger.debug("plugin_not_in_whitelist", plugin_name=plugin_name)
         return False
     return True
 

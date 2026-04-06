@@ -158,7 +158,10 @@ def _parse_period(period_str: str) -> int:
             logger.debug("metrics_period_parse_invalid_weeks", period=raw_period)
             return fallback_hours
     logger.warning(
-        "metrics_period_parse_defaulted", period=raw_period, fallback_hours=fallback_hours
+        "metrics_period_parse_unrecognized",
+        period=raw_period,
+        fallback_hours=fallback_hours,
+        hint="Use a suffix: h (hours), d (days), or w (weeks)",
     )
     return fallback_hours
 

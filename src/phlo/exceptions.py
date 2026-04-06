@@ -126,45 +126,6 @@ class PhloDiscoveryError(PhloError):
         )
 
 
-class PhloSchemaError(PhloError):
-    """Raised when schema configuration is invalid."""
-
-    def __init__(self, message: str, suggestions: list[str] | None = None):
-        """Initialize a schema error.
-
-        Args:
-            message: Description of the schema issue.
-            suggestions: Optional remediation suggestions.
-        """
-        super().__init__(
-            message=message,
-            code=PhloErrorCode.SCHEMA_MISMATCH,
-            suggestions=suggestions,
-        )
-
-
-class PhloCronError(PhloError):
-    """Raised when cron expression is invalid."""
-
-    def __init__(self, message: str, suggestions: list[str] | None = None):
-        """Initialize a cron expression error.
-
-        Args:
-            message: Description of the cron validation issue.
-            suggestions: Optional remediation suggestions. Defaults are used when omitted.
-        """
-        super().__init__(
-            message=message,
-            code=PhloErrorCode.INVALID_CRON,
-            suggestions=suggestions
-            or [
-                "Use standard cron format: [minute] [hour] [day_of_month] [month] [day_of_week]",
-                'Examples: "0 */1 * * *" (hourly), "0 0 * * *" (daily)',
-                "Test your cron at: https://crontab.guru",
-            ],
-        )
-
-
 class PhloValidationError(PhloError):
     """Raised when data validation fails."""
 

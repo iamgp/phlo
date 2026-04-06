@@ -7,6 +7,9 @@ import subprocess
 from collections.abc import Iterable
 
 from phlo.infrastructure.config import load_infrastructure_config
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def resolve_container_name(service_name: str, project_name: str) -> str:
@@ -33,6 +36,14 @@ def list_running_containers(project_name: str) -> list[str]:
         text=True,
         check=False,
     )
+    if result.returncode != 0:
+        logger.warning(
+            "docker_list_containers_failed",
+            project=project_name,
+            returncode=result.returncode,
+            stderr=result.stderr.strip() if result.stderr else "",
+        )
+        return []
     return result.stdout.splitlines() if result.stdout else []
 
 
