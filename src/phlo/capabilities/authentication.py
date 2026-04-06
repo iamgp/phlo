@@ -288,16 +288,17 @@ class ProxyAuthenticationProvider:
             logger.debug("expired_proxy_timestamp", timestamp=timestamp_str)
             return False
         subject, email, groups = self._identity_payload_parts(request_context)
-        payload = ":".join(
-            [
-                str(timestamp),
-                request_context.remote_addr or "",
-                request_context.path,
-                subject,
-                email,
-                groups,
-            ]
+        remote_addr = request_context.remote_addr or ""
+        path = request_context.path or ""
+        payload_parts: tuple[str, str, str, str, str, str] = (
+            str(timestamp),
+            remote_addr,
+            path,
+            subject,
+            email,
+            groups,
         )
+        payload = ":".join(payload_parts)
         expected = hmac.new(self._shared_secret.encode(), payload.encode(), "sha256").hexdigest()
         if not hmac.compare_digest(signature, expected):
             logger.debug("invalid_proxy_signature", remote_addr=request_context.remote_addr)
