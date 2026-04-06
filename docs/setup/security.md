@@ -40,6 +40,24 @@ openssl rand -base64 32
 
 ## Authentication
 
+### Phlo Reverse Proxy Authentication
+
+If you put Phlo behind a trusted reverse proxy, configure the app to accept asserted identity
+headers only from that proxy and bind those headers into a shared-secret signature:
+
+```bash
+# .phlo/.env.local
+PHLO_AUTH_PROXY_ENABLED=true
+PHLO_AUTH_PROXY_TRUSTED_PROXIES=127.0.0.1/32,10.0.0.0/8
+PHLO_AUTH_PROXY_SHARED_SECRET=<generate-strong-random-secret>
+PHLO_AUTH_PROXY_HEADER_SUBJECT=X-Remote-User
+PHLO_AUTH_PROXY_HEADER_EMAIL=X-Remote-Email
+PHLO_AUTH_PROXY_HEADER_GROUPS=X-Remote-Groups
+```
+
+When `PHLO_AUTH_PROXY_SHARED_SECRET` is set, the proxy must sign the timestamp, remote address,
+request path, and asserted identity headers so downstream header changes are rejected.
+
 ### Option 1: LDAP Authentication
 
 LDAP works with Trino and MinIO. Configure your LDAP server details:

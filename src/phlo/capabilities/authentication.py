@@ -8,7 +8,7 @@ import json
 import os
 import secrets
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from phlo.capabilities.interfaces import (
@@ -208,7 +208,7 @@ class StaticAuthenticationProvider:
         """Check if session is still valid."""
         if session.expires_at is None:
             return True
-        return datetime.now(timezone.utc) < session.expires_at  # noqa: UP017
+        return datetime.now(UTC) < session.expires_at
 
 
 class ProxyAuthenticationProvider:
@@ -225,6 +225,7 @@ class ProxyAuthenticationProvider:
         header_subject: str = "X-Remote-User",
         header_email: str = "X-Remote-Email",
         header_groups: str = "X-Remote-Groups",
+        shared_secret: str | None = None,
     ):
         self._trusted_networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
         self._trusted_hosts: set[str] = set()
@@ -240,6 +241,17 @@ class ProxyAuthenticationProvider:
         self._header_subject = header_subject.lower()
         self._header_email = header_email.lower()
         self._header_groups = header_groups.lower()
+        self._signature_header = "x-phlo-proxy-signature"
+        self._timestamp_header = "x-phlo-proxy-timestamp"
+        self._shared_secret = shared_secret
+
+    def _identity_payload_parts(self, request_context: RequestContext) -> tuple[str, str, str]:
+        """Return the asserted identity fields bound into the proxy signature."""
+        subject = request_context.headers.get(self._header_subject, "")
+        email = request_context.headers.get(self._header_email, "")
+        groups_raw = request_context.headers.get(self._header_groups, "")
+        groups = ",".join(g.strip() for g in groups_raw.split(",") if g.strip())
+        return subject, email, groups
 
     def _is_from_trusted_proxy(self, request_context: RequestContext) -> bool:
         """Check if request came from a trusted proxy using CIDR matching."""
@@ -256,6 +268,41 @@ class ProxyAuthenticationProvider:
         except ValueError:
             pass
         return False
+
+    def _verify_proxy_signature(self, request_context: RequestContext) -> bool:
+        """Verify that the request was signed by a trusted proxy with the shared secret."""
+        if self._shared_secret is None:
+            return True
+        signature = request_context.headers.get(self._signature_header)
+        timestamp_str = request_context.headers.get(self._timestamp_header)
+        if not signature or not timestamp_str:
+            logger.debug("missing_proxy_signature", remote_addr=request_context.remote_addr)
+            return False
+        try:
+            timestamp = int(timestamp_str)
+        except ValueError:
+            logger.debug("invalid_proxy_timestamp", timestamp=timestamp_str)
+            return False
+        now = datetime.now(UTC).timestamp()
+        if abs(now - timestamp) > 300:
+            logger.debug("expired_proxy_timestamp", timestamp=timestamp_str)
+            return False
+        subject, email, groups = self._identity_payload_parts(request_context)
+        payload = ":".join(
+            [
+                str(timestamp),
+                request_context.remote_addr or "",
+                request_context.path,
+                subject,
+                email,
+                groups,
+            ]
+        )
+        expected = hmac.new(self._shared_secret.encode(), payload.encode(), "sha256").hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            logger.debug("invalid_proxy_signature", remote_addr=request_context.remote_addr)
+            return False
+        return True
 
     def authenticate(self, request_context: RequestContext) -> AuthResult:
         """Authenticate using proxy-asserted identity."""
@@ -275,7 +322,23 @@ class ProxyAuthenticationProvider:
                 reason_code="invalid_identity_payload",
             )
 
-        subject = request_context.headers.get(self._header_subject)
+        if not self._verify_proxy_signature(request_context):
+            _log_auth_event(
+                "failure",
+                None,
+                "invalid_identity_payload",
+                "proxy",
+                auth_method="proxy",
+                path=request_context.path,
+                remote_addr=request_context.remote_addr,
+                reason="invalid_signature",
+            )
+            return AuthResult(
+                authenticated=False,
+                reason_code="invalid_identity_payload",
+            )
+
+        subject, email, groups_raw = self._identity_payload_parts(request_context)
         if not subject:
             _log_auth_event(
                 "failure",
@@ -291,9 +354,7 @@ class ProxyAuthenticationProvider:
                 reason_code="missing_credentials",
             )
 
-        email = request_context.headers.get(self._header_email)
-        groups_raw = request_context.headers.get(self._header_groups, "")
-        groups = tuple(g.strip() for g in groups_raw.split(",") if g.strip())
+        groups = tuple(g for g in groups_raw.split(",") if g)
 
         principal = AuthPrincipal(
             subject=subject,
@@ -444,6 +505,18 @@ def _load_proxy_config() -> dict[str, Any]:
     header_subject = os.environ.get("PHLO_AUTH_PROXY_HEADER_SUBJECT")
     if header_subject:
         config["header_subject"] = header_subject
+
+    header_email = os.environ.get("PHLO_AUTH_PROXY_HEADER_EMAIL")
+    if header_email:
+        config["header_email"] = header_email
+
+    header_groups = os.environ.get("PHLO_AUTH_PROXY_HEADER_GROUPS")
+    if header_groups:
+        config["header_groups"] = header_groups
+
+    shared_secret = os.environ.get("PHLO_AUTH_PROXY_SHARED_SECRET")
+    if shared_secret:
+        config["shared_secret"] = shared_secret
 
     return config
 

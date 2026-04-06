@@ -358,3 +358,29 @@ def test_clear_config_cache_refreshes_updated_file_contents(tmp_path: Path):
     assert refreshed_config is not first_config
     assert refreshed_config.container_naming_pattern == "{project}_{service}"
     assert get_container_name("dagster", "test-project", tmp_path) == "updated-container"
+
+
+def test_phlo_project_path_rejects_path_traversal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHLO_PROJECT_PATH with '..' sequences should be rejected (issue #339)."""
+    bad_path = tmp_path / ".." / "etc"
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(bad_path))
+
+    with pytest.raises(ValueError, match="path traversal"):
+        from phlo.infrastructure.config import _default_project_root
+
+        _default_project_root()
+
+
+def test_phlo_project_path_allows_explicit_absolute_path_outside_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PHLO_PROJECT_PATH should honor explicit absolute paths for child processes and CI."""
+    project_root = tmp_path / "external-project"
+    project_root.mkdir()
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(project_root))
+
+    from phlo.infrastructure.config import _default_project_root
+
+    assert _default_project_root() == project_root.resolve()

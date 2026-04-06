@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hmac
 import os
+import time
 from unittest.mock import patch
 
 import pytest
@@ -145,6 +147,19 @@ class TestServiceTokenAuthenticationProvider:
 class TestProxyAuthenticationProvider:
     """Tests for ProxyAuthenticationProvider."""
 
+    @staticmethod
+    def _proxy_signature(
+        secret: str,
+        timestamp: str,
+        remote_addr: str,
+        path: str,
+        subject: str = "",
+        email: str = "",
+        groups: str = "",
+    ) -> str:
+        payload = ":".join([timestamp, remote_addr, path, subject, email, groups])
+        return hmac.new(secret.encode(), payload.encode(), "sha256").hexdigest()
+
     def test_authenticate_from_trusted_proxy(self):
         """Test authentication succeeds from trusted proxy IP."""
         provider = ProxyAuthenticationProvider(trusted_proxies=["127.0.0.1/32", "192.168.1.0/24"])
@@ -223,6 +238,165 @@ class TestProxyAuthenticationProvider:
             RequestContext(headers={}, cookies={}, query_params={}, remote_addr="172.16.0.1")
         )
 
+    def test_authenticate_with_shared_secret_succeeds(self):
+        """Test authentication succeeds with valid signature (issue #338)."""
+        secret = "test-secret-123"
+        provider = ProxyAuthenticationProvider(
+            trusted_proxies=["127.0.0.1/32"], shared_secret=secret
+        )
+
+        timestamp = str(int(time.time()))
+        signature = self._proxy_signature(
+            secret,
+            timestamp,
+            "127.0.0.1",
+            "/test/path",
+            subject="proxy-user",
+            email="proxy@example.com",
+        )
+
+        request_context = RequestContext(
+            headers={
+                "x-remote-user": "proxy-user",
+                "x-remote-email": "proxy@example.com",
+                "x-phlo-proxy-signature": signature,
+                "x-phlo-proxy-timestamp": timestamp,
+            },
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test/path",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is True
+        assert result.principal is not None
+        assert result.principal.subject == "proxy-user"
+
+    def test_authenticate_without_signature_fails_when_secret_configured(self):
+        """Test authentication fails without signature when shared_secret is set (issue #338)."""
+        provider = ProxyAuthenticationProvider(
+            trusted_proxies=["127.0.0.1/32"], shared_secret="test-secret"
+        )
+
+        request_context = RequestContext(
+            headers={
+                "x-remote-user": "proxy-user",
+            },
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test/path",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is False
+        assert result.reason_code == "invalid_identity_payload"
+
+    def test_authenticate_with_invalid_signature_fails(self):
+        """Test authentication fails with invalid signature (issue #338)."""
+        provider = ProxyAuthenticationProvider(
+            trusted_proxies=["127.0.0.1/32"], shared_secret="test-secret"
+        )
+
+        timestamp = str(int(time.time()))
+
+        request_context = RequestContext(
+            headers={
+                "x-remote-user": "proxy-user",
+                "x-phlo-proxy-signature": "invalid-signature",
+                "x-phlo-proxy-timestamp": timestamp,
+            },
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test/path",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is False
+        assert result.reason_code == "invalid_identity_payload"
+
+    def test_authenticate_with_expired_timestamp_fails(self):
+        """Test authentication fails with expired timestamp (issue #338)."""
+        secret = "test-secret-123"
+        provider = ProxyAuthenticationProvider(
+            trusted_proxies=["127.0.0.1/32"], shared_secret=secret
+        )
+
+        timestamp = str(int(time.time()) - 600)
+        signature = self._proxy_signature(secret, timestamp, "127.0.0.1", "/test/path")
+
+        request_context = RequestContext(
+            headers={
+                "x-remote-user": "proxy-user",
+                "x-phlo-proxy-signature": signature,
+                "x-phlo-proxy-timestamp": timestamp,
+            },
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test/path",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is False
+        assert result.reason_code == "invalid_identity_payload"
+
+    def test_authenticate_without_secret_allows_unsigned_requests(self):
+        """Test authentication allows unsigned requests when no shared_secret configured."""
+        provider = ProxyAuthenticationProvider(trusted_proxies=["127.0.0.1/32"])
+
+        request_context = RequestContext(
+            headers={
+                "x-remote-user": "proxy-user",
+                "x-remote-email": "proxy@example.com",
+            },
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test/path",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is True
+
+    def test_authenticate_rejects_signed_request_when_identity_headers_change(self):
+        """Test signature binds asserted identity fields to the authenticated principal."""
+        secret = "test-secret-123"
+        provider = ProxyAuthenticationProvider(
+            trusted_proxies=["127.0.0.1/32"], shared_secret=secret
+        )
+
+        timestamp = str(int(time.time()))
+        signature = self._proxy_signature(
+            secret,
+            timestamp,
+            "127.0.0.1",
+            "/test/path",
+            subject="proxy-user",
+            email="proxy@example.com",
+            groups="admins,operators",
+        )
+
+        request_context = RequestContext(
+            headers={
+                "x-remote-user": "other-user",
+                "x-remote-email": "proxy@example.com",
+                "x-remote-groups": "admins,operators",
+                "x-phlo-proxy-signature": signature,
+                "x-phlo-proxy-timestamp": timestamp,
+            },
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test/path",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is False
+        assert result.reason_code == "invalid_identity_payload"
+
 
 class TestAuthenticationProviderRegistration:
     """Tests for authentication provider registration."""
@@ -251,6 +425,32 @@ class TestAuthenticationProviderRegistration:
             registry = get_capability_registry()
             providers = registry.list_authentication_providers()
             assert len(providers) == 0
+
+    def test_register_proxy_provider_loads_shared_secret_from_environment(self):
+        """Test proxy shared secret is wired through environment config."""
+        with patch.dict(
+            os.environ,
+            {
+                "PHLO_AUTH_PROXY_ENABLED": "true",
+                "PHLO_AUTH_PROXY_SHARED_SECRET": "env-secret",
+                "PHLO_AUTH_PROXY_TRUSTED_PROXIES": "127.0.0.1/32",
+                "PHLO_AUTH_PROXY_HEADER_EMAIL": "X-Test-Email",
+                "PHLO_AUTH_PROXY_HEADER_GROUPS": "X-Test-Groups",
+            },
+            clear=True,
+        ):
+            clear_capabilities()
+            register_default_capability_providers()
+            registry = get_capability_registry()
+            providers = registry.list_authentication_providers()
+
+            assert len(providers) == 1
+            assert providers[0].name == "proxy"
+            provider = providers[0].provider
+            assert isinstance(provider, ProxyAuthenticationProvider)
+            assert provider._shared_secret == "env-secret"
+            assert provider._header_email == "x-test-email"
+            assert provider._header_groups == "x-test-groups"
 
 
 class TestProviderSelection:
