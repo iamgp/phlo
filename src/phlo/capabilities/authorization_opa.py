@@ -23,6 +23,9 @@ from phlo.capabilities.interfaces import (
     ResourceRef,
 )
 from phlo.capabilities.support import CapabilitySupport
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class OPAAuthorizationPolicyBackend:
@@ -125,6 +128,7 @@ class OPAAuthorizationPolicyBackend:
             )
 
         except httpx.ConnectError:
+            logger.warning("opa_connect_error", opa_url=self._opa_url)
             return AuthorizationDecision(
                 allowed=False,
                 reason_code="backend_unavailable",
@@ -132,6 +136,7 @@ class OPAAuthorizationPolicyBackend:
                 explanation="Cannot connect to OPA server",
             )
         except httpx.TimeoutException:
+            logger.warning("opa_timeout", opa_url=self._opa_url)
             return AuthorizationDecision(
                 allowed=False,
                 reason_code="backend_unavailable",
@@ -139,6 +144,7 @@ class OPAAuthorizationPolicyBackend:
                 explanation="OPA request timed out",
             )
         except Exception as e:
+            logger.exception("opa_evaluation_failed")
             return AuthorizationDecision(
                 allowed=False,
                 reason_code="backend_unavailable",

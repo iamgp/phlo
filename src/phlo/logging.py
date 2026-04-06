@@ -496,6 +496,10 @@ def redact_sensitive_fields(data: MutableMapping[str, Any]) -> None:
             continue
         if isinstance(value, MutableMapping):
             redact_sensitive_fields(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, MutableMapping):
+                    redact_sensitive_fields(item)
 
 
 def _build_file_handler(
