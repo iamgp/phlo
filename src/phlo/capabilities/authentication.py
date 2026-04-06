@@ -52,13 +52,9 @@ def _log_auth_event(
         log_args["auth_method"] = auth_method
     log_args.update(extra)
 
-    event_name = (
-        "authentication_success" if event_type == "success" else f"authentication_{event_type}"
-    )
-    if event_type == "success":
-        logger.info(event_name, **log_args)
-    else:
-        logger.warning(event_name, **log_args)
+    event_name = f"authentication_{event_type}"
+    log_fn = logger.info if event_type == "success" else logger.warning
+    log_fn(event_name, **log_args)
 
 
 class StaticAuthenticationProvider:

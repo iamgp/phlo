@@ -158,7 +158,7 @@ def _severity_from_string(value: str | None) -> dg.AssetCheckSeverity | None:
         return None
     normalized = value.strip().lower()
     if normalized in {"info", "informational"}:
-        return None
+        return dg.AssetCheckSeverity.WARN
     if normalized in {"warn", "warning"}:
         return dg.AssetCheckSeverity.WARN
     if normalized in {"error", "critical"}:

@@ -110,17 +110,18 @@ _SENSITIVE_FIELD_TOKENS = (
     "token",
     "secret",
     "authorization",
-    "auth",
     "api_key",
     "apikey",
     "credential",
     "cookie",
     "bearer",
-    "key",
-    "private",
+    "private_key",
+    "signing_key",
+    "encryption_key",
     "cert",
     "ssh",
-    "session",
+    "session_id",
+    "session_token",
 )
 _ROUTER_ACTIVE = contextvars.ContextVar("phlo_log_router_active", default=False)
 _LOGGING_CONFIGURED = False
