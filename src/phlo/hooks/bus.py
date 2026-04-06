@@ -193,10 +193,7 @@ class HookBus:
             event_asset_keys = _event_asset_keys(event)
             if not event_asset_keys or not filters.asset_keys.intersection(event_asset_keys):
                 return False
-        return not (
-            filters.tags is not None
-            and not all(event.tags.get(k) == v for k, v in filters.tags.items())
-        )
+        return filters.tags is None or all(event.tags.get(k) == v for k, v in filters.tags.items())
 
 
 def _event_asset_keys(event: HookEvent) -> set[str]:
