@@ -35,6 +35,7 @@ TY_CHECK_SCOPE ?= src/phlo \
 	packages/phlo-rustfs/src \
 	packages/phlo-sling/src \
 	packages/phlo-superset/src \
+	packages/phlo-testing/src \
 	packages/phlo-traefik/src \
 	packages/phlo-trino/src
 CHECK_CMD := scripts/run-parallel \
