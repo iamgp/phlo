@@ -194,7 +194,8 @@ class HookBus:
             if not event_asset_keys or not filters.asset_keys.intersection(event_asset_keys):
                 return False
         return not (
-            filters.tags and not all(event.tags.get(k) == v for k, v in filters.tags.items())
+            filters.tags is not None
+            and not all(event.tags.get(k) == v for k, v in filters.tags.items())
         )
 
 

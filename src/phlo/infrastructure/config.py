@@ -25,7 +25,15 @@ def _default_project_root() -> Path:
     """Resolve the default project root from environment or current working directory."""
     project_root = os.environ.get("PHLO_PROJECT_PATH")
     if project_root:
-        return Path(project_root)
+        resolved = Path(project_root).resolve()
+        if ".." in Path(project_root).parts:
+            logger.warning(
+                "project_path_traversal_rejected",
+                raw=project_root,
+                resolved=str(resolved),
+            )
+            raise ValueError(f"PHLO_PROJECT_PATH contains path traversal: {project_root}")
+        return resolved
     return Path.cwd()
 
 
