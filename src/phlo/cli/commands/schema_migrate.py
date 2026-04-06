@@ -344,8 +344,9 @@ def refresh_contracts_for_selection(
 
                 namespace = get_settings().dlt_default_namespace
                 table_candidates.insert(0, f"{namespace}.{table}")
-            except Exception:
-                pass
+            except Exception as exc:
+                if isinstance(exc, SystemExit):
+                    raise
 
         for candidate in table_candidates:
             try:
