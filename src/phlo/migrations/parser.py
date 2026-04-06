@@ -29,7 +29,8 @@ def load_migration_spec(path: Path) -> MigrationSpec:
         raise MigrationSpecError("Migration spec root must be a mapping")
 
     name = _require_str(raw, "name")
-    version = str(raw.get("version", "1.0"))
+    raw_version = raw.get("version")
+    version = str(raw_version) if raw_version is not None else "1.0"
     description = str(raw.get("description", ""))
 
     source_raw = _require_mapping(raw, "source")

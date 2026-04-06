@@ -26,17 +26,6 @@ from phlo.logging import get_logger
 
 logger = get_logger(__name__)
 
-REASON_CODES = {
-    "authenticated": "Authentication succeeded",
-    "missing_credentials": "No credentials provided",
-    "invalid_token": "Token validation failed",
-    "expired_session": "Session has expired",
-    "provider_unavailable": "Authentication provider unavailable",
-    "invalid_identity_payload": "Identity payload malformed",
-    "ambiguous_provider": "Multiple providers installed, explicit selection required",
-    "unsupported_flow": "Requested flow not supported by provider",
-}
-
 
 def _log_auth_event(
     event_type: str,
@@ -63,10 +52,9 @@ def _log_auth_event(
         log_args["auth_method"] = auth_method
     log_args.update(extra)
 
-    if event_type == "success":
-        logger.info("authentication_success", **log_args)
-    else:
-        logger.warning(f"authentication_{event_type}", **log_args)
+    event_name = f"authentication_{event_type}"
+    log_fn = logger.info if event_type == "success" else logger.warning
+    log_fn(event_name, **log_args)
 
 
 class StaticAuthenticationProvider:

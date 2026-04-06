@@ -421,10 +421,10 @@ class RangeCheck(QualityCheck):
 
         if len(column_data) == 0:
             return QualityCheckResult(
-                passed=True,
+                passed=False,
                 metric_name="range_check",
                 metric_value={"min": None, "max": None, "out_of_range": 0},
-                metadata={"note": "No non-null values to check"},
+                metadata={"note": "Column is entirely null; cannot verify range"},
             )
 
         # Check range violations
