@@ -106,8 +106,8 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
                 metadata={"native": True},
             )
 
-    # If --native was explicitly requested, skip Docker unless --volumes or --profile also given.
-    if stop_native and not volumes and not profile:
+    # If --native was explicitly requested, skip Docker unless --volumes, --profile, or --service also given.
+    if stop_native and not volumes and not profile and not service:
         logger.info("services_stop_native_only_completed", project_name=get_project_name())
         click.echo("Stopped native services.")
         return

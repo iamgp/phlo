@@ -122,16 +122,13 @@ def test(
                 click.echo(f"  - {f.name}", err=True)
             sys.exit(1)
 
-    if marker:
-        if local:
-            pytest_args.extend(["-m", f"({marker}) and not integration"])
-        else:
-            pytest_args.extend(["-m", marker])
+    if marker and local:
+        pytest_args.extend(["-m", f"({marker}) and not integration"])
+    elif marker:
+        pytest_args.extend(["-m", marker])
     elif local:
-        # Skip integration tests that require Docker
         pytest_args.extend(["-m", "not integration"])
 
-    # Set local test mode environment variable
     if local:
         os.environ["PHLO_TEST_LOCAL"] = "1"
         click.echo("Local test mode enabled (PHLO_TEST_LOCAL=1)\n")

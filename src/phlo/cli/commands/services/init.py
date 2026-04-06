@@ -147,6 +147,8 @@ def init_cmd(
 
     if service_dev and not dev:
         dev = True
+        if not phlo_src_path:
+            phlo_src_path = detect_phlo_source_path()
 
     # Derive project name from directory if not specified
     if not project_name:
