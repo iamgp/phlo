@@ -34,6 +34,8 @@ class HookFilter:
             object.__setattr__(self, "event_types", set(self.event_types))
         if self.asset_keys is not None:
             object.__setattr__(self, "asset_keys", set(self.asset_keys))
+        if self.tags is not None:
+            object.__setattr__(self, "tags", dict(self.tags))
 
 
 @dataclass(frozen=True)
