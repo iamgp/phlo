@@ -4,7 +4,23 @@ Phlo Exception Classes
 Structured error classes with error codes, contextual messages, and suggestions.
 """
 
+import re
 from enum import Enum
+
+_SENSITIVE_PATTERNS = (
+    re.compile(r"(password|passwd|token|secret|api_key|apikey|credential)[=:]\S+", re.IGNORECASE),
+    re.compile(r"(authorization|bearer)\s+\S+", re.IGNORECASE),
+    re.compile(r"(private_key|signing_key|encryption_key)\s+", re.IGNORECASE),
+    re.compile(r"connection\s+string[=:]\S+", re.IGNORECASE),
+)
+
+
+def _redact_sensitive(s: str) -> str:
+    """Redact sensitive patterns from a string for safe output."""
+    result = s
+    for pattern in _SENSITIVE_PATTERNS:
+        result = pattern.sub(lambda m: f"{m.group(0).split('=')[0].split()[0]}=<redacted>", result)
+    return result
 
 
 class PhloErrorCode(Enum):
@@ -98,7 +114,9 @@ class PhloError(Exception):
 
         if self.cause:
             lines.append("")
-            lines.append(f"Caused by: {type(self.cause).__name__}: {str(self.cause)}")
+            lines.append(
+                f"Caused by: {type(self.cause).__name__}: {_redact_sensitive(str(self.cause))}"
+            )
 
         lines.append("")
         lines.append(f"Documentation: {self.doc_url}")

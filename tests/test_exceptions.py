@@ -85,3 +85,15 @@ def test_format_field_list_handles_empty_field_list() -> None:
     formatted = format_field_list([])
 
     assert formatted == ""
+
+
+def test_phlo_error_redacts_sensitive_data_in_cause() -> None:
+    """Sensitive patterns in cause messages are redacted."""
+    error = PhloError(
+        message="Connection failed",
+        code=PhloErrorCode.INFRASTRUCTURE_ERROR,
+        cause=ValueError("connection string: password=secret123"),
+    )
+    message = str(error)
+    assert "Caused by: ValueError: connection string: password=<redacted>" in message
+    assert "secret123" not in message
