@@ -149,8 +149,7 @@ class ServiceDiscovery:
         """
         registry = get_global_registry()
         for service_name in list(registry.list_services()):
-            registry._services.pop(service_name, None)  # noqa: SLF001
-            registry._all_plugins.pop(f"service:{service_name}", None)  # noqa: SLF001
+            registry.remove_service(service_name)
 
         cached_service_count = len(self._services)
         was_loaded = self._loaded
