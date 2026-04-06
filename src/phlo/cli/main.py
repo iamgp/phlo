@@ -123,7 +123,10 @@ def test(
             sys.exit(1)
 
     if marker:
-        pytest_args.extend(["-m", marker])
+        if local:
+            pytest_args.extend(["-m", f"({marker}) and not integration"])
+        else:
+            pytest_args.extend(["-m", marker])
     elif local:
         # Skip integration tests that require Docker
         pytest_args.extend(["-m", "not integration"])

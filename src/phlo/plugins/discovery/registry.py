@@ -262,6 +262,11 @@ class PluginRegistry:
         """List all registered transformation plugins."""
         return list(self._transformations.keys())
 
+    def remove_service(self, name: str) -> None:
+        """Remove a registered service plugin by name."""
+        self._services.pop(name, None)
+        self._all_plugins.pop(f"service:{name}", None)
+
     def list_services(self) -> list[str]:
         """List all registered service plugins."""
         return list(self._services.keys())
