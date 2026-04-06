@@ -7,20 +7,30 @@ Structured error classes with error codes, contextual messages, and suggestions.
 import re
 from enum import Enum
 
-_SENSITIVE_PATTERNS = (
-    re.compile(r"(password|passwd|token|secret|api_key|apikey|credential)[=:]\S+", re.IGNORECASE),
-    re.compile(r"(authorization|bearer)\s+\S+", re.IGNORECASE),
-    re.compile(r"(private_key|signing_key|encryption_key)\s+", re.IGNORECASE),
-    re.compile(r"connection\s+string[=:]\S+", re.IGNORECASE),
+_KEY_VALUE_SENSITIVE_PATTERN = re.compile(
+    r"\b(password|passwd|token|secret|api_key|apikey|credential)\b\s*[:=]\s*[^\s,;]+",
+    re.IGNORECASE,
+)
+_AUTHORIZATION_SENSITIVE_PATTERN = re.compile(r"\b(authorization|bearer)\b\s+\S+", re.IGNORECASE)
+_CONNECTION_STRING_SENSITIVE_PATTERN = re.compile(
+    r"\b(connection\s+string)\b\s*[:=]\s*.+?(?=(?:[,;]\s+\w+\s*[:=])|\n|$)",
+    re.IGNORECASE,
+)
+_KEY_MATERIAL_SENSITIVE_PATTERN = re.compile(
+    r"\b(private_key|signing_key|encryption_key)\b(?:\s*[:=]\s*|\s+).+?(?=(?:[,;]\s+\w+\s*[:=])|\n|$)",
+    re.IGNORECASE,
 )
 
 
 def _redact_sensitive(s: str) -> str:
     """Redact sensitive patterns from a string for safe output."""
-    result = s
-    for pattern in _SENSITIVE_PATTERNS:
-        result = pattern.sub(lambda m: f"{m.group(0).split('=')[0].split()[0]}=<redacted>", result)
-    return result
+    result = _KEY_MATERIAL_SENSITIVE_PATTERN.sub(r"\1=<redacted>", s)
+    result = _CONNECTION_STRING_SENSITIVE_PATTERN.sub(r"\1=<redacted>", result)
+    result = _KEY_VALUE_SENSITIVE_PATTERN.sub(
+        lambda m: f"{m.group(1)}=<redacted>",
+        result,
+    )
+    return _AUTHORIZATION_SENSITIVE_PATTERN.sub(r"\1 <redacted>", result)
 
 
 class PhloErrorCode(Enum):
