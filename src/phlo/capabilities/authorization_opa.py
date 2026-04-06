@@ -57,7 +57,10 @@ class OPAAuthorizationPolicyBackend:
         opa_policy_package: str = "phlo.authz",
         timeout_seconds: float = 5.0,
     ):
-        self._opa_url = opa_url or "http://localhost:8181"
+        resolved_url = opa_url or "http://localhost:8181"
+        if not resolved_url.startswith(("http://", "https://")):
+            raise ValueError(f"OPA URL must use http:// or https:// scheme, got: {resolved_url}")
+        self._opa_url = resolved_url
         self._opa_policy_package = opa_policy_package
         self._timeout = timeout_seconds
 

@@ -16,6 +16,9 @@ from phlo.capabilities.interfaces import (
 from phlo.capabilities.registry import register_authorization_policy_backend
 from phlo.capabilities.specs import AuthorizationPolicyBackendSpec
 from phlo.capabilities.support import CapabilitySupport
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -123,6 +126,7 @@ class DefaultAuthorizationPolicyBackend:
                 explanation="No matching policy rule",
             )
         except Exception:
+            logger.exception("authorization_backend_failed")
             return AuthorizationDecision(
                 allowed=False,
                 reason_code="backend_unavailable",
