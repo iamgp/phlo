@@ -4,7 +4,33 @@ Phlo Exception Classes
 Structured error classes with error codes, contextual messages, and suggestions.
 """
 
+import re
 from enum import Enum
+
+_KEY_VALUE_SENSITIVE_PATTERN = re.compile(
+    r"\b(password|passwd|token|secret|api_key|apikey|credential)\b\s*[:=]\s*[^\s,;]+",
+    re.IGNORECASE,
+)
+_AUTHORIZATION_SENSITIVE_PATTERN = re.compile(r"\b(authorization|bearer)\b\s+\S+", re.IGNORECASE)
+_CONNECTION_STRING_SENSITIVE_PATTERN = re.compile(
+    r"\b(connection\s+string)\b\s*[:=]\s*.+?(?=(?:[,;]\s+\w+\s*[:=])|\n|$)",
+    re.IGNORECASE,
+)
+_KEY_MATERIAL_SENSITIVE_PATTERN = re.compile(
+    r"\b(private_key|signing_key|encryption_key)\b(?:\s*[:=]\s*|\s+).+?(?=(?:[,;]\s+\w+\s*[:=])|\n|$)",
+    re.IGNORECASE,
+)
+
+
+def _redact_sensitive(s: str) -> str:
+    """Redact sensitive patterns from a string for safe output."""
+    result = _KEY_MATERIAL_SENSITIVE_PATTERN.sub(r"\1=<redacted>", s)
+    result = _CONNECTION_STRING_SENSITIVE_PATTERN.sub(r"\1=<redacted>", result)
+    result = _KEY_VALUE_SENSITIVE_PATTERN.sub(
+        lambda m: f"{m.group(1)}=<redacted>",
+        result,
+    )
+    return _AUTHORIZATION_SENSITIVE_PATTERN.sub(r"\1 <redacted>", result)
 
 
 class PhloErrorCode(Enum):
@@ -98,7 +124,9 @@ class PhloError(Exception):
 
         if self.cause:
             lines.append("")
-            lines.append(f"Caused by: {type(self.cause).__name__}: {str(self.cause)}")
+            lines.append(
+                f"Caused by: {type(self.cause).__name__}: {_redact_sensitive(str(self.cause))}"
+            )
 
         lines.append("")
         lines.append(f"Documentation: {self.doc_url}")
