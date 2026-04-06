@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from phlo.hooks import TelemetryEvent
-from phlo.logging import get_logger
+from phlo.logging import get_logger, redact_sensitive_fields
 
 logger = get_logger(__name__)
 
@@ -97,4 +97,5 @@ def _serialize_event(event: TelemetryEvent) -> dict[str, Any]:
     """Serialize a TelemetryEvent into JSON-friendly primitives."""
     payload = asdict(event)
     payload["timestamp"] = event.timestamp.isoformat()
+    redact_sensitive_fields(payload)
     return payload

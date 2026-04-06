@@ -483,7 +483,7 @@ def _build_metadata(record: logging.LogRecord, extra: dict[str, Any]) -> dict[st
     }
     if record.exc_info:
         metadata["exception"] = "".join(traceback.format_exception(*record.exc_info))
-    _redact_sensitive_fields(metadata)
+    redact_sensitive_fields(metadata)
     return metadata
 
 
@@ -491,11 +491,11 @@ def _redact_sensitive_processor(
     _: Any, __: str, event_dict: MutableMapping[str, Any]
 ) -> MutableMapping[str, Any]:
     """Redact sensitive values from structured event dictionaries."""
-    _redact_sensitive_fields(event_dict)
+    redact_sensitive_fields(event_dict)
     return event_dict
 
 
-def _redact_sensitive_fields(data: MutableMapping[str, Any]) -> None:
+def redact_sensitive_fields(data: MutableMapping[str, Any]) -> None:
     """Redact sensitive keys in-place within a mapping."""
     for key, value in list(data.items()):
         lowered = key.lower()
@@ -503,7 +503,11 @@ def _redact_sensitive_fields(data: MutableMapping[str, Any]) -> None:
             data[key] = "<redacted>"
             continue
         if isinstance(value, MutableMapping):
-            _redact_sensitive_fields(value)
+            redact_sensitive_fields(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, MutableMapping):
+                    redact_sensitive_fields(item)
 
 
 def _build_file_handler(
