@@ -5,6 +5,7 @@ from subprocess import TimeoutExpired
 
 import click
 
+from phlo.cli.commands.services.start import _validate_requested_profiles
 from phlo.cli.commands.services.utils import (
     ensure_phlo_dir,
     get_profile_service_names,
@@ -58,6 +59,7 @@ def restart_cmd(
 
     phlo_dir = ensure_phlo_dir()
     project_name = get_project_name()
+    profile = _validate_requested_profiles(profile)
     logger.info(
         "services_restart_requested",
         project_name=project_name,
