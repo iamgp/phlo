@@ -10,6 +10,7 @@ dependencies = [
     "phlo>=0.1.0",
     "pandera>=0.26.1",
     "deltalake>=0.25.0",
+    "pyarrow>=14.0.0",
 ]
 description = "Delta Lake table-store capability plugin for Phlo"
 name = "phlo-delta"

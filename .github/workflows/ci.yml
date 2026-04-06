@@ -222,9 +222,9 @@ jobs:
             extra: ""
           - package: phlo-observatory-example
             extra: ""
-          - package: phlo-otel
-            extra: ""
           - package: phlo-openmetadata
+            extra: ""
+          - package: phlo-otel
             extra: ""
           - package: phlo-pgweb
             extra: ""
