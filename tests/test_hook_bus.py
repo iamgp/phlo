@@ -188,3 +188,32 @@ def test_hook_bus_sync_emit_rejects_async_handlers_with_log_policy() -> None:
 
     with pytest.raises(TypeError, match="emit_async"):
         bus.emit(event)
+
+
+def test_hook_bus_filter_with_no_tags_passes_all_events() -> None:
+    """Verify events are not rejected when filters.tags is None (issue #344)."""
+    bus = MockHookBus()
+    calls: list[str] = []
+
+    def handler(_event) -> None:
+        calls.append("called")
+
+    bus.register(
+        HookRegistration(
+            hook_name="handler",
+            handler=handler,
+            priority=10,
+            filters=HookFilter(event_types={"quality.result"}),
+        ),
+        plugin_name="plugin",
+    )
+
+    event = QualityResultEvent(
+        event_type="quality.result",
+        asset_key="asset",
+        check_name="null_check",
+        passed=True,
+        tags=None,
+    )
+    bus.emit(event)
+    assert calls == ["called"]
