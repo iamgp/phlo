@@ -14,15 +14,10 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class OpenMetadataServicePlugin(ServicePlugin):
+class OpenMetadataServicePlugin(PackageYamlServicePlugin):
     """Service plugin for OpenMetadata.
 
     Integrates OpenMetadata data catalog and governance platform into
@@ -56,19 +51,3 @@ class OpenMetadataServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["catalog", "governance", "metadata"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load and return the OpenMetadata service definition.
-
-        Returns:
-            dict[str, Any]: Dictionary containing Docker Compose service
-                configuration parsed from service.yaml resource file.
-
-        Raises:
-            FileNotFoundError: If service.yaml is missing.
-            yaml.YAMLError: If service.yaml is malformed.
-
-        """
-        service_path = resources.files("phlo_openmetadata").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))

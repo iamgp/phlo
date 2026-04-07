@@ -37,6 +37,7 @@ def test_services_start_invalid_profile_error_contract(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Lock invalid profile output and exit behavior."""
+    from phlo.cli.commands.services import common as common_module
     from phlo.cli.commands.services import start as start_module
 
     phlo_dir = tmp_path / ".phlo"
@@ -51,7 +52,7 @@ def test_services_start_invalid_profile_error_contract(
         raise AssertionError("Docker path should not execute for invalid profile contract")
 
     monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
-    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(common_module, "ServiceDiscovery", FakeDiscovery)
     monkeypatch.setattr(start_module, "run_command", _unexpected_call)
     monkeypatch.setattr(start_module, "require_docker", _unexpected_call)
 
