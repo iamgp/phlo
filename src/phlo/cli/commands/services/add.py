@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-from subprocess import TimeoutExpired
 
 import click
 import yaml
 
+from phlo.cli.commands.services.common import (
+    parse_service_args,
+    run_compose,
+    validate_requested_profiles,
+)
 from phlo.cli.commands.services.utils import (
     PHLO_CONFIG_FILE,
     _regenerate_compose,
@@ -16,7 +19,6 @@ from phlo.cli.commands.services.utils import (
     get_profile_service_names,
     normalize_services_enabled_disabled_config,
 )
-from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
@@ -32,43 +34,11 @@ def _load_project_config(config_file: Path) -> dict:
             config = yaml.safe_load(handle) or {}
         if not isinstance(config, dict):
             logger.error("services_add_invalid_config_mapping", config_file=str(config_file))
-            click.echo("Error: phlo.yaml must contain a mapping.", err=True)
-            sys.exit(1)
+            raise click.ClickException("phlo.yaml must contain a mapping.")
         return config
 
     logger.error("services_add_missing_config", config_file=str(config_file))
-    click.echo("Error: phlo.yaml not found.", err=True)
-    sys.exit(1)
-
-
-def _validate_profiles(
-    discovery: ServiceDiscovery, profile_names: tuple[str, ...]
-) -> tuple[str, ...]:
-    """Normalize and validate requested profile names."""
-    requested_profiles = tuple(
-        dict.fromkeys(name.strip() for name in profile_names if name.strip())
-    )
-    if not requested_profiles:
-        return ()
-
-    available_profiles = discovery.get_available_profiles()
-    unknown_profiles = sorted(set(requested_profiles) - available_profiles)
-    if unknown_profiles:
-        click.echo(
-            f"Error: Unknown profile(s): {', '.join(unknown_profiles)}. "
-            f"Available profiles: {', '.join(sorted(available_profiles)) or '(none)'}",
-            err=True,
-        )
-        sys.exit(1)
-    return requested_profiles
-
-
-def _normalize_service_names(service_names: tuple[str, ...]) -> list[str]:
-    """Normalize repeated/comma-separated service arguments."""
-    normalized: list[str] = []
-    for item in service_names:
-        normalized.extend(name.strip() for name in item.split(",") if name.strip())
-    return list(dict.fromkeys(normalized))
+    raise click.ClickException("phlo.yaml not found.")
 
 
 def _update_config_enabled_services(
@@ -110,17 +80,16 @@ def _start_services(
     )
     cmd.extend(["up", "-d", *service_names])
     try:
-        result = run_command(cmd, check=False, capture_output=False)
-    except (FileNotFoundError, TimeoutExpired, OSError) as exc:
+        result = run_compose(cmd, check=False, capture_output=False)
+    except click.ClickException:
         logger.error(
             "services_add_start_exception",
             project_name=project_name,
             profile_count=len(profile_names),
             service_count=len(service_names),
-            error_type=type(exc).__name__,
             exc_info=True,
         )
-        click.echo(f"Warning: Could not start services: {exc}", err=True)
+        click.echo("Warning: Could not start services.", err=True)
         click.echo(f"Command: {' '.join(cmd)}", err=True)
         return
 
@@ -185,35 +154,30 @@ def add_cmd(
 
     if not phlo_dir.exists():
         logger.error("services_add_missing_phlo_dir", phlo_dir=str(phlo_dir))
-        click.echo("Error: .phlo directory not found.", err=True)
-        click.echo("Run 'phlo services init' first.", err=True)
-        sys.exit(1)
+        raise click.ClickException(".phlo directory not found. Run 'phlo services init' first.")
 
     config = _load_project_config(config_file)
     discovery = ServiceDiscovery()
     all_services = discovery.discover()
 
-    normalized_profiles = _validate_profiles(discovery, profiles)
-    explicit_services = _normalize_service_names(services)
+    normalized_profiles = validate_requested_profiles(profiles)
+    explicit_services = parse_service_args(services)
     if service_name:
         explicit_services = [service_name, *explicit_services]
         explicit_services = list(dict.fromkeys(explicit_services))
 
     if not normalized_profiles and not explicit_services:
-        click.echo("Error: Specify a service name, --service, or --profile.", err=True)
-        sys.exit(1)
+        raise click.ClickException("Specify a service name, --service, or --profile.")
 
     unknown_services = [name for name in explicit_services if name not in all_services]
     if unknown_services:
-        click.echo(f"Error: Unknown service name(s): {', '.join(unknown_services)}", err=True)
-        sys.exit(1)
+        raise click.ClickException(f"Unknown service name(s): {', '.join(unknown_services)}")
 
     profile_services = get_profile_service_names(normalized_profiles)
     services_to_enable = list(dict.fromkeys([*profile_services, *explicit_services]))
 
     if not services_to_enable:
-        click.echo("Nothing to add.", err=True)
-        sys.exit(1)
+        raise click.ClickException("Nothing to add.")
 
     _update_config_enabled_services(config, services_to_enable=services_to_enable)
 

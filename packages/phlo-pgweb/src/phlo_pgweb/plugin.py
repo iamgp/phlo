@@ -17,15 +17,10 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class PgwebServicePlugin(ServicePlugin):
+class PgwebServicePlugin(PackageYamlServicePlugin):
     """Service plugin for pgweb PostgreSQL web UI.
 
     This plugin provides integration with pgweb, a lightweight web-based
@@ -68,28 +63,3 @@ class PgwebServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["admin", "postgres", "ui"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Return the Docker service definition for pgweb.
-
-        Reads and parses the service.yaml file bundled with the package
-        to provide the Docker Compose service configuration.
-
-        Returns:
-            dict[str, Any]: Parsed Docker Compose service definition.
-
-        Raises:
-            FileNotFoundError: If the service.yaml file is not found
-                in the package resources.
-            yaml.YAMLError: If the service.yaml file contains invalid YAML.
-
-        Example:
-            >>> plugin = PgwebServicePlugin()
-            >>> definition = plugin.service_definition
-            >>> 'services' in definition
-            True
-
-        """
-        service_path = resources.files("phlo_pgweb").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))

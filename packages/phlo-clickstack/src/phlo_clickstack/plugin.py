@@ -7,15 +7,10 @@ backend service.
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class ClickStackServicePlugin(ServicePlugin):
+class ClickStackServicePlugin(PackageYamlServicePlugin):
     """Service plugin for ClickStack.
 
     Provides ClickStack (ClickHouse-based observability backend) as a
@@ -47,21 +42,3 @@ class ClickStackServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["observability", "logs", "metrics", "traces"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load and return the ClickStack service definition.
-
-        Reads the service.yaml file from the package resources and
-        parses it as YAML to produce the service configuration dict.
-
-        Returns:
-            dict[str, Any]: Parsed Docker Compose service configuration.
-
-        Raises:
-            yaml.YAMLError: If service.yaml contains invalid YAML.
-            FileNotFoundError: If service.yaml is missing from package.
-
-        """
-        service_path = resources.files("phlo_clickstack").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))

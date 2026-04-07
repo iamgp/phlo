@@ -28,15 +28,10 @@ Note:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class AlloyServicePlugin(ServicePlugin):
+class AlloyServicePlugin(PackageYamlServicePlugin):
     """Service plugin for Grafana Alloy log collection and shipping.
 
     This plugin manages the Grafana Alloy service lifecycle within the Phlo platform.
@@ -99,51 +94,3 @@ class AlloyServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["observability", "logs", "agent"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load and parse the Alloy service definition from package resources.
-
-        Reads the embedded ``service.yaml`` file from the package resources and
-        parses it into a Python dictionary. This configuration defines the Docker
-        Compose-style service specification for running Grafana Alloy, including
-        container configuration, volume mounts, port mappings, and environment
-        variables.
-
-        Returns:
-            dict[str, Any]: Parsed service configuration dictionary representing
-                the Docker Compose service definition. Structure follows standard
-                Docker Compose format with keys like "image", "volumes", "ports",
-                "environment", etc.
-
-        Raises:
-            FileNotFoundError: If the ``service.yaml`` resource is missing from
-                the package. This indicates a corrupted or incomplete installation.
-            yaml.YAMLError: If the ``service.yaml`` file contains invalid YAML
-                syntax that cannot be parsed.
-            UnicodeDecodeError: If the ``service.yaml`` file cannot be decoded
-                as UTF-8 text.
-
-        Example:
-            Load and inspect the service definition::
-
-                plugin = AlloyServicePlugin()
-                config = plugin.service_definition
-                image = config.get("image")
-                ports = config.get("ports", [])
-                print(f"Alloy service image: {image}")
-                print(f"Exposed ports: {ports}")
-
-        Note:
-            The ``service.yaml`` file is embedded in the package at build time.
-            Any changes to the file require reinstalling the package. The file
-            is read on every access to this property, so consider caching if
-            accessed frequently in a loop.
-
-        See Also:
-            importlib.resources: Used for accessing package resources.
-            yaml.safe_load: Used for parsing YAML configuration safely.
-
-        """
-        service_path = resources.files("phlo_alloy").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))

@@ -16,18 +16,14 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
 from phlo.capabilities import PublishTargetSpec, ResourceSpec
-from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata, ResourceProviderPlugin
 
 from phlo_postgres.publish_target import PostgresPublishTarget
 from phlo_postgres.resource import PostgresResource
 
 
-class PostgresServicePlugin(ServicePlugin):
+class PostgresServicePlugin(PackageYamlServicePlugin):
     """Service plugin for managing PostgreSQL as a phlo service.
 
     This plugin provides the core PostgreSQL database service definition for
@@ -68,33 +64,8 @@ class PostgresServicePlugin(ServicePlugin):
             tags=["core", "database", "postgres"],
         )
 
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load the PostgreSQL service definition from package data.
 
-        Reads and parses the service.yaml file from the package resources,
-        returning a dictionary suitable for docker-compose configuration.
-
-        Returns:
-            dict[str, Any]: Parsed Docker Compose service definition as a
-                dictionary with service configuration options.
-
-        Raises:
-            FileNotFoundError: If service.yaml is not found in package data.
-            yaml.YAMLError: If the YAML file is malformed.
-
-        Example:
-            >>> plugin = PostgresServicePlugin()
-            >>> definition = plugin.service_definition
-            >>> print(definition.keys())
-            dict_keys(['services', ...])
-
-        """
-        service_path = resources.files("phlo_postgres").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
-
-
-class PostgresExporterServicePlugin(ServicePlugin):
+class PostgresExporterServicePlugin(PackageYamlServicePlugin):
     """Service plugin for PostgreSQL Prometheus metrics exporter.
 
     This plugin provides a Prometheus exporter service that exposes PostgreSQL
@@ -107,6 +78,8 @@ class PostgresExporterServicePlugin(ServicePlugin):
         postgres-exporter
 
     """
+
+    _service_definition_file = "exporter_service.yaml"
 
     @property
     def metadata(self) -> PluginMetadata:
@@ -130,24 +103,8 @@ class PostgresExporterServicePlugin(ServicePlugin):
             tags=["observability", "metrics", "postgres"],
         )
 
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load the PostgreSQL exporter service definition from package data.
 
-        Returns:
-            dict[str, Any]: Parsed Docker Compose service definition for the
-                Prometheus exporter sidecar container.
-
-        Example:
-            >>> plugin = PostgresExporterServicePlugin()
-            >>> definition = plugin.service_definition
-
-        """
-        service_path = resources.files("phlo_postgres").joinpath("exporter_service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
-
-
-class PostgresVolumeSetupServicePlugin(ServicePlugin):
+class PostgresVolumeSetupServicePlugin(PackageYamlServicePlugin):
     """Service plugin for PostgreSQL data volume permission setup.
 
     This plugin provides an initialization service that ensures proper
@@ -161,6 +118,8 @@ class PostgresVolumeSetupServicePlugin(ServicePlugin):
         postgres-volume-setup
 
     """
+
+    _service_definition_file = "volume_setup.yaml"
 
     @property
     def metadata(self) -> PluginMetadata:
@@ -177,18 +136,6 @@ class PostgresVolumeSetupServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["core", "database", "postgres"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load the PostgreSQL volume setup service definition from package data.
-
-        Returns:
-            dict[str, Any]: Parsed Docker Compose service definition for the
-                volume setup initialization container.
-
-        """
-        service_path = resources.files("phlo_postgres").joinpath("volume_setup.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
 
 
 class PostgresResourceProvider(ResourceProviderPlugin):

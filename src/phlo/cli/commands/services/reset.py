@@ -1,14 +1,12 @@
 """Reset command for resetting services and volumes."""
 
 import shutil
-import sys
 from pathlib import Path
-from subprocess import TimeoutExpired
 
 import click
 
+from phlo.cli.commands.services.common import parse_service_args, run_compose
 from phlo.cli.commands.services.utils import ensure_phlo_dir, require_docker
-from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
@@ -59,15 +57,10 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
             project_name=project_name,
             compose_file=str(compose_file),
         )
-        click.echo("Error: docker-compose.yml not found.", err=True)
-        click.echo("Run 'phlo services init' first.", err=True)
-        sys.exit(1)
+        raise click.ClickException("docker-compose.yml not found. Run 'phlo services init' first.")
 
     # Parse comma-separated services
-    services_list = []
-    for s in service:
-        services_list.extend(s.split(","))
-    services_list = [s.strip() for s in services_list if s.strip()]
+    services_list = parse_service_args(service)
 
     # Determine what to reset
     def _resolve_volume_dir(service_name: str) -> Path:
@@ -88,8 +81,7 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
                 service_names=services_list,
                 error=str(exc),
             )
-            click.echo(f"Error: {exc}", err=True)
-            sys.exit(1)
+            raise click.ClickException(str(exc)) from exc
     else:
         target = "all services"
         volume_dirs = [volumes_dir] if volumes_dir.exists() else []
@@ -137,41 +129,26 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
         service_count=len(services_list),
     )
 
-    try:
-        result = run_command(cmd, check=False, capture_output=False)
-        if result.returncode != 0:
-            logger.warning(
-                "services_reset_docker_failed",
-                project_name=project_name,
-                returncode=result.returncode,
-                target=target,
-                service_count=len(services_list),
-            )
-            click.echo(
-                f"Warning: docker compose command failed with code {result.returncode}", err=True
-            )
-            click.echo(f"Command: {' '.join(cmd)}", err=True)
-        else:
-            logger.info(
-                "services_reset_docker_completed",
-                project_name=project_name,
-                target=target,
-                service_count=len(services_list),
-            )
-    except FileNotFoundError:
-        logger.error("services_reset_docker_not_found", project_name=project_name, exc_info=True)
-        click.echo("Error: docker command not found.", err=True)
-        sys.exit(1)
-    except TimeoutExpired:
+    result = run_compose(cmd, check=False, capture_output=False)
+    if result.returncode != 0:
         logger.warning(
-            "services_reset_docker_timeout",
+            "services_reset_docker_failed",
             project_name=project_name,
-            command=" ".join(cmd),
+            returncode=result.returncode,
             target=target,
-            exc_info=True,
+            service_count=len(services_list),
         )
-        click.echo("Warning: docker compose command timed out.", err=True)
+        click.echo(
+            f"Warning: docker compose command failed with code {result.returncode}", err=True
+        )
         click.echo(f"Command: {' '.join(cmd)}", err=True)
+    else:
+        logger.info(
+            "services_reset_docker_completed",
+            project_name=project_name,
+            target=target,
+            service_count=len(services_list),
+        )
 
     # Delete local volume directories
     deleted_count = 0

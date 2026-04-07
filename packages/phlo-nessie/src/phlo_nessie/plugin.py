@@ -15,15 +15,10 @@ Classes:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class NessieServicePlugin(ServicePlugin):
+class NessieServicePlugin(PackageYamlServicePlugin):
     """Service plugin for Nessie.
 
     Provides Docker Compose service definitions and metadata for the
@@ -57,21 +52,3 @@ class NessieServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["core", "catalog", "iceberg"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Return the Docker service definition for Nessie.
-
-        Loads service configuration from embedded service.yaml resource.
-
-        Returns:
-            dict[str, Any]: Docker Compose service definition dictionary.
-
-        Example:
-            >>> plugin = NessieServicePlugin()
-            >>> service = plugin.service_definition
-            >>> print(service.get('image'))
-
-        """
-        service_path = resources.files("phlo_nessie").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
