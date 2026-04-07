@@ -39,6 +39,14 @@ def _merge_correlation(
     return correlation
 
 
+class _ContextEmitterBase:
+    """Shared initializer for context-based event emitters."""
+
+    def __init__(self, context, hook_bus: HookBus | None = None) -> None:
+        self._context = context
+        self._hook_bus = hook_bus or get_hook_bus()
+
+
 @dataclass(frozen=True)
 class IngestionEventContext:
     """Shared context for ingestion event emissions."""
@@ -53,19 +61,8 @@ class IngestionEventContext:
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
-class IngestionEventEmitter:
+class IngestionEventEmitter(_ContextEmitterBase):
     """Emit ingestion lifecycle events with a shared context."""
-
-    def __init__(self, context: IngestionEventContext, hook_bus: HookBus | None = None) -> None:
-        """Initialize the ingestion event emitter.
-
-        Args:
-            context: Shared ingestion context to include in each emitted event.
-            hook_bus: Hook bus used to publish events. Defaults to the global bus.
-
-        """
-        self._context = context
-        self._hook_bus = hook_bus or get_hook_bus()
 
     def emit_start(self, *, status: str = "started") -> None:
         """Emit an ingestion start event."""
@@ -138,19 +135,8 @@ class TransformEventContext:
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
-class TransformEventEmitter:
+class TransformEventEmitter(_ContextEmitterBase):
     """Emit transform lifecycle events with a shared context."""
-
-    def __init__(self, context: TransformEventContext, hook_bus: HookBus | None = None) -> None:
-        """Initialize the transform event emitter.
-
-        Args:
-            context: Shared transform context to include in each emitted event.
-            hook_bus: Hook bus used to publish events. Defaults to the global bus.
-
-        """
-        self._context = context
-        self._hook_bus = hook_bus or get_hook_bus()
 
     def emit_start(self, *, status: str = "started") -> None:
         """Emit a transform start event."""
@@ -221,19 +207,8 @@ class PublishEventContext:
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
-class PublishEventEmitter:
+class PublishEventEmitter(_ContextEmitterBase):
     """Emit publish lifecycle events with a shared context."""
-
-    def __init__(self, context: PublishEventContext, hook_bus: HookBus | None = None) -> None:
-        """Initialize the publish event emitter.
-
-        Args:
-            context: Shared publish context to include in each emitted event.
-            hook_bus: Hook bus used to publish events. Defaults to the global bus.
-
-        """
-        self._context = context
-        self._hook_bus = hook_bus or get_hook_bus()
 
     def emit_start(self, *, status: str = "started") -> None:
         """Emit a publish start event."""
@@ -299,23 +274,8 @@ class QualityResultEventContext:
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
-class QualityResultEventEmitter:
+class QualityResultEventEmitter(_ContextEmitterBase):
     """Emit quality result events with a shared context."""
-
-    def __init__(
-        self,
-        context: QualityResultEventContext,
-        hook_bus: HookBus | None = None,
-    ) -> None:
-        """Initialize the quality result event emitter.
-
-        Args:
-            context: Shared quality-result context to include in each emitted event.
-            hook_bus: Hook bus used to publish events. Defaults to the global bus.
-
-        """
-        self._context = context
-        self._hook_bus = hook_bus or get_hook_bus()
 
     def emit_result(
         self,
@@ -359,19 +319,8 @@ class LineageEventContext:
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
-class LineageEventEmitter:
+class LineageEventEmitter(_ContextEmitterBase):
     """Emit lineage events with a shared context."""
-
-    def __init__(self, context: LineageEventContext, hook_bus: HookBus | None = None) -> None:
-        """Initialize the lineage event emitter.
-
-        Args:
-            context: Shared lineage context to include in each emitted event.
-            hook_bus: Hook bus used to publish events. Defaults to the global bus.
-
-        """
-        self._context = context
-        self._hook_bus = hook_bus or get_hook_bus()
 
     def emit_edges(
         self,
@@ -401,19 +350,8 @@ class TelemetryEventContext:
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
-class TelemetryEventEmitter:
+class TelemetryEventEmitter(_ContextEmitterBase):
     """Emit telemetry events with a shared context."""
-
-    def __init__(self, context: TelemetryEventContext, hook_bus: HookBus | None = None) -> None:
-        """Initialize the telemetry event emitter.
-
-        Args:
-            context: Shared telemetry context to include in each emitted event.
-            hook_bus: Hook bus used to publish events. Defaults to the global bus.
-
-        """
-        self._context = context
-        self._hook_bus = hook_bus or get_hook_bus()
 
     def emit_metric(
         self,
@@ -499,21 +437,8 @@ class ServiceLifecycleEventContext:
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
-class ServiceLifecycleEventEmitter:
+class ServiceLifecycleEventEmitter(_ContextEmitterBase):
     """Emit service lifecycle events with a shared context."""
-
-    def __init__(
-        self, context: ServiceLifecycleEventContext, hook_bus: HookBus | None = None
-    ) -> None:
-        """Initialize the service lifecycle event emitter.
-
-        Args:
-            context: Shared service context to include in each emitted event.
-            hook_bus: Hook bus used to publish events. Defaults to the global bus.
-
-        """
-        self._context = context
-        self._hook_bus = hook_bus or get_hook_bus()
 
     def emit(
         self,
@@ -551,23 +476,8 @@ class SchemaMigrationEventContext:
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
-class SchemaMigrationEventEmitter:
+class SchemaMigrationEventEmitter(_ContextEmitterBase):
     """Emit schema migration lifecycle events with a shared context."""
-
-    def __init__(
-        self,
-        context: SchemaMigrationEventContext,
-        hook_bus: HookBus | None = None,
-    ) -> None:
-        """Initialize the schema migration event emitter.
-
-        Args:
-            context: Shared schema migration context for each emitted event.
-            hook_bus: Hook bus used to publish events. Defaults to the global bus.
-
-        """
-        self._context = context
-        self._hook_bus = hook_bus or get_hook_bus()
 
     def emit(
         self,
@@ -612,17 +522,8 @@ class DataMigrationEventContext:
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
 
 
-class DataMigrationEventEmitter:
+class DataMigrationEventEmitter(_ContextEmitterBase):
     """Emit data migration lifecycle events with a shared context."""
-
-    def __init__(
-        self,
-        context: DataMigrationEventContext,
-        hook_bus: HookBus | None = None,
-    ) -> None:
-        """Initialize the data migration event emitter."""
-        self._context = context
-        self._hook_bus = hook_bus or get_hook_bus()
 
     def emit(
         self,

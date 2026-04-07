@@ -103,69 +103,96 @@ class GovernanceCompiler(ABC):
             List of compiled artifacts representing desired backend state.
         """
 
-    @abstractmethod
     def plan(
         self,
         rbac: CanonicalRBAC,
         context: CompilerContext,
     ) -> SyncPlan:
-        """Create a sync plan by comparing desired vs actual state.
+        """Create a sync plan by comparing desired vs actual state."""
+        desired = self.compile(rbac, context)
+        current = self.read_current_state(context)
 
-        Args:
-            rbac: The canonical RBAC model.
-            context: Planning context.
+        desired_by_name = {a.name: a for a in desired}
+        current_by_name = {a.name: a for a in current}
 
-        Returns:
-            SyncPlan describing required changes.
-        """
+        changes: list[PolicyChange] = []
 
-    @abstractmethod
+        for name, artifact in desired_by_name.items():
+            if name not in current_by_name:
+                changes.append(
+                    PolicyChange(
+                        change_type="create",
+                        backend=self.backend_name,
+                        artifact=artifact,
+                        revert_id=self._generate_revert_id(),
+                    )
+                )
+
+        for name, artifact in current_by_name.items():
+            if name not in desired_by_name:
+                changes.append(
+                    PolicyChange(
+                        change_type="delete",
+                        backend=self.backend_name,
+                        artifact=artifact,
+                    )
+                )
+
+        return SyncPlan(
+            version_hash=rbac.version_hash or "",
+            backend=self.backend_name,
+            changes=tuple(changes),
+        )
+
     def apply(
         self,
         plan: SyncPlan,
         context: CompilerContext,
     ) -> tuple[list[str], list[str]]:
-        """Apply the planned changes to the backend.
+        """Apply the planned changes to the backend."""
+        success_ids: list[str] = []
+        errors: list[str] = []
 
-        Args:
-            plan: The sync plan to apply.
-            context: Apply context.
+        for change in plan.changes:
+            try:
+                self._apply_generic_policy_change(change)
+                if change.change_type == "create" and change.revert_id:
+                    success_ids.append(change.revert_id)
+            except Exception as e:
+                errors.append(f"Failed to apply {change.artifact.name}: {e}")
 
-        Returns:
-            Tuple of (success_ids, error_messages).
-        """
+        return success_ids, errors
 
-    @abstractmethod
     def verify(
         self,
         rbac: CanonicalRBAC,
         context: CompilerContext,
     ) -> VerifyResult:
-        """Verify backend state matches desired state.
+        """Verify backend state matches desired state."""
+        desired = self.compile(rbac, context)
+        current = self.read_current_state(context)
 
-        Args:
-            rbac: The canonical RBAC model.
-            context: Verification context.
+        desired_by_name = {d.name: d for d in desired}
+        current_by_name = {c.name: c for c in current}
 
-        Returns:
-            VerifyResult describing drift.
-        """
+        missing = [desired_by_name[n] for n in desired_by_name if n not in current_by_name]
+        extra = [current_by_name[n] for n in current_by_name if n not in desired_by_name]
 
-    @abstractmethod
+        return VerifyResult(
+            backend=self.backend_name,
+            in_sync=len(missing) == 0 and len(extra) == 0,
+            missing=tuple(missing),
+            extra=tuple(extra),
+            mismatched=(),
+        )
+
     def revert(
         self,
         revert_ids: list[str],
         context: CompilerContext,
     ) -> tuple[list[str], list[str]]:
-        """Revert previously applied changes.
-
-        Args:
-            revert_ids: List of revert IDs to undo.
-            context: Revert context.
-
-        Returns:
-            Tuple of (success_ids, error_messages).
-        """
+        """Revert previously applied changes."""
+        raise NotImplementedError(f"{type(self).__name__}.revert is not implemented")
 
     @abstractmethod
     def read_current_state(
@@ -603,93 +630,6 @@ class PostgreSQLCompiler(GovernanceCompiler):
 
         return artifacts
 
-    def plan(
-        self,
-        rbac: CanonicalRBAC,
-        context: CompilerContext,
-    ) -> SyncPlan:
-        desired = self.compile(rbac, context)
-        current = self.read_current_state(context)
-
-        desired_by_name = {a.name: a for a in desired}
-        current_by_name = {a.name: a for a in current}
-
-        changes: list[PolicyChange] = []
-
-        for name, artifact in desired_by_name.items():
-            if name not in current_by_name:
-                changes.append(
-                    PolicyChange(
-                        change_type="create",
-                        backend=self.backend_name,
-                        artifact=artifact,
-                        revert_id=self._generate_revert_id(),
-                    )
-                )
-
-        for name, artifact in current_by_name.items():
-            if name not in desired_by_name:
-                changes.append(
-                    PolicyChange(
-                        change_type="delete",
-                        backend=self.backend_name,
-                        artifact=artifact,
-                    )
-                )
-
-        return SyncPlan(
-            version_hash=rbac.version_hash or "",
-            backend=self.backend_name,
-            changes=tuple(changes),
-        )
-
-    def apply(
-        self,
-        plan: SyncPlan,
-        context: CompilerContext,
-    ) -> tuple[list[str], list[str]]:
-        success_ids: list[str] = []
-        errors: list[str] = []
-
-        for change in plan.changes:
-            try:
-                self._apply_generic_policy_change(change)
-                if change.change_type == "create" and change.revert_id:
-                    success_ids.append(change.revert_id)
-            except Exception as e:
-                errors.append(f"Failed to apply {change.artifact.name}: {e}")
-
-        return success_ids, errors
-
-    def verify(
-        self,
-        rbac: CanonicalRBAC,
-        context: CompilerContext,
-    ) -> VerifyResult:
-        desired = self.compile(rbac, context)
-        current = self.read_current_state(context)
-
-        desired_by_name = {d.name: d for d in desired}
-        current_by_name = {c.name: c for c in current}
-
-        missing = [desired_by_name[n] for n in desired_by_name if n not in current_by_name]
-        extra = [current_by_name[n] for n in current_by_name if n not in desired_by_name]
-
-        return VerifyResult(
-            backend=self.backend_name,
-            in_sync=len(missing) == 0 and len(extra) == 0,
-            missing=tuple(missing),
-            extra=tuple(extra),
-            mismatched=(),
-        )
-
-    def revert(
-        self,
-        revert_ids: list[str],
-        context: CompilerContext,
-    ) -> tuple[list[str], list[str]]:
-        raise NotImplementedError("PostgreSQLCompiler.revert is not implemented")
-
     def read_current_state(
         self,
         context: CompilerContext,
@@ -769,93 +709,6 @@ class HasuraCompiler(GovernanceCompiler):
                 )
 
         return artifacts
-
-    def plan(
-        self,
-        rbac: CanonicalRBAC,
-        context: CompilerContext,
-    ) -> SyncPlan:
-        desired = self.compile(rbac, context)
-        current = self.read_current_state(context)
-
-        desired_by_name = {a.name: a for a in desired}
-        current_by_name = {a.name: a for a in current}
-
-        changes: list[PolicyChange] = []
-
-        for name, artifact in desired_by_name.items():
-            if name not in current_by_name:
-                changes.append(
-                    PolicyChange(
-                        change_type="create",
-                        backend=self.backend_name,
-                        artifact=artifact,
-                        revert_id=self._generate_revert_id(),
-                    )
-                )
-
-        for name, artifact in current_by_name.items():
-            if name not in desired_by_name:
-                changes.append(
-                    PolicyChange(
-                        change_type="delete",
-                        backend=self.backend_name,
-                        artifact=artifact,
-                    )
-                )
-
-        return SyncPlan(
-            version_hash=rbac.version_hash or "",
-            backend=self.backend_name,
-            changes=tuple(changes),
-        )
-
-    def apply(
-        self,
-        plan: SyncPlan,
-        context: CompilerContext,
-    ) -> tuple[list[str], list[str]]:
-        success_ids: list[str] = []
-        errors: list[str] = []
-
-        for change in plan.changes:
-            try:
-                self._apply_generic_policy_change(change)
-                if change.change_type == "create" and change.revert_id:
-                    success_ids.append(change.revert_id)
-            except Exception as e:
-                errors.append(f"Failed to apply {change.artifact.name}: {e}")
-
-        return success_ids, errors
-
-    def verify(
-        self,
-        rbac: CanonicalRBAC,
-        context: CompilerContext,
-    ) -> VerifyResult:
-        desired = self.compile(rbac, context)
-        current = self.read_current_state(context)
-
-        desired_by_name = {d.name: d for d in desired}
-        current_by_name = {c.name: c for c in current}
-
-        missing = [desired_by_name[n] for n in desired_by_name if n not in current_by_name]
-        extra = [current_by_name[n] for n in current_by_name if n not in desired_by_name]
-
-        return VerifyResult(
-            backend=self.backend_name,
-            in_sync=len(missing) == 0 and len(extra) == 0,
-            missing=tuple(missing),
-            extra=tuple(extra),
-            mismatched=(),
-        )
-
-    def revert(
-        self,
-        revert_ids: list[str],
-        context: CompilerContext,
-    ) -> tuple[list[str], list[str]]:
-        raise NotImplementedError("HasuraCompiler.revert is not implemented")
 
     def read_current_state(
         self,
@@ -939,93 +792,6 @@ class MinIOCompiler(GovernanceCompiler):
 
         return artifacts
 
-    def plan(
-        self,
-        rbac: CanonicalRBAC,
-        context: CompilerContext,
-    ) -> SyncPlan:
-        desired = self.compile(rbac, context)
-        current = self.read_current_state(context)
-
-        desired_by_name = {a.name: a for a in desired}
-        current_by_name = {a.name: a for a in current}
-
-        changes: list[PolicyChange] = []
-
-        for name, artifact in desired_by_name.items():
-            if name not in current_by_name:
-                changes.append(
-                    PolicyChange(
-                        change_type="create",
-                        backend=self.backend_name,
-                        artifact=artifact,
-                        revert_id=self._generate_revert_id(),
-                    )
-                )
-
-        for name, artifact in current_by_name.items():
-            if name not in desired_by_name:
-                changes.append(
-                    PolicyChange(
-                        change_type="delete",
-                        backend=self.backend_name,
-                        artifact=artifact,
-                    )
-                )
-
-        return SyncPlan(
-            version_hash=rbac.version_hash or "",
-            backend=self.backend_name,
-            changes=tuple(changes),
-        )
-
-    def apply(
-        self,
-        plan: SyncPlan,
-        context: CompilerContext,
-    ) -> tuple[list[str], list[str]]:
-        success_ids: list[str] = []
-        errors: list[str] = []
-
-        for change in plan.changes:
-            try:
-                self._apply_generic_policy_change(change)
-                if change.change_type == "create" and change.revert_id:
-                    success_ids.append(change.revert_id)
-            except Exception as e:
-                errors.append(f"Failed to apply {change.artifact.name}: {e}")
-
-        return success_ids, errors
-
-    def verify(
-        self,
-        rbac: CanonicalRBAC,
-        context: CompilerContext,
-    ) -> VerifyResult:
-        desired = self.compile(rbac, context)
-        current = self.read_current_state(context)
-
-        desired_by_name = {d.name: d for d in desired}
-        current_by_name = {c.name: c for c in current}
-
-        missing = [desired_by_name[n] for n in desired_by_name if n not in current_by_name]
-        extra = [current_by_name[n] for n in current_by_name if n not in desired_by_name]
-
-        return VerifyResult(
-            backend=self.backend_name,
-            in_sync=len(missing) == 0 and len(extra) == 0,
-            missing=tuple(missing),
-            extra=tuple(extra),
-            mismatched=(),
-        )
-
-    def revert(
-        self,
-        revert_ids: list[str],
-        context: CompilerContext,
-    ) -> tuple[list[str], list[str]]:
-        raise NotImplementedError("MinIOCompiler.revert is not implemented")
-
     def read_current_state(
         self,
         context: CompilerContext,
@@ -1097,93 +863,6 @@ class NessieCompiler(GovernanceCompiler):
                 )
 
         return artifacts
-
-    def plan(
-        self,
-        rbac: CanonicalRBAC,
-        context: CompilerContext,
-    ) -> SyncPlan:
-        desired = self.compile(rbac, context)
-        current = self.read_current_state(context)
-
-        desired_by_name = {a.name: a for a in desired}
-        current_by_name = {a.name: a for a in current}
-
-        changes: list[PolicyChange] = []
-
-        for name, artifact in desired_by_name.items():
-            if name not in current_by_name:
-                changes.append(
-                    PolicyChange(
-                        change_type="create",
-                        backend=self.backend_name,
-                        artifact=artifact,
-                        revert_id=self._generate_revert_id(),
-                    )
-                )
-
-        for name, artifact in current_by_name.items():
-            if name not in desired_by_name:
-                changes.append(
-                    PolicyChange(
-                        change_type="delete",
-                        backend=self.backend_name,
-                        artifact=artifact,
-                    )
-                )
-
-        return SyncPlan(
-            version_hash=rbac.version_hash or "",
-            backend=self.backend_name,
-            changes=tuple(changes),
-        )
-
-    def apply(
-        self,
-        plan: SyncPlan,
-        context: CompilerContext,
-    ) -> tuple[list[str], list[str]]:
-        success_ids: list[str] = []
-        errors: list[str] = []
-
-        for change in plan.changes:
-            try:
-                self._apply_generic_policy_change(change)
-                if change.change_type == "create" and change.revert_id:
-                    success_ids.append(change.revert_id)
-            except Exception as e:
-                errors.append(f"Failed to apply {change.artifact.name}: {e}")
-
-        return success_ids, errors
-
-    def verify(
-        self,
-        rbac: CanonicalRBAC,
-        context: CompilerContext,
-    ) -> VerifyResult:
-        desired = self.compile(rbac, context)
-        current = self.read_current_state(context)
-
-        desired_by_name = {d.name: d for d in desired}
-        current_by_name = {c.name: c for c in current}
-
-        missing = [desired_by_name[n] for n in desired_by_name if n not in current_by_name]
-        extra = [current_by_name[n] for n in current_by_name if n not in desired_by_name]
-
-        return VerifyResult(
-            backend=self.backend_name,
-            in_sync=len(missing) == 0 and len(extra) == 0,
-            missing=tuple(missing),
-            extra=tuple(extra),
-            mismatched=(),
-        )
-
-    def revert(
-        self,
-        revert_ids: list[str],
-        context: CompilerContext,
-    ) -> tuple[list[str], list[str]]:
-        raise NotImplementedError("NessieCompiler.revert is not implemented")
 
     def read_current_state(
         self,

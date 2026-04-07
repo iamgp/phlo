@@ -10,6 +10,11 @@ from uuid import uuid4
 import click
 import yaml
 
+from phlo.cli.commands.services.common import (
+    load_compose_service_names,
+    parse_service_args,
+    validate_requested_profiles,
+)
 from phlo.cli.commands.services.utils import (
     _emit_service_lifecycle_events,
     _load_native_state,
@@ -51,26 +56,6 @@ def _load_native_env_overrides(project_root: Path) -> dict[str, str]:
                 value = value[1:-1]
             env_values[key.strip()] = value
     return env_values
-
-
-def _validate_requested_profiles(profile_names: tuple[str, ...]) -> tuple[str, ...]:
-    """Normalize and validate requested profile names."""
-    requested_profiles = tuple(
-        dict.fromkeys(name.strip() for name in profile_names if name.strip())
-    )
-    if not requested_profiles:
-        return ()
-
-    available_profiles = ServiceDiscovery().get_available_profiles()
-    unknown_profiles = sorted(set(requested_profiles) - available_profiles)
-    if unknown_profiles:
-        invalid_label = "profile" if len(unknown_profiles) == 1 else "profiles"
-        raise click.ClickException(
-            f"Invalid {invalid_label}: {', '.join(unknown_profiles)}. "
-            f"Valid profile options: {', '.join(sorted(available_profiles)) or '(none)'}"
-        )
-
-    return requested_profiles
 
 
 def _load_disabled_service_names(project_root: Path) -> set[str]:
@@ -194,13 +179,10 @@ def start_cmd(
         )
         raise click.ClickException("docker-compose.yml not found. Run 'phlo services init' first.")
 
-    profile = _validate_requested_profiles(profile)
+    profile = validate_requested_profiles(profile)
 
     # Parse comma-separated services
-    services_list = []
-    for s in service:
-        services_list.extend(s.split(","))
-    services_list = [s.strip() for s in services_list if s.strip()]
+    services_list = parse_service_args(service)
 
     # When --profile is specified without --service, target only profile services
     # This prevents restarting already-running core services
@@ -323,14 +305,7 @@ def start_cmd(
 
     docker_service_names: list[str] = []
     if not skip_docker_compose:
-        if docker_services_list:
-            docker_service_names = docker_services_list
-        else:
-            try:
-                compose_config = yaml.safe_load(compose_file.read_text()) or {}
-            except (OSError, yaml.YAMLError):
-                compose_config = {}
-            docker_service_names = list((compose_config.get("services") or {}).keys())
+        docker_service_names = docker_services_list or load_compose_service_names(compose_file)
         _emit_service_lifecycle_events(
             "pre_start",
             docker_service_names,
@@ -563,11 +538,7 @@ def start_cmd(
 
             started_services: list[str] = []
             if not skip_docker_compose:
-                try:
-                    compose_config = yaml.safe_load(compose_file.read_text()) or {}
-                except (OSError, yaml.YAMLError):
-                    compose_config = {}
-                compose_service_names = list((compose_config.get("services") or {}).keys())
+                compose_service_names = load_compose_service_names(compose_file)
                 if docker_services_list:
                     started_services = [
                         name for name in docker_services_list if name in compose_service_names

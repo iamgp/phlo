@@ -62,3 +62,27 @@ class ServicePlugin(Plugin, ABC):
     def optional_capabilities(self) -> list[str]:
         """Return optional capabilities for this service plugin."""
         return list(self.metadata.optional_capabilities)
+
+
+class PackageYamlServicePlugin(ServicePlugin, ABC):
+    """ServicePlugin that loads service_definition from a package YAML file.
+
+    Subclasses inherit a default ``service_definition`` property that loads
+    from ``service.yaml`` inside the subclass's top-level package.  Override
+    ``_service_definition_file`` or ``_service_definition_package`` for
+    non-default layouts.
+    """
+
+    _service_definition_file: str = "service.yaml"
+    _service_definition_package: str | None = None
+
+    @property
+    def service_definition(self) -> dict[str, Any]:
+        """Load service definition from package YAML resource."""
+        from importlib import resources
+
+        import yaml
+
+        package = self._service_definition_package or self.__class__.__module__.split(".", 1)[0]
+        path = resources.files(package).joinpath(self._service_definition_file)
+        return yaml.safe_load(path.read_text(encoding="utf-8"))

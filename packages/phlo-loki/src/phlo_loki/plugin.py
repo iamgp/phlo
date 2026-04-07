@@ -17,15 +17,10 @@ Attributes:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class LokiServicePlugin(ServicePlugin):
+class LokiServicePlugin(PackageYamlServicePlugin):
     """Service plugin for Loki log aggregation.
 
     This plugin manages the lifecycle of a Loki container for log aggregation
@@ -59,14 +54,3 @@ class LokiServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["observability", "logs"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load the Loki service definition from package resources.
-
-        Returns:
-            Parsed compose-style service configuration.
-
-        """
-        service_path = resources.files("phlo_loki").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))

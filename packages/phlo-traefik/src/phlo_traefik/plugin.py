@@ -13,15 +13,10 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class TraefikServicePlugin(ServicePlugin):
+class TraefikServicePlugin(PackageYamlServicePlugin):
     """Service plugin for Traefik reverse proxy.
 
     This plugin provides integration with Traefik, a modern HTTP reverse proxy
@@ -62,27 +57,3 @@ class TraefikServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["networking", "proxy", "traefik"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load and return the Traefik service definition.
-
-        Reads the service.yaml configuration file from the package resources
-        and returns it as a parsed Python dictionary.
-
-        Returns:
-            Dictionary containing the Docker Compose service definition
-            for Traefik with container configuration, labels, and volumes.
-
-        Raises:
-            yaml.YAMLError: If the service.yaml file contains invalid YAML.
-            FileNotFoundError: If the service.yaml file is missing.
-
-        Example:
-            >>> plugin = TraefikServicePlugin()
-            >>> definition = plugin.service_definition
-            >>> print(definition['services'].keys())
-
-        """
-        service_path = resources.files("phlo_traefik").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))

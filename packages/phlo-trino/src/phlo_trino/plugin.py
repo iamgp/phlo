@@ -22,20 +22,15 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
 from phlo.capabilities import CapabilitySupport, ResourceSpec
 from phlo.capabilities.specs import GovernanceBackendSpec, QueryEngineSpec
-from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata, ResourceProviderPlugin
 from phlo_trino.governance import TrinoGovernanceBackend
 from phlo_trino.resource import TRINO_QUERY_ENGINE_SUPPORT, TrinoResource
 from phlo_trino.settings import get_settings as get_trino_settings
 
 
-class TrinoServicePlugin(ServicePlugin):
+class TrinoServicePlugin(PackageYamlServicePlugin):
     """Service plugin for Trino."""
 
     @property
@@ -53,17 +48,6 @@ class TrinoServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["core", "query"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load the Trino service compose definition.
-
-        Returns:
-            Parsed service definition from `service.yaml`.
-
-        """
-        service_path = resources.files("phlo_trino").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
 
 
 class TrinoResourceProvider(ResourceProviderPlugin):

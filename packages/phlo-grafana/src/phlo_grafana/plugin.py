@@ -19,15 +19,10 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class GrafanaServicePlugin(ServicePlugin):
+class GrafanaServicePlugin(PackageYamlServicePlugin):
     """Service plugin for Grafana visualization and dashboards.
 
     This plugin registers Grafana as a managed service within the Phlo
@@ -79,35 +74,3 @@ class GrafanaServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["observability", "metrics", "dashboards"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load and return the Grafana service definition from YAML.
-
-        Reads the service.yaml file from the package resources using
-        importlib.resources, ensuring the configuration is accessible
-        regardless of how the package is installed (wheel, sdist, etc.).
-
-        The service definition typically contains Docker Compose configuration
-        for running Grafana with appropriate networking, volumes, and
-        environment settings.
-
-        Returns:
-            dict[str, Any]: Parsed YAML content as a dictionary containing
-                service configuration (typically Docker Compose format with
-                services, volumes, networks, etc.).
-
-        Raises:
-            FileNotFoundError: If service.yaml is missing from the package.
-            yaml.YAMLError: If the YAML file is malformed or cannot be parsed.
-
-        Example:
-            >>> plugin = GrafanaServicePlugin()
-            >>> definition = plugin.service_definition
-            >>> services = definition.get('services', {})
-            >>> grafana_service = services.get('grafana', {})
-            >>> image = grafana_service.get('image', '')
-
-        """
-        service_path = resources.files("phlo_grafana").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
