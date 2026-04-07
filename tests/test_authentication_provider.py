@@ -360,6 +360,27 @@ class TestProxyAuthenticationProvider:
         result = provider.authenticate(request_context)
 
         assert result.authenticated is True
+        assert result.principal is not None
+        assert result.principal.email == "proxy@example.com"
+
+    def test_authenticate_without_email_header_keeps_email_none(self):
+        """Test absent proxy email header stays None on the principal."""
+        provider = ProxyAuthenticationProvider(trusted_proxies=["127.0.0.1/32"])
+
+        request_context = RequestContext(
+            headers={
+                "x-remote-user": "proxy-user",
+            },
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test/path",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is True
+        assert result.principal is not None
+        assert result.principal.email is None
 
     def test_authenticate_rejects_signed_request_when_identity_headers_change(self):
         """Test signature binds asserted identity fields to the authenticated principal."""

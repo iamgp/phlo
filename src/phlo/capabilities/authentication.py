@@ -245,13 +245,18 @@ class ProxyAuthenticationProvider:
         self._timestamp_header = "x-phlo-proxy-timestamp"
         self._shared_secret = shared_secret
 
+    def _identity_headers(self, request_context: RequestContext) -> tuple[str, str | None, str]:
+        """Return asserted identity fields using runtime-facing types."""
+        subject = request_context.headers.get(self._header_subject, "")
+        email = request_context.headers.get(self._header_email)
+        groups_raw = request_context.headers.get(self._header_groups, "")
+        return subject, email, groups_raw
+
     def _identity_payload_parts(self, request_context: RequestContext) -> tuple[str, str, str]:
         """Return the asserted identity fields bound into the proxy signature."""
-        subject = request_context.headers.get(self._header_subject, "")
-        email = request_context.headers.get(self._header_email, "")
-        groups_raw = request_context.headers.get(self._header_groups, "")
+        subject, email, groups_raw = self._identity_headers(request_context)
         groups = ",".join(g.strip() for g in groups_raw.split(",") if g.strip())
-        return subject, email, groups
+        return subject, email or "", groups
 
     def _is_from_trusted_proxy(self, request_context: RequestContext) -> bool:
         """Check if request came from a trusted proxy using CIDR matching."""
@@ -339,7 +344,7 @@ class ProxyAuthenticationProvider:
                 reason_code="invalid_identity_payload",
             )
 
-        subject, email, groups_raw = self._identity_payload_parts(request_context)
+        subject, email, groups_raw = self._identity_headers(request_context)
         if not subject:
             _log_auth_event(
                 "failure",
@@ -355,7 +360,7 @@ class ProxyAuthenticationProvider:
                 reason_code="missing_credentials",
             )
 
-        groups = tuple(g for g in groups_raw.split(",") if g)
+        groups = tuple(g.strip() for g in groups_raw.split(",") if g.strip())
 
         principal = AuthPrincipal(
             subject=subject,
