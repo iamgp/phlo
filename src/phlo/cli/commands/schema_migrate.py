@@ -61,7 +61,7 @@ def _resolve_migrator() -> Any:
                 f"[red]Configured schema migrator '{configured_migrator}' is not registered.[/red]"
             )
             console.print(f"Available schema migrators: {available}")
-            sys.exit(1)
+            raise SystemExit(1)
         return selected.provider
 
     default_table_store = configured_capability_name("table_store")
