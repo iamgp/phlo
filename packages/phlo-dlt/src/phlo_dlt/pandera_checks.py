@@ -241,7 +241,9 @@ def evaluate_pandera_contract(
     if missing_nullable:
         validated_df = df.copy()
         for column_name in missing_nullable:
-            validated_df[column_name] = None
+            validated_df[column_name] = pd.array(
+                [None] * len(validated_df), dtype="string[pyarrow]"
+            )
     else:
         validated_df = df
 
