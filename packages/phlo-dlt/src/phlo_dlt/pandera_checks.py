@@ -117,6 +117,35 @@ class PanderaContractValidationError(RuntimeError):
         RuntimeError.__init__(self, "Pandera contract validation failed")
 
 
+def _nullable_series_for_schema_column(column: Any, size: int) -> pd.Series[Any]:
+    """Create a null-filled Series using the closest pandas dtype for a schema column."""
+    column_dtype = getattr(column, "dtype", None)
+    if isinstance(column_dtype, pandas_engine.DateTime):
+        return pd.Series([pd.NaT] * size, dtype="datetime64[ns]")
+
+    dtype_name = str(column_dtype).lower()
+    nullable_dtype_map = {
+        "string": "string[pyarrow]",
+        "string[pyarrow]": "string[pyarrow]",
+        "int64": "Int64",
+        "int32": "Int32",
+        "int16": "Int16",
+        "int8": "Int8",
+        "uint64": "UInt64",
+        "uint32": "UInt32",
+        "uint16": "UInt16",
+        "uint8": "UInt8",
+        "float64": "Float64",
+        "float32": "Float32",
+        "bool": "boolean",
+        "boolean": "boolean",
+    }
+    dtype = nullable_dtype_map.get(dtype_name)
+    if dtype is None:
+        return pd.Series([None] * size, dtype="object")
+    return pd.Series([None] * size, dtype=dtype)
+
+
 def evaluate_pandera_contract_parquet(
     parquet_path: Path,
     *,
@@ -241,7 +270,10 @@ def evaluate_pandera_contract(
     if missing_nullable:
         validated_df = df.copy()
         for column_name in missing_nullable:
-            validated_df[column_name] = None
+            validated_df[column_name] = _nullable_series_for_schema_column(
+                schema.columns[column_name],
+                size=len(validated_df),
+            )
     else:
         validated_df = df
 
