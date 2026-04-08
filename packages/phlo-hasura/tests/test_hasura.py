@@ -42,6 +42,21 @@ def sample_metadata():
 class TestHasuraClient:
     """Tests for HasuraClient."""
 
+    def test_init_uses_phlo_env_file_for_admin_secret(self, tmp_path, monkeypatch):
+        """Client should honor the repo-standard `.phlo` env files."""
+        phlo_dir = tmp_path / ".phlo"
+        phlo_dir.mkdir()
+        (phlo_dir / ".env").write_text("HASURA_ADMIN_SECRET=file-secret\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("HASURA_ADMIN_SECRET", raising=False)
+        from phlo_hasura import client as client_module
+
+        client_module.get_settings.cache_clear()
+
+        client = HasuraClient()
+
+        assert client.admin_secret == "file-secret"
+
     @patch("phlo_hasura.client.requests.request")
     def test_track_table(self, mock_request):
         """Should track table via API."""

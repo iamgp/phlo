@@ -40,6 +40,8 @@ def _validate_sql_resource_pattern(value: str, label: str = "resource_pattern") 
 
     Wildcards (``%``, ``*``) are only permitted in the final dot-separated segment.
     """
+    if value in {"*", "%"}:
+        return value
     if not _SQL_RESOURCE_PATTERN_RE.match(value):
         raise ValueError(f"Unsafe {label}: {value!r}")
     segments = value.split(".")

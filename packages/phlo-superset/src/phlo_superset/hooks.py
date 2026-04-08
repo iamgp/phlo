@@ -24,8 +24,22 @@ import requests
 from phlo.capabilities import resolve_capability
 from phlo.capabilities.discovery import discover_capabilities
 from phlo.logging import get_logger, setup_logging
+from phlo_superset.settings import get_settings
 
 logger = get_logger(__name__)
+
+
+def _superset_admin_credentials() -> tuple[str, str]:
+    """Resolve Superset admin credentials from env or standard settings files."""
+    admin_user = os.environ.get("SUPERSET_ADMIN_USER")
+    admin_password = os.environ.get("SUPERSET_ADMIN_PASSWORD")
+    if admin_user and admin_password:
+        return admin_user, admin_password
+
+    settings = get_settings()
+    resolved_user = admin_user or settings.superset_admin_user
+    resolved_password = admin_password or settings.superset_admin_password
+    return resolved_user, resolved_password
 
 
 def _superset_auth_provider() -> str:
@@ -243,11 +257,11 @@ def add_query_engine_database() -> None:
     """
     start = time.perf_counter()
     superset_url = os.environ.get("SUPERSET_URL", "http://localhost:8088")
-    admin_user = os.environ.get("SUPERSET_ADMIN_USER")
-    admin_password = os.environ.get("SUPERSET_ADMIN_PASSWORD")
+    admin_user, admin_password = _superset_admin_credentials()
     if not admin_user or not admin_password:
         raise ValueError(
-            "SUPERSET_ADMIN_USER and SUPERSET_ADMIN_PASSWORD environment variables must be set"
+            "SUPERSET_ADMIN_USER and SUPERSET_ADMIN_PASSWORD must be set via environment "
+            "variables or `.phlo` settings."
         )
     logger.info(
         "superset_add_query_engine_database_started",
