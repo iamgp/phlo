@@ -23,6 +23,7 @@ from phlo.plugins.base import (
     TransformationPlugin,
     TransformationProviderPlugin,
 )
+from phlo.plugins.discovery._registry_metadata import plugin_metadata_to_dict
 from phlo.plugins.hooks import HookPlugin
 
 logger = get_logger(__name__)
@@ -356,21 +357,7 @@ class PluginRegistry:
         plugin = self.get(plugin_type, name)
         if not plugin:
             return None
-
-        metadata = plugin.metadata
-        return {
-            "name": metadata.name,
-            "version": metadata.version,
-            "description": metadata.description,
-            "author": metadata.author,
-            "license": metadata.license,
-            "homepage": metadata.homepage,
-            "tags": metadata.tags,
-            "dependencies": metadata.dependencies,
-            "requires_capabilities": metadata.requires_capabilities,
-            "optional_capabilities": metadata.optional_capabilities,
-            "support": metadata.support.to_dict(),
-        }
+        return plugin_metadata_to_dict(plugin)
 
     def validate_plugin(self, plugin: Plugin) -> bool:
         """
