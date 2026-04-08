@@ -208,7 +208,7 @@ class TestPostgreSQLViewManager:
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
 
-        manager = PostgreSTViewManager()
+        manager = PostgreSTViewManager(password="test-password")
         manager.execute_sql("SELECT 1;")
 
         mock_cursor.execute.assert_called_once_with("SELECT 1;")
@@ -226,7 +226,7 @@ class TestPostgreSQLViewManager:
             ("glucose_metrics",),
         ]
 
-        manager = PostgreSTViewManager()
+        manager = PostgreSTViewManager(password="test-password")
         views = manager.get_existing_views()
 
         assert views == {"glucose_readings", "glucose_metrics"}
@@ -246,7 +246,7 @@ class TestPostgreSQLViewManager:
             ("glucose_readings",),
         ]
 
-        manager = PostgreSTViewManager()
+        manager = PostgreSTViewManager(password="test-password")
         new_sql = """
         CREATE OR REPLACE VIEW api.new_view AS SELECT 1;
         CREATE OR REPLACE VIEW api.glucose_readings AS SELECT * FROM marts.glucose_readings;
@@ -284,8 +284,9 @@ class TestGenerateViewsFunction:
         assert "SQL written to" in result
 
     @patch("phlo_postgrest.views.PostgreSTViewManager.execute_sql")
-    def test_generate_views_apply(self, mock_execute, manifest_file):
+    def test_generate_views_apply(self, mock_execute, manifest_file, monkeypatch):
         """Should execute SQL when apply=True."""
+        monkeypatch.setenv("POSTGRES_PASSWORD", "test-password")
         result = generate_views(
             manifest_path=manifest_file,
             source_schema="marts",
@@ -297,8 +298,9 @@ class TestGenerateViewsFunction:
         assert "applied successfully" in result
 
     @patch("phlo_postgrest.views.PostgreSTViewManager.generate_diff")
-    def test_generate_views_diff(self, mock_diff, manifest_file):
+    def test_generate_views_diff(self, mock_diff, manifest_file, monkeypatch):
         """Should show diff when diff=True."""
+        monkeypatch.setenv("POSTGRES_PASSWORD", "test-password")
         mock_diff.return_value = "Diff summary"
 
         result = generate_views(

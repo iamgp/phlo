@@ -69,7 +69,7 @@ class HasuraClient:
         >>> metadata = client.export_metadata()
 
     Environment Variables:
-        HASURA_ADMIN_SECRET: Override the default admin secret.
+        HASURA_ADMIN_SECRET: Hasura admin secret (required).
         HASURA_PORT: Override the port in the URL.
 
     """
@@ -84,8 +84,8 @@ class HasuraClient:
         Args:
             hasura_url: Hasura GraphQL endpoint URL (default: http://hasura:8080).
                 The URL will be resolved to handle Docker hostnames.
-            admin_secret: Hasura admin secret (default: from HASURA_ADMIN_SECRET
-                env var, or fallback to 'phlo-hasura-admin-secret').
+            admin_secret: Hasura admin secret (required; set via argument or
+                HASURA_ADMIN_SECRET env var).
 
         Example:
             >>> client = HasuraClient()
@@ -97,9 +97,12 @@ class HasuraClient:
         """
         raw_url = hasura_url or "http://hasura:8080"
         self.hasura_url = _resolve_hasura_url(raw_url)
-        self.admin_secret = admin_secret or os.environ.get(
-            "HASURA_ADMIN_SECRET", "phlo-hasura-admin-secret"
-        )
+        self.admin_secret = admin_secret or os.environ.get("HASURA_ADMIN_SECRET")
+        if not self.admin_secret:
+            raise ValueError(
+                "Hasura admin secret must be provided via the 'admin_secret' argument "
+                "or the HASURA_ADMIN_SECRET environment variable."
+            )
         self.metadata_url = f"{self.hasura_url}/v1/metadata"
 
     def _request(

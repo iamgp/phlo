@@ -50,7 +50,7 @@ class TestHasuraClient:
         mock_response.json.return_value = {"message": "success"}
         mock_request.return_value = mock_response
 
-        client = HasuraClient()
+        client = HasuraClient(admin_secret="test-secret")
         result = client.track_table("api", "glucose_readings")
 
         assert result["message"] == "success"
@@ -71,7 +71,7 @@ class TestHasuraClient:
         mock_response.json.return_value = {"message": "success"}
         mock_request.return_value = mock_response
 
-        client = HasuraClient()
+        client = HasuraClient(admin_secret="test-secret")
         result = client.untrack_table("api", "glucose_readings")
 
         assert result["message"] == "success"
@@ -84,7 +84,7 @@ class TestHasuraClient:
         mock_response.json.return_value = {"message": "success"}
         mock_request.return_value = mock_response
 
-        client = HasuraClient()
+        client = HasuraClient(admin_secret="test-secret")
         result = client.create_select_permission(
             "api", "glucose_readings", "analyst", columns=["reading_id", "sgv"]
         )
@@ -103,7 +103,7 @@ class TestHasuraClient:
         mock_response.json.return_value = sample_metadata
         mock_request.return_value = mock_response
 
-        client = HasuraClient()
+        client = HasuraClient(admin_secret="test-secret")
         metadata = client.export_metadata()
 
         assert metadata == sample_metadata
@@ -116,7 +116,7 @@ class TestHasuraClient:
         mock_response.json.return_value = sample_metadata
         mock_request.return_value = mock_response
 
-        client = HasuraClient()
+        client = HasuraClient(admin_secret="test-secret")
         tracked = client.get_tracked_tables()
 
         assert "api" in tracked
@@ -130,7 +130,7 @@ class TestHasuraClient:
         mock_response.json.return_value = {"error": "Invalid request"}
         mock_request.return_value = mock_response
 
-        client = HasuraClient()
+        client = HasuraClient(admin_secret="test-secret")
 
         with pytest.raises(requests.RequestException):
             client.track_table("api", "nonexistent")
@@ -152,7 +152,7 @@ class TestHasuraTableTracker:
             ("glucose_metrics",),
         ]
 
-        tracker = HasuraTableTracker()
+        tracker = HasuraTableTracker(hasura_client=HasuraClient(admin_secret="test-secret"))
         tables = tracker.get_tables_in_schema("api")
 
         assert tables == ["glucose_readings", "glucose_metrics"]
@@ -169,7 +169,7 @@ class TestHasuraTableTracker:
             ("user_id", "public", "users", "id"),
         ]
 
-        tracker = HasuraTableTracker()
+        tracker = HasuraTableTracker(hasura_client=HasuraClient(admin_secret="test-secret"))
         fks = tracker.get_foreign_keys("api", "glucose_readings")
 
         assert len(fks) == 1
@@ -191,7 +191,7 @@ class TestHasuraTableTracker:
         ]
         mock_track.return_value = {"message": "success"}
 
-        tracker = HasuraTableTracker()
+        tracker = HasuraTableTracker(hasura_client=HasuraClient(admin_secret="test-secret"))
         results = tracker.track_tables("api", verbose=False)
 
         assert results["glucose_readings"] is True
@@ -212,7 +212,7 @@ class TestHasuraTableTracker:
             ("temp_table",),
         ]
 
-        tracker = HasuraTableTracker()
+        tracker = HasuraTableTracker(hasura_client=HasuraClient(admin_secret="test-secret"))
         results = tracker.track_tables("api", exclude=["temp_table"], verbose=False)
 
         assert "glucose_readings" in results
@@ -234,7 +234,7 @@ class TestHasuraPermissionManager:
         with open(config_file, "w") as f:
             json.dump(config, f)
 
-        manager = HasuraPermissionManager()
+        manager = HasuraPermissionManager(client=HasuraClient(admin_secret="test-secret"))
         loaded = manager.load_config(str(config_file))
 
         assert loaded["tables"]["api.glucose_readings"] == config["tables"]["api.glucose_readings"]
@@ -249,7 +249,7 @@ class TestHasuraPermissionManager:
         }
         mock_perm.return_value = {"message": "success"}
 
-        manager = HasuraPermissionManager()
+        manager = HasuraPermissionManager(client=HasuraClient(admin_secret="test-secret"))
         results = manager.sync_permissions(config, verbose=False)
 
         assert ("api.glucose_readings", "analyst") in results["select"]
@@ -260,7 +260,7 @@ class TestHasuraPermissionManager:
         """Should export current permissions."""
         mock_export.return_value = sample_metadata
 
-        manager = HasuraPermissionManager()
+        manager = HasuraPermissionManager(client=HasuraClient(admin_secret="test-secret"))
         exported = manager.export_permissions()
 
         assert "tables" in exported
@@ -306,7 +306,7 @@ class TestHasuraMetadataSync:
         """Should export metadata to file."""
         mock_export.return_value = sample_metadata
 
-        syncer = HasuraMetadataSync()
+        syncer = HasuraMetadataSync(client=HasuraClient(admin_secret="test-secret"))
         metadata = syncer.export_metadata()
 
         assert metadata == sample_metadata
@@ -320,7 +320,7 @@ class TestHasuraMetadataSync:
 
         mock_apply.return_value = {"message": "success"}
 
-        syncer = HasuraMetadataSync()
+        syncer = HasuraMetadataSync(client=HasuraClient(admin_secret="test-secret"))
         result = syncer.import_metadata(str(metadata_file))
 
         assert result["message"] == "success"
@@ -344,7 +344,7 @@ class TestHasuraMetadataSync:
             ],
         }
 
-        syncer = HasuraMetadataSync()
+        syncer = HasuraMetadataSync(client=HasuraClient(admin_secret="test-secret"))
         diff = syncer.get_diff(current, desired)
 
         assert "api.new_table" in diff["tables"]["added"]

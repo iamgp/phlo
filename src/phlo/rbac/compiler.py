@@ -23,18 +23,29 @@ from phlo.rbac.models import (
     VerifyResult,
 )
 
-_SQL_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.%*-]*$")
+_SQL_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.]*$")
+_SQL_RESOURCE_PATTERN_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.%*]*$")
 _SQL_PRIVILEGE_RE = re.compile(r"^[A-Z][A-Z ]*$")
 
 
 def _validate_sql_identifier(value: str, label: str) -> str:
-    """Validate that *value* is a safe SQL identifier fragment.
-
-    Raises ``ValueError`` when *value* contains characters outside the
-    allowed set (alphanumeric, underscore, dot, percent, asterisk, hyphen).
-    """
+    """Validate that *value* is a safe SQL identifier (no wildcards)."""
     if not _SQL_IDENTIFIER_RE.match(value):
         raise ValueError(f"Unsafe {label}: {value!r}")
+    return value
+
+
+def _validate_sql_resource_pattern(value: str, label: str = "resource_pattern") -> str:
+    """Validate a resource pattern that may contain wildcards.
+
+    Wildcards (``%``, ``*``) are only permitted in the final dot-separated segment.
+    """
+    if not _SQL_RESOURCE_PATTERN_RE.match(value):
+        raise ValueError(f"Unsafe {label}: {value!r}")
+    segments = value.split(".")
+    for segment in segments[:-1]:
+        if "%" in segment or "*" in segment:
+            raise ValueError(f"Wildcards only allowed in final segment of {label}: {value!r}")
     return value
 
 
@@ -319,7 +330,7 @@ class TrinoCompiler(GovernanceCompiler):
             for role_name in policy.principal_roles:
                 _validate_sql_identifier(role_name, "role_name")
                 resource_id = policy.resource_id_pattern.replace("*", "%")
-                _validate_sql_identifier(resource_id, "resource_id")
+                _validate_sql_resource_pattern(resource_id, "resource_id")
                 _validate_sql_identifier(policy.resource_type, "resource_type")
                 artifact_name = f"{role_name}_{policy.resource_type}_{resource_id}"
 
@@ -606,7 +617,7 @@ class PostgreSQLCompiler(GovernanceCompiler):
             for role_name in policy.principal_roles:
                 _validate_sql_identifier(role_name, "role_name")
                 resource_id = policy.resource_id_pattern.replace("*", "%")
-                _validate_sql_identifier(resource_id, "resource_id")
+                _validate_sql_resource_pattern(resource_id, "resource_id")
 
                 for privilege in privileges:
                     _validate_sql_privilege(privilege)

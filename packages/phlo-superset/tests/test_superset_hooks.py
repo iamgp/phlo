@@ -79,6 +79,8 @@ def test_superset_database_uri_fails_without_config_or_metadata(monkeypatch) -> 
 
 def test_add_query_engine_database_handles_database_uri_resolution_failure(monkeypatch) -> None:
     """Hook should log and return when no database URI can be resolved."""
+    monkeypatch.setenv("SUPERSET_ADMIN_USER", "test-admin")
+    monkeypatch.setenv("SUPERSET_ADMIN_PASSWORD", "test-password")
     session = Mock()
     session.headers = {}
     login_response = Mock()

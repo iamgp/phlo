@@ -15,6 +15,7 @@ Example:
 
 from __future__ import annotations
 
+import re
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Iterator, Optional, Sequence, Union
@@ -24,6 +25,15 @@ import pandas as pd
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+_SAFE_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+def _validate_identifier(name: str, context: str = "identifier") -> str:
+    """Validate a SQL identifier to prevent injection in mock code."""
+    if not _SAFE_IDENTIFIER_RE.match(name):
+        raise ValueError(f"Unsafe SQL {context}: {name!r}")
+    return name
 
 
 def _normalize_type(dtype: str) -> str:
@@ -110,6 +120,7 @@ class MockTable:
                 nullable = "NULL" if field.optional else "NOT NULL"
                 columns.append(f"{field.name} {duckdb_type} {nullable}")
 
+        _validate_identifier(full_name, "table name")
         create_stmt = f"CREATE TABLE {full_name} ({', '.join(columns)})"
         try:
             self._db.execute(create_stmt)
@@ -154,6 +165,7 @@ class MockTable:
         self._validate_schema(df)
 
         # Truncate and insert
+        _validate_identifier(full_name, "table name")
         self._db.execute(f"DELETE FROM {full_name}")
         self._db.from_df(df).insert_into(full_name)
 
@@ -396,6 +408,7 @@ class MockIcebergCatalog:
         if identifier in self._tables:
             table = self._tables.pop(identifier)
             try:
+                _validate_identifier(table.full_name, "table name")
                 self._db.execute(f"DROP TABLE IF EXISTS {table.full_name}")
             except duckdb.CatalogException:
                 logger.debug(
@@ -450,6 +463,8 @@ class MockIcebergCatalog:
         # Rename in DuckDB
         old_full = old_identifier.replace(".", "_")
         new_full = new_identifier.replace(".", "_")
+        _validate_identifier(old_full, "old table name")
+        _validate_identifier(new_full, "new table name")
         try:
             self._db.execute(f"ALTER TABLE {old_full} RENAME TO {new_full}")
         except duckdb.CatalogException:

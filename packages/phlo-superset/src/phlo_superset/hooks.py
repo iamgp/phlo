@@ -234,8 +234,8 @@ def add_query_engine_database() -> None:
 
     Environment:
         SUPERSET_URL: Superset base URL (default: http://localhost:8088).
-        SUPERSET_ADMIN_USER: Admin username for API authentication.
-        SUPERSET_ADMIN_PASSWORD: Admin password for API authentication.
+        SUPERSET_ADMIN_USER: Admin username for API authentication (required).
+        SUPERSET_ADMIN_PASSWORD: Admin password for API authentication (required).
         SUPERSET_DATABASE_NAME: Logical name for the database in Superset UI.
         SUPERSET_DATABASE_URI: Direct SQLAlchemy URI (optional).
         SUPERSET_QUERY_ENGINE: Query engine capability name for auto-discovery.
@@ -243,8 +243,12 @@ def add_query_engine_database() -> None:
     """
     start = time.perf_counter()
     superset_url = os.environ.get("SUPERSET_URL", "http://localhost:8088")
-    admin_user = os.environ.get("SUPERSET_ADMIN_USER", "admin")
-    admin_password = os.environ.get("SUPERSET_ADMIN_PASSWORD", "admin")
+    admin_user = os.environ.get("SUPERSET_ADMIN_USER")
+    admin_password = os.environ.get("SUPERSET_ADMIN_PASSWORD")
+    if not admin_user or not admin_password:
+        raise ValueError(
+            "SUPERSET_ADMIN_USER and SUPERSET_ADMIN_PASSWORD environment variables must be set"
+        )
     logger.info(
         "superset_add_query_engine_database_started",
         superset_url=superset_url,
