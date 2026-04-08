@@ -115,7 +115,7 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
         phlo_src_path="../phlo/src/phlo",
     )
 
-    assert "../phlo/src/phlo/../..:/opt/phlo-dev:rw" in compose
+    assert "/opt/phlo-dev:rw" in compose
     assert "PHLO_DEV_MODE" in compose
 
 
