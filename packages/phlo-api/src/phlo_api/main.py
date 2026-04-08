@@ -42,10 +42,14 @@ app = FastAPI(
 )
 
 # Allow CORS for Observatory
+_cors_origins_raw = os.environ.get(
+    "PHLO_API_CORS_ORIGINS", "http://localhost:3000,http://localhost:4000"
+)
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
