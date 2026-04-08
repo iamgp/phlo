@@ -58,7 +58,7 @@ repos:
     hooks:
       - id: prettier-observatory
         name: prettier (Observatory)
-        entry: npx prettier --cache
+        entry: npx prettier --cache --write
         language: system
         files: ^packages/phlo-observatory/src/phlo_observatory/.*(\.ts|\.tsx)$
       - id: zizmor
