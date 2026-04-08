@@ -13,7 +13,6 @@ Constants:
 
 Functions:
     _is_transient_trino_error: Check if an exception indicates transient error.
-    _iter_exception_chain: Yield exception and its chained causes.
 
 Example:
     >>> from phlo_trino.resource import TrinoResource
@@ -34,6 +33,7 @@ from trino.dbapi import connect
 
 from phlo.capabilities import CapabilitySupport, RuntimeContext, resolve_runtime_ref
 from phlo.logging import get_logger
+from phlo_trino._errors import iter_exception_chain
 from phlo_trino.settings import get_settings as get_trino_settings
 
 logger = get_logger(__name__)
@@ -273,7 +273,7 @@ def _is_transient_trino_error(exc: Exception) -> bool:
         True when retrying is likely useful; otherwise False.
 
     """
-    for error in _iter_exception_chain(exc):
+    for error in iter_exception_chain(exc):
         message = str(error).lower()
         if "server_starting_up" in message:
             return True
@@ -311,19 +311,3 @@ def _is_transient_trino_error(exc: Exception) -> bool:
         if "connectionerror" in class_name or "connection" in class_name:
             return True
     return False
-
-
-def _iter_exception_chain(exc: BaseException) -> Iterable[BaseException]:
-    """Yield an exception and its chained causes/contexts.
-
-    Args:
-        exc: Starting exception.
-
-    Yields:
-        Exception objects from the chain, root first.
-
-    """
-    current: BaseException | None = exc
-    while current is not None:
-        yield current
-        current = current.__cause__ or current.__context__

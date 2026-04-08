@@ -13,6 +13,7 @@ from phlo.cli.commands.services.utils import (
     _get_env_overrides,
     _warn_secret_env_overrides,
     detect_phlo_source_path,
+    expand_service_dependencies,
     get_phlo_dir,
     resolve_phlo_package_dir,
 )
@@ -26,31 +27,7 @@ def _expand_selected_services(
     services: list[ServiceDefinition],
 ) -> list[ServiceDefinition]:
     """Expand selected services with declared dependencies and setup companions."""
-    if not services:
-        return []
-
-    all_services = discovery.discover()
-    selected: dict[str, ServiceDefinition] = {service.name: service for service in services}
-    queue = list(services)
-    while queue:
-        service = queue.pop(0)
-        for dependency_name in service.depends_on:
-            dependency = all_services.get(dependency_name)
-            if dependency and dependency.name not in selected:
-                selected[dependency.name] = dependency
-                queue.append(dependency)
-
-    bootstrap_companions = [
-        service
-        for service in all_services.values()
-        if service.name.endswith("-setup")
-        and service.depends_on
-        and all(dependency in selected for dependency in service.depends_on)
-    ]
-    for companion in bootstrap_companions:
-        selected.setdefault(companion.name, companion)
-
-    return discovery.resolve_dependencies(list(selected.values()))
+    return expand_service_dependencies(discovery, services)
 
 
 @click.command("init")
