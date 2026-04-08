@@ -51,7 +51,7 @@ class PostgrestViewsSettings(BaseConfig):
         postgres_host: PostgreSQL server hostname.
         postgres_port: PostgreSQL server port.
         postgres_user: Database username.
-        postgres_password: Database password.
+        postgres_password: Database password (required; set via env var).
         postgres_db: Database name.
 
     Example:
@@ -72,7 +72,10 @@ class PostgrestViewsSettings(BaseConfig):
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
     postgres_port: int = Field(default=5432, description="PostgreSQL port")
     postgres_user: str = Field(default="phlo", description="PostgreSQL username")
-    postgres_password: str = Field(default="phlo", description="PostgreSQL password")
+    postgres_password: str | None = Field(
+        default=None,
+        description="PostgreSQL password (required; set PHLO_POSTGRES_PASSWORD or POSTGRES_PASSWORD env var)",
+    )
     postgres_db: str = Field(default="phlo", description="PostgreSQL database name")
 
 
@@ -579,6 +582,11 @@ class PostgreSTViewManager:
         self.database = database or settings.postgres_db
         self.user = user or settings.postgres_user
         self.password = password or settings.postgres_password
+        if not self.password:
+            raise ValueError(
+                "PostgreSQL password must be set via the PHLO_POSTGRES_PASSWORD "
+                "or POSTGRES_PASSWORD environment variable, or passed as the 'password' argument."
+            )
 
     def get_connection(self):
         """Establish and return a PostgreSQL database connection.

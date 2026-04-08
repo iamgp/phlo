@@ -6,6 +6,7 @@ between quality provider schemas and storage tables.
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import inspect
 import json
@@ -155,7 +156,7 @@ def _discover_pandera_schemas_from_files() -> dict[str, type[Any]]:
         for schema_file in root.glob("**/schemas/*.py"):
             if schema_file.name.startswith("_"):
                 continue
-            module_name = f"phlo_schema_fallback_{abs(hash(schema_file.resolve()))}"
+            module_name = f"phlo_schema_fallback_{hashlib.sha256(str(schema_file.resolve()).encode()).hexdigest()[:16]}"
             spec = importlib.util.spec_from_file_location(module_name, schema_file)
             if spec is None or spec.loader is None:
                 continue

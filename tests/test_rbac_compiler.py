@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import cast
 
 from phlo.capabilities.interfaces import GovernanceBackend
-from phlo.rbac.compiler import CompilerContext, TrinoCompiler
+from phlo.rbac.compiler import CompilerContext, PostgreSQLCompiler, TrinoCompiler
 from phlo.rbac.models import (
     BackendArtifact,
     CanonicalRBAC,
@@ -159,3 +159,57 @@ def test_trino_compile_does_not_grant_to_inherited_roles() -> None:
     assert len(artifacts) == 1
     assert artifacts[0].metadata["role"] == "admin"
     assert artifacts[0].name == "admin_dataset_analytics.table"
+
+
+def test_trino_compile_allows_catch_all_resource_pattern() -> None:
+    compiler = TrinoCompiler()
+    roles = RolesConfig.from_dict({"version": 1, "roles": {"admin": {"inherits": []}}})
+    policies = PoliciesConfig.from_dict(
+        {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "allow_all",
+                    "effect": "allow",
+                    "principal": {"roles": ["admin"]},
+                    "action": "dataset.read",
+                    "resource": {"type": "dataset", "id_pattern": "*"},
+                }
+            ],
+        }
+    )
+    rbac = CanonicalRBAC.from_configs(roles, policies)
+    context = CompilerContext(environment="test", backend_name="trino")
+
+    artifacts = compiler.compile(rbac, context)
+
+    assert len(artifacts) == 1
+    assert artifacts[0].statement == "GRANT SELECT ON TABLE % TO ROLE admin"
+    assert artifacts[0].metadata["resource"] == "%"
+
+
+def test_postgresql_compile_allows_catch_all_resource_pattern() -> None:
+    compiler = PostgreSQLCompiler()
+    roles = RolesConfig.from_dict({"version": 1, "roles": {"admin": {"inherits": []}}})
+    policies = PoliciesConfig.from_dict(
+        {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "allow_all",
+                    "effect": "allow",
+                    "principal": {"roles": ["admin"]},
+                    "action": "service.read",
+                    "resource": {"type": "service", "id_pattern": "*"},
+                }
+            ],
+        }
+    )
+    rbac = CanonicalRBAC.from_configs(roles, policies)
+    context = CompilerContext(environment="test", backend_name="postgresql")
+
+    artifacts = compiler.compile(rbac, context)
+
+    assert len(artifacts) == 1
+    assert artifacts[0].statement == "GRANT USAGE ON SCHEMA % TO admin"
+    assert artifacts[0].metadata["resource"] == "%"

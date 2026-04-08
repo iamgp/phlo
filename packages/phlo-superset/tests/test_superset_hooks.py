@@ -77,8 +77,19 @@ def test_superset_database_uri_fails_without_config_or_metadata(monkeypatch) -> 
         hooks._discover_query_engine_database_uri()
 
 
+def test_superset_admin_credentials_fall_back_to_settings(monkeypatch) -> None:
+    """Hook should use standard settings defaults when env vars are absent."""
+    monkeypatch.delenv("SUPERSET_ADMIN_USER", raising=False)
+    monkeypatch.delenv("SUPERSET_ADMIN_PASSWORD", raising=False)
+    hooks.get_settings.cache_clear()
+
+    assert hooks._superset_admin_credentials() == ("admin", "admin")
+
+
 def test_add_query_engine_database_handles_database_uri_resolution_failure(monkeypatch) -> None:
     """Hook should log and return when no database URI can be resolved."""
+    monkeypatch.setenv("SUPERSET_ADMIN_USER", "test-admin")
+    monkeypatch.setenv("SUPERSET_ADMIN_PASSWORD", "test-password")
     session = Mock()
     session.headers = {}
     login_response = Mock()
@@ -106,3 +117,52 @@ def test_add_query_engine_database_handles_database_uri_resolution_failure(monke
     hooks.add_query_engine_database()
 
     assert session.post.call_count == 1
+
+
+def test_add_query_engine_database_uses_settings_when_env_missing(monkeypatch) -> None:
+    """Hook startup should still log in with generated default settings."""
+    monkeypatch.delenv("SUPERSET_ADMIN_USER", raising=False)
+    monkeypatch.delenv("SUPERSET_ADMIN_PASSWORD", raising=False)
+    hooks.get_settings.cache_clear()
+    session = Mock()
+    session.headers = {}
+    login_response = Mock()
+    login_response.raise_for_status.return_value = None
+    login_response.json.return_value = {"access_token": "token"}
+    csrf_response = Mock()
+    csrf_response.json.return_value = {"result": "csrf"}
+    list_response = Mock()
+    list_response.json.return_value = {"result": []}
+    create_response = Mock()
+    create_response.raise_for_status.return_value = None
+    session.post.side_effect = [login_response, create_response]
+    session.get.side_effect = [csrf_response, list_response]
+
+    monkeypatch.setattr(
+        hooks.requests, "get", lambda *_args, **_kwargs: SimpleNamespace(status_code=200)
+    )
+    monkeypatch.setattr(hooks.requests, "Session", lambda: session)
+    monkeypatch.setattr(hooks, "_superset_database_name", lambda: "analytics")
+    monkeypatch.setattr(hooks, "_configured_database_uri", lambda: "trino://trino:8080/iceberg")
+
+    hooks.add_query_engine_database()
+
+    assert session.post.call_args_list[0].kwargs["json"]["username"] == "admin"
+    assert session.post.call_args_list[0].kwargs["json"]["password"] == "admin"
+
+
+def test_add_query_engine_database_returns_when_admin_credentials_missing(monkeypatch) -> None:
+    """Hook should preserve its no-raise contract when credentials are missing."""
+    monkeypatch.delenv("SUPERSET_ADMIN_USER", raising=False)
+    monkeypatch.delenv("SUPERSET_ADMIN_PASSWORD", raising=False)
+    monkeypatch.setattr(
+        hooks,
+        "get_settings",
+        lambda: SimpleNamespace(superset_admin_user="", superset_admin_password=""),
+    )
+    session_factory = Mock()
+    monkeypatch.setattr(hooks.requests, "Session", session_factory)
+
+    hooks.add_query_engine_database()
+
+    session_factory.assert_not_called()

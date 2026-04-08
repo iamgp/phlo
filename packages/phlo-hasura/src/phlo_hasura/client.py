@@ -21,13 +21,31 @@ Environment Variables:
 
 import json
 import os
+from functools import lru_cache
 from typing import Any
 
 import requests
+from pydantic import Field
+from phlo.config.base import BaseConfig
 from phlo.config.network import resolve_url
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class HasuraClientSettings(BaseConfig):
+    """Configuration for Hasura client connectivity and authentication."""
+
+    hasura_admin_secret: str | None = Field(
+        default=None,
+        description="Hasura admin secret used for Metadata API requests",
+    )
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> HasuraClientSettings:
+    """Return cached Hasura client settings loaded from env and `.phlo` env files."""
+    return HasuraClientSettings()
 
 
 def _resolve_hasura_url(url: str) -> str:
@@ -69,7 +87,7 @@ class HasuraClient:
         >>> metadata = client.export_metadata()
 
     Environment Variables:
-        HASURA_ADMIN_SECRET: Override the default admin secret.
+        HASURA_ADMIN_SECRET: Hasura admin secret (required).
         HASURA_PORT: Override the port in the URL.
 
     """
@@ -84,8 +102,8 @@ class HasuraClient:
         Args:
             hasura_url: Hasura GraphQL endpoint URL (default: http://hasura:8080).
                 The URL will be resolved to handle Docker hostnames.
-            admin_secret: Hasura admin secret (default: from HASURA_ADMIN_SECRET
-                env var, or fallback to 'phlo-hasura-admin-secret').
+            admin_secret: Hasura admin secret (required; set via argument or
+                HASURA_ADMIN_SECRET env var).
 
         Example:
             >>> client = HasuraClient()
@@ -97,9 +115,14 @@ class HasuraClient:
         """
         raw_url = hasura_url or "http://hasura:8080"
         self.hasura_url = _resolve_hasura_url(raw_url)
-        self.admin_secret = admin_secret or os.environ.get(
-            "HASURA_ADMIN_SECRET", "phlo-hasura-admin-secret"
-        )
+        self.admin_secret = admin_secret or os.environ.get("HASURA_ADMIN_SECRET")
+        if not self.admin_secret:
+            self.admin_secret = get_settings().hasura_admin_secret
+        if not self.admin_secret:
+            raise ValueError(
+                "Hasura admin secret must be provided via the 'admin_secret' argument "
+                "or the HASURA_ADMIN_SECRET environment/.phlo config."
+            )
         self.metadata_url = f"{self.hasura_url}/v1/metadata"
 
     def _request(

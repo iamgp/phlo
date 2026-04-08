@@ -24,8 +24,22 @@ import requests
 from phlo.capabilities import resolve_capability
 from phlo.capabilities.discovery import discover_capabilities
 from phlo.logging import get_logger, setup_logging
+from phlo_superset.settings import get_settings
 
 logger = get_logger(__name__)
+
+
+def _superset_admin_credentials() -> tuple[str, str]:
+    """Resolve Superset admin credentials from env or standard settings files."""
+    admin_user = os.environ.get("SUPERSET_ADMIN_USER")
+    admin_password = os.environ.get("SUPERSET_ADMIN_PASSWORD")
+    if admin_user and admin_password:
+        return admin_user, admin_password
+
+    settings = get_settings()
+    resolved_user = admin_user or settings.superset_admin_user
+    resolved_password = admin_password or settings.superset_admin_password
+    return resolved_user, resolved_password
 
 
 def _superset_auth_provider() -> str:
@@ -234,8 +248,8 @@ def add_query_engine_database() -> None:
 
     Environment:
         SUPERSET_URL: Superset base URL (default: http://localhost:8088).
-        SUPERSET_ADMIN_USER: Admin username for API authentication.
-        SUPERSET_ADMIN_PASSWORD: Admin password for API authentication.
+        SUPERSET_ADMIN_USER: Admin username for API authentication (required).
+        SUPERSET_ADMIN_PASSWORD: Admin password for API authentication (required).
         SUPERSET_DATABASE_NAME: Logical name for the database in Superset UI.
         SUPERSET_DATABASE_URI: Direct SQLAlchemy URI (optional).
         SUPERSET_QUERY_ENGINE: Query engine capability name for auto-discovery.
@@ -243,8 +257,15 @@ def add_query_engine_database() -> None:
     """
     start = time.perf_counter()
     superset_url = os.environ.get("SUPERSET_URL", "http://localhost:8088")
-    admin_user = os.environ.get("SUPERSET_ADMIN_USER", "admin")
-    admin_password = os.environ.get("SUPERSET_ADMIN_PASSWORD", "admin")
+    admin_user, admin_password = _superset_admin_credentials()
+    if not admin_user or not admin_password:
+        logger.error(
+            "superset_admin_credentials_missing",
+            superset_url=superset_url,
+            admin_user_set=bool(admin_user),
+            admin_password_set=bool(admin_password),
+        )
+        return
     logger.info(
         "superset_add_query_engine_database_started",
         superset_url=superset_url,
