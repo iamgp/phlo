@@ -22,6 +22,7 @@ from phlo.cli.commands.services.utils import (
     _save_native_state,
     _stop_native_processes,
     ensure_phlo_dir,
+    expand_service_dependencies,
     get_enabled_disabled_service_names,
     get_profile_service_names,
     require_docker,
@@ -94,28 +95,7 @@ def _expand_requested_services(
         raise click.ClickException(f"Unknown service name(s): {', '.join(unknown_services)}")
 
     requested = [all_services[name] for name in service_names]
-
-    selected: dict[str, ServiceDefinition] = {service.name: service for service in requested}
-    queue = list(requested)
-    while queue:
-        service = queue.pop(0)
-        for dependency_name in service.depends_on:
-            dependency = all_services.get(dependency_name)
-            if dependency and dependency.name not in selected:
-                selected[dependency.name] = dependency
-                queue.append(dependency)
-
-    bootstrap_companions = [
-        service
-        for service in all_services.values()
-        if service.name.endswith("-setup")
-        and service.depends_on
-        and all(dependency in selected for dependency in service.depends_on)
-    ]
-    for companion in bootstrap_companions:
-        selected.setdefault(companion.name, companion)
-
-    return discovery.resolve_dependencies(list(selected.values()))
+    return expand_service_dependencies(discovery, requested)
 
 
 @click.command("start")

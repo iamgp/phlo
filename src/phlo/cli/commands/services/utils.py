@@ -15,6 +15,7 @@ import click
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.utils import _resolve_container_name
 from phlo.logging import get_logger
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 from phlo.utils import dedupe_preserve_order
 
 logger = get_logger(__name__)
@@ -652,6 +653,42 @@ def get_profile_service_names(profile_names: tuple[str, ...]) -> list[str]:
     return service_names
 
 
+def expand_service_dependencies(
+    discovery: ServiceDiscovery,
+    services: list[ServiceDefinition],
+) -> list[ServiceDefinition]:
+    """Expand a list of services with their transitive dependencies and setup companions.
+
+    Returns services in topological (dependency) order via ``discovery.resolve_dependencies``.
+    """
+    if not services:
+        return []
+
+    all_services = discovery.discover()
+
+    selected: dict[str, ServiceDefinition] = {service.name: service for service in services}
+    queue = list(services)
+    while queue:
+        service = queue.pop(0)
+        for dependency_name in service.depends_on:
+            dependency = all_services.get(dependency_name)
+            if dependency and dependency.name not in selected:
+                selected[dependency.name] = dependency
+                queue.append(dependency)
+
+    bootstrap_companions = [
+        service
+        for service in all_services.values()
+        if service.name.endswith("-setup")
+        and service.depends_on
+        and all(dependency in selected for dependency in service.depends_on)
+    ]
+    for companion in bootstrap_companions:
+        selected.setdefault(companion.name, companion)
+
+    return discovery.resolve_dependencies(list(selected.values()))
+
+
 def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
     """Regenerate docker-compose.yml based on current config."""
     from phlo.cli.infrastructure.selection import select_services_to_install
@@ -672,27 +709,7 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
         enabled_names=enabled_names,
         disabled_names=disabled_names,
     )
-    selected_by_name = {service.name: service for service in services_to_install}
-    queue = list(services_to_install)
-    while queue:
-        service = queue.pop(0)
-        for dependency_name in service.depends_on:
-            dependency = all_services.get(dependency_name)
-            if dependency and dependency.name not in selected_by_name:
-                selected_by_name[dependency.name] = dependency
-                queue.append(dependency)
-
-    bootstrap_companions = [
-        service
-        for service in all_services.values()
-        if service.name.endswith("-setup")
-        and service.depends_on
-        and all(dependency in selected_by_name for dependency in service.depends_on)
-    ]
-    for companion in bootstrap_companions:
-        selected_by_name.setdefault(companion.name, companion)
-
-    services_to_install = discovery.resolve_dependencies(list(selected_by_name.values()))
+    services_to_install = expand_service_dependencies(discovery, services_to_install)
 
     # Get user service overrides from config
     user_overrides = config.get("services", {})
