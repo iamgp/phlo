@@ -14,6 +14,7 @@ Example:
 
 from __future__ import annotations
 
+import re
 from contextlib import contextmanager
 from typing import Any, Iterator, Literal, Optional
 
@@ -22,6 +23,15 @@ import pandas as pd
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+_SAFE_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+def _validate_identifier(name: str, context: str = "identifier") -> str:
+    """Validate a SQL identifier to prevent injection in mock code."""
+    if not _SAFE_IDENTIFIER_RE.match(name):
+        raise ValueError(f"Unsafe SQL {context}: {name!r}")
+    return name
 
 
 class MockCursor:
@@ -477,6 +487,7 @@ class MockTrinoResource:
         self._tables[table_name] = df
 
         # Register DataFrame with DuckDB
+        _validate_identifier(table_name.replace(".", "_"), "table name")
         self._db.register(table_name.replace(".", "_"), df)
 
     def get_table(self, table_name: str) -> Optional[pd.DataFrame]:

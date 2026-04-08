@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from time import monotonic
 from typing import Any
 
@@ -60,6 +61,7 @@ router = APIRouter(tags=["trino"])
 _DEFAULT_QUERY_ENGINE_ENV = "PHLO_QUERY_ENGINE"
 _QUERY_ENGINE_URL_ENV = "PHLO_QUERY_ENGINE_URL"
 _DISCOVERY_SCHEMAS_ENV = "PHLO_API_DISCOVERY_SCHEMAS"
+_SAFE_ROW_ID_RE = re.compile(r"^[a-zA-Z0-9_.\-:]+$")
 
 
 def _resolve_query_engine() -> Any | None:
@@ -809,9 +811,10 @@ async def get_row_by_id(
         else qualify_table_name(effective_catalog, effective_schema, table)
     )
 
-    # Escape single quotes to prevent SQL injection
-    escaped_row_id = row_id.replace("'", "''")
-    query = f"SELECT * FROM {resolved_table} WHERE \"_phlo_row_id\" = '{escaped_row_id}' LIMIT 1"
+    if not _SAFE_ROW_ID_RE.match(row_id):
+        return {"error": "Invalid row_id: contains disallowed characters"}
+
+    query = f"SELECT * FROM {resolved_table} WHERE \"_phlo_row_id\" = '{row_id}' LIMIT 1"
 
     result = await execute_trino_query(
         query, effective_catalog, effective_schema, trino_url, timeout_ms

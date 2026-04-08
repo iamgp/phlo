@@ -153,27 +153,28 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
     # Delete local volume directories
     deleted_count = 0
     for vol_dir in volume_dirs:
-        if vol_dir.exists():
-            try:
-                resolved = vol_dir.resolve()
-                if not resolved.is_relative_to(volumes_dir_resolved):
-                    click.echo(f"Warning: Skipping unsafe path {vol_dir}", err=True)
-                    continue
-                if vol_dir.is_symlink():
-                    click.echo(f"Warning: Skipping symlink {vol_dir}", err=True)
-                    continue
-                if vol_dir.is_dir():
-                    shutil.rmtree(vol_dir)
-                    deleted_count += 1
-                    click.echo(f"Deleted: {vol_dir.relative_to(phlo_dir)}")
-            except OSError as e:
-                logger.warning(
-                    "services_reset_volume_delete_failed",
-                    project_name=project_name,
-                    volume_path=str(vol_dir),
-                    error=str(e),
-                )
-                click.echo(f"Warning: Could not delete {vol_dir}: {e}", err=True)
+        if not vol_dir.exists():
+            continue
+        try:
+            if vol_dir.is_symlink():
+                click.echo(f"Warning: Skipping symlink {vol_dir}", err=True)
+                continue
+            resolved = vol_dir.resolve()
+            if not resolved.is_relative_to(volumes_dir_resolved):
+                click.echo(f"Warning: Skipping unsafe path {vol_dir}", err=True)
+                continue
+            if vol_dir.is_dir():
+                shutil.rmtree(vol_dir)
+                deleted_count += 1
+                click.echo(f"Deleted: {vol_dir.relative_to(phlo_dir)}")
+        except OSError as e:
+            logger.warning(
+                "services_reset_volume_delete_failed",
+                project_name=project_name,
+                volume_path=str(vol_dir),
+                error=str(e),
+            )
+            click.echo(f"Warning: Could not delete {vol_dir}: {e}", err=True)
 
     # Recreate volumes directory if we deleted it entirely
     if not services_list and not volumes_dir.exists():

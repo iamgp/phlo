@@ -84,7 +84,7 @@ def stable_operation_id(
     base = "|".join([table_name, field_name, change_type, old_value or "", new_value or ""]).encode(
         "utf-8"
     )
-    return hashlib.sha1(base).hexdigest()[:12]
+    return hashlib.sha256(base).hexdigest()[:16]
 
 
 def build_scaffold_payload(

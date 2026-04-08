@@ -5,8 +5,9 @@ from __future__ import annotations
 from phlo_hasura.resource_provider import HasuraResourceProvider
 
 
-def test_hasura_resource_provider_exposes_api_backend() -> None:
+def test_hasura_resource_provider_exposes_api_backend(monkeypatch) -> None:
     """Hasura should register a swappable API backend capability."""
+    monkeypatch.setenv("HASURA_ADMIN_SECRET", "test-secret")
     provider = HasuraResourceProvider()
 
     specs = provider.get_api_backends()
