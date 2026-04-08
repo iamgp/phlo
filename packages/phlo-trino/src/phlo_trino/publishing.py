@@ -64,6 +64,7 @@ from phlo.hooks import (
 from phlo.config.base import BaseConfig
 from phlo.logging import get_logger
 from phlo.utils import dedupe_preserve_order
+from phlo_trino._errors import iter_exception_chain
 from pydantic import Field
 
 logger = get_logger(__name__)
@@ -585,7 +586,7 @@ def _is_retryable_introspection_error(exc: Exception) -> bool:
     }
     retryable_error_types = {"external", "internal_error", "insufficient_resources"}
 
-    for error in _iter_exception_chain(exc):
+    for error in iter_exception_chain(exc):
         if TrinoUserError is not None and isinstance(error, TrinoUserError):
             error_name = getattr(error, "error_name", None)
             if error_name and str(error_name).lower() in retryable_error_names:
@@ -611,15 +612,6 @@ def _is_retryable_introspection_error(exc: Exception) -> bool:
         "timed out",
     )
     return any(snippet in message for snippet in retryable_snippets)
-
-
-def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
-    errors: list[BaseException] = []
-    current: BaseException | None = exc
-    while current is not None:
-        errors.append(current)
-        current = current.__cause__ or current.__context__
-    return errors
 
 
 _TRINO_TO_PG_SIMPLE: dict[str, str] = {
