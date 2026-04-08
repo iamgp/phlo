@@ -61,6 +61,7 @@ router = APIRouter(tags=["trino"])
 _DEFAULT_QUERY_ENGINE_ENV = "PHLO_QUERY_ENGINE"
 _QUERY_ENGINE_URL_ENV = "PHLO_QUERY_ENGINE_URL"
 _DISCOVERY_SCHEMAS_ENV = "PHLO_API_DISCOVERY_SCHEMAS"
+_SAFE_ROW_ID_RE = re.compile(r"^[a-zA-Z0-9_.\-:]+$")
 
 
 def _resolve_query_engine() -> Any | None:
@@ -810,7 +811,6 @@ async def get_row_by_id(
         else qualify_table_name(effective_catalog, effective_schema, table)
     )
 
-    _SAFE_ROW_ID_RE = re.compile(r"^[a-zA-Z0-9_.\-:]+$")
     if not _SAFE_ROW_ID_RE.match(row_id):
         return {"error": "Invalid row_id: contains disallowed characters"}
 

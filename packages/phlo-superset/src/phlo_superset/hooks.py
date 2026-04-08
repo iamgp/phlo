@@ -259,10 +259,13 @@ def add_query_engine_database() -> None:
     superset_url = os.environ.get("SUPERSET_URL", "http://localhost:8088")
     admin_user, admin_password = _superset_admin_credentials()
     if not admin_user or not admin_password:
-        raise ValueError(
-            "SUPERSET_ADMIN_USER and SUPERSET_ADMIN_PASSWORD must be set via environment "
-            "variables or `.phlo` settings."
+        logger.error(
+            "superset_admin_credentials_missing",
+            superset_url=superset_url,
+            admin_user_set=bool(admin_user),
+            admin_password_set=bool(admin_password),
         )
+        return
     logger.info(
         "superset_add_query_engine_database_started",
         superset_url=superset_url,

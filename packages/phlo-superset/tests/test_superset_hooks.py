@@ -149,3 +149,20 @@ def test_add_query_engine_database_uses_settings_when_env_missing(monkeypatch) -
 
     assert session.post.call_args_list[0].kwargs["json"]["username"] == "admin"
     assert session.post.call_args_list[0].kwargs["json"]["password"] == "admin"
+
+
+def test_add_query_engine_database_returns_when_admin_credentials_missing(monkeypatch) -> None:
+    """Hook should preserve its no-raise contract when credentials are missing."""
+    monkeypatch.delenv("SUPERSET_ADMIN_USER", raising=False)
+    monkeypatch.delenv("SUPERSET_ADMIN_PASSWORD", raising=False)
+    monkeypatch.setattr(
+        hooks,
+        "get_settings",
+        lambda: SimpleNamespace(superset_admin_user="", superset_admin_password=""),
+    )
+    session_factory = Mock()
+    monkeypatch.setattr(hooks.requests, "Session", session_factory)
+
+    hooks.add_query_engine_database()
+
+    session_factory.assert_not_called()
