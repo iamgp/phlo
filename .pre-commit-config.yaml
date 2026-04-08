@@ -56,6 +56,11 @@ repos:
 
   - repo: local
     hooks:
+      - id: prettier-observatory
+        name: prettier (Observatory)
+        entry: npx prettier --cache
+        language: system
+        files: ^packages/phlo-observatory/src/phlo_observatory/.*(\.ts|\.tsx)$
       - id: zizmor
         name: zizmor (GitHub Actions security lint)
         entry: uvx zizmor --no-online-audits --no-progress --min-severity low
