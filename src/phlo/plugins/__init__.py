@@ -132,6 +132,7 @@ Plugins are loaded from installed Python packages only. Ensure you:
 - Use virtual environments to isolate plugins
 """
 
+import importlib
 from typing import TYPE_CHECKING
 
 from phlo.plugins.base import (
@@ -202,9 +203,7 @@ def __getattr__(name):
         AttributeError: If the attribute is not a supported lazy export.
     """
     if name == "discovery":
-        import phlo.plugins.discovery
-
-        return phlo.plugins.discovery
+        return importlib.import_module("phlo.plugins.discovery")
     if name in [
         "discover_plugins",
         "get_plugin",
