@@ -201,6 +201,10 @@ def __getattr__(name):
     Raises:
         AttributeError: If the attribute is not a supported lazy export.
     """
+    if name == "discovery":
+        import phlo.plugins.discovery
+
+        return phlo.plugins.discovery
     if name in [
         "discover_plugins",
         "get_plugin",
