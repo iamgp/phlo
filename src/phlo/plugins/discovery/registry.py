@@ -7,6 +7,8 @@ methods for accessing them by name and type.
 
 from __future__ import annotations
 
+from typing import TypeVar, cast
+
 from phlo.logging import get_logger
 from phlo.plugins.base import (
     AssetProviderPlugin,
@@ -27,6 +29,8 @@ from phlo.plugins.discovery._registry_metadata import plugin_metadata_to_dict
 from phlo.plugins.hooks import HookPlugin
 
 logger = get_logger(__name__)
+
+TPlugin = TypeVar("TPlugin", bound=Plugin)
 
 _TYPE_CONFIG = {
     "source_connectors": ("_sources", "source", "Source connector"),
@@ -187,81 +191,89 @@ class PluginRegistry:
         """Register a plugin of any type (alias for _register_plugin)."""
         self._register_plugin(plugin_type, plugin, replace)
 
+    def _get_typed(self, plugin_type: str, name: str) -> TPlugin | None:
+        """Return a registered plugin with the caller's expected subtype."""
+        return cast("TPlugin | None", self.get(plugin_type, name))
+
     def get_source_connector(self, name: str) -> SourceConnectorPlugin | None:
         """Get a source connector plugin by name."""
-        return self._sources.get(name)
+        return self._get_typed("source_connectors", name)
 
     def get_quality_check(self, name: str) -> QualityCheckPlugin | None:
         """Get a quality check plugin by name."""
-        return self._quality_checks.get(name)
+        return self._get_typed("quality_checks", name)
 
     def get_quality_provider(self, name: str) -> QualityProviderPlugin | None:
         """Get a quality provider plugin by name."""
-        return self._quality_providers.get(name)
+        return self._get_typed("quality_providers", name)
 
     def get_ingestion_provider(self, name: str) -> IngestionProviderPlugin | None:
         """Get an ingestion provider plugin by name."""
-        return self._ingestion_providers.get(name)
+        return self._get_typed("ingestion_providers", name)
 
     def get_transformation_provider(self, name: str) -> TransformationProviderPlugin | None:
         """Get a transformation provider plugin by name."""
-        return self._transformation_providers.get(name)
+        return self._get_typed("transformation_providers", name)
 
     def get_transformation(self, name: str) -> TransformationPlugin | None:
         """Get a transformation plugin by name."""
-        return self._transformations.get(name)
+        return self._get_typed("transformations", name)
 
     def get_service(self, name: str) -> ServicePlugin | None:
         """Get a service plugin by name."""
-        return self._services.get(name)
+        return self._get_typed("services", name)
 
     def get_cli_command_plugin(self, name: str) -> CliCommandPlugin | None:
         """Get a CLI command plugin by name."""
-        return self._cli_commands.get(name)
+        return self._get_typed("cli_commands", name)
 
     def get_hook_plugin(self, name: str) -> HookPlugin | None:
         """Get a hook plugin by name."""
-        return self._hooks.get(name)
+        return self._get_typed("hooks", name)
 
     def get_asset_provider(self, name: str) -> AssetProviderPlugin | None:
         """Get an asset provider plugin by name."""
-        return self._assets.get(name)
+        return self._get_typed("asset_providers", name)
 
     def get_resource_provider(self, name: str) -> ResourceProviderPlugin | None:
         """Get a resource provider plugin by name."""
-        return self._resources.get(name)
+        return self._get_typed("resource_providers", name)
 
     def get_orchestrator(self, name: str) -> OrchestratorAdapterPlugin | None:
         """Get an orchestrator adapter plugin by name."""
-        return self._orchestrators.get(name)
+        return self._get_typed("orchestrators", name)
 
     def get_catalog(self, name: str) -> CatalogPlugin | None:
         """Get a catalog plugin by name."""
-        return self._catalogs.get(name)
+        return self._get_typed("catalogs", name)
+
+    def _list_typed(self, plugin_type: str) -> list[str]:
+        """List registered plugin names for a configured subtype."""
+        return self.list(plugin_type)
 
     def list_source_connectors(self) -> list[str]:
         """List all registered source connector plugins."""
-        return list(self._sources.keys())
+        return self._list_typed("source_connectors")
 
     def list_quality_checks(self) -> list[str]:
         """List all registered quality check plugins."""
-        return list(self._quality_checks.keys())
+        return self._list_typed("quality_checks")
 
     def list_quality_providers(self) -> list[str]:
         """List all registered quality provider plugins."""
-        return list(self._quality_providers.keys())
+        return self._list_typed("quality_providers")
 
     def list_ingestion_providers(self) -> list[str]:
         """List all registered ingestion provider plugins."""
-        return list(self._ingestion_providers.keys())
+        return self._list_typed("ingestion_providers")
 
     def list_transformation_providers(self) -> list[str]:
         """List all registered transformation provider plugins."""
-        return list(self._transformation_providers.keys())
+        return self._list_typed("transformation_providers")
 
     def list_transformations(self) -> list[str]:
         """List all registered transformation plugins."""
-        return list(self._transformations.keys())
+        return self._list_typed("transformations")
 
     def remove_service(self, name: str) -> None:
         """Remove a registered service plugin by name."""
@@ -270,31 +282,31 @@ class PluginRegistry:
 
     def list_services(self) -> list[str]:
         """List all registered service plugins."""
-        return list(self._services.keys())
+        return self._list_typed("services")
 
     def list_cli_command_plugins(self) -> list[str]:
         """List all registered CLI command plugins."""
-        return list(self._cli_commands.keys())
+        return self._list_typed("cli_commands")
 
     def list_hook_plugins(self) -> list[str]:
         """List all registered hook plugins."""
-        return list(self._hooks.keys())
+        return self._list_typed("hooks")
 
     def list_asset_providers(self) -> list[str]:
         """List all registered asset provider plugins."""
-        return list(self._assets.keys())
+        return self._list_typed("asset_providers")
 
     def list_resource_providers(self) -> list[str]:
         """List all registered resource provider plugins."""
-        return list(self._resources.keys())
+        return self._list_typed("resource_providers")
 
     def list_orchestrators(self) -> list[str]:
         """List all registered orchestrator adapter plugins."""
-        return list(self._orchestrators.keys())
+        return self._list_typed("orchestrators")
 
     def list_catalogs(self) -> list[str]:
         """List all registered catalog plugins."""
-        return list(self._catalogs.keys())
+        return self._list_typed("catalogs")
 
     def list_all_plugins(self) -> dict[str, list[str]]:
         """List all registered plugins by type."""

@@ -1,10 +1,5 @@
-"""
-Service Discovery Module
+"""Discover and cache service definitions from plugins and optional directories."""
 
-Discovers and loads service definitions from installed plugins and optional directories.
-"""
-
-from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -103,33 +98,10 @@ class ServiceDiscovery:
 
         self._services = {}
         plugin_service_count = self._load_service_plugins()
-        file_service_count = 0
-
-        # Then load filesystem services
-        if self.services_dir and self.services_dir.exists():
-            # Search for service.yaml files in all subdirectories
-            for yaml_path in self.services_dir.rglob("*.yaml"):
-                # Skip schema files and non-service files
-                if ".schema" in str(yaml_path):
-                    continue
-                if not self._is_service_yaml(yaml_path.name):
-                    continue
-
-                try:
-                    service = ServiceDefinition.from_yaml(yaml_path)
-                    if service.name in self._services:
-                        continue
-                    self._services[service.name] = service
-                    file_service_count += 1
-                except (yaml.YAMLError, KeyError) as e:
-                    _emit_service_discovery_signal(
-                        event_name="service_discovery_file_load_failed",
-                        level="warning",
-                        services_dir=self.services_dir,
-                        yaml_path=str(yaml_path),
-                        error=str(e),
-                        error_type=type(e).__name__,
-                    )
+        file_service_count = _service_loading.load_services_from_directory(
+            self.services_dir,
+            self._services,
+        )
 
         self._loaded = True
         _emit_service_discovery_signal(
@@ -172,16 +144,17 @@ class ServiceDiscovery:
         loaded_count = 0
         registry = get_global_registry()
         discover_plugins(plugin_type="services", auto_register=True)
+
         for name in registry.list_services():
             plugin = registry.get_service(name)
             if not plugin:
                 continue
-            # Skip if already loaded as core service
             if name in self._services:
                 logger.debug("plugin_service_skipped_core_exists", service_name=name)
                 continue
+
             service_definition = plugin.service_definition
-            source_path = _resolve_plugin_source_path(plugin)
+            source_path = _service_loading.resolve_plugin_source_path(plugin)
             try:
                 service = ServiceDefinition.from_dict(service_definition, source_path)
                 self._services[service.name] = service
@@ -215,13 +188,14 @@ class ServiceDiscovery:
                 continue
             if not filename.endswith(("-setup.yaml", "-daemon.yaml")):
                 continue
+
             try:
                 service = ServiceDefinition.from_yaml(yaml_path)
                 if service.name in self._services:
                     continue
                 self._services[service.name] = service
                 loaded_count += 1
-            except (yaml.YAMLError, KeyError) as exc:
+            except (yaml.YAMLError, KeyError, ValueError) as exc:
                 _emit_service_discovery_signal(
                     event_name="service_discovery_companion_file_load_failed",
                     level="warning",
@@ -298,12 +272,3 @@ class ServiceDiscovery:
             }
             for s in sorted(self._services.values(), key=lambda x: (x.category, x.name))
         ]
-
-
-def _resolve_plugin_source_path(plugin: Any) -> Path | None:
-    module_name = plugin.__class__.__module__
-    package_name = module_name.split(".", 1)[0]
-    spec = find_spec(package_name)
-    if not spec or not spec.origin:
-        return None
-    return Path(spec.origin).parent

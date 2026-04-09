@@ -14,7 +14,6 @@ from phlo.capabilities import (
     RuntimeRouting,
     SchemaMigrationSpec,
     TableStoreSpec,
-    clear_capabilities,
     get_capability_registry,
     list_capabilities,
     missing_required_capabilities,
@@ -32,17 +31,14 @@ from phlo.capabilities import (
 )
 from phlo.config import _get_config
 from phlo.plugins.base import PluginMetadata
+from tests.helpers import reset_capability_test_state
 
 pytestmark = pytest.mark.core_regression
 
 
 def teardown_function() -> None:
     """Reset global capability registry between tests."""
-    _get_config.cache_clear()
-    from phlo.infrastructure import clear_config_cache
-
-    clear_config_cache()
-    clear_capabilities()
+    reset_capability_test_state()
 
 
 def test_registry_tracks_new_platform_capability_types() -> None:

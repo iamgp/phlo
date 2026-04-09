@@ -171,6 +171,16 @@ class TestPluginRegistration:
         retrieved = clean_registry.get_service("test_service")
         assert retrieved is plugin
 
+    def test_typed_accessors_match_generic_registry_api(self, clean_registry):
+        """Typed registry helpers should stay aligned with generic register/get/list."""
+        plugin = DummyServicePlugin()
+        clean_registry.register("services", plugin)
+
+        assert clean_registry.get("services", "test_service") is plugin
+        assert clean_registry.get_service("test_service") is plugin
+        assert clean_registry.list("services") == ["test_service"]
+        assert clean_registry.list_services() == ["test_service"]
+
     def test_duplicate_registration_raises_error(self, clean_registry):
         """Test duplicate registration raises error."""
         plugin = DummySourcePlugin()
