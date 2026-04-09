@@ -202,20 +202,6 @@ class PoliciesConfig:
         policies = tuple(PolicyRule.from_dict(p) for p in policies_data)
         return cls(version=version, policies=policies)
 
-    def get_policies_for_action(
-        self,
-        action: str,
-        resource_type: str | None = None,
-    ) -> list[PolicyRule]:
-        """Get all policies matching an action and optionally resource type."""
-        result = []
-        for policy in self.policies:
-            if self._action_matches(policy.action, action) and (
-                resource_type is None or policy.resource_type == resource_type
-            ):
-                result.append(policy)
-        return result
-
     def _action_matches(self, pattern: str, action: str) -> bool:
         """Check if action matches pattern (supports wildcards)."""
         import fnmatch
