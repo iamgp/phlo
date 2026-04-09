@@ -21,12 +21,13 @@ from phlo.capabilities.schema import (
     worst_classification,
 )
 from phlo.hooks.events import SchemaMigrationEvent
+from tests.helpers import reset_capability_test_state
 
 pytestmark = pytest.mark.core_regression
 
 
 def teardown_function() -> None:
-    clear_capabilities()
+    reset_capability_test_state()
 
 
 # -- FieldSpec / NormalizedSchema --

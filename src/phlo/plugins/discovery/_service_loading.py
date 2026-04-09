@@ -26,8 +26,9 @@ def is_service_yaml(filename: str) -> bool:
     return filename == "service.yaml" or filename.endswith(("-setup.yaml", "-daemon.yaml"))
 
 
-def load_plugin_services(services: dict[str, ServiceDefinition]) -> None:
+def load_plugin_services(services: dict[str, ServiceDefinition]) -> int:
     """Load service definitions from installed service plugins."""
+    loaded_count = 0
     discover_plugins(plugin_type="services", auto_register=True)
     registry = get_global_registry()
 
@@ -44,18 +45,21 @@ def load_plugin_services(services: dict[str, ServiceDefinition]) -> None:
         try:
             service = ServiceDefinition.from_dict(service_definition, source_path)
             services[service.name] = service
-            load_companion_service_files(source_path, services)
+            loaded_count += 1
+            loaded_count += load_companion_service_files(source_path, services)
         except KeyError as exc:
             logger.warning("Service plugin %s missing field: %s", name, exc)
+    return loaded_count
 
 
 def load_services_from_directory(
     services_dir: Path | None, services: dict[str, ServiceDefinition]
-) -> None:
+) -> int:
     """Load service definitions from a configured local services directory."""
     if not services_dir or not services_dir.exists():
-        return
+        return 0
 
+    loaded_count = 0
     for yaml_path in services_dir.rglob("*.yaml"):
         if ".schema" in str(yaml_path):
             continue
@@ -67,17 +71,20 @@ def load_services_from_directory(
             if service.name in services:
                 continue
             services[service.name] = service
+            loaded_count += 1
         except (yaml.YAMLError, KeyError) as exc:
             logger.warning("Failed to load %s: %s", yaml_path, exc)
+    return loaded_count
 
 
 def load_companion_service_files(
     source_path: Path | None, services: dict[str, ServiceDefinition]
-) -> None:
+) -> int:
     """Load companion service YAMLs (for example *-setup.yaml) from a package path."""
     if not source_path or not source_path.exists():
-        return
+        return 0
 
+    loaded_count = 0
     for yaml_path in source_path.rglob("*.yaml"):
         filename = yaml_path.name
         if filename == "service.yaml":
@@ -90,8 +97,10 @@ def load_companion_service_files(
             if service.name in services:
                 continue
             services[service.name] = service
+            loaded_count += 1
         except (yaml.YAMLError, KeyError) as exc:
             logger.warning("Failed to load companion service %s: %s", yaml_path, exc)
+    return loaded_count
 
 
 def resolve_plugin_source_path(plugin: Any) -> Path | None:

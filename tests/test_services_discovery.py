@@ -128,6 +128,57 @@ def test_service_discovery_refresh_reloads_stale_cache(
     assert set(refreshed) == {"alpha", "beta"}
 
 
+def test_service_discovery_delegates_loading_behind_cache(
+    clean_registry: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ServiceDiscovery owns caching while loading helpers own mutation details."""
+    plugin_loads = 0
+    directory_loads = 0
+
+    def _load_plugin_services(services: dict[str, ServiceDefinition]) -> int:
+        nonlocal plugin_loads
+        plugin_loads += 1
+        services["plugin"] = ServiceDefinition(
+            name="plugin",
+            description="Plugin service",
+            category="core",
+        )
+        return 1
+
+    def _load_services_from_directory(
+        _services_dir: Path | None,
+        services: dict[str, ServiceDefinition],
+    ) -> int:
+        nonlocal directory_loads
+        directory_loads += 1
+        services["file"] = ServiceDefinition(
+            name="file",
+            description="File service",
+            category="core",
+        )
+        return 1
+
+    monkeypatch.setattr(
+        "phlo.plugins.discovery._service_loading.load_plugin_services",
+        _load_plugin_services,
+    )
+    monkeypatch.setattr(
+        "phlo.plugins.discovery._service_loading.load_services_from_directory",
+        _load_services_from_directory,
+    )
+
+    discovery = ServiceDiscovery()
+    first = discovery.discover()
+    cached = discovery.discover()
+    refreshed = discovery.refresh()
+
+    assert cached is first
+    assert set(refreshed) == {"plugin", "file"}
+    assert plugin_loads == 2
+    assert directory_loads == 2
+
+
 def test_service_discovery_clear_cache_and_refresh_alias(
     clean_registry: object,
     monkeypatch: pytest.MonkeyPatch,
@@ -161,7 +212,7 @@ def test_service_discovery_emits_cache_refresh_observability_signals(
 ) -> None:
     """Cache and refresh flows emit structured, queryable discovery signals."""
     monkeypatch.setattr(
-        "phlo.plugins.discovery.services.discover_plugins",
+        "phlo.plugins.discovery._service_loading.discover_plugins",
         lambda plugin_type, auto_register: None,
     )
     _write_service_yaml(tmp_path, "alpha", "alpha")
