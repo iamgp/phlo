@@ -6,8 +6,9 @@ Per TEST_STRATEGY.md Level 2 (Functional):
 - Plugin/Service Discovery: Test plugin listing endpoints
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 pytestmark = pytest.mark.integration
 
@@ -297,29 +298,56 @@ class TestContractsEndpoints:
 class TestObservatoryRouters:
     """Test Observatory API routers."""
 
-    def test_trino_router_registered(self):
-        """Test Trino router is registered."""
+    @staticmethod
+    def _route_paths() -> list[str]:
+        """Return all registered FastAPI route paths."""
         from phlo_api.main import app
 
-        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
-        # Check if /api/trino routes exist
-        trino_routes = [p for p in route_paths if p.startswith("/api/trino")]
-        # May be empty if routers not installed
-        assert isinstance(trino_routes, list)
+        return [route.path for route in app.routes]  # type: ignore[attr-defined]
 
-    def test_iceberg_router_registered(self):
-        """Test Iceberg router is registered."""
-        from phlo_api.main import app
+    @pytest.mark.parametrize(
+        ("router_prefix", "expected_path"),
+        [
+            ("/api/trino", "/api/trino/connection"),
+            ("/api/contributing", "/api/contributing/query"),
+            ("/api/iceberg", "/api/iceberg/tables"),
+            ("/api/dagster", "/api/dagster/graph"),
+            ("/api/nessie", "/api/nessie/connection"),
+            ("/api/quality", "/api/quality/overview"),
+            ("/api/loki", "/api/loki/connection"),
+            ("/api/lineage", "/api/lineage/assets"),
+            ("/api/maintenance", "/api/maintenance/status"),
+            ("/api/search", "/api/search/index"),
+            ("/api/observability", "/api/observability/health"),
+        ],
+    )
+    def test_prefixed_observatory_routes_registered(
+        self,
+        router_prefix: str,
+        expected_path: str,
+    ) -> None:
+        """Dynamic router registration should expose each known Observatory prefix."""
+        route_paths = self._route_paths()
 
-        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
-        iceberg_routes = [p for p in route_paths if p.startswith("/api/iceberg")]
-        assert isinstance(iceberg_routes, list)
+        assert expected_path in route_paths
+        assert any(path.startswith(router_prefix) for path in route_paths)
+
+    @pytest.mark.parametrize(
+        "expected_path",
+        [
+            "/api/observatory/extensions",
+            "/api/observatory/extensions/{name}",
+            "/api/observatory/extensions/{name}/settings",
+            "/api/observatory/settings",
+        ],
+    )
+    def test_root_registered_observatory_routes_registered(self, expected_path: str) -> None:
+        """Routers mounted without an extra prefix should still land on the app."""
+        assert expected_path in self._route_paths()
 
     def test_dagster_graph_routes_registered(self):
         """Test Dagster graph routes are registered."""
-        from phlo_api.main import app
-
-        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
+        route_paths = self._route_paths()
 
         assert "/api/dagster/graph" in route_paths
         assert "/api/dagster/graph/neighbors" in route_paths
@@ -327,9 +355,7 @@ class TestObservatoryRouters:
 
     def test_contributing_routes_registered(self):
         """Test contributing routes are registered."""
-        from phlo_api.main import app
-
-        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
+        route_paths = self._route_paths()
 
         assert "/api/contributing/query" in route_paths
         assert "/api/contributing/page" in route_paths
