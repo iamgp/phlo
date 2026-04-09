@@ -6,8 +6,14 @@ import pytest
 
 from phlo.plugins import PluginMetadata, ServicePlugin
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery, get_global_registry
+from phlo.plugins.discovery._service_discovery import ServiceDiscovery as CompatServiceDiscovery
 
 pytestmark = pytest.mark.core_regression
+
+
+def test_compat_service_discovery_is_canonical_class() -> None:
+    """Private compatibility module should not define a divergent class."""
+    assert CompatServiceDiscovery is ServiceDiscovery
 
 
 def _write_service_yaml(root: Path, folder: str, name: str) -> None:

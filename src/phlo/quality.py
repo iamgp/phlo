@@ -79,27 +79,52 @@ logger = get_logger(__name__)
 if TYPE_CHECKING:
     from phlo.plugins.base.quality_provider import QualityProviderPlugin
 
-get_quality_checks: Callable[[], list[Any]] | None = None
-clear_quality_checks: Callable[[], None] | None = None
-QualityCheck: type | None = None
-NullCheck: type | None = None
-RangeCheck: type | None = None
-FreshnessCheck: type | None = None
-UniqueCheck: type | None = None
-CountCheck: type | None = None
-SchemaCheck: type | None = None
-CustomSQLCheck: type | None = None
-PatternCheck: type | None = None
-ReconciliationCheck: type | None = None
-AggregateConsistencyCheck: type | None = None
-AggregateSpec: type | None = None
-KeyParityCheck: type | None = None
-MultiAggregateConsistencyCheck: type | None = None
-ChecksumReconciliationCheck: type | None = None
-PANDERA_CONTRACT_CHECK_NAME: str | None = None
-QualityCheckContract: type | None = None
-dbt_check_name: Callable[[str, str], str] | None = None
-phlo_quality: Callable | None = None
+get_quality_checks: Callable[[], list[Any]] | None
+clear_quality_checks: Callable[[], None] | None
+QualityCheck: type | None
+NullCheck: type | None
+RangeCheck: type | None
+FreshnessCheck: type | None
+UniqueCheck: type | None
+CountCheck: type | None
+SchemaCheck: type | None
+CustomSQLCheck: type | None
+PatternCheck: type | None
+ReconciliationCheck: type | None
+AggregateConsistencyCheck: type | None
+AggregateSpec: type | None
+KeyParityCheck: type | None
+MultiAggregateConsistencyCheck: type | None
+ChecksumReconciliationCheck: type | None
+PANDERA_CONTRACT_CHECK_NAME: str | None
+QualityCheckContract: type | None
+dbt_check_name: Callable[[str, str], str] | None
+phlo_quality: Callable | None
+
+_QUALITY_EXPORTS = {
+    "phlo_quality",
+    "get_quality_checks",
+    "clear_quality_checks",
+    "QualityCheck",
+    "NullCheck",
+    "RangeCheck",
+    "FreshnessCheck",
+    "UniqueCheck",
+    "CountCheck",
+    "SchemaCheck",
+    "CustomSQLCheck",
+    "PatternCheck",
+    "ReconciliationCheck",
+    "AggregateConsistencyCheck",
+    "AggregateSpec",
+    "KeyParityCheck",
+    "MultiAggregateConsistencyCheck",
+    "ChecksumReconciliationCheck",
+    "PANDERA_CONTRACT_CHECK_NAME",
+    "QualityCheckContract",
+    "dbt_check_name",
+}
+_quality_provider_loaded = False
 
 
 def _provider_api_module(provider: QualityProviderPlugin) -> Any | None:
@@ -280,7 +305,23 @@ def _load_quality_provider() -> QualityProviderPlugin | None:
     )
 
 
-_load_quality_provider()
+def _ensure_quality_provider_loaded() -> None:
+    """Load provider-backed quality exports on first use."""
+    global _quality_provider_loaded
+
+    if _quality_provider_loaded:
+        return
+
+    _load_quality_provider()
+    _quality_provider_loaded = True
+
+
+def __getattr__(name: str) -> Any:
+    """Lazily hydrate provider-backed public exports."""
+    if name in _QUALITY_EXPORTS:
+        _ensure_quality_provider_loaded()
+        return globals()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [
