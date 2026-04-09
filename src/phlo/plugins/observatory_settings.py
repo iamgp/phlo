@@ -7,7 +7,6 @@ from enum import StrEnum
 from functools import lru_cache
 from typing import Any
 
-import psycopg2
 from jsonschema import ValidationError, validate
 from pydantic import AliasChoices, Field
 
@@ -15,6 +14,16 @@ from phlo.config.base import BaseConfig
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _get_psycopg2():
+    try:
+        import psycopg2
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "psycopg2 is required to use PostgreSQL-backed observatory settings storage."
+        ) from exc
+    return psycopg2
 
 
 class ObservatorySettingsStorageConfig(BaseConfig):
@@ -53,6 +62,7 @@ class SettingsService:
 
     def get(self, scope: SettingsScope, namespace: str) -> SettingsRecord | None:
         """Get settings for a scope and namespace."""
+        psycopg2 = _get_psycopg2()
         with psycopg2.connect(self._db_url) as conn:
             self._ensure_table(conn)
             with conn.cursor() as cursor:
@@ -89,6 +99,7 @@ class SettingsService:
     ) -> SettingsRecord:
         """Upsert settings for a scope and namespace."""
         self._validate(settings, schema)
+        psycopg2 = _get_psycopg2()
         with psycopg2.connect(self._db_url) as conn:
             self._ensure_table(conn)
             with conn.cursor() as cursor:
