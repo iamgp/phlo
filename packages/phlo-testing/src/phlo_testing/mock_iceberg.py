@@ -347,6 +347,7 @@ class MockIcebergCatalog:
         identifier: str,
         schema: Union[dict[str, str], Any],
         partition_spec: Optional[Sequence[tuple[str, str]]] = None,
+        if_not_exists: bool = False,
     ) -> MockTable:
         """Create a new table.
 
@@ -354,6 +355,7 @@ class MockIcebergCatalog:
             identifier: Table name (namespace.table).
             schema: Schema dict like {"col": "type"} or PyIceberg Schema.
             partition_spec: Optional partitioning (not fully supported).
+            if_not_exists: Return an existing table instead of raising.
 
         Returns:
             MockTable instance.
@@ -363,6 +365,8 @@ class MockIcebergCatalog:
 
         """
         if identifier in self._tables:
+            if if_not_exists:
+                return self._tables[identifier]
             raise ValueError(f"Table {identifier} already exists")
 
         # Extract namespace and ensure it exists
@@ -417,16 +421,18 @@ class MockIcebergCatalog:
                     duckdb_table=table.full_name,
                 )
 
-    def list_tables(self, namespace: str) -> list[str]:
+    def list_tables(self, namespace: str | None = None) -> list[str]:
         """List tables in a namespace.
 
         Args:
-            namespace: Namespace name.
+            namespace: Namespace name. If omitted, return all table identifiers.
 
         Returns:
             List of table identifiers.
 
         """
+        if namespace is None:
+            return sorted(self._tables)
         return [
             identifier
             for identifier in self._tables.keys()

@@ -15,15 +15,10 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class HasuraServicePlugin(ServicePlugin):
+class HasuraServicePlugin(PackageYamlServicePlugin):
     """Service plugin for Hasura GraphQL engine.
 
     Integrates Hasura with the Phlo service management system, providing
@@ -69,28 +64,3 @@ class HasuraServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["api", "graphql"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Return the Docker service definition for Hasura.
-
-        Loads the service.yaml file from the package resources and
-        returns it as a parsed dictionary. This defines the Docker
-        Compose service configuration for the Hasura container.
-
-        Returns:
-            Dictionary containing Docker service definition.
-
-        Raises:
-            FileNotFoundError: If service.yaml is not found in package resources.
-            yaml.YAMLError: If service.yaml contains invalid YAML.
-
-        Example:
-            >>> plugin = HasuraServicePlugin()
-            >>> service = plugin.service_definition
-            >>> print(service['services']['hasura']['image'])
-            hasura/graphql-engine:latest
-
-        """
-        service_path = resources.files("phlo_hasura").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
