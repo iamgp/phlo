@@ -61,7 +61,7 @@ def test_entry_points_for_group_supports_legacy_mapping(
 @pytest.mark.parametrize(
     ("group", "expected_names"),
     [
-        ("phlo.plugins.cli", {"minio", "openmetadata", "sling"}),
+        ("phlo.plugins.cli", {"alerts", "minio", "openmetadata", "sling"}),
         ("phlo.plugins.services", {"loki", "minio", "openmetadata"}),
         ("phlo.plugins.hooks", {"alerting", "openmetadata"}),
         ("phlo.plugins.ingestion_providers", {"sling"}),
