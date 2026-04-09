@@ -257,6 +257,7 @@ def test_service_discovery_emits_cache_refresh_observability_signals(
     assert completed[0]["fields"]["file_service_count"] == 1
     assert completed[1]["fields"]["file_service_count"] == 2
 
+
 def test_service_discovery_filters_services_by_profile(
     clean_registry: object,
     monkeypatch: pytest.MonkeyPatch,
@@ -293,6 +294,7 @@ def test_service_discovery_service_yaml_patterns() -> None:
     assert ServiceDiscovery._is_service_yaml("worker-daemon.yaml") is True
     assert ServiceDiscovery._is_service_yaml("service.schema.yaml") is False
     assert ServiceDiscovery._is_service_yaml("values.yaml") is False
+
 
 def test_service_discovery_loads_companion_service_files(
     tmp_path: Path,
