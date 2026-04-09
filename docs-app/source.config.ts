@@ -1,7 +1,7 @@
-import { defineConfig, defineDocs } from "fumadocs-mdx/config";
-import { remarkGfm, remarkMdxMermaid } from "fumadocs-core/mdx-plugins";
-import { metaSchema } from "fumadocs-core/source/schema";
-import { z } from "zod";
+import { defineConfig, defineDocs } from 'fumadocs-mdx/config'
+import { remarkGfm, remarkMdxMermaid } from 'fumadocs-core/mdx-plugins'
+import { metaSchema } from 'fumadocs-core/source/schema'
+import { z } from 'zod'
 
 const phloPageSchema = z.object({
   title: z.string().optional(),
@@ -9,10 +9,10 @@ const phloPageSchema = z.object({
   icon: z.string().optional(),
   full: z.boolean().optional(),
   _openapi: z.looseObject({}).optional(),
-});
+})
 
 export const docs = defineDocs({
-  dir: "content/docs",
+  dir: 'content/docs',
   docs: {
     dynamic: true,
     schema: phloPageSchema,
@@ -23,10 +23,10 @@ export const docs = defineDocs({
   meta: {
     schema: metaSchema,
   },
-});
+})
 
 export default defineConfig({
   mdxOptions: {
     remarkPlugins: [remarkGfm, remarkMdxMermaid],
   },
-});
+})
