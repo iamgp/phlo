@@ -61,6 +61,18 @@ repos:
         entry: npx prettier --cache --write
         language: system
         files: ^packages/phlo-observatory/src/phlo_observatory/.*(\.ts|\.tsx)$
+      - id: prettier-docs-app
+        name: prettier (docs-app)
+        entry: npm --prefix docs-app run format -- --cache
+        language: system
+        files: ^docs-app/.*\.(md|mdx|js|mjs|ts|tsx|json|css)$
+        pass_filenames: false
+      - id: eslint-docs-app
+        name: eslint (docs-app)
+        entry: npm --prefix docs-app run lint
+        language: system
+        files: ^docs-app/.*\.(js|mjs|ts|tsx)$
+        pass_filenames: false
       - id: zizmor
         name: zizmor (GitHub Actions security lint)
         entry: uvx zizmor --no-online-audits --no-progress --min-severity low
