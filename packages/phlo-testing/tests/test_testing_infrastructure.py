@@ -20,12 +20,26 @@ from phlo_testing import (
 from phlo_testing import (
     test_asset_execution as run_asset_test,  # Aliased to avoid pytest collection
 )
+from phlo_testing.placeholders import (
+    MockIcebergCatalog as PlaceholderMockIcebergCatalog,
+    mock_iceberg_catalog as placeholder_mock_iceberg_catalog,
+)
+from phlo_testing.mock_iceberg import MockIcebergCatalog as CanonicalMockIcebergCatalog
 
 # ========== MockIcebergCatalog Tests ==========
 
 
 class TestMockIcebergCatalog:
     """Test MockIcebergCatalog functionality."""
+
+    def test_placeholder_catalog_aliases_canonical_implementation(self):
+        """Placeholder import path should resolve to the canonical catalog."""
+        assert PlaceholderMockIcebergCatalog is CanonicalMockIcebergCatalog
+
+    def test_placeholder_helper_returns_canonical_catalog(self):
+        """Placeholder helper should construct the canonical catalog implementation."""
+        with placeholder_mock_iceberg_catalog() as catalog:
+            assert isinstance(catalog, CanonicalMockIcebergCatalog)
 
     def test_create_table(self):
         """Test creating a table."""
@@ -116,6 +130,21 @@ class TestMockIcebergCatalog:
 
         with pytest.raises(ValueError, match="Schema mismatch"):
             table.append(df_bad)
+
+    def test_placeholders_import_uses_canonical_catalog(self):
+        """Legacy placeholders import exposes the canonical MockIcebergCatalog."""
+        assert PlaceholderMockIcebergCatalog is CanonicalMockIcebergCatalog
+
+    def test_create_table_if_not_exists_returns_existing_table(self):
+        """Mock catalog keeps placeholder-compatible idempotent table creation."""
+        catalog = MockIcebergCatalog()
+        schema = {"id": "int"}
+
+        first = catalog.create_table("raw.users", schema=schema, if_not_exists=True)
+        second = catalog.create_table("raw.users", schema=schema, if_not_exists=True)
+
+        assert second is first
+        assert catalog.list_tables() == ["raw.users"]
 
 
 # ========== MockDLTSource Tests ==========

@@ -15,12 +15,6 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from time import perf_counter
-from typing import Any
-
-import yaml
-
 from phlo.capabilities import (
     CapabilitySupport,
     PublishTargetSpec,
@@ -28,69 +22,13 @@ from phlo.capabilities import (
     TableStoreSpec,
 )
 from phlo.capabilities.specs import QueryEngineSpec
-from phlo.logging import get_logger
-from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata, ResourceProviderPlugin
 from phlo_clickhouse.publish_target import ClickHousePublishTarget
 from phlo_clickhouse.resource import CLICKHOUSE_QUERY_ENGINE_SUPPORT, ClickHouseResource
 from phlo_clickhouse.settings import get_settings as get_clickhouse_settings
 
-logger = get_logger(__name__)
 
-
-def _load_service_definition(resource_name: str, service_name: str) -> dict[str, Any]:
-    """Load and parse a YAML service definition from package resources.
-
-    Reads a YAML service configuration file bundled with the package and
-    parses it into a Python dictionary. Logs performance metrics and errors.
-
-    Args:
-        resource_name: Name of the YAML resource file to load.
-        service_name: Identifier for the service being loaded (used in logs).
-
-    Returns:
-        Parsed YAML content as a dictionary.
-
-    Raises:
-        Exception: If the YAML file cannot be read or parsed. The error is
-            logged with context before being re-raised.
-
-    Example:
-        >>> definition = _load_service_definition("service.yaml", "clickhouse")
-        >>> "services" in definition
-        True
-
-    """
-    start = perf_counter()
-    logger.info(
-        "clickhouse_service_definition_load_started",
-        service_name=service_name,
-        resource_name=resource_name,
-    )
-    service_path = resources.files("phlo_clickhouse").joinpath(resource_name)
-    try:
-        data = yaml.safe_load(service_path.read_text(encoding="utf-8"))
-    except Exception:
-        logger.error(
-            "clickhouse_service_definition_load_failed",
-            service_name=service_name,
-            resource_name=resource_name,
-            elapsed_ms=round((perf_counter() - start) * 1000, 2),
-            exc_info=True,
-        )
-        raise
-
-    service_count = len(data.get("services", {})) if isinstance(data, dict) else None
-    logger.info(
-        "clickhouse_service_definition_load_completed",
-        service_name=service_name,
-        resource_name=resource_name,
-        elapsed_ms=round((perf_counter() - start) * 1000, 2),
-        service_count=service_count,
-    )
-    return data
-
-
-class ClickHouseServicePlugin(ServicePlugin):
+class ClickHouseServicePlugin(PackageYamlServicePlugin):
     """Service plugin for ClickHouse database service.
 
     Manages the ClickHouse database service lifecycle within Phlo's
@@ -120,19 +58,8 @@ class ClickHouseServicePlugin(ServicePlugin):
             tags=["data", "query", "storage"],
         )
 
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Return Docker Compose service definition for ClickHouse.
 
-        Returns:
-            Dictionary containing Docker Compose service configuration
-            loaded from the bundled service.yaml resource file.
-
-        """
-        return _load_service_definition("service.yaml", "clickhouse")
-
-
-class ClickHouseSetupServicePlugin(ServicePlugin):
+class ClickHouseSetupServicePlugin(PackageYamlServicePlugin):
     """Service plugin for ClickHouse database initialization.
 
     Handles the initial setup and database creation for ClickHouse
@@ -144,6 +71,8 @@ class ClickHouseSetupServicePlugin(ServicePlugin):
         'clickhouse-setup'
 
     """
+
+    _service_definition_file = "clickhouse-setup.yaml"
 
     @property
     def metadata(self) -> PluginMetadata:
@@ -160,17 +89,6 @@ class ClickHouseSetupServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["data", "bootstrap"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Return Docker Compose service definition for ClickHouse setup.
-
-        Returns:
-            Dictionary containing initialization service configuration
-            loaded from the bundled clickhouse-setup.yaml resource file.
-
-        """
-        return _load_service_definition("clickhouse-setup.yaml", "clickhouse-setup")
 
 
 class ClickHouseResourceProvider(ResourceProviderPlugin):
