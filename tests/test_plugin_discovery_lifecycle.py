@@ -127,7 +127,7 @@ def _patch_source_entry_points(
         return []
 
     monkeypatch.setattr(
-        "phlo.plugins.discovery._plugin_loading.importlib.metadata.entry_points",
+        "phlo.plugins.discovery._entry_points.importlib.metadata.entry_points",
         _fake_entry_points,
     )
 

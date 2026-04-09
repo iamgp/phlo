@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import importlib.metadata
-
 from phlo.config import get_settings
 from phlo.logging import get_logger, suppress_log_routing
 from phlo.plugins.base import Plugin
+from phlo.plugins.discovery._entry_points import entry_points_for_group
 from phlo.plugins.discovery._plugin_constants import ENTRY_POINT_GROUPS, PLUGIN_EXPECTED_TYPES
 from phlo.plugins.discovery._plugin_lifecycle import register_plugin_with_lifecycle
 
@@ -58,11 +57,7 @@ def discover_plugins(
                 entry_point_group=entry_point_group,
             )
 
-            try:
-                entry_points = importlib.metadata.entry_points(group=entry_point_group)
-            except TypeError:
-                all_entry_points = importlib.metadata.entry_points()
-                entry_points = all_entry_points.get(entry_point_group, [])
+            entry_points = entry_points_for_group(entry_point_group)
 
             for entry_point in entry_points:
                 try:

@@ -7,7 +7,6 @@ that declare phlo.plugins entry points.
 
 from __future__ import annotations
 
-import importlib.metadata
 from typing import Any
 
 from phlo.config import get_settings
@@ -27,6 +26,7 @@ from phlo.plugins.base import (
     TransformationPlugin,
     TransformationProviderPlugin,
 )
+from phlo.plugins.discovery._entry_points import entry_points_for_group
 from phlo.plugins.discovery._plugin_auto_discovery import (
     is_auto_discover_disabled_by_env as _is_auto_discover_disabled_by_env_impl,
 )
@@ -383,13 +383,7 @@ def discover_plugins(
                 entry_point_group=entry_point_group,
             )
 
-            # Discover entry points
-            try:
-                entry_points = importlib.metadata.entry_points(group=entry_point_group)
-            except TypeError:
-                # Python 3.9 compatibility - entry_points() returns dict
-                all_entry_points = importlib.metadata.entry_points()
-                entry_points = all_entry_points.get(entry_point_group, [])
+            entry_points = entry_points_for_group(entry_point_group)
 
             # Load each plugin
             for entry_point in entry_points:

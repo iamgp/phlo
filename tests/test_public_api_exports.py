@@ -11,6 +11,21 @@ import pytest
 pytestmark = pytest.mark.core_regression
 
 
+def test_quality_module_import_does_not_load_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Importing phlo.quality should define no provider-backed exports eagerly."""
+    import phlo.plugins.discovery as discovery
+
+    def _fail_discovery() -> None:
+        raise AssertionError("quality provider discovery should be lazy")
+
+    monkeypatch.setattr(discovery, "discover_plugins", _fail_discovery)
+    monkeypatch.delitem(sys.modules, "phlo.quality", raising=False)
+
+    quality_module = importlib.import_module("phlo.quality")
+
+    assert "phlo_quality" not in quality_module.__dict__
+
+
 def test_quality_module_populates_exports_on_discovered_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.metadata
 from abc import ABC, abstractmethod
 from importlib.resources.abc import Traversable
 from typing import Any, Literal
@@ -12,6 +11,7 @@ from pydantic import BaseModel, Field
 from phlo.config import get_settings
 from phlo.logging import get_logger
 from phlo.plugins.base.plugin import Plugin
+from phlo.plugins.discovery._entry_points import entry_points_for_group
 
 logger = get_logger(__name__)
 
@@ -123,10 +123,7 @@ def discover_observatory_extensions() -> list[ObservatoryExtensionPlugin]:
         logger.info("Plugin system is disabled")
         return []
 
-    try:
-        entry_points = importlib.metadata.entry_points(group=_ENTRY_POINT_GROUP)
-    except TypeError:
-        entry_points = importlib.metadata.entry_points().get(_ENTRY_POINT_GROUP, [])
+    entry_points = entry_points_for_group(_ENTRY_POINT_GROUP)
 
     plugins: list[ObservatoryExtensionPlugin] = []
     for entry_point in entry_points:
