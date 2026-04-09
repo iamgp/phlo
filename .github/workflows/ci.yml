@@ -122,7 +122,6 @@ jobs:
 
   test-core:
     runs-on: ubuntu-latest
-    environment: ci
     strategy:
       fail-fast: false
       matrix:
@@ -158,10 +157,6 @@ jobs:
         if: always()
         id: core_tests
         shell: bash
-        env:
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
-          SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
         run: |
           set -euo pipefail
           mkdir -p cairn-artifacts
@@ -214,7 +209,6 @@ jobs:
 
   test-packages:
     runs-on: ubuntu-latest
-    environment: ci
     strategy:
       fail-fast: false
       matrix:
@@ -287,10 +281,6 @@ jobs:
         run: uv python install 3.11
 
       - name: Run package tests
-        env:
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
-          SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
         run: |
           set +e
           run_args=(--package "${{ matrix.package }}" --with pytest)
