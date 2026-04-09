@@ -98,6 +98,90 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
     assert "Materialize: phlo materialize dlt_observations" in result.output
 
 
+def test_workflow_create_converts_blank_api_base_url_to_none(monkeypatch) -> None:
+    """Keeps optional API URL absent when the user accepts the blank prompt default."""
+    calls = {}
+
+    def fake_create_ingestion_workflow(**kwargs) -> list[str]:
+        calls.update(kwargs)
+        return [
+            "workflows/schemas/events.py",
+            "workflows/ingestion/events/clicks.py",
+            "workflows/tests/events/test_clicks.py",
+        ]
+
+    monkeypatch.setattr(
+        "phlo_dlt.scaffold.create_ingestion_workflow",
+        fake_create_ingestion_workflow,
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "workflow",
+            "create",
+            "--type",
+            "ingestion",
+            "--domain",
+            "events",
+            "--table",
+            "clicks",
+            "--unique-key",
+            "event_id",
+            "--cron",
+            "0 0 * * *",
+            "--api-base-url",
+            "",
+            "--field",
+            "event_id:string!",
+            "--field",
+            "clicked_at:datetime?",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls["api_base_url"] is None
+    assert calls["fields"] == ["event_id:string!", "clicked_at:datetime?"]
+    assert "Edit schema: workflows/schemas/events.py" in result.output
+
+
+def test_workflow_create_reports_scaffold_failures(monkeypatch) -> None:
+    """Exits with a concise error when scaffold creation fails."""
+
+    def fake_create_ingestion_workflow(**kwargs) -> list[str]:
+        raise RuntimeError("schema field is invalid")
+
+    monkeypatch.setattr(
+        "phlo_dlt.scaffold.create_ingestion_workflow",
+        fake_create_ingestion_workflow,
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "workflow",
+            "create",
+            "--type",
+            "ingestion",
+            "--domain",
+            "weather",
+            "--table",
+            "observations",
+            "--unique-key",
+            "id",
+            "--cron",
+            "0 */1 * * *",
+            "--api-base-url",
+            "",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Error creating workflow: schema field is invalid" in result.output
+
+
 def test_init_with_absolute_path_uses_directory_name_for_project_metadata(tmp_path: Path) -> None:
     """Uses directory basename, not full absolute path, for project name.
 

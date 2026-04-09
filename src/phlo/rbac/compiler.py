@@ -306,11 +306,17 @@ class TrinoCompiler(GovernanceCompiler):
             raise ValueError(f"Invalid Trino revert ID: {revert_id}")
 
         encoded = revert_id[len(prefix) :]
+        if not encoded or not re.fullmatch(r"[A-Za-z0-9_-]+", encoded):
+            raise ValueError(f"Invalid Trino revert ID: {revert_id}")
+
         padding = "=" * (-len(encoded) % 4)
         try:
-            return base64.urlsafe_b64decode(f"{encoded}{padding}").decode()
+            artifact_name = base64.urlsafe_b64decode(f"{encoded}{padding}").decode()
         except Exception as exc:  # pragma: no cover - defensive decode guard
             raise ValueError(f"Invalid Trino revert ID: {revert_id}") from exc
+        if not artifact_name:
+            raise ValueError(f"Invalid Trino revert ID: {revert_id}")
+        return artifact_name
 
     def compile(
         self,
