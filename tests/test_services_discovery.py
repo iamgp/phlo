@@ -136,10 +136,10 @@ def test_service_discovery_delegates_loading_behind_cache(
     plugin_loads = 0
     directory_loads = 0
 
-    def _load_plugin_services(services: dict[str, ServiceDefinition]) -> int:
+    def _load_plugin_services(self: ServiceDiscovery) -> int:
         nonlocal plugin_loads
         plugin_loads += 1
-        services["plugin"] = ServiceDefinition(
+        self._services["plugin"] = ServiceDefinition(
             name="plugin",
             description="Plugin service",
             category="core",
@@ -159,10 +159,7 @@ def test_service_discovery_delegates_loading_behind_cache(
         )
         return 1
 
-    monkeypatch.setattr(
-        "phlo.plugins.discovery._service_loading.load_plugin_services",
-        _load_plugin_services,
-    )
+    monkeypatch.setattr(ServiceDiscovery, "_load_service_plugins", _load_plugin_services)
     monkeypatch.setattr(
         "phlo.plugins.discovery._service_loading.load_services_from_directory",
         _load_services_from_directory,
@@ -260,7 +257,6 @@ def test_service_discovery_emits_cache_refresh_observability_signals(
     assert completed[0]["fields"]["file_service_count"] == 1
     assert completed[1]["fields"]["file_service_count"] == 2
 
-
 def test_service_discovery_filters_services_by_profile(
     clean_registry: object,
     monkeypatch: pytest.MonkeyPatch,
@@ -298,7 +294,6 @@ def test_service_discovery_service_yaml_patterns() -> None:
     assert ServiceDiscovery._is_service_yaml("service.schema.yaml") is False
     assert ServiceDiscovery._is_service_yaml("values.yaml") is False
 
-
 def test_service_discovery_loads_companion_service_files(
     tmp_path: Path,
     service_discovery_signals: list[dict[str, object]],
@@ -335,6 +330,34 @@ def test_service_discovery_loads_companion_service_files(
     assert any(
         signal["event"] == "service_discovery_companion_file_load_failed"
         and signal["fields"]["yaml_path"] == str(source_path / "broken-daemon.yaml")
+        for signal in service_discovery_signals
+    )
+
+
+def test_service_discovery_skips_malformed_companion_service_files(
+    tmp_path: Path,
+    service_discovery_signals: list[dict[str, object]],
+) -> None:
+    """Malformed companion YAML is logged and skipped without aborting discovery."""
+    source_path = tmp_path / "plugin"
+    source_path.mkdir()
+    (source_path / "worker-daemon.yaml").write_text(
+        "name: worker\ndescription: worker service\n",
+        encoding="utf-8",
+    )
+    (source_path / "broken-daemon.yaml").write_text(
+        "name: broken: [\n",
+        encoding="utf-8",
+    )
+
+    discovery = ServiceDiscovery()
+
+    assert discovery._load_companion_service_files(source_path) == 1
+    assert set(discovery._services) == {"worker"}
+    assert any(
+        signal["event"] == "service_discovery_companion_file_load_failed"
+        and signal["fields"]["yaml_path"] == str(source_path / "broken-daemon.yaml")
+        and signal["fields"]["error_type"] in {"ParserError", "ScannerError"}
         for signal in service_discovery_signals
     )
 
