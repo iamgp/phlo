@@ -26,6 +26,9 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: gh-pages-writers
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:

@@ -122,6 +122,7 @@ jobs:
 
   test-core:
     runs-on: ubuntu-latest
+    environment: ci
     strategy:
       fail-fast: false
       matrix:
@@ -143,9 +144,18 @@ jobs:
         run: uv sync --dev
 
       - name: Run core regression suite
-        run: make test-core-regression
+        id: core_regression
+        shell: bash
+        run: |
+          set +e
+          make test-core-regression
+          regression_exit=$?
+          set -e
+
+          echo "regression_exit=${regression_exit}" >> "$GITHUB_OUTPUT"
 
       - name: Run tests
+        if: always()
         id: core_tests
         shell: bash
         env:
@@ -172,7 +182,7 @@ jobs:
           fi
 
           echo "pytest_exit=${pytest_exit}" >> "$GITHUB_OUTPUT"
-          exit "${pytest_exit}"
+          exit 0
 
       - name: Upload Cairn core test artifacts
         if: always()
@@ -182,8 +192,29 @@ jobs:
           path: cairn-artifacts/pytest-${{ matrix.python-version }}.xml
           if-no-files-found: warn
 
+      - name: Fail core test job on regression or test failures
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          regression_exit="${{ steps.core_regression.outputs.regression_exit || '0' }}"
+          pytest_exit="${{ steps.core_tests.outputs.pytest_exit || '0' }}"
+
+          if [ "${regression_exit}" -ne 0 ]; then
+            echo "Core regression suite failed with exit ${regression_exit}" >&2
+          fi
+
+          if [ "${pytest_exit}" -ne 0 ]; then
+            echo "Core pytest suite failed with exit ${pytest_exit}" >&2
+          fi
+
+          if [ "${regression_exit}" -ne 0 ] || [ "${pytest_exit}" -ne 0 ]; then
+            exit 1
+          fi
+
   test-packages:
     runs-on: ubuntu-latest
+    environment: ci
     strategy:
       fail-fast: false
       matrix:
@@ -397,6 +428,9 @@ jobs:
   cairn:
     runs-on: ubuntu-latest
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+    concurrency:
+      group: gh-pages-writers
+      cancel-in-progress: false
     needs:
       - lint
       - test-core
