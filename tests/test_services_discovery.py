@@ -210,6 +210,84 @@ def test_service_discovery_emits_cache_refresh_observability_signals(
     assert completed[1]["fields"]["file_service_count"] == 2
 
 
+def test_service_discovery_filters_services_by_profile(
+    clean_registry: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Profile lookup returns only matching discovered service definitions."""
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.services.discover_plugins",
+        lambda plugin_type, auto_register: None,
+    )
+    _write_service_yaml(tmp_path, "core", "core-service")
+    profile_service = tmp_path / "analytics" / "service.yaml"
+    profile_service.parent.mkdir(parents=True)
+    profile_service.write_text(
+        "name: analytics-service\n"
+        "description: analytics service\n"
+        "category: core\n"
+        "profile: analytics\n",
+        encoding="utf-8",
+    )
+
+    discovery = ServiceDiscovery(services_dir=tmp_path)
+
+    assert [service.name for service in discovery.get_services_by_profile("analytics")] == [
+        "analytics-service"
+    ]
+    assert discovery.get_services_by_profile("missing") == []
+
+
+def test_service_discovery_service_yaml_patterns() -> None:
+    """Service YAML detection accepts only primary and companion filenames."""
+    assert ServiceDiscovery._is_service_yaml("service.yaml") is True
+    assert ServiceDiscovery._is_service_yaml("postgres-setup.yaml") is True
+    assert ServiceDiscovery._is_service_yaml("worker-daemon.yaml") is True
+    assert ServiceDiscovery._is_service_yaml("service.schema.yaml") is False
+    assert ServiceDiscovery._is_service_yaml("values.yaml") is False
+
+
+def test_service_discovery_loads_companion_service_files(
+    tmp_path: Path,
+    service_discovery_signals: list[dict[str, object]],
+) -> None:
+    """Companion setup and daemon YAMLs are loaded from plugin package directories."""
+    source_path = tmp_path / "plugin"
+    source_path.mkdir()
+    (source_path / "service.yaml").write_text(
+        "name: main\ndescription: main service\n",
+        encoding="utf-8",
+    )
+    (source_path / "worker-daemon.yaml").write_text(
+        "name: worker\ndescription: worker service\nprofile: analytics\n",
+        encoding="utf-8",
+    )
+    (source_path / "bootstrap-setup.yaml").write_text(
+        "name: bootstrap\ndescription: bootstrap service\n",
+        encoding="utf-8",
+    )
+    (source_path / "ignored.yaml").write_text(
+        "name: ignored\ndescription: ignored service\n",
+        encoding="utf-8",
+    )
+    (source_path / "broken-daemon.yaml").write_text(
+        "description: missing name\n",
+        encoding="utf-8",
+    )
+
+    discovery = ServiceDiscovery()
+
+    assert discovery._load_companion_service_files(source_path) == 2
+    assert set(discovery._services) == {"worker", "bootstrap"}
+    assert discovery._services["worker"].profile == "analytics"
+    assert any(
+        signal["event"] == "service_discovery_companion_file_load_failed"
+        and signal["fields"]["yaml_path"] == str(source_path / "broken-daemon.yaml")
+        for signal in service_discovery_signals
+    )
+
+
 def test_inline_service_creation() -> None:
     """Test creating a service from inline config."""
     inline_config = {
