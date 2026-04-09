@@ -134,7 +134,7 @@ include = [
 packages = ["src/phlo"]
 
 [tool.pytest.ini_options]
-addopts = "--ignore=src --continue-on-collection-errors -m 'not integration'"
+addopts = "--ignore=src --continue-on-collection-errors --import-mode=importlib -m 'not integration'"
 filterwarnings = ["ignore:Using `@model_validator` with mode='after' on a classmethod is deprecated:DeprecationWarning"]
 markers = [
     "integration: marks tests as requiring external services or dbt manifest (run with '-m integration')",
