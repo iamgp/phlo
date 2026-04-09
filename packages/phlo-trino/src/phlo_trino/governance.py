@@ -71,7 +71,8 @@ def _validate_identifier(value: str, label: str) -> str:
 
 def _quote_identifier(identifier: str) -> str:
     """Quote a single validated Trino identifier."""
-    return f'"{ identifier.replace('"', '""') }"'
+    escaped = identifier.replace('"', '""')
+    return f'"{escaped}"'
 
 
 def _quote_qualified_identifier(identifier: str) -> str:
