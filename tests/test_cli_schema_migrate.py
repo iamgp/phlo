@@ -521,3 +521,104 @@ def test_collect_quality_checks_parses_contract_tags(monkeypatch) -> None:
     assert checks[0]["owner"] == "platform-team"
     assert checks[0]["consumers"] == ["analytics", "ml-pipeline"]
     assert checks[0]["sla"] == {"quality_threshold": 0.99}
+
+
+def test_collect_contract_metadata_filters_matching_asset(monkeypatch) -> None:
+    """Contract metadata should be sourced from the matching asset only."""
+
+    class FakeRegistry:
+        def list_assets(self):
+            class OtherAsset:
+                key = "dlt_other"
+                metadata = {
+                    "table_name": "warehouse.other",
+                    "owner": "wrong-team",
+                    "consumers": [{"name": "ignore"}],
+                    "sla": {"quality_threshold": 0.5},
+                }
+
+            class MatchingAsset:
+                key = "dlt_contract_demo"
+                metadata = {
+                    "table_name": "raw.contract_demo",
+                    "owner": "platform-team",
+                    "consumers": [
+                        {"name": "analytics", "contact": "#analytics", "usage": None},
+                        "ignore-me",
+                    ],
+                    "sla": {"quality_threshold": 0.99},
+                }
+
+            return [OtherAsset(), MatchingAsset()]
+
+    monkeypatch.setattr(schema_migrate_commands, "get_capability_registry", lambda: FakeRegistry())
+
+    metadata = schema_migrate_commands._collect_contract_metadata("raw.contract_demo")
+
+    assert metadata["owner"] == "platform-team"
+    assert metadata["consumers"] == [{"name": "analytics", "contact": "#analytics", "usage": None}]
+    assert metadata["sla"] == {"quality_threshold": 0.99}
+
+
+def test_collect_transform_refs_filters_and_deduplicates(monkeypatch) -> None:
+    """Only dbt assets that depend on the target table should be returned."""
+
+    class FakeRegistry:
+        def list_assets(self):
+            class MatchingByKey:
+                key = "transform_a"
+                kinds = {"dbt"}
+                deps = ["dlt_contract_demo"]
+
+            class MatchingByShortName:
+                key = "transform_b"
+                kinds = {"dbt"}
+                deps = ["contract_demo"]
+
+            class DuplicateMatch:
+                key = "transform_a"
+                kinds = {"dbt"}
+                deps = ["dlt_contract_demo"]
+
+            class NonDbt:
+                key = "other"
+                kinds = {"service"}
+                deps = ["dlt_contract_demo"]
+
+            class Irrelevant:
+                key = "transform_c"
+                kinds = {"dbt"}
+                deps = ["dlt_other"]
+
+            return [
+                MatchingByKey(),
+                MatchingByShortName(),
+                DuplicateMatch(),
+                NonDbt(),
+                Irrelevant(),
+            ]
+
+    monkeypatch.setattr(schema_migrate_commands, "get_capability_registry", lambda: FakeRegistry())
+
+    refs = schema_migrate_commands._collect_transform_refs("raw.contract_demo")
+
+    assert refs == ["transform_a", "transform_b"]
+
+
+def test_build_scaffold_payload_from_contract_rejects_table_mismatch(monkeypatch) -> None:
+    """A contract file whose table name does not match the request should fail."""
+
+    monkeypatch.setattr(
+        schema_migrate_commands.schema_migrate_contracts,
+        "read_contract",
+        lambda path: {
+            "table_name": "warehouse.other",
+            "normalized_schema": {"fields": [], "metadata": {}},
+        },
+    )
+
+    with pytest.raises(ValueError, match="Contract table mismatch"):
+        schema_migrate_commands._build_scaffold_payload_from_contract(
+            table_name="warehouse.customers",
+            contract_path=Path(".phlo/contracts/warehouse__customers.json"),
+        )
