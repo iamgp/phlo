@@ -21,6 +21,7 @@ from phlo.migrations.specs import (
     MigrationSource,
     MigrationSpec,
 )
+from tests.helpers import RecordingBus
 
 
 class _FakeAdapter:
@@ -148,13 +149,6 @@ def test_stage_chunk_parquet_cleans_temp_file_on_write_error(
 
 def test_execute_emits_stable_correlation(monkeypatch: pytest.MonkeyPatch) -> None:
     """Migration execution reuses one request correlation across emitted events."""
-
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[object] = []
-
-        def emit(self, event: object) -> None:
-            self.events.append(event)
 
     class _Adapter:
         def validate_config(self, source: MigrationSource) -> list[str]:

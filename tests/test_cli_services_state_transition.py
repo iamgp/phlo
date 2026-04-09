@@ -9,55 +9,7 @@ import yaml
 from click.testing import CliRunner
 
 from phlo.cli.infrastructure.selection import select_services_to_install
-from phlo.plugins.discovery import ServiceDefinition
-
-
-def _service(
-    name: str,
-    *,
-    default: bool = False,
-    profile: str | None = None,
-    category: str = "core",
-) -> ServiceDefinition:
-    """Build a service definition test fixture."""
-    return ServiceDefinition(
-        name=name,
-        description=f"{name} service",
-        category=category,
-        default=default,
-        profile=profile,
-    )
-
-
-def _build_fake_discovery(
-    services: dict[str, ServiceDefinition],
-    *,
-    default_names: tuple[str, ...],
-):
-    """Create a service discovery test double bound to local fixtures."""
-
-    class FakeDiscovery:
-        """Test double for service discovery across transition command tests."""
-
-        def discover(self) -> dict[str, ServiceDefinition]:
-            return services
-
-        def get_default_services(self, disabled_services=None) -> list[ServiceDefinition]:
-            disabled = set(disabled_services or [])
-            return [services[name] for name in default_names if name not in disabled]
-
-        def get_available_profiles(self) -> set[str]:
-            return {svc.profile for svc in services.values() if svc.profile}
-
-        def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
-            return [svc for svc in services.values() if svc.profile == profile]
-
-        def resolve_dependencies(
-            self, selected_services: list[ServiceDefinition]
-        ) -> list[ServiceDefinition]:
-            return selected_services
-
-    return FakeDiscovery
+from tests.helpers import FakeDiscovery, _service
 
 
 def _write_project_config(config_file: Path, *, enabled: list[str], disabled: list[str]) -> None:
@@ -99,7 +51,7 @@ def test_services_state_transition_remove_add_list_start_flow(
         postgres.name: postgres,
         prometheus.name: prometheus,
     }
-    FakeDiscovery = _build_fake_discovery(services, default_names=(postgres.name,))
+    fake_discovery = FakeDiscovery(services, default_names=(postgres.name,))
 
     def _fake_regenerate_compose(discovery, config: dict, phlo_dir: Path) -> None:
         selected = select_services_to_install(
@@ -123,10 +75,10 @@ def test_services_state_transition_remove_add_list_start_flow(
     from phlo.cli.commands.services import remove as remove_module
     from phlo.cli.commands.services import start as start_module
 
-    monkeypatch.setattr(add_module, "ServiceDiscovery", FakeDiscovery)
-    monkeypatch.setattr(remove_module, "ServiceDiscovery", FakeDiscovery)
-    monkeypatch.setattr(list_module, "ServiceDiscovery", FakeDiscovery)
-    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(add_module, "ServiceDiscovery", lambda: fake_discovery)
+    monkeypatch.setattr(remove_module, "ServiceDiscovery", lambda: fake_discovery)
+    monkeypatch.setattr(list_module, "ServiceDiscovery", lambda: fake_discovery)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", lambda: fake_discovery)
 
     monkeypatch.setattr(add_module, "_regenerate_compose", _fake_regenerate_compose)
     monkeypatch.setattr(remove_module, "_regenerate_compose", _fake_regenerate_compose)
@@ -196,14 +148,14 @@ def test_services_list_reads_disabled_service_names_from_transition_state(
         postgres.name: postgres,
         prometheus.name: prometheus,
     }
-    FakeDiscovery = _build_fake_discovery(services, default_names=(postgres.name,))
+    fake_discovery = FakeDiscovery(services, default_names=(postgres.name,))
 
     monkeypatch.chdir(tmp_path)
     _write_project_config(tmp_path / "phlo.yaml", enabled=[], disabled=[prometheus.name])
 
     from phlo.cli.commands.services import list as list_module
 
-    monkeypatch.setattr(list_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(list_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(list_module, "get_project_name", lambda: "demo-project")
     monkeypatch.setattr(
         list_module,
@@ -232,7 +184,7 @@ def test_services_start_profile_rejects_disabled_only_targets(
 
     from phlo.cli.commands.services import start as start_module
 
-    class FakeDiscovery:
+    class ProfilesOnlyFakeDiscovery(FakeDiscovery):
         def get_available_profiles(self) -> set[str]:
             return {"observability"}
 
@@ -244,7 +196,7 @@ def test_services_start_profile_rejects_disabled_only_targets(
         return CompletedProcess(args=cmd, returncode=0)
 
     monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
-    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", ProfilesOnlyFakeDiscovery)
     monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
     monkeypatch.setattr(start_module, "get_profile_service_names", lambda _profiles: ["prometheus"])
     monkeypatch.setattr(

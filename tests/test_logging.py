@@ -21,6 +21,7 @@ from phlo.logging import (
     setup_logging,
     suppress_log_routing,
 )
+from tests.helpers import RecordingBus
 
 pytestmark = pytest.mark.core_regression
 
@@ -224,9 +225,9 @@ def test_log_router_handler_emit_routes_and_reports_errors(
 ) -> None:
     """Routes converted events and reports failures through `handleError`."""
 
-    class RecordingBus:
+    class FailableRecordingBus(RecordingBus):
         def __init__(self) -> None:
-            self.events: list[Any] = []
+            super().__init__()
             self.should_fail = False
 
         def emit(self, event: Any) -> None:
@@ -234,7 +235,7 @@ def test_log_router_handler_emit_routes_and_reports_errors(
                 raise RuntimeError("emit failed")
             self.events.append(event)
 
-    bus = RecordingBus()
+    bus = FailableRecordingBus()
     monkeypatch.setattr("phlo.hooks.bus.get_hook_bus", lambda: bus)
     handler = LogRouterHandler(service_name="router-service")
 
@@ -259,14 +260,6 @@ def test_suppress_log_routing_blocks_emit_then_restores(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Prevents routing while active and restores routing afterward."""
-
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[Any] = []
-
-        def emit(self, event: Any) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     monkeypatch.setattr("phlo.hooks.bus.get_hook_bus", lambda: bus)
     handler = LogRouterHandler(service_name="router-service")

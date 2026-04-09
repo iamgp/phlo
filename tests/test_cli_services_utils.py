@@ -6,19 +6,13 @@ from pathlib import Path
 
 from phlo.cli.commands.services import utils as service_utils
 from phlo.hooks.events import ServiceLifecycleEvent
+from tests.helpers import RecordingBus
 
 
 def test_emit_service_lifecycle_events_preserves_request_correlation(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[object] = []
-
-        def emit(self, event: object) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     monkeypatch.setattr("phlo.hooks.emitters.get_hook_bus", lambda: bus)
     monkeypatch.setattr(
