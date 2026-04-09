@@ -131,3 +131,11 @@ async def test_async_to_sync_ingester_adapter_rejects_running_loop() -> None:
     adapter = AsyncToSyncIngesterAdapter(ingester)
     with pytest.raises(RuntimeError, match="event loop is running"):
         adapter.run_ingestion("2026-03-01", {})
+
+
+@pytest.mark.anyio
+async def test_async_to_sync_transformer_adapter_rejects_running_loop() -> None:
+    transformer = _AsyncTransformer(context=object(), logger=_TestLogger())
+    adapter = AsyncToSyncTransformerAdapter(transformer)
+    with pytest.raises(RuntimeError, match="event loop is running"):
+        adapter.run_transform("2026-03-01", {})
