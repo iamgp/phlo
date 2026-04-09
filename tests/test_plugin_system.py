@@ -388,6 +388,30 @@ class TestPluginDiscovery:
                 registry = get_global_registry()
                 assert registry.validate_plugin(plugin)
 
+    @pytest.mark.parametrize(
+        ("plugin_type", "expected_names"),
+        [
+            ("cli_commands", {"alerts", "minio", "openmetadata", "sling"}),
+            ("services", {"loki", "minio", "openmetadata"}),
+            ("hooks", {"alerting", "openmetadata"}),
+            ("ingestion_providers", {"sling"}),
+        ],
+    )
+    def test_workspace_entry_point_plugins_are_discoverable(
+        self,
+        plugin_type: str,
+        expected_names: set[str],
+    ) -> None:
+        """Workspace plugins reported as dead should remain discoverable via entry points."""
+        result = discover_plugins(
+            plugin_type=plugin_type,
+            auto_register=False,
+            failure_level="debug",
+        )
+
+        discovered_names = {plugin.metadata.name for plugin in result[plugin_type]}
+        assert expected_names <= discovered_names
+
 
 class TestPluginAutoDiscoveryBootstrap:
     """Test import-time auto-discovery precedence."""
