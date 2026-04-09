@@ -28,15 +28,10 @@ See Also:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class ObservatoryServicePlugin(ServicePlugin):
+class ObservatoryServicePlugin(PackageYamlServicePlugin):
     """Service plugin for the Observatory UI container orchestration.
 
     This plugin integrates the Observatory web interface with Phlo's service
@@ -80,28 +75,3 @@ class ObservatoryServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["ui", "observability"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load the Observatory service definition from package resources.
-
-        Reads and parses the service.yaml file containing Docker Compose
-        configuration for the Observatory UI container.
-
-        Returns:
-            Dictionary containing the parsed service definition with keys
-            such as 'image', 'ports', 'environment', and 'volumes'.
-
-        Raises:
-            FileNotFoundError: If service.yaml is not found in package resources.
-            yaml.YAMLError: If service.yaml contains invalid YAML syntax.
-
-        Example:
-            >>> plugin = ObservatoryServicePlugin()
-            >>> service = plugin.service_definition
-            >>> service.get('image')
-            'phlo/observatory:latest'
-
-        """
-        service_path = resources.files("phlo_observatory").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))

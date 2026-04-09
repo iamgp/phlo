@@ -14,15 +14,10 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class SupersetServicePlugin(ServicePlugin):
+class SupersetServicePlugin(PackageYamlServicePlugin):
     """Service plugin for Apache Superset.
 
     This plugin integrates Apache Superset business intelligence and data
@@ -63,28 +58,3 @@ class SupersetServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["bi", "superset", "visualization"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Return the Docker service definition for Superset.
-
-        Loads and parses the service.yaml resource file containing the
-        Docker Compose configuration for the Superset service.
-
-        Returns:
-            Dictionary containing the Docker Compose service definition
-            with image, ports, environment, volumes, and dependencies.
-
-        Raises:
-            FileNotFoundError: If the service.yaml resource is missing.
-            yaml.YAMLError: If the service definition contains invalid YAML.
-
-        Example:
-            >>> plugin = SupersetServicePlugin()
-            >>> definition = plugin.service_definition
-            >>> print(definition.get('image'))
-            'apache/superset:latest'
-
-        """
-        service_path = resources.files("phlo_superset").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))

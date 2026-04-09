@@ -18,19 +18,10 @@ Attributes:
 
 from __future__ import annotations
 
-from importlib import resources
-from time import perf_counter
-from typing import Any
-
-import yaml
-
-from phlo.logging import get_logger
-from phlo.plugins import PluginMetadata, ServicePlugin
-
-logger = get_logger(__name__)
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class PrometheusServicePlugin(ServicePlugin):
+class PrometheusServicePlugin(PackageYamlServicePlugin):
     """Service plugin for Prometheus metrics collection and monitoring.
 
     This plugin provides Prometheus service configuration for Docker Compose
@@ -77,61 +68,3 @@ class PrometheusServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["observability", "metrics"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Return the Docker service definition for Prometheus.
-
-        Loads the service definition from the embedded service.yaml resource
-        file. This includes container configuration, ports, volumes, and
-        networking for the Prometheus metrics server.
-
-        Performance metrics are logged for observability, including load time
-        and service count.
-
-        Returns:
-            dict[str, Any]: Docker Compose service definition dictionary
-                containing 'services', 'networks', 'volumes' as appropriate.
-
-        Raises:
-            FileNotFoundError: If the service.yaml resource is missing.
-            yaml.YAMLError: If the service.yaml contains invalid YAML syntax.
-            Exception: Any other error during resource loading or parsing.
-
-        Example:
-            >>> plugin = PrometheusServicePlugin()
-            >>> definition = plugin.service_definition
-            >>> 'services' in definition
-            True
-            >>> isinstance(definition.get('services'), dict)
-            True
-
-        """
-        start = perf_counter()
-        logger.info(
-            "prometheus_service_definition_load_started",
-            plugin_name="prometheus",
-            resource_name="service.yaml",
-        )
-        service_path = resources.files("phlo_prometheus").joinpath("service.yaml")
-        try:
-            data = yaml.safe_load(service_path.read_text(encoding="utf-8"))
-        except Exception:
-            logger.error(
-                "prometheus_service_definition_load_failed",
-                plugin_name="prometheus",
-                resource_name="service.yaml",
-                elapsed_ms=round((perf_counter() - start) * 1000, 2),
-                exc_info=True,
-            )
-            raise
-
-        service_count = len(data.get("services", {})) if isinstance(data, dict) else None
-        logger.info(
-            "prometheus_service_definition_load_completed",
-            plugin_name="prometheus",
-            resource_name="service.yaml",
-            elapsed_ms=round((perf_counter() - start) * 1000, 2),
-            service_count=service_count,
-        )
-        return data

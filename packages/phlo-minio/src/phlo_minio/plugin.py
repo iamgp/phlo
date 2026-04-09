@@ -39,90 +39,13 @@ See Also:
 
 from __future__ import annotations
 
-from importlib import resources
-from time import perf_counter
 from typing import Any
 
-import yaml
-
 from phlo.capabilities import ObjectStoreSpec, ResourceSpec
-from phlo.logging import get_logger
-from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
-
-logger = get_logger(__name__)
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata, ResourceProviderPlugin
 
 
-def _load_service_definition(resource_name: str, service_name: str) -> dict[str, Any]:
-    """Load and parse a YAML service definition file.
-
-    Reads a YAML service definition from the package resources and
-    returns the parsed configuration. Includes performance logging
-    for monitoring load times.
-
-    Args:
-        resource_name: Name of the YAML file in the package (e.g., "service.yaml").
-        service_name: Logical name of the service for logging purposes.
-
-    Returns:
-        dict[str, Any]: Parsed YAML service definition.
-
-    Raises:
-        Exception: If file reading or YAML parsing fails. Error is logged
-            with timing information before re-raising.
-
-    Examples:
-        Load MinIO service definition:
-            >>> defn = _load_service_definition("service.yaml", "minio")
-            >>> print(defn['services']['minio']['image'])
-            'minio/minio:latest'
-
-        Load setup service:
-            >>> defn = _load_service_definition("minio-setup.yaml", "minio-setup")
-            >>> print(defn['services']['minio-setup']['command'])
-            ['sh', '-c', '...']
-
-    Logging:
-        Emits structured logs:
-            - minio_service_definition_load_started: When loading begins
-            - minio_service_definition_load_completed: On success with timing
-            - minio_service_definition_load_failed: On failure with timing
-
-    Implementation:
-        Uses importlib.resources for package-relative file access:
-            service_path = resources.files("phlo_minio").joinpath(resource_name)
-
-    """
-    start = perf_counter()
-    logger.info(
-        "minio_service_definition_load_started",
-        service_name=service_name,
-        resource_name=resource_name,
-    )
-    service_path = resources.files("phlo_minio").joinpath(resource_name)
-    try:
-        data = yaml.safe_load(service_path.read_text(encoding="utf-8"))
-    except Exception:
-        logger.error(
-            "minio_service_definition_load_failed",
-            service_name=service_name,
-            resource_name=resource_name,
-            elapsed_ms=round((perf_counter() - start) * 1000, 2),
-            exc_info=True,
-        )
-        raise
-
-    service_count = len(data.get("services", {})) if isinstance(data, dict) else None
-    logger.info(
-        "minio_service_definition_load_completed",
-        service_name=service_name,
-        resource_name=resource_name,
-        elapsed_ms=round((perf_counter() - start) * 1000, 2),
-        service_count=service_count,
-    )
-    return data
-
-
-class MinioServicePlugin(ServicePlugin):
+class MinioServicePlugin(PackageYamlServicePlugin):
     """Service plugin for deploying MinIO S3-compatible object storage.
 
     This plugin provides the MinIO service definition for Docker Compose
@@ -175,49 +98,8 @@ class MinioServicePlugin(ServicePlugin):
             tags=["core", "storage", "s3"],
         )
 
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load the MinIO service definition from package resources.
 
-        Returns:
-            dict[str, Any]: Parsed Docker Compose service configuration
-                from service.yaml. Contains services, volumes, and
-                network definitions.
-
-        Examples:
-            Get service definition:
-                >>> plugin = MinioServicePlugin()
-                >>> defn = plugin.service_definition
-                >>> services = defn.get('services', {})
-                >>> print(list(services.keys()))
-                ['minio']
-
-            Inspect MinIO configuration:
-                >>> plugin = MinioServicePlugin()
-                >>> minio_svc = plugin.service_definition['services']['minio']
-                >>> print(minio_svc['environment']['MINIO_ROOT_USER'])
-                'minio'
-
-        Structure:
-            The returned dict typically contains:
-                {
-                    'services': {
-                        'minio': {
-                            'image': 'minio/minio:latest',
-                            'ports': ['10001:9000', '10002:9001'],
-                            'environment': {...},
-                            'volumes': [...],
-                            'command': [...]
-                        }
-                    },
-                    'volumes': {...}
-                }
-
-        """
-        return _load_service_definition("service.yaml", "minio")
-
-
-class MinioSetupServicePlugin(ServicePlugin):
+class MinioSetupServicePlugin(PackageYamlServicePlugin):
     """Service plugin for MinIO bucket initialization.
 
     This plugin provides a one-time setup service that creates default
@@ -252,6 +134,8 @@ class MinioSetupServicePlugin(ServicePlugin):
 
     """
 
+    _service_definition_file = "minio-setup.yaml"
+
     @property
     def metadata(self) -> PluginMetadata:
         """Return metadata describing the MinIO setup plugin.
@@ -267,33 +151,6 @@ class MinioSetupServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["core", "storage", "bootstrap"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Load the MinIO setup service definition from package resources.
-
-        Returns:
-            dict[str, Any]: Parsed Docker Compose service configuration
-                from minio-setup.yaml. Contains the setup service definition
-                for bucket initialization.
-
-        Examples:
-            Get setup definition:
-                >>> plugin = MinioSetupServicePlugin()
-                >>> defn = plugin.service_definition
-                >>> setup_svc = defn['services']['minio-setup']
-                >>> print(setup_svc['depends_on'])
-                ['minio']
-
-        Structure:
-            The setup service typically:
-            - Depends on minio service being healthy
-            - Uses mc (MinIO Client) to create buckets
-            - Has restart policy set to 'no'
-            - Exits after creating configured buckets
-
-        """
-        return _load_service_definition("minio-setup.yaml", "minio-setup")
 
 
 class MinioObjectStoreProvider:

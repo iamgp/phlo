@@ -21,15 +21,10 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class PhloApiServicePlugin(ServicePlugin):
+class PhloApiServicePlugin(PackageYamlServicePlugin):
     """Service plugin for the Phlo API backend.
 
     This plugin registers the Phlo API as a discoverable service within
@@ -79,31 +74,3 @@ class PhloApiServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["api", "observability"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Return the Docker service definition for the Phlo API.
-
-        Loads and parses the service.yaml file embedded in the phlo_api
-        package. This YAML defines the Docker Compose service configuration
-        including image, ports, environment, and dependencies.
-
-        Returns:
-            dict[str, Any]: Parsed Docker Compose service definition.
-
-        Raises:
-            FileNotFoundError: If service.yaml is missing from the package.
-            yaml.YAMLError: If service.yaml contains invalid YAML.
-
-        Example:
-            .. code-block:: python
-
-                plugin = PhloApiServicePlugin()
-                service_def = plugin.service_definition
-                services = service_def.get("services", {})
-                phlo_api = services.get("phlo-api", {})
-                ports = phlo_api.get("ports", [])
-
-        """
-        service_path = resources.files("phlo_api").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))

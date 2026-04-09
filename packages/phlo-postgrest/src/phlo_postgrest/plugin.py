@@ -19,15 +19,10 @@ Example:
 
 from __future__ import annotations
 
-from importlib import resources
-from typing import Any
-
-import yaml
-
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
 
 
-class PostgrestServicePlugin(ServicePlugin):
+class PostgrestServicePlugin(PackageYamlServicePlugin):
     """Service plugin for managing PostgREST container lifecycle.
 
     This plugin integrates PostgREST with Phlo's service management system,
@@ -73,28 +68,3 @@ class PostgrestServicePlugin(ServicePlugin):
             author="Phlo Team",
             tags=["api", "rest"],
         )
-
-    @property
-    def service_definition(self) -> dict[str, Any]:
-        """Return the Docker service definition for PostgREST.
-
-        Loads the service configuration from the embedded service.yaml file
-        which defines the Docker Compose service specification including
-        ports, environment variables, and dependencies.
-
-        Returns:
-            dict[str, Any]: Docker Compose service definition parsed from YAML.
-
-        Raises:
-            FileNotFoundError: If service.yaml is missing from the package.
-            yaml.YAMLError: If service.yaml contains invalid YAML.
-
-        Example:
-            >>> plugin = PostgrestServicePlugin()
-            >>> config = plugin.service_definition
-            >>> 'image' in config or 'build' in config
-            True
-
-        """
-        service_path = resources.files("phlo_postgrest").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
