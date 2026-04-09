@@ -69,6 +69,17 @@ def _validate_identifier(value: str, label: str) -> str:
     return value
 
 
+def _quote_identifier(identifier: str) -> str:
+    """Quote a single validated Trino identifier."""
+    escaped = identifier.replace('"', '""')
+    return f'"{escaped}"'
+
+
+def _quote_qualified_identifier(identifier: str) -> str:
+    """Quote each segment of a validated dotted Trino identifier."""
+    return ".".join(_quote_identifier(part) for part in identifier.split("."))
+
+
 class TrinoGovernanceBackend:
     """GovernanceBackend implementation using Trino SQL grants."""
 
@@ -80,7 +91,9 @@ class TrinoGovernanceBackend:
         """List grants, optionally filtered by table."""
         if table_name is not None:
             _validate_identifier(table_name, "table_name")
-        sql = f"SHOW GRANTS ON TABLE {table_name}" if table_name else "SHOW GRANTS"
+            sql = f"SHOW GRANTS ON TABLE {_quote_qualified_identifier(table_name)}"
+        else:
+            sql = "SHOW GRANTS"
         try:
             rows = self._trino.execute(sql)
         except Exception:
@@ -121,10 +134,12 @@ class TrinoGovernanceBackend:
         if policy.columns:
             logger.warning("trino_governance_column_grants_unsupported", columns=policy.columns)
 
+        table_ref = _quote_qualified_identifier(policy.table_pattern)
+        principal_ref = _quote_identifier(policy.principal)
         if policy.effect == "DENY":
-            sql = f"DENY {action} ON TABLE {policy.table_pattern} TO {policy.principal}"
+            sql = f"DENY {action} ON TABLE {table_ref} TO {principal_ref}"
         else:
-            sql = f"GRANT {action} ON TABLE {policy.table_pattern} TO {policy.principal}"
+            sql = f"GRANT {action} ON TABLE {table_ref} TO {principal_ref}"
 
         logger.info(
             "trino_governance_apply_policy",
@@ -146,7 +161,10 @@ class TrinoGovernanceBackend:
             raise ValueError(f"Unsupported action: {action!r}")
         _validate_identifier(table, "table")
         _validate_identifier(principal, "principal")
-        sql = f"REVOKE {action.upper()} ON TABLE {table} FROM {principal}"
+        sql = (
+            f"REVOKE {action.upper()} ON TABLE {_quote_qualified_identifier(table)} "
+            f"FROM {_quote_identifier(principal)}"
+        )
         logger.info("trino_governance_revoke_policy", sql=sql, policy_id=policy_id)
         self._trino.execute(sql)
 
