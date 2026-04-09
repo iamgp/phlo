@@ -7,6 +7,17 @@ from typing import Any
 from phlo.plugins.discovery import ServiceDefinition
 
 
+def reset_capability_test_state() -> None:
+    """Clear global capability and config caches between stateful tests."""
+    from phlo.capabilities import clear_capabilities
+    from phlo.config import _get_config
+    from phlo.infrastructure import clear_config_cache
+
+    _get_config.cache_clear()
+    clear_config_cache()
+    clear_capabilities()
+
+
 def _service(
     name: str,
     *,

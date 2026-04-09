@@ -8,20 +8,20 @@ from phlo.capabilities import (
     AuthorizationPolicyBackendSpec,
     Principal,
     ResourceRef,
-    clear_capabilities,
     get_capability_registry,
     list_capabilities,
     register_authorization_policy_backend,
     resolve_capability,
 )
 from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
+from tests.helpers import reset_capability_test_state
 
 pytestmark = pytest.mark.core_regression
 
 
 def teardown_function() -> None:
     """Reset global capability registry between tests."""
-    clear_capabilities()
+    reset_capability_test_state()
 
 
 def test_registry_tracks_authorization_policy_backends() -> None:
