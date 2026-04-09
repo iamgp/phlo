@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import cast
 
+import pytest
+
 from phlo.capabilities.interfaces import GovernanceBackend
 from phlo.rbac.compiler import CompilerContext, PostgreSQLCompiler, TrinoCompiler
 from phlo.rbac.models import (
@@ -105,6 +107,29 @@ def test_trino_plan_emits_revert_ids_that_round_trip() -> None:
     assert compiler._decode_revert_id(revert_id) == artifact.name
 
 
+@pytest.mark.parametrize("revert_id", ["postgresql:abc123", "trino:", "trino:!!!!"])
+def test_trino_decode_rejects_invalid_revert_ids(revert_id: str) -> None:
+    compiler = TrinoCompiler()
+
+    with pytest.raises(ValueError, match="Invalid Trino revert ID"):
+        compiler._decode_revert_id(revert_id)
+
+
+def test_trino_revert_reports_missing_artifact() -> None:
+    backend = _FakeTrinoBackend()
+    compiler = TrinoCompiler(backend=cast(GovernanceBackend, backend))
+    revert_id = compiler._encode_revert_id("phlo_admin_dataset_missing.table")
+    context = CompilerContext(environment="test", backend_name="trino")
+
+    success_ids, errors = compiler.revert([revert_id], context)
+
+    assert success_ids == []
+    assert errors == [
+        f"Failed to revert {revert_id}: artifact 'phlo_admin_dataset_missing.table' not found"
+    ]
+    assert backend.revoked_policy_ids == []
+
+
 def test_trino_read_current_state_uses_compile_compatible_names() -> None:
     backend = _FakeTrinoBackend()
     backend._policies = [
@@ -186,6 +211,111 @@ def test_trino_compile_allows_catch_all_resource_pattern() -> None:
     assert len(artifacts) == 1
     assert artifacts[0].statement == "GRANT SELECT ON TABLE % TO ROLE admin"
     assert artifacts[0].metadata["resource"] == "%"
+
+
+def test_trino_compile_skips_deny_and_unsupported_actions() -> None:
+    compiler = TrinoCompiler()
+    roles = RolesConfig.from_dict({"version": 1, "roles": {"admin": {"inherits": []}}})
+    policies = PoliciesConfig.from_dict(
+        {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "deny_read",
+                    "effect": "deny",
+                    "principal": {"roles": ["admin"]},
+                    "action": "dataset.read",
+                    "resource": {"type": "dataset", "id_pattern": "analytics.table"},
+                },
+                {
+                    "policy_id": "allow_object",
+                    "effect": "allow",
+                    "principal": {"roles": ["admin"]},
+                    "action": "object.read",
+                    "resource": {"type": "object", "id_pattern": "bucket/*"},
+                },
+            ],
+        }
+    )
+    rbac = CanonicalRBAC.from_configs(roles, policies)
+    context = CompilerContext(environment="test", backend_name="trino")
+
+    assert compiler.compile(rbac, context) == []
+
+
+def test_trino_compile_rejects_unsafe_role_names() -> None:
+    compiler = TrinoCompiler()
+    roles = RolesConfig.from_dict({"version": 1, "roles": {"bad-role": {"inherits": []}}})
+    policies = PoliciesConfig.from_dict(
+        {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "allow_read",
+                    "effect": "allow",
+                    "principal": {"roles": ["bad-role"]},
+                    "action": "dataset.read",
+                    "resource": {"type": "dataset", "id_pattern": "analytics.table"},
+                }
+            ],
+        }
+    )
+    rbac = CanonicalRBAC.from_configs(roles, policies)
+    context = CompilerContext(environment="test", backend_name="trino")
+
+    with pytest.raises(ValueError, match="Unsafe role_name"):
+        compiler.compile(rbac, context)
+
+
+def test_trino_compile_rejects_wildcards_before_final_resource_segment() -> None:
+    compiler = TrinoCompiler()
+    roles = RolesConfig.from_dict({"version": 1, "roles": {"admin": {"inherits": []}}})
+    policies = PoliciesConfig.from_dict(
+        {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "allow_read",
+                    "effect": "allow",
+                    "principal": {"roles": ["admin"]},
+                    "action": "dataset.read",
+                    "resource": {"type": "dataset", "id_pattern": "analytics.*.events"},
+                }
+            ],
+        }
+    )
+    rbac = CanonicalRBAC.from_configs(roles, policies)
+    context = CompilerContext(environment="test", backend_name="trino")
+
+    with pytest.raises(ValueError, match="Wildcards only allowed in final segment"):
+        compiler.compile(rbac, context)
+
+
+def test_trino_compile_uses_schema_grants_for_services() -> None:
+    compiler = TrinoCompiler()
+    roles = RolesConfig.from_dict({"version": 1, "roles": {"operator": {"inherits": []}}})
+    policies = PoliciesConfig.from_dict(
+        {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "allow_service_manage",
+                    "effect": "allow",
+                    "principal": {"roles": ["operator"]},
+                    "action": "service.manage",
+                    "resource": {"type": "service", "id_pattern": "dagster"},
+                }
+            ],
+        }
+    )
+    rbac = CanonicalRBAC.from_configs(roles, policies)
+    context = CompilerContext(environment="test", backend_name="trino")
+
+    artifacts = compiler.compile(rbac, context)
+
+    assert len(artifacts) == 1
+    assert artifacts[0].statement == "GRANT ALL PRIVILEGES ON SCHEMA dagster TO ROLE operator"
+    assert artifacts[0].metadata["privilege"] == "ALL PRIVILEGES"
 
 
 def test_postgresql_compile_allows_catch_all_resource_pattern() -> None:
