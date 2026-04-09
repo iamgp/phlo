@@ -276,7 +276,12 @@ def _apply_column_mapping(
     for row in rows:
         mapped: dict[str, Any] = {}
         for key, value in row.items():
-            mapped[column_mapping.get(key, key)] = value
+            mapped_key = column_mapping.get(key, key)
+            if mapped_key in mapped:
+                raise MigrationExecutionError(
+                    f"Column mapping collapses multiple source columns into '{mapped_key}'"
+                )
+            mapped[mapped_key] = value
         mapped_rows.append(mapped)
     return mapped_rows
 

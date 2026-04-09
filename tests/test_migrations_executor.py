@@ -12,7 +12,9 @@ from phlo.migrations import executor as migration_executor
 from phlo.migrations.executor import (
     MigrationExecutionError,
     MigrationExecutor,
+    _apply_column_mapping,
     _stage_chunk_parquet,
+    _validate_quality_chunk,
     _write_chunk_to_table_store,
 )
 from phlo.migrations.specs import (
@@ -67,6 +69,51 @@ def test_validate_respects_dry_run_override(monkeypatch: pytest.MonkeyPatch) -> 
 
     errors_with_override = executor.validate(_spec(dry_run=False), dry_run_override=True)
     assert errors_with_override == []
+
+
+def test_apply_column_mapping_rejects_collapsed_destination() -> None:
+    """Mapping collisions should fail instead of silently overwriting row values."""
+    rows = [{"id": 1, "legacy_id": 2}]
+
+    with pytest.raises(MigrationExecutionError, match="multiple source columns"):
+        _apply_column_mapping(rows, {"legacy_id": "id"})
+
+
+def test_apply_column_mapping_preserves_unmapped_columns() -> None:
+    rows = [{"id": 1, "full_name": "Ada"}]
+
+    assert _apply_column_mapping(rows, {"full_name": "name"}) == [{"id": 1, "name": "Ada"}]
+
+
+def test_validate_quality_chunk_requires_validate_method() -> None:
+    with pytest.raises(MigrationExecutionError, match="does not expose a 'validate' method"):
+        _validate_quality_chunk(object(), [{"id": 1}])
+
+
+def test_validate_quality_chunk_passes_dataframe_to_schema() -> None:
+    class _Schema:
+        observed_columns: list[str] | None = None
+        observed_rows: int | None = None
+
+        @classmethod
+        def validate(cls, frame) -> None:  # type: ignore[no-untyped-def]
+            cls.observed_columns = list(frame.columns)
+            cls.observed_rows = len(frame)
+
+    _validate_quality_chunk(_Schema, [{"id": 1, "name": "Ada"}])
+
+    assert _Schema.observed_columns == ["id", "name"]
+    assert _Schema.observed_rows == 1
+
+
+def test_validate_quality_chunk_propagates_schema_errors() -> None:
+    class _Schema:
+        @staticmethod
+        def validate(frame) -> None:  # type: ignore[no-untyped-def]
+            raise ValueError("invalid chunk")
+
+    with pytest.raises(ValueError, match="invalid chunk"):
+        _validate_quality_chunk(_Schema, [{"id": 1}])
 
 
 def test_overwrite_mode_requires_overwrite_support(
