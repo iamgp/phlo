@@ -6,6 +6,7 @@ import pytest
 from click.testing import CliRunner
 
 from phlo.plugins.discovery import ServiceDefinition
+from tests.helpers import FakeDiscovery
 
 
 def test_extract_compose_service_from_label() -> None:
@@ -57,11 +58,11 @@ def test_services_list_handles_malformed_docker_json(
 ) -> None:
     from phlo.cli.commands.services import list as list_module
 
-    class FakeDiscovery:
+    class EmptyFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return {}
 
-    monkeypatch.setattr(list_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(list_module, "ServiceDiscovery", EmptyFakeDiscovery)
     monkeypatch.setattr(list_module, "get_project_name", lambda: "demo")
     monkeypatch.setattr(
         list_module,

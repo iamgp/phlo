@@ -7,6 +7,7 @@ from click.testing import CliRunner
 
 from phlo.cli.commands.services import ports as ports_module
 from phlo.plugins.discovery import ServiceDefinition
+from tests.helpers import FakeDiscovery
 
 
 def test_parse_compose_port_with_env_var() -> None:
@@ -146,11 +147,11 @@ def test_ports_cmd_handles_no_services(monkeypatch: pytest.MonkeyPatch, tmp_path
     (tmp_path / ".phlo").mkdir()
     (tmp_path / "phlo.yaml").write_text("name: test\n")
 
-    class FakeDiscovery:
+    class EmptyFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return {}
 
-    monkeypatch.setattr(ports_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(ports_module, "ServiceDiscovery", EmptyFakeDiscovery)
     monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
     monkeypatch.setattr(
         ports_module,
@@ -168,11 +169,11 @@ def test_ports_cmd_json_output(monkeypatch: pytest.MonkeyPatch, tmp_path) -> Non
     (tmp_path / ".phlo").mkdir()
     (tmp_path / "phlo.yaml").write_text("name: test\n")
 
-    class FakeDiscovery:
+    class EmptyFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return {}
 
-    monkeypatch.setattr(ports_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(ports_module, "ServiceDiscovery", EmptyFakeDiscovery)
     monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
     monkeypatch.setattr(
         ports_module,
@@ -413,7 +414,7 @@ services:
 """
     )
 
-    class FakeDiscovery:
+    class PostgresFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return {
                 "postgres": ServiceDefinition(
@@ -423,7 +424,7 @@ services:
                 )
             }
 
-    monkeypatch.setattr(ports_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(ports_module, "ServiceDiscovery", PostgresFakeDiscovery)
     monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
     monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda _project_name: {})
     monkeypatch.chdir(tmp_path)
@@ -451,7 +452,7 @@ def test_ports_cmd_does_not_advertise_urls_without_running_traefik(
     (tmp_path / ".phlo").mkdir()
     (tmp_path / "phlo.yaml").write_text("name: test\n")
 
-    class FakeDiscovery:
+    class DagsterFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return {
                 "dagster": ServiceDefinition(
@@ -470,7 +471,7 @@ def test_ports_cmd_does_not_advertise_urls_without_running_traefik(
                 )
             }
 
-    monkeypatch.setattr(ports_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(ports_module, "ServiceDiscovery", DagsterFakeDiscovery)
     monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
     monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda _project_name: {})
     monkeypatch.chdir(tmp_path)
@@ -494,7 +495,7 @@ services:
 """
     )
 
-    class FakeDiscovery:
+    class TraefikDagsterFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return {
                 "traefik": ServiceDefinition(
@@ -518,7 +519,7 @@ services:
                 ),
             }
 
-    monkeypatch.setattr(ports_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(ports_module, "ServiceDiscovery", TraefikDagsterFakeDiscovery)
     monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
     monkeypatch.setattr(
         ports_module,

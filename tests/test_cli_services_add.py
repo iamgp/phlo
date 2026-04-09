@@ -6,15 +6,7 @@ from click.testing import CliRunner
 
 from phlo.cli.infrastructure.selection import select_services_to_install
 from phlo.plugins.discovery import ServiceDefinition
-
-
-def _service(name: str, *, default: bool = False) -> ServiceDefinition:
-    """Build a minimal service definition test fixture."""
-    return ServiceDefinition(
-        name=name,
-        description=f"{name} service",
-        default=default,
-    )
+from tests.helpers import FakeDiscovery, _service
 
 
 def test_services_add_clears_disabled_after_remove_and_reenables_install_selection(
@@ -27,9 +19,7 @@ def test_services_add_clears_disabled_after_remove_and_reenables_install_selecti
     services = {postgres.name: postgres, prometheus.name: prometheus}
     selected_names: list[str] = []
 
-    class FakeDiscovery:
-        """Minimal service discovery stub for add/remove command tests."""
-
+    class AddRemoveFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return services
 
@@ -63,8 +53,8 @@ def test_services_add_clears_disabled_after_remove_and_reenables_install_selecti
     from phlo.cli.commands.services import add as add_module
     from phlo.cli.commands.services import remove as remove_module
 
-    monkeypatch.setattr(add_module, "ServiceDiscovery", FakeDiscovery)
-    monkeypatch.setattr(remove_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(add_module, "ServiceDiscovery", AddRemoveFakeDiscovery)
+    monkeypatch.setattr(remove_module, "ServiceDiscovery", AddRemoveFakeDiscovery)
     monkeypatch.setattr(remove_module, "_regenerate_compose", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(add_module, "_regenerate_compose", fake_regenerate_compose)
 
@@ -95,9 +85,7 @@ def test_services_add_normalizes_enabled_disabled_lists(
     prometheus = _service("prometheus")
     services = {svc.name: svc for svc in [postgres, minio, prometheus]}
 
-    class FakeDiscovery:
-        """Minimal service discovery stub for add command normalization tests."""
-
+    class NormalizeFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return services
 
@@ -118,7 +106,7 @@ def test_services_add_normalizes_enabled_disabled_lists(
 
     from phlo.cli.commands.services import add as add_module
 
-    monkeypatch.setattr(add_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(add_module, "ServiceDiscovery", NormalizeFakeDiscovery)
     monkeypatch.setattr(add_module, "_regenerate_compose", lambda *_args, **_kwargs: None)
 
     runner = CliRunner()

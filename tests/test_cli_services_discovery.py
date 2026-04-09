@@ -2,23 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
-
-
-def _service(
-    name: str,
-    *,
-    default: bool = False,
-    profile: str | None = None,
-    category: str = "core",
-) -> ServiceDefinition:
-    return ServiceDefinition(
-        name=name,
-        description=f"{name} service",
-        category=category,
-        default=default,
-        profile=profile,
-    )
+from phlo.plugins.discovery import ServiceDiscovery
+from tests.helpers import _service
 
 
 def test_resolve_dependencies_reports_cycle_path() -> None:

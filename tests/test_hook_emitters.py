@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from phlo.hooks.emitters import (
@@ -27,18 +25,12 @@ from phlo.hooks.emitters import (
     TransformEventEmitter,
 )
 from phlo.logging import bind_context, clear_context
+from tests.helpers import RecordingBus
 
 pytestmark = pytest.mark.core_regression
 
 
 def test_ingestion_emitter_merges_bound_correlation_context() -> None:
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[Any] = []
-
-        def emit(self, event: Any) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     emitter = IngestionEventEmitter(
         IngestionEventContext(
@@ -67,13 +59,6 @@ def test_ingestion_emitter_merges_bound_correlation_context() -> None:
 
 
 def test_transform_emitter_merges_bound_correlation_context() -> None:
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[Any] = []
-
-        def emit(self, event: Any) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     emitter = TransformEventEmitter(
         TransformEventContext(
@@ -105,13 +90,6 @@ def test_transform_emitter_merges_bound_correlation_context() -> None:
 
 
 def test_publish_emitter_merges_bound_correlation_context() -> None:
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[Any] = []
-
-        def emit(self, event: Any) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     emitter = PublishEventEmitter(
         PublishEventContext(
@@ -139,13 +117,6 @@ def test_publish_emitter_merges_bound_correlation_context() -> None:
 
 
 def test_quality_result_emitter_merges_bound_correlation_context() -> None:
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[Any] = []
-
-        def emit(self, event: Any) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     emitter = QualityResultEventEmitter(
         QualityResultEventContext(
@@ -179,13 +150,6 @@ def test_quality_result_emitter_merges_bound_correlation_context() -> None:
 
 
 def test_lineage_emitter_merges_bound_correlation_context() -> None:
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[Any] = []
-
-        def emit(self, event: Any) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     emitter = LineageEventEmitter(
         LineageEventContext(),
@@ -212,13 +176,6 @@ def test_lineage_emitter_merges_bound_correlation_context() -> None:
 
 
 def test_telemetry_emitter_merges_bound_correlation_context() -> None:
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[Any] = []
-
-        def emit(self, event: Any) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     emitter = TelemetryEventEmitter(
         TelemetryEventContext(),
@@ -241,13 +198,6 @@ def test_telemetry_emitter_merges_bound_correlation_context() -> None:
 
 
 def test_service_lifecycle_emitter_merges_bound_correlation_context() -> None:
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[Any] = []
-
-        def emit(self, event: Any) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     emitter = ServiceLifecycleEventEmitter(
         ServiceLifecycleEventContext(
@@ -276,13 +226,6 @@ def test_service_lifecycle_emitter_merges_bound_correlation_context() -> None:
 
 
 def test_schema_migration_emitter_merges_bound_correlation_context() -> None:
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[Any] = []
-
-        def emit(self, event: Any) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     emitter = SchemaMigrationEventEmitter(
         SchemaMigrationEventContext(table_name="orders"),
@@ -311,13 +254,6 @@ def test_schema_migration_emitter_merges_bound_correlation_context() -> None:
 
 
 def test_data_migration_emitter_merges_bound_correlation_context() -> None:
-    class RecordingBus:
-        def __init__(self) -> None:
-            self.events: list[Any] = []
-
-        def emit(self, event: Any) -> None:
-            self.events.append(event)
-
     bus = RecordingBus()
     emitter = DataMigrationEventEmitter(
         DataMigrationEventContext(

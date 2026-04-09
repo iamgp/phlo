@@ -10,7 +10,7 @@ from phlo.logging import get_logger
 logger = get_logger(__name__)
 
 
-def parse_env_file(path: Path) -> dict[str, str]:
+def parse_env_file(path: Path, *, strip_quotes: bool = False) -> dict[str, str]:
     """Parse a .env file into a dict of key=value pairs."""
     if not path.exists():
         return {}
@@ -21,6 +21,10 @@ def parse_env_file(path: Path) -> dict[str, str]:
             if not trimmed or trimmed.startswith("#") or "=" not in trimmed:
                 continue
             key, value = trimmed.split("=", 1)
+            if strip_quotes:
+                value = value.strip()
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                    value = value[1:-1]
             values[key] = value
     except OSError:
         logger.warning("env_file_read_failed", path=str(path), exc_info=True)
