@@ -7,24 +7,7 @@ from click.testing import CliRunner
 
 from phlo.cli.commands.services.utils import get_profile_service_names
 from phlo.plugins.discovery import ServiceDefinition
-
-
-def _service(
-    name: str,
-    *,
-    default: bool = False,
-    profile: str | None = None,
-    category: str = "core",
-    depends_on: list[str] | None = None,
-) -> ServiceDefinition:
-    return ServiceDefinition(
-        name=name,
-        description=f"{name} service",
-        category=category,
-        default=default,
-        profile=profile,
-        depends_on=depends_on or [],
-    )
+from tests.helpers import FakeDiscovery, _service
 
 
 def test_get_profile_service_names_returns_profile_services(
@@ -36,14 +19,14 @@ def test_get_profile_service_names_returns_profile_services(
     hasura = _service("hasura", profile="api")
     postgres = _service("postgres", default=True)
 
-    class FakeDiscovery:
+    class ProfileFakeDiscovery(FakeDiscovery):
         def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
             all_services = [prometheus, grafana, loki, hasura, postgres]
             return [s for s in all_services if s.profile == profile]
 
     monkeypatch.setattr(
         "phlo.plugins.discovery.ServiceDiscovery",
-        FakeDiscovery,
+        ProfileFakeDiscovery,
     )
 
     result = get_profile_service_names(("observability",))
@@ -71,7 +54,7 @@ def test_run_service_hooks_uses_sys_executable_when_project_venv_missing(
         hooks={"post_start": [{"command": ["python3", "-m", "phlo_dbt.hooks", "compile"]}]},
     )
 
-    class FakeDiscovery:
+    class ServiceFakeDiscovery(FakeDiscovery):
         def get_service(self, name: str):
             return service if name == "dagster" else None
 
@@ -81,7 +64,7 @@ def test_run_service_hooks_uses_sys_executable_when_project_venv_missing(
         calls.append(list(cmd))
         return CompletedProcess(cmd, 0, "", "")
 
-    monkeypatch.setattr("phlo.plugins.discovery.ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr("phlo.plugins.discovery.ServiceDiscovery", ServiceFakeDiscovery)
     monkeypatch.setattr(services_utils, "run_command", _fake_run_command)
     monkeypatch.setattr(services_utils.sys, "executable", "/usr/local/bin/current-python")
 
@@ -108,7 +91,7 @@ def test_run_service_hooks_prefers_project_venv_python(
         hooks={"post_start": [{"command": ["python", "-m", "phlo_dbt.hooks", "compile"]}]},
     )
 
-    class FakeDiscovery:
+    class ServiceFakeDiscovery(FakeDiscovery):
         def get_service(self, name: str):
             return service if name == "dagster" else None
 
@@ -123,7 +106,7 @@ def test_run_service_hooks_prefers_project_venv_python(
     venv_python.write_text("#!/usr/bin/env python3\n")
     venv_python.chmod(0o755)
 
-    monkeypatch.setattr("phlo.plugins.discovery.ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr("phlo.plugins.discovery.ServiceDiscovery", ServiceFakeDiscovery)
     monkeypatch.setattr(services_utils, "run_command", _fake_run_command)
 
     services_utils._run_service_hooks(
@@ -144,7 +127,7 @@ def test_services_start_rejects_unknown_profile(monkeypatch: pytest.MonkeyPatch,
     phlo_dir.mkdir()
     (phlo_dir / "docker-compose.yml").write_text("services:\n  postgres: {}\n")
 
-    class FakeDiscovery:
+    class ProfilesFakeDiscovery(FakeDiscovery):
         def get_available_profiles(self) -> set[str]:
             return {"api", "observability"}
 
@@ -152,7 +135,7 @@ def test_services_start_rejects_unknown_profile(monkeypatch: pytest.MonkeyPatch,
         raise AssertionError("Docker command path should not execute for invalid profiles")
 
     monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
-    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", ProfilesFakeDiscovery)
     monkeypatch.setattr(start_module, "run_command", _unexpected_call)
     monkeypatch.setattr(start_module, "require_docker", _unexpected_call)
 
@@ -174,7 +157,7 @@ def test_services_start_uses_profile_targets_without_default_fallback(
         "services:\n  postgres: {}\n  prometheus: {}\n",
     )
 
-    class FakeDiscovery:
+    class ProfileTargetFakeDiscovery(FakeDiscovery):
         def get_available_profiles(self) -> set[str]:
             return {"observability"}
 
@@ -198,7 +181,7 @@ def test_services_start_uses_profile_targets_without_default_fallback(
         return CompletedProcess(args=cmd, returncode=0)
 
     monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
-    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", ProfileTargetFakeDiscovery)
     monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
     monkeypatch.setattr(start_module, "get_profile_service_names", _fake_get_profile_service_names)
     monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
@@ -233,7 +216,7 @@ def test_services_start_includes_setup_companions_for_explicit_targets(
     rustfs = _service("rustfs", depends_on=["rustfs-volume-setup"])
     rustfs_setup = _service("rustfs-setup", depends_on=["rustfs"])
 
-    class FakeDiscovery:
+    class SetupCompanionFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return {
                 rustfs_volume_setup.name: rustfs_volume_setup,
@@ -258,7 +241,7 @@ def test_services_start_includes_setup_companions_for_explicit_targets(
         return CompletedProcess(args=cmd, returncode=0)
 
     monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
-    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", SetupCompanionFakeDiscovery)
     monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
     monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
     monkeypatch.setattr(start_module, "run_command", _fake_run_command)
@@ -284,7 +267,7 @@ def test_services_start_rejects_unknown_explicit_targets(
     phlo_dir.mkdir()
     (phlo_dir / "docker-compose.yml").write_text("services:\n  rustfs: {}\n")
 
-    class FakeDiscovery:
+    class RustfsFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return {"rustfs": _service("rustfs")}
 
@@ -292,7 +275,7 @@ def test_services_start_rejects_unknown_explicit_targets(
             return set()
 
     monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
-    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", RustfsFakeDiscovery)
     monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
 
     result = CliRunner().invoke(start_module.start_cmd, ["--service", "rustfs,typo"])
@@ -320,7 +303,7 @@ def test_services_start_requires_full_dependency_match_for_setup_companions(
         depends_on=["openmetadata-mysql", "openmetadata-elasticsearch"],
     )
 
-    class FakeDiscovery:
+    class OpenMetadataFakeDiscovery(FakeDiscovery):
         def discover(self) -> dict[str, ServiceDefinition]:
             return {
                 mysql.name: mysql,
@@ -345,7 +328,7 @@ def test_services_start_requires_full_dependency_match_for_setup_companions(
         return CompletedProcess(args=cmd, returncode=0)
 
     monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
-    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", OpenMetadataFakeDiscovery)
     monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
     monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
     monkeypatch.setattr(start_module, "run_command", _fake_run_command)

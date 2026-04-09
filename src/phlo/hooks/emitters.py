@@ -46,6 +46,27 @@ class _ContextEmitterBase:
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 
+    def _emit_event(
+        self,
+        event: IngestionEvent
+        | TransformEvent
+        | PublishEvent
+        | QualityResultEvent
+        | LineageEvent
+        | TelemetryEvent
+        | ServiceLifecycleEvent
+        | SchemaMigrationEvent
+        | DataMigrationEvent,
+        *,
+        correlation_overrides: dict[str, Any] | None = None,
+    ) -> None:
+        """Emit a hook event with merged correlation."""
+        event.correlation = _merge_correlation(
+            base=self._context.correlation,
+            overrides=correlation_overrides,
+        )
+        self._hook_bus.emit(event)
+
 
 @dataclass(frozen=True)
 class IngestionEventContext:
@@ -95,7 +116,7 @@ class IngestionEventEmitter(_ContextEmitterBase):
             error: Optional error message.
 
         """
-        self._hook_bus.emit(
+        self._emit_event(
             IngestionEvent(
                 event_type=event_type,
                 asset_key=self._context.asset_key,
@@ -108,15 +129,12 @@ class IngestionEventEmitter(_ContextEmitterBase):
                 metrics=metrics or {},
                 error=error,
                 tags=self._context.tags.copy(),
-                correlation=_merge_correlation(
-                    base=self._context.correlation,
-                    overrides={
-                        "run_id": self._context.run_id,
-                        "asset_key": self._context.asset_key,
-                        "partition_key": self._context.partition_key,
-                    },
-                ),
-            )
+            ),
+            correlation_overrides={
+                "run_id": self._context.run_id,
+                "asset_key": self._context.asset_key,
+                "partition_key": self._context.partition_key,
+            },
         )
 
 
@@ -169,7 +187,7 @@ class TransformEventEmitter(_ContextEmitterBase):
             error: Optional error message.
 
         """
-        self._hook_bus.emit(
+        self._emit_event(
             TransformEvent(
                 event_type=event_type,
                 tool=self._context.tool,
@@ -182,15 +200,12 @@ class TransformEventEmitter(_ContextEmitterBase):
                 metrics=metrics or {},
                 error=error,
                 tags=self._context.tags.copy(),
-                correlation=_merge_correlation(
-                    base=self._context.correlation,
-                    overrides={
-                        "run_id": self._context.run_id,
-                        "asset_key": self._context.asset_key,
-                        "partition_key": self._context.partition_key,
-                    },
-                ),
-            )
+            ),
+            correlation_overrides={
+                "run_id": self._context.run_id,
+                "asset_key": self._context.asset_key,
+                "partition_key": self._context.partition_key,
+            },
         )
 
 
@@ -241,7 +256,7 @@ class PublishEventEmitter(_ContextEmitterBase):
             error: Optional error message.
 
         """
-        self._hook_bus.emit(
+        self._emit_event(
             PublishEvent(
                 event_type=event_type,
                 asset_key=self._context.asset_key,
@@ -251,15 +266,12 @@ class PublishEventEmitter(_ContextEmitterBase):
                 metrics=metrics or {},
                 error=error,
                 tags=self._context.tags.copy(),
-                correlation=_merge_correlation(
-                    base=self._context.correlation,
-                    overrides={
-                        "run_id": self._context.run_id,
-                        "asset_key": self._context.asset_key,
-                        "partition_key": self._context.partition_key,
-                    },
-                ),
-            )
+            ),
+            correlation_overrides={
+                "run_id": self._context.run_id,
+                "asset_key": self._context.asset_key,
+                "partition_key": self._context.partition_key,
+            },
         )
 
 
@@ -287,7 +299,7 @@ class QualityResultEventEmitter(_ContextEmitterBase):
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Emit a quality result event."""
-        self._hook_bus.emit(
+        self._emit_event(
             QualityResultEvent(
                 event_type="quality.result",
                 asset_key=self._context.asset_key,
@@ -298,16 +310,13 @@ class QualityResultEventEmitter(_ContextEmitterBase):
                 partition_key=self._context.partition_key,
                 metadata=metadata or {},
                 tags=self._context.tags.copy(),
-                correlation=_merge_correlation(
-                    base=self._context.correlation,
-                    overrides={
-                        "run_id": self._context.run_id,
-                        "asset_key": self._context.asset_key,
-                        "partition_key": self._context.partition_key,
-                        "check_name": check_name,
-                    },
-                ),
-            )
+            ),
+            correlation_overrides={
+                "run_id": self._context.run_id,
+                "asset_key": self._context.asset_key,
+                "partition_key": self._context.partition_key,
+                "check_name": check_name,
+            },
         )
 
 
@@ -330,15 +339,14 @@ class LineageEventEmitter(_ContextEmitterBase):
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Emit a lineage edges event."""
-        self._hook_bus.emit(
+        self._emit_event(
             LineageEvent(
                 event_type="lineage.edges",
                 edges=list(edges),
                 asset_keys=list(asset_keys) if asset_keys else [],
                 metadata=metadata or {},
                 tags=self._context.tags.copy(),
-                correlation=_merge_correlation(base=self._context.correlation),
-            )
+            ),
         )
 
 
@@ -411,7 +419,7 @@ class TelemetryEventEmitter(_ContextEmitterBase):
             payload: Optional event payload.
 
         """
-        self._hook_bus.emit(
+        self._emit_event(
             TelemetryEvent(
                 event_type=event_type,
                 name=name,
@@ -420,8 +428,7 @@ class TelemetryEventEmitter(_ContextEmitterBase):
                 unit=unit,
                 payload=payload or {},
                 tags=self._context.tags.copy(),
-                correlation=_merge_correlation(base=self._context.correlation),
-            )
+            ),
         )
 
 
@@ -451,7 +458,7 @@ class ServiceLifecycleEventEmitter(_ContextEmitterBase):
         tags = self._context.tags.copy()
         tags["service"] = self._context.service_name
         tags["phase"] = phase
-        self._hook_bus.emit(
+        self._emit_event(
             ServiceLifecycleEvent(
                 event_type=f"service.{phase}",
                 service_name=self._context.service_name,
@@ -462,8 +469,7 @@ class ServiceLifecycleEventEmitter(_ContextEmitterBase):
                 status=status,
                 metadata=metadata or {},
                 tags=tags,
-                correlation=_merge_correlation(base=self._context.correlation),
-            )
+            ),
         )
 
 
@@ -496,7 +502,7 @@ class SchemaMigrationEventEmitter(_ContextEmitterBase):
             changes: Optional list of change detail dicts.
 
         """
-        self._hook_bus.emit(
+        self._emit_event(
             SchemaMigrationEvent(
                 event_type=f"schema_migration.{status}",
                 table_name=self._context.table_name,
@@ -505,8 +511,7 @@ class SchemaMigrationEventEmitter(_ContextEmitterBase):
                 status=status,
                 changes=changes or [],
                 tags=self._context.tags.copy(),
-                correlation=_merge_correlation(base=self._context.correlation),
-            )
+            ),
         )
 
 
@@ -538,7 +543,7 @@ class DataMigrationEventEmitter(_ContextEmitterBase):
         tags = self._context.tags.copy()
         tags["source_type"] = self._context.source_type
         tags["destination_table"] = self._context.destination_table
-        self._hook_bus.emit(
+        self._emit_event(
             DataMigrationEvent(
                 event_type=f"data_migration.{status}",
                 migration_name=self._context.migration_name,
@@ -550,9 +555,6 @@ class DataMigrationEventEmitter(_ContextEmitterBase):
                 chunk_index=chunk_index,
                 metrics=metrics or {},
                 tags=tags,
-                correlation=_merge_correlation(
-                    base=self._context.correlation,
-                    overrides={"run_id": self._context.run_id},
-                ),
-            )
+            ),
+            correlation_overrides={"run_id": self._context.run_id},
         )

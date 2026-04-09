@@ -11,22 +11,7 @@ from phlo.cli.commands.services.utils import detect_phlo_source_path
 from phlo.cli.infrastructure.selection import select_services_to_install
 from phlo.plugins.compose.generator import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
-
-
-def _service(
-    name: str,
-    *,
-    default: bool = False,
-    profile: str | None = None,
-    category: str = "core",
-) -> ServiceDefinition:
-    return ServiceDefinition(
-        name=name,
-        description=f"{name} service",
-        category=category,
-        default=default,
-        profile=profile,
-    )
+from tests.helpers import FakeDiscovery, _service
 
 
 def test_select_services_to_install_respects_enabled_disabled_and_profiles() -> None:
@@ -89,14 +74,11 @@ def test_detect_phlo_source_path_accepts_repo_root_in_env_var(
 
 
 def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
-    class FakeDiscovery:
+    class MinimalFakeDiscovery(FakeDiscovery):
         def resolve_dependencies(
             self, services: list[ServiceDefinition]
         ) -> list[ServiceDefinition]:
             return services
-
-        def get_service(self, _name: str) -> None:
-            return None
 
     service = ServiceDefinition(
         name="dagster",
@@ -107,7 +89,7 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
         compose={},
     )
 
-    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    generator = ComposeGenerator(cast(ServiceDiscovery, MinimalFakeDiscovery()))
     compose = generator.generate_compose(
         services=[service],
         output_dir=tmp_path,
@@ -120,14 +102,11 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
 
 
 def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
-    class FakeDiscovery:
+    class MinimalFakeDiscovery(FakeDiscovery):
         def resolve_dependencies(
             self, services: list[ServiceDefinition]
         ) -> list[ServiceDefinition]:
             return services
-
-        def get_service(self, _name: str) -> None:
-            return None
 
     service = ServiceDefinition(
         name="trino",
@@ -141,7 +120,7 @@ def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
         },
     )
 
-    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    generator = ComposeGenerator(cast(ServiceDiscovery, MinimalFakeDiscovery()))
     compose_yaml = generator.generate_compose(
         services=[service],
         output_dir=tmp_path,
@@ -155,14 +134,11 @@ def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
 
 
 def test_compose_generator_resolves_source_path_dev_volumes(tmp_path) -> None:
-    class FakeDiscovery:
+    class MinimalFakeDiscovery(FakeDiscovery):
         def resolve_dependencies(
             self, services: list[ServiceDefinition]
         ) -> list[ServiceDefinition]:
             return services
-
-        def get_service(self, _name: str) -> None:
-            return None
 
     service_source = tmp_path / "packages" / "phlo-observatory"
     service_source.mkdir(parents=True)
@@ -175,7 +151,7 @@ def test_compose_generator_resolves_source_path_dev_volumes(tmp_path) -> None:
         dev={"volumes": ["{source_path}:/app", "/app/node_modules"]},
     )
 
-    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    generator = ComposeGenerator(cast(ServiceDiscovery, MinimalFakeDiscovery()))
     compose_yaml = generator.generate_compose(
         services=[service],
         output_dir=tmp_path / ".phlo",
@@ -192,28 +168,12 @@ def test_compose_generator_resolves_source_path_dev_volumes(tmp_path) -> None:
 def test_services_init_excludes_profile_services_by_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
-    class FakeDiscovery:
-        def discover(self) -> dict[str, ServiceDefinition]:
-            return {
-                "postgres": _service("postgres", default=True),
-                "prometheus": _service("prometheus", profile="observability"),
-            }
-
-        def resolve_dependencies(
-            self, services: list[ServiceDefinition]
-        ) -> list[ServiceDefinition]:
-            return services
-
-        def get_default_services(self, disabled_services=None) -> list[ServiceDefinition]:
-            return [_service("postgres", default=True)]
-
-        def get_available_profiles(self) -> set[str]:
-            return {"observability"}
-
-        def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
-            if profile == "observability":
-                return [_service("prometheus", profile="observability")]
-            return []
+    postgres = _service("postgres", default=True)
+    prometheus = _service("prometheus", profile="observability")
+    fake_discovery = FakeDiscovery(
+        {postgres.name: postgres, prometheus.name: prometheus},
+        default_names=(postgres.name,),
+    )
 
     class FakeComposer:
         def __init__(self, _discovery):
@@ -238,7 +198,7 @@ def test_services_init_excludes_profile_services_by_default(
     monkeypatch.chdir(tmp_path)
     from phlo.cli.commands.services import init as init_module
 
-    monkeypatch.setattr(init_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
     result = CliRunner().invoke(init_module.init_cmd, [])
@@ -251,28 +211,12 @@ def test_services_init_excludes_profile_services_by_default(
 def test_services_init_includes_requested_profile_services(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
-    class FakeDiscovery:
-        def discover(self) -> dict[str, ServiceDefinition]:
-            return {
-                "postgres": _service("postgres", default=True),
-                "prometheus": _service("prometheus", profile="observability"),
-            }
-
-        def resolve_dependencies(
-            self, services: list[ServiceDefinition]
-        ) -> list[ServiceDefinition]:
-            return services
-
-        def get_default_services(self, disabled_services=None) -> list[ServiceDefinition]:
-            return [_service("postgres", default=True)]
-
-        def get_available_profiles(self) -> set[str]:
-            return {"observability"}
-
-        def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
-            if profile == "observability":
-                return [_service("prometheus", profile="observability")]
-            return []
+    postgres = _service("postgres", default=True)
+    prometheus = _service("prometheus", profile="observability")
+    fake_discovery = FakeDiscovery(
+        {postgres.name: postgres, prometheus.name: prometheus},
+        default_names=(postgres.name,),
+    )
 
     class FakeComposer:
         def __init__(self, _discovery):
@@ -297,7 +241,7 @@ def test_services_init_includes_requested_profile_services(
     monkeypatch.chdir(tmp_path)
     from phlo.cli.commands.services import init as init_module
 
-    monkeypatch.setattr(init_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
 
     result = CliRunner().invoke(init_module.init_cmd, ["--profile", "observability"])
