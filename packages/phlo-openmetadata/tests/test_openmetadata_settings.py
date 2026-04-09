@@ -5,6 +5,14 @@ from unittest.mock import Mock, patch
 from phlo_openmetadata.settings import OpenMetadataSettings
 
 
+def test_openmetadata_settings_defaults() -> None:
+    """Settings keep local-development credentials by default."""
+    settings = OpenMetadataSettings()
+
+    assert settings.openmetadata_username == "admin"
+    assert settings.openmetadata_password == "admin"
+
+
 def test_openmetadata_database_prefers_explicit_name():
     """Explicit configured database name wins over capability resolution."""
     settings = OpenMetadataSettings(openmetadata_database_name="warehouse")
