@@ -177,7 +177,10 @@ class RestAPIPlugin(SourceConnectorPlugin):
         timeout = config.get("timeout", 30)
         records_path = config.get("records_path")
 
-        response = requests.get(url, headers=headers, params=params, timeout=timeout)
+        verify_tls = config.get("verify_tls", True)
+        response = requests.get(
+            url, headers=headers, params=params, timeout=timeout, verify=verify_tls
+        )
         response.raise_for_status()
 
         payload = response.json()

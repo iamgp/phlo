@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from phlo.cli.infrastructure import utils as infra_utils
+from phlo.infrastructure import containers as infra_containers
 
 
 def test_parse_env_file_ignores_comments_and_optionally_strips_quotes(tmp_path: Path) -> None:
@@ -62,13 +63,13 @@ def test_resolve_container_name_uses_override_then_pattern(monkeypatch: pytest.M
             return self._configured
 
     monkeypatch.setattr(
-        "phlo.infrastructure.load_infrastructure_config",
+        "phlo.infrastructure.containers.load_infrastructure_config",
         lambda: _Infra("custom-container"),
     )
-    assert infra_utils._resolve_container_name("dagster", "demo") == "custom-container"
+    assert infra_containers.resolve_container_name("dagster", "demo") == "custom-container"
 
     monkeypatch.setattr(
-        "phlo.infrastructure.load_infrastructure_config",
+        "phlo.infrastructure.containers.load_infrastructure_config",
         lambda: _Infra(None),
     )
-    assert infra_utils._resolve_container_name("dagster", "demo") == "demo_dagster"
+    assert infra_containers.resolve_container_name("dagster", "demo") == "demo_dagster"

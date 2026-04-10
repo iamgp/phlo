@@ -277,6 +277,10 @@ class ProxyAuthenticationProvider:
     def _verify_proxy_signature(self, request_context: RequestContext) -> bool:
         """Verify that the request was signed by a trusted proxy with the shared secret."""
         if self._shared_secret is None:
+            logger.warning(
+                "proxy_signature_verification_disabled",
+                hint="Set shared_secret on ProxyAuthenticationProvider to enable HMAC verification",
+            )
             return True
         signature = request_context.headers.get(self._signature_header)
         timestamp_str = request_context.headers.get(self._timestamp_header)

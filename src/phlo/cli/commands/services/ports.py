@@ -411,8 +411,9 @@ def _detect_conflicts(port_mappings: list[PortMapping]) -> list[tuple[str, str, 
     conflicts = []
     for port, services in host_port_to_services.items():
         if len(services) > 1:
-            for i in range(len(services) - 1):
-                conflicts.append((services[i], services[i + 1], port))
+            for i in range(len(services)):
+                for j in range(i + 1, len(services)):
+                    conflicts.append((services[i], services[j], port))
     return conflicts
 
 
