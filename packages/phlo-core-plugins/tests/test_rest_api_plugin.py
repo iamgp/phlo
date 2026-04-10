@@ -29,7 +29,7 @@ def test_rest_api_plugin_fetches_records(monkeypatch):
     plugin = RestAPIPlugin()
     payload = [{"id": 1}, {"id": 2}]
 
-    def dummy_get(url, headers=None, params=None, timeout=30):
+    def dummy_get(url, headers=None, params=None, timeout=30, **kwargs):
         """Return a dummy response for the request call."""
         return DummyResponse(payload)
 
@@ -44,7 +44,7 @@ def test_rest_api_plugin_records_path(monkeypatch):
     plugin = RestAPIPlugin()
     payload = {"data": {"items": [{"id": 3}]}}
 
-    def dummy_get(url, headers=None, params=None, timeout=30):
+    def dummy_get(url, headers=None, params=None, timeout=30, **kwargs):
         """Return a dummy response for the request call."""
         return DummyResponse(payload)
 
