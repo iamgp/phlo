@@ -625,7 +625,7 @@ def _coerce_log_level(level: str) -> int:
         int: Numeric logging level.
 
     """
-    return logging._nameToLevel.get(level.upper(), logging.INFO)
+    return logging.getLevelNamesMapping().get(level.upper(), logging.INFO)
 
 
 def _mark_phlo_handler(handler: logging.Handler) -> None:

@@ -13,7 +13,7 @@ from uuid import uuid4
 import click
 
 from phlo.cli.infrastructure.command import run_command
-from phlo.cli.infrastructure.utils import _resolve_container_name
+from phlo.infrastructure.containers import resolve_container_name as _resolve_container_name
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 from phlo.utils import dedupe_preserve_order
