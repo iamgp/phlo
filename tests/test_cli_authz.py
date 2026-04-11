@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+import yaml
 from click.testing import CliRunner
 
 from phlo.cli.commands import authz as authz_mod
@@ -106,6 +107,41 @@ def test_validate_fails(runner, monkeypatch, tmp_path):
     assert result.exit_code == 1
     assert "Validation failed" in result.output
     assert "error1" in result.output
+
+
+def test_validate_rejects_deny_rules(runner, tmp_path):
+    auth_dir = tmp_path / "authorization"
+    auth_dir.mkdir()
+    (auth_dir / "roles.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "version": 1,
+                "roles": {"admin": {"inherits": []}},
+            }
+        )
+    )
+    (auth_dir / "policies.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "version": 1,
+                "policies": [
+                    {
+                        "policy_id": "deny_admin_read",
+                        "effect": "deny",
+                        "principal": {"roles": ["admin"]},
+                        "action": "dataset.read",
+                        "resource": {"type": "dataset", "id_pattern": "analytics.*"},
+                    }
+                ],
+            }
+        )
+    )
+
+    result = runner.invoke(authz_group, ["validate", "--path", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "Validation failed" in result.output
+    assert "does not support 'deny' policies yet" in result.output
 
 
 # -- plan ---------------------------------------------------------------------
