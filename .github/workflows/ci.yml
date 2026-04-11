@@ -207,6 +207,72 @@ jobs:
             exit 1
           fi
 
+  quickstart-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run quickstart smoke test
+        id: quickstart_smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cairn-artifacts
+          junit_path="cairn-artifacts/quickstart-smoke.xml"
+          smoke_artifacts="$PWD/cairn-artifacts/quickstart-smoke"
+
+          set +e
+          PHLO_QUICKSTART_SMOKE_ARTIFACT_DIR="${smoke_artifacts}" \
+            uv run pytest tests/test_quickstart_smoke.py --tb=short --junitxml "${junit_path}"
+          smoke_exit=$?
+          set -e
+
+          if [ ! -f "${junit_path}" ]; then
+            printf '%s\n' \
+              '<testsuite name="quickstart-smoke" tests="0" failures="0" errors="1" skipped="0">' \
+              '  <testcase classname="cairn" name="quickstart-smoke-missing-output">' \
+              '    <error message="quickstart smoke did not produce junit xml output"/>' \
+              '  </testcase>' \
+              '</testsuite>' > "${junit_path}"
+          fi
+
+          echo "smoke_exit=${smoke_exit}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload quickstart smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: cairn-quickstart-smoke
+          path: cairn-artifacts/
+          if-no-files-found: warn
+
+      - name: Fail quickstart smoke job on test failure
+        if: always()
+        env:
+          SMOKE_EXIT: ${{ steps.quickstart_smoke.outputs.smoke_exit || '0' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          smoke_exit="${SMOKE_EXIT}"
+          if [ "${smoke_exit}" -ne 0 ]; then
+            echo "Quickstart smoke test failed with exit ${smoke_exit}" >&2
+            exit 1
+          fi
+
   test-packages:
     runs-on: ubuntu-latest
     strategy:
@@ -424,6 +490,7 @@ jobs:
     needs:
       - lint
       - test-core
+      - quickstart-smoke
     permissions:
       contents: write
       pull-requests: write

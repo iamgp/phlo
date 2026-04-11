@@ -1,6 +1,7 @@
 """Tests for service discovery with plugin services."""
 
 from pathlib import Path
+from typing import Any, TypedDict, cast
 
 import pytest
 
@@ -9,6 +10,14 @@ from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery, get_glob
 from phlo.plugins.discovery._service_discovery import ServiceDiscovery as CompatServiceDiscovery
 
 pytestmark = pytest.mark.core_regression
+
+
+class DiscoverySignal(TypedDict):
+    """Captured service discovery observability event."""
+
+    level: str
+    event: str
+    fields: dict[str, object]
 
 
 def test_compat_service_discovery_is_canonical_class() -> None:
@@ -54,6 +63,18 @@ class DummyServicePlugin(ServicePlugin):
         }
 
 
+class NonMappingServicePlugin(ServicePlugin):
+    """Provide an invalid non-mapping service definition for regression tests."""
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(name="bad_service", version="1.0.0")
+
+    @property
+    def service_definition(self) -> dict[str, Any]:
+        return cast(dict[str, Any], ["not", "a", "mapping"])
+
+
 @pytest.fixture
 def clean_registry():
     """Clear the global registry before and after each test."""
@@ -64,9 +85,9 @@ def clean_registry():
 
 
 @pytest.fixture
-def service_discovery_signals(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
+def service_discovery_signals(monkeypatch: pytest.MonkeyPatch) -> list[DiscoverySignal]:
     """Capture service discovery observability events emitted via log_event."""
-    signals: list[dict[str, object]] = []
+    signals: list[DiscoverySignal] = []
 
     def _capture_signal(
         _logger: object,
@@ -99,6 +120,65 @@ def test_service_discovery_includes_plugins(
 
     assert "dummy_service" in services
     assert services["dummy_service"].category == "core"
+
+
+def test_service_discovery_skips_non_mapping_plugin_service_definitions(
+    clean_registry: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    service_discovery_signals: list[DiscoverySignal],
+) -> None:
+    """A plugin returning non-mapping service data is skipped without aborting discovery."""
+    registry = get_global_registry()
+    registry.register_service(DummyServicePlugin(), replace=True)
+    registry.register_service(NonMappingServicePlugin(), replace=True)
+    monkeypatch.setattr(
+        "phlo.plugins.discovery._service_loading.discover_plugins",
+        lambda plugin_type, auto_register: None,
+    )
+
+    services = ServiceDiscovery(services_dir=tmp_path).discover()
+
+    assert set(services) == {"dummy_service"}
+    assert any(
+        signal["event"] == "service_discovery_plugin_load_failed"
+        and signal["fields"]["plugin_name"] == "bad_service"
+        and signal["fields"]["error_type"] == "ValueError"
+        for signal in service_discovery_signals
+    )
+
+
+def test_service_loading_helper_skips_non_mapping_plugin_service_definitions(
+    clean_registry: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Compatibility helper also skips invalid plugin service payloads locally."""
+    from phlo.plugins.discovery import _service_loading
+
+    registry = get_global_registry()
+    registry.register_service(DummyServicePlugin(), replace=True)
+    registry.register_service(NonMappingServicePlugin(), replace=True)
+    warnings: list[tuple[str, tuple[object, ...]]] = []
+    services: dict[str, ServiceDefinition] = {}
+    monkeypatch.setattr(
+        _service_loading, "discover_plugins", lambda plugin_type, auto_register: None
+    )
+    monkeypatch.setattr(_service_loading, "resolve_plugin_source_path", lambda _plugin: None)
+    monkeypatch.setattr(
+        _service_loading.logger,
+        "warning",
+        lambda message, *args: warnings.append((message, args)),
+    )
+
+    loaded_count = _service_loading.load_plugin_services(services)
+
+    assert loaded_count == 1
+    assert set(services) == {"dummy_service"}
+    assert len(warnings) == 1
+    message, args = warnings[0]
+    assert message == "Service plugin %s has invalid service definition: %s"
+    assert args[0] == "bad_service"
+    assert isinstance(args[1], ValueError)
 
 
 def test_service_discovery_refresh_reloads_stale_cache(
@@ -205,7 +285,7 @@ def test_service_discovery_emits_cache_refresh_observability_signals(
     clean_registry: object,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    service_discovery_signals: list[dict[str, object]],
+    service_discovery_signals: list[DiscoverySignal],
 ) -> None:
     """Cache and refresh flows emit structured, queryable discovery signals."""
     monkeypatch.setattr(
@@ -298,7 +378,7 @@ def test_service_discovery_service_yaml_patterns() -> None:
 
 def test_service_discovery_loads_companion_service_files(
     tmp_path: Path,
-    service_discovery_signals: list[dict[str, object]],
+    service_discovery_signals: list[DiscoverySignal],
 ) -> None:
     """Companion setup and daemon YAMLs are loaded from plugin package directories."""
     source_path = tmp_path / "plugin"
@@ -336,9 +416,40 @@ def test_service_discovery_loads_companion_service_files(
     )
 
 
+def test_service_discovery_skips_non_mapping_directory_service_files(
+    clean_registry: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Non-mapping service YAML is skipped without aborting directory discovery."""
+    warnings: list[tuple[str, tuple[object, ...]]] = []
+    monkeypatch.setattr(
+        "phlo.plugins.discovery._service_loading.discover_plugins",
+        lambda plugin_type, auto_register: None,
+    )
+    monkeypatch.setattr(
+        "phlo.plugins.discovery._service_loading.logger.warning",
+        lambda message, *args: warnings.append((message, args)),
+    )
+    _write_service_yaml(tmp_path, "valid", "valid")
+    broken = tmp_path / "broken" / "service.yaml"
+    broken.parent.mkdir()
+    broken.write_text("- not\n- a\n- mapping\n", encoding="utf-8")
+
+    services = ServiceDiscovery(services_dir=tmp_path).discover()
+
+    assert set(services) == {"valid"}
+    assert len(warnings) == 1
+    message, args = warnings[0]
+    assert message == "Failed to load %s: %s"
+    assert args[0] == broken
+    assert isinstance(args[1], ValueError)
+    assert "Service definition must be a mapping" in str(args[1])
+
+
 def test_service_discovery_skips_malformed_companion_service_files(
     tmp_path: Path,
-    service_discovery_signals: list[dict[str, object]],
+    service_discovery_signals: list[DiscoverySignal],
 ) -> None:
     """Malformed companion YAML is logged and skipped without aborting discovery."""
     source_path = tmp_path / "plugin"

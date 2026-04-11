@@ -160,7 +160,7 @@ class ServiceDiscovery:
                 self._services[service.name] = service
                 loaded_count += 1
                 loaded_count += self._load_companion_service_files(source_path)
-            except KeyError as exc:
+            except (KeyError, ValueError) as exc:
                 _emit_service_discovery_signal(
                     event_name="service_discovery_plugin_load_failed",
                     level="warning",
