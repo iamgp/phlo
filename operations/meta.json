@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "operations-guide",
+    "audit-logging",
     "production-readiness",
     "local-development-troubleshooting",
     "best-practices",
