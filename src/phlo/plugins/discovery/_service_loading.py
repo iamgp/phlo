@@ -47,8 +47,8 @@ def load_plugin_services(services: dict[str, ServiceDefinition]) -> int:
             services[service.name] = service
             loaded_count += 1
             loaded_count += load_companion_service_files(source_path, services)
-        except KeyError as exc:
-            logger.warning("Service plugin %s missing field: %s", name, exc)
+        except (KeyError, ValueError) as exc:
+            logger.warning("Service plugin %s has invalid service definition: %s", name, exc)
     return loaded_count
 
 
@@ -72,7 +72,7 @@ def load_services_from_directory(
                 continue
             services[service.name] = service
             loaded_count += 1
-        except (yaml.YAMLError, KeyError) as exc:
+        except (yaml.YAMLError, KeyError, ValueError) as exc:
             logger.warning("Failed to load %s: %s", yaml_path, exc)
     return loaded_count
 
@@ -98,7 +98,7 @@ def load_companion_service_files(
                 continue
             services[service.name] = service
             loaded_count += 1
-        except (yaml.YAMLError, KeyError) as exc:
+        except (yaml.YAMLError, KeyError, ValueError) as exc:
             logger.warning("Failed to load companion service %s: %s", yaml_path, exc)
     return loaded_count
 

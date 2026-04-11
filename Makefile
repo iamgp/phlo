@@ -48,6 +48,7 @@ CHECK_CMD := scripts/run-parallel \
 	"ts typecheck" "$(NPM_OBSERVATORY) exec tsc -- -p $(OBSERVATORY_DIR)/tsconfig.json --noEmit"
 CORE_REGRESSION_TEST_PATHS ?= tests
 CORE_REGRESSION_PYTEST_ARGS ?= --tb=short
+QUICKSTART_SMOKE_PYTEST_ARGS ?= --tb=short
 
 # Docker Compose profiles
 PROFILE_CORE ?= postgres minio minio-setup dagster-webserver dagster-daemon hub
@@ -66,7 +67,7 @@ PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(
 	dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
 	health-observability health-api health-catalog \
 	check lint lint-sql lint-python format-python typecheck-python \
-	lint-ts format-ts typecheck-ts test-core-regression fix-sql \
+	lint-ts format-ts typecheck-ts test-core-regression test-quickstart-smoke fix-sql \
 	prek-install prek-run prek-validate zizmor docs-install docs-dev docs-build docs-serve
 
 up:
@@ -128,6 +129,9 @@ test:
 
 test-core-regression:
 	uv run pytest $(CORE_REGRESSION_TEST_PATHS) -m core_regression $(CORE_REGRESSION_PYTEST_ARGS)
+
+test-quickstart-smoke:
+	uv run pytest tests/test_quickstart_smoke.py $(QUICKSTART_SMOKE_PYTEST_ARGS)
 
 dagster:
 	@open http://localhost:$${DAGSTER_PORT:-10006}

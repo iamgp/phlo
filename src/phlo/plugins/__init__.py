@@ -175,6 +175,7 @@ if TYPE_CHECKING:
     from phlo.plugins.discovery import (
         PluginRegistry,
         discover_plugins,
+        get_hook_plugin,
         get_ingestion_provider,
         get_plugin,
         get_plugin_info,
@@ -188,23 +189,9 @@ if TYPE_CHECKING:
     )
 
 
-# Import discovery functions lazily to avoid circular imports
-# These will be imported from phlo.plugins.discovery when accessed
-def __getattr__(name):
-    """Lazily expose discovery symbols to avoid import cycles.
-
-    Args:
-        name: Attribute name requested from this module.
-
-    Returns:
-        Resolved symbol from `phlo.plugins.discovery`.
-
-    Raises:
-        AttributeError: If the attribute is not a supported lazy export.
-    """
-    if name == "discovery":
-        return importlib.import_module("phlo.plugins.discovery")
-    if name in [
+# Import discovery functions lazily to avoid circular imports.
+_LAZY_DISCOVERY_EXPORTS = frozenset(
+    {
         "discover_plugins",
         "get_plugin",
         "get_plugin_info",
@@ -219,10 +206,27 @@ def __getattr__(name):
         "list_plugins",
         "validate_plugins",
         "PluginRegistry",
-    ]:
-        import phlo.plugins.discovery
+    }
+)
 
-        return getattr(phlo.plugins.discovery, name)
+
+def __getattr__(name):
+    """Lazily expose discovery symbols to avoid import cycles.
+
+    Args:
+        name: Attribute name requested from this module.
+
+    Returns:
+        Resolved symbol from `phlo.plugins.discovery`.
+
+    Raises:
+        AttributeError: If the attribute is not a supported lazy export.
+    """
+    if name == "discovery":
+        return importlib.import_module("phlo.plugins.discovery")
+    if name in _LAZY_DISCOVERY_EXPORTS:
+        discovery_module = importlib.import_module("phlo.plugins.discovery")
+        return getattr(discovery_module, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -274,6 +278,7 @@ __all__ = [
     "get_transformation",
     "get_transformation_provider",
     "get_service",
+    "get_hook_plugin",
     "validate_plugins",
     # Registry
     "PluginRegistry",

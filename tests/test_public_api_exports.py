@@ -6,6 +6,7 @@ import importlib
 import sys
 import types
 from builtins import __import__ as builtin_import
+from typing import Any, cast
 
 import pytest
 
@@ -49,7 +50,7 @@ def test_quality_module_populates_exports_on_discovered_provider(
     def _dbt_check_name(test_type: str, target: str) -> str:
         return f"{test_type}_{target}"
 
-    provider_package = types.ModuleType(provider_package_name)
+    provider_package = cast(Any, types.ModuleType(provider_package_name))
     provider_package.get_quality_checks = _get_quality_checks
     provider_package.clear_quality_checks = _clear_quality_checks
     provider_package.CustomSQLCheck = _DummyCheck
@@ -118,6 +119,40 @@ def test_plugins_module_reexports_provider_getters() -> None:
     assert "get_transformation_provider" in plugins.__all__
     assert plugins.get_ingestion_provider is discovery.get_ingestion_provider
     assert plugins.get_transformation_provider is discovery.get_transformation_provider
+
+
+def test_plugins_module_lazy_discovery_exports_use_importlib(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Lazy discovery exports should resolve through importlib without recursive lookups."""
+    import phlo.plugins as plugins
+    import phlo.plugins.discovery as discovery
+
+    imports: list[str] = []
+    original_import_module = plugins.importlib.import_module
+
+    def _record_import(name: str, package: str | None = None) -> object:
+        imports.append(name)
+        return original_import_module(name, package)
+
+    monkeypatch.setattr(plugins.importlib, "import_module", _record_import)
+
+    assert plugins.__getattr__("discovery") is discovery
+    assert plugins.get_hook_plugin is discovery.get_hook_plugin
+    assert plugins.get_service is discovery.get_service
+    assert imports == [
+        "phlo.plugins.discovery",
+        "phlo.plugins.discovery",
+        "phlo.plugins.discovery",
+    ]
+
+
+def test_plugins_module_all_includes_lazy_discovery_exports() -> None:
+    """Every supported lazy discovery helper should be advertised as a public export."""
+    import phlo.plugins as plugins
+
+    for export in plugins._LAZY_DISCOVERY_EXPORTS:
+        assert export in plugins.__all__
 
 
 def test_plugins_module_reexports_observatory_contracts() -> None:
