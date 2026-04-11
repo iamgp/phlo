@@ -20,6 +20,12 @@ flowchart TD
 - serving layers like `phlo-api`, `Hasura`, and `PostgREST` enforce those decisions in different ways
 - governance and backend systems may apply their own secondary controls
 
+## Canonical RBAC
+
+- canonical RBAC currently supports `allow` policies only
+- canonical `deny` rules are rejected by `phlo authz validate` and backend planning
+- do not model deny semantics in `.phlo/authorization/policies.yaml` until backend compilation support exists
+
 ## Where To Look
 
 - [Security](../setup/security.md) for operator setup and posture

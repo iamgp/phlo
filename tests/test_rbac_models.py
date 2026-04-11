@@ -252,6 +252,41 @@ class TestCanonicalRBAC:
         errors = rbac.validate()
         assert errors == ["Role 'nonexistent_role' referenced in hierarchy does not exist"]
 
+    def test_validate_rejects_deny_policies(self):
+        """Test validation fails when canonical RBAC includes deny rules."""
+        roles_data = {
+            "version": 1,
+            "roles": {
+                "admin": {"inherits": []},
+            },
+        }
+        policies_data = {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "deny_admin_read",
+                    "effect": "deny",
+                    "principal": {"roles": ["admin"]},
+                    "action": "dataset.read",
+                    "resource": {
+                        "type": "dataset",
+                        "id_pattern": "analytics.*",
+                    },
+                }
+            ],
+        }
+
+        roles = RolesConfig.from_dict(roles_data)
+        policies = PoliciesConfig.from_dict(policies_data)
+        rbac = CanonicalRBAC.from_configs(roles, policies)
+
+        errors = rbac.validate()
+
+        assert errors == [
+            "Canonical RBAC does not support 'deny' policies yet. Remove those rules until "
+            "backend compilation semantics are implemented."
+        ]
+
 
 class TestRBACConfigLoader:
     """Tests for RBACConfigLoader."""

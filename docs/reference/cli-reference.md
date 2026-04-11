@@ -63,6 +63,15 @@ phlo catalog             # Catalog operations (tables, describe, history)
 phlo lineage             # Asset lineage (show, export)
 ```
 
+**Authorization Commands:**
+
+```bash
+phlo authz validate      # Validate canonical RBAC config
+phlo authz plan          # Show backend policy changes without applying
+phlo authz sync          # Apply canonical RBAC to configured backends
+phlo authz verify        # Check backend state against desired RBAC state
+```
+
 **Quality Commands:**
 
 ```bash
@@ -192,6 +201,22 @@ phlo dbt compile --target prod
 # Run host dbt instead of the container
 phlo dbt test --local --select gold.*
 ```
+
+### phlo authz
+
+Manage canonical RBAC configuration and backend synchronization.
+
+```bash
+phlo authz validate [OPTIONS]
+phlo authz plan [OPTIONS]
+phlo authz sync [OPTIONS]
+phlo authz verify [OPTIONS]
+```
+
+Notes:
+
+- canonical RBAC accepts `allow` policies only
+- `deny` policies are rejected during validation and planning
 
 ## Services Commands
 
