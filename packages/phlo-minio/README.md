@@ -25,7 +25,7 @@ phlo plugin install minio
 | `MINIO_SERVER_URL`      | -          | TLS server URL           |
 | `MINIO_OIDC_CONFIG_URL` | -          | OIDC provider config URL |
 | `MINIO_AUTO_ENCRYPTION` | `off`      | Auto-encryption mode     |
-| `MINIO_AUDIT_ENABLED`   | `off`      | Audit logging            |
+| `MINIO_AUDIT_ENABLED`   | `off`      | Audit webhook delivery   |
 
 ## Auto-Configuration
 
@@ -52,6 +52,17 @@ compose:
 ```bash
 phlo services start --service minio
 ```
+
+## Audit Logging
+
+The bundled MinIO service exposes Phlo's supported storage audit-log path:
+
+```bash
+MINIO_AUDIT_ENABLED=on
+MINIO_AUDIT_ENDPOINT=http://loki:3100/loki/api/v1/push
+```
+
+Route audit events to a durable backend and correlate them with centralized application logs. See `docs/operations/audit-logging.md` for the full platform posture.
 
 ## Endpoints
 

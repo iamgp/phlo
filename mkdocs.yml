@@ -145,6 +145,8 @@ nav:
       - Extensions: observatory/extensions.md
   - Operations:
       - Operations Guide: operations/operations-guide.md
+      - Audit Logging: operations/audit-logging.md
+      - Production Readiness: operations/production-readiness.md
       - Best Practices: operations/best-practices.md
       - Testing: operations/testing.md
       - Troubleshooting: operations/troubleshooting.md
