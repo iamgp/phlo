@@ -15,6 +15,7 @@ flowchart LR
 ## In This Section
 
 - [Operations Guide](operations-guide.md): day-to-day operations
+- [Audit Logging](audit-logging.md): supported audit-log posture and checklist
 - [Best Practices](best-practices.md): baseline operating patterns
 - [Production Readiness](production-readiness.md): pre-production checklist
 - [Local Dev Troubleshooting](local-development-troubleshooting.md): symptom-first local issues

@@ -4,7 +4,7 @@ This guide covers enterprise security configuration for Phlo, including authenti
 
 ## Overview
 
-Phlo's underlying services (Trino, Nessie, MinIO, PostgreSQL) support enterprise security features. This guide explains how to enable and configure them.
+Phlo's underlying services (Trino, Nessie, MinIO, PostgreSQL) support enterprise security features. This guide explains how to enable and configure them, and where Phlo's audit-log support stops and operator-owned controls begin.
 
 | Feature | Trino | Nessie | MinIO | PostgreSQL |
 |---------|-------|--------|-------|------------|
@@ -12,7 +12,7 @@ Phlo's underlying services (Trino, Nessie, MinIO, PostgreSQL) support enterprise
 | OAuth2/OIDC | Yes | Yes | Yes | No |
 | TLS/HTTPS | Yes | Yes | Yes | Yes |
 | Access Control | Yes | Yes | Yes (IAM) | Yes (RLS) |
-| Audit Logging | Yes | Yes | Yes | Yes |
+| Audit Logging | Query history and logs | Server logs | Webhook audit events | Operator-managed `pgaudit` |
 
 ## Quick Start
 
@@ -37,6 +37,26 @@ Generate strong passwords:
 ```bash
 openssl rand -base64 32
 ```
+
+## Audit-Log Posture
+
+Phlo does not treat every log line as an audit record. Use this distinction:
+
+- **Operational logs** are for debugging and service health.
+- **Security and audit logs** capture authentication, authorization, and administrative events.
+- **Query and access trails** show who read or queried data.
+
+The supported production posture is:
+
+| Surface | What You Get | Ownership |
+|---------|---------------|-----------|
+| `phlo-api` / Observatory | Structured application audit events and denials | Phlo-owned logging path |
+| MinIO | Storage access audit events through webhook delivery | Phlo-owned configuration surface |
+| Trino | Query history and coordinator logs | Shared, with retention/operator export left external |
+| PostgreSQL | `pgaudit` or equivalent database audit controls | Operator-managed |
+| Nessie | Server logs for catalog access visibility | Operator-managed retention |
+
+Use [Audit Logging](../operations/audit-logging.md) as the source of truth for routing, retention, and production checklist expectations.
 
 ## Authentication
 
@@ -347,7 +367,7 @@ MINIO_KMS_KES_KEY_NAME=my-key
 
 ### MinIO Audit Logs
 
-Send audit logs to a webhook:
+Phlo supports MinIO audit webhook wiring directly through the bundled service package. Send those audit logs to a durable backend:
 
 ```bash
 MINIO_AUDIT_ENABLED=on
@@ -364,7 +384,7 @@ MINIO_AUDIT_KAFKA_TOPIC=minio-audit
 
 ### PostgreSQL Audit Logging
 
-Enable pgaudit extension:
+PostgreSQL audit logging remains operator-managed today. Enable `pgaudit` on a PostgreSQL build that includes the extension:
 
 ```sql
 -- In PostgreSQL
@@ -375,12 +395,14 @@ SELECT pg_reload_conf();
 
 ### Trino Query Logging
 
-Trino logs all queries by default. Configure log retention:
+Trino query history is available by default in the coordinator UI, but long-term retention and centralized export are still operator-managed:
 
 ```properties
 # coordinator config
 query.max-history=10000
 ```
+
+If Trino query evidence is part of your compliance boundary, pair that history with an external retention path rather than relying on container-local logs alone.
 
 ## Existing Security Features
 

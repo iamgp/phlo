@@ -142,6 +142,10 @@ compose:
     phlo.grafana.datasource.name: "Trino"
 ```
 
+## Audit Logging
+
+`phlo-trino` provides query history and coordinator logs, which form the starting point for query and access trails. Long-term retention and export are still operator-managed, so do not rely on the local Trino container alone for production audit evidence.
+
 ## Entry Points
 
 | Entry Point                     | Plugin                                               |
@@ -156,6 +160,7 @@ compose:
 - [phlo-nessie](phlo-nessie.md) - Catalog service
 - [phlo-postgres](phlo-postgres.md) - Marts storage
 - [phlo-grafana](phlo-grafana.md) - Visualization
+- [Audit Logging](../operations/audit-logging.md) - Platform audit-log posture
 
 ## Next Steps
 

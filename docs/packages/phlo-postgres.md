@@ -149,6 +149,10 @@ compose:
     phlo.grafana.datasource.name: "PostgreSQL"
 ```
 
+## Audit Logging
+
+`phlo-postgres` does not currently ship a `pgaudit`-enabled image or bootstrap automation. If your deployment needs database-grade audit trails, treat them as an operator-managed control and document that dependency explicitly.
+
 ## Entry Points
 
 | Entry Point                     | Plugin                                                   |
@@ -162,6 +166,7 @@ compose:
 - [phlo-hasura](phlo-hasura.md) - GraphQL API
 - [phlo-grafana](phlo-grafana.md) - Visualization
 - [phlo-dagster](phlo-dagster.md) - Orchestration
+- [Audit Logging](../operations/audit-logging.md) - Platform audit-log posture
 
 ## Next Steps
 

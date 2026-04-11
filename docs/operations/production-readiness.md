@@ -8,6 +8,7 @@ Use this checklist before treating a Phlo stack as production-capable.
 - secrets are not left at defaults
 - storage, catalog, and metadata services have backup and recovery plans
 - observability is enabled and routed to a real backend
+- audit logging is enabled, retained outside container-local logs, and mapped to an owner
 - API surfaces are intentionally chosen, not all enabled by default
 - access controls are defined for users and services
 - data quality and promotion gates are enforced
@@ -32,6 +33,7 @@ Use this checklist before treating a Phlo stack as production-capable.
 - traces, metrics, and logs are emitted
 - dashboards or query paths exist for key incidents
 - alerting path is defined where needed
+- audit-log routing and retention are documented
 
 ### Access
 
@@ -42,6 +44,7 @@ Use this checklist before treating a Phlo stack as production-capable.
 ## Related Pages
 
 - [Operations Guide](operations-guide.md)
+- [Audit Logging](audit-logging.md)
 - [Security](../setup/security.md)
 - [Observability](../setup/observability.md)
 - [Deployment Profiles](../guides/deployment-profiles.md)
