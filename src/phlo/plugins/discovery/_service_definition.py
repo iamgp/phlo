@@ -35,8 +35,10 @@ class ServiceDefinition:
     @classmethod
     def from_yaml(cls, path: Path) -> ServiceDefinition:
         """Load a service definition from a YAML file."""
-        with path.open() as file_handle:
+        with path.open(encoding="utf-8") as file_handle:
             data = yaml.safe_load(file_handle)
+        if not isinstance(data, dict):
+            raise ValueError(f"Service definition must be a mapping: {path}")
 
         if data.get("source_path"):
             phlo_root = Path(__file__).parent.parent.parent.parent
@@ -68,6 +70,8 @@ class ServiceDefinition:
     @classmethod
     def from_dict(cls, data: dict[str, Any], source_path: Path | None) -> ServiceDefinition:
         """Load a service definition from a dictionary."""
+        if not isinstance(data, dict):
+            raise ValueError("Service definition must be a mapping.")
         return cls(
             name=data["name"],
             description=data.get("description", ""),

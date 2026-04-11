@@ -68,7 +68,8 @@ uv pip install phlo[defaults]
 phlo init my-project
 cd my-project
 
-# Start services and materialize
+# Generate service configuration, start services, and materialize
+phlo services init
 phlo services start
 phlo materialize --select "dlt_glucose_entries+"
 ```
