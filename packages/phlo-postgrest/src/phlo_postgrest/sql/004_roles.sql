@@ -74,8 +74,8 @@ GRANT EXECUTE ON FUNCTION api.health TO anon;  -- Health check is public
 -- Row-Level Security Policies
 -- ============================================================================
 
--- Note: Views don't support RLS directly in PostgreSQL, but we can secure
--- the underlying tables or use security definer functions
+-- Note: PostgreSQL views do not support RLS policies directly.
+-- Secure the underlying tables or use security definer functions instead.
 
 -- View-level access is controlled through generated GRANT statements.
 -- Apply RLS to underlying tables when row-level restrictions are required.
@@ -84,10 +84,11 @@ GRANT EXECUTE ON FUNCTION api.health TO anon;  -- Health check is public
 -- Since views are read-only and based on marts tables,
 -- access is controlled via GRANT statements above.
 
--- If we needed row-level restrictions, we could do:
--- CREATE POLICY authenticated_read ON api.some_view
+-- Example underlying-table RLS:
+-- ALTER TABLE marts.some_table ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY authenticated_read ON marts.some_table
 --   FOR SELECT TO authenticated
---   USING (true);  -- Allow all rows for authenticated users
+--   USING (tenant_id = current_setting('request.jwt.claim.tenant_id', true));
 
 -- For admin-only operations (future):
 -- CREATE POLICY admin_only ON some_table

@@ -25,7 +25,7 @@ phlo plugin install minio
 | `MINIO_SERVER_URL`      | -          | TLS server URL           |
 | `MINIO_OIDC_CONFIG_URL` | -          | OIDC provider config URL |
 | `MINIO_AUTO_ENCRYPTION` | `off`      | Auto-encryption mode     |
-| `MINIO_AUDIT_ENABLED`   | `off`      | Audit logging            |
+| `MINIO_AUDIT_ENABLED`   | `off`      | Audit webhook delivery   |
 
 ## Features
 
@@ -110,6 +110,17 @@ compose:
     phlo.metrics.path: "/minio/v2/metrics/cluster"
 ```
 
+## Audit Logging
+
+`phlo-minio` is the Phlo-owned audit-log integration point for storage access events.
+
+```bash
+MINIO_AUDIT_ENABLED=on
+MINIO_AUDIT_ENDPOINT=http://loki:3100/loki/api/v1/push
+```
+
+Keep MinIO audit logs in a durable backend. Do not treat container-local logs as the only audit record for production environments.
+
 ## Entry Points
 
 | Entry Point                     | Plugin                                  |
@@ -122,6 +133,7 @@ compose:
 - [phlo-iceberg](phlo-iceberg.md) - Table format
 - [phlo-nessie](phlo-nessie.md) - Catalog service
 - [phlo-prometheus](phlo-prometheus.md) - Metrics collection
+- [Audit Logging](../operations/audit-logging.md) - Production audit-log posture
 
 ## Next Steps
 

@@ -4,7 +4,7 @@ This guide covers enterprise security configuration for Phlo, including authenti
 
 ## Overview
 
-Phlo's underlying services (Trino, Nessie, MinIO, PostgreSQL) support enterprise security features. This guide explains how to enable and configure them.
+Phlo's underlying services (Trino, Nessie, MinIO, PostgreSQL) support enterprise security features. This guide explains how to enable and configure them, and where Phlo's audit-log support stops and operator-owned controls begin.
 
 | Feature | Trino | Nessie | MinIO | PostgreSQL |
 |---------|-------|--------|-------|------------|
@@ -12,7 +12,7 @@ Phlo's underlying services (Trino, Nessie, MinIO, PostgreSQL) support enterprise
 | OAuth2/OIDC | Yes | Yes | Yes | No |
 | TLS/HTTPS | Yes | Yes | Yes | Yes |
 | Access Control | Yes | Yes | Yes (IAM) | Yes (RLS) |
-| Audit Logging | Yes | Yes | Yes | Yes |
+| Audit Logging | Query history and logs | Server logs | Webhook audit events | Operator-managed `pgaudit` |
 
 ## Quick Start
 
@@ -37,6 +37,26 @@ Generate strong passwords:
 ```bash
 openssl rand -base64 32
 ```
+
+## Audit-Log Posture
+
+Phlo does not treat every log line as an audit record. Use this distinction:
+
+- **Operational logs** are for debugging and service health.
+- **Security and audit logs** capture authentication, authorization, and administrative events.
+- **Query and access trails** show who read or queried data.
+
+The supported production posture is:
+
+| Surface | What You Get | Ownership |
+|---------|---------------|-----------|
+| `phlo-api` / Observatory | Structured application audit events and denials | Phlo-owned logging path |
+| MinIO | Storage access audit events through webhook delivery | Phlo-owned configuration surface |
+| Trino | Query history and coordinator logs | Shared, with retention/operator export left external |
+| PostgreSQL | `pgaudit` or equivalent database audit controls | Operator-managed |
+| Nessie | Server logs for catalog access visibility | Operator-managed retention |
+
+Use [Audit Logging](../operations/audit-logging.md) as the source of truth for routing, retention, and production checklist expectations.
 
 ## Authentication
 
@@ -150,6 +170,15 @@ If using Keycloak as your identity provider:
 
 ## Authorization
 
+Phlo's canonical authorization workflow starts in `.phlo/authorization/` and
+then compiles into backend-native enforcement. Define roles and policies there
+first, validate them with `phlo authz validate`, preview with `phlo authz plan`,
+apply with `phlo authz sync`, and use the service-specific setup below to make
+those compiled artifacts effective in each backend.
+
+Use [Canonical RBAC](../reference/canonical-rbac.md) for the source-of-truth
+model, command behavior, and backend support limits.
+
 For `phlo-api`, route guards are backend-dependent. If no authorization backend is configured,
 the default `PHLO_AUTHORIZATION_MODE=optional` leaves guarded routes reachable. Set
 `PHLO_AUTHORIZATION_MODE=required` to fail closed with HTTP `503` on guarded routes until
@@ -196,6 +225,12 @@ TRINO_ACCESS_CONTROL_CONFIG_FILE=/etc/trino/access-control.json
 
 Mount the rules file in your service configuration.
 
+Canonical RBAC note:
+
+- Trino currently has the strongest `phlo authz verify` coverage because the
+  compiler can compare desired grants with current managed grants exposed by the
+  governance backend.
+
 ### Nessie Authorization
 
 Enable authorization:
@@ -205,6 +240,11 @@ NESSIE_AUTHZ_ENABLED=true
 ```
 
 Nessie authorization rules are configured through the Nessie server. See [Nessie Authorization](https://projectnessie.org/features/authz/) for details.
+
+Canonical RBAC note:
+
+- `phlo authz` can compile Nessie authorization rules, but current verify
+  coverage does not introspect live Nessie state for drift yet.
 
 ### MinIO IAM Policies
 
@@ -229,9 +269,17 @@ EOF
 mc admin policy attach local readonly-lake --user analyst
 ```
 
+Canonical RBAC note:
+
+- `phlo authz` can compile MinIO IAM policy documents for object access, but you
+  still need principal-to-policy attachment through MinIO IAM or OIDC claims.
+
 ### PostgreSQL Row-Level Security
 
-Phlo includes a pre-built RLS framework in PostgREST. Enable it:
+Phlo does not generate row-level policies for PostgREST API views. Generated `api.*`
+views get `GRANT` statements only. When you need row-level enforcement, enable RLS on
+the underlying tables and make sure your JWT/session context exposes the claims your
+policies read:
 
 ```sql
 -- Enable RLS on a table
@@ -250,7 +298,8 @@ CREATE POLICY admin_all ON marts.customers
   USING (true);
 ```
 
-The JWT token should include claims that set the user's role and context.
+For PostgREST-backed APIs, the JWT token must include the role and any custom claim
+values your table policies depend on.
 
 ## Encryption
 
@@ -324,7 +373,7 @@ MINIO_KMS_KES_KEY_NAME=my-key
 
 ### MinIO Audit Logs
 
-Send audit logs to a webhook:
+Phlo supports MinIO audit webhook wiring directly through the bundled service package. Send those audit logs to a durable backend:
 
 ```bash
 MINIO_AUDIT_ENABLED=on
@@ -341,7 +390,7 @@ MINIO_AUDIT_KAFKA_TOPIC=minio-audit
 
 ### PostgreSQL Audit Logging
 
-Enable pgaudit extension:
+PostgreSQL audit logging remains operator-managed today. Enable `pgaudit` on a PostgreSQL build that includes the extension:
 
 ```sql
 -- In PostgreSQL
@@ -352,12 +401,14 @@ SELECT pg_reload_conf();
 
 ### Trino Query Logging
 
-Trino logs all queries by default. Configure log retention:
+Trino query history is available by default in the coordinator UI, but long-term retention and centralized export are still operator-managed:
 
 ```properties
 # coordinator config
 query.max-history=10000
 ```
+
+If Trino query evidence is part of your compliance boundary, pair that history with an external retention path rather than relying on container-local logs alone.
 
 ## Existing Security Features
 
@@ -387,8 +438,9 @@ curl http://localhost:10018/customers \
 
 Located in `packages/phlo-hasura/src/phlo_hasura/permissions.py`:
 
-- Full RBAC with row and column-level permissions
-- Configure via Hasura console or API
+- Hasura itself supports row-level and column-level permissions across select, insert, update, and delete operations
+- Phlo's packaged permission sync automates select, insert, update, and delete permission definitions from config
+- Configure permissions either through the Hasura console/API directly or via Phlo's permission sync workflow
 
 ### Observatory Token Auth
 

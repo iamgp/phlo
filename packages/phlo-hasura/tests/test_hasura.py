@@ -30,6 +30,35 @@ def sample_metadata():
                                 "permission": {"columns": ["*"], "filter": {}},
                             }
                         ],
+                        "insert_permissions": [
+                            {
+                                "role": "loader",
+                                "permission": {
+                                    "columns": ["reading_id", "sgv"],
+                                    "check": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+                                    "set": {"tenant_id": "x-hasura-tenant-id"},
+                                },
+                            }
+                        ],
+                        "update_permissions": [
+                            {
+                                "role": "editor",
+                                "permission": {
+                                    "columns": ["sgv"],
+                                    "filter": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+                                    "check": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+                                    "set": {"updated_by": "x-hasura-user-id"},
+                                },
+                            }
+                        ],
+                        "delete_permissions": [
+                            {
+                                "role": "admin",
+                                "permission": {
+                                    "filter": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}}
+                                },
+                            }
+                        ],
                         "array_relationships": [],
                         "object_relationships": [],
                     }
@@ -109,6 +138,62 @@ class TestHasuraClient:
         # Verify permission structure
         payload = mock_request.call_args[1]["json"]
         assert payload["args"]["permission"]["columns"] == ["reading_id", "sgv"]
+
+    @patch("phlo_hasura.client.requests.request")
+    def test_create_update_permission(self, mock_request):
+        """Should create UPDATE permission."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"message": "success"}
+        mock_request.return_value = mock_response
+
+        client = HasuraClient(admin_secret="test-secret")
+        result = client.create_update_permission(
+            "api",
+            "glucose_readings",
+            "editor",
+            filter={"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+            check={"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+            columns=["sgv"],
+            set={"updated_by": "x-hasura-user-id"},
+        )
+
+        assert result["message"] == "success"
+
+        payload = mock_request.call_args[1]["json"]
+        assert payload["type"] == "pg_create_update_permission"
+        assert payload["args"]["permission"]["filter"] == {
+            "tenant_id": {"_eq": "X-Hasura-Tenant-Id"}
+        }
+        assert payload["args"]["permission"]["check"] == {
+            "tenant_id": {"_eq": "X-Hasura-Tenant-Id"}
+        }
+        assert payload["args"]["permission"]["columns"] == ["sgv"]
+        assert payload["args"]["permission"]["set"] == {"updated_by": "x-hasura-user-id"}
+
+    @patch("phlo_hasura.client.requests.request")
+    def test_create_delete_permission(self, mock_request):
+        """Should create DELETE permission."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"message": "success"}
+        mock_request.return_value = mock_response
+
+        client = HasuraClient(admin_secret="test-secret")
+        result = client.create_delete_permission(
+            "api",
+            "glucose_readings",
+            "admin",
+            filter={"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+        )
+
+        assert result["message"] == "success"
+
+        payload = mock_request.call_args[1]["json"]
+        assert payload["type"] == "pg_create_delete_permission"
+        assert payload["args"]["permission"]["filter"] == {
+            "tenant_id": {"_eq": "X-Hasura-Tenant-Id"}
+        }
 
     @patch("phlo_hasura.client.requests.request")
     def test_export_metadata(self, mock_request, sample_metadata):
@@ -254,21 +339,54 @@ class TestHasuraPermissionManager:
 
         assert loaded["tables"]["api.glucose_readings"] == config["tables"]["api.glucose_readings"]
 
+    @patch.object(HasuraClient, "create_delete_permission")
+    @patch.object(HasuraClient, "create_update_permission")
+    @patch.object(HasuraClient, "create_insert_permission")
     @patch.object(HasuraClient, "create_select_permission")
-    def test_sync_permissions(self, mock_perm):
-        """Should sync permissions from config."""
+    def test_sync_permissions(
+        self,
+        mock_select,
+        mock_insert,
+        mock_update,
+        mock_delete,
+    ):
+        """Should sync all supported permission types from config."""
         config = {
             "tables": {
-                "api.glucose_readings": {"select": {"analyst": {"columns": ["*"], "filter": {}}}}
+                "api.glucose_readings": {
+                    "select": {"analyst": {"columns": ["*"], "filter": {}}},
+                    "insert": {
+                        "loader": {
+                            "columns": ["reading_id", "sgv"],
+                            "check": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+                            "set": {"tenant_id": "x-hasura-tenant-id"},
+                        }
+                    },
+                    "update": {
+                        "editor": {
+                            "columns": ["sgv"],
+                            "filter": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+                            "check": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+                            "set": {"updated_by": "x-hasura-user-id"},
+                        }
+                    },
+                    "delete": {"admin": {"filter": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}}}},
+                }
             }
         }
-        mock_perm.return_value = {"message": "success"}
+        mock_select.return_value = {"message": "success"}
+        mock_insert.return_value = {"message": "success"}
+        mock_update.return_value = {"message": "success"}
+        mock_delete.return_value = {"message": "success"}
 
         manager = HasuraPermissionManager(client=HasuraClient(admin_secret="test-secret"))
         results = manager.sync_permissions(config, verbose=False)
 
         assert ("api.glucose_readings", "analyst") in results["select"]
         assert results["select"][("api.glucose_readings", "analyst")] is True
+        assert results["insert"][("api.glucose_readings", "loader")] is True
+        assert results["update"][("api.glucose_readings", "editor")] is True
+        assert results["delete"][("api.glucose_readings", "admin")] is True
 
     @patch.object(HasuraClient, "export_metadata")
     def test_export_permissions(self, mock_export, sample_metadata):
@@ -281,6 +399,20 @@ class TestHasuraPermissionManager:
         assert "tables" in exported
         assert "api.glucose_readings" in exported["tables"]
         assert "select" in exported["tables"]["api.glucose_readings"]
+        assert exported["tables"]["api.glucose_readings"]["insert"]["loader"] == {
+            "columns": ["reading_id", "sgv"],
+            "check": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+            "set": {"tenant_id": "x-hasura-tenant-id"},
+        }
+        assert exported["tables"]["api.glucose_readings"]["update"]["editor"] == {
+            "filter": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+            "columns": ["sgv"],
+            "check": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}},
+            "set": {"updated_by": "x-hasura-user-id"},
+        }
+        assert exported["tables"]["api.glucose_readings"]["delete"]["admin"] == {
+            "filter": {"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}}
+        }
 
 
 class TestRoleHierarchy:

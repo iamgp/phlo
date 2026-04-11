@@ -75,7 +75,7 @@ This will:
 3. Create JWT signing/verification functions
 4. Create `api` schema with glucose views
 5. Implement API functions (`login`, `glucose_statistics`, `user_info`)
-6. Create PostgreSQL roles and RLS policies
+6. Create PostgreSQL roles and grant-based API access scaffolding
 
 **Verify migrations:**
 
@@ -136,6 +136,18 @@ postgrest | Admin server listening on port 3001
 postgrest | Attempting to connect to the database...
 postgrest | Connection successful
 ```
+
+## Authorization Model
+
+Generated PostgREST views under `api.*` are secured with `GRANT SELECT` statements based
+on dbt tags. Phlo does not generate `CREATE POLICY` statements for those views because
+PostgreSQL RLS does not apply directly to views.
+
+If you need row-level controls:
+
+- Enable RLS on the underlying tables exposed by the views.
+- Write policies against those tables using JWT/session claims exposed to PostgreSQL.
+- Keep the API views narrow and read-only so grants and table policies compose cleanly.
 
 ### Step 4: Verify Health Check
 
@@ -488,6 +500,7 @@ docker-compose logs postgrest
 
 1. **Database connection failed:** Verify `PGRST_DB_URI` in docker-compose.yml
 2. **Invalid configuration:** Check environment variables
+
 3. **Port conflict:** Ensure ports 10018/10019 are not in use
 
 **Verify database connection manually:**

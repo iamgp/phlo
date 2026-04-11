@@ -683,6 +683,8 @@ MINIO_AUDIT_ENABLED=off
 MINIO_AUDIT_ENDPOINT=http://audit-service:8080/logs
 ```
 
+`MINIO_AUDIT_ENABLED` and `MINIO_AUDIT_ENDPOINT` are Phlo's bundled audit-log automation surface for object storage events. In production, point the endpoint at a durable backend and pair it with centralized application logs. See [Audit Logging](../operations/audit-logging.md).
+
 #### PostgreSQL SSL
 
 ```bash

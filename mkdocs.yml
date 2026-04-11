@@ -118,6 +118,7 @@ nav:
   - Reference:
       - Architecture: reference/architecture.md
       - API Reference: reference/phlo-api.md
+      - Canonical RBAC: reference/canonical-rbac.md
       - CLI Reference: reference/cli-reference.md
       - Configuration: reference/configuration-reference.md
       - Plugin API: reference/plugin-api.md
@@ -145,6 +146,8 @@ nav:
       - Extensions: observatory/extensions.md
   - Operations:
       - Operations Guide: operations/operations-guide.md
+      - Audit Logging: operations/audit-logging.md
+      - Production Readiness: operations/production-readiness.md
       - Best Practices: operations/best-practices.md
       - Testing: operations/testing.md
       - Troubleshooting: operations/troubleshooting.md
