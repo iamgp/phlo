@@ -15,7 +15,12 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
-from phlo.config_schema import InfrastructureConfig, ServiceConfig
+from phlo.config_schema import (
+    ApiAuthorizationConfig,
+    ApiConfig,
+    InfrastructureConfig,
+    ServiceConfig,
+)
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -163,6 +168,33 @@ def get_capability_defaults_from_config(project_root: Path | None = None) -> dic
         if isinstance(key, str) and isinstance(value, str) and key and value:
             normalized[key] = value
     return normalized
+
+
+def get_api_authorization_config(project_root: Path | None = None) -> ApiAuthorizationConfig | None:
+    """Return validated phlo-api authorization settings from phlo.yaml.
+
+    Precedence inside phlo.yaml is:
+    1. services.phlo-api.authorization
+    2. api.authorization
+    """
+    project_config = load_project_config(project_root)
+    if not isinstance(project_config, dict) or not project_config:
+        return None
+
+    services = project_config.get("services", {})
+    if isinstance(services, dict):
+        phlo_api_service = services.get("phlo-api")
+        if isinstance(phlo_api_service, dict):
+            service_auth = phlo_api_service.get("authorization")
+            if service_auth is not None:
+                return ApiAuthorizationConfig(**service_auth)
+
+    api_config = project_config.get("api")
+    if isinstance(api_config, dict):
+        validated = ApiConfig(**api_config)
+        return validated.authorization
+
+    return None
 
 
 def get_service_config(service_key: str, project_root: Path | None = None) -> ServiceConfig | None:

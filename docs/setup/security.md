@@ -150,6 +150,12 @@ If using Keycloak as your identity provider:
 
 ## Authorization
 
+For `phlo-api`, route guards are backend-dependent. If no authorization backend is configured,
+the default `PHLO_AUTHORIZATION_MODE=optional` leaves guarded routes reachable. Set
+`PHLO_AUTHORIZATION_MODE=required` to fail closed with HTTP `503` on guarded routes until
+`PHLO_AUTHORIZATION_BACKEND` resolves. You can declare those settings in `phlo.yaml`
+under `api.authorization` or `services.phlo-api.authorization`.
+
 ### Trino Access Control
 
 Create an access control rules file:

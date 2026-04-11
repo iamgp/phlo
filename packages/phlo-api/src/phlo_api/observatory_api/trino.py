@@ -5,7 +5,8 @@ Enables data preview, column profiling, and table metrics in Observatory.
 
 This module provides a comprehensive interface to Trino for data exploration,
 including table previews, column profiling, row lookups, and ad-hoc queries
-with guardrails. All operations respect dataset authorization policies.
+with guardrails. Dataset authorization is enforced when an authorization
+backend is configured, and strict mode fails closed when it is not.
 
 Key Endpoints:
     GET /connection: Check Trino connectivity.

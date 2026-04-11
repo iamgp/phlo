@@ -14,7 +14,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
 
-from phlo.config_schema import InfrastructureConfig
+from phlo.config_schema import ApiConfig, InfrastructureConfig, ServiceOverride
 from phlo.infrastructure import clear_config_cache, load_infrastructure_config
 from phlo.logging import get_logger
 
@@ -87,17 +87,25 @@ def validate():
         error_console.print("[red]Error: phlo.yaml is empty[/red]")
         sys.exit(1)
 
-    if "infrastructure" not in project_config:
-        logger.info("config_validate_infrastructure_missing", path=str(config_path))
-        console.print("[yellow]Warning: No infrastructure section in phlo.yaml[/yellow]")
-        console.print(
-            "Using default configuration. Run [cyan]phlo config upgrade[/cyan] to add infrastructure section."
-        )
-        return
-
     try:
-        infra_data = project_config["infrastructure"]
-        infra_config = InfrastructureConfig(**infra_data)
+        if "infrastructure" in project_config:
+            infra_data = project_config["infrastructure"]
+            infra_config = InfrastructureConfig(**infra_data)
+        else:
+            infra_config = InfrastructureConfig()
+
+        api_data = project_config.get("api")
+        if api_data is not None:
+            ApiConfig(**api_data)
+
+        services_data = project_config.get("services", {})
+        if isinstance(services_data, dict):
+            for service_name, service_config in services_data.items():
+                if not isinstance(service_config, dict):
+                    continue
+                if service_name in {"enabled", "disabled"}:
+                    continue
+                ServiceOverride(**service_config)
     except ValidationError as e:
         logger.warning(
             "config_validate_failed",
@@ -118,6 +126,13 @@ def validate():
         path=str(config_path),
         service_count=len(infra_config.services),
     )
+
+    if "infrastructure" not in project_config:
+        logger.info("config_validate_infrastructure_missing", path=str(config_path))
+        console.print("[yellow]Warning: No infrastructure section in phlo.yaml[/yellow]")
+        console.print(
+            "Using default infrastructure configuration. Run [cyan]phlo config upgrade[/cyan] to add it.\n"
+        )
 
     table = Table(show_header=True, header_style="bold cyan")
     table.add_column("Check", style="cyan")

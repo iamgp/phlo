@@ -112,12 +112,38 @@ Configure via environment variables:
 # API Server
 PHLO_API_PORT=4000
 HOST=0.0.0.0
+PHLO_AUTHORIZATION_BACKEND=
+PHLO_AUTHORIZATION_MODE=optional
 
 # Backend Services
 TRINO_URL=http://trino:10005
 DAGSTER_GRAPHQL_URL=http://dagster:3000/graphql
 NESSIE_URL=http://nessie:19120/api/v2
 LOKI_URL=http://loki:3100
+```
+
+Authorization behavior on guarded routes is explicit:
+
+- `PHLO_AUTHORIZATION_MODE=optional` keeps route guards as no-ops until an authorization backend is configured
+- `PHLO_AUTHORIZATION_MODE=required` returns HTTP `503` on guarded routes until `PHLO_AUTHORIZATION_BACKEND` resolves
+
+These values can also be set in `phlo.yaml`:
+
+```yaml
+api:
+  authorization:
+    backend: opa
+    mode: required
+```
+
+or:
+
+```yaml
+services:
+  phlo-api:
+    authorization:
+      backend: opa
+      mode: required
 ```
 
 ## Architecture
