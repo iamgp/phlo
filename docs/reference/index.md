@@ -28,6 +28,7 @@ flowchart TD
 ## Current Reference Pages
 
 - [CLI Reference](cli-reference.md): commands, flags, and examples.
+- [Canonical RBAC](canonical-rbac.md): source-of-truth RBAC config, authz workflow, and backend support.
 - [Configuration Reference](configuration-reference.md): env vars, defaults, and precedence.
 - [Architecture](architecture.md): system model and component boundaries.
 - [Plugin API](plugin-api.md): extension contracts and base types.

@@ -150,6 +150,15 @@ If using Keycloak as your identity provider:
 
 ## Authorization
 
+Phlo's canonical authorization workflow starts in `.phlo/authorization/` and
+then compiles into backend-native enforcement. Define roles and policies there
+first, validate them with `phlo authz validate`, preview with `phlo authz plan`,
+apply with `phlo authz sync`, and use the service-specific setup below to make
+those compiled artifacts effective in each backend.
+
+Use [Canonical RBAC](../reference/canonical-rbac.md) for the source-of-truth
+model, command behavior, and backend support limits.
+
 ### Trino Access Control
 
 Create an access control rules file:
@@ -190,6 +199,12 @@ TRINO_ACCESS_CONTROL_CONFIG_FILE=/etc/trino/access-control.json
 
 Mount the rules file in your service configuration.
 
+Canonical RBAC note:
+
+- Trino currently has the strongest `phlo authz verify` coverage because the
+  compiler can compare desired grants with current managed grants exposed by the
+  governance backend.
+
 ### Nessie Authorization
 
 Enable authorization:
@@ -199,6 +214,11 @@ NESSIE_AUTHZ_ENABLED=true
 ```
 
 Nessie authorization rules are configured through the Nessie server. See [Nessie Authorization](https://projectnessie.org/features/authz/) for details.
+
+Canonical RBAC note:
+
+- `phlo authz` can compile Nessie authorization rules, but current verify
+  coverage does not introspect live Nessie state for drift yet.
 
 ### MinIO IAM Policies
 
@@ -222,6 +242,11 @@ EOF
 # Attach to user
 mc admin policy attach local readonly-lake --user analyst
 ```
+
+Canonical RBAC note:
+
+- `phlo authz` can compile MinIO IAM policy documents for object access, but you
+  still need principal-to-policy attachment through MinIO IAM or OIDC claims.
 
 ### PostgreSQL Row-Level Security
 
