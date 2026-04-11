@@ -130,7 +130,7 @@ class TestViewGenerator:
         assert "COMMENT ON VIEW" in sql
 
     def test_generate_permissions_sql(self, manifest_file):
-        """Should generate correct GRANT statements."""
+        """Should generate correct GRANT statements without view-level RLS."""
         generator = ViewGenerator(manifest_file, source_schema="marts")
         models = generator.parser.parse()
         model = models["glucose_readings"]
@@ -140,11 +140,11 @@ class TestViewGenerator:
         # analyst and admin tags should grant to analyst and admin
         assert "GRANT SELECT ON api.glucose_readings TO analyst" in sql
         assert "GRANT SELECT ON api.glucose_readings TO admin" in sql
-        assert "CREATE POLICY analyst_access" in sql
-        assert "CREATE POLICY admin_access" in sql
+        assert "views do not support RLS policies directly" in sql
+        assert "CREATE POLICY" not in sql
 
     def test_generate_permissions_with_public_tag(self, manifest_file):
-        """Should grant to anon role for public tag."""
+        """Should grant to anon role for public tag without view-level RLS."""
         generator = ViewGenerator(manifest_file, source_schema="marts")
         models = generator.parser.parse()
         model = models["glucose_metrics"]
@@ -153,7 +153,7 @@ class TestViewGenerator:
 
         # public tag should grant to anon, analyst, and admin roles
         assert "GRANT SELECT ON api.glucose_metrics TO anon" in sql
-        assert "CREATE POLICY anon_access" in sql
+        assert "CREATE POLICY" not in sql
 
     def test_generate_all_views(self, manifest_file):
         """Should generate SQL for all views."""
