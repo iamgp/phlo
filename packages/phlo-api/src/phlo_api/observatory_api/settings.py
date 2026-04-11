@@ -17,6 +17,9 @@ Example:
 
     Response includes connections, defaults, query, and UI configuration.
 
+Authorization is enforced when an authorization backend is configured.
+In strict mode, these endpoints fail closed if the backend is absent.
+
 """
 
 from __future__ import annotations

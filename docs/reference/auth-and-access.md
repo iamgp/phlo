@@ -20,6 +20,34 @@ flowchart TD
 - serving layers like `phlo-api`, `Hasura`, and `PostgREST` enforce those decisions in different ways
 - governance and backend systems may apply their own secondary controls
 
+## phlo-api Route Guard Semantics
+
+- `phlo-api` route guards only enforce authorization when an authorization backend is configured
+- with the default `PHLO_AUTHORIZATION_MODE=optional`, guarded routes remain reachable when `PHLO_AUTHORIZATION_BACKEND` is unset
+- set `PHLO_AUTHORIZATION_MODE=required` to fail closed with HTTP `503` on guarded routes when no authorization backend is configured
+- once a backend is configured, route guards evaluate the caller normally and still return `401` or `403` based on authentication and policy decisions
+
+You can declare these settings in `phlo.yaml` as either:
+
+```yaml
+api:
+  authorization:
+    backend: opa
+    mode: required
+```
+
+or, for a service-scoped override:
+
+```yaml
+services:
+  phlo-api:
+    authorization:
+      backend: opa
+      mode: required
+```
+
+Precedence is `env vars` -> `services.phlo-api.authorization` -> `api.authorization`.
+
 ## Canonical RBAC
 
 Phlo's canonical RBAC control plane lives under `.phlo/authorization/` and

@@ -1291,12 +1291,21 @@ Configure the API using these environment variables:
 | ------------------------ | --------------------------------- | ------------------------------ |
 | `PHLO_API_PORT`          | `4000`                            | API server port                |
 | `HOST`                   | `0.0.0.0`                         | API server host                |
+| `PHLO_AUTHORIZATION_BACKEND` | unset                         | Authorization backend capability name |
+| `PHLO_AUTHORIZATION_MODE` | `optional`                      | Guard behavior when no authorization backend exists |
 | `TRINO_URL`              | `http://trino:8080`               | Trino HTTP API URL             |
 | `DAGSTER_GRAPHQL_URL`    | `http://dagster:3000/graphql`     | Dagster GraphQL endpoint       |
 | `NESSIE_URL`             | `http://nessie:19120/api/v2`      | Nessie REST API URL            |
 | `LOKI_URL`               | `http://loki:3100`                | Loki query API URL             |
 | `PHLO_LINEAGE_DB_URL`    | (from Dagster Postgres)           | Lineage database connection    |
 | `PHLO_PROJECT_PATH`      | `/app/project`                    | Path to phlo.yaml project root |
+
+`PHLO_AUTHORIZATION_MODE=optional` leaves guarded routes open until an authorization
+backend is configured. `PHLO_AUTHORIZATION_MODE=required` makes those guarded routes
+return HTTP `503` when `PHLO_AUTHORIZATION_BACKEND` is unavailable.
+
+These settings may also be declared in `phlo.yaml` under `api.authorization` or
+`services.phlo-api.authorization`.
 
 ## OpenAPI Documentation
 
