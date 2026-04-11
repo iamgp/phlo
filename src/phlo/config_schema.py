@@ -11,6 +11,50 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 
+class ApiAuthorizationConfig(BaseModel):
+    """Authorization configuration for phlo-api."""
+
+    backend: str | None = Field(
+        default=None,
+        description="Authorization backend capability name.",
+    )
+    mode: str | None = Field(
+        default=None,
+        description="Guard behavior when no authorization backend exists.",
+    )
+
+    @field_validator("backend")
+    @classmethod
+    def validate_backend(cls, value: str | None) -> str | None:
+        """Validate backend names when provided."""
+        if value is None:
+            return value
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("backend cannot be empty")
+        return normalized
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, value: str | None) -> str | None:
+        """Validate supported authorization modes."""
+        if value is None:
+            return value
+        normalized = value.strip().lower()
+        if normalized not in {"optional", "required"}:
+            raise ValueError("mode must be 'optional' or 'required'")
+        return normalized
+
+
+class ApiConfig(BaseModel):
+    """Top-level phlo-api configuration."""
+
+    authorization: ApiAuthorizationConfig | None = Field(
+        default=None,
+        description="Authorization settings for phlo-api.",
+    )
+
+
 class ServiceOverride(BaseModel):
     """User overrides for a service in phlo.yaml.
 
@@ -52,6 +96,10 @@ class ServiceOverride(BaseModel):
     command: str | list[str] | None = Field(
         default=None,
         description="Container command override.",
+    )
+    authorization: ApiAuthorizationConfig | None = Field(
+        default=None,
+        description="Service-scoped authorization settings for phlo-api.",
     )
 
     # For inline custom services (type: inline)

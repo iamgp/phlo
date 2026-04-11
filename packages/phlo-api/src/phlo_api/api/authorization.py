@@ -47,6 +47,7 @@ from phlo.capabilities import (
     resolve_capability,
 )
 from phlo.logging import get_logger
+from phlo.infrastructure.config import get_api_authorization_config
 
 from phlo_api.api.authentication import get_request_principal
 
@@ -63,6 +64,20 @@ _ACTION_SERVICE_MANAGE = "service.manage"
 _ACTION_ADMIN_READ = "admin.read"
 _ACTION_ADMIN_MANAGE = "admin.manage"
 _AUTHORIZATION_BACKEND_ENV = "PHLO_AUTHORIZATION_BACKEND"
+_AUTHORIZATION_MODE_ENV = "PHLO_AUTHORIZATION_MODE"
+_AUTHORIZATION_MODE_OPTIONAL = "optional"
+_AUTHORIZATION_MODE_REQUIRED = "required"
+
+
+def _configured_authorization_backend_name() -> str | None:
+    """Resolve the backend name from env first, then phlo.yaml."""
+    backend_name = os.environ.get(_AUTHORIZATION_BACKEND_ENV)
+    if backend_name is not None:
+        normalized = backend_name.strip()
+        return normalized or None
+
+    config = get_api_authorization_config()
+    return config.backend if config is not None else None
 
 
 def get_authorization_backend() -> AuthorizationPolicyBackend | None:
@@ -82,7 +97,7 @@ def get_authorization_backend() -> AuthorizationPolicyBackend | None:
             backends are available without explicit selection.
 
     """
-    backend_name = os.environ.get(_AUTHORIZATION_BACKEND_ENV)
+    backend_name = _configured_authorization_backend_name()
     result = resolve_capability("authorization_policy_backend", backend_name)
     if backend_name and result is None:
         raise RuntimeError(
@@ -122,6 +137,49 @@ def require_authorization_backend() -> AuthorizationPolicyBackend:
     if backend is None:
         raise RuntimeError("Authorization backend not configured")
     return backend
+
+
+def get_authorization_mode() -> str:
+    """Return how route guards behave when no authorization backend exists."""
+    configured_mode = os.environ.get(_AUTHORIZATION_MODE_ENV)
+    if configured_mode is not None:
+        configured_mode = configured_mode.strip() or None
+    if configured_mode is None:
+        config = get_api_authorization_config()
+        configured_mode = (
+            config.mode
+            if config is not None and config.mode is not None
+            else _AUTHORIZATION_MODE_OPTIONAL
+        )
+
+    mode = configured_mode.strip().lower()
+    if mode not in {_AUTHORIZATION_MODE_OPTIONAL, _AUTHORIZATION_MODE_REQUIRED}:
+        raise RuntimeError(
+            f"Invalid {_AUTHORIZATION_MODE_ENV} value {mode!r}. "
+            f"Expected {_AUTHORIZATION_MODE_OPTIONAL!r} or {_AUTHORIZATION_MODE_REQUIRED!r}."
+        )
+    return mode
+
+
+def _get_backend_for_route_guard() -> AuthorizationPolicyBackend | None:
+    """Return the backend used by route guards or raise in strict mode."""
+    backend = get_authorization_backend()
+    if backend is not None:
+        return backend
+    if get_authorization_mode() == _AUTHORIZATION_MODE_OPTIONAL:
+        return None
+
+    logger.warning(
+        "authorization_backend_required_but_not_configured",
+        mode=_AUTHORIZATION_MODE_REQUIRED,
+    )
+    raise HTTPException(
+        status_code=503,
+        detail={
+            "error": "service_unavailable",
+            "reason": "authorization_backend_not_configured",
+        },
+    )
 
 
 def create_decision_context(
@@ -248,7 +306,7 @@ def check_dataset_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read the dataset."""
-    backend = get_authorization_backend()
+    backend = _get_backend_for_route_guard()
     if backend is None:
         return
 
@@ -280,7 +338,7 @@ def check_dataset_query(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can query the dataset."""
-    backend = get_authorization_backend()
+    backend = _get_backend_for_route_guard()
     if backend is None:
         return
 
@@ -312,7 +370,7 @@ def check_asset_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read the asset."""
-    backend = get_authorization_backend()
+    backend = _get_backend_for_route_guard()
     if backend is None:
         return
 
@@ -344,7 +402,7 @@ def check_asset_execute(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can execute the asset."""
-    backend = get_authorization_backend()
+    backend = _get_backend_for_route_guard()
     if backend is None:
         return
 
@@ -376,7 +434,7 @@ def check_service_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read the service."""
-    backend = get_authorization_backend()
+    backend = _get_backend_for_route_guard()
     if backend is None:
         return
 
@@ -408,7 +466,7 @@ def check_service_manage(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can manage the service."""
-    backend = get_authorization_backend()
+    backend = _get_backend_for_route_guard()
     if backend is None:
         return
 
@@ -440,7 +498,7 @@ def check_admin_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read admin resources."""
-    backend = get_authorization_backend()
+    backend = _get_backend_for_route_guard()
     if backend is None:
         return
 
@@ -472,7 +530,7 @@ def check_admin_manage(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can manage admin resources."""
-    backend = get_authorization_backend()
+    backend = _get_backend_for_route_guard()
     if backend is None:
         return
 
@@ -505,7 +563,7 @@ def filter_datasets(
     require_auth: bool = True,
 ) -> list[str]:
     """Filter a list of dataset IDs to only those the principal can access."""
-    backend = get_authorization_backend()
+    backend = _get_backend_for_route_guard()
     if backend is None:
         return dataset_ids
 

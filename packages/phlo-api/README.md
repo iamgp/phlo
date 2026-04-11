@@ -20,6 +20,15 @@ phlo plugin install api
 | --------------- | --------- | --------------- |
 | `PHLO_API_PORT` | `4000`    | API server port |
 | `HOST`          | `0.0.0.0` | API server host |
+| `PHLO_AUTHORIZATION_BACKEND` | unset | Authorization backend capability name |
+| `PHLO_AUTHORIZATION_MODE` | `optional` | Guard behavior when no authorization backend exists |
+
+With `PHLO_AUTHORIZATION_MODE=optional`, guarded routes remain reachable until an
+authorization backend is configured. Set `PHLO_AUTHORIZATION_MODE=required` to
+fail closed with HTTP `503` on guarded routes when no backend is available.
+
+You can also declare these settings in `phlo.yaml` via `api.authorization` or
+`services.phlo-api.authorization`.
 
 ## Auto-Configuration
 

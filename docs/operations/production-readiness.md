@@ -39,6 +39,7 @@ Use this checklist before treating a Phlo stack as production-capable.
 
 - default credentials are removed
 - authn/authz model is chosen per exposed surface
+- `phlo-api` authorization mode is explicit: `PHLO_AUTHORIZATION_MODE=optional` for open surfaces, or `required` to fail closed when no authz backend is configured
 - serving surfaces are exposed intentionally
 
 ## Related Pages

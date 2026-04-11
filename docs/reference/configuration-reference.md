@@ -286,6 +286,8 @@ Observatory API runtime routing:
 ```bash
 PHLO_API_PORT=4000
 HOST=0.0.0.0
+PHLO_AUTHORIZATION_BACKEND=
+PHLO_AUTHORIZATION_MODE=optional
 PHLO_QUERY_ENGINE_URL=
 PHLO_QUERY_CATALOG=
 PHLO_DEFAULT_REF=
@@ -294,6 +296,9 @@ PHLO_API_DISCOVERY_SCHEMAS=
 
 Notes:
 
+- `PHLO_AUTHORIZATION_MODE=optional` keeps guarded `phlo-api` routes reachable when no authz backend is configured.
+- `PHLO_AUTHORIZATION_MODE=required` makes guarded `phlo-api` routes fail closed with HTTP `503` until `PHLO_AUTHORIZATION_BACKEND` resolves.
+- The same settings can be declared in `phlo.yaml` under `api.authorization` or `services.phlo-api.authorization`.
 - `PHLO_QUERY_ENGINE_URL` is required unless the resolved `query_engine` capability exposes `url`, `http_url`, or `host`/`port` metadata.
 - `PHLO_QUERY_CATALOG` is required unless the resolved `query_engine` capability exposes `default_catalog`.
 - `PHLO_DEFAULT_REF` is required for ref-dependent endpoints unless the resolved `query_engine` capability exposes `default_ref`.

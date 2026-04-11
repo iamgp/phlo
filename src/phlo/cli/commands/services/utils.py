@@ -41,6 +41,19 @@ description: "{description}"
 #   POSTGRES_PORT: 10000
 #   DAGSTER_PORT: 10006
 #
+# phlo-api authorization policy:
+#
+# api:
+#   authorization:
+#     backend: opa
+#     mode: required
+#
+# services:
+#   phlo-api:
+#     authorization:
+#       backend: opa
+#       mode: required
+#
 # Project capability defaults:
 #
 # capabilities:
