@@ -106,8 +106,8 @@ class HasuraPermissionManager:
         """Apply permissions from config to Hasura.
 
         Synchronizes permissions defined in the config dictionary with
-        the actual Hasura instance. Creates or updates SELECT and INSERT
-        permissions for all tables and roles specified.
+        the actual Hasura instance. Creates or updates SELECT, INSERT,
+        UPDATE, and DELETE permissions for all tables and roles specified.
 
         Args:
             config: Permission configuration dictionary with structure:
@@ -115,7 +115,11 @@ class HasuraPermissionManager:
                     "tables": {
                         "schema.table": {
                             "select": {"role": {"filter": {}, "columns": []}},
-                            "insert": {"role": {"check": {}, "columns": []}}
+                            "insert": {"role": {"check": {}, "columns": [], "set": {}}},
+                            "update": {
+                                "role": {"filter": {}, "check": {}, "columns": [], "set": {}}
+                            },
+                            "delete": {"role": {"filter": {}}}
                         }
                     }
                 }
@@ -160,57 +164,62 @@ class HasuraPermissionManager:
             if verbose:
                 logger.info("Syncing %s...", table_path)
 
-            # Sync SELECT permissions
-            select_perms = permissions.get("select", {})
-            for role, perm_config in select_perms.items():
-                if perm_config is False:
-                    # Explicitly disabled
-                    continue
+            permission_syncers = {
+                "select": lambda role, perm_config: self.client.create_select_permission(
+                    schema,
+                    table,
+                    role,
+                    filter=perm_config.get("filter", {}),
+                    columns=perm_config.get("columns"),
+                ),
+                "insert": lambda role, perm_config: self.client.create_insert_permission(
+                    schema,
+                    table,
+                    role,
+                    check=perm_config.get("check", {}),
+                    columns=perm_config.get("columns"),
+                    set=perm_config.get("set"),
+                ),
+                "update": lambda role, perm_config: self.client.create_update_permission(
+                    schema,
+                    table,
+                    role,
+                    filter=perm_config.get("filter", {}),
+                    check=perm_config.get("check", {}),
+                    columns=perm_config.get("columns"),
+                    set=perm_config.get("set"),
+                ),
+                "delete": lambda role, perm_config: self.client.create_delete_permission(
+                    schema,
+                    table,
+                    role,
+                    filter=perm_config.get("filter", {}),
+                ),
+            }
 
-                try:
-                    if verbose:
-                        logger.info("  SELECT for %s...", role)
+            for perm_type, sync_permission in permission_syncers.items():
+                for role, perm_config in permissions.get(perm_type, {}).items():
+                    if perm_config is False:
+                        continue
 
-                    filter_expr = perm_config.get("filter", {})
-                    columns = perm_config.get("columns", None)
+                    try:
+                        if verbose:
+                            logger.info("  %s for %s...", perm_type.upper(), role)
 
-                    self.client.create_select_permission(
-                        schema, table, role, filter=filter_expr, columns=columns
-                    )
+                        sync_permission(role, perm_config)
 
-                    results["select"][(table_path, role)] = True
-                    if verbose:
-                        logger.info("  SELECT for %s ✓", role)
-                except Exception as e:
-                    results["select"][(table_path, role)] = False
-                    if verbose:
-                        logger.warning("  SELECT for %s ✗ (%s)", role, str(e)[:200])
-
-            # Sync INSERT permissions
-            insert_perms = permissions.get("insert", {})
-            for role, perm_config in insert_perms.items():
-                if perm_config is False:
-                    continue
-
-                try:
-                    if verbose:
-                        logger.info("  INSERT for %s...", role)
-
-                    check = perm_config.get("check", {})
-                    columns = perm_config.get("columns", None)
-                    set_values = perm_config.get("set", None)
-
-                    self.client.create_insert_permission(
-                        schema, table, role, check=check, columns=columns, set=set_values
-                    )
-
-                    results["insert"][(table_path, role)] = True
-                    if verbose:
-                        logger.info("  INSERT for %s ✓", role)
-                except Exception as e:
-                    results["insert"][(table_path, role)] = False
-                    if verbose:
-                        logger.warning("  INSERT for %s ✗ (%s)", role, str(e)[:200])
+                        results[perm_type][(table_path, role)] = True
+                        if verbose:
+                            logger.info("  %s for %s ✓", perm_type.upper(), role)
+                    except Exception as e:
+                        results[perm_type][(table_path, role)] = False
+                        if verbose:
+                            logger.warning(
+                                "  %s for %s ✗ (%s)",
+                                perm_type.upper(),
+                                role,
+                                str(e)[:200],
+                            )
 
         if verbose:
             logger.info("=" * 60)
@@ -275,15 +284,18 @@ class HasuraPermissionManager:
                         role = perm.get("role")
                         permission = perm.get("permission", {})
 
-                        config["tables"][table_path][perm_type][role] = {
-                            "filter": permission.get("filter", {}),
-                            "columns": permission.get("columns", ["*"]),
-                        }
+                        exported_permission: dict[str, Any] = {}
 
-                        if perm_type == "insert":
-                            config["tables"][table_path][perm_type][role]["check"] = permission.get(
-                                "check", {}
-                            )
+                        if "filter" in permission or perm_type in {"select", "update", "delete"}:
+                            exported_permission["filter"] = permission.get("filter", {})
+                        if "columns" in permission or perm_type in {"select", "insert", "update"}:
+                            exported_permission["columns"] = permission.get("columns", ["*"])
+                        if "check" in permission or perm_type in {"insert", "update"}:
+                            exported_permission["check"] = permission.get("check", {})
+                        if "set" in permission:
+                            exported_permission["set"] = permission["set"]
+
+                        config["tables"][table_path][perm_type][role] = exported_permission
 
         return config
 

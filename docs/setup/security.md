@@ -406,8 +406,9 @@ curl http://localhost:10018/customers \
 
 Located in `packages/phlo-hasura/src/phlo_hasura/permissions.py`:
 
-- Full RBAC with row and column-level permissions
-- Configure via Hasura console or API
+- Hasura itself supports row-level and column-level permissions across select, insert, update, and delete operations
+- Phlo's packaged permission sync automates select, insert, update, and delete permission definitions from config
+- Configure permissions either through the Hasura console/API directly or via Phlo's permission sync workflow
 
 ### Observatory Token Auth
 
