@@ -234,6 +234,22 @@ api:
     assert get_authorization_mode() == "required"
 
 
+def test_empty_env_authorization_mode_falls_back_to_phlo_yaml(monkeypatch, tmp_path: Path) -> None:
+    _write_phlo_config(
+        tmp_path,
+        """
+api:
+  authorization:
+    mode: required
+""".lstrip(),
+    )
+    monkeypatch.setenv("PHLO_AUTHORIZATION_MODE", "")
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    clear_config_cache()
+
+    assert get_authorization_mode() == "required"
+
+
 def test_get_authorization_backend_uses_service_specific_phlo_yaml(
     monkeypatch, tmp_path: Path
 ) -> None:

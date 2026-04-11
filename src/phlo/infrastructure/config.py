@@ -186,7 +186,7 @@ def get_api_authorization_config(project_root: Path | None = None) -> ApiAuthori
         phlo_api_service = services.get("phlo-api")
         if isinstance(phlo_api_service, dict):
             service_auth = phlo_api_service.get("authorization")
-            if service_auth is not None:
+            if isinstance(service_auth, dict):
                 return ApiAuthorizationConfig(**service_auth)
 
     api_config = project_config.get("api")

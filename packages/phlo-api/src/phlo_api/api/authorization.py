@@ -142,6 +142,8 @@ def require_authorization_backend() -> AuthorizationPolicyBackend:
 def get_authorization_mode() -> str:
     """Return how route guards behave when no authorization backend exists."""
     configured_mode = os.environ.get(_AUTHORIZATION_MODE_ENV)
+    if configured_mode is not None:
+        configured_mode = configured_mode.strip() or None
     if configured_mode is None:
         config = get_api_authorization_config()
         configured_mode = (

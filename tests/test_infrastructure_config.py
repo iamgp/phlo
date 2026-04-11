@@ -17,6 +17,7 @@ from phlo.infrastructure import (
     load_infrastructure_config,
     load_project_config,
 )
+from phlo.infrastructure.config import get_api_authorization_config
 
 
 @pytest.fixture(autouse=True)
@@ -129,6 +130,23 @@ def test_get_capability_defaults_from_config_reads_defaults_block(tmp_path: Path
     defaults = get_capability_defaults_from_config(tmp_path)
 
     assert defaults == {"table_store": "iceberg", "query_engine": "trino"}
+
+
+def test_get_api_authorization_config_ignores_non_mapping_service_auth(tmp_path: Path) -> None:
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(
+        config_path,
+        {
+            "services": {"phlo-api": {"authorization": True}},
+            "api": {"authorization": {"mode": "required"}},
+        },
+    )
+
+    auth_config = get_api_authorization_config(tmp_path)
+
+    assert auth_config is not None
+    assert auth_config.mode == "required"
+    assert auth_config.backend is None
 
 
 def test_infrastructure_config_pattern_validation():
