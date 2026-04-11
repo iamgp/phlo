@@ -217,6 +217,39 @@ Notes:
 
 - canonical RBAC accepts `allow` policies only
 - `deny` policies are rejected during validation and planning
+- config is loaded from `.phlo/authorization/roles.yaml` and `.phlo/authorization/policies.yaml`
+
+Common workflow:
+
+```bash
+phlo authz validate
+phlo authz plan --backend trino
+phlo authz sync --backend trino
+phlo authz verify --backend trino
+```
+
+Command behavior:
+
+- `validate`: parse and validate canonical RBAC config, including role references
+  and hierarchy cycles
+- `plan`: compile desired backend artifacts and show creates or deletes without
+  applying them
+- `sync`: apply compiled backend artifacts; use `--dry-run` to skip mutation
+- `verify`: compare desired compiled artifacts against current backend state and
+  report drift
+
+Options shared across these commands:
+
+- `--path PATH`: path to the `.phlo` directory root
+- `--backend TEXT`: restrict work to one or more backends where supported
+- `--environment TEXT`: compiler context label, default `development`
+
+Additional sync option:
+
+- `--dry-run`: show sync results without applying changes
+
+Use [Canonical RBAC](canonical-rbac.md) for the full file format and backend
+support details.
 
 ## Services Commands
 

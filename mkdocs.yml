@@ -118,6 +118,7 @@ nav:
   - Reference:
       - Architecture: reference/architecture.md
       - API Reference: reference/phlo-api.md
+      - Canonical RBAC: reference/canonical-rbac.md
       - CLI Reference: reference/cli-reference.md
       - Configuration: reference/configuration-reference.md
       - Plugin API: reference/plugin-api.md
