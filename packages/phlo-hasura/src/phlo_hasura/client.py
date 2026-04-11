@@ -392,6 +392,106 @@ class HasuraClient:
 
         return self._request("POST", data, f"create_insert_permission({schema}.{table}.{role})")
 
+    def create_update_permission(
+        self,
+        schema: str,
+        table: str,
+        role: str,
+        filter: dict[str, Any] | None = None,
+        check: dict[str, Any] | None = None,
+        columns: list[str] | None = None,
+        set: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """Create UPDATE permission for a role on a table.
+
+        Grants UPDATE access to a specific role on a tracked table.
+        Supports row filters for selecting updatable rows, check expressions
+        for validating updated rows, column allow-lists, and preset values.
+
+        Args:
+            schema: Schema name containing the table.
+            table: Table name to grant permissions on.
+            role: Role name to grant permissions to.
+            filter: Row-level filter expression controlling which rows can be updated.
+            check: Validation check expression for updated rows.
+            columns: Allowed columns for update (default: ["*"] for all).
+            set: Preset values to automatically set on update.
+
+        Returns:
+            API response dictionary.
+
+        Raises:
+            requests.RequestException: If the API call fails.
+
+        """
+        if filter is None:
+            filter = {}
+        if check is None:
+            check = {}
+
+        permission: dict[str, Any] = {
+            "columns": columns or ["*"],
+            "filter": filter,
+            "check": check,
+        }
+
+        if set:
+            permission["set"] = set
+
+        data = {
+            "type": "pg_create_update_permission",
+            "args": {
+                "schema": schema,
+                "table": table,
+                "role": role,
+                "permission": permission,
+            },
+        }
+
+        return self._request("POST", data, f"create_update_permission({schema}.{table}.{role})")
+
+    def create_delete_permission(
+        self,
+        schema: str,
+        table: str,
+        role: str,
+        filter: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create DELETE permission for a role on a table.
+
+        Grants DELETE access to a specific role on a tracked table.
+        Supports row-level filters controlling which rows can be deleted.
+
+        Args:
+            schema: Schema name containing the table.
+            table: Table name to grant permissions on.
+            role: Role name to grant permissions to.
+            filter: Row-level filter expression controlling which rows can be deleted.
+
+        Returns:
+            API response dictionary.
+
+        Raises:
+            requests.RequestException: If the API call fails.
+
+        """
+        if filter is None:
+            filter = {}
+
+        data = {
+            "type": "pg_create_delete_permission",
+            "args": {
+                "schema": schema,
+                "table": table,
+                "role": role,
+                "permission": {
+                    "filter": filter,
+                },
+            },
+        }
+
+        return self._request("POST", data, f"create_delete_permission({schema}.{table}.{role})")
+
     def drop_permission(
         self, schema: str, table: str, role: str, permission_type: str = "select"
     ) -> dict[str, Any]:
