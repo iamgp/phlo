@@ -19,6 +19,7 @@ from phlo.rbac.models import (
     CanonicalRBAC,
     PolicyChange,
     PolicyEffect,
+    PolicyRule,
     SyncPlan,
     VerifyResult,
 )
@@ -269,6 +270,14 @@ class GovernanceCompiler(ABC):
             data_masking=None,
         )
 
+    def _ensure_supported_policy_effect(self, policy: PolicyRule) -> None:
+        """Fail loudly when the canonical model uses unsupported effects."""
+        if policy.effect != PolicyEffect.ALLOW:
+            raise ValueError(
+                f"Backend {self.backend_name!r} does not support canonical "
+                f"{policy.effect.value!r} policies. Policy: {policy.policy_id}"
+            )
+
 
 class TrinoCompiler(GovernanceCompiler):
     """Compiler for Trino SQL grants."""
@@ -327,10 +336,9 @@ class TrinoCompiler(GovernanceCompiler):
         artifacts: list[BackendArtifact] = []
 
         for policy in rbac.policies.policies:
-            if not self.supports_action(policy.action):
-                continue
+            self._ensure_supported_policy_effect(policy)
 
-            if policy.effect != PolicyEffect.ALLOW:
+            if not self.supports_action(policy.action):
                 continue
 
             privileges = self.ACTION_MAPPING.get(policy.action, ())
@@ -614,10 +622,9 @@ class PostgreSQLCompiler(GovernanceCompiler):
         artifacts: list[BackendArtifact] = []
 
         for policy in rbac.policies.policies:
-            if not self.supports_action(policy.action):
-                continue
+            self._ensure_supported_policy_effect(policy)
 
-            if policy.effect != PolicyEffect.ALLOW:
+            if not self.supports_action(policy.action):
                 continue
 
             privileges = self.ACTION_MAPPING.get(policy.action, ())
@@ -691,10 +698,9 @@ class HasuraCompiler(GovernanceCompiler):
         import json
 
         for policy in rbac.policies.policies:
-            if not self.supports_action(policy.action):
-                continue
+            self._ensure_supported_policy_effect(policy)
 
-            if policy.effect != PolicyEffect.ALLOW:
+            if not self.supports_action(policy.action):
                 continue
 
             permission_type = self.ACTION_MAPPING.get(policy.action, "select")
@@ -765,10 +771,9 @@ class MinIOCompiler(GovernanceCompiler):
         import json
 
         for policy in rbac.policies.policies:
-            if not self.supports_action(policy.action):
-                continue
+            self._ensure_supported_policy_effect(policy)
 
-            if policy.effect != PolicyEffect.ALLOW:
+            if not self.supports_action(policy.action):
                 continue
 
             actions = self.ACTION_MAPPING.get(policy.action, [])
@@ -847,10 +852,9 @@ class NessieCompiler(GovernanceCompiler):
         import json
 
         for policy in rbac.policies.policies:
-            if not self.supports_action(policy.action):
-                continue
+            self._ensure_supported_policy_effect(policy)
 
-            if policy.effect != PolicyEffect.ALLOW:
+            if not self.supports_action(policy.action):
                 continue
 
             permissions = self.ACTION_MAPPING.get(policy.action, [])

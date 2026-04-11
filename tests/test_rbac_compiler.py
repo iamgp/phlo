@@ -213,7 +213,7 @@ def test_trino_compile_allows_catch_all_resource_pattern() -> None:
     assert artifacts[0].metadata["resource"] == "%"
 
 
-def test_trino_compile_skips_deny_and_unsupported_actions() -> None:
+def test_trino_compile_rejects_deny_rules() -> None:
     compiler = TrinoCompiler()
     roles = RolesConfig.from_dict({"version": 1, "roles": {"admin": {"inherits": []}}})
     policies = PoliciesConfig.from_dict(
@@ -240,7 +240,32 @@ def test_trino_compile_skips_deny_and_unsupported_actions() -> None:
     rbac = CanonicalRBAC.from_configs(roles, policies)
     context = CompilerContext(environment="test", backend_name="trino")
 
-    assert compiler.compile(rbac, context) == []
+    with pytest.raises(ValueError, match="does not support canonical 'deny' policies"):
+        compiler.compile(rbac, context)
+
+
+def test_postgresql_compile_rejects_deny_rules() -> None:
+    compiler = PostgreSQLCompiler()
+    roles = RolesConfig.from_dict({"version": 1, "roles": {"admin": {"inherits": []}}})
+    policies = PoliciesConfig.from_dict(
+        {
+            "version": 1,
+            "policies": [
+                {
+                    "policy_id": "deny_service_read",
+                    "effect": "deny",
+                    "principal": {"roles": ["admin"]},
+                    "action": "service.read",
+                    "resource": {"type": "service", "id_pattern": "analytics"},
+                }
+            ],
+        }
+    )
+    rbac = CanonicalRBAC.from_configs(roles, policies)
+    context = CompilerContext(environment="test", backend_name="postgresql")
+
+    with pytest.raises(ValueError, match="does not support canonical 'deny' policies"):
+        compiler.compile(rbac, context)
 
 
 def test_trino_compile_rejects_unsafe_role_names() -> None:

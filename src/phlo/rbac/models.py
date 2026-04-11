@@ -265,6 +265,18 @@ class CanonicalRBAC:
         """
         errors: list[str] = []
 
+        unsupported_effects = {
+            policy.effect.value
+            for policy in self.policies.policies
+            if policy.effect != PolicyEffect.ALLOW
+        }
+        for effect in sorted(unsupported_effects):
+            errors.append(
+                "Canonical RBAC does not support "
+                f"{effect!r} policies yet. Remove those rules until backend compilation "
+                "semantics are implemented."
+            )
+
         # Check that all principal roles exist
         for policy in self.policies.policies:
             for role in policy.principal_roles:
