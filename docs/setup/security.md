@@ -250,7 +250,10 @@ Canonical RBAC note:
 
 ### PostgreSQL Row-Level Security
 
-Phlo includes a pre-built RLS framework in PostgREST. Enable it:
+Phlo does not generate row-level policies for PostgREST API views. Generated `api.*`
+views get `GRANT` statements only. When you need row-level enforcement, enable RLS on
+the underlying tables and make sure your JWT/session context exposes the claims your
+policies read:
 
 ```sql
 -- Enable RLS on a table
@@ -269,7 +272,8 @@ CREATE POLICY admin_all ON marts.customers
   USING (true);
 ```
 
-The JWT token should include claims that set the user's role and context.
+For PostgREST-backed APIs, the JWT token must include the role and any custom claim
+values your table policies depend on.
 
 ## Encryption
 

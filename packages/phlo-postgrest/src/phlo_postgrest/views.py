@@ -359,10 +359,10 @@ COMMENT ON VIEW {self.api_schema}.{model.name} IS '{self._escape_string(model.de
         return sql
 
     def generate_permissions_sql(self, model: DbtModel) -> str:
-        """Generate GRANT and RLS policy SQL for a model.
+        """Generate GRANT SQL for a model.
 
         Maps dbt tags to database roles and generates appropriate
-        GRANT statements and Row-Level Security policies.
+        GRANT statements for generated API views.
 
         Tag-to-Role Mapping:
             - 'public' -> anon role
@@ -373,13 +373,13 @@ COMMENT ON VIEW {self.api_schema}.{model.name} IS '{self._escape_string(model.de
             model: DbtModel instance with tags to process.
 
         Returns:
-            str: SQL statements for grants and policies.
+            str: SQL statements for grants.
 
         Example:
             >>> sql = generator.generate_permissions_sql(model)
             >>> print(sql)
             GRANT SELECT ON api.mrt_orders TO analyst;
-            CREATE POLICY analyst_access ON api.mrt_orders ...
+            GRANT SELECT ON api.mrt_orders TO admin;
 
         """
         sql_parts = ["\n-- Permissions"]
@@ -398,14 +398,11 @@ COMMENT ON VIEW {self.api_schema}.{model.name} IS '{self._escape_string(model.de
                     sql_parts.append(f"GRANT SELECT ON {self.api_schema}.{model.name} TO {role};")
                     granted_roles.add(role)
 
-        # Generate RLS policies for tracked roles
         if granted_roles:
-            sql_parts.append("\n-- RLS Policy")
-            for role in granted_roles:
-                sql_parts.append(
-                    f"CREATE POLICY {role}_access ON {self.api_schema}.{model.name} "
-                    f"FOR SELECT TO {role} USING (true);"
-                )
+            sql_parts.append("\n-- Note: PostgreSQL views do not support RLS policies directly.")
+            sql_parts.append(
+                "-- Apply row-level controls to underlying tables or security-definer functions."
+            )
 
         return "\n".join(sql_parts)
 
