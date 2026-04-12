@@ -32,6 +32,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from phlo.logging import bind_context, clear_context, get_logger
+from phlo_api.regulated_surface_adapter import get_adapter
+from phlo.security.validation import require_regulated_mode_validation
 
 logger = get_logger(__name__, service="phlo-api")
 
@@ -40,6 +42,9 @@ app = FastAPI(
     description="Backend API for Phlo Observatory",
     version="0.1.0",
 )
+
+get_adapter().install(app)
+require_regulated_mode_validation(runtime=app)
 
 # Allow CORS for Observatory
 _cors_origins_raw = os.environ.get(
