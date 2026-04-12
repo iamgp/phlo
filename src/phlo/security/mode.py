@@ -16,7 +16,7 @@ def is_regulated_mode_enabled(config_regulated_mode: bool | None = None) -> bool
 
     Precedence:
         1. PHLO_REGULATED_MODE environment variable
-        2. Config file regulated_mode setting
+        2. phlo.yaml root regulated_mode setting
         3. Default (False)
     """
     env_value = os.environ.get(PHLO_REGULATED_MODE_ENV, "").strip().lower()
@@ -27,5 +27,11 @@ def is_regulated_mode_enabled(config_regulated_mode: bool | None = None) -> bool
 
     if config_regulated_mode is not None:
         return config_regulated_mode
+
+    from phlo.infrastructure.config import get_regulated_mode_config
+
+    configured_value = get_regulated_mode_config()
+    if configured_value is not None:
+        return configured_value
 
     return False

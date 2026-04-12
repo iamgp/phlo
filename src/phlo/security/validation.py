@@ -209,19 +209,15 @@ def _check_identity_provider() -> ValidationResult:
             message=f"Identity provider configured ({auth_method or auth_provider})",
         )
 
-    from phlo.infrastructure.config import load_project_config
+    from phlo.infrastructure.config import get_authentication_provider_config
 
-    config = load_project_config()
-    auth_config = config.get("authentication", {})
-
-    if auth_config and isinstance(auth_config, dict):
-        provider = auth_config.get("provider")
-        if provider:
-            return ValidationResult(
-                name="identity_provider_configured",
-                passed=True,
-                message=f"Identity provider configured via config ({provider})",
-            )
+    provider = get_authentication_provider_config()
+    if provider:
+        return ValidationResult(
+            name="identity_provider_configured",
+            passed=True,
+            message=f"Identity provider configured via config ({provider})",
+        )
 
     return ValidationResult(
         name="identity_provider_configured",

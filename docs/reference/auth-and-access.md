@@ -26,6 +26,24 @@ flowchart TD
 - with the default `PHLO_AUTHORIZATION_MODE=optional`, guarded routes remain reachable when `PHLO_AUTHORIZATION_BACKEND` is unset
 - set `PHLO_AUTHORIZATION_MODE=required` to fail closed with HTTP `503` on guarded routes when no authorization backend is configured
 - once a backend is configured, route guards evaluate the caller normally and still return `401` or `403` based on authentication and policy decisions
+- regulated mode itself can be enabled with `PHLO_REGULATED_MODE=true` or `regulated_mode: true` at the root of `phlo.yaml`
+
+Example:
+
+```yaml
+regulated_mode: true
+
+authentication:
+  provider: proxy
+
+api:
+  authorization:
+    backend: opa
+    mode: required
+```
+
+Built-in authentication provider names include `static`, `proxy`, and `service_token`.
+Their built-in config blocks live under the same root `authentication` section in `phlo.yaml`.
 
 You can declare these settings in `phlo.yaml` as either:
 

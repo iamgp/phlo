@@ -10,7 +10,12 @@ Tests the full pipeline:
 
 from __future__ import annotations
 
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+import pytest
+import yaml
 
 from phlo.capabilities import (
     RegulatedSurfaceSpec,
@@ -183,6 +188,20 @@ class TestValidation:
         assert registered_check is not None
         assert registered_check.passed is True
 
+    def test_validation_reads_regulated_mode_from_phlo_yaml(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Validation should honor root-level regulated_mode from phlo.yaml."""
+        config_path = tmp_path / "phlo.yaml"
+        config_path.write_text(yaml.safe_dump({"regulated_mode": True}))
+
+        monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+        monkeypatch.delenv("PHLO_REGULATED_MODE", raising=False)
+
+        report = run_regulated_mode_validation()
+
+        assert report.regulated_mode_enabled is True
+
 
 class TestModuleLevelGlobalsGone:
     """Test that module-level globals are removed from phlo-api authorization."""
@@ -261,6 +280,71 @@ class TestCanonicalAuditEvents:
                 )
 
                 assert mock_emitter.emit_authorization.call_count == 1
+
+
+class TestPhloAPIIntegration:
+    """Regression tests for migrated phlo-api regulated enforcement."""
+
+    def test_regulated_phlo_api_passes_auth_principal_to_core_enforce(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """phlo-api should hand the raw auth principal to core enforce()."""
+        from phlo_api.api import authorization
+
+        auth_principal = AuthPrincipal(
+            subject="test-user",
+            principal_type="user",
+            groups=("developers",),
+            attributes={},
+        )
+        request = SimpleNamespace(
+            state=SimpleNamespace(request_id="req-123"),
+            client=SimpleNamespace(host="127.0.0.1"),
+            method="GET",
+            url=SimpleNamespace(path="/api/datasets/raw.orders"),
+        )
+        captured: dict[str, object] = {}
+
+        monkeypatch.setattr(authorization, "get_request_principal", lambda _request: auth_principal)
+
+        def fake_enforce(**kwargs):
+            captured.update(kwargs)
+            from phlo.security.adapters import EnforcementResult
+
+            return EnforcementResult.allow()
+
+        monkeypatch.setattr(authorization, "enforce", fake_enforce)
+
+        authorization._enforce_or_raise(
+            request,
+            "dataset.read",
+            ResourceRef(resource_type="dataset", resource_id="raw.orders"),
+        )
+
+        assert captured["principal"] is auth_principal
+        assert captured["request_id"] == "req-123"
+
+    @pytest.mark.anyio
+    async def test_request_logging_middleware_persists_request_id(self) -> None:
+        """Request middleware should persist request_id for audit/context consumers."""
+        from phlo_api.main import bind_request_logging_context
+
+        request = SimpleNamespace(
+            headers={"x-request-id": "req-456"},
+            url=SimpleNamespace(path="/api/maintenance/status"),
+            method="GET",
+            state=SimpleNamespace(),
+        )
+
+        async def call_next(_request):
+            assert _request.state.request_id == "req-456"
+            return SimpleNamespace(headers={})
+
+        response = await bind_request_logging_context(request, call_next)
+
+        assert request.state.request_id == "req-456"
+        assert response.headers["x-request-id"] == "req-456"
 
 
 class TestSurfaceOperation:

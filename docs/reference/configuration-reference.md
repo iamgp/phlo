@@ -23,6 +23,57 @@ flowchart TB
 4. **Python settings** (package settings modules like `phlo_postgres.settings`)
 5. **Runtime configuration** (Dagster run config)
 
+## Security Mode
+
+Regulated mode can be enabled either in `phlo.yaml` or with an environment variable.
+
+```yaml
+regulated_mode: true
+
+authentication:
+  provider: proxy
+  proxy:
+    trusted_proxies:
+      - 127.0.0.1/32
+    shared_secret: change-me
+    header_subject: X-Remote-User
+    header_email: X-Remote-Email
+    header_groups: X-Remote-Groups
+```
+
+```bash
+PHLO_REGULATED_MODE=true
+```
+
+Precedence:
+
+- `PHLO_REGULATED_MODE`
+- `phlo.yaml` root `regulated_mode`
+- default `false`
+
+Built-in authentication provider names:
+
+- `static`
+- `proxy`
+- `service_token`
+
+Built-in provider config blocks:
+
+- `authentication.static`
+  - `enabled`
+  - `dev_mode`
+  - `users`
+- `authentication.proxy`
+  - `enabled`
+  - `trusted_proxies`
+  - `shared_secret`
+  - `header_subject`
+  - `header_email`
+  - `header_groups`
+- `authentication.service_token`
+  - `enabled`
+  - `tokens`
+
 ## Environment Variables
 
 Environment variables are materialized into `.phlo/.env` (generated, non-secret defaults)
