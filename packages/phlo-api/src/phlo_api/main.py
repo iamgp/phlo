@@ -149,6 +149,7 @@ async def bind_request_logging_context(request: Request, call_next: Any) -> Any:
     """
     request_id = request.headers.get("x-request-id") or str(uuid4())
     trace_id = request.headers.get("traceparent") or request.headers.get("x-trace-id")
+    request.state.request_id = request_id
     bind_context(
         request_id=request_id, trace_id=trace_id, path=request.url.path, method=request.method
     )

@@ -65,6 +65,21 @@ Use [Audit Logging](../operations/audit-logging.md) as the source of truth for r
 If you put Phlo behind a trusted reverse proxy, configure the app to accept asserted identity
 headers only from that proxy and bind those headers into a shared-secret signature:
 
+```yaml
+authentication:
+  provider: proxy
+  proxy:
+    trusted_proxies:
+      - 127.0.0.1/32
+      - 10.0.0.0/8
+    shared_secret: <generate-strong-random-secret>
+    header_subject: X-Remote-User
+    header_email: X-Remote-Email
+    header_groups: X-Remote-Groups
+```
+
+Or with environment variables:
+
 ```bash
 # .phlo/.env.local
 PHLO_AUTH_PROXY_ENABLED=true
@@ -183,7 +198,9 @@ For `phlo-api`, route guards are backend-dependent. If no authorization backend 
 the default `PHLO_AUTHORIZATION_MODE=optional` leaves guarded routes reachable. Set
 `PHLO_AUTHORIZATION_MODE=required` to fail closed with HTTP `503` on guarded routes until
 `PHLO_AUTHORIZATION_BACKEND` resolves. You can declare those settings in `phlo.yaml`
-under `api.authorization` or `services.phlo-api.authorization`.
+under `api.authorization` or `services.phlo-api.authorization`. Regulated mode itself
+can be enabled with `PHLO_REGULATED_MODE=true` or `regulated_mode: true` at the root
+of `phlo.yaml`.
 
 ### Trino Access Control
 

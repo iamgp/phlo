@@ -130,6 +130,11 @@ Authorization behavior on guarded routes is explicit:
 These values can also be set in `phlo.yaml`:
 
 ```yaml
+regulated_mode: true
+
+authentication:
+  provider: proxy
+
 api:
   authorization:
     backend: opa

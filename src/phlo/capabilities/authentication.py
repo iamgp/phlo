@@ -22,9 +22,80 @@ from phlo.capabilities.interfaces import (
 from phlo.capabilities.registry import register_authentication_provider
 from phlo.capabilities.specs import AuthenticationProviderSpec
 from phlo.capabilities.support import CapabilitySupport
+from phlo.infrastructure.config import (
+    get_authentication_config,
+    get_authentication_provider_config,
+)
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _authentication_subconfig(name: str) -> dict[str, Any]:
+    """Return a provider-specific authentication config block from phlo.yaml."""
+    auth_config = get_authentication_config()
+    raw = auth_config.get(name)
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"phlo.yaml authentication.{name} must be a mapping")
+    return raw
+
+
+def _optional_bool(value: Any, *, path: str) -> bool | None:
+    """Validate an optional boolean config value."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    raise ValueError(f"{path} must be a boolean")
+
+
+def _string_dict(value: Any, *, path: str) -> dict[str, dict[str, Any]]:
+    """Validate a token-keyed config mapping."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"{path} must be a mapping")
+
+    normalized: dict[str, dict[str, Any]] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError(f"{path} keys must be non-empty strings")
+        if not isinstance(item, dict):
+            raise ValueError(f"{path}.{key} must be a mapping")
+        normalized[key] = item
+    return normalized
+
+
+def _string_list(value: Any, *, path: str) -> list[str] | None:
+    """Validate a list of non-empty strings."""
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise ValueError(f"{path} must be a list")
+
+    normalized: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise ValueError(f"{path} entries must be strings")
+        stripped = item.strip()
+        if not stripped:
+            raise ValueError(f"{path} entries cannot be empty")
+        normalized.append(stripped)
+    return normalized
+
+
+def _optional_string(value: Any, *, path: str) -> str | None:
+    """Validate an optional non-empty string."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{path} must be a string")
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError(f"{path} cannot be empty")
+    return normalized
 
 
 def _log_auth_event(
@@ -478,9 +549,23 @@ class ServiceTokenAuthenticationProvider:
 
 
 def _load_static_config() -> tuple[dict[str, dict[str, Any]], bool]:
-    """Load static authentication configuration from environment."""
-    static_users = {}
-    dev_mode = os.environ.get("PHLO_AUTH_DEV_MODE", "").lower() in ("1", "true", "yes")
+    """Load static authentication configuration from env first, then phlo.yaml."""
+    static_config = _authentication_subconfig("static")
+    static_users = _string_dict(
+        static_config.get("users"), path="phlo.yaml authentication.static.users"
+    )
+
+    dev_mode_env = os.environ.get("PHLO_AUTH_DEV_MODE", "").lower()
+    if dev_mode_env:
+        dev_mode = dev_mode_env in ("1", "true", "yes")
+    else:
+        dev_mode = (
+            _optional_bool(
+                static_config.get("dev_mode"),
+                path="phlo.yaml authentication.static.dev_mode",
+            )
+            or False
+        )
 
     if dev_mode:
         environment = os.environ.get("PHLO_ENVIRONMENT", "dev").lower()
@@ -505,35 +590,75 @@ def _load_static_config() -> tuple[dict[str, dict[str, Any]], bool]:
 
 
 def _load_proxy_config() -> dict[str, Any]:
-    """Load proxy authentication configuration from environment."""
+    """Load proxy authentication configuration from env first, then phlo.yaml."""
     config = {}
+    proxy_config = _authentication_subconfig("proxy")
 
     trusted = os.environ.get("PHLO_AUTH_PROXY_TRUSTED_PROXIES")
     if trusted:
         config["trusted_proxies"] = [p.strip() for p in trusted.split(",")]
+    else:
+        configured = _string_list(
+            proxy_config.get("trusted_proxies"),
+            path="phlo.yaml authentication.proxy.trusted_proxies",
+        )
+        if configured:
+            config["trusted_proxies"] = configured
 
     header_subject = os.environ.get("PHLO_AUTH_PROXY_HEADER_SUBJECT")
     if header_subject:
         config["header_subject"] = header_subject
+    else:
+        configured = _optional_string(
+            proxy_config.get("header_subject"),
+            path="phlo.yaml authentication.proxy.header_subject",
+        )
+        if configured:
+            config["header_subject"] = configured
 
     header_email = os.environ.get("PHLO_AUTH_PROXY_HEADER_EMAIL")
     if header_email:
         config["header_email"] = header_email
+    else:
+        configured = _optional_string(
+            proxy_config.get("header_email"),
+            path="phlo.yaml authentication.proxy.header_email",
+        )
+        if configured:
+            config["header_email"] = configured
 
     header_groups = os.environ.get("PHLO_AUTH_PROXY_HEADER_GROUPS")
     if header_groups:
         config["header_groups"] = header_groups
+    else:
+        configured = _optional_string(
+            proxy_config.get("header_groups"),
+            path="phlo.yaml authentication.proxy.header_groups",
+        )
+        if configured:
+            config["header_groups"] = configured
 
     shared_secret = os.environ.get("PHLO_AUTH_PROXY_SHARED_SECRET")
     if shared_secret:
         config["shared_secret"] = shared_secret
+    else:
+        configured = _optional_string(
+            proxy_config.get("shared_secret"),
+            path="phlo.yaml authentication.proxy.shared_secret",
+        )
+        if configured:
+            config["shared_secret"] = configured
 
     return config
 
 
 def _load_service_token_config() -> dict[str, dict[str, Any]]:
-    """Load service token configuration from environment."""
-    service_tokens = {}
+    """Load service-token configuration from env first, then phlo.yaml."""
+    service_config = _authentication_subconfig("service_token")
+    service_tokens = _string_dict(
+        service_config.get("tokens"),
+        path="phlo.yaml authentication.service_token.tokens",
+    )
 
     tokens_json = os.environ.get("PHLO_AUTH_SERVICE_TOKENS")
     if tokens_json:
@@ -543,14 +668,48 @@ def _load_service_token_config() -> dict[str, dict[str, Any]]:
     return service_tokens
 
 
+def _provider_enabled(
+    provider_name: str,
+    *,
+    env_enabled: str | None,
+    config_block: dict[str, Any],
+    selected_provider: str | None,
+    configured_payload: Any,
+) -> bool:
+    """Return whether a built-in provider is explicitly enabled."""
+    if env_enabled:
+        return True
+
+    enabled = _optional_bool(
+        config_block.get("enabled"),
+        path=f"phlo.yaml authentication.{provider_name}.enabled",
+    )
+    if enabled is not None:
+        return enabled
+
+    if selected_provider == provider_name:
+        return True
+
+    return bool(configured_payload)
+
+
 def register_default_capability_providers() -> None:
     """Register authentication providers only when explicitly enabled via config.
 
     Authentication providers are security-sensitive and must be explicitly
     enabled via environment variables, not auto-registered on startup.
     """
+    selected_provider = get_authentication_provider_config()
+
+    static_block = _authentication_subconfig("static")
     static_users, dev_mode = _load_static_config()
-    if static_users or dev_mode or os.environ.get("PHLO_AUTH_STATIC_ENABLED"):
+    if _provider_enabled(
+        "static",
+        env_enabled=os.environ.get("PHLO_AUTH_STATIC_ENABLED"),
+        config_block=static_block,
+        selected_provider=selected_provider,
+        configured_payload=static_users or dev_mode,
+    ):
         register_authentication_provider(
             AuthenticationProviderSpec(
                 name="static",
@@ -572,8 +731,15 @@ def register_default_capability_providers() -> None:
             )
         )
 
+    proxy_block = _authentication_subconfig("proxy")
     proxy_config = _load_proxy_config()
-    if proxy_config or os.environ.get("PHLO_AUTH_PROXY_ENABLED"):
+    if _provider_enabled(
+        "proxy",
+        env_enabled=os.environ.get("PHLO_AUTH_PROXY_ENABLED"),
+        config_block=proxy_block,
+        selected_provider=selected_provider,
+        configured_payload=proxy_config,
+    ):
         register_authentication_provider(
             AuthenticationProviderSpec(
                 name="proxy",
@@ -591,8 +757,15 @@ def register_default_capability_providers() -> None:
             )
         )
 
+    service_token_block = _authentication_subconfig("service_token")
     service_tokens = _load_service_token_config()
-    if service_tokens or os.environ.get("PHLO_AUTH_SERVICE_ENABLED"):
+    if _provider_enabled(
+        "service_token",
+        env_enabled=os.environ.get("PHLO_AUTH_SERVICE_ENABLED"),
+        config_block=service_token_block,
+        selected_provider=selected_provider,
+        configured_payload=service_tokens,
+    ):
         register_authentication_provider(
             AuthenticationProviderSpec(
                 name="service_token",

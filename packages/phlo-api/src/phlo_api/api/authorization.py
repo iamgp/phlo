@@ -262,7 +262,6 @@ def _enforce_or_raise(
     environment: str | None = None,
 ) -> None:
     """Enforce authorization via core EnforcementContext or raise HTTPException."""
-    ctx = EnforcementContext.get_instance()
     auth_principal = get_request_principal(request)
     if auth_principal is None:
         raise HTTPException(
@@ -270,18 +269,9 @@ def _enforce_or_raise(
             detail={"error": "unauthorized", "reason": "authentication_required"},
         )
 
-    try:
-        principal = ctx.canonicalize(auth_principal)
-    except Exception:
-        logger.warning("identity_canonicalization_failed", subject=auth_principal.subject)
-        raise HTTPException(
-            status_code=403,
-            detail={"error": "forbidden", "reason": "canonicalization_failed"},
-        )
-
     context = create_decision_context(request, environment)
     result = enforce(
-        principal=principal,
+        principal=auth_principal,
         action=action,
         resource=resource,
         context=context,
@@ -294,7 +284,7 @@ def _enforce_or_raise(
     if not result.allowed:
         logger.warning(
             "authorization_denied",
-            principal=principal.subject,
+            principal=auth_principal.subject,
             action=action,
             resource_type=resource.resource_type,
             resource_id=resource.resource_id,

@@ -20,14 +20,17 @@ from phlo.capabilities.authentication import (
     register_default_capability_providers,
 )
 from phlo.capabilities.registry import get_capability_registry
+from phlo.infrastructure.config import clear_config_cache
 
 
 @pytest.fixture(autouse=True)
 def clear_auth_providers():
     """Clear auth providers before and after each test."""
     clear_capabilities()
+    clear_config_cache()
     yield
     clear_capabilities()
+    clear_config_cache()
 
 
 class TestStaticAuthenticationProvider:
@@ -472,6 +475,63 @@ class TestAuthenticationProviderRegistration:
             assert provider._shared_secret == "env-secret"
             assert provider._header_email == "x-test-email"
             assert provider._header_groups == "x-test-groups"
+
+    def test_register_proxy_provider_from_phlo_yaml(self, tmp_path, monkeypatch):
+        """Proxy provider should register from root authentication config."""
+        (tmp_path / "phlo.yaml").write_text(
+            """
+authentication:
+  provider: proxy
+  proxy:
+    trusted_proxies:
+      - 127.0.0.1/32
+    shared_secret: config-secret
+    header_email: X-Config-Email
+    header_groups: X-Config-Groups
+""".lstrip()
+        )
+        monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+        monkeypatch.delenv("PHLO_AUTH_PROXY_ENABLED", raising=False)
+        monkeypatch.delenv("PHLO_AUTH_PROXY_SHARED_SECRET", raising=False)
+        monkeypatch.delenv("PHLO_AUTH_PROXY_TRUSTED_PROXIES", raising=False)
+        monkeypatch.delenv("PHLO_AUTH_PROXY_HEADER_EMAIL", raising=False)
+        monkeypatch.delenv("PHLO_AUTH_PROXY_HEADER_GROUPS", raising=False)
+
+        register_default_capability_providers()
+        registry = get_capability_registry()
+        providers = registry.list_authentication_providers()
+
+        assert len(providers) == 1
+        assert providers[0].name == "proxy"
+        provider = providers[0].provider
+        assert isinstance(provider, ProxyAuthenticationProvider)
+        assert provider._shared_secret == "config-secret"
+        assert provider._header_email == "x-config-email"
+        assert provider._header_groups == "x-config-groups"
+
+    def test_env_proxy_config_overrides_phlo_yaml(self, tmp_path, monkeypatch):
+        """Environment config should override phlo.yaml provider settings."""
+        (tmp_path / "phlo.yaml").write_text(
+            """
+authentication:
+  provider: proxy
+  proxy:
+    trusted_proxies:
+      - 127.0.0.1/32
+    shared_secret: config-secret
+""".lstrip()
+        )
+        monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+        monkeypatch.setenv("PHLO_AUTH_PROXY_SHARED_SECRET", "env-secret")
+
+        register_default_capability_providers()
+        registry = get_capability_registry()
+        providers = registry.list_authentication_providers()
+
+        assert len(providers) == 1
+        provider = providers[0].provider
+        assert isinstance(provider, ProxyAuthenticationProvider)
+        assert provider._shared_secret == "env-secret"
 
 
 class TestProviderSelection:
