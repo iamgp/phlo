@@ -326,3 +326,12 @@ class CheckResult:
 
 
 RunResult = MaterializeResult | CheckResult
+
+
+@dataclass(frozen=True, slots=True)
+class RegulatedSurfaceSpec:
+    """Regulated surface capability — marks a framework surface as regulated."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)

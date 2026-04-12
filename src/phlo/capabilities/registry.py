@@ -24,6 +24,7 @@ from phlo.capabilities.specs import (
     PublishTargetSpec,
     QualityBackendSpec,
     QueryEngineSpec,
+    RegulatedSurfaceSpec,
     ResourceSpec,
     SchemaMigrationSpec,
     SecretBackendSpec,
@@ -59,6 +60,7 @@ class CapabilityRegistry:
     schema_migrators: dict[str, SchemaMigrationSpec] = field(default_factory=dict)
     data_migration_sources: dict[str, DataMigrationSourceSpec] = field(default_factory=dict)
     observability_backends: dict[str, ObservabilityBackendSpec] = field(default_factory=dict)
+    regulated_surfaces: dict[str, RegulatedSurfaceSpec] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def register_asset(self, spec: AssetSpec) -> None:
@@ -311,6 +313,16 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.observability_backends.values())
 
+    def register_regulated_surface(self, spec: RegulatedSurfaceSpec) -> None:
+        """Register or replace a regulated surface spec by name."""
+        with self._lock:
+            self.regulated_surfaces[spec.name] = spec
+
+    def list_regulated_surfaces(self) -> list[RegulatedSurfaceSpec]:
+        """Return a snapshot list of registered regulated surface specs."""
+        with self._lock:
+            return list(self.regulated_surfaces.values())
+
     def clear(self) -> None:
         """Remove all assets, checks, and resources from the registry."""
 
@@ -337,6 +349,7 @@ class CapabilityRegistry:
             self.schema_migrators.clear()
             self.data_migration_sources.clear()
             self.observability_backends.clear()
+            self.regulated_surfaces.clear()
 
     def clear_checks(self) -> None:
         """Remove all registered checks while preserving assets/resources."""
@@ -481,6 +494,16 @@ def register_data_migration_source(spec: DataMigrationSourceSpec) -> None:
 def register_observability_backend(spec: ObservabilityBackendSpec) -> None:
     """Register an observability backend in the global registry."""
     _GLOBAL_REGISTRY.register_observability_backend(spec)
+
+
+def register_regulated_surface(spec: RegulatedSurfaceSpec) -> None:
+    """Register a regulated surface in the global registry."""
+    _GLOBAL_REGISTRY.register_regulated_surface(spec)
+
+
+def list_regulated_surfaces() -> list[RegulatedSurfaceSpec]:
+    """Return a snapshot list of registered regulated surface specs."""
+    return _GLOBAL_REGISTRY.list_regulated_surfaces()
 
 
 def clear_capabilities() -> None:
