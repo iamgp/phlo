@@ -65,11 +65,12 @@ Use [Python Reference](../python-reference/index.mdx) when you need symbol-level
 
 ---
 
-### Networking & Proxy (1 package)
+### Networking & Proxy (2 packages)
 
 | Package | Description | Use Case |
 |---------|-------------|----------|
 | [phlo-traefik](phlo-traefik.md) | Reverse proxy with automatic service discovery | Local development URLs |
+| [phlo-oauth2-proxy](phlo-oauth2-proxy.md) | OAuth2/OIDC forward-auth gateway | SSO with Traefik |
 
 ---
 

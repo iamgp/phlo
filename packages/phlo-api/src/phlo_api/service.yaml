@@ -18,6 +18,10 @@ compose:
         traefik.http.routers.api.rule: "Host(`api.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
         traefik.http.routers.api.entrypoints: "web"
         traefik.http.services.api.loadbalancer.server.port: "4000"
+        traefik.http.routers.api.middlewares: "phlo-api-auth@docker"
+        traefik.http.middlewares.phlo-api-auth.forwardauth.address: "http://oauth2-proxy:4180/oauth2/auth"
+        traefik.http.middlewares.phlo-api-auth.forwardauth.trustForwardHeader: "true"
+        traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders: "X-Forwarded-User,X-Forwarded-Email,X-Forwarded-Groups"
     environment:
         HOST: 0.0.0.0
         PORT: 4000
