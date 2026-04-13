@@ -52,7 +52,7 @@ from phlo.capabilities import (
     resolve_capability,
 )
 from phlo.logging import get_logger
-from phlo.security import EnforcementContext, enforce, is_regulated_mode_enabled
+from phlo.security import EnforcementContext, enforce, is_regulated
 from phlo.infrastructure.config import get_api_authorization_config
 
 from phlo_api.api.authentication import get_request_principal
@@ -303,7 +303,7 @@ def check_dataset_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read the dataset."""
-    if is_regulated_mode_enabled():
+    if is_regulated():
         _enforce_or_raise(
             request,
             _ACTION_DATASET_READ,
@@ -344,7 +344,7 @@ def check_dataset_query(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can query the dataset."""
-    if is_regulated_mode_enabled():
+    if is_regulated():
         _enforce_or_raise(
             request,
             _ACTION_DATASET_QUERY,
@@ -385,7 +385,7 @@ def check_asset_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read the asset."""
-    if is_regulated_mode_enabled():
+    if is_regulated():
         _enforce_or_raise(
             request,
             _ACTION_ASSET_READ,
@@ -426,7 +426,7 @@ def check_asset_execute(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can execute the asset."""
-    if is_regulated_mode_enabled():
+    if is_regulated():
         _enforce_or_raise(
             request,
             _ACTION_ASSET_EXECUTE,
@@ -467,7 +467,7 @@ def check_service_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read the service."""
-    if is_regulated_mode_enabled():
+    if is_regulated():
         _enforce_or_raise(
             request,
             _ACTION_SERVICE_READ,
@@ -508,7 +508,7 @@ def check_service_manage(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can manage the service."""
-    if is_regulated_mode_enabled():
+    if is_regulated():
         _enforce_or_raise(
             request,
             _ACTION_SERVICE_MANAGE,
@@ -549,7 +549,7 @@ def check_admin_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read admin resources."""
-    if is_regulated_mode_enabled():
+    if is_regulated():
         _enforce_or_raise(
             request,
             _ACTION_ADMIN_READ,
@@ -590,7 +590,7 @@ def check_admin_manage(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can manage admin resources."""
-    if is_regulated_mode_enabled():
+    if is_regulated():
         _enforce_or_raise(
             request,
             _ACTION_ADMIN_MANAGE,
@@ -632,7 +632,7 @@ def filter_datasets(
     require_auth: bool = True,
 ) -> list[str]:
     """Filter a list of dataset IDs to only those the principal can access."""
-    if is_regulated_mode_enabled():
+    if is_regulated():
         ctx = EnforcementContext.get_instance()
         auth_principal = get_request_principal(request)
         if auth_principal is None:

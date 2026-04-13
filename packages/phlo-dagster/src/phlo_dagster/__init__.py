@@ -8,6 +8,8 @@ Key Components:
     - DagsterServicePlugin: Manages Dagster webserver and daemon services
     - DagsterExtensionPlugin: Extensibility interface for custom Dagster plugins
     - Framework definitions: Entry point for user workflow discovery
+    - DagsterRegulatedSurfaceAdapter: Regulated surface adapter for Dagster GraphQL API
+    - DagsterGraphQLAuthorizationMiddleware: GraphQL middleware for authorization enforcement
 
 Integration Points:
     - Translates AssetSpec objects into @asset decorated functions
@@ -31,8 +33,16 @@ Example:
           - python_module:
               module_name: phlo_dagster.framework.definitions
 
+    Regulated surface adapter::
+
+        from phlo_dagster.authorization import get_adapter
+
+        adapter = get_adapter()
+        adapter.install(dagster_webserver_instance)
 """
 
+from phlo_dagster.authorization import get_adapter
+from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
 from phlo_dagster.dagster_ext import DagsterExtensionPlugin, IngestionEnginePlugin
 from phlo_dagster.plugin import DagsterServicePlugin
 from phlo_dagster.settings import DagsterSettings, get_settings
@@ -43,5 +53,7 @@ __all__ = [
     "IngestionEnginePlugin",
     "DagsterSettings",
     "get_settings",
+    "get_adapter",
+    "DagsterGraphQLAuthorizationMiddleware",
 ]
 __version__ = "0.2.3"

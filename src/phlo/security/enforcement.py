@@ -74,9 +74,9 @@ class EnforcementContext:
         if self._identity_bridge is None:
             with self._init_lock:
                 if self._identity_bridge is None:
-                    from phlo.identity.bridge import create_regulated_mode_bridge
+                    from phlo.identity.bridge import create_regulated_bridge
 
-                    self._identity_bridge = create_regulated_mode_bridge()
+                    self._identity_bridge = create_regulated_bridge()
         return self._identity_bridge
 
     @property

@@ -16,15 +16,18 @@ from phlo.rbac.compiler import COMPILER_REGISTRY
 from phlo.rbac.config import RBACConfigLoader
 from phlo.rbac.models import CANONICAL_ACTIONS, CanonicalRBAC, ResourceType
 from phlo.security.gating import validate_service_selection
-from phlo.security.mode import is_regulated_mode_enabled
+from phlo.security.mode import is_regulated
 
 logger = get_logger(__name__)
 
 REQUIRED_AUTHORIZATION_MODE = "required"
 
 
-class RegulatedModeError(Exception):
+class RegulatedValidationError(Exception):
     """Raised when regulated mode validation fails."""
+
+
+RegulatedModeError = RegulatedValidationError  # deprecated alias
 
 
 @dataclass
@@ -38,10 +41,10 @@ class ValidationResult:
 
 
 @dataclass
-class RegulatedModeValidationReport:
+class RegulatedValidationReport:
     """Complete validation report for regulated mode."""
 
-    regulated_mode_enabled: bool
+    regulated_enabled: bool
     passed: bool
     checks: list[ValidationResult] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -52,6 +55,9 @@ class RegulatedModeValidationReport:
         if not result.passed and result.required:
             self.errors.append(f"{result.name}: {result.message}")
             self.passed = False
+
+
+RegulatedModeValidationReport = RegulatedValidationReport  # deprecated alias
 
 
 def _check_authorization_backend() -> ValidationResult:
@@ -301,7 +307,7 @@ def _check_registered_surfaces(runtime: Any) -> ValidationResult:
     registered_names = {spec.name for spec in registered}
 
     not_yet_integrated: list[str] = []
-    for name in ["dagster-webserver", "dagster-daemon", "cli"]:
+    for name in ["cli"]:
         if name not in registered_names:
             not_yet_integrated.append(name)
 
@@ -338,12 +344,12 @@ def _check_registered_surfaces(runtime: Any) -> ValidationResult:
     )
 
 
-def run_regulated_mode_validation(
+def run_regulated_validation(
     surface_actions: list[str] | None = None,
     surface_resource_types: list[str] | None = None,
-    config_regulated_mode: bool | None = None,
+    config_regulated: bool | None = None,
     runtime: Any = None,
-) -> RegulatedModeValidationReport:
+) -> RegulatedValidationReport:
     """Run all regulated mode validation checks.
 
     Args:
@@ -351,24 +357,24 @@ def run_regulated_mode_validation(
             If not provided, collects from registered adapter operations.
         surface_resource_types: Optional override resource types for taxonomy validation.
             If not provided, collects from registered adapter operations.
-        config_regulated_mode: Regulated mode setting from config file.
+        config_regulated: Regulated mode setting from config file.
         runtime: The framework runtime (e.g., FastAPI app) to validate adapter wiring against.
 
     Returns:
-        RegulatedModeValidationReport with all check results.
+        RegulatedValidationReport with all check results.
     """
-    regulated_mode = is_regulated_mode_enabled(config_regulated_mode)
+    regulated = is_regulated(config_regulated)
 
-    report = RegulatedModeValidationReport(
-        regulated_mode_enabled=regulated_mode,
+    report = RegulatedValidationReport(
+        regulated_enabled=regulated,
         passed=True,
     )
 
-    if not regulated_mode:
-        logger.info("regulated_mode_not_enabled", skipping_validation=True)
+    if not regulated:
+        logger.info("regulated_not_enabled", skipping_validation=True)
         report.add_check(
             ValidationResult(
-                name="regulated_mode_enabled",
+                name="regulated_enabled",
                 passed=True,
                 message="Regulated mode is not enabled, skipping validation",
                 required=False,
@@ -376,7 +382,7 @@ def run_regulated_mode_validation(
         )
         return report
 
-    logger.info("regulated_mode_validation_started")
+    logger.info("regulated_validation_started")
 
     report.add_check(_check_identity_provider())
     report.add_check(_check_canonical_rbac())
@@ -409,14 +415,26 @@ def run_regulated_mode_validation(
         )
 
     if report.passed:
-        logger.info("regulated_mode_validation_passed")
+        logger.info("regulated_validation_passed")
     else:
         logger.error(
-            "regulated_mode_validation_failed",
+            "regulated_validation_failed",
             errors=report.errors,
         )
 
     return report
+
+
+def run_regulated_mode_validation(**kwargs):
+    """Deprecated: use run_regulated_validation() instead."""
+    import warnings
+
+    warnings.warn(
+        "run_regulated_mode_validation() is deprecated, use run_regulated_validation() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return run_regulated_validation(**kwargs)
 
 
 def _check_canonical_taxonomy(
@@ -450,23 +468,35 @@ def _check_canonical_taxonomy(
     )
 
 
-def require_regulated_mode_validation(
+def require_regulated_validation(
     surface_actions: list[str] | None = None,
     surface_resource_types: list[str] | None = None,
-    config_regulated_mode: bool | None = None,
+    config_regulated: bool | None = None,
     runtime: Any = None,
 ) -> None:
-    """Run validation and raise RegulatedModeError if required checks fail.
+    """Run validation and raise RegulatedValidationError if required checks fail.
 
     Use this at application startup to fail fast in regulated mode.
     """
-    report = run_regulated_mode_validation(
+    report = run_regulated_validation(
         surface_actions=surface_actions,
         surface_resource_types=surface_resource_types,
-        config_regulated_mode=config_regulated_mode,
+        config_regulated=config_regulated,
         runtime=runtime,
     )
 
-    if report.regulated_mode_enabled and not report.passed:
+    if report.regulated_enabled and not report.passed:
         error_message = f"Regulated mode validation failed. Errors: {'; '.join(report.errors)}"
-        raise RegulatedModeError(error_message)
+        raise RegulatedValidationError(error_message)
+
+
+def require_regulated_mode_validation(**kwargs):
+    """Deprecated: use require_regulated_validation() instead."""
+    import warnings
+
+    warnings.warn(
+        "require_regulated_mode_validation() is deprecated, use require_regulated_validation() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return require_regulated_validation(**kwargs)

@@ -58,6 +58,54 @@ The supported production posture is:
 
 Use [Audit Logging](../operations/audit-logging.md) as the source of truth for routing, retention, and production checklist expectations.
 
+## UI Surface Classifications
+
+Browser-facing surfaces are classified by their regulatory boundary status:
+
+| Package | Classification | Why | Ingress Auth Assumption |
+|---------|---------------|-----|------------------------|
+| `phlo-observatory` | **Inside regulated boundary** | All governance operations route through `phlo-api`; Observatory itself has no Phlo-native PDP logic | Ingress OIDC session propagated to `phlo-api`; no direct Observatory auth |
+| `phlo-superset` | **Ingress-controlled optional** | BI tool with own auth model; can be used in regulated deployments when protected by ingress + IdP integration | Ingress OIDC or API key; Superset own auth is secondary to ingress gate |
+| `phlo-pgweb` | **Blocked in regulated mode** | Direct Postgres access with credentials in URL; no Phlo auth mediation | Not applicable; pgweb is unsupported in regulated deployments |
+
+### What "Inside Regulated Boundary" Means for Observatory
+
+Observatory is classified as inside the regulated boundary because:
+
+1. All asset operations, lineage queries, and quality checks go through `phlo-api`
+2. Observatory does not implement Phlo-native authorization; it relies on `phlo-api` enforcement
+3. The ingress + `phlo-api` stack is the regulatory control plane
+4. Audit events for Observatory actions appear in `phlo-api`'s audit log
+
+In practice: when `PHLO_REGULATED=true`, Observatory access requires a valid ingress session that `phlo-api` recognizes.
+
+### What "Ingress-Controlled Optional" Means for Superset
+
+Superset is classified as ingress-controlled because:
+
+1. Superset has its own built-in authentication (admin/user accounts)
+2. Superset connects directly to Trino and PostgreSQL, not through `phlo-api`
+3. In regulated deployments, Superset should be behind an ingress proxy with OIDC
+4. The ingress gate restricts who can reach Superset; Superset's own auth handles internal authorization
+
+For regulated deployments with Superset:
+
+- Deploy behind Traefik with OIDC authentication
+- Configure `SUPERSET_ADMIN_USER` and `SUPERSET_ADMIN_PASSWORD` as secrets, not defaults
+- Consider blocking Superset from direct internet access entirely
+- Superset's own role-based access is operator-managed
+
+### Why pgweb is Blocked
+
+pgweb is blocked in regulated mode because it:
+
+1. Embeds Postgres credentials directly in the connection URL
+2. Provides no Phlo-native authorization hook
+3. Allows direct database exploration without Phlo's governance layer
+4. Cannot be protected by ingress alone without also exposing the raw Postgres protocol
+
+For database exploration in regulated deployments, use Observatory (which routes through `phlo-api`) or `phlo-postgrest` (which compiles to Postgres with JWT enforcement).
+
 ## Authentication
 
 ### Phlo Reverse Proxy Authentication
@@ -199,7 +247,7 @@ the default `PHLO_AUTHORIZATION_MODE=optional` leaves guarded routes reachable. 
 `PHLO_AUTHORIZATION_MODE=required` to fail closed with HTTP `503` on guarded routes until
 `PHLO_AUTHORIZATION_BACKEND` resolves. You can declare those settings in `phlo.yaml`
 under `api.authorization` or `services.phlo-api.authorization`. Regulated mode itself
-can be enabled with `PHLO_REGULATED_MODE=true` or `regulated_mode: true` at the root
+can be enabled with `PHLO_REGULATED=true` or `regulated: true` at the root
 of `phlo.yaml`.
 
 ### Trino Access Control

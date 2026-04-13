@@ -203,12 +203,12 @@ def get_authentication_config(project_root: Path | None = None) -> dict[str, Any
     return auth_config
 
 
-def get_regulated_mode_config(project_root: Path | None = None) -> bool | None:
+def get_regulated_config(project_root: Path | None = None) -> bool | None:
     """Return the root-level regulated mode setting from phlo.yaml.
 
     Expected shape:
 
-        regulated_mode: true
+        regulated: true
 
     Returns:
         True or False when explicitly configured, otherwise None.
@@ -223,13 +223,35 @@ def get_regulated_mode_config(project_root: Path | None = None) -> bool | None:
     if not isinstance(project_config, dict) or not project_config:
         return None
 
-    value = project_config.get("regulated_mode")
+    value = project_config.get("regulated")
+    if value is None:
+        deprecated_value = project_config.get("regulated_mode")
+        if deprecated_value is not None:
+            logger.warning(
+                "deprecated_config_key",
+                old="regulated_mode",
+                new="regulated",
+                message="phlo.yaml 'regulated_mode' is deprecated, use 'regulated' instead",
+            )
+            value = deprecated_value
     if value is None:
         return None
     if isinstance(value, bool):
         return value
 
-    raise ValueError("phlo.yaml regulated_mode must be a boolean")
+    raise ValueError("phlo.yaml 'regulated' must be a boolean")
+
+
+def get_regulated_mode_config(project_root: Path | None = None) -> bool | None:
+    """Deprecated: use get_regulated_config() instead."""
+    import warnings
+
+    warnings.warn(
+        "get_regulated_mode_config() is deprecated, use get_regulated_config() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return get_regulated_config(project_root)
 
 
 def get_authentication_provider_config(project_root: Path | None = None) -> str | None:

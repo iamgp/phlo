@@ -28,7 +28,7 @@ flowchart TB
 Regulated mode can be enabled either in `phlo.yaml` or with an environment variable.
 
 ```yaml
-regulated_mode: true
+regulated: true
 
 authentication:
   provider: proxy
@@ -42,14 +42,16 @@ authentication:
 ```
 
 ```bash
-PHLO_REGULATED_MODE=true
+PHLO_REGULATED=true
 ```
 
 Precedence:
 
-- `PHLO_REGULATED_MODE`
-- `phlo.yaml` root `regulated_mode`
+- `PHLO_REGULATED`
+- `phlo.yaml` root `regulated`
 - default `false`
+
+Note: `PHLO_REGULATED_MODE` and `regulated_mode:` are accepted as deprecated aliases.
 
 Built-in authentication provider names:
 

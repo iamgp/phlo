@@ -147,6 +147,12 @@ Run ad-hoc queries:
 - [phlo-pandera](phlo-pandera.md) - Quality checks
 - [phlo-nessie](phlo-nessie.md) - Branch management
 
+## Regulated Access
+
+Observatory is **inside the regulated boundary**. All governance-relevant operations (asset browsing, lineage queries, quality dashboards, branch management, SQL workbench) route through `phlo-api`, which enforces canonical RBAC.
+
+For details on regulatory boundary status and ingress authentication assumptions, see [UI Surface Classifications](../setup/security.md#ui-surface-classifications).
+
 ## Next Steps
 
 - [Installation Guide](../getting-started/installation.md) - Complete setup

@@ -660,6 +660,16 @@ class PostgreSQLCompiler(GovernanceCompiler):
         self,
         context: CompilerContext,
     ) -> list[BackendArtifact]:
+        """Read current managed state from PostgreSQL.
+
+        Currently returns an empty list: PostgreSQL does not yet expose a
+        mechanism for introspecting live grants in a way that can be filtered
+        to Phlo-managed objects. Verify will therefore report all desired
+        artifacts as missing and no extra artifacts.
+
+        To enable full verify coverage, PostgreSQL would need a backend that
+        exposes ``list_policies()`` filtered to roles with the managed prefix.
+        """
         return []
 
 
@@ -739,6 +749,16 @@ class HasuraCompiler(GovernanceCompiler):
         self,
         context: CompilerContext,
     ) -> list[BackendArtifact]:
+        """Read current managed state from Hasura.
+
+        Currently returns an empty list: the Hasura metadata API does not expose
+        a filtered list of permissions that can be attributed to Phlo-managed
+        rules. Verify will therefore report all desired artifacts as missing
+        and no extra artifacts.
+
+        To enable full verify coverage, Hasura would need a custom metadata
+        query that returns only permission rules bearing a Phlo-managed tag.
+        """
         return []
 
 
@@ -820,6 +840,16 @@ class MinIOCompiler(GovernanceCompiler):
         self,
         context: CompilerContext,
     ) -> list[BackendArtifact]:
+        """Read current managed state from MinIO.
+
+        Currently returns an empty list: MinIO IAM does not expose a filtered
+        list of policy documents that can be attributed to Phlo-managed objects.
+        Verify will therefore report all desired artifacts as missing and no
+        extra artifacts.
+
+        To enable full verify coverage, MinIO would need an admin API that
+        returns policies filtered by a Phlo-managed tag or name prefix.
+        """
         return []
 
 
@@ -891,6 +921,17 @@ class NessieCompiler(GovernanceCompiler):
         self,
         context: CompilerContext,
     ) -> list[BackendArtifact]:
+        """Read current managed state from Nessie.
+
+        Currently returns an empty list: the Nessie REST API does not expose
+        an authorization rules endpoint that returns rules tagged or namespaced
+        as Phlo-managed. Verify will therefore report all desired artifacts
+        as missing and no extra artifacts.
+
+        To enable full verify coverage, Nessie would need a server-side
+        authorization backend that exposes a filtered list of rules attributable
+        to Phlo's managed prefix.
+        """
         return []
 
 
