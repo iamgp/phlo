@@ -76,6 +76,34 @@ Built-in provider config blocks:
   - `enabled`
   - `tokens`
 
+### Authentication Gateway
+
+The `oauth2-proxy` service provides forward-auth with Traefik for protected services.
+
+```bash
+# OAuth2 provider type (default: oidc)
+OAUTH2_PROXY_PROVIDER=oidc
+
+# OIDC issuer URL (required for oidc provider)
+OAUTH2_PROXY_OIDC_ISSUER_URL=https://your-idp.example.com
+
+# OAuth2 client credentials (from your IdP)
+OAUTH2_PROXY_CLIENT_ID=your-client-id
+OAUTH2_PROXY_CLIENT_SECRET=your-client-secret
+
+# Cookie encryption secret (generate with: python -c "import secrets; print(secrets.token_urlsafe(32))")
+OAUTH2_PROXY_COOKIE_SECRET=<32-byte-base64-string>
+
+# Set to true in production with HTTPS
+OAUTH2_PROXY_COOKIE_SECURE=false
+
+# OAuth2 callback URL (must match IdP registration)
+OAUTH2_PROXY_REDIRECT_URL=http://api.phlo.localhost/oauth2/callback
+
+# Allowed email domains (default: * for any)
+OAUTH2_PROXY_EMAIL_DOMAINS=*
+```
+
 ## Environment Variables
 
 Environment variables are materialized into `.phlo/.env` (generated, non-secret defaults)

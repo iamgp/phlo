@@ -141,6 +141,75 @@ PHLO_AUTH_PROXY_HEADER_GROUPS=X-Remote-Groups
 When `PHLO_AUTH_PROXY_SHARED_SECRET` is set, the proxy must sign the timestamp, remote address,
 request path, and asserted identity headers so downstream header changes are rejected.
 
+### Proxy Authentication with Traefik
+
+For production and regulated deployments, Phlo supports an authentication
+gateway using Traefik reverse proxy and oauth2-proxy.
+
+#### Architecture
+
+```
+browser -> traefik -> oauth2-proxy (auth check) -> phlo-api -> phlo authorization
+```
+
+#### Prerequisites
+
+- An OIDC-compatible identity provider (Keycloak, Auth0, Okta, Google, etc.)
+- A registered OAuth2 application with your IdP
+- The `proxy` service profile enabled
+
+#### Step 1: Configure your IdP
+
+Register an OAuth2/OIDC application with your identity provider.
+Set the callback URL to: `http://api.<your-domain>/oauth2/callback`
+
+#### Step 2: Add secrets to `.phlo/.env.local`
+
+```env
+OAUTH2_PROXY_OIDC_ISSUER_URL=https://your-idp.example.com
+OAUTH2_PROXY_CLIENT_ID=your-client-id
+OAUTH2_PROXY_CLIENT_SECRET=your-client-secret
+OAUTH2_PROXY_COOKIE_SECRET=<generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
+```
+
+#### Step 3: Configure Phlo proxy authentication
+
+In `phlo.yaml`:
+
+```yaml
+regulated: true
+
+authentication:
+  provider: proxy
+  proxy:
+    trusted_proxies:
+      - 172.16.0.0/12
+    header_subject: X-Forwarded-User
+    header_email: X-Forwarded-Email
+    header_groups: X-Forwarded-Groups
+```
+
+#### Step 4: Start the stack
+
+```bash
+phlo services start --profile proxy
+```
+
+#### Step 5: Verify
+
+Navigate to `http://api.<your-domain>` in a browser.
+You should be redirected to your IdP login page.
+After login, requests reach `phlo-api` with identity headers set.
+
+#### Security Notes
+
+- In v1, identity is asserted via trusted proxy headers only. There is no
+  cryptographic signature on the forwarded headers.
+- Direct access to `phlo-api` on port 4000 bypasses proxy auth.
+  In regulated deployments, restrict direct port access.
+- For stronger identity assurance, consider the `jwt` authentication
+  provider (see Plan 4 / future release).
+
 ### Option 1: LDAP Authentication
 
 LDAP works with Trino and MinIO. Configure your LDAP server details:

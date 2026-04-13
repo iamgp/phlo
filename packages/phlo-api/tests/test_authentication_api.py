@@ -83,3 +83,31 @@ authentication:
     clear_config_cache()
 
     assert get_authentication_provider() is provider
+
+
+def test_phlo_api_has_forward_auth_middleware() -> None:
+    """Verify phlo-api service.yaml declares forwardAuth middleware."""
+    from phlo_api.plugin import PhloApiServicePlugin
+
+    plugin = PhloApiServicePlugin()
+    defn = plugin.service_definition
+    labels = defn["compose"]["labels"]
+
+    assert "traefik.http.routers.api.middlewares" in labels
+    assert labels["traefik.http.routers.api.middlewares"] == "phlo-api-auth@docker"
+    assert "traefik.http.middlewares.phlo-api-auth.forwardauth.address" in labels
+    assert "/oauth2/auth" in labels["traefik.http.middlewares.phlo-api-auth.forwardauth.address"]
+    assert "oauth2-proxy" in labels["traefik.http.middlewares.phlo-api-auth.forwardauth.address"]
+    assert labels["traefik.http.middlewares.phlo-api-auth.forwardauth.trustForwardHeader"] == "true"
+    assert (
+        "X-Forwarded-User"
+        in labels["traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders"]
+    )
+    assert (
+        "X-Forwarded-Email"
+        in labels["traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders"]
+    )
+    assert (
+        "X-Forwarded-Groups"
+        in labels["traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders"]
+    )

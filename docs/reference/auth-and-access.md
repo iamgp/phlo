@@ -66,6 +66,47 @@ services:
 
 Precedence is `env vars` -> `services.phlo-api.authorization` -> `api.authorization`.
 
+## Proxy Authentication Flow
+
+For production deployments, Traefik + oauth2-proxy provides browser SSO:
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Traefik
+    participant oauth2-proxy
+    participant phlo-api
+
+    Browser->>Traefik: GET /api/datasets
+    Traefik->>oauth2-proxy: forwardAuth /oauth2/auth
+    oauth2-proxy->>Browser: 401 + redirect to IdP login
+    Browser->>oauth2-proxy: IdP credentials
+    oauth2-proxy->>Browser: Set session cookie
+    Browser->>Traefik: GET /api/datasets (with cookie)
+    Traefik->>oauth2-proxy: forwardAuth /oauth2/auth
+    oauth2-proxy-->>Traefik: 202 + X-Forwarded-* headers
+    Traefik->>phlo-api: Proxy request + identity headers
+    phlo-api->>phlo-api: Validate proxy headers
+    phlo-api-->>Traefik: 200 OK
+    Traefik-->>Browser: Response
+```
+
+Identity headers passed to phlo-api:
+
+- `X-Forwarded-User` - authenticated user identifier
+- `X-Forwarded-Email` - authenticated user email
+- `X-Forwarded-Groups` - comma-separated group list
+
+Configure trusted proxies in `phlo.yaml`:
+
+```yaml
+authentication:
+  provider: proxy
+  proxy:
+    trusted_proxies:
+      - 172.16.0.0/12
+```
+
 ## Canonical RBAC
 
 Phlo's canonical RBAC control plane lives under `.phlo/authorization/` and
