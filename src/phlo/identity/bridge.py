@@ -215,7 +215,7 @@ class IdentityBridge:
         return existing_roles
 
 
-def create_regulated_mode_bridge(
+def create_regulated_bridge(
     group_role_mapping: dict[str, str] | None = None,
 ) -> IdentityBridge:
     """Create an identity bridge configured for regulated mode.
@@ -238,9 +238,23 @@ def create_regulated_mode_bridge(
     return IdentityBridge(config)
 
 
+def create_regulated_mode_bridge(
+    group_role_mapping: dict[str, str] | None = None,
+) -> IdentityBridge:
+    """Deprecated: use create_regulated_bridge() instead."""
+    import warnings
+
+    warnings.warn(
+        "create_regulated_mode_bridge() is deprecated, use create_regulated_bridge() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return create_regulated_bridge(group_role_mapping)
+
+
 def canonicalize_principal(
     auth_principal: AuthPrincipal,
-    regulated_mode: bool = False,
+    regulated: bool = False,
     context: dict[str, str] | None = None,
 ) -> Principal:
     """Canonicalize an AuthPrincipal to a Principal.
@@ -250,11 +264,11 @@ def canonicalize_principal(
 
     Args:
         auth_principal: Authenticated principal from the authn provider.
-        regulated_mode: If True, enable regulated-mode enforcement.
+        regulated: If True, enable regulated-mode enforcement.
         context: Optional request/session context.
 
     Returns:
         Canonical Principal for authorization decisions.
     """
-    bridge = create_regulated_mode_bridge() if regulated_mode else IdentityBridge()
+    bridge = create_regulated_bridge() if regulated else IdentityBridge()
     return bridge.canonicalize(auth_principal, context)

@@ -73,6 +73,16 @@ Open `http://localhost:8081` in your browser.
 - [phlo-postgres](phlo-postgres.md) - Database service
 - [phlo-postgrest](phlo-postgrest.md) - REST API
 
+## Regulated Access
+
+pgweb is **blocked in regulated mode** due to direct Postgres access with embedded credentials and no Phlo authorization hook.
+
+For database exploration in regulated deployments, use:
+- [phlo-observatory](phlo-observatory.md) - Routes through `phlo-api` for governance
+- [phlo-postgrest](phlo-postgrest.md) - Compiles to Postgres with JWT enforcement
+
+For details on regulatory boundary status, see [UI Surface Classifications](../setup/security.md#ui-surface-classifications).
+
 ## Next Steps
 
 - [Installation Guide](../getting-started/installation.md) - Complete setup

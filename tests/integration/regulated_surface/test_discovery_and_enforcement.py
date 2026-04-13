@@ -29,7 +29,7 @@ from phlo.capabilities.interfaces import (
 from phlo.security.adapters import SurfaceOperation
 from phlo.security.enforcement import EnforcementContext
 from phlo.security.validation import (
-    run_regulated_mode_validation,
+    run_regulated_validation,
 )
 
 
@@ -169,8 +169,8 @@ class TestValidation:
 
     def test_validation_report_structure(self) -> None:
         """Validation report has correct structure."""
-        report = run_regulated_mode_validation()
-        assert hasattr(report, "regulated_mode_enabled")
+        report = run_regulated_validation()
+        assert hasattr(report, "regulated_enabled")
         assert hasattr(report, "passed")
         assert hasattr(report, "checks")
         assert hasattr(report, "errors")
@@ -181,26 +181,43 @@ class TestValidation:
         In v1, only phlo-api is required. Dagster and CLI are not checked
         by regulated validation — they are outside v1 scope.
         """
-        report = run_regulated_mode_validation(config_regulated_mode=True)
+        report = run_regulated_validation(config_regulated=True)
         registered_check = next(
             (c for c in report.checks if c.name == "regulated_surfaces_registered"), None
         )
         assert registered_check is not None
         assert registered_check.passed is True
 
-    def test_validation_reads_regulated_mode_from_phlo_yaml(
+    def test_validation_reads_regulated_from_phlo_yaml(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Validation should honor root-level regulated_mode from phlo.yaml."""
+        """Validation should honor root-level regulated from phlo.yaml."""
+        config_path = tmp_path / "phlo.yaml"
+        config_path.write_text(yaml.safe_dump({"regulated": True}))
+
+        monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+        monkeypatch.delenv("PHLO_REGULATED", raising=False)
+        monkeypatch.delenv("PHLO_REGULATED_MODE", raising=False)
+
+        report = run_regulated_validation()
+
+        assert report.regulated_enabled is True
+
+    def test_validation_reads_regulated_mode_fallback_from_phlo_yaml(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Validation should fallback to regulated_mode from phlo.yaml."""
         config_path = tmp_path / "phlo.yaml"
         config_path.write_text(yaml.safe_dump({"regulated_mode": True}))
 
         monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+        monkeypatch.delenv("PHLO_REGULATED", raising=False)
         monkeypatch.delenv("PHLO_REGULATED_MODE", raising=False)
 
-        report = run_regulated_mode_validation()
+        with pytest.warns(DeprecationWarning):
+            report = run_regulated_validation()
 
-        assert report.regulated_mode_enabled is True
+        assert report.regulated_enabled is True
 
 
 class TestModuleLevelGlobalsGone:

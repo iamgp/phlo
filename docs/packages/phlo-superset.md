@@ -116,6 +116,16 @@ Use SQL Lab for ad-hoc queries:
 - [phlo-postgres](phlo-postgres.md) - Marts storage
 - [phlo-grafana](phlo-grafana.md) - Metrics visualization
 
+## Regulated Access
+
+Superset is an **ingress-controlled optional surface** in regulated mode. It has its own authentication model and connects directly to Trino and PostgreSQL. For regulated deployments:
+
+- Deploy behind Traefik with OIDC authentication
+- Use strong `SUPERSET_ADMIN_PASSWORD` (do not use defaults)
+- Superset's own RBAC handles internal authorization after ingress gate
+
+For details on regulatory boundary status and ingress authentication assumptions, see [UI Surface Classifications](../setup/security.md#ui-surface-classifications).
+
 ## Next Steps
 
 - [Installation Guide](../getting-started/installation.md) - Complete setup

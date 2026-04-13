@@ -1,7 +1,7 @@
 """phlo.security: regulated access control namespace.
 
 Submodules:
-    mode: regulated mode detection (PHLO_REGULATED_MODE env var).
+    mode: regulated mode detection (PHLO_REGULATED env var).
     adapters: SurfaceOperation, RegulatedSurfaceAdapter, EnforcementResult types.
     enforcement: EnforcementContext singleton and enforce() core function.
     gating: surface-level allowlist/blocklist for regulated mode.
@@ -26,12 +26,16 @@ from phlo.security.gating import (
     is_service_allowed,
     validate_service_selection,
 )
-from phlo.security.mode import is_regulated_mode_enabled
+from phlo.security.mode import is_regulated, is_regulated_mode_enabled
 from phlo.security.validation import (
     RegulatedModeError,
     RegulatedModeValidationReport,
+    RegulatedValidationError,
+    RegulatedValidationReport,
     require_regulated_mode_validation,
+    require_regulated_validation,
     run_regulated_mode_validation,
+    run_regulated_validation,
 )
 
 __all__ = [
@@ -40,6 +44,8 @@ __all__ = [
     "RegulatedModeError",
     "RegulatedModeValidationReport",
     "RegulatedSurfaceAdapter",
+    "RegulatedValidationError",
+    "RegulatedValidationReport",
     "SurfaceActivationStatus",
     "SurfaceOperation",
     "UnsupportedSurfaceError",
@@ -48,9 +54,12 @@ __all__ = [
     "enforce",
     "get_approved_services",
     "get_blocked_services",
+    "is_regulated",
     "is_regulated_mode_enabled",
     "is_service_allowed",
     "require_regulated_mode_validation",
+    "require_regulated_validation",
     "run_regulated_mode_validation",
+    "run_regulated_validation",
     "validate_service_selection",
 ]
