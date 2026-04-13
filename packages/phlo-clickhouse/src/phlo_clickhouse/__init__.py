@@ -18,6 +18,10 @@ Attributes:
 
 """
 
+from phlo_clickhouse.authorization import (
+    ClickHouseSurfaceAdapter,
+    get_adapter as get_clickhouse_adapter,
+)
 from phlo_clickhouse.plugin import (
     ClickHouseResourceProvider,
     ClickHouseServicePlugin,
@@ -32,6 +36,8 @@ __all__ = [
     "ClickHouseServicePlugin",
     "ClickHouseSetupServicePlugin",
     "ClickHouseSettings",
+    "ClickHouseSurfaceAdapter",
+    "get_clickhouse_adapter",
     "get_settings",
 ]
 __version__ = "0.2.3"

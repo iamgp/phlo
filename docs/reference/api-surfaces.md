@@ -66,6 +66,26 @@ If you expose either surface in a regulated deployment, you must ensure:
 2. The surface's own permission model is configured correctly
 3. Audit logs from the surface are collected separately
 
+## PostgREST and Hasura in Regulated Deployments
+
+**Decision:** Both are classified as **ingress-gated optional surfaces**.
+
+- They are NOT blocked in regulated mode
+- They are NOT first-class regulated surfaces with their own `regulated_surface` adapter
+- They ARE allowed only when protected by ingress authentication (Traefik + oauth2-proxy)
+- A warning is logged when they are started in regulated mode
+
+### When to use PostgREST/Hasura in regulated mode
+
+- All requests must pass through Traefik with forward-auth enabled
+- Direct port access must be restricted to the Docker network
+- phlo-api is the primary regulated API surface; PostgREST/Hasura serve read-heavy or GraphQL convenience paths that inherit protection from ingress
+
+### When NOT to use PostgREST/Hasura in regulated mode
+
+- If they are directly exposed to users without ingress protection
+- If they accept writes that bypass phlo-api authorization
+
 ## Selection Guidance
 
 - Phlo-native control-plane behavior: start with `phlo-api`

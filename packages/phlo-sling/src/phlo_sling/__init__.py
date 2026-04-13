@@ -39,6 +39,7 @@ Functions:
 from collections.abc import Callable
 from typing import Any
 
+from phlo_sling.authorization import SlingSurfaceAdapter, get_adapter as get_sling_adapter
 from phlo_sling.registry import SlingReplication
 
 
@@ -97,4 +98,11 @@ def get_sling_assets() -> list[Any]:
     return _get_sling_assets()
 
 
-__all__ = ["SlingReplication", "get_sling_assets", "phlo_sling_assets", "phlo_sling_replication"]
+__all__ = [
+    "SlingReplication",
+    "SlingSurfaceAdapter",
+    "get_sling_adapter",
+    "get_sling_assets",
+    "phlo_sling_assets",
+    "phlo_sling_replication",
+]

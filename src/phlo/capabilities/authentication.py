@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import hmac
 import ipaddress
 import json
 import os
 import secrets
+import time
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
@@ -548,6 +551,182 @@ class ServiceTokenAuthenticationProvider:
         return None
 
 
+class JWTAuthenticationProvider:
+    """JWT Bearer token authentication provider.
+
+    This provider validates JWT tokens signed with HS256 algorithm
+    using a shared secret. It extracts standard OIDC-compatible
+    claims and maps them to AuthPrincipal for regulated deployments.
+
+    Configuration via phlo.yaml:
+        authentication:
+          jwt:
+            secret: "your-256-bit-secret"
+            issuer: "https://issuer.example.com"  # optional
+            audience: "phlo"  # optional
+    """
+
+    def __init__(
+        self,
+        secret: str,
+        issuer: str | None = None,
+        audience: str | None = None,
+        leeway_seconds: int = 60,
+    ):
+        if not secret:
+            raise ValueError("JWT secret is required")
+        self._secret = secret.encode("utf-8")
+        self._issuer = issuer
+        self._audience = audience
+        self._leeway = leeway_seconds
+
+    def authenticate(self, request_context: RequestContext) -> AuthResult:
+        """Authenticate using JWT bearer token."""
+        auth_header = request_context.headers.get("authorization", "")
+
+        if not auth_header.startswith("Bearer "):
+            return AuthResult(
+                authenticated=False,
+                reason_code="missing_bearer_token",
+            )
+
+        token = auth_header[7:]
+        session = self.validate_token(token)
+        if session:
+            _log_auth_event(
+                "success",
+                session.principal,
+                "authenticated",
+                "jwt",
+                auth_method="bearer_token",
+                path=request_context.path,
+            )
+            return AuthResult(
+                authenticated=True,
+                principal=session.principal,
+                session=session,
+                reason_code="authenticated",
+            )
+
+        _log_auth_event(
+            "failure",
+            None,
+            "invalid_token",
+            "jwt",
+            auth_method="bearer_token",
+            path=request_context.path,
+        )
+        return AuthResult(
+            authenticated=False,
+            reason_code="invalid_token",
+        )
+
+    def current_principal(self, request_context: RequestContext) -> AuthPrincipal | None:
+        """Get current principal from request context."""
+        result = self.authenticate(request_context)
+        return result.principal
+
+    def validate_token(self, token: str) -> AuthenticatedSession | None:
+        """Validate a JWT token and return session if valid."""
+        try:
+            header, payload, signature = token.split(".")
+            if not all([header, payload, signature]):
+                return None
+
+            if not self._verify_signature(header, payload, signature):
+                logger.warning("jwt_signature_invalid")
+                return None
+
+            claims = self._decode_payload(payload)
+
+            if not self._validate_claims(claims):
+                return None
+
+            principal = AuthPrincipal(
+                subject=claims.get("sub", ""),
+                principal_type="user",
+                issuer=claims.get("iss"),
+                email=claims.get("email"),
+                groups=tuple(claims.get("groups", [])),
+                claims=claims,
+                attributes={
+                    "name": claims.get("name", ""),
+                    "preferred_username": claims.get("preferred_username", ""),
+                },
+            )
+
+            session_id = claims.get("jti") or secrets.token_urlsafe(32)
+
+            return AuthenticatedSession(
+                principal=principal,
+                auth_method="bearer_token",
+                provider_name="jwt",
+                session_id=session_id,
+                issued_at=datetime.fromtimestamp(claims.get("iat", 0), tz=UTC),
+                expires_at=datetime.fromtimestamp(claims.get("exp", 0), tz=UTC),
+                attributes={
+                    "jwt_issuer": claims.get("iss", ""),
+                    "jwt_audience": str(claims.get("aud", "")),
+                },
+            )
+        except (ValueError, KeyError) as e:
+            logger.warning("jwt_parse_error", error=str(e))
+            return None
+
+    def _verify_signature(self, header_b64: str, payload_b64: str, signature_b64: str) -> bool:
+        """Verify JWT signature using HS256."""
+        try:
+            message = f"{header_b64}.{payload_b64}".encode()
+            expected = hmac.new(self._secret, message, hashlib.sha256).digest()
+            actual = base64url_decode(signature_b64)
+            return hmac.compare_digest(expected, actual)
+        except Exception:
+            return False
+
+    def _decode_payload(self, payload_b64: str) -> dict[str, Any]:
+        """Decode base64url-encoded JWT payload."""
+        padded = payload_b64 + "=" * (4 - len(payload_b64) % 4)
+        decoded = base64url_decode(padded)
+        return json.loads(decoded.decode("utf-8"))
+
+    def _validate_claims(self, claims: dict[str, Any]) -> bool:
+        """Validate JWT claims including expiration."""
+        now = time.time()
+
+        exp = claims.get("exp", 0)
+        if exp < now - self._leeway:
+            logger.warning("jwt_token_expired", exp=exp, now=now)
+            return False
+
+        iat = claims.get("iat", 0)
+        if iat > now + self._leeway:
+            logger.warning("jwt_token_future", iat=iat, now=now)
+            return False
+
+        if self._issuer and claims.get("iss") != self._issuer:
+            logger.warning("jwt_issuer_mismatch", expected=self._issuer, actual=claims.get("iss"))
+            return False
+
+        if self._audience:
+            aud = claims.get("aud")
+            if aud is None:
+                logger.warning("jwt_audience_missing")
+                return False
+            aud_list = aud if isinstance(aud, list) else [aud]
+            if self._audience not in aud_list:
+                logger.warning("jwt_audience_mismatch", expected=self._audience, actual=aud)
+                return False
+
+        return True
+
+
+def base64url_decode(data: str | bytes) -> bytes:
+    """Decode base64url-encoded string."""
+    if isinstance(data, str):
+        data = data.encode("ascii")
+    return base64.urlsafe_b64decode(data)
+
+
 def _load_static_config() -> tuple[dict[str, dict[str, Any]], bool]:
     """Load static authentication configuration from env first, then phlo.yaml."""
     static_config = _authentication_subconfig("static")
@@ -668,6 +847,35 @@ def _load_service_token_config() -> dict[str, dict[str, Any]]:
     return service_tokens
 
 
+def _load_jwt_config() -> dict[str, Any]:
+    """Load JWT authentication configuration from env first, then phlo.yaml."""
+    jwt_config = _authentication_subconfig("jwt")
+
+    secret = os.environ.get("PHLO_AUTH_JWT_SECRET")
+    if not secret:
+        secret = jwt_config.get("secret", "")
+
+    issuer = os.environ.get("PHLO_AUTH_JWT_ISSUER")
+    if issuer is None:
+        issuer = jwt_config.get("issuer")
+
+    audience = os.environ.get("PHLO_AUTH_JWT_AUDIENCE")
+    if audience is None:
+        audience = jwt_config.get("audience")
+
+    leeway = int(os.environ.get("PHLO_AUTH_JWT_LEEWAY", "60"))
+    leeway_config = jwt_config.get("leeway_seconds")
+    if leeway_config is not None:
+        leeway = int(leeway_config)
+
+    return {
+        "secret": secret,
+        "issuer": issuer,
+        "audience": audience,
+        "leeway_seconds": leeway,
+    }
+
+
 def _provider_enabled(
     provider_name: str,
     *,
@@ -784,3 +992,38 @@ def register_default_capability_providers() -> None:
                 ),
             )
         )
+
+    jwt_block = _authentication_subconfig("jwt")
+    jwt_config = _load_jwt_config()
+    if _provider_enabled(
+        "jwt",
+        env_enabled=os.environ.get("PHLO_AUTH_JWT_ENABLED"),
+        config_block=jwt_block,
+        selected_provider=selected_provider,
+        configured_payload=jwt_config.get("secret"),
+    ):
+        if not jwt_config.get("secret"):
+            logger.error("jwt_provider_requires_secret")
+        else:
+            register_authentication_provider(
+                AuthenticationProviderSpec(
+                    name="jwt",
+                    provider=JWTAuthenticationProvider(
+                        secret=jwt_config["secret"],
+                        issuer=jwt_config.get("issuer"),
+                        audience=jwt_config.get("audience"),
+                        leeway_seconds=jwt_config.get("leeway_seconds", 60),
+                    ),
+                    metadata={
+                        "auth_method": "bearer_token",
+                        "supports_browser_login": False,
+                        "supports_proxy_auth": False,
+                        "supports_service_tokens": False,
+                        "algorithm": "HS256",
+                    },
+                    support=CapabilitySupport(
+                        supports_permissions=False,
+                        supports_attributes=True,
+                    ),
+                )
+            )

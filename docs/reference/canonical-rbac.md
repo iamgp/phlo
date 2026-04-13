@@ -239,10 +239,35 @@ Verification reports:
 - `extra`: managed backend artifacts not present in desired state
 - `mismatched`: reserved for artifact content differences when supported
 
+## Backend Compiler Coverage Matrix
+
+The following matrix shows which canonical actions each backend compiler supports.
+A ✓ means the compiler can generate enforcement artifacts for that action.
+An em dash (—) means the action is not applicable to that backend.
+
+| Action | Trino | PostgreSQL | Hasura | MinIO | Nessie |
+|--------|-------|-----------|--------|-------|--------|
+| `dataset.read` | ✓ | ✓ | ✓ | — | — |
+| `dataset.query` | ✓ | ✓ | ✓ | — | — |
+| `asset.read` | ✓ | ✓ | ✓ | — | — |
+| `asset.execute` | ✓ | ✓ | ✓ | — | — |
+| `service.read` | ✓ | ✓ | ✓ | — | — |
+| `service.manage` | ✓ | ✓ | ✓ | — | — |
+| `admin.read` | ✓ | ✓ | ✓ | — | — |
+| `admin.manage` | ✓ | ✓ | ✓ | — | — |
+| `object.read` | — | — | — | ✓ | — |
+| `object.write` | — | — | — | ✓ | — |
+| `catalog.read` | — | — | — | — | ✓ |
+| `catalog.manage` | — | — | — | — | ✓ |
+
+Compiler support means the code path exists to generate enforcement artifacts for
+that action. It does not mean the backend is running or that the generated
+artifacts have been applied.
+
 ## Backend Support Matrix
 
 | Backend | Supported canonical actions | Deny support | Verify coverage | Notes |
-|---------|-----------------------------|--------------|-----------------|-------|
+|---------|---------------------------|--------------|-----------------|-------|
 | `trino` | `dataset.read`, `dataset.query`, `asset.read`, `asset.execute`, `service.read`, `service.manage`, `admin.read`, `admin.manage` | No | Compares desired vs current managed grants; reports missing and extra artifacts | Best current drift coverage. Managed state is derived from governance backend `list_policies()` output and filtered to managed role names. |
 | `postgresql` | `dataset.read`, `dataset.query`, `asset.read`, `asset.execute`, `service.read`, `service.manage`, `admin.read`, `admin.manage` | No | Desired-state only; current-state introspection is not implemented | Plan and verify cannot detect extra live grants. Expect manual review or backend-native inspection after sync. |
 | `hasura` | `dataset.read`, `dataset.query`, `asset.read`, `asset.execute`, `service.read`, `service.manage`, `admin.read`, `admin.manage` | No | Desired-state only; current-state introspection is not implemented | Canonical actions map to Hasura permission artifacts, but verify cannot confirm live metadata drift yet. |

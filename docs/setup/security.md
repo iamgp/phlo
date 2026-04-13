@@ -210,6 +210,41 @@ After login, requests reach `phlo-api` with identity headers set.
 - For stronger identity assurance, consider the `jwt` authentication
   provider (see Plan 4 / future release).
 
+## Browser-Facing Surfaces in Regulated Mode
+
+When `regulated: true`, browser-facing surfaces fall into three categories:
+
+### Inside the regulated boundary (via upstream API)
+
+**Observatory** — all server actions go through `phlo-api`, which is a fully
+regulated surface. Observatory inherits protection from ingress + phlo-api.
+No duplicate PDP logic is needed in Observatory itself.
+
+- Status: `APPROVED_SERVICES` in `gating.py`
+- Requirement: must be accessed through Traefik with proxy auth enabled
+- Direct port access: dev-only, not suitable for regulated deployments
+
+### Ingress-optional (require documented ingress boundary)
+
+**Superset** — uses its own permission model. In regulated deployments,
+must be fronted by ingress authentication (Traefik + oauth2-proxy or
+equivalent). Phlo does not enforce authorization within Superset.
+
+- Status: `INGRESS_OPTIONAL_SERVICES` in `gating.py`
+- Requirement: ingress auth + IdP integration
+- Warning logged if started in regulated mode
+
+**Hasura / PostgREST** — see "PostgREST and Hasura in Regulated Deployments"
+in the API surfaces reference.
+
+### Blocked in regulated mode
+
+**pgweb** — provides direct PostgreSQL access without Phlo auth mediation.
+Explicitly blocked in regulated mode.
+
+- Status: `UNSUPPORTED_SERVICES` in `gating.py`
+- Starting pgweb in regulated mode raises `UnsupportedSurfaceError`
+
 ### Option 1: LDAP Authentication
 
 LDAP works with Trino and MinIO. Configure your LDAP server details:

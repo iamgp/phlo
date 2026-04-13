@@ -42,6 +42,7 @@ class AuditEventType(StrEnum):
     MUTATION = "mutation"
     ADMIN = "admin"
     SYSTEM = "system"
+    SIGNATURE = "signature"
 
 
 class AuditDecision(StrEnum):
