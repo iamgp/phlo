@@ -135,7 +135,7 @@ class DagsterGraphQLAuthorizationMiddleware:
         """Determine if the operation is a mutation."""
         operation = getattr(info, "operation", None)
         if operation and hasattr(operation, "operation"):
-            return operation.operation == "mutation"
+            return str(operation.operation.value) == "mutation"
         return False
 
     def _get_operation_name(self, info: Any) -> str | None:
