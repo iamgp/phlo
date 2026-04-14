@@ -51,8 +51,8 @@ Surfaces are classified into four categories for regulated deployments:
 |----------|----------|---------------------------|
 | Direct regulated | `phlo-api` | Full Phlo RBAC enforcement |
 | Ingress-gated optional | `postgrest`, `hasura` | Allowed with ingress protection; own auth layer |
-| Pending adapter | `dagster-*`, `cli` | Blocked until adapter approved |
-| Blocked | `pgweb`, `superset`, `openmetadata` | Blocked; no adapter or ingress story |
+| Approved with adapter | `dagster-*`, `cli` | Full enforcement via regulated surface adapter |
+| Ingress-gated optional | `superset` | Allowed with ingress protection; own auth layer |
 
 ### What "ingress-gated optional" means
 
