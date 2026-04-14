@@ -863,10 +863,12 @@ def _load_jwt_config() -> dict[str, Any]:
     if audience is None:
         audience = jwt_config.get("audience")
 
-    leeway = int(os.environ.get("PHLO_AUTH_JWT_LEEWAY", "60"))
-    leeway_config = jwt_config.get("leeway_seconds")
-    if leeway_config is not None:
-        leeway = int(leeway_config)
+    env_leeway = os.environ.get("PHLO_AUTH_JWT_LEEWAY")
+    if env_leeway is not None:
+        leeway = int(env_leeway)
+    else:
+        leeway_config = jwt_config.get("leeway_seconds")
+        leeway = int(leeway_config) if leeway_config is not None else 60
 
     return {
         "secret": secret,

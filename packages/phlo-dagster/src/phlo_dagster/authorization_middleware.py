@@ -40,7 +40,7 @@ from phlo.capabilities import (
     ResourceRef,
 )
 from phlo.logging import get_logger
-from phlo.security import EnforcementContext, is_regulated
+from phlo.security import is_regulated
 from phlo.security.enforcement import enforce
 
 logger = get_logger(__name__)
@@ -310,16 +310,6 @@ class DagsterGraphQLAuthorizationMiddleware:
 
         action = self._map_operation_to_action(operation_name)
 
-        ctx = EnforcementContext.get_instance()
-        try:
-            canonical_principal = ctx.canonicalize(principal)
-        except Exception:
-            logger.exception("dagster_principal_canonicalization_failed")
-            return EnforcementResult.error(
-                reason_code="canonicalization_failed",
-                explanation="Failed to canonicalize principal",
-            )
-
         resource = ResourceRef(
             resource_type=resource_type,
             resource_id=resource_id or f"dagster:{operation_name}",
@@ -328,7 +318,7 @@ class DagsterGraphQLAuthorizationMiddleware:
         decision_context = self._create_decision_context(info)
 
         return enforce(
-            principal=canonical_principal,
+            principal=principal,
             action=action,
             resource=resource,
             context=decision_context,
