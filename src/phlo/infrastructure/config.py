@@ -227,6 +227,13 @@ def get_regulated_config(project_root: Path | None = None) -> bool | None:
     if value is None:
         deprecated_value = project_config.get("regulated_mode")
         if deprecated_value is not None:
+            import warnings
+
+            warnings.warn(
+                "phlo.yaml 'regulated_mode' is deprecated, use 'regulated' instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             logger.warning(
                 "deprecated_config_key",
                 old="regulated_mode",

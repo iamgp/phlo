@@ -52,7 +52,7 @@ from phlo.capabilities import (
     resolve_capability,
 )
 from phlo.logging import get_logger
-from phlo.security import EnforcementContext, enforce, is_regulated
+from phlo.security import enforce, is_regulated
 from phlo.infrastructure.config import get_api_authorization_config
 
 from phlo_api.api.authentication import get_request_principal
@@ -247,12 +247,9 @@ def resolve_request_principal(request: Request, require_auth: bool = False) -> P
             roles=(),
         )
 
-    return Principal(
-        subject=auth_principal.subject,
-        principal_type=auth_principal.principal_type,
-        roles=auth_principal.groups,
-        attributes=dict(auth_principal.attributes),
-    )
+    from phlo.identity.bridge import canonicalize_principal
+
+    return canonicalize_principal(auth_principal, regulated=False)
 
 
 def _enforce_or_raise(
@@ -633,22 +630,16 @@ def filter_datasets(
 ) -> list[str]:
     """Filter a list of dataset IDs to only those the principal can access."""
     if is_regulated():
-        ctx = EnforcementContext.get_instance()
         auth_principal = get_request_principal(request)
         if auth_principal is None:
-            return [] if not require_auth else []
-
-        try:
-            principal = ctx.canonicalize(auth_principal)
-        except Exception:
-            return []
+            return [] if require_auth else dataset_ids
 
         context = create_decision_context(request, environment)
         allowed = []
         for d_id in dataset_ids:
             resource = ResourceRef(resource_type="dataset", resource_id=d_id)
             result = enforce(
-                principal=principal,
+                principal=auth_principal,
                 action=action,
                 resource=resource,
                 context=context,
