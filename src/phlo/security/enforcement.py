@@ -3,10 +3,13 @@
 This module provides the core enforcement path owned by phlo.security.
 It is invoked by surface adapters to make authorization decisions.
 
-The EnforcementContext is a process-scoped lazy singleton that owns:
+The EnforcementContext is a process-scoped singleton that owns:
 - Identity bridge (for principal canonicalization)
 - Authorization policy backend (for PDP decisions)
 - Audit event emitter (for canonical audit events)
+
+In regulated mode, the context initializes eagerly at first access.
+In non-regulated mode, components are initialized lazily on first use.
 
 Core enforcement must NOT import FastAPI, Click, or Dagster/Starlette types.
 """
@@ -32,15 +35,28 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _is_regulated() -> bool:
+    """Check if regulated mode is active."""
+    try:
+        from phlo.security.mode import is_regulated
+
+        return is_regulated()
+    except Exception:
+        return False
+
+
 class EnforcementContext:
-    """Process-scoped lazy singleton for core enforcement.
+    """Process-scoped singleton for core enforcement.
 
     Holds the shared infrastructure for all regulated surface enforcement:
     identity bridge, authorization policy backend, and audit emitter.
     Adapters do not hold their own cached instances of these — they use
     EnforcementContext.get_instance() which owns the singleton.
 
-    Thread-safe lazy initialization using double-checked locking.
+    In regulated mode: components are initialized eagerly at first access.
+    In non-regulated mode: components are initialized lazily on first use.
+
+    Thread-safe initialization using double-checked locking.
     """
 
     _instance: EnforcementContext | None = None
@@ -52,6 +68,7 @@ class EnforcementContext:
         self._audit_emitter: Any = None
         self._initialized = False
         self._init_lock = threading.Lock()
+        self._regulated = _is_regulated()
 
     @classmethod
     def get_instance(cls) -> EnforcementContext:
@@ -60,6 +77,8 @@ class EnforcementContext:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = cls()
+                    if cls._instance._regulated:
+                        cls._instance._initialize_eagerly()
         return cls._instance
 
     @classmethod
@@ -68,41 +87,72 @@ class EnforcementContext:
         with cls._lock:
             cls._instance = None
 
+    def _initialize_eagerly(self) -> None:
+        """Eagerly initialize all components.
+
+        Called automatically when regulated mode is active and instance
+        is first created. Can also be called manually to force eager init.
+        """
+        if self._initialized:
+            return
+        with self._init_lock:
+            if self._initialized:
+                return
+            self._init_identity_bridge()
+            self._init_authorization_backend()
+            self._init_audit_emitter()
+            self._initialized = True
+
+    def _init_identity_bridge(self) -> None:
+        """Initialize the identity bridge."""
+        from phlo.identity.bridge import create_regulated_bridge
+
+        self._identity_bridge = create_regulated_bridge()
+
+    def _init_authorization_backend(self) -> None:
+        """Initialize the authorization backend."""
+        from phlo.capabilities import resolve_capability
+
+        result = resolve_capability("authorization_policy_backend")
+        if result is None:
+            msg = "No authorization_policy_backend registered"
+            raise RuntimeError(msg)
+        self._authorization_backend = result.provider
+
+    def _init_audit_emitter(self) -> None:
+        """Initialize the audit emitter."""
+        from phlo.audit.events import create_default_emitter
+
+        self._audit_emitter = create_default_emitter(surface="core")
+
     @property
     def identity_bridge(self) -> IdentityBridge:
-        """Lazy-initialized identity bridge."""
+        """Identity bridge (eager in regulated mode, lazy otherwise)."""
         if self._identity_bridge is None:
             with self._init_lock:
                 if self._identity_bridge is None:
-                    from phlo.identity.bridge import create_regulated_bridge
-
-                    self._identity_bridge = create_regulated_bridge()
+                    self._init_identity_bridge()
+                    self._initialized = True
         return self._identity_bridge
 
     @property
     def authorization_backend(self) -> AuthorizationPolicyBackend:
-        """Lazy-initialized authorization policy backend."""
+        """Authorization backend (eager in regulated mode, lazy otherwise)."""
         if self._authorization_backend is None:
             with self._init_lock:
                 if self._authorization_backend is None:
-                    from phlo.capabilities import resolve_capability
-
-                    result = resolve_capability("authorization_policy_backend")
-                    if result is None:
-                        msg = "No authorization_policy_backend registered"
-                        raise RuntimeError(msg)
-                    self._authorization_backend = result.provider
+                    self._init_authorization_backend()
+                    self._initialized = True
         return self._authorization_backend
 
     @property
     def audit_emitter(self) -> Any:
-        """Lazy-initialized audit event emitter."""
+        """Audit emitter (eager in regulated mode, lazy otherwise)."""
         if self._audit_emitter is None:
             with self._init_lock:
                 if self._audit_emitter is None:
-                    from phlo.audit.events import create_default_emitter
-
-                    self._audit_emitter = create_default_emitter(surface="core")
+                    self._init_audit_emitter()
+                    self._initialized = True
         return self._audit_emitter
 
     def canonicalize(self, auth_principal: Any) -> Principal:
