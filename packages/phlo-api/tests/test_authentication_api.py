@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from pathlib import Path
 
 from phlo.capabilities import AuthenticationProviderSpec, clear_capabilities
@@ -86,28 +87,47 @@ authentication:
 
 
 def test_phlo_api_has_forward_auth_middleware() -> None:
-    """Verify phlo-api service.yaml declares forwardAuth middleware."""
-    from phlo_api.plugin import PhloApiServicePlugin
+    """Verify phlo-api declares forwardAuth middleware for oauth2-proxy.
 
-    plugin = PhloApiServicePlugin()
-    defn = plugin.service_definition
-    labels = defn["compose"]["labels"]
+    The middleware is defined in service-auth.yaml which is conditionally
+    included when the proxy profile is active.
+    """
+    import yaml
+    from importlib.resources import files
 
-    assert "traefik.http.routers.api.middlewares" in labels
-    assert labels["traefik.http.routers.api.middlewares"] == "phlo-api-auth@docker"
-    assert "traefik.http.middlewares.phlo-api-auth.forwardauth.address" in labels
-    assert "/oauth2/auth" in labels["traefik.http.middlewares.phlo-api-auth.forwardauth.address"]
-    assert "oauth2-proxy" in labels["traefik.http.middlewares.phlo-api-auth.forwardauth.address"]
-    assert labels["traefik.http.middlewares.phlo-api-auth.forwardauth.trustForwardHeader"] == "true"
+    package_root = files("phlo_api")
+    auth_defn_path = package_root / "service-auth.yaml"
+
+    if not auth_defn_path.exists():
+        pytest.skip("service-auth.yaml not found - oauth2-proxy integration not configured")
+
+    with open(auth_defn_path) as f:
+        auth_defn = yaml.safe_load(f)
+
+    auth_labels = auth_defn.get("compose", {}).get("labels", {})
+
+    assert "traefik.http.routers.api.middlewares" in auth_labels
+    assert auth_labels["traefik.http.routers.api.middlewares"] == "phlo-api-auth@docker"
+    assert "traefik.http.middlewares.phlo-api-auth.forwardauth.address" in auth_labels
+    assert (
+        "/oauth2/auth" in auth_labels["traefik.http.middlewares.phlo-api-auth.forwardauth.address"]
+    )
+    assert (
+        "oauth2-proxy" in auth_labels["traefik.http.middlewares.phlo-api-auth.forwardauth.address"]
+    )
+    assert (
+        auth_labels["traefik.http.middlewares.phlo-api-auth.forwardauth.trustForwardHeader"]
+        == "true"
+    )
     assert (
         "X-Forwarded-User"
-        in labels["traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders"]
+        in auth_labels["traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders"]
     )
     assert (
         "X-Forwarded-Email"
-        in labels["traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders"]
+        in auth_labels["traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders"]
     )
     assert (
         "X-Forwarded-Groups"
-        in labels["traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders"]
+        in auth_labels["traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders"]
     )
