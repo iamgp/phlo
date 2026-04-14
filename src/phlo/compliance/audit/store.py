@@ -98,17 +98,15 @@ class PostgresAuditStore:
         """Initialize the Postgres audit store.
 
         Args:
-            connection: A database connection or connection pool.
+            connection: A psycopg2 database connection or connection pool.
         """
         self._conn = connection
         self._ensure_table()
 
     def _ensure_table(self) -> None:
         """Create the audit log table if it doesn't exist."""
-        import sql
-
-        sql.execute(
-            self._conn,
+        cursor = self._conn.cursor()
+        cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS compliance_audit_log (
                 id SERIAL PRIMARY KEY,
@@ -122,20 +120,18 @@ class PostgresAuditStore:
             )
             """,
         )
-        sql.execute(
-            self._conn,
+        cursor.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_compliance_audit_log_surface_seq
             ON compliance_audit_log(surface, sequence_number)
             """,
         )
+        cursor.close()
 
     def append(self, record: SealedAuditRecord) -> None:
-        import sql
-
         event_data = json.dumps(record.event.to_dict())
-        sql.execute(
-            self._conn,
+        cursor = self._conn.cursor()
+        cursor.execute(
             """
             INSERT INTO compliance_audit_log
             (surface, sequence_number, sealed_at, previous_hash, record_hash, event_data)
@@ -150,14 +146,14 @@ class PostgresAuditStore:
                 event_data,
             ),
         )
+        cursor.close()
+        self._conn.commit()
 
     def get_last(self, surface: str) -> SealedAuditRecord | None:
-        import sql
-
         from phlo.audit.events import CanonicalAuditEvent
 
-        rows = sql.fetch(
-            self._conn,
+        cursor = self._conn.cursor()
+        cursor.execute(
             """
             SELECT sequence_number, sealed_at, previous_hash, record_hash, event_data
             FROM compliance_audit_log
@@ -167,10 +163,12 @@ class PostgresAuditStore:
             """,
             (surface,),
         )
-        if not rows:
+        row = cursor.fetchone()
+        cursor.close()
+
+        if not row:
             return None
 
-        row = rows[0]
         from phlo.compliance.audit.sealed import SealedAuditRecord
 
         event = CanonicalAuditEvent(**json.loads(row[4]))
@@ -189,8 +187,6 @@ class PostgresAuditStore:
         before: int | None = None,
         limit: int = 1000,
     ) -> list[SealedAuditRecord]:
-        import sql
-
         from phlo.audit.events import CanonicalAuditEvent
 
         query_sql = """
@@ -210,7 +206,10 @@ class PostgresAuditStore:
         query_sql += " ORDER BY sequence_number ASC LIMIT %s"
         params.append(limit)
 
-        rows = sql.fetch(self._conn, query_sql, tuple(params))
+        cursor = self._conn.cursor()
+        cursor.execute(query_sql, tuple(params))
+        rows = cursor.fetchall()
+        cursor.close()
 
         from phlo.compliance.audit.sealed import SealedAuditRecord
 
