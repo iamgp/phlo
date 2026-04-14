@@ -34,6 +34,9 @@ class ComplianceFeatures:
     access_governance: bool = False
     """Whether access governance primitives are active (dormant detection, recertification, SoD)."""
 
+    evidence_export: bool = False
+    """Whether evidence pack export is available for audit submission."""
+
 
 def resolve_compliance_features(
     regulated: bool | None = None,
@@ -69,4 +72,5 @@ def resolve_compliance_features(
         electronic_signatures=config.get("electronic_signatures", True),
         system_manifest=config.get("system_manifest", True),
         access_governance=config.get("access_governance", True),
+        evidence_export=config.get("evidence_export", True),
     )
