@@ -228,6 +228,35 @@ def test_enforce_or_raise_returns_503_for_regulated_enforcement_errors(monkeypat
         raise AssertionError("Expected regulated enforcement error to surface as 503")
 
 
+def test_filter_datasets_regulated_passes_correlation_id_to_enforce(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    auth_principal = AuthPrincipal(subject="user-1", principal_type="user")
+    request = SimpleNamespace(
+        headers={"x-request-id": "corr-123"},
+        state=SimpleNamespace(),
+        client=SimpleNamespace(host="127.0.0.1"),
+        method="GET",
+        url=SimpleNamespace(path="/api/datasets"),
+    )
+
+    monkeypatch.setattr("phlo_api.api.authorization.is_regulated", lambda: True)
+    monkeypatch.setattr(
+        "phlo_api.api.authorization.get_request_principal", lambda _request: auth_principal
+    )
+
+    def fake_enforce(**kwargs):
+        captured.update(kwargs)
+        return EnforcementResult.allow()
+
+    monkeypatch.setattr("phlo_api.api.authorization.enforce", fake_enforce)
+
+    allowed = filter_datasets(request, ["raw.orders"])
+
+    assert allowed == ["raw.orders"]
+    assert captured["request_id"] == "corr-123"
+    assert captured["correlation_id"] == "corr-123"
+
+
 def test_get_authorization_mode_uses_top_level_phlo_yaml(monkeypatch, tmp_path: Path) -> None:
     _write_phlo_config(
         tmp_path,
