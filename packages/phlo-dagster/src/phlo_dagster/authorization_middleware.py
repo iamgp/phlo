@@ -42,6 +42,11 @@ from phlo.capabilities import (
 from phlo.logging import get_logger
 from phlo.security import is_regulated
 from phlo.security.enforcement import enforce
+from phlo.security.service_identity import (
+    PHLO_CORRELATION_HEADER,
+    PHLO_INITIATOR_HEADER,
+    validate_service_token,
+)
 
 logger = get_logger(__name__)
 
@@ -195,7 +200,7 @@ class DagsterGraphQLAuthorizationMiddleware:
 
         headers: dict[str, str] = {}
         if hasattr(request, "headers"):
-            headers = dict(request.headers)
+            headers = {str(k).lower(): str(v) for k, v in request.headers.items()}
         elif hasattr(request, "META"):
             headers = {
                 k.lower().replace("http_", "").replace("_", "-"): v
@@ -207,6 +212,18 @@ class DagsterGraphQLAuthorizationMiddleware:
         match = AUTHORIZATION_HEADER_RE.match(auth_header)
         if match:
             token = match.group(1)
+            service_id = validate_service_token(token)
+            if service_id:
+                attributes = {"authentication_source": "service_token"}
+                initiator = headers.get(PHLO_INITIATOR_HEADER.lower())
+                if initiator:
+                    attributes["initiating_principal"] = initiator
+                return AuthPrincipal(
+                    subject=f"service:{service_id}",
+                    principal_type="service",
+                    groups=(),
+                    attributes=attributes,
+                )
             return self._principal_from_token(token)
 
         dagster_user = headers.get(DAGSTER_USER_HEADER.lower())
@@ -265,7 +282,14 @@ class DagsterGraphQLAuthorizationMiddleware:
         if context is not None:
             request = getattr(context, "request", None) or getattr(context, "wsgi_request", None)
             if request is not None:
-                request_id = getattr(request, "id", None) or getattr(request, "request_id", None)
+                request_headers = {
+                    str(k).lower(): str(v) for k, v in getattr(request, "headers", {}).items()
+                }
+                request_id = (
+                    request_headers.get(PHLO_CORRELATION_HEADER.lower())
+                    or getattr(request, "id", None)
+                    or getattr(request, "request_id", None)
+                )
                 ip_address = getattr(request, "remote_addr", None) or getattr(
                     request, "client_ip", None
                 )
@@ -322,7 +346,9 @@ class DagsterGraphQLAuthorizationMiddleware:
             action=action,
             resource=resource,
             context=decision_context,
+            request_id=decision_context.request_id,
             surface=self.surface_name,
+            correlation_id=decision_context.request_id,
         )
 
     def _map_operation_to_action(self, operation_name: str) -> str:

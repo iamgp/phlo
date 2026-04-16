@@ -38,6 +38,19 @@ Generate strong passwords:
 openssl rand -base64 32
 ```
 
+## Data-Plane Enforcement
+
+Regulated mode is not only about front-door auth on `phlo-api`. The supported posture is:
+
+- request-time enforcement on `phlo-api`, CLI, and Dagster webserver
+- platform identity for autonomous Dagster daemon work
+- scoped service credentials for Trino, PostgreSQL, MinIO, and Nessie
+- backend-native grants compiled from canonical RBAC
+- correlation IDs that connect API, daemon, and backend audit trails
+
+Use [Service Credentials](service-credentials.md) to move services off shared admin
+credentials before treating a deployment as regulated-ready.
+
 ## Audit-Log Posture
 
 Phlo does not treat every log line as an audit record. Use this distinction:
@@ -236,6 +249,10 @@ equivalent). Phlo does not enforce authorization within Superset.
 
 **Hasura / PostgREST** — see "PostgREST and Hasura in Regulated Deployments"
 in the API surfaces reference.
+
+In regulated mode, both are read-only by default. To permit writes, set
+`surfaces.<service>.allow_writes: true` in `phlo.yaml` and provide a backend role
+that carries the required mutation privileges.
 
 ### Blocked in regulated mode
 

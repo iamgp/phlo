@@ -61,5 +61,7 @@ dev:
         DAGSTER_GRAPHQL_URL: "http://127.0.0.1:${DAGSTER_PORT:-3000}/graphql"
         NESSIE_URL: "http://127.0.0.1:${NESSIE_PORT:-19120}/api/v2"
         TRINO_URL: "http://127.0.0.1:${TRINO_PORT:-8080}"
+        TRINO_USER: ${PHLO_API_TRINO_USER:-phlo-api}
+        TRINO_ROLE: ${PHLO_API_TRINO_ROLE:-}
     health_check: "http://127.0.0.1:4000/health"
     cwd: "{project_root}"

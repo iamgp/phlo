@@ -79,6 +79,7 @@ Phlo can expose optional surfaces around the core data plane and runtime stack.
 - [OpenMetadata](setup/openmetadata.md) for catalog and metadata workflows
 - [Observability](setup/observability.md) for logs, traces, and metrics routing
 - [Security](setup/security.md) for authentication, secrets, and hardening
+- [Service Credentials](setup/service-credentials.md) for regulated per-service backend identity
 
 Use [Packages](packages/index.md) for component detail and [Reference](reference/index.md) for commands, config, and contracts.
 

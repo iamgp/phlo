@@ -44,6 +44,11 @@ Example:
 from phlo_dagster.authorization import get_adapter
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
 from phlo_dagster.dagster_ext import DagsterExtensionPlugin, IngestionEnginePlugin
+from phlo_dagster.daemon_identity import (
+    PhloQueuedRunCoordinator,
+    authorize_daemon_run,
+    create_daemon_principal,
+)
 from phlo_dagster.plugin import DagsterServicePlugin
 from phlo_dagster.settings import DagsterSettings, get_settings
 
@@ -55,5 +60,8 @@ __all__ = [
     "get_settings",
     "get_adapter",
     "DagsterGraphQLAuthorizationMiddleware",
+    "PhloQueuedRunCoordinator",
+    "authorize_daemon_run",
+    "create_daemon_principal",
 ]
 __version__ = "0.2.3"

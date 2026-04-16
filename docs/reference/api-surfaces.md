@@ -26,6 +26,7 @@ flowchart LR
 - database-native REST
 - best fit for exposing relational read/write surfaces with minimal app code
 - **Ingress-gated optional surface** in regulated mode
+- **Write-restricted by default** in regulated mode
 - Uses PostgreSQL GRANT-based permissions, not Phlo canonical RBAC
 - Must be protected at ingress; Phlo validates deployment configuration only
 
@@ -34,6 +35,7 @@ flowchart LR
 - metadata-driven GraphQL
 - best fit for GraphQL clients, subscriptions, and schema-driven exposure
 - **Ingress-gated optional surface** in regulated mode
+- **Write-restricted by default** in regulated mode
 - Uses Hasura role-based permissions, not Phlo canonical RBAC
 - Must be protected at ingress; Phlo validates deployment configuration only
 
@@ -45,14 +47,14 @@ flowchart LR
 
 ## Regulated Mode Classification
 
-Surfaces are classified into four categories for regulated deployments:
+Surfaces are classified into enforcement layers for regulated deployments:
 
-| Category | Surfaces | Behavior in Regulated Mode |
-|----------|----------|---------------------------|
-| Direct regulated | `phlo-api` | Full Phlo RBAC enforcement |
-| Ingress-gated optional | `postgrest`, `hasura` | Allowed with ingress protection; own auth layer |
-| Approved with adapter | `dagster-*`, `cli` | Full enforcement via regulated surface adapter |
-| Ingress-gated optional | `superset` | Allowed with ingress protection; own auth layer |
+| Layer | Surfaces | Behavior in regulated mode |
+|-------|----------|---------------------------|
+| Control-plane enforced | `phlo-api`, `dagster-webserver`, `cli` | Phlo `enforce()` at the request boundary |
+| Autonomous execution | `dagster-daemon` | `platform:dagster-daemon` principal plus run-level audit |
+| Data-plane governed | `trino`, `postgresql`, `minio`, `nessie` | Backend-native grants and service credentials |
+| Ingress-gated read surfaces | `postgrest`, `hasura`, `superset` | Allowed behind ingress; writes blocked by default for Hasura/PostgREST |
 
 ### What "ingress-gated optional" means
 
@@ -65,6 +67,7 @@ If you expose either surface in a regulated deployment, you must ensure:
 1. Ingress proxy requires authentication before forwarding requests
 2. The surface's own permission model is configured correctly
 3. Audit logs from the surface are collected separately
+4. Mutations stay disabled unless you explicitly opt in with `surfaces.<service>.allow_writes: true`
 
 ## PostgREST and Hasura in Regulated Deployments
 
@@ -74,6 +77,7 @@ If you expose either surface in a regulated deployment, you must ensure:
 - They are NOT first-class regulated surfaces with their own `regulated_surface` adapter
 - They ARE allowed only when protected by ingress authentication (Traefik + oauth2-proxy)
 - A warning is logged when they are started in regulated mode
+- Writes are blocked by default. Opt in explicitly if you are prepared to own equivalent write-path audit and authorization integration.
 
 ### When to use PostgREST/Hasura in regulated mode
 

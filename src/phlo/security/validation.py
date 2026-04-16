@@ -48,6 +48,7 @@ class RegulatedValidationReport:
     passed: bool
     checks: list[ValidationResult] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def add_check(self, result: ValidationResult) -> None:
         """Add a validation check result."""
@@ -414,6 +415,8 @@ def run_regulated_validation(
             )
         )
 
+    _verify_compiled_rbac(report)
+
     if report.passed:
         logger.info("regulated_validation_passed")
     else:
@@ -421,6 +424,9 @@ def run_regulated_validation(
             "regulated_validation_failed",
             errors=report.errors,
         )
+
+    if report.warnings:
+        logger.warning("regulated_validation_warnings", warnings=report.warnings)
 
     return report
 
@@ -500,3 +506,65 @@ def require_regulated_mode_validation(**kwargs):
         stacklevel=2,
     )
     return require_regulated_validation(**kwargs)
+
+
+def _verify_compiled_rbac(report: RegulatedValidationReport) -> None:
+    """Verify that compiled RBAC grants match backend state.
+
+    For each registered backend compiler, calls verify() to compare
+    desired state (from compiled RBAC) against actual backend state.
+
+    Results are added as warnings, not hard failures, because:
+    - Not all compilers have verify() implemented
+    - Some backends may not be reachable at startup
+    - We want to surface drift without breaking existing deployments
+    """
+    from phlo.rbac.compiler import CompilerContext
+
+    try:
+        rbac_loader = RBACConfigLoader()
+        rbac = rbac_loader.load()
+    except Exception:
+        report.warnings.append("compiled_rbac_verify: could not load RBAC config")
+        logger.debug("compiled_rbac_verify_skipped", reason="rbac_load_failed")
+        return
+
+    if not COMPILER_REGISTRY:
+        report.warnings.append("compiled_rbac_verify: no backend compilers registered")
+        return
+
+    for backend_name, compiler_class in sorted(COMPILER_REGISTRY.items()):
+        context = CompilerContext(environment="regulated", backend_name=backend_name)
+        try:
+            compiler = compiler_class(backend=None)
+            result = compiler.verify(rbac, context)
+            if not result.in_sync:
+                missing_names = [a.name for a in result.missing][:5]
+                extra_names = [a.name for a in result.extra][:5]
+                parts = []
+                if missing_names:
+                    parts.append(f"{len(result.missing)} missing: {missing_names}")
+                if extra_names:
+                    parts.append(f"{len(result.extra)} extra: {extra_names}")
+                report.warnings.append(
+                    f"compiled_rbac_verify({backend_name}): out of sync — {'; '.join(parts)}"
+                )
+                logger.warning(
+                    "compiled_rbac_out_of_sync",
+                    backend=backend_name,
+                    missing_count=len(result.missing),
+                    extra_count=len(result.extra),
+                )
+            else:
+                logger.info("compiled_rbac_in_sync", backend=backend_name)
+        except NotImplementedError:
+            report.warnings.append(
+                f"compiled_rbac_verify({backend_name}): verify() not implemented"
+            )
+        except Exception as exc:
+            report.warnings.append(f"compiled_rbac_verify({backend_name}): {exc}")
+            logger.debug(
+                "compiled_rbac_verify_error",
+                backend=backend_name,
+                error=str(exc),
+            )
