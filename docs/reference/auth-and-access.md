@@ -2,6 +2,23 @@
 
 Authentication and authorization in Phlo are layered.
 
+## What changed in the current regulated model
+
+Phlo's regulated posture is now an end-to-end chain instead of a single
+`phlo-api` concern.
+
+The model now connects:
+
+- caller authentication at the edge
+- canonical action enforcement at supported request surfaces
+- service-to-service identity for internal hops
+- platform identity for autonomous Dagster daemon work
+- backend-native credentials and grants in the data plane
+
+That means a regulated request can now stay attributable from ingress all the
+way to backend query and object-store activity, provided you configure the
+service credentials and ingress boundary described in the setup docs.
+
 ## Model
 
 ```mermaid
@@ -42,6 +59,20 @@ headers. Phlo uses:
 
 `phlo-api` reuses the request ID as the default correlation ID. Dagster daemon flows use
 the Dagster `run_id` for the same purpose.
+
+## End-to-end regulated path
+
+For the supported regulated deployment model, the path is:
+
+1. A user authenticates at ingress or through a configured API auth provider.
+2. A control-plane surface such as `phlo-api`, the CLI, or Dagster GraphQL maps
+   the request to a canonical action and resource.
+3. Phlo evaluates that action with `enforce()` and emits audit metadata.
+4. Downstream service calls carry service identity and correlation headers.
+5. Backends such as Trino, PostgreSQL, MinIO, and Nessie see the scoped service
+   credential rather than one shared superuser identity.
+
+If one of those layers is missing, the deployment is only partially regulated.
 
 ## phlo-api Route Guard Semantics
 
@@ -129,6 +160,21 @@ authentication:
     trusted_proxies:
       - 172.16.0.0/12
 ```
+
+## What Phlo enforces vs what operators still own
+
+| Concern | Phlo-owned | Operator-owned |
+|--------|------------|----------------|
+| Canonical action mapping on `phlo-api`, CLI, Dagster | Yes | No |
+| Dagster daemon platform identity | Yes | No |
+| Service token format and validation | Yes | No |
+| Ingress authentication for browser-only surfaces | No | Yes |
+| Hasura/PostgREST/Superset internal permission models | No | Yes |
+| Backend role creation, secret rotation, retention posture | Partial | Yes |
+
+This split is deliberate. Phlo owns the control plane it can interpret
+directly. Operators still own the ingress boundary, optional surfaces without a
+Phlo adapter, and backend security operations.
 
 ## Canonical RBAC
 

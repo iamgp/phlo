@@ -2,6 +2,36 @@
 
 This guide covers enterprise security configuration for Phlo, including authentication, authorization, encryption, and audit logging.
 
+## What regulated mode now means
+
+This is the operator-facing summary of Phlo's current regulated posture.
+
+When `regulated: true`, Phlo now supports all of the following as one connected
+control plane:
+
+- request-time authorization on `phlo-api`, the CLI, and Dagster GraphQL
+- autonomous Dagster daemon execution under a platform principal
+- service-to-service identity with correlation headers for internal calls
+- backend service credentials per service instead of one shared admin identity
+- canonical RBAC compiled into backend-native grants where the backend supports it
+- surface classification for optional browser and API entry points
+
+What regulated mode does **not** mean:
+
+- every exposed service becomes a first-class Phlo-enforced surface
+- ingress-authenticated tools like Superset, Hasura, and PostgREST inherit Phlo
+  route guards automatically
+- direct backend access is safe just because `regulated: true` is set
+
+Use this guide together with:
+
+- [API Surfaces](../reference/api-surfaces.md) for which surfaces are enforced,
+  ingress-gated, or blocked
+- [Auth And Access Model](../reference/auth-and-access.md) for principal and
+  enforcement flow
+- [Service Credentials](service-credentials.md) for backend identities and
+  least-privilege setup
+
 ## Overview
 
 Phlo's underlying services (Trino, Nessie, MinIO, PostgreSQL) support enterprise security features. This guide explains how to enable and configure them, and where Phlo's audit-log support stops and operator-owned controls begin.
@@ -50,6 +80,19 @@ Regulated mode is not only about front-door auth on `phlo-api`. The supported po
 
 Use [Service Credentials](service-credentials.md) to move services off shared admin
 credentials before treating a deployment as regulated-ready.
+
+### Boundary summary
+
+| Layer | Included now | Main control |
+|-------|---------------|--------------|
+| Request boundary | `phlo-api`, `cli`, `dagster-webserver` | Phlo `enforce()` at request or command time |
+| Autonomous execution | `dagster-daemon` | platform principal + run correlation |
+| Data plane | Trino, PostgreSQL, MinIO, Nessie | backend-native credentials and grants |
+| Optional ingress-gated surfaces | Hasura, PostgREST, Superset | ingress auth + surface-native permissions |
+| Blocked in regulated mode | pgweb | not allowed |
+
+If you remember one rule: `regulated: true` is a boundary definition plus a
+deployment posture, not a magic flag that secures every open port by itself.
 
 ## Audit-Log Posture
 
