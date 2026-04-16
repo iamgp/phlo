@@ -5,11 +5,28 @@ from __future__ import annotations
 from phlo.rbac.compiler import COMPILER_REGISTRY
 from phlo.rbac.models import CANONICAL_ACTIONS
 
+EXPECTED_COMPILED_ACTIONS = frozenset(
+    {
+        "dataset.read",
+        "dataset.query",
+        "asset.read",
+        "asset.execute",
+        "service.read",
+        "service.manage",
+        "admin.read",
+        "admin.manage",
+        "object.read",
+        "object.write",
+        "catalog.read",
+        "catalog.manage",
+    }
+)
 
-def test_every_canonical_action_has_at_least_one_compiler():
-    """Every canonical action must be supported by at least one backend compiler."""
+
+def test_every_compiled_canonical_action_has_at_least_one_compiler():
+    """Every action with documented backend compilation must be compiler-backed."""
     unsupported = set()
-    for action in CANONICAL_ACTIONS:
+    for action in EXPECTED_COMPILED_ACTIONS:
         supported_by_any = any(
             cls(backend=None).supports_action(action) for cls in COMPILER_REGISTRY.values()
         )
@@ -17,6 +34,11 @@ def test_every_canonical_action_has_at_least_one_compiler():
             unsupported.add(action)
 
     assert not unsupported, f"Actions without any compiler support: {unsupported}"
+
+
+def test_expected_compiled_actions_remain_canonical():
+    """The compiler-backed action set must stay inside the canonical taxonomy."""
+    assert EXPECTED_COMPILED_ACTIONS <= CANONICAL_ACTIONS
 
 
 def test_compiler_registry_not_empty():

@@ -304,6 +304,20 @@ def _enforce_or_raise(
         correlation_id=get_request_correlation_id(request),
     )
 
+    if result.variant == "error":
+        logger.error(
+            "authorization_backend_error",
+            principal=auth_principal.subject,
+            action=action,
+            resource_type=resource.resource_type,
+            resource_id=resource.resource_id,
+            reason_code=result.reason_code,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "service_unavailable", "reason": result.reason_code or "unknown"},
+        )
+
     if not result.allowed:
         logger.warning(
             "authorization_denied",
@@ -658,7 +672,7 @@ def filter_datasets(
     if is_regulated():
         auth_principal = get_request_principal(request)
         if auth_principal is None:
-            return [] if require_auth else dataset_ids
+            return []
 
         context = create_decision_context(request, environment)
         allowed = []
