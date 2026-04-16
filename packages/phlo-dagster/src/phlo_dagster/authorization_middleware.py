@@ -113,6 +113,8 @@ class DagsterGraphQLAuthorizationMiddleware:
         try:
             if not self._is_mutation(info):
                 return next_fn(root, info, **kwargs)
+            if not self._is_root_mutation_field(info):
+                return next_fn(root, info, **kwargs)
 
             auth_result = self._authorize_mutation(info, kwargs)
             if not auth_result.allowed:
@@ -150,17 +152,34 @@ class DagsterGraphQLAuthorizationMiddleware:
             return operation.name.value
         return None
 
-    def _get_selection_resource(self, info: Any) -> tuple[str, str | None]:
+    def _get_mutation_field_name(self, info: Any) -> str | None:
+        """Return the current GraphQL field name when available."""
+        field_name = getattr(info, "field_name", None)
+        if isinstance(field_name, str) and field_name:
+            return field_name
+        return None
+
+    def _is_root_mutation_field(self, info: Any) -> bool:
+        """Return True for top-level mutation fields only."""
+        parent_type = getattr(info, "parent_type", None)
+        if getattr(parent_type, "name", None) == "Mutation":
+            return True
+        path = getattr(info, "path", None)
+        return getattr(path, "prev", None) is None
+
+    def _get_selection_resource(
+        self,
+        mutation_field_name: str | None,
+    ) -> tuple[str, str | None]:
         """Extract resource type and ID from the GraphQL selection.
 
         Returns:
             Tuple of (resource_type, resource_id or None).
         """
-        operation_name = self._get_operation_name(info)
-        if not operation_name:
-            return "unknown", None
+        if not mutation_field_name:
+            return "admin", None
 
-        op_lower = operation_name.lower()
+        op_lower = mutation_field_name.lower()
 
         if "pipeline" in op_lower or "backfill" in op_lower:
             return "run", None
@@ -177,7 +196,7 @@ class DagsterGraphQLAuthorizationMiddleware:
         if "repository" in op_lower or "workspace" in op_lower:
             return "catalog", None
 
-        return "unknown", None
+        return "admin", None
 
     def _extract_principal(self, info: Any) -> AuthPrincipal | None:
         """Extract the authenticated principal from request headers.
@@ -330,13 +349,14 @@ class DagsterGraphQLAuthorizationMiddleware:
             return EnforcementResult.allow()
 
         operation_name = self._get_operation_name(info) or "unknown"
-        resource_type, resource_id = self._get_selection_resource(info)
+        mutation_field_name = self._get_mutation_field_name(info)
+        resource_type, resource_id = self._get_selection_resource(mutation_field_name)
 
-        action = self._map_operation_to_action(operation_name)
+        action = self._map_operation_to_action(mutation_field_name)
 
         resource = ResourceRef(
             resource_type=resource_type,
-            resource_id=resource_id or f"dagster:{operation_name}",
+            resource_id=resource_id or f"dagster:{mutation_field_name or operation_name}",
         )
 
         decision_context = self._create_decision_context(info)
@@ -351,16 +371,19 @@ class DagsterGraphQLAuthorizationMiddleware:
             correlation_id=decision_context.request_id,
         )
 
-    def _map_operation_to_action(self, operation_name: str) -> str:
-        """Map a GraphQL operation name to a canonical action.
+    def _map_operation_to_action(self, mutation_field_name: str | None) -> str:
+        """Map a GraphQL mutation field name to a canonical action.
 
         Args:
-            operation_name: Name of the GraphQL operation.
+            mutation_field_name: Name of the GraphQL mutation field.
 
         Returns:
             Canonical action string.
         """
-        op_lower = operation_name.lower()
+        if not mutation_field_name:
+            return "admin.manage"
+
+        op_lower = mutation_field_name.lower()
 
         if "assetmutation" in op_lower or "materialize" in op_lower:
             return "asset.execute"
@@ -374,14 +397,7 @@ class DagsterGraphQLAuthorizationMiddleware:
             return "run.manage"
         if "reload" in op_lower:
             return "catalog.manage"
-
-        if "asset" in op_lower:
-            return "asset.read"
-        if "pipeline" in op_lower or "run" in op_lower:
-            return "run.read"
-        if "repository" in op_lower or "workspace" in op_lower:
-            return "catalog.read"
         if "service" in op_lower or "scheduler" in op_lower:
-            return "service.read"
+            return "service.manage"
 
-        return "asset.read"
+        return "admin.manage"

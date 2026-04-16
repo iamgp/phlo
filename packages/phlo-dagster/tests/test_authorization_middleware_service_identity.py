@@ -13,14 +13,29 @@ from phlo.security.service_identity import (
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
 
 
-def _build_info(headers: dict[str, str]) -> SimpleNamespace:
+def _build_info(
+    headers: dict[str, str],
+    *,
+    operation_name: str | None = "LaunchRun",
+    field_name: str = "launchPipelineRun",
+    parent_type_name: str = "Mutation",
+    path_prev: object | None = None,
+) -> SimpleNamespace:
     request = SimpleNamespace(headers=headers, remote_addr="127.0.0.1")
     context = SimpleNamespace(request=request)
     operation = SimpleNamespace(
-        name=SimpleNamespace(value="LaunchRun"),
+        name=SimpleNamespace(value=operation_name) if operation_name is not None else None,
         operation=SimpleNamespace(value="mutation"),
     )
-    return SimpleNamespace(context=context, operation=operation)
+    parent_type = SimpleNamespace(name=parent_type_name)
+    path = SimpleNamespace(prev=path_prev)
+    return SimpleNamespace(
+        context=context,
+        operation=operation,
+        field_name=field_name,
+        parent_type=parent_type,
+        path=path,
+    )
 
 
 def test_extract_principal_from_service_token(monkeypatch):
@@ -67,3 +82,51 @@ def test_authorize_mutation_passes_correlation_id(mock_enforce, monkeypatch):
     kwargs = mock_enforce.call_args.kwargs
     assert kwargs["request_id"] == "corr-456"
     assert kwargs["correlation_id"] == "corr-456"
+
+
+@patch("phlo_dagster.authorization_middleware.enforce")
+def test_authorize_mutation_uses_field_name_for_action_and_resource(mock_enforce, monkeypatch):
+    monkeypatch.setenv("PHLO_SERVICE_SECRET", "test-secret")
+    token = create_service_token("phlo-api")
+    info = _build_info(
+        {"Authorization": f"Bearer {token}"},
+        operation_name=None,
+        field_name="terminateRun",
+    )
+    mock_enforce.return_value = MagicMock(allowed=True, reason_code=None)
+
+    DagsterGraphQLAuthorizationMiddleware()._authorize_mutation(info, {})
+
+    kwargs = mock_enforce.call_args.kwargs
+    assert kwargs["action"] == "run.execute"
+    assert kwargs["resource"].resource_type == "run"
+    assert kwargs["resource"].resource_id == "dagster:terminateRun"
+
+
+def test_map_operation_to_action_defaults_to_admin_manage() -> None:
+    middleware = DagsterGraphQLAuthorizationMiddleware()
+
+    assert middleware._map_operation_to_action("customMutation") == "admin.manage"
+    assert middleware._map_operation_to_action(None) == "admin.manage"
+
+
+def test_get_selection_resource_defaults_to_admin() -> None:
+    middleware = DagsterGraphQLAuthorizationMiddleware()
+
+    assert middleware._get_selection_resource("customMutation") == ("admin", None)
+    assert middleware._get_selection_resource(None) == ("admin", None)
+
+
+@patch("phlo_dagster.authorization_middleware.is_regulated", return_value=True)
+@patch("phlo_dagster.authorization_middleware.enforce")
+def test_resolve_skips_nested_mutation_fields(mock_enforce, _mock_regulated):
+    middleware = DagsterGraphQLAuthorizationMiddleware()
+    next_fn = MagicMock(return_value="ok")
+    info = _build_info(
+        {}, field_name="run", parent_type_name="LaunchRunSuccess", path_prev=object()
+    )
+
+    result = middleware.resolve(next_fn, None, info)
+
+    assert result == "ok"
+    mock_enforce.assert_not_called()
