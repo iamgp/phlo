@@ -3,6 +3,27 @@
 Canonical registry of all Phlo surfaces and their regulated-access classification.
 Source of truth for `phlo.security.gating`.
 
+## Enforcement Layers
+
+The platform enforces access across four layers, not just at the UI/API boundary:
+
+| Layer | Surfaces | Enforcement mechanism |
+|-------|----------|----------------------|
+| Control-plane enforced | phlo-api, CLI, Dagster webserver | Phlo `enforce()` at request boundary |
+| Autonomous execution | Dagster daemon (schedules, sensors) | Platform principal (`platform:dagster-daemon`) + run-level audit |
+| Data-plane governed | Trino, PostgreSQL, MinIO, Nessie | Compiled RBAC applied to backend-native auth; verified at startup |
+| Ingress-gated read surfaces | Hasura, PostgREST, Superset | Ingress auth + compiled read-only permissions; writes blocked by default |
+| Inherited protection | Observatory, dbt/dlt/sling libraries | Protected by upstream enforced surfaces |
+| Blocked | pgweb, OpenMetadata (direct) | Startup gating prevents use |
+
+### Principal Types
+
+| Type | Subject pattern | When used |
+|------|-----------------|-----------|
+| `user` | `alice@example.com` | Human via IdP/proxy/JWT |
+| `service` | `service:phlo-api` | Named service calling another service |
+| `platform` | `platform:dagster-daemon` | Autonomous execution with no contemporaneous human request |
+
 ## Classification Tiers
 
 | Tier | Label | Description |

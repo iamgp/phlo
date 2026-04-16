@@ -167,6 +167,7 @@ def enforce(
     context: DecisionContext | None = None,
     request_id: str | None = None,
     surface: str = "unknown",
+    correlation_id: str | None = None,
 ) -> EnforcementResult:
     """Make an authorization decision and emit a canonical audit event.
 
@@ -180,6 +181,7 @@ def enforce(
         context: Optional decision context.
         request_id: Optional request correlation ID for audit.
         surface: Name of the surface invoking enforcement (e.g., "phlo-api").
+        correlation_id: Optional end-to-end correlation ID across services.
 
     Returns:
         EnforcementResult: allow, deny, or error.
@@ -231,6 +233,7 @@ def enforce(
             reason_code=result.reason_code or "",
             policy_id=result.policy_id,
             request_id=request_id,
+            correlation_id=correlation_id,
         )
     except Exception:
         logger.exception("audit_emission_failed")

@@ -110,6 +110,30 @@ Environment variables are materialized into `.phlo/.env` (generated, non-secret 
 and `.phlo/.env.local` (local secrets). Edit `phlo.yaml` for committed defaults and
 `.phlo/.env.local` for secrets.
 
+### Service Credentials (Regulated Mode)
+
+For regulated deployments, use scoped credentials per service instead of shared
+admin credentials. See [Service Credentials Guide](../setup/service-credentials.md).
+
+```bash
+# Dagster scoped credentials
+DAGSTER_POSTGRES_USER=phlo_dagster_service
+DAGSTER_POSTGRES_PASSWORD=<secret>
+DAGSTER_TRINO_USER=phlo-dagster
+DAGSTER_TRINO_ROLE=phlo_dagster_writer
+DAGSTER_MINIO_ACCESS_KEY=phlo-dagster-svc
+DAGSTER_MINIO_SECRET_KEY=<secret>
+
+# phlo-api scoped credentials
+PHLO_API_TRINO_USER=phlo-api
+PHLO_API_TRINO_ROLE=phlo_api_reader
+
+# Service-to-service authentication
+PHLO_SERVICE_SECRET=<shared-hmac-secret>
+```
+
+All scoped vars fall back to the shared defaults when unset.
+
 ### Orchestrator Configuration
 
 ```bash

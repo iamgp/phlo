@@ -20,6 +20,29 @@ flowchart TD
 - serving layers like `phlo-api`, `Hasura`, and `PostgREST` enforce those decisions in different ways
 - governance and backend systems may apply their own secondary controls
 
+## Principal Types
+
+| Type | Subject pattern | When used |
+|------|-----------------|-----------|
+| `user` | `alice@example.com` | Human via IdP, proxy headers, or JWT |
+| `service` | `service:phlo-api` | Named service calling another service |
+| `platform` | `platform:dagster-daemon` | Autonomous execution with no live human request |
+
+Regulated mode accepts all three types. `platform` exists so scheduled and sensor-driven
+Dagster runs remain attributable even when no HTTP request is involved.
+
+## Service Identity And Correlation
+
+Internal service calls should use short-lived HMAC service tokens, not spoofable identity
+headers. Phlo uses:
+
+- `Authorization: Bearer <service-token>` for the calling service identity
+- `X-Phlo-Initiator` for the originating upstream principal when one exists
+- `X-Phlo-Correlation-Id` for end-to-end audit reconstruction
+
+`phlo-api` reuses the request ID as the default correlation ID. Dagster daemon flows use
+the Dagster `run_id` for the same purpose.
+
 ## phlo-api Route Guard Semantics
 
 - `phlo-api` route guards only enforce authorization when an authorization backend is configured
@@ -126,6 +149,7 @@ behavior, and backend support matrix.
 ## Where To Look
 
 - [Security](../setup/security.md) for operator setup and posture
+- [Service Credentials](../setup/service-credentials.md) for scoped backend roles and secrets
 - [Canonical RBAC](canonical-rbac.md) for the control-plane model and workflow
 - [Python Reference](../python-reference/index.mdx) for capability-level auth interfaces
 - [API Surfaces](api-surfaces.md) for how access shows up across external entry points

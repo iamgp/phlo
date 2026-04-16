@@ -38,6 +38,7 @@ Example:
 from __future__ import annotations
 
 import os
+from uuid import uuid4
 from typing import Any, Callable, TypeVar
 
 from fastapi import HTTPException, Request
@@ -54,6 +55,7 @@ from phlo.capabilities import (
 from phlo.logging import get_logger
 from phlo.security import enforce, is_regulated
 from phlo.infrastructure.config import get_api_authorization_config
+from phlo.security.service_identity import build_service_headers
 
 from phlo_api.api.authentication import get_request_principal
 
@@ -207,12 +209,37 @@ def create_decision_context(
     """
     return DecisionContext(
         environment=environment,
-        request_id=request.state.request_id if hasattr(request.state, "request_id") else None,
+        request_id=get_request_correlation_id(request),
         ip_address=request.client.host if request.client else None,
         attributes={
             "method": request.method,
             "path": request.url.path,
         },
+    )
+
+
+def get_request_correlation_id(request: Request) -> str:
+    """Return the request correlation ID, generating one when missing."""
+    state = getattr(request, "state", None)
+    request_id = getattr(state, "request_id", None) if state is not None else None
+    if not request_id:
+        request_id = request.headers.get("x-request-id") or str(uuid4())
+        if state is not None:
+            setattr(state, "request_id", request_id)
+    return request_id
+
+
+def build_downstream_service_headers(request: Request, service_id: str) -> dict[str, str]:
+    """Build authenticated headers for service-to-service requests from phlo-api."""
+    correlation_id = get_request_correlation_id(request)
+    initiator = None
+    auth_principal = get_request_principal(request)
+    if auth_principal is not None:
+        initiator = auth_principal.subject
+    return build_service_headers(
+        service_id=service_id,
+        initiator=initiator,
+        correlation_id=correlation_id,
     )
 
 
@@ -272,10 +299,9 @@ def _enforce_or_raise(
         action=action,
         resource=resource,
         context=context,
-        request_id=getattr(request.state, "request_id", None)
-        if hasattr(request.state, "request_id")
-        else None,
+        request_id=get_request_correlation_id(request),
         surface="phlo-api",
+        correlation_id=get_request_correlation_id(request),
     )
 
     if not result.allowed:

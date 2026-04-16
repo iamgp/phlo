@@ -533,7 +533,7 @@ class AuthPrincipal:
     """Normalized caller identity from authentication."""
 
     subject: str
-    principal_type: str  # "user" | "service"
+    principal_type: str  # "user" | "service" | "platform"
     issuer: str | None = None
     email: str | None = None
     groups: tuple[str, ...] = ()
