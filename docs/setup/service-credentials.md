@@ -5,6 +5,23 @@ credentials instead of shared admin credentials. This limits blast radius,
 enables per-service audit attribution, and satisfies separation-of-duty
 requirements.
 
+## What this changes operationally
+
+Before this regulated-mode work, several Phlo services could share backend
+identities even when the front door was authenticated. That made it hard to
+answer basic audit questions such as "was this change executed by Dagster or by
+phlo-api?".
+
+The current regulated posture expects:
+
+- `phlo-api`, Dagster webserver, and Dagster daemon to authenticate separately
+  when they call downstream systems
+- backend logs to show the service identity that actually performed the action
+- write-capable services to carry only the privileges they need
+
+If you enable `regulated: true` but keep broad shared backend credentials, you
+have only a partial deployment of the model documented in this PR.
+
 ## Why scoped credentials matter
 
 By default, Phlo services share credentials:
@@ -112,6 +129,9 @@ All scoped credential env vars fall back to the shared defaults when unset:
 - `PHLO_API_TRINO_USER` → `phlo-api` (default, no admin fallback)
 
 Development setups continue to work without any new env vars.
+
+That fallback exists to preserve local development and upgrades. It should not
+be treated as the target state for a regulated deployment.
 
 ## Hasura / PostgREST in regulated mode
 
