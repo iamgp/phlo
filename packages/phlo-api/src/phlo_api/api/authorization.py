@@ -678,15 +678,15 @@ def filter_datasets(
         allowed = []
         for d_id in dataset_ids:
             resource = ResourceRef(resource_type="dataset", resource_id=d_id)
+            correlation_id = get_request_correlation_id(request)
             result = enforce(
                 principal=auth_principal,
                 action=action,
                 resource=resource,
                 context=context,
-                request_id=getattr(request.state, "request_id", None)
-                if hasattr(request.state, "request_id")
-                else None,
+                request_id=correlation_id,
                 surface="phlo-api",
+                correlation_id=correlation_id,
             )
             if result.allowed:
                 allowed.append(d_id)
