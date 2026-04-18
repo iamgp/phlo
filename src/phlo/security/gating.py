@@ -3,7 +3,7 @@
 Categorizes services by regulatory boundary status:
 
 - APPROVED_SERVICES: fully integrated regulated surfaces
-- APPROVED_CLI_PACKAGES: approved CLI plugin packages with authorization adapters
+- APPROVED_CLI_PACKAGES: approved CLI plugin packages with first-class adapters
 - INGRESS_OPTIONAL_SERVICES: optional surfaces protected by ingress + upstream APIs
   (hasura, postgrest, superset: use their own permission models, require ingress protection)
 - WRITE_RESTRICTED_SERVICES: ingress-optional surfaces that must be read-only in
@@ -12,11 +12,7 @@ Categorizes services by regulatory boundary status:
 - PENDING_ADAPTER_SERVICES: surfaces with adapters awaiting approval (currently empty)
 
 CLI Plugin Packages (APPROVED_CLI_PACKAGES):
-- phlo-alerting: alerting CLI (all read commands, no adapter needed)
-- phlo-lineage: lineage CLI (has mutation: lineage.column.import-dbt)
-- phlo-dlt: DLT CLI (has mutation: workflow.create)
-- phlo-dbt: dbt CLI (has mutations: dbt.run, dbt.publishing.scaffold)
-- phlo-pandera: Pandera CLI (all read commands, no adapter needed)
+- none in the minimum regulated slice
 
 UI Surface Classifications (Phase 3):
 
@@ -43,18 +39,7 @@ UNSUPPORTED_SERVICES: frozenset[str] = frozenset(
     }
 )
 
-APPROVED_CLI_PACKAGES: frozenset[str] = frozenset(
-    {
-        "phlo-alerting",
-        "phlo-lineage",
-        "phlo-dlt",
-        "phlo-dbt",
-        "phlo-pandera",
-        "phlo-clickhouse",
-        "phlo-clickstack",
-        "phlo-sling",
-    }
-)
+APPROVED_CLI_PACKAGES: frozenset[str] = frozenset()
 
 PENDING_ADAPTER_SERVICES: frozenset[str] = frozenset()
 
@@ -94,10 +79,6 @@ APPROVED_SERVICES: frozenset[str] = frozenset(
         "alloy",
         "clickhouse",
         "clickhouse-setup",
-        "phlo-trino-cli",
-        "phlo-nessie-cli",
-        "phlo-minio-cli",
-        "phlo-postgres-cli",
     }
 )
 
@@ -243,12 +224,11 @@ def is_write_restricted(service_name: str, regulated: bool | None = None) -> boo
 def check_cli_package_allowed(package_name: str, regulated: bool | None = None) -> None:
     """Check if a CLI plugin package is allowed in regulated mode.
 
-    CLI plugin packages (phlo-alerting, phlo-lineage, etc.) are authorized
-    through their own regulated surface adapters. This function checks if
-    the package is in the approved list.
+    CLI plugin packages are only allowed when they have a first-class
+    regulated surface adapter and are listed in APPROVED_CLI_PACKAGES.
 
     Args:
-        package_name: Name of the CLI package (e.g., "phlo-alerting").
+        package_name: Name of the CLI package.
         regulated: Whether regulated mode is active.
 
     Raises:
