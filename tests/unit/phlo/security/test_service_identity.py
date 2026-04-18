@@ -20,8 +20,8 @@ class TestCreateServiceToken:
     def test_creates_valid_token(self, monkeypatch):
         monkeypatch.setenv(PHLO_SERVICE_SECRET_ENV, "test-secret-key")
         token = create_service_token("phlo-api")
-        parts = token.split(":", 2)
-        assert len(parts) == 3
+        parts = token.split(":", 3)
+        assert len(parts) == 4
         assert parts[0] == "phlo-api"
 
     def test_raises_without_secret(self, monkeypatch):
@@ -45,21 +45,21 @@ class TestValidateServiceToken:
 
     def test_rejects_expired_token(self, monkeypatch):
         monkeypatch.setenv(PHLO_SERVICE_SECRET_ENV, "test-secret-key")
-        # Manually craft an expired token
-        old_timestamp = str(int(time.time()) - 600)
         import hashlib
         import hmac
 
-        message = f"phlo-api:{old_timestamp}"
+        old_timestamp = str(int(time.time()) - 600)
+        nonce = "deadbeef" * 4
+        message = f"phlo-api:{old_timestamp}:{nonce}"
         sig = hmac.new(b"test-secret-key", message.encode(), hashlib.sha256).hexdigest()
-        expired_token = f"phlo-api:{old_timestamp}:{sig}"
+        expired_token = f"phlo-api:{old_timestamp}:{nonce}:{sig}"
         assert validate_service_token(expired_token) is None
 
     def test_rejects_wrong_hmac(self, monkeypatch):
         monkeypatch.setenv(PHLO_SERVICE_SECRET_ENV, "test-secret-key")
         token = create_service_token("phlo-api")
-        parts = token.split(":", 2)
-        tampered = f"{parts[0]}:{parts[1]}:{'a' * 64}"
+        parts = token.split(":", 3)
+        tampered = f"{parts[0]}:{parts[1]}:{parts[2]}:{'a' * 64}"
         assert validate_service_token(tampered) is None
 
     def test_rejects_malformed_token(self, monkeypatch):
@@ -67,14 +67,15 @@ class TestValidateServiceToken:
         assert validate_service_token("not-a-valid-token") is None
         assert validate_service_token("") is None
         assert validate_service_token("a:b") is None
+        assert validate_service_token("a:b:c") is None  # old 3-part format rejected
 
     def test_rejects_non_numeric_timestamp(self, monkeypatch):
         monkeypatch.setenv(PHLO_SERVICE_SECRET_ENV, "test-secret-key")
-        assert validate_service_token("phlo-api:not-a-number:abc") is None
+        assert validate_service_token("phlo-api:not-a-number:nonce:abc") is None
 
     def test_returns_none_without_secret(self, monkeypatch):
         monkeypatch.delenv(PHLO_SERVICE_SECRET_ENV, raising=False)
-        assert validate_service_token("phlo-api:123:abc") is None
+        assert validate_service_token("phlo-api:123:nonce:abc") is None
 
     def test_custom_max_age(self, monkeypatch):
         monkeypatch.setenv(PHLO_SERVICE_SECRET_ENV, "test-secret-key")
@@ -86,9 +87,10 @@ class TestValidateServiceToken:
         import hmac
 
         old_ts = str(int(time.time()) - 10)
-        message = f"phlo-api:{old_ts}"
+        nonce = "cafebabe" * 4
+        message = f"phlo-api:{old_ts}:{nonce}"
         sig = hmac.new(b"test-secret-key", message.encode(), hashlib.sha256).hexdigest()
-        old_token = f"phlo-api:{old_ts}:{sig}"
+        old_token = f"phlo-api:{old_ts}:{nonce}:{sig}"
         assert validate_service_token(old_token, max_age_seconds=5) is None
         assert validate_service_token(old_token, max_age_seconds=30) == "phlo-api"
 

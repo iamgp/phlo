@@ -16,17 +16,15 @@ from __future__ import annotations
 
 import os
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from phlo.cli.authorization import CliPrincipalResolver
 from phlo.logging import get_logger
 from phlo.security.adapters import (
     EnforcementResult,
     SurfaceOperation,
 )
 from phlo.security.enforcement import enforce
-
-if TYPE_CHECKING:
-    from phlo.capabilities.interfaces import AuthPrincipal
 
 logger = get_logger(__name__)
 
@@ -55,66 +53,6 @@ COMMAND_ACTION_MAP: dict[str, str] = {
 }
 
 
-class SlingPrincipalResolver:
-    """Resolves principal from execution environment for Sling CLI.
-
-    Uses same strategy as CLI adapter for consistency.
-    """
-
-    @staticmethod
-    def resolve() -> AuthPrincipal:
-        """Resolve AuthPrincipal from environment."""
-        from phlo.capabilities.interfaces import AuthPrincipal
-
-        service_account = os.environ.get("PHLO_SERVICE_ACCOUNT")
-        if service_account:
-            return AuthPrincipal(
-                subject=service_account,
-                principal_type="service",
-                issuer="env:PHLO_SERVICE_ACCOUNT",
-                groups=("operators",),
-                attributes={"authentication_source": "service_account"},
-            )
-
-        subject = os.environ.get("PHLO_AUTH_SUBJECT")
-        auth_type = os.environ.get("PHLO_AUTH_TYPE", "user")
-        groups_raw = os.environ.get("PHLO_AUTH_GROUPS", "")
-
-        if subject:
-            groups = (
-                tuple(g.strip() for g in groups_raw.split(",") if g.strip()) if groups_raw else ()
-            )
-            return AuthPrincipal(
-                subject=subject,
-                principal_type=auth_type,
-                issuer="env:PHLO_AUTH_*",
-                groups=groups,
-                attributes={"authentication_source": "env"},
-            )
-
-        local_dev_fallback = os.environ.get("PHLO_DEV_MODE")
-        if local_dev_fallback:
-            logger.warning(
-                "sling_cli_authorization_dev_fallback",
-                message="Using dev fallback principal. Set PHLO_AUTH_SUBJECT for regulated mode.",
-            )
-            return AuthPrincipal(
-                subject="local:root",
-                principal_type="user",
-                issuer="dev:PHLO_DEV_MODE",
-                groups=("admin",),
-                attributes={"authentication_source": "dev_fallback"},
-            )
-
-        return AuthPrincipal(
-            subject="anonymous",
-            principal_type="user",
-            issuer="cli:default",
-            groups=(),
-            attributes={"authentication_source": "default"},
-        )
-
-
 class SlingSurfaceAdapter:
     """Regulated surface adapter for Sling CLI.
 
@@ -126,7 +64,7 @@ class SlingSurfaceAdapter:
     _lock = threading.Lock()
 
     def __init__(self) -> None:
-        self._resolver = SlingPrincipalResolver()
+        self._resolver = CliPrincipalResolver()
 
     @classmethod
     def get_instance(cls) -> SlingSurfaceAdapter:
