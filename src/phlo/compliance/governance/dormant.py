@@ -69,15 +69,14 @@ class DormancyDetector:
         delta = reference_time - last_activity
         days_inactive = delta.days
 
-        if days_inactive < self._threshold.max_inactive_days:
-            return None
-
-        if days_inactive >= self._threshold.warning_days:
+        if days_inactive >= self._threshold.max_inactive_days:
             severity = "high"
             should_review = True
-        else:
+        elif days_inactive >= self._threshold.warning_days:
             severity = "medium"
             should_review = True
+        else:
+            return None
 
         return DormantPrincipal(
             principal_subject=principal_subject,
