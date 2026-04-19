@@ -284,30 +284,40 @@ def _enforce_or_raise(
     action: str,
     resource: ResourceRef,
     environment: str | None = None,
+    require_auth: bool = True,
 ) -> None:
     """Enforce authorization via core EnforcementContext or raise HTTPException."""
     auth_principal = get_request_principal(request)
     if auth_principal is None:
-        raise HTTPException(
-            status_code=401,
-            detail={"error": "unauthorized", "reason": "authentication_required"},
+        if require_auth:
+            raise HTTPException(
+                status_code=401,
+                detail={"error": "unauthorized", "reason": "authentication_required"},
+            )
+        principal = Principal(
+            subject="anonymous",
+            principal_type="user",
+            roles=(),
         )
+    else:
+        principal = auth_principal
 
     context = create_decision_context(request, environment)
+    correlation_id = get_request_correlation_id(request)
     result = enforce(
-        principal=auth_principal,
+        principal=principal,
         action=action,
         resource=resource,
         context=context,
-        request_id=get_request_correlation_id(request),
+        request_id=correlation_id,
         surface="phlo-api",
-        correlation_id=get_request_correlation_id(request),
+        correlation_id=correlation_id,
     )
 
     if result.variant == "error":
         logger.error(
             "authorization_backend_error",
-            principal=auth_principal.subject,
+            principal=principal.subject,
             action=action,
             resource_type=resource.resource_type,
             resource_id=resource.resource_id,
@@ -321,7 +331,7 @@ def _enforce_or_raise(
     if not result.allowed:
         logger.warning(
             "authorization_denied",
-            principal=auth_principal.subject,
+            principal=principal.subject,
             action=action,
             resource_type=resource.resource_type,
             resource_id=resource.resource_id,
@@ -346,6 +356,7 @@ def check_dataset_read(
             _ACTION_DATASET_READ,
             ResourceRef(resource_type="dataset", resource_id=dataset_id),
             environment,
+            require_auth=require_auth,
         )
         return
 
@@ -387,6 +398,7 @@ def check_dataset_query(
             _ACTION_DATASET_QUERY,
             ResourceRef(resource_type="dataset", resource_id=dataset_id),
             environment,
+            require_auth=require_auth,
         )
         return
 
@@ -428,6 +440,7 @@ def check_asset_read(
             _ACTION_ASSET_READ,
             ResourceRef(resource_type="asset", resource_id=asset_id),
             environment,
+            require_auth=require_auth,
         )
         return
 
@@ -469,6 +482,7 @@ def check_asset_execute(
             _ACTION_ASSET_EXECUTE,
             ResourceRef(resource_type="asset", resource_id=asset_id),
             environment,
+            require_auth=require_auth,
         )
         return
 
@@ -510,6 +524,7 @@ def check_service_read(
             _ACTION_SERVICE_READ,
             ResourceRef(resource_type="service", resource_id=service_id),
             environment,
+            require_auth=require_auth,
         )
         return
 
@@ -551,6 +566,7 @@ def check_service_manage(
             _ACTION_SERVICE_MANAGE,
             ResourceRef(resource_type="service", resource_id=service_id),
             environment,
+            require_auth=require_auth,
         )
         return
 
@@ -592,6 +608,7 @@ def check_admin_read(
             _ACTION_ADMIN_READ,
             ResourceRef(resource_type="admin", resource_id=admin_id),
             environment,
+            require_auth=require_auth,
         )
         return
 
@@ -633,6 +650,7 @@ def check_admin_manage(
             _ACTION_ADMIN_MANAGE,
             ResourceRef(resource_type="admin", resource_id=admin_id),
             environment,
+            require_auth=require_auth,
         )
         return
 

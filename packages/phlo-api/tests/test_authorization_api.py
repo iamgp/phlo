@@ -192,6 +192,40 @@ def test_filter_datasets_regulated_fails_closed_for_unauthenticated_optional_mod
     assert filter_datasets(_make_request(), ["raw.orders"], require_auth=False) == []
 
 
+def test_check_dataset_read_regulated_uses_anonymous_principal_when_auth_optional(
+    monkeypatch,
+) -> None:
+    captured: dict[str, object] = {}
+    request = SimpleNamespace(
+        headers={"x-request-id": "corr-optional"},
+        state=SimpleNamespace(),
+        client=SimpleNamespace(host="127.0.0.1"),
+        method="GET",
+        url=SimpleNamespace(path="/api/datasets/raw.orders"),
+    )
+
+    monkeypatch.setattr("phlo_api.api.authorization.is_regulated", lambda: True)
+    monkeypatch.setattr("phlo_api.api.authorization.get_request_principal", lambda _request: None)
+
+    def fake_enforce(**kwargs):
+        captured.update(kwargs)
+        return EnforcementResult.allow()
+
+    monkeypatch.setattr("phlo_api.api.authorization.enforce", fake_enforce)
+
+    from phlo_api.api.authorization import check_dataset_read
+
+    check_dataset_read(request, "raw.orders", require_auth=False)
+
+    principal = captured["principal"]
+    assert isinstance(principal, Principal)
+    assert principal.subject == "anonymous"
+    assert principal.principal_type == "user"
+    assert principal.roles == ()
+    assert captured["request_id"] == "corr-optional"
+    assert captured["correlation_id"] == "corr-optional"
+
+
 def test_enforce_or_raise_returns_503_for_regulated_enforcement_errors(monkeypatch) -> None:
     monkeypatch.setattr(
         "phlo_api.api.authorization.get_request_principal",
