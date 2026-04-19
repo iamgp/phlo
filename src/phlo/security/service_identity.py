@@ -3,10 +3,11 @@
 When phlo-api calls Dagster or Trino, it should identify itself
 with a short-lived HMAC service token, not a spoofable header.
 
-Token format: <service_id>:<timestamp>:<hmac>
-where hmac = HMAC-SHA256(secret, service_id + ":" + timestamp)
+Token format: <service_id>:<timestamp>:<nonce>:<hmac>
+where hmac = HMAC-SHA256(secret, service_id + ":" + timestamp + ":" + nonce)
 
-The shared secret comes from PHLO_SERVICE_SECRET env var.
+The nonce (UUID4) prevents replay of intercepted tokens within the
+validity window. The shared secret comes from PHLO_SERVICE_SECRET env var.
 
 Header conventions for request chain attribution:
     Authorization: Bearer <service-token>   (service identity)
@@ -20,6 +21,7 @@ import hashlib
 import hmac
 import os
 import time
+from uuid import uuid4
 
 from phlo.logging import get_logger
 
@@ -33,7 +35,7 @@ DEFAULT_MAX_AGE_SECONDS = 300
 
 
 def create_service_token(service_id: str) -> str:
-    """Create a short-lived HMAC service token.
+    """Create a short-lived HMAC service token with a nonce.
 
     Args:
         service_id: Name of the service (e.g., "phlo-api").
@@ -49,10 +51,11 @@ def create_service_token(service_id: str) -> str:
         raise RuntimeError(f"{PHLO_SERVICE_SECRET_ENV} must be set for service-to-service auth")
 
     timestamp = str(int(time.time()))
-    message = f"{service_id}:{timestamp}"
+    nonce = uuid4().hex
+    message = f"{service_id}:{timestamp}:{nonce}"
     signature = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
 
-    return f"{service_id}:{timestamp}:{signature}"
+    return f"{service_id}:{timestamp}:{nonce}:{signature}"
 
 
 def validate_service_token(
@@ -62,7 +65,7 @@ def validate_service_token(
     """Validate an HMAC service token.
 
     Args:
-        token: Token string in format "service_id:timestamp:hmac".
+        token: Token string in format "service_id:timestamp:nonce:hmac".
         max_age_seconds: Maximum token age in seconds (default 5 minutes).
 
     Returns:
@@ -72,11 +75,12 @@ def validate_service_token(
     if not secret:
         return None
 
-    parts = token.split(":", 2)
-    if len(parts) != 3:
+    parts = token.split(":", 3)
+    if len(parts) != 4:
+        # Reject legacy 3-part tokens
         return None
 
-    service_id, timestamp_str, provided_hmac = parts
+    service_id, timestamp_str, nonce, provided_hmac = parts
 
     try:
         token_time = int(timestamp_str)
@@ -86,7 +90,7 @@ def validate_service_token(
     if abs(time.time() - token_time) > max_age_seconds:
         return None
 
-    message = f"{service_id}:{timestamp_str}"
+    message = f"{service_id}:{timestamp_str}:{nonce}"
     expected = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
 
     if not hmac.compare_digest(expected, provided_hmac):

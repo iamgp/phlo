@@ -363,7 +363,11 @@ class ImpactedAsset(BaseModel):
 
 
 async def graphql_request(
-    url: str, query: str, variables: dict[str, Any] | None = None, timeout: float = 10.0
+    url: str,
+    query: str,
+    variables: dict[str, Any] | None = None,
+    timeout: float = 10.0,
+    initiator: str | None = None,
 ) -> dict[str, Any]:
     """Execute a GraphQL request against the Dagster API.
 
@@ -372,6 +376,7 @@ async def graphql_request(
         query: GraphQL query string.
         variables: Optional GraphQL variables dictionary.
         timeout: Request timeout in seconds (default: 10.0).
+        initiator: Originating user principal for audit attribution.
 
     Returns:
         GraphQL response data as a dictionary.
@@ -383,7 +388,9 @@ async def graphql_request(
     headers = {"Content-Type": "application/json"}
     correlation_id = get_bound_correlation_context().request_id
     try:
-        headers.update(build_service_headers("phlo-api", correlation_id=correlation_id))
+        headers.update(
+            build_service_headers("phlo-api", initiator=initiator, correlation_id=correlation_id)
+        )
     except RuntimeError:
         logger.debug("dagster_graphql_service_auth_unavailable")
 

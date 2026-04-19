@@ -112,6 +112,8 @@ class DagsterGraphQLAuthorizationMiddleware:
 
         try:
             if not self._is_mutation(info):
+                if self._is_root_query_field(info):
+                    self._audit_read_operation(info)
                 return next_fn(root, info, **kwargs)
             if not self._is_root_mutation_field(info):
                 return next_fn(root, info, **kwargs)
@@ -166,6 +168,73 @@ class DagsterGraphQLAuthorizationMiddleware:
             return True
         path = getattr(info, "path", None)
         return getattr(path, "prev", None) is None
+
+    def _is_root_query_field(self, info: Any) -> bool:
+        """Return True for top-level query fields only."""
+        parent_type = getattr(info, "parent_type", None)
+        return getattr(parent_type, "name", None) == "Query"
+
+    def _audit_read_operation(self, info: Any) -> None:
+        """Emit a lightweight audit event for read operations.
+
+        Reads are always allowed but logged for regulated audit trails.
+        """
+        try:
+            principal = self._extract_principal(info)
+            field_name = self._get_mutation_field_name(info) or "unknown"
+            action = self._map_query_to_action(field_name)
+            decision_context = self._create_decision_context(info)
+
+            from phlo.security.enforcement import EnforcementContext
+
+            ctx = EnforcementContext.get_instance()
+            ctx.audit_emitter.emit_authorization(
+                surface=self.surface_name,
+                action=action,
+                resource_type=self._get_query_resource_type(field_name),
+                resource_id=f"dagster:{field_name}",
+                actor_subject=principal.subject if principal else "anonymous",
+                actor_type=principal.principal_type if principal else "unknown",
+                actor_roles=principal.groups if principal else (),
+                authentication_source=(
+                    principal.attributes.get("authentication_source", "unknown")
+                    if principal
+                    else "none"
+                ),
+                decision="allow",
+                reason_code="read_access",
+                policy_id=None,
+                request_id=decision_context.request_id,
+                correlation_id=decision_context.request_id,
+            )
+        except Exception:
+            logger.debug("dagster_read_audit_skipped", exc_info=True)
+
+    def _map_query_to_action(self, field_name: str) -> str:
+        """Map a GraphQL query field name to a canonical read action."""
+        op_lower = field_name.lower()
+        if "asset" in op_lower:
+            return "asset.read"
+        if "run" in op_lower or "pipeline" in op_lower:
+            return "run.read"
+        if "sensor" in op_lower or "schedule" in op_lower or "scheduler" in op_lower:
+            return "service.read"
+        if "repository" in op_lower or "workspace" in op_lower:
+            return "catalog.read"
+        return "admin.read"
+
+    def _get_query_resource_type(self, field_name: str) -> str:
+        """Map a GraphQL query field name to a resource type."""
+        op_lower = field_name.lower()
+        if "asset" in op_lower:
+            return "asset"
+        if "run" in op_lower or "pipeline" in op_lower:
+            return "run"
+        if "sensor" in op_lower or "schedule" in op_lower:
+            return "service"
+        if "repository" in op_lower or "workspace" in op_lower:
+            return "catalog"
+        return "admin"
 
     def _get_selection_resource(
         self,
