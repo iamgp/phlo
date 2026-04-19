@@ -38,6 +38,7 @@ members = [
     "phlo-loki",
     "phlo-minio",
     "phlo-nessie",
+    "phlo-oauth2-proxy",
     "phlo-observatory",
     "phlo-observatory-example",
     "phlo-openmetadata",
@@ -3839,6 +3840,30 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev", "iceberg-cli", "observatory", "trino"]
+
+[[package]]
+name = "phlo-oauth2-proxy"
+version = "0.1.0"
+source = { editable = "packages/phlo-oauth2-proxy" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-observatory"

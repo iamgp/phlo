@@ -147,11 +147,17 @@ Run ad-hoc queries:
 - [phlo-pandera](phlo-pandera.md) - Quality checks
 - [phlo-nessie](phlo-nessie.md) - Branch management
 
-## Regulated Access
+## Regulated Mode
 
-Observatory is **inside the regulated boundary**. All governance-relevant operations (asset browsing, lineage queries, quality dashboards, branch management, SQL workbench) route through `phlo-api`, which enforces canonical RBAC.
+Observatory is inside the regulated boundary because all data and mutation
+operations go through `phlo-api`. No additional authorization adapter is
+needed in Observatory itself.
 
-For details on regulatory boundary status and ingress authentication assumptions, see [UI Surface Classifications](../setup/security.md#ui-surface-classifications).
+In regulated deployments, access Observatory only through Traefik with
+proxy authentication enabled. Direct port access bypasses ingress auth.
+
+For details on regulatory boundary status and ingress authentication assumptions,
+see [Browser-Facing Surfaces in Regulated Mode](../setup/security.md#browser-facing-surfaces-in-regulated-mode).
 
 ## Next Steps
 

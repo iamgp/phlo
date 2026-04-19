@@ -14,6 +14,7 @@ from phlo.capabilities import (
     clear_capabilities,
 )
 from phlo.capabilities.authentication import (
+    JWTAuthenticationProvider,
     ProxyAuthenticationProvider,
     ServiceTokenAuthenticationProvider,
     StaticAuthenticationProvider,
@@ -420,6 +421,262 @@ class TestProxyAuthenticationProvider:
 
         assert result.authenticated is False
         assert result.reason_code == "invalid_identity_payload"
+
+
+class TestJWTAuthenticationProvider:
+    """Tests for JWTAuthenticationProvider."""
+
+    def _create_jwt(self, payload: dict, secret: str = "test-secret-key-256-bits-long!!") -> str:
+        """Create a test JWT token with proper encoding."""
+        import base64
+        import hashlib
+        import json
+
+        def _b64url_encode(data: bytes) -> str:
+            return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+        header = {"alg": "HS256", "typ": "JWT"}
+        header_json = json.dumps(header, separators=(",", ":")).encode()
+        payload_json = json.dumps(payload, separators=(",", ":")).encode()
+
+        header_encoded = _b64url_encode(header_json)
+        payload_encoded = _b64url_encode(payload_json)
+        message = f"{header_encoded}.{payload_encoded}".encode()
+
+        signature = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).digest()
+        signature_encoded = _b64url_encode(signature)
+
+        return f"{header_encoded}.{payload_encoded}.{signature_encoded}"
+
+    def test_authenticate_without_bearer_token(self):
+        """Test authentication fails without bearer token."""
+        provider = JWTAuthenticationProvider(secret="test-secret")
+
+        request_context = RequestContext(
+            headers={},
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is False
+        assert result.reason_code == "missing_bearer_token"
+
+    def test_authenticate_with_expired_token(self):
+        """Test authentication fails with expired JWT token."""
+        provider = JWTAuthenticationProvider(
+            secret="test-secret-key-256-bits-long!!", leeway_seconds=60
+        )
+        now = int(time.time())
+        token = self._create_jwt(
+            {
+                "sub": "user123",
+                "iat": now - 7200,
+                "exp": now - 3600,
+            }
+        )
+
+        request_context = RequestContext(
+            headers={"authorization": f"Bearer {token}"},
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is False
+        assert result.reason_code == "invalid_token"
+
+    def test_authenticate_with_invalid_signature(self):
+        """Test authentication fails with invalid signature."""
+        provider = JWTAuthenticationProvider(secret="different-secret")
+        now = int(time.time())
+        token = self._create_jwt(
+            {
+                "sub": "user123",
+                "iat": now - 60,
+                "exp": now + 3600,
+            },
+            secret="wrong-secret",
+        )
+
+        request_context = RequestContext(
+            headers={"authorization": f"Bearer {token}"},
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is False
+
+    def test_authenticate_with_mismatched_issuer(self):
+        """Test authentication fails with mismatched issuer."""
+        provider = JWTAuthenticationProvider(
+            secret="test-secret-key-256-bits-long!!",
+            issuer="https://expected-issuer.example.com",
+        )
+        now = int(time.time())
+        token = self._create_jwt(
+            {
+                "sub": "user123",
+                "iss": "https://wrong-issuer.example.com",
+                "iat": now - 60,
+                "exp": now + 3600,
+            }
+        )
+
+        request_context = RequestContext(
+            headers={"authorization": f"Bearer {token}"},
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is False
+
+    def test_authenticate_with_mismatched_audience(self):
+        """Test authentication fails with mismatched audience."""
+        provider = JWTAuthenticationProvider(
+            secret="test-secret-key-256-bits-long!!",
+            audience="expected-app",
+        )
+        now = int(time.time())
+        token = self._create_jwt(
+            {
+                "sub": "user123",
+                "aud": "wrong-app",
+                "iat": now - 60,
+                "exp": now + 3600,
+            }
+        )
+
+        request_context = RequestContext(
+            headers={"authorization": f"Bearer {token}"},
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is False
+
+    def test_validate_token_with_future_iat(self):
+        """Test validate_token fails with future iat (clock skew)."""
+        provider = JWTAuthenticationProvider(
+            secret="test-secret-key-256-bits-long!!", leeway_seconds=60
+        )
+        now = int(time.time())
+        token = self._create_jwt(
+            {
+                "sub": "user123",
+                "iat": now + 300,
+                "exp": now + 3600,
+            }
+        )
+
+        session = provider.validate_token(token)
+
+        assert session is None
+
+    def test_require_secret(self):
+        """Test JWTAuthenticationProvider requires a secret."""
+        with pytest.raises(ValueError, match="secret is required"):
+            JWTAuthenticationProvider(secret="")
+
+    def test_validate_claims_with_valid_claims(self):
+        """Test _validate_claims passes with valid claims."""
+        provider = JWTAuthenticationProvider(
+            secret="test-secret",
+            issuer="https://valid.example.com",
+            audience="phlo",
+        )
+        now = int(time.time())
+        claims = {
+            "sub": "user123",
+            "iss": "https://valid.example.com",
+            "aud": "phlo",
+            "iat": now - 60,
+            "exp": now + 3600,
+        }
+
+        assert provider._validate_claims(claims) is True
+
+    def test_validate_claims_with_expired_exp(self):
+        """Test _validate_claims fails with expired exp."""
+        provider = JWTAuthenticationProvider(secret="test-secret", leeway_seconds=60)
+        now = int(time.time())
+        claims = {
+            "sub": "user123",
+            "iat": now - 7200,
+            "exp": now - 3600,
+        }
+
+        assert provider._validate_claims(claims) is False
+
+    def test_validate_claims_with_future_iat(self):
+        """Test _validate_claims fails with future iat."""
+        provider = JWTAuthenticationProvider(secret="test-secret", leeway_seconds=60)
+        now = int(time.time())
+        claims = {
+            "sub": "user123",
+            "iat": now + 300,
+            "exp": now + 3600,
+        }
+
+        assert provider._validate_claims(claims) is False
+
+    def test_validate_claims_with_wrong_issuer(self):
+        """Test _validate_claims fails with wrong issuer."""
+        provider = JWTAuthenticationProvider(
+            secret="test-secret",
+            issuer="https://expected.example.com",
+        )
+        claims = {
+            "sub": "user123",
+            "iss": "https://wrong.example.com",
+            "iat": int(time.time()) - 60,
+            "exp": int(time.time()) + 3600,
+        }
+
+        assert provider._validate_claims(claims) is False
+
+    def test_validate_claims_with_wrong_audience(self):
+        """Test _validate_claims fails with wrong audience."""
+        provider = JWTAuthenticationProvider(
+            secret="test-secret",
+            audience="expected-app",
+        )
+        claims = {
+            "sub": "user123",
+            "aud": "wrong-app",
+            "iat": int(time.time()) - 60,
+            "exp": int(time.time()) + 3600,
+        }
+
+        assert provider._validate_claims(claims) is False
+
+    def test_validate_claims_audience_as_list(self):
+        """Test _validate_claims accepts audience as list."""
+        provider = JWTAuthenticationProvider(
+            secret="test-secret",
+            audience="phlo",
+        )
+        claims = {
+            "sub": "user123",
+            "aud": ["other-app", "phlo", "another-app"],
+            "iat": int(time.time()) - 60,
+            "exp": int(time.time()) + 3600,
+        }
+
+        assert provider._validate_claims(claims) is True
 
 
 class TestAuthenticationProviderRegistration:
