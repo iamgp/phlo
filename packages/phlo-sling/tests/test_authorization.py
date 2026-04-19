@@ -7,13 +7,13 @@ from unittest.mock import patch
 
 import pytest
 
+from phlo.cli.authorization import CliPrincipalResolver
 from phlo_sling.authorization import (
     COMMAND_ACTION_MAP,
     COMMAND_RESOURCE_MAP,
     MUTATION_COMMANDS,
     READ_COMMANDS,
     SURFACE_NAME,
-    SlingPrincipalResolver,
     SlingSurfaceAdapter,
 )
 
@@ -21,13 +21,13 @@ pytestmark = pytest.mark.core_regression
 
 
 class TestSlingPrincipalResolver:
-    """Tests for SlingPrincipalResolver."""
+    """Tests for the shared CLI principal resolver."""
 
     def test_resolve_service_account(self):
         """PHLO_SERVICE_ACCOUNT creates service principal."""
         env = {"PHLO_SERVICE_ACCOUNT": "ci-bot@phlo.svc"}
         with patch.dict(os.environ, env, clear=True):
-            resolver = SlingPrincipalResolver()
+            resolver = CliPrincipalResolver()
             principal = resolver.resolve()
             assert principal.subject == "ci-bot@phlo.svc"
             assert principal.principal_type == "service"
@@ -41,7 +41,7 @@ class TestSlingPrincipalResolver:
             "PHLO_AUTH_GROUPS": "admin,developers",
         }
         with patch.dict(os.environ, env, clear=True):
-            resolver = SlingPrincipalResolver()
+            resolver = CliPrincipalResolver()
             principal = resolver.resolve()
             assert principal.subject == "user@example.com"
             assert principal.principal_type == "user"
@@ -55,7 +55,7 @@ class TestSlingPrincipalResolver:
             "PHLO_AUTH_TYPE": "user",
         }
         with patch.dict(os.environ, env, clear=True):
-            resolver = SlingPrincipalResolver()
+            resolver = CliPrincipalResolver()
             principal = resolver.resolve()
             assert principal.subject == "user@example.com"
             assert principal.groups == ()
@@ -64,7 +64,7 @@ class TestSlingPrincipalResolver:
         """PHLO_DEV_MODE creates admin fallback with warning."""
         env = {"PHLO_DEV_MODE": "1"}
         with patch.dict(os.environ, env, clear=True):
-            resolver = SlingPrincipalResolver()
+            resolver = CliPrincipalResolver()
             principal = resolver.resolve()
             assert principal.subject == "local:root"
             assert principal.principal_type == "user"
@@ -74,7 +74,7 @@ class TestSlingPrincipalResolver:
         """No env vars creates anonymous principal."""
         env = {}
         with patch.dict(os.environ, env, clear=True):
-            resolver = SlingPrincipalResolver()
+            resolver = CliPrincipalResolver()
             principal = resolver.resolve()
             assert principal.subject == "anonymous"
             assert principal.principal_type == "user"

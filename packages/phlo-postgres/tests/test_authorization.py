@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from phlo.cli.authorization import CliPrincipalResolver
 from phlo_postgres.authorization import (
     COMMAND_ACTION_MAP,
     COMMAND_RESOURCE_MAP,
@@ -11,18 +12,17 @@ from phlo_postgres.authorization import (
     READ_COMMANDS,
     SURFACE_NAME,
     FRAMEWORK_TYPE,
-    PostgresCliPrincipalResolver,
     PostgresCliSurfaceAdapter,
 )
 
 
 class TestPostgresCliPrincipalResolver:
-    """Tests for PostgreSQL CLI principal resolver."""
+    """Tests for the shared CLI principal resolver."""
 
     def test_resolve_service_account(self) -> None:
         """Should resolve PHLO_SERVICE_ACCOUNT as service principal."""
         with patch.dict("os.environ", {"PHLO_SERVICE_ACCOUNT": "ci-pipeline"}):
-            principal = PostgresCliPrincipalResolver.resolve()
+            principal = CliPrincipalResolver.resolve()
             assert principal.subject == "ci-pipeline"
             assert principal.principal_type == "service"
             assert "operators" in principal.groups
@@ -37,7 +37,7 @@ class TestPostgresCliPrincipalResolver:
                 "PHLO_AUTH_GROUPS": "operators,admins",
             },
         ):
-            principal = PostgresCliPrincipalResolver.resolve()
+            principal = CliPrincipalResolver.resolve()
             assert principal.subject == "alice"
             assert principal.principal_type == "user"
             assert principal.groups == ("operators", "admins")
@@ -45,13 +45,13 @@ class TestPostgresCliPrincipalResolver:
     def test_resolve_dev_fallback(self) -> None:
         """Should use dev fallback when PHLO_DEV_MODE set."""
         with patch.dict("os.environ", {"PHLO_DEV_MODE": "true"}):
-            principal = PostgresCliPrincipalResolver.resolve()
+            principal = CliPrincipalResolver.resolve()
             assert principal.subject == "local:root"
             assert principal.groups == ("admin",)
 
     def test_resolve_anonymous_default(self) -> None:
         """Should return anonymous principal when no auth env vars."""
-        principal = PostgresCliPrincipalResolver.resolve()
+        principal = CliPrincipalResolver.resolve()
         assert principal.subject == "anonymous"
         assert principal.principal_type == "user"
         assert principal.groups == ()
