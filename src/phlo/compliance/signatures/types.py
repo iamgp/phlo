@@ -5,11 +5,26 @@ Defines the types for electronic signatures in regulated deployments.
 
 from __future__ import annotations
 
+import hashlib
+import hmac as _hmac
+import json
+import os
 from dataclasses import dataclass, field
 from dataclasses import replace as _dataclass_replace
 from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import uuid4
+
+PHLO_SIGNATURE_HMAC_KEY_ENV = "PHLO_SIGNATURE_HMAC_KEY"
+PHLO_AUDIT_HMAC_KEY_ENV = "PHLO_AUDIT_HMAC_KEY"
+
+
+def _get_signature_hmac_key() -> bytes:
+    """Return the HMAC key for signatures, or a dev default."""
+    key = os.environ.get(PHLO_SIGNATURE_HMAC_KEY_ENV) or os.environ.get(PHLO_AUDIT_HMAC_KEY_ENV)
+    if key:
+        return key.encode()
+    return b"phlo-dev-signature-key"
 
 
 class SignatureMeaning(StrEnum):
@@ -104,6 +119,9 @@ class SignatureRecord:
     ) -> SignatureRecord:
         """Create a SignatureRecord from a SignatureRequest.
 
+        The signature_hash is an HMAC-SHA256 keyed with a secret so that
+        forging a valid signature requires the secret, not just the payload.
+
         Args:
             request: The signature request.
             authentication_assurance: The assurance level of authentication.
@@ -111,9 +129,6 @@ class SignatureRecord:
         Returns:
             A completed SignatureRecord.
         """
-        import hashlib
-        import json
-
         record = cls(
             signer_subject=request.signer_subject,
             meaning=request.meaning,
@@ -137,6 +152,7 @@ class SignatureRecord:
             },
             sort_keys=True,
         )
-        signature_hash = hashlib.sha256(canonical.encode()).hexdigest()
+        hmac_key = _get_signature_hmac_key()
+        signature_hash = _hmac.new(hmac_key, canonical.encode(), hashlib.sha256).hexdigest()
 
         return _dataclass_replace(record, signature_hash=signature_hash)

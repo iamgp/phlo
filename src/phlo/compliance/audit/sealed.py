@@ -1,12 +1,16 @@
 """Tamper-evident audit sealing and sink.
 
-Provides hash-chained audit records for tamper-evident audit trails.
+Provides HMAC-keyed hash-chained audit records for tamper-evident audit trails.
+The HMAC key prevents an attacker with database access from recalculating the
+chain after modifying records.
 """
 
 from __future__ import annotations
 
 import hashlib
+import hmac as _hmac
 import json
+import os
 import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -16,14 +20,25 @@ if TYPE_CHECKING:
     from phlo.audit.events import CanonicalAuditEvent
 
 GENESIS_HASH = "0" * 64
+PHLO_AUDIT_HMAC_KEY_ENV = "PHLO_AUDIT_HMAC_KEY"
+
+
+def _get_hmac_key() -> bytes:
+    """Return the HMAC key from the environment, or a default for dev/test."""
+    key = os.environ.get(PHLO_AUDIT_HMAC_KEY_ENV, "")
+    if key:
+        return key.encode()
+    return b"phlo-dev-audit-key"
 
 
 @dataclass(frozen=True)
 class SealedAuditRecord:
-    """Sealed audit record with hash chain.
+    """Sealed audit record with HMAC hash chain.
 
     Each record contains the original audit event plus chain metadata
-    that allows verification of the chain's integrity.
+    that allows verification of the chain's integrity. The record hash
+    is an HMAC-SHA256 keyed with a secret so that an attacker cannot
+    recompute the chain without the key.
     """
 
     sequence_number: int
@@ -33,10 +48,10 @@ class SealedAuditRecord:
     """The original audit event."""
 
     previous_hash: str
-    """SHA-256 hash of the previous sealed record. Genesis is all zeros."""
+    """HMAC hash of the previous sealed record. Genesis is all zeros."""
 
     record_hash: str
-    """SHA-256 of (sequence_number, event.to_dict(), previous_hash)."""
+    """HMAC-SHA256 of (sequence_number, event.to_dict(), previous_hash)."""
 
     sealed_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     """ISO 8601 timestamp when the record was sealed."""
@@ -47,6 +62,7 @@ class SealedAuditRecord:
         event: CanonicalAuditEvent,
         sequence_number: int,
         previous_hash: str,
+        hmac_key: bytes | None = None,
     ) -> SealedAuditRecord:
         """Create a sealed audit record.
 
@@ -54,13 +70,16 @@ class SealedAuditRecord:
             event: The audit event to seal.
             sequence_number: Monotonically increasing sequence number.
             previous_hash: Hash of the previous record, or GENESIS_HASH for first.
+            hmac_key: Secret key for HMAC. Uses env default if not provided.
 
         Returns:
             SealedAuditRecord with computed record_hash.
         """
+        if hmac_key is None:
+            hmac_key = _get_hmac_key()
         event_dict = event.to_dict()
         payload = f"{sequence_number}:{json.dumps(event_dict, sort_keys=True)}:{previous_hash}"
-        record_hash = hashlib.sha256(payload.encode()).hexdigest()
+        record_hash = _hmac.new(hmac_key, payload.encode(), hashlib.sha256).hexdigest()
 
         return cls(
             sequence_number=sequence_number,
@@ -89,13 +108,15 @@ class TamperEvidentAuditSink:
     Thread-safe via lock per surface.
     """
 
-    def __init__(self, store: AuditStore) -> None:
+    def __init__(self, store: AuditStore, hmac_key: bytes | None = None) -> None:
         """Initialize the tamper-evident sink.
 
         Args:
             store: The AuditStore to delegate to.
+            hmac_key: Secret key for HMAC sealing. Uses env default if not provided.
         """
         self._store = store
+        self._hmac_key = hmac_key or _get_hmac_key()
         self._surface_locks: dict[str, threading.Lock] = {}
         self._surface_locks_guard = threading.Lock()
         self._surface_state: dict[str, tuple[int, str]] = {}
@@ -138,7 +159,7 @@ class TamperEvidentAuditSink:
             seq, prev_hash = self._get_surface_state(surface)
             new_seq = seq + 1
 
-            sealed = SealedAuditRecord.seal(event, new_seq, prev_hash)
+            sealed = SealedAuditRecord.seal(event, new_seq, prev_hash, hmac_key=self._hmac_key)
 
             self._store.append(sealed)
 
