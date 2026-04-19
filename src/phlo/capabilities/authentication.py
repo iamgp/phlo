@@ -678,14 +678,15 @@ class JWTAuthenticationProvider:
         try:
             message = f"{header_b64}.{payload_b64}".encode()
             expected = hmac.new(self._secret, message, hashlib.sha256).digest()
-            actual = base64url_decode(signature_b64)
+            padded_signature = signature_b64 + "=" * (-len(signature_b64) % 4)
+            actual = base64url_decode(padded_signature)
             return hmac.compare_digest(expected, actual)
         except Exception:
             return False
 
     def _decode_payload(self, payload_b64: str) -> dict[str, Any]:
         """Decode base64url-encoded JWT payload."""
-        padded = payload_b64 + "=" * (4 - len(payload_b64) % 4)
+        padded = payload_b64 + "=" * (-len(payload_b64) % 4)
         decoded = base64url_decode(padded)
         return json.loads(decoded.decode("utf-8"))
 

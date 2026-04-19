@@ -28,16 +28,28 @@ class CanonicalAction(StrEnum):
 
     DATASET_READ = "dataset.read"
     DATASET_QUERY = "dataset.query"
+    DATASET_WRITE = "dataset.write"
+    DATASET_PUBLISH = "dataset.publish"
     ASSET_READ = "asset.read"
     ASSET_EXECUTE = "asset.execute"
+    ASSET_APPROVE = "asset.approve"
     SERVICE_READ = "service.read"
     SERVICE_MANAGE = "service.manage"
     ADMIN_READ = "admin.read"
     ADMIN_MANAGE = "admin.manage"
+    SETTINGS_READ = "settings.read"
+    SETTINGS_MANAGE = "settings.manage"
     OBJECT_READ = "object.read"
     OBJECT_WRITE = "object.write"
     CATALOG_READ = "catalog.read"
     CATALOG_MANAGE = "catalog.manage"
+    PLATFORM_METADATA_READ = "platform_metadata.read"
+    OBSERVABILITY_READ = "observability.read"
+    MAINTENANCE_READ = "maintenance.read"
+    RUN_READ = "run.read"
+    RUN_EXECUTE = "run.execute"
+    RUN_MANAGE = "run.manage"
+    AUDIT_READ = "audit.read"
 
 
 class ResourceType(StrEnum):
@@ -47,8 +59,14 @@ class ResourceType(StrEnum):
     ASSET = "asset"
     SERVICE = "service"
     ADMIN = "admin"
+    SETTINGS = "settings"
     OBJECT = "object"
     CATALOG = "catalog"
+    PLATFORM_METADATA = "platform_metadata"
+    OBSERVABILITY = "observability"
+    MAINTENANCE = "maintenance"
+    RUN = "run"
+    AUDIT = "audit"
 
 
 CANONICAL_ACTIONS: frozenset[str] = frozenset(a.value for a in CanonicalAction)

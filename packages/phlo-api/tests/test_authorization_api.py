@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import HTTPException, Request
 
 from phlo.capabilities import AuthorizationPolicyBackendSpec, clear_capabilities
+from phlo.capabilities.interfaces import AuthPrincipal, ResourceRef
 from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
 from phlo.capabilities.interfaces import Principal
 from phlo.capabilities.registry import register_authorization_policy_backend
@@ -18,6 +20,7 @@ from phlo_api.api.authorization import (
     get_authorization_mode,
     resolve_request_principal,
 )
+from phlo.security.adapters import EnforcementResult
 
 
 def teardown_function() -> None:
@@ -178,6 +181,51 @@ def test_filter_datasets_fails_closed_without_backend_in_required_mode(monkeypat
         }
     else:
         raise AssertionError("Expected dataset filtering to fail closed")
+
+
+def test_filter_datasets_regulated_fails_closed_for_unauthenticated_optional_mode(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("phlo_api.api.authorization.is_regulated", lambda: True)
+    monkeypatch.setattr("phlo_api.api.authorization.get_request_principal", lambda _request: None)
+
+    assert filter_datasets(_make_request(), ["raw.orders"], require_auth=False) == []
+
+
+def test_enforce_or_raise_returns_503_for_regulated_enforcement_errors(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo_api.api.authorization.get_request_principal",
+        lambda _request: AuthPrincipal(subject="user-1", principal_type="user"),
+    )
+    monkeypatch.setattr(
+        "phlo_api.api.authorization.enforce",
+        lambda **_kwargs: EnforcementResult.error("backend_unavailable"),
+    )
+
+    request = SimpleNamespace(
+        headers={},
+        state=SimpleNamespace(request_id="req-123"),
+        client=SimpleNamespace(host="127.0.0.1"),
+        method="GET",
+        url=SimpleNamespace(path="/api/datasets/raw.orders"),
+    )
+
+    try:
+        from phlo_api.api.authorization import _enforce_or_raise
+
+        _enforce_or_raise(
+            request,
+            "dataset.read",
+            ResourceRef(resource_type="dataset", resource_id="raw.orders"),
+        )
+    except HTTPException as exc:
+        assert exc.status_code == 503
+        assert exc.detail == {
+            "error": "service_unavailable",
+            "reason": "backend_unavailable",
+        }
+    else:
+        raise AssertionError("Expected regulated enforcement error to surface as 503")
 
 
 def test_get_authorization_mode_uses_top_level_phlo_yaml(monkeypatch, tmp_path: Path) -> None:

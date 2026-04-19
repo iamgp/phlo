@@ -255,14 +255,31 @@ An em dash (—) means the action is not applicable to that backend.
 | `service.manage` | ✓ | ✓ | ✓ | — | — |
 | `admin.read` | ✓ | ✓ | ✓ | — | — |
 | `admin.manage` | ✓ | ✓ | ✓ | — | — |
+| `dataset.write` | — | — | — | — | — |
+| `dataset.publish` | — | — | — | — | — |
+| `asset.approve` | — | — | — | — | — |
+| `settings.read` | — | — | — | — | — |
+| `settings.manage` | — | — | — | — | — |
 | `object.read` | — | — | — | ✓ | — |
 | `object.write` | — | — | — | ✓ | — |
 | `catalog.read` | — | — | — | — | ✓ |
 | `catalog.manage` | — | — | — | — | ✓ |
+| `platform_metadata.read` | — | — | — | — | — |
+| `observability.read` | — | — | — | — | — |
+| `maintenance.read` | — | — | — | — | — |
+| `run.read` | — | — | — | — | — |
+| `run.execute` | — | — | — | — | — |
+| `run.manage` | — | — | — | — | — |
+| `audit.read` | — | — | — | — | — |
 
 Compiler support means the code path exists to generate enforcement artifacts for
 that action. It does not mean the backend is running or that the generated
 artifacts have been applied.
+
+Several canonical control-plane actions are enforced directly by regulated
+surface adapters today and therefore show no backend compiler coverage yet.
+`phlo authz verify` only requires compiler support for actions that appear in
+the configured RBAC policies.
 
 ## Backend Support Matrix
 

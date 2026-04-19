@@ -42,12 +42,12 @@ class PhloAPIRegulatedSurfaceAdapter:
                 operation_name="dataset.query",
             ),
             SurfaceOperation(
-                action="dataset.write",
+                action=CanonicalAction.DATASET_WRITE.value,
                 resource_type="dataset",
                 operation_name="dataset.write",
             ),
             SurfaceOperation(
-                action="dataset.publish",
+                action=CanonicalAction.DATASET_PUBLISH.value,
                 resource_type="dataset",
                 operation_name="dataset.publish",
             ),
@@ -62,7 +62,7 @@ class PhloAPIRegulatedSurfaceAdapter:
                 operation_name="asset.execute",
             ),
             SurfaceOperation(
-                action="asset.approve",
+                action=CanonicalAction.ASSET_APPROVE.value,
                 resource_type="asset",
                 operation_name="asset.approve",
             ),
@@ -87,12 +87,12 @@ class PhloAPIRegulatedSurfaceAdapter:
                 operation_name="admin.manage",
             ),
             SurfaceOperation(
-                action="settings.read",
+                action=CanonicalAction.SETTINGS_READ.value,
                 resource_type="settings",
                 operation_name="settings.read",
             ),
             SurfaceOperation(
-                action="settings.manage",
+                action=CanonicalAction.SETTINGS_MANAGE.value,
                 resource_type="settings",
                 operation_name="settings.manage",
             ),
@@ -107,37 +107,37 @@ class PhloAPIRegulatedSurfaceAdapter:
                 operation_name="catalog.manage",
             ),
             SurfaceOperation(
-                action="platform_metadata.read",
+                action=CanonicalAction.PLATFORM_METADATA_READ.value,
                 resource_type="platform_metadata",
                 operation_name="platform_metadata.read",
             ),
             SurfaceOperation(
-                action="observability.read",
+                action=CanonicalAction.OBSERVABILITY_READ.value,
                 resource_type="observability",
                 operation_name="observability.read",
             ),
             SurfaceOperation(
-                action="maintenance.read",
+                action=CanonicalAction.MAINTENANCE_READ.value,
                 resource_type="maintenance",
                 operation_name="maintenance.read",
             ),
             SurfaceOperation(
-                action="run.read",
+                action=CanonicalAction.RUN_READ.value,
                 resource_type="run",
                 operation_name="run.read",
             ),
             SurfaceOperation(
-                action="run.execute",
+                action=CanonicalAction.RUN_EXECUTE.value,
                 resource_type="run",
                 operation_name="run.execute",
             ),
             SurfaceOperation(
-                action="run.manage",
+                action=CanonicalAction.RUN_MANAGE.value,
                 resource_type="run",
                 operation_name="run.manage",
             ),
             SurfaceOperation(
-                action="audit.read",
+                action=CanonicalAction.AUDIT_READ.value,
                 resource_type="audit",
                 operation_name="audit.read",
             ),

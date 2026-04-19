@@ -464,6 +464,42 @@ class TestJWTAuthenticationProvider:
         assert result.authenticated is False
         assert result.reason_code == "missing_bearer_token"
 
+    def test_authenticate_with_valid_token(self):
+        """Test authentication succeeds with a valid signed JWT."""
+        provider = JWTAuthenticationProvider(secret="test-secret-key-256-bits-long!!")
+        now = int(time.time())
+        token = self._create_jwt(
+            {
+                "sub": "user123",
+                "email": "user@example.com",
+                "groups": ["developers"],
+                "iat": now - 60,
+                "exp": now + 3600,
+            }
+        )
+
+        request_context = RequestContext(
+            headers={"authorization": f"Bearer {token}"},
+            cookies={},
+            query_params={},
+            remote_addr="127.0.0.1",
+            path="/test",
+        )
+        result = provider.authenticate(request_context)
+
+        assert result.authenticated is True
+        assert result.principal is not None
+        assert result.principal.subject == "user123"
+        assert result.principal.email == "user@example.com"
+        assert result.principal.groups == ("developers",)
+
+    def test_decode_payload_accepts_already_padded_base64url(self):
+        """Payload decoding should not append redundant padding."""
+        provider = JWTAuthenticationProvider(secret="test-secret-key-256-bits-long!!")
+        claims = provider._decode_payload("eyJzdWIiOiJ1c2VyMTIzIn0=")
+
+        assert claims == {"sub": "user123"}
+
     def test_authenticate_with_expired_token(self):
         """Test authentication fails with expired JWT token."""
         provider = JWTAuthenticationProvider(
