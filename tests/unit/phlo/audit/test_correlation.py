@@ -140,3 +140,37 @@ class TestEnforceCorrelation:
         assert call_kwargs["correlation_id"] is None
 
         EnforcementContext.reset_instance()
+
+
+class TestEnforcementContextInitialization:
+    def test_lazy_property_access_does_not_mark_context_fully_initialized(self, monkeypatch):
+        from phlo.security.enforcement import EnforcementContext
+
+        ctx = EnforcementContext()
+        calls: list[str] = []
+
+        def init_identity_bridge() -> None:
+            calls.append("bridge")
+            ctx._identity_bridge = object()
+
+        def init_authorization_backend() -> None:
+            calls.append("backend")
+            ctx._authorization_backend = object()
+
+        def init_audit_emitter() -> None:
+            calls.append("emitter")
+            ctx._audit_emitter = object()
+
+        monkeypatch.setattr(ctx, "_init_identity_bridge", init_identity_bridge)
+        monkeypatch.setattr(ctx, "_init_authorization_backend", init_authorization_backend)
+        monkeypatch.setattr(ctx, "_init_audit_emitter", init_audit_emitter)
+
+        _ = ctx.identity_bridge
+
+        assert calls == ["bridge"]
+        assert ctx._initialized is False
+
+        ctx._initialize_eagerly()
+
+        assert calls == ["bridge", "bridge", "backend", "emitter"]
+        assert ctx._initialized is True

@@ -132,7 +132,6 @@ class EnforcementContext:
             with self._init_lock:
                 if self._identity_bridge is None:
                     self._init_identity_bridge()
-                    self._initialized = True
         return self._identity_bridge
 
     @property
@@ -142,7 +141,6 @@ class EnforcementContext:
             with self._init_lock:
                 if self._authorization_backend is None:
                     self._init_authorization_backend()
-                    self._initialized = True
         return self._authorization_backend
 
     @property
@@ -152,7 +150,6 @@ class EnforcementContext:
             with self._init_lock:
                 if self._audit_emitter is None:
                     self._init_audit_emitter()
-                    self._initialized = True
         return self._audit_emitter
 
     def canonicalize(self, auth_principal: Any) -> Principal:

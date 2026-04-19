@@ -132,6 +132,8 @@ class CanonicalAuditEvent:
 
     # Context fields
     request_id: str | None = None
+    correlation_id: str = ""
+    parent_correlation_id: str = ""
     run_id: str | None = None
     source_ip: str | None = None
 
@@ -174,6 +176,8 @@ class CanonicalAuditEvent:
         policy_id: str | None = None,
         explanation: str | None = None,
         request_id: str | None = None,
+        correlation_id: str = "",
+        parent_correlation_id: str = "",
         source_ip: str | None = None,
         outcome: str = "",
     ) -> CanonicalAuditEvent:
@@ -193,6 +197,8 @@ class CanonicalAuditEvent:
             policy_id: Policy ID if applicable.
             explanation: Human-readable explanation.
             request_id: Request correlation ID.
+            correlation_id: End-to-end correlation ID.
+            parent_correlation_id: Parent correlation ID when this event is part of a chain.
             source_ip: Source IP address.
             outcome: Execution outcome.
 
@@ -214,6 +220,8 @@ class CanonicalAuditEvent:
             policy_id=policy_id,
             explanation=explanation,
             request_id=request_id,
+            correlation_id=correlation_id,
+            parent_correlation_id=parent_correlation_id,
             source_ip=source_ip,
             outcome=outcome,
         )
@@ -288,6 +296,7 @@ class AuditEventEmitter:
     def emit_authorization(
         self,
         *,
+        surface: str | None = None,
         actor_subject: str,
         actor_type: str,
         actor_roles: tuple[str, ...],
@@ -300,6 +309,8 @@ class AuditEventEmitter:
         policy_id: str | None = None,
         explanation: str | None = None,
         request_id: str | None = None,
+        correlation_id: str | None = None,
+        parent_correlation_id: str = "",
         source_ip: str | None = None,
         outcome: str = "",
     ) -> None:
@@ -320,11 +331,13 @@ class AuditEventEmitter:
             policy_id: Policy ID if applicable.
             explanation: Human-readable explanation.
             request_id: Request correlation ID.
+            correlation_id: End-to-end correlation ID.
+            parent_correlation_id: Parent correlation ID when this event is part of a chain.
             source_ip: Source IP address.
             outcome: Execution outcome.
         """
         event = CanonicalAuditEvent.from_authorization_decision(
-            surface=self.surface,
+            surface=surface or self.surface,
             actor_subject=actor_subject,
             actor_type=actor_type,
             actor_roles=actor_roles,
@@ -337,6 +350,8 @@ class AuditEventEmitter:
             policy_id=policy_id,
             explanation=explanation,
             request_id=request_id,
+            correlation_id=correlation_id or "",
+            parent_correlation_id=parent_correlation_id,
             source_ip=source_ip,
             outcome=outcome,
         )
