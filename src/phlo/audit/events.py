@@ -42,6 +42,7 @@ class AuditEventType(StrEnum):
     MUTATION = "mutation"
     ADMIN = "admin"
     SYSTEM = "system"
+    SIGNATURE = "signature"
 
 
 class AuditDecision(StrEnum):
@@ -95,8 +96,6 @@ class CanonicalAuditEvent:
         request_id: Request or correlation ID.
         run_id: Run ID for pipeline executions.
         source_ip: Source IP address when available.
-        correlation_id: End-to-end correlation across services.
-        parent_correlation_id: Correlation ID of the parent/initiating request.
 
     Mutation Fields (when applicable):
         target_state_before: State before mutation.
@@ -135,8 +134,6 @@ class CanonicalAuditEvent:
     request_id: str | None = None
     run_id: str | None = None
     source_ip: str | None = None
-    correlation_id: str = ""
-    parent_correlation_id: str = ""
 
     # Mutation fields
     target_state_before: dict[str, Any] | None = None
@@ -179,7 +176,6 @@ class CanonicalAuditEvent:
         request_id: str | None = None,
         source_ip: str | None = None,
         outcome: str = "",
-        correlation_id: str = "",
     ) -> CanonicalAuditEvent:
         """Create an audit event from an authorization decision.
 
@@ -199,7 +195,6 @@ class CanonicalAuditEvent:
             request_id: Request correlation ID.
             source_ip: Source IP address.
             outcome: Execution outcome.
-            correlation_id: End-to-end correlation across services.
 
         Returns:
             CanonicalAuditEvent populated from the decision.
@@ -221,7 +216,6 @@ class CanonicalAuditEvent:
             request_id=request_id,
             source_ip=source_ip,
             outcome=outcome,
-            correlation_id=correlation_id,
         )
 
 
@@ -308,7 +302,6 @@ class AuditEventEmitter:
         request_id: str | None = None,
         source_ip: str | None = None,
         outcome: str = "",
-        correlation_id: str | None = None,
     ) -> None:
         """Emit an authorization audit event.
 
@@ -329,7 +322,6 @@ class AuditEventEmitter:
             request_id: Request correlation ID.
             source_ip: Source IP address.
             outcome: Execution outcome.
-            correlation_id: End-to-end correlation across services.
         """
         event = CanonicalAuditEvent.from_authorization_decision(
             surface=self.surface,
@@ -347,7 +339,6 @@ class AuditEventEmitter:
             request_id=request_id,
             source_ip=source_ip,
             outcome=outcome,
-            correlation_id=correlation_id or "",
         )
         self.emit(event)
 
