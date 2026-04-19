@@ -127,6 +127,7 @@ class PostgresAuditStore:
             """,
         )
         cursor.close()
+        self._conn.commit()
 
     def append(self, record: SealedAuditRecord) -> None:
         event_data = json.dumps(record.event.to_dict())

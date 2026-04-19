@@ -174,3 +174,28 @@ class TestEnforcementContextInitialization:
 
         assert calls == ["bridge", "bridge", "backend", "emitter"]
         assert ctx._initialized is True
+
+    def test_get_instance_does_not_publish_failed_eager_init(self, monkeypatch):
+        from phlo.security.enforcement import EnforcementContext
+
+        EnforcementContext.reset_instance()
+        monkeypatch.setattr("phlo.security.enforcement._is_regulated", lambda: True)
+
+        failures = {"count": 0}
+
+        def failing_init(self) -> None:
+            failures["count"] += 1
+            raise RuntimeError("backend missing")
+
+        monkeypatch.setattr(EnforcementContext, "_initialize_eagerly", failing_init)
+
+        for _ in range(2):
+            try:
+                EnforcementContext.get_instance()
+            except RuntimeError as exc:
+                assert str(exc) == "backend missing"
+            else:
+                raise AssertionError("Expected eager initialization failure")
+
+        assert failures["count"] == 2
+        assert EnforcementContext._instance is None

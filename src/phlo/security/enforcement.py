@@ -76,9 +76,10 @@ class EnforcementContext:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    cls._instance = cls()
-                    if cls._instance._regulated:
-                        cls._instance._initialize_eagerly()
+                    instance = cls()
+                    if instance._regulated:
+                        instance._initialize_eagerly()
+                    cls._instance = instance
         return cls._instance
 
     @classmethod

@@ -155,7 +155,8 @@ class TestEvidenceExport:
                 {
                     "name": c.name,
                     "version": c.version,
-                    "type": c.type,
+                    "build_hash": c.build_hash,
+                    "deploy_timestamp": c.deploy_timestamp,
                 }
                 for c in manifest.components
             ],
