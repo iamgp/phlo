@@ -165,8 +165,8 @@ class TestInMemoryAuditStore:
         assert result.total_records == 3
         assert result.first_invalid_sequence is None
 
-    def test_verify_chain_fails_on_tampered_record(self) -> None:
-        """verify_chain fails when a record has been tampered."""
+    def test_verify_chain_fails_on_resealed_tampered_record(self) -> None:
+        """verify_chain fails when a tampered record breaks downstream links."""
         store = InMemoryAuditStore()
 
         for i in range(1, 4):
@@ -203,6 +203,45 @@ class TestInMemoryAuditStore:
         assert result.valid is False
         assert result.first_invalid_sequence == 3
         assert "mismatch" in result.error_message.lower()
+
+    def test_verify_chain_fails_when_event_data_changes_without_rehash(self) -> None:
+        """verify_chain fails immediately if event data changes without updating the HMAC."""
+        store = InMemoryAuditStore()
+        sink = TamperEvidentAuditSink(store)
+
+        for i in range(1, 4):
+            sink.write(
+                CanonicalAuditEvent(
+                    event_type="authorization",
+                    surface="phlo-api",
+                    actor_subject=f"user{i}@example.com",
+                    action="dataset.read",
+                    decision="allow",
+                )
+            )
+
+        records = store.query("phlo-api", limit=100)
+        tampered = CanonicalAuditEvent(
+            event_type=records[1].event.event_type,
+            surface=records[1].event.surface,
+            actor_subject="TAMPERED",
+            action=records[1].event.action,
+            decision=records[1].event.decision,
+        )
+        records[1] = SealedAuditRecord(
+            sequence_number=records[1].sequence_number,
+            sealed_at=records[1].sealed_at,
+            previous_hash=records[1].previous_hash,
+            record_hash=records[1].record_hash,
+            event=tampered,
+        )
+        store._records["phlo-api"] = records
+
+        result = store.verify_chain("phlo-api")
+
+        assert result.valid is False
+        assert result.first_invalid_sequence == 2
+        assert result.error_message == "Record hash mismatch at sequence 2"
 
 
 class TestTamperEvidentAuditSink:

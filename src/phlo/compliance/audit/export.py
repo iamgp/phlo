@@ -50,6 +50,7 @@ def verify_and_export(
     output_dir: Path,
     after: int | None = None,
     before: int | None = None,
+    hmac_key: bytes | None = None,
 ) -> dict[str, Any]:
     """Verify chain integrity and export records.
 
@@ -59,12 +60,13 @@ def verify_and_export(
         output_dir: Directory to write output files.
         after: Optional sequence number lower bound.
         before: Optional sequence number upper bound.
+        hmac_key: Secret key for HMAC verification. Uses env default if not provided.
 
     Returns:
         Verification result and file paths.
     """
     records = store.query(surface, after=after, before=before, limit=100000)
-    verification = store.verify_chain(surface)
+    verification = store.verify_chain(surface, hmac_key=hmac_key)
 
     output_dir.mkdir(parents=True, exist_ok=True)
 

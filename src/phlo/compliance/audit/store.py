@@ -55,8 +55,16 @@ class InMemoryAuditStore:
             ]
             return filtered[:limit]
 
-    def verify_chain(self, surface: str) -> ChainVerificationResult:
-        from phlo.compliance.audit.sealed import GENESIS_HASH, ChainVerificationResult
+    def verify_chain(
+        self,
+        surface: str,
+        hmac_key: bytes | None = None,
+    ) -> ChainVerificationResult:
+        from phlo.compliance.audit.sealed import (
+            GENESIS_HASH,
+            ChainVerificationResult,
+            compute_record_hash,
+        )
 
         with self._lock:
             records = self._records.get(surface, [])
@@ -76,6 +84,20 @@ class InMemoryAuditStore:
                         total_records=len(records),
                         first_invalid_sequence=record.sequence_number,
                         error_message=f"Previous hash mismatch at sequence {record.sequence_number}",
+                    )
+                expected_hash = compute_record_hash(
+                    record.event,
+                    record.sequence_number,
+                    record.previous_hash,
+                    hmac_key=hmac_key,
+                )
+                if record.record_hash != expected_hash:
+                    return ChainVerificationResult(
+                        valid=False,
+                        surface=surface,
+                        total_records=len(records),
+                        first_invalid_sequence=record.sequence_number,
+                        error_message=f"Record hash mismatch at sequence {record.sequence_number}",
                     )
                 expected_prev = record.record_hash
 
@@ -248,8 +270,16 @@ class PostgresAuditStore:
             )
         return results
 
-    def verify_chain(self, surface: str) -> ChainVerificationResult:
-        from phlo.compliance.audit.sealed import GENESIS_HASH, ChainVerificationResult
+    def verify_chain(
+        self,
+        surface: str,
+        hmac_key: bytes | None = None,
+    ) -> ChainVerificationResult:
+        from phlo.compliance.audit.sealed import (
+            GENESIS_HASH,
+            ChainVerificationResult,
+            compute_record_hash,
+        )
 
         records = self.query(surface, limit=100000)
         if not records:
@@ -268,6 +298,20 @@ class PostgresAuditStore:
                     total_records=len(records),
                     first_invalid_sequence=record.sequence_number,
                     error_message=f"Previous hash mismatch at sequence {record.sequence_number}",
+                )
+            expected_hash = compute_record_hash(
+                record.event,
+                record.sequence_number,
+                record.previous_hash,
+                hmac_key=hmac_key,
+            )
+            if record.record_hash != expected_hash:
+                return ChainVerificationResult(
+                    valid=False,
+                    surface=surface,
+                    total_records=len(records),
+                    first_invalid_sequence=record.sequence_number,
+                    error_message=f"Record hash mismatch at sequence {record.sequence_number}",
                 )
             expected_prev = record.record_hash
 

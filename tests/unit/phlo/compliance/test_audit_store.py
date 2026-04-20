@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock
 
+from phlo.audit.events import CanonicalAuditEvent
+from phlo.compliance.audit import GENESIS_HASH, SealedAuditRecord
 from phlo.compliance.audit.store import PostgresAuditStore
 
 
@@ -62,3 +65,67 @@ def test_postgres_audit_store_rolls_back_failed_append() -> None:
     conn.rollback.assert_called_once()
     cursor.close.assert_called_once()
     conn.commit.assert_not_called()
+
+
+def test_postgres_audit_store_verify_chain_detects_payload_tampering() -> None:
+    conn = MagicMock()
+    cursor = MagicMock()
+    conn.cursor.return_value = cursor
+    store = PostgresAuditStore(conn)
+    conn.reset_mock()
+    cursor.reset_mock()
+
+    first_event = CanonicalAuditEvent(
+        event_type="authorization",
+        surface="phlo-api",
+        actor_subject="alice@example.com",
+        action="dataset.read",
+        decision="allow",
+    )
+    first_record = SealedAuditRecord.seal(
+        first_event, sequence_number=1, previous_hash=GENESIS_HASH
+    )
+
+    second_event = CanonicalAuditEvent(
+        event_type="authorization",
+        surface="phlo-api",
+        actor_subject="bob@example.com",
+        action="dataset.read",
+        decision="allow",
+    )
+    second_record = SealedAuditRecord.seal(
+        second_event,
+        sequence_number=2,
+        previous_hash=first_record.record_hash,
+    )
+
+    tampered_event = CanonicalAuditEvent(
+        event_type="authorization",
+        surface="phlo-api",
+        actor_subject="mallory@example.com",
+        action="dataset.read",
+        decision="allow",
+    )
+
+    cursor.fetchall.return_value = [
+        (
+            first_record.sequence_number,
+            first_record.sealed_at,
+            first_record.previous_hash,
+            first_record.record_hash,
+            json.dumps(first_record.event.to_dict()),
+        ),
+        (
+            second_record.sequence_number,
+            second_record.sealed_at,
+            second_record.previous_hash,
+            second_record.record_hash,
+            json.dumps(tampered_event.to_dict()),
+        ),
+    ]
+
+    result = store.verify_chain("phlo-api")
+
+    assert result.valid is False
+    assert result.first_invalid_sequence == 2
+    assert result.error_message == "Record hash mismatch at sequence 2"

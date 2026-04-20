@@ -31,6 +31,20 @@ def _get_hmac_key() -> bytes:
     return b"phlo-dev-audit-key"
 
 
+def compute_record_hash(
+    event: CanonicalAuditEvent,
+    sequence_number: int,
+    previous_hash: str,
+    hmac_key: bytes | None = None,
+) -> str:
+    """Compute the tamper-evident HMAC for a sealed audit record."""
+    if hmac_key is None:
+        hmac_key = _get_hmac_key()
+    event_dict = event.to_dict()
+    payload = f"{sequence_number}:{json.dumps(event_dict, sort_keys=True)}:{previous_hash}"
+    return _hmac.new(hmac_key, payload.encode(), hashlib.sha256).hexdigest()
+
+
 @dataclass(frozen=True)
 class SealedAuditRecord:
     """Sealed audit record with HMAC hash chain.
@@ -75,11 +89,12 @@ class SealedAuditRecord:
         Returns:
             SealedAuditRecord with computed record_hash.
         """
-        if hmac_key is None:
-            hmac_key = _get_hmac_key()
-        event_dict = event.to_dict()
-        payload = f"{sequence_number}:{json.dumps(event_dict, sort_keys=True)}:{previous_hash}"
-        record_hash = _hmac.new(hmac_key, payload.encode(), hashlib.sha256).hexdigest()
+        record_hash = compute_record_hash(
+            event,
+            sequence_number,
+            previous_hash,
+            hmac_key=hmac_key,
+        )
 
         return cls(
             sequence_number=sequence_number,
@@ -212,11 +227,16 @@ class AuditStore:
         """
         raise NotImplementedError
 
-    def verify_chain(self, surface: str) -> ChainVerificationResult:
+    def verify_chain(
+        self,
+        surface: str,
+        hmac_key: bytes | None = None,
+    ) -> ChainVerificationResult:
         """Verify the integrity of the chain for a surface.
 
         Args:
             surface: The surface name.
+            hmac_key: Secret key for HMAC verification. Uses env default if not provided.
 
         Returns:
             ChainVerificationResult with pass/fail and details.
