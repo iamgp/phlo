@@ -106,66 +106,81 @@ class PostgresAuditStore:
     def _ensure_table(self) -> None:
         """Create the audit log table if it doesn't exist."""
         cursor = self._conn.cursor()
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS compliance_audit_log (
-                id SERIAL PRIMARY KEY,
-                surface VARCHAR(255) NOT NULL,
-                sequence_number BIGINT NOT NULL,
-                sealed_at TIMESTAMPTZ NOT NULL,
-                previous_hash VARCHAR(64) NOT NULL,
-                record_hash VARCHAR(64) NOT NULL,
-                event_data JSONB NOT NULL,
-                UNIQUE(surface, sequence_number)
+        try:
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS compliance_audit_log (
+                    id SERIAL PRIMARY KEY,
+                    surface VARCHAR(255) NOT NULL,
+                    sequence_number BIGINT NOT NULL,
+                    sealed_at TIMESTAMPTZ NOT NULL,
+                    previous_hash VARCHAR(64) NOT NULL,
+                    record_hash VARCHAR(64) NOT NULL,
+                    event_data JSONB NOT NULL,
+                    UNIQUE(surface, sequence_number)
+                )
+                """,
             )
-            """,
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_compliance_audit_log_surface_seq
-            ON compliance_audit_log(surface, sequence_number)
-            """,
-        )
-        cursor.close()
-        self._conn.commit()
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_compliance_audit_log_surface_seq
+                ON compliance_audit_log(surface, sequence_number)
+                """,
+            )
+            self._conn.commit()
+        except Exception:
+            self._conn.rollback()
+            raise
+        finally:
+            cursor.close()
 
     def append(self, record: SealedAuditRecord) -> None:
         event_data = json.dumps(record.event.to_dict())
         cursor = self._conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO compliance_audit_log
-            (surface, sequence_number, sealed_at, previous_hash, record_hash, event_data)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """,
-            (
-                record.event.surface,
-                record.sequence_number,
-                record.sealed_at,
-                record.previous_hash,
-                record.record_hash,
-                event_data,
-            ),
-        )
-        cursor.close()
-        self._conn.commit()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO compliance_audit_log
+                (surface, sequence_number, sealed_at, previous_hash, record_hash, event_data)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    record.event.surface,
+                    record.sequence_number,
+                    record.sealed_at,
+                    record.previous_hash,
+                    record.record_hash,
+                    event_data,
+                ),
+            )
+            self._conn.commit()
+        except Exception:
+            self._conn.rollback()
+            raise
+        finally:
+            cursor.close()
 
     def get_last(self, surface: str) -> SealedAuditRecord | None:
         from phlo.audit.events import CanonicalAuditEvent
 
         cursor = self._conn.cursor()
-        cursor.execute(
-            """
-            SELECT sequence_number, sealed_at, previous_hash, record_hash, event_data
-            FROM compliance_audit_log
-            WHERE surface = %s
-            ORDER BY sequence_number DESC
-            LIMIT 1
-            """,
-            (surface,),
-        )
-        row = cursor.fetchone()
-        cursor.close()
+        try:
+            cursor.execute(
+                """
+                SELECT sequence_number, sealed_at, previous_hash, record_hash, event_data
+                FROM compliance_audit_log
+                WHERE surface = %s
+                ORDER BY sequence_number DESC
+                LIMIT 1
+                """,
+                (surface,),
+            )
+            row = cursor.fetchone()
+        except Exception:
+            self._conn.rollback()
+            raise
+        finally:
+            cursor.close()
 
         if not row:
             return None
@@ -208,9 +223,14 @@ class PostgresAuditStore:
         params.append(limit)
 
         cursor = self._conn.cursor()
-        cursor.execute(query_sql, tuple(params))
-        rows = cursor.fetchall()
-        cursor.close()
+        try:
+            cursor.execute(query_sql, tuple(params))
+            rows = cursor.fetchall()
+        except Exception:
+            self._conn.rollback()
+            raise
+        finally:
+            cursor.close()
 
         from phlo.compliance.audit.sealed import SealedAuditRecord
 
