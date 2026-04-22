@@ -1,0 +1,570 @@
+"""Startup validation for regulated mode.
+
+Validates that registered regulated surfaces are properly configured
+at application startup. Fails fast if required surfaces are missing or inactive.
+"""
+
+from __future__ import annotations
+
+import os
+from contextlib import suppress
+from dataclasses import dataclass, field
+from typing import Any
+
+from phlo.logging import get_logger
+from phlo.rbac.compiler import COMPILER_REGISTRY
+from phlo.rbac.config import RBACConfigLoader
+from phlo.rbac.models import CANONICAL_ACTIONS, CanonicalRBAC, ResourceType
+from phlo.security.gating import validate_service_selection
+from phlo.security.mode import is_regulated
+
+logger = get_logger(__name__)
+
+REQUIRED_AUTHORIZATION_MODE = "required"
+
+
+class RegulatedValidationError(Exception):
+    """Raised when regulated mode validation fails."""
+
+
+RegulatedModeError = RegulatedValidationError  # deprecated alias
+
+
+@dataclass
+class ValidationResult:
+    """Result of a single validation check."""
+
+    name: str
+    passed: bool
+    message: str
+    required: bool = True
+
+
+@dataclass
+class RegulatedValidationReport:
+    """Complete validation report for regulated mode."""
+
+    regulated_enabled: bool
+    passed: bool
+    checks: list[ValidationResult] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    def add_check(self, result: ValidationResult) -> None:
+        """Add a validation check result."""
+        self.checks.append(result)
+        if not result.passed and result.required:
+            self.errors.append(f"{result.name}: {result.message}")
+            self.passed = False
+
+
+RegulatedModeValidationReport = RegulatedValidationReport  # deprecated alias
+
+
+def _check_authorization_backend() -> ValidationResult:
+    """Validate that an authorization backend is configured."""
+    from phlo.infrastructure.config import get_api_authorization_config
+
+    config = get_api_authorization_config()
+    backend = config.backend if config else None
+
+    if backend:
+        return ValidationResult(
+            name="authorization_backend_configured",
+            passed=True,
+            message=f"Authorization backend '{backend}' is configured",
+        )
+
+    backend_env = os.environ.get("PHLO_AUTHORIZATION_BACKEND", "").strip()
+    if backend_env:
+        return ValidationResult(
+            name="authorization_backend_configured",
+            passed=True,
+            message=f"Authorization backend '{backend_env}' is configured via environment",
+        )
+
+    return ValidationResult(
+        name="authorization_backend_configured",
+        passed=False,
+        message="No authorization backend is configured. Set PHLO_AUTHORIZATION_BACKEND or configure in phlo.yaml",
+    )
+
+
+def _check_fail_closed_mode() -> ValidationResult:
+    """Validate fail-closed mode is enabled."""
+    from phlo.infrastructure.config import get_api_authorization_config
+
+    mode_env = os.environ.get("PHLO_AUTHORIZATION_MODE", "").strip().lower()
+
+    if mode_env == REQUIRED_AUTHORIZATION_MODE:
+        return ValidationResult(
+            name="fail_closed_mode",
+            passed=True,
+            message=f"Fail-closed mode enabled via environment ({REQUIRED_AUTHORIZATION_MODE})",
+        )
+
+    if mode_env and mode_env != REQUIRED_AUTHORIZATION_MODE:
+        return ValidationResult(
+            name="fail_closed_mode",
+            passed=False,
+            message=f"Authorization mode is '{mode_env}' but regulated mode requires '{REQUIRED_AUTHORIZATION_MODE}'",
+        )
+
+    config = get_api_authorization_config()
+    mode = config.mode if config else None
+
+    if mode == REQUIRED_AUTHORIZATION_MODE:
+        return ValidationResult(
+            name="fail_closed_mode",
+            passed=True,
+            message=f"Fail-closed mode enabled via config ({REQUIRED_AUTHORIZATION_MODE})",
+        )
+
+    return ValidationResult(
+        name="fail_closed_mode",
+        passed=False,
+        message=f"Authorization mode is '{mode or 'optional (default)'}' but regulated mode requires '{REQUIRED_AUTHORIZATION_MODE}'",
+    )
+
+
+def _check_canonical_rbac() -> ValidationResult:
+    """Validate canonical RBAC configuration exists and is valid."""
+    loader = RBACConfigLoader()
+
+    try:
+        roles_config = loader.load_roles()
+        policies_config = loader.load_policies()
+    except FileNotFoundError as e:
+        return ValidationResult(
+            name="canonical_rbac_configured",
+            passed=False,
+            message=f"Canonical RBAC configuration not found: {e}",
+        )
+    except Exception as e:
+        return ValidationResult(
+            name="canonical_rbac_configured",
+            passed=False,
+            message=f"Failed to load canonical RBAC configuration: {e}",
+        )
+
+    rbac = CanonicalRBAC.from_configs(roles_config, policies_config)
+    errors = rbac.validate()
+
+    if errors:
+        return ValidationResult(
+            name="canonical_rbac_configured",
+            passed=False,
+            message=f"Canonical RBAC validation failed: {'; '.join(errors)}",
+        )
+
+    return ValidationResult(
+        name="canonical_rbac_configured",
+        passed=True,
+        message=f"Canonical RBAC configured and valid (version hash: {rbac.version_hash})",
+    )
+
+
+def _check_backend_coverage() -> ValidationResult:
+    """Validate required backend compilers are available."""
+    try:
+        loader = RBACConfigLoader()
+        roles_config = loader.load_roles()
+        policies_config = loader.load_policies()
+        rbac = CanonicalRBAC.from_configs(roles_config, policies_config)
+
+        unsupported: set[str] = set()
+        for policy in rbac.policies.policies:
+            action_supported = False
+            for compiler_class in COMPILER_REGISTRY.values():
+                compiler = compiler_class(backend=None)
+                if compiler.supports_action(policy.action):
+                    action_supported = True
+                    break
+            if not action_supported:
+                unsupported.add(policy.action)
+
+        if unsupported:
+            return ValidationResult(
+                name="backend_sync_status",
+                passed=False,
+                message=f"Actions without compiler support: {', '.join(sorted(unsupported))}",
+            )
+
+    except Exception as e:
+        return ValidationResult(
+            name="backend_sync_status",
+            passed=False,
+            message=f"Failed to validate backend coverage: {e}",
+        )
+
+    return ValidationResult(
+        name="backend_sync_status",
+        passed=True,
+        message="Backend compilers are available and cover all configured actions",
+    )
+
+
+def _check_identity_provider() -> ValidationResult:
+    """Validate that an identity provider is configured."""
+    auth_method = os.environ.get("PHLO_AUTHENTICATION_METHOD", "").strip()
+    auth_provider = os.environ.get("PHLO_AUTHENTICATION_PROVIDER", "").strip()
+
+    if auth_method or auth_provider:
+        return ValidationResult(
+            name="identity_provider_configured",
+            passed=True,
+            message=f"Identity provider configured ({auth_method or auth_provider})",
+        )
+
+    from phlo.infrastructure.config import get_authentication_provider_config
+
+    provider = get_authentication_provider_config()
+    if provider:
+        return ValidationResult(
+            name="identity_provider_configured",
+            passed=True,
+            message=f"Identity provider configured via config ({provider})",
+        )
+
+    return ValidationResult(
+        name="identity_provider_configured",
+        passed=False,
+        message="No identity provider is configured. Set PHLO_AUTHENTICATION_METHOD or configure authentication in phlo.yaml",
+    )
+
+
+def _check_phlo_api_adapter(runtime: Any) -> ValidationResult:
+    """Validate that phlo-api is registered and active on the runtime.
+
+    Per plan: phlo-api is the only required regulated surface in v1.
+    Startup must fail if the adapter is missing, not installed, or inactive.
+    """
+    from phlo.capabilities import list_regulated_surfaces
+
+    registered = list_regulated_surfaces()
+    phlo_api_spec = next((s for s in registered if s.name == "phlo-api"), None)
+
+    if phlo_api_spec is None:
+        return ValidationResult(
+            name="phlo_api_adapter_registered",
+            passed=False,
+            message="phlo-api regulated surface adapter is not registered",
+        )
+
+    adapter = phlo_api_spec.provider
+    try:
+        is_active = adapter.is_active(runtime)
+    except Exception:
+        is_active = False
+
+    if not is_active:
+        return ValidationResult(
+            name="phlo_api_adapter_active",
+            passed=False,
+            message="phlo-api adapter is registered but inactive on this runtime",
+        )
+
+    return ValidationResult(
+        name="phlo_api_adapter_registered",
+        passed=True,
+        message="phlo-api regulated surface adapter is registered and active",
+    )
+
+
+def _collect_adapter_taxonomy(runtime: Any) -> tuple[set[str], set[str]]:
+    """Collect canonical actions and resource types from all registered adapters.
+
+    Returns:
+        Tuple of (surface_actions, surface_resource_types) from registered adapters.
+    """
+    from phlo.capabilities import list_regulated_surfaces
+
+    surface_actions: set[str] = set()
+    surface_resource_types: set[str] = set()
+
+    for spec in list_regulated_surfaces():
+        adapter = spec.provider
+        with suppress(Exception):
+            ops = adapter.list_operations()
+            for op in ops:
+                surface_actions.add(op["action"])
+                surface_resource_types.add(op["resource_type"])
+
+    return surface_actions, surface_resource_types
+
+
+def _check_registered_surfaces(runtime: Any) -> ValidationResult:
+    """Check registered regulated surfaces status for informational reporting.
+
+    Reports registered surfaces and surfaces not yet integrated (dagster, cli).
+    This is an informational check only (not required to pass).
+
+    For surfaces that support the runtime-aware is_active(runtime) protocol,
+    passes the runtime so activation can be checked against the real framework.
+    """
+    from phlo.capabilities import list_regulated_surfaces
+
+    registered = list_regulated_surfaces()
+    registered_names = {spec.name for spec in registered}
+
+    not_yet_integrated: list[str] = []
+    for name in ["cli"]:
+        if name not in registered_names:
+            not_yet_integrated.append(name)
+
+    report: dict[str, Any] = {
+        "registered": [],
+        "not_yet_integrated": not_yet_integrated,
+    }
+
+    for spec in registered:
+        adapter = spec.provider
+        is_active_result: bool | None = None
+        with suppress(Exception):
+            is_active_result = adapter.is_active(runtime)
+
+        ops: list[Any] = []
+        with suppress(Exception):
+            ops = adapter.list_operations()
+
+        report["registered"].append(
+            {
+                "name": spec.name,
+                "framework": getattr(adapter, "framework_type", "unknown"),
+                "active": is_active_result,
+                "operation_count": len(ops),
+            }
+        )
+
+    registered_msgs = [r["name"] for r in report["registered"]]
+    return ValidationResult(
+        name="regulated_surfaces_registered",
+        passed=True,
+        required=False,
+        message=f"Registered: {', '.join(sorted(registered_msgs))}; not yet integrated: {', '.join(not_yet_integrated)}",
+    )
+
+
+def run_regulated_validation(
+    surface_actions: list[str] | None = None,
+    surface_resource_types: list[str] | None = None,
+    config_regulated: bool | None = None,
+    runtime: Any = None,
+) -> RegulatedValidationReport:
+    """Run all regulated mode validation checks.
+
+    Args:
+        surface_actions: Optional override actions for taxonomy validation.
+            If not provided, collects from registered adapter operations.
+        surface_resource_types: Optional override resource types for taxonomy validation.
+            If not provided, collects from registered adapter operations.
+        config_regulated: Regulated mode setting from config file.
+        runtime: The framework runtime (e.g., FastAPI app) to validate adapter wiring against.
+
+    Returns:
+        RegulatedValidationReport with all check results.
+    """
+    regulated = is_regulated(config_regulated)
+
+    report = RegulatedValidationReport(
+        regulated_enabled=regulated,
+        passed=True,
+    )
+
+    if not regulated:
+        logger.info("regulated_not_enabled", skipping_validation=True)
+        report.add_check(
+            ValidationResult(
+                name="regulated_enabled",
+                passed=True,
+                message="Regulated mode is not enabled, skipping validation",
+                required=False,
+            )
+        )
+        return report
+
+    logger.info("regulated_validation_started")
+
+    report.add_check(_check_identity_provider())
+    report.add_check(_check_canonical_rbac())
+    report.add_check(_check_authorization_backend())
+    report.add_check(_check_fail_closed_mode())
+
+    adapter_actions, adapter_resource_types = _collect_adapter_taxonomy(runtime)
+    effective_actions = set(surface_actions) if surface_actions else adapter_actions
+    effective_resource_types = (
+        set(surface_resource_types) if surface_resource_types else adapter_resource_types
+    )
+    report.add_check(
+        _check_canonical_taxonomy(list(effective_actions), list(effective_resource_types))
+    )
+    report.add_check(_check_backend_coverage())
+
+    report.add_check(_check_phlo_api_adapter(runtime))
+
+    report.add_check(_check_registered_surfaces(runtime))
+
+    service_result = validate_service_selection([])
+    if service_result["blocked"]:
+        blocked_msgs = [b["reason"] for b in service_result["blocked"]]
+        report.add_check(
+            ValidationResult(
+                name="unsupported_surfaces_disabled",
+                passed=False,
+                message=f"Blocked services: {'; '.join(blocked_msgs)}",
+            )
+        )
+
+    _verify_compiled_rbac(report)
+
+    if report.passed:
+        logger.info("regulated_validation_passed")
+    else:
+        logger.error(
+            "regulated_validation_failed",
+            errors=report.errors,
+        )
+
+    if report.warnings:
+        logger.warning("regulated_validation_warnings", warnings=report.warnings)
+
+    return report
+
+
+def run_regulated_mode_validation(**kwargs):
+    """Deprecated: use run_regulated_validation() instead."""
+    import warnings
+
+    warnings.warn(
+        "run_regulated_mode_validation() is deprecated, use run_regulated_validation() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return run_regulated_validation(**kwargs)
+
+
+def _check_canonical_taxonomy(
+    surface_actions: list[str] | None = None,
+    surface_resource_types: list[str] | None = None,
+) -> ValidationResult:
+    """Validate surface operations use canonical taxonomy."""
+    errors: list[str] = []
+
+    if surface_actions:
+        non_canonical = set(surface_actions) - CANONICAL_ACTIONS
+        if non_canonical:
+            errors.append(f"Non-canonical actions: {', '.join(sorted(non_canonical))}")
+
+    if surface_resource_types:
+        non_canonical = set(surface_resource_types) - {rt.value for rt in ResourceType}
+        if non_canonical:
+            errors.append(f"Non-canonical resource types: {', '.join(sorted(non_canonical))}")
+
+    if errors:
+        return ValidationResult(
+            name="canonical_taxonomy_supported",
+            passed=False,
+            message="; ".join(errors),
+        )
+
+    return ValidationResult(
+        name="canonical_taxonomy_supported",
+        passed=True,
+        message="All surface operations use canonical actions and resource types",
+    )
+
+
+def require_regulated_validation(
+    surface_actions: list[str] | None = None,
+    surface_resource_types: list[str] | None = None,
+    config_regulated: bool | None = None,
+    runtime: Any = None,
+) -> None:
+    """Run validation and raise RegulatedValidationError if required checks fail.
+
+    Use this at application startup to fail fast in regulated mode.
+    """
+    report = run_regulated_validation(
+        surface_actions=surface_actions,
+        surface_resource_types=surface_resource_types,
+        config_regulated=config_regulated,
+        runtime=runtime,
+    )
+
+    if report.regulated_enabled and not report.passed:
+        error_message = f"Regulated mode validation failed. Errors: {'; '.join(report.errors)}"
+        raise RegulatedValidationError(error_message)
+
+
+def require_regulated_mode_validation(**kwargs):
+    """Deprecated: use require_regulated_validation() instead."""
+    import warnings
+
+    warnings.warn(
+        "require_regulated_mode_validation() is deprecated, use require_regulated_validation() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return require_regulated_validation(**kwargs)
+
+
+def _verify_compiled_rbac(report: RegulatedValidationReport) -> None:
+    """Verify that compiled RBAC grants match backend state.
+
+    For each registered backend compiler, calls verify() to compare
+    desired state (from compiled RBAC) against actual backend state.
+
+    Results are added as warnings, not hard failures, because:
+    - Not all compilers have verify() implemented
+    - Some backends may not be reachable at startup
+    - We want to surface drift without breaking existing deployments
+    """
+    from phlo.rbac.compiler import CompilerContext
+
+    try:
+        rbac_loader = RBACConfigLoader()
+        rbac = rbac_loader.load()
+    except Exception:
+        report.warnings.append("compiled_rbac_verify: could not load RBAC config")
+        logger.debug("compiled_rbac_verify_skipped", reason="rbac_load_failed")
+        return
+
+    if not COMPILER_REGISTRY:
+        report.warnings.append("compiled_rbac_verify: no backend compilers registered")
+        return
+
+    for backend_name, compiler_class in sorted(COMPILER_REGISTRY.items()):
+        context = CompilerContext(environment="regulated", backend_name=backend_name)
+        try:
+            compiler = compiler_class(backend=None)
+            result = compiler.verify(rbac, context)
+            if not result.in_sync:
+                missing_names = [a.name for a in result.missing][:5]
+                extra_names = [a.name for a in result.extra][:5]
+                parts = []
+                if missing_names:
+                    parts.append(f"{len(result.missing)} missing: {missing_names}")
+                if extra_names:
+                    parts.append(f"{len(result.extra)} extra: {extra_names}")
+                report.warnings.append(
+                    f"compiled_rbac_verify({backend_name}): out of sync — {'; '.join(parts)}"
+                )
+                logger.warning(
+                    "compiled_rbac_out_of_sync",
+                    backend=backend_name,
+                    missing_count=len(result.missing),
+                    extra_count=len(result.extra),
+                )
+            else:
+                logger.info("compiled_rbac_in_sync", backend=backend_name)
+        except NotImplementedError:
+            report.warnings.append(
+                f"compiled_rbac_verify({backend_name}): verify() not implemented"
+            )
+        except Exception as exc:
+            report.warnings.append(f"compiled_rbac_verify({backend_name}): {exc}")
+            logger.debug(
+                "compiled_rbac_verify_error",
+                backend=backend_name,
+                error=str(exc),
+            )

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import HTTPException, Request
 
 from phlo.capabilities import AuthorizationPolicyBackendSpec, clear_capabilities
+from phlo.capabilities.interfaces import AuthPrincipal, ResourceRef
 from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
 from phlo.capabilities.interfaces import Principal
 from phlo.capabilities.registry import register_authorization_policy_backend
@@ -18,6 +20,7 @@ from phlo_api.api.authorization import (
     get_authorization_mode,
     resolve_request_principal,
 )
+from phlo.security.adapters import EnforcementResult
 
 
 def teardown_function() -> None:
@@ -178,6 +181,114 @@ def test_filter_datasets_fails_closed_without_backend_in_required_mode(monkeypat
         }
     else:
         raise AssertionError("Expected dataset filtering to fail closed")
+
+
+def test_filter_datasets_regulated_fails_closed_for_unauthenticated_optional_mode(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("phlo_api.api.authorization.is_regulated", lambda: True)
+    monkeypatch.setattr("phlo_api.api.authorization.get_request_principal", lambda _request: None)
+
+    assert filter_datasets(_make_request(), ["raw.orders"], require_auth=False) == []
+
+
+def test_check_dataset_read_regulated_uses_anonymous_principal_when_auth_optional(
+    monkeypatch,
+) -> None:
+    captured: dict[str, object] = {}
+    request = SimpleNamespace(
+        headers={"x-request-id": "corr-optional"},
+        state=SimpleNamespace(),
+        client=SimpleNamespace(host="127.0.0.1"),
+        method="GET",
+        url=SimpleNamespace(path="/api/datasets/raw.orders"),
+    )
+
+    monkeypatch.setattr("phlo_api.api.authorization.is_regulated", lambda: True)
+    monkeypatch.setattr("phlo_api.api.authorization.get_request_principal", lambda _request: None)
+
+    def fake_enforce(**kwargs):
+        captured.update(kwargs)
+        return EnforcementResult.allow()
+
+    monkeypatch.setattr("phlo_api.api.authorization.enforce", fake_enforce)
+
+    from phlo_api.api.authorization import check_dataset_read
+
+    check_dataset_read(request, "raw.orders", require_auth=False)
+
+    principal = captured["principal"]
+    assert isinstance(principal, Principal)
+    assert principal.subject == "anonymous"
+    assert principal.principal_type == "user"
+    assert principal.roles == ()
+    assert captured["request_id"] == "corr-optional"
+    assert captured["correlation_id"] == "corr-optional"
+
+
+def test_enforce_or_raise_returns_503_for_regulated_enforcement_errors(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo_api.api.authorization.get_request_principal",
+        lambda _request: AuthPrincipal(subject="user-1", principal_type="user"),
+    )
+    monkeypatch.setattr(
+        "phlo_api.api.authorization.enforce",
+        lambda **_kwargs: EnforcementResult.error("backend_unavailable"),
+    )
+
+    request = SimpleNamespace(
+        headers={},
+        state=SimpleNamespace(request_id="req-123"),
+        client=SimpleNamespace(host="127.0.0.1"),
+        method="GET",
+        url=SimpleNamespace(path="/api/datasets/raw.orders"),
+    )
+
+    try:
+        from phlo_api.api.authorization import _enforce_or_raise
+
+        _enforce_or_raise(
+            request,
+            "dataset.read",
+            ResourceRef(resource_type="dataset", resource_id="raw.orders"),
+        )
+    except HTTPException as exc:
+        assert exc.status_code == 503
+        assert exc.detail == {
+            "error": "service_unavailable",
+            "reason": "backend_unavailable",
+        }
+    else:
+        raise AssertionError("Expected regulated enforcement error to surface as 503")
+
+
+def test_filter_datasets_regulated_passes_correlation_id_to_enforce(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    auth_principal = AuthPrincipal(subject="user-1", principal_type="user")
+    request = SimpleNamespace(
+        headers={"x-request-id": "corr-123"},
+        state=SimpleNamespace(),
+        client=SimpleNamespace(host="127.0.0.1"),
+        method="GET",
+        url=SimpleNamespace(path="/api/datasets"),
+    )
+
+    monkeypatch.setattr("phlo_api.api.authorization.is_regulated", lambda: True)
+    monkeypatch.setattr(
+        "phlo_api.api.authorization.get_request_principal", lambda _request: auth_principal
+    )
+
+    def fake_enforce(**kwargs):
+        captured.update(kwargs)
+        return EnforcementResult.allow()
+
+    monkeypatch.setattr("phlo_api.api.authorization.enforce", fake_enforce)
+
+    allowed = filter_datasets(request, ["raw.orders"])
+
+    assert allowed == ["raw.orders"]
+    assert captured["request_id"] == "corr-123"
+    assert captured["correlation_id"] == "corr-123"
 
 
 def test_get_authorization_mode_uses_top_level_phlo_yaml(monkeypatch, tmp_path: Path) -> None:

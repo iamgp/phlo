@@ -23,11 +23,116 @@ flowchart TB
 4. **Python settings** (package settings modules like `phlo_postgres.settings`)
 5. **Runtime configuration** (Dagster run config)
 
+## Security Mode
+
+Regulated mode can be enabled either in `phlo.yaml` or with an environment variable.
+
+```yaml
+regulated: true
+
+authentication:
+  provider: proxy
+  proxy:
+    trusted_proxies:
+      - 127.0.0.1/32
+    shared_secret: change-me
+    header_subject: X-Remote-User
+    header_email: X-Remote-Email
+    header_groups: X-Remote-Groups
+```
+
+```bash
+PHLO_REGULATED=true
+```
+
+Precedence:
+
+- `PHLO_REGULATED`
+- `phlo.yaml` root `regulated`
+- default `false`
+
+Note: `PHLO_REGULATED_MODE` and `regulated_mode:` are accepted as deprecated aliases.
+
+Built-in authentication provider names:
+
+- `static`
+- `proxy`
+- `service_token`
+
+Built-in provider config blocks:
+
+- `authentication.static`
+  - `enabled`
+  - `dev_mode`
+  - `users`
+- `authentication.proxy`
+  - `enabled`
+  - `trusted_proxies`
+  - `shared_secret`
+  - `header_subject`
+  - `header_email`
+  - `header_groups`
+- `authentication.service_token`
+  - `enabled`
+  - `tokens`
+
+### Authentication Gateway
+
+The `oauth2-proxy` service provides forward-auth with Traefik for protected services.
+
+```bash
+# OAuth2 provider type (default: oidc)
+OAUTH2_PROXY_PROVIDER=oidc
+
+# OIDC issuer URL (required for oidc provider)
+OAUTH2_PROXY_OIDC_ISSUER_URL=https://your-idp.example.com
+
+# OAuth2 client credentials (from your IdP)
+OAUTH2_PROXY_CLIENT_ID=your-client-id
+OAUTH2_PROXY_CLIENT_SECRET=your-client-secret
+
+# Cookie encryption secret (generate with: python -c "import secrets; print(secrets.token_urlsafe(32))")
+OAUTH2_PROXY_COOKIE_SECRET=<32-byte-base64-string>
+
+# Set to true in production with HTTPS
+OAUTH2_PROXY_COOKIE_SECURE=false
+
+# OAuth2 callback URL (must match IdP registration)
+OAUTH2_PROXY_REDIRECT_URL=http://api.phlo.localhost/oauth2/callback
+
+# Allowed email domains (default: * for any)
+OAUTH2_PROXY_EMAIL_DOMAINS=*
+```
+
 ## Environment Variables
 
 Environment variables are materialized into `.phlo/.env` (generated, non-secret defaults)
 and `.phlo/.env.local` (local secrets). Edit `phlo.yaml` for committed defaults and
 `.phlo/.env.local` for secrets.
+
+### Service Credentials (Regulated Mode)
+
+For regulated deployments, use scoped credentials per service instead of shared
+admin credentials. See [Service Credentials Guide](../setup/service-credentials.md).
+
+```bash
+# Dagster scoped credentials
+DAGSTER_POSTGRES_USER=phlo_dagster_service
+DAGSTER_POSTGRES_PASSWORD=<secret>
+DAGSTER_TRINO_USER=phlo-dagster
+DAGSTER_TRINO_ROLE=phlo_dagster_writer
+DAGSTER_MINIO_ACCESS_KEY=phlo-dagster-svc
+DAGSTER_MINIO_SECRET_KEY=<secret>
+
+# phlo-api scoped credentials
+PHLO_API_TRINO_USER=phlo-api
+PHLO_API_TRINO_ROLE=phlo_api_reader
+
+# Service-to-service authentication
+PHLO_SERVICE_SECRET=<shared-hmac-secret>
+```
+
+All scoped vars fall back to the shared defaults when unset.
 
 ### Orchestrator Configuration
 

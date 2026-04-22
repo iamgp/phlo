@@ -2,6 +2,36 @@
 
 This guide covers enterprise security configuration for Phlo, including authentication, authorization, encryption, and audit logging.
 
+## What regulated mode now means
+
+This is the operator-facing summary of Phlo's current regulated posture.
+
+When `regulated: true`, Phlo now supports all of the following as one connected
+control plane:
+
+- request-time authorization on `phlo-api`, the CLI, and Dagster GraphQL
+- autonomous Dagster daemon execution under a platform principal
+- service-to-service identity with correlation headers for internal calls
+- backend service credentials per service instead of one shared admin identity
+- canonical RBAC compiled into backend-native grants where the backend supports it
+- surface classification for optional browser and API entry points
+
+What regulated mode does **not** mean:
+
+- every exposed service becomes a first-class Phlo-enforced surface
+- ingress-authenticated tools like Superset, Hasura, and PostgREST inherit Phlo
+  route guards automatically
+- direct backend access is safe just because `regulated: true` is set
+
+Use this guide together with:
+
+- [API Surfaces](../reference/api-surfaces.md) for which surfaces are enforced,
+  ingress-gated, or blocked
+- [Auth And Access Model](../reference/auth-and-access.md) for principal and
+  enforcement flow
+- [Service Credentials](service-credentials.md) for backend identities and
+  least-privilege setup
+
 ## Overview
 
 Phlo's underlying services (Trino, Nessie, MinIO, PostgreSQL) support enterprise security features. This guide explains how to enable and configure them, and where Phlo's audit-log support stops and operator-owned controls begin.
@@ -38,6 +68,32 @@ Generate strong passwords:
 openssl rand -base64 32
 ```
 
+## Data-Plane Enforcement
+
+Regulated mode is not only about front-door auth on `phlo-api`. The supported posture is:
+
+- request-time enforcement on `phlo-api`, CLI, and Dagster webserver
+- platform identity for autonomous Dagster daemon work
+- scoped service credentials for Trino, PostgreSQL, MinIO, and Nessie
+- backend-native grants compiled from canonical RBAC
+- correlation IDs that connect API, daemon, and backend audit trails
+
+Use [Service Credentials](service-credentials.md) to move services off shared admin
+credentials before treating a deployment as regulated-ready.
+
+### Boundary summary
+
+| Layer | Included now | Main control |
+|-------|---------------|--------------|
+| Request boundary | `phlo-api`, `cli`, `dagster-webserver` | Phlo `enforce()` at request or command time |
+| Autonomous execution | `dagster-daemon` | platform principal + run correlation |
+| Data plane | Trino, PostgreSQL, MinIO, Nessie | backend-native credentials and grants |
+| Optional ingress-gated surfaces | Hasura, PostgREST, Superset | ingress auth + surface-native permissions |
+| Blocked in regulated mode | pgweb | not allowed |
+
+If you remember one rule: `regulated: true` is a boundary definition plus a
+deployment posture, not a magic flag that secures every open port by itself.
+
 ## Audit-Log Posture
 
 Phlo does not treat every log line as an audit record. Use this distinction:
@@ -58,12 +114,75 @@ The supported production posture is:
 
 Use [Audit Logging](../operations/audit-logging.md) as the source of truth for routing, retention, and production checklist expectations.
 
+## UI Surface Classifications
+
+Browser-facing surfaces are classified by their regulatory boundary status:
+
+| Package | Classification | Why | Ingress Auth Assumption |
+|---------|---------------|-----|------------------------|
+| `phlo-observatory` | **Inside regulated boundary** | All governance operations route through `phlo-api`; Observatory itself has no Phlo-native PDP logic | Ingress OIDC session propagated to `phlo-api`; no direct Observatory auth |
+| `phlo-superset` | **Ingress-controlled optional** | BI tool with own auth model; can be used in regulated deployments when protected by ingress + IdP integration | Ingress OIDC or API key; Superset own auth is secondary to ingress gate |
+| `phlo-pgweb` | **Blocked in regulated mode** | Direct Postgres access with credentials in URL; no Phlo auth mediation | Not applicable; pgweb is unsupported in regulated deployments |
+
+### What "Inside Regulated Boundary" Means for Observatory
+
+Observatory is classified as inside the regulated boundary because:
+
+1. All asset operations, lineage queries, and quality checks go through `phlo-api`
+2. Observatory does not implement Phlo-native authorization; it relies on `phlo-api` enforcement
+3. The ingress + `phlo-api` stack is the regulatory control plane
+4. Audit events for Observatory actions appear in `phlo-api`'s audit log
+
+In practice: when `PHLO_REGULATED=true`, Observatory access requires a valid ingress session that `phlo-api` recognizes.
+
+### What "Ingress-Controlled Optional" Means for Superset
+
+Superset is classified as ingress-controlled because:
+
+1. Superset has its own built-in authentication (admin/user accounts)
+2. Superset connects directly to Trino and PostgreSQL, not through `phlo-api`
+3. In regulated deployments, Superset should be behind an ingress proxy with OIDC
+4. The ingress gate restricts who can reach Superset; Superset's own auth handles internal authorization
+
+For regulated deployments with Superset:
+
+- Deploy behind Traefik with OIDC authentication
+- Configure `SUPERSET_ADMIN_USER` and `SUPERSET_ADMIN_PASSWORD` as secrets, not defaults
+- Consider blocking Superset from direct internet access entirely
+- Superset's own role-based access is operator-managed
+
+### Why pgweb is Blocked
+
+pgweb is blocked in regulated mode because it:
+
+1. Embeds Postgres credentials directly in the connection URL
+2. Provides no Phlo-native authorization hook
+3. Allows direct database exploration without Phlo's governance layer
+4. Cannot be protected by ingress alone without also exposing the raw Postgres protocol
+
+For database exploration in regulated deployments, use Observatory (which routes through `phlo-api`) or `phlo-postgrest` (which compiles to Postgres with JWT enforcement).
+
 ## Authentication
 
 ### Phlo Reverse Proxy Authentication
 
 If you put Phlo behind a trusted reverse proxy, configure the app to accept asserted identity
 headers only from that proxy and bind those headers into a shared-secret signature:
+
+```yaml
+authentication:
+  provider: proxy
+  proxy:
+    trusted_proxies:
+      - 127.0.0.1/32
+      - 10.0.0.0/8
+    shared_secret: <generate-strong-random-secret>
+    header_subject: X-Remote-User
+    header_email: X-Remote-Email
+    header_groups: X-Remote-Groups
+```
+
+Or with environment variables:
 
 ```bash
 # .phlo/.env.local
@@ -77,6 +196,114 @@ PHLO_AUTH_PROXY_HEADER_GROUPS=X-Remote-Groups
 
 When `PHLO_AUTH_PROXY_SHARED_SECRET` is set, the proxy must sign the timestamp, remote address,
 request path, and asserted identity headers so downstream header changes are rejected.
+
+### Proxy Authentication with Traefik
+
+For production and regulated deployments, Phlo supports an authentication
+gateway using Traefik reverse proxy and oauth2-proxy.
+
+#### Architecture
+
+```
+browser -> traefik -> oauth2-proxy (auth check) -> phlo-api -> phlo authorization
+```
+
+#### Prerequisites
+
+- An OIDC-compatible identity provider (Keycloak, Auth0, Okta, Google, etc.)
+- A registered OAuth2 application with your IdP
+- The `proxy` service profile enabled
+
+#### Step 1: Configure your IdP
+
+Register an OAuth2/OIDC application with your identity provider.
+Set the callback URL to: `http://api.<your-domain>/oauth2/callback`
+
+#### Step 2: Add secrets to `.phlo/.env.local`
+
+```env
+OAUTH2_PROXY_OIDC_ISSUER_URL=https://your-idp.example.com
+OAUTH2_PROXY_CLIENT_ID=your-client-id
+OAUTH2_PROXY_CLIENT_SECRET=your-client-secret
+OAUTH2_PROXY_COOKIE_SECRET=<generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
+```
+
+#### Step 3: Configure Phlo proxy authentication
+
+In `phlo.yaml`:
+
+```yaml
+regulated: true
+
+authentication:
+  provider: proxy
+  proxy:
+    trusted_proxies:
+      - 172.16.0.0/12
+    header_subject: X-Forwarded-User
+    header_email: X-Forwarded-Email
+    header_groups: X-Forwarded-Groups
+```
+
+#### Step 4: Start the stack
+
+```bash
+phlo services start --profile proxy
+```
+
+#### Step 5: Verify
+
+Navigate to `http://api.<your-domain>` in a browser.
+You should be redirected to your IdP login page.
+After login, requests reach `phlo-api` with identity headers set.
+
+#### Security Notes
+
+- In v1, identity is asserted via trusted proxy headers only. There is no
+  cryptographic signature on the forwarded headers.
+- Direct access to `phlo-api` on port 4000 bypasses proxy auth.
+  In regulated deployments, restrict direct port access.
+- For stronger identity assurance, consider the `jwt` authentication
+  provider (see Plan 4 / future release).
+
+## Browser-Facing Surfaces in Regulated Mode
+
+When `regulated: true`, browser-facing surfaces fall into three categories:
+
+### Inside the regulated boundary (via upstream API)
+
+**Observatory** — all server actions go through `phlo-api`, which is a fully
+regulated surface. Observatory inherits protection from ingress + phlo-api.
+No duplicate PDP logic is needed in Observatory itself.
+
+- Status: `APPROVED_SERVICES` in `gating.py`
+- Requirement: must be accessed through Traefik with proxy auth enabled
+- Direct port access: dev-only, not suitable for regulated deployments
+
+### Ingress-optional (require documented ingress boundary)
+
+**Superset** — uses its own permission model. In regulated deployments,
+must be fronted by ingress authentication (Traefik + oauth2-proxy or
+equivalent). Phlo does not enforce authorization within Superset.
+
+- Status: `INGRESS_OPTIONAL_SERVICES` in `gating.py`
+- Requirement: ingress auth + IdP integration
+- Warning logged if started in regulated mode
+
+**Hasura / PostgREST** — see "PostgREST and Hasura in Regulated Deployments"
+in the API surfaces reference.
+
+In regulated mode, both are read-only by default. To permit writes, set
+`surfaces.<service>.allow_writes: true` in `phlo.yaml` and provide a backend role
+that carries the required mutation privileges.
+
+### Blocked in regulated mode
+
+**pgweb** — provides direct PostgreSQL access without Phlo auth mediation.
+Explicitly blocked in regulated mode.
+
+- Status: `UNSUPPORTED_SERVICES` in `gating.py`
+- Starting pgweb in regulated mode raises `UnsupportedSurfaceError`
 
 ### Option 1: LDAP Authentication
 
@@ -183,7 +410,9 @@ For `phlo-api`, route guards are backend-dependent. If no authorization backend 
 the default `PHLO_AUTHORIZATION_MODE=optional` leaves guarded routes reachable. Set
 `PHLO_AUTHORIZATION_MODE=required` to fail closed with HTTP `503` on guarded routes until
 `PHLO_AUTHORIZATION_BACKEND` resolves. You can declare those settings in `phlo.yaml`
-under `api.authorization` or `services.phlo-api.authorization`.
+under `api.authorization` or `services.phlo-api.authorization`. Regulated mode itself
+can be enabled with `PHLO_REGULATED=true` or `regulated: true` at the root
+of `phlo.yaml`.
 
 ### Trino Access Control
 

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import hmac
 import ipaddress
 import json
 import os
 import secrets
+import time
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
@@ -22,9 +25,80 @@ from phlo.capabilities.interfaces import (
 from phlo.capabilities.registry import register_authentication_provider
 from phlo.capabilities.specs import AuthenticationProviderSpec
 from phlo.capabilities.support import CapabilitySupport
+from phlo.infrastructure.config import (
+    get_authentication_config,
+    get_authentication_provider_config,
+)
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _authentication_subconfig(name: str) -> dict[str, Any]:
+    """Return a provider-specific authentication config block from phlo.yaml."""
+    auth_config = get_authentication_config()
+    raw = auth_config.get(name)
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"phlo.yaml authentication.{name} must be a mapping")
+    return raw
+
+
+def _optional_bool(value: Any, *, path: str) -> bool | None:
+    """Validate an optional boolean config value."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    raise ValueError(f"{path} must be a boolean")
+
+
+def _string_dict(value: Any, *, path: str) -> dict[str, dict[str, Any]]:
+    """Validate a token-keyed config mapping."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"{path} must be a mapping")
+
+    normalized: dict[str, dict[str, Any]] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError(f"{path} keys must be non-empty strings")
+        if not isinstance(item, dict):
+            raise ValueError(f"{path}.{key} must be a mapping")
+        normalized[key] = item
+    return normalized
+
+
+def _string_list(value: Any, *, path: str) -> list[str] | None:
+    """Validate a list of non-empty strings."""
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise ValueError(f"{path} must be a list")
+
+    normalized: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise ValueError(f"{path} entries must be strings")
+        stripped = item.strip()
+        if not stripped:
+            raise ValueError(f"{path} entries cannot be empty")
+        normalized.append(stripped)
+    return normalized
+
+
+def _optional_string(value: Any, *, path: str) -> str | None:
+    """Validate an optional non-empty string."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{path} must be a string")
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError(f"{path} cannot be empty")
+    return normalized
 
 
 def _log_auth_event(
@@ -477,10 +551,201 @@ class ServiceTokenAuthenticationProvider:
         return None
 
 
+class JWTAuthenticationProvider:
+    """JWT Bearer token authentication provider.
+
+    This provider validates JWT tokens signed with HS256 algorithm
+    using a shared secret. It extracts standard OIDC-compatible
+    claims and maps them to AuthPrincipal for regulated deployments.
+
+    Configuration via phlo.yaml:
+        authentication:
+          jwt:
+            secret: "your-256-bit-secret"
+            issuer: "https://issuer.example.com"  # optional
+            audience: "phlo"  # optional
+    """
+
+    def __init__(
+        self,
+        secret: str,
+        issuer: str | None = None,
+        audience: str | None = None,
+        leeway_seconds: int = 60,
+    ):
+        if not secret:
+            raise ValueError("JWT secret is required")
+        self._secret = secret.encode("utf-8")
+        self._issuer = issuer
+        self._audience = audience
+        self._leeway = leeway_seconds
+
+    def authenticate(self, request_context: RequestContext) -> AuthResult:
+        """Authenticate using JWT bearer token."""
+        auth_header = request_context.headers.get("authorization", "")
+
+        if not auth_header.startswith("Bearer "):
+            return AuthResult(
+                authenticated=False,
+                reason_code="missing_bearer_token",
+            )
+
+        token = auth_header[7:]
+        session = self.validate_token(token)
+        if session:
+            _log_auth_event(
+                "success",
+                session.principal,
+                "authenticated",
+                "jwt",
+                auth_method="bearer_token",
+                path=request_context.path,
+            )
+            return AuthResult(
+                authenticated=True,
+                principal=session.principal,
+                session=session,
+                reason_code="authenticated",
+            )
+
+        _log_auth_event(
+            "failure",
+            None,
+            "invalid_token",
+            "jwt",
+            auth_method="bearer_token",
+            path=request_context.path,
+        )
+        return AuthResult(
+            authenticated=False,
+            reason_code="invalid_token",
+        )
+
+    def current_principal(self, request_context: RequestContext) -> AuthPrincipal | None:
+        """Get current principal from request context."""
+        result = self.authenticate(request_context)
+        return result.principal
+
+    def validate_token(self, token: str) -> AuthenticatedSession | None:
+        """Validate a JWT token and return session if valid."""
+        try:
+            header, payload, signature = token.split(".")
+            if not all([header, payload, signature]):
+                return None
+
+            if not self._verify_signature(header, payload, signature):
+                logger.warning("jwt_signature_invalid")
+                return None
+
+            claims = self._decode_payload(payload)
+
+            if not self._validate_claims(claims):
+                return None
+
+            principal = AuthPrincipal(
+                subject=claims.get("sub", ""),
+                principal_type="user",
+                issuer=claims.get("iss"),
+                email=claims.get("email"),
+                groups=tuple(claims.get("groups", [])),
+                claims=claims,
+                attributes={
+                    "name": claims.get("name", ""),
+                    "preferred_username": claims.get("preferred_username", ""),
+                },
+            )
+
+            session_id = claims.get("jti") or secrets.token_urlsafe(32)
+
+            return AuthenticatedSession(
+                principal=principal,
+                auth_method="bearer_token",
+                provider_name="jwt",
+                session_id=session_id,
+                issued_at=datetime.fromtimestamp(claims.get("iat", 0), tz=UTC),
+                expires_at=datetime.fromtimestamp(claims.get("exp", 0), tz=UTC),
+                attributes={
+                    "jwt_issuer": claims.get("iss", ""),
+                    "jwt_audience": str(claims.get("aud", "")),
+                },
+            )
+        except (ValueError, KeyError) as e:
+            logger.warning("jwt_parse_error", error=str(e))
+            return None
+
+    def _verify_signature(self, header_b64: str, payload_b64: str, signature_b64: str) -> bool:
+        """Verify JWT signature using HS256."""
+        try:
+            message = f"{header_b64}.{payload_b64}".encode()
+            expected = hmac.new(self._secret, message, hashlib.sha256).digest()
+            padded_signature = signature_b64 + "=" * (-len(signature_b64) % 4)
+            actual = base64url_decode(padded_signature)
+            return hmac.compare_digest(expected, actual)
+        except Exception:
+            return False
+
+    def _decode_payload(self, payload_b64: str) -> dict[str, Any]:
+        """Decode base64url-encoded JWT payload."""
+        padded = payload_b64 + "=" * (-len(payload_b64) % 4)
+        decoded = base64url_decode(padded)
+        return json.loads(decoded.decode("utf-8"))
+
+    def _validate_claims(self, claims: dict[str, Any]) -> bool:
+        """Validate JWT claims including expiration."""
+        now = time.time()
+
+        exp = claims.get("exp", 0)
+        if exp < now - self._leeway:
+            logger.warning("jwt_token_expired", exp=exp, now=now)
+            return False
+
+        iat = claims.get("iat", 0)
+        if iat > now + self._leeway:
+            logger.warning("jwt_token_future", iat=iat, now=now)
+            return False
+
+        if self._issuer and claims.get("iss") != self._issuer:
+            logger.warning("jwt_issuer_mismatch", expected=self._issuer, actual=claims.get("iss"))
+            return False
+
+        if self._audience:
+            aud = claims.get("aud")
+            if aud is None:
+                logger.warning("jwt_audience_missing")
+                return False
+            aud_list = aud if isinstance(aud, list) else [aud]
+            if self._audience not in aud_list:
+                logger.warning("jwt_audience_mismatch", expected=self._audience, actual=aud)
+                return False
+
+        return True
+
+
+def base64url_decode(data: str | bytes) -> bytes:
+    """Decode base64url-encoded string."""
+    if isinstance(data, str):
+        data = data.encode("ascii")
+    return base64.urlsafe_b64decode(data)
+
+
 def _load_static_config() -> tuple[dict[str, dict[str, Any]], bool]:
-    """Load static authentication configuration from environment."""
-    static_users = {}
-    dev_mode = os.environ.get("PHLO_AUTH_DEV_MODE", "").lower() in ("1", "true", "yes")
+    """Load static authentication configuration from env first, then phlo.yaml."""
+    static_config = _authentication_subconfig("static")
+    static_users = _string_dict(
+        static_config.get("users"), path="phlo.yaml authentication.static.users"
+    )
+
+    dev_mode_env = os.environ.get("PHLO_AUTH_DEV_MODE", "").lower()
+    if dev_mode_env:
+        dev_mode = dev_mode_env in ("1", "true", "yes")
+    else:
+        dev_mode = (
+            _optional_bool(
+                static_config.get("dev_mode"),
+                path="phlo.yaml authentication.static.dev_mode",
+            )
+            or False
+        )
 
     if dev_mode:
         environment = os.environ.get("PHLO_ENVIRONMENT", "dev").lower()
@@ -505,35 +770,75 @@ def _load_static_config() -> tuple[dict[str, dict[str, Any]], bool]:
 
 
 def _load_proxy_config() -> dict[str, Any]:
-    """Load proxy authentication configuration from environment."""
+    """Load proxy authentication configuration from env first, then phlo.yaml."""
     config = {}
+    proxy_config = _authentication_subconfig("proxy")
 
     trusted = os.environ.get("PHLO_AUTH_PROXY_TRUSTED_PROXIES")
     if trusted:
         config["trusted_proxies"] = [p.strip() for p in trusted.split(",")]
+    else:
+        configured = _string_list(
+            proxy_config.get("trusted_proxies"),
+            path="phlo.yaml authentication.proxy.trusted_proxies",
+        )
+        if configured:
+            config["trusted_proxies"] = configured
 
     header_subject = os.environ.get("PHLO_AUTH_PROXY_HEADER_SUBJECT")
     if header_subject:
         config["header_subject"] = header_subject
+    else:
+        configured = _optional_string(
+            proxy_config.get("header_subject"),
+            path="phlo.yaml authentication.proxy.header_subject",
+        )
+        if configured:
+            config["header_subject"] = configured
 
     header_email = os.environ.get("PHLO_AUTH_PROXY_HEADER_EMAIL")
     if header_email:
         config["header_email"] = header_email
+    else:
+        configured = _optional_string(
+            proxy_config.get("header_email"),
+            path="phlo.yaml authentication.proxy.header_email",
+        )
+        if configured:
+            config["header_email"] = configured
 
     header_groups = os.environ.get("PHLO_AUTH_PROXY_HEADER_GROUPS")
     if header_groups:
         config["header_groups"] = header_groups
+    else:
+        configured = _optional_string(
+            proxy_config.get("header_groups"),
+            path="phlo.yaml authentication.proxy.header_groups",
+        )
+        if configured:
+            config["header_groups"] = configured
 
     shared_secret = os.environ.get("PHLO_AUTH_PROXY_SHARED_SECRET")
     if shared_secret:
         config["shared_secret"] = shared_secret
+    else:
+        configured = _optional_string(
+            proxy_config.get("shared_secret"),
+            path="phlo.yaml authentication.proxy.shared_secret",
+        )
+        if configured:
+            config["shared_secret"] = configured
 
     return config
 
 
 def _load_service_token_config() -> dict[str, dict[str, Any]]:
-    """Load service token configuration from environment."""
-    service_tokens = {}
+    """Load service-token configuration from env first, then phlo.yaml."""
+    service_config = _authentication_subconfig("service_token")
+    service_tokens = _string_dict(
+        service_config.get("tokens"),
+        path="phlo.yaml authentication.service_token.tokens",
+    )
 
     tokens_json = os.environ.get("PHLO_AUTH_SERVICE_TOKENS")
     if tokens_json:
@@ -543,14 +848,79 @@ def _load_service_token_config() -> dict[str, dict[str, Any]]:
     return service_tokens
 
 
+def _load_jwt_config() -> dict[str, Any]:
+    """Load JWT authentication configuration from env first, then phlo.yaml."""
+    jwt_config = _authentication_subconfig("jwt")
+
+    secret = os.environ.get("PHLO_AUTH_JWT_SECRET")
+    if not secret:
+        secret = jwt_config.get("secret", "")
+
+    issuer = os.environ.get("PHLO_AUTH_JWT_ISSUER")
+    if issuer is None:
+        issuer = jwt_config.get("issuer")
+
+    audience = os.environ.get("PHLO_AUTH_JWT_AUDIENCE")
+    if audience is None:
+        audience = jwt_config.get("audience")
+
+    env_leeway = os.environ.get("PHLO_AUTH_JWT_LEEWAY")
+    if env_leeway is not None:
+        leeway = int(env_leeway)
+    else:
+        leeway_config = jwt_config.get("leeway_seconds")
+        leeway = int(leeway_config) if leeway_config is not None else 60
+
+    return {
+        "secret": secret,
+        "issuer": issuer,
+        "audience": audience,
+        "leeway_seconds": leeway,
+    }
+
+
+def _provider_enabled(
+    provider_name: str,
+    *,
+    env_enabled: str | None,
+    config_block: dict[str, Any],
+    selected_provider: str | None,
+    configured_payload: Any,
+) -> bool:
+    """Return whether a built-in provider is explicitly enabled."""
+    if env_enabled:
+        return True
+
+    enabled = _optional_bool(
+        config_block.get("enabled"),
+        path=f"phlo.yaml authentication.{provider_name}.enabled",
+    )
+    if enabled is not None:
+        return enabled
+
+    if selected_provider == provider_name:
+        return True
+
+    return bool(configured_payload)
+
+
 def register_default_capability_providers() -> None:
     """Register authentication providers only when explicitly enabled via config.
 
     Authentication providers are security-sensitive and must be explicitly
     enabled via environment variables, not auto-registered on startup.
     """
+    selected_provider = get_authentication_provider_config()
+
+    static_block = _authentication_subconfig("static")
     static_users, dev_mode = _load_static_config()
-    if static_users or dev_mode or os.environ.get("PHLO_AUTH_STATIC_ENABLED"):
+    if _provider_enabled(
+        "static",
+        env_enabled=os.environ.get("PHLO_AUTH_STATIC_ENABLED"),
+        config_block=static_block,
+        selected_provider=selected_provider,
+        configured_payload=static_users or dev_mode,
+    ):
         register_authentication_provider(
             AuthenticationProviderSpec(
                 name="static",
@@ -572,8 +942,15 @@ def register_default_capability_providers() -> None:
             )
         )
 
+    proxy_block = _authentication_subconfig("proxy")
     proxy_config = _load_proxy_config()
-    if proxy_config or os.environ.get("PHLO_AUTH_PROXY_ENABLED"):
+    if _provider_enabled(
+        "proxy",
+        env_enabled=os.environ.get("PHLO_AUTH_PROXY_ENABLED"),
+        config_block=proxy_block,
+        selected_provider=selected_provider,
+        configured_payload=proxy_config,
+    ):
         register_authentication_provider(
             AuthenticationProviderSpec(
                 name="proxy",
@@ -591,8 +968,15 @@ def register_default_capability_providers() -> None:
             )
         )
 
+    service_token_block = _authentication_subconfig("service_token")
     service_tokens = _load_service_token_config()
-    if service_tokens or os.environ.get("PHLO_AUTH_SERVICE_ENABLED"):
+    if _provider_enabled(
+        "service_token",
+        env_enabled=os.environ.get("PHLO_AUTH_SERVICE_ENABLED"),
+        config_block=service_token_block,
+        selected_provider=selected_provider,
+        configured_payload=service_tokens,
+    ):
         register_authentication_provider(
             AuthenticationProviderSpec(
                 name="service_token",
@@ -611,3 +995,38 @@ def register_default_capability_providers() -> None:
                 ),
             )
         )
+
+    jwt_block = _authentication_subconfig("jwt")
+    jwt_config = _load_jwt_config()
+    if _provider_enabled(
+        "jwt",
+        env_enabled=os.environ.get("PHLO_AUTH_JWT_ENABLED"),
+        config_block=jwt_block,
+        selected_provider=selected_provider,
+        configured_payload=jwt_config.get("secret"),
+    ):
+        if not jwt_config.get("secret"):
+            logger.error("jwt_provider_requires_secret")
+        else:
+            register_authentication_provider(
+                AuthenticationProviderSpec(
+                    name="jwt",
+                    provider=JWTAuthenticationProvider(
+                        secret=jwt_config["secret"],
+                        issuer=jwt_config.get("issuer"),
+                        audience=jwt_config.get("audience"),
+                        leeway_seconds=jwt_config.get("leeway_seconds", 60),
+                    ),
+                    metadata={
+                        "auth_method": "bearer_token",
+                        "supports_browser_login": False,
+                        "supports_proxy_auth": False,
+                        "supports_service_tokens": False,
+                        "algorithm": "HS256",
+                    },
+                    support=CapabilitySupport(
+                        supports_permissions=False,
+                        supports_attributes=True,
+                    ),
+                )
+            )

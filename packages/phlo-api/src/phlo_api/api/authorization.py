@@ -4,6 +4,10 @@ This module provides authorization capability integration for FastAPI routes.
 It implements role-based access control (RBAC) with canonical role mapping
 from authentication groups.
 
+In regulated mode, authorization is delegated to the core EnforcementContext
+singleton which owns canonicalization, PDP decisions, and audit emission.
+In non-regulated mode, the local authorization backend is used.
+
 Key Functions:
     get_authorization_backend: Resolve the configured authorization backend.
     check_dataset_read: Verify read permission on a dataset.
@@ -14,6 +18,7 @@ Key Functions:
 Environment Variables:
     PHLO_AUTHORIZATION_BACKEND: Name of the authorization backend to use.
         Required when multiple backends are installed.
+    PHLO_REGULATED_MODE: Enable regulated mode (enables core enforcement).
 
 Example:
     Enforcing authorization in a FastAPI route:
@@ -33,6 +38,7 @@ Example:
 from __future__ import annotations
 
 import os
+from uuid import uuid4
 from typing import Any, Callable, TypeVar
 
 from fastapi import HTTPException, Request
@@ -47,7 +53,9 @@ from phlo.capabilities import (
     resolve_capability,
 )
 from phlo.logging import get_logger
+from phlo.security import enforce, is_regulated
 from phlo.infrastructure.config import get_api_authorization_config
+from phlo.security.service_identity import build_service_headers
 
 from phlo_api.api.authentication import get_request_principal
 
@@ -201,7 +209,7 @@ def create_decision_context(
     """
     return DecisionContext(
         environment=environment,
-        request_id=request.state.request_id if hasattr(request.state, "request_id") else None,
+        request_id=get_request_correlation_id(request),
         ip_address=request.client.host if request.client else None,
         attributes={
             "method": request.method,
@@ -210,11 +218,38 @@ def create_decision_context(
     )
 
 
+def get_request_correlation_id(request: Request) -> str:
+    """Return the request correlation ID, generating one when missing."""
+    state = getattr(request, "state", None)
+    request_id = getattr(state, "request_id", None) if state is not None else None
+    if not request_id:
+        request_id = request.headers.get("x-request-id") or str(uuid4())
+        if state is not None:
+            setattr(state, "request_id", request_id)
+    return request_id
+
+
+def build_downstream_service_headers(request: Request, service_id: str) -> dict[str, str]:
+    """Build authenticated headers for service-to-service requests from phlo-api."""
+    correlation_id = get_request_correlation_id(request)
+    initiator = None
+    auth_principal = get_request_principal(request)
+    if auth_principal is not None:
+        initiator = auth_principal.subject
+    return build_service_headers(
+        service_id=service_id,
+        initiator=initiator,
+        correlation_id=correlation_id,
+    )
+
+
 def resolve_request_principal(request: Request, require_auth: bool = False) -> Principal | None:
     """Resolve the principal from the request using authentication capability.
 
-    Uses the configured authentication provider to get the AuthPrincipal,
-    then applies canonical role mapping to produce the authz Principal.
+    Uses the configured authentication provider to get the AuthPrincipal.
+
+    In regulated mode, canonicalization is handled by EnforcementContext.canonicalize()
+    inside the enforcement call, not here.
 
     Args:
         request: The FastAPI request object.
@@ -233,70 +268,79 @@ def resolve_request_principal(request: Request, require_auth: bool = False) -> P
     if auth_principal is None:
         if require_auth:
             return None
-        return _default_principal()
+        return Principal(
+            subject="anonymous",
+            principal_type="user",
+            roles=(),
+        )
 
-    return _authn_to_authz_principal(auth_principal)
+    from phlo.identity.bridge import canonicalize_principal
+
+    return canonicalize_principal(auth_principal, regulated=False)
 
 
-def _authn_to_authz_principal(auth_principal: Any) -> Principal:
-    """Convert AuthPrincipal from authentication to authz Principal.
+def _enforce_or_raise(
+    request: Request,
+    action: str,
+    resource: ResourceRef,
+    environment: str | None = None,
+    require_auth: bool = True,
+) -> None:
+    """Enforce authorization via core EnforcementContext or raise HTTPException."""
+    auth_principal = get_request_principal(request)
+    if auth_principal is None:
+        if require_auth:
+            raise HTTPException(
+                status_code=401,
+                detail={"error": "unauthorized", "reason": "authentication_required"},
+            )
+        principal = Principal(
+            subject="anonymous",
+            principal_type="user",
+            roles=(),
+        )
+    else:
+        principal = auth_principal
 
-    Applies canonical role mapping based on authentication attributes.
-    Only maps known group names to canonical roles; unknown groups are discarded.
-    """
-    roles = _map_groups_to_roles(auth_principal.groups)
-    roles = _apply_principal_type_roles(auth_principal.principal_type, roles)
-
-    return Principal(
-        subject=auth_principal.subject,
-        principal_type=auth_principal.principal_type,
-        roles=roles,
-        attributes=dict(auth_principal.attributes),
+    context = create_decision_context(request, environment)
+    correlation_id = get_request_correlation_id(request)
+    result = enforce(
+        principal=principal,
+        action=action,
+        resource=resource,
+        context=context,
+        request_id=correlation_id,
+        surface="phlo-api",
+        correlation_id=correlation_id,
     )
 
+    if result.variant == "error":
+        logger.error(
+            "authorization_backend_error",
+            principal=principal.subject,
+            action=action,
+            resource_type=resource.resource_type,
+            resource_id=resource.resource_id,
+            reason_code=result.reason_code,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "service_unavailable", "reason": result.reason_code or "unknown"},
+        )
 
-def _map_groups_to_roles(groups: tuple[str, ...]) -> tuple[str, ...]:
-    """Map authentication groups to canonical roles.
-
-    Only known group names are mapped to canonical roles.
-    Unknown groups are discarded to prevent privilege escalation
-    based on IdP-native group names.
-    """
-    role_mapping = {
-        "admin": "admin",
-        "operators": "operator",
-        "developers": "developer",
-        "analysts": "analyst",
-        "viewers": "viewer",
-    }
-    roles = []
-    for group in groups:
-        if group in role_mapping and role_mapping[group] not in roles:
-            roles.append(role_mapping[group])
-    return tuple(roles)
-
-
-def _apply_principal_type_roles(
-    principal_type: str, existing_roles: tuple[str, ...]
-) -> tuple[str, ...]:
-    """Apply default roles based on principal type."""
-    if principal_type == "service":
-        if "service" not in existing_roles:
-            return (*existing_roles, "service") if existing_roles else ("service",)
-    return existing_roles
-
-
-def _default_principal() -> Principal:
-    """Return the default anonymous principal.
-
-    Returns a principal with no roles to ensure fail-closed behavior.
-    Unauthenticated requests will be denied by the PDP's default-deny policy.
-    """
-    return Principal(
-        subject="anonymous",
-        principal_type="user",
-        roles=(),
-    )
+    if not result.allowed:
+        logger.warning(
+            "authorization_denied",
+            principal=principal.subject,
+            action=action,
+            resource_type=resource.resource_type,
+            resource_id=resource.resource_id,
+            reason_code=result.reason_code,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "reason": result.reason_code or "explicit_deny"},
+        )
 
 
 def check_dataset_read(
@@ -306,6 +350,16 @@ def check_dataset_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read the dataset."""
+    if is_regulated():
+        _enforce_or_raise(
+            request,
+            _ACTION_DATASET_READ,
+            ResourceRef(resource_type="dataset", resource_id=dataset_id),
+            environment,
+            require_auth=require_auth,
+        )
+        return
+
     backend = _get_backend_for_route_guard()
     if backend is None:
         return
@@ -338,6 +392,16 @@ def check_dataset_query(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can query the dataset."""
+    if is_regulated():
+        _enforce_or_raise(
+            request,
+            _ACTION_DATASET_QUERY,
+            ResourceRef(resource_type="dataset", resource_id=dataset_id),
+            environment,
+            require_auth=require_auth,
+        )
+        return
+
     backend = _get_backend_for_route_guard()
     if backend is None:
         return
@@ -370,6 +434,16 @@ def check_asset_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read the asset."""
+    if is_regulated():
+        _enforce_or_raise(
+            request,
+            _ACTION_ASSET_READ,
+            ResourceRef(resource_type="asset", resource_id=asset_id),
+            environment,
+            require_auth=require_auth,
+        )
+        return
+
     backend = _get_backend_for_route_guard()
     if backend is None:
         return
@@ -402,6 +476,16 @@ def check_asset_execute(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can execute the asset."""
+    if is_regulated():
+        _enforce_or_raise(
+            request,
+            _ACTION_ASSET_EXECUTE,
+            ResourceRef(resource_type="asset", resource_id=asset_id),
+            environment,
+            require_auth=require_auth,
+        )
+        return
+
     backend = _get_backend_for_route_guard()
     if backend is None:
         return
@@ -434,6 +518,16 @@ def check_service_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read the service."""
+    if is_regulated():
+        _enforce_or_raise(
+            request,
+            _ACTION_SERVICE_READ,
+            ResourceRef(resource_type="service", resource_id=service_id),
+            environment,
+            require_auth=require_auth,
+        )
+        return
+
     backend = _get_backend_for_route_guard()
     if backend is None:
         return
@@ -466,6 +560,16 @@ def check_service_manage(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can manage the service."""
+    if is_regulated():
+        _enforce_or_raise(
+            request,
+            _ACTION_SERVICE_MANAGE,
+            ResourceRef(resource_type="service", resource_id=service_id),
+            environment,
+            require_auth=require_auth,
+        )
+        return
+
     backend = _get_backend_for_route_guard()
     if backend is None:
         return
@@ -498,6 +602,16 @@ def check_admin_read(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can read admin resources."""
+    if is_regulated():
+        _enforce_or_raise(
+            request,
+            _ACTION_ADMIN_READ,
+            ResourceRef(resource_type="admin", resource_id=admin_id),
+            environment,
+            require_auth=require_auth,
+        )
+        return
+
     backend = _get_backend_for_route_guard()
     if backend is None:
         return
@@ -530,6 +644,16 @@ def check_admin_manage(
     require_auth: bool = True,
 ) -> None:
     """Check if the request can manage admin resources."""
+    if is_regulated():
+        _enforce_or_raise(
+            request,
+            _ACTION_ADMIN_MANAGE,
+            ResourceRef(resource_type="admin", resource_id=admin_id),
+            environment,
+            require_auth=require_auth,
+        )
+        return
+
     backend = _get_backend_for_route_guard()
     if backend is None:
         return
@@ -563,6 +687,29 @@ def filter_datasets(
     require_auth: bool = True,
 ) -> list[str]:
     """Filter a list of dataset IDs to only those the principal can access."""
+    if is_regulated():
+        auth_principal = get_request_principal(request)
+        if auth_principal is None:
+            return []
+
+        context = create_decision_context(request, environment)
+        allowed = []
+        for d_id in dataset_ids:
+            resource = ResourceRef(resource_type="dataset", resource_id=d_id)
+            correlation_id = get_request_correlation_id(request)
+            result = enforce(
+                principal=auth_principal,
+                action=action,
+                resource=resource,
+                context=context,
+                request_id=correlation_id,
+                surface="phlo-api",
+                correlation_id=correlation_id,
+            )
+            if result.allowed:
+                allowed.append(d_id)
+        return allowed
+
     backend = _get_backend_for_route_guard()
     if backend is None:
         return dataset_ids
