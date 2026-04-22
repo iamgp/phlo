@@ -3,16 +3,16 @@
 When phlo-api calls Dagster or Trino, it should identify itself
 with a short-lived HMAC service token, not a spoofable header.
 
-Token format: <service_id>:<timestamp>:<nonce>:<hmac>
+Token format: ``service_id:timestamp:nonce:hmac``
 where hmac = HMAC-SHA256(secret, service_id + ":" + timestamp + ":" + nonce)
 
 The nonce (UUID4) prevents replay of intercepted tokens within the
 validity window. The shared secret comes from PHLO_SERVICE_SECRET env var.
 
 Header conventions for request chain attribution:
-    Authorization: Bearer <service-token>   (service identity)
+    Authorization: Bearer {service-token}    (service identity)
     X-Phlo-Initiator: alice@example.com     (originating user)
-    X-Phlo-Correlation-Id: <request-id>     (audit correlation)
+    X-Phlo-Correlation-Id: {request-id}     (audit correlation)
 """
 
 from __future__ import annotations
