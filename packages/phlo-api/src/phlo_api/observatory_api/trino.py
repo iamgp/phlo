@@ -45,7 +45,7 @@ from pydantic import BaseModel, Field
 
 from phlo.capabilities import resolve_capability
 from phlo.capabilities.discovery import discover_capabilities
-from phlo.logging import get_logger
+from phlo.logging import get_bound_correlation_context, get_logger
 from phlo_api.api.authorization import check_dataset_query, check_dataset_read
 from phlo_api.observatory_api.trino_sql import (
     is_probably_qualified_table,
@@ -63,6 +63,31 @@ _DEFAULT_QUERY_ENGINE_ENV = "PHLO_QUERY_ENGINE"
 _QUERY_ENGINE_URL_ENV = "PHLO_QUERY_ENGINE_URL"
 _DISCOVERY_SCHEMAS_ENV = "PHLO_API_DISCOVERY_SCHEMAS"
 _SAFE_ROW_ID_RE = re.compile(r"^[a-zA-Z0-9_.\-:]+$")
+_TRINO_USER_ENV = "TRINO_USER"
+_TRINO_ROLE_ENV = "TRINO_ROLE"
+
+
+def _build_trino_headers(
+    *,
+    catalog: str | None = None,
+    schema: str | None = None,
+    include_catalog_context: bool = True,
+) -> dict[str, str]:
+    """Build Trino request headers with scoped identity and correlation metadata."""
+    correlation_id = get_bound_correlation_context().request_id
+    headers = {
+        "X-Trino-User": os.environ.get(_TRINO_USER_ENV, "observatory"),
+    }
+    if include_catalog_context and catalog:
+        headers["X-Trino-Catalog"] = catalog
+    if include_catalog_context and schema:
+        headers["X-Trino-Schema"] = schema
+    role = os.environ.get(_TRINO_ROLE_ENV)
+    if role:
+        headers["X-Trino-Role"] = f"system={role}"
+    if correlation_id:
+        headers["X-Trino-Extra-Credential"] = f"phlo.correlation_id={correlation_id}"
+    return headers
 
 
 def _resolve_query_engine() -> Any | None:
@@ -337,9 +362,10 @@ async def execute_trino_query(
                 content=query,
                 headers={
                     "Content-Type": "text/plain",
-                    "X-Trino-User": "observatory",
-                    "X-Trino-Catalog": effective_catalog,
-                    "X-Trino-Schema": effective_schema,
+                    **_build_trino_headers(
+                        catalog=effective_catalog,
+                        schema=effective_schema,
+                    ),
                 },
             )
 
@@ -365,7 +391,7 @@ async def execute_trino_query(
 
                 poll_response = await client.get(
                     result["nextUri"],
-                    headers={"X-Trino-User": "observatory"},
+                    headers=_build_trino_headers(include_catalog_context=False),
                     timeout=remaining,
                 )
 

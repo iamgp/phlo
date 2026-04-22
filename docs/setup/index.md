@@ -11,6 +11,7 @@ These guides focus on the operational decisions and configuration that turn a ru
 - [OpenMetadata](openmetadata.md): register services, ingest metadata, and make the catalog searchable.
 - [Observability](observability.md): route logs, traces, and metrics into the observability backend you want to run.
 - [Security](security.md): apply authentication, secrets, and security posture across the stack.
+- [Service Credentials](service-credentials.md): move regulated deployments off shared backend admin credentials.
 - [Canonical RBAC](../reference/canonical-rbac.md): define source-of-truth roles and policies before wiring backend-specific authorization.
 
 ## Typical Uses

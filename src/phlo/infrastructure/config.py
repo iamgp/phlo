@@ -170,6 +170,130 @@ def get_capability_defaults_from_config(project_root: Path | None = None) -> dic
     return normalized
 
 
+def get_authentication_config(project_root: Path | None = None) -> dict[str, Any]:
+    """Return the root-level authentication config from phlo.yaml.
+
+    Expected shape:
+
+        authentication:
+          provider: proxy
+          proxy:
+            trusted_proxies:
+              - 127.0.0.1/32
+
+    Returns:
+        Mapping when configured, otherwise {}.
+
+    Raises:
+        ValueError: If the configured authentication block is not a mapping.
+    """
+    if project_root is None:
+        project_root = _default_project_root()
+
+    project_config = load_project_config(project_root)
+    if not isinstance(project_config, dict) or not project_config:
+        return {}
+
+    auth_config = project_config.get("authentication")
+    if auth_config is None:
+        return {}
+    if not isinstance(auth_config, dict):
+        raise ValueError("phlo.yaml authentication must be a mapping")
+
+    return auth_config
+
+
+def get_regulated_config(project_root: Path | None = None) -> bool | None:
+    """Return the root-level regulated mode setting from phlo.yaml.
+
+    Expected shape:
+
+        regulated: true
+
+    Returns:
+        True or False when explicitly configured, otherwise None.
+
+    Raises:
+        ValueError: If the configured value is not a boolean.
+    """
+    if project_root is None:
+        project_root = _default_project_root()
+
+    project_config = load_project_config(project_root)
+    if not isinstance(project_config, dict) or not project_config:
+        return None
+
+    value = project_config.get("regulated")
+    if value is None:
+        deprecated_value = project_config.get("regulated_mode")
+        if deprecated_value is not None:
+            import warnings
+
+            warnings.warn(
+                "phlo.yaml 'regulated_mode' is deprecated, use 'regulated' instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            logger.warning(
+                "deprecated_config_key",
+                old="regulated_mode",
+                new="regulated",
+                message="phlo.yaml 'regulated_mode' is deprecated, use 'regulated' instead",
+            )
+            value = deprecated_value
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+
+    raise ValueError("phlo.yaml 'regulated' must be a boolean")
+
+
+def get_regulated_mode_config(project_root: Path | None = None) -> bool | None:
+    """Deprecated: use get_regulated_config() instead."""
+    import warnings
+
+    warnings.warn(
+        "get_regulated_mode_config() is deprecated, use get_regulated_config() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return get_regulated_config(project_root)
+
+
+def get_authentication_provider_config(project_root: Path | None = None) -> str | None:
+    """Return the configured authentication provider name from phlo.yaml.
+
+    Expected shape:
+
+        authentication:
+          provider: proxy
+
+    Returns:
+        Provider name when configured, otherwise None.
+
+    Raises:
+        ValueError: If the configured provider is empty or invalid.
+    """
+    if project_root is None:
+        project_root = _default_project_root()
+
+    auth_config = get_authentication_config(project_root)
+    if not auth_config:
+        return None
+
+    provider = auth_config.get("provider")
+    if provider is None:
+        return None
+    if not isinstance(provider, str):
+        raise ValueError("phlo.yaml authentication.provider must be a string")
+
+    normalized = provider.strip()
+    if not normalized:
+        raise ValueError("phlo.yaml authentication.provider cannot be empty")
+    return normalized
+
+
 def get_api_authorization_config(project_root: Path | None = None) -> ApiAuthorizationConfig | None:
     """Return validated phlo-api authorization settings from phlo.yaml.
 

@@ -13,8 +13,8 @@ storage:
         env: POSTGRES_DB
 
 run_coordinator:
-  module: dagster.core.run_coordinator
-  class: QueuedRunCoordinator
+  module: phlo_dagster.daemon_identity
+  class: PhloQueuedRunCoordinator
 
 run_launcher:
   module: dagster.core.launcher

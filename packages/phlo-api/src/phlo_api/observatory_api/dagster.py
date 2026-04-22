@@ -40,7 +40,8 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-from phlo.logging import get_logger
+from phlo.logging import get_bound_correlation_context, get_logger
+from phlo.security.service_identity import build_service_headers
 from phlo_api.observatory_api.quality import fetch_quality_snapshot
 
 logger = get_logger(__name__)
@@ -362,7 +363,11 @@ class ImpactedAsset(BaseModel):
 
 
 async def graphql_request(
-    url: str, query: str, variables: dict[str, Any] | None = None, timeout: float = 10.0
+    url: str,
+    query: str,
+    variables: dict[str, Any] | None = None,
+    timeout: float = 10.0,
+    initiator: str | None = None,
 ) -> dict[str, Any]:
     """Execute a GraphQL request against the Dagster API.
 
@@ -371,6 +376,7 @@ async def graphql_request(
         query: GraphQL query string.
         variables: Optional GraphQL variables dictionary.
         timeout: Request timeout in seconds (default: 10.0).
+        initiator: Originating user principal for audit attribution.
 
     Returns:
         GraphQL response data as a dictionary.
@@ -379,11 +385,20 @@ async def graphql_request(
         httpx.HTTPStatusError: If the HTTP request fails.
 
     """
+    headers = {"Content-Type": "application/json"}
+    correlation_id = get_bound_correlation_context().request_id
+    try:
+        headers.update(
+            build_service_headers("phlo-api", initiator=initiator, correlation_id=correlation_id)
+        )
+    except RuntimeError:
+        logger.debug("dagster_graphql_service_auth_unavailable")
+
     async with httpx.AsyncClient(timeout=timeout) as client:
         response = await client.post(
             url,
             json={"query": query, "variables": variables or {}},
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
         response.raise_for_status()
         return response.json()

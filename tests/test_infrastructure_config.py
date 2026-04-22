@@ -10,14 +10,18 @@ from pydantic import ValidationError
 from phlo.config_schema import InfrastructureConfig, ServiceConfig
 from phlo.infrastructure import (
     clear_config_cache,
+    get_authentication_config,
+    get_authentication_provider_config,
     get_capability_defaults_from_config,
     get_container_name,
     get_project_name_from_config,
+    get_regulated_config,
     get_service_config,
     load_infrastructure_config,
     load_project_config,
 )
 from phlo.infrastructure.config import get_api_authorization_config
+from phlo.security.mode import is_regulated, is_regulated_mode_enabled
 
 
 @pytest.fixture(autouse=True)
@@ -147,6 +151,75 @@ def test_get_api_authorization_config_ignores_non_mapping_service_auth(tmp_path:
     assert auth_config is not None
     assert auth_config.mode == "required"
     assert auth_config.backend is None
+
+
+def test_get_regulated_config_reads_root_boolean(tmp_path: Path) -> None:
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"regulated": True})
+
+    assert get_regulated_config(tmp_path) is True
+
+
+def test_get_regulated_config_rejects_non_boolean(tmp_path: Path) -> None:
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"regulated": "true"})
+
+    with pytest.raises(ValueError, match="regulated.*must be a boolean"):
+        get_regulated_config(tmp_path)
+
+
+def test_get_authentication_config_reads_root_mapping(tmp_path: Path) -> None:
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(
+        config_path,
+        {
+            "authentication": {
+                "provider": "proxy",
+                "proxy": {"trusted_proxies": ["127.0.0.1/32"]},
+            }
+        },
+    )
+
+    assert get_authentication_config(tmp_path) == {
+        "provider": "proxy",
+        "proxy": {"trusted_proxies": ["127.0.0.1/32"]},
+    }
+
+
+def test_get_authentication_config_rejects_non_mapping(tmp_path: Path) -> None:
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"authentication": True})
+
+    with pytest.raises(ValueError, match="authentication must be a mapping"):
+        get_authentication_config(tmp_path)
+
+
+def test_get_authentication_provider_config_reads_provider(tmp_path: Path) -> None:
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"authentication": {"provider": "proxy"}})
+
+    assert get_authentication_provider_config(tmp_path) == "proxy"
+
+
+def test_get_authentication_provider_config_rejects_non_string(tmp_path: Path) -> None:
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"authentication": {"provider": True}})
+
+    with pytest.raises(ValueError, match="authentication.provider must be a string"):
+        get_authentication_provider_config(tmp_path)
+
+
+def test_is_regulated_reads_phlo_yaml_when_env_unset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"regulated": True})
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.delenv("PHLO_REGULATED", raising=False)
+    clear_config_cache()
+
+    assert is_regulated() is True
 
 
 def test_infrastructure_config_pattern_validation():
@@ -402,3 +475,40 @@ def test_phlo_project_path_allows_explicit_absolute_path_outside_cwd(
     from phlo.infrastructure.config import _default_project_root
 
     assert _default_project_root() == project_root.resolve()
+
+
+def test_get_regulated_config_falls_back_to_regulated_mode_key(tmp_path: Path) -> None:
+    """get_regulated_config should fallback to regulated_mode key with deprecation warning."""
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"regulated_mode": True})
+
+    result = get_regulated_config(tmp_path)
+
+    assert result is True
+
+
+def test_get_regulated_config_prefers_regulated_over_regulated_mode(tmp_path: Path) -> None:
+    """get_regulated_config should prefer regulated key over regulated_mode."""
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"regulated": False, "regulated_mode": True})
+
+    result = get_regulated_config(tmp_path)
+
+    assert result is False
+
+
+def test_is_regulated_mode_enabled_alias_emits_deprecation_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Calling is_regulated_mode_enabled should emit DeprecationWarning."""
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"regulated": True})
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.delenv("PHLO_REGULATED", raising=False)
+    clear_config_cache()
+
+    with pytest.warns(DeprecationWarning, match="is_regulated_mode_enabled.*deprecated"):
+        result = is_regulated_mode_enabled()
+
+    assert result is True
