@@ -7,7 +7,7 @@ Categorizes services by regulatory boundary status:
 - INGRESS_OPTIONAL_SERVICES: optional surfaces protected by ingress + upstream APIs
   (hasura, postgrest, superset: use their own permission models, require ingress protection)
 - WRITE_RESTRICTED_SERVICES: ingress-optional surfaces that must be read-only in
-  regulated mode unless explicitly opted in via phlo.yaml surfaces.<name>.allow_writes
+  regulated mode unless explicitly opted in via phlo.yaml surfaces.{name}.allow_writes
 - UNSUPPORTED_SERVICES: blocked surfaces not suitable for regulated deployments
 - PENDING_ADAPTER_SERVICES: surfaces with adapters awaiting approval (currently empty)
 
