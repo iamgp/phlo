@@ -104,6 +104,7 @@ nav:
           - phlo-alerting: packages/phlo-alerting.md
       - API Layer:
           - phlo-api: packages/phlo-api.md
+          - phlo-mcp: packages/phlo-mcp.md
           - phlo-postgrest: packages/phlo-postgrest.md
           - phlo-hasura: packages/phlo-hasura.md
       - Data Catalog:

@@ -1,0 +1,47 @@
+"""CLI entrypoint for phlo-mcp."""
+
+from __future__ import annotations
+
+import argparse
+
+from phlo_mcp.config import McpConfig, config_from_env
+from phlo_mcp.server import create_server
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run the Phlo MCP server")
+    parser.add_argument(
+        "--transport",
+        choices=("stdio", "streamable-http"),
+        help="MCP transport to use (defaults to PHLO_MCP_TRANSPORT or stdio)",
+    )
+    parser.add_argument("--api-base-url", help="Base URL for the backing phlo-api instance")
+    parser.add_argument("--trace-file", help="Optional JSONL file to write local span events")
+    parser.add_argument("--host", help="Bind host for streamable-http transport")
+    parser.add_argument("--port", type=int, help="Bind port for streamable-http transport")
+    parser.add_argument("--path", help="HTTP path for streamable-http transport (default: /mcp)")
+    return parser
+
+
+def parse_args() -> McpConfig:
+    parser = build_parser()
+    args = parser.parse_args()
+    env_config = config_from_env()
+    return McpConfig(
+        api_base_url=(args.api_base_url or env_config.api_base_url).rstrip("/"),
+        trace_file=args.trace_file if args.trace_file is not None else env_config.trace_file,
+        transport=args.transport or env_config.transport,
+        host=args.host or env_config.host,
+        port=args.port or env_config.port,
+        streamable_http_path=args.path or env_config.streamable_http_path,
+    )
+
+
+def main() -> None:
+    config = parse_args()
+    server = create_server(config)
+    server.run(transport=config.transport)
+
+
+if __name__ == "__main__":
+    main()
