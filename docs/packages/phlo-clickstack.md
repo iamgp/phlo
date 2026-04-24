@@ -26,6 +26,7 @@ Part of the `observability` profile.
 | Port | Purpose |
 | --- | --- |
 | `8080` | ClickStack UI |
+| `8123` | ClickHouse HTTP query endpoint |
 | `4317` | OTLP gRPC ingest |
 | `4318` | OTLP HTTP ingest |
 | `9000` | ClickHouse native port |
@@ -36,6 +37,8 @@ Part of the `observability` profile.
 | --- | --- | --- |
 | `CLICKSTACK_IMAGE` | `docker.hyperdx.io/hyperdx/hyperdx-all-in-one` | Official ClickStack image |
 | `CLICKSTACK_PORT` | `8080` | ClickStack UI port |
+| `CLICKSTACK_HTTP_PORT` | `8123` | ClickHouse HTTP query port used by `phlo-api` trace endpoints |
+| `CLICKSTACK_QUERY_URL` | unset | Explicit ClickHouse HTTP query URL override for `phlo-api` |
 | `CLICKSTACK_OTLP_GRPC_PORT` | `4317` | OTLP gRPC ingest port |
 | `CLICKSTACK_OTLP_HTTP_PORT` | `4318` | OTLP HTTP ingest port |
 | `CLICKSTACK_NATIVE_PORT` | `9000` | ClickHouse native port |

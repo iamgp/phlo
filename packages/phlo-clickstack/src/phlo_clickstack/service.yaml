@@ -11,6 +11,7 @@ compose:
   user: "0"
   ports:
     - "${CLICKSTACK_PORT:-8080}:8080"
+    - "${CLICKSTACK_HTTP_PORT:-8123}:8123"
     - "${CLICKSTACK_OTLP_GRPC_PORT:-4317}:4317"
     - "${CLICKSTACK_OTLP_HTTP_PORT:-4318}:4318"
     - "${CLICKSTACK_NATIVE_PORT:-9000}:9000"
@@ -37,6 +38,9 @@ env_vars:
   CLICKSTACK_PORT:
     default: 8080
     description: ClickStack UI port
+  CLICKSTACK_HTTP_PORT:
+    default: 8123
+    description: ClickHouse HTTP query port used by phlo-api trace endpoints
   CLICKSTACK_OTLP_GRPC_PORT:
     default: 4317
     description: ClickStack OTLP gRPC ingest port

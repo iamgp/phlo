@@ -15,7 +15,9 @@ from phlo.capabilities import (
 )
 
 _CLICKSTACK_QUERY_URL_ENV = "CLICKSTACK_QUERY_URL"
-_DEFAULT_CLICKSTACK_QUERY_URL = "http://clickstack:8123"
+_CLICKSTACK_HTTP_PORT_ENV = "CLICKSTACK_HTTP_PORT"
+_DEFAULT_CLICKSTACK_HTTP_PORT = "8123"
+_CONTAINER_CLICKSTACK_QUERY_URL = f"http://clickstack:{_DEFAULT_CLICKSTACK_HTTP_PORT}"
 
 
 class ClickStackObservabilityBackend(DefaultObservabilityBackend):
@@ -53,7 +55,13 @@ FORMAT JSONEachRow
         return spans
 
     def _resolve_clickstack_query_url(self) -> str:
-        return os.environ.get(_CLICKSTACK_QUERY_URL_ENV, _DEFAULT_CLICKSTACK_QUERY_URL).rstrip("/")
+        query_url = os.environ.get(_CLICKSTACK_QUERY_URL_ENV)
+        if query_url:
+            return query_url.rstrip("/")
+        if _running_in_container():
+            return _CONTAINER_CLICKSTACK_QUERY_URL
+        port = os.environ.get(_CLICKSTACK_HTTP_PORT_ENV, _DEFAULT_CLICKSTACK_HTTP_PORT)
+        return f"http://127.0.0.1:{port}"
 
 
 def build_clickstack_observability_spec() -> ObservabilityBackendSpec:
@@ -77,3 +85,7 @@ def build_clickstack_observability_spec() -> ObservabilityBackendSpec:
 
 def _escape_clickhouse_string(value: str) -> str:
     return value.replace("\\", "\\\\").replace("'", "\\'")
+
+
+def _running_in_container() -> bool:
+    return os.path.exists("/.dockerenv")

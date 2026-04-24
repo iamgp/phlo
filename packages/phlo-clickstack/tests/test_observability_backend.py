@@ -24,6 +24,27 @@ def test_build_clickstack_observability_spec_uses_default_name() -> None:
     assert spec.support.supports_logs is True
 
 
+def test_clickstack_backend_defaults_to_host_http_port(monkeypatch) -> None:
+    monkeypatch.delenv("CLICKSTACK_QUERY_URL", raising=False)
+    monkeypatch.delenv("CLICKSTACK_HTTP_PORT", raising=False)
+    monkeypatch.setattr(
+        "phlo_clickstack.observability_backend._running_in_container", lambda: False
+    )
+
+    backend = ClickStackObservabilityBackend()
+
+    assert backend._resolve_clickstack_query_url() == "http://127.0.0.1:8123"
+
+
+def test_clickstack_backend_uses_container_url_in_container(monkeypatch) -> None:
+    monkeypatch.delenv("CLICKSTACK_QUERY_URL", raising=False)
+    monkeypatch.setattr("phlo_clickstack.observability_backend._running_in_container", lambda: True)
+
+    backend = ClickStackObservabilityBackend()
+
+    assert backend._resolve_clickstack_query_url() == "http://clickstack:8123"
+
+
 def test_clickstack_backend_queries_trace_spans(monkeypatch) -> None:
     captured: dict[str, str] = {}
 
