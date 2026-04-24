@@ -420,6 +420,23 @@ class DashboardLink:
     category: str | None = None
 
 
+@dataclass(frozen=True)
+class TraceSpan:
+    """Trace span row from an observability backend."""
+
+    timestamp: str
+    trace_id: str
+    span_id: str
+    parent_span_id: str | None = None
+    span_name: str = ""
+    service_name: str | None = None
+    span_kind: str | None = None
+    duration_ms: float | None = None
+    status_code: str | None = None
+    span_attributes: dict[str, Any] = field(default_factory=dict)
+    resource_attributes: dict[str, Any] = field(default_factory=dict)
+
+
 @runtime_checkable
 class ObservabilityBackend(Protocol):
     """Protocol for swappable observability backends (metrics, logs, dashboards)."""
@@ -450,6 +467,10 @@ class ObservabilityBackend(Protocol):
 
     def metrics_query_link(self, metric: str | None = None) -> str | None:
         """Return a link to query metrics, optionally filtered by metric."""
+        ...
+
+    def run_trace_spans(self, run_id: str, limit: int = 500) -> list[TraceSpan]:
+        """Return OTEL spans correlated to a run id when supported."""
         ...
 
 

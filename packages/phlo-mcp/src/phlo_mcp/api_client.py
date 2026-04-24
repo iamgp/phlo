@@ -33,6 +33,36 @@ class PhloApiClient:
     def get_dashboard_links(self) -> list[dict[str, Any]] | dict[str, Any]:
         return self._get_json("/api/observability/dashboards")
 
+    def get_run_logs(
+        self,
+        run_id: str,
+        *,
+        level: str | None = None,
+        limit: int = 200,
+    ) -> dict[str, Any] | list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit}
+        if level:
+            params["level"] = level
+        return self._get_json(f"/api/loki/runs/{run_id}", params=params)
+
+    def get_materialization_history(
+        self,
+        asset_key_path: str,
+        *,
+        limit: int = 10,
+    ) -> dict[str, Any] | list[dict[str, Any]]:
+        return self._get_json(
+            f"/api/dagster/assets/{asset_key_path}/history", params={"limit": limit}
+        )
+
+    def get_run_trace_spans(
+        self,
+        run_id: str,
+        *,
+        limit: int = 500,
+    ) -> dict[str, Any] | list[dict[str, Any]]:
+        return self._get_json(f"/api/observability/traces/runs/{run_id}", params={"limit": limit})
+
     def get_logs_query_link(self, service: str | None = None) -> dict[str, Any]:
         params = {"service": service} if service else None
         return self._get_json("/api/observability/links/logs", params=params)

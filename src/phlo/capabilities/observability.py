@@ -14,6 +14,7 @@ from phlo.capabilities.interfaces import (
     PlatformHealthSummary,
     PlatformMetricsSummary,
     ServiceStatus,
+    TraceSpan,
 )
 from phlo.capabilities.maintenance import DefaultMaintenanceReadModel
 from phlo.capabilities.registry import (
@@ -201,6 +202,14 @@ class DefaultObservabilityBackend:
         if metric:
             return f"{prometheus_url}{query_path}?g0.expr={metric}"
         return f"{prometheus_url}{query_path}"
+
+    def run_trace_spans(self, run_id: str, limit: int = 500) -> list[TraceSpan]:
+        """Return no trace spans by default.
+
+        Backend-specific packages such as phlo-clickstack can replace the default
+        observability backend with one that supports span queries.
+        """
+        return []
 
     def _resolve_clickstack_url(self) -> str | None:
         return _resolve_service_base_url(

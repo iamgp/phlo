@@ -9,6 +9,10 @@ from pathlib import Path
 from phlo_mcp.api_client import PhloApiClient
 from phlo_mcp.cli import parse_args
 from phlo_mcp.config import McpConfig
+from phlo_mcp.run_analysis import (
+    render_run_trace_tree as render_run_trace_tree_text,
+    summarize_run_logs,
+)
 from phlo_mcp.server import create_server
 from phlo_mcp.tracing import render_trace_tree
 
@@ -38,6 +42,52 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
             return _FakeResponse([{"title": "No alerts"}])
         if url.endswith("/dashboards"):
             return _FakeResponse([{"title": "ClickStack", "url": "http://example.test"}])
+        if "/api/loki/runs/" in url:
+            return _FakeResponse(
+                {
+                    "entries": [
+                        {
+                            "timestamp": "2026-01-01T00:00:00Z",
+                            "level": "info",
+                            "message": "materialization started",
+                            "metadata": {
+                                "service": "dagster",
+                                "asset_key": "silver/orders",
+                                "trace_id": "abc123",
+                            },
+                        }
+                    ],
+                    "has_more": False,
+                }
+            )
+        if "/api/observability/traces/runs/" in url:
+            return _FakeResponse(
+                [
+                    {
+                        "timestamp": "2026-01-01T00:00:00Z",
+                        "trace_id": "abc123",
+                        "span_id": "root",
+                        "parent_span_id": None,
+                        "span_name": "materialize_orders",
+                        "service_name": "dagster",
+                        "span_kind": "INTERNAL",
+                        "duration_ms": 12.5,
+                        "status_code": "STATUS_CODE_OK",
+                        "span_attributes": {
+                            "phlo.run_id": "run-123",
+                            "phlo.asset_key": "silver/orders",
+                            "phlo.stage": "materialize",
+                            "phlo.operation": "write",
+                        },
+                        "resource_attributes": {
+                            "service.name": "dagster",
+                            "service.version": "1.2.3",
+                        },
+                    }
+                ]
+            )
+        if "/api/dagster/assets/" in url and url.endswith("/history"):
+            return _FakeResponse([{"run_id": "run-123", "timestamp": "2026-01-01T00:00:00Z"}])
         if url.endswith("/links/logs"):
             return _FakeResponse({"url": "http://logs.test"})
         if url.endswith("/links/metrics"):
@@ -51,6 +101,9 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
     assert client.get_service_status()[0]["name"] == "observability"
     assert client.get_recent_alerts(limit=3)[0]["title"] == "No alerts"
     assert client.get_dashboard_links()[0]["title"] == "ClickStack"
+    assert client.get_run_logs("run-123")["entries"][0]["metadata"]["trace_id"] == "abc123"
+    assert client.get_run_trace_spans("run-123")[0]["span_id"] == "root"
+    assert client.get_materialization_history("silver/orders")[0]["run_id"] == "run-123"
     assert client.get_logs_query_link()["url"] == "http://logs.test"
     assert client.get_metrics_query_link()["url"] == "http://metrics.test"
     assert seen_urls[0] == "http://example.test/api/observability/health"
@@ -68,6 +121,13 @@ def test_create_server_registers_expected_tools() -> None:
         "get_dashboard_links",
         "get_logs_query_link",
         "get_metrics_query_link",
+        "get_materialization_history",
+        "get_run_logs",
+        "get_run_trace_spans",
+        "inspect_materialization",
+        "get_asset_materialization_trace",
+        "render_materialization_trace_tree",
+        "render_run_trace_tree",
     ]
 
 
@@ -94,6 +154,102 @@ def test_parse_args_overrides_env(monkeypatch) -> None:
     assert config.transport == "streamable-http"
     assert config.api_base_url == "http://cli.test:4100"
     assert config.port == 9000
+
+
+def test_run_analysis_helpers_render_materialization_view() -> None:
+    entries = [
+        {
+            "timestamp": "2026-01-01T00:00:00Z",
+            "level": "info",
+            "message": "materialization started",
+            "metadata": {"service": "dagster", "function": "step", "trace_id": "abc123"},
+        },
+        {
+            "timestamp": "2026-01-01T00:00:01Z",
+            "level": "info",
+            "message": "materialization completed",
+            "metadata": {"service": "dagster", "function": "step", "trace_id": "abc123"},
+        },
+    ]
+    spans = [
+        {
+            "timestamp": "2026-01-01T00:00:00Z",
+            "trace_id": "abc123",
+            "span_id": "root",
+            "parent_span_id": None,
+            "span_name": "materialize_orders",
+            "service_name": "dagster",
+            "span_kind": "INTERNAL",
+            "status_code": "STATUS_CODE_OK",
+            "duration_ms": 12.5,
+            "span_attributes": {
+                "phlo.asset_key": "silver/orders",
+                "phlo.stage": "materialize",
+                "phlo.operation": "write",
+            },
+            "resource_attributes": {"service.name": "dagster", "service.version": "1.2.3"},
+        },
+        {
+            "timestamp": "2026-01-01T00:00:01Z",
+            "trace_id": "abc123",
+            "span_id": "child",
+            "parent_span_id": "root",
+            "span_name": "write_output",
+            "service_name": "dagster",
+            "span_kind": "INTERNAL",
+            "status_code": "STATUS_CODE_OK",
+            "duration_ms": 3.0,
+            "span_attributes": {"phlo.stage": "materialize"},
+            "resource_attributes": {"service.name": "dagster"},
+        },
+    ]
+
+    summary = summarize_run_logs("run-123", entries)
+    tree = render_run_trace_tree_text("run-123", entries)
+    from phlo_mcp.run_analysis import render_span_tree
+
+    span_tree = render_span_tree("run-123", spans)
+
+    assert summary["trace_ids"] == ["abc123"]
+    assert summary["entry_count"] == 2
+    assert "Run run-123" in tree
+    assert "trace abc123" in tree
+    assert "materialization started" in tree
+    assert "materialize_orders [internal ok]" in span_tree
+    assert "write_output [internal ok]" in span_tree
+    assert "asset=silver/orders" in span_tree
+    assert "stage=materialize" in span_tree
+    assert "service.version=1.2.3" in span_tree
+
+
+def test_render_run_trace_tree_uses_most_recent_logs_with_limit() -> None:
+    entries = [
+        {
+            "timestamp": "2026-01-01T00:00:03Z",
+            "level": "error",
+            "message": "latest failure",
+            "metadata": {"service": "dagster"},
+        },
+        {
+            "timestamp": "2026-01-01T00:00:02Z",
+            "level": "warn",
+            "message": "latest warning",
+            "metadata": {"service": "dagster"},
+        },
+        {
+            "timestamp": "2026-01-01T00:00:01Z",
+            "level": "info",
+            "message": "older info",
+            "metadata": {"service": "dagster"},
+        },
+    ]
+
+    tree = render_run_trace_tree_text("run-123", entries, limit=2)
+
+    assert "latest failure" in tree
+    assert "latest warning" in tree
+    assert "older info" not in tree
+    assert tree.index("latest warning") < tree.index("latest failure")
 
 
 def test_render_trace_tree_formats_tree(tmp_path: Path) -> None:

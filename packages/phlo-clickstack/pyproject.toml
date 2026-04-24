@@ -25,6 +25,9 @@ clickstack = "phlo_clickstack.cli_plugin:ClickStackCliPlugin"
 [project.entry-points."phlo.plugins.services"]
 clickstack = "phlo_clickstack.plugin:ClickStackServicePlugin"
 
+[project.entry-points."phlo.plugins.resources"]
+clickstack = "phlo_clickstack.resource_provider:ClickStackResourceProvider"
+
 [project.license]
 text = "MIT"
 

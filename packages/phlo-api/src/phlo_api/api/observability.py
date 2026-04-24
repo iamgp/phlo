@@ -46,7 +46,7 @@ import os
 from typing import Any
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from phlo.capabilities import list_capabilities, resolve_capability
 from phlo.capabilities.discovery import discover_capabilities
@@ -128,6 +128,22 @@ class DashboardLinkResponse(BaseModel):
     title: str
     url: str
     category: str | None = None
+
+
+class TraceSpanResponse(BaseModel):
+    """Serialized OTEL trace span row."""
+
+    timestamp: str
+    trace_id: str
+    span_id: str
+    parent_span_id: str | None = None
+    span_name: str
+    service_name: str | None = None
+    span_kind: str | None = None
+    duration_ms: float | None = None
+    status_code: str | None = None
+    span_attributes: dict[str, Any] = Field(default_factory=dict)
+    resource_attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 @router.get("/health", response_model=HealthSummaryResponse | dict)
@@ -340,4 +356,20 @@ def get_metrics_query_link(
         return {"url": link}
     except Exception as exc:
         logger.exception("metrics_query_link_failed")
+        return {"error": str(exc)}
+
+
+@router.get("/traces/runs/{run_id}", response_model=list[TraceSpanResponse] | dict)
+async def get_run_trace_spans(
+    run_id: str,
+    limit: int = Query(default=500, le=5000),
+    backend: str | None = Query(default=None, description="Observability backend name"),
+) -> list[TraceSpanResponse] | dict[str, str]:
+    """Get OTEL spans correlated to a run id from the observability backend."""
+    try:
+        provider = _resolve_observability_backend(backend)
+        spans = provider.run_trace_spans(run_id, limit=limit)
+        return [TraceSpanResponse(**span.__dict__) for span in spans]
+    except Exception as exc:
+        logger.exception("run_trace_spans_load_failed", run_id=run_id)
         return {"error": str(exc)}
