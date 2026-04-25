@@ -360,7 +360,7 @@ def get_metrics_query_link(
 
 
 @router.get("/traces/runs/{run_id}", response_model=list[TraceSpanResponse] | dict)
-async def get_run_trace_spans(
+def get_run_trace_spans(
     run_id: str,
     limit: int = Query(default=500, le=5000),
     backend: str | None = Query(default=None, description="Observability backend name"),

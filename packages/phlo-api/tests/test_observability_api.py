@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timezone
 
 import pytest
@@ -254,7 +253,7 @@ def test_get_run_trace_spans_uses_observability_backend(monkeypatch) -> None:
         lambda backend=None: _TraceBackend(),
     )
 
-    payload = asyncio.run(observability.get_run_trace_spans("run-123", limit=500))
+    payload = observability.get_run_trace_spans("run-123", limit=500)
 
     assert isinstance(payload, list)
     assert payload[0].trace_id == "abc123"
