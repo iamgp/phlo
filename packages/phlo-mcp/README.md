@@ -100,3 +100,21 @@ Optional local span capture:
 ```bash
 phlo-mcp --trace-file .phlo/phlo-mcp-trace.jsonl
 ```
+
+## Live stack smoke
+
+Run the MCP smoke against live `phlo-api`, Dagster, and ClickStack services:
+
+```bash
+uv run python packages/phlo-mcp/tests/smoke_stack.py
+```
+
+Use real data assertions when you have a known run or asset:
+
+```bash
+uv run python packages/phlo-mcp/tests/smoke_stack.py \
+  --run-id abc-123 \
+  --require-run-spans \
+  --asset-key silver/orders \
+  --require-materialization
+```

@@ -1,7 +1,7 @@
 ---
 title: "test: Add phlo-mcp end-to-end smoke coverage"
 type: plan
-status: planned
+status: completed
 date: 2026-04-25
 origin: PR-468-follow-up
 ---
@@ -37,3 +37,11 @@ Unit tests verify tool registration and client wrapping, but not the full `phlo-
 ```bash
 uv run pytest packages/phlo-mcp/tests -m integration -q
 ```
+
+## Outcome
+
+Implemented as `packages/phlo-mcp/tests/smoke_stack.py` with a pytest integration
+wrapper at `packages/phlo-mcp/tests/test_stack_smoke.py`. The smoke validates live
+`phlo-api`, Dagster connectivity, ClickStack trace-table queries, MCP stdio tool
+registration, and representative MCP tool calls. Strict run-span and materialization
+assertions can be enabled with `--require-run-spans` and `--require-materialization`.
