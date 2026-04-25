@@ -53,6 +53,14 @@ Run the MCP server over stdio:
 phlo-mcp --api-base-url http://127.0.0.1:4000
 ```
 
+For protected `phlo-api` instances, provide a bearer token:
+
+```bash
+phlo-mcp \
+  --api-base-url http://127.0.0.1:4000 \
+  --api-token "$PHLO_API_TOKEN"
+```
+
 Claude Code example:
 
 ```json

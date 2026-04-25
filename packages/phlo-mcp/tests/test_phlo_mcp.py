@@ -30,9 +30,11 @@ class _FakeResponse:
 
 def test_api_client_wraps_observability_routes(monkeypatch) -> None:
     seen_urls: list[str] = []
+    seen_headers: list[dict[str, str]] = []
 
-    def fake_get(url: str, params=None, timeout=10.0):  # noqa: ANN001
+    def fake_get(url: str, params=None, headers=None, timeout=10.0):  # noqa: ANN001
         seen_urls.append(url)
+        seen_headers.append(headers or {})
         if url.endswith("/health"):
             return _FakeResponse({"overall_status": "healthy"})
         if url.endswith("/services"):
@@ -107,6 +109,21 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
     assert client.get_logs_query_link()["url"] == "http://logs.test"
     assert client.get_metrics_query_link()["url"] == "http://metrics.test"
     assert seen_urls[0] == "http://example.test/api/observability/health"
+    assert seen_headers[0] == {}
+
+
+def test_api_client_adds_bearer_token_header(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_get(url: str, params=None, headers=None, timeout=10.0):  # noqa: ANN001
+        captured["headers"] = headers
+        return _FakeResponse({"overall_status": "healthy"})
+
+    monkeypatch.setattr("phlo_mcp.api_client.httpx.get", fake_get)
+    client = PhloApiClient(McpConfig(api_base_url="http://example.test", api_token="secret"))
+
+    assert client.get_platform_health()["overall_status"] == "healthy"
+    assert captured["headers"] == {"Authorization": "Bearer secret"}
 
 
 def test_create_server_registers_expected_tools() -> None:
@@ -133,6 +150,7 @@ def test_create_server_registers_expected_tools() -> None:
 
 def test_parse_args_overrides_env(monkeypatch) -> None:
     monkeypatch.setenv("PHLO_MCP_API_BASE_URL", "http://env.test:4000")
+    monkeypatch.setenv("PHLO_MCP_API_TOKEN", "env-token")
     monkeypatch.setenv("PHLO_MCP_TRANSPORT", "stdio")
     monkeypatch.setenv("PHLO_MCP_PORT", "8000")
     monkeypatch.setattr(
@@ -144,6 +162,8 @@ def test_parse_args_overrides_env(monkeypatch) -> None:
             "streamable-http",
             "--api-base-url",
             "http://cli.test:4100",
+            "--api-token",
+            "cli-token",
             "--port",
             "9000",
         ],
@@ -153,6 +173,7 @@ def test_parse_args_overrides_env(monkeypatch) -> None:
 
     assert config.transport == "streamable-http"
     assert config.api_base_url == "http://cli.test:4100"
+    assert config.api_token == "cli-token"
     assert config.port == 9000
 
 

@@ -21,6 +21,12 @@ class PhloApiClient:
     def api_base_url(self) -> str:
         return self._config.api_base_url
 
+    @property
+    def headers(self) -> dict[str, str]:
+        if self._config.api_token:
+            return {"Authorization": f"Bearer {self._config.api_token}"}
+        return {}
+
     def get_platform_health(self) -> dict[str, Any]:
         return self._get_json("/api/observability/health")
 
@@ -85,6 +91,6 @@ class PhloApiClient:
                 "url.full": url,
             },
         ):
-            response = httpx.get(url, params=params, timeout=10.0)
+            response = httpx.get(url, params=params, headers=self.headers, timeout=10.0)
             response.raise_for_status()
             return response.json()

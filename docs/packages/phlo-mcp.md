@@ -50,6 +50,7 @@ When real spans are available, rendered trees include:
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PHLO_MCP_API_BASE_URL` | `http://127.0.0.1:4000` | Base URL for the backing `phlo-api` instance |
+| `PHLO_MCP_API_TOKEN` | unset | Bearer token for authenticated `phlo-api` requests |
 | `PHLO_MCP_TRANSPORT` | `stdio` | MCP transport (`stdio` or `streamable-http`) |
 | `PHLO_MCP_HOST` | `127.0.0.1` | Bind host for streamable HTTP transport |
 | `PHLO_MCP_PORT` | `8000` | Bind port for streamable HTTP transport |
@@ -68,6 +69,14 @@ Run the MCP server over stdio:
 
 ```bash
 phlo-mcp --api-base-url http://127.0.0.1:4000
+```
+
+For protected `phlo-api` instances, pass a bearer token:
+
+```bash
+phlo-mcp \
+  --api-base-url http://127.0.0.1:4000 \
+  --api-token "$PHLO_API_TOKEN"
 ```
 
 Claude Code config example:

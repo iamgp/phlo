@@ -16,6 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="MCP transport to use (defaults to PHLO_MCP_TRANSPORT or stdio)",
     )
     parser.add_argument("--api-base-url", help="Base URL for the backing phlo-api instance")
+    parser.add_argument("--api-token", help="Bearer token for authenticated phlo-api requests")
     parser.add_argument("--trace-file", help="Optional JSONL file to write local span events")
     parser.add_argument("--host", help="Bind host for streamable-http transport")
     parser.add_argument("--port", type=int, help="Bind port for streamable-http transport")
@@ -29,6 +30,7 @@ def parse_args() -> McpConfig:
     env_config = config_from_env()
     return McpConfig(
         api_base_url=(args.api_base_url or env_config.api_base_url).rstrip("/"),
+        api_token=args.api_token if args.api_token is not None else env_config.api_token,
         trace_file=args.trace_file if args.trace_file is not None else env_config.trace_file,
         transport=args.transport or env_config.transport,
         host=args.host or env_config.host,
