@@ -39,6 +39,8 @@ Part of the `observability` profile.
 | `CLICKSTACK_PORT` | `8080` | ClickStack UI port |
 | `CLICKSTACK_HTTP_PORT` | `8123` | ClickHouse HTTP query port used by `phlo-api` trace endpoints |
 | `CLICKSTACK_QUERY_URL` | unset | Explicit ClickHouse HTTP query URL override for `phlo-api` |
+| `CLICKSTACK_QUERY_USER` | unset | Optional ClickHouse HTTP query username for `phlo-api` |
+| `CLICKSTACK_QUERY_PASSWORD` | unset | Optional ClickHouse HTTP query password for `phlo-api` |
 | `CLICKSTACK_OTLP_GRPC_PORT` | `4317` | OTLP gRPC ingest port |
 | `CLICKSTACK_OTLP_HTTP_PORT` | `4318` | OTLP HTTP ingest port |
 | `CLICKSTACK_NATIVE_PORT` | `9000` | ClickHouse native port |

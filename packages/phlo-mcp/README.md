@@ -109,6 +109,10 @@ Run the MCP smoke against live `phlo-api`, Dagster, and ClickStack services:
 uv run python packages/phlo-mcp/tests/smoke_stack.py
 ```
 
+When ClickStack requires HTTP credentials, pass them to the smoke script and to
+the `phlo-api` process as `CLICKSTACK_QUERY_USER` and
+`CLICKSTACK_QUERY_PASSWORD`.
+
 Use real data assertions when you have a known run or asset:
 
 ```bash

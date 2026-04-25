@@ -15,6 +15,8 @@ from phlo.capabilities import (
 )
 
 _CLICKSTACK_QUERY_URL_ENV = "CLICKSTACK_QUERY_URL"
+_CLICKSTACK_QUERY_USER_ENV = "CLICKSTACK_QUERY_USER"
+_CLICKSTACK_QUERY_PASSWORD_ENV = "CLICKSTACK_QUERY_PASSWORD"
 _CLICKSTACK_HTTP_PORT_ENV = "CLICKSTACK_HTTP_PORT"
 _DEFAULT_CLICKSTACK_HTTP_PORT = "8123"
 _CONTAINER_CLICKSTACK_QUERY_URL = f"http://clickstack:{_DEFAULT_CLICKSTACK_HTTP_PORT}"
@@ -45,7 +47,12 @@ ORDER BY Timestamp ASC
 LIMIT {limit}
 FORMAT JSONEachRow
 """.strip()
-        response = requests.post(query_url, data=query.encode("utf-8"), timeout=10)
+        response = requests.post(
+            query_url,
+            data=query.encode("utf-8"),
+            auth=self._resolve_clickstack_query_auth(),
+            timeout=10,
+        )
         response.raise_for_status()
         spans: list[TraceSpan] = []
         for line in response.text.splitlines():
@@ -62,6 +69,13 @@ FORMAT JSONEachRow
             return _CONTAINER_CLICKSTACK_QUERY_URL
         port = os.environ.get(_CLICKSTACK_HTTP_PORT_ENV, _DEFAULT_CLICKSTACK_HTTP_PORT)
         return f"http://127.0.0.1:{port}"
+
+    def _resolve_clickstack_query_auth(self) -> tuple[str, str] | None:
+        user = os.environ.get(_CLICKSTACK_QUERY_USER_ENV)
+        password = os.environ.get(_CLICKSTACK_QUERY_PASSWORD_ENV)
+        if user is None:
+            return None
+        return (user, password or "")
 
 
 def build_clickstack_observability_spec() -> ObservabilityBackendSpec:

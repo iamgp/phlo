@@ -77,6 +77,16 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         help="ClickStack ClickHouse HTTP query URL reachable from this host",
     )
     parser.add_argument(
+        "--clickstack-query-user",
+        default=os.environ.get("PHLO_MCP_SMOKE_CLICKSTACK_QUERY_USER"),
+        help="Optional ClickStack ClickHouse HTTP query user",
+    )
+    parser.add_argument(
+        "--clickstack-query-password",
+        default=os.environ.get("PHLO_MCP_SMOKE_CLICKSTACK_QUERY_PASSWORD", ""),
+        help="Optional ClickStack ClickHouse HTTP query password",
+    )
+    parser.add_argument(
         "--api-token",
         default=os.environ.get("PHLO_MCP_SMOKE_API_TOKEN"),
         help="Optional bearer token for protected phlo-api instances",
@@ -186,12 +196,12 @@ def _check_phlo_api(args: argparse.Namespace) -> None:
 
 
 def _check_clickstack(args: argparse.Namespace) -> None:
-    exists = _clickstack_query(args.clickstack_query_url, "EXISTS TABLE default.otel_traces")
+    exists = _clickstack_query(args, "EXISTS TABLE default.otel_traces")
     if not exists or exists[0].get("result") != 1:
         raise SmokeFailure("ClickStack default.otel_traces table is missing")
 
     count = _clickstack_query(
-        args.clickstack_query_url,
+        args,
         "SELECT count() AS count FROM default.otel_traces",
     )
     if not count or "count" not in count[0]:
@@ -199,14 +209,22 @@ def _check_clickstack(args: argparse.Namespace) -> None:
     print(f"ClickStack default.otel_traces rows: {count[0]['count']}")
 
 
-def _clickstack_query(query_url: str, query: str) -> list[dict[str, Any]]:
+def _clickstack_query(args: argparse.Namespace, query: str) -> list[dict[str, Any]]:
     response = httpx.post(
-        query_url.rstrip("/"),
+        args.clickstack_query_url.rstrip("/"),
         content=f"{query} FORMAT JSONEachRow".encode("utf-8"),
+        auth=_clickstack_auth(args),
         timeout=20,
     )
     response.raise_for_status()
     return [json.loads(line) for line in response.text.splitlines() if line.strip()]
+
+
+def _clickstack_auth(args: argparse.Namespace) -> tuple[str, str] | None:
+    user = args.clickstack_query_user
+    if user is None:
+        return None
+    return (user, args.clickstack_query_password)
 
 
 async def _check_mcp_stdio(args: argparse.Namespace, repo_root: Path) -> None:

@@ -9,6 +9,8 @@ image: ${CLICKSTACK_IMAGE:-docker.hyperdx.io/hyperdx/hyperdx-all-in-one}
 compose:
   restart: unless-stopped
   user: "0"
+  environment:
+    FRONTEND_URL: ${CLICKSTACK_PUBLIC_URL:-}
   ports:
     - "${CLICKSTACK_PORT:-8080}:8080"
     - "${CLICKSTACK_HTTP_PORT:-8123}:8123"

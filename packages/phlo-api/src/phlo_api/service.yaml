@@ -22,6 +22,9 @@ compose:
         HOST: 0.0.0.0
         PORT: 4000
         PYTHONUNBUFFERED: "1"
+        CLICKSTACK_QUERY_URL: ${CLICKSTACK_QUERY_URL:-}
+        CLICKSTACK_QUERY_USER: ${CLICKSTACK_QUERY_USER:-}
+        CLICKSTACK_QUERY_PASSWORD: ${CLICKSTACK_QUERY_PASSWORD:-}
     ports:
         - "${PHLO_API_PORT:-4000}:4000"
     healthcheck:
@@ -63,5 +66,8 @@ dev:
         TRINO_URL: "http://127.0.0.1:${TRINO_PORT:-8080}"
         TRINO_USER: ${PHLO_API_TRINO_USER:-phlo-api}
         TRINO_ROLE: ${PHLO_API_TRINO_ROLE:-}
+        CLICKSTACK_QUERY_URL: ${CLICKSTACK_QUERY_URL:-}
+        CLICKSTACK_QUERY_USER: ${CLICKSTACK_QUERY_USER:-}
+        CLICKSTACK_QUERY_PASSWORD: ${CLICKSTACK_QUERY_PASSWORD:-}
     health_check: "http://127.0.0.1:4000/health"
     cwd: "{project_root}"
