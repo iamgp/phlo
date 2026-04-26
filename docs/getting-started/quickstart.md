@@ -17,6 +17,20 @@ A simple glucose data ingestion pipeline that:
 - 10 minutes
 - Text editor
 
+### Choose a starter template
+
+List available project templates:
+
+```bash
+phlo init --list-templates
+```
+
+For a local file-backed first pipeline, use:
+
+```bash
+phlo init my-project --template csv-batch
+```
+
 ## Step 1: Clone and Setup (2 minutes)
 
 ```bash
