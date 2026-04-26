@@ -102,13 +102,19 @@ def render_span_tree(run_id: str, spans: list[dict[str, Any]]) -> str:
     for trace_index, trace_id in enumerate(trace_ids):
         trace_spans = spans_by_trace[trace_id]
         children: dict[str | None, list[dict[str, Any]]] = defaultdict(list)
+        span_ids = {span.get("span_id") for span in trace_spans if span.get("span_id")}
         for span in trace_spans:
             parent_id = span.get("parent_span_id") or None
             children[parent_id].append(span)
         for child_list in children.values():
             child_list.sort(key=lambda item: item.get("timestamp") or "")
 
-        roots = children.get(None, [])
+        roots = [
+            span
+            for span in trace_spans
+            if not span.get("parent_span_id") or span.get("parent_span_id") not in span_ids
+        ]
+        roots.sort(key=lambda item: item.get("timestamp") or "")
         trace_prefix = "└─" if trace_index == len(trace_ids) - 1 else "├─"
         lines.append(f"{trace_prefix} trace {trace_id[:16]}")
         child_prefix = "   " if trace_index == len(trace_ids) - 1 else "│  "

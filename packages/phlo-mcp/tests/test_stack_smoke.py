@@ -37,6 +37,28 @@ def test_smoke_stack_project_root_argument() -> None:
     assert args.project_root == "/tmp/phlo-mcp-smoke"
 
 
+def test_smoke_stack_env_avoids_default_port_conflicts(monkeypatch) -> None:
+    monkeypatch.delenv("MINIO_API_PORT", raising=False)
+    monkeypatch.delenv("MINIO_CONSOLE_PORT", raising=False)
+    monkeypatch.delenv("CLICKSTACK_NATIVE_PORT", raising=False)
+
+    env = smoke_stack._smoke_stack_env()
+
+    assert env["MINIO_API_PORT"] == "19000"
+    assert env["MINIO_CONSOLE_PORT"] == "19001"
+    assert env["CLICKSTACK_NATIVE_PORT"] == "19002"
+
+
+def test_smoke_stack_env_respects_user_port_overrides(monkeypatch) -> None:
+    monkeypatch.setenv("MINIO_API_PORT", "29000")
+    monkeypatch.setenv("CLICKSTACK_NATIVE_PORT", "29002")
+
+    env = smoke_stack._smoke_stack_env()
+
+    assert env["MINIO_API_PORT"] == "29000"
+    assert env["CLICKSTACK_NATIVE_PORT"] == "29002"
+
+
 def test_live_stack_smoke_script() -> None:
     if os.environ.get("PHLO_MCP_STACK_SMOKE", "").lower() not in {"1", "true", "yes", "on"}:
         pytest.skip("set PHLO_MCP_STACK_SMOKE=1 to run the live stack smoke test")

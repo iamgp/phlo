@@ -458,6 +458,33 @@ def test_run_analysis_helpers_render_materialization_view() -> None:
     assert "service.version=1.2.3" in span_tree
 
 
+def test_render_span_tree_renders_orphaned_filtered_spans() -> None:
+    from phlo_mcp.run_analysis import render_span_tree
+
+    tree = render_span_tree(
+        "filtered traces",
+        [
+            {
+                "timestamp": "2026-01-01T00:00:01Z",
+                "trace_id": "abc123",
+                "span_id": "child",
+                "parent_span_id": "missing-parent",
+                "span_name": "write_output",
+                "service_name": "dagster",
+                "span_kind": "INTERNAL",
+                "status_code": "STATUS_CODE_ERROR",
+                "duration_ms": 3.0,
+                "span_attributes": {"phlo.stage": "materialize"},
+                "resource_attributes": {"service.name": "dagster"},
+            }
+        ],
+    )
+
+    assert "trace abc123" in tree
+    assert "write_output [internal error]" in tree
+    assert "stage=materialize" in tree
+
+
 def test_render_run_trace_tree_uses_most_recent_logs_with_limit() -> None:
     entries = [
         {

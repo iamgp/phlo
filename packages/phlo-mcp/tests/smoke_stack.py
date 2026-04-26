@@ -184,6 +184,7 @@ def _start_stack(project_root: Path) -> None:
     project_root.mkdir(parents=True, exist_ok=True)
     phlo_dir = project_root / ".phlo"
     compose_file = phlo_dir / "docker-compose.yml"
+    env = _smoke_stack_env()
     if not compose_file.exists():
         _run(
             [
@@ -197,6 +198,7 @@ def _start_stack(project_root: Path) -> None:
                 "--force",
             ],
             project_root,
+            env=env,
         )
     _run(
         [
@@ -212,11 +214,27 @@ def _start_stack(project_root: Path) -> None:
             "--native",
         ],
         project_root,
+        env=env,
     )
 
 
-def _run(command: list[str], cwd: Path) -> None:
-    result = subprocess.run(command, cwd=cwd, text=True, capture_output=True, timeout=600)
+def _smoke_stack_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env.setdefault("MINIO_API_PORT", "19000")
+    env.setdefault("MINIO_CONSOLE_PORT", "19001")
+    env.setdefault("CLICKSTACK_NATIVE_PORT", "19002")
+    return env
+
+
+def _run(command: list[str], cwd: Path, *, env: dict[str, str] | None = None) -> None:
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        text=True,
+        capture_output=True,
+        timeout=600,
+        env=env,
+    )
     if result.returncode != 0:
         raise SmokeFailure(
             f"{' '.join(command)} failed with exit {result.returncode}\n{result.stderr}"
