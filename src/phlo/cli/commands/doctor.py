@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager, redirect_stdout
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -452,7 +452,7 @@ def run_diagnostics(*, verbose: bool = False) -> list[DiagnosticResult]:
 @contextmanager
 def _silence_stdout() -> Iterator[None]:
     saved_stdout_fd: int | None = None
-    saved_handler_streams: list[tuple[logging.Handler, Any]] = []
+    saved_handler_streams: list[tuple[Callable[[Any], Any], Any]] = []
     with Path(os.devnull).open("w") as devnull, StringIO() as stdout_buffer:
         try:
             saved_stdout_fd = os.dup(1)
@@ -462,17 +462,18 @@ def _silence_stdout() -> Iterator[None]:
 
         for handler in logging.getLogger().handlers:
             stream = getattr(handler, "stream", None)
-            if stream is None or not hasattr(handler, "setStream"):
+            set_stream = getattr(handler, "setStream", None)
+            if stream is None or not callable(set_stream):
                 continue
-            saved_handler_streams.append((handler, stream))
-            handler.setStream(devnull)
+            saved_handler_streams.append((set_stream, stream))
+            set_stream(devnull)
 
         try:
             with redirect_stdout(stdout_buffer):
                 yield
         finally:
-            for handler, stream in saved_handler_streams:
-                handler.setStream(stream)
+            for set_stream, stream in saved_handler_streams:
+                set_stream(stream)
             if saved_stdout_fd is not None:
                 os.dup2(saved_stdout_fd, 1)
                 os.close(saved_stdout_fd)
