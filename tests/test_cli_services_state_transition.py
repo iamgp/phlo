@@ -100,7 +100,7 @@ def test_services_state_transition_remove_add_list_start_flow(
     monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
     monkeypatch.setattr(start_module, "get_profile_service_names", lambda _profiles: ["prometheus"])
     monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
-    monkeypatch.setattr(start_module, "require_docker", lambda: None)
+    monkeypatch.setattr(start_module, "require_container_backend", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(start_module, "run_command", _fake_run_command)
     monkeypatch.setattr(
         start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
@@ -201,8 +201,8 @@ def test_services_start_profile_rejects_disabled_only_targets(
     monkeypatch.setattr(start_module, "get_profile_service_names", lambda _profiles: ["prometheus"])
     monkeypatch.setattr(
         start_module,
-        "require_docker",
-        lambda: docker_checks.append(True),
+        "require_container_backend",
+        lambda *_args, **_kwargs: docker_checks.append(True),
     )
     monkeypatch.setattr(start_module, "run_command", _record_run_command)
 

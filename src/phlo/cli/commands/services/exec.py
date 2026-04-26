@@ -6,7 +6,7 @@ import subprocess
 
 import click
 
-from phlo.cli.commands.services.utils import ensure_phlo_dir, require_docker
+from phlo.cli.commands.services.utils import ensure_phlo_dir, require_container_backend
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
@@ -18,7 +18,19 @@ logger = get_logger(__name__)
 @click.argument("service_name")
 @click.argument("command", nargs=-1, type=click.UNPROCESSED)
 @click.option("--tty/--no-tty", default=False, show_default=True, help="Allocate a TTY.")
-def exec_cmd(service_name: str, command: tuple[str, ...], tty: bool) -> None:
+@click.option(
+    "--backend",
+    "backend_name",
+    type=click.Choice(["docker", "podman", "auto"]),
+    default=None,
+    help="Container backend for this command.",
+)
+def exec_cmd(
+    service_name: str,
+    command: tuple[str, ...],
+    tty: bool,
+    backend_name: str | None,
+) -> None:
     """Run a command inside a running Phlo service container.
 
     Examples:
@@ -29,7 +41,7 @@ def exec_cmd(service_name: str, command: tuple[str, ...], tty: bool) -> None:
     if not command:
         raise click.ClickException("Provide a command after `--`.")
 
-    require_docker()
+    require_container_backend(backend_name)
     phlo_dir = ensure_phlo_dir()
     project_name = get_project_name()
     logger.info(
@@ -40,7 +52,11 @@ def exec_cmd(service_name: str, command: tuple[str, ...], tty: bool) -> None:
         command=list(command),
     )
 
-    cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
+    cmd = compose_base_cmd(
+        phlo_dir=phlo_dir,
+        project_name=project_name,
+        backend_name=backend_name,
+    )
     cmd.append("exec")
     if not tty:
         cmd.append("-T")

@@ -54,7 +54,7 @@ def test_services_start_invalid_profile_error_contract(
     monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
     monkeypatch.setattr(common_module, "ServiceDiscovery", FakeDiscovery)
     monkeypatch.setattr(start_module, "run_command", _unexpected_call)
-    monkeypatch.setattr(start_module, "require_docker", _unexpected_call)
+    monkeypatch.setattr(start_module, "require_container_backend", _unexpected_call)
 
     result = CliRunner().invoke(start_module.start_cmd, ["--profile", "not-a-profile"])
 
