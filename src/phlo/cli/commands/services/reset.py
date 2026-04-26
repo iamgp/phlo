@@ -6,7 +6,7 @@ from pathlib import Path
 import click
 
 from phlo.cli.commands.services.common import parse_service_args, run_compose
-from phlo.cli.commands.services.utils import ensure_phlo_dir, require_docker
+from phlo.cli.commands.services.utils import ensure_phlo_dir, require_container_backend
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
@@ -26,7 +26,14 @@ logger = get_logger(__name__)
     is_flag=True,
     help="Skip confirmation prompt",
 )
-def reset_cmd(service: tuple[str, ...], yes: bool):
+@click.option(
+    "--backend",
+    "backend_name",
+    type=click.Choice(["docker", "podman", "auto"]),
+    default=None,
+    help="Container backend for this command.",
+)
+def reset_cmd(service: tuple[str, ...], yes: bool, backend_name: str | None):
     """Reset Phlo infrastructure by stopping services and deleting volumes.
 
     This stops all services and removes their data volumes for a clean slate.
@@ -38,7 +45,7 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
         phlo services reset --service postgres,minio  # Reset multiple
         phlo services reset -y                   # Skip confirmation
     """
-    require_docker()
+    require_container_backend(backend_name)
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"
     project_name = get_project_name()
@@ -102,7 +109,11 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
     if services_list:
         # Stop and remove only specific services
         click.echo(f"Stopping services: {', '.join(services_list)}...")
-        cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
+        cmd = compose_base_cmd(
+            phlo_dir=phlo_dir,
+            project_name=project_name,
+            backend_name=backend_name,
+        )
         cmd.extend(
             [
                 "rm",
@@ -115,7 +126,11 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
     else:
         # Stop all services
         click.echo(f"Stopping {project_name} infrastructure...")
-        cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
+        cmd = compose_base_cmd(
+            phlo_dir=phlo_dir,
+            project_name=project_name,
+            backend_name=backend_name,
+        )
         cmd.extend(
             [
                 "down",
@@ -139,7 +154,8 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
             service_count=len(services_list),
         )
         click.echo(
-            f"Warning: docker compose command failed with code {result.returncode}", err=True
+            f"Warning: container compose command failed with code {result.returncode}",
+            err=True,
         )
         click.echo(f"Command: {' '.join(cmd)}", err=True)
     else:

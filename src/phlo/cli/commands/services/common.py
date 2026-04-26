@@ -63,17 +63,18 @@ def run_compose(
     check: bool = False,
     capture_output: bool = False,
 ) -> subprocess.CompletedProcess:
-    """Run a docker-compose command with standardized error handling.
+    """Run a compose command with standardized error handling.
 
     Raises click.ClickException on FileNotFoundError, TimeoutExpired, or OSError.
     """
     try:
         return run_command(cmd, check=check, capture_output=capture_output)
     except FileNotFoundError:
+        backend = cmd[0] if cmd else "container"
         raise click.ClickException(
-            "docker command not found. Install Docker: https://docs.docker.com/get-docker/"
+            f"{backend} command not found. Install or configure the selected container backend."
         ) from None
     except TimeoutExpired as exc:
-        raise click.ClickException(f"docker compose timed out: {' '.join(cmd)}") from exc
+        raise click.ClickException(f"container compose timed out: {' '.join(cmd)}") from exc
     except OSError as exc:
-        raise click.ClickException(f"docker compose failed unexpectedly: {exc}") from exc
+        raise click.ClickException(f"container compose failed unexpectedly: {exc}") from exc

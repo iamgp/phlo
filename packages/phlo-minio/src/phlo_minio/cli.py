@@ -2,7 +2,7 @@
 
 This module provides Click-based CLI commands for interacting with MinIO,
 including listing buckets/objects and retrieving admin information. All
-commands execute inside the MinIO Docker container using the mc (MinIO Client).
+commands execute inside the MinIO container backend container using the mc (MinIO Client).
 
 Examples:
     List all buckets:
@@ -15,7 +15,7 @@ Examples:
         $ phlo minio admin info --json
 
 Note:
-    All commands require Docker to be running and the MinIO service
+    All commands require container backend to be running and the MinIO service
     to be available.
 
 """
@@ -23,39 +23,22 @@ Note:
 from __future__ import annotations
 
 import subprocess
-from shutil import which
 from subprocess import TimeoutExpired
 
 import click
 
-from phlo.cli.commands.services.utils import ensure_phlo_dir
+from phlo.cli.commands.services.utils import (
+    ensure_phlo_dir,
+    require_container_backend as _require_selected_container_backend,
+)
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 
 
-def _require_docker() -> None:
-    """Validate that Docker CLI is installed and available.
-
-    Raises:
-        click.ClickException: If the docker command is not found in PATH.
-
-    Examples:
-        Validation check:
-            >>> _require_docker()  # Raises if docker not found
-
-        Integration in commands:
-            @click.command()
-            def my_command():
-                _require_docker()  # Ensure docker before proceeding
-                # ... command logic
-
-    Note:
-        Uses shutil.which to check for docker executable in system PATH.
-
-    """
-    if which("docker") is None:
-        raise click.ClickException("docker command not found.")
+def _require_container_backend() -> None:
+    """Validate that the selected container backend is available."""
+    _require_selected_container_backend()
 
 
 def _mc_exec_base(*, tty: bool) -> list[str]:
@@ -161,7 +144,7 @@ def minio_group(ctx: click.Context, mc_args: tuple[str, ...]) -> None:
         )
         return
 
-    _require_docker()
+    _require_container_backend()
     cmd = _mc_exec_base(tty=True)
     cmd.extend(mc_args)
     result = subprocess.run(cmd, check=False)
@@ -222,7 +205,7 @@ def minio_ls(target: str, recursive: bool, as_json: bool, timeout_seconds: int) 
             # List all files larger than 1MB
 
     """
-    _require_docker()
+    _require_container_backend()
     cmd = _mc_exec_base(tty=False)
     cmd.append("ls")
     if recursive:
@@ -297,7 +280,7 @@ def minio_admin_info(target: str, as_json: bool, timeout_seconds: int) -> None:
         Requires admin privileges on the MinIO server.
 
     """
-    _require_docker()
+    _require_container_backend()
     cmd = _mc_exec_base(tty=False)
     cmd.extend(["admin", "info"])
     if as_json:

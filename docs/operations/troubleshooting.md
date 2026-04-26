@@ -21,6 +21,29 @@ This guide helps you debug and fix common problems in Phlo.
 
 ## Services Won't Start
 
+### Podman backend unavailable
+
+Run:
+
+```bash
+podman info
+podman machine list
+podman compose version
+```
+
+If the machine is stopped:
+
+```bash
+podman machine start
+```
+
+If `podman compose version` fails, install or configure a Compose provider such as
+`podman-compose` or `docker-compose`, then rerun the Phlo command with:
+
+```bash
+PHLO_CONTAINER_BACKEND=podman phlo services status
+```
+
 ### Docker Compose Fails
 
 **Symptom:** `docker-compose up` fails or services crash

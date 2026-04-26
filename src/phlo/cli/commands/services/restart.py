@@ -10,7 +10,7 @@ from phlo.cli.commands.services.common import (
 from phlo.cli.commands.services.utils import (
     ensure_phlo_dir,
     get_profile_service_names,
-    require_docker,
+    require_container_backend,
 )
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
@@ -36,11 +36,19 @@ logger = get_logger(__name__)
     is_flag=True,
     help="Development mode: mount local phlo source for instant iteration",
 )
+@click.option(
+    "--backend",
+    "backend_name",
+    type=click.Choice(["docker", "podman", "auto"]),
+    default=None,
+    help="Container backend for this command.",
+)
 def restart_cmd(
     build: bool,
     profile: tuple[str, ...],
     service: tuple[str, ...],
     dev: bool,
+    backend_name: str | None,
 ):
     """Restart Phlo infrastructure services (stop + start).
 
@@ -52,7 +60,7 @@ def restart_cmd(
         phlo services restart --service postgres       # Restart specific service
         phlo services restart --build                  # Rebuild before starting
     """
-    require_docker()
+    require_container_backend(backend_name)
     if dev:
         logger.warning("services_restart_dev_mode_not_supported")
         raise click.UsageError("dev mode not implemented for restart")
@@ -94,7 +102,12 @@ def restart_cmd(
         click.echo(f"Restarting {project_name} infrastructure...")
 
     # Stop services
-    cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
+    cmd = compose_base_cmd(
+        phlo_dir=phlo_dir,
+        project_name=project_name,
+        profiles=profile,
+        backend_name=backend_name,
+    )
     if services_list:
         cmd.extend(["stop", *services_list])
     else:
@@ -126,7 +139,12 @@ def restart_cmd(
 
     # Start services
     click.echo("")
-    cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
+    cmd = compose_base_cmd(
+        phlo_dir=phlo_dir,
+        project_name=project_name,
+        profiles=profile,
+        backend_name=backend_name,
+    )
     cmd.extend(["up", "-d"])
 
     if build:
@@ -165,5 +183,5 @@ def restart_cmd(
             service_names=services_list,
         )
         raise click.ClickException(
-            f"docker compose failed with code {result.returncode}: {' '.join(cmd)}"
+            f"container compose failed with code {result.returncode}: {' '.join(cmd)}"
         )

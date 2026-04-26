@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from subprocess import CompletedProcess
-
 import pytest
 from click.testing import CliRunner
 
 from phlo.cli.commands.services import ports as ports_module
+from phlo.cli.infrastructure.container_backend import ContainerInfo
 from phlo.plugins.discovery import ServiceDefinition
 from tests.helpers import FakeDiscovery
 
@@ -153,11 +152,7 @@ def test_ports_cmd_handles_no_services(monkeypatch: pytest.MonkeyPatch, tmp_path
 
     monkeypatch.setattr(ports_module, "ServiceDiscovery", EmptyFakeDiscovery)
     monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
-    monkeypatch.setattr(
-        ports_module,
-        "run_command",
-        lambda *_args, **_kwargs: CompletedProcess(["docker", "ps"], 0, "", ""),
-    )
+    monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda *_args: {})
     monkeypatch.chdir(tmp_path)
 
     result = CliRunner().invoke(ports_module.ports_cmd)
@@ -175,16 +170,43 @@ def test_ports_cmd_json_output(monkeypatch: pytest.MonkeyPatch, tmp_path) -> Non
 
     monkeypatch.setattr(ports_module, "ServiceDiscovery", EmptyFakeDiscovery)
     monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
-    monkeypatch.setattr(
-        ports_module,
-        "run_command",
-        lambda *_args, **_kwargs: CompletedProcess(["docker", "ps"], 0, "", ""),
-    )
+    monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda *_args: {})
     monkeypatch.chdir(tmp_path)
 
     result = CliRunner().invoke(ports_module.ports_cmd, ["--json"])
     assert result.exit_code == 0
     assert result.output.strip() == "[]"
+
+
+def test_get_running_container_ports_uses_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeBackend:
+        name = "podman"
+
+        def list_project_containers(self, project_name: str):
+            return [
+                ContainerInfo(
+                    service="postgres",
+                    name=f"{project_name}-postgres-1",
+                    state="running",
+                    labels={"com.docker.compose.service": "postgres"},
+                    ports="0.0.0.0:15432->5432/tcp",
+                )
+            ]
+
+    monkeypatch.setattr(
+        ports_module, "select_project_container_backend", lambda **_kwargs: FakeBackend()
+    )
+
+    containers = ports_module._get_running_container_ports("demo", "podman")
+
+    assert containers["postgres"]["status"] == "running"
+    assert containers["postgres"]["ports"] == [
+        {
+            "host_port": "15432",
+            "host_ip": "0.0.0.0",
+            "container_port": "5432/tcp",
+        }
+    ]
 
 
 def test_get_service_ports_with_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -426,7 +448,7 @@ services:
 
     monkeypatch.setattr(ports_module, "ServiceDiscovery", PostgresFakeDiscovery)
     monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
-    monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda _project_name: {})
+    monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda *_args: {})
     monkeypatch.chdir(tmp_path)
 
     result = CliRunner().invoke(ports_module.ports_cmd, ["--all", "--json"])
@@ -473,7 +495,7 @@ def test_ports_cmd_does_not_advertise_urls_without_running_traefik(
 
     monkeypatch.setattr(ports_module, "ServiceDiscovery", DagsterFakeDiscovery)
     monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
-    monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda _project_name: {})
+    monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda *_args: {})
     monkeypatch.chdir(tmp_path)
 
     result = CliRunner().invoke(ports_module.ports_cmd, ["--all", "--json"])
@@ -524,7 +546,7 @@ services:
     monkeypatch.setattr(
         ports_module,
         "_get_running_container_ports",
-        lambda _project_name: {
+        lambda *_args: {
             "traefik": {
                 "status": "running",
                 "ports": [{"host_port": "8088", "container_port": "80/tcp"}],

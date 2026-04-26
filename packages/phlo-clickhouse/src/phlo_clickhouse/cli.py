@@ -19,11 +19,13 @@ Example:
 from __future__ import annotations
 
 from pathlib import Path
-from shutil import which
 from subprocess import TimeoutExpired
 
 import click
 
+from phlo.cli.commands.services.utils import (
+    require_container_backend as _require_selected_container_backend,
+)
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
@@ -95,34 +97,9 @@ def _ensure_phlo_dir() -> Path:
     raise click.ClickException(".phlo directory not found. Run 'phlo services init' first.")
 
 
-def _require_docker() -> None:
-    """Validate Docker installation and daemon status.
-
-    Verifies that Docker is installed on the system and the Docker daemon
-    is running and responsive.
-
-    Raises:
-        click.ClickException: If Docker is not installed, not in PATH,
-            or if the Docker daemon is not running.
-
-    Example:
-        >>> _require_docker()  # Raises exception if Docker unavailable
-
-    """
-    if which("docker") is None:
-        raise click.ClickException("docker command not found.")
-    try:
-        result = run_command(
-            ["docker", "info"],
-            timeout_seconds=10,
-            capture_output=True,
-            check=False,
-        )
-    except TimeoutExpired as exc:
-        raise click.ClickException("docker info timed out.") from exc
-    if result.returncode == 0:
-        return
-    raise click.ClickException("Docker is not running.")
+def _require_container_backend() -> None:
+    """Validate that the selected container backend is available."""
+    _require_selected_container_backend()
 
 
 @click.group(name="clickhouse")
@@ -171,7 +148,7 @@ def clickhouse_query(
     """Execute a SQL query against the running ClickHouse service.
 
     Runs the specified SQL query against ClickHouse using the clickhouse-client
-    utility within the Docker container. Results are printed to stdout.
+    utility within the container backend container. Results are printed to stdout.
 
     Args:
         query: SQL query string provided as command argument.
@@ -180,14 +157,14 @@ def clickhouse_query(
         timeout_seconds: Maximum time to wait for query execution.
 
     Raises:
-        click.ClickException: If Docker is unavailable, query fails, or times out.
+        click.ClickException: If container backend is unavailable, query fails, or times out.
 
     Example:
         $ phlo clickhouse query "SELECT version()"
         $ phlo clickhouse query --file queries/analysis.sql --format CSV
 
     """
-    _require_docker()
+    _require_container_backend()
     phlo_dir = _ensure_phlo_dir()
     project_name = get_project_name()
     sql = _read_query(query=query, file=query_file)
@@ -232,7 +209,7 @@ def clickhouse_status() -> None:
     running ClickHouse service.
 
     Raises:
-        click.ClickException: If Docker is unavailable or status check fails.
+        click.ClickException: If container backend is unavailable or status check fails.
 
     Example:
         $ phlo clickhouse status
@@ -240,7 +217,7 @@ def clickhouse_status() -> None:
         24.3.0     3600              default
 
     """
-    _require_docker()
+    _require_container_backend()
     phlo_dir = _ensure_phlo_dir()
     project_name = get_project_name()
 

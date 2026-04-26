@@ -253,7 +253,7 @@ support details.
 
 ## Services Commands
 
-Manage Docker infrastructure services.
+Manage local container infrastructure services.
 
 Services are provided by installed service packages (e.g., `phlo-dagster`, `phlo-trino`). Install
 core services with:
@@ -279,7 +279,7 @@ phlo services init [OPTIONS]
 **What it does**:
 
 - Creates `.phlo/` directory
-- Generates Docker Compose configurations
+- Generates Compose configurations
 - Sets up network and volume definitions
 - Creates `phlo.yaml` config file
 
@@ -329,6 +329,7 @@ phlo services start [OPTIONS]
 --service SERVICE        # Start only specific service(s)
 --detach, -d             # Run in background
 --build                  # Rebuild containers before starting
+--backend docker|podman|auto # Container backend for this command
 ```
 
 **Profiles**:
@@ -358,11 +359,14 @@ phlo services start --profile observability --profile api
 
 # Rebuild and start
 phlo services start --build
+
+# Use Podman for this invocation
+phlo services start --backend podman
 ```
 
 **Validation behavior**:
 
-- `--profile` values are validated before Docker commands are executed.
+- `--profile` values are validated before container backend commands are executed.
 - Unknown profiles fail fast with a `ClickException` that includes valid options.
 - `--service` targets include required dependencies and matching `*-setup` bootstrap services.
 
@@ -393,6 +397,7 @@ phlo services exec [OPTIONS] SERVICE -- COMMAND [ARGS...]
 
 ```bash
 --tty / --no-tty      # Allocate a TTY (default: no tty)
+--backend docker|podman|auto # Container backend for this command
 ```
 
 **Examples**:
@@ -403,6 +408,9 @@ phlo services exec <service> -- dbt run --select gold.*
 
 # Open an interactive psql shell in postgres
 phlo services exec --tty postgres -- psql -U postgres
+
+# Run through Podman
+phlo services exec --backend podman trino -- trino --execute "SELECT 1"
 ```
 
 ### phlo services stop
@@ -420,6 +428,7 @@ phlo services stop [OPTIONS]
 --profile PROFILE    # Stop only services in specified profile
 --service SERVICE    # Stop specific service(s)
 --native             # Also stop native subprocess services
+--backend docker|podman|auto # Container backend for this command
 ```
 
 **Examples**:
@@ -436,6 +445,15 @@ phlo services stop --profile observability
 
 # Stop specific services
 phlo services stop --service postgres,minio
+```
+
+Backend-aware service commands also accept `--backend docker|podman|auto` where they
+invoke Compose, including `start`, `stop`, `restart`, `logs`, `exec`, `status`, and `reset`.
+Runtime inspection commands `list` and `ports` accept the same option for live status.
+
+```bash
+phlo services logs --backend podman
+phlo services ports --backend podman --json
 ```
 
 ### phlo services list

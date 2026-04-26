@@ -2,18 +2,18 @@
 
 This module provides Click CLI commands for executing SQL queries against
 the running ClickStack ClickHouse container. It includes utilities for
-validating Docker availability, reading SQL from files or inline arguments,
+validating container backend availability, reading SQL from files or inline arguments,
 and executing queries with configurable formatting.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from shutil import which
 from subprocess import TimeoutExpired
 
 import click
 
+from phlo.cli.commands.services import utils as services_utils
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
@@ -77,32 +77,9 @@ def _ensure_phlo_dir() -> Path:
     raise click.ClickException(".phlo directory not found. Run 'phlo services init' first.")
 
 
-def _require_docker() -> None:
-    """Validate Docker installation and daemon status.
-
-    Checks that the Docker CLI is available in PATH and that the
-    Docker daemon is responsive. Times out after 10 seconds.
-
-    Raises:
-        click.ClickException: If docker command is not found.
-        click.ClickException: If docker info times out.
-        click.ClickException: If Docker daemon is not running.
-
-    """
-    if which("docker") is None:
-        raise click.ClickException("docker command not found.")
-    try:
-        result = run_command(
-            ["docker", "info"],
-            timeout_seconds=10,
-            capture_output=True,
-            check=False,
-        )
-    except TimeoutExpired as exc:
-        raise click.ClickException("docker info timed out.") from exc
-    if result.returncode == 0:
-        return
-    raise click.ClickException("Docker is not running.")
+def _require_container_backend() -> None:
+    """Validate that the selected container backend is available."""
+    services_utils.require_container_backend()
 
 
 @click.group(name="clickstack")
@@ -146,7 +123,7 @@ def clickstack_query(
         click.ClickException: If query times out.
 
     """
-    _require_docker()
+    _require_container_backend()
     phlo_dir = _ensure_phlo_dir()
     project_name = get_project_name()
     sql = _read_query(query=query, file=query_file)
