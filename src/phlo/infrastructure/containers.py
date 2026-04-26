@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from collections.abc import Iterable
 
+from phlo.cli.infrastructure.container_backend import select_container_backend
 from phlo.infrastructure.config import load_infrastructure_config
 from phlo.logging import get_logger
 
@@ -21,30 +21,19 @@ def resolve_container_name(service_name: str, project_name: str) -> str:
     return infra.container_naming_pattern.format(project=project_name, service=service_name)
 
 
-def list_running_containers(project_name: str) -> list[str]:
+def list_running_containers(project_name: str, backend_name: str | None = None) -> list[str]:
     """List running compose container names for a project."""
-    result = subprocess.run(
-        [
-            "docker",
-            "ps",
-            "--filter",
-            f"label=com.docker.compose.project={project_name}",
-            "--format",
-            "{{.Names}}",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
+    try:
+        backend = select_container_backend(cli_backend=backend_name, config_backend=None)
+        return [container.name for container in backend.list_project_containers(project_name)]
+    except Exception:
         logger.warning(
-            "docker_list_containers_failed",
+            "container_list_failed",
             project=project_name,
-            returncode=result.returncode,
-            stderr=result.stderr.strip() if result.stderr else "",
+            backend_name=backend_name,
+            exc_info=True,
         )
         return []
-    return result.stdout.splitlines() if result.stdout else []
 
 
 def select_first_existing(candidates: Iterable[str], existing: Iterable[str]) -> str | None:
