@@ -1,14 +1,13 @@
 """List command for showing available services."""
 
 import json
-import subprocess
 from pathlib import Path
 
 import click
 import yaml
 
 from phlo.cli.commands.services.utils import get_enabled_disabled_service_names
-from phlo.cli.infrastructure.command import run_command
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -16,23 +15,32 @@ from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 logger = get_logger(__name__)
 
 
-def _extract_compose_service(container_info: dict) -> str | None:
-    """Extract the compose service name from docker ps JSON output.
-
-    Uses the ``com.docker.compose.service`` label when available,
-    falling back to container-name parsing for non-compose containers.
-    """
-    labels = container_info.get("Labels", "")
-    for label in labels.split(","):
-        if label.startswith("com.docker.compose.service="):
-            return label.split("=", 1)[1]
-    return None
+def _get_running_containers(
+    project_name: str,
+    backend_name: str | None = None,
+) -> dict[str, dict[str, str]]:
+    """Get running container status from the selected backend."""
+    backend = select_project_container_backend(cli_backend=backend_name)
+    containers: dict[str, dict[str, str]] = {}
+    for container in backend.list_project_containers(project_name):
+        containers[container.service] = {
+            "status": container.state,
+            "ports": container.ports,
+        }
+    return containers
 
 
 @click.command("list")
 @click.option("--all", "show_all", is_flag=True, help="Show all services including optional")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
-def list_cmd(show_all: bool, output_json: bool):
+@click.option(
+    "--backend",
+    "backend_name",
+    type=click.Choice(["docker", "podman", "auto"]),
+    default=None,
+    help="Container backend for runtime status.",
+)
+def list_cmd(show_all: bool, output_json: bool, backend_name: str | None):
     """List available services with status and configuration.
 
     Examples:
@@ -91,28 +99,8 @@ def list_cmd(show_all: bool, output_json: bool):
     # Get running container status using compose project label for deterministic matching
     try:
         project_name = get_project_name()
-        result = run_command(
-            [
-                "docker",
-                "ps",
-                "--filter",
-                f"label=com.docker.compose.project={project_name}",
-                "--format",
-                "{{json .}}",
-            ],
-            check=False,
-        )
-        running_containers = {}
-        if result.returncode == 0 and result.stdout.strip():
-            for line in result.stdout.strip().split("\n"):
-                container_info = json.loads(line)
-                service_name = _extract_compose_service(container_info)
-                if service_name:
-                    running_containers[service_name] = {
-                        "status": container_info.get("State", ""),
-                        "ports": container_info.get("Ports", ""),
-                    }
-    except (subprocess.CalledProcessError, FileNotFoundError, OSError, ValueError):
+        running_containers = _get_running_containers(project_name, backend_name)
+    except (FileNotFoundError, OSError, ValueError):
         logger.warning(
             "services_list_runtime_status_unavailable",
             project_name=get_project_name(),

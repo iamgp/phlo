@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import signal
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -13,6 +14,7 @@ from uuid import uuid4
 import click
 
 from phlo.cli.infrastructure.command import run_command
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.infrastructure.containers import resolve_container_name as _resolve_container_name
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -99,12 +101,27 @@ def check_docker_available() -> bool:
 
 def require_docker():
     """Exit with helpful message if the Docker CLI is unavailable."""
-    if not check_docker_available():
-        click.echo("Error: Docker CLI is not available.", err=True)
-        click.echo("", err=True)
-        click.echo("Install Docker Desktop or ensure `docker` is on PATH.", err=True)
-        click.echo("Download: https://docs.docker.com/get-docker/", err=True)
+    require_container_backend("docker")
+
+
+def require_container_backend(backend_name: str | None = None) -> None:
+    """Exit with helpful message if the selected container backend is unavailable."""
+    try:
+        backend = select_project_container_backend(cli_backend=backend_name)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    try:
+        available, fix = backend.check_available()
+    except subprocess.TimeoutExpired:
+        click.echo(f"Error: {backend.name} availability check timed out.", err=True)
         sys.exit(1)
+    if available:
+        return
+    click.echo(f"Error: {backend.name} backend is not available.", err=True)
+    if fix:
+        click.echo("", err=True)
+        click.echo(fix, err=True)
+    sys.exit(1)
 
 
 def resolve_phlo_package_dir(path: Path) -> Path | None:

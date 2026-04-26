@@ -84,11 +84,7 @@ def test_services_state_transition_remove_add_list_start_flow(
     monkeypatch.setattr(remove_module, "_regenerate_compose", _fake_regenerate_compose)
 
     monkeypatch.setattr(list_module, "get_project_name", lambda: "demo-project")
-    monkeypatch.setattr(
-        list_module,
-        "run_command",
-        lambda *_args, **_kwargs: CompletedProcess(args=["docker", "ps"], returncode=0, stdout=""),
-    )
+    monkeypatch.setattr(list_module, "_get_running_containers", lambda *_args: {})
 
     docker_calls: list[list[str]] = []
 
@@ -100,7 +96,7 @@ def test_services_state_transition_remove_add_list_start_flow(
     monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
     monkeypatch.setattr(start_module, "get_profile_service_names", lambda _profiles: ["prometheus"])
     monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
-    monkeypatch.setattr(start_module, "require_docker", lambda: None)
+    monkeypatch.setattr(start_module, "require_container_backend", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(start_module, "run_command", _fake_run_command)
     monkeypatch.setattr(
         start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
@@ -157,11 +153,7 @@ def test_services_list_reads_disabled_service_names_from_transition_state(
 
     monkeypatch.setattr(list_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(list_module, "get_project_name", lambda: "demo-project")
-    monkeypatch.setattr(
-        list_module,
-        "run_command",
-        lambda *_args, **_kwargs: CompletedProcess(args=["docker", "ps"], returncode=0, stdout=""),
-    )
+    monkeypatch.setattr(list_module, "_get_running_containers", lambda *_args: {})
 
     result = CliRunner().invoke(list_module.list_cmd, ["--json"])
 
@@ -201,8 +193,8 @@ def test_services_start_profile_rejects_disabled_only_targets(
     monkeypatch.setattr(start_module, "get_profile_service_names", lambda _profiles: ["prometheus"])
     monkeypatch.setattr(
         start_module,
-        "require_docker",
-        lambda: docker_checks.append(True),
+        "require_container_backend",
+        lambda *_args, **_kwargs: docker_checks.append(True),
     )
     monkeypatch.setattr(start_module, "run_command", _record_run_command)
 

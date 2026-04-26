@@ -6,7 +6,7 @@ Pydantic models for phlo.yaml infrastructure section.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -215,6 +215,11 @@ class NetworkConfig(BaseModel):
 
 class InfrastructureConfig(BaseModel):
     """Infrastructure configuration section from phlo.yaml."""
+
+    container_backend: Literal["docker", "podman", "auto"] = Field(
+        default="docker",
+        description="Container backend used by service lifecycle commands.",
+    )
 
     container_naming_pattern: str = Field(
         default="{project}-{service}-1",

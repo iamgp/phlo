@@ -25,7 +25,7 @@ from phlo.cli.commands.services.utils import (
     expand_service_dependencies,
     get_enabled_disabled_service_names,
     get_profile_service_names,
-    require_docker,
+    require_container_backend,
 )
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
@@ -108,12 +108,20 @@ def _expand_requested_services(
     is_flag=True,
     help="Run services with a native dev command as subprocesses (e.g., phlo-api, Observatory)",
 )
+@click.option(
+    "--backend",
+    "backend_name",
+    type=click.Choice(["docker", "podman", "auto"]),
+    default=None,
+    help="Container backend for this command.",
+)
 def start_cmd(
     detach: bool,
     build: bool,
     profile: tuple[str, ...],
     service: tuple[str, ...],
     native: bool,
+    backend_name: str | None,
 ):
     """Start Phlo infrastructure services.
 
@@ -283,7 +291,7 @@ def start_cmd(
         )
 
     if not skip_docker_compose:
-        require_docker()
+        require_container_backend(backend_name)
     elif build:
         logger.warning(
             "services_start_build_ignored_native_only",
@@ -294,12 +302,22 @@ def start_cmd(
     def _stop_docker_services(service_names: set[str]) -> None:
         if not service_names:
             return
-        stop_cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
+        stop_cmd = compose_base_cmd(
+            phlo_dir=phlo_dir,
+            project_name=project_name,
+            profiles=profile,
+            backend_name=backend_name,
+        )
         stop_cmd.append("stop")
         stop_cmd.extend(sorted(service_names))
         run_command(stop_cmd, check=False, capture_output=False)
 
-    cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
+    cmd = compose_base_cmd(
+        phlo_dir=phlo_dir,
+        project_name=project_name,
+        profiles=profile,
+        backend_name=backend_name,
+    )
     cmd.append("up")
 
     if detach:
@@ -558,12 +576,16 @@ def start_cmd(
                 service_names=docker_service_names,
             )
             raise click.ClickException(
-                f"docker compose failed (exit {result.returncode}): {' '.join(cmd)}"
+                f"container compose failed (exit {result.returncode}): {' '.join(cmd)}"
             )
     except FileNotFoundError:
-        logger.error("services_start_docker_not_found", project_name=project_name, exc_info=True)
+        logger.error(
+            "services_start_container_backend_not_found",
+            project_name=project_name,
+            exc_info=True,
+        )
         raise click.ClickException(
-            "docker command not found. Install Docker: https://docs.docker.com/get-docker/"
+            "container backend command not found. Install or configure the selected backend."
         ) from None
     except (subprocess.SubprocessError, OSError) as exc:
         logger.error(
@@ -572,4 +594,4 @@ def start_cmd(
             error_type=type(exc).__name__,
             exc_info=True,
         )
-        raise click.ClickException(f"docker compose failed unexpectedly: {exc}") from exc
+        raise click.ClickException(f"container compose failed unexpectedly: {exc}") from exc

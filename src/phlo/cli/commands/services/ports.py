@@ -11,7 +11,7 @@ import click
 import yaml
 
 from phlo.cli.commands.services.utils import _get_env_overrides, get_enabled_disabled_service_names
-from phlo.cli.infrastructure.command import run_command
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name, parse_env_file
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -108,56 +108,43 @@ def _load_environment(phlo_dir: Path, config: dict[str, Any]) -> dict[str, str]:
     return env
 
 
-def _get_running_container_ports(project_name: str) -> dict[str, list[dict]]:
+def _parse_ports_string(ports_str: str) -> list[dict[str, str]]:
+    """Parse backend port output into structured port mappings."""
+    mappings: list[dict[str, str]] = []
+    if not ports_str:
+        return mappings
+    for port_entry in ports_str.split(", "):
+        if "->" not in port_entry:
+            continue
+        host_part, container_part = port_entry.split("->", 1)
+        host_ip = host_part.rsplit(":", 1)[0] if ":" in host_part else "0.0.0.0"
+        host_port = host_part.rsplit(":", 1)[-1] if ":" in host_part else host_part
+        mappings.append(
+            {
+                "host_port": host_port,
+                "host_ip": host_ip,
+                "container_port": container_part,
+            }
+        )
+    return mappings
+
+
+def _get_running_container_ports(
+    project_name: str,
+    backend_name: str | None = None,
+) -> dict[str, dict]:
     """Get published ports from running containers."""
     try:
-        result = run_command(
-            [
-                "docker",
-                "ps",
-                "--filter",
-                f"label=com.docker.compose.project={project_name}",
-                "--format",
-                "{{json .}}",
-            ],
-            check=False,
-        )
         containers = {}
-        if result.returncode == 0 and result.stdout.strip():
-            for line in result.stdout.strip().split("\n"):
-                info = json.loads(line)
-                service = None
-                for label in info.get("Labels", "").split(","):
-                    if label.startswith("com.docker.compose.service="):
-                        service = label.split("=", 1)[1]
-                        break
-                if service:
-                    ports_str = info.get("Ports", "")
-                    port_mappings: list[dict[str, str]] = []
-                    if ports_str:
-                        for port_entry in ports_str.split(", "):
-                            if "->" in port_entry:
-                                host_part, container_part = port_entry.split("->")
-                                host_ip = (
-                                    host_part.rsplit(":", 1)[0] if ":" in host_part else "0.0.0.0"
-                                )
-                                host_port = (
-                                    host_part.rsplit(":", 1)[-1] if ":" in host_part else host_part
-                                )
-                                port_mappings.append(
-                                    {
-                                        "host_port": host_port,
-                                        "host_ip": host_ip,
-                                        "container_port": container_part,
-                                    }
-                                )
-                    containers[service] = {
-                        "status": info.get("State", "running"),
-                        "ports": port_mappings,
-                    }
+        backend = select_project_container_backend(cli_backend=backend_name)
+        for container in backend.list_project_containers(project_name):
+            containers[container.service] = {
+                "status": container.state,
+                "ports": _parse_ports_string(container.ports),
+            }
         return containers
     except Exception:
-        logger.warning("docker_ps_failed", exc_info=True)
+        logger.warning("container_ports_lookup_failed", exc_info=True)
         return {}
 
 
@@ -486,7 +473,14 @@ def _format_json(port_mappings: list[PortMapping]) -> None:
 @click.command("ports")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--all", "show_all", is_flag=True, help="Include stopped services with defaults")
-def ports_cmd(output_json: bool, show_all: bool):
+@click.option(
+    "--backend",
+    "backend_name",
+    type=click.Choice(["docker", "podman", "auto"]),
+    default=None,
+    help="Container backend for runtime status.",
+)
+def ports_cmd(output_json: bool, show_all: bool, backend_name: str | None):
     """Show port mappings for all services.
 
     Displays host port, container port, source (default/env/runtime), and status.
@@ -532,7 +526,7 @@ def ports_cmd(output_json: bool, show_all: bool):
         ) from exc
 
     project_name = get_project_name()
-    running_containers = _get_running_container_ports(project_name)
+    running_containers = _get_running_container_ports(project_name, backend_name)
 
     traefik = _get_active_traefik_context(
         available_services,

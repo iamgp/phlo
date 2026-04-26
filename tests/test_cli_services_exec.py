@@ -12,7 +12,9 @@ from phlo.cli.commands.services.exec import exec_cmd
 def test_services_exec_runs_command_in_service_container(monkeypatch) -> None:
     captured: list[list[str]] = []
 
-    monkeypatch.setattr("phlo.cli.commands.services.exec.require_docker", lambda: None)
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.exec.require_container_backend", lambda *_args, **_kwargs: None
+    )
     monkeypatch.setattr(
         "phlo.cli.commands.services.exec.ensure_phlo_dir", lambda: Path("/tmp/.phlo")
     )
@@ -52,7 +54,9 @@ def test_services_exec_runs_command_in_service_container(monkeypatch) -> None:
 
 
 def test_services_exec_requires_command(monkeypatch) -> None:
-    monkeypatch.setattr("phlo.cli.commands.services.exec.require_docker", lambda: None)
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.exec.require_container_backend", lambda *_args, **_kwargs: None
+    )
 
     result = CliRunner().invoke(exec_cmd, ["dagster"])
 

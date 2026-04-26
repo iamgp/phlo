@@ -4,7 +4,7 @@ This module provides Click-based CLI commands for interacting with the PostgreSQ
 service, including running queries, dumping/restoring databases, and performing
 maintenance operations like vacuuming.
 
-All commands execute within the PostgreSQL Docker container via docker compose exec.
+All commands execute within the PostgreSQL container backend container via docker compose exec.
 
 Example:
     $ phlo postgres query "SELECT * FROM users LIMIT 10"
@@ -19,12 +19,14 @@ from __future__ import annotations
 import gzip
 import subprocess
 from pathlib import Path
-from shutil import which
 from subprocess import TimeoutExpired
 
 import click
 
-from phlo.cli.commands.services.utils import ensure_phlo_dir
+from phlo.cli.commands.services.utils import (
+    ensure_phlo_dir,
+    require_container_backend as _require_selected_container_backend,
+)
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
@@ -68,21 +70,9 @@ def _read_sql(*, query: str | None, file: Path | None) -> str:
     raise click.ClickException("Provide a SQL query argument or --file.")
 
 
-def _require_docker() -> None:
-    """Validate that the Docker CLI is installed and available.
-
-    Checks for the presence of the 'docker' command in the system PATH.
-    This is a prerequisite for all PostgreSQL CLI commands.
-
-    Raises:
-        click.ClickException: If the docker command is not found in PATH.
-
-    Example:
-        >>> _require_docker()  # Raises if docker not installed
-
-    """
-    if which("docker") is None:
-        raise click.ClickException("docker command not found.")
+def _require_container_backend() -> None:
+    """Validate that the selected container backend is available."""
+    _require_selected_container_backend()
 
 
 def _postgres_exec_base(*, tty: bool) -> list[str]:
@@ -192,7 +182,7 @@ def postgres_group(ctx: click.Context, postgres_args: tuple[str, ...]) -> None:
         )
         return
 
-    _require_docker()
+    _require_container_backend()
     user, database = _postgres_identity(user=None, database=None)
     cmd = _postgres_exec_base(tty=True)
     cmd.extend(["psql", "-U", user, "-d", database])
@@ -239,7 +229,7 @@ def postgres_query(
         $ phlo postgres query --file query.sql --timeout 60
 
     """
-    _require_docker()
+    _require_container_backend()
     sql = _read_sql(query=query, file=query_file)
     resolved_user, resolved_db = _postgres_identity(user=user, database=database)
     cmd = _postgres_exec_base(tty=False)
@@ -298,7 +288,7 @@ def postgres_dump(
         $ phlo postgres dump --file backup.sql.gz --timeout 300
 
     """
-    _require_docker()
+    _require_container_backend()
     resolved_user, resolved_db = _postgres_identity(user=user, database=database)
     cmd = _postgres_exec_base(tty=False)
     cmd.extend(["pg_dump", "-U", resolved_user, resolved_db])
@@ -368,7 +358,7 @@ def postgres_restore(
         $ phlo postgres restore --file backup.sql.gz --db mydb --timeout 600
 
     """
-    _require_docker()
+    _require_container_backend()
     resolved_user, resolved_db = _postgres_identity(user=user, database=database)
     cmd = _postgres_exec_base(tty=False)
     cmd.extend(["psql", "-U", resolved_user, "-d", resolved_db, "-v", "ON_ERROR_STOP=1"])
@@ -432,7 +422,7 @@ def postgres_vacuum(
         $ phlo postgres vacuum --db analytics --timeout 300
 
     """
-    _require_docker()
+    _require_container_backend()
     resolved_user, resolved_db = _postgres_identity(user=user, database=database)
     cmd = _postgres_exec_base(tty=False)
     cmd.extend(["vacuumdb", "-U", resolved_user])

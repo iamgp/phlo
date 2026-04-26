@@ -37,8 +37,8 @@ def test_clickstack_query_runs_clickhouse_client(monkeypatch) -> None:
         return CompletedProcess(cmd, 0, stdout='{"1":1}\n', stderr="")
 
     monkeypatch.setattr("phlo_clickstack.cli._ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_clickstack.cli._require_container_backend", lambda: None)
     monkeypatch.setattr("phlo_clickstack.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_clickstack.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_clickstack.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -49,6 +49,60 @@ def test_clickstack_query_runs_clickhouse_client(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert result.output == '{"1":1}\n'
+
+
+def test_clickstack_query_uses_selected_container_backend(monkeypatch, tmp_path) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text("services:\n  clickstack: {}\n")
+    (phlo_dir / ".env").write_text("")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PHLO_CONTAINER_BACKEND", "podman")
+    monkeypatch.setattr("phlo_clickstack.cli.get_project_name", lambda: "demo")
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.utils.require_container_backend",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "phlo_clickstack.cli.run_command",
+        lambda cmd, **_kwargs: calls.append(cmd) or CompletedProcess(cmd, 0, stdout="", stderr=""),
+    )
+
+    result = CliRunner().invoke(clickstack_group, ["query", "SELECT 1"])
+
+    assert result.exit_code == 0, result.output
+    assert calls
+    assert calls[0][:2] == ["podman", "compose"]
+
+
+def test_clickstack_query_uses_project_container_backend_config(monkeypatch, tmp_path) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text("services:\n  clickstack: {}\n")
+    (phlo_dir / ".env").write_text("")
+    (tmp_path / "phlo.yaml").write_text(
+        "name: demo\ninfrastructure:\n  container_backend: podman\n"
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("PHLO_CONTAINER_BACKEND", raising=False)
+    monkeypatch.setattr("phlo_clickstack.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.utils.require_container_backend",
+        lambda *_args, **_kwargs: None,
+    )
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        "phlo_clickstack.cli.run_command",
+        lambda cmd, **_kwargs: calls.append(cmd) or CompletedProcess(cmd, 0, stdout="", stderr=""),
+    )
+
+    result = CliRunner().invoke(clickstack_group, ["query", "SELECT 1"])
+
+    assert result.exit_code == 0, result.output
+    assert calls[0][:2] == ["podman", "compose"]
 
 
 def test_clickstack_query_supports_file(monkeypatch, tmp_path) -> None:
@@ -63,8 +117,8 @@ def test_clickstack_query_supports_file(monkeypatch, tmp_path) -> None:
         return CompletedProcess(cmd, 0, stdout="42\n", stderr="")
 
     monkeypatch.setattr("phlo_clickstack.cli._ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_clickstack.cli._require_container_backend", lambda: None)
     monkeypatch.setattr("phlo_clickstack.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_clickstack.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_clickstack.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -80,8 +134,8 @@ def test_clickstack_query_supports_file(monkeypatch, tmp_path) -> None:
 def test_clickstack_query_rejects_missing_input(monkeypatch) -> None:
     """Query command should fail clearly when no SQL is provided."""
     monkeypatch.setattr("phlo_clickstack.cli._ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_clickstack.cli._require_container_backend", lambda: None)
     monkeypatch.setattr("phlo_clickstack.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_clickstack.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_clickstack.cli.run_command",
         lambda cmd, **_kwargs: (
@@ -106,8 +160,8 @@ def test_clickstack_query_surfaces_timeout(monkeypatch) -> None:
         raise TimeoutExpired(cmd=cmd, timeout=30)
 
     monkeypatch.setattr("phlo_clickstack.cli._ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_clickstack.cli._require_container_backend", lambda: None)
     monkeypatch.setattr("phlo_clickstack.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_clickstack.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_clickstack.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],

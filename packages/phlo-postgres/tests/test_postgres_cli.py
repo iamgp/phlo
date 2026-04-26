@@ -6,10 +6,16 @@ import gzip
 from pathlib import Path
 from subprocess import CompletedProcess, TimeoutExpired
 
+import pytest
 from click.testing import CliRunner
 
 from phlo_postgres.cli import postgres_group
 from phlo_postgres.cli_plugin import PostgresCliPlugin
+
+
+@pytest.fixture(autouse=True)
+def _skip_backend_availability(monkeypatch) -> None:
+    monkeypatch.setattr("phlo_postgres.cli._require_container_backend", lambda: None)
 
 
 def test_postgres_cli_plugin_metadata() -> None:
@@ -38,7 +44,6 @@ def test_postgres_query_runs_psql(monkeypatch) -> None:
 
     monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -62,7 +67,6 @@ def test_postgres_dump_writes_gzip_file(monkeypatch, tmp_path) -> None:
 
     monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -84,7 +88,6 @@ def test_postgres_restore_reads_file(monkeypatch, tmp_path) -> None:
 
     monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -135,7 +138,6 @@ def test_postgres_vacuum_runs_vacuumdb(monkeypatch) -> None:
 
     monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -153,7 +155,6 @@ def test_postgres_shell_passthrough(monkeypatch) -> None:
 
     monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -198,7 +199,6 @@ def test_postgres_query_timeout(monkeypatch) -> None:
 
     monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_postgres.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],

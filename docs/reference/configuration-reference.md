@@ -861,6 +861,9 @@ name: my-project
 description: My data lakehouse project
 
 infrastructure:
+  # Local container backend for service lifecycle commands: docker, podman, or auto
+  container_backend: docker
+
   # Container naming pattern
   container_naming_pattern: "{{project}}-{{service}}-1"
 
@@ -905,6 +908,22 @@ infrastructure:
       host: localhost
       internal_host: trino
       port: 10005
+```
+
+### `infrastructure.container_backend`
+
+Selects the local container backend used by `phlo services` commands.
+
+Allowed values:
+
+- `docker`
+- `podman`
+- `auto`
+
+Environment override:
+
+```bash
+PHLO_CONTAINER_BACKEND=podman
 ```
 
 ### Loading Infrastructure Config

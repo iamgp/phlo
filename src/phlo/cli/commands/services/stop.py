@@ -16,7 +16,7 @@ from phlo.cli.commands.services.utils import (
     _stop_native_processes,
     ensure_phlo_dir,
     get_profile_service_names,
-    require_docker,
+    require_container_backend,
 )
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
@@ -43,7 +43,20 @@ logger = get_logger(__name__)
     multiple=True,
     help="Stop only specific service(s) (e.g., --service postgres,minio or --service postgres --service minio)",
 )
-def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service: tuple[str, ...]):
+@click.option(
+    "--backend",
+    "backend_name",
+    type=click.Choice(["docker", "podman", "auto"]),
+    default=None,
+    help="Container backend for this command.",
+)
+def stop_cmd(
+    volumes: bool,
+    stop_native: bool,
+    profile: tuple[str, ...],
+    service: tuple[str, ...],
+    backend_name: str | None,
+):
     """Stop Phlo infrastructure services.
 
     Examples:
@@ -110,7 +123,7 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
         click.echo("Stopped native services.")
         return
 
-    require_docker()
+    require_container_backend(backend_name)
     phlo_dir = ensure_phlo_dir()
     project_name = get_project_name()
 
@@ -146,7 +159,12 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
             metadata={"native": False},
         )
 
-    cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
+    cmd = compose_base_cmd(
+        phlo_dir=phlo_dir,
+        project_name=project_name,
+        profiles=profile,
+        backend_name=backend_name,
+    )
 
     if services_list:
         # Stop specific services only
@@ -208,5 +226,5 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
                 metadata={"native": False, "returncode": result.returncode},
             )
         raise click.ClickException(
-            f"docker compose failed with code {result.returncode}: {' '.join(cmd)}"
+            f"container compose failed with code {result.returncode}: {' '.join(cmd)}"
         )

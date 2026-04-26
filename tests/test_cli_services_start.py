@@ -137,13 +137,44 @@ def test_services_start_rejects_unknown_profile(monkeypatch: pytest.MonkeyPatch,
     monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
     monkeypatch.setattr(start_module, "ServiceDiscovery", ProfilesFakeDiscovery)
     monkeypatch.setattr(start_module, "run_command", _unexpected_call)
-    monkeypatch.setattr(start_module, "require_docker", _unexpected_call)
+    monkeypatch.setattr(start_module, "require_container_backend", _unexpected_call)
 
     result = CliRunner().invoke(start_module.start_cmd, ["--profile", "not-a-profile"])
 
     assert result.exit_code != 0
     assert "Invalid profile: not-a-profile." in result.output
     assert "Valid profile options: api, observability" in result.output
+
+
+def test_services_start_uses_podman_backend(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text("services:\n  postgres: {}\n")
+    (phlo_dir / ".env").write_text("")
+    (tmp_path / "phlo.yaml").write_text("name: demo\n")
+    monkeypatch.chdir(tmp_path)
+
+    calls: list[list[str]] = []
+
+    def _fake_run_command(cmd: list[str], check=False, capture_output=False) -> CompletedProcess:
+        calls.append(cmd)
+        return CompletedProcess(args=cmd, returncode=0)
+
+    monkeypatch.setattr(start_module, "require_container_backend", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(start_module, "run_command", _fake_run_command)
+    monkeypatch.setattr(
+        start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+
+    result = CliRunner().invoke(start_module.start_cmd, ["--backend", "podman"])
+
+    assert result.exit_code == 0, result.output
+    assert calls
+    assert calls[0][:2] == ["podman", "compose"]
 
 
 def test_services_start_uses_profile_targets_without_default_fallback(
@@ -186,7 +217,7 @@ def test_services_start_uses_profile_targets_without_default_fallback(
     monkeypatch.setattr(start_module, "get_profile_service_names", _fake_get_profile_service_names)
     monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
     monkeypatch.setattr(start_module, "run_command", _fake_run_command)
-    monkeypatch.setattr(start_module, "require_docker", lambda: None)
+    monkeypatch.setattr(start_module, "require_container_backend", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
     )
@@ -245,7 +276,7 @@ def test_services_start_includes_setup_companions_for_explicit_targets(
     monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
     monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
     monkeypatch.setattr(start_module, "run_command", _fake_run_command)
-    monkeypatch.setattr(start_module, "require_docker", lambda: None)
+    monkeypatch.setattr(start_module, "require_container_backend", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
     )
@@ -332,7 +363,7 @@ def test_services_start_requires_full_dependency_match_for_setup_companions(
     monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
     monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
     monkeypatch.setattr(start_module, "run_command", _fake_run_command)
-    monkeypatch.setattr(start_module, "require_docker", lambda: None)
+    monkeypatch.setattr(start_module, "require_container_backend", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
     )
