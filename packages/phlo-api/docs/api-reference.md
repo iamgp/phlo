@@ -633,6 +633,87 @@ Get materialization history for an asset.
 ]
 ```
 
+### Asset Materialization Dry Run
+
+#### `POST /api/dagster/assets/{asset_key_path}/materialize`
+
+Validate an asset materialization request. Live launch is not implemented yet;
+send `dry_run: true` to validate the request shape and Dagster materialization
+permission.
+
+**Path Parameters:**
+- `asset_key_path`: Asset key path
+
+**Request:**
+```json
+{
+  "dry_run": true,
+  "partition_key": "2026-04-26"
+}
+```
+
+**Response:**
+```json
+{
+  "operation": "materialize_asset",
+  "dry_run": true,
+  "accepted": true,
+  "run_id": null,
+  "asset_key_path": "silver/orders",
+  "partition_key": "2026-04-26",
+  "status": "DRY_RUN",
+  "message": "Materialization request is valid.",
+  "details": {"op_names": ["orders_op"]}
+}
+```
+
+### Run Status
+
+#### `GET /api/dagster/runs/{run_id}/status`
+
+Get the current Dagster status for a run.
+
+**Response:**
+```json
+{
+  "run_id": "abc-123",
+  "status": "FAILURE",
+  "pipeline_name": "daily_orders",
+  "start_time": 1760000000.0,
+  "end_time": 1760000100.0,
+  "tags": {"asset": "silver/orders"}
+}
+```
+
+### Run Retry Dry Run
+
+#### `POST /api/dagster/runs/{run_id}/retry`
+
+Validate a Dagster run retry request. Live retry launch is not implemented yet;
+send `dry_run: true` to validate whether the run is a retry candidate.
+
+**Request:**
+```json
+{
+  "dry_run": true
+}
+```
+
+**Response:**
+```json
+{
+  "operation": "retry_failed_run",
+  "dry_run": true,
+  "accepted": true,
+  "run_id": "abc-123",
+  "asset_key_path": null,
+  "partition_key": null,
+  "status": "DRY_RUN",
+  "message": "Run retry request is valid.",
+  "details": {"run_status": "FAILURE"}
+}
+```
+
 ## Nessie Catalog
 
 Base path: `/api/nessie`

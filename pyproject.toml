@@ -22,6 +22,7 @@ dev = [
     "phlo-hasura>=0.1.0",
     "phlo-lineage>=0.1.0",
     "phlo-loki>=0.1.0",
+    "phlo-mcp>=0.1.0",
     "phlo-minio>=0.1.0",
     "phlo-sling>=0.1.0",
     "phlo-nessie>=0.1.0",
@@ -205,6 +206,7 @@ extra-paths = [
     "packages/phlo-iceberg/src",
     "packages/phlo-lineage/src",
     "packages/phlo-loki/src",
+    "packages/phlo-mcp/src",
     "packages/phlo-otel/src",
     "packages/phlo-minio/src",
     "packages/phlo-nessie/src",
@@ -274,6 +276,9 @@ workspace = true
 workspace = true
 
 [tool.uv.sources.phlo-loki]
+workspace = true
+
+[tool.uv.sources.phlo-mcp]
 workspace = true
 
 [tool.uv.sources.phlo-minio]

@@ -131,3 +131,21 @@ def test_phlo_api_has_forward_auth_middleware() -> None:
         "X-Forwarded-Groups"
         in auth_labels["traefik.http.middlewares.phlo-api-auth.forwardauth.authResponseHeaders"]
     )
+
+
+def test_phlo_api_service_passes_clickstack_query_env() -> None:
+    import yaml
+    from importlib.resources import files
+
+    service_defn_path = files("phlo_api") / "service.yaml"
+
+    with open(service_defn_path) as f:
+        service_defn = yaml.safe_load(f)
+
+    compose_env = service_defn["compose"]["environment"]
+    dev_env = service_defn["dev"]["environment"]
+
+    for env in (compose_env, dev_env):
+        assert env["CLICKSTACK_QUERY_URL"] == "${CLICKSTACK_QUERY_URL:-}"
+        assert env["CLICKSTACK_QUERY_USER"] == "${CLICKSTACK_QUERY_USER:-}"
+        assert env["CLICKSTACK_QUERY_PASSWORD"] == "${CLICKSTACK_QUERY_PASSWORD:-}"

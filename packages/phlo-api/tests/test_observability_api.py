@@ -8,6 +8,7 @@ import pytest
 
 from phlo.capabilities import (
     ObservabilityBackendSpec,
+    TraceSpan,
     clear_capabilities,
     register_observability_backend,
 )
@@ -222,3 +223,85 @@ def test_resolve_observability_backend_requires_selection_when_ambiguous(monkeyp
 
     with pytest.raises(RuntimeError, match="Multiple observability backends are installed"):
         observability._resolve_observability_backend()
+
+
+def test_get_run_trace_spans_uses_observability_backend(monkeypatch) -> None:
+    """Run trace endpoint should come from the resolved observability backend."""
+
+    class _TraceBackend(_MockObservabilityBackend):
+        def run_trace_spans(self, run_id: str, limit: int = 500):
+            assert run_id == "run-123"
+            assert limit == 500
+            return [
+                TraceSpan(
+                    timestamp="2026-01-01 00:00:00",
+                    trace_id="abc123",
+                    span_id="span-1",
+                    span_name="materialize_orders",
+                    service_name="dagster",
+                    span_kind="INTERNAL",
+                    duration_ms=12.5,
+                    status_code="STATUS_CODE_OK",
+                    span_attributes={"phlo.run_id": "run-123"},
+                    resource_attributes={"service.name": "dagster"},
+                )
+            ]
+
+    monkeypatch.setattr(
+        observability,
+        "_resolve_observability_backend",
+        lambda backend=None: _TraceBackend(),
+    )
+
+    payload = observability.get_run_trace_spans("run-123", limit=500)
+
+    assert isinstance(payload, list)
+    assert payload[0].trace_id == "abc123"
+
+
+def test_get_trace_spans_passes_filters_to_observability_backend(monkeypatch) -> None:
+    """Filtered trace endpoint should pass all supported filters to the backend."""
+
+    class _TraceBackend(_MockObservabilityBackend):
+        def trace_spans(self, filters):
+            assert filters.run_id == "run-123"
+            assert filters.asset_key == "silver/orders"
+            assert filters.job_name == "daily_orders"
+            assert filters.service_name == "dagster"
+            assert filters.span_name == "materialize_orders"
+            assert filters.status_code == "STATUS_CODE_ERROR"
+            assert filters.start_time == "2026-04-26T00:00:00Z"
+            assert filters.end_time == "2026-04-26T01:00:00Z"
+            assert filters.limit == 25
+            return [
+                TraceSpan(
+                    timestamp="2026-04-26 00:30:00",
+                    trace_id="abc123",
+                    span_id="span-1",
+                    span_name="materialize_orders",
+                    service_name="dagster",
+                    status_code="STATUS_CODE_ERROR",
+                    span_attributes={"phlo.asset_key": "silver/orders"},
+                )
+            ]
+
+    monkeypatch.setattr(
+        observability,
+        "_resolve_observability_backend",
+        lambda backend=None: _TraceBackend(),
+    )
+
+    payload = observability.get_trace_spans(
+        run_id="run-123",
+        asset_key="silver/orders",
+        job_name="daily_orders",
+        service_name="dagster",
+        span_name="materialize_orders",
+        status_code="STATUS_CODE_ERROR",
+        start_time="2026-04-26T00:00:00Z",
+        end_time="2026-04-26T01:00:00Z",
+        limit=25,
+    )
+
+    assert isinstance(payload, list)
+    assert payload[0].status_code == "STATUS_CODE_ERROR"
