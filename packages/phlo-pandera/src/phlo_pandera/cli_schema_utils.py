@@ -52,6 +52,30 @@ def format_table(title: str, columns: list[str], rows: list[tuple]) -> Table:
     return table
 
 
+def validate_schema_file(schema_path: Path) -> None:
+    """Validate basic schema file syntax and structure."""
+    if not schema_path.exists():
+        raise FileNotFoundError(f"Schema file not found: {schema_path}")
+
+    content = schema_path.read_text()
+    checks = {
+        "Has imports": "import" in content.lower(),
+        "Has class definition": "class " in content,
+        "Has docstring": '"""' in content or "'''" in content,
+        "Valid Python": True,
+    }
+
+    try:
+        compile(content, str(schema_path), "exec")
+    except SyntaxError as exc:
+        checks["Valid Python"] = False
+        raise ValueError(f"Syntax error in {schema_path}: {exc}") from exc
+
+    failed = [name for name, passed in checks.items() if not passed]
+    if failed:
+        raise ValueError(f"Schema validation failed for {schema_path}: {', '.join(failed)}")
+
+
 def discover_pandera_schemas(
     search_paths: Optional[list[str]] = None,
 ) -> dict[str, type]:

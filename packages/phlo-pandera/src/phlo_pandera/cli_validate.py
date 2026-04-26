@@ -318,6 +318,16 @@ def _print_validation_failure(path: str, message: str) -> None:
     click.echo(f"Rerun: phlo validate-workflow {path}", err=True)
 
 
+def validate_workflow_file(file_path: Path, fix: bool = False) -> None:
+    """Validate one workflow file and raise on failure."""
+    if not file_path.exists():
+        _print_validation_failure(str(file_path), "file does not exist")
+        raise click.ClickException(f"Workflow file not found: {file_path}")
+
+    if not _validate_workflow_file(file_path, fix=fix):
+        raise click.ClickException(f"Workflow validation failed: {file_path}")
+
+
 def _validate_workflow_file(file_path: Path, fix: bool = False) -> bool:
     """Validate a single workflow file.
 

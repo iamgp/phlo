@@ -239,6 +239,37 @@ def test_workflow_create_reports_scaffold_failures(monkeypatch) -> None:
     assert "Error creating workflow: schema field is invalid" in result.output
 
 
+def test_workflow_check_delegates_to_existing_validators(monkeypatch, tmp_path) -> None:
+    """Checks the workflow and inferred schema before materialization."""
+    workflow_file = tmp_path / "workflows" / "ingestion" / "weather" / "observations.py"
+    schema_file = tmp_path / "workflows" / "schemas" / "weather.py"
+    workflow_file.parent.mkdir(parents=True)
+    schema_file.parent.mkdir(parents=True)
+    workflow_file.write_text("import phlo\n")
+    schema_file.write_text("class WeatherSchema: pass\n")
+    monkeypatch.chdir(tmp_path)
+
+    calls: list[tuple[str, str]] = []
+
+    def fake_validate_schema(path: str) -> None:
+        calls.append(("schema", path))
+
+    def fake_validate_workflow(path: str) -> None:
+        calls.append(("workflow", path))
+
+    monkeypatch.setattr("phlo.cli.commands.workflow._validate_schema_file", fake_validate_schema)
+    monkeypatch.setattr(
+        "phlo.cli.commands.workflow._validate_workflow_file", fake_validate_workflow
+    )
+
+    result = CliRunner().invoke(cli, ["workflow", "check", str(workflow_file)])
+
+    assert result.exit_code == 0
+    assert ("workflow", str(workflow_file)) in calls
+    assert ("schema", str(schema_file)) in calls
+    assert "phlo materialize dlt_observations" in result.output
+
+
 def test_init_with_absolute_path_uses_directory_name_for_project_metadata(tmp_path: Path) -> None:
     """Uses directory basename, not full absolute path, for project name.
 
