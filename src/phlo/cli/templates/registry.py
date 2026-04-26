@@ -1,6 +1,17 @@
 from __future__ import annotations
 
+import importlib.util
+
 from phlo.cli.templates.models import ProjectTemplate
+
+PACKAGE_IMPORTS = {
+    "phlo": "phlo",
+    "phlo-dbt": "phlo_dbt",
+    "phlo-dlt": "phlo_dlt",
+    "phlo-pandera": "phlo_pandera",
+    "phlo-sling": "phlo_sling",
+    "phlo-otel": "phlo_otel",
+}
 
 
 def _builtin_templates() -> tuple[ProjectTemplate, ...]:
@@ -34,3 +45,12 @@ def get_template(name: str) -> ProjectTemplate:
         if template.metadata.name == name:
             return template
     raise KeyError(name)
+
+
+def missing_required_packages(template: ProjectTemplate) -> tuple[str, ...]:
+    missing: list[str] = []
+    for package in template.metadata.required_packages:
+        import_name = PACKAGE_IMPORTS.get(package, package.replace("-", "_"))
+        if importlib.util.find_spec(import_name) is None:
+            missing.append(package)
+    return tuple(missing)

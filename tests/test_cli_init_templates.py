@@ -89,3 +89,18 @@ def test_gallery_templates_generate_expected_files(
     assert result.exit_code == 0, result.output
     assert (project_dir / expected_path).exists()
     _assert_python_files_parse(project_dir)
+
+
+def test_template_missing_package_prints_install_hint(monkeypatch, tmp_path) -> None:
+    def fake_find_spec(name: str):
+        return None if name == "phlo_sling" else object()
+
+    monkeypatch.setattr("phlo.cli.templates.registry.importlib.util.find_spec", fake_find_spec)
+
+    result = CliRunner().invoke(
+        cli, ["init", str(tmp_path / "demo"), "--template", "sling-replication"]
+    )
+
+    assert result.exit_code != 0
+    assert "phlo-sling" in result.output
+    assert "uv pip install" in result.output

@@ -16,6 +16,7 @@ import phlo.cli._warning_filters  # noqa: F401
 from phlo.cli.commands.doctor import doctor_cmd
 from phlo.cli.templates import TemplateRenderContext, get_template
 from phlo.cli.templates import list_templates as get_project_templates
+from phlo.cli.templates.registry import missing_required_packages
 from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__, service="phlo-cli")
@@ -249,6 +250,8 @@ def init(project_name: str | None, template: str, force: bool, list_templates: b
 
         click.echo("\nDocumentation: https://github.com/iamgp/phlo")
 
+    except click.ClickException:
+        raise
     except Exception as e:
         logger.exception("project_initialization_failed", project_dir=str(project_dir))
         click.echo(f"\nError initializing project: {e}", err=True)
@@ -268,6 +271,13 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
         template: Template type ("basic" or "minimal")
     """
     selected_template = get_template(template)
+    missing = missing_required_packages(selected_template)
+    if missing:
+        packages = " ".join(missing)
+        raise click.ClickException(
+            f"Template '{template}' requires missing package(s): {', '.join(missing)}. "
+            f"Install with: uv pip install {packages}"
+        )
     selected_template.render(
         TemplateRenderContext(project_dir=project_dir, project_name=project_name)
     )
