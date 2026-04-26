@@ -5,7 +5,7 @@ from click.testing import CliRunner
 
 from phlo.cli.commands.doctor import DiagnosticResult, DiagnosticStatus, doctor_cmd, run_diagnostics
 from phlo.cli.commands.services.ports import PortMapping
-from phlo.cli.main import cli
+from phlo.cli.main import _is_doctor_invocation, cli
 
 
 def test_diagnostic_result_serializes_to_json_payload() -> None:
@@ -45,6 +45,22 @@ def test_doctor_json_outputs_summary(monkeypatch) -> None:
     assert '"env.docker"' in result.output
 
 
+def test_doctor_json_suppresses_probe_stdout(monkeypatch) -> None:
+    def noisy_diagnostics(verbose=False):
+        print("probe log line")
+        return [
+            DiagnosticResult("env.python", "Environment", DiagnosticStatus.OK, "Python 3.13.5"),
+        ]
+
+    monkeypatch.setattr("phlo.cli.commands.doctor.run_diagnostics", noisy_diagnostics)
+
+    result = CliRunner().invoke(doctor_cmd, ["--json"])
+
+    assert result.exit_code == 0
+    assert result.output.startswith("{")
+    assert "probe log line" not in result.output
+
+
 def test_doctor_is_registered_on_root_cli(monkeypatch) -> None:
     monkeypatch.setattr(
         "phlo.cli.commands.doctor.run_diagnostics",
@@ -59,6 +75,11 @@ def test_doctor_is_registered_on_root_cli(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert '"doctor.bootstrap"' in result.output
+
+
+def test_doctor_invocation_skips_plugin_command_discovery() -> None:
+    assert _is_doctor_invocation(["phlo", "doctor", "--json"])
+    assert not _is_doctor_invocation(["phlo", "services", "list"])
 
 
 def test_environment_checks_report_missing_docker(monkeypatch) -> None:

@@ -1,20 +1,36 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import shutil
 import subprocess
 import sys
 from collections import defaultdict
+from collections.abc import Iterator
+from contextlib import contextmanager, redirect_stdout
 from dataclasses import dataclass, field
 from enum import StrEnum
+from io import StringIO
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
 import yaml
 
-from phlo.cli.commands.services.ports import PortMapping
-from phlo.plugins.discovery import ServiceDiscovery
+if TYPE_CHECKING:
+    from phlo.cli.commands.services.ports import PortMapping
+
+ServiceDiscovery: Any | None = None
+
+
+def _get_service_discovery_class() -> Any:
+    global ServiceDiscovery
+    if ServiceDiscovery is None:
+        from phlo.plugins.discovery import ServiceDiscovery as discovered_service_discovery
+
+        ServiceDiscovery = discovered_service_discovery
+    return ServiceDiscovery
 
 
 class DiagnosticStatus(StrEnum):
@@ -231,7 +247,7 @@ def check_project(*, verbose: bool = False) -> list[DiagnosticResult]:
 
 def check_discovery(*, verbose: bool = False) -> list[DiagnosticResult]:
     try:
-        services = ServiceDiscovery().discover()
+        services = _get_service_discovery_class()().discover()
     except Exception as exc:
         return [
             DiagnosticResult(
@@ -269,7 +285,7 @@ def _collect_port_mappings() -> list[PortMapping]:
     config = yaml.safe_load(config_file.read_text()) if config_file.exists() else {}
     config = config if isinstance(config, dict) else {}
     env = ports_module._load_environment(phlo_dir, config)
-    services = ServiceDiscovery().discover()
+    services = _get_service_discovery_class()().discover()
     running = ports_module._get_running_container_ports(_project_name())
     _, disabled = ports_module.get_enabled_disabled_service_names(config)
     service_overrides = (
@@ -372,12 +388,51 @@ def run_diagnostics(*, verbose: bool = False) -> list[DiagnosticResult]:
     ]
 
 
+@contextmanager
+def _silence_stdout() -> Iterator[None]:
+    saved_stdout_fd: int | None = None
+    saved_handler_streams: list[tuple[logging.Handler, Any]] = []
+    with Path(os.devnull).open("w") as devnull, StringIO() as stdout_buffer:
+        try:
+            saved_stdout_fd = os.dup(1)
+            os.dup2(devnull.fileno(), 1)
+        except OSError:
+            saved_stdout_fd = None
+
+        for handler in logging.getLogger().handlers:
+            stream = getattr(handler, "stream", None)
+            if stream is None or not hasattr(handler, "setStream"):
+                continue
+            saved_handler_streams.append((handler, stream))
+            handler.setStream(devnull)
+
+        try:
+            with redirect_stdout(stdout_buffer):
+                yield
+        finally:
+            for handler, stream in saved_handler_streams:
+                handler.setStream(stream)
+            if saved_stdout_fd is not None:
+                os.dup2(saved_stdout_fd, 1)
+                os.close(saved_stdout_fd)
+
+
+def _run_diagnostics_quietly(*, verbose: bool = False) -> list[DiagnosticResult]:
+    previous_disable_level = logging.root.manager.disable
+    logging.disable(logging.CRITICAL)
+    try:
+        with _silence_stdout():
+            return run_diagnostics(verbose=verbose)
+    finally:
+        logging.disable(previous_disable_level)
+
+
 @click.command("doctor")
 @click.option("--json", "output_json", is_flag=True, help="Output diagnostics as JSON.")
 @click.option("--verbose", is_flag=True, help="Include exception details where available.")
 def doctor_cmd(output_json: bool, verbose: bool) -> None:
     """Diagnose local Phlo setup and service health."""
-    results = run_diagnostics(verbose=verbose)
+    results = _run_diagnostics_quietly(verbose=verbose)
     click.echo(render_json(results) if output_json else render_terminal(results))
     if any(result.status == DiagnosticStatus.FAIL for result in results):
         raise click.exceptions.Exit(1)
