@@ -75,6 +75,26 @@ def workflow_group() -> None:
     """
 
 
+def _print_ingestion_next_steps(files: list[str], *, table: str) -> None:
+    """Print the next commands for a generated ingestion workflow."""
+    schema_file = files[0]
+    workflow_file = files[1]
+    test_file = files[2] if len(files) > 2 else None
+
+    click.echo("\nNext steps:")
+    click.echo(f"  1. Review schema: {schema_file}")
+    click.echo(f"  2. Review workflow: {workflow_file}")
+    click.echo(f"  3. Validate schema: phlo schema validate {schema_file}")
+    click.echo(f"  4. Validate workflow: phlo validate-workflow {workflow_file}")
+    if test_file:
+        click.echo(f"  5. Run generated tests: uv run pytest {test_file} -q")
+        click.echo("  6. Restart Dagster: phlo services restart --service dagster")
+        click.echo(f"  7. Materialize: phlo materialize dlt_{table}")
+    else:
+        click.echo("  5. Restart Dagster: phlo services restart --service dagster")
+        click.echo(f"  6. Materialize: phlo materialize dlt_{table}")
+
+
 @workflow_group.command("create")
 @click.option(
     "--type",
@@ -189,12 +209,7 @@ def create_workflow_cmd(
             for file_path in files:
                 click.echo(f"  - {file_path}")
 
-            click.echo("\nNext steps:")
-            click.echo(f"  1. Edit schema: {files[0]}")
-            click.echo(f"  2. Configure API: {files[1]}")
-            click.echo("  3. Restart Dagster: docker restart dagster-webserver")
-            click.echo(f"  4. Test: phlo test {domain}")
-            click.echo(f"  5. Materialize: phlo materialize dlt_{table}")
+            _print_ingestion_next_steps(files, table=table)
             logger.info(
                 "dlt_workflow_create_succeeded",
                 workflow_type=workflow_type,

@@ -7,18 +7,85 @@ Tests the workflow validation CLI command, including:
 - Directory and file handling
 """
 
+import ast
 import tempfile
 from pathlib import Path
 
 from click.testing import CliRunner
 
 from phlo_pandera.cli_validate import (
+    _is_phlo_ingestion_decorator,
     _is_valid_cron_field,
     _is_valid_field_name,
     _is_valid_table_name,
     _validate_cron_format,
     validate_workflow,
 )
+
+
+def test_validate_workflow_missing_file_prints_rerun_hint() -> None:
+    """Shows a rerun command when the workflow path is missing."""
+    result = CliRunner().invoke(validate_workflow, ["workflows/ingestion/missing.py"])
+
+    assert result.exit_code != 0
+    assert "workflows/ingestion/missing.py" in result.output
+    assert "phlo validate-workflow workflows/ingestion/missing.py" in result.output
+
+
+def test_validate_workflow_resolves_project_workflow_imports(monkeypatch, tmp_path) -> None:
+    """Loads workflow files that import project-local schemas."""
+    workflow_file = tmp_path / "workflows" / "ingestion" / "demo" / "events.py"
+    schema_file = tmp_path / "workflows" / "schemas" / "demo.py"
+    workflow_file.parent.mkdir(parents=True)
+    schema_file.parent.mkdir(parents=True)
+    schema_file.write_text("class RawEvents: pass\n")
+    workflow_file.write_text(
+        """
+from workflows.schemas.demo import RawEvents
+
+
+def phlo_ingestion(**kwargs):
+    def decorator(func):
+        return func
+
+    return decorator
+
+
+@phlo_ingestion(
+    table_name="events",
+    unique_key="id",
+    validation_schema=RawEvents,
+    group="demo",
+    cron="0 */1 * * *",
+    freshness_hours=(1, 24),
+)
+def events(partition_date: str) -> None:
+    return None
+"""
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(validate_workflow, [str(workflow_file)])
+
+    assert result.exit_code == 0
+    assert "Workflow is valid" in result.output
+
+
+def test_validate_workflow_recognizes_preferred_phlo_ingestion_decorator() -> None:
+    """Recognizes @phlo.ingestion while keeping @phlo_ingestion supported."""
+    source = """
+@phlo.ingestion(table_name="events")
+def preferred(): pass
+
+@phlo_ingestion(table_name="events")
+def legacy(): pass
+"""
+    tree = ast.parse(source)
+    decorators = [
+        node.decorator_list[0] for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+    ]
+
+    assert all(_is_phlo_ingestion_decorator(decorator) for decorator in decorators)
 
 
 class TestValidateCronField:

@@ -1125,6 +1125,14 @@ workflows/
     └── github.py
 ```
 
+### phlo workflow check
+
+Validate a workflow file and its inferred schema file.
+
+```bash
+phlo workflow check workflows/ingestion/weather/observations.py
+```
+
 ## Asset Commands
 
 ### phlo materialize

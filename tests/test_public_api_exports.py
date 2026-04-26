@@ -13,6 +13,25 @@ import pytest
 pytestmark = pytest.mark.core_regression
 
 
+def test_phlo_ingestion_module_is_callable_decorator_alias(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """phlo.ingestion should be the preferred callable decorator alias."""
+    import phlo
+
+    calls: list[dict[str, str]] = []
+
+    def fake_phlo_ingestion(**kwargs: str) -> str:
+        calls.append(kwargs)
+        return "decorator"
+
+    monkeypatch.setattr(phlo.ingestion, "phlo_ingestion", fake_phlo_ingestion)
+
+    assert callable(phlo.ingestion)
+    assert phlo.ingestion(table_name="events") == "decorator"
+    assert calls == [{"table_name": "events"}]
+
+
 def test_quality_module_import_does_not_load_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     """Importing phlo.quality should define no provider-backed exports eagerly."""
     import phlo.plugins.discovery as discovery

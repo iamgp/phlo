@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import click
 
@@ -14,6 +15,66 @@ logger = get_logger(__name__)
 @click.group(name="workflow")
 def workflow_group() -> None:
     """Manage workflows."""
+
+
+def _print_ingestion_next_steps(files: list[str], *, table: str) -> None:
+    """Print the next commands for a generated ingestion workflow."""
+    schema_file = files[0]
+    workflow_file = files[1]
+    test_file = files[2] if len(files) > 2 else None
+
+    click.echo("\nNext steps:")
+    click.echo(f"  1. Review schema: {schema_file}")
+    click.echo(f"  2. Review workflow: {workflow_file}")
+    click.echo(f"  3. Validate schema: phlo schema validate {schema_file}")
+    click.echo(f"  4. Validate workflow: phlo validate-workflow {workflow_file}")
+    if test_file:
+        click.echo(f"  5. Run generated tests: uv run pytest {test_file} -q")
+        click.echo("  6. Restart Dagster: phlo services restart --service dagster")
+        click.echo(f"  7. Materialize: phlo materialize dlt_{table}")
+        click.echo("  8. Inspect status: phlo status")
+    else:
+        click.echo("  5. Restart Dagster: phlo services restart --service dagster")
+        click.echo(f"  6. Materialize: phlo materialize dlt_{table}")
+        click.echo("  7. Inspect status: phlo status")
+
+
+def _infer_schema_path(workflow_path: Path) -> Path | None:
+    """Infer a domain schema path from a workflow path."""
+    parts = workflow_path.parts
+    if "workflows" not in parts or "ingestion" not in parts:
+        return None
+    workflows_index = parts.index("workflows")
+    ingestion_index = parts.index("ingestion")
+    if ingestion_index + 1 >= len(parts):
+        return None
+    domain = parts[ingestion_index + 1]
+    root = Path(*parts[:workflows_index]) if workflows_index > 0 else Path()
+    return root / "workflows" / "schemas" / f"{domain}.py"
+
+
+def _asset_key_from_workflow_path(workflow_path: Path) -> str:
+    """Infer the DLT asset key from a workflow file path."""
+    return f"dlt_{workflow_path.stem}"
+
+
+def _validate_workflow_file(path: str) -> None:
+    """Validate a workflow file using the existing Pandera validator."""
+    from phlo_pandera.cli_validate import validate_workflow_file
+
+    validate_workflow_file(Path(path), require_workflow=True)
+
+
+def _validate_schema_file(path: str) -> None:
+    """Validate a schema file using the existing schema validator."""
+    from phlo_pandera.cli_schema_utils import validate_schema_file
+
+    try:
+        validate_schema_file(Path(path))
+    except click.ClickException:
+        raise
+    except Exception as exc:
+        raise click.ClickException(f"Schema validation failed for {path}: {exc}") from exc
 
 
 @workflow_group.command("create")
@@ -85,12 +146,7 @@ def create_workflow_cmd(
             for file_path in files:
                 click.echo(f"  - {file_path}")
 
-            click.echo("\nNext steps:")
-            click.echo(f"  1. Edit schema: {files[0]}")
-            click.echo(f"  2. Configure API: {files[1]}")
-            click.echo("  3. Restart Dagster: phlo services restart dagster")
-            click.echo(f"  4. Test: phlo test {domain}")
-            click.echo(f"  5. Materialize: phlo materialize dlt_{table}")
+            _print_ingestion_next_steps(files, table=table)
             logger.info(
                 "workflow_create_succeeded",
                 workflow_type=workflow_type,
@@ -107,3 +163,30 @@ def create_workflow_cmd(
         )
         click.echo(f"Error creating workflow: {exc}", err=True)
         sys.exit(1)
+
+
+@workflow_group.command("check")
+@click.argument("workflow_file", type=click.Path(exists=True, dir_okay=False))
+def check_workflow_cmd(workflow_file: str) -> None:
+    """Validate a workflow and its inferred schema before materialization."""
+    workflow_path = Path(workflow_file)
+    schema_path = _infer_schema_path(workflow_path)
+
+    _validate_workflow_file(str(workflow_path))
+    click.echo(f"Workflow valid: {workflow_path}")
+
+    if schema_path and schema_path.exists():
+        try:
+            _validate_schema_file(str(schema_path))
+        except click.ClickException:
+            raise
+        except Exception as exc:
+            raise click.ClickException(
+                f"Schema validation failed for {schema_path}: {exc}"
+            ) from exc
+        click.echo(f"Schema valid: {schema_path}")
+    elif schema_path:
+        raise click.ClickException(f"Inferred schema file not found: {schema_path}")
+
+    asset_key = _asset_key_from_workflow_path(workflow_path)
+    click.echo(f"Next: phlo materialize {asset_key}")

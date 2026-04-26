@@ -6,6 +6,23 @@ This guide walks you through creating a complete data pipeline from scratch. We'
 
 ---
 
+## Authoring Loop
+
+Use this loop when creating a new ingestion workflow:
+
+```bash
+phlo workflow create --type ingestion --domain weather --table observations --unique-key station_id
+phlo workflow check workflows/ingestion/weather/observations.py
+phlo services restart --service dagster
+phlo materialize dlt_observations
+phlo status
+```
+
+`phlo workflow check` validates the workflow file and the inferred schema file before you
+restart Dagster or materialize the asset.
+
+---
+
 ## Table of Contents
 
 1. [Pipeline Overview](#pipeline-overview)
