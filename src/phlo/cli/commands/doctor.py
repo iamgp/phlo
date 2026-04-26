@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
+import sys
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 
 import click
@@ -75,12 +79,84 @@ def render_terminal(results: list[DiagnosticResult]) -> str:
     return "\n".join(lines)
 
 
-def run_diagnostics(*, verbose: bool = False) -> list[DiagnosticResult]:
-    return [
+def _run_probe(command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, capture_output=True, text=True, check=False, timeout=10)
+
+
+def check_environment(*, verbose: bool = False) -> list[DiagnosticResult]:
+    results: list[DiagnosticResult] = [
         DiagnosticResult(
             "doctor.bootstrap", "Environment", DiagnosticStatus.OK, "Doctor command loaded"
         )
     ]
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    python_status = DiagnosticStatus.OK if sys.version_info >= (3, 11) else DiagnosticStatus.FAIL
+    results.append(
+        DiagnosticResult(
+            "env.python",
+            "Environment",
+            python_status,
+            f"Python {python_version}",
+            None if python_status == DiagnosticStatus.OK else "Install Python 3.11 or newer.",
+        )
+    )
+
+    uv_path = shutil.which("uv")
+    results.append(
+        DiagnosticResult(
+            "env.uv",
+            "Environment",
+            DiagnosticStatus.OK if uv_path else DiagnosticStatus.FAIL,
+            "uv found" if uv_path else "uv command not found",
+            None if uv_path else "Install uv from https://docs.astral.sh/uv/.",
+        )
+    )
+
+    docker_path = shutil.which("docker")
+    results.append(
+        DiagnosticResult(
+            "env.docker.cli",
+            "Environment",
+            DiagnosticStatus.OK if docker_path else DiagnosticStatus.FAIL,
+            "Docker CLI found" if docker_path else "Docker CLI not found",
+            None if docker_path else "Install Docker Desktop or ensure docker is on PATH.",
+        )
+    )
+
+    if docker_path:
+        compose = _run_probe(["docker", "compose", "version"])
+        details = {"stderr": compose.stderr.strip()} if verbose and compose.stderr else {}
+        results.append(
+            DiagnosticResult(
+                "env.docker.compose",
+                "Environment",
+                DiagnosticStatus.OK if compose.returncode == 0 else DiagnosticStatus.FAIL,
+                "Docker Compose available"
+                if compose.returncode == 0
+                else "Docker Compose is not available",
+                None
+                if compose.returncode == 0
+                else "Install Docker Compose v2 or update Docker Desktop.",
+                details,
+            )
+        )
+
+    _, _, free = shutil.disk_usage(Path.cwd())
+    free_gb = free // (1024**3)
+    results.append(
+        DiagnosticResult(
+            "env.disk",
+            "Environment",
+            DiagnosticStatus.OK if free_gb >= 10 else DiagnosticStatus.WARN,
+            f"{free_gb} GB free in current filesystem",
+            None if free_gb >= 10 else "Free at least 10 GB before starting the full local stack.",
+        )
+    )
+    return results
+
+
+def run_diagnostics(*, verbose: bool = False) -> list[DiagnosticResult]:
+    return [*check_environment(verbose=verbose)]
 
 
 @click.command("doctor")

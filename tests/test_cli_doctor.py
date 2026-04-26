@@ -1,6 +1,8 @@
+from subprocess import CompletedProcess
+
 from click.testing import CliRunner
 
-from phlo.cli.commands.doctor import DiagnosticResult, DiagnosticStatus, doctor_cmd
+from phlo.cli.commands.doctor import DiagnosticResult, DiagnosticStatus, doctor_cmd, run_diagnostics
 from phlo.cli.main import cli
 
 
@@ -46,3 +48,39 @@ def test_doctor_is_registered_on_root_cli() -> None:
 
     assert result.exit_code == 0
     assert '"doctor.bootstrap"' in result.output
+
+
+def test_environment_checks_report_missing_docker(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor.shutil.which",
+        lambda name: None if name == "docker" else f"/usr/bin/{name}",
+    )
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor._run_probe",
+        lambda command: CompletedProcess(command, 0, "Docker Compose version v2.0.0", ""),
+    )
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.disk_usage", lambda path: (100, 50, 50))
+
+    results = [result for result in run_diagnostics() if result.group == "Environment"]
+
+    assert any(
+        result.id == "env.docker.cli" and result.status == DiagnosticStatus.FAIL
+        for result in results
+    )
+    assert any(result.id == "env.uv" and result.status == DiagnosticStatus.OK for result in results)
+
+
+def test_environment_checks_report_compose_failure(monkeypatch) -> None:
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor._run_probe",
+        lambda command: CompletedProcess(command, 1, "", "compose missing"),
+    )
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.disk_usage", lambda path: (100, 50, 50))
+
+    results = run_diagnostics()
+
+    assert any(
+        result.id == "env.docker.compose" and result.status == DiagnosticStatus.FAIL
+        for result in results
+    )
