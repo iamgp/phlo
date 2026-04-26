@@ -264,7 +264,7 @@ def select_project_container_backend(*, cli_backend: str | None = None) -> Conta
     try:
         from phlo.infrastructure.config import load_infrastructure_config
 
-        config_backend = load_infrastructure_config().container_backend
+        config_backend = load_infrastructure_config(Path.cwd()).container_backend
     except Exception:
         config_backend = None
     return select_container_backend(cli_backend=cli_backend, config_backend=config_backend)

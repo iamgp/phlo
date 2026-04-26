@@ -125,7 +125,7 @@ def test_select_project_backend_uses_config(monkeypatch: pytest.MonkeyPatch) -> 
 
     monkeypatch.setattr(
         "phlo.infrastructure.config.load_infrastructure_config",
-        lambda: Config(),
+        lambda *_args: Config(),
     )
 
     backend = select_project_container_backend()
