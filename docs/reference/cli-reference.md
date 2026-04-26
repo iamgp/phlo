@@ -37,6 +37,7 @@ phlo dev                 # Start development server
 phlo test                # Run tests
 phlo config              # Configuration management
 phlo env                 # Environment exports
+phlo doctor              # Diagnose local setup and service health
 ```
 
 **Workflow Commands:**
@@ -80,6 +81,20 @@ phlo validate-schema     # Validate Pandera schemas
 phlo schema-migrate      # Diff, plan, apply, and scaffold table schema migrations
 phlo migrate             # Run declarative data migration specs
 ```
+
+### phlo doctor
+
+Diagnose local Phlo setup, project configuration, service discovery, port mappings, and
+running service health.
+
+```bash
+phlo doctor
+phlo doctor --json
+phlo doctor --verbose
+```
+
+Use `--json` when attaching diagnostics to bug reports or CI logs. The command is
+read-only and does not start, stop, or modify services.
 
 **Optional Plugin Commands** (requires installation):
 

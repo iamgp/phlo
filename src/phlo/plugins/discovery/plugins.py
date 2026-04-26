@@ -329,6 +329,7 @@ def discover_plugins(
     auto_register: bool = True,
     *,
     failure_level: str = "error",
+    failure_sink: list[dict[str, str]] | None = None,
 ) -> dict[str, list[Plugin]]:
     """
     Discover all installed Phlo plugins.
@@ -437,7 +438,17 @@ def discover_plugins(
                         plugin_type=ptype,
                     )
 
-                except Exception:
+                except Exception as exc:
+                    if failure_sink is not None:
+                        failure_sink.append(
+                            {
+                                "plugin_name": entry_point.name,
+                                "entry_point": entry_point.value,
+                                "plugin_type": ptype,
+                                "error": str(exc),
+                                "error_type": type(exc).__name__,
+                            }
+                        )
                     log_method = getattr(logger, failure_level, logger.error)
                     log_method(
                         "plugin_load_failed",

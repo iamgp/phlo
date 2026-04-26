@@ -13,21 +13,39 @@ from pathlib import Path
 import click
 
 import phlo.cli._warning_filters  # noqa: F401
-from phlo.cli.commands.authz import authz_group
-from phlo.cli.commands.compliance import compliance_group
-from phlo.cli.commands.metrics import metrics_group
-from phlo.cli.commands.migrate import migrate_group
-from phlo.cli.commands.plugin import plugin_group
-from phlo.cli.commands.schema_migrate import schema_migrate_group
-from phlo.cli.commands.schema_registry_cli import contracts
-from phlo.cli.commands.services import _register_commands as _register_service_commands
-from phlo.cli.commands.services import services_group
-from phlo.cli.commands.workflow import workflow_group
-from phlo.cli.config import config
-from phlo.cli.env import env
+from phlo.cli.commands.doctor import doctor_cmd
 from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__, service="phlo-cli")
+
+
+def _is_doctor_invocation(argv: list[str]) -> bool:
+    for token in argv[1:]:
+        if token == "--":
+            return False
+        if token in {"--help", "-h", "--version"}:
+            return False
+        if token.startswith("-"):
+            continue
+        return token == "doctor"
+    return False
+
+
+_DOCTOR_INVOCATION = _is_doctor_invocation(sys.argv)
+
+if not _DOCTOR_INVOCATION:
+    from phlo.cli.commands.authz import authz_group
+    from phlo.cli.commands.compliance import compliance_group
+    from phlo.cli.commands.metrics import metrics_group
+    from phlo.cli.commands.migrate import migrate_group
+    from phlo.cli.commands.plugin import plugin_group
+    from phlo.cli.commands.schema_migrate import schema_migrate_group
+    from phlo.cli.commands.schema_registry_cli import contracts
+    from phlo.cli.commands.services import _register_commands as _register_service_commands
+    from phlo.cli.commands.services import services_group
+    from phlo.cli.commands.workflow import workflow_group
+    from phlo.cli.config import config
+    from phlo.cli.env import env
 
 
 @click.group()
@@ -43,19 +61,20 @@ def cli() -> None:
     setup_logging()
 
 
-cli.add_command(services_group)
-cli.add_command(workflow_group)
-cli.add_command(plugin_group)
-cli.add_command(schema_migrate_group)
-cli.add_command(migrate_group)
-cli.add_command(metrics_group)
-cli.add_command(contracts)
-cli.add_command(config)
-cli.add_command(env)
-cli.add_command(authz_group)
-cli.add_command(compliance_group)
+cli.add_command(doctor_cmd)
 
-_register_service_commands()
+if not _DOCTOR_INVOCATION:
+    cli.add_command(services_group)
+    cli.add_command(workflow_group)
+    cli.add_command(plugin_group)
+    cli.add_command(schema_migrate_group)
+    cli.add_command(migrate_group)
+    cli.add_command(metrics_group)
+    cli.add_command(contracts)
+    cli.add_command(config)
+    cli.add_command(env)
+    cli.add_command(authz_group)
+    cli.add_command(compliance_group)
 
 
 def _load_cli_plugin_commands() -> None:
@@ -80,7 +99,9 @@ def _load_cli_plugin_commands() -> None:
     logger.debug("cli_plugin_discovery_completed", command_count=added_count)
 
 
-_load_cli_plugin_commands()
+if not _DOCTOR_INVOCATION:
+    _register_service_commands()
+    _load_cli_plugin_commands()
 
 
 @cli.command()
