@@ -19,9 +19,8 @@ Note:
 Example:
     ```python
     import phlo
-    from phlo.ingestion import phlo_ingestion
 
-    @phlo_ingestion(
+    @phlo.ingestion(
         source="github",
         table_name="events",
         group_name="raw"
@@ -46,6 +45,10 @@ Raises:
 
 from __future__ import annotations
 
+import sys
+from types import ModuleType
+from typing import Any
+
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -57,5 +60,15 @@ except ModuleNotFoundError as exc:  # pragma: no cover - exercised via optional 
     raise ModuleNotFoundError(
         "phlo.ingestion requires phlo-dlt. Install phlo[defaults] or phlo-dlt."
     ) from exc
+
+
+class _CallableIngestionModule(ModuleType):
+    """Module type that lets ``phlo.ingestion(...)`` call the decorator."""
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return phlo_ingestion(*args, **kwargs)
+
+
+sys.modules[__name__].__class__ = _CallableIngestionModule
 
 __all__ = ["get_ingestion_assets", "phlo_ingestion"]

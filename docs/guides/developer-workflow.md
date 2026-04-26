@@ -37,6 +37,9 @@ phlo services start
 - define transforms with dbt
 - keep schemas under `workflows/schemas/`
 
+For the full command-by-command authoring loop with `phlo workflow check`, see
+[Workflow Development](workflow-development.md#authoring-loop).
+
 ### 4. Run the pipeline
 
 ```bash

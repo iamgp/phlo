@@ -4,6 +4,7 @@ Validate Command
 Validates Pandera schemas and Phlo configurations.
 """
 
+import ast
 import importlib.util
 import sys
 from pathlib import Path
@@ -109,7 +110,12 @@ def _load_module_from_file(file_path: Path) -> Any:
         Loaded module object, or None if loading fails.
 
     """
+    import_root = _project_import_root(file_path)
+    import_root_str = str(import_root)
+    inserted_import_root = import_root_str not in sys.path
     try:
+        if inserted_import_root:
+            sys.path.insert(0, import_root_str)
         spec = importlib.util.spec_from_file_location("schema_module", file_path)
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
@@ -123,6 +129,22 @@ def _load_module_from_file(file_path: Path) -> Any:
         )
         console.print(f"[red]Error loading module: {e}[/red]")
         return None
+    finally:
+        if inserted_import_root:
+            sys.path.remove(import_root_str)
+
+
+def _project_import_root(file_path: Path) -> Path:
+    """Return the project root needed for workflow-local imports."""
+    path = file_path.resolve()
+    parts = path.parts
+    if "workflows" not in parts:
+        return Path.cwd().resolve()
+
+    workflows_index = parts.index("workflows")
+    if workflows_index == 0:
+        return Path.cwd().resolve()
+    return Path(*parts[:workflows_index])
 
 
 def _find_pandera_schemas(module: Any) -> List[Any]:
@@ -240,7 +262,7 @@ def _validate_single_schema(
 
 
 @click.command()
-@click.argument("asset_file", type=click.Path(exists=True))
+@click.argument("asset_file", type=click.Path())
 @click.option(
     "--fix",
     is_flag=True,
@@ -277,6 +299,9 @@ def validate_workflow(asset_file: str, fix: bool):
     console.print("\n[bold blue]🔍 Validating Workflow[/bold blue]\n")
 
     path = Path(asset_file)
+    if not path.exists():
+        _print_validation_failure(str(path), "file does not exist")
+        raise click.ClickException(f"Workflow file not found: {path}")
 
     # Handle directory input
     if path.is_dir():
@@ -308,12 +333,38 @@ def validate_workflow(asset_file: str, fix: bool):
             sys.exit(1)
 
 
-def _validate_workflow_file(file_path: Path, fix: bool = False) -> bool:
+def _print_validation_failure(path: str, message: str) -> None:
+    """Print consistent workflow validation failure context."""
+    click.echo(f"Validation failed for {path}", err=True)
+    click.echo(f"Reason: {message}", err=True)
+    click.echo(f"Rerun: phlo validate-workflow {path}", err=True)
+
+
+def validate_workflow_file(
+    file_path: Path,
+    fix: bool = False,
+    require_workflow: bool = False,
+) -> None:
+    """Validate one workflow file and raise on failure."""
+    if not file_path.exists():
+        _print_validation_failure(str(file_path), "file does not exist")
+        raise click.ClickException(f"Workflow file not found: {file_path}")
+
+    if not _validate_workflow_file(file_path, fix=fix, require_workflow=require_workflow):
+        raise click.ClickException(f"Workflow validation failed: {file_path}")
+
+
+def _validate_workflow_file(
+    file_path: Path,
+    fix: bool = False,
+    require_workflow: bool = False,
+) -> bool:
     """Validate a single workflow file.
 
     Args:
         file_path: Path to the workflow file.
         fix: Whether to auto-fix issues.
+        require_workflow: Whether at least one ingestion workflow is required.
 
     Returns:
         True if file is valid, False otherwise.
@@ -328,11 +379,15 @@ def _validate_workflow_file(file_path: Path, fix: bool = False) -> bool:
         console.print("  [red]✗ Failed to load module[/red]")
         return False
 
-    # Find all functions decorated with @phlo_ingestion
+    # Find all functions decorated with a Phlo ingestion decorator.
     phlo_ingestion_funcs = _find_phlo_ingestion_functions(module)
 
     if not phlo_ingestion_funcs:
-        console.print("  [yellow]⚠ No @phlo_ingestion decorated functions found[/yellow]")
+        message = "No @phlo.ingestion decorated workflow found"
+        if require_workflow:
+            console.print(f"  [red]✗ {message}[/red]")
+            return False
+        console.print(f"  [yellow]⚠ {message}[/yellow]")
         return True
 
     console.print(f"  [green]✓[/green] Found {len(phlo_ingestion_funcs)} workflow(s)\n")
@@ -348,7 +403,7 @@ def _validate_workflow_file(file_path: Path, fix: bool = False) -> bool:
 
 
 def _find_phlo_ingestion_functions(module: Any) -> List[Tuple[str, Any, dict]]:
-    """Find all functions decorated with @phlo_ingestion.
+    """Find all functions decorated with a Phlo ingestion decorator.
 
     Args:
         module: Python module object to search.
@@ -359,23 +414,23 @@ def _find_phlo_ingestion_functions(module: Any) -> List[Tuple[str, Any, dict]]:
     """
     results = []
 
-    # Try to find functions with decorator by inspecting module source
+    # Try to find functions with actual decorators by inspecting module source.
     try:
         import inspect
 
         source = inspect.getsource(module)
-        # Look for @phlo_ingestion decorators in source
-        if "@phlo_ingestion" in source:
-            for name in dir(module):
-                obj = getattr(module, name)
-                if callable(obj) and not name.startswith("_"):
-                    # Check if this function is defined in the module
-                    try:
-                        if inspect.getfile(obj) == inspect.getfile(module):
-                            results.append((name, obj, {"found_in_source": True}))
-                    except (TypeError, OSError):
-                        pass
-    except (OSError, TypeError):
+        tree = ast.parse(source)
+        decorated_names = {
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and any(_is_phlo_ingestion_decorator(decorator) for decorator in node.decorator_list)
+        }
+        for name in sorted(decorated_names):
+            obj = getattr(module, name, None)
+            if callable(obj):
+                results.append((name, obj, {"found_in_source": True}))
+    except (OSError, SyntaxError, TypeError):
         logger.warning("validate_workflow_source_unavailable")
         # Module might not have source (e.g., built-in), fall back to __wrapped__ check
         for name in dir(module):
@@ -389,6 +444,36 @@ def _find_phlo_ingestion_functions(module: Any) -> List[Tuple[str, Any, dict]]:
     return results
 
 
+def _is_phlo_ingestion_decorator(decorator: ast.expr) -> bool:
+    """Return whether an AST decorator is a supported ingestion decorator."""
+    target = decorator.func if isinstance(decorator, ast.Call) else decorator
+    if isinstance(target, ast.Name):
+        return target.id == "phlo_ingestion"
+    if isinstance(target, ast.Attribute):
+        return _dotted_name(target) in {"phlo.ingestion", "phlo.ingestion.phlo_ingestion"} or (
+            target.attr == "phlo_ingestion"
+        )
+    return False
+
+
+def _dotted_name(node: ast.expr) -> str | None:
+    """Return a dotted name for simple attribute expressions."""
+    parts: list[str] = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if isinstance(node, ast.Name):
+        parts.append(node.id)
+        return ".".join(reversed(parts))
+    return None
+
+
+def _line_has_ingestion_decorator(line: str) -> bool:
+    """Return whether a source line starts a supported ingestion decorator."""
+    stripped = line.strip()
+    return stripped.startswith("@phlo.ingestion") or stripped.startswith("@phlo_ingestion")
+
+
 def _extract_decorator_params(func: Any) -> dict:
     """Extract decorator parameters from a decorated function.
 
@@ -396,11 +481,11 @@ def _extract_decorator_params(func: Any) -> dict:
         func: Decorated function object.
 
     Returns:
-        Dictionary of parameters if this is a @phlo_ingestion function,
+        Dictionary of parameters if this is an ingestion function,
         otherwise empty dict.
 
     """
-    # The @phlo_ingestion decorator doesn't expose params directly,
+    # The ingestion decorator doesn't expose params directly,
     # so we'll mark functions that look like ingestion functions
     if hasattr(func, "__qualname__") and "wrapper" in func.__qualname__:
         # This is likely a decorated function; we can't extract params
@@ -442,7 +527,7 @@ def _validate_workflow_function(
         source = file_path.read_text()
         lines = source.split("\n")
 
-        # Find the @phlo_ingestion decorator for this function
+        # Find the ingestion decorator for this function.
         deco_match = None
         func_line_idx = None
 
@@ -454,9 +539,9 @@ def _validate_workflow_function(
         if func_line_idx is None:
             warnings.append("Could not locate function in source code")
         else:
-            # Search backwards for @phlo_ingestion decorator
+            # Search backwards for the decorator block.
             for i in range(func_line_idx - 1, max(0, func_line_idx - 20), -1):
-                if "@phlo_ingestion" in lines[i]:
+                if _line_has_ingestion_decorator(lines[i]):
                     # Extract decorator block
                     deco_lines = []
                     bracket_count = 0
@@ -527,7 +612,7 @@ def _validate_workflow_function(
 def _validate_decorator_params(
     deco_text: str, func_line_idx: int, issues: List[str], warnings: List[str]
 ) -> None:
-    """Validate @phlo_ingestion decorator parameters.
+    """Validate ingestion decorator parameters.
 
     Args:
         deco_text: The decorator text.

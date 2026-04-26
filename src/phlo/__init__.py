@@ -51,7 +51,7 @@ Example:
     import phlo
 
     # Access ingestion decorator
-    @phlo.ingestion.phlo_ingestion(source="api", table_name="events")
+    @phlo.ingestion(source="api", table_name="events")
     def load_events():
         return fetch_events()
 
