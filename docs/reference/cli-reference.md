@@ -1013,7 +1013,7 @@ phlo init [PROJECT_NAME] [OPTIONS]
 **Options**:
 
 ```bash
---template TEMPLATE      # Project template (default: basic)
+--template TEMPLATE      # Project template (default: minimal)
 --list-templates         # List available project templates and exit
 --force                  # Initialize in non-empty directory
 ```
@@ -1021,7 +1021,7 @@ phlo init [PROJECT_NAME] [OPTIONS]
 **Templates**:
 
 - `minimal`: Minimal project structure (no transforms)
-- `basic`: Ingestion + dbt transforms (requires `phlo-dbt`)
+- `basic`: dbt-ready project (requires `phlo-dbt`)
 - `csv-batch`: Local CSV batch pipeline
 - `api-ingestion`: REST API ingestion pipeline
 - `dbt-medallion`: Bronze/silver/gold dbt project
@@ -1040,6 +1040,12 @@ phlo init --list-templates
 phlo init my-project --template csv-batch
 ```
 
+#### Create the default minimal project
+
+```bash
+phlo init my-project
+```
+
 **Example**:
 
 ```bash
@@ -1055,7 +1061,7 @@ my-lakehouse/
 ├── workflows/
 │   ├── ingestion/
 │   ├── schemas/
-│   └── transforms/       # basic template only
+│   └── transforms/       # dbt templates only
 │       └── dbt/
 ├── tests/
 └── phlo.yaml

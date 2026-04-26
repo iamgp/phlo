@@ -211,7 +211,8 @@ def _display_created_structure(project_dir: Path, selected_template) -> None:
 @click.argument("project_name", required=False)
 @click.option(
     "--template",
-    default="basic",
+    default="minimal",
+    show_default=True,
     help="Project template to use",
 )
 @click.option("--force", is_flag=True, help="Initialize in non-empty directory")
@@ -226,7 +227,7 @@ def init(project_name: str | None, template: str, force: bool, list_templates: b
     Examples:
         phlo init my-data-project          # Create new project directory
         phlo init . --force                # Initialize in current directory
-        phlo init weather-pipeline --template minimal
+        phlo init weather-pipeline --template csv-batch
     """
     if list_templates:
         for item in get_project_templates():
@@ -291,7 +292,7 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
     Args:
         project_dir: Path to project directory
         project_name: Name of the project
-        template: Template type ("basic" or "minimal")
+        template: Project template name.
     """
     try:
         selected_template = get_template(template)

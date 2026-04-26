@@ -44,6 +44,17 @@ def test_basic_template_generates_dbt_project(tmp_path) -> None:
     assert (project_dir / "workflows" / "transforms" / "dbt" / "dbt_project.yml").exists()
 
 
+def test_init_defaults_to_minimal_template(tmp_path) -> None:
+    project_dir = tmp_path / "demo"
+    result = CliRunner().invoke(cli, ["init", str(project_dir)])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "phlo.yaml").exists()
+    assert (project_dir / "workflows" / "__init__.py").exists()
+    assert not (project_dir / "workflows" / "transforms" / "dbt" / "dbt_project.yml").exists()
+    assert _project_dependencies(project_dir) == ["phlo"]
+
+
 def test_init_list_templates_outputs_metadata() -> None:
     result = CliRunner().invoke(cli, ["init", "--list-templates"])
 
