@@ -1,6 +1,7 @@
 from click.testing import CliRunner
 
 from phlo.cli.commands.doctor import DiagnosticResult, DiagnosticStatus, doctor_cmd
+from phlo.cli.main import cli
 
 
 def test_diagnostic_result_serializes_to_json_payload() -> None:
@@ -38,3 +39,10 @@ def test_doctor_json_outputs_summary(monkeypatch) -> None:
     assert '"ok": 1' in result.output
     assert '"fail": 1' in result.output
     assert '"env.docker"' in result.output
+
+
+def test_doctor_is_registered_on_root_cli() -> None:
+    result = CliRunner().invoke(cli, ["doctor", "--json"])
+
+    assert result.exit_code == 0
+    assert '"doctor.bootstrap"' in result.output

@@ -15,6 +15,7 @@ import click
 import phlo.cli._warning_filters  # noqa: F401
 from phlo.cli.commands.authz import authz_group
 from phlo.cli.commands.compliance import compliance_group
+from phlo.cli.commands.doctor import doctor_cmd
 from phlo.cli.commands.metrics import metrics_group
 from phlo.cli.commands.migrate import migrate_group
 from phlo.cli.commands.plugin import plugin_group
@@ -54,6 +55,7 @@ cli.add_command(config)
 cli.add_command(env)
 cli.add_command(authz_group)
 cli.add_command(compliance_group)
+cli.add_command(doctor_cmd)
 
 _register_service_commands()
 
