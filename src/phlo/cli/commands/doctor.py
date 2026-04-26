@@ -110,6 +110,166 @@ def _probe_failure_details(exc: BaseException, *, verbose: bool) -> dict[str, An
     return {"error": str(exc), "type": type(exc).__name__}
 
 
+def _configured_container_backend() -> str:
+    configured = os.environ.get("PHLO_CONTAINER_BACKEND")
+    if configured and configured.strip():
+        return configured.strip().lower()
+
+    project_file = Path.cwd() / "phlo.yaml"
+    if not project_file.exists():
+        return "docker"
+
+    try:
+        loaded = yaml.safe_load(project_file.read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        return "docker"
+    if not isinstance(loaded, dict):
+        return "docker"
+    infrastructure = loaded.get("infrastructure")
+    if not isinstance(infrastructure, dict):
+        return "docker"
+    configured = infrastructure.get("container_backend")
+    if isinstance(configured, str) and configured.strip():
+        return configured.strip().lower()
+    return "docker"
+
+
+def _selected_container_backend(configured: str) -> str | None:
+    if configured != "auto":
+        return configured
+    if shutil.which("docker"):
+        return "docker"
+    if shutil.which("podman"):
+        return "podman"
+    return None
+
+
+def _check_docker_backend(*, verbose: bool) -> list[DiagnosticResult]:
+    results: list[DiagnosticResult] = []
+    docker_path = shutil.which("docker")
+    results.append(
+        DiagnosticResult(
+            "env.docker.cli",
+            "Environment",
+            DiagnosticStatus.OK if docker_path else DiagnosticStatus.FAIL,
+            "Docker CLI found" if docker_path else "Docker CLI not found",
+            None if docker_path else "Install Docker Desktop or ensure docker is on PATH.",
+        )
+    )
+
+    if not docker_path:
+        return results
+
+    try:
+        compose = _run_probe(["docker", "compose", "version"])
+    except (OSError, subprocess.SubprocessError) as exc:
+        results.append(
+            DiagnosticResult(
+                "env.docker.compose",
+                "Environment",
+                DiagnosticStatus.FAIL,
+                "Docker Compose probe failed",
+                "Ensure Docker Desktop is running and docker compose version responds.",
+                _probe_failure_details(exc, verbose=verbose),
+            )
+        )
+    else:
+        details = {"stderr": compose.stderr.strip()} if verbose and compose.stderr else {}
+        results.append(
+            DiagnosticResult(
+                "env.docker.compose",
+                "Environment",
+                DiagnosticStatus.OK if compose.returncode == 0 else DiagnosticStatus.FAIL,
+                "Docker Compose available"
+                if compose.returncode == 0
+                else "Docker Compose is not available",
+                None
+                if compose.returncode == 0
+                else "Install Docker Compose v2 or update Docker Desktop.",
+                details,
+            )
+        )
+    return results
+
+
+def _check_podman_backend(*, verbose: bool) -> list[DiagnosticResult]:
+    results: list[DiagnosticResult] = []
+    podman_path = shutil.which("podman")
+    results.append(
+        DiagnosticResult(
+            "env.podman.cli",
+            "Environment",
+            DiagnosticStatus.OK if podman_path else DiagnosticStatus.FAIL,
+            "Podman CLI found" if podman_path else "Podman CLI not found",
+            None if podman_path else "Install Podman Desktop or ensure podman is on PATH.",
+        )
+    )
+
+    if not podman_path:
+        return results
+
+    try:
+        info = _run_probe(["podman", "info"])
+    except (OSError, subprocess.SubprocessError) as exc:
+        results.append(
+            DiagnosticResult(
+                "env.podman.info",
+                "Environment",
+                DiagnosticStatus.FAIL,
+                "Podman info probe failed",
+                "Start Podman with `podman machine start`, then retry.",
+                _probe_failure_details(exc, verbose=verbose),
+            )
+        )
+    else:
+        details = {"stderr": info.stderr.strip()} if verbose and info.stderr else {}
+        results.append(
+            DiagnosticResult(
+                "env.podman.info",
+                "Environment",
+                DiagnosticStatus.OK if info.returncode == 0 else DiagnosticStatus.FAIL,
+                "Podman engine available"
+                if info.returncode == 0
+                else "Podman engine is not available",
+                None
+                if info.returncode == 0
+                else "Start Podman with `podman machine start`, then retry.",
+                details,
+            )
+        )
+
+    try:
+        compose = _run_probe(["podman", "compose", "version"])
+    except (OSError, subprocess.SubprocessError) as exc:
+        results.append(
+            DiagnosticResult(
+                "env.podman.compose",
+                "Environment",
+                DiagnosticStatus.FAIL,
+                "Podman compose probe failed",
+                "Install or configure a Podman compose provider.",
+                _probe_failure_details(exc, verbose=verbose),
+            )
+        )
+    else:
+        details = {"stderr": compose.stderr.strip()} if verbose and compose.stderr else {}
+        results.append(
+            DiagnosticResult(
+                "env.podman.compose",
+                "Environment",
+                DiagnosticStatus.OK if compose.returncode == 0 else DiagnosticStatus.FAIL,
+                "Podman compose available"
+                if compose.returncode == 0
+                else "Podman compose is not available",
+                None
+                if compose.returncode == 0
+                else "Install or configure a Podman compose provider.",
+                details,
+            )
+        )
+    return results
+
+
 def check_environment(*, verbose: bool = False) -> list[DiagnosticResult]:
     results: list[DiagnosticResult] = [
         DiagnosticResult(
@@ -139,47 +299,44 @@ def check_environment(*, verbose: bool = False) -> list[DiagnosticResult]:
         )
     )
 
-    docker_path = shutil.which("docker")
-    results.append(
-        DiagnosticResult(
-            "env.docker.cli",
-            "Environment",
-            DiagnosticStatus.OK if docker_path else DiagnosticStatus.FAIL,
-            "Docker CLI found" if docker_path else "Docker CLI not found",
-            None if docker_path else "Install Docker Desktop or ensure docker is on PATH.",
+    configured_backend = _configured_container_backend()
+    selected_backend = _selected_container_backend(configured_backend)
+    if configured_backend not in {"docker", "podman", "auto"}:
+        results.append(
+            DiagnosticResult(
+                "env.container_backend",
+                "Environment",
+                DiagnosticStatus.FAIL,
+                f"Unsupported container backend: {configured_backend}",
+                "Set infrastructure.container_backend or PHLO_CONTAINER_BACKEND to docker, podman, or auto.",
+            )
         )
-    )
-
-    if docker_path:
-        try:
-            compose = _run_probe(["docker", "compose", "version"])
-        except (OSError, subprocess.SubprocessError) as exc:
-            results.append(
-                DiagnosticResult(
-                    "env.docker.compose",
-                    "Environment",
-                    DiagnosticStatus.FAIL,
-                    "Docker Compose probe failed",
-                    "Ensure Docker Desktop is running and docker compose version responds.",
-                    _probe_failure_details(exc, verbose=verbose),
-                )
+    elif selected_backend is None:
+        results.append(
+            DiagnosticResult(
+                "env.container_backend",
+                "Environment",
+                DiagnosticStatus.FAIL,
+                "No container backend CLI found",
+                "Install Docker Desktop or Podman Desktop, then rerun phlo doctor.",
             )
-        else:
-            details = {"stderr": compose.stderr.strip()} if verbose and compose.stderr else {}
-            results.append(
-                DiagnosticResult(
-                    "env.docker.compose",
-                    "Environment",
-                    DiagnosticStatus.OK if compose.returncode == 0 else DiagnosticStatus.FAIL,
-                    "Docker Compose available"
-                    if compose.returncode == 0
-                    else "Docker Compose is not available",
-                    None
-                    if compose.returncode == 0
-                    else "Install Docker Compose v2 or update Docker Desktop.",
-                    details,
-                )
+        )
+    else:
+        results.append(
+            DiagnosticResult(
+                "env.container_backend",
+                "Environment",
+                DiagnosticStatus.OK,
+                f"Container backend: {selected_backend}",
+                details={"configured": configured_backend}
+                if verbose and configured_backend != selected_backend
+                else {},
             )
+        )
+        if selected_backend == "docker":
+            results.extend(_check_docker_backend(verbose=verbose))
+        elif selected_backend == "podman":
+            results.extend(_check_podman_backend(verbose=verbose))
 
     _, _, free = shutil.disk_usage(Path.cwd())
     free_gb = free // (1024**3)

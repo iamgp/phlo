@@ -144,6 +144,39 @@ def test_environment_checks_report_compose_probe_timeout(monkeypatch) -> None:
     assert failure.details["type"] == "TimeoutExpired"
 
 
+def test_environment_checks_use_podman_backend_from_phlo_yaml(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    (tmp_path / "phlo.yaml").write_text(
+        yaml.safe_dump({"infrastructure": {"container_backend": "podman"}})
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor.shutil.which",
+        lambda name: f"/usr/bin/{name}" if name in {"podman", "uv"} else None,
+    )
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor._run_probe",
+        lambda command: CompletedProcess(command, 0, "ok", ""),
+    )
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.disk_usage", lambda path: (100, 50, 50))
+
+    results = [result for result in check_environment() if result.group == "Environment"]
+
+    assert any(
+        result.id == "env.container_backend"
+        and result.status == DiagnosticStatus.OK
+        and result.message == "Container backend: podman"
+        for result in results
+    )
+    assert any(
+        result.id == "env.podman.compose" and result.status == DiagnosticStatus.OK
+        for result in results
+    )
+    assert not any(result.id == "env.docker.cli" for result in results)
+
+
 def test_project_checks_report_missing_services_init(tmp_path, monkeypatch) -> None:
     (tmp_path / "phlo.yaml").write_text(yaml.safe_dump({"name": "demo"}))
     monkeypatch.chdir(tmp_path)
