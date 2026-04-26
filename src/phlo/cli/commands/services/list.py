@@ -7,7 +7,7 @@ import click
 import yaml
 
 from phlo.cli.commands.services.utils import get_enabled_disabled_service_names
-from phlo.cli.infrastructure.container_backend import select_container_backend
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -20,7 +20,7 @@ def _get_running_containers(
     backend_name: str | None = None,
 ) -> dict[str, dict[str, str]]:
     """Get running container status from the selected backend."""
-    backend = select_container_backend(cli_backend=backend_name, config_backend=None)
+    backend = select_project_container_backend(cli_backend=backend_name)
     containers: dict[str, dict[str, str]] = {}
     for container in backend.list_project_containers(project_name):
         containers[container.service] = {

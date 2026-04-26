@@ -193,7 +193,9 @@ def test_get_running_container_ports_uses_backend(monkeypatch: pytest.MonkeyPatc
                 )
             ]
 
-    monkeypatch.setattr(ports_module, "select_container_backend", lambda **_kwargs: FakeBackend())
+    monkeypatch.setattr(
+        ports_module, "select_project_container_backend", lambda **_kwargs: FakeBackend()
+    )
 
     containers = ports_module._get_running_container_ports("demo", "podman")
 

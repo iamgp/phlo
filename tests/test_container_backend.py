@@ -8,6 +8,7 @@ from phlo.cli.infrastructure.container_backend import (
     DockerBackend,
     PodmanBackend,
     select_container_backend,
+    select_project_container_backend,
 )
 from phlo.config_schema import InfrastructureConfig
 
@@ -78,6 +79,22 @@ def test_select_backend_cli_overrides_env(monkeypatch: pytest.MonkeyPatch) -> No
     backend = select_container_backend(cli_backend="docker", config_backend=None)
 
     assert backend.name == "docker"
+
+
+def test_select_project_backend_uses_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PHLO_CONTAINER_BACKEND", raising=False)
+
+    class Config:
+        container_backend = "podman"
+
+    monkeypatch.setattr(
+        "phlo.infrastructure.config.load_infrastructure_config",
+        lambda: Config(),
+    )
+
+    backend = select_project_container_backend()
+
+    assert backend.name == "podman"
 
 
 def test_select_backend_rejects_unknown(monkeypatch: pytest.MonkeyPatch) -> None:

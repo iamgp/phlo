@@ -40,7 +40,9 @@ def test_services_list_uses_backend_container_listing(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(list_module, "ServiceDiscovery", ServiceFakeDiscovery)
     monkeypatch.setattr(list_module, "get_project_name", lambda: "demo")
-    monkeypatch.setattr(list_module, "select_container_backend", lambda **_kwargs: FakeBackend())
+    monkeypatch.setattr(
+        list_module, "select_project_container_backend", lambda **_kwargs: FakeBackend()
+    )
 
     result = CliRunner().invoke(list_module.list_cmd, ["--json", "--backend", "podman"])
 
@@ -91,7 +93,7 @@ def test_services_list_handles_backend_status_failures(
     monkeypatch.setattr(list_module, "get_project_name", lambda: "demo")
     monkeypatch.setattr(
         list_module,
-        "select_container_backend",
+        "select_project_container_backend",
         lambda **_kwargs: (_ for _ in ()).throw(ValueError("bad backend")),
     )
     monkeypatch.chdir(tmp_path)

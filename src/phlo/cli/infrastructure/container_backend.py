@@ -241,3 +241,15 @@ def select_container_backend(
     if selected == "podman":
         return PodmanBackend()
     raise ValueError(f"Unsupported container backend: {selected}")
+
+
+def select_project_container_backend(*, cli_backend: str | None = None) -> ContainerBackend:
+    """Select backend using CLI override, environment, then phlo.yaml infrastructure config."""
+    config_backend = None
+    try:
+        from phlo.infrastructure.config import load_infrastructure_config
+
+        config_backend = load_infrastructure_config().container_backend
+    except Exception:
+        config_backend = None
+    return select_container_backend(cli_backend=cli_backend, config_backend=config_backend)

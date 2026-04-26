@@ -11,7 +11,7 @@ import click
 import yaml
 
 from phlo.cli.commands.services.utils import _get_env_overrides, get_enabled_disabled_service_names
-from phlo.cli.infrastructure.container_backend import select_container_backend
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name, parse_env_file
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -136,7 +136,7 @@ def _get_running_container_ports(
     """Get published ports from running containers."""
     try:
         containers = {}
-        backend = select_container_backend(cli_backend=backend_name, config_backend=None)
+        backend = select_project_container_backend(cli_backend=backend_name)
         for container in backend.list_project_containers(project_name):
             containers[container.service] = {
                 "status": container.state,

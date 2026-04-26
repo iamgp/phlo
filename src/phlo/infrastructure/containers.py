@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
-from phlo.cli.infrastructure.container_backend import select_container_backend
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.infrastructure.config import load_infrastructure_config
 from phlo.logging import get_logger
 
@@ -24,7 +24,7 @@ def resolve_container_name(service_name: str, project_name: str) -> str:
 def list_running_containers(project_name: str, backend_name: str | None = None) -> list[str]:
     """List running compose container names for a project."""
     try:
-        backend = select_container_backend(cli_backend=backend_name, config_backend=None)
+        backend = select_project_container_backend(cli_backend=backend_name)
         return [container.name for container in backend.list_project_containers(project_name)]
     except Exception:
         logger.warning(

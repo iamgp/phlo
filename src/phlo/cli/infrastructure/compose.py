@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
-from phlo.cli.infrastructure.container_backend import select_container_backend
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 
 
 def compose_base_cmd(
@@ -24,7 +24,7 @@ def compose_base_cmd(
     Returns:
         Base command tokens for compose invocation.
     """
-    backend = select_container_backend(cli_backend=backend_name, config_backend=None)
+    backend = select_project_container_backend(cli_backend=backend_name)
     return backend.compose_base_cmd(
         phlo_dir=phlo_dir,
         project_name=project_name,

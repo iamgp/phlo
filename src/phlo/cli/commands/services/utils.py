@@ -13,7 +13,7 @@ from uuid import uuid4
 import click
 
 from phlo.cli.infrastructure.command import run_command
-from phlo.cli.infrastructure.container_backend import select_container_backend
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.infrastructure.containers import resolve_container_name as _resolve_container_name
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -106,7 +106,7 @@ def require_docker():
 def require_container_backend(backend_name: str | None = None) -> None:
     """Exit with helpful message if the selected container backend is unavailable."""
     try:
-        backend = select_container_backend(cli_backend=backend_name, config_backend=None)
+        backend = select_project_container_backend(cli_backend=backend_name)
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
     available, fix = backend.check_available()
