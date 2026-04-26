@@ -84,11 +84,7 @@ def test_services_state_transition_remove_add_list_start_flow(
     monkeypatch.setattr(remove_module, "_regenerate_compose", _fake_regenerate_compose)
 
     monkeypatch.setattr(list_module, "get_project_name", lambda: "demo-project")
-    monkeypatch.setattr(
-        list_module,
-        "run_command",
-        lambda *_args, **_kwargs: CompletedProcess(args=["docker", "ps"], returncode=0, stdout=""),
-    )
+    monkeypatch.setattr(list_module, "_get_running_containers", lambda *_args: {})
 
     docker_calls: list[list[str]] = []
 
@@ -157,11 +153,7 @@ def test_services_list_reads_disabled_service_names_from_transition_state(
 
     monkeypatch.setattr(list_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(list_module, "get_project_name", lambda: "demo-project")
-    monkeypatch.setattr(
-        list_module,
-        "run_command",
-        lambda *_args, **_kwargs: CompletedProcess(args=["docker", "ps"], returncode=0, stdout=""),
-    )
+    monkeypatch.setattr(list_module, "_get_running_containers", lambda *_args: {})
 
     result = CliRunner().invoke(list_module.list_cmd, ["--json"])
 
