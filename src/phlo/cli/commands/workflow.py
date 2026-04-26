@@ -30,13 +30,13 @@ def _print_ingestion_next_steps(files: list[str], *, table: str) -> None:
     click.echo(f"  4. Validate workflow: phlo validate-workflow {workflow_file}")
     if test_file:
         click.echo(f"  5. Run generated tests: uv run pytest {test_file} -q")
-        click.echo("  6. Restart Dagster: phlo services restart dagster")
+        click.echo("  6. Restart Dagster: phlo services restart --service dagster")
         click.echo(f"  7. Materialize: phlo materialize dlt_{table}")
-        click.echo(f"  8. Inspect status: phlo status --select dlt_{table}")
+        click.echo("  8. Inspect status: phlo status")
     else:
-        click.echo("  5. Restart Dagster: phlo services restart dagster")
+        click.echo("  5. Restart Dagster: phlo services restart --service dagster")
         click.echo(f"  6. Materialize: phlo materialize dlt_{table}")
-        click.echo(f"  7. Inspect status: phlo status --select dlt_{table}")
+        click.echo("  7. Inspect status: phlo status")
 
 
 def _infer_schema_path(workflow_path: Path) -> Path | None:
@@ -62,14 +62,19 @@ def _validate_workflow_file(path: str) -> None:
     """Validate a workflow file using the existing Pandera validator."""
     from phlo_pandera.cli_validate import validate_workflow_file
 
-    validate_workflow_file(Path(path))
+    validate_workflow_file(Path(path), require_workflow=True)
 
 
 def _validate_schema_file(path: str) -> None:
     """Validate a schema file using the existing schema validator."""
     from phlo_pandera.cli_schema_utils import validate_schema_file
 
-    validate_schema_file(Path(path))
+    try:
+        validate_schema_file(Path(path))
+    except click.ClickException:
+        raise
+    except Exception as exc:
+        raise click.ClickException(f"Schema validation failed for {path}: {exc}") from exc
 
 
 @workflow_group.command("create")
@@ -171,7 +176,14 @@ def check_workflow_cmd(workflow_file: str) -> None:
     click.echo(f"Workflow valid: {workflow_path}")
 
     if schema_path and schema_path.exists():
-        _validate_schema_file(str(schema_path))
+        try:
+            _validate_schema_file(str(schema_path))
+        except click.ClickException:
+            raise
+        except Exception as exc:
+            raise click.ClickException(
+                f"Schema validation failed for {schema_path}: {exc}"
+            ) from exc
         click.echo(f"Schema valid: {schema_path}")
     elif schema_path:
         raise click.ClickException(f"Inferred schema file not found: {schema_path}")

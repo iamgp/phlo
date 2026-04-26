@@ -197,9 +197,12 @@ def test_workflow_create_prints_runnable_next_steps(monkeypatch, tmp_path) -> No
     assert result.exit_code == 0
     assert "phlo schema validate workflows/schemas/weather.py" in result.output
     assert "phlo validate-workflow workflows/ingestion/weather/observations.py" in result.output
-    assert "phlo services restart dagster" in result.output
+    assert "phlo services restart --service dagster" in result.output
     assert "phlo materialize dlt_observations" in result.output
+    assert "phlo status" in result.output
+    assert "phlo status --select" not in result.output
     assert "phlo test weather" not in result.output
+    assert "phlo services restart dagster" not in result.output
     assert "docker restart" not in result.output
 
 
@@ -268,6 +271,52 @@ def test_workflow_check_delegates_to_existing_validators(monkeypatch, tmp_path) 
     assert ("workflow", str(workflow_file)) in calls
     assert ("schema", str(schema_file)) in calls
     assert "phlo materialize dlt_observations" in result.output
+
+
+def test_workflow_check_rejects_files_without_ingestion_workflow(tmp_path, monkeypatch) -> None:
+    """Fails strict checks when a file has no Phlo ingestion asset."""
+    workflow_file = tmp_path / "workflows" / "ingestion" / "weather" / "notes.py"
+    schema_file = tmp_path / "workflows" / "schemas" / "weather.py"
+    workflow_file.parent.mkdir(parents=True)
+    schema_file.parent.mkdir(parents=True)
+    workflow_file.write_text("VALUE = 1\n")
+    schema_file.write_text('"""Weather schema."""\n\nclass WeatherSchema: pass\n')
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(cli, ["workflow", "check", str(workflow_file)])
+
+    assert result.exit_code != 0
+    assert "No @phlo_ingestion decorated workflow found" in result.output
+    assert "phlo materialize" not in result.output
+
+
+def test_workflow_check_wraps_schema_validation_failures(monkeypatch, tmp_path) -> None:
+    """Reports schema validation errors as Click failures."""
+    workflow_file = tmp_path / "workflows" / "ingestion" / "weather" / "observations.py"
+    schema_file = tmp_path / "workflows" / "schemas" / "weather.py"
+    workflow_file.parent.mkdir(parents=True)
+    schema_file.parent.mkdir(parents=True)
+    workflow_file.write_text("import phlo\n")
+    schema_file.write_text("not valid python")
+    monkeypatch.chdir(tmp_path)
+
+    def fake_validate_workflow(path: str) -> None:
+        return None
+
+    def fake_validate_schema(path: str) -> None:
+        raise ValueError("schema syntax exploded")
+
+    monkeypatch.setattr(
+        "phlo.cli.commands.workflow._validate_workflow_file", fake_validate_workflow
+    )
+    monkeypatch.setattr("phlo.cli.commands.workflow._validate_schema_file", fake_validate_schema)
+
+    result = CliRunner().invoke(cli, ["workflow", "check", str(workflow_file)])
+
+    assert result.exit_code != 0
+    assert "Schema validation failed" in result.output
+    assert "schema syntax exploded" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_init_with_absolute_path_uses_directory_name_for_project_metadata(tmp_path: Path) -> None:

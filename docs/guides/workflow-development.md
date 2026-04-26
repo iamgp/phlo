@@ -13,7 +13,7 @@ Use this loop when creating a new ingestion workflow:
 ```bash
 phlo workflow create --type ingestion --domain weather --table observations --unique-key station_id
 phlo workflow check workflows/ingestion/weather/observations.py
-phlo services restart dagster
+phlo services restart --service dagster
 phlo materialize dlt_observations
 phlo status
 ```

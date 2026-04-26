@@ -339,22 +339,31 @@ def _print_validation_failure(path: str, message: str) -> None:
     click.echo(f"Rerun: phlo validate-workflow {path}", err=True)
 
 
-def validate_workflow_file(file_path: Path, fix: bool = False) -> None:
+def validate_workflow_file(
+    file_path: Path,
+    fix: bool = False,
+    require_workflow: bool = False,
+) -> None:
     """Validate one workflow file and raise on failure."""
     if not file_path.exists():
         _print_validation_failure(str(file_path), "file does not exist")
         raise click.ClickException(f"Workflow file not found: {file_path}")
 
-    if not _validate_workflow_file(file_path, fix=fix):
+    if not _validate_workflow_file(file_path, fix=fix, require_workflow=require_workflow):
         raise click.ClickException(f"Workflow validation failed: {file_path}")
 
 
-def _validate_workflow_file(file_path: Path, fix: bool = False) -> bool:
+def _validate_workflow_file(
+    file_path: Path,
+    fix: bool = False,
+    require_workflow: bool = False,
+) -> bool:
     """Validate a single workflow file.
 
     Args:
         file_path: Path to the workflow file.
         fix: Whether to auto-fix issues.
+        require_workflow: Whether at least one @phlo_ingestion workflow is required.
 
     Returns:
         True if file is valid, False otherwise.
@@ -373,7 +382,11 @@ def _validate_workflow_file(file_path: Path, fix: bool = False) -> bool:
     phlo_ingestion_funcs = _find_phlo_ingestion_functions(module)
 
     if not phlo_ingestion_funcs:
-        console.print("  [yellow]⚠ No @phlo_ingestion decorated functions found[/yellow]")
+        message = "No @phlo_ingestion decorated workflow found"
+        if require_workflow:
+            console.print(f"  [red]✗ {message}[/red]")
+            return False
+        console.print(f"  [yellow]⚠ {message}[/yellow]")
         return True
 
     console.print(f"  [green]✓[/green] Found {len(phlo_ingestion_funcs)} workflow(s)\n")
