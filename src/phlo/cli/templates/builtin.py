@@ -301,3 +301,81 @@ def api_events():
     return pd.DataFrame([{"id": 1, "name": "sample"}])
 """,
         )
+
+
+class DbtMedallionTemplate:
+    metadata = TemplateMetadata(
+        name="dbt-medallion",
+        description="Bronze/silver/gold dbt project",
+        required_packages=("phlo", "phlo-dbt"),
+        generated_paths=("workflows/transforms/dbt/models/silver/stg_events.sql",),
+        next_steps=("dbt compile", "phlo services restart dagster"),
+    )
+
+    def render(self, context: TemplateRenderContext) -> None:
+        BasicTemplate().render(context)
+        base = context.project_dir / "workflows" / "transforms" / "dbt" / "models"
+        _write_text(base / "bronze" / "source_events.sql", "select 1 as id, 'sample' as name\n")
+        _write_text(
+            base / "silver" / "stg_events.sql",
+            "select id, name from {{ ref('source_events') }}\n",
+        )
+        _write_text(
+            base / "gold" / "dim_events.sql",
+            "select id, name from {{ ref('stg_events') }}\n",
+        )
+        _write_text(base / "sources.yml", "version: 2\nsources: []\n")
+
+
+class SlingReplicationTemplate:
+    metadata = TemplateMetadata(
+        name="sling-replication",
+        description="Sling replication starter",
+        required_packages=("phlo", "phlo-sling"),
+        generated_paths=("replication/sling.yaml",),
+        next_steps=("phlo sling --help",),
+    )
+
+    def render(self, context: TemplateRenderContext) -> None:
+        MinimalTemplate().render(context)
+        _write_text(
+            context.project_dir / "replication" / "sling.yaml",
+            """source: LOCAL
+target: POSTGRES
+streams:
+  file://data/events.csv:
+    object: public.events
+""",
+        )
+        _write_text(context.project_dir / "data" / "events.csv", "id,name\n1,alpha\n")
+
+
+class ObservabilityDemoTemplate:
+    metadata = TemplateMetadata(
+        name="observability-demo",
+        description="Pipeline with telemetry wiring",
+        required_packages=("phlo", "phlo-dlt", "phlo-pandera", "phlo-otel"),
+        generated_paths=("workflows/ingestion/observability/events.py",),
+        next_steps=("phlo services init", "phlo services start --profile observability"),
+    )
+
+    def render(self, context: TemplateRenderContext) -> None:
+        CsvBatchTemplate().render(context)
+        _write_text(
+            context.project_dir / "workflows" / "ingestion" / "observability" / "events.py",
+            """from __future__ import annotations
+
+import logging
+
+import pandas as pd
+import phlo
+
+logger = logging.getLogger(__name__)
+
+
+@phlo.ingestion(table_name="observability_events", unique_key="id", group="observability")
+def observability_events():
+    logger.info("loading observability demo events")
+    return pd.DataFrame([{"id": 1, "name": "traceable"}])
+""",
+        )

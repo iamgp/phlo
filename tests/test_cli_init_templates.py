@@ -70,3 +70,22 @@ def test_api_ingestion_template_generates_runnable_files(tmp_path) -> None:
     assert (project_dir / "workflows" / "ingestion" / "api" / "events.py").exists()
     assert (project_dir / "workflows" / "schemas" / "api.py").exists()
     _assert_python_files_parse(project_dir)
+
+
+@pytest.mark.parametrize(
+    ("template_name", "expected_path"),
+    [
+        ("dbt-medallion", "workflows/transforms/dbt/models/silver/stg_events.sql"),
+        ("sling-replication", "replication/sling.yaml"),
+        ("observability-demo", "workflows/ingestion/observability/events.py"),
+    ],
+)
+def test_gallery_templates_generate_expected_files(
+    tmp_path, template_name: str, expected_path: str
+) -> None:
+    project_dir = tmp_path / template_name
+    result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", template_name])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / expected_path).exists()
+    _assert_python_files_parse(project_dir)

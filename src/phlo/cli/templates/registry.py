@@ -8,10 +8,21 @@ def _builtin_templates() -> tuple[ProjectTemplate, ...]:
         ApiIngestionTemplate,
         BasicTemplate,
         CsvBatchTemplate,
+        DbtMedallionTemplate,
         MinimalTemplate,
+        ObservabilityDemoTemplate,
+        SlingReplicationTemplate,
     )
 
-    return (MinimalTemplate(), BasicTemplate(), CsvBatchTemplate(), ApiIngestionTemplate())
+    return (
+        MinimalTemplate(),
+        BasicTemplate(),
+        CsvBatchTemplate(),
+        ApiIngestionTemplate(),
+        DbtMedallionTemplate(),
+        SlingReplicationTemplate(),
+        ObservabilityDemoTemplate(),
+    )
 
 
 def list_templates() -> tuple[ProjectTemplate, ...]:
