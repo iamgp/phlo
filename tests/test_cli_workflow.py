@@ -290,6 +290,40 @@ def test_workflow_check_rejects_files_without_ingestion_workflow(tmp_path, monke
     assert "phlo materialize" not in result.output
 
 
+def test_workflow_check_rejects_commented_ingestion_decorator(tmp_path, monkeypatch) -> None:
+    """Does not treat decorator-looking comments as workflows."""
+    workflow_file = tmp_path / "workflows" / "ingestion" / "weather" / "notes.py"
+    schema_file = tmp_path / "workflows" / "schemas" / "weather.py"
+    workflow_file.parent.mkdir(parents=True)
+    schema_file.parent.mkdir(parents=True)
+    workflow_file.write_text(
+        """
+DECORATOR_TEXT = "@phlo_ingestion(table_name='notes')"
+
+# @phlo_ingestion(
+#     table_name="notes",
+#     unique_key="id",
+#     validation_schema=None,
+#     group="weather",
+#     cron="0 */1 * * *",
+#     freshness_hours=(1, 24),
+# )
+def helper(partition_date: str) -> None:
+    return None
+"""
+    )
+    schema_file.write_text(
+        '"""Weather schema."""\n\nimport pandera as pa\n\nclass WeatherSchema: pass\n'
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(cli, ["workflow", "check", str(workflow_file)])
+
+    assert result.exit_code != 0
+    assert "No @phlo_ingestion decorated workflow found" in result.output
+    assert "phlo materialize" not in result.output
+
+
 def test_workflow_check_wraps_schema_validation_failures(monkeypatch, tmp_path) -> None:
     """Reports schema validation errors as Click failures."""
     workflow_file = tmp_path / "workflows" / "ingestion" / "weather" / "observations.py"

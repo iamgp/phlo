@@ -4,6 +4,7 @@ Validate Command
 Validates Pandera schemas and Phlo configurations.
 """
 
+import ast
 import importlib.util
 import sys
 from pathlib import Path
@@ -413,23 +414,23 @@ def _find_phlo_ingestion_functions(module: Any) -> List[Tuple[str, Any, dict]]:
     """
     results = []
 
-    # Try to find functions with decorator by inspecting module source
+    # Try to find functions with actual decorators by inspecting module source.
     try:
         import inspect
 
         source = inspect.getsource(module)
-        # Look for @phlo_ingestion decorators in source
-        if "@phlo_ingestion" in source:
-            for name in dir(module):
-                obj = getattr(module, name)
-                if callable(obj) and not name.startswith("_"):
-                    # Check if this function is defined in the module
-                    try:
-                        if inspect.getfile(obj) == inspect.getfile(module):
-                            results.append((name, obj, {"found_in_source": True}))
-                    except (TypeError, OSError):
-                        pass
-    except (OSError, TypeError):
+        tree = ast.parse(source)
+        decorated_names = {
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and any(_is_phlo_ingestion_decorator(decorator) for decorator in node.decorator_list)
+        }
+        for name in sorted(decorated_names):
+            obj = getattr(module, name, None)
+            if callable(obj):
+                results.append((name, obj, {"found_in_source": True}))
+    except (OSError, SyntaxError, TypeError):
         logger.warning("validate_workflow_source_unavailable")
         # Module might not have source (e.g., built-in), fall back to __wrapped__ check
         for name in dir(module):
@@ -441,6 +442,16 @@ def _find_phlo_ingestion_functions(module: Any) -> List[Tuple[str, Any, dict]]:
                         results.append((name, obj, decorator_params))
 
     return results
+
+
+def _is_phlo_ingestion_decorator(decorator: ast.expr) -> bool:
+    """Return whether an AST decorator is phlo_ingestion."""
+    target = decorator.func if isinstance(decorator, ast.Call) else decorator
+    if isinstance(target, ast.Name):
+        return target.id == "phlo_ingestion"
+    if isinstance(target, ast.Attribute):
+        return target.attr == "phlo_ingestion"
+    return False
 
 
 def _extract_decorator_params(func: Any) -> dict:
