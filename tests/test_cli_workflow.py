@@ -7,6 +7,18 @@ from click.testing import CliRunner
 from phlo.cli.main import cli
 
 
+def test_authoring_commands_remain_discoverable() -> None:
+    """Keeps the authoring path commands visible from root help."""
+    result = CliRunner().invoke(cli, ["--help"])
+
+    assert result.exit_code == 0
+    assert "workflow" in result.output
+    assert "schema" in result.output
+    assert "validate-workflow" in result.output
+    assert "materialize" in result.output
+    assert "status" in result.output
+
+
 def test_workflow_group_help_lists_create() -> None:
     """Shows the scaffold command in workflow group help output."""
     runner = CliRunner()
