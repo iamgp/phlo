@@ -40,7 +40,7 @@ def parse_args() -> McpConfig:
         trace_file=args.trace_file if args.trace_file is not None else env_config.trace_file,
         transport=args.transport or env_config.transport,
         host=args.host or env_config.host,
-        port=args.port or env_config.port,
+        port=args.port if args.port is not None else env_config.port,
         streamable_http_path=args.path or env_config.streamable_http_path,
     )
 

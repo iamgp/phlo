@@ -184,6 +184,7 @@ def parse_loki_response(response: dict[str, Any]) -> list[LogEntry]:
         for timestamp_ns, line in stream.get("values", []):
             try:
                 parsed = json.loads(line)
+                function_name = parsed.get("function") or parsed.get("fn")
                 entries.append(
                     LogEntry(
                         timestamp=datetime.fromtimestamp(
@@ -201,7 +202,8 @@ def parse_loki_response(response: dict[str, Any]) -> list[LogEntry]:
                                 "check_name": parsed.get("check_name"),
                                 "service": parsed.get("service"),
                                 "module": parsed.get("module"),
-                                "function": parsed.get("function") or parsed.get("fn"),
+                                "function": function_name,
+                                "fn": function_name,
                                 "line": str(parsed.get("line")) if parsed.get("line") else None,
                                 "trace_id": parsed.get("trace_id")
                                 or parsed.get("phlo.metadata.trace_id")

@@ -375,6 +375,15 @@ def test_parse_args_overrides_env(monkeypatch) -> None:
     assert config.port == 9000
 
 
+def test_parse_args_preserves_zero_port(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_MCP_PORT", "8000")
+    monkeypatch.setattr(sys, "argv", ["phlo-mcp", "--port", "0"])
+
+    config = parse_args()
+
+    assert config.port == 0
+
+
 def test_config_from_env_reads_write_tool_gate(monkeypatch) -> None:
     monkeypatch.setenv("PHLO_MCP_ENABLE_WRITE_TOOLS", "true")
 
