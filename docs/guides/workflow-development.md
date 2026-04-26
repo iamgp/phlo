@@ -87,6 +87,20 @@ Before starting, make sure you have:
 
 ---
 
+## Choosing a Template
+
+| Template | Use when |
+| --- | --- |
+| `minimal` | You want an empty Phlo project. |
+| `basic` | You want a dbt-ready project. |
+| `csv-batch` | You want the smallest local pipeline with no network calls. |
+| `api-ingestion` | You want a REST-style ingestion starting point. |
+| `dbt-medallion` | You want bronze/silver/gold transform structure. |
+| `sling-replication` | You want to start with Sling replication. |
+| `observability-demo` | You want a tiny pipeline wired for telemetry. |
+
+---
+
 ## Step 1: Define Your Data Schema
 
 First, let's define what our data looks like.
