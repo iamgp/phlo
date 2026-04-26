@@ -497,6 +497,96 @@ class TestDagsterGraphEndpoints:
             },
         ]
 
+    def test_dagster_materialize_dry_run_validates_asset(self, monkeypatch):
+        """Dry-run materialize endpoint validates the asset without launching a run."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        async def fake_asset_details(asset_key_path: str, dagster_url: str | None = None):
+            return {
+                "key_path": asset_key_path,
+                "has_materialize_permission": True,
+                "op_names": ["orders_op"],
+            }
+
+        monkeypatch.setattr(
+            "phlo_api.observatory_api.dagster.get_asset_details", fake_asset_details
+        )
+
+        client = TestClient(app)
+        response = client.post(
+            "/api/dagster/assets/silver/orders/materialize",
+            json={"dry_run": True, "partition_key": "2026-04-26"},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["operation"] == "materialize_asset"
+        assert payload["dry_run"] is True
+        assert payload["accepted"] is True
+        assert payload["asset_key_path"] == "silver/orders"
+        assert payload["partition_key"] == "2026-04-26"
+        assert payload["details"]["op_names"] == ["orders_op"]
+
+    def test_dagster_run_status_endpoint_transforms_payload(self, monkeypatch):
+        """Run status endpoint normalizes Dagster GraphQL run payloads."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        async def fake_graphql_request(url, query, variables=None, timeout=10.0, initiator=None):
+            assert variables == {"runId": "run-123"}
+            return {
+                "data": {
+                    "runOrError": {
+                        "__typename": "Run",
+                        "runId": "run-123",
+                        "status": "FAILURE",
+                        "startTime": 1.0,
+                        "endTime": 2.0,
+                        "pipelineName": "daily_orders",
+                        "tags": [{"key": "asset", "value": "silver/orders"}],
+                    }
+                }
+            }
+
+        monkeypatch.setattr(
+            "phlo_api.observatory_api.dagster.graphql_request", fake_graphql_request
+        )
+
+        client = TestClient(app)
+        response = client.get("/api/dagster/runs/run-123/status")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "run_id": "run-123",
+            "status": "FAILURE",
+            "pipeline_name": "daily_orders",
+            "start_time": 1.0,
+            "end_time": 2.0,
+            "tags": {"asset": "silver/orders"},
+        }
+
+    def test_dagster_retry_dry_run_validates_failed_run(self, monkeypatch):
+        """Dry-run retry endpoint validates a failed run without launching retry."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+        from phlo_api.observatory_api.dagster import DagsterRunStatus
+
+        async def fake_run_status(run_id: str, dagster_url: str | None = None):
+            return DagsterRunStatus(run_id=run_id, status="FAILURE")
+
+        monkeypatch.setattr("phlo_api.observatory_api.dagster.get_run_status", fake_run_status)
+
+        client = TestClient(app)
+        response = client.post("/api/dagster/runs/run-123/retry", json={"dry_run": True})
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["operation"] == "retry_failed_run"
+        assert payload["dry_run"] is True
+        assert payload["accepted"] is True
+        assert payload["run_id"] == "run-123"
+
 
 class TestContributingRowsEndpoints:
     """Test contributing rows endpoints."""

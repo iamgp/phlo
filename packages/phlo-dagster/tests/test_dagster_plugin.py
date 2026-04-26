@@ -10,3 +10,4 @@ def test_dagster_service_definition():
 
     assert service_definition["name"] == "dagster"
     assert service_definition["category"] == "orchestration"
+    assert service_definition["profile"] == "orchestration"

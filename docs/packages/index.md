@@ -88,11 +88,12 @@ Use [Python Reference](../python-reference/index.mdx) when you need symbol-level
 
 ---
 
-### API Layer (3 packages)
+### API Layer (4 packages)
 
 | Package | Description | Protocol |
 |---------|-------------|----------|
 | [phlo-api](phlo-api.md) | REST API for Phlo internals | REST |
+| [phlo-mcp](phlo-mcp.md) | MCP server for observability and lakehouse operations | MCP |
 | [phlo-postgrest](phlo-postgrest.md) | Auto-generated REST API from PostgreSQL | REST |
 | [phlo-hasura](phlo-hasura.md) | GraphQL API with real-time subscriptions | GraphQL |
 

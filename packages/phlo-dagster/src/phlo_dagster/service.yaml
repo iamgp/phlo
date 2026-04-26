@@ -2,6 +2,7 @@ name: dagster
 description: Data orchestration platform for workflows and pipelines
 category: orchestration
 default: true
+profile: orchestration
 phlo_dev: true
 gitignore:
   - dagster/storage/

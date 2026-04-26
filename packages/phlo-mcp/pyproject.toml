@@ -8,25 +8,19 @@ requires = [
 [project]
 dependencies = [
     "phlo>=0.1.0",
-    "pyyaml>=6.0.1",
+    "phlo-api>=0.1.0",
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.20.0",
+    "opentelemetry-sdk>=1.38.0",
 ]
-description = "clickstack service plugin for Phlo"
-name = "phlo-clickstack"
+description = "MCP server for Phlo observability and lakehouse operations"
+name = "phlo-mcp"
 requires-python = ">=3.11"
-version = "0.2.3"
+version = "0.1.0"
 
 [[project.authors]]
 email = "team@phlo.dev"
 name = "Phlo Team"
-
-[project.entry-points."phlo.plugins.cli"]
-clickstack = "phlo_clickstack.cli_plugin:ClickStackCliPlugin"
-
-[project.entry-points."phlo.plugins.services"]
-clickstack = "phlo_clickstack.plugin:ClickStackServicePlugin"
-
-[project.entry-points."phlo.plugins.resources"]
-clickstack = "phlo_clickstack.resource_provider:ClickStackResourceProvider"
 
 [project.license]
 text = "MIT"
@@ -39,7 +33,10 @@ dev = [
 
 [project.readme]
 content-type = "text/plain"
-text = "clickstack service plugin for Phlo."
+text = "MCP server for Phlo observability and lakehouse operations."
+
+[project.scripts]
+phlo-mcp = "phlo_mcp.cli:main"
 
 [tool.ruff]
 line-length = 100
@@ -47,9 +44,6 @@ target-version = "py311"
 
 [tool.setuptools]
 include-package-data = true
-
-[tool.setuptools.package-data]
-phlo_clickstack = ["service.yaml"]
 
 [tool.setuptools.package-dir]
 "" = "src"
