@@ -225,7 +225,7 @@ def init(project_name: str | None, template: str, force: bool, list_templates: b
 
     # Create project structure
     try:
-        _create_project_structure(project_dir, project_metadata_name, template)
+        selected_template = _create_project_structure(project_dir, project_metadata_name, template)
 
         click.echo(f"\nSuccessfully initialized Phlo project: {project_dir}\n")
         click.echo("Created structure:")
@@ -241,12 +241,13 @@ def init(project_name: str | None, template: str, force: bool, list_templates: b
         click.echo("  └── tests/               # Workflow tests")
 
         click.echo("\nNext steps:")
+        step_number = 1
         if project_dir != Path.cwd():
-            click.echo(f"  1. cd {project_dir}")
-        click.echo("  2. pip install -e .              # Install Phlo and dependencies")
-        click.echo("  3. phlo services init            # Set up infrastructure (Docker)")
-        click.echo("  4. phlo workflow create          # Create your first workflow")
-        click.echo("  5. phlo dev                      # Start Dagster UI")
+            click.echo(f"  {step_number}. cd {project_dir}")
+            step_number += 1
+        for next_step in selected_template.metadata.next_steps:
+            click.echo(f"  {step_number}. {next_step}")
+            step_number += 1
 
         click.echo("\nDocumentation: https://github.com/iamgp/phlo")
 
@@ -281,6 +282,7 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
     selected_template.render(
         TemplateRenderContext(project_dir=project_dir, project_name=project_name)
     )
+    return selected_template
 
 
 def _build_env_example_content() -> str:

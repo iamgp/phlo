@@ -62,6 +62,26 @@ def test_csv_batch_template_generates_runnable_files(tmp_path) -> None:
     _assert_python_files_parse(project_dir)
 
 
+def test_csv_batch_template_prints_metadata_next_steps(tmp_path) -> None:
+    project_dir = tmp_path / "csv-demo"
+    result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", "csv-batch"])
+
+    assert result.exit_code == 0, result.output
+    assert "phlo workflow check workflows/ingestion/csv/events.py" in result.output
+    assert "phlo materialize dlt_events" in result.output
+    assert "phlo dev" not in result.output
+
+
+@pytest.mark.parametrize("template_name", ["minimal", "basic"])
+def test_existing_templates_print_metadata_next_steps(tmp_path, template_name: str) -> None:
+    project_dir = tmp_path / template_name
+    result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", template_name])
+
+    assert result.exit_code == 0, result.output
+    assert "phlo services init" in result.output
+    assert "phlo workflow create" in result.output
+
+
 def test_api_ingestion_template_generates_runnable_files(tmp_path) -> None:
     project_dir = tmp_path / "api-demo"
     result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", "api-ingestion"])
