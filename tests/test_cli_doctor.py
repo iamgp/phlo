@@ -150,6 +150,28 @@ def test_discovery_check_summarizes_exception(monkeypatch) -> None:
     assert "entry point exploded" not in failure.message
 
 
+def test_discovery_check_reports_entry_point_failures(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor._collect_service_plugin_failures",
+        lambda: [
+            {
+                "plugin_name": "broken",
+                "entry_point": "broken:Plugin",
+                "plugin_type": "services",
+                "error": "exploded",
+                "error_type": "RuntimeError",
+            }
+        ],
+    )
+
+    results = run_diagnostics(verbose=False)
+
+    failure = next(result for result in results if result.id == "discovery.entry_points")
+    assert failure.status == DiagnosticStatus.FAIL
+    assert "1 service plugin entry point" in failure.message
+    assert failure.details == {}
+
+
 def test_port_checks_report_conflicts(monkeypatch) -> None:
     monkeypatch.setattr(
         "phlo.cli.commands.doctor._collect_port_mappings",

@@ -245,11 +245,51 @@ def check_project(*, verbose: bool = False) -> list[DiagnosticResult]:
     return results
 
 
+def _collect_service_plugin_failures() -> list[dict[str, str]]:
+    from phlo.plugins.discovery import discover_plugins
+
+    failures: list[dict[str, str]] = []
+    discover_plugins(
+        plugin_type="services",
+        auto_register=False,
+        failure_level="debug",
+        failure_sink=failures,
+    )
+    return failures
+
+
 def check_discovery(*, verbose: bool = False) -> list[DiagnosticResult]:
+    results: list[DiagnosticResult] = []
+    try:
+        failures = _collect_service_plugin_failures()
+    except Exception as exc:
+        failures = []
+        results.append(
+            DiagnosticResult(
+                "discovery.entry_points",
+                "Discovery",
+                DiagnosticStatus.WARN,
+                "Could not inspect service plugin entry points",
+                "Run phlo doctor --verbose to inspect the discovery exception.",
+                {"error": str(exc), "type": type(exc).__name__} if verbose else {},
+            )
+        )
+    if failures:
+        results.append(
+            DiagnosticResult(
+                "discovery.entry_points",
+                "Discovery",
+                DiagnosticStatus.FAIL,
+                f"{len(failures)} service plugin entry point(s) failed to load",
+                "Run phlo doctor --verbose to inspect failed plugin entry points.",
+                {"failures": failures} if verbose else {},
+            )
+        )
+
     try:
         services = _get_service_discovery_class()().discover()
     except Exception as exc:
-        return [
+        results.append(
             DiagnosticResult(
                 "discovery.services",
                 "Discovery",
@@ -258,15 +298,17 @@ def check_discovery(*, verbose: bool = False) -> list[DiagnosticResult]:
                 "Run phlo doctor --verbose to inspect the discovery exception.",
                 {"error": str(exc), "type": type(exc).__name__} if verbose else {},
             )
-        ]
-    return [
+        )
+        return results
+    results.append(
         DiagnosticResult(
             "discovery.services",
             "Discovery",
             DiagnosticStatus.OK,
             f"Discovered {len(services)} services",
         )
-    ]
+    )
+    return results
 
 
 def _project_name() -> str:
