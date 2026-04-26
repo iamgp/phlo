@@ -155,7 +155,52 @@ def test_workflow_create_converts_blank_api_base_url_to_none(monkeypatch) -> Non
     assert result.exit_code == 0
     assert calls["api_base_url"] is None
     assert calls["fields"] == ["event_id:string!", "clicked_at:datetime?"]
-    assert "Edit schema: workflows/schemas/events.py" in result.output
+    assert "Review schema: workflows/schemas/events.py" in result.output
+
+
+def test_workflow_create_prints_runnable_next_steps(monkeypatch, tmp_path) -> None:
+    """Prints next steps that exist in the current CLI surface."""
+    monkeypatch.chdir(tmp_path)
+
+    def fake_create_ingestion_workflow(**kwargs):
+        return [
+            "workflows/schemas/weather.py",
+            "workflows/ingestion/weather/observations.py",
+            "tests/test_weather_observations.py",
+        ]
+
+    monkeypatch.setattr(
+        "phlo_dlt.scaffold.create_ingestion_workflow",
+        fake_create_ingestion_workflow,
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "workflow",
+            "create",
+            "--type",
+            "ingestion",
+            "--domain",
+            "weather",
+            "--table",
+            "observations",
+            "--unique-key",
+            "station_id",
+            "--cron",
+            "0 */1 * * *",
+            "--api-base-url",
+            "https://example.test",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "phlo schema validate workflows/schemas/weather.py" in result.output
+    assert "phlo validate-workflow workflows/ingestion/weather/observations.py" in result.output
+    assert "phlo services restart dagster" in result.output
+    assert "phlo materialize dlt_observations" in result.output
+    assert "phlo test weather" not in result.output
+    assert "docker restart" not in result.output
 
 
 def test_workflow_create_reports_scaffold_failures(monkeypatch) -> None:
