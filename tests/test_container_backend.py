@@ -75,7 +75,8 @@ def test_podman_backend_lists_containers_with_podman_compose_labels(
                     '[{"Names":["demo_postgres_1"],"State":"running",'
                     '"Labels":{"io.podman.compose.project":"demo",'
                     '"io.podman.compose.service":"postgres"},'
-                    '"Ports":"0.0.0.0:5432->5432/tcp"}]'
+                    '"Ports":[{"host_ip":"0.0.0.0","container_port":5432,'
+                    '"host_port":15432,"range":1,"protocol":"tcp"}]}]'
                 ),
                 stderr="",
             )
@@ -90,6 +91,7 @@ def test_podman_backend_lists_containers_with_podman_compose_labels(
 
     assert [container.service for container in containers] == ["postgres"]
     assert containers[0].name == "demo_postgres_1"
+    assert containers[0].ports == "0.0.0.0:15432->5432/tcp"
     assert any("label=io.podman.compose.project=demo" in call for call in calls)
 
 

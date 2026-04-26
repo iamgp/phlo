@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Literal, Protocol, cast
 
 BackendName = Literal["docker", "podman", "auto"]
 
@@ -79,6 +79,29 @@ def _coerce_podman_name(value: object) -> str:
     if isinstance(value, list):
         return ", ".join(str(item) for item in value)
     return str(value or "")
+
+
+def _format_podman_ports(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if not isinstance(value, list):
+        return str(value)
+
+    formatted: list[str] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        port_info = cast("dict[str, object]", item)
+        host_port = port_info.get("host_port")
+        container_port = port_info.get("container_port")
+        if host_port in (None, "") or container_port in (None, ""):
+            continue
+        host_ip = str(port_info.get("host_ip") or "0.0.0.0")
+        protocol = str(port_info.get("protocol") or "tcp")
+        formatted.append(f"{host_ip}:{host_port}->{container_port}/{protocol}")
+    return ", ".join(formatted)
 
 
 def _podman_service_label(labels: dict[str, str]) -> str:
@@ -237,7 +260,7 @@ class PodmanBackend:
             name=_coerce_podman_name(info.get("Names")),
             state=str(info.get("State", "")),
             labels=labels,
-            ports=str(info.get("Ports", "")),
+            ports=_format_podman_ports(info.get("Ports")),
         )
 
 
