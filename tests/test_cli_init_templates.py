@@ -1,5 +1,6 @@
 import ast
 import importlib
+import subprocess
 import sys
 import tomllib
 from collections.abc import Iterator
@@ -190,3 +191,27 @@ def test_unknown_template_prints_clean_error(tmp_path) -> None:
     assert "unknown-template" in result.output
     assert "Available templates:" in result.output
     assert "Traceback" not in result.output
+
+
+def test_unknown_template_real_command_has_no_plugin_traceback_noise(tmp_path) -> None:
+    result = subprocess.run(
+        [
+            "uv",
+            "run",
+            "phlo",
+            "init",
+            str(tmp_path / "demo"),
+            "--template",
+            "nope",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    output = result.stdout + result.stderr
+
+    assert result.returncode != 0
+    assert "Unknown template 'nope'" in output
+    assert "Available templates:" in output
+    assert "plugin_load_failed" not in output
+    assert "Traceback" not in output

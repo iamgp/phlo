@@ -12,7 +12,9 @@ from pathlib import Path
 
 import click
 
+import phlo.cli._init_discovery_guard  # noqa: F401
 import phlo.cli._warning_filters  # noqa: F401
+from phlo.cli._init_discovery_guard import is_init_command_invocation
 from phlo.cli.commands.doctor import doctor_cmd
 from phlo.cli.templates import TemplateRenderContext, get_template
 from phlo.cli.templates import list_templates as get_project_templates
@@ -35,6 +37,7 @@ def _is_doctor_invocation(argv: list[str]) -> bool:
 
 
 _DOCTOR_INVOCATION = _is_doctor_invocation(sys.argv)
+_INIT_INVOCATION = is_init_command_invocation(sys.argv)
 
 if not _DOCTOR_INVOCATION:
     from phlo.cli.commands.authz import authz_group
@@ -104,6 +107,7 @@ def _load_cli_plugin_commands() -> None:
 
 if not _DOCTOR_INVOCATION:
     _register_service_commands()
+if not _DOCTOR_INVOCATION and not _INIT_INVOCATION:
     _load_cli_plugin_commands()
 
 
