@@ -266,12 +266,12 @@ class EventsSchema(pa.DataFrameModel):
 from pathlib import Path
 
 import pandas as pd
-from phlo.ingestion import phlo_ingestion
+import phlo
 
 from workflows.schemas.csv import EventsSchema
 
 
-@phlo_ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="csv")
+@phlo.ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="csv")
 def csv_events():
     return pd.read_csv(Path("data/events.csv"))
 """,
@@ -315,12 +315,12 @@ class EventsSchema(pa.DataFrameModel):
             """from __future__ import annotations
 
 import pandas as pd
-from phlo.ingestion import phlo_ingestion
+import phlo
 
 from workflows.schemas.api import EventsSchema
 
 
-@phlo_ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="api")
+@phlo.ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="api")
 def api_events():
     return pd.DataFrame([{"id": 1, "name": "sample"}])
 """,
@@ -398,14 +398,14 @@ class ObservabilityDemoTemplate:
 import logging
 
 import pandas as pd
-from phlo.ingestion import phlo_ingestion
+import phlo
 
 from workflows.schemas.csv import EventsSchema
 
 logger = logging.getLogger(__name__)
 
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="observability_events",
     unique_key="id",
     validation_schema=EventsSchema,

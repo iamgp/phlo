@@ -89,7 +89,12 @@ def test_csv_batch_template_generates_runnable_files(tmp_path) -> None:
 
     assert result.exit_code == 0, result.output
     assert (project_dir / "data" / "events.csv").exists()
-    assert (project_dir / "workflows" / "ingestion" / "csv" / "events.py").exists()
+    workflow_file = project_dir / "workflows" / "ingestion" / "csv" / "events.py"
+    assert workflow_file.exists()
+    workflow_text = workflow_file.read_text()
+    assert "import phlo" in workflow_text
+    assert "@phlo.ingestion(" in workflow_text
+    assert "phlo_ingestion" not in workflow_text
     assert (project_dir / "workflows" / "schemas" / "csv.py").exists()
     _assert_python_files_parse(project_dir)
     _assert_generated_module_imports(project_dir, "workflows.ingestion.csv.events")
