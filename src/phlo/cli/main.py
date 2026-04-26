@@ -178,7 +178,6 @@ def test(
 @click.argument("project_name", required=False)
 @click.option(
     "--template",
-    type=click.Choice(["basic", "minimal"]),
     default="basic",
     help="Project template to use",
 )

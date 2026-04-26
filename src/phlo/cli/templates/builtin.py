@@ -201,3 +201,103 @@ class BasicTemplate:
         transforms_dir = context.project_dir / "workflows" / "transforms" / "dbt"
         write_dbt_scaffold(context.project_name, transforms_dir, context.project_dir)
         _write_text(transforms_dir / "models" / ".gitkeep", "")
+
+
+class CsvBatchTemplate:
+    metadata = TemplateMetadata(
+        name="csv-batch",
+        description="Local CSV batch pipeline",
+        required_packages=("phlo", "phlo-dlt", "phlo-pandera"),
+        generated_paths=(
+            "data/events.csv",
+            "workflows/ingestion/csv/events.py",
+            "workflows/schemas/csv.py",
+        ),
+        next_steps=(
+            "phlo workflow check workflows/ingestion/csv/events.py",
+            "phlo materialize dlt_events",
+        ),
+    )
+
+    def render(self, context: TemplateRenderContext) -> None:
+        MinimalTemplate().render(context)
+        _write_text(
+            context.project_dir / "data" / "events.csv",
+            "id,name,value\n1,alpha,10\n2,beta,20\n",
+        )
+        _write_text(
+            context.project_dir / "workflows" / "schemas" / "csv.py",
+            """from __future__ import annotations
+
+import pandera.pandas as pa
+
+
+class EventsSchema(pa.DataFrameModel):
+    id: int
+    name: str
+    value: int
+""",
+        )
+        _write_text(
+            context.project_dir / "workflows" / "ingestion" / "csv" / "events.py",
+            """from __future__ import annotations
+
+from pathlib import Path
+
+import pandas as pd
+import phlo
+
+from workflows.schemas.csv import EventsSchema
+
+
+@phlo.ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="csv")
+def csv_events():
+    return pd.read_csv(Path("data/events.csv"))
+""",
+        )
+
+
+class ApiIngestionTemplate:
+    metadata = TemplateMetadata(
+        name="api-ingestion",
+        description="REST API ingestion pipeline",
+        required_packages=("phlo", "phlo-dlt", "phlo-pandera"),
+        generated_paths=(
+            "workflows/ingestion/api/events.py",
+            "workflows/schemas/api.py",
+        ),
+        next_steps=(
+            "phlo workflow check workflows/ingestion/api/events.py",
+            "phlo materialize dlt_events",
+        ),
+    )
+
+    def render(self, context: TemplateRenderContext) -> None:
+        MinimalTemplate().render(context)
+        _write_text(
+            context.project_dir / "workflows" / "schemas" / "api.py",
+            """from __future__ import annotations
+
+import pandera.pandas as pa
+
+
+class EventsSchema(pa.DataFrameModel):
+    id: int
+    name: str
+""",
+        )
+        _write_text(
+            context.project_dir / "workflows" / "ingestion" / "api" / "events.py",
+            """from __future__ import annotations
+
+import pandas as pd
+import phlo
+
+from workflows.schemas.api import EventsSchema
+
+
+@phlo.ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="api")
+def api_events():
+    return pd.DataFrame([{"id": 1, "name": "sample"}])
+""",
+        )
