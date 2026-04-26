@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from phlo.cli._init_discovery_guard import is_init_command_invocation
 from phlo.cli.main import cli
 from phlo.cli.templates.registry import get_template, list_templates
 
@@ -215,3 +216,31 @@ def test_unknown_template_real_command_has_no_plugin_traceback_noise(tmp_path) -
     assert "Available templates:" in output
     assert "plugin_load_failed" not in output
     assert "Traceback" not in output
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        (["phlo", "init", "demo"], True),
+        (["phlo", "--help", "init"], False),
+        (["phlo", "dbt", "run", "--select", "init"], False),
+    ],
+)
+def test_init_discovery_guard_only_matches_root_init_command(
+    argv: list[str], expected: bool
+) -> None:
+    assert is_init_command_invocation(argv) is expected
+
+
+def test_plugin_command_with_init_argument_is_registered() -> None:
+    result = subprocess.run(
+        ["uv", "run", "phlo", "dbt", "run", "--select", "init", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    output = result.stdout + result.stderr
+
+    assert "No such command 'dbt'" not in output
+    assert "Usage:" in output
+    assert "dbt run" in output
