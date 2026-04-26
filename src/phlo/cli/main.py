@@ -295,38 +295,6 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
     return selected_template
 
 
-def _build_env_example_content() -> str:
-    from phlo.plugins.discovery import ServiceDiscovery
-
-    lines = [
-        "# Phlo Local Secrets Template",
-        "# Copy to .phlo/.env.local after running `phlo services init`.",
-        "",
-    ]
-
-    discovery = ServiceDiscovery()
-    services = discovery.discover()
-    if not services:
-        lines.append(
-            "# No service plugins discovered; install service packages to populate secrets."
-        )
-        return "\n".join(lines) + "\n"
-
-    for service in sorted(services.values(), key=lambda s: s.name):
-        secrets = {key: cfg for key, cfg in service.env_vars.items() if cfg.get("secret") is True}
-        if not secrets:
-            continue
-        lines.append(f"# {service.name}")
-        for key in sorted(secrets.keys()):
-            desc = secrets[key].get("description")
-            if desc:
-                lines.append(f"# {desc}")
-            lines.append(f"{key}=")
-        lines.append("")
-
-    return "\n".join(lines).rstrip() + "\n"
-
-
 def main():
     """Main entry point for CLI."""
     cli()
