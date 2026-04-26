@@ -458,6 +458,8 @@ def _silence_stdout() -> Iterator[None]:
             saved_stdout_fd = os.dup(1)
             os.dup2(devnull.fileno(), 1)
         except OSError:
+            if saved_stdout_fd is not None:
+                os.close(saved_stdout_fd)
             saved_stdout_fd = None
 
         for handler in logging.getLogger().handlers:
