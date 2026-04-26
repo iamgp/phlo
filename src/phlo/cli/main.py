@@ -179,6 +179,34 @@ def test(
         sys.exit(1)
 
 
+def _display_created_structure(project_dir: Path, selected_template) -> None:
+    click.echo("Created structure:")
+    click.echo(f"  {project_dir}/")
+    click.echo("  ├── phlo.yaml            # Project configuration")
+    click.echo("  ├── pyproject.toml       # Project dependencies")
+    click.echo("  ├── .env.example         # Local secrets template")
+    click.echo("  ├── .gitignore")
+    click.echo("  ├── README.md")
+    click.echo("  ├── workflows/           # Workflow definitions")
+    click.echo("  └── tests/               # Workflow tests")
+    common_paths = {
+        "phlo.yaml",
+        "pyproject.toml",
+        ".env.example",
+        ".gitignore",
+        "README.md",
+        "workflows/__init__.py",
+        "tests/__init__.py",
+    }
+    extra_paths = tuple(
+        path for path in selected_template.metadata.generated_paths if path not in common_paths
+    )
+    if extra_paths:
+        click.echo("  Template additions:")
+        for path in extra_paths:
+            click.echo(f"    - {path}")
+
+
 @cli.command("init")
 @click.argument("project_name", required=False)
 @click.option(
@@ -232,17 +260,7 @@ def init(project_name: str | None, template: str, force: bool, list_templates: b
         selected_template = _create_project_structure(project_dir, project_metadata_name, template)
 
         click.echo(f"\nSuccessfully initialized Phlo project: {project_dir}\n")
-        click.echo("Created structure:")
-        click.echo(f"  {project_dir}/")
-        click.echo("  ├── phlo.yaml            # Project configuration with infrastructure")
-        click.echo("  ├── pyproject.toml       # Project dependencies")
-        click.echo("  ├── .env.example         # Local secrets template (copy to .phlo/.env.local)")
-        click.echo("  ├── .sqlfluff            # SQL linting configuration for dbt models")
-        click.echo("  ├── workflows/           # Your workflow definitions")
-        click.echo("  │   ├── ingestion/       # Data ingestion workflows")
-        click.echo("  │   ├── schemas/         # Pandera validation schemas")
-        click.echo("  │   └── transforms/dbt/  # dbt transformation models")
-        click.echo("  └── tests/               # Workflow tests")
+        _display_created_structure(project_dir, selected_template)
 
         click.echo("\nNext steps:")
         step_number = 1

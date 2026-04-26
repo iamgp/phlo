@@ -100,6 +100,9 @@ def test_csv_batch_template_prints_metadata_next_steps(tmp_path) -> None:
     result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", "csv-batch"])
 
     assert result.exit_code == 0, result.output
+    assert ".sqlfluff" not in result.output
+    assert "workflows/transforms/dbt" not in result.output
+    assert "workflows/ingestion/csv/events.py" in result.output
     assert "phlo test" in result.output
     assert "phlo materialize dlt_events" in result.output
     assert "phlo workflow check" not in result.output
