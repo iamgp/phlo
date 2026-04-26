@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 import sys
+from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -12,6 +13,7 @@ from typing import Any
 import click
 import yaml
 
+from phlo.cli.commands.services.ports import PortMapping
 from phlo.plugins.discovery import ServiceDiscovery
 
 
@@ -251,11 +253,122 @@ def check_discovery(*, verbose: bool = False) -> list[DiagnosticResult]:
     ]
 
 
+def _project_name() -> str:
+    from phlo.cli.infrastructure.utils import get_project_name
+
+    return get_project_name()
+
+
+def _collect_port_mappings() -> list[PortMapping]:
+    from phlo.cli.commands.services import ports as ports_module
+
+    phlo_dir = Path.cwd() / ".phlo"
+    if not phlo_dir.exists():
+        return []
+    config_file = Path.cwd() / "phlo.yaml"
+    config = yaml.safe_load(config_file.read_text()) if config_file.exists() else {}
+    config = config if isinstance(config, dict) else {}
+    env = ports_module._load_environment(phlo_dir, config)
+    services = ServiceDiscovery().discover()
+    running = ports_module._get_running_container_ports(_project_name())
+    _, disabled = ports_module.get_enabled_disabled_service_names(config)
+    service_overrides = (
+        config.get("services", {}) if isinstance(config.get("services"), dict) else {}
+    )
+    traefik = ports_module._get_active_traefik_context(
+        services,
+        env,
+        running,
+        disabled,
+        service_overrides,
+    )
+    service_routes = ports_module._get_service_routes(services, traefik)
+    mappings: list[PortMapping] = []
+    for service in services.values():
+        if service.name in disabled:
+            continue
+        service_override = service_overrides.get(service.name, {})
+        mappings.extend(
+            ports_module._get_service_ports(
+                service,
+                env,
+                running,
+                True,
+                service_override=service_override if isinstance(service_override, dict) else None,
+                service_routes=service_routes,
+            )
+        )
+    return mappings
+
+
+def check_ports(*, verbose: bool = False) -> list[DiagnosticResult]:
+    try:
+        mappings = _collect_port_mappings()
+    except Exception as exc:
+        return [
+            DiagnosticResult(
+                "ports.resolve",
+                "Ports",
+                DiagnosticStatus.WARN,
+                "Could not resolve configured service ports",
+                "Run phlo services ports for focused port diagnostics.",
+                {"error": str(exc)} if verbose else {},
+            )
+        ]
+    by_port: dict[int, list[PortMapping]] = defaultdict(list)
+    for mapping in mappings:
+        by_port[mapping.host_port].append(mapping)
+    conflicts = {port: items for port, items in by_port.items() if len(items) > 1}
+    if conflicts:
+        rendered = "; ".join(
+            f"{port}: {', '.join(item.service for item in items)}"
+            for port, items in sorted(conflicts.items())
+        )
+        return [
+            DiagnosticResult(
+                "ports.conflicts",
+                "Ports",
+                DiagnosticStatus.FAIL,
+                f"Port conflicts detected: {rendered}",
+                "Change the conflicting port values in phlo.yaml env or .phlo/.env.local.",
+            )
+        ]
+    return [
+        DiagnosticResult(
+            "ports.conflicts", "Ports", DiagnosticStatus.OK, "No configured port conflicts"
+        )
+    ]
+
+
+def check_live_services(*, verbose: bool = False) -> list[DiagnosticResult]:
+    compose_file = Path.cwd() / ".phlo" / "docker-compose.yml"
+    if not compose_file.exists():
+        return [
+            DiagnosticResult(
+                "live.services",
+                "Live Services",
+                DiagnosticStatus.SKIP,
+                "No generated compose file found",
+                "Run phlo services init before checking live services.",
+            )
+        ]
+    return [
+        DiagnosticResult(
+            "live.services",
+            "Live Services",
+            DiagnosticStatus.OK,
+            "Generated compose file is present for live service checks",
+        )
+    ]
+
+
 def run_diagnostics(*, verbose: bool = False) -> list[DiagnosticResult]:
     return [
         *check_environment(verbose=verbose),
         *check_project(verbose=verbose),
         *check_discovery(verbose=verbose),
+        *check_ports(verbose=verbose),
+        *check_live_services(verbose=verbose),
     ]
 
 

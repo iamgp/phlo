@@ -4,6 +4,7 @@ import yaml
 from click.testing import CliRunner
 
 from phlo.cli.commands.doctor import DiagnosticResult, DiagnosticStatus, doctor_cmd, run_diagnostics
+from phlo.cli.commands.services.ports import PortMapping
 from phlo.cli.main import cli
 
 
@@ -44,7 +45,16 @@ def test_doctor_json_outputs_summary(monkeypatch) -> None:
     assert '"env.docker"' in result.output
 
 
-def test_doctor_is_registered_on_root_cli() -> None:
+def test_doctor_is_registered_on_root_cli(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor.run_diagnostics",
+        lambda verbose=False: [
+            DiagnosticResult(
+                "doctor.bootstrap", "Environment", DiagnosticStatus.OK, "Doctor command loaded"
+            )
+        ],
+    )
+
     result = CliRunner().invoke(cli, ["doctor", "--json"])
 
     assert result.exit_code == 0
@@ -117,3 +127,31 @@ def test_discovery_check_summarizes_exception(monkeypatch) -> None:
     )
     failure = next(result for result in results if result.id == "discovery.services")
     assert "entry point exploded" not in failure.message
+
+
+def test_port_checks_report_conflicts(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor._collect_port_mappings",
+        lambda: [
+            PortMapping("postgres", 5432, 5432, "default", "Stopped"),
+            PortMapping("trino", 5432, 8080, "env", "Stopped", env_var="TRINO_PORT"),
+        ],
+    )
+
+    results = run_diagnostics()
+
+    assert any(
+        result.id == "ports.conflicts" and result.status == DiagnosticStatus.FAIL
+        for result in results
+    )
+
+
+def test_live_checks_skip_without_compose_file(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    results = run_diagnostics()
+
+    assert any(
+        result.id == "live.services" and result.status == DiagnosticStatus.SKIP
+        for result in results
+    )
