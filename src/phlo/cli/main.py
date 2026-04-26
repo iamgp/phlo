@@ -12,8 +12,13 @@ from pathlib import Path
 
 import click
 
+import phlo.cli._init_discovery_guard  # noqa: F401
 import phlo.cli._warning_filters  # noqa: F401
+from phlo.cli._init_discovery_guard import is_init_command_invocation
 from phlo.cli.commands.doctor import doctor_cmd
+from phlo.cli.templates import TemplateRenderContext, get_template
+from phlo.cli.templates import list_templates as get_project_templates
+from phlo.cli.templates.registry import missing_required_packages
 from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__, service="phlo-cli")
@@ -32,6 +37,7 @@ def _is_doctor_invocation(argv: list[str]) -> bool:
 
 
 _DOCTOR_INVOCATION = _is_doctor_invocation(sys.argv)
+_INIT_INVOCATION = is_init_command_invocation(sys.argv)
 
 if not _DOCTOR_INVOCATION:
     from phlo.cli.commands.authz import authz_group
@@ -101,6 +107,7 @@ def _load_cli_plugin_commands() -> None:
 
 if not _DOCTOR_INVOCATION:
     _register_service_commands()
+if not _DOCTOR_INVOCATION and not _INIT_INVOCATION:
     _load_cli_plugin_commands()
 
 
@@ -172,16 +179,45 @@ def test(
         sys.exit(1)
 
 
+def _display_created_structure(project_dir: Path, selected_template) -> None:
+    click.echo("Created structure:")
+    click.echo(f"  {project_dir}/")
+    click.echo("  ├── phlo.yaml            # Project configuration")
+    click.echo("  ├── pyproject.toml       # Project dependencies")
+    click.echo("  ├── .env.example         # Local secrets template")
+    click.echo("  ├── .gitignore")
+    click.echo("  ├── README.md")
+    click.echo("  ├── workflows/           # Workflow definitions")
+    click.echo("  └── tests/               # Workflow tests")
+    common_paths = {
+        "phlo.yaml",
+        "pyproject.toml",
+        ".env.example",
+        ".gitignore",
+        "README.md",
+        "workflows/__init__.py",
+        "tests/__init__.py",
+    }
+    extra_paths = tuple(
+        path for path in selected_template.metadata.generated_paths if path not in common_paths
+    )
+    if extra_paths:
+        click.echo("  Template additions:")
+        for path in extra_paths:
+            click.echo(f"    - {path}")
+
+
 @cli.command("init")
 @click.argument("project_name", required=False)
 @click.option(
     "--template",
-    type=click.Choice(["basic", "minimal"]),
-    default="basic",
+    default="minimal",
+    show_default=True,
     help="Project template to use",
 )
 @click.option("--force", is_flag=True, help="Initialize in non-empty directory")
-def init(project_name: str | None, template: str, force: bool):
+@click.option("--list-templates", is_flag=True, help="List available project templates and exit.")
+def init(project_name: str | None, template: str, force: bool, list_templates: bool):
     """
     Initialize a new Phlo project.
 
@@ -191,8 +227,14 @@ def init(project_name: str | None, template: str, force: bool):
     Examples:
         phlo init my-data-project          # Create new project directory
         phlo init . --force                # Initialize in current directory
-        phlo init weather-pipeline --template minimal
+        phlo init weather-pipeline --template csv-batch
     """
+    if list_templates:
+        for item in get_project_templates():
+            packages = ", ".join(item.metadata.required_packages)
+            click.echo(f"{item.metadata.name:<20} {item.metadata.description:<36} {packages}")
+        return
+
     click.echo("Phlo Project Initializer\n")
 
     # Determine project directory and metadata-safe project name
@@ -216,31 +258,24 @@ def init(project_name: str | None, template: str, force: bool):
 
     # Create project structure
     try:
-        _create_project_structure(project_dir, project_metadata_name, template)
+        selected_template = _create_project_structure(project_dir, project_metadata_name, template)
 
         click.echo(f"\nSuccessfully initialized Phlo project: {project_dir}\n")
-        click.echo("Created structure:")
-        click.echo(f"  {project_dir}/")
-        click.echo("  ├── phlo.yaml            # Project configuration with infrastructure")
-        click.echo("  ├── pyproject.toml       # Project dependencies")
-        click.echo("  ├── .env.example         # Local secrets template (copy to .phlo/.env.local)")
-        click.echo("  ├── .sqlfluff            # SQL linting configuration for dbt models")
-        click.echo("  ├── workflows/           # Your workflow definitions")
-        click.echo("  │   ├── ingestion/       # Data ingestion workflows")
-        click.echo("  │   ├── schemas/         # Pandera validation schemas")
-        click.echo("  │   └── transforms/dbt/  # dbt transformation models")
-        click.echo("  └── tests/               # Workflow tests")
+        _display_created_structure(project_dir, selected_template)
 
         click.echo("\nNext steps:")
+        step_number = 1
         if project_dir != Path.cwd():
-            click.echo(f"  1. cd {project_dir}")
-        click.echo("  2. pip install -e .              # Install Phlo and dependencies")
-        click.echo("  3. phlo services init            # Set up infrastructure (Docker)")
-        click.echo("  4. phlo workflow create          # Create your first workflow")
-        click.echo("  5. phlo dev                      # Start Dagster UI")
+            click.echo(f"  {step_number}. cd {project_dir}")
+            step_number += 1
+        for next_step in selected_template.metadata.next_steps:
+            click.echo(f"  {step_number}. {next_step}")
+            step_number += 1
 
         click.echo("\nDocumentation: https://github.com/iamgp/phlo")
 
+    except click.ClickException:
+        raise
     except Exception as e:
         logger.exception("project_initialization_failed", project_dir=str(project_dir))
         click.echo(f"\nError initializing project: {e}", err=True)
@@ -257,184 +292,26 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
     Args:
         project_dir: Path to project directory
         project_name: Name of the project
-        template: Template type ("basic" or "minimal")
+        template: Project template name.
     """
-    # Create directories
-    project_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create workflows structure
-    workflows_dir = project_dir / "workflows"
-    workflows_dir.mkdir(exist_ok=True)
-    (workflows_dir / "__init__.py").write_text('"""User workflows."""\n')
-
-    (workflows_dir / "ingestion").mkdir(exist_ok=True)
-    (workflows_dir / "ingestion" / "__init__.py").write_text('"""Ingestion workflows."""\n')
-
-    (workflows_dir / "schemas").mkdir(exist_ok=True)
-    (workflows_dir / "schemas" / "__init__.py").write_text('"""Pandera validation schemas."""\n')
-
-    # Create workflows/transforms/dbt structure if basic template
-    if template == "basic":
-        transforms_dir = project_dir / "workflows" / "transforms" / "dbt"
-        transforms_dir.mkdir(parents=True, exist_ok=True)
-        try:
-            from phlo_dbt.scaffold import write_dbt_scaffold
-        except ImportError as exc:
-            raise RuntimeError(
-                "phlo-dbt is required for the basic template. "
-                "Install phlo-dbt or use --template minimal."
-            ) from exc
-
-        write_dbt_scaffold(project_name, transforms_dir, project_dir)
-
-        # Create models directory
-        (transforms_dir / "models").mkdir(exist_ok=True)
-        (transforms_dir / "models" / ".gitkeep").write_text("")
-
-    # Create tests directory
-    tests_dir = project_dir / "tests"
-    tests_dir.mkdir(exist_ok=True)
-    (tests_dir / "__init__.py").write_text("")
-
-    # Create pyproject.toml
-    pyproject_content = f"""[project]
-name = "{project_name}"
-version = "0.1.0"
-description = "Phlo data workflows"
-requires-python = ">=3.11"
-dependencies = [
-    "phlo",
-]
-
-[dependency-groups]
-dev = [
-    "pytest>=8.0",
-    "ruff",
-]
-
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-
-[tool.ruff.lint]
-select = ["E", "F", "I"]
-"""
-    (project_dir / "pyproject.toml").write_text(pyproject_content)
-
-    # Create .env.example (secrets template)
-    env_example_content = _build_env_example_content()
-    (project_dir / ".env.example").write_text(env_example_content)
-
-    # Create .gitignore
-    gitignore_content = """.env
-.env.local
-.phlo/
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-.venv/
-venv/
-*.egg-info/
-dist/
-build/
-.pytest_cache/
-.coverage
-htmlcov/
-.ruff_cache/
-"""
-    (project_dir / ".gitignore").write_text(gitignore_content)
-
-    # Create README.md
-    readme_content = f"""# {project_name}
-
-Phlo data workflows for {project_name}.
-
-## Getting Started
-
-1. **Install dependencies:**
-   ```bash
-   pip install -e .
-   ```
-
-2. **Create your first workflow:**
-   ```bash
-   phlo workflow create
-   ```
-
-3. **Start Dagster UI:**
-   ```bash
-   phlo dev
-   ```
-
-4. **Access the UI:**
-   Open http://localhost:3000 in your browser
-
-## Project Structure
-
-```
-{project_name}/
-├── workflows/          # Your workflow definitions
-│   ├── ingestion/     # Data ingestion workflows
-│   ├── schemas/       # Pandera validation schemas
-│   └── transforms/dbt/ # dbt transformation models
-└── tests/            # Workflow tests
-```
-
-## Documentation
-
-- [Phlo Documentation](https://github.com/iamgp/phlo)
-- [Workflow Development Guide](https://github.com/iamgp/phlo/blob/main/docs/guides/workflow-development.md)
-
-## Commands
-
-- `phlo dev` - Start Dagster development server
-- `phlo workflow create` - Scaffold new workflow
-- `phlo test` - Run tests
-"""
-    (project_dir / "README.md").write_text(readme_content)
-
-    # Create phlo.yaml with infrastructure configuration
-    from phlo.cli.commands.services.utils import PHLO_CONFIG_TEMPLATE
-
-    phlo_config_content = PHLO_CONFIG_TEMPLATE.format(
-        name=project_name,
-        description=f"{project_name} data workflows",
-    )
-    (project_dir / "phlo.yaml").write_text(phlo_config_content)
-
-
-def _build_env_example_content() -> str:
-    from phlo.plugins.discovery import ServiceDiscovery
-
-    lines = [
-        "# Phlo Local Secrets Template",
-        "# Copy to .phlo/.env.local after running `phlo services init`.",
-        "",
-    ]
-
-    discovery = ServiceDiscovery()
-    services = discovery.discover()
-    if not services:
-        lines.append(
-            "# No service plugins discovered; install service packages to populate secrets."
+    try:
+        selected_template = get_template(template)
+    except KeyError as exc:
+        available = ", ".join(item.metadata.name for item in get_project_templates())
+        raise click.ClickException(
+            f"Unknown template '{template}'. Available templates: {available}"
+        ) from exc
+    missing = missing_required_packages(selected_template)
+    if missing:
+        packages = " ".join(missing)
+        raise click.ClickException(
+            f"Template '{template}' requires missing package(s): {', '.join(missing)}. "
+            f"Install with: uv pip install {packages}"
         )
-        return "\n".join(lines) + "\n"
-
-    for service in sorted(services.values(), key=lambda s: s.name):
-        secrets = {key: cfg for key, cfg in service.env_vars.items() if cfg.get("secret") is True}
-        if not secrets:
-            continue
-        lines.append(f"# {service.name}")
-        for key in sorted(secrets.keys()):
-            desc = secrets[key].get("description")
-            if desc:
-                lines.append(f"# {desc}")
-            lines.append(f"{key}=")
-        lines.append("")
-
-    return "\n".join(lines).rstrip() + "\n"
+    selected_template.render(
+        TemplateRenderContext(project_dir=project_dir, project_name=project_name)
+    )
+    return selected_template
 
 
 def main():

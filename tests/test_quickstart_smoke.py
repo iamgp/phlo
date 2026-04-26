@@ -106,6 +106,7 @@ def test_documented_quickstart_bootstrap_path_reaches_services_start(
     from phlo.cli import main as main_module
     from phlo.cli.commands.services import init as init_module
     from phlo.cli.commands.services import start as start_module
+    from phlo.cli.templates import builtin as builtin_templates
 
     postgres = _service("postgres", default=True)
     prometheus = ServiceDefinition(
@@ -126,7 +127,7 @@ def test_documented_quickstart_bootstrap_path_reaches_services_start(
         return CompletedProcess(args=cmd, returncode=0)
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(main_module, "_build_env_example_content", lambda: "PHLO_SECRET=\n")
+    monkeypatch.setattr(builtin_templates, "_build_env_example_content", lambda: "PHLO_SECRET=\n")
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(init_module, "ComposeGenerator", _SmokeComposer)
     monkeypatch.setattr(start_module, "ServiceDiscovery", lambda: fake_discovery)
