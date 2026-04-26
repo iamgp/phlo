@@ -27,7 +27,10 @@ def test_smoke_stack_seeds_durable_asset(tmp_path: Path) -> None:
 
     asset_path = tmp_path / "workflows" / smoke_stack._SMOKE_ASSET_FILENAME
     assert asset_path.exists()
-    assert f"def {smoke_stack._SMOKE_ASSET_KEY}()" in asset_path.read_text(encoding="utf-8")
+    asset_source = asset_path.read_text(encoding="utf-8")
+    assert "AssetSpec(" in asset_source
+    assert f'key="{smoke_stack._SMOKE_ASSET_KEY}"' in asset_source
+    assert "import dagster" not in asset_source
 
 
 def test_smoke_stack_project_root_argument() -> None:

@@ -1,4 +1,4 @@
-"""Live smoke test for phlo-mcp against phlo-api, Dagster, and ClickStack.
+"""Live smoke test for phlo-mcp against phlo-api capability routes.
 
 This script is intentionally not part of the default unit test path. It expects
 real local services and exercises the MCP stdio transport against a live
@@ -29,18 +29,26 @@ from mcp.client.stdio import stdio_client
 
 _DEFAULT_API_BASE_URL = "http://127.0.0.1:4000"
 _DEFAULT_DAGSTER_URL = "http://127.0.0.1:3000/graphql"
-_DEFAULT_CLICKSTACK_QUERY_URL = "http://127.0.0.1:8123"
 _SMOKE_RUN_ID = "phlo-mcp-smoke-no-such-run"
 _SMOKE_ASSET_KEY = "mcp_smoke_asset"
 _SMOKE_ASSET_FILENAME = "mcp_smoke_asset.py"
 _SMOKE_ASSET_SOURCE = '''"""Generated asset used by packages/phlo-mcp/tests/smoke_stack.py."""
 
-import dagster as dg
+from phlo.capabilities import AssetSpec, MaterializeResult, RunSpec, register_asset
 
 
-@dg.asset(group_name="smoke")
-def mcp_smoke_asset() -> int:
-    return 1
+def _run(runtime):
+    return [MaterializeResult(metadata={"rows": 1})]
+
+
+register_asset(
+    AssetSpec(
+        key="mcp_smoke_asset",
+        group="smoke",
+        description="MCP smoke asset",
+        run=RunSpec(fn=_run),
+    )
+)
 '''
 
 
@@ -62,13 +70,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         _wait_for_json(f"{args.api_base_url}/health", timeout_seconds=args.timeout_seconds)
         _check_phlo_api(args)
-        _check_clickstack(args)
         anyio.run(_check_mcp_stdio, args, repo_root)
     except SmokeFailure as exc:
         print(f"SMOKE FAILED: {exc}", file=sys.stderr)
         return 1
 
-    print("SMOKE PASSED: phlo-mcp, phlo-api, Dagster, and ClickStack paths are reachable")
+    print("SMOKE PASSED: phlo-mcp, phlo-api, and configured capability paths are reachable")
     return 0
 
 
@@ -83,23 +90,6 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "--dagster-url",
         default=os.environ.get("PHLO_MCP_SMOKE_DAGSTER_URL", _DEFAULT_DAGSTER_URL),
         help="Dagster GraphQL URL reachable by phlo-api",
-    )
-    parser.add_argument(
-        "--clickstack-query-url",
-        default=os.environ.get(
-            "PHLO_MCP_SMOKE_CLICKSTACK_QUERY_URL", _DEFAULT_CLICKSTACK_QUERY_URL
-        ),
-        help="ClickStack ClickHouse HTTP query URL reachable from this host",
-    )
-    parser.add_argument(
-        "--clickstack-query-user",
-        default=os.environ.get("PHLO_MCP_SMOKE_CLICKSTACK_QUERY_USER"),
-        help="Optional ClickStack ClickHouse HTTP query user",
-    )
-    parser.add_argument(
-        "--clickstack-query-password",
-        default=os.environ.get("PHLO_MCP_SMOKE_CLICKSTACK_QUERY_PASSWORD", ""),
-        help="Optional ClickStack ClickHouse HTTP query password",
     )
     parser.add_argument(
         "--api-token",
@@ -192,6 +182,8 @@ def _start_stack(project_root: Path) -> None:
                 "services",
                 "init",
                 "--profile",
+                "orchestration",
+                "--profile",
                 "api",
                 "--profile",
                 "observability",
@@ -206,11 +198,11 @@ def _start_stack(project_root: Path) -> None:
             "services",
             "start",
             "--profile",
+            "orchestration",
+            "--profile",
             "api",
             "--profile",
             "observability",
-            "--service",
-            "dagster,clickstack,phlo-api",
             "--native",
         ],
         project_root,
@@ -295,38 +287,6 @@ def _check_phlo_api(args: argparse.Namespace) -> None:
     )
     if not isinstance(filtered_spans, list):
         raise SmokeFailure(f"filtered trace endpoint returned unexpected payload: {filtered_spans}")
-
-
-def _check_clickstack(args: argparse.Namespace) -> None:
-    exists = _clickstack_query(args, "EXISTS TABLE default.otel_traces")
-    if not exists or exists[0].get("result") != 1:
-        raise SmokeFailure("ClickStack default.otel_traces table is missing")
-
-    count = _clickstack_query(
-        args,
-        "SELECT count() AS count FROM default.otel_traces",
-    )
-    if not count or "count" not in count[0]:
-        raise SmokeFailure("ClickStack otel_traces count query returned an unexpected payload")
-    print(f"ClickStack default.otel_traces rows: {count[0]['count']}")
-
-
-def _clickstack_query(args: argparse.Namespace, query: str) -> list[dict[str, Any]]:
-    response = httpx.post(
-        args.clickstack_query_url.rstrip("/"),
-        content=f"{query} FORMAT JSONEachRow".encode("utf-8"),
-        auth=_clickstack_auth(args),
-        timeout=20,
-    )
-    response.raise_for_status()
-    return [json.loads(line) for line in response.text.splitlines() if line.strip()]
-
-
-def _clickstack_auth(args: argparse.Namespace) -> tuple[str, str] | None:
-    user = args.clickstack_query_user
-    if user is None:
-        return None
-    return (user, args.clickstack_query_password)
 
 
 async def _check_mcp_stdio(args: argparse.Namespace, repo_root: Path) -> None:

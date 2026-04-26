@@ -138,21 +138,21 @@ phlo-mcp --trace-file .phlo/phlo-mcp-trace.jsonl
 
 ## Live stack smoke
 
-Run the MCP smoke against live `phlo-api`, Dagster, and ClickStack services:
+Run the MCP smoke against a live `phlo-api` service and its configured capability backends:
 
 ```bash
 uv run python packages/phlo-mcp/tests/smoke_stack.py --start-stack
 ```
 
-The smoke checks live `phlo-api`, Dagster connectivity, ClickStack trace table
-queries, MCP tool registration, filtered trace tools, MCP resource registration,
-representative MCP resource reads, and a generated `mcp_smoke_asset` fixture.
+The smoke checks live `phlo-api`, orchestration connectivity, trace filtering
+through the observability capability, MCP tool registration, MCP resource
+registration, representative MCP resource reads, and a generated
+`mcp_smoke_asset` capability fixture.
 With `--start-stack`, the fixture is written to `.phlo/mcp-smoke-project`,
 which is ignored by git.
 
-When ClickStack requires HTTP credentials, pass them to the smoke script and to
-the `phlo-api` process as `CLICKSTACK_QUERY_USER` and
-`CLICKSTACK_QUERY_PASSWORD`.
+When the configured observability backend requires credentials, pass them to
+the backing `phlo-api` process with that backend's environment variables.
 
 To verify guarded write-tool registration without calling mutation endpoints:
 
