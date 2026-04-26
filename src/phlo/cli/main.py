@@ -14,6 +14,7 @@ import click
 
 import phlo.cli._warning_filters  # noqa: F401
 from phlo.cli.commands.doctor import doctor_cmd
+from phlo.cli.templates import TemplateRenderContext, get_template
 from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__, service="phlo-cli")
@@ -259,150 +260,10 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
         project_name: Name of the project
         template: Template type ("basic" or "minimal")
     """
-    # Create directories
-    project_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create workflows structure
-    workflows_dir = project_dir / "workflows"
-    workflows_dir.mkdir(exist_ok=True)
-    (workflows_dir / "__init__.py").write_text('"""User workflows."""\n')
-
-    (workflows_dir / "ingestion").mkdir(exist_ok=True)
-    (workflows_dir / "ingestion" / "__init__.py").write_text('"""Ingestion workflows."""\n')
-
-    (workflows_dir / "schemas").mkdir(exist_ok=True)
-    (workflows_dir / "schemas" / "__init__.py").write_text('"""Pandera validation schemas."""\n')
-
-    # Create workflows/transforms/dbt structure if basic template
-    if template == "basic":
-        transforms_dir = project_dir / "workflows" / "transforms" / "dbt"
-        transforms_dir.mkdir(parents=True, exist_ok=True)
-        try:
-            from phlo_dbt.scaffold import write_dbt_scaffold
-        except ImportError as exc:
-            raise RuntimeError(
-                "phlo-dbt is required for the basic template. "
-                "Install phlo-dbt or use --template minimal."
-            ) from exc
-
-        write_dbt_scaffold(project_name, transforms_dir, project_dir)
-
-        # Create models directory
-        (transforms_dir / "models").mkdir(exist_ok=True)
-        (transforms_dir / "models" / ".gitkeep").write_text("")
-
-    # Create tests directory
-    tests_dir = project_dir / "tests"
-    tests_dir.mkdir(exist_ok=True)
-    (tests_dir / "__init__.py").write_text("")
-
-    # Create pyproject.toml
-    pyproject_content = f"""[project]
-name = "{project_name}"
-version = "0.1.0"
-description = "Phlo data workflows"
-requires-python = ">=3.11"
-dependencies = [
-    "phlo",
-]
-
-[dependency-groups]
-dev = [
-    "pytest>=8.0",
-    "ruff",
-]
-
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-
-[tool.ruff.lint]
-select = ["E", "F", "I"]
-"""
-    (project_dir / "pyproject.toml").write_text(pyproject_content)
-
-    # Create .env.example (secrets template)
-    env_example_content = _build_env_example_content()
-    (project_dir / ".env.example").write_text(env_example_content)
-
-    # Create .gitignore
-    gitignore_content = """.env
-.env.local
-.phlo/
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-.venv/
-venv/
-*.egg-info/
-dist/
-build/
-.pytest_cache/
-.coverage
-htmlcov/
-.ruff_cache/
-"""
-    (project_dir / ".gitignore").write_text(gitignore_content)
-
-    # Create README.md
-    readme_content = f"""# {project_name}
-
-Phlo data workflows for {project_name}.
-
-## Getting Started
-
-1. **Install dependencies:**
-   ```bash
-   pip install -e .
-   ```
-
-2. **Create your first workflow:**
-   ```bash
-   phlo workflow create
-   ```
-
-3. **Start Dagster UI:**
-   ```bash
-   phlo dev
-   ```
-
-4. **Access the UI:**
-   Open http://localhost:3000 in your browser
-
-## Project Structure
-
-```
-{project_name}/
-├── workflows/          # Your workflow definitions
-│   ├── ingestion/     # Data ingestion workflows
-│   ├── schemas/       # Pandera validation schemas
-│   └── transforms/dbt/ # dbt transformation models
-└── tests/            # Workflow tests
-```
-
-## Documentation
-
-- [Phlo Documentation](https://github.com/iamgp/phlo)
-- [Workflow Development Guide](https://github.com/iamgp/phlo/blob/main/docs/guides/workflow-development.md)
-
-## Commands
-
-- `phlo dev` - Start Dagster development server
-- `phlo workflow create` - Scaffold new workflow
-- `phlo test` - Run tests
-"""
-    (project_dir / "README.md").write_text(readme_content)
-
-    # Create phlo.yaml with infrastructure configuration
-    from phlo.cli.commands.services.utils import PHLO_CONFIG_TEMPLATE
-
-    phlo_config_content = PHLO_CONFIG_TEMPLATE.format(
-        name=project_name,
-        description=f"{project_name} data workflows",
+    selected_template = get_template(template)
+    selected_template.render(
+        TemplateRenderContext(project_dir=project_dir, project_name=project_name)
     )
-    (project_dir / "phlo.yaml").write_text(phlo_config_content)
 
 
 def _build_env_example_content() -> str:
