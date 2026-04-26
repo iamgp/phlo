@@ -5,10 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 from subprocess import CompletedProcess, TimeoutExpired
 
+import pytest
 from click.testing import CliRunner
 
 from phlo_minio.cli import minio_group
 from phlo_minio.cli_plugin import MinioCliPlugin
+
+
+@pytest.fixture(autouse=True)
+def _skip_backend_availability(monkeypatch) -> None:
+    monkeypatch.setattr("phlo_minio.cli._require_container_backend", lambda: None)
 
 
 def test_minio_cli_plugin_metadata() -> None:
@@ -27,7 +33,6 @@ def test_minio_ls_runs_mc(monkeypatch) -> None:
 
     monkeypatch.setattr("phlo_minio.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
     monkeypatch.setattr("phlo_minio.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_minio.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_minio.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -49,7 +54,6 @@ def test_minio_admin_info_runs_mc(monkeypatch) -> None:
 
     monkeypatch.setattr("phlo_minio.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
     monkeypatch.setattr("phlo_minio.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_minio.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_minio.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -67,7 +71,6 @@ def test_minio_shell_passthrough(monkeypatch) -> None:
 
     monkeypatch.setattr("phlo_minio.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
     monkeypatch.setattr("phlo_minio.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_minio.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_minio.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],
@@ -110,7 +113,6 @@ def test_minio_ls_timeout(monkeypatch) -> None:
 
     monkeypatch.setattr("phlo_minio.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
     monkeypatch.setattr("phlo_minio.cli.get_project_name", lambda: "demo")
-    monkeypatch.setattr("phlo_minio.cli.which", lambda _name: "/usr/bin/docker")
     monkeypatch.setattr(
         "phlo_minio.cli.compose_base_cmd",
         lambda **_kwargs: ["docker", "compose", "-p", "demo"],

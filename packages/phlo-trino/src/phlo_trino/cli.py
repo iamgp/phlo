@@ -9,7 +9,7 @@ Functions:
     trino_group: Main CLI command group for Trino operations.
     trino_query: Execute SQL queries against Trino.
     _read_query: Read SQL from inline argument or file.
-    _require_docker: Validate Docker CLI availability.
+    _require_container_backend: Validate container backend CLI availability.
     _trino_exec_base: Build docker compose exec command.
 
 Example:
@@ -23,12 +23,14 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from shutil import which
 from subprocess import TimeoutExpired
 
 import click
 
-from phlo.cli.commands.services.utils import ensure_phlo_dir
+from phlo.cli.commands.services.utils import (
+    ensure_phlo_dir,
+    require_container_backend as _require_selected_container_backend,
+)
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
@@ -51,10 +53,9 @@ def _read_query(*, query: str | None, file: Path | None) -> str:
     raise click.ClickException("Provide a SQL query argument or --file.")
 
 
-def _require_docker() -> None:
-    """Validate that Docker CLI is installed."""
-    if which("docker") is None:
-        raise click.ClickException("docker command not found.")
+def _require_container_backend() -> None:
+    """Validate that the selected container backend is available."""
+    _require_selected_container_backend()
 
 
 def _trino_exec_base(*, tty: bool) -> list[str]:
@@ -84,7 +85,7 @@ def trino_group(ctx: click.Context, trino_args: tuple[str, ...]) -> None:
             standalone_mode=False,
         )
         return
-    _require_docker()
+    _require_container_backend()
     cmd = _trino_exec_base(tty=True)
     cmd.extend(trino_args)
     result = subprocess.run(cmd, check=False)
@@ -112,7 +113,7 @@ def trino_query(
     timeout_seconds: int,
 ) -> None:
     """Execute a SQL query against the running Trino service."""
-    _require_docker()
+    _require_container_backend()
     sql = _read_query(query=query, file=query_file)
     cmd = _trino_exec_base(tty=False)
     if catalog:

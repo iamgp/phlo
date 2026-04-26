@@ -37,7 +37,9 @@ def test_trino_query_runs_trino_cli(monkeypatch) -> None:
         ]
         return CompletedProcess(cmd, 0, stdout='[{"_col0":1}]\n', stderr="")
 
-    monkeypatch.setitem(trino_query.callback.__globals__, "_require_docker", lambda: None)
+    monkeypatch.setitem(
+        trino_query.callback.__globals__, "_require_container_backend", lambda: None
+    )
     monkeypatch.setitem(
         trino_query.callback.__globals__,
         "_trino_exec_base",
@@ -63,6 +65,32 @@ def test_trino_query_runs_trino_cli(monkeypatch) -> None:
     assert result.output == '[{"_col0":1}]\n'
 
 
+def test_trino_query_uses_selected_backend(monkeypatch, tmp_path) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text("services:\n  trino: {}\n")
+    (phlo_dir / ".env").write_text("")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PHLO_CONTAINER_BACKEND", "podman")
+
+    calls: list[list[str]] = []
+    monkeypatch.setitem(
+        trino_query.callback.__globals__,
+        "_require_container_backend",
+        lambda: None,
+    )
+    monkeypatch.setitem(
+        trino_query.callback.__globals__,
+        "run_command",
+        lambda cmd, **_kwargs: calls.append(cmd) or CompletedProcess(cmd, 0, stdout="", stderr=""),
+    )
+
+    result = CliRunner().invoke(trino_group, ["query", "SELECT 1"])
+
+    assert result.exit_code == 0, result.output
+    assert calls[0][:2] == ["podman", "compose"]
+
+
 def test_trino_query_supports_file(monkeypatch, tmp_path) -> None:
     """Query command should read SQL from a file."""
     sql_file = tmp_path / "query.sql"
@@ -72,7 +100,9 @@ def test_trino_query_supports_file(monkeypatch, tmp_path) -> None:
         assert cmd[-1] == "SELECT 42"
         return CompletedProcess(cmd, 0, stdout="42\n", stderr="")
 
-    monkeypatch.setitem(trino_query.callback.__globals__, "_require_docker", lambda: None)
+    monkeypatch.setitem(
+        trino_query.callback.__globals__, "_require_container_backend", lambda: None
+    )
     monkeypatch.setitem(
         trino_query.callback.__globals__,
         "_trino_exec_base",
@@ -97,7 +127,9 @@ def test_trino_query_supports_file(monkeypatch, tmp_path) -> None:
 
 def test_trino_query_rejects_missing_input(monkeypatch) -> None:
     """Query command should fail clearly when no SQL is provided."""
-    monkeypatch.setitem(trino_query.callback.__globals__, "_require_docker", lambda: None)
+    monkeypatch.setitem(
+        trino_query.callback.__globals__, "_require_container_backend", lambda: None
+    )
 
     result = CliRunner().invoke(trino_group, ["query"])
 
@@ -111,7 +143,9 @@ def test_trino_query_surfaces_timeout(monkeypatch) -> None:
     def _run_command(cmd, **_kwargs):
         raise TimeoutExpired(cmd=cmd, timeout=30)
 
-    monkeypatch.setitem(trino_query.callback.__globals__, "_require_docker", lambda: None)
+    monkeypatch.setitem(
+        trino_query.callback.__globals__, "_require_container_backend", lambda: None
+    )
     monkeypatch.setitem(
         trino_query.callback.__globals__,
         "_trino_exec_base",
@@ -140,7 +174,7 @@ def test_trino_group_defaults_to_shell(monkeypatch) -> None:
 
     callback_globals = trino_group.callback.__wrapped__.__globals__
 
-    monkeypatch.setitem(callback_globals, "_require_docker", lambda: None)
+    monkeypatch.setitem(callback_globals, "_require_container_backend", lambda: None)
     monkeypatch.setitem(
         callback_globals,
         "_trino_exec_base",
