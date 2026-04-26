@@ -109,7 +109,12 @@ def _load_module_from_file(file_path: Path) -> Any:
         Loaded module object, or None if loading fails.
 
     """
+    import_root = _project_import_root(file_path)
+    import_root_str = str(import_root)
+    inserted_import_root = import_root_str not in sys.path
     try:
+        if inserted_import_root:
+            sys.path.insert(0, import_root_str)
         spec = importlib.util.spec_from_file_location("schema_module", file_path)
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
@@ -123,6 +128,22 @@ def _load_module_from_file(file_path: Path) -> Any:
         )
         console.print(f"[red]Error loading module: {e}[/red]")
         return None
+    finally:
+        if inserted_import_root:
+            sys.path.remove(import_root_str)
+
+
+def _project_import_root(file_path: Path) -> Path:
+    """Return the project root needed for workflow-local imports."""
+    path = file_path.resolve()
+    parts = path.parts
+    if "workflows" not in parts:
+        return Path.cwd().resolve()
+
+    workflows_index = parts.index("workflows")
+    if workflows_index == 0:
+        return Path.cwd().resolve()
+    return Path(*parts[:workflows_index])
 
 
 def _find_pandera_schemas(module: Any) -> List[Any]:

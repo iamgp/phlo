@@ -30,6 +30,45 @@ def test_validate_workflow_missing_file_prints_rerun_hint() -> None:
     assert "phlo validate-workflow workflows/ingestion/missing.py" in result.output
 
 
+def test_validate_workflow_resolves_project_workflow_imports(monkeypatch, tmp_path) -> None:
+    """Loads workflow files that import project-local schemas."""
+    workflow_file = tmp_path / "workflows" / "ingestion" / "demo" / "events.py"
+    schema_file = tmp_path / "workflows" / "schemas" / "demo.py"
+    workflow_file.parent.mkdir(parents=True)
+    schema_file.parent.mkdir(parents=True)
+    schema_file.write_text("class RawEvents: pass\n")
+    workflow_file.write_text(
+        """
+from workflows.schemas.demo import RawEvents
+
+
+def phlo_ingestion(**kwargs):
+    def decorator(func):
+        return func
+
+    return decorator
+
+
+@phlo_ingestion(
+    table_name="events",
+    unique_key="id",
+    validation_schema=RawEvents,
+    group="demo",
+    cron="0 */1 * * *",
+    freshness_hours=(1, 24),
+)
+def events(partition_date: str) -> None:
+    return None
+"""
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(validate_workflow, [str(workflow_file)])
+
+    assert result.exit_code == 0
+    assert "Workflow is valid" in result.output
+
+
 class TestValidateCronField:
     """Tests for cron field validation."""
 
