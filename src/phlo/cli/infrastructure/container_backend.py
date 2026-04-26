@@ -81,6 +81,10 @@ def _coerce_podman_name(value: object) -> str:
     return str(value or "")
 
 
+def _podman_service_label(labels: dict[str, str]) -> str:
+    return labels.get("com.docker.compose.service") or labels.get("io.podman.compose.service") or ""
+
+
 class DockerBackend:
     name = "docker"
 
@@ -189,41 +193,52 @@ class PodmanBackend:
         return True, None
 
     def list_project_containers(self, project_name: str) -> list[ContainerInfo]:
-        result = subprocess.run(
-            [
-                "podman",
-                "ps",
-                "--filter",
-                f"label=com.docker.compose.project={project_name}",
-                "--format",
-                "json",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0 or not result.stdout.strip():
-            return []
-
-        containers: list[ContainerInfo] = []
-        for info in json.loads(result.stdout):
-            raw_labels = info.get("Labels", {}) or {}
-            labels = {str(key): str(value) for key, value in raw_labels.items()}
-            service = labels.get("com.docker.compose.service") or labels.get(
-                "io.podman.compose.service", ""
+        containers_by_name: dict[str, ContainerInfo] = {}
+        for label in (
+            "com.docker.compose.project",
+            "io.podman.compose.project",
+        ):
+            result = subprocess.run(
+                [
+                    "podman",
+                    "ps",
+                    "--filter",
+                    f"label={label}={project_name}",
+                    "--format",
+                    "json",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
             )
-            if not service:
+            if result.returncode != 0 or not result.stdout.strip():
                 continue
-            containers.append(
-                ContainerInfo(
-                    service=service,
-                    name=_coerce_podman_name(info.get("Names")),
-                    state=str(info.get("State", "")),
-                    labels=labels,
-                    ports=str(info.get("Ports", "")),
-                )
-            )
-        return containers
+
+            try:
+                payload = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                continue
+
+            for info in payload:
+                container = self._container_info_from_ps(info)
+                if container is None:
+                    continue
+                containers_by_name[container.name] = container
+        return list(containers_by_name.values())
+
+    def _container_info_from_ps(self, info: dict) -> ContainerInfo | None:
+        raw_labels = info.get("Labels", {}) or {}
+        labels = {str(key): str(value) for key, value in raw_labels.items()}
+        service = _podman_service_label(labels)
+        if not service:
+            return None
+        return ContainerInfo(
+            service=service,
+            name=_coerce_podman_name(info.get("Names")),
+            state=str(info.get("State", "")),
+            labels=labels,
+            ports=str(info.get("Ports", "")),
+        )
 
 
 def select_container_backend(

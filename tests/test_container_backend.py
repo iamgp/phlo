@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from subprocess import CompletedProcess
 
 import pytest
 
@@ -55,6 +56,41 @@ def test_podman_backend_compose_base_cmd_uses_podman(tmp_path: Path) -> None:
 
     assert cmd[:2] == ["podman", "compose"]
     assert str(phlo_dir / "docker-compose.yml") in cmd
+
+
+def test_podman_backend_lists_containers_with_podman_compose_labels(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def _run(cmd: list[str], **_kwargs) -> CompletedProcess:
+        calls.append(cmd)
+        if "label=com.docker.compose.project=demo" in cmd:
+            return CompletedProcess(cmd, 0, stdout="[]", stderr="")
+        if "label=io.podman.compose.project=demo" in cmd:
+            return CompletedProcess(
+                cmd,
+                0,
+                stdout=(
+                    '[{"Names":["demo_postgres_1"],"State":"running",'
+                    '"Labels":{"io.podman.compose.project":"demo",'
+                    '"io.podman.compose.service":"postgres"},'
+                    '"Ports":"0.0.0.0:5432->5432/tcp"}]'
+                ),
+                stderr="",
+            )
+        raise AssertionError(f"unexpected command: {cmd}")
+
+    monkeypatch.setattr(
+        "phlo.cli.infrastructure.container_backend.subprocess.run",
+        _run,
+    )
+
+    containers = PodmanBackend().list_project_containers("demo")
+
+    assert [container.service for container in containers] == ["postgres"]
+    assert containers[0].name == "demo_postgres_1"
+    assert any("label=io.podman.compose.project=demo" in call for call in calls)
 
 
 def test_select_backend_defaults_to_docker(monkeypatch: pytest.MonkeyPatch) -> None:
