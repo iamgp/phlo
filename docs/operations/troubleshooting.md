@@ -6,6 +6,24 @@ This guide helps you debug and fix common problems in Phlo.
 
 ---
 
+## Start With `phlo doctor`
+
+Run:
+
+```bash
+phlo doctor
+```
+
+If the output reports plugin discovery failures, rerun:
+
+```bash
+phlo doctor --verbose
+```
+
+Attach `phlo doctor --json` output when reporting setup issues.
+
+---
+
 ## Table of Contents
 
 1. [Services Won't Start](#services-wont-start)
