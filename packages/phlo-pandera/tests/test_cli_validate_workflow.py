@@ -21,6 +21,15 @@ from phlo_pandera.cli_validate import (
 )
 
 
+def test_validate_workflow_missing_file_prints_rerun_hint() -> None:
+    """Shows a rerun command when the workflow path is missing."""
+    result = CliRunner().invoke(validate_workflow, ["workflows/ingestion/missing.py"])
+
+    assert result.exit_code != 0
+    assert "workflows/ingestion/missing.py" in result.output
+    assert "phlo validate-workflow workflows/ingestion/missing.py" in result.output
+
+
 class TestValidateCronField:
     """Tests for cron field validation."""
 

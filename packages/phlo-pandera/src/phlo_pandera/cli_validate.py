@@ -240,7 +240,7 @@ def _validate_single_schema(
 
 
 @click.command()
-@click.argument("asset_file", type=click.Path(exists=True))
+@click.argument("asset_file", type=click.Path())
 @click.option(
     "--fix",
     is_flag=True,
@@ -277,6 +277,9 @@ def validate_workflow(asset_file: str, fix: bool):
     console.print("\n[bold blue]🔍 Validating Workflow[/bold blue]\n")
 
     path = Path(asset_file)
+    if not path.exists():
+        _print_validation_failure(str(path), "file does not exist")
+        raise click.ClickException(f"Workflow file not found: {path}")
 
     # Handle directory input
     if path.is_dir():
@@ -306,6 +309,13 @@ def validate_workflow(asset_file: str, fix: bool):
         else:
             console.print("\n[bold yellow]⚠ Issues found (see above)[/bold yellow]")
             sys.exit(1)
+
+
+def _print_validation_failure(path: str, message: str) -> None:
+    """Print consistent workflow validation failure context."""
+    click.echo(f"Validation failed for {path}", err=True)
+    click.echo(f"Reason: {message}", err=True)
+    click.echo(f"Rerun: phlo validate-workflow {path}", err=True)
 
 
 def _validate_workflow_file(file_path: Path, fix: bool = False) -> bool:
