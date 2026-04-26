@@ -104,6 +104,12 @@ def _run_probe(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, capture_output=True, text=True, check=False, timeout=10)
 
 
+def _probe_failure_details(exc: BaseException, *, verbose: bool) -> dict[str, Any]:
+    if not verbose:
+        return {}
+    return {"error": str(exc), "type": type(exc).__name__}
+
+
 def check_environment(*, verbose: bool = False) -> list[DiagnosticResult]:
     results: list[DiagnosticResult] = [
         DiagnosticResult(
@@ -145,22 +151,35 @@ def check_environment(*, verbose: bool = False) -> list[DiagnosticResult]:
     )
 
     if docker_path:
-        compose = _run_probe(["docker", "compose", "version"])
-        details = {"stderr": compose.stderr.strip()} if verbose and compose.stderr else {}
-        results.append(
-            DiagnosticResult(
-                "env.docker.compose",
-                "Environment",
-                DiagnosticStatus.OK if compose.returncode == 0 else DiagnosticStatus.FAIL,
-                "Docker Compose available"
-                if compose.returncode == 0
-                else "Docker Compose is not available",
-                None
-                if compose.returncode == 0
-                else "Install Docker Compose v2 or update Docker Desktop.",
-                details,
+        try:
+            compose = _run_probe(["docker", "compose", "version"])
+        except (OSError, subprocess.SubprocessError) as exc:
+            results.append(
+                DiagnosticResult(
+                    "env.docker.compose",
+                    "Environment",
+                    DiagnosticStatus.FAIL,
+                    "Docker Compose probe failed",
+                    "Ensure Docker Desktop is running and docker compose version responds.",
+                    _probe_failure_details(exc, verbose=verbose),
+                )
             )
-        )
+        else:
+            details = {"stderr": compose.stderr.strip()} if verbose and compose.stderr else {}
+            results.append(
+                DiagnosticResult(
+                    "env.docker.compose",
+                    "Environment",
+                    DiagnosticStatus.OK if compose.returncode == 0 else DiagnosticStatus.FAIL,
+                    "Docker Compose available"
+                    if compose.returncode == 0
+                    else "Docker Compose is not available",
+                    None
+                    if compose.returncode == 0
+                    else "Install Docker Compose v2 or update Docker Desktop.",
+                    details,
+                )
+            )
 
     _, _, free = shutil.disk_usage(Path.cwd())
     free_gb = free // (1024**3)

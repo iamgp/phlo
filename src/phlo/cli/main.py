@@ -20,7 +20,15 @@ logger = get_logger(__name__, service="phlo-cli")
 
 
 def _is_doctor_invocation(argv: list[str]) -> bool:
-    return "doctor" in argv[1:]
+    for token in argv[1:]:
+        if token == "--":
+            return False
+        if token in {"--help", "-h", "--version"}:
+            return False
+        if token.startswith("-"):
+            continue
+        return token == "doctor"
+    return False
 
 
 _DOCTOR_INVOCATION = _is_doctor_invocation(sys.argv)

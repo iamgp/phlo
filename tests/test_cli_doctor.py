@@ -1,9 +1,15 @@
-from subprocess import CompletedProcess
+from subprocess import CompletedProcess, TimeoutExpired
 
 import yaml
 from click.testing import CliRunner
 
-from phlo.cli.commands.doctor import DiagnosticResult, DiagnosticStatus, doctor_cmd, run_diagnostics
+from phlo.cli.commands.doctor import (
+    DiagnosticResult,
+    DiagnosticStatus,
+    check_environment,
+    doctor_cmd,
+    run_diagnostics,
+)
 from phlo.cli.commands.services.ports import PortMapping
 from phlo.cli.main import _is_doctor_invocation, cli
 
@@ -80,6 +86,8 @@ def test_doctor_is_registered_on_root_cli(monkeypatch) -> None:
 def test_doctor_invocation_skips_plugin_command_discovery() -> None:
     assert _is_doctor_invocation(["phlo", "doctor", "--json"])
     assert not _is_doctor_invocation(["phlo", "services", "list"])
+    assert not _is_doctor_invocation(["phlo", "services", "exec", "doctor", "--", "true"])
+    assert not _is_doctor_invocation(["phlo", "--help", "doctor"])
 
 
 def test_environment_checks_report_missing_docker(monkeypatch) -> None:
@@ -116,6 +124,24 @@ def test_environment_checks_report_compose_failure(monkeypatch) -> None:
         result.id == "env.docker.compose" and result.status == DiagnosticStatus.FAIL
         for result in results
     )
+
+
+def test_environment_checks_report_compose_probe_timeout(monkeypatch) -> None:
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor._run_probe",
+        lambda command: (_ for _ in ()).throw(
+            TimeoutExpired(command, timeout=10, output="", stderr="timed out")
+        ),
+    )
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.disk_usage", lambda path: (100, 50, 50))
+
+    results = check_environment(verbose=True)
+
+    failure = next(result for result in results if result.id == "env.docker.compose")
+    assert failure.status == DiagnosticStatus.FAIL
+    assert "probe failed" in failure.message
+    assert failure.details["type"] == "TimeoutExpired"
 
 
 def test_project_checks_report_missing_services_init(tmp_path, monkeypatch) -> None:
