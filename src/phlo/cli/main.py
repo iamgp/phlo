@@ -15,6 +15,7 @@ import click
 import phlo.cli._warning_filters  # noqa: F401
 from phlo.cli.commands.doctor import doctor_cmd
 from phlo.cli.templates import TemplateRenderContext, get_template
+from phlo.cli.templates import list_templates as get_project_templates
 from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__, service="phlo-cli")
@@ -182,7 +183,8 @@ def test(
     help="Project template to use",
 )
 @click.option("--force", is_flag=True, help="Initialize in non-empty directory")
-def init(project_name: str | None, template: str, force: bool):
+@click.option("--list-templates", is_flag=True, help="List available project templates and exit.")
+def init(project_name: str | None, template: str, force: bool, list_templates: bool):
     """
     Initialize a new Phlo project.
 
@@ -194,6 +196,12 @@ def init(project_name: str | None, template: str, force: bool):
         phlo init . --force                # Initialize in current directory
         phlo init weather-pipeline --template minimal
     """
+    if list_templates:
+        for item in get_project_templates():
+            packages = ", ".join(item.metadata.required_packages)
+            click.echo(f"{item.metadata.name:<20} {item.metadata.description:<36} {packages}")
+        return
+
     click.echo("Phlo Project Initializer\n")
 
     # Determine project directory and metadata-safe project name

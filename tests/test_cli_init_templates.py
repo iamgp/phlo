@@ -32,3 +32,12 @@ def test_basic_template_generates_dbt_project(tmp_path) -> None:
 
     assert result.exit_code == 0, result.output
     assert (project_dir / "workflows" / "transforms" / "dbt" / "dbt_project.yml").exists()
+
+
+def test_init_list_templates_outputs_metadata() -> None:
+    result = CliRunner().invoke(cli, ["init", "--list-templates"])
+
+    assert result.exit_code == 0
+    assert "minimal" in result.output
+    assert "basic" in result.output
+    assert "dbt-ready Phlo project" in result.output
