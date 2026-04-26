@@ -1,5 +1,6 @@
 from subprocess import CompletedProcess
 
+import yaml
 from click.testing import CliRunner
 
 from phlo.cli.commands.doctor import DiagnosticResult, DiagnosticStatus, doctor_cmd, run_diagnostics
@@ -84,3 +85,35 @@ def test_environment_checks_report_compose_failure(monkeypatch) -> None:
         result.id == "env.docker.compose" and result.status == DiagnosticStatus.FAIL
         for result in results
     )
+
+
+def test_project_checks_report_missing_services_init(tmp_path, monkeypatch) -> None:
+    (tmp_path / "phlo.yaml").write_text(yaml.safe_dump({"name": "demo"}))
+    monkeypatch.chdir(tmp_path)
+
+    results = run_diagnostics()
+
+    assert any(
+        result.id == "project.config" and result.status == DiagnosticStatus.OK for result in results
+    )
+    assert any(
+        result.id == "project.compose" and result.status == DiagnosticStatus.WARN
+        for result in results
+    )
+
+
+def test_discovery_check_summarizes_exception(monkeypatch) -> None:
+    class BrokenDiscovery:
+        def discover(self):
+            raise RuntimeError("entry point exploded")
+
+    monkeypatch.setattr("phlo.cli.commands.doctor.ServiceDiscovery", BrokenDiscovery)
+
+    results = run_diagnostics(verbose=False)
+
+    assert any(
+        result.id == "discovery.services" and result.status == DiagnosticStatus.FAIL
+        for result in results
+    )
+    failure = next(result for result in results if result.id == "discovery.services")
+    assert "entry point exploded" not in failure.message

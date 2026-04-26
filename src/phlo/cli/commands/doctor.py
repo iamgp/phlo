@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Any
 
 import click
+import yaml
+
+from phlo.plugins.discovery import ServiceDiscovery
 
 
 class DiagnosticStatus(StrEnum):
@@ -155,8 +158,105 @@ def check_environment(*, verbose: bool = False) -> list[DiagnosticResult]:
     return results
 
 
+def check_project(*, verbose: bool = False) -> list[DiagnosticResult]:
+    results: list[DiagnosticResult] = []
+    project_file = Path.cwd() / "phlo.yaml"
+    if not project_file.exists():
+        return [
+            DiagnosticResult(
+                "project.config",
+                "Project",
+                DiagnosticStatus.SKIP,
+                "phlo.yaml not found",
+                "Run this command inside a Phlo project, or create one with phlo init.",
+            )
+        ]
+
+    try:
+        loaded = yaml.safe_load(project_file.read_text()) or {}
+        status = DiagnosticStatus.OK if isinstance(loaded, dict) else DiagnosticStatus.FAIL
+        results.append(
+            DiagnosticResult(
+                "project.config",
+                "Project",
+                status,
+                "phlo.yaml parsed"
+                if status == DiagnosticStatus.OK
+                else "phlo.yaml must contain a mapping",
+                None
+                if status == DiagnosticStatus.OK
+                else "Fix phlo.yaml so the top level is a YAML mapping.",
+            )
+        )
+    except (OSError, yaml.YAMLError) as exc:
+        results.append(
+            DiagnosticResult(
+                "project.config",
+                "Project",
+                DiagnosticStatus.FAIL,
+                "phlo.yaml could not be read or parsed",
+                "Fix YAML syntax and file permissions, then rerun phlo doctor.",
+                {"error": str(exc)} if verbose else {},
+            )
+        )
+
+    phlo_dir = Path.cwd() / ".phlo"
+    compose_file = phlo_dir / "docker-compose.yml"
+    results.append(
+        DiagnosticResult(
+            "project.compose",
+            "Project",
+            DiagnosticStatus.OK if compose_file.exists() else DiagnosticStatus.WARN,
+            ".phlo/docker-compose.yml found"
+            if compose_file.exists()
+            else ".phlo/docker-compose.yml is missing",
+            None if compose_file.exists() else "Run phlo services init.",
+        )
+    )
+    for filename in (".env", ".env.local"):
+        path = phlo_dir / filename
+        results.append(
+            DiagnosticResult(
+                f"project.{filename}",
+                "Project",
+                DiagnosticStatus.OK if path.exists() else DiagnosticStatus.WARN,
+                f".phlo/{filename} found" if path.exists() else f".phlo/{filename} is missing",
+                None if path.exists() else "Run phlo services init.",
+            )
+        )
+    return results
+
+
+def check_discovery(*, verbose: bool = False) -> list[DiagnosticResult]:
+    try:
+        services = ServiceDiscovery().discover()
+    except Exception as exc:
+        return [
+            DiagnosticResult(
+                "discovery.services",
+                "Discovery",
+                DiagnosticStatus.FAIL,
+                "Service discovery failed",
+                "Run phlo doctor --verbose to inspect the discovery exception.",
+                {"error": str(exc), "type": type(exc).__name__} if verbose else {},
+            )
+        ]
+    return [
+        DiagnosticResult(
+            "discovery.services",
+            "Discovery",
+            DiagnosticStatus.OK,
+            f"Discovered {len(services)} services",
+        )
+    ]
+
+
 def run_diagnostics(*, verbose: bool = False) -> list[DiagnosticResult]:
-    return [*check_environment(verbose=verbose)]
+    return [
+        *check_environment(verbose=verbose),
+        *check_project(verbose=verbose),
+        *check_discovery(verbose=verbose),
+    ]
 
 
 @click.command("doctor")
