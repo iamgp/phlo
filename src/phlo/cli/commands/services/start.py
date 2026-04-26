@@ -576,12 +576,16 @@ def start_cmd(
                 service_names=docker_service_names,
             )
             raise click.ClickException(
-                f"docker compose failed (exit {result.returncode}): {' '.join(cmd)}"
+                f"container compose failed (exit {result.returncode}): {' '.join(cmd)}"
             )
     except FileNotFoundError:
-        logger.error("services_start_docker_not_found", project_name=project_name, exc_info=True)
+        logger.error(
+            "services_start_container_backend_not_found",
+            project_name=project_name,
+            exc_info=True,
+        )
         raise click.ClickException(
-            "docker command not found. Install Docker: https://docs.docker.com/get-docker/"
+            "container backend command not found. Install or configure the selected backend."
         ) from None
     except (subprocess.SubprocessError, OSError) as exc:
         logger.error(
@@ -590,4 +594,4 @@ def start_cmd(
             error_type=type(exc).__name__,
             exc_info=True,
         )
-        raise click.ClickException(f"docker compose failed unexpectedly: {exc}") from exc
+        raise click.ClickException(f"container compose failed unexpectedly: {exc}") from exc
