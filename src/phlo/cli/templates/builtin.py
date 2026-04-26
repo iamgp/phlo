@@ -1,0 +1,203 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from phlo.cli.templates.models import TemplateMetadata, TemplateRenderContext
+
+
+def _write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+
+
+def _build_env_example_content() -> str:
+    from phlo.plugins.discovery import ServiceDiscovery
+
+    lines = [
+        "# Phlo Local Secrets Template",
+        "# Copy to .phlo/.env.local after running `phlo services init`.",
+        "",
+    ]
+
+    discovery = ServiceDiscovery()
+    services = discovery.discover()
+    if not services:
+        lines.append(
+            "# No service plugins discovered; install service packages to populate secrets."
+        )
+        return "\n".join(lines) + "\n"
+
+    for service in sorted(services.values(), key=lambda item: item.name):
+        secrets = {key: cfg for key, cfg in service.env_vars.items() if cfg.get("secret") is True}
+        if not secrets:
+            continue
+        lines.append(f"# {service.name}")
+        for key in sorted(secrets.keys()):
+            desc = secrets[key].get("description")
+            if desc:
+                lines.append(f"# {desc}")
+            lines.append(f"{key}=")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _write_common_project_files(project_dir: Path, project_name: str) -> None:
+    _write_text(
+        project_dir / "pyproject.toml",
+        f"""[project]
+name = "{project_name}"
+version = "0.1.0"
+description = "Phlo data workflows"
+requires-python = ">=3.11"
+dependencies = [
+    "phlo",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+""",
+    )
+    _write_text(project_dir / ".env.example", _build_env_example_content())
+    _write_text(
+        project_dir / ".gitignore",
+        """.env
+.env.local
+.phlo/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+""",
+    )
+    _write_text(
+        project_dir / "README.md",
+        f"""# {project_name}
+
+Phlo data workflows for {project_name}.
+
+## Getting Started
+
+1. **Install dependencies:**
+   ```bash
+   pip install -e .
+   ```
+
+2. **Create your first workflow:**
+   ```bash
+   phlo workflow create
+   ```
+
+3. **Start Dagster UI:**
+   ```bash
+   phlo dev
+   ```
+
+4. **Access the UI:**
+   Open http://localhost:3000 in your browser
+
+## Project Structure
+
+```
+{project_name}/
+├── workflows/          # Your workflow definitions
+│   ├── ingestion/     # Data ingestion workflows
+│   ├── schemas/       # Pandera validation schemas
+│   └── transforms/dbt/ # dbt transformation models
+└── tests/            # Workflow tests
+```
+
+## Documentation
+
+- [Phlo Documentation](https://github.com/iamgp/phlo)
+- [Workflow Development Guide](https://github.com/iamgp/phlo/blob/main/docs/guides/workflow-development.md)
+
+## Commands
+
+- `phlo dev` - Start Dagster development server
+- `phlo workflow create` - Scaffold new workflow
+- `phlo test` - Run tests
+""",
+    )
+
+    from phlo.cli.commands.services.utils import PHLO_CONFIG_TEMPLATE
+
+    _write_text(
+        project_dir / "phlo.yaml",
+        PHLO_CONFIG_TEMPLATE.format(
+            name=project_name,
+            description=f"{project_name} data workflows",
+        ),
+    )
+
+
+class MinimalTemplate:
+    metadata = TemplateMetadata(
+        name="minimal",
+        description="Empty Phlo project",
+        required_packages=("phlo",),
+        generated_paths=(
+            "phlo.yaml",
+            "pyproject.toml",
+            ".env.example",
+            ".gitignore",
+            "README.md",
+            "workflows/__init__.py",
+            "tests/__init__.py",
+        ),
+        next_steps=("phlo services init", "phlo workflow create"),
+    )
+
+    def render(self, context: TemplateRenderContext) -> None:
+        context.project_dir.mkdir(parents=True, exist_ok=True)
+        workflows_dir = context.project_dir / "workflows"
+        _write_text(workflows_dir / "__init__.py", '"""User workflows."""\n')
+        _write_text(workflows_dir / "ingestion" / "__init__.py", '"""Ingestion workflows."""\n')
+        _write_text(
+            workflows_dir / "schemas" / "__init__.py",
+            '"""Pandera validation schemas."""\n',
+        )
+        _write_text(context.project_dir / "tests" / "__init__.py", "")
+        _write_common_project_files(context.project_dir, context.project_name)
+
+
+class BasicTemplate:
+    metadata = TemplateMetadata(
+        name="basic",
+        description="dbt-ready Phlo project",
+        required_packages=("phlo", "phlo-dbt"),
+        generated_paths=(
+            "phlo.yaml",
+            "pyproject.toml",
+            "workflows/transforms/dbt/dbt_project.yml",
+        ),
+        next_steps=("phlo services init", "phlo workflow create"),
+    )
+
+    def render(self, context: TemplateRenderContext) -> None:
+        MinimalTemplate().render(context)
+        from phlo_dbt.scaffold import write_dbt_scaffold
+
+        transforms_dir = context.project_dir / "workflows" / "transforms" / "dbt"
+        write_dbt_scaffold(context.project_name, transforms_dir, context.project_dir)
+        _write_text(transforms_dir / "models" / ".gitkeep", "")
