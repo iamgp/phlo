@@ -364,7 +364,7 @@ def _validate_workflow_file(
     Args:
         file_path: Path to the workflow file.
         fix: Whether to auto-fix issues.
-        require_workflow: Whether at least one @phlo_ingestion workflow is required.
+        require_workflow: Whether at least one ingestion workflow is required.
 
     Returns:
         True if file is valid, False otherwise.
@@ -379,11 +379,11 @@ def _validate_workflow_file(
         console.print("  [red]✗ Failed to load module[/red]")
         return False
 
-    # Find all functions decorated with @phlo_ingestion
+    # Find all functions decorated with a Phlo ingestion decorator.
     phlo_ingestion_funcs = _find_phlo_ingestion_functions(module)
 
     if not phlo_ingestion_funcs:
-        message = "No @phlo_ingestion decorated workflow found"
+        message = "No @phlo.ingestion decorated workflow found"
         if require_workflow:
             console.print(f"  [red]✗ {message}[/red]")
             return False
@@ -403,7 +403,7 @@ def _validate_workflow_file(
 
 
 def _find_phlo_ingestion_functions(module: Any) -> List[Tuple[str, Any, dict]]:
-    """Find all functions decorated with @phlo_ingestion.
+    """Find all functions decorated with a Phlo ingestion decorator.
 
     Args:
         module: Python module object to search.
@@ -445,13 +445,33 @@ def _find_phlo_ingestion_functions(module: Any) -> List[Tuple[str, Any, dict]]:
 
 
 def _is_phlo_ingestion_decorator(decorator: ast.expr) -> bool:
-    """Return whether an AST decorator is phlo_ingestion."""
+    """Return whether an AST decorator is a supported ingestion decorator."""
     target = decorator.func if isinstance(decorator, ast.Call) else decorator
     if isinstance(target, ast.Name):
         return target.id == "phlo_ingestion"
     if isinstance(target, ast.Attribute):
-        return target.attr == "phlo_ingestion"
+        return _dotted_name(target) in {"phlo.ingestion", "phlo.ingestion.phlo_ingestion"} or (
+            target.attr == "phlo_ingestion"
+        )
     return False
+
+
+def _dotted_name(node: ast.expr) -> str | None:
+    """Return a dotted name for simple attribute expressions."""
+    parts: list[str] = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if isinstance(node, ast.Name):
+        parts.append(node.id)
+        return ".".join(reversed(parts))
+    return None
+
+
+def _line_has_ingestion_decorator(line: str) -> bool:
+    """Return whether a source line starts a supported ingestion decorator."""
+    stripped = line.strip()
+    return stripped.startswith("@phlo.ingestion") or stripped.startswith("@phlo_ingestion")
 
 
 def _extract_decorator_params(func: Any) -> dict:
@@ -461,11 +481,11 @@ def _extract_decorator_params(func: Any) -> dict:
         func: Decorated function object.
 
     Returns:
-        Dictionary of parameters if this is a @phlo_ingestion function,
+        Dictionary of parameters if this is an ingestion function,
         otherwise empty dict.
 
     """
-    # The @phlo_ingestion decorator doesn't expose params directly,
+    # The ingestion decorator doesn't expose params directly,
     # so we'll mark functions that look like ingestion functions
     if hasattr(func, "__qualname__") and "wrapper" in func.__qualname__:
         # This is likely a decorated function; we can't extract params
@@ -507,7 +527,7 @@ def _validate_workflow_function(
         source = file_path.read_text()
         lines = source.split("\n")
 
-        # Find the @phlo_ingestion decorator for this function
+        # Find the ingestion decorator for this function.
         deco_match = None
         func_line_idx = None
 
@@ -519,9 +539,9 @@ def _validate_workflow_function(
         if func_line_idx is None:
             warnings.append("Could not locate function in source code")
         else:
-            # Search backwards for @phlo_ingestion decorator
+            # Search backwards for the decorator block.
             for i in range(func_line_idx - 1, max(0, func_line_idx - 20), -1):
-                if "@phlo_ingestion" in lines[i]:
+                if _line_has_ingestion_decorator(lines[i]):
                     # Extract decorator block
                     deco_lines = []
                     bracket_count = 0
@@ -592,7 +612,7 @@ def _validate_workflow_function(
 def _validate_decorator_params(
     deco_text: str, func_line_idx: int, issues: List[str], warnings: List[str]
 ) -> None:
-    """Validate @phlo_ingestion decorator parameters.
+    """Validate ingestion decorator parameters.
 
     Args:
         deco_text: The decorator text.

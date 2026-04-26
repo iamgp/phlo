@@ -7,12 +7,14 @@ Tests the workflow validation CLI command, including:
 - Directory and file handling
 """
 
+import ast
 import tempfile
 from pathlib import Path
 
 from click.testing import CliRunner
 
 from phlo_pandera.cli_validate import (
+    _is_phlo_ingestion_decorator,
     _is_valid_cron_field,
     _is_valid_field_name,
     _is_valid_table_name,
@@ -67,6 +69,23 @@ def events(partition_date: str) -> None:
 
     assert result.exit_code == 0
     assert "Workflow is valid" in result.output
+
+
+def test_validate_workflow_recognizes_preferred_phlo_ingestion_decorator() -> None:
+    """Recognizes @phlo.ingestion while keeping @phlo_ingestion supported."""
+    source = """
+@phlo.ingestion(table_name="events")
+def preferred(): pass
+
+@phlo_ingestion(table_name="events")
+def legacy(): pass
+"""
+    tree = ast.parse(source)
+    decorators = [
+        node.decorator_list[0] for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+    ]
+
+    assert all(_is_phlo_ingestion_decorator(decorator) for decorator in decorators)
 
 
 class TestValidateCronField:
