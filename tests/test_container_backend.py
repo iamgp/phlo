@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from subprocess import CompletedProcess
+from subprocess import CompletedProcess, TimeoutExpired
 
 import pytest
 
+from phlo.cli.commands.services.utils import require_container_backend
 from phlo.cli.infrastructure.container_backend import (
     DockerBackend,
     PodmanBackend,
@@ -146,3 +147,25 @@ def test_infrastructure_config_accepts_container_backend() -> None:
     config = InfrastructureConfig(container_backend="podman")
 
     assert config.container_backend == "podman"
+
+
+def test_require_container_backend_reports_availability_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    class SlowBackend:
+        name = "podman"
+
+        def check_available(self) -> tuple[bool, str | None]:
+            raise TimeoutExpired(["podman", "info"], timeout=10)
+
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.utils.select_project_container_backend",
+        lambda cli_backend=None: SlowBackend(),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        require_container_backend("podman")
+
+    assert exc_info.value.code == 1
+    assert "podman availability check timed out" in capsys.readouterr().err

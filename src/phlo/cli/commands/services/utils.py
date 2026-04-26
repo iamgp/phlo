@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import signal
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -109,7 +110,11 @@ def require_container_backend(backend_name: str | None = None) -> None:
         backend = select_project_container_backend(cli_backend=backend_name)
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
-    available, fix = backend.check_available()
+    try:
+        available, fix = backend.check_available()
+    except subprocess.TimeoutExpired:
+        click.echo(f"Error: {backend.name} availability check timed out.", err=True)
+        sys.exit(1)
     if available:
         return
     click.echo(f"Error: {backend.name} backend is not available.", err=True)
