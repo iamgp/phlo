@@ -1,4 +1,9 @@
 import ast
+import importlib
+import sys
+import tomllib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -51,6 +56,31 @@ def _assert_python_files_parse(project_dir: Path) -> None:
         ast.parse(path.read_text(), filename=str(path))
 
 
+@contextmanager
+def _generated_project_import_path(project_dir: Path) -> Iterator[None]:
+    sys.path.insert(0, str(project_dir))
+    for module_name in list(sys.modules):
+        if module_name == "workflows" or module_name.startswith("workflows."):
+            sys.modules.pop(module_name)
+    try:
+        yield
+    finally:
+        sys.path.remove(str(project_dir))
+        for module_name in list(sys.modules):
+            if module_name == "workflows" or module_name.startswith("workflows."):
+                sys.modules.pop(module_name)
+
+
+def _assert_generated_module_imports(project_dir: Path, module_name: str) -> None:
+    with _generated_project_import_path(project_dir):
+        importlib.import_module(module_name)
+
+
+def _project_dependencies(project_dir: Path) -> list[str]:
+    pyproject = tomllib.loads((project_dir / "pyproject.toml").read_text())
+    return pyproject["project"]["dependencies"]
+
+
 def test_csv_batch_template_generates_runnable_files(tmp_path) -> None:
     project_dir = tmp_path / "csv-demo"
     result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", "csv-batch"])
@@ -60,6 +90,7 @@ def test_csv_batch_template_generates_runnable_files(tmp_path) -> None:
     assert (project_dir / "workflows" / "ingestion" / "csv" / "events.py").exists()
     assert (project_dir / "workflows" / "schemas" / "csv.py").exists()
     _assert_python_files_parse(project_dir)
+    _assert_generated_module_imports(project_dir, "workflows.ingestion.csv.events")
 
 
 def test_csv_batch_template_prints_metadata_next_steps(tmp_path) -> None:
@@ -67,9 +98,30 @@ def test_csv_batch_template_prints_metadata_next_steps(tmp_path) -> None:
     result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", "csv-batch"])
 
     assert result.exit_code == 0, result.output
-    assert "phlo workflow check workflows/ingestion/csv/events.py" in result.output
+    assert "phlo test" in result.output
     assert "phlo materialize dlt_events" in result.output
+    assert "phlo workflow check" not in result.output
     assert "phlo dev" not in result.output
+
+
+@pytest.mark.parametrize(
+    ("template_name", "expected_dependencies"),
+    [
+        ("minimal", ["phlo"]),
+        ("basic", ["phlo", "phlo-dbt"]),
+        ("csv-batch", ["phlo", "phlo-dlt", "phlo-pandera"]),
+        ("api-ingestion", ["phlo", "phlo-dlt", "phlo-pandera"]),
+        ("observability-demo", ["phlo", "phlo-dlt", "phlo-pandera", "phlo-otel"]),
+    ],
+)
+def test_template_writes_required_packages_to_pyproject(
+    tmp_path, template_name: str, expected_dependencies: list[str]
+) -> None:
+    project_dir = tmp_path / template_name
+    result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", template_name])
+
+    assert result.exit_code == 0, result.output
+    assert _project_dependencies(project_dir) == expected_dependencies
 
 
 @pytest.mark.parametrize("template_name", ["minimal", "basic"])
@@ -90,6 +142,7 @@ def test_api_ingestion_template_generates_runnable_files(tmp_path) -> None:
     assert (project_dir / "workflows" / "ingestion" / "api" / "events.py").exists()
     assert (project_dir / "workflows" / "schemas" / "api.py").exists()
     _assert_python_files_parse(project_dir)
+    _assert_generated_module_imports(project_dir, "workflows.ingestion.api.events")
 
 
 @pytest.mark.parametrize(
@@ -109,6 +162,8 @@ def test_gallery_templates_generate_expected_files(
     assert result.exit_code == 0, result.output
     assert (project_dir / expected_path).exists()
     _assert_python_files_parse(project_dir)
+    if template_name == "observability-demo":
+        _assert_generated_module_imports(project_dir, "workflows.ingestion.observability.events")
 
 
 def test_template_missing_package_prints_install_hint(monkeypatch, tmp_path) -> None:
@@ -124,3 +179,14 @@ def test_template_missing_package_prints_install_hint(monkeypatch, tmp_path) -> 
     assert result.exit_code != 0
     assert "phlo-sling" in result.output
     assert "uv pip install" in result.output
+
+
+def test_unknown_template_prints_clean_error(tmp_path) -> None:
+    result = CliRunner().invoke(
+        cli, ["init", str(tmp_path / "demo"), "--template", "unknown-template"]
+    )
+
+    assert result.exit_code != 0
+    assert "unknown-template" in result.output
+    assert "Available templates:" in result.output
+    assert "Traceback" not in result.output

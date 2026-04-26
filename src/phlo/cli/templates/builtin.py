@@ -42,16 +42,15 @@ def _build_env_example_content() -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _write_common_project_files(project_dir: Path, project_name: str) -> None:
-    _write_text(
-        project_dir / "pyproject.toml",
-        f"""[project]
+def _pyproject_toml(project_name: str, required_packages: tuple[str, ...]) -> str:
+    dependencies = "\n".join(f'    "{package}",' for package in required_packages)
+    return f"""[project]
 name = "{project_name}"
 version = "0.1.0"
 description = "Phlo data workflows"
 requires-python = ">=3.11"
 dependencies = [
-    "phlo",
+{dependencies}
 ]
 
 [dependency-groups]
@@ -66,9 +65,23 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
-""",
+"""
+
+
+def _write_pyproject_toml(
+    project_dir: Path, project_name: str, required_packages: tuple[str, ...]
+) -> None:
+    _write_text(project_dir / "pyproject.toml", _pyproject_toml(project_name, required_packages))
+
+
+def _write_common_project_files(
+    project_dir: Path, project_name: str, required_packages: tuple[str, ...]
+) -> None:
+    _write_text(
+        project_dir / ".env.example",
+        _build_env_example_content(),
     )
-    _write_text(project_dir / ".env.example", _build_env_example_content())
+    _write_pyproject_toml(project_dir, project_name, required_packages)
     _write_text(
         project_dir / ".gitignore",
         """.env
@@ -178,7 +191,9 @@ class MinimalTemplate:
             '"""Pandera validation schemas."""\n',
         )
         _write_text(context.project_dir / "tests" / "__init__.py", "")
-        _write_common_project_files(context.project_dir, context.project_name)
+        _write_common_project_files(
+            context.project_dir, context.project_name, self.metadata.required_packages
+        )
 
 
 class BasicTemplate:
@@ -196,6 +211,9 @@ class BasicTemplate:
 
     def render(self, context: TemplateRenderContext) -> None:
         MinimalTemplate().render(context)
+        _write_pyproject_toml(
+            context.project_dir, context.project_name, self.metadata.required_packages
+        )
         from phlo_dbt.scaffold import write_dbt_scaffold
 
         transforms_dir = context.project_dir / "workflows" / "transforms" / "dbt"
@@ -214,13 +232,16 @@ class CsvBatchTemplate:
             "workflows/schemas/csv.py",
         ),
         next_steps=(
-            "phlo workflow check workflows/ingestion/csv/events.py",
+            "phlo test",
             "phlo materialize dlt_events",
         ),
     )
 
     def render(self, context: TemplateRenderContext) -> None:
         MinimalTemplate().render(context)
+        _write_pyproject_toml(
+            context.project_dir, context.project_name, self.metadata.required_packages
+        )
         _write_text(
             context.project_dir / "data" / "events.csv",
             "id,name,value\n1,alpha,10\n2,beta,20\n",
@@ -245,12 +266,12 @@ class EventsSchema(pa.DataFrameModel):
 from pathlib import Path
 
 import pandas as pd
-import phlo
+from phlo.ingestion import phlo_ingestion
 
 from workflows.schemas.csv import EventsSchema
 
 
-@phlo.ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="csv")
+@phlo_ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="csv")
 def csv_events():
     return pd.read_csv(Path("data/events.csv"))
 """,
@@ -267,13 +288,16 @@ class ApiIngestionTemplate:
             "workflows/schemas/api.py",
         ),
         next_steps=(
-            "phlo workflow check workflows/ingestion/api/events.py",
+            "phlo test",
             "phlo materialize dlt_events",
         ),
     )
 
     def render(self, context: TemplateRenderContext) -> None:
         MinimalTemplate().render(context)
+        _write_pyproject_toml(
+            context.project_dir, context.project_name, self.metadata.required_packages
+        )
         _write_text(
             context.project_dir / "workflows" / "schemas" / "api.py",
             """from __future__ import annotations
@@ -291,12 +315,12 @@ class EventsSchema(pa.DataFrameModel):
             """from __future__ import annotations
 
 import pandas as pd
-import phlo
+from phlo.ingestion import phlo_ingestion
 
 from workflows.schemas.api import EventsSchema
 
 
-@phlo.ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="api")
+@phlo_ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="api")
 def api_events():
     return pd.DataFrame([{"id": 1, "name": "sample"}])
 """,
@@ -338,6 +362,9 @@ class SlingReplicationTemplate:
 
     def render(self, context: TemplateRenderContext) -> None:
         MinimalTemplate().render(context)
+        _write_pyproject_toml(
+            context.project_dir, context.project_name, self.metadata.required_packages
+        )
         _write_text(
             context.project_dir / "replication" / "sling.yaml",
             """source: LOCAL
@@ -361,6 +388,9 @@ class ObservabilityDemoTemplate:
 
     def render(self, context: TemplateRenderContext) -> None:
         CsvBatchTemplate().render(context)
+        _write_pyproject_toml(
+            context.project_dir, context.project_name, self.metadata.required_packages
+        )
         _write_text(
             context.project_dir / "workflows" / "ingestion" / "observability" / "events.py",
             """from __future__ import annotations
@@ -368,14 +398,21 @@ class ObservabilityDemoTemplate:
 import logging
 
 import pandas as pd
-import phlo
+from phlo.ingestion import phlo_ingestion
+
+from workflows.schemas.csv import EventsSchema
 
 logger = logging.getLogger(__name__)
 
 
-@phlo.ingestion(table_name="observability_events", unique_key="id", group="observability")
+@phlo_ingestion(
+    table_name="observability_events",
+    unique_key="id",
+    validation_schema=EventsSchema,
+    group="observability",
+)
 def observability_events():
     logger.info("loading observability demo events")
-    return pd.DataFrame([{"id": 1, "name": "traceable"}])
+    return pd.DataFrame([{"id": 1, "name": "traceable", "value": 1}])
 """,
         )

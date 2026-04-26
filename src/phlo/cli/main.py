@@ -271,7 +271,13 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
         project_name: Name of the project
         template: Template type ("basic" or "minimal")
     """
-    selected_template = get_template(template)
+    try:
+        selected_template = get_template(template)
+    except KeyError as exc:
+        available = ", ".join(item.metadata.name for item in get_project_templates())
+        raise click.ClickException(
+            f"Unknown template '{template}'. Available templates: {available}"
+        ) from exc
     missing = missing_required_packages(selected_template)
     if missing:
         packages = " ".join(missing)
