@@ -1,7 +1,7 @@
 ---
 title: "feat: Expose phlo-mcp resources"
 type: plan
-status: planned
+status: completed
 date: 2026-04-25
 origin: PR-468-follow-up
 ---
@@ -38,3 +38,9 @@ can be read as context without invoking parameterized tools.
 ```bash
 uv run pytest packages/phlo-mcp/tests/test_phlo_mcp.py -q
 ```
+
+## Outcome
+
+Implemented read-only MCP resources for runtime config, services, plugins,
+assets, schemas, contracts, dashboards, and package docs. Resource URIs are
+deterministic and backed by existing `phlo-api` endpoints or local package docs.

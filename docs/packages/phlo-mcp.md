@@ -29,15 +29,41 @@ Current tools:
 - `get_materialization_history`
 - `get_run_logs`
 - `get_run_trace_spans`
+- `get_trace_spans`
+- `render_trace_spans_tree`
 - `inspect_materialization`
 - `get_asset_materialization_trace`
 - `render_materialization_trace_tree`
 - `render_run_trace_tree`
 
+Optional guarded operational tools:
+
+- `materialize_asset`
+- `retry_failed_run`
+- `get_dagster_run_status`
+
 These tools call `phlo-api` endpoints and return structured JSON results.
+
+Resources:
+
+- `phlo://runtime/config`
+- `phlo://runtime/services`
+- `phlo://runtime/services/{service_name}`
+- `phlo://runtime/plugins`
+- `phlo://runtime/assets`
+- `phlo://runtime/assets/{asset_key_path}`
+- `phlo://runtime/schemas/{asset_key_path}`
+- `phlo://runtime/contracts`
+- `phlo://runtime/contracts/{table_name}`
+- `phlo://runtime/dashboards`
+- `phlo://docs/packages/{package_name}`
 
 Run-level and materialization tools rely on the backing `phlo-api` having access
 to Dagster asset history, Loki log queries, and ClickStack OTEL trace storage.
+Trace tools can be filtered by run id, asset key, job name, service name, span
+name, status code, and start/end time.
+Resource URIs are read-only and deterministic so MCP clients can attach Phlo
+runtime context without invoking parameterized tools.
 
 When real spans are available, rendered trees include:
 - span kind
@@ -51,6 +77,7 @@ When real spans are available, rendered trees include:
 | --- | --- | --- |
 | `PHLO_MCP_API_BASE_URL` | `http://127.0.0.1:4000` | Base URL for the backing `phlo-api` instance |
 | `PHLO_MCP_API_TOKEN` | unset | Bearer token for authenticated `phlo-api` requests |
+| `PHLO_MCP_ENABLE_WRITE_TOOLS` | `false` | Register guarded operational tools when an API token is configured |
 | `PHLO_MCP_TRANSPORT` | `stdio` | MCP transport (`stdio` or `streamable-http`) |
 | `PHLO_MCP_HOST` | `127.0.0.1` | Bind host for streamable HTTP transport |
 | `PHLO_MCP_PORT` | `8000` | Bind port for streamable HTTP transport |
@@ -79,6 +106,15 @@ phlo-mcp \
   --api-token "$PHLO_API_TOKEN"
 ```
 
+Guarded operational tools are disabled by default. To expose tools that can
+request asset materialization or run retry through `phlo-api`, set
+`PHLO_MCP_ENABLE_WRITE_TOOLS=true` or pass `--enable-write-tools` and provide an
+API token. Every write tool returns an `audit_context` with the operation,
+target, dry-run state, authenticated state, and backing API URL. Tool calls
+default to `dry_run=true` where the operation supports it. Current `phlo-api`
+operation routes support dry-run validation and run status; live Dagster launch
+and retry are intentionally not implemented yet.
+
 Claude Code config example:
 
 ```json
@@ -100,7 +136,9 @@ Useful prompts once connected:
 - "Get the latest materialization trace for `silver/orders`."
 - "Render the materialization trace tree for `silver/orders`."
 - "Get OTEL spans for run `abc-123`."
+- "Get failed Dagster spans for asset `silver/orders` in the last hour."
 - "Render the run trace tree for `abc-123`."
+- "Render a trace tree for job `daily_orders`."
 
 Run it over streamable HTTP:
 
@@ -126,12 +164,38 @@ phlo-mcp \
 Run the MCP smoke against live `phlo-api`, Dagster, and ClickStack services:
 
 ```bash
-uv run python packages/phlo-mcp/tests/smoke_stack.py
+uv run python packages/phlo-mcp/tests/smoke_stack.py --start-stack
 ```
+
+The smoke checks live `phlo-api`, Dagster connectivity, ClickStack trace table
+queries, MCP tool registration, filtered trace tools, MCP resource registration,
+representative MCP resource reads, and a generated `mcp_smoke_asset` fixture.
+With `--start-stack`, the fixture is written to `.phlo/mcp-smoke-project`,
+which is ignored by git.
 
 When ClickStack requires HTTP credentials, pass them to the smoke script and to
 the `phlo-api` process as `CLICKSTACK_QUERY_USER` and
 `CLICKSTACK_QUERY_PASSWORD`.
+
+To verify guarded write-tool registration without calling mutation endpoints:
+
+```bash
+uv run python packages/phlo-mcp/tests/smoke_stack.py \
+  --enable-write-tools \
+  --api-token "$PHLO_MCP_SMOKE_API_TOKEN"
+```
+
+To call guarded write tools in dry-run mode, add `--exercise-write-tools` and
+`--start-stack`, or provide `--asset-key` when testing an existing project.
+This requires the backing `phlo-api` write endpoints to be available.
+
+```bash
+uv run python packages/phlo-mcp/tests/smoke_stack.py \
+  --start-stack \
+  --enable-write-tools \
+  --api-token "$PHLO_MCP_SMOKE_API_TOKEN" \
+  --exercise-write-tools
+```
 
 Use real data assertions when you have a known run or asset:
 

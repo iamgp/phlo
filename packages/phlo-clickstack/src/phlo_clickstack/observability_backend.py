@@ -12,6 +12,7 @@ from phlo.capabilities import (
     DefaultObservabilityBackend,
     ObservabilityBackendSpec,
     TraceSpan,
+    TraceSpanFilter,
 )
 
 _CLICKSTACK_QUERY_URL_ENV = "CLICKSTACK_QUERY_URL"
@@ -26,27 +27,11 @@ class ClickStackObservabilityBackend(DefaultObservabilityBackend):
     """Observability backend with OTEL span queries backed by ClickStack."""
 
     def run_trace_spans(self, run_id: str, limit: int = 500) -> list[TraceSpan]:
+        return self.trace_spans(TraceSpanFilter(run_id=run_id, limit=limit))
+
+    def trace_spans(self, filters: TraceSpanFilter) -> list[TraceSpan]:
         query_url = self._resolve_clickstack_query_url()
-        escaped_run_id = _escape_clickhouse_string(run_id)
-        query = f"""
-SELECT
-    toString(Timestamp) AS timestamp,
-    TraceId AS trace_id,
-    SpanId AS span_id,
-    nullIf(ParentSpanId, '') AS parent_span_id,
-    SpanName AS span_name,
-    ServiceName AS service_name,
-    SpanKind AS span_kind,
-    round(Duration / 1000000, 3) AS duration_ms,
-    StatusCode AS status_code,
-    SpanAttributes AS span_attributes,
-    ResourceAttributes AS resource_attributes
-FROM default.otel_traces
-WHERE SpanAttributes['phlo.run_id'] = '{escaped_run_id}'
-ORDER BY Timestamp ASC
-LIMIT {limit}
-FORMAT JSONEachRow
-""".strip()
+        query = _build_trace_spans_query(filters)
         response = requests.post(
             query_url,
             data=query.encode("utf-8"),
@@ -76,6 +61,64 @@ FORMAT JSONEachRow
         if user is None:
             return None
         return (user, password or "")
+
+
+def _build_trace_spans_query(filters: TraceSpanFilter) -> str:
+    where_clauses = _trace_where_clauses(filters)
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+    limit = _bounded_limit(filters.limit)
+    return f"""
+SELECT
+    toString(Timestamp) AS timestamp,
+    TraceId AS trace_id,
+    SpanId AS span_id,
+    nullIf(ParentSpanId, '') AS parent_span_id,
+    SpanName AS span_name,
+    ServiceName AS service_name,
+    SpanKind AS span_kind,
+    round(Duration / 1000000, 3) AS duration_ms,
+    StatusCode AS status_code,
+    SpanAttributes AS span_attributes,
+    ResourceAttributes AS resource_attributes
+FROM default.otel_traces
+{where_sql}
+ORDER BY Timestamp ASC
+LIMIT {limit}
+FORMAT JSONEachRow
+""".strip()
+
+
+def _trace_where_clauses(filters: TraceSpanFilter) -> list[str]:
+    clauses: list[str] = []
+    _append_span_attribute_clause(clauses, "phlo.run_id", filters.run_id)
+    _append_span_attribute_clause(clauses, "phlo.asset_key", filters.asset_key)
+    _append_span_attribute_clause(clauses, "phlo.job_name", filters.job_name)
+    _append_exact_clause(clauses, "ServiceName", filters.service_name)
+    _append_exact_clause(clauses, "SpanName", filters.span_name)
+    _append_exact_clause(clauses, "StatusCode", filters.status_code)
+    if filters.start_time:
+        clauses.append(
+            f"Timestamp >= parseDateTimeBestEffort('{_escape_clickhouse_string(filters.start_time)}')"
+        )
+    if filters.end_time:
+        clauses.append(
+            f"Timestamp <= parseDateTimeBestEffort('{_escape_clickhouse_string(filters.end_time)}')"
+        )
+    return clauses
+
+
+def _append_span_attribute_clause(clauses: list[str], key: str, value: str | None) -> None:
+    if value:
+        clauses.append(f"SpanAttributes['{key}'] = '{_escape_clickhouse_string(value)}'")
+
+
+def _append_exact_clause(clauses: list[str], column: str, value: str | None) -> None:
+    if value:
+        clauses.append(f"{column} = '{_escape_clickhouse_string(value)}'")
+
+
+def _bounded_limit(limit: int) -> int:
+    return min(max(limit, 1), 5000)
 
 
 def build_clickstack_observability_spec() -> ObservabilityBackendSpec:

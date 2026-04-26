@@ -240,6 +240,27 @@ query MaterializationHistory($assetKey: AssetKeyInput!, $limit: Int!) {
 }
 """
 
+RUN_STATUS_QUERY = """
+query RunStatus($runId: ID!) {
+    runOrError(runId: $runId) {
+        __typename
+        ... on Run {
+            runId
+            status
+            startTime
+            endTime
+            pipelineName
+            tags {
+                key
+                value
+            }
+        }
+        ... on RunNotFoundError { message }
+        ... on PythonError { message }
+    }
+}
+"""
+
 
 # --- Pydantic Models ---
 
@@ -318,6 +339,44 @@ class MaterializationEvent(BaseModel):
     step_key: str | None = None
     metadata: list[dict[str, str]] = []
     duration: int | None = None
+
+
+class MaterializeAssetRequest(BaseModel):
+    """Request to materialize one Dagster asset."""
+
+    dry_run: bool = True
+    partition_key: str | None = None
+
+
+class RetryRunRequest(BaseModel):
+    """Request to retry one Dagster run."""
+
+    dry_run: bool = True
+
+
+class DagsterOperationResponse(BaseModel):
+    """Structured response for Dagster operational API actions."""
+
+    operation: str
+    dry_run: bool
+    accepted: bool
+    run_id: str | None = None
+    asset_key_path: str | None = None
+    partition_key: str | None = None
+    status: str
+    message: str
+    details: dict[str, Any] = {}
+
+
+class DagsterRunStatus(BaseModel):
+    """Current Dagster run status."""
+
+    run_id: str
+    status: str | None = None
+    pipeline_name: str | None = None
+    start_time: float | None = None
+    end_time: float | None = None
+    tags: dict[str, str] = {}
 
 
 class GraphNode(BaseModel):
@@ -781,6 +840,120 @@ async def get_assets(dagster_url: str | None = None) -> list[Asset] | dict[str, 
         return {"error": str(e)}
 
 
+@router.get(
+    "/assets/{asset_key_path:path}/history", response_model=list[MaterializationEvent] | dict
+)
+async def get_materialization_history(
+    asset_key_path: str,
+    limit: int = Query(default=20, le=100),
+    dagster_url: str | None = None,
+) -> list[MaterializationEvent] | dict[str, str]:
+    """Get materialization history for an asset.
+
+    Args:
+        asset_key_path: Slash-delimited asset key path.
+        limit: Maximum number of materialization events to return.
+        dagster_url: Optional Dagster GraphQL URL override.
+
+    Returns:
+        List of MaterializationEvent objects or error dictionary.
+
+    Raises:
+        None: Exceptions are caught and returned in the response.
+
+    """
+    url = resolve_dagster_url(dagster_url)
+    asset_key = asset_key_path.split("/")
+
+    try:
+        result = await graphql_request(
+            url,
+            MATERIALIZATION_HISTORY_QUERY,
+            {"assetKey": {"path": asset_key}, "limit": limit},
+        )
+
+        if result.get("errors"):
+            return {"error": result["errors"][0].get("message", "GraphQL error")}
+
+        asset_or_error = result.get("data", {}).get("assetOrError", {})
+
+        if asset_or_error.get("message"):
+            return {"error": asset_or_error["message"]}
+
+        events = []
+        for mat in asset_or_error.get("assetMaterializations", []):
+            events.append(
+                MaterializationEvent(
+                    timestamp=mat["timestamp"],
+                    run_id=mat["runId"],
+                    status="SUCCESS",
+                    step_key=mat.get("stepKey"),
+                    metadata=[
+                        {
+                            "key": e["label"],
+                            "value": e.get("text")
+                            or str(e.get("intValue", ""))
+                            or str(e.get("floatValue", ""))
+                            or "",
+                        }
+                        for e in mat.get("metadataEntries", [])
+                    ],
+                )
+            )
+
+        return events
+    except Exception as e:
+        logger.exception("Failed to get materialization history")
+        return {"error": str(e)}
+
+
+@router.post(
+    "/assets/{asset_key_path:path}/materialize",
+    response_model=DagsterOperationResponse | dict,
+)
+async def materialize_asset(
+    asset_key_path: str,
+    payload: MaterializeAssetRequest,
+    dagster_url: str | None = None,
+) -> DagsterOperationResponse | dict[str, str]:
+    """Validate or request materialization for a Dagster asset."""
+    if not asset_key_path:
+        return {"error": "Asset key is required"}
+
+    if not payload.dry_run:
+        return {
+            "error": (
+                "Live Dagster materialization launch is not implemented yet. "
+                "Use dry_run=true to validate the request."
+            )
+        }
+
+    details = await get_asset_details(asset_key_path, dagster_url=dagster_url)
+    if isinstance(details, dict) and details.get("error"):
+        return details
+    if isinstance(details, dict):
+        has_permission = bool(details.get("has_materialize_permission"))
+        op_names = details.get("op_names") or []
+    else:
+        has_permission = details.has_materialize_permission
+        op_names = details.op_names
+
+    return DagsterOperationResponse(
+        operation="materialize_asset",
+        dry_run=True,
+        accepted=has_permission,
+        asset_key_path=asset_key_path,
+        partition_key=payload.partition_key,
+        status="DRY_RUN",
+        message=(
+            "Materialization request is valid."
+            if has_permission
+            else "Dagster reports this asset is not materializable by the current principal."
+        ),
+        details={"op_names": op_names},
+    )
+
+
 @router.get("/assets/{asset_key_path:path}", response_model=AssetDetails | dict)
 async def get_asset_details(
     asset_key_path: str, dagster_url: str | None = None
@@ -879,71 +1052,74 @@ async def get_asset_details(
         return {"error": str(e)}
 
 
-@router.get(
-    "/assets/{asset_key_path:path}/history", response_model=list[MaterializationEvent] | dict
-)
-async def get_materialization_history(
-    asset_key_path: str,
-    limit: int = Query(default=20, le=100),
+@router.get("/runs/{run_id}/status", response_model=DagsterRunStatus | dict)
+async def get_run_status(
+    run_id: str,
     dagster_url: str | None = None,
-) -> list[MaterializationEvent] | dict[str, str]:
-    """Get materialization history for an asset.
-
-    Args:
-        asset_key_path: Slash-delimited asset key path.
-        limit: Maximum number of materialization events to return.
-        dagster_url: Optional Dagster GraphQL URL override.
-
-    Returns:
-        List of MaterializationEvent objects or error dictionary.
-
-    Raises:
-        None: Exceptions are caught and returned in the response.
-
-    """
+) -> DagsterRunStatus | dict[str, str]:
+    """Get current status for a Dagster run."""
     url = resolve_dagster_url(dagster_url)
-    asset_key = asset_key_path.split("/")
 
     try:
-        result = await graphql_request(
-            url,
-            MATERIALIZATION_HISTORY_QUERY,
-            {"assetKey": {"path": asset_key}, "limit": limit},
-        )
-
+        result = await graphql_request(url, RUN_STATUS_QUERY, {"runId": run_id})
         if result.get("errors"):
             return {"error": result["errors"][0].get("message", "GraphQL error")}
 
-        asset_or_error = result.get("data", {}).get("assetOrError", {})
+        run_or_error = result.get("data", {}).get("runOrError", {})
+        if run_or_error.get("message"):
+            return {"error": run_or_error["message"]}
 
-        if asset_or_error.get("message"):
-            return {"error": asset_or_error["message"]}
-
-        events = []
-        for mat in asset_or_error.get("assetMaterializations", []):
-            events.append(
-                MaterializationEvent(
-                    timestamp=mat["timestamp"],
-                    run_id=mat["runId"],
-                    status="SUCCESS",
-                    step_key=mat.get("stepKey"),
-                    metadata=[
-                        {
-                            "key": e["label"],
-                            "value": e.get("text")
-                            or str(e.get("intValue", ""))
-                            or str(e.get("floatValue", ""))
-                            or "",
-                        }
-                        for e in mat.get("metadataEntries", [])
-                    ],
-                )
-            )
-
-        return events
+        tags = {
+            str(tag.get("key")): str(tag.get("value"))
+            for tag in run_or_error.get("tags", [])
+            if tag.get("key") is not None
+        }
+        return DagsterRunStatus(
+            run_id=run_or_error.get("runId") or run_id,
+            status=run_or_error.get("status"),
+            pipeline_name=run_or_error.get("pipelineName"),
+            start_time=run_or_error.get("startTime"),
+            end_time=run_or_error.get("endTime"),
+            tags=tags,
+        )
     except Exception as e:
-        logger.exception("Failed to get materialization history")
+        logger.exception("Failed to get run status")
         return {"error": str(e)}
+
+
+@router.post("/runs/{run_id}/retry", response_model=DagsterOperationResponse | dict)
+async def retry_run(
+    run_id: str,
+    payload: RetryRunRequest,
+    dagster_url: str | None = None,
+) -> DagsterOperationResponse | dict[str, str]:
+    """Validate or request retry for a Dagster run."""
+    status = await get_run_status(run_id, dagster_url=dagster_url)
+    if isinstance(status, dict) and status.get("error"):
+        return status
+
+    if not payload.dry_run:
+        return {
+            "error": (
+                "Live Dagster run retry launch is not implemented yet. "
+                "Use dry_run=true to validate the request."
+            )
+        }
+
+    run_status = status.get("status") if isinstance(status, dict) else status.status
+    return DagsterOperationResponse(
+        operation="retry_failed_run",
+        dry_run=True,
+        accepted=run_status == "FAILURE",
+        run_id=run_id,
+        status="DRY_RUN",
+        message=(
+            "Run retry request is valid."
+            if run_status == "FAILURE"
+            else f"Run status is {run_status}; only FAILURE runs are retry candidates."
+        ),
+        details={"run_status": run_status},
+    )
 
 
 @router.get("/graph", response_model=AssetGraphPayload | dict)

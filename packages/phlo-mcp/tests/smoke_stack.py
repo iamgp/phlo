@@ -5,7 +5,7 @@ real local services and exercises the MCP stdio transport against a live
 ``phlo-api`` instance.
 
 Examples:
-    uv run python packages/phlo-mcp/tests/smoke_stack.py
+    uv run python packages/phlo-mcp/tests/smoke_stack.py --start-stack
     uv run python packages/phlo-mcp/tests/smoke_stack.py --run-id abc-123 --require-run-spans
     uv run python packages/phlo-mcp/tests/smoke_stack.py --asset-key silver/orders
 """
@@ -31,6 +31,17 @@ _DEFAULT_API_BASE_URL = "http://127.0.0.1:4000"
 _DEFAULT_DAGSTER_URL = "http://127.0.0.1:3000/graphql"
 _DEFAULT_CLICKSTACK_QUERY_URL = "http://127.0.0.1:8123"
 _SMOKE_RUN_ID = "phlo-mcp-smoke-no-such-run"
+_SMOKE_ASSET_KEY = "mcp_smoke_asset"
+_SMOKE_ASSET_FILENAME = "mcp_smoke_asset.py"
+_SMOKE_ASSET_SOURCE = '''"""Generated asset used by packages/phlo-mcp/tests/smoke_stack.py."""
+
+import dagster as dg
+
+
+@dg.asset(group_name="smoke")
+def mcp_smoke_asset() -> int:
+    return 1
+'''
 
 
 class SmokeFailure(RuntimeError):
@@ -40,9 +51,13 @@ class SmokeFailure(RuntimeError):
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
     repo_root = Path(__file__).resolve().parents[3]
+    project_root = _project_root(args, repo_root)
 
     if args.start_stack:
-        _start_stack(repo_root)
+        _seed_smoke_asset(project_root)
+        if not args.asset_key:
+            args.asset_key = _SMOKE_ASSET_KEY
+        _start_stack(project_root)
 
     try:
         _wait_for_json(f"{args.api_base_url}/health", timeout_seconds=args.timeout_seconds)
@@ -92,6 +107,18 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         help="Optional bearer token for protected phlo-api instances",
     )
     parser.add_argument(
+        "--enable-write-tools",
+        action="store_true",
+        default=_truthy_env("PHLO_MCP_SMOKE_ENABLE_WRITE_TOOLS"),
+        help="Enable guarded MCP write-tool registration during the smoke",
+    )
+    parser.add_argument(
+        "--exercise-write-tools",
+        action="store_true",
+        default=_truthy_env("PHLO_MCP_SMOKE_EXERCISE_WRITE_TOOLS"),
+        help="Call guarded write tools in dry-run mode; requires live phlo-api write endpoints",
+    )
+    parser.add_argument(
         "--run-id",
         default=os.environ.get("PHLO_MCP_SMOKE_RUN_ID", _SMOKE_RUN_ID),
         help="Run id to query through the MCP trace-span tool",
@@ -120,6 +147,14 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         help="Run phlo service init/start before checking endpoints",
     )
     parser.add_argument(
+        "--project-root",
+        default=os.environ.get("PHLO_MCP_SMOKE_PROJECT_ROOT"),
+        help=(
+            "Project directory used with --start-stack; defaults to "
+            ".phlo/mcp-smoke-project under the repo"
+        ),
+    )
+    parser.add_argument(
         "--timeout-seconds",
         type=float,
         default=float(os.environ.get("PHLO_MCP_SMOKE_TIMEOUT_SECONDS", "180")),
@@ -132,8 +167,37 @@ def _truthy_env(name: str) -> bool:
     return os.environ.get(name, "").lower() in {"1", "true", "yes", "on"}
 
 
-def _start_stack(repo_root: Path) -> None:
-    _run(["phlo", "services", "init", "--profile", "api", "--profile", "observability"], repo_root)
+def _project_root(args: argparse.Namespace, repo_root: Path) -> Path:
+    if args.project_root:
+        return Path(args.project_root).expanduser().resolve()
+    return repo_root / ".phlo" / "mcp-smoke-project"
+
+
+def _seed_smoke_asset(project_root: Path) -> None:
+    workflows_dir = project_root / "workflows"
+    workflows_dir.mkdir(parents=True, exist_ok=True)
+    asset_path = workflows_dir / _SMOKE_ASSET_FILENAME
+    asset_path.write_text(_SMOKE_ASSET_SOURCE, encoding="utf-8")
+
+
+def _start_stack(project_root: Path) -> None:
+    project_root.mkdir(parents=True, exist_ok=True)
+    phlo_dir = project_root / ".phlo"
+    compose_file = phlo_dir / "docker-compose.yml"
+    if not compose_file.exists():
+        _run(
+            [
+                "phlo",
+                "services",
+                "init",
+                "--profile",
+                "api",
+                "--profile",
+                "observability",
+                "--force",
+            ],
+            project_root,
+        )
     _run(
         [
             "phlo",
@@ -147,7 +211,7 @@ def _start_stack(repo_root: Path) -> None:
             "dagster,clickstack,phlo-api",
             "--native",
         ],
-        repo_root,
+        project_root,
     )
 
 
@@ -173,8 +237,19 @@ def _wait_for_json(url: str, *, timeout_seconds: float) -> dict[str, Any]:
     raise SmokeFailure(f"{url} did not become ready: {last_error}")
 
 
-def _get_json(url: str, *, params: dict[str, str] | None = None) -> dict[str, Any] | list[Any]:
-    response = httpx.get(url, params=params, timeout=20)
+def _api_headers(args: argparse.Namespace) -> dict[str, str]:
+    if args.api_token:
+        return {"Authorization": f"Bearer {args.api_token}"}
+    return {}
+
+
+def _get_json(
+    args: argparse.Namespace,
+    url: str,
+    *,
+    params: dict[str, str] | None = None,
+) -> dict[str, Any] | list[Any]:
+    response = httpx.get(url, params=params, headers=_api_headers(args), timeout=20)
     response.raise_for_status()
     payload = response.json()
     if isinstance(payload, dict) and payload.get("error"):
@@ -183,16 +258,25 @@ def _get_json(url: str, *, params: dict[str, str] | None = None) -> dict[str, An
 
 
 def _check_phlo_api(args: argparse.Namespace) -> None:
-    health = _get_json(f"{args.api_base_url}/api/observability/health")
+    health = _get_json(args, f"{args.api_base_url}/api/observability/health")
     if not isinstance(health, dict) or "overall_status" not in health:
         raise SmokeFailure("phlo-api observability health response was malformed")
 
     dagster = _get_json(
+        args,
         f"{args.api_base_url}/api/dagster/connection",
         params={"dagster_url": args.dagster_url},
     )
     if not isinstance(dagster, dict) or dagster.get("connected") is not True:
         raise SmokeFailure(f"Dagster is not connected through phlo-api: {dagster}")
+
+    filtered_spans = _get_json(
+        args,
+        f"{args.api_base_url}/api/observability/traces",
+        params={"run_id": args.run_id, "limit": "25"},
+    )
+    if not isinstance(filtered_spans, list):
+        raise SmokeFailure(f"filtered trace endpoint returned unexpected payload: {filtered_spans}")
 
 
 def _check_clickstack(args: argparse.Namespace) -> None:
@@ -238,6 +322,8 @@ async def _check_mcp_stdio(args: argparse.Namespace, repo_root: Path) -> None:
     ]
     if args.api_token:
         command_args.extend(["--api-token", args.api_token])
+    if args.enable_write_tools:
+        command_args.append("--enable-write-tools")
 
     params = StdioServerParameters(command="uv", args=command_args, cwd=repo_root)
     async with stdio_client(params) as (read, write):
@@ -249,11 +335,27 @@ async def _check_mcp_stdio(args: argparse.Namespace, repo_root: Path) -> None:
                 "get_platform_health",
                 "get_dashboard_links",
                 "get_run_trace_spans",
+                "get_trace_spans",
+                "render_trace_spans_tree",
                 "get_materialization_history",
             }
             missing = sorted(expected - names)
             if missing:
                 raise SmokeFailure(f"MCP server is missing expected tools: {missing}")
+            write_tools = {"materialize_asset", "retry_failed_run", "get_dagster_run_status"}
+            registered_write_tools = names & write_tools
+            if args.enable_write_tools and args.api_token:
+                missing_write_tools = sorted(write_tools - names)
+                if missing_write_tools:
+                    raise SmokeFailure(
+                        f"MCP server is missing enabled write tools: {missing_write_tools}"
+                    )
+            elif registered_write_tools:
+                raise SmokeFailure(
+                    f"MCP server registered write tools without opt-in auth: {registered_write_tools}"
+                )
+
+            await _check_mcp_resources(session)
 
             await _call_tool_json(session, "get_platform_health", {})
             await _call_tool_json(session, "get_dashboard_links", {})
@@ -263,6 +365,27 @@ async def _check_mcp_stdio(args: argparse.Namespace, repo_root: Path) -> None:
                 raise SmokeFailure(f"get_run_trace_spans returned unexpected payload: {spans}")
             if args.require_run_spans and not span_rows:
                 raise SmokeFailure(f"run {args.run_id!r} returned no trace spans")
+
+            filtered_spans = await _call_tool_json(
+                session,
+                "get_trace_spans",
+                {"run_id": args.run_id, "limit": 25},
+            )
+            filtered_span_rows = (
+                filtered_spans.get("spans") if isinstance(filtered_spans, dict) else None
+            )
+            if not isinstance(filtered_span_rows, list):
+                raise SmokeFailure(f"get_trace_spans returned unexpected payload: {filtered_spans}")
+            if args.require_run_spans and not filtered_span_rows:
+                raise SmokeFailure(f"filtered trace query for {args.run_id!r} returned no spans")
+
+            tree = await _call_tool_json(
+                session,
+                "render_trace_spans_tree",
+                {"run_id": args.run_id, "limit": 25},
+            )
+            if not isinstance(tree, dict) or not isinstance(tree.get("tree"), str):
+                raise SmokeFailure(f"render_trace_spans_tree returned unexpected payload: {tree}")
 
             if args.asset_key:
                 history = await _call_tool_json(
@@ -277,6 +400,77 @@ async def _check_mcp_stdio(args: argparse.Namespace, repo_root: Path) -> None:
                     )
                 if args.require_materialization and not events:
                     raise SmokeFailure(f"asset {args.asset_key!r} returned no materializations")
+
+                if args.exercise_write_tools:
+                    if not args.enable_write_tools or not args.api_token:
+                        raise SmokeFailure(
+                            "--exercise-write-tools requires --enable-write-tools and --api-token"
+                        )
+                    materialize = await _call_tool_json(
+                        session,
+                        "materialize_asset",
+                        {"asset_key_path": args.asset_key, "dry_run": True},
+                    )
+                    audit = (
+                        materialize.get("audit_context") if isinstance(materialize, dict) else None
+                    )
+                    if not isinstance(audit, dict) or audit.get("dry_run") is not True:
+                        raise SmokeFailure(
+                            f"materialize_asset returned unexpected audit context: {materialize}"
+                        )
+
+
+async def _check_mcp_resources(session: ClientSession) -> None:
+    resources = await session.list_resources()
+    resource_uris = {str(resource.uri) for resource in resources.resources}
+    expected_resources = {
+        "phlo://runtime/config",
+        "phlo://runtime/services",
+        "phlo://runtime/plugins",
+        "phlo://runtime/assets",
+        "phlo://runtime/contracts",
+        "phlo://runtime/dashboards",
+    }
+    missing_resources = sorted(expected_resources - resource_uris)
+    if missing_resources:
+        raise SmokeFailure(f"MCP server is missing expected resources: {missing_resources}")
+
+    templates = await session.list_resource_templates()
+    template_uris = {template.uriTemplate for template in templates.resourceTemplates}
+    expected_templates = {
+        "phlo://docs/packages/{package_name}",
+        "phlo://runtime/services/{service_name}",
+        "phlo://runtime/assets/{asset_key_path}",
+        "phlo://runtime/schemas/{asset_key_path}",
+        "phlo://runtime/contracts/{table_name}",
+    }
+    missing_templates = sorted(expected_templates - template_uris)
+    if missing_templates:
+        raise SmokeFailure(
+            f"MCP server is missing expected resource templates: {missing_templates}"
+        )
+
+    await _read_resource_json(session, "phlo://runtime/config")
+    services = await _read_resource_json(session, "phlo://runtime/services")
+    if not isinstance(services, list):
+        raise SmokeFailure(f"phlo://runtime/services returned unexpected payload: {services}")
+    docs = await session.read_resource("phlo://docs/packages/phlo-mcp")
+    text = getattr(docs.contents[0], "text", "") if docs.contents else ""
+    if "# phlo-mcp" not in text:
+        raise SmokeFailure("phlo://docs/packages/phlo-mcp did not return package docs")
+
+
+async def _read_resource_json(session: ClientSession, uri: str) -> dict[str, Any] | list[Any]:
+    result = await session.read_resource(uri)
+    if not result.contents:
+        raise SmokeFailure(f"MCP resource {uri} returned no content")
+    text = getattr(result.contents[0], "text", None)
+    if not isinstance(text, str):
+        raise SmokeFailure(f"MCP resource {uri} returned non-text content: {result.contents[0]}")
+    payload = json.loads(text)
+    if isinstance(payload, dict) and payload.get("error"):
+        raise SmokeFailure(f"MCP resource {uri} returned upstream error: {payload}")
+    return payload
 
 
 async def _call_tool_json(

@@ -15,6 +15,7 @@ from phlo.capabilities.interfaces import (
     PlatformMetricsSummary,
     ServiceStatus,
     TraceSpan,
+    TraceSpanFilter,
 )
 from phlo.capabilities.maintenance import DefaultMaintenanceReadModel
 from phlo.capabilities.registry import (
@@ -209,6 +210,12 @@ class DefaultObservabilityBackend:
         Backend-specific packages such as phlo-clickstack can replace the default
         observability backend with one that supports span queries.
         """
+        return []
+
+    def trace_spans(self, filters: TraceSpanFilter) -> list[TraceSpan]:
+        """Return no filtered trace spans by default."""
+        if filters.run_id:
+            return self.run_trace_spans(filters.run_id, limit=filters.limit)
         return []
 
     def _resolve_clickstack_url(self) -> str | None:

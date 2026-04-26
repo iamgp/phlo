@@ -437,6 +437,21 @@ class TraceSpan:
     resource_attributes: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class TraceSpanFilter:
+    """Filter set for observability trace span queries."""
+
+    run_id: str | None = None
+    asset_key: str | None = None
+    job_name: str | None = None
+    service_name: str | None = None
+    span_name: str | None = None
+    status_code: str | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    limit: int = 500
+
+
 @runtime_checkable
 class ObservabilityBackend(Protocol):
     """Protocol for swappable observability backends (metrics, logs, dashboards)."""
@@ -471,6 +486,10 @@ class ObservabilityBackend(Protocol):
 
     def run_trace_spans(self, run_id: str, limit: int = 500) -> list[TraceSpan]:
         """Return OTEL spans correlated to a run id when supported."""
+        ...
+
+    def trace_spans(self, filters: TraceSpanFilter) -> list[TraceSpan]:
+        """Return OTEL spans matching a bounded filter set when supported."""
         ...
 
 

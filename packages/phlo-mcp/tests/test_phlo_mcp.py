@@ -8,7 +8,7 @@ from pathlib import Path
 
 from phlo_mcp.api_client import PhloApiClient
 from phlo_mcp.cli import parse_args
-from phlo_mcp.config import McpConfig
+from phlo_mcp.config import McpConfig, config_from_env
 from phlo_mcp.run_analysis import (
     render_run_trace_tree as render_run_trace_tree_text,
     summarize_run_logs,
@@ -35,6 +35,22 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
     def fake_get(url: str, params=None, headers=None, timeout=10.0):  # noqa: ANN001
         seen_urls.append(url)
         seen_headers.append(headers or {})
+        if url.endswith("/api/config"):
+            return _FakeResponse({"name": "demo"})
+        if url.endswith("/api/plugins"):
+            return _FakeResponse({"services": ["phlo-api"]})
+        if url.endswith("/api/services"):
+            return _FakeResponse([{"name": "dagster", "profile": "orchestration"}])
+        if url.endswith("/api/services/dagster"):
+            return _FakeResponse({"name": "dagster", "depends_on": []})
+        if url.endswith("/api/dagster/assets"):
+            return _FakeResponse([{"key_path": "silver/orders"}])
+        if url.endswith("/api/dagster/assets/silver/orders"):
+            return _FakeResponse({"key_path": "silver/orders", "columns": [{"name": "id"}]})
+        if url.endswith("/api/contracts"):
+            return _FakeResponse([{"table": "silver.orders"}])
+        if url.endswith("/api/contracts/silver.orders"):
+            return _FakeResponse({"table": "silver.orders"})
         if url.endswith("/health"):
             return _FakeResponse({"overall_status": "healthy"})
         if url.endswith("/services"):
@@ -88,6 +104,30 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
                     }
                 ]
             )
+        if url.endswith("/api/observability/traces"):
+            assert params == {
+                "limit": 25,
+                "asset_key": "silver/orders",
+                "service_name": "dagster",
+                "status_code": "STATUS_CODE_ERROR",
+            }
+            return _FakeResponse(
+                [
+                    {
+                        "timestamp": "2026-01-01T00:00:00Z",
+                        "trace_id": "abc123",
+                        "span_id": "root",
+                        "parent_span_id": None,
+                        "span_name": "materialize_orders",
+                        "service_name": "dagster",
+                        "span_kind": "INTERNAL",
+                        "duration_ms": 12.5,
+                        "status_code": "STATUS_CODE_ERROR",
+                        "span_attributes": {"phlo.asset_key": "silver/orders"},
+                        "resource_attributes": {"service.name": "dagster"},
+                    }
+                ]
+            )
         if "/api/dagster/assets/" in url and url.endswith("/history"):
             return _FakeResponse([{"run_id": "run-123", "timestamp": "2026-01-01T00:00:00Z"}])
         if url.endswith("/links/logs"):
@@ -99,17 +139,72 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
     monkeypatch.setattr("phlo_mcp.api_client.httpx.get", fake_get)
     client = PhloApiClient(McpConfig(api_base_url="http://example.test"))
 
+    assert client.get_config()["name"] == "demo"
+    assert client.get_plugins()["services"] == ["phlo-api"]
+    assert client.get_services()[0]["name"] == "dagster"
+    assert client.get_service_info("dagster")["name"] == "dagster"
+    assert client.get_assets()[0]["key_path"] == "silver/orders"
+    assert client.get_asset_details("silver/orders")["columns"][0]["name"] == "id"
+    assert client.get_contracts()[0]["table"] == "silver.orders"
+    assert client.get_contract("silver.orders")["table"] == "silver.orders"
     assert client.get_platform_health()["overall_status"] == "healthy"
     assert client.get_service_status()[0]["name"] == "observability"
     assert client.get_recent_alerts(limit=3)[0]["title"] == "No alerts"
     assert client.get_dashboard_links()[0]["title"] == "ClickStack"
     assert client.get_run_logs("run-123")["entries"][0]["metadata"]["trace_id"] == "abc123"
     assert client.get_run_trace_spans("run-123")[0]["span_id"] == "root"
+    assert (
+        client.get_trace_spans(
+            asset_key="silver/orders",
+            service_name="dagster",
+            status_code="STATUS_CODE_ERROR",
+            limit=25,
+        )[0]["status_code"]
+        == "STATUS_CODE_ERROR"
+    )
     assert client.get_materialization_history("silver/orders")[0]["run_id"] == "run-123"
     assert client.get_logs_query_link()["url"] == "http://logs.test"
     assert client.get_metrics_query_link()["url"] == "http://metrics.test"
-    assert seen_urls[0] == "http://example.test/api/observability/health"
+    assert "http://example.test/api/observability/health" in seen_urls
     assert seen_headers[0] == {}
+
+
+def test_create_server_registers_resources() -> None:
+    server = create_server(McpConfig())
+
+    resource_uris = sorted(str(uri) for uri in server._resource_manager._resources)
+    template_uris = sorted(
+        template.uri_template for template in server._resource_manager._templates.values()
+    )
+
+    assert resource_uris == [
+        "phlo://runtime/assets",
+        "phlo://runtime/config",
+        "phlo://runtime/contracts",
+        "phlo://runtime/dashboards",
+        "phlo://runtime/plugins",
+        "phlo://runtime/services",
+    ]
+    assert template_uris == [
+        "phlo://docs/packages/{package_name}",
+        "phlo://runtime/assets/{asset_key_path}",
+        "phlo://runtime/contracts/{table_name}",
+        "phlo://runtime/schemas/{asset_key_path}",
+        "phlo://runtime/services/{service_name}",
+    ]
+
+
+def test_package_docs_resource_reads_local_docs() -> None:
+    server = create_server(McpConfig())
+    template = next(
+        template
+        for template in server._resource_manager._templates.values()
+        if template.uri_template == "phlo://docs/packages/{package_name}"
+    )
+
+    rendered = template.fn("phlo-mcp")
+
+    assert "# phlo-mcp" in rendered
 
 
 def test_api_client_adds_bearer_token_header(monkeypatch) -> None:
@@ -124,6 +219,45 @@ def test_api_client_adds_bearer_token_header(monkeypatch) -> None:
 
     assert client.get_platform_health()["overall_status"] == "healthy"
     assert captured["headers"] == {"Authorization": "Bearer secret"}
+
+
+def test_api_client_wraps_operational_routes(monkeypatch) -> None:
+    seen_posts: list[dict[str, object]] = []
+    seen_gets: list[str] = []
+
+    def fake_post(url: str, json=None, headers=None, timeout=30.0):  # noqa: ANN001
+        seen_posts.append({"url": url, "json": json, "headers": headers or {}, "timeout": timeout})
+        return _FakeResponse({"queued": True, "dry_run": json["dry_run"]})
+
+    def fake_get(url: str, params=None, headers=None, timeout=10.0):  # noqa: ANN001
+        seen_gets.append(url)
+        return _FakeResponse({"run_id": "run-123", "status": "STARTED"})
+
+    monkeypatch.setattr("phlo_mcp.api_client.httpx.post", fake_post)
+    monkeypatch.setattr("phlo_mcp.api_client.httpx.get", fake_get)
+    client = PhloApiClient(McpConfig(api_base_url="http://example.test", api_token="secret"))
+
+    assert client.materialize_asset("silver/orders", dry_run=True, partition_key="2026-04-26") == {
+        "queued": True,
+        "dry_run": True,
+    }
+    assert client.retry_run("run-123", dry_run=False) == {"queued": True, "dry_run": False}
+    assert client.get_run_status("run-123")["status"] == "STARTED"
+    assert seen_posts == [
+        {
+            "url": "http://example.test/api/dagster/assets/silver/orders/materialize",
+            "json": {"dry_run": True, "partition_key": "2026-04-26"},
+            "headers": {"Authorization": "Bearer secret"},
+            "timeout": 30.0,
+        },
+        {
+            "url": "http://example.test/api/dagster/runs/run-123/retry",
+            "json": {"dry_run": False},
+            "headers": {"Authorization": "Bearer secret"},
+            "timeout": 30.0,
+        },
+    ]
+    assert seen_gets == ["http://example.test/api/dagster/runs/run-123/status"]
 
 
 def test_create_server_registers_expected_tools() -> None:
@@ -141,11 +275,73 @@ def test_create_server_registers_expected_tools() -> None:
         "get_materialization_history",
         "get_run_logs",
         "get_run_trace_spans",
+        "get_trace_spans",
+        "render_trace_spans_tree",
         "inspect_materialization",
         "get_asset_materialization_trace",
         "render_materialization_trace_tree",
         "render_run_trace_tree",
     ]
+
+
+def test_create_server_hides_write_tools_by_default() -> None:
+    server = create_server(McpConfig(api_token="secret"))
+
+    tool_names = [tool.name for tool in server._tool_manager.list_tools()]
+
+    assert "materialize_asset" not in tool_names
+    assert "retry_failed_run" not in tool_names
+    assert "get_dagster_run_status" not in tool_names
+
+
+def test_create_server_registers_write_tools_only_with_auth() -> None:
+    unauthenticated = create_server(McpConfig(enable_write_tools=True))
+    authenticated = create_server(McpConfig(api_token="secret", enable_write_tools=True))
+
+    unauthenticated_tool_names = [tool.name for tool in unauthenticated._tool_manager.list_tools()]
+    authenticated_tool_names = [tool.name for tool in authenticated._tool_manager.list_tools()]
+
+    assert "materialize_asset" not in unauthenticated_tool_names
+    assert "retry_failed_run" not in unauthenticated_tool_names
+    assert "get_dagster_run_status" not in unauthenticated_tool_names
+    assert authenticated_tool_names[-3:] == [
+        "materialize_asset",
+        "retry_failed_run",
+        "get_dagster_run_status",
+    ]
+
+
+def test_write_tool_returns_audit_context_without_token(monkeypatch) -> None:
+    def fake_materialize_asset(
+        self,  # noqa: ANN001
+        asset_key_path: str,
+        *,
+        dry_run: bool = True,
+        partition_key: str | None = None,
+    ) -> dict[str, object]:
+        return {
+            "asset_key_path": asset_key_path,
+            "dry_run": dry_run,
+            "partition_key": partition_key,
+            "queued": False,
+        }
+
+    monkeypatch.setattr(PhloApiClient, "materialize_asset", fake_materialize_asset)
+    server = create_server(McpConfig(api_token="secret-token", enable_write_tools=True))
+    tool = next(
+        tool for tool in server._tool_manager.list_tools() if tool.name == "materialize_asset"
+    )
+
+    result = tool.fn("silver/orders", dry_run=True, partition_key="2026-04-26")
+
+    assert result["audit_context"] == {
+        "operation": "materialize_asset",
+        "target": {"asset_key_path": "silver/orders", "partition_key": "2026-04-26"},
+        "dry_run": True,
+        "authenticated": True,
+        "api_base_url": "http://127.0.0.1:4000",
+    }
+    assert "secret-token" not in json.dumps(result)
 
 
 def test_parse_args_overrides_env(monkeypatch) -> None:
@@ -164,6 +360,7 @@ def test_parse_args_overrides_env(monkeypatch) -> None:
             "http://cli.test:4100",
             "--api-token",
             "cli-token",
+            "--enable-write-tools",
             "--port",
             "9000",
         ],
@@ -174,7 +371,16 @@ def test_parse_args_overrides_env(monkeypatch) -> None:
     assert config.transport == "streamable-http"
     assert config.api_base_url == "http://cli.test:4100"
     assert config.api_token == "cli-token"
+    assert config.enable_write_tools is True
     assert config.port == 9000
+
+
+def test_config_from_env_reads_write_tool_gate(monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_MCP_ENABLE_WRITE_TOOLS", "true")
+
+    config = config_from_env()
+
+    assert config.enable_write_tools is True
 
 
 def test_run_analysis_helpers_render_materialization_view() -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -17,6 +18,17 @@ from phlo_mcp.run_analysis import (
 from phlo_mcp.tracing import configure_tracing
 
 
+def _read_package_doc(package_name: str) -> str:
+    safe_name = package_name.removesuffix(".md")
+    if "/" in safe_name or "\\" in safe_name or safe_name in {"", ".", ".."}:
+        return f"# {package_name}\n\nPackage documentation not found.\n"
+    for base in (Path.cwd(), *Path.cwd().parents):
+        candidate = base / "docs" / "packages" / f"{safe_name}.md"
+        if candidate.is_file():
+            return candidate.read_text(encoding="utf-8")
+    return f"# {package_name}\n\nPackage documentation not found.\n"
+
+
 def create_server(config: McpConfig | None = None) -> FastMCP:
     """Create a configured FastMCP server instance."""
     resolved = config or config_from_env()
@@ -29,6 +41,124 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
 
     tracer = trace.get_tracer("phlo.mcp")
     client = PhloApiClient(resolved)
+
+    @mcp.resource(
+        "phlo://runtime/config",
+        name="runtime_config",
+        mime_type="application/json",
+    )
+    def runtime_config() -> dict[str, Any] | list[dict[str, Any]]:
+        """Read the current phlo project configuration."""
+        return client.get_config()
+
+    @mcp.resource(
+        "phlo://runtime/services",
+        name="runtime_services",
+        mime_type="application/json",
+    )
+    def runtime_services() -> dict[str, Any] | list[dict[str, Any]]:
+        """Read discovered service metadata."""
+        return client.get_services()
+
+    @mcp.resource(
+        "phlo://runtime/plugins",
+        name="runtime_plugins",
+        mime_type="application/json",
+    )
+    def runtime_plugins() -> dict[str, Any] | list[dict[str, Any]]:
+        """Read installed plugin metadata."""
+        return client.get_plugins()
+
+    @mcp.resource(
+        "phlo://runtime/assets",
+        name="runtime_assets",
+        mime_type="application/json",
+    )
+    def runtime_assets() -> dict[str, Any] | list[dict[str, Any]]:
+        """Read Dagster asset metadata."""
+        return client.get_assets()
+
+    @mcp.resource(
+        "phlo://runtime/contracts",
+        name="runtime_contracts",
+        mime_type="application/json",
+    )
+    def runtime_contracts() -> dict[str, Any] | list[dict[str, Any]]:
+        """Read schema contract metadata."""
+        return client.get_contracts()
+
+    @mcp.resource(
+        "phlo://runtime/dashboards",
+        name="runtime_dashboards",
+        mime_type="application/json",
+    )
+    def runtime_dashboards() -> dict[str, Any] | list[dict[str, Any]]:
+        """Read observability dashboard metadata."""
+        return client.get_dashboard_links()
+
+    @mcp.resource(
+        "phlo://runtime/services/{service_name}",
+        name="runtime_service",
+        mime_type="application/json",
+    )
+    def runtime_service(service_name: str) -> dict[str, Any] | list[dict[str, Any]]:
+        """Read metadata for one service."""
+        return client.get_service_info(service_name)
+
+    @mcp.resource(
+        "phlo://runtime/assets/{asset_key_path}",
+        name="runtime_asset",
+        mime_type="application/json",
+    )
+    def runtime_asset(asset_key_path: str) -> dict[str, Any] | list[dict[str, Any]]:
+        """Read metadata for one Dagster asset."""
+        return client.get_asset_details(asset_key_path)
+
+    @mcp.resource(
+        "phlo://runtime/schemas/{asset_key_path}",
+        name="runtime_asset_schema",
+        mime_type="application/json",
+    )
+    def runtime_asset_schema(asset_key_path: str) -> dict[str, Any]:
+        """Read schema metadata for one Dagster asset."""
+        details = client.get_asset_details(asset_key_path)
+        if not isinstance(details, dict):
+            return {"asset_key_path": asset_key_path, "columns": []}
+        return {
+            "asset_key_path": asset_key_path,
+            "columns": details.get("columns") or [],
+            "column_lineage": details.get("column_lineage"),
+            "partition_definition": details.get("partition_definition"),
+        }
+
+    @mcp.resource(
+        "phlo://runtime/contracts/{table_name}",
+        name="runtime_contract",
+        mime_type="application/json",
+    )
+    def runtime_contract(table_name: str) -> dict[str, Any] | list[dict[str, Any]]:
+        """Read one schema contract."""
+        return client.get_contract(table_name)
+
+    @mcp.resource(
+        "phlo://docs/packages/{package_name}",
+        name="package_docs",
+        mime_type="text/markdown",
+    )
+    def package_docs(package_name: str) -> str:
+        """Read package documentation from the local docs tree."""
+        return _read_package_doc(package_name)
+
+    def _write_audit_context(
+        operation: str, target: dict[str, Any], dry_run: bool
+    ) -> dict[str, Any]:
+        return {
+            "operation": operation,
+            "target": target,
+            "dry_run": dry_run,
+            "authenticated": bool(resolved.api_token),
+            "api_base_url": client.api_base_url,
+        }
 
     @mcp.tool()
     def get_platform_health() -> dict[str, Any]:
@@ -177,6 +307,107 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                         "spans": payload,
                     }
 
+    @mcp.tool()
+    def get_trace_spans(
+        run_id: str | None = None,
+        asset_key: str | None = None,
+        job_name: str | None = None,
+        service_name: str | None = None,
+        span_name: str | None = None,
+        status_code: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        limit: int = 500,
+    ) -> dict[str, Any]:
+        """Get OTEL spans filtered by run, asset, job, service, status, name, or time."""
+        with tracer.start_as_current_span(
+            "mcp.request",
+            attributes={"mcp.tool.name": "get_trace_spans"},
+        ):
+            with tracer.start_as_current_span(
+                "mcp.tool.execute",
+                attributes={"mcp.tool.name": "get_trace_spans"},
+            ):
+                with tracer.start_as_current_span("phlo.observability.trace_spans"):
+                    payload = client.get_trace_spans(
+                        run_id=run_id,
+                        asset_key=asset_key,
+                        job_name=job_name,
+                        service_name=service_name,
+                        span_name=span_name,
+                        status_code=status_code,
+                        start_time=start_time,
+                        end_time=end_time,
+                        limit=limit,
+                    )
+                    return {
+                        "api_base_url": client.api_base_url,
+                        "filters": _trace_filter_payload(
+                            run_id=run_id,
+                            asset_key=asset_key,
+                            job_name=job_name,
+                            service_name=service_name,
+                            span_name=span_name,
+                            status_code=status_code,
+                            start_time=start_time,
+                            end_time=end_time,
+                            limit=limit,
+                        ),
+                        "spans": payload,
+                    }
+
+    @mcp.tool()
+    def render_trace_spans_tree(
+        run_id: str | None = None,
+        asset_key: str | None = None,
+        job_name: str | None = None,
+        service_name: str | None = None,
+        span_name: str | None = None,
+        status_code: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        limit: int = 500,
+    ) -> dict[str, Any]:
+        """Render a trace tree for spans matching observability filters."""
+        with tracer.start_as_current_span(
+            "mcp.request",
+            attributes={"mcp.tool.name": "render_trace_spans_tree"},
+        ):
+            with tracer.start_as_current_span(
+                "mcp.tool.execute",
+                attributes={"mcp.tool.name": "render_trace_spans_tree"},
+            ):
+                with tracer.start_as_current_span("phlo.observability.trace_spans_tree"):
+                    payload = client.get_trace_spans(
+                        run_id=run_id,
+                        asset_key=asset_key,
+                        job_name=job_name,
+                        service_name=service_name,
+                        span_name=span_name,
+                        status_code=status_code,
+                        start_time=start_time,
+                        end_time=end_time,
+                        limit=limit,
+                    )
+                    spans = payload if isinstance(payload, list) else []
+                    label = run_id or asset_key or job_name or "filtered traces"
+                    return {
+                        "api_base_url": client.api_base_url,
+                        "filters": _trace_filter_payload(
+                            run_id=run_id,
+                            asset_key=asset_key,
+                            job_name=job_name,
+                            service_name=service_name,
+                            span_name=span_name,
+                            status_code=status_code,
+                            start_time=start_time,
+                            end_time=end_time,
+                            limit=limit,
+                        ),
+                        "span_count": len(spans),
+                        "tree": render_span_tree(label, spans),
+                    }
+
     def _inspect_materialization_payload(
         asset_key_path: str,
         *,
@@ -213,6 +444,9 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 "spans": spans,
             },
         }
+
+    def _trace_filter_payload(**filters: Any) -> dict[str, Any]:
+        return {key: value for key, value in filters.items() if value is not None}
 
     @mcp.tool()
     def inspect_materialization(
@@ -326,5 +560,71 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                         "entry_count": len(entries),
                         "source": "logs",
                     }
+
+    if resolved.enable_write_tools and resolved.api_token:
+
+        @mcp.tool()
+        def materialize_asset(
+            asset_key_path: str,
+            dry_run: bool = True,
+            partition_key: str | None = None,
+        ) -> dict[str, Any]:
+            """Materialize a Dagster asset through phlo-api when write tools are enabled."""
+            with tracer.start_as_current_span(
+                "mcp.request",
+                attributes={"mcp.tool.name": "materialize_asset"},
+            ):
+                with tracer.start_as_current_span(
+                    "mcp.tool.execute",
+                    attributes={"mcp.tool.name": "materialize_asset"},
+                ):
+                    with tracer.start_as_current_span("phlo.dagster.asset.materialize"):
+                        target = {"asset_key_path": asset_key_path}
+                        if partition_key:
+                            target["partition_key"] = partition_key
+                        audit_context = _write_audit_context("materialize_asset", target, dry_run)
+                        payload = client.materialize_asset(
+                            asset_key_path,
+                            dry_run=dry_run,
+                            partition_key=partition_key,
+                        )
+                        return {"audit_context": audit_context, "payload": payload}
+
+        @mcp.tool()
+        def retry_failed_run(run_id: str, dry_run: bool = True) -> dict[str, Any]:
+            """Retry a Dagster run through phlo-api when write tools are enabled."""
+            with tracer.start_as_current_span(
+                "mcp.request",
+                attributes={"mcp.tool.name": "retry_failed_run"},
+            ):
+                with tracer.start_as_current_span(
+                    "mcp.tool.execute",
+                    attributes={"mcp.tool.name": "retry_failed_run"},
+                ):
+                    with tracer.start_as_current_span("phlo.dagster.run.retry"):
+                        audit_context = _write_audit_context(
+                            "retry_failed_run", {"run_id": run_id}, dry_run
+                        )
+                        payload = client.retry_run(run_id, dry_run=dry_run)
+                        return {"audit_context": audit_context, "payload": payload}
+
+        @mcp.tool()
+        def get_dagster_run_status(run_id: str) -> dict[str, Any]:
+            """Get Dagster run status through phlo-api for operational follow-up."""
+            with tracer.start_as_current_span(
+                "mcp.request",
+                attributes={"mcp.tool.name": "get_dagster_run_status"},
+            ):
+                with tracer.start_as_current_span(
+                    "mcp.tool.execute",
+                    attributes={"mcp.tool.name": "get_dagster_run_status"},
+                ):
+                    with tracer.start_as_current_span("phlo.dagster.run.status"):
+                        payload = client.get_run_status(run_id)
+                        return {
+                            "api_base_url": client.api_base_url,
+                            "run_id": run_id,
+                            "payload": payload,
+                        }
 
     return mcp

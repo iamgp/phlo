@@ -1,7 +1,7 @@
 ---
 title: "feat: Add richer phlo-mcp trace filtering"
 type: plan
-status: planned
+status: completed
 date: 2026-04-25
 origin: PR-468-follow-up
 ---
@@ -38,3 +38,10 @@ window, not a specific run id.
 ```bash
 uv run pytest packages/phlo-clickstack/tests packages/phlo-api/tests/test_observability_api.py packages/phlo-mcp/tests/test_phlo_mcp.py -q
 ```
+
+## Outcome
+
+Implemented filtered trace querying from ClickStack through `phlo-api` and
+`phlo-mcp`. Added filters for run id, asset key, job name, service name, span
+name, status code, start time, and end time. Existing run-id tools remain, and
+new MCP tools return raw spans or rendered span trees.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import subprocess
 import sys
@@ -9,7 +10,31 @@ from pathlib import Path
 
 import pytest
 
+_SMOKE_STACK_PATH = Path(__file__).with_name("smoke_stack.py")
+_SMOKE_STACK_SPEC = importlib.util.spec_from_file_location(
+    "phlo_mcp_smoke_stack", _SMOKE_STACK_PATH
+)
+assert _SMOKE_STACK_SPEC is not None
+assert _SMOKE_STACK_SPEC.loader is not None
+smoke_stack = importlib.util.module_from_spec(_SMOKE_STACK_SPEC)
+_SMOKE_STACK_SPEC.loader.exec_module(smoke_stack)
+
 pytestmark = pytest.mark.integration
+
+
+def test_smoke_stack_seeds_durable_asset(tmp_path: Path) -> None:
+    smoke_stack._seed_smoke_asset(tmp_path)
+
+    asset_path = tmp_path / "workflows" / smoke_stack._SMOKE_ASSET_FILENAME
+    assert asset_path.exists()
+    assert f"def {smoke_stack._SMOKE_ASSET_KEY}()" in asset_path.read_text(encoding="utf-8")
+
+
+def test_smoke_stack_project_root_argument() -> None:
+    args = smoke_stack._parse_args(["--start-stack", "--project-root", "/tmp/phlo-mcp-smoke"])
+
+    assert args.start_stack is True
+    assert args.project_root == "/tmp/phlo-mcp-smoke"
 
 
 def test_live_stack_smoke_script() -> None:

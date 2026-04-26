@@ -102,6 +102,7 @@ from phlo.capabilities.interfaces import (
     SchemaMigrator,
     TableStore,
     TraceSpan,
+    TraceSpanFilter,
 )
 from phlo.capabilities.maintenance import (
     DefaultMaintenanceReadModel,
@@ -231,6 +232,7 @@ __all__ = [
     "PartitionSpec",
     "Principal",
     "TraceSpan",
+    "TraceSpanFilter",
     "PublishTargetSpec",
     "QueryEngine",
     "QualityBackendSpec",

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from phlo_clickstack.observability_backend import (
     ClickStackObservabilityBackend,
+    _build_trace_spans_query,
     build_clickstack_observability_spec,
 )
+from phlo.capabilities import TraceSpanFilter
 
 
 class _FakeResponse:
@@ -70,3 +72,29 @@ def test_clickstack_backend_queries_trace_spans(monkeypatch) -> None:
     assert "LIMIT 25" in captured["query"]
     assert captured["auth"] == ("api", "api")
     assert spans[0].trace_id == "abc123"
+
+
+def test_build_trace_spans_query_includes_filters() -> None:
+    query = _build_trace_spans_query(
+        TraceSpanFilter(
+            run_id="run-123",
+            asset_key="silver/orders",
+            job_name="daily_orders",
+            service_name="dagster",
+            span_name="materialize_orders",
+            status_code="STATUS_CODE_ERROR",
+            start_time="2026-04-26T00:00:00Z",
+            end_time="2026-04-26T01:00:00Z",
+            limit=25,
+        )
+    )
+
+    assert "SpanAttributes['phlo.run_id'] = 'run-123'" in query
+    assert "SpanAttributes['phlo.asset_key'] = 'silver/orders'" in query
+    assert "SpanAttributes['phlo.job_name'] = 'daily_orders'" in query
+    assert "ServiceName = 'dagster'" in query
+    assert "SpanName = 'materialize_orders'" in query
+    assert "StatusCode = 'STATUS_CODE_ERROR'" in query
+    assert "Timestamp >= parseDateTimeBestEffort('2026-04-26T00:00:00Z')" in query
+    assert "Timestamp <= parseDateTimeBestEffort('2026-04-26T01:00:00Z')" in query
+    assert "LIMIT 25" in query
