@@ -44,7 +44,7 @@ function Logs() {
   return (
     <V2Page
       kicker="Logs"
-      title="Evidence console."
+      title="Evidence console"
       description="Recent events attached to services, assets, runs, and recovery actions."
       action={<span className="phlo-v2-pill">{sources.size} sources</span>}
     >
@@ -96,7 +96,7 @@ function Logs() {
             ))}
             {filtered.length === 0 && (
               <div className="phlo-v2-empty-state">
-                No provider-neutral log events returned yet.
+                No log events returned yet.
               </div>
             )}
           </div>

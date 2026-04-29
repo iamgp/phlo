@@ -36,7 +36,7 @@ export function ExtensionDetailView({ extensionId }: { extensionId: string }) {
           {extension?.enabled ? 'enabled' : 'disabled'}
         </span>
       }
-      description="Shareable v2 extension manifest detail from phlo-api."
+      description="Extension manifest, routes, and settings scope."
       kicker="Extension"
       title={extension?.name ?? extensionId}
     >

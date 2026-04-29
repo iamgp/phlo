@@ -36,7 +36,7 @@ export function V2ResourcePanel({
   label,
   result,
   emptyTitle = 'No resources registered',
-  emptyBody = 'phlo-api v2 has no entries for this surface.',
+  emptyBody = 'No entries are available for this surface yet.',
 }: {
   title: string
   label: string

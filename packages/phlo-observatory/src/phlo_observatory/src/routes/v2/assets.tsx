@@ -78,8 +78,8 @@ function Assets() {
   return (
     <V2Page
       kicker="Assets"
-      title="Assets"
-      description="Search, inspect, and trace the lakehouse asset graph."
+      title="Asset graph"
+      description="Search assets, inspect checks, and follow upstream impact."
       action={<span className="phlo-v2-pill">{assets.length} assets</span>}
     >
       <section className="phlo-v2-diff-metrics">
@@ -226,7 +226,7 @@ function Assets() {
               )}
             </>
           ) : (
-            <p>No assets registered by phlo-api v2.</p>
+            <p>No assets registered yet.</p>
           )}
           {result.error && (
             <div className="phlo-v2-panel-footer">{result.error}</div>

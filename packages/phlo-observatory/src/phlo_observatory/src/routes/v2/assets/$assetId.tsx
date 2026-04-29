@@ -32,7 +32,7 @@ export function AssetDetailView({ assetId }: { assetId: string }) {
   return (
     <V2Page
       action={<span className="phlo-v2-pill">{asset?.group ?? 'asset'}</span>}
-      description="Shareable v2 asset detail from phlo-api."
+      description="Asset impact, quality, lineage, and activity."
       kicker="Asset"
       title={asset?.name ?? assetId}
     >

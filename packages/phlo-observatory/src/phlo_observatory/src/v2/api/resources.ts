@@ -30,7 +30,8 @@ const V2_API_PREFIX = '/api/observatory/v2'
 function apiUnavailable<T>(error: unknown): V2ResourceResult<T> {
   return {
     data: null,
-    error: error instanceof Error ? error.message : 'phlo-api is unavailable',
+    error:
+      error instanceof Error ? error.message : 'Lakehouse API is unavailable',
   }
 }
 

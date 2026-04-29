@@ -57,8 +57,8 @@ function Quality() {
   return (
     <V2Page
       kicker="Quality"
-      title="Checks by asset and severity."
-      description="Triage data trust from provider-neutral quality read models."
+      title="Quality checks"
+      description="Triage data trust by asset, severity, and blocking state."
       action={<span className="phlo-v2-pill">{checks.length} checks</span>}
     >
       <section className="phlo-v2-quality-shell">
@@ -112,7 +112,7 @@ function Quality() {
             ))}
             {checks.length === 0 && (
               <div className="phlo-v2-empty-state">
-                No quality checks registered by phlo-api v2.
+                No quality checks registered yet.
               </div>
             )}
           </div>

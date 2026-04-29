@@ -7,15 +7,24 @@ import {
   LayoutDashboard,
   ListChecks,
   Logs,
+  Monitor,
+  Moon,
   Plug,
   Search,
   Server,
   Settings,
+  Sun,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type { V2ResourceResult, V2SearchResult } from '@/v2/api/types'
+import type { V2ThemeMode } from '@/v2/shell/theme'
+import {
+  V2_THEME_STORAGE_KEY,
+  readV2ThemeMode,
+  resolveV2Theme,
+} from '@/v2/shell/theme'
 import { searchV2 } from '@/v2/api/resources'
 
 const navItems = [
@@ -31,11 +40,23 @@ const navItems = [
   { label: 'Settings', href: '/v2/settings', icon: Settings },
 ]
 
+const themeModes = [
+  { mode: 'system', label: 'System', icon: Monitor },
+  { mode: 'light', label: 'Light', icon: Sun },
+  { mode: 'dark', label: 'Dark', icon: Moon },
+] satisfies Array<{
+  mode: V2ThemeMode
+  label: string
+  icon: typeof Monitor
+}>
+
 export function V2Shell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
   const [searchOpen, setSearchOpen] = useState(false)
+  const [themeMode, setThemeMode] = useState<V2ThemeMode>('system')
+  const [systemPrefersDark, setSystemPrefersDark] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<
     V2ResourceResult<Array<V2SearchResult>>
@@ -43,6 +64,35 @@ export function V2Shell({ children }: { children: ReactNode }) {
     data: null,
     error: null,
   })
+  const resolvedTheme = resolveV2Theme(themeMode, systemPrefersDark)
+
+  useEffect(() => {
+    setThemeMode(readV2ThemeMode(window.localStorage))
+
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)')
+    if (!media) return
+
+    const update = () => setSystemPrefersDark(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem(V2_THEME_STORAGE_KEY, themeMode)
+  }, [themeMode])
+
+  useEffect(() => {
+    document.documentElement.dataset.phloV2Route = 'true'
+    document.documentElement.dataset.phloV2Theme = resolvedTheme
+    document.documentElement.style.colorScheme = resolvedTheme
+
+    return () => {
+      delete document.documentElement.dataset.phloV2Route
+      delete document.documentElement.dataset.phloV2Theme
+      document.documentElement.style.removeProperty('color-scheme')
+    }
+  }, [resolvedTheme])
 
   useEffect(() => {
     if (!searchOpen || query.trim().length < 2) {
@@ -62,9 +112,13 @@ export function V2Shell({ children }: { children: ReactNode }) {
   }, [query, searchOpen])
 
   return (
-    <main className="phlo-v2">
-      <div className="phlo-v2-shell">
-        <nav className="phlo-v2-nav" aria-label="Observatory v2">
+    <main
+      className="phlo-v2"
+      data-theme={resolvedTheme}
+      data-theme-mode={themeMode}
+    >
+      <div className="phlo-v2-nav-bar">
+        <nav className="phlo-v2-shell phlo-v2-nav" aria-label="Observatory v2">
           <div className="phlo-v2-brand">
             <span className="phlo-v2-mark">P</span>
             <span>Phlo Observatory</span>
@@ -92,8 +146,28 @@ export function V2Shell({ children }: { children: ReactNode }) {
               <Search className="size-3.5" />
               Search
             </button>
+            <div className="phlo-v2-theme-toggle" aria-label="Theme">
+              {themeModes.map((item) => {
+                const Icon = item.icon
+                return (
+                  <button
+                    aria-label={`${item.label} theme`}
+                    aria-pressed={themeMode === item.mode}
+                    data-active={themeMode === item.mode}
+                    key={item.mode}
+                    onClick={() => setThemeMode(item.mode)}
+                    title={`${item.label} theme`}
+                    type="button"
+                  >
+                    <Icon className="size-3.5" />
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </nav>
+      </div>
+      <div className="phlo-v2-shell phlo-v2-body">
         {searchOpen && (
           <div className="phlo-v2-search-popover">
             <label className="phlo-v2-search-field">

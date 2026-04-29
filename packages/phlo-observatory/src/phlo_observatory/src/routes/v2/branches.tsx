@@ -79,8 +79,7 @@ function Branches() {
           <div className="phlo-v2-inspector-label">Change controls</div>
           <h2>{selected?.name ?? 'No branch selected'}</h2>
           <p>
-            Compare, merge, and delete flows stay guarded behind phlo-api
-            operations.
+            Compare, merge, and delete flows stay guarded by Phlo operations.
           </p>
           <div className="phlo-v2-action-row">
             <button type="button">

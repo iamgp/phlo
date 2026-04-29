@@ -60,8 +60,8 @@ function Operations() {
   return (
     <V2Page
       kicker="Operations"
-      title="Recovery history and next moves."
-      description="Maintenance, guarded actions, and service-impacting work from phlo-api."
+      title="Recovery history"
+      description="Maintenance status, guarded actions, and service-impacting work."
       action={
         <span className="phlo-v2-pill">{operations.length} operations</span>
       }
@@ -111,7 +111,7 @@ function Operations() {
             ))}
             {operations.length === 0 && (
               <div className="phlo-v2-empty-state">
-                No operations recorded by phlo-api v2.
+                No operations recorded yet.
               </div>
             )}
           </div>

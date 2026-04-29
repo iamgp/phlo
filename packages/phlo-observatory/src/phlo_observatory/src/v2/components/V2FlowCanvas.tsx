@@ -192,21 +192,28 @@ export function V2FlowCanvas({
 
   return (
     <div className="phlo-v2-flow-canvas">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onNodeClick={handleNodeClick}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        fitView
-        fitViewOptions={{ padding: 0.22 }}
-        minZoom={0.15}
-        maxZoom={1.8}
-      >
-        <Background color="var(--v2-sheet-border)" gap={20} />
-        <Controls className="phlo-v2-flow-controls" />
-      </ReactFlow>
+      {nodes.length > 0 ? (
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          onNodeClick={handleNodeClick}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          fitView
+          fitViewOptions={{ padding: 0.24, maxZoom: 0.9 }}
+          minZoom={0.15}
+          maxZoom={1.8}
+        >
+          <Background color="var(--v2-sheet-border)" gap={20} />
+          <Controls className="phlo-v2-flow-controls" />
+        </ReactFlow>
+      ) : (
+        <div className="phlo-v2-flow-empty">
+          <Database className="size-4" />
+          <span>No graph nodes yet</span>
+        </div>
+      )}
     </div>
   )
 }

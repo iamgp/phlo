@@ -57,7 +57,7 @@ function Services() {
   return (
     <V2Page
       kicker="Services"
-      title="Service Hub"
+      title="Service hub"
       description="Runtime status, impact, links, and guarded service actions."
       action={<span className="phlo-v2-pill">{counts.total} services</span>}
     >

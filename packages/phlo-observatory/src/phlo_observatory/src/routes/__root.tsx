@@ -32,6 +32,7 @@ import {
 import { ObservatoryExtensionProvider } from '@/extensions/registry'
 import { cn } from '@/lib/utils'
 import { getSearchIndex } from '@/server/search.server'
+import { V2_THEME_STORAGE_KEY } from '@/v2/shell/theme'
 
 const { useEffect, useState } = React
 
@@ -73,6 +74,16 @@ export const Route = createRootRoute({
 })
 
 const THEME_STORAGE_KEY = 'phlo-observatory-theme'
+const V2_THEME_BOOTSTRAP = `;(() => {
+  try {
+    var mode = window.localStorage.getItem('${V2_THEME_STORAGE_KEY}');
+    var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var dark = mode === 'dark' || (mode !== 'light' && systemDark);
+    document.documentElement.dataset.phloV2Route = 'true';
+    document.documentElement.dataset.phloV2Theme = dark ? 'dark' : 'light';
+    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+  } catch (_) {}
+})();`
 
 function RootLayout() {
   return (
@@ -92,9 +103,13 @@ function RootLayoutGate() {
     return (
       <html lang="en" className="" suppressHydrationWarning>
         <head>
+          <script
+            dangerouslySetInnerHTML={{ __html: V2_THEME_BOOTSTRAP }}
+            suppressHydrationWarning
+          />
           <HeadContent />
         </head>
-        <body className="min-h-svh bg-background text-foreground">
+        <body className="phlo-v2-document min-h-svh bg-background text-foreground">
           <Outlet />
           <Toaster />
           <TanStackDevtools

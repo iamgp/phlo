@@ -32,7 +32,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
   return (
     <V2Page
       action={<span className="phlo-v2-pill">{table?.branch ?? 'main'}</span>}
-      description="Shareable v2 table detail, preview metadata, and row-journey entry point."
+      description="Table detail, preview metadata, and row-journey entry point."
       kicker="Table"
       title={
         table?.namespace
@@ -86,7 +86,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
               />
               <Mini
                 label="Row journey"
-                value="Waiting for provider-neutral row identity in phlo-api v2"
+                value="Waiting for stable row identity"
               />
             </div>
           </aside>

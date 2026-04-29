@@ -75,11 +75,10 @@ export function OverviewRoute() {
     <div className="phlo-v2-content">
       <header className="phlo-v2-section-header">
         <div>
-          <div className="phlo-v2-kicker">Lakehouse control plane</div>
-          <h1 className="phlo-v2-title">Your lakehouse, ready to operate.</h1>
+          <div className="phlo-v2-kicker">Overview</div>
+          <h1 className="phlo-v2-title">Lakehouse control</h1>
           <p className="phlo-v2-subtitle">
-            Monitor platform health, understand service impact, and take the
-            next operational step from one calm workspace.
+            Platform health, service impact, and the next operational move.
           </p>
         </div>
         <StatusBadge
@@ -106,13 +105,13 @@ export function OverviewRoute() {
         <MetricTile
           icon={<Boxes className="size-4" />}
           label="Assets"
-          note="Provider-neutral resource count"
+          note="Resources in view"
           value={counterValue(counters.assets)}
         />
         <MetricTile
           icon={<Database className="size-4" />}
           label="Tables"
-          note="Available through phlo-api"
+          note="Queryable inventory"
           value={counterValue(counters.tables)}
         />
       </section>
@@ -123,7 +122,7 @@ export function OverviewRoute() {
             <h2 className="phlo-v2-panel-title">Services</h2>
             <span className="phlo-v2-pill">
               <Activity className="size-3.5" />
-              {serviceRows.length ? 'Live from phlo-api' : 'Waiting'}
+              {serviceRows.length ? 'Live' : 'Waiting'}
             </span>
           </div>
           <div className="phlo-v2-list">
@@ -141,11 +140,11 @@ export function OverviewRoute() {
           <div className="phlo-v2-callout">
             <div className="phlo-v2-callout-title">
               <CheckCircle2 className="size-4" />
-              Operator view
+              Impact model
             </div>
             <p className="phlo-v2-callout-body">
-              Service relationships, status, and impact signals are gathered
-              into one place so recovery work starts with context.
+              Service relationships and status signals stay visible while you
+              decide what to inspect next.
             </p>
           </div>
 
@@ -227,7 +226,7 @@ function EmptyRow({ label }: { label: string }) {
       <div className="phlo-v2-row-main">
         <div className="phlo-v2-row-title">{label}</div>
         <div className="phlo-v2-row-meta">
-          Start phlo-api or add v2 resources to populate this surface.
+          Connect a running lakehouse or add resources to populate this surface.
         </div>
       </div>
     </div>

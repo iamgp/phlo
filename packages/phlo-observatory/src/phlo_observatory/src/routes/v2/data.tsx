@@ -55,8 +55,8 @@ function Data() {
   return (
     <V2Page
       kicker="Data"
-      title="Tables, branches, and schemas."
-      description="Browse the lakehouse inventory exposed by phlo-api v2."
+      title="Table browser"
+      description="Browse tables, branches, schemas, and row-journey entry points."
       action={
         <span className="phlo-v2-pill">{namespaces.size} namespaces</span>
       }
@@ -112,7 +112,7 @@ function Data() {
             ))}
             {tables.length === 0 && (
               <div className="phlo-v2-empty-state">
-                No tables registered by phlo-api v2.
+                No tables registered yet.
               </div>
             )}
           </div>
@@ -231,7 +231,7 @@ function DataDetailPanel({
         <div className="phlo-v2-action-row">
           <button
             disabled
-            title="Query execution requires a v2 phlo-api query contract."
+            title="Query execution requires a safe query contract."
             type="button"
           >
             <Play className="size-3.5" />
@@ -239,7 +239,7 @@ function DataDetailPanel({
           </button>
           <button
             disabled
-            title="Saved queries require a v2 phlo-api persistence contract."
+            title="Saved queries require a persistence contract."
             type="button"
           >
             <Save className="size-3.5" />
@@ -259,9 +259,7 @@ function DataDetailPanel({
         </div>
         <div className="phlo-v2-mini-row">
           <span>Row journey</span>
-          <small>
-            Waiting for provider-neutral row identity in phlo-api v2
-          </small>
+          <small>Waiting for stable row identity</small>
         </div>
         <div className="phlo-v2-mini-row">
           <span>Branch</span>

@@ -25,8 +25,8 @@ function SettingsRoute() {
   return (
     <V2Page
       kicker="Settings"
-      title="Control-plane preferences."
-      description="Manage Observatory behavior without exposing provider implementation URLs."
+      title="Control-plane preferences"
+      description="Manage Observatory behavior without provider implementation URLs."
       action={
         <span className="phlo-v2-pill">
           <Settings className="size-3.5" />
@@ -64,7 +64,7 @@ function SettingsRoute() {
                   No preferences returned yet
                 </div>
                 <div className="phlo-v2-row-meta">
-                  phlo-api will provide operator-safe settings here.
+                  Operator-safe settings will appear here.
                 </div>
               </div>
             </div>
@@ -73,7 +73,7 @@ function SettingsRoute() {
         <div className="phlo-v2-action-row phlo-v2-settings-actions">
           <button
             disabled
-            title="Saving settings requires a provider-neutral phlo-api write contract."
+            title="Saving settings requires a safe write contract."
             type="button"
           >
             <Save className="size-3.5" />
@@ -81,7 +81,7 @@ function SettingsRoute() {
           </button>
           <button
             disabled
-            title="Resetting settings requires a provider-neutral phlo-api write contract."
+            title="Resetting settings requires a safe write contract."
             type="button"
           >
             <RotateCcw className="size-3.5" />

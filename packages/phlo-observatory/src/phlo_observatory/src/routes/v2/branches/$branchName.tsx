@@ -35,7 +35,7 @@ export function BranchDetailView({ branchName }: { branchName: string }) {
           {detail?.branch.current ? 'current' : 'branch'}
         </span>
       }
-      description="Shareable v2 branch detail from phlo-api."
+      description="Branch contents, commits, and change impact."
       kicker="Branch"
       title={detail?.branch.name ?? branchName}
     >
@@ -66,7 +66,7 @@ export function BranchDetailView({ branchName }: { branchName: string }) {
           <aside className="phlo-v2-inspector">
             <div className="phlo-v2-inspector-label">Change impact</div>
             <h2>{detail.branch.name}</h2>
-            <p>Provider-neutral branch state and compare summary.</p>
+            <p>Branch state and compare summary.</p>
             <div className="phlo-v2-detail-list">
               <Mini
                 icon={<GitBranch className="size-3.5" />}
