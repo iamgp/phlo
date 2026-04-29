@@ -1,0 +1,242 @@
+export type V2HealthState = 'ok' | 'warning' | 'error' | 'unknown'
+
+export type V2ServiceStatus =
+  | 'running'
+  | 'stopped'
+  | 'unhealthy'
+  | 'starting'
+  | 'unknown'
+
+export interface V2Health {
+  state: V2HealthState
+  message?: string | null
+}
+
+export interface V2ExternalLink {
+  label: string
+  url: string
+  kind: string
+}
+
+export interface V2ResourceRef {
+  kind: string
+  id: string
+  label: string
+}
+
+export interface V2Action {
+  id: string
+  label: string
+  kind: string
+  enabled: boolean
+  requires_confirmation: boolean
+  reason?: string | null
+}
+
+export interface V2Service {
+  id: string
+  name: string
+  kind: string
+  status: V2ServiceStatus
+  health: V2Health
+  depends_on: Array<string>
+  impacts: Array<string>
+  links: Array<V2ExternalLink>
+  metadata: Record<string, unknown>
+}
+
+export interface V2ServiceDetail {
+  service: V2Service
+  dependencies: Array<V2Service>
+  dependents: Array<V2Service>
+  actions: Array<V2Action>
+  logs: Array<V2LogEvent>
+}
+
+export interface V2Overview {
+  health: V2Health
+  counters: Record<string, number>
+  recent: Array<V2ResourceRef>
+}
+
+export interface V2ResourceItem {
+  id: string
+  name: string
+  kind: string
+  health?: V2Health | null
+  status?: string | null
+  summary?: string | null
+  updated_at?: string | null
+  links?: Array<V2ExternalLink>
+  metadata: Record<string, unknown>
+}
+
+export interface V2ResourceCollection {
+  items: Array<V2ResourceItem>
+}
+
+export interface V2Operation {
+  id: string
+  name: string
+  kind: string
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'unknown'
+  health: V2Health
+  target?: V2ResourceRef | null
+  started_at?: string | null
+  completed_at?: string | null
+  duration_seconds?: number | null
+  metadata: Record<string, unknown>
+}
+
+export interface V2OperationDetail {
+  operation: V2Operation
+  related: Array<V2ResourceRef>
+  logs: Array<V2LogEvent>
+  actions: Array<V2Action>
+}
+
+export interface V2Asset {
+  id: string
+  name: string
+  group?: string | null
+  description?: string | null
+  kinds: Array<string>
+  dependencies: Array<string>
+  resources: Array<string>
+  checks: Array<string>
+  metadata: Record<string, unknown>
+}
+
+export interface V2AssetDetail {
+  asset: V2Asset
+  upstream: Array<V2Asset>
+  downstream: Array<V2Asset>
+  tables: Array<V2Table>
+  quality: Array<V2QualityCheck>
+  logs: Array<V2LogEvent>
+  operations: Array<V2Operation>
+}
+
+export interface V2Table {
+  id: string
+  name: string
+  namespace?: string | null
+  asset_id?: string | null
+  format?: string | null
+  branch?: string | null
+  schema_name?: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface V2TablePreview {
+  table: V2Table
+  columns: Array<string>
+  rows: Array<Record<string, unknown>>
+  row_count?: number | null
+  limit: number
+  offset: number
+  has_more: boolean
+}
+
+export interface V2QualityCheck {
+  id: string
+  name: string
+  asset_id: string
+  status: 'passing' | 'failing' | 'warning' | 'unknown'
+  severity?: string | null
+  blocking: boolean
+  description?: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface V2QualityDetail {
+  check: V2QualityCheck
+  asset?: V2Asset | null
+  history: Array<V2Operation>
+  logs: Array<V2LogEvent>
+  actions: Array<V2Action>
+}
+
+export interface V2LogEvent {
+  id: string
+  timestamp?: string | null
+  level: string
+  message: string
+  source?: string | null
+  resource?: V2ResourceRef | null
+  metadata: Record<string, unknown>
+}
+
+export interface V2LogFacets {
+  sources: Array<string>
+  levels: Array<string>
+  resources: Array<V2ResourceRef>
+}
+
+export interface V2Branch {
+  id: string
+  name: string
+  current: boolean
+  protected: boolean
+  metadata: Record<string, unknown>
+}
+
+export interface V2BranchDetail {
+  branch: V2Branch
+  contents: Array<V2ResourceRef>
+  commits: Array<V2Operation>
+  compare: Record<string, number>
+}
+
+export interface V2Extension {
+  id: string
+  name: string
+  version?: string | null
+  enabled: boolean
+  routes: Array<string>
+  nav: Array<string>
+  settings_scope?: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface V2ExtensionDetail {
+  extension: V2Extension
+  routes: Array<string>
+  nav: Array<string>
+  capabilities: Array<V2ResourceRef>
+}
+
+export interface V2Setting {
+  id: string
+  label: string
+  value: string | boolean | number | null
+  kind: string
+  description?: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface V2Settings {
+  items: Array<V2Setting>
+}
+
+export interface V2ApiSettings {
+  version: number
+  defaults: Record<string, string>
+  features: Record<string, boolean>
+  storage: Record<string, string>
+  metadata: Record<string, unknown>
+}
+
+export interface V2SearchResult {
+  id: string
+  label: string
+  kind: string
+  summary?: string | null
+  href?: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface V2ResourceResult<T> {
+  data: T | null
+  error: string | null
+}

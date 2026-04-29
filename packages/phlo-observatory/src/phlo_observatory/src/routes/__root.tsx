@@ -6,6 +6,7 @@ import {
   Outlet,
   Scripts,
   createRootRoute,
+  useRouterState,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { Search } from 'lucide-react'
@@ -76,16 +77,51 @@ const THEME_STORAGE_KEY = 'phlo-observatory-theme'
 function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ObservatorySettingsProvider>
-        <ObservatoryExtensionProvider>
-          <RootLayoutInner />
-        </ObservatoryExtensionProvider>
-      </ObservatorySettingsProvider>
+      <RootLayoutGate />
     </QueryClientProvider>
   )
 }
 
-function RootLayoutInner() {
+function RootLayoutGate() {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const isV2Route = pathname.startsWith('/v2')
+
+  if (isV2Route) {
+    return (
+      <html lang="en" className="" suppressHydrationWarning>
+        <head>
+          <HeadContent />
+        </head>
+        <body className="min-h-svh bg-background text-foreground">
+          <Outlet />
+          <Toaster />
+          <TanStackDevtools
+            config={{ position: 'bottom-right' }}
+            plugins={[
+              {
+                name: 'TanStack Router',
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+            ]}
+          />
+          <Scripts />
+        </body>
+      </html>
+    )
+  }
+
+  return (
+    <ObservatorySettingsProvider>
+      <ObservatoryExtensionProvider>
+        <LegacyRootLayout />
+      </ObservatoryExtensionProvider>
+    </ObservatorySettingsProvider>
+  )
+}
+
+function LegacyRootLayout() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [searchIndex, setSearchIndex] = useState<SearchIndex | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('system')

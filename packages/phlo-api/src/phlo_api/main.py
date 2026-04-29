@@ -72,6 +72,7 @@ _ROUTERS = [
     ("phlo_api.api.maintenance", "/api/maintenance"),
     ("phlo_api.observatory_api.search", "/api/search"),
     ("phlo_api.api.observability", "/api/observability"),
+    ("phlo_api.observatory_api.v2", "/api/observatory/v2"),
 ]
 
 _OBSERVATORY_ROUTERS_NO_PREFIX = [
