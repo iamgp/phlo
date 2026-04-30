@@ -50,8 +50,8 @@ function Logs() {
     >
       <section className="phlo-v2-log-shell">
         <div className="phlo-v2-log-console">
-          <div className="phlo-v2-console-toolbar">
-            <span>
+          <div className="phlo-v2-console-toolbar phlo-v2-log-toolbar">
+            <span className="phlo-v2-log-toolbar-title">
               <Terminal className="size-4" />
               Live tail
             </span>

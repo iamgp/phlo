@@ -112,15 +112,6 @@ function RootLayoutGate() {
         <body className="phlo-v2-document min-h-svh bg-background text-foreground">
           <Outlet />
           <Toaster />
-          <TanStackDevtools
-            config={{ position: 'bottom-right' }}
-            plugins={[
-              {
-                name: 'TanStack Router',
-                render: <TanStackRouterDevtoolsPanel />,
-              },
-            ]}
-          />
           <Scripts />
         </body>
       </html>

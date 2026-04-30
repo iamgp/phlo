@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import type {
+  V2ActionResult,
   V2ApiSettings,
   V2Asset,
   V2AssetDetail,
@@ -13,17 +14,21 @@ import type {
   V2Overview,
   V2QualityCheck,
   V2QualityDetail,
+  V2QueryResult,
   V2ResourceCollection,
   V2ResourceItem,
   V2ResourceResult,
+  V2RowJourney,
+  V2SavedQuery,
   V2SearchResult,
   V2Service,
   V2ServiceDetail,
   V2Settings,
+  V2StageDiff,
   V2Table,
   V2TablePreview,
 } from './types'
-import { apiGet } from '@/server/phlo-api'
+import { apiGet, apiPost } from '@/server/phlo-api'
 
 const V2_API_PREFIX = '/api/observatory/v2'
 
@@ -196,6 +201,113 @@ export const getV2TablePreview = createServerFn()
     },
   )
 
+export const runV2Query = createServerFn()
+  .inputValidator(
+    (input: {
+      sql: string
+      branch?: string
+      limit?: number
+      offset?: number
+    }) => input,
+  )
+  .handler(
+    async ({
+      data: { sql, branch, limit = 100, offset = 0 },
+    }): Promise<V2ResourceResult<V2QueryResult>> => {
+      try {
+        const data = await apiPost<V2QueryResult>(
+          `${V2_API_PREFIX}/query`,
+          { sql, branch, limit, offset },
+          12000,
+        )
+        return { data, error: null }
+      } catch (error) {
+        return apiUnavailable<V2QueryResult>(error)
+      }
+    },
+  )
+
+export const getV2SavedQueries = createServerFn().handler(
+  async (): Promise<V2ResourceResult<Array<V2SavedQuery>>> => {
+    try {
+      const response = await apiGet<{ items: Array<V2SavedQuery> }>(
+        `${V2_API_PREFIX}/saved-queries`,
+        undefined,
+        8000,
+      )
+      return { data: response.items, error: null }
+    } catch (error) {
+      return apiUnavailable<Array<V2SavedQuery>>(error)
+    }
+  },
+)
+
+export const saveV2Query = createServerFn()
+  .inputValidator(
+    (input: {
+      name: string
+      sql: string
+      branch?: string
+      metadata?: Record<string, unknown>
+    }) => input,
+  )
+  .handler(
+    async ({
+      data: { name, sql, branch, metadata = {} },
+    }): Promise<V2ResourceResult<V2SavedQuery>> => {
+      try {
+        const data = await apiPost<V2SavedQuery>(
+          `${V2_API_PREFIX}/saved-queries`,
+          { name, sql, branch, metadata },
+          8000,
+        )
+        return { data, error: null }
+      } catch (error) {
+        return apiUnavailable<V2SavedQuery>(error)
+      }
+    },
+  )
+
+export const getV2StageDiff = createServerFn()
+  .inputValidator(
+    (input: { sourceTableId: string; targetTableId: string }) => input,
+  )
+  .handler(
+    async ({
+      data: { sourceTableId, targetTableId },
+    }): Promise<V2ResourceResult<V2StageDiff>> => {
+      try {
+        const data = await apiGet<V2StageDiff>(
+          `${V2_API_PREFIX}/stage-diff`,
+          { source_table_id: sourceTableId, target_table_id: targetTableId },
+          8000,
+        )
+        return { data, error: null }
+      } catch (error) {
+        return apiUnavailable<V2StageDiff>(error)
+      }
+    },
+  )
+
+export const getV2RowJourney = createServerFn()
+  .inputValidator((input: { tableId: string; rowId: string }) => input)
+  .handler(
+    async ({
+      data: { tableId, rowId },
+    }): Promise<V2ResourceResult<V2RowJourney>> => {
+      try {
+        const data = await apiGet<V2RowJourney>(
+          `${V2_API_PREFIX}/row-journey/${encodeURIComponent(tableId)}/${encodeURIComponent(rowId)}`,
+          undefined,
+          8000,
+        )
+        return { data, error: null }
+      } catch (error) {
+        return apiUnavailable<V2RowJourney>(error)
+      }
+    },
+  )
+
 export const getV2Quality = createServerFn().handler(() =>
   getCollection('quality'),
 )
@@ -320,6 +432,44 @@ export const searchV2 = createServerFn()
         return { data: response.items, error: null }
       } catch (error) {
         return apiUnavailable<Array<V2SearchResult>>(error)
+      }
+    },
+  )
+
+export const runV2Action = createServerFn()
+  .inputValidator((input: { actionId: string }) => input)
+  .handler(
+    async ({
+      data: { actionId },
+    }): Promise<V2ResourceResult<V2ActionResult>> => {
+      try {
+        const data = await apiPost<V2ActionResult>(
+          `${V2_API_PREFIX}/actions`,
+          { action_id: actionId },
+          130000,
+        )
+        return { data, error: null }
+      } catch (error) {
+        return apiUnavailable<V2ActionResult>(error)
+      }
+    },
+  )
+
+export const runV2BranchAction = createServerFn()
+  .inputValidator((input: { actionId: string }) => input)
+  .handler(
+    async ({
+      data: { actionId },
+    }): Promise<V2ResourceResult<V2ActionResult>> => {
+      try {
+        const data = await apiPost<V2ActionResult>(
+          `${V2_API_PREFIX}/branches/actions`,
+          { action_id: actionId },
+          12000,
+        )
+        return { data, error: null }
+      } catch (error) {
+        return apiUnavailable<V2ActionResult>(error)
       }
     },
   )

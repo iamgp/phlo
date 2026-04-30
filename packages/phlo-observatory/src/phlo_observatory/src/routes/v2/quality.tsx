@@ -155,7 +155,7 @@ function Quality() {
                   <small>
                     {detail.data?.asset?.description ??
                       detail.data?.asset?.group ??
-                      'pending'}
+                      'No linked asset detail returned'}
                   </small>
                 </div>
                 <div className="phlo-v2-mini-row">

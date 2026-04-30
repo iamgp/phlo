@@ -2,16 +2,34 @@ import {
   Activity,
   AlertCircle,
   Boxes,
-  CheckCircle2,
-  Clock3,
   Database,
+  GitBranch,
+  ListChecks,
   Server,
 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import type { V2Overview, V2ResourceResult, V2Service } from '@/v2/api/types'
-import { getV2Overview, getV2Services } from '@/v2/api/resources'
+import type {
+  V2Asset,
+  V2Branch,
+  V2LogEvent,
+  V2Operation,
+  V2Overview,
+  V2QualityCheck,
+  V2ResourceResult,
+  V2Service,
+} from '@/v2/api/types'
+import {
+  getV2AssetRecords,
+  getV2Branches,
+  getV2LogRecords,
+  getV2OperationRecords,
+  getV2Overview,
+  getV2QualityRecords,
+  getV2Services,
+} from '@/v2/api/resources'
 import { StatusBadge } from '@/v2/components/StatusBadge'
 
 const formatter = new Intl.NumberFormat('en')
@@ -25,20 +43,62 @@ export function OverviewRoute() {
     data: null,
     error: null,
   })
+  const [operations, setOperations] = useState<
+    V2ResourceResult<Array<V2Operation>>
+  >({
+    data: null,
+    error: null,
+  })
+  const [assets, setAssets] = useState<V2ResourceResult<Array<V2Asset>>>({
+    data: null,
+    error: null,
+  })
+  const [quality, setQuality] = useState<
+    V2ResourceResult<Array<V2QualityCheck>>
+  >({
+    data: null,
+    error: null,
+  })
+  const [logs, setLogs] = useState<V2ResourceResult<Array<V2LogEvent>>>({
+    data: null,
+    error: null,
+  })
+  const [branches, setBranches] = useState<V2ResourceResult<Array<V2Branch>>>({
+    data: null,
+    error: null,
+  })
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
-      const [nextOverview, nextServices] = await Promise.all([
+      const [
+        nextOverview,
+        nextServices,
+        nextOperations,
+        nextAssets,
+        nextQuality,
+        nextLogs,
+        nextBranches,
+      ] = await Promise.all([
         getV2Overview(),
         getV2Services(),
+        getV2OperationRecords(),
+        getV2AssetRecords(),
+        getV2QualityRecords(),
+        getV2LogRecords(),
+        getV2Branches(),
       ])
 
       if (!cancelled) {
         setOverview(nextOverview)
         setServices(nextServices)
+        setOperations(nextOperations)
+        setAssets(nextAssets)
+        setQuality(nextQuality)
+        setLogs(nextLogs)
+        setBranches(nextBranches)
         setUpdatedAt(new Date())
       }
     }
@@ -53,6 +113,11 @@ export function OverviewRoute() {
   }, [])
 
   const serviceRows = services.data ?? []
+  const operationRows = operations.data ?? []
+  const assetRows = assets.data ?? []
+  const qualityRows = quality.data ?? []
+  const logRows = logs.data ?? []
+  const branchRows = branches.data ?? []
   const counters = overview.data?.counters ?? {}
   const runningServices = useMemo(
     () => serviceRows.filter((service) => service.status === 'running').length,
@@ -69,7 +134,27 @@ export function OverviewRoute() {
       ).length,
     [serviceRows],
   )
-  const apiError = overview.error ?? services.error
+  const blockingChecks = qualityRows.filter((check) => check.blocking).length
+  const failedOperations = operationRows.filter(
+    (operation) => operation.status === 'failed',
+  ).length
+  const activeBranches = branchRows.filter((branch) => !branch.current).length
+  const errorLogs = logRows.filter((log) => log.level === 'error').length
+  const attentionItems = buildAttentionItems({
+    services: serviceRows,
+    operations: operationRows,
+    quality: qualityRows,
+    logs: logRows,
+  })
+  const recentEvidence = logRows.slice(0, 4)
+  const apiError =
+    overview.error ??
+    services.error ??
+    operations.error ??
+    assets.error ??
+    quality.error ??
+    logs.error ??
+    branches.error
 
   return (
     <div className="phlo-v2-content">
@@ -78,7 +163,8 @@ export function OverviewRoute() {
           <div className="phlo-v2-kicker">Overview</div>
           <h1 className="phlo-v2-title">Lakehouse control</h1>
           <p className="phlo-v2-subtitle">
-            Platform health, service impact, and the next operational move.
+            The cross-domain queue: what needs attention, why it matters, and
+            where to move next.
           </p>
         </div>
         <StatusBadge
@@ -98,9 +184,12 @@ export function OverviewRoute() {
         />
         <MetricTile
           icon={<AlertCircle className="size-4" />}
-          label="Needs Attention"
-          note="Service or health warnings"
-          value={counterValue(counters.incidents, attentionServices)}
+          label="Attention"
+          note="Services, checks, operations, logs"
+          value={counterValue(
+            counters.incidents,
+            attentionServices + blockingChecks + failedOperations + errorLogs,
+          )}
         />
         <MetricTile
           icon={<Boxes className="size-4" />}
@@ -109,66 +198,109 @@ export function OverviewRoute() {
           value={counterValue(counters.assets)}
         />
         <MetricTile
-          icon={<Database className="size-4" />}
-          label="Tables"
-          note="Queryable inventory"
-          value={counterValue(counters.tables)}
+          icon={<GitBranch className="size-4" />}
+          label="Change Risk"
+          note="Non-current catalog branches"
+          value={formatter.format(activeBranches)}
         />
       </section>
 
-      <section className="phlo-v2-split">
-        <div className="phlo-v2-panel">
-          <div className="phlo-v2-panel-header">
-            <h2 className="phlo-v2-panel-title">Services</h2>
-            <span className="phlo-v2-pill">
-              <Activity className="size-3.5" />
-              {serviceRows.length ? 'Live' : 'Waiting'}
-            </span>
+      <section className="phlo-v2-command">
+        <div className="phlo-v2-command-primary">
+          <div className="phlo-v2-panel">
+            <div className="phlo-v2-panel-header">
+              <h2 className="phlo-v2-panel-title">Attention queue</h2>
+              <span className="phlo-v2-pill">
+                <Activity className="size-3.5" />
+                {attentionItems.length || 'Clear'}
+              </span>
+            </div>
+            <div className="phlo-v2-list">
+              {attentionItems.length > 0 ? (
+                attentionItems.map((item) => (
+                  <Link className="phlo-v2-row" key={item.id} to={item.href}>
+                    <div className="phlo-v2-row-main">
+                      <div className="phlo-v2-row-title">
+                        <span className="phlo-v2-dot" data-state={item.state} />
+                        <span>{item.label}</span>
+                      </div>
+                      <div className="phlo-v2-row-meta">{item.meta}</div>
+                    </div>
+                    <span className="phlo-v2-pill">{item.kind}</span>
+                  </Link>
+                ))
+              ) : (
+                <EmptyRow label="No active attention items" />
+              )}
+            </div>
           </div>
-          <div className="phlo-v2-list">
-            {serviceRows.length > 0 ? (
-              serviceRows.map((service) => (
-                <ServiceRow key={service.id} service={service} />
-              ))
-            ) : (
-              <EmptyRow label="No services returned yet" />
-            )}
-          </div>
+
+          <section className="phlo-v2-diff-metrics">
+            <CommandTile
+              href="/v2/quality"
+              icon={<ListChecks className="size-5" />}
+              label="Triage quality"
+              value={`${blockingChecks} blocking`}
+            />
+            <CommandTile
+              href="/v2/operations"
+              icon={<Activity className="size-5" />}
+              label="Review recovery"
+              value={`${failedOperations} failed`}
+            />
+            <CommandTile
+              href="/v2/assets"
+              icon={<Boxes className="size-5" />}
+              label="Inspect impact"
+              value={`${assetRows.length} assets`}
+            />
+            <CommandTile
+              href="/v2/branches"
+              icon={<GitBranch className="size-5" />}
+              label="Check changes"
+              value={`${activeBranches} active`}
+            />
+          </section>
         </div>
 
-        <aside>
-          <div className="phlo-v2-callout">
-            <div className="phlo-v2-callout-title">
-              <CheckCircle2 className="size-4" />
-              Impact model
-            </div>
-            <p className="phlo-v2-callout-body">
-              Service relationships and status signals stay visible while you
-              decide what to inspect next.
-            </p>
-          </div>
-
-          <div className="phlo-v2-callout">
-            <div className="phlo-v2-callout-title">
-              <Clock3 className="size-4" />
-              Refresh cadence
-            </div>
-            <p className="phlo-v2-callout-body">
-              {updatedAt
-                ? `Last refreshed ${updatedAt.toLocaleTimeString()}`
-                : 'Loading the first snapshot'}
-            </p>
-          </div>
-
-          {apiError && (
-            <div className="phlo-v2-callout">
-              <div className="phlo-v2-callout-title">
-                <AlertCircle className="size-4" />
-                API not ready
+        <aside className="phlo-v2-inspector">
+          <div className="phlo-v2-inspector-label">Control context</div>
+          <h2>{overview.data?.health.message ?? 'Waiting for API snapshot'}</h2>
+          <p>
+            Last refreshed{' '}
+            {updatedAt ? updatedAt.toLocaleTimeString() : 'after first load'}.
+          </p>
+          <dl className="phlo-v2-facts">
+            <Fact
+              label="Services needing attention"
+              value={attentionServices}
+            />
+            <Fact label="Blocking checks" value={blockingChecks} />
+            <Fact label="Failed operations" value={failedOperations} />
+            <Fact label="Error logs" value={errorLogs} />
+          </dl>
+          <div className="phlo-v2-detail-list">
+            {recentEvidence.length > 0 ? (
+              recentEvidence.map((log) => (
+                <div className="phlo-v2-mini-row" key={log.id}>
+                  <span>{log.message}</span>
+                  <small>
+                    {[log.level, log.source, log.timestamp]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </small>
+                </div>
+              ))
+            ) : (
+              <div className="phlo-v2-mini-row">
+                <span>No recent evidence</span>
+                <small>
+                  Logs will appear as the API read model reports them.
+                </small>
               </div>
-              <p className="phlo-v2-callout-body">{apiError}</p>
-            </div>
-          )}
+            )}
+          </div>
+          {apiError && <div className="phlo-v2-panel-footer">{apiError}</div>}
         </aside>
       </section>
     </div>
@@ -198,25 +330,34 @@ function MetricTile({
   )
 }
 
-function ServiceRow({ service }: { service: V2Service }) {
-  const dependencyText =
-    service.depends_on.length > 0
-      ? `Depends on ${service.depends_on.join(', ')}`
-      : 'No declared dependencies'
-
+function CommandTile({
+  href,
+  icon,
+  label,
+  value,
+}: {
+  href: string
+  icon: ReactNode
+  label: string
+  value: string
+}) {
   return (
-    <div className="phlo-v2-row">
-      <div className="phlo-v2-row-main">
-        <div className="phlo-v2-row-title">
-          <span className="phlo-v2-dot" data-state={service.status} />
-          <span>{service.name}</span>
-        </div>
-        <div className="phlo-v2-row-meta">
-          {service.kind} · {dependencyText}
-        </div>
+    <Link className="phlo-v2-diff-metric" to={href}>
+      {icon}
+      <div>
+        <strong>{value}</strong>
+        <span>{label}</span>
       </div>
-      <StatusBadge label={service.status} state={service.status} />
-    </div>
+    </Link>
+  )
+}
+
+function Fact({ label, value }: { label: string; value: string | number }) {
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd>{String(value)}</dd>
+    </>
   )
 }
 
@@ -236,4 +377,69 @@ function EmptyRow({ label }: { label: string }) {
 function counterValue(primary?: number, fallback?: number): string {
   const value = primary ?? fallback
   return typeof value === 'number' ? formatter.format(value) : '--'
+}
+
+function buildAttentionItems({
+  services,
+  operations,
+  quality,
+  logs,
+}: {
+  services: Array<V2Service>
+  operations: Array<V2Operation>
+  quality: Array<V2QualityCheck>
+  logs: Array<V2LogEvent>
+}) {
+  return [
+    ...services
+      .filter(
+        (service) =>
+          service.status === 'stopped' ||
+          service.status === 'unhealthy' ||
+          service.health.state === 'warning' ||
+          service.health.state === 'error',
+      )
+      .slice(0, 3)
+      .map((service) => ({
+        id: `service:${service.id}`,
+        href: '/v2/services',
+        kind: 'service',
+        label: service.name,
+        meta: service.health.message ?? service.status,
+        state: service.health.state,
+      })),
+    ...quality
+      .filter((check) => check.blocking || check.status === 'failing')
+      .slice(0, 3)
+      .map((check) => ({
+        id: `quality:${check.id}`,
+        href: '/v2/quality',
+        kind: 'quality',
+        label: check.name,
+        meta: `${check.asset_id} · ${check.severity ?? check.status}`,
+        state: check.status === 'failing' ? 'error' : 'warning',
+      })),
+    ...operations
+      .filter((operation) => operation.status === 'failed')
+      .slice(0, 2)
+      .map((operation) => ({
+        id: `operation:${operation.id}`,
+        href: '/v2/operations',
+        kind: 'operation',
+        label: operation.name,
+        meta: operation.target?.label ?? operation.kind,
+        state: 'error',
+      })),
+    ...logs
+      .filter((log) => log.level === 'error')
+      .slice(0, 2)
+      .map((log) => ({
+        id: `log:${log.id}`,
+        href: '/v2/logs',
+        kind: 'log',
+        label: log.message,
+        meta: [log.source, log.timestamp].filter(Boolean).join(' · '),
+        state: 'error',
+      })),
+  ]
 }

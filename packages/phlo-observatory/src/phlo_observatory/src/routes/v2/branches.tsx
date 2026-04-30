@@ -1,9 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { GitBranch, GitCompare, History, Plus } from 'lucide-react'
+import { GitBranch, GitCompare, History, Plus, Table2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import type { V2BranchDetail, V2ResourceResult } from '@/v2/api/types'
-import { getV2BranchDetail, getV2Branches } from '@/v2/api/resources'
+import type {
+  V2BranchDetail,
+  V2ResourceItem,
+  V2ResourceResult,
+} from '@/v2/api/types'
+import {
+  getV2BranchDetail,
+  getV2Branches,
+  runV2BranchAction,
+} from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
 import { useLiveResource } from '@/v2/routes/liveResource'
 
@@ -13,8 +21,12 @@ export const Route = createFileRoute('/v2/branches')({
 
 function Branches() {
   const result = useLiveResource(getV2Branches)
-  const branches = result.data ?? []
+  const [createdBranches, setCreatedBranches] = useState<Array<V2ResourceItem>>(
+    [],
+  )
+  const branches = mergeBranches(result.data ?? [], createdBranches)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [activePanel, setActivePanel] = useState<BranchPanel>('contents')
   const selected =
     branches.find((branch) => branch.id === selectedId) ??
     branches.find((branch) => branch.status === 'current') ??
@@ -23,6 +35,7 @@ function Branches() {
     data: null,
     error: null,
   })
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (!selected) return
@@ -51,8 +64,46 @@ function Branches() {
               <GitBranch className="size-4" />
               Branches
             </span>
-            <button className="phlo-v2-icon-command" type="button">
+            <button
+              onClick={() => {
+                const branchName = window.prompt('New branch name')
+                if (!branchName) return
+                if (
+                  !window.confirm(
+                    `Create branch ${branchName}? This writes Observatory branch state through phlo-api.`,
+                  )
+                ) {
+                  return
+                }
+                void runV2BranchAction({
+                  data: { actionId: `branch:create:${branchName}` },
+                }).then((next) => {
+                  setActionMessage(
+                    next.data?.message ??
+                      next.error ??
+                      'Branch action completed',
+                  )
+                  if (!next.error) {
+                    setCreatedBranches((current) =>
+                      mergeBranches(current, [
+                        {
+                          id: branchName,
+                          kind: 'branch',
+                          metadata: { source: 'local' },
+                          name: branchName,
+                          status: 'branch',
+                          summary: 'Local Observatory branch state',
+                        },
+                      ]),
+                    )
+                    setSelectedId(branchName)
+                  }
+                })
+              }}
+              type="button"
+            >
               <Plus className="size-3.5" />
+              Branch
             </button>
           </div>
           {branches.map((branch) => (
@@ -79,16 +130,33 @@ function Branches() {
           <div className="phlo-v2-inspector-label">Change controls</div>
           <h2>{selected?.name ?? 'No branch selected'}</h2>
           <p>
-            Compare, merge, and delete flows stay guarded by Phlo operations.
+            Branch state, compare summary, and commit history from the catalog
+            read model.
           </p>
           <div className="phlo-v2-action-row">
-            <button type="button">
+            <button
+              data-active={activePanel === 'compare'}
+              onClick={() => setActivePanel('compare')}
+              type="button"
+            >
               <GitCompare className="size-3.5" />
               Compare
             </button>
-            <button type="button">
+            <button
+              data-active={activePanel === 'history'}
+              onClick={() => setActivePanel('history')}
+              type="button"
+            >
               <History className="size-3.5" />
               History
+            </button>
+            <button
+              data-active={activePanel === 'contents'}
+              onClick={() => setActivePanel('contents')}
+              type="button"
+            >
+              <Table2 className="size-3.5" />
+              Contents
             </button>
           </div>
           {detail.data && (
@@ -103,21 +171,14 @@ function Branches() {
                 <dt>Changed</dt>
                 <dd>{detail.data.compare.changed ?? 0}</dd>
               </dl>
-              <div className="phlo-v2-detail-list">
-                {detail.data.contents.slice(0, 6).map((entry) => (
-                  <div className="phlo-v2-mini-row" key={entry.id}>
-                    <span>{entry.label}</span>
-                    <small>{entry.kind}</small>
-                  </div>
-                ))}
-                {detail.data.contents.length === 0 && (
-                  <p>No branch contents returned yet.</p>
-                )}
-              </div>
+              <BranchPanelView active={activePanel} detail={detail.data} />
             </>
           )}
           {detail.error && (
             <div className="phlo-v2-panel-footer">{detail.error}</div>
+          )}
+          {actionMessage && (
+            <div className="phlo-v2-panel-footer">{actionMessage}</div>
           )}
           {result.error && (
             <div className="phlo-v2-panel-footer">{result.error}</div>
@@ -125,5 +186,72 @@ function Branches() {
         </aside>
       </section>
     </V2Page>
+  )
+}
+
+type BranchPanel = 'contents' | 'compare' | 'history'
+
+function mergeBranches(
+  left: Array<V2ResourceItem>,
+  right: Array<V2ResourceItem>,
+): Array<V2ResourceItem> {
+  const merged = new Map<string, V2ResourceItem>()
+  for (const branch of [...left, ...right]) {
+    merged.set(branch.id, branch)
+  }
+  return Array.from(merged.values())
+}
+
+function BranchPanelView({
+  active,
+  detail,
+}: {
+  active: BranchPanel
+  detail: V2BranchDetail
+}) {
+  if (active === 'compare') {
+    return (
+      <div className="phlo-v2-detail-list">
+        {(['added', 'changed', 'removed'] as const).map((key) => (
+          <div className="phlo-v2-mini-row" key={key}>
+            <span>{key}</span>
+            <small>{detail.compare[key] ?? 0}</small>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (active === 'history') {
+    return (
+      <div className="phlo-v2-detail-list">
+        {detail.commits.length > 0 ? (
+          detail.commits.slice(0, 8).map((commit) => (
+            <div className="phlo-v2-mini-row" key={commit.id}>
+              <span>{commit.name}</span>
+              <small>
+                {[commit.status, commit.completed_at]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </small>
+            </div>
+          ))
+        ) : (
+          <p>No commit history returned yet.</p>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="phlo-v2-detail-list">
+      {detail.contents.slice(0, 8).map((entry) => (
+        <div className="phlo-v2-mini-row" key={entry.id}>
+          <span>{entry.label}</span>
+          <small>{entry.kind}</small>
+        </div>
+      ))}
+      {detail.contents.length === 0 && <p>No branch contents returned yet.</p>}
+    </div>
   )
 }

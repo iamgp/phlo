@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { RotateCcw, Save, Settings } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import type { V2ResourceResult, V2Settings } from '@/v2/api/types'
@@ -70,23 +70,17 @@ function SettingsRoute() {
             </div>
           )}
         </div>
-        <div className="phlo-v2-action-row phlo-v2-settings-actions">
-          <button
-            disabled
-            title="Saving settings requires a safe write contract."
-            type="button"
-          >
-            <Save className="size-3.5" />
-            Save
-          </button>
-          <button
-            disabled
-            title="Resetting settings requires a safe write contract."
-            type="button"
-          >
-            <RotateCcw className="size-3.5" />
-            Reset
-          </button>
+        <div className="phlo-v2-detail-list phlo-v2-detail-list-padded">
+          <div className="phlo-v2-mini-row">
+            <span>Persistence</span>
+            <small>Read from phlo-api v2 settings</small>
+          </div>
+          <div className="phlo-v2-mini-row">
+            <span>Write controls</span>
+            <small>
+              Hidden until the API exposes a guarded settings mutation
+            </small>
+          </div>
         </div>
         {result.error && (
           <div className="phlo-v2-panel-footer">{result.error}</div>

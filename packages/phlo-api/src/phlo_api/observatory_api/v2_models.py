@@ -46,6 +46,38 @@ class V2Action(BaseModel):
     reason: str | None = None
 
 
+class V2ActionRequest(BaseModel):
+    """Request to execute a guarded Observatory action."""
+
+    action_id: str
+
+
+class V2ActionResult(BaseModel):
+    """Provider-neutral result of a guarded Observatory action."""
+
+    action: V2Action
+    status: Literal["succeeded", "failed", "skipped"]
+    message: str
+    operation: "V2Operation | None" = None
+
+
+class V2ServicePort(BaseModel):
+    """Provider-neutral service port exposure."""
+
+    name: str
+    target: str
+    published: str | None = None
+
+
+class V2ServiceConfigEntry(BaseModel):
+    """Non-secret service configuration hint."""
+
+    name: str
+    value: str | None = None
+    description: str | None = None
+    secret: bool = False
+
+
 class V2Service(BaseModel):
     """Provider-neutral service summary."""
 
@@ -68,6 +100,8 @@ class V2ServiceDetail(BaseModel):
     dependents: list[V2Service] = Field(default_factory=list)
     actions: list[V2Action] = Field(default_factory=list)
     logs: list["V2LogEvent"] = Field(default_factory=list)
+    ports: list[V2ServicePort] = Field(default_factory=list)
+    config: list[V2ServiceConfigEntry] = Field(default_factory=list)
 
 
 class V2Overview(BaseModel):
@@ -126,6 +160,9 @@ class V2AssetDetail(BaseModel):
     quality: list["V2QualityCheck"] = Field(default_factory=list)
     logs: list["V2LogEvent"] = Field(default_factory=list)
     operations: list["V2Operation"] = Field(default_factory=list)
+    lineage: list[V2ResourceRef] = Field(default_factory=list)
+    materializations: list["V2Operation"] = Field(default_factory=list)
+    column_lineage: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class V2Table(BaseModel):
@@ -156,6 +193,72 @@ class V2TablePreview(BaseModel):
     limit: int = 50
     offset: int = 0
     has_more: bool = False
+
+
+class V2QueryRequest(BaseModel):
+    """Provider-neutral read query request."""
+
+    sql: str
+    branch: str | None = None
+    limit: int = 100
+    offset: int = 0
+
+
+class V2QueryResult(BaseModel):
+    """Provider-neutral read query result."""
+
+    columns: list[str] = Field(default_factory=list)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    row_count: int | None = None
+    effective_sql: str
+    limit: int
+    offset: int = 0
+    warnings: list[str] = Field(default_factory=list)
+
+
+class V2SavedQuery(BaseModel):
+    """Persisted Observatory query."""
+
+    id: str
+    name: str
+    sql: str
+    branch: str | None = None
+    created_at: str
+    updated_at: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class V2SavedQueryRequest(BaseModel):
+    """Create or update a saved query."""
+
+    name: str
+    sql: str
+    branch: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class V2StageDiff(BaseModel):
+    """Provider-neutral table stage diff."""
+
+    source: "V2Table"
+    target: "V2Table"
+    columns: dict[str, list[str]] = Field(default_factory=dict)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    summary: dict[str, int] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class V2RowJourney(BaseModel):
+    """Provider-neutral row journey and provenance context."""
+
+    table: "V2Table"
+    row_id: str
+    row: dict[str, Any] = Field(default_factory=dict)
+    upstream: list[V2ResourceRef] = Field(default_factory=list)
+    downstream: list[V2ResourceRef] = Field(default_factory=list)
+    stages: list[V2ResourceRef] = Field(default_factory=list)
+    logs: list["V2LogEvent"] = Field(default_factory=list)
+    diff: dict[str, Any] = Field(default_factory=dict)
 
 
 class V2QualityCheck(BaseModel):
@@ -218,6 +321,7 @@ class V2BranchDetail(BaseModel):
     contents: list[V2ResourceRef] = Field(default_factory=list)
     commits: list[V2Operation] = Field(default_factory=list)
     compare: dict[str, int] = Field(default_factory=dict)
+    tables: list["V2Table"] = Field(default_factory=list)
 
 
 class V2Extension(BaseModel):

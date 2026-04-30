@@ -7,7 +7,11 @@ import type {
   V2Service,
   V2ServiceDetail,
 } from '@/v2/api/types'
-import { getV2ServiceDetail, getV2Services } from '@/v2/api/resources'
+import {
+  getV2ServiceDetail,
+  getV2Services,
+  runV2Action,
+} from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
 import { useLiveResource } from '@/v2/routes/liveResource'
 
@@ -25,6 +29,7 @@ function Services() {
     data: null,
     error: null,
   })
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
   const counts = useMemo(
     () => ({
       running: services.filter((service) => service.status === 'running')
@@ -85,9 +90,30 @@ function Services() {
         </div>
         <aside className="phlo-v2-service-detail">
           {selected ? (
-            <ServiceDetail detail={detail.data} service={selected} />
+            <ServiceDetail
+              detail={detail.data}
+              onAction={(actionId) => {
+                if (
+                  !window.confirm(
+                    `Run ${actionId}? This will call phlo-api to change a local service.`,
+                  )
+                ) {
+                  return
+                }
+                setActionMessage('Running action...')
+                void runV2Action({ data: { actionId } }).then((next) => {
+                  setActionMessage(
+                    next.data?.message ?? next.error ?? 'Action completed',
+                  )
+                })
+              }}
+              service={selected}
+            />
           ) : (
             <p>No services returned yet.</p>
+          )}
+          {actionMessage && (
+            <div className="phlo-v2-panel-footer">{actionMessage}</div>
           )}
           {detail.error && (
             <div className="phlo-v2-panel-footer">{detail.error}</div>
@@ -103,9 +129,11 @@ function Services() {
 
 function ServiceDetail({
   detail,
+  onAction,
   service,
 }: {
   detail: V2ServiceDetail | null
+  onAction: (actionId: string) => void
   service: V2Service
 }) {
   const actions = detail?.actions ?? []
@@ -125,22 +153,31 @@ function ServiceDetail({
         />
         <Fact label="Impacts" value={service.impacts.join(', ') || 'none'} />
       </dl>
-      <div className="phlo-v2-action-row">
-        {(actions.length ? actions : fallbackActions(service.id)).map(
-          (action) => (
+      {actions.length > 0 && (
+        <div className="phlo-v2-action-row">
+          {actions.map((action) => (
             <button
               disabled={!action.enabled}
               key={action.id}
+              onClick={() => onAction(action.id)}
               title={action.reason ?? undefined}
               type="button"
             >
               {iconForAction(action.kind)}
               {action.label}
             </button>
-          ),
-        )}
-      </div>
+          ))}
+        </div>
+      )}
       <div className="phlo-v2-detail-list">
+        <div className="phlo-v2-mini-row">
+          <span>Safe actions</span>
+          <small>
+            {actions.length
+              ? `${actions.filter((action) => action.enabled).length} enabled`
+              : 'No action contract exposed'}
+          </small>
+        </div>
         <div className="phlo-v2-mini-row">
           <span>Dependencies</span>
           <small>
@@ -152,6 +189,20 @@ function ServiceDetail({
           <small>
             {detail?.dependents.map((item) => item.name).join(', ') || 'none'}
           </small>
+        </div>
+        <div className="phlo-v2-mini-row">
+          <span>Ports</span>
+          <small>
+            {detail?.ports
+              .map((port) =>
+                [port.published, port.target].filter(Boolean).join(' -> '),
+              )
+              .join(', ') || 'none'}
+          </small>
+        </div>
+        <div className="phlo-v2-mini-row">
+          <span>Config</span>
+          <small>{detail?.config.length ?? 0} entries</small>
         </div>
         <div className="phlo-v2-mini-row">
           <span>Logs</span>
@@ -178,32 +229,6 @@ function ServiceDetail({
       </div>
     </>
   )
-}
-
-function fallbackActions(serviceId: string) {
-  return [
-    {
-      id: `${serviceId}:start`,
-      kind: 'service.start',
-      label: 'Start',
-      enabled: false,
-      reason: 'Action contract not loaded.',
-    },
-    {
-      id: `${serviceId}:stop`,
-      kind: 'service.stop',
-      label: 'Stop',
-      enabled: false,
-      reason: 'Action contract not loaded.',
-    },
-    {
-      id: `${serviceId}:restart`,
-      kind: 'service.restart',
-      label: 'Restart',
-      enabled: false,
-      reason: 'Action contract not loaded.',
-    },
-  ]
 }
 
 function iconForAction(kind: string) {

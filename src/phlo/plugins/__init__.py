@@ -150,26 +150,6 @@ from phlo.plugins.base import (
     TransformationPlugin,
 )
 from phlo.plugins.hooks import FailurePolicy, HookFilter, HookHandler, HookPlugin, HookProvider
-from phlo.plugins.observatory import (
-    ObservatoryExtensionCompatibility,
-    ObservatoryExtensionManifest,
-    ObservatoryExtensionNavItem,
-    ObservatoryExtensionPlugin,
-    ObservatoryExtensionRoute,
-    ObservatoryExtensionSettings,
-    ObservatoryExtensionSettingsPanel,
-    ObservatoryExtensionSlot,
-    ObservatoryExtensionUI,
-    discover_observatory_extensions,
-    get_observatory_extension,
-)
-from phlo.plugins.observatory_settings import (
-    SettingsRecord,
-    SettingsScope,
-    SettingsService,
-    get_settings_service,
-)
-from phlo.plugins.semantic import SemanticLayerProvider, SemanticModel
 
 if TYPE_CHECKING:
     from phlo.plugins.discovery import (
@@ -187,6 +167,26 @@ if TYPE_CHECKING:
         list_plugins,
         validate_plugins,
     )
+    from phlo.plugins.observatory import (
+        ObservatoryExtensionCompatibility,
+        ObservatoryExtensionManifest,
+        ObservatoryExtensionNavItem,
+        ObservatoryExtensionPlugin,
+        ObservatoryExtensionRoute,
+        ObservatoryExtensionSettings,
+        ObservatoryExtensionSettingsPanel,
+        ObservatoryExtensionSlot,
+        ObservatoryExtensionUI,
+        discover_observatory_extensions,
+        get_observatory_extension,
+    )
+    from phlo.plugins.observatory_settings import (
+        SettingsRecord,
+        SettingsScope,
+        SettingsService,
+        get_settings_service,
+    )
+    from phlo.plugins.semantic import SemanticLayerProvider, SemanticModel
 
 
 # Import discovery functions lazily to avoid circular imports.
@@ -209,6 +209,26 @@ _LAZY_DISCOVERY_EXPORTS = frozenset(
     }
 )
 
+_LAZY_MODULE_EXPORTS = {
+    "ObservatoryExtensionPlugin": "phlo.plugins.observatory",
+    "ObservatoryExtensionManifest": "phlo.plugins.observatory",
+    "ObservatoryExtensionCompatibility": "phlo.plugins.observatory",
+    "ObservatoryExtensionSettings": "phlo.plugins.observatory",
+    "ObservatoryExtensionRoute": "phlo.plugins.observatory",
+    "ObservatoryExtensionNavItem": "phlo.plugins.observatory",
+    "ObservatoryExtensionSlot": "phlo.plugins.observatory",
+    "ObservatoryExtensionSettingsPanel": "phlo.plugins.observatory",
+    "ObservatoryExtensionUI": "phlo.plugins.observatory",
+    "discover_observatory_extensions": "phlo.plugins.observatory",
+    "get_observatory_extension": "phlo.plugins.observatory",
+    "SettingsScope": "phlo.plugins.observatory_settings",
+    "SettingsRecord": "phlo.plugins.observatory_settings",
+    "SettingsService": "phlo.plugins.observatory_settings",
+    "get_settings_service": "phlo.plugins.observatory_settings",
+    "SemanticLayerProvider": "phlo.plugins.semantic",
+    "SemanticModel": "phlo.plugins.semantic",
+}
+
 
 def __getattr__(name):
     """Lazily expose discovery symbols to avoid import cycles.
@@ -227,6 +247,9 @@ def __getattr__(name):
     if name in _LAZY_DISCOVERY_EXPORTS:
         discovery_module = importlib.import_module("phlo.plugins.discovery")
         return getattr(discovery_module, name)
+    if name in _LAZY_MODULE_EXPORTS:
+        module = importlib.import_module(_LAZY_MODULE_EXPORTS[name])
+        return getattr(module, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

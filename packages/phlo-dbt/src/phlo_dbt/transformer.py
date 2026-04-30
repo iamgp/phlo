@@ -40,8 +40,7 @@ from typing import Any
 
 from phlo.logging import log_event
 from phlo.operations.transformation import BaseTransformer, TransformationResult
-from phlo.hooks import (
-    HookCorrelation,
+from phlo.hooks.emitters import (
     LineageEventContext,
     LineageEventEmitter,
     TelemetryEventContext,
@@ -49,6 +48,7 @@ from phlo.hooks import (
     TransformEventContext,
     TransformEventEmitter,
 )
+from phlo.hooks.events import HookCorrelation
 from phlo_dbt.lineage_import import collect_asset_lineage, load_dbt_manifest
 from phlo_dbt.translator import DbtSpecTranslator
 from phlo_dbt.runtime_config import ensure_dbt_profile

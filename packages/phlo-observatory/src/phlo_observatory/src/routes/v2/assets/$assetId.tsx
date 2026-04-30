@@ -1,5 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Database, GitBranch, ShieldCheck } from 'lucide-react'
+import {
+  Clock3,
+  Columns3,
+  Database,
+  GitBranch,
+  ShieldCheck,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import type { V2AssetDetail, V2ResourceResult } from '@/v2/api/types'
@@ -76,6 +82,36 @@ export function AssetDetailView({ assetId }: { assetId: string }) {
               />
               <Mini label="Tables" value={String(detail.tables.length)} />
               <Mini label="Quality" value={String(detail.quality.length)} />
+              <Mini
+                label="Materializations"
+                value={String(detail.materializations.length)}
+              />
+            </div>
+            <div className="phlo-v2-detail-list">
+              {Object.entries(detail.column_lineage)
+                .slice(0, 5)
+                .map(([column, sources]) => (
+                  <div className="phlo-v2-mini-row" key={column}>
+                    <span>
+                      <Columns3 className="size-3" />
+                      {column}
+                    </span>
+                    <small>{sources.join(', ') || 'source column'}</small>
+                  </div>
+                ))}
+              {detail.materializations.slice(0, 3).map((operation) => (
+                <div className="phlo-v2-mini-row" key={operation.id}>
+                  <span>
+                    <Clock3 className="size-3" />
+                    {operation.name}
+                  </span>
+                  <small>
+                    {[operation.status, operation.completed_at]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </small>
+                </div>
+              ))}
             </div>
             <div className="phlo-v2-chip-cloud">
               {asset.dependencies.map((dependency) => (

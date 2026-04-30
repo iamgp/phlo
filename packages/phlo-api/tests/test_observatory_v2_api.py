@@ -8,7 +8,11 @@ import subprocess
 from fastapi.testclient import TestClient
 
 from phlo_api.main import app
-from phlo_api.observatory_api.v2 import _fallback_services, _load_docker_service_statuses
+from phlo_api.observatory_api.v2 import (
+    _fallback_services,
+    _load_docker_service_statuses,
+    _overview_health_from_services,
+)
 from phlo_api.observatory_api.v2_models import (
     V2Asset,
     V2Branch,
@@ -186,6 +190,13 @@ def test_v2_overview_endpoint_returns_provider_neutral_payload() -> None:
     _assert_no_provider_url_settings(payload)
 
 
+def test_v2_overview_health_describes_missing_runtime_containers() -> None:
+    health = _overview_health_from_services(_fallback_services())
+
+    assert health.state == "unknown"
+    assert health.message == "No runtime containers found"
+
+
 def test_v2_services_endpoint_returns_provider_neutral_payload() -> None:
     response = TestClient(app).get("/api/observatory/v2/services")
 
@@ -215,7 +226,15 @@ def test_v2_service_detail_endpoint_returns_provider_neutral_payload() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert set(payload) == {"service", "dependencies", "dependents", "actions", "logs"}
+    assert set(payload) == {
+        "service",
+        "dependencies",
+        "dependents",
+        "actions",
+        "logs",
+        "ports",
+        "config",
+    }
     assert payload["service"]["id"] == services[0]["id"]
     assert {"id", "label", "kind", "enabled", "requires_confirmation", "reason"} <= set(
         payload["actions"][0]
@@ -276,6 +295,9 @@ def test_v2_asset_detail_endpoint_returns_related_provider_neutral_payload() -> 
         "quality",
         "logs",
         "operations",
+        "lineage",
+        "materializations",
+        "column_lineage",
     }
     assert payload["asset"]["id"] == assets[0]["id"]
     _assert_no_provider_url_settings(payload)
@@ -311,6 +333,122 @@ def test_v2_table_preview_endpoint_returns_provider_neutral_payload() -> None:
         "has_more",
     }
     assert payload["table"]["id"] == tables[0]["id"]
+    _assert_no_provider_url_settings(payload)
+
+
+def test_v2_query_endpoint_returns_provider_neutral_payload() -> None:
+    client = TestClient(app)
+    tables = client.get("/api/observatory/v2/tables").json()["items"]
+    if not tables:
+        return
+
+    response = client.post(
+        "/api/observatory/v2/query",
+        json={"sql": f"select * from {tables[0]['name']} limit 5"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) == {
+        "columns",
+        "rows",
+        "row_count",
+        "effective_sql",
+        "limit",
+        "offset",
+        "warnings",
+    }
+    assert payload["limit"] == 5
+    _assert_no_provider_url_settings(payload)
+
+
+def test_v2_saved_queries_contract_persists_provider_neutral_payload(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    client = TestClient(app)
+
+    create_response = client.post(
+        "/api/observatory/v2/saved-queries",
+        json={
+            "name": "Recent orders",
+            "sql": "select * from orders limit 10",
+            "branch": "main",
+        },
+    )
+    duplicate_response = client.post(
+        "/api/observatory/v2/saved-queries",
+        json={
+            "name": "Recent orders",
+            "sql": "select   *  from   orders   limit 10",
+            "branch": "main",
+        },
+    )
+    list_response = client.get("/api/observatory/v2/saved-queries")
+
+    assert create_response.status_code == 200
+    assert duplicate_response.status_code == 200
+    assert list_response.status_code == 200
+    created = duplicate_response.json()
+    payload = list_response.json()
+    assert {"id", "name", "sql", "branch", "created_at", "updated_at", "metadata"} <= set(created)
+    assert any(item["id"] == created["id"] for item in payload["items"])
+    assert len(payload["items"]) == 1
+    _assert_no_provider_url_settings(payload)
+
+
+def test_v2_stage_diff_endpoint_returns_provider_neutral_payload() -> None:
+    response = TestClient(app).get(
+        "/api/observatory/v2/stage-diff",
+        params={"source_table_id": "orders", "target_table_id": "orders_clean"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) == {
+        "source",
+        "target",
+        "columns",
+        "rows",
+        "summary",
+        "metadata",
+    }
+    assert {"added", "removed", "changed", "unchanged"} <= set(payload["summary"])
+    _assert_no_provider_url_settings(payload)
+
+
+def test_v2_row_journey_endpoint_returns_provider_neutral_payload() -> None:
+    client = TestClient(app)
+    tables = client.get("/api/observatory/v2/tables").json()["items"]
+    if not tables:
+        return
+
+    response = client.get(f"/api/observatory/v2/row-journey/{tables[0]['id']}/{tables[0]['id']}:1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) == {
+        "table",
+        "row_id",
+        "row",
+        "upstream",
+        "downstream",
+        "stages",
+        "logs",
+        "diff",
+    }
+    _assert_no_provider_url_settings(payload)
+
+
+def test_v2_branch_action_contract_returns_provider_neutral_payload(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    response = TestClient(app).post(
+        "/api/observatory/v2/branches/actions",
+        json={"action_id": "branch:create:review/demo"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) == {"action", "status", "message", "operation"}
+    assert payload["operation"]["target"]["kind"] == "branch"
     _assert_no_provider_url_settings(payload)
 
 
@@ -364,15 +502,13 @@ def test_v2_branches_endpoint_returns_provider_neutral_payload() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert set(payload) == {"items"}
-    assert payload["items"] == [
-        {
-            "id": "main",
-            "name": "main",
-            "current": True,
-            "protected": True,
-            "metadata": {},
-        }
-    ]
+    assert {
+        "id": "main",
+        "name": "main",
+        "current": True,
+        "protected": True,
+        "metadata": {},
+    } in payload["items"]
     _assert_no_provider_url_settings(payload)
 
 
@@ -381,7 +517,7 @@ def test_v2_branch_detail_endpoint_returns_provider_neutral_payload() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert set(payload) == {"branch", "contents", "commits", "compare"}
+    assert set(payload) == {"branch", "contents", "commits", "compare", "tables"}
     assert payload["branch"]["name"] == "main"
     _assert_no_provider_url_settings(payload)
 
@@ -445,6 +581,9 @@ def test_v2_all_endpoints_do_not_leak_provider_url_setting_names() -> None:
         "/api/observatory/v2/assets/raw.orders",
         "/api/observatory/v2/tables",
         "/api/observatory/v2/table-preview/orders",
+        "/api/observatory/v2/saved-queries",
+        "/api/observatory/v2/stage-diff?source_table_id=orders&target_table_id=orders_clean",
+        "/api/observatory/v2/row-journey/orders/orders:1",
         "/api/observatory/v2/quality",
         "/api/observatory/v2/quality/raw.orders:order_id_present",
         "/api/observatory/v2/logs",

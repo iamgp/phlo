@@ -332,6 +332,11 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   gap: 18px;
 }
 
+.phlo-v2-command {
+  align-items: start;
+  margin-top: 18px;
+}
+
 .phlo-v2-lineage-shell {
   grid-template-columns: minmax(0, 1fr) 320px;
   align-items: start;
@@ -670,6 +675,7 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
 
 .phlo-v2-filter-row {
   display: flex;
+  align-items: center;
   gap: 8px;
   border-bottom: 1px solid oklch(0.98 0.003 286 / 0.08);
   padding: 10px 14px;
@@ -683,6 +689,26 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   color: oklch(0.9 0.004 286);
   padding: 0 10px;
   font-size: 12px;
+}
+
+.phlo-v2-log-console .phlo-v2-filter-row {
+  gap: 8px;
+  background: oklch(0.155 0.008 255);
+  padding: 8px 12px;
+}
+
+.phlo-v2-log-console .phlo-v2-filter-row .phlo-v2-search-field {
+  height: 30px;
+  flex: 1 1 auto;
+  border-color: oklch(0.92 0.004 286 / 0.1);
+  background: transparent;
+}
+
+.phlo-v2-log-console .phlo-v2-filter-row select {
+  flex: 0 0 122px;
+  max-width: 122px;
+  border-color: oklch(0.92 0.004 286 / 0.12);
+  background: transparent;
 }
 
 .phlo-v2-quality-score {
@@ -1242,6 +1268,12 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   gap: 3px;
   border-top: 1px solid var(--v2-sheet-border);
   padding-top: 9px;
+  text-align: left;
+}
+
+button.phlo-v2-mini-row {
+  width: 100%;
+  color: inherit;
 }
 
 .phlo-v2-mini-row span {
@@ -1333,9 +1365,25 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   border-bottom-color: oklch(0.92 0.004 286 / 0.12);
 }
 
+.phlo-v2-log-toolbar {
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.phlo-v2-log-toolbar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.phlo-v2-log-toolbar .phlo-v2-pill {
+  background: transparent;
+}
+
 .phlo-v2-log-line {
   display: grid;
-  grid-template-columns: 180px 86px minmax(0, 1fr) 140px;
+  grid-template-columns: minmax(230px, max-content) 86px minmax(0, 1fr) 140px;
   gap: 12px;
   align-items: center;
   min-height: 38px;
@@ -1346,11 +1394,13 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
 }
 
 .phlo-v2-log-level,
+.phlo-v2-log-time,
 .phlo-v2-log-source {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: oklch(0.75 0.005 286);
+  white-space: nowrap;
 }
 
 .phlo-v2-log-level[data-level='error'] {
@@ -1651,6 +1701,20 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
 .phlo-v2-query-panel {
   border-radius: 7px;
   box-shadow: none;
+}
+
+.phlo-v2-command-primary {
+  display: grid;
+  align-self: start;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.phlo-v2-command-primary .phlo-v2-diff-metrics {
+  margin-bottom: 0;
 }
 
 .phlo-v2-panel-header {
@@ -2025,6 +2089,17 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
     justify-content: center;
     min-height: 60px;
     padding: 10px 12px;
+  }
+
+  .phlo-v2-log-console .phlo-v2-filter-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .phlo-v2-log-console .phlo-v2-filter-row select {
+    flex-basis: auto;
+    max-width: none;
+    width: 100%;
   }
 
   .phlo-v2-flow-canvas {

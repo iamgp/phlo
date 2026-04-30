@@ -33,6 +33,26 @@ export interface V2Action {
   reason?: string | null
 }
 
+export interface V2ActionResult {
+  action: V2Action
+  status: 'succeeded' | 'failed' | 'skipped'
+  message: string
+  operation?: V2Operation | null
+}
+
+export interface V2ServicePort {
+  name: string
+  target: string
+  published?: string | null
+}
+
+export interface V2ServiceConfigEntry {
+  name: string
+  value?: string | null
+  description?: string | null
+  secret: boolean
+}
+
 export interface V2Service {
   id: string
   name: string
@@ -51,6 +71,8 @@ export interface V2ServiceDetail {
   dependents: Array<V2Service>
   actions: Array<V2Action>
   logs: Array<V2LogEvent>
+  ports: Array<V2ServicePort>
+  config: Array<V2ServiceConfigEntry>
 }
 
 export interface V2Overview {
@@ -115,6 +137,9 @@ export interface V2AssetDetail {
   quality: Array<V2QualityCheck>
   logs: Array<V2LogEvent>
   operations: Array<V2Operation>
+  lineage: Array<V2ResourceRef>
+  materializations: Array<V2Operation>
+  column_lineage: Record<string, Array<string>>
 }
 
 export interface V2Table {
@@ -136,6 +161,46 @@ export interface V2TablePreview {
   limit: number
   offset: number
   has_more: boolean
+}
+
+export interface V2QueryResult {
+  columns: Array<string>
+  rows: Array<Record<string, unknown>>
+  row_count?: number | null
+  effective_sql: string
+  limit: number
+  offset: number
+  warnings: Array<string>
+}
+
+export interface V2SavedQuery {
+  id: string
+  name: string
+  sql: string
+  branch?: string | null
+  created_at: string
+  updated_at: string
+  metadata: Record<string, unknown>
+}
+
+export interface V2StageDiff {
+  source: V2Table
+  target: V2Table
+  columns: Record<string, Array<string>>
+  rows: Array<Record<string, unknown>>
+  summary: Record<string, number>
+  metadata: Record<string, unknown>
+}
+
+export interface V2RowJourney {
+  table: V2Table
+  row_id: string
+  row: Record<string, unknown>
+  upstream: Array<V2ResourceRef>
+  downstream: Array<V2ResourceRef>
+  stages: Array<V2ResourceRef>
+  logs: Array<V2LogEvent>
+  diff: Record<string, unknown>
 }
 
 export interface V2QualityCheck {
@@ -186,6 +251,7 @@ export interface V2BranchDetail {
   contents: Array<V2ResourceRef>
   commits: Array<V2Operation>
   compare: Record<string, number>
+  tables: Array<V2Table>
 }
 
 export interface V2Extension {

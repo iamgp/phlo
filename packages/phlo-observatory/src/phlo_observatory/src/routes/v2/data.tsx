@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import {
   Columns3,
   Database,
@@ -13,7 +13,13 @@ import type { ReactNode } from 'react'
 
 import type { V2ResourceResult, V2Table, V2TablePreview } from '@/v2/api/types'
 import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
-import { getV2TablePreview, getV2TableRecords } from '@/v2/api/resources'
+import {
+  getV2SavedQueries,
+  getV2TablePreview,
+  getV2TableRecords,
+  runV2Query,
+  saveV2Query,
+} from '@/v2/api/resources'
 import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
 import { readMetric, useLiveResource } from '@/v2/routes/liveResource'
@@ -29,7 +35,26 @@ function Data() {
   const selected =
     tables.find((table) => table.id === selectedId) ?? tables[0] ?? null
   const [activeDetail, setActiveDetail] = useState<DataDetailTab>('preview')
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
   const [sql, setSql] = useState('select * from selected_table limit 100')
+  const [queryResult, setQueryResult] = useState<
+    V2ResourceResult<{
+      columns: Array<string>
+      rows: Array<Record<string, unknown>>
+      effective_sql: string
+      warnings: Array<string>
+    }>
+  >({ data: null, error: null })
+  const [savedQueries, setSavedQueries] = useState<
+    V2ResourceResult<
+      Array<{
+        id: string
+        name: string
+        sql: string
+        branch?: string | null
+      }>
+    >
+  >({ data: [], error: null })
   const [preview, setPreview] = useState<V2ResourceResult<V2TablePreview>>({
     data: null,
     error: null,
@@ -50,7 +75,11 @@ function Data() {
     return () => {
       cancelled = true
     }
-  }, [selected])
+  }, [previewRefreshKey, selected])
+
+  useEffect(() => {
+    void getV2SavedQueries().then(setSavedQueries)
+  }, [])
 
   return (
     <V2Page
@@ -172,7 +201,42 @@ function Data() {
               <DataDetailPanel
                 active={activeDetail}
                 preview={preview.data}
+                queryResult={queryResult}
                 selected={selected}
+                onRefresh={() => setPreviewRefreshKey((key) => key + 1)}
+                onRunQuery={(nextSql) => {
+                  void runV2Query({
+                    data: {
+                      sql: nextSql.replace('selected_table', selected.name),
+                      branch: selected.branch ?? 'main',
+                      limit: 100,
+                    },
+                  }).then(setQueryResult)
+                }}
+                onSaveQuery={(nextSql) => {
+                  const name = window.prompt('Saved query name')
+                  if (!name) return
+                  void saveV2Query({
+                    data: {
+                      name,
+                      sql: nextSql.replace('selected_table', selected.name),
+                      branch: selected.branch ?? 'main',
+                    },
+                  }).then((next) => {
+                    if (next.data) {
+                      setSavedQueries((current) => ({
+                        data: [next.data!, ...(current.data ?? [])],
+                        error: null,
+                      }))
+                    } else {
+                      setSavedQueries((current) => ({
+                        data: current.data,
+                        error: next.error,
+                      }))
+                    }
+                  })
+                }}
+                savedQueries={savedQueries.data ?? []}
                 setSql={setSql}
                 sql={sql}
               />
@@ -206,13 +270,33 @@ const dataDetailTabs: Array<{
 
 function DataDetailPanel({
   active,
+  onRefresh,
+  onRunQuery,
+  onSaveQuery,
   preview,
+  queryResult,
+  savedQueries,
   selected,
   setSql,
   sql,
 }: {
   active: DataDetailTab
+  onRefresh: () => void
+  onRunQuery: (sql: string) => void
+  onSaveQuery: (sql: string) => void
   preview: V2TablePreview | null
+  queryResult: V2ResourceResult<{
+    columns: Array<string>
+    rows: Array<Record<string, unknown>>
+    effective_sql: string
+    warnings: Array<string>
+  }>
+  savedQueries: Array<{
+    id: string
+    name: string
+    sql: string
+    branch?: string | null
+  }>
   selected: V2Table
   setSql: (value: string) => void
   sql: string
@@ -221,31 +305,57 @@ function DataDetailPanel({
     return (
       <div className="phlo-v2-query-panel">
         <div className="phlo-v2-workspace-toolbar">
-          <span>SQL</span>
-          <span className="phlo-v2-pill">read only</span>
+          <span>Preview query</span>
+          <span className="phlo-v2-pill">{preview?.limit ?? 50} row limit</span>
         </div>
         <textarea
           onChange={(event) => setSql(event.target.value)}
           value={selected ? sql.replace('selected_table', selected.name) : sql}
         />
         <div className="phlo-v2-action-row">
-          <button
-            disabled
-            title="Query execution requires a safe query contract."
-            type="button"
-          >
+          <button onClick={() => onRunQuery(sql)} type="button">
             <Play className="size-3.5" />
-            Run
+            Run query
           </button>
-          <button
-            disabled
-            title="Saved queries require a persistence contract."
-            type="button"
-          >
+          <button onClick={onRefresh} type="button">
+            <Play className="size-3.5" />
+            Refresh preview
+          </button>
+          <button onClick={() => onSaveQuery(sql)} type="button">
             <Save className="size-3.5" />
             Save
           </button>
         </div>
+        {savedQueries.length > 0 && (
+          <div className="phlo-v2-detail-list">
+            {savedQueries.slice(0, 4).map((query) => (
+              <button
+                className="phlo-v2-mini-row"
+                key={query.id}
+                onClick={() => setSql(query.sql)}
+                type="button"
+              >
+                <span>{query.name}</span>
+                <small>{query.branch ?? 'main'}</small>
+              </button>
+            ))}
+          </div>
+        )}
+        {queryResult.data && (
+          <div className="phlo-v2-detail-list">
+            <div className="phlo-v2-mini-row">
+              <span>Effective SQL</span>
+              <small>{queryResult.data.effective_sql}</small>
+            </div>
+            <div className="phlo-v2-mini-row">
+              <span>Rows</span>
+              <small>{queryResult.data.rows.length}</small>
+            </div>
+          </div>
+        )}
+        {queryResult.error && (
+          <div className="phlo-v2-panel-footer">{queryResult.error}</div>
+        )}
       </div>
     )
   }
@@ -258,25 +368,59 @@ function DataDetailPanel({
           <small>{selected.asset_id ?? 'none'}</small>
         </div>
         <div className="phlo-v2-mini-row">
-          <span>Row journey</span>
-          <small>Waiting for stable row identity</small>
+          <span>Namespace</span>
+          <small>{selected.namespace ?? 'default'}</small>
+        </div>
+        <div className="phlo-v2-mini-row">
+          <span>Preview rows</span>
+          <small>
+            {preview
+              ? `${preview.rows.length} loaded${preview.has_more ? ' · more available' : ''}`
+              : 'Preview not loaded'}
+          </small>
         </div>
         <div className="phlo-v2-mini-row">
           <span>Branch</span>
           <small>{selected.branch ?? 'main'}</small>
         </div>
+        {selected.asset_id && (
+          <Link
+            className="phlo-v2-mini-row"
+            to="/v2/asset/$assetId"
+            params={{ assetId: selected.asset_id }}
+          >
+            <span>Open asset</span>
+            <small>{selected.asset_id}</small>
+          </Link>
+        )}
       </div>
     )
   }
 
   return (
     <div className="phlo-v2-detail-list">
-      {(preview?.columns ?? []).slice(0, 6).map((column) => (
-        <div className="phlo-v2-mini-row" key={column}>
-          <span>{column}</span>
-          <small>column</small>
+      {(preview?.rows ?? []).slice(0, 4).map((row, index) => (
+        <div
+          className="phlo-v2-mini-row phlo-v2-mini-row-stack"
+          key={String(row._phlo_row_id ?? index)}
+        >
+          <span>{String(row._phlo_row_id ?? `row-${index + 1}`)}</span>
+          <small>
+            {Object.entries(row)
+              .filter(([key]) => key !== '_phlo_row_id')
+              .slice(0, 3)
+              .map(([key, value]) => `${key}: ${String(value)}`)
+              .join(' · ')}
+          </small>
         </div>
       ))}
+      {(preview?.rows ?? []).length === 0 &&
+        (preview?.columns ?? []).slice(0, 6).map((column) => (
+          <div className="phlo-v2-mini-row" key={column}>
+            <span>{column}</span>
+            <small>column</small>
+          </div>
+        ))}
       {preview && preview.columns.length === 0 && (
         <p>No column preview returned yet.</p>
       )}

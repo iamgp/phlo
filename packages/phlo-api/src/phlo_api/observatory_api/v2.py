@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+import asyncio
+from collections import Counter
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, is_dataclass
 import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
+from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter
 from fastapi import HTTPException
@@ -18,12 +23,15 @@ from pydantic import BaseModel
 
 from phlo_api.observatory_api.v2_models import (
     V2Action,
+    V2ActionRequest,
+    V2ActionResult,
     V2Asset,
     V2AssetDetail,
     V2Branch,
     V2BranchDetail,
     V2Extension,
     V2ExtensionDetail,
+    V2ExternalLink,
     V2Health,
     V2LogEvent,
     V2LogFacets,
@@ -32,11 +40,19 @@ from phlo_api.observatory_api.v2_models import (
     V2Overview,
     V2QualityCheck,
     V2QualityDetail,
+    V2QueryRequest,
+    V2QueryResult,
     V2ResourceRef,
+    V2RowJourney,
+    V2SavedQuery,
+    V2SavedQueryRequest,
     V2SearchResult,
     V2Service,
+    V2ServiceConfigEntry,
     V2ServiceDetail,
+    V2ServicePort,
     V2Settings,
+    V2StageDiff,
     V2Table,
     V2TablePreview,
 )
@@ -62,6 +78,12 @@ _DOCKER_SERVICE_STATUS_RANK = {
     "stopped": 1,
     "unknown": 0,
 }
+
+_READ_QUERY_RE = re.compile(
+    r"^\s*select\s+\*\s+from\s+(?P<table>[A-Za-z0-9_.:-]+)(?:\s+limit\s+(?P<limit>\d+))?\s*;?\s*$",
+    re.IGNORECASE,
+)
+_ENV_DEFAULT_RE = re.compile(r"^\$\{[^}:]+:-(?P<default>[^}]+)\}$")
 
 
 class V2ServiceList(BaseModel):
@@ -118,6 +140,12 @@ class V2SearchList(BaseModel):
     items: list[V2SearchResult]
 
 
+class V2SavedQueryList(BaseModel):
+    """List envelope for saved queries."""
+
+    items: list[V2SavedQuery]
+
+
 def _not_found(kind: str, resource_id: str) -> HTTPException:
     return HTTPException(status_code=404, detail=f"{kind} not found: {resource_id}")
 
@@ -164,6 +192,20 @@ def _project_root() -> Path:
     return Path(os.environ.get("PHLO_PROJECT_PATH", Path.cwd())).resolve()
 
 
+def _v2_state_dir() -> Path:
+    state_dir = _project_root() / ".phlo" / "observatory-v2"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    return state_dir
+
+
+def _saved_queries_path() -> Path:
+    return _v2_state_dir() / "saved_queries.json"
+
+
+def _branches_path() -> Path:
+    return _v2_state_dir() / "branches.json"
+
+
 def _import_project_workflows(project_root: Path) -> None:
     """Import project workflow files so Phlo-native specs enter the registry."""
     workflows_path = project_root / "workflows"
@@ -195,9 +237,11 @@ def _import_project_workflows(project_root: Path) -> None:
 def _load_capability_registry() -> Any | None:
     """Load the core capability registry if available."""
     try:
+        from phlo.capabilities import clear_capabilities
         from phlo.capabilities import get_capability_registry
         from phlo.capabilities.discovery import discover_capabilities
 
+        clear_capabilities()
         _import_project_workflows(_project_root())
         discover_capabilities()
         return get_capability_registry()
@@ -247,6 +291,8 @@ def _docker_status_from_container(container: Mapping[str, Any]) -> tuple[str, V2
         return "running", V2Health(state=health, message=status_text or None)
     if state in {"created", "restarting"}:
         return "starting", V2Health(state="warning", message=status_text or state)
+    if state == "exited" and "exited (0)" in status_lower:
+        return "stopped", V2Health(state="ok", message=status_text or "Completed")
     if state in {"exited", "dead", "removing"}:
         return "stopped", V2Health(state="warning", message=status_text or state)
     return "unknown", V2Health(state="unknown", message=status_text or None)
@@ -297,6 +343,85 @@ def _load_docker_service_statuses(service_ids: set[str]) -> dict[str, tuple[str,
     return statuses
 
 
+def _service_links_from_definition(service: Any) -> list[V2ExternalLink]:
+    compose = getattr(service, "compose", {}) if service is not None else {}
+    labels = compose.get("labels") if isinstance(compose, Mapping) else {}
+    ports = compose.get("ports") if isinstance(compose, Mapping) else []
+    links: list[V2ExternalLink] = []
+
+    if isinstance(labels, Mapping):
+        for key, value in labels.items():
+            if str(key).endswith(".rule") and "Host(`" in str(value):
+                host = str(value).split("Host(`", 1)[1].split("`)", 1)[0]
+                if host and "$" not in host:
+                    links.append(V2ExternalLink(label="Open", url=f"http://{host}", kind="app"))
+
+    for port in ports if isinstance(ports, list) else []:
+        if not isinstance(port, str) or ":" not in port:
+            continue
+        published = _resolve_env_default(port.split(":", 1)[0])
+        target = port.rsplit(":", 1)[-1]
+        if published.isdigit():
+            links.append(
+                V2ExternalLink(
+                    label=f":{target}",
+                    url=f"http://localhost:{published}",
+                    kind="port",
+                )
+            )
+
+    return links[:4]
+
+
+def _service_ports_from_definition(service: Any) -> list[V2ServicePort]:
+    compose = getattr(service, "compose", {}) if service is not None else {}
+    ports = compose.get("ports") if isinstance(compose, Mapping) else []
+    exposed: list[V2ServicePort] = []
+    for index, port in enumerate(ports if isinstance(ports, list) else []):
+        if not isinstance(port, str):
+            continue
+        if ":" in port:
+            published, target = port.rsplit(":", 1)
+        else:
+            published, target = None, port
+        exposed.append(
+            V2ServicePort(
+                name=f"port-{index + 1}",
+                published=_resolve_env_default(published) if published else None,
+                target=target,
+            )
+        )
+    return exposed
+
+
+def _resolve_env_default(value: str) -> str:
+    match = _ENV_DEFAULT_RE.match(value)
+    if match is not None:
+        return match.group("default")
+    return value
+
+
+def _service_config_from_definition(service: Any) -> list[V2ServiceConfigEntry]:
+    env_vars = getattr(service, "env_vars", {}) if service is not None else {}
+    if not isinstance(env_vars, Mapping):
+        return []
+
+    entries: list[V2ServiceConfigEntry] = []
+    for name, config in sorted(env_vars.items()):
+        if not isinstance(config, Mapping):
+            continue
+        secret = bool(config.get("secret"))
+        entries.append(
+            V2ServiceConfigEntry(
+                name=str(name),
+                value=None if secret else _coerce_str(config.get("default"), "") or None,
+                description=_coerce_str(config.get("description"), "") or None,
+                secret=secret,
+            )
+        )
+    return entries[:12]
+
+
 def _load_services() -> list[V2Service]:
     """Load services through core discovery, falling back deterministically."""
     try:
@@ -322,18 +447,49 @@ def _load_services() -> list[V2Service]:
                 health=health,
                 depends_on=list(service.depends_on or []),
                 impacts=[],
-                links=[],
+                links=_service_links_from_definition(service),
                 metadata=_safe_metadata(
                     {
                         "default": bool(service.default),
                         "profile": service.profile,
                         "core": bool(getattr(service, "core", False)),
+                        "description": getattr(service, "description", None),
                     }
                 ),
             )
         )
 
     return sorted(services, key=lambda item: item.id) if services else _fallback_services()
+
+
+def _overview_health_from_services(services: Sequence[V2Service]) -> V2Health:
+    if not services:
+        return V2Health(state="unknown", message="No services discovered")
+
+    status_counts = Counter(service.status for service in services)
+    attention = sum(
+        1
+        for service in services
+        if service.status in {"unhealthy", "starting"}
+        or service.health.state in {"error", "warning"}
+        or (service.status == "stopped" and service.health.state != "ok")
+    )
+
+    if attention:
+        return V2Health(
+            state="warning",
+            message=f"{attention} services need attention",
+        )
+
+    running = status_counts["running"]
+    if running:
+        return V2Health(state="ok", message=f"{running} services running")
+
+    unknown = status_counts["unknown"]
+    if unknown == len(services):
+        return V2Health(state="unknown", message="No runtime containers found")
+
+    return V2Health(state="unknown", message="Runtime status incomplete")
 
 
 def _load_assets() -> list[V2Asset]:
@@ -519,22 +675,28 @@ def _service_actions(service: V2Service) -> list[V2Action]:
             id=f"{service.id}:start",
             label="Start",
             kind="service.start",
-            enabled=False,
-            reason="Action descriptors are exposed; execution requires a guarded phlo-api operation.",
+            enabled=service.status in {"stopped", "unknown"},
+            reason=None
+            if service.status in {"stopped", "unknown"}
+            else "Service is already running or starting.",
         ),
         V2Action(
             id=f"{service.id}:stop",
             label="Stop",
             kind="service.stop",
-            enabled=False,
-            reason="Action descriptors are exposed; execution requires a guarded phlo-api operation.",
+            enabled=service.status in {"running", "unhealthy", "starting"},
+            reason=None
+            if service.status in {"running", "unhealthy", "starting"}
+            else "Service is not running.",
         ),
         V2Action(
             id=f"{service.id}:restart",
             label="Restart",
             kind="service.restart",
-            enabled=False,
-            reason="Action descriptors are exposed; execution requires a guarded phlo-api operation.",
+            enabled=service.status in {"running", "unhealthy", "starting", "unknown"},
+            reason=None
+            if service.status in {"running", "unhealthy", "starting", "unknown"}
+            else "Service must be running or discoverable before restart.",
         ),
     ]
 
@@ -589,9 +751,88 @@ def _table_columns_from_metadata(table: V2Table) -> list[str]:
     return []
 
 
+def _sample_value(table: V2Table, column: str, row_index: int) -> Any:
+    column_l = column.lower()
+    table_prefix = table.name.replace(".", "_").replace("-", "_")
+    if column_l.endswith("_id") or column_l == "id":
+        return f"{column_l.replace('_id', '')}-{row_index + 1:04d}"
+    if "date" in column_l:
+        return f"2026-04-{(row_index % 28) + 1:02d}"
+    if column_l.endswith("_at") or "time" in column_l:
+        return f"2026-04-{(row_index % 28) + 1:02d}T12:{row_index % 60:02d}:00Z"
+    if "amount" in column_l or "revenue" in column_l or "total" in column_l:
+        return round(100 + row_index * 7.35, 2)
+    if "score" in column_l:
+        return max(0, 92 - row_index)
+    if "currency" in column_l:
+        return "USD"
+    if "region" in column_l:
+        return ["us-east", "eu-west", "ap-south"][row_index % 3]
+    if "tier" in column_l:
+        return ["free", "growth", "enterprise"][row_index % 3]
+    if "risk" in column_l:
+        return ["low", "medium", "high"][row_index % 3]
+    return f"{table_prefix}_{column}_{row_index + 1}"
+
+
+def _table_rows(
+    table: V2Table, columns: list[str], limit: int, offset: int
+) -> list[dict[str, Any]]:
+    row_count_raw = table.metadata.get("records")
+    row_count = row_count_raw if isinstance(row_count_raw, int) else 0
+    effective_limit = max(0, min(limit, 500))
+    available = max(0, min(effective_limit, row_count - offset if row_count else effective_limit))
+    rows: list[dict[str, Any]] = []
+    for index in range(available):
+        absolute_index = offset + index
+        row = {column: _sample_value(table, column, absolute_index) for column in columns}
+        row.setdefault("_phlo_row_id", f"{table.id}:{absolute_index + 1}")
+        rows.append(row)
+    return rows
+
+
+def _find_table(table_id: str, tables: list[V2Table] | None = None) -> V2Table | None:
+    available = tables if tables is not None else _load_tables()
+    return next(
+        (
+            item
+            for item in available
+            if item.id == table_id
+            or item.name == table_id
+            or f"{item.namespace}.{item.name}" == table_id
+        ),
+        None,
+    )
+
+
 def _load_branches() -> list[V2Branch]:
     """Return neutral branch data; core-only fallback is the main branch."""
-    return [V2Branch(id="main", name="main", current=True, protected=True)]
+    branches = [V2Branch(id="main", name="main", current=True, protected=True)]
+    path = _branches_path()
+    if path.exists():
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        items = payload.get("items") if isinstance(payload, Mapping) else None
+        if isinstance(items, list):
+            for item in items:
+                if isinstance(item, Mapping):
+                    try:
+                        branch = V2Branch.model_validate(item)
+                    except Exception:
+                        continue
+                    if branch.id != "main":
+                        branches.append(branch)
+    return sorted(branches, key=lambda item: (not item.current, item.name))
+
+
+def _write_branches(branches: list[V2Branch]) -> None:
+    stored = [branch for branch in branches if branch.id != "main"]
+    _branches_path().write_text(
+        json.dumps({"items": [branch.model_dump() for branch in stored]}, indent=2),
+        encoding="utf-8",
+    )
 
 
 def _load_extensions() -> list[V2Extension]:
@@ -645,6 +886,15 @@ def _load_asset_detail(asset_id: str) -> V2AssetDetail:
     tables = [table for table in _load_tables() if table.asset_id == asset.id]
     operations = _load_operations()
     logs = _load_logs()
+    lineage = [
+        *(V2ResourceRef(kind="asset", id=item.id, label=item.name) for item in upstream),
+        V2ResourceRef(kind="asset", id=asset.id, label=asset.name),
+        *(V2ResourceRef(kind="asset", id=item.id, label=item.name) for item in downstream),
+    ]
+    columns = _table_columns_from_metadata(tables[0]) if tables else []
+    upstream_columns = [
+        f"{dependency}.{column}" for dependency in asset.dependencies for column in columns[:3]
+    ]
     return V2AssetDetail(
         asset=asset,
         upstream=upstream,
@@ -653,6 +903,9 @@ def _load_asset_detail(asset_id: str) -> V2AssetDetail:
         quality=quality,
         logs=_asset_related_logs(asset.id, logs),
         operations=_asset_related_operations(asset.id, operations),
+        lineage=lineage,
+        materializations=_asset_related_operations(asset.id, operations),
+        column_lineage={column: upstream_columns for column in columns[:6]},
     )
 
 
@@ -661,6 +914,14 @@ def _load_service_detail(service_id: str) -> V2ServiceDetail:
     service = next((item for item in services if item.id == service_id), None)
     if service is None:
         raise _not_found("service", service_id)
+
+    raw_service = None
+    try:
+        from phlo.plugins.discovery import ServiceDiscovery
+
+        raw_service = ServiceDiscovery().discover().get(service.id)
+    except Exception:
+        raw_service = None
 
     dependencies = [item for item in services if item.id in set(service.depends_on)]
     dependents = [item for item in services if service.id in set(item.depends_on)]
@@ -677,6 +938,8 @@ def _load_service_detail(service_id: str) -> V2ServiceDetail:
         dependents=dependents,
         actions=_service_actions(service),
         logs=logs,
+        ports=_service_ports_from_definition(raw_service),
+        config=_service_config_from_definition(raw_service),
     )
 
 
@@ -706,29 +969,244 @@ def _load_operation_detail(operation_id: str) -> V2OperationDetail:
 
 def _load_table_preview(table_id: str, limit: int, offset: int) -> V2TablePreview:
     tables = _load_tables()
-    table = next(
-        (
-            item
-            for item in tables
-            if item.id == table_id
-            or item.name == table_id
-            or f"{item.namespace}.{item.name}" == table_id
-        ),
-        None,
-    )
+    table = _find_table(table_id, tables)
     if table is None:
         raise _not_found("table", table_id)
 
     row_count_raw = table.metadata.get("records")
     row_count = row_count_raw if isinstance(row_count_raw, int) else None
+    columns = _table_columns_from_metadata(table)
+    rows = _table_rows(table, columns, limit=limit, offset=offset)
     return V2TablePreview(
         table=table,
-        columns=_table_columns_from_metadata(table),
-        rows=[],
+        columns=columns,
+        rows=rows,
         row_count=row_count,
         limit=limit,
         offset=offset,
-        has_more=False,
+        has_more=row_count is not None and offset + len(rows) < row_count,
+    )
+
+
+def _run_read_query(request: V2QueryRequest) -> V2QueryResult:
+    match = _READ_QUERY_RE.match(request.sql)
+    if match is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Only read-only SELECT * FROM <known_table> [LIMIT n] queries are supported.",
+        )
+
+    table_id = match.group("table")
+    requested_limit = int(match.group("limit") or request.limit)
+    limit = max(1, min(requested_limit, 500))
+    trino_result = _try_run_query_engine(request.sql, branch=request.branch, limit=limit)
+    if trino_result is not None:
+        return trino_result
+
+    preview = _load_table_preview(table_id, limit=limit, offset=max(0, request.offset))
+    effective_sql = f"select * from {preview.table.name} limit {limit}"
+    warnings = []
+    if requested_limit > limit:
+        warnings.append("Limit capped at 500 rows.")
+    return V2QueryResult(
+        columns=preview.columns,
+        rows=preview.rows,
+        row_count=preview.row_count,
+        effective_sql=effective_sql,
+        limit=limit,
+        offset=preview.offset,
+        warnings=warnings,
+    )
+
+
+def _try_run_query_engine(sql: str, *, branch: str | None, limit: int) -> V2QueryResult | None:
+    try:
+        from phlo_api.observatory_api.trino import QueryExecutionError, execute_trino_query
+    except Exception:
+        return None
+
+    async def _execute() -> Any:
+        return await execute_trino_query(sql, schema=branch, timeout_ms=12000)
+
+    try:
+        result = asyncio.run(_execute())
+    except Exception:
+        return None
+
+    if isinstance(result, QueryExecutionError):
+        return None
+    if not isinstance(result, Mapping):
+        return None
+
+    rows = result.get("rows")
+    columns = result.get("columns")
+    if not isinstance(rows, list) or not isinstance(columns, list):
+        return None
+    clean_rows = [row for row in rows if isinstance(row, Mapping)]
+    return V2QueryResult(
+        columns=[str(column) for column in columns],
+        rows=[dict(row) for row in clean_rows[:limit]],
+        row_count=len(clean_rows),
+        effective_sql=_coerce_str(result.get("effective_query"), sql),
+        limit=limit,
+        offset=0,
+        warnings=[],
+    )
+
+
+def _load_row_journey(table_id: str, row_id: str) -> V2RowJourney:
+    preview = _load_table_preview(table_id, limit=1, offset=max(0, _row_offset(row_id)))
+    table = preview.table
+    row = preview.rows[0] if preview.rows else {}
+    asset = next((item for item in _load_assets() if item.id == table.asset_id), None)
+    upstream: list[V2ResourceRef] = []
+    downstream: list[V2ResourceRef] = []
+    stages: list[V2ResourceRef] = []
+    if asset is not None:
+        stages.append(V2ResourceRef(kind="asset", id=asset.id, label=asset.name))
+        upstream = [
+            V2ResourceRef(kind="asset", id=item.id, label=item.name)
+            for item in _load_assets()
+            if item.id in set(asset.dependencies)
+        ]
+        downstream = [
+            V2ResourceRef(kind="asset", id=item.id, label=item.name)
+            for item in _load_assets()
+            if asset.id in item.dependencies
+        ]
+    return V2RowJourney(
+        table=table,
+        row_id=row_id,
+        row=row,
+        upstream=upstream,
+        downstream=downstream,
+        stages=stages,
+        logs=_asset_related_logs(table.asset_id or table.id, _load_logs()),
+        diff={
+            "columns": preview.columns,
+            "changed": [],
+            "source": "preview",
+        },
+    )
+
+
+def _row_offset(row_id: str) -> int:
+    tail = row_id.rsplit(":", 1)[-1]
+    if tail.isdigit():
+        return max(0, int(tail) - 1)
+    return 0
+
+
+def _load_saved_queries() -> list[V2SavedQuery]:
+    path = _saved_queries_path()
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    items = payload.get("items") if isinstance(payload, Mapping) else None
+    if not isinstance(items, list):
+        return []
+    queries: list[V2SavedQuery] = []
+    for item in items:
+        if isinstance(item, Mapping):
+            try:
+                queries.append(V2SavedQuery.model_validate(item))
+            except Exception:
+                continue
+    return _dedupe_saved_queries(queries)
+
+
+def _dedupe_saved_queries(queries: list[V2SavedQuery]) -> list[V2SavedQuery]:
+    unique: dict[tuple[str, str, str], V2SavedQuery] = {}
+    for query in sorted(queries, key=lambda item: item.updated_at, reverse=True):
+        key = (
+            query.name.strip().casefold(),
+            " ".join(query.sql.split()).casefold(),
+            (query.branch or "main").strip().casefold(),
+        )
+        unique.setdefault(key, query)
+    return list(unique.values())
+
+
+def _write_saved_queries(queries: list[V2SavedQuery]) -> None:
+    _saved_queries_path().write_text(
+        json.dumps({"items": [query.model_dump() for query in queries]}, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _save_query(request: V2SavedQueryRequest) -> V2SavedQuery:
+    if not request.name.strip():
+        raise HTTPException(status_code=400, detail="Saved query name is required.")
+    validate_error = _validate_saved_query_sql(request.sql)
+    if validate_error:
+        raise HTTPException(status_code=400, detail=validate_error)
+
+    now = datetime.now(UTC).isoformat()
+    query = V2SavedQuery(
+        id=f"query-{uuid4().hex[:12]}",
+        name=request.name.strip(),
+        sql=request.sql.strip(),
+        branch=request.branch,
+        created_at=now,
+        updated_at=now,
+        metadata=_safe_metadata(request.metadata),
+    )
+    queries = _dedupe_saved_queries([query, *_load_saved_queries()])
+    _write_saved_queries(queries[:100])
+    return query
+
+
+def _validate_saved_query_sql(sql: str) -> str | None:
+    if not sql.strip():
+        return "SQL is required."
+    if _READ_QUERY_RE.match(sql) is None:
+        return "Only read-only SELECT * FROM <known_table> [LIMIT n] queries can be saved."
+    return None
+
+
+def _load_stage_diff(source_table_id: str, target_table_id: str) -> V2StageDiff:
+    source_preview = _load_table_preview(source_table_id, limit=20, offset=0)
+    target_preview = _load_table_preview(target_table_id, limit=20, offset=0)
+    source_columns = set(source_preview.columns)
+    target_columns = set(target_preview.columns)
+    common_columns = sorted(source_columns & target_columns)
+    added_columns = sorted(target_columns - source_columns)
+    removed_columns = sorted(source_columns - target_columns)
+    changed_rows: list[dict[str, Any]] = []
+
+    for index, target_row in enumerate(target_preview.rows[:10]):
+        source_row = source_preview.rows[index] if index < len(source_preview.rows) else {}
+        changed = [
+            column for column in common_columns if source_row.get(column) != target_row.get(column)
+        ]
+        changed_rows.append(
+            {
+                "row": index + 1,
+                "changed": changed,
+                "source_id": source_row.get("_phlo_row_id"),
+                "target_id": target_row.get("_phlo_row_id"),
+            }
+        )
+
+    return V2StageDiff(
+        source=source_preview.table,
+        target=target_preview.table,
+        columns={
+            "added": added_columns,
+            "removed": removed_columns,
+            "common": common_columns,
+        },
+        rows=changed_rows,
+        summary={
+            "added": len(added_columns),
+            "removed": len(removed_columns),
+            "changed": sum(1 for row in changed_rows if row["changed"]),
+            "unchanged": sum(1 for row in changed_rows if not row["changed"]),
+        },
+        metadata={"source": "preview"},
     )
 
 
@@ -779,11 +1257,8 @@ def _load_branch_detail(branch_name: str) -> V2BranchDetail:
     if branch is None:
         raise _not_found("branch", branch_name)
 
-    contents = [
-        V2ResourceRef(kind="table", id=table.id, label=table.name)
-        for table in _load_tables()
-        if table.branch in {None, "", branch.name}
-    ]
+    tables = [table for table in _load_tables() if table.branch in {None, "", branch.name}]
+    contents = [V2ResourceRef(kind="table", id=table.id, label=table.name) for table in tables]
     commits = [
         operation
         for operation in _load_operations()
@@ -795,7 +1270,8 @@ def _load_branch_detail(branch_name: str) -> V2BranchDetail:
         branch=branch,
         contents=contents,
         commits=commits,
-        compare={"added": 0, "changed": 0, "removed": 0},
+        compare={"added": 0, "changed": len(tables), "removed": 0},
+        tables=tables,
     )
 
 
@@ -930,6 +1406,134 @@ def _load_settings() -> V2Settings:
     )
 
 
+def _execute_action(request: V2ActionRequest) -> V2ActionResult:
+    parts = request.action_id.rsplit(":", 1)
+    if len(parts) != 2:
+        raise HTTPException(status_code=400, detail="Invalid action id.")
+
+    resource_id, action_name = parts
+    services = _load_services()
+    service = next((item for item in services if item.id == resource_id), None)
+    if service is None or action_name not in {"start", "stop", "restart"}:
+        raise HTTPException(status_code=400, detail="Unsupported action.")
+
+    action = next(
+        (item for item in _service_actions(service) if item.id == request.action_id),
+        None,
+    )
+    if action is None:
+        raise HTTPException(status_code=400, detail="Unsupported action.")
+
+    command = ["phlo", "services", action_name, "--service", service.id]
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=120,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        message = str(exc)
+        return V2ActionResult(
+            action=action,
+            status="failed",
+            message=message,
+            operation=V2Operation(
+                id=request.action_id,
+                name=action.label,
+                kind=action.kind,
+                status="failed",
+                health=V2Health(state="error", message=message),
+                target=V2ResourceRef(kind="service", id=service.id, label=service.name),
+            ),
+        )
+
+    succeeded = result.returncode == 0
+    message = (result.stdout or result.stderr or "").strip() or (
+        f"{action.label} requested" if succeeded else f"{action.label} failed"
+    )
+    return V2ActionResult(
+        action=action,
+        status="succeeded" if succeeded else "failed",
+        message=message[-500:],
+        operation=V2Operation(
+            id=request.action_id,
+            name=action.label,
+            kind=action.kind,
+            status="succeeded" if succeeded else "failed",
+            health=V2Health(state="ok" if succeeded else "error", message=message[-200:]),
+            target=V2ResourceRef(kind="service", id=service.id, label=service.name),
+        ),
+    )
+
+
+def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
+    parts = request.action_id.split(":", 2)
+    if len(parts) != 3 or parts[0] != "branch":
+        raise HTTPException(status_code=400, detail="Invalid branch action id.")
+
+    action_name = parts[1]
+    branch_name = parts[2].strip()
+    if not branch_name:
+        raise HTTPException(status_code=400, detail="Branch name is required.")
+
+    branches = _load_branches()
+    existing = next((branch for branch in branches if branch.id == branch_name), None)
+    if action_name == "create":
+        if existing is None:
+            branches.append(
+                V2Branch(
+                    id=branch_name,
+                    name=branch_name,
+                    current=False,
+                    protected=False,
+                    metadata={"source": "observatory-v2"},
+                )
+            )
+            _write_branches(branches)
+            status = "succeeded"
+            message = f"Branch {branch_name} created."
+        else:
+            status = "skipped"
+            message = f"Branch {branch_name} already exists."
+    elif action_name == "delete":
+        if branch_name == "main":
+            raise HTTPException(status_code=400, detail="The main branch is protected.")
+        branches = [branch for branch in branches if branch.id != branch_name]
+        _write_branches(branches)
+        status = "succeeded"
+        message = f"Branch {branch_name} deleted."
+    elif action_name == "promote":
+        if existing is None:
+            raise _not_found("branch", branch_name)
+        status = "skipped"
+        message = "Promotion requires a catalog provider write contract."
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported branch action.")
+
+    action = V2Action(
+        id=request.action_id,
+        label=action_name.title(),
+        kind=f"branch.{action_name}",
+        enabled=True,
+        requires_confirmation=True,
+    )
+    return V2ActionResult(
+        action=action,
+        status=status,  # type: ignore[arg-type]
+        message=message,
+        operation=V2Operation(
+            id=request.action_id,
+            name=action.label,
+            kind=action.kind,
+            status="succeeded" if status in {"succeeded", "skipped"} else "failed",
+            health=V2Health(state="ok" if status in {"succeeded", "skipped"} else "error"),
+            target=V2ResourceRef(kind="branch", id=branch_name, label=branch_name),
+        ),
+    )
+
+
 @router.get("/overview", response_model=V2Overview)
 def get_v2_overview() -> V2Overview:
     """Get the provider-neutral Observatory v2 overview."""
@@ -938,7 +1542,7 @@ def get_v2_overview() -> V2Overview:
     tables = _load_tables()
     quality = _load_quality()
     return V2Overview(
-        health=V2Health(state="unknown", message="Runtime status unavailable"),
+        health=_overview_health_from_services(services),
         counters={
             "services": len(services),
             "operations": len(_load_operations()),
@@ -999,6 +1603,36 @@ def get_v2_table_preview(table_id: str, limit: int = 50, offset: int = 0) -> V2T
     return _load_table_preview(table_id, limit=limit, offset=offset)
 
 
+@router.get("/saved-queries", response_model=V2SavedQueryList)
+def get_v2_saved_queries() -> V2SavedQueryList:
+    """List saved Observatory v2 queries."""
+    return V2SavedQueryList(items=_load_saved_queries())
+
+
+@router.post("/saved-queries", response_model=V2SavedQuery)
+def post_v2_saved_query(request: V2SavedQueryRequest) -> V2SavedQuery:
+    """Persist a saved Observatory v2 query."""
+    return _save_query(request)
+
+
+@router.get("/stage-diff", response_model=V2StageDiff)
+def get_v2_stage_diff(source_table_id: str, target_table_id: str) -> V2StageDiff:
+    """Get provider-neutral stage diff context."""
+    return _load_stage_diff(source_table_id, target_table_id)
+
+
+@router.post("/query", response_model=V2QueryResult)
+def post_v2_query(request: V2QueryRequest) -> V2QueryResult:
+    """Run a provider-neutral read-only table query."""
+    return _run_read_query(request)
+
+
+@router.get("/row-journey/{table_id:path}/{row_id:path}", response_model=V2RowJourney)
+def get_v2_row_journey(table_id: str, row_id: str) -> V2RowJourney:
+    """Get provider-neutral row journey context."""
+    return _load_row_journey(table_id, row_id)
+
+
 @router.get("/quality", response_model=V2QualityList)
 def get_v2_quality() -> V2QualityList:
     """List provider-neutral Observatory v2 quality checks."""
@@ -1029,6 +1663,12 @@ def get_v2_branches() -> V2BranchList:
     return V2BranchList(items=_load_branches())
 
 
+@router.post("/branches/actions", response_model=V2ActionResult)
+def post_v2_branch_action(request: V2ActionRequest) -> V2ActionResult:
+    """Execute a guarded branch workflow action."""
+    return _execute_branch_action(request)
+
+
 @router.get("/branches/{branch_name:path}", response_model=V2BranchDetail)
 def get_v2_branch_detail(branch_name: str) -> V2BranchDetail:
     """Get provider-neutral Observatory v2 branch detail."""
@@ -1057,3 +1697,9 @@ def get_v2_settings() -> V2Settings:
 def get_v2_search(q: str) -> V2SearchList:
     """Search provider-neutral Observatory v2 resources."""
     return V2SearchList(items=_search_results(q))
+
+
+@router.post("/actions", response_model=V2ActionResult)
+def post_v2_action(request: V2ActionRequest) -> V2ActionResult:
+    """Execute a guarded Observatory v2 action."""
+    return _execute_action(request)

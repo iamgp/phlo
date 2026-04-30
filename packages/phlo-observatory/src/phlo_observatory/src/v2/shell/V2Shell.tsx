@@ -116,6 +116,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
       className="phlo-v2"
       data-theme={resolvedTheme}
       data-theme-mode={themeMode}
+      suppressHydrationWarning
     >
       <div className="phlo-v2-nav-bar">
         <nav className="phlo-v2-shell phlo-v2-nav" aria-label="Observatory v2">
@@ -156,6 +157,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
                     data-active={themeMode === item.mode}
                     key={item.mode}
                     onClick={() => setThemeMode(item.mode)}
+                    suppressHydrationWarning
                     title={`${item.label} theme`}
                     type="button"
                   >
