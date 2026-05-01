@@ -9,7 +9,7 @@ import {
   Search,
   Terminal,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
@@ -35,7 +35,7 @@ import {
   useLiveResource,
 } from '@/v2/routes/liveResource'
 
-const previewLimit = 25
+const previewLimit = 100
 
 export const Route = createFileRoute('/v2/data')({
   component: Data,
@@ -84,6 +84,7 @@ function Data() {
     data: null,
     error: null,
   })
+  const [isLoadingMoreRows, setIsLoadingMoreRows] = useState(false)
   const namespaces = new Set(
     tables.map((table) => table.namespace ?? 'default'),
   )
@@ -97,13 +98,15 @@ function Data() {
     if (!selected) return
     let cancelled = false
     let retryTimer: number | undefined
-    const key = `v2:table-preview:${selected.id}:${previewLimit}:${previewRefreshKey}`
+    setIsLoadingMoreRows(false)
+    setPreview({ data: null, error: null })
+    const key = `v2:table-preview:${selected.id}:${previewLimit}:0:${previewRefreshKey}`
     const loadPreview = (force = false) =>
       loadCachedResource(
         key,
         () =>
           getV2TablePreview({
-            data: { tableId: selected.id, limit: previewLimit },
+            data: { tableId: selected.id, limit: previewLimit, offset: 0 },
           }),
         {
           force,
@@ -127,6 +130,36 @@ function Data() {
       if (retryTimer !== undefined) window.clearTimeout(retryTimer)
     }
   }, [previewRefreshKey, selected])
+
+  const loadMoreRows = useCallback(() => {
+    if (!selected || isLoadingMoreRows) return
+    const current = preview.data
+    if (!current?.has_more) return
+    const offset = current.rows.length
+    setIsLoadingMoreRows(true)
+    const key = `v2:table-preview:${selected.id}:${previewLimit}:${offset}:${previewRefreshKey}`
+    void loadCachedResource(
+      key,
+      () =>
+        getV2TablePreview({
+          data: { tableId: selected.id, limit: previewLimit, offset },
+        }),
+      { staleMs: 120_000 },
+    ).then((next) => {
+      setIsLoadingMoreRows(false)
+      setPreview((existing) => {
+        if (next.error || !next.data) {
+          return { data: existing.data, error: next.error }
+        }
+        if (!existing.data) return next
+        if (existing.data.table.id !== next.data.table.id) return existing
+        return {
+          data: mergeTablePreviews(existing.data, next.data),
+          error: null,
+        }
+      })
+    })
+  }, [isLoadingMoreRows, preview.data, previewRefreshKey, selected])
 
   useEffect(() => {
     void loadCachedResource('v2:saved-queries', getV2SavedQueries, {
@@ -235,6 +268,8 @@ function Data() {
             </div>
           ) : (
             <DataPreviewTable
+              isLoadingMoreRows={isLoadingMoreRows}
+              onLoadMoreRows={loadMoreRows}
               mode={mainView}
               preview={preview.data}
               selected={selected}
@@ -375,11 +410,15 @@ const dataDetailTabs: Array<{
 ]
 
 function DataPreviewTable({
+  isLoadingMoreRows,
   mode,
+  onLoadMoreRows,
   preview,
   selected,
 }: {
+  isLoadingMoreRows: boolean
   mode: Exclude<DataMainView, 'flow'>
+  onLoadMoreRows: () => void
   preview: V2TablePreview | null
   selected: V2Table | null
 }) {
@@ -438,7 +477,15 @@ function DataPreviewTable({
         </span>
       </div>
       {columns.length > 0 ? (
-        <div className="phlo-v2-row-preview-scroll">
+        <div
+          className="phlo-v2-row-preview-scroll"
+          onScroll={(event) => {
+            const target = event.currentTarget
+            const remaining =
+              target.scrollHeight - target.scrollTop - target.clientHeight
+            if (remaining < 96) onLoadMoreRows()
+          }}
+        >
           <table className="phlo-v2-row-preview-table">
             <thead>
               <tr>
@@ -457,6 +504,16 @@ function DataPreviewTable({
               ))}
             </tbody>
           </table>
+          {(preview?.has_more || isLoadingMoreRows) && (
+            <button
+              className="phlo-v2-row-preview-more"
+              disabled={isLoadingMoreRows}
+              onClick={onLoadMoreRows}
+              type="button"
+            >
+              {isLoadingMoreRows ? 'Loading more rows...' : 'Load more rows'}
+            </button>
+          )}
         </div>
       ) : (
         <div className="phlo-v2-data-preview-empty">
@@ -465,6 +522,21 @@ function DataPreviewTable({
       )}
     </div>
   )
+}
+
+function mergeTablePreviews(
+  current: V2TablePreview,
+  next: V2TablePreview,
+): V2TablePreview {
+  return {
+    ...next,
+    columns: next.columns.length ? next.columns : current.columns,
+    column_types: next.column_types.length
+      ? next.column_types
+      : current.column_types,
+    offset: current.offset,
+    rows: [...current.rows, ...next.rows],
+  }
 }
 
 function columnTypeFor(

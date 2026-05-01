@@ -1097,9 +1097,10 @@ def _select_sql_for_table(table: V2Table, *, limit: int, offset: int = 0) -> str
     relation = _query_relation_for_table(table)
     if relation is None:
         return None
-    sql = f"select * from {relation} limit {max(1, min(limit, 500))}"
+    sql = f"select * from {relation}"
     if offset > 0:
         sql = f"{sql} offset {max(0, offset)}"
+    sql = f"{sql} limit {max(1, min(limit, 500))}"
     return sql
 
 

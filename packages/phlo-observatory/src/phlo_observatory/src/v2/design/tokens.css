@@ -1681,6 +1681,23 @@ button.phlo-v2-mini-row {
   font-weight: 650;
 }
 
+.phlo-v2-row-preview-more {
+  display: grid;
+  width: 100%;
+  min-height: 42px;
+  place-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  background: var(--v2-sheet);
+  color: var(--v2-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.phlo-v2-row-preview-more:disabled {
+  cursor: progress;
+}
+
 .phlo-v2-schema-grid {
   display: grid;
 }
