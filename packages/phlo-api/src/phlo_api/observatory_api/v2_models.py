@@ -27,6 +27,28 @@ class V2ExternalLink(BaseModel):
     kind: str = "external"
 
 
+class V2CapabilityPage(BaseModel):
+    """Provider-neutral Observatory page availability."""
+
+    id: str
+    label: str
+    path: str
+    available: bool
+    nav: bool = True
+    reason: str | None = None
+    providers: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class V2Capabilities(BaseModel):
+    """Provider-neutral Observatory surface capability contract."""
+
+    version: int = 2
+    pages: list[V2CapabilityPage] = Field(default_factory=list)
+    features: dict[str, bool] = Field(default_factory=dict)
+    providers: dict[str, list[str]] = Field(default_factory=dict)
+
+
 class V2ResourceRef(BaseModel):
     """Small reference to another Observatory v2 resource."""
 

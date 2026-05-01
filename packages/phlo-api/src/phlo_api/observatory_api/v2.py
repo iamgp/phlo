@@ -29,6 +29,8 @@ from phlo_api.observatory_api.v2_models import (
     V2AssetDetail,
     V2Branch,
     V2BranchDetail,
+    V2Capabilities,
+    V2CapabilityPage,
     V2Extension,
     V2ExtensionDetail,
     V2ExternalLink,
@@ -132,6 +134,70 @@ class V2ExtensionList(BaseModel):
     """List envelope for v2 extensions."""
 
     items: list[V2Extension]
+
+
+_CAPABILITY_PAGE_DEFINITIONS = (
+    ("overview", "Overview", "/v2", True, True, "Core lakehouse attention surface."),
+    ("services", "Services", "/v2/services", True, True, "Core runtime service inventory."),
+    ("data", "Data", "/v2/data", False, True, "Install a table or query provider to browse data."),
+    (
+        "assets",
+        "Assets",
+        "/v2/assets",
+        False,
+        True,
+        "Install asset metadata or lineage providers to inspect impact.",
+    ),
+    (
+        "issues",
+        "Issues",
+        "/v2/quality",
+        False,
+        True,
+        "Install a quality provider to triage issues.",
+    ),
+    (
+        "quality",
+        "Quality",
+        "/v2/quality",
+        False,
+        False,
+        "Install a quality provider to triage checks.",
+    ),
+    (
+        "logs",
+        "Logs",
+        "/v2/logs",
+        False,
+        True,
+        "Install a log or telemetry provider to inspect evidence.",
+    ),
+    (
+        "branches",
+        "Changes",
+        "/v2/branches",
+        False,
+        True,
+        "Install a branching catalog provider to compare changes.",
+    ),
+    (
+        "operations",
+        "Actions",
+        "/v2/operations",
+        False,
+        True,
+        "Install an operation provider to review recovery activity.",
+    ),
+    (
+        "extensions",
+        "Extensions",
+        "/v2/extensions",
+        False,
+        False,
+        "Extension inventory is available in Settings.",
+    ),
+    ("settings", "Settings", "/v2/settings", True, True, "Core Observatory settings."),
+)
 
 
 class V2SearchList(BaseModel):
@@ -805,7 +871,9 @@ def _table_rows(
     return rows
 
 
-def _run_query_engine(sql: str, *, schema: str | None = None, limit: int = 500) -> Mapping[str, Any] | None:
+def _run_query_engine(
+    sql: str, *, schema: str | None = None, limit: int = 500
+) -> Mapping[str, Any] | None:
     try:
         from phlo_api.observatory_api.trino import QueryExecutionError, execute_trino_query
     except Exception:
@@ -829,7 +897,9 @@ def _run_query_engine(sql: str, *, schema: str | None = None, limit: int = 500) 
     return {
         "columns": [str(column) for column in columns],
         "rows": [dict(row) for row in clean_rows],
-        "column_types": result.get("column_types") if isinstance(result.get("column_types"), list) else [],
+        "column_types": result.get("column_types")
+        if isinstance(result.get("column_types"), list)
+        else [],
     }
 
 
@@ -842,7 +912,9 @@ def _relation_from_metadata(table: V2Table) -> str | None:
     schema = table.metadata.get("schema") or table.schema_name or table.namespace
     name = table.metadata.get("table_name") or table.metadata.get("table") or table.name
     if all(isinstance(value, str) and value.strip() for value in (catalog, schema, name)):
-        return ".".join(f'"{str(value).strip().strip(chr(34))}"' for value in (catalog, schema, name))
+        return ".".join(
+            f'"{str(value).strip().strip(chr(34))}"' for value in (catalog, schema, name)
+        )
     return None
 
 
@@ -911,14 +983,18 @@ def _preview_from_query_engine(table: V2Table, limit: int, offset: int) -> V2Tab
     if sql is None:
         return None
 
-    result = _run_query_engine(sql, schema=table.schema_name or table.namespace, limit=effective_limit)
+    result = _run_query_engine(
+        sql, schema=table.schema_name or table.namespace, limit=effective_limit
+    )
     if result is None:
         return None
 
     row_count: int | None = None
     count_sql = _count_sql_for_table(table)
     if count_sql is not None:
-        count_result = _run_query_engine(count_sql, schema=table.schema_name or table.namespace, limit=1)
+        count_result = _run_query_engine(
+            count_sql, schema=table.schema_name or table.namespace, limit=1
+        )
         if count_result and count_result["rows"]:
             raw_count = count_result["rows"][0].get("row_count")
             if isinstance(raw_count, int):
@@ -1545,6 +1621,93 @@ def _load_extension_detail(extension_id: str) -> V2ExtensionDetail:
     )
 
 
+def _providers_for_path(extensions: Sequence[V2Extension], path: str) -> list[str]:
+    providers: list[str] = []
+    for extension in extensions:
+        paths = {*extension.nav, *extension.routes}
+        if path in paths or any(item == path or item.startswith(f"{path}/") for item in paths):
+            providers.append(extension.id)
+    return sorted(providers)
+
+
+def _providers_matching(extensions: Sequence[V2Extension], *needles: str) -> list[str]:
+    matches: list[str] = []
+    lowered_needles = tuple(needle.lower() for needle in needles)
+    for extension in extensions:
+        haystack = " ".join(
+            [extension.id, extension.name, *extension.nav, *extension.routes]
+        ).lower()
+        if any(needle in haystack for needle in lowered_needles):
+            matches.append(extension.id)
+    return sorted(set(matches))
+
+
+def _load_capabilities() -> V2Capabilities:
+    extensions = _load_extensions()
+    assets = _load_assets()
+    tables = _load_tables()
+    checks = _load_quality()
+    logs = _load_logs()
+    operations = _load_operations()
+
+    data_providers = sorted(set(_providers_matching(extensions, "trino", "query", "/data") or []))
+    asset_providers = sorted(
+        set(_providers_matching(extensions, "lineage", "dagster", "asset", "graph") or [])
+    )
+    quality_providers = sorted(set(_providers_matching(extensions, "quality", "pandera") or []))
+    log_providers = sorted(set(_providers_matching(extensions, "loki", "logs", "telemetry") or []))
+    branch_providers = sorted(set(_providers_matching(extensions, "nessie", "branch") or []))
+    operation_providers = sorted(
+        set(_providers_matching(extensions, "operation", "maintenance") or [])
+    )
+
+    features = {
+        "overview": True,
+        "services": True,
+        "data": bool(tables or data_providers),
+        "assets": bool(assets or asset_providers),
+        "issues": bool(checks or quality_providers),
+        "quality": bool(checks or quality_providers),
+        "logs": bool(logs or log_providers),
+        "branches": bool(branch_providers),
+        "operations": bool(operations or operation_providers),
+        "extensions": bool(extensions),
+        "settings": True,
+    }
+    providers = {
+        "data": data_providers,
+        "assets": asset_providers,
+        "issues": quality_providers,
+        "quality": quality_providers,
+        "logs": log_providers,
+        "branches": branch_providers,
+        "operations": operation_providers,
+        "extensions": [extension.id for extension in extensions],
+    }
+
+    pages: list[V2CapabilityPage] = []
+    for page_id, label, path, core_available, nav, reason in _CAPABILITY_PAGE_DEFINITIONS:
+        available = core_available or features.get(page_id, False)
+        page_providers = providers.get(page_id) or _providers_for_path(extensions, path)
+        pages.append(
+            V2CapabilityPage(
+                id=page_id,
+                label=label,
+                path=path,
+                available=available,
+                nav=nav and available,
+                reason=None if available else reason,
+                providers=page_providers,
+            )
+        )
+
+    return V2Capabilities(
+        pages=pages,
+        features=features,
+        providers={key: value for key, value in providers.items() if value},
+    )
+
+
 def _load_settings() -> V2Settings:
     defaults: dict[str, str] = {"branch": "main"}
     try:
@@ -1560,19 +1723,14 @@ def _load_settings() -> V2Settings:
     except Exception:
         pass
 
+    capabilities = _load_capabilities()
     return V2Settings(
         defaults=defaults,
-        features={
-            "operations": True,
-            "assets": True,
-            "tables": True,
-            "quality": True,
-            "logs": True,
-            "branches": True,
-            "extensions": True,
-            "settings": True,
-        },
+        features=capabilities.features,
         storage={"settings": "core"},
+        metadata={
+            "providers": capabilities.providers,
+        },
     )
 
 
@@ -1724,6 +1882,12 @@ def get_v2_overview() -> V2Overview:
         },
         recent=[],
     )
+
+
+@router.get("/capabilities", response_model=V2Capabilities)
+def get_v2_capabilities() -> V2Capabilities:
+    """Get the provider-neutral Observatory surface capabilities."""
+    return _load_capabilities()
 
 
 @router.get("/services", response_model=V2ServiceList)

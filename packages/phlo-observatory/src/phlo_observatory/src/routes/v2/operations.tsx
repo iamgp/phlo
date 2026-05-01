@@ -62,12 +62,10 @@ function Operations() {
 
   return (
     <V2Page
-      kicker="Operations"
-      title="Recovery history"
-      description="Maintenance status, guarded actions, and service-impacting work."
-      action={
-        <span className="phlo-v2-pill">{operations.length} operations</span>
-      }
+      kicker="Actions"
+      title="Recovery activity"
+      description="Phlo-owned actions, maintenance status, and service-impacting work."
+      action={<span className="phlo-v2-pill">{operations.length} actions</span>}
     >
       <section className="phlo-v2-command">
         <div className="phlo-v2-command-primary">
@@ -75,7 +73,7 @@ function Operations() {
             <>
               <div className="phlo-v2-flow-band">
                 <div className="phlo-v2-workspace-toolbar">
-                  <span>Recovery graph</span>
+                  <span>Action graph</span>
                   <span className="phlo-v2-pill">
                     {graph.edges.length} links
                   </span>
@@ -210,9 +208,7 @@ function Operations() {
           ) : (
             <>
               <h2>No operation selected</h2>
-              <p>
-                There are no Phlo operation records for this lakehouse yet.
-              </p>
+              <p>There are no Phlo operation records for this lakehouse yet.</p>
             </>
           )}
           {detail.error && (

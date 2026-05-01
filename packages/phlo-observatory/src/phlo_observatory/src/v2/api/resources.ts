@@ -6,6 +6,7 @@ import type {
   V2Asset,
   V2AssetDetail,
   V2BranchDetail,
+  V2Capabilities,
   V2Extension,
   V2ExtensionDetail,
   V2LogEvent,
@@ -52,6 +53,21 @@ export const getV2Overview = createServerFn().handler(
       return { data, error: null }
     } catch (error) {
       return apiUnavailable<V2Overview>(error)
+    }
+  },
+)
+
+export const getV2Capabilities = createServerFn().handler(
+  async (): Promise<V2ResourceResult<V2Capabilities>> => {
+    try {
+      const data = await apiGet<V2Capabilities>(
+        `${V2_API_PREFIX}/capabilities`,
+        undefined,
+        8000,
+      )
+      return { data, error: null }
+    } catch (error) {
+      return apiUnavailable<V2Capabilities>(error)
     }
   },
 )

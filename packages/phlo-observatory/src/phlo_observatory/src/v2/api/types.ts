@@ -18,6 +18,24 @@ export interface V2ExternalLink {
   kind: string
 }
 
+export interface V2CapabilityPage {
+  id: string
+  label: string
+  path: string
+  available: boolean
+  nav: boolean
+  reason?: string | null
+  providers: Array<string>
+  metadata: Record<string, unknown>
+}
+
+export interface V2Capabilities {
+  version: number
+  pages: Array<V2CapabilityPage>
+  features: Record<string, boolean>
+  providers: Record<string, Array<string>>
+}
+
 export interface V2ResourceRef {
   kind: string
   id: string

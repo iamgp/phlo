@@ -14,6 +14,7 @@ import type { ReactNode } from 'react'
 import type {
   V2Asset,
   V2Branch,
+  V2Capabilities,
   V2LogEvent,
   V2Operation,
   V2Overview,
@@ -24,6 +25,7 @@ import type {
 import {
   getV2AssetRecords,
   getV2Branches,
+  getV2Capabilities,
   getV2LogRecords,
   getV2OperationRecords,
   getV2Overview,
@@ -67,6 +69,8 @@ export function OverviewRoute() {
     data: null,
     error: null,
   })
+  const [capabilities, setCapabilities] =
+    useState<V2ResourceResult<V2Capabilities> | null>(null)
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
 
   useEffect(() => {
@@ -81,6 +85,7 @@ export function OverviewRoute() {
         nextQuality,
         nextLogs,
         nextBranches,
+        nextCapabilities,
       ] = await Promise.all([
         getV2Overview(),
         getV2Services(),
@@ -89,6 +94,7 @@ export function OverviewRoute() {
         getV2QualityRecords(),
         getV2LogRecords(),
         getV2Branches(),
+        getV2Capabilities(),
       ])
 
       if (!cancelled) {
@@ -99,6 +105,7 @@ export function OverviewRoute() {
         setQuality(nextQuality)
         setLogs(nextLogs)
         setBranches(nextBranches)
+        setCapabilities(nextCapabilities)
         setUpdatedAt(new Date())
       }
     }
@@ -138,6 +145,7 @@ export function OverviewRoute() {
     operations: operationRows,
     quality: qualityRows,
     logs: logRows,
+    enabled: capabilities?.data?.features,
   })
   const recentEvidence = logRows.slice(0, 4)
   const apiError =
@@ -226,30 +234,36 @@ export function OverviewRoute() {
           </div>
 
           <section className="phlo-v2-diff-metrics">
-            <CommandTile
-              href="/v2/quality"
-              icon={<ListChecks className="size-5" />}
-              label="Triage quality"
-              value={`${blockingChecks} blocking`}
-            />
-            <CommandTile
-              href="/v2/operations"
-              icon={<Activity className="size-5" />}
-              label="Review recovery"
-              value={`${failedOperations} failed`}
-            />
+            {featureEnabled(capabilities?.data, 'issues') && (
+              <CommandTile
+                href="/v2/quality"
+                icon={<ListChecks className="size-5" />}
+                label="Triage issues"
+                value={`${blockingChecks} blocking`}
+              />
+            )}
+            {featureEnabled(capabilities?.data, 'operations') && (
+              <CommandTile
+                href="/v2/operations"
+                icon={<Activity className="size-5" />}
+                label="Review actions"
+                value={`${failedOperations} failed`}
+              />
+            )}
             <CommandTile
               href="/v2/assets"
               icon={<Boxes className="size-5" />}
               label="Inspect impact"
               value={`${assetRows.length} assets`}
             />
-            <CommandTile
-              href="/v2/branches"
-              icon={<GitBranch className="size-5" />}
-              label="Check changes"
-              value={`${activeBranches} active`}
-            />
+            {featureEnabled(capabilities?.data, 'branches') && (
+              <CommandTile
+                href="/v2/branches"
+                icon={<GitBranch className="size-5" />}
+                label="Check changes"
+                value={`${activeBranches} active`}
+              />
+            )}
           </section>
         </div>
 
@@ -374,11 +388,13 @@ function buildAttentionItems({
   operations,
   quality,
   logs,
+  enabled,
 }: {
   services: Array<V2Service>
   operations: Array<V2Operation>
   quality: Array<V2QualityCheck>
   logs: Array<V2LogEvent>
+  enabled?: Record<string, boolean>
 }) {
   return [
     ...services
@@ -392,40 +408,54 @@ function buildAttentionItems({
         meta: service.health.message ?? service.status,
         state: service.health.state,
       })),
-    ...quality
-      .filter((check) => check.blocking || check.status === 'failing')
-      .slice(0, 3)
-      .map((check) => ({
-        id: `quality:${check.id}`,
-        href: '/v2/quality',
-        kind: 'quality',
-        label: check.name,
-        meta: `${check.asset_id} · ${check.severity ?? check.status}`,
-        state: check.status === 'failing' ? 'error' : 'warning',
-      })),
-    ...operations
-      .filter((operation) => operation.status === 'failed')
-      .slice(0, 2)
-      .map((operation) => ({
-        id: `operation:${operation.id}`,
-        href: '/v2/operations',
-        kind: 'operation',
-        label: operation.name,
-        meta: operation.target?.label ?? operation.kind,
-        state: 'error',
-      })),
-    ...logs
-      .filter((log) => log.level === 'error')
-      .slice(0, 2)
-      .map((log) => ({
-        id: `log:${log.id}`,
-        href: '/v2/logs',
-        kind: 'log',
-        label: log.message,
-        meta: [log.source, log.timestamp].filter(Boolean).join(' · '),
-        state: 'error',
-      })),
+    ...(enabled?.issues === false
+      ? []
+      : quality
+          .filter((check) => check.blocking || check.status === 'failing')
+          .slice(0, 3)
+          .map((check) => ({
+            id: `quality:${check.id}`,
+            href: '/v2/quality',
+            kind: 'quality',
+            label: check.name,
+            meta: `${check.asset_id} · ${check.severity ?? check.status}`,
+            state: check.status === 'failing' ? 'error' : 'warning',
+          }))),
+    ...(enabled?.operations === false
+      ? []
+      : operations
+          .filter((operation) => operation.status === 'failed')
+          .slice(0, 2)
+          .map((operation) => ({
+            id: `operation:${operation.id}`,
+            href: '/v2/operations',
+            kind: 'operation',
+            label: operation.name,
+            meta: operation.target?.label ?? operation.kind,
+            state: 'error',
+          }))),
+    ...(enabled?.logs === false
+      ? []
+      : logs
+          .filter((log) => log.level === 'error')
+          .slice(0, 2)
+          .map((log) => ({
+            id: `log:${log.id}`,
+            href: '/v2/logs',
+            kind: 'log',
+            label: log.message,
+            meta: [log.source, log.timestamp].filter(Boolean).join(' · '),
+            state: 'error',
+          }))),
   ]
+}
+
+function featureEnabled(
+  capabilities: V2Capabilities | null | undefined,
+  key: string,
+): boolean {
+  if (!capabilities) return true
+  return capabilities.features[key] !== false
 }
 
 function serviceNeedsAttention(service: V2Service): boolean {

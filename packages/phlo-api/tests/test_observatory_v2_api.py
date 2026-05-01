@@ -10,12 +10,14 @@ from fastapi.testclient import TestClient
 from phlo_api.main import app
 from phlo_api.observatory_api.v2 import (
     _fallback_services,
+    _load_capabilities,
     _load_docker_service_statuses,
     _overview_health_from_services,
 )
 from phlo_api.observatory_api.v2_models import (
     V2Asset,
     V2Branch,
+    V2CapabilityPage,
     V2ExternalLink,
     V2Health,
     V2Overview,
@@ -117,6 +119,32 @@ def test_v2_resource_models_serialize_provider_neutral_shapes() -> None:
     _assert_no_provider_url_settings(payload)
 
 
+def test_v2_capability_page_serializes_provider_neutral_shape() -> None:
+    page = V2CapabilityPage(
+        id="branches",
+        label="Changes",
+        path="/v2/branches",
+        available=False,
+        nav=False,
+        reason="Install a branching provider to compare catalog branches.",
+        providers=[],
+    )
+
+    payload = page.model_dump()
+
+    assert payload == {
+        "id": "branches",
+        "label": "Changes",
+        "path": "/v2/branches",
+        "available": False,
+        "nav": False,
+        "reason": "Install a branching provider to compare catalog branches.",
+        "providers": [],
+        "metadata": {},
+    }
+    _assert_no_provider_url_settings(payload)
+
+
 def test_v2_fallback_services_are_deterministic_and_provider_neutral() -> None:
     payload = [service.model_dump() for service in _fallback_services()]
 
@@ -187,6 +215,45 @@ def test_v2_overview_endpoint_returns_provider_neutral_payload() -> None:
         "quality",
         "incidents",
     } == set(payload["counters"])
+    _assert_no_provider_url_settings(payload)
+
+
+def test_v2_capabilities_endpoint_returns_provider_neutral_payload() -> None:
+    response = TestClient(app).get("/api/observatory/v2/capabilities")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) == {"version", "pages", "features", "providers"}
+    pages = {page["id"]: page for page in payload["pages"]}
+    assert pages["overview"]["available"] is True
+    assert pages["services"]["available"] is True
+    assert pages["settings"]["available"] is True
+    assert pages["extensions"]["nav"] is False
+    _assert_no_provider_url_settings(payload)
+
+
+def test_v2_capabilities_gate_provider_pages_when_providers_are_absent(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_extensions", lambda: [])
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_assets", lambda: [])
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_tables", lambda: [])
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_quality", lambda: [])
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_logs", lambda: [])
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_operations", lambda: [])
+
+    payload = _load_capabilities().model_dump()
+
+    pages = {page["id"]: page for page in payload["pages"]}
+    assert pages["overview"]["available"] is True
+    assert pages["services"]["available"] is True
+    assert pages["settings"]["available"] is True
+    assert pages["branches"]["available"] is False
+    assert pages["branches"]["nav"] is False
+    assert pages["quality"]["available"] is False
+    assert pages["logs"]["available"] is False
+    assert pages["extensions"]["nav"] is False
     _assert_no_provider_url_settings(payload)
 
 
@@ -573,6 +640,7 @@ def test_v2_all_endpoints_do_not_leak_provider_url_setting_names() -> None:
 
     for path in (
         "/api/observatory/v2/overview",
+        "/api/observatory/v2/capabilities",
         "/api/observatory/v2/services",
         "/api/observatory/v2/services/phlo-api",
         "/api/observatory/v2/operations",

@@ -52,9 +52,9 @@ function Branches() {
 
   return (
     <V2Page
-      kicker="Branches"
-      title="Catalog branches"
-      description="Review branch state and prepare guarded change workflows."
+      kicker="Changes"
+      title="Catalog changes"
+      description="Review branch state, table drift, and guarded change workflows."
       action={<span className="phlo-v2-pill">{branches.length} branches</span>}
     >
       <section className="phlo-v2-surface-grid">

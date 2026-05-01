@@ -18,27 +18,39 @@ import {
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import type { V2ResourceResult, V2SearchResult } from '@/v2/api/types'
+import type {
+  V2Capabilities,
+  V2CapabilityPage,
+  V2ResourceResult,
+  V2SearchResult,
+} from '@/v2/api/types'
 import type { V2ThemeMode } from '@/v2/shell/theme'
 import {
   V2_THEME_STORAGE_KEY,
   readV2ThemeMode,
   resolveV2Theme,
 } from '@/v2/shell/theme'
-import { searchV2 } from '@/v2/api/resources'
+import { getV2Capabilities, searchV2 } from '@/v2/api/resources'
 
-const navItems = [
-  { label: 'Overview', href: '/v2', icon: LayoutDashboard },
-  { label: 'Services', href: '/v2/services', icon: Server },
-  { label: 'Operations', href: '/v2/operations', icon: Activity },
-  { label: 'Data', href: '/v2/data', icon: Database },
-  { label: 'Assets', href: '/v2/assets', icon: Boxes },
-  { label: 'Quality', href: '/v2/quality', icon: ListChecks },
-  { label: 'Logs', href: '/v2/logs', icon: Logs },
-  { label: 'Branches', href: '/v2/branches', icon: GitBranch },
-  { label: 'Extensions', href: '/v2/extensions', icon: Plug },
-  { label: 'Settings', href: '/v2/settings', icon: Settings },
+const fallbackPages: Array<V2CapabilityPage> = [
+  corePage('overview', 'Overview', '/v2'),
+  corePage('services', 'Services', '/v2/services'),
+  corePage('settings', 'Settings', '/v2/settings'),
 ]
+
+const iconByPageId: Record<string, typeof LayoutDashboard> = {
+  overview: LayoutDashboard,
+  services: Server,
+  operations: Activity,
+  data: Database,
+  assets: Boxes,
+  issues: ListChecks,
+  quality: ListChecks,
+  logs: Logs,
+  branches: GitBranch,
+  extensions: Plug,
+  settings: Settings,
+}
 
 const themeModes = [
   { mode: 'system', label: 'System', icon: Monitor },
@@ -57,7 +69,10 @@ export function V2Shell({ children }: { children: ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [themeMode, setThemeMode] = useState<V2ThemeMode>('system')
   const [systemPrefersDark, setSystemPrefersDark] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
   const [query, setQuery] = useState('')
+  const [capabilities, setCapabilities] =
+    useState<V2ResourceResult<V2Capabilities> | null>(null)
   const [results, setResults] = useState<
     V2ResourceResult<Array<V2SearchResult>>
   >({
@@ -65,8 +80,19 @@ export function V2Shell({ children }: { children: ReactNode }) {
     error: null,
   })
   const resolvedTheme = resolveV2Theme(themeMode, systemPrefersDark)
+  const pages = hydrated
+    ? (capabilities?.data?.pages ?? fallbackPages)
+    : fallbackPages
+  const navItems = pages.filter((page) => page.nav && page.available)
+  const activePage = pageForPath(pathname, pages)
+  const pageUnavailable =
+    hydrated &&
+    capabilities?.data !== null &&
+    activePage !== null &&
+    activePage.available === false
 
   useEffect(() => {
+    setHydrated(true)
     setThemeMode(readV2ThemeMode(window.localStorage))
 
     const media = window.matchMedia?.('(prefers-color-scheme: dark)')
@@ -93,6 +119,20 @@ export function V2Shell({ children }: { children: ReactNode }) {
       document.documentElement.style.removeProperty('color-scheme')
     }
   }, [resolvedTheme])
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const next = await getV2Capabilities()
+      if (!cancelled) setCapabilities(next)
+    }
+    void load()
+    const interval = window.setInterval(load, 30_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [])
 
   useEffect(() => {
     if (!searchOpen || query.trim().length < 2) {
@@ -126,13 +166,18 @@ export function V2Shell({ children }: { children: ReactNode }) {
           </div>
           <div className="phlo-v2-nav-links">
             {navItems.map((item) => {
-              const Icon = item.icon
+              const Icon = iconByPageId[item.id] ?? LayoutDashboard
               return (
                 <Link
-                  key={item.label}
-                  to={item.href}
+                  key={item.id}
+                  to={item.path}
                   className="phlo-v2-nav-link"
-                  data-active={isActive(pathname, item.href)}
+                  data-active={isActive(pathname, item.path)}
+                  title={
+                    item.providers.length
+                      ? item.providers.join(', ')
+                      : undefined
+                  }
                 >
                   <Icon className="size-3.5" />
                   {item.label}
@@ -203,7 +248,9 @@ export function V2Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
         )}
-        <section className="phlo-v2-sheet">{children}</section>
+        <section className="phlo-v2-sheet">
+          {pageUnavailable ? <UnavailablePage page={activePage} /> : children}
+        </section>
       </div>
     </main>
   )
@@ -212,4 +259,64 @@ export function V2Shell({ children }: { children: ReactNode }) {
 function isActive(pathname: string, href: string): boolean {
   if (href === '/v2') return pathname === '/v2'
   return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+function pageForPath(
+  pathname: string,
+  pages: Array<V2CapabilityPage>,
+): V2CapabilityPage | null {
+  const exact = pages.find((page) => pathname === page.path)
+  if (exact) return exact
+
+  const aliases: Record<string, string> = {
+    '/v2/table/': 'data',
+    '/v2/data/': 'data',
+    '/v2/asset/': 'assets',
+    '/v2/assets/': 'assets',
+    '/v2/branch/': 'branches',
+    '/v2/branches/': 'branches',
+    '/v2/extension/': 'extensions',
+    '/v2/extensions/': 'extensions',
+  }
+  const match = Object.entries(aliases).find(([prefix]) =>
+    pathname.startsWith(prefix),
+  )
+  if (!match) return null
+  return pages.find((page) => page.id === match[1]) ?? null
+}
+
+function UnavailablePage({ page }: { page: V2CapabilityPage }) {
+  return (
+    <div className="phlo-v2-content">
+      <header className="phlo-v2-section-header">
+        <div>
+          <div className="phlo-v2-kicker">Capability unavailable</div>
+          <h1 className="phlo-v2-title">{page.label}</h1>
+          <p className="phlo-v2-subtitle">
+            {page.reason ??
+              'This surface is hidden until a provider contributes data for it.'}
+          </p>
+        </div>
+      </header>
+      <section className="phlo-v2-panel phlo-v2-empty-panel">
+        <h2>Nothing to control here yet</h2>
+        <p>
+          Install or enable the matching Phlo package, then Observatory will add
+          this page automatically.
+        </p>
+      </section>
+    </div>
+  )
+}
+
+function corePage(id: string, label: string, path: string): V2CapabilityPage {
+  return {
+    id,
+    label,
+    path,
+    available: true,
+    nav: true,
+    providers: [],
+    metadata: {},
+  }
 }

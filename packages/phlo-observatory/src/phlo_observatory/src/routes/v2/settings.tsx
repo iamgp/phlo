@@ -3,6 +3,7 @@ import {
   Database,
   Gauge,
   KeyRound,
+  Plug,
   RefreshCw,
   RotateCcw,
   Save,
@@ -20,6 +21,8 @@ import {
   getCacheStatsEndpoint,
 } from '@/server/cache.server'
 import { V2Page } from '@/v2/components/V2Page'
+import type { V2Capabilities, V2ResourceResult } from '@/v2/api/types'
+import { getV2Capabilities } from '@/v2/api/resources'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 export const Route = createFileRoute('/v2/settings')({
@@ -42,6 +45,8 @@ function SettingsRoute() {
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<CacheStats | null>(null)
   const [statsLoading, setStatsLoading] = useState(false)
+  const [capabilities, setCapabilities] =
+    useState<V2ResourceResult<V2Capabilities> | null>(null)
   const orderedSettingsSections = useMemo(
     () =>
       [...settingsSections].sort((a, b) => {
@@ -63,6 +68,7 @@ function SettingsRoute() {
 
   useEffect(() => {
     void fetchStats()
+    void getV2Capabilities().then(setCapabilities)
   }, [])
 
   async function fetchStats() {
@@ -401,6 +407,33 @@ function SettingsRoute() {
             </SettingsPanel>
           )
         })}
+
+        <SettingsPanel
+          description="Installed providers decide which Observatory surfaces appear in navigation."
+          icon={<Plug className="size-4" />}
+          title="Capabilities"
+        >
+          <div className="phlo-v2-detail-list">
+            {(capabilities?.data?.pages ?? []).map((page) => (
+              <div className="phlo-v2-mini-row" key={page.id}>
+                <span>{page.label}</span>
+                <small>
+                  {page.available
+                    ? page.providers.length
+                      ? page.providers.join(', ')
+                      : 'core'
+                    : (page.reason ?? 'No provider installed')}
+                </small>
+              </div>
+            ))}
+            {capabilities?.error && (
+              <div className="phlo-v2-mini-row">
+                <span>Capability discovery</span>
+                <small>{capabilities.error}</small>
+              </div>
+            )}
+          </div>
+        </SettingsPanel>
 
         <SettingsPanel
           description="Metadata cache visibility and maintenance."

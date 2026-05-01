@@ -1,10 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import {
-  AlertTriangle,
-  CircleHelp,
-  Shield,
-  ShieldCheck,
-} from 'lucide-react'
+import { AlertTriangle, CircleHelp, Shield, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -56,9 +51,9 @@ function Quality() {
 
   return (
     <V2Page
-      kicker="Quality"
-      title="Quality checks"
-      description="Triage data trust by asset, severity, and blocking state."
+      kicker="Issues"
+      title="Data issues"
+      description="Triage quality, freshness, and blocking trust signals by asset."
       action={<span className="phlo-v2-pill">{checks.length} checks</span>}
     >
       <section className="phlo-v2-quality-shell">
@@ -72,7 +67,7 @@ function Quality() {
           </div>
           <div className="phlo-v2-flow-band">
             <div className="phlo-v2-workspace-toolbar">
-              <span>Asset check graph</span>
+              <span>Issue graph</span>
               <span className="phlo-v2-pill">
                 {graph.edges.length} bindings
               </span>
@@ -95,11 +90,11 @@ function Quality() {
               label="Warnings"
               value={warnings}
             />
-              <Metric
-                icon={<CircleHelp className="size-4" />}
-                label="Not observed"
-                value={unknown}
-              />
+            <Metric
+              icon={<CircleHelp className="size-4" />}
+              label="Not observed"
+              value={unknown}
+            />
           </div>
           <div className="phlo-v2-check-list">
             {checks.map((check) => (
