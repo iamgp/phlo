@@ -62,6 +62,11 @@ function SettingsRoute() {
     () => JSON.stringify(draft) !== JSON.stringify(settings),
     [draft, settings],
   )
+  const capabilityFeatures = capabilities?.data?.features ?? {}
+  const showProviderConnections =
+    capabilityFeatures.operations ||
+    capabilityFeatures.data ||
+    capabilityFeatures.branches
 
   useEffect(() => {
     setDraft(settings)
@@ -109,7 +114,7 @@ function SettingsRoute() {
     <V2Page
       kicker="Settings"
       title="Observatory settings"
-      description="Edit operator preferences, extension options, and local maintenance controls."
+      description="Edit browser preferences, inspect capabilities, and run local maintenance controls."
       action={
         <span className="phlo-v2-pill">
           <Settings className="size-3.5" />
@@ -122,8 +127,8 @@ function SettingsRoute() {
           <div>
             <strong>Preferences</strong>
             <span>
-              Defaults come from the server; overrides are saved for this
-              browser and synced where phlo-api exposes a settings contract.
+              Preferences are saved for this browser. Project and provider
+              settings appear when phlo-api exposes a write contract.
             </span>
           </div>
           <div className="phlo-v2-action-row">
@@ -146,57 +151,65 @@ function SettingsRoute() {
 
         {error && <div className="phlo-v2-settings-error">{error}</div>}
 
-        <SettingsPanel
-          description="Connection endpoints used by legacy Observatory workflows and detail links."
-          icon={<Wifi className="size-4" />}
-          title="Connections"
-        >
-          <SettingField
-            hint={`Default: ${defaults.connections.dagsterGraphqlUrl}`}
-            label="Dagster GraphQL URL"
+        {showProviderConnections && (
+          <SettingsPanel
+            description="Provider endpoints currently inferred by Observatory. Future project-level edits should go through phlo-api capability write contracts."
+            icon={<Wifi className="size-4" />}
+            title="Provider endpoints"
           >
-            <TextInput
-              value={draft.connections.dagsterGraphqlUrl}
-              onChange={(value) =>
-                setDraft((current) => ({
-                  ...current,
-                  connections: {
-                    ...current.connections,
-                    dagsterGraphqlUrl: value,
-                  },
-                }))
-              }
-            />
-          </SettingField>
-          <SettingField
-            hint={`Default: ${defaults.connections.trinoUrl}`}
-            label="Trino URL"
-          >
-            <TextInput
-              value={draft.connections.trinoUrl}
-              onChange={(value) =>
-                setDraft((current) => ({
-                  ...current,
-                  connections: { ...current.connections, trinoUrl: value },
-                }))
-              }
-            />
-          </SettingField>
-          <SettingField
-            hint={`Default: ${defaults.connections.nessieUrl}`}
-            label="Nessie URL"
-          >
-            <TextInput
-              value={draft.connections.nessieUrl}
-              onChange={(value) =>
-                setDraft((current) => ({
-                  ...current,
-                  connections: { ...current.connections, nessieUrl: value },
-                }))
-              }
-            />
-          </SettingField>
-        </SettingsPanel>
+            {capabilityFeatures.operations && (
+              <SettingField
+                hint={`Default: ${defaults.connections.dagsterGraphqlUrl}`}
+                label="Dagster GraphQL URL"
+              >
+                <TextInput
+                  value={draft.connections.dagsterGraphqlUrl}
+                  onChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      connections: {
+                        ...current.connections,
+                        dagsterGraphqlUrl: value,
+                      },
+                    }))
+                  }
+                />
+              </SettingField>
+            )}
+            {capabilityFeatures.data && (
+              <SettingField
+                hint={`Default: ${defaults.connections.trinoUrl}`}
+                label="Query endpoint"
+              >
+                <TextInput
+                  value={draft.connections.trinoUrl}
+                  onChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      connections: { ...current.connections, trinoUrl: value },
+                    }))
+                  }
+                />
+              </SettingField>
+            )}
+            {capabilityFeatures.branches && (
+              <SettingField
+                hint={`Default: ${defaults.connections.nessieUrl}`}
+                label="Branch catalog endpoint"
+              >
+                <TextInput
+                  value={draft.connections.nessieUrl}
+                  onChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      connections: { ...current.connections, nessieUrl: value },
+                    }))
+                  }
+                />
+              </SettingField>
+            )}
+          </SettingsPanel>
+        )}
 
         <SettingsPanel
           description="Defaults used when opening data and catalog views."
@@ -204,17 +217,19 @@ function SettingsRoute() {
           title="Defaults"
         >
           <div className="phlo-v2-settings-columns">
-            <SettingField label="Branch">
-              <TextInput
-                value={draft.defaults.branch}
-                onChange={(value) =>
-                  setDraft((current) => ({
-                    ...current,
-                    defaults: { ...current.defaults, branch: value },
-                  }))
-                }
-              />
-            </SettingField>
+            {capabilityFeatures.branches && (
+              <SettingField label="Branch">
+                <TextInput
+                  value={draft.defaults.branch}
+                  onChange={(value) =>
+                    setDraft((current) => ({
+                      ...current,
+                      defaults: { ...current.defaults, branch: value },
+                    }))
+                  }
+                />
+              </SettingField>
+            )}
             <SettingField label="Catalog">
               <TextInput
                 value={draft.defaults.catalog}
@@ -340,7 +355,7 @@ function SettingsRoute() {
         </SettingsPanel>
 
         <SettingsPanel
-          description="Authentication and live update behavior."
+          description="Authentication token and live update behavior for this browser session."
           icon={<KeyRound className="size-4" />}
           title="Access and updates"
         >
@@ -439,7 +454,7 @@ function SettingsRoute() {
         </SettingsPanel>
 
         <SettingsPanel
-          description="Metadata cache visibility and maintenance."
+          description="Operator maintenance for Observatory read-model caches."
           icon={<RefreshCw className="size-4" />}
           title="Advanced"
         >
@@ -642,11 +657,6 @@ function CacheMetric({
 }
 
 function validateSettings(settings: ObservatorySettings): string | null {
-  if (!settings.connections.dagsterGraphqlUrl.trim()) {
-    return 'Dagster GraphQL URL is required.'
-  }
-  if (!settings.connections.trinoUrl.trim()) return 'Trino URL is required.'
-  if (!settings.connections.nessieUrl.trim()) return 'Nessie URL is required.'
   if (settings.query.defaultLimit > settings.query.maxLimit) {
     return 'Default LIMIT must be less than or equal to Max LIMIT.'
   }

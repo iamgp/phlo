@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 HealthState = Literal["ok", "warning", "error", "unknown"]
 ServiceStatus = Literal["running", "stopped", "unhealthy", "starting", "unknown"]
+ServiceDefinitionState = Literal["configured", "available"]
 OperationStatus = Literal["queued", "running", "succeeded", "failed", "unknown"]
 QualityStatus = Literal["passing", "failing", "warning", "unknown"]
 
@@ -108,6 +109,12 @@ class V2Service(BaseModel):
     kind: str
     status: ServiceStatus
     health: V2Health
+    definition_state: ServiceDefinitionState = "available"
+    runtime_state: ServiceStatus = "unknown"
+    in_stack: bool = False
+    disabled: bool = False
+    profile: str | None = None
+    backend: str = "unknown"
     depends_on: list[str] = Field(default_factory=list)
     impacts: list[str] = Field(default_factory=list)
     links: list[V2ExternalLink] = Field(default_factory=list)

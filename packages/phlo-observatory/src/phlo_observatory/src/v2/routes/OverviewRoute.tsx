@@ -78,6 +78,15 @@ export function OverviewRoute() {
     let cancelled = false
 
     async function load() {
+      const nextCapabilities = await loadCachedResource(
+        'v2:capabilities',
+        getV2Capabilities,
+        {
+          staleMs: 120_000,
+        },
+      )
+      const features = nextCapabilities.data?.features
+      const empty = { data: [], error: null }
       const [
         nextOverview,
         nextServices,
@@ -86,22 +95,32 @@ export function OverviewRoute() {
         nextQuality,
         nextLogs,
         nextBranches,
-        nextCapabilities,
       ] = await Promise.all([
         loadCachedResource('v2:overview', getV2Overview, { staleMs: 30_000 }),
         loadCachedResource('v2:services', getV2Services, { staleMs: 60_000 }),
-        loadCachedResource('v2:operations', getV2OperationRecords, {
-          staleMs: 60_000,
-        }),
-        loadCachedResource('v2:assets', getV2AssetRecords, { staleMs: 60_000 }),
-        loadCachedResource('v2:quality', getV2QualityRecords, {
-          staleMs: 60_000,
-        }),
-        loadCachedResource('v2:logs', getV2LogRecords, { staleMs: 30_000 }),
-        loadCachedResource('v2:branches', getV2Branches, { staleMs: 60_000 }),
-        loadCachedResource('v2:capabilities', getV2Capabilities, {
-          staleMs: 120_000,
-        }),
+        features?.operations === false
+          ? empty
+          : loadCachedResource('v2:operations', getV2OperationRecords, {
+              staleMs: 60_000,
+            }),
+        features?.assets === false
+          ? empty
+          : loadCachedResource('v2:assets', getV2AssetRecords, {
+              staleMs: 60_000,
+            }),
+        features?.issues === false
+          ? empty
+          : loadCachedResource('v2:quality', getV2QualityRecords, {
+              staleMs: 60_000,
+            }),
+        features?.logs === false
+          ? empty
+          : loadCachedResource('v2:logs', getV2LogRecords, { staleMs: 30_000 }),
+        features?.branches === false
+          ? empty
+          : loadCachedResource('v2:branches', getV2Branches, {
+              staleMs: 60_000,
+            }),
       ])
 
       if (!cancelled) {
@@ -202,12 +221,14 @@ export function OverviewRoute() {
           note="Resources in view"
           value={counterValue(counters.assets, assetRows.length)}
         />
-        <MetricTile
-          icon={<GitBranch className="size-4" />}
-          label="Change Risk"
-          note="Non-current catalog branches"
-          value={formatter.format(activeBranches)}
-        />
+        {featureEnabled(capabilities?.data, 'branches') && (
+          <MetricTile
+            icon={<GitBranch className="size-4" />}
+            label="Change Risk"
+            note="Non-current catalog branches"
+            value={formatter.format(activeBranches)}
+          />
+        )}
       </section>
 
       <section className="phlo-v2-command">

@@ -1639,6 +1639,11 @@ button.phlo-v2-mini-row {
   text-align: left;
 }
 
+.phlo-v2-table-grid[data-branches='false'] .phlo-v2-table-head,
+.phlo-v2-table-grid[data-branches='false'] .phlo-v2-table-row {
+  grid-template-columns: 1.5fr 1fr 0.8fr 0.8fr 0.9fr;
+}
+
 .phlo-v2-table-head {
   color: var(--v2-muted);
   font-weight: 650;

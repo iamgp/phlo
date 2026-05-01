@@ -77,6 +77,12 @@ export interface V2Service {
   kind: string
   status: V2ServiceStatus
   health: V2Health
+  definition_state?: 'configured' | 'available'
+  runtime_state?: V2ServiceStatus
+  in_stack?: boolean
+  disabled?: boolean
+  profile?: string | null
+  backend?: string
   depends_on: Array<string>
   impacts: Array<string>
   links: Array<V2ExternalLink>

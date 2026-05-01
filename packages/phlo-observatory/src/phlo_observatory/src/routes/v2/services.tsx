@@ -57,7 +57,7 @@ function Services() {
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const counts = useMemo(
     () => ({
-      running: services.filter((service) => service.status === 'running')
+      running: runtimeServices.filter((service) => service.status === 'running')
         .length,
       attention: runtimeServices.filter(
         (service) =>
@@ -90,8 +90,8 @@ function Services() {
   return (
     <V2Page
       kicker="Services"
-      title="Service hub"
-      description="Control the running stack; browse optional service definitions by category."
+      title="Runtime services"
+      description="Inspect the running stack first; browse optional service definitions when you need to add capability."
       action={<span className="phlo-v2-pill">{counts.runtime} in stack</span>}
     >
       <section className="phlo-v2-diff-metrics">
@@ -356,6 +356,7 @@ function groupServicesByKind(services: Array<V2Service>): Array<{
 }
 
 function isRuntimeService(service: V2Service): boolean {
+  if (typeof service.in_stack === 'boolean') return service.in_stack
   return (
     service.status !== 'unknown' ||
     service.health.state !== 'unknown' ||

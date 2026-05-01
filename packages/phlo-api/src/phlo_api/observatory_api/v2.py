@@ -366,6 +366,10 @@ def _fallback_services() -> list[V2Service]:
             kind="api",
             status="unknown",
             health=V2Health(state="unknown", message="Runtime status unavailable"),
+            definition_state="configured",
+            runtime_state="unknown",
+            in_stack=True,
+            backend="native",
             impacts=["observatory"],
             metadata={"source": "fallback", "core": True},
         ),
@@ -375,6 +379,10 @@ def _fallback_services() -> list[V2Service]:
             kind="ui",
             status="unknown",
             health=V2Health(state="unknown", message="Runtime status unavailable"),
+            definition_state="configured",
+            runtime_state="unknown",
+            in_stack=True,
+            backend="native",
             depends_on=["phlo-api"],
             metadata={"source": "fallback", "core": True},
         ),
@@ -538,6 +546,7 @@ def _load_services() -> list[V2Service]:
     services: list[V2Service] = []
     runtime_statuses = _load_docker_service_statuses({service.name for service in discovered})
     for service in discovered:
+        in_stack = service.name in runtime_statuses
         status, health = runtime_statuses.get(
             service.name,
             ("unknown", V2Health(state="unknown", message="Runtime status unavailable")),
@@ -549,6 +558,12 @@ def _load_services() -> list[V2Service]:
                 kind=service.category or "service",
                 status=status,
                 health=health,
+                definition_state="configured" if in_stack else "available",
+                runtime_state=status,
+                in_stack=in_stack,
+                disabled=bool(getattr(service, "disabled", False)),
+                profile=_coerce_str(service.profile, "") or None,
+                backend="docker" if in_stack else "unknown",
                 depends_on=list(service.depends_on or []),
                 impacts=[],
                 links=_service_links_from_definition(service),
@@ -850,15 +865,26 @@ def _asset_related_operations(asset_id: str, operations: list[V2Operation]) -> l
 
 
 def _service_actions(service: V2Service) -> list[V2Action]:
+    if not service.in_stack:
+        return [
+            V2Action(
+                id=f"{service.id}:configure",
+                label="Configure",
+                kind="service.configure",
+                enabled=False,
+                reason="This service is available as a definition but is not configured in the current stack.",
+            )
+        ]
+
     return [
         V2Action(
             id=f"{service.id}:start",
             label="Start",
             kind="service.start",
-            enabled=service.status in {"stopped", "unknown"},
+            enabled=service.status == "stopped",
             reason=None
-            if service.status in {"stopped", "unknown"}
-            else "Service is already running or starting.",
+            if service.status == "stopped"
+            else "Service is already running, starting, or its runtime state is unknown.",
         ),
         V2Action(
             id=f"{service.id}:stop",
@@ -873,10 +899,10 @@ def _service_actions(service: V2Service) -> list[V2Action]:
             id=f"{service.id}:restart",
             label="Restart",
             kind="service.restart",
-            enabled=service.status in {"running", "unhealthy", "starting", "unknown"},
+            enabled=service.status in {"running", "unhealthy", "starting"},
             reason=None
-            if service.status in {"running", "unhealthy", "starting", "unknown"}
-            else "Service must be running or discoverable before restart.",
+            if service.status in {"running", "unhealthy", "starting"}
+            else "Service must be running or starting before restart.",
         ),
     ]
 

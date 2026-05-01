@@ -14,6 +14,7 @@ import type { ReactNode } from 'react'
 
 import type {
   V2Asset,
+  V2Capabilities,
   V2ResourceResult,
   V2Table,
   V2TablePreview,
@@ -22,6 +23,7 @@ import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 import {
   getV2SavedQueries,
   getV2AssetRecords,
+  getV2Capabilities,
   getV2TablePreview,
   getV2TableRecords,
   runV2Query,
@@ -84,11 +86,14 @@ function Data() {
     data: null,
     error: null,
   })
+  const [capabilities, setCapabilities] =
+    useState<V2ResourceResult<V2Capabilities> | null>(null)
   const [isLoadingMoreRows, setIsLoadingMoreRows] = useState(false)
   const namespaces = new Set(
     tables.map((table) => table.namespace ?? 'default'),
   )
   const graph = useMemo(() => buildTableGraph(tables, assets), [assets, tables])
+  const branchesAvailable = capabilities?.data?.features.branches === true
   const selectedRowCount =
     preview.data && selected && preview.data.table.id === selected.id
       ? preview.data.row_count
@@ -165,13 +170,20 @@ function Data() {
     void loadCachedResource('v2:saved-queries', getV2SavedQueries, {
       staleMs: 300_000,
     }).then(setSavedQueries)
+    void loadCachedResource('v2:capabilities', getV2Capabilities, {
+      staleMs: 120_000,
+    }).then(setCapabilities)
   }, [])
 
   return (
     <V2Page
       kicker="Data"
       title="Table browser"
-      description="Browse tables, branches, schemas, and row-journey entry points."
+      description={
+        branchesAvailable
+          ? 'Browse tables, branches, schemas, and row-journey entry points.'
+          : 'Browse tables, schemas, preview rows, and row-journey entry points.'
+      }
       action={
         <span className="phlo-v2-pill">{namespaces.size} namespaces</span>
       }
@@ -188,7 +200,11 @@ function Data() {
               <input
                 aria-label="Search tables"
                 onChange={(event) => setTableQuery(event.target.value)}
-                placeholder="Search name, namespace, branch"
+                placeholder={
+                  branchesAvailable
+                    ? 'Search name, namespace, branch'
+                    : 'Search name, namespace, schema'
+                }
                 value={tableQuery}
               />
             </label>
@@ -196,12 +212,16 @@ function Data() {
               {filteredTables.length} / {tables.length} tables
             </span>
           </div>
-          <div className="phlo-v2-table-grid" role="table">
+          <div
+            className="phlo-v2-table-grid"
+            data-branches={branchesAvailable}
+            role="table"
+          >
             <div className="phlo-v2-table-head" role="row">
               <span>Name</span>
               <span>Namespace</span>
               <span>Format</span>
-              <span>Branch</span>
+              {branchesAvailable && <span>Branch</span>}
               <span>Rows</span>
               <span>Catalog</span>
             </div>
@@ -217,7 +237,7 @@ function Data() {
                 <span>{table.name}</span>
                 <span>{table.namespace ?? 'default'}</span>
                 <span>{table.format ?? 'unknown'}</span>
-                <span>{table.branch ?? 'main'}</span>
+                {branchesAvailable && <span>{table.branch ?? 'main'}</span>}
                 <span>
                   {table.id === selected?.id && selectedRowCount !== null
                     ? selectedRowCount
@@ -290,7 +310,9 @@ function Data() {
                   value={selected.namespace ?? 'default'}
                 />
                 <Fact label="Format" value={selected.format ?? 'unknown'} />
-                <Fact label="Branch" value={selected.branch ?? 'main'} />
+                {branchesAvailable && (
+                  <Fact label="Branch" value={selected.branch ?? 'main'} />
+                )}
                 <Fact label="Catalog" value={tableCatalogState(selected)} />
               </dl>
               <div className="phlo-v2-mini-preview">
@@ -335,23 +357,29 @@ function Data() {
                 selected={selected}
                 onRefresh={() => setPreviewRefreshKey((key) => key + 1)}
                 onRunQuery={(nextSql) => {
+                  const request = {
+                    sql: nextSql.replace('selected_table', selected.name),
+                    limit: 100,
+                    ...(branchesAvailable
+                      ? { branch: selected.branch ?? 'main' }
+                      : {}),
+                  }
                   void runV2Query({
-                    data: {
-                      sql: nextSql.replace('selected_table', selected.name),
-                      branch: selected.branch ?? 'main',
-                      limit: 100,
-                    },
+                    data: request,
                   }).then(setQueryResult)
                 }}
                 onSaveQuery={(nextSql) => {
                   const name = window.prompt('Saved query name')
                   if (!name) return
+                  const request = {
+                    name,
+                    sql: nextSql.replace('selected_table', selected.name),
+                    ...(branchesAvailable
+                      ? { branch: selected.branch ?? 'main' }
+                      : {}),
+                  }
                   void saveV2Query({
-                    data: {
-                      name,
-                      sql: nextSql.replace('selected_table', selected.name),
-                      branch: selected.branch ?? 'main',
-                    },
+                    data: request,
                   }).then((next) => {
                     if (next.data) {
                       setSavedQueries((current) => ({
@@ -367,6 +395,7 @@ function Data() {
                   })
                 }}
                 savedQueries={savedQueries.data ?? []}
+                showBranch={branchesAvailable}
                 setSql={setSql}
                 sql={sql}
               />
@@ -579,6 +608,7 @@ function DataDetailPanel({
   queryResult,
   savedQueries,
   selected,
+  showBranch,
   setSql,
   sql,
 }: {
@@ -600,6 +630,7 @@ function DataDetailPanel({
     branch?: string | null
   }>
   selected: V2Table
+  showBranch: boolean
   setSql: (value: string) => void
   sql: string
 }) {
@@ -640,7 +671,7 @@ function DataDetailPanel({
                 type="button"
               >
                 <span>{query.name}</span>
-                <small>{query.branch ?? 'main'}</small>
+                <small>{showBranch ? (query.branch ?? 'main') : 'saved'}</small>
               </button>
             ))}
           </div>
@@ -683,10 +714,12 @@ function DataDetailPanel({
               : 'Preview not loaded'}
           </small>
         </div>
-        <div className="phlo-v2-mini-row">
-          <span>Branch</span>
-          <small>{selected.branch ?? 'main'}</small>
-        </div>
+        {showBranch && (
+          <div className="phlo-v2-mini-row">
+            <span>Branch</span>
+            <small>{selected.branch ?? 'main'}</small>
+          </div>
+        )}
         {selected.asset_id && (
           <Link
             className="phlo-v2-mini-row"

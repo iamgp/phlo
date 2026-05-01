@@ -10,7 +10,7 @@ type CachedEntry<T> = {
 
 const resourceCache = new Map<string, CachedEntry<unknown>>()
 const resourceKeys = new WeakMap<object, string>()
-const cacheVersion = '2026-05-01-read-model-cache'
+const cacheVersion = '2026-05-01-capability-aware-read-model-cache'
 let nextResourceKey = 0
 
 export function useLiveResource<T>(
@@ -116,19 +116,13 @@ function hasUsefulData(data: unknown): boolean {
   if (typeof data !== 'object') return true
 
   if ('health' in data && 'counters' in data) {
-    const counters = (data as { counters?: Record<string, unknown> }).counters
-    if (!counters) return false
-    return Object.values(counters).some(
-      (value) => typeof value === 'number' && value > 0,
-    )
+    return true
   }
 
   if ('items' in data && Array.isArray(data.items)) return true
   if ('pages' in data && Array.isArray(data.pages)) return data.pages.length > 0
-  if ('columns' in data && Array.isArray(data.columns)) {
-    return data.columns.length > 0
-  }
-  if ('rows' in data && Array.isArray(data.rows)) return data.rows.length > 0
+  if ('columns' in data && Array.isArray(data.columns)) return true
+  if ('rows' in data && Array.isArray(data.rows)) return true
 
   return true
 }
