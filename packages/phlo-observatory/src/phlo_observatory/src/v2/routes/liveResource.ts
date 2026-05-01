@@ -10,7 +10,7 @@ type CachedEntry<T> = {
 
 const resourceCache = new Map<string, CachedEntry<unknown>>()
 const resourceKeys = new WeakMap<object, string>()
-const cacheVersion = '2026-05-01-nightscout-compact-tables'
+const cacheVersion = '2026-05-01-read-model-cache'
 let nextResourceKey = 0
 
 export function useLiveResource<T>(
@@ -112,7 +112,7 @@ function isCacheableResult<T>(result: V2ResourceResult<T>): boolean {
 
 function hasUsefulData(data: unknown): boolean {
   if (data === null || data === undefined) return false
-  if (Array.isArray(data)) return data.length > 0
+  if (Array.isArray(data)) return true
   if (typeof data !== 'object') return true
 
   if ('health' in data && 'counters' in data) {
@@ -123,9 +123,7 @@ function hasUsefulData(data: unknown): boolean {
     )
   }
 
-  if ('items' in data && Array.isArray(data.items) && data.items.length === 0) {
-    return false
-  }
+  if ('items' in data && Array.isArray(data.items)) return true
   if ('pages' in data && Array.isArray(data.pages)) return data.pages.length > 0
   if ('columns' in data && Array.isArray(data.columns)) {
     return data.columns.length > 0

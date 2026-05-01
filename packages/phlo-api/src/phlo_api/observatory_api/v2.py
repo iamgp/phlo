@@ -13,6 +13,8 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import threading
+import time
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -87,6 +89,33 @@ _READ_QUERY_RE = re.compile(
 )
 _ENV_DEFAULT_RE = re.compile(r"^\$\{[^}:]+:-(?P<default>[^}]+)\}$")
 _TABLE_LIST_METADATA_PREFIX_DENYLIST = ("phlo/compiled_sql",)
+_READ_MODEL_CACHE: dict[tuple[str, str], tuple[float, Any]] = {}
+_READ_MODEL_CACHE_LOCK = threading.RLock()
+
+
+def _read_model_cache_key(name: str) -> tuple[str, str]:
+    return (str(_project_root()), name)
+
+
+def _cached_read_model(name: str, ttl_seconds: float, loader: Any) -> Any:
+    key = _read_model_cache_key(name)
+    now = time.monotonic()
+
+    with _READ_MODEL_CACHE_LOCK:
+        cached = _READ_MODEL_CACHE.get(key)
+        if cached is not None:
+            expires_at, value = cached
+            if expires_at > now:
+                return value
+
+        value = loader()
+        _READ_MODEL_CACHE[key] = (time.monotonic() + ttl_seconds, value)
+        return value
+
+
+def _clear_read_model_cache() -> None:
+    with _READ_MODEL_CACHE_LOCK:
+        _READ_MODEL_CACHE.clear()
 
 
 class V2ServiceList(BaseModel):
@@ -301,7 +330,7 @@ def _import_project_workflows(project_root: Path) -> None:
             continue
 
 
-def _load_capability_registry() -> Any | None:
+def _load_capability_registry_uncached() -> Any | None:
     """Load the core capability registry if available."""
     try:
         from phlo.capabilities import clear_capabilities
@@ -314,6 +343,14 @@ def _load_capability_registry() -> Any | None:
         return get_capability_registry()
     except Exception:
         return None
+
+
+def _load_capability_registry() -> Any | None:
+    return _cached_read_model(
+        "capability-registry",
+        30,
+        _load_capability_registry_uncached,
+    )
 
 
 def _sorted_strings(values: Iterable[Any]) -> list[str]:
@@ -1934,35 +1971,34 @@ def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
 @router.get("/overview", response_model=V2Overview)
 def get_v2_overview() -> V2Overview:
     """Get the provider-neutral Observatory v2 overview."""
-    services = _load_services()
-    runtime_services = _runtime_services(services)
-    assets = _load_assets()
-    tables = _load_tables_without_catalog()
-    quality = _load_quality()
-    return V2Overview(
-        health=_overview_health_from_services(services),
-        counters={
-            "services": len(runtime_services),
-            "operations": len(_load_operations()),
-            "assets": len(assets),
-            "tables": len(tables),
-            "quality": len(quality),
-            "incidents": 0,
-        },
-        recent=[],
+    return _cached_read_model(
+        "overview",
+        10,
+        lambda: V2Overview(
+            health=_overview_health_from_services(_load_services()),
+            counters={
+                "services": len(_runtime_services(_load_services())),
+                "operations": len(_load_operations()),
+                "assets": len(_load_assets()),
+                "tables": len(_load_tables_without_catalog()),
+                "quality": len(_load_quality()),
+                "incidents": 0,
+            },
+            recent=[],
+        ),
     )
 
 
 @router.get("/capabilities", response_model=V2Capabilities)
 def get_v2_capabilities() -> V2Capabilities:
     """Get the provider-neutral Observatory surface capabilities."""
-    return _load_capabilities()
+    return _cached_read_model("capabilities", 10, _load_capabilities)
 
 
 @router.get("/services", response_model=V2ServiceList)
 def get_v2_services() -> V2ServiceList:
     """List provider-neutral Observatory v2 services."""
-    return V2ServiceList(items=_load_services())
+    return _cached_read_model("services", 10, lambda: V2ServiceList(items=_load_services()))
 
 
 @router.get("/services/{service_id:path}", response_model=V2ServiceDetail)
@@ -1974,7 +2010,7 @@ def get_v2_service_detail(service_id: str) -> V2ServiceDetail:
 @router.get("/operations", response_model=V2OperationList)
 def get_v2_operations() -> V2OperationList:
     """List provider-neutral Observatory v2 operations."""
-    return V2OperationList(items=_load_operations())
+    return _cached_read_model("operations", 10, lambda: V2OperationList(items=_load_operations()))
 
 
 @router.get("/operations/{operation_id:path}", response_model=V2OperationDetail)
@@ -1986,7 +2022,7 @@ def get_v2_operation_detail(operation_id: str) -> V2OperationDetail:
 @router.get("/assets", response_model=V2AssetList)
 def get_v2_assets() -> V2AssetList:
     """List provider-neutral Observatory v2 assets."""
-    return V2AssetList(items=_load_assets())
+    return _cached_read_model("assets", 30, lambda: V2AssetList(items=_load_assets()))
 
 
 @router.get("/assets/{asset_id:path}", response_model=V2AssetDetail)
@@ -1998,7 +2034,9 @@ def get_v2_asset_detail(asset_id: str) -> V2AssetDetail:
 @router.get("/tables", response_model=V2TableList)
 def get_v2_tables() -> V2TableList:
     """List provider-neutral Observatory v2 tables."""
-    return V2TableList(items=_compact_tables(_load_tables()))
+    return _cached_read_model(
+        "tables", 30, lambda: V2TableList(items=_compact_tables(_load_tables()))
+    )
 
 
 @router.get("/table-preview/{table_id:path}", response_model=V2TablePreview)
@@ -2040,7 +2078,7 @@ def get_v2_row_journey(table_id: str, row_id: str) -> V2RowJourney:
 @router.get("/quality", response_model=V2QualityList)
 def get_v2_quality() -> V2QualityList:
     """List provider-neutral Observatory v2 quality checks."""
-    return V2QualityList(items=_load_quality())
+    return _cached_read_model("quality", 30, lambda: V2QualityList(items=_load_quality()))
 
 
 @router.get("/quality/{check_id:path}", response_model=V2QualityDetail)
@@ -2052,25 +2090,27 @@ def get_v2_quality_detail(check_id: str) -> V2QualityDetail:
 @router.get("/logs", response_model=V2LogList)
 def get_v2_logs() -> V2LogList:
     """List provider-neutral Observatory v2 log events."""
-    return V2LogList(items=_load_logs())
+    return _cached_read_model("logs", 5, lambda: V2LogList(items=_load_logs()))
 
 
 @router.get("/logs/facets", response_model=V2LogFacets)
 def get_v2_log_facets() -> V2LogFacets:
     """Get provider-neutral Observatory v2 log facets."""
-    return _load_log_facets(_load_logs())
+    return _cached_read_model("log-facets", 30, lambda: _load_log_facets(_load_logs()))
 
 
 @router.get("/branches", response_model=V2BranchList)
 def get_v2_branches() -> V2BranchList:
     """List provider-neutral Observatory v2 branches."""
-    return V2BranchList(items=_load_branches())
+    return _cached_read_model("branches", 10, lambda: V2BranchList(items=_load_branches()))
 
 
 @router.post("/branches/actions", response_model=V2ActionResult)
 def post_v2_branch_action(request: V2ActionRequest) -> V2ActionResult:
     """Execute a guarded branch workflow action."""
-    return _execute_branch_action(request)
+    result = _execute_branch_action(request)
+    _clear_read_model_cache()
+    return result
 
 
 @router.get("/branches/{branch_name:path}", response_model=V2BranchDetail)
@@ -2082,7 +2122,7 @@ def get_v2_branch_detail(branch_name: str) -> V2BranchDetail:
 @router.get("/extensions", response_model=V2ExtensionList)
 def get_v2_extensions() -> V2ExtensionList:
     """List provider-neutral Observatory v2 extensions."""
-    return V2ExtensionList(items=_load_extensions())
+    return _cached_read_model("extensions", 30, lambda: V2ExtensionList(items=_load_extensions()))
 
 
 @router.get("/extensions/{extension_id:path}", response_model=V2ExtensionDetail)
@@ -2094,7 +2134,7 @@ def get_v2_extension_detail(extension_id: str) -> V2ExtensionDetail:
 @router.get("/settings", response_model=V2Settings)
 def get_v2_settings() -> V2Settings:
     """Get provider-neutral Observatory v2 settings."""
-    return _load_settings()
+    return _cached_read_model("settings", 30, _load_settings)
 
 
 @router.get("/search", response_model=V2SearchList)
@@ -2106,4 +2146,6 @@ def get_v2_search(q: str) -> V2SearchList:
 @router.post("/actions", response_model=V2ActionResult)
 def post_v2_action(request: V2ActionRequest) -> V2ActionResult:
     """Execute a guarded Observatory v2 action."""
-    return _execute_action(request)
+    result = _execute_action(request)
+    _clear_read_model_cache()
+    return result
