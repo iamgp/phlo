@@ -800,16 +800,16 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
 .phlo-v2-query-panel {
   margin-top: 18px;
   overflow: hidden;
-  border: 1px solid var(--v2-sheet-border);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
 }
 
 .phlo-v2-query-panel textarea {
   display: block;
   width: 100%;
   min-height: 104px;
-  border: 0;
-  border-bottom: 1px solid var(--v2-sheet-border);
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 7px;
   outline: 0;
   resize: vertical;
   background: var(--v2-tile);
@@ -817,6 +817,16 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   color: var(--v2-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
+}
+
+.phlo-v2-query-panel .phlo-v2-workspace-toolbar {
+  min-height: 32px;
+  border-bottom: 0;
+  padding: 0 0 8px;
+}
+
+.phlo-v2-query-panel .phlo-v2-action-row {
+  margin-top: 10px;
 }
 
 .phlo-v2-extension-grid {
@@ -1604,7 +1614,6 @@ button.phlo-v2-mini-row {
 .phlo-v2-data-main-tabs {
   display: flex;
   gap: 4px;
-  border-top: 1px solid var(--v2-sheet-border);
   border-bottom: 1px solid var(--v2-sheet-border);
   padding: 8px 10px;
 }
