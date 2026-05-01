@@ -1,34 +1,136 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import type { V2ResourceResult } from '@/v2/api/types'
 
+type CachedEntry<T> = {
+  expiresAt: number
+  promise: Promise<V2ResourceResult<T>> | null
+  result: V2ResourceResult<T>
+}
+
+const resourceCache = new Map<string, CachedEntry<unknown>>()
+const resourceKeys = new WeakMap<object, string>()
+let nextResourceKey = 0
+
 export function useLiveResource<T>(
   load: () => Promise<V2ResourceResult<Array<T>>>,
-  intervalMs = 15_000,
+  intervalMs = 60_000,
+  cacheKey?: string,
 ) {
-  const [result, setResult] = useState<V2ResourceResult<Array<T>>>({
-    data: null,
-    error: null,
-  })
+  const key = useMemo(
+    () => cacheKey ?? stableResourceKey(load),
+    [cacheKey, load],
+  )
+  const [result, setResult] = useState<V2ResourceResult<Array<T>>>(
+    () => readCachedResource<Array<T>>(key) ?? { data: null, error: null },
+  )
 
   useEffect(() => {
     let cancelled = false
 
-    async function refresh() {
-      const next = await load()
+    async function refresh(force = false) {
+      const next = await loadCachedResource<Array<T>>(key, load, {
+        force,
+        staleMs: intervalMs,
+      })
       if (!cancelled) setResult(next)
     }
 
     void refresh()
-    const interval = window.setInterval(refresh, intervalMs)
+    const interval = window.setInterval(() => {
+      void refresh(true)
+    }, intervalMs)
 
     return () => {
       cancelled = true
       window.clearInterval(interval)
     }
-  }, [intervalMs, load])
+  }, [intervalMs, key, load])
 
   return result
+}
+
+export function readCachedResource<T>(key: string): V2ResourceResult<T> | null {
+  const cached = resourceCache.get(key) as CachedEntry<T> | undefined
+  return cached?.result ?? null
+}
+
+export async function loadCachedResource<T>(
+  key: string,
+  load: () => Promise<V2ResourceResult<T>>,
+  {
+    force = false,
+    staleMs = 60_000,
+  }: {
+    force?: boolean
+    staleMs?: number
+  } = {},
+): Promise<V2ResourceResult<T>> {
+  const cached = resourceCache.get(key) as CachedEntry<T> | undefined
+  const now = Date.now()
+
+  if (!force && cached?.result && cached.expiresAt > now) {
+    return cached.result
+  }
+  if (cached?.promise) return cached.promise
+
+  const promise = load().then((result) => {
+    if (isCacheableResult(result)) {
+      resourceCache.set(key, {
+        expiresAt: Date.now() + staleMs,
+        promise: null,
+        result,
+      })
+    } else if (cached?.result) {
+      resourceCache.set(key, {
+        expiresAt: Date.now(),
+        promise: null,
+        result: cached.result,
+      })
+    } else {
+      resourceCache.delete(key)
+    }
+    return result
+  })
+
+  resourceCache.set(key, {
+    expiresAt: cached?.expiresAt ?? 0,
+    promise,
+    result: cached?.result ?? { data: null, error: null },
+  })
+
+  return promise
+}
+
+function isCacheableResult<T>(result: V2ResourceResult<T>): boolean {
+  if (result.error) return false
+  return hasUsefulData(result.data)
+}
+
+function hasUsefulData(data: unknown): boolean {
+  if (data === null || data === undefined) return false
+  if (Array.isArray(data)) return data.length > 0
+  if (typeof data !== 'object') return true
+
+  if ('items' in data && Array.isArray(data.items) && data.items.length === 0) {
+    return false
+  }
+  if ('pages' in data && Array.isArray(data.pages)) return data.pages.length > 0
+  if ('columns' in data && Array.isArray(data.columns)) {
+    return data.columns.length > 0
+  }
+  if ('rows' in data && Array.isArray(data.rows)) return data.rows.length > 0
+
+  return true
+}
+
+function stableResourceKey(load: object): string {
+  const existing = resourceKeys.get(load)
+  if (existing) return existing
+  const key = `resource:${nextResourceKey}`
+  nextResourceKey += 1
+  resourceKeys.set(load, key)
+  return key
 }
 
 export function readMetric(

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { V2LogEvent, V2LogFacets, V2ResourceResult } from '@/v2/api/types'
 import { getV2LogFacets, getV2LogRecords } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
-import { useLiveResource } from '@/v2/routes/liveResource'
+import { loadCachedResource, useLiveResource } from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/logs')({
   component: Logs,
@@ -40,7 +40,9 @@ function Logs() {
     filtered.find((log) => log.id === selectedId) ?? filtered[0] ?? null
 
   useEffect(() => {
-    void getV2LogFacets().then(setFacets)
+    void loadCachedResource('v2:log-facets', getV2LogFacets, {
+      staleMs: 120_000,
+    }).then(setFacets)
   }, [])
 
   return (
@@ -121,10 +123,7 @@ function Logs() {
                   label="Resource"
                   value={selected.resource?.label ?? 'platform'}
                 />
-                <Fact
-                  label="Kind"
-                  value={selected.resource?.kind ?? 'event'}
-                />
+                <Fact label="Kind" value={selected.resource?.kind ?? 'event'} />
                 <Fact
                   label="Timestamp"
                   value={selected.timestamp ?? 'not timestamped'}

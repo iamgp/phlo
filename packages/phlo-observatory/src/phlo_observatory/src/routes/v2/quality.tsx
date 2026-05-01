@@ -12,7 +12,7 @@ import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 import { getV2QualityDetail, getV2QualityRecords } from '@/v2/api/resources'
 import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
-import { useLiveResource } from '@/v2/routes/liveResource'
+import { loadCachedResource, useLiveResource } from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/quality')({
   component: Quality,
@@ -22,6 +22,7 @@ function Quality() {
   const result = useLiveResource(getV2QualityRecords)
   const checks = result.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [activeView, setActiveView] = useState<QualityView>('queue')
   const blocking = checks.filter((check) => check.blocking).length
   const warnings = checks.filter((check) => check.severity === 'warning').length
   const unknown = checks.filter((check) => check.status === 'unknown').length
@@ -41,7 +42,11 @@ function Quality() {
   useEffect(() => {
     if (!selected) return
     let cancelled = false
-    void getV2QualityDetail({ data: { checkId: selected.id } }).then((next) => {
+    void loadCachedResource(
+      `v2:quality-detail:${selected.id}`,
+      () => getV2QualityDetail({ data: { checkId: selected.id } }),
+      { staleMs: 120_000 },
+    ).then((next) => {
       if (!cancelled) setDetail(next)
     })
     return () => {
@@ -65,20 +70,6 @@ function Quality() {
               {observed} observed · {failing} failing · {unknown} not observed
             </small>
           </div>
-          <div className="phlo-v2-flow-band">
-            <div className="phlo-v2-workspace-toolbar">
-              <span>Issue graph</span>
-              <span className="phlo-v2-pill">
-                {graph.edges.length} bindings
-              </span>
-            </div>
-            <V2FlowCanvas
-              edges={graph.edges}
-              nodes={graph.nodes}
-              onSelect={setSelectedId}
-              selectedId={selected?.id}
-            />
-          </div>
           <div className="phlo-v2-command-strip">
             <Metric
               icon={<Shield className="size-4" />}
@@ -96,21 +87,53 @@ function Quality() {
               value={unknown}
             />
           </div>
-          <div className="phlo-v2-check-list">
-            {checks.map((check) => (
-              <CheckRow
-                key={check.id}
-                check={check}
-                onSelect={setSelectedId}
-                selected={check.id === selected?.id}
-              />
+          <div className="phlo-v2-data-main-tabs" role="tablist">
+            {qualityViews.map((view) => (
+              <button
+                aria-selected={activeView === view.id}
+                data-active={activeView === view.id}
+                key={view.id}
+                onClick={() => setActiveView(view.id)}
+                role="tab"
+                type="button"
+              >
+                {view.icon}
+                {view.label}
+              </button>
             ))}
-            {checks.length === 0 && (
-              <div className="phlo-v2-empty-state">
-                No quality checks registered yet.
-              </div>
-            )}
           </div>
+          {activeView === 'graph' ? (
+            <div className="phlo-v2-flow-band">
+              <div className="phlo-v2-workspace-toolbar">
+                <span>Issue graph</span>
+                <span className="phlo-v2-pill">
+                  {graph.edges.length} bindings
+                </span>
+              </div>
+              <V2FlowCanvas
+                edges={graph.edges}
+                nodes={graph.nodes}
+                onSelect={setSelectedId}
+                selectedId={selected?.id}
+              />
+            </div>
+          ) : (
+            <div className="phlo-v2-check-list">
+              {checks.map((check) => (
+                <CheckRow
+                  key={check.id}
+                  check={check}
+                  onSelect={setSelectedId}
+                  selected={check.id === selected?.id}
+                />
+              ))}
+              {checks.length === 0 && (
+                <div className="phlo-v2-empty-state">
+                  No quality checks registered yet.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <aside className="phlo-v2-inspector">
@@ -190,6 +213,17 @@ function Metric({
     </div>
   )
 }
+
+type QualityView = 'queue' | 'graph'
+
+const qualityViews: Array<{
+  id: QualityView
+  label: string
+  icon: ReactNode
+}> = [
+  { id: 'queue', label: 'Queue', icon: <ShieldCheck className="size-3.5" /> },
+  { id: 'graph', label: 'Graph', icon: <AlertTriangle className="size-3.5" /> },
+]
 
 function CheckRow({
   check,

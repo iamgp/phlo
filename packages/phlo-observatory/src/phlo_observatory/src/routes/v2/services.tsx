@@ -22,7 +22,7 @@ import {
   runV2Action,
 } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
-import { useLiveResource } from '@/v2/routes/liveResource'
+import { loadCachedResource, useLiveResource } from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/services')({
   component: Services,
@@ -75,11 +75,13 @@ function Services() {
   useEffect(() => {
     if (!selected) return
     let cancelled = false
-    void getV2ServiceDetail({ data: { serviceId: selected.id } }).then(
-      (next) => {
-        if (!cancelled) setDetail(next)
-      },
-    )
+    void loadCachedResource(
+      `v2:service-detail:${selected.id}`,
+      () => getV2ServiceDetail({ data: { serviceId: selected.id } }),
+      { staleMs: 120_000 },
+    ).then((next) => {
+      if (!cancelled) setDetail(next)
+    })
     return () => {
       cancelled = true
     }
@@ -322,7 +324,10 @@ function ServiceSection({
             onClick={() => onSelect(service.id)}
             type="button"
           >
-            <span className="phlo-v2-dot" data-state={serviceDotState(service)} />
+            <span
+              className="phlo-v2-dot"
+              data-state={serviceDotState(service)}
+            />
             <span>{service.name}</span>
             <small>{service.kind}</small>
             <strong>{serviceStatusLabel(service)}</strong>

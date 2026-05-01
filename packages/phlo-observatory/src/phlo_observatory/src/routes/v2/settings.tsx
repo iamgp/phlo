@@ -24,6 +24,7 @@ import { V2Page } from '@/v2/components/V2Page'
 import type { V2Capabilities, V2ResourceResult } from '@/v2/api/types'
 import { getV2Capabilities } from '@/v2/api/resources'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { loadCachedResource } from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/settings')({
   component: SettingsRoute,
@@ -68,7 +69,9 @@ function SettingsRoute() {
 
   useEffect(() => {
     void fetchStats()
-    void getV2Capabilities().then(setCapabilities)
+    void loadCachedResource('v2:capabilities', getV2Capabilities, {
+      staleMs: 120_000,
+    }).then(setCapabilities)
   }, [])
 
   async function fetchStats() {

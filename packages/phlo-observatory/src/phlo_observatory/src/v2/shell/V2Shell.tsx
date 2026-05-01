@@ -31,6 +31,7 @@ import {
   resolveV2Theme,
 } from '@/v2/shell/theme'
 import { getV2Capabilities, searchV2 } from '@/v2/api/resources'
+import { loadCachedResource } from '@/v2/routes/liveResource'
 
 const fallbackPages: Array<V2CapabilityPage> = [
   corePage('overview', 'Overview', '/v2'),
@@ -83,7 +84,9 @@ export function V2Shell({ children }: { children: ReactNode }) {
   const pages = hydrated
     ? (capabilities?.data?.pages ?? fallbackPages)
     : fallbackPages
-  const navItems = pages.filter((page) => page.nav && page.available)
+  const navItems = hydrated
+    ? pages.filter((page) => page.nav && page.available)
+    : []
   const activePage = pageForPath(pathname, pages)
   const pageUnavailable =
     hydrated &&
@@ -123,7 +126,11 @@ export function V2Shell({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
     async function load() {
-      const next = await getV2Capabilities()
+      const next = await loadCachedResource(
+        'v2:capabilities',
+        getV2Capabilities,
+        { staleMs: 120_000 },
+      )
       if (!cancelled) setCapabilities(next)
     }
     void load()
@@ -172,9 +179,9 @@ export function V2Shell({ children }: { children: ReactNode }) {
                   key={item.id}
                   to={item.path}
                   className="phlo-v2-nav-link"
-                  data-active={isActive(pathname, item.path)}
+                  data-active={hydrated && isActive(pathname, item.path)}
                   title={
-                    item.providers.length
+                    hydrated && item.providers.length
                       ? item.providers.join(', ')
                       : undefined
                   }

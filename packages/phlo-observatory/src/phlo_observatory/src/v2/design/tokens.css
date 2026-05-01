@@ -1561,6 +1561,8 @@ button.phlo-v2-mini-row {
 
 .phlo-v2-table-grid {
   min-width: 720px;
+  max-height: 360px;
+  overflow: auto;
 }
 
 .phlo-v2-table-head,
@@ -1592,6 +1594,103 @@ button.phlo-v2-mini-row {
 .phlo-v2-check-row:hover,
 .phlo-v2-timeline-row:hover {
   background: var(--v2-tile);
+}
+
+.phlo-v2-data-search {
+  flex: 1 1 320px;
+  max-width: 520px;
+}
+
+.phlo-v2-data-main-tabs {
+  display: flex;
+  gap: 4px;
+  border-top: 1px solid var(--v2-sheet-border);
+  border-bottom: 1px solid var(--v2-sheet-border);
+  padding: 8px 10px;
+}
+
+.phlo-v2-data-main-tabs button {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--v2-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.phlo-v2-data-main-tabs button[data-active='true'] {
+  background: var(--v2-tile);
+  color: var(--v2-text);
+  box-shadow: inset 0 0 0 1px var(--v2-sheet-border);
+}
+
+.phlo-v2-data-preview {
+  min-height: 320px;
+  background: var(--v2-sheet);
+}
+
+.phlo-v2-data-preview-empty {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  color: var(--v2-muted);
+  font-size: 13px;
+}
+
+.phlo-v2-row-preview-scroll {
+  max-height: 460px;
+  overflow: auto;
+}
+
+.phlo-v2-row-preview-table {
+  min-width: 920px;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.phlo-v2-row-preview-table th,
+.phlo-v2-row-preview-table td {
+  max-width: 260px;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  padding: 9px 12px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phlo-v2-row-preview-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--v2-tile);
+  color: var(--v2-muted);
+  font-weight: 650;
+}
+
+.phlo-v2-schema-grid {
+  display: grid;
+}
+
+.phlo-v2-schema-head,
+.phlo-v2-schema-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 12px;
+  min-height: 38px;
+  align-items: center;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.phlo-v2-schema-head {
+  color: var(--v2-muted);
+  font-weight: 650;
 }
 
 .phlo-v2-mini-preview {

@@ -33,6 +33,7 @@ import {
   getV2Services,
 } from '@/v2/api/resources'
 import { StatusBadge } from '@/v2/components/StatusBadge'
+import { loadCachedResource } from '@/v2/routes/liveResource'
 
 const formatter = new Intl.NumberFormat('en')
 
@@ -87,14 +88,20 @@ export function OverviewRoute() {
         nextBranches,
         nextCapabilities,
       ] = await Promise.all([
-        getV2Overview(),
-        getV2Services(),
-        getV2OperationRecords(),
-        getV2AssetRecords(),
-        getV2QualityRecords(),
-        getV2LogRecords(),
-        getV2Branches(),
-        getV2Capabilities(),
+        loadCachedResource('v2:overview', getV2Overview, { staleMs: 30_000 }),
+        loadCachedResource('v2:services', getV2Services, { staleMs: 60_000 }),
+        loadCachedResource('v2:operations', getV2OperationRecords, {
+          staleMs: 60_000,
+        }),
+        loadCachedResource('v2:assets', getV2AssetRecords, { staleMs: 60_000 }),
+        loadCachedResource('v2:quality', getV2QualityRecords, {
+          staleMs: 60_000,
+        }),
+        loadCachedResource('v2:logs', getV2LogRecords, { staleMs: 30_000 }),
+        loadCachedResource('v2:branches', getV2Branches, { staleMs: 60_000 }),
+        loadCachedResource('v2:capabilities', getV2Capabilities, {
+          staleMs: 120_000,
+        }),
       ])
 
       if (!cancelled) {
@@ -111,7 +118,7 @@ export function OverviewRoute() {
     }
 
     void load()
-    const interval = window.setInterval(load, 15_000)
+    const interval = window.setInterval(load, 30_000)
 
     return () => {
       cancelled = true

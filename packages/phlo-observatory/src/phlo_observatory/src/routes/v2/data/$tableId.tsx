@@ -16,6 +16,8 @@ import {
 } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
 
+const previewLimit = 25
+
 export const Route = createFileRoute('/v2/data/$tableId')({
   component: TableDetailRoute,
 })
@@ -40,7 +42,9 @@ export function TableDetailView({ tableId }: { tableId: string }) {
   })
 
   useEffect(() => {
-    void getV2TablePreview({ data: { tableId, limit: 50 } }).then(setResult)
+    void getV2TablePreview({ data: { tableId, limit: previewLimit } }).then(
+      setResult,
+    )
   }, [tableId])
 
   const preview = result.data

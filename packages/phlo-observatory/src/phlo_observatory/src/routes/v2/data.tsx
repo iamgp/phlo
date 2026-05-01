@@ -6,6 +6,7 @@ import {
   Play,
   Rows3,
   Save,
+  Search,
   Terminal,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -28,7 +29,13 @@ import {
 } from '@/v2/api/resources'
 import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
-import { readMetric, useLiveResource } from '@/v2/routes/liveResource'
+import {
+  loadCachedResource,
+  readMetric,
+  useLiveResource,
+} from '@/v2/routes/liveResource'
+
+const previewLimit = 25
 
 export const Route = createFileRoute('/v2/data')({
   component: Data,
@@ -40,12 +47,19 @@ function Data() {
   const tables = result.data ?? []
   const assets = assetResult.data ?? []
   const sortedTables = useMemo(() => sortTablesForFlow(tables), [tables])
+  const [tableQuery, setTableQuery] = useState('')
+  const filteredTables = useMemo(
+    () => filterTables(sortedTables, tableQuery),
+    [sortedTables, tableQuery],
+  )
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected =
     sortedTables.find((table) => table.id === selectedId) ??
+    filteredTables[0] ??
     sortedTables[0] ??
     null
-  const [activeDetail, setActiveDetail] = useState<DataDetailTab>('preview')
+  const [activeDetail, setActiveDetail] = useState<DataDetailTab>('sql')
+  const [mainView, setMainView] = useState<DataMainView>('rows')
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
   const [sql, setSql] = useState('select * from selected_table limit 100')
   const [queryResult, setQueryResult] = useState<
@@ -82,18 +96,42 @@ function Data() {
   useEffect(() => {
     if (!selected) return
     let cancelled = false
-    void getV2TablePreview({ data: { tableId: selected.id, limit: 50 } }).then(
-      (next) => {
-        if (!cancelled) setPreview(next)
-      },
-    )
+    let retryTimer: number | undefined
+    const key = `v2:table-preview:${selected.id}:${previewLimit}:${previewRefreshKey}`
+    const loadPreview = (force = false) =>
+      loadCachedResource(
+        key,
+        () =>
+          getV2TablePreview({
+            data: { tableId: selected.id, limit: previewLimit },
+          }),
+        {
+          force,
+          staleMs: 120_000,
+        },
+      )
+
+    void loadPreview(previewRefreshKey > 0).then((next) => {
+      if (cancelled) return
+      setPreview(next)
+      if (isTransientPreviewMiss(next.error)) {
+        retryTimer = window.setTimeout(() => {
+          void loadPreview(true).then((retry) => {
+            if (!cancelled) setPreview(retry)
+          })
+        }, 750)
+      }
+    })
     return () => {
       cancelled = true
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer)
     }
   }, [previewRefreshKey, selected])
 
   useEffect(() => {
-    void getV2SavedQueries().then(setSavedQueries)
+    void loadCachedResource('v2:saved-queries', getV2SavedQueries, {
+      staleMs: 300_000,
+    }).then(setSavedQueries)
   }, [])
 
   return (
@@ -107,26 +145,23 @@ function Data() {
     >
       <section className="phlo-v2-browser-shell">
         <div className="phlo-v2-table-browser">
-          <div className="phlo-v2-flow-band">
-            <div className="phlo-v2-workspace-toolbar">
-              <span>Lakehouse table flow</span>
-              <span className="phlo-v2-pill">
-                {graph.edges.length} bindings
-              </span>
-            </div>
-            <V2FlowCanvas
-              edges={graph.edges}
-              nodes={graph.nodes}
-              onSelect={setSelectedId}
-              selectedId={selected?.id}
-            />
-          </div>
           <div className="phlo-v2-browser-toolbar">
             <span>
               <Database className="size-4" />
               Table browser
             </span>
-            <span className="phlo-v2-pill">{tables.length} tables</span>
+            <label className="phlo-v2-search-field phlo-v2-data-search">
+              <Search className="size-4" />
+              <input
+                aria-label="Search tables"
+                onChange={(event) => setTableQuery(event.target.value)}
+                placeholder="Search name, namespace, branch"
+                value={tableQuery}
+              />
+            </label>
+            <span className="phlo-v2-pill">
+              {filteredTables.length} / {tables.length} tables
+            </span>
           </div>
           <div className="phlo-v2-table-grid" role="table">
             <div className="phlo-v2-table-head" role="row">
@@ -137,7 +172,7 @@ function Data() {
               <span>Rows</span>
               <span>Freshness</span>
             </div>
-            {sortedTables.map((table) => (
+            {filteredTables.map((table) => (
               <button
                 className="phlo-v2-table-row"
                 data-active={table.id === selected?.id}
@@ -153,17 +188,59 @@ function Data() {
                 <span>
                   {table.id === selected?.id && selectedRowCount !== null
                     ? selectedRowCount
-                    : readMetric(table.metadata, 'records') ?? 'Profile on select'}
+                    : (readMetric(table.metadata, 'records') ??
+                      'Profile on select')}
                 </span>
-                <span>{readMetric(table.metadata, 'freshness') ?? 'Catalog'}</span>
+                <span>
+                  {readMetric(table.metadata, 'freshness') ?? 'Catalog'}
+                </span>
               </button>
             ))}
-            {tables.length === 0 && (
+            {filteredTables.length === 0 && (
               <div className="phlo-v2-empty-state">
-                No tables registered yet.
+                {tables.length === 0
+                  ? 'No tables registered yet.'
+                  : 'No tables match this filter.'}
               </div>
             )}
           </div>
+          <div className="phlo-v2-data-main-tabs" role="tablist">
+            {dataMainViews.map((view) => (
+              <button
+                aria-selected={mainView === view.id}
+                data-active={mainView === view.id}
+                key={view.id}
+                onClick={() => setMainView(view.id)}
+                role="tab"
+                type="button"
+              >
+                {view.icon}
+                {view.label}
+              </button>
+            ))}
+          </div>
+          {mainView === 'flow' ? (
+            <div className="phlo-v2-flow-band">
+              <div className="phlo-v2-workspace-toolbar">
+                <span>Lakehouse table flow</span>
+                <span className="phlo-v2-pill">
+                  {graph.edges.length} bindings
+                </span>
+              </div>
+              <V2FlowCanvas
+                edges={graph.edges}
+                nodes={graph.nodes}
+                onSelect={setSelectedId}
+                selectedId={selected?.id}
+              />
+            </div>
+          ) : (
+            <DataPreviewTable
+              mode={mainView}
+              preview={preview.data}
+              selected={selected}
+            />
+          )}
         </div>
 
         <aside className="phlo-v2-inspector">
@@ -275,6 +352,17 @@ function Data() {
 }
 
 type DataDetailTab = 'preview' | 'sql' | 'journey'
+type DataMainView = 'rows' | 'schema' | 'flow'
+
+const dataMainViews: Array<{
+  id: DataMainView
+  label: string
+  icon: ReactNode
+}> = [
+  { id: 'rows', label: 'Rows', icon: <Rows3 className="size-3.5" /> },
+  { id: 'schema', label: 'Schema', icon: <Columns3 className="size-3.5" /> },
+  { id: 'flow', label: 'Flow', icon: <GitBranch className="size-3.5" /> },
+]
 
 const dataDetailTabs: Array<{
   id: DataDetailTab
@@ -285,6 +373,99 @@ const dataDetailTabs: Array<{
   { id: 'sql', label: 'SQL', icon: <Terminal className="size-3.5" /> },
   { id: 'journey', label: 'Journey', icon: <GitBranch className="size-3.5" /> },
 ]
+
+function DataPreviewTable({
+  mode,
+  preview,
+  selected,
+}: {
+  mode: Exclude<DataMainView, 'flow'>
+  preview: V2TablePreview | null
+  selected: V2Table | null
+}) {
+  const columns = preview?.columns ?? []
+  const rows = preview?.rows ?? []
+
+  if (!selected) {
+    return (
+      <div className="phlo-v2-data-preview-empty">
+        Select a table to inspect rows and schema.
+      </div>
+    )
+  }
+
+  if (mode === 'schema') {
+    return (
+      <div className="phlo-v2-data-preview">
+        <div className="phlo-v2-workspace-toolbar">
+          <span>
+            <Columns3 className="size-4" />
+            {selected.name} schema
+          </span>
+          <span className="phlo-v2-pill">{columns.length} columns</span>
+        </div>
+        <div className="phlo-v2-schema-grid" role="table">
+          <div className="phlo-v2-schema-head" role="row">
+            <span>Column</span>
+            <span>Position</span>
+          </div>
+          {columns.map((column, index) => (
+            <div className="phlo-v2-schema-row" key={column} role="row">
+              <span>{column}</span>
+              <span>{index + 1}</span>
+            </div>
+          ))}
+          {columns.length === 0 && (
+            <div className="phlo-v2-empty-state">
+              No schema preview returned yet.
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="phlo-v2-data-preview">
+      <div className="phlo-v2-workspace-toolbar">
+        <span>
+          <Rows3 className="size-4" />
+          {selected.name} rows
+        </span>
+        <span className="phlo-v2-pill">
+          {rows.length} loaded
+          {preview?.row_count ? ` · ${preview.row_count} total` : ''}
+        </span>
+      </div>
+      {columns.length > 0 ? (
+        <div className="phlo-v2-row-preview-scroll">
+          <table className="phlo-v2-row-preview-table">
+            <thead>
+              <tr>
+                {columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr key={String(row._phlo_row_id ?? index)}>
+                  {columns.map((column) => (
+                    <td key={column}>{formatCell(row[column])}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="phlo-v2-data-preview-empty">
+          {preview ? 'Preview rows are unavailable.' : 'Loading preview rows.'}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function DataDetailPanel({
   active,
@@ -324,7 +505,9 @@ function DataDetailPanel({
       <div className="phlo-v2-query-panel">
         <div className="phlo-v2-workspace-toolbar">
           <span>Preview query</span>
-          <span className="phlo-v2-pill">{preview?.limit ?? 50} row limit</span>
+          <span className="phlo-v2-pill">
+            {preview?.limit ?? previewLimit} row limit
+          </span>
         </div>
         <textarea
           onChange={(event) => setSql(event.target.value)}
@@ -460,8 +643,7 @@ function buildTableGraph(
   )
   const assetById = new Map(assets.map((asset) => [asset.id, asset]))
 
-  const tableNodes = sortTablesForFlow(tables)
-    .map(
+  const tableNodes = sortTablesForFlow(tables).map(
     (table): V2FlowNode => ({
       id: table.id,
       label: table.name,
@@ -498,6 +680,45 @@ function sortTablesForFlow(tables: Array<V2Table>): Array<V2Table> {
     }
     return left.name.localeCompare(right.name)
   })
+}
+
+function filterTables(tables: Array<V2Table>, query: string): Array<V2Table> {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return tables
+  return tables.filter((table) =>
+    [
+      table.name,
+      table.id,
+      table.namespace,
+      table.schema_name,
+      table.format,
+      table.branch,
+      table.asset_id,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(needle)),
+  )
+}
+
+function isTransientPreviewMiss(error: string | null): boolean {
+  return error?.toLowerCase().includes('table not found') ?? false
+}
+
+function formatCell(value: unknown): string {
+  if (value === null || value === undefined) return 'null'
+  if (typeof value === 'string') return value
+  if (
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  ) {
+    return String(value)
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
 }
 
 function tableLane(table: V2Table): string {
