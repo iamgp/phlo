@@ -1,19 +1,14 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { Columns3, Database, GitBranch, GitCompare, Rows3 } from 'lucide-react'
+import { Columns3, Database, GitBranch, Rows3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
   V2ResourceResult,
   V2RowJourney,
-  V2StageDiff,
   V2TablePreview,
 } from '@/v2/api/types'
-import {
-  getV2RowJourney,
-  getV2StageDiff,
-  getV2TablePreview,
-} from '@/v2/api/resources'
+import { getV2RowJourney, getV2TablePreview } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
 
 const previewLimit = 25
@@ -36,10 +31,6 @@ export function TableDetailView({ tableId }: { tableId: string }) {
     data: null,
     error: null,
   })
-  const [stageDiff, setStageDiff] = useState<V2ResourceResult<V2StageDiff>>({
-    data: null,
-    error: null,
-  })
 
   useEffect(() => {
     void getV2TablePreview({ data: { tableId, limit: previewLimit } }).then(
@@ -49,14 +40,6 @@ export function TableDetailView({ tableId }: { tableId: string }) {
 
   const preview = result.data
   const table = preview?.table
-  const sourceTableId = table ? inferSourceTableId(table.id) : null
-
-  useEffect(() => {
-    if (!table || !sourceTableId || sourceTableId === table.id) return
-    void getV2StageDiff({
-      data: { sourceTableId, targetTableId: table.id },
-    }).then(setStageDiff)
-  }, [sourceTableId, table])
 
   return (
     <V2Page
@@ -140,34 +123,6 @@ export function TableDetailView({ tableId }: { tableId: string }) {
               {journey.error && (
                 <div className="phlo-v2-panel-footer">{journey.error}</div>
               )}
-              {stageDiff.data && (
-                <div className="phlo-v2-detail-list">
-                  <div className="phlo-v2-mini-row">
-                    <span>
-                      <GitCompare className="size-3.5" />
-                      Stage diff
-                    </span>
-                    <small>
-                      {stageDiff.data.source.name} {'->'}{' '}
-                      {stageDiff.data.target.name}
-                    </small>
-                  </div>
-                  <div className="phlo-v2-mini-row">
-                    <span>Changed rows</span>
-                    <small>{stageDiff.data.summary.changed ?? 0}</small>
-                  </div>
-                  <div className="phlo-v2-mini-row">
-                    <span>Added columns</span>
-                    <small>
-                      {(stageDiff.data.columns.added ?? []).join(', ') ||
-                        'none'}
-                    </small>
-                  </div>
-                </div>
-              )}
-              {stageDiff.error && (
-                <div className="phlo-v2-panel-footer">{stageDiff.error}</div>
-              )}
               {preview.columns.length === 0 && (
                 <p>No column preview returned yet.</p>
               )}
@@ -218,14 +173,6 @@ export function TableDetailView({ tableId }: { tableId: string }) {
       )}
     </V2Page>
   )
-}
-
-function inferSourceTableId(tableId: string): string | null {
-  if (tableId.includes('orders_clean')) return 'orders'
-  if (tableId.includes('revenue_daily')) return 'orders_clean'
-  if (tableId.includes('customer_health')) return 'revenue_daily'
-  if (tableId.includes('customers')) return 'orders'
-  return null
 }
 
 function Mini({

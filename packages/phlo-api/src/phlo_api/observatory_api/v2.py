@@ -86,6 +86,7 @@ _READ_QUERY_RE = re.compile(
     re.IGNORECASE,
 )
 _ENV_DEFAULT_RE = re.compile(r"^\$\{[^}:]+:-(?P<default>[^}]+)\}$")
+_TABLE_LIST_METADATA_PREFIX_DENYLIST = ("phlo/compiled_sql",)
 
 
 class V2ServiceList(BaseModel):
@@ -610,11 +611,12 @@ def _table_name_from_asset(asset: Any) -> str | None:
     return None
 
 
-def _load_tables() -> list[V2Table]:
+def _load_tables(*, enrich_catalog: bool = True) -> list[V2Table]:
     registry = _load_capability_registry()
     if registry is None:
         return []
 
+    catalog_tables = _catalog_tables() if enrich_catalog else None
     tables: list[V2Table] = []
     for asset in registry.list_assets():
         table_name = _table_name_from_asset(asset)
@@ -622,19 +624,80 @@ def _load_tables() -> list[V2Table]:
             continue
         metadata = asset.metadata if isinstance(asset.metadata, Mapping) else {}
         namespace = metadata.get("namespace")
+        table_metadata = _safe_metadata(metadata)
+        namespace_name = str(namespace) if namespace else asset.group
+        schema_name = _coerce_str(metadata.get("schema"), "") or None
+        if catalog_tables is not None:
+            present = (schema_name or namespace_name, str(table_name)) in catalog_tables
+            table_metadata["catalog_present"] = present
+            table_metadata["catalog_state"] = "queryable" if present else "model_only"
         tables.append(
             V2Table(
                 id=str(table_name),
                 name=str(table_name),
-                namespace=str(namespace) if namespace else asset.group,
+                namespace=namespace_name,
                 asset_id=asset.key,
                 format=_coerce_str(metadata.get("format"), "") or None,
                 branch=_coerce_str(metadata.get("branch"), "") or None,
-                schema_name=_coerce_str(metadata.get("schema"), "") or None,
-                metadata=_safe_metadata(metadata),
+                schema_name=schema_name,
+                metadata=table_metadata,
             )
         )
     return sorted(tables, key=lambda item: item.id)
+
+
+def _compact_table(table: V2Table) -> V2Table:
+    """Return a table payload suitable for frequently refreshed UI surfaces."""
+    metadata = {
+        key: value
+        for key, value in table.metadata.items()
+        if not any(key.startswith(prefix) for prefix in _TABLE_LIST_METADATA_PREFIX_DENYLIST)
+    }
+    return table.model_copy(update={"metadata": metadata})
+
+
+def _compact_tables(tables: Iterable[V2Table]) -> list[V2Table]:
+    return [_compact_table(table) for table in tables]
+
+
+def _load_tables_without_catalog() -> list[V2Table]:
+    try:
+        return _load_tables(enrich_catalog=False)
+    except TypeError:
+        # Tests and local tools sometimes monkeypatch _load_tables with the
+        # historical no-argument shape.
+        return _load_tables()
+
+
+def _catalog_tables() -> set[tuple[str, str]] | None:
+    """Return queryable table identifiers from the active query catalog, when available."""
+    try:
+        from phlo_api.observatory_api.trino import resolve_default_catalog
+    except Exception:
+        return None
+
+    try:
+        catalog = resolve_default_catalog()
+    except Exception:
+        return None
+
+    schema_result = _run_query_engine(f"SHOW SCHEMAS FROM {catalog}", limit=200)
+    if schema_result is None:
+        return None
+
+    tables: set[tuple[str, str]] = set()
+    for row in schema_result["rows"]:
+        schema = row.get("Schema") or row.get("schema")
+        if not isinstance(schema, str) or schema == "information_schema":
+            continue
+        table_result = _run_query_engine(f'SHOW TABLES FROM "{catalog}"."{schema}"', limit=500)
+        if table_result is None:
+            continue
+        for table_row in table_result["rows"]:
+            table_name = table_row.get("Table") or table_row.get("table")
+            if isinstance(table_name, str) and table_name:
+                tables.add((schema, table_name))
+    return tables
 
 
 def _load_quality() -> list[V2QualityCheck]:
@@ -1009,7 +1072,7 @@ def _preview_from_query_engine(table: V2Table, limit: int, offset: int) -> V2Tab
         table = table.model_copy(update={"metadata": metadata})
 
     return V2TablePreview(
-        table=table,
+        table=_compact_table(table),
         columns=columns,
         rows=rows,
         row_count=row_count,
@@ -1196,7 +1259,7 @@ def _load_operation_detail(operation_id: str) -> V2OperationDetail:
 
 
 def _load_table_preview(table_id: str, limit: int, offset: int) -> V2TablePreview:
-    tables = _load_tables()
+    tables = _load_tables_without_catalog()
     table = _find_table(table_id, tables)
     if table is None:
         raise _not_found("table", table_id)
@@ -1209,7 +1272,7 @@ def _load_table_preview(table_id: str, limit: int, offset: int) -> V2TablePrevie
     row_count = row_count_raw if isinstance(row_count_raw, int) else None
     columns = _table_columns_from_metadata(table)
     return V2TablePreview(
-        table=table,
+        table=_compact_table(table),
         columns=columns,
         rows=[],
         row_count=row_count,
@@ -1555,7 +1618,7 @@ def _search_results(query: str) -> list[V2SearchResult]:
                 )
             )
 
-    for table in _load_tables():
+    for table in _load_tables_without_catalog():
         haystack = " ".join(
             [table.id, table.name, table.namespace or "", table.format or "", table.branch or ""]
         ).lower()
@@ -1643,23 +1706,21 @@ def _providers_matching(extensions: Sequence[V2Extension], *needles: str) -> lis
 
 
 def _load_capabilities() -> V2Capabilities:
-    extensions = _load_extensions()
+    services = _load_services()
+    runtime_services = _runtime_services(services)
     assets = _load_assets()
-    tables = _load_tables()
+    tables = _load_tables_without_catalog()
     checks = _load_quality()
     logs = _load_logs()
     operations = _load_operations()
 
-    data_providers = sorted(set(_providers_matching(extensions, "trino", "query", "/data") or []))
-    asset_providers = sorted(
-        set(_providers_matching(extensions, "lineage", "dagster", "asset", "graph") or [])
-    )
-    quality_providers = sorted(set(_providers_matching(extensions, "quality", "pandera") or []))
-    log_providers = sorted(set(_providers_matching(extensions, "loki", "logs", "telemetry") or []))
-    branch_providers = sorted(set(_providers_matching(extensions, "nessie", "branch") or []))
-    operation_providers = sorted(
-        set(_providers_matching(extensions, "operation", "maintenance") or [])
-    )
+    service_ids = {service.id.lower() for service in runtime_services}
+    data_providers = _providers_from_services(service_ids, "trino", "query")
+    asset_providers = ["phlo"] if assets else []
+    quality_providers = ["phlo"] if checks else []
+    log_providers = ["phlo"] if logs else []
+    branch_providers = _providers_from_services(service_ids, "nessie", "branch") if tables else []
+    operation_providers = ["phlo"] if operations else []
 
     features = {
         "overview": True,
@@ -1671,7 +1732,7 @@ def _load_capabilities() -> V2Capabilities:
         "logs": bool(logs or log_providers),
         "branches": bool(branch_providers),
         "operations": bool(operations or operation_providers),
-        "extensions": bool(extensions),
+        "extensions": False,
         "settings": True,
     }
     providers = {
@@ -1682,13 +1743,12 @@ def _load_capabilities() -> V2Capabilities:
         "logs": log_providers,
         "branches": branch_providers,
         "operations": operation_providers,
-        "extensions": [extension.id for extension in extensions],
     }
 
     pages: list[V2CapabilityPage] = []
     for page_id, label, path, core_available, nav, reason in _CAPABILITY_PAGE_DEFINITIONS:
         available = core_available or features.get(page_id, False)
-        page_providers = providers.get(page_id) or _providers_for_path(extensions, path)
+        page_providers = providers.get(page_id, [])
         pages.append(
             V2CapabilityPage(
                 id=page_id,
@@ -1705,6 +1765,15 @@ def _load_capabilities() -> V2Capabilities:
         pages=pages,
         features=features,
         providers={key: value for key, value in providers.items() if value},
+    )
+
+
+def _providers_from_services(service_ids: set[str], *needles: str) -> list[str]:
+    lowered_needles = tuple(needle.lower() for needle in needles)
+    return sorted(
+        service_id
+        for service_id in service_ids
+        if any(needle in service_id for needle in lowered_needles)
     )
 
 
@@ -1868,7 +1937,7 @@ def get_v2_overview() -> V2Overview:
     services = _load_services()
     runtime_services = _runtime_services(services)
     assets = _load_assets()
-    tables = _load_tables()
+    tables = _load_tables_without_catalog()
     quality = _load_quality()
     return V2Overview(
         health=_overview_health_from_services(services),
@@ -1929,7 +1998,7 @@ def get_v2_asset_detail(asset_id: str) -> V2AssetDetail:
 @router.get("/tables", response_model=V2TableList)
 def get_v2_tables() -> V2TableList:
     """List provider-neutral Observatory v2 tables."""
-    return V2TableList(items=_load_tables())
+    return V2TableList(items=_compact_tables(_load_tables()))
 
 
 @router.get("/table-preview/{table_id:path}", response_model=V2TablePreview)

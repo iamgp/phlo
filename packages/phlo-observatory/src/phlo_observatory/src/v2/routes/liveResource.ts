@@ -10,6 +10,7 @@ type CachedEntry<T> = {
 
 const resourceCache = new Map<string, CachedEntry<unknown>>()
 const resourceKeys = new WeakMap<object, string>()
+const cacheVersion = '2026-05-01-nightscout-compact-tables'
 let nextResourceKey = 0
 
 export function useLiveResource<T>(
@@ -51,7 +52,8 @@ export function useLiveResource<T>(
 }
 
 export function readCachedResource<T>(key: string): V2ResourceResult<T> | null {
-  const cached = resourceCache.get(key) as CachedEntry<T> | undefined
+  const versionedKey = `${cacheVersion}:${key}`
+  const cached = resourceCache.get(versionedKey) as CachedEntry<T> | undefined
   return cached?.result ?? null
 }
 
@@ -66,7 +68,8 @@ export async function loadCachedResource<T>(
     staleMs?: number
   } = {},
 ): Promise<V2ResourceResult<T>> {
-  const cached = resourceCache.get(key) as CachedEntry<T> | undefined
+  const versionedKey = `${cacheVersion}:${key}`
+  const cached = resourceCache.get(versionedKey) as CachedEntry<T> | undefined
   const now = Date.now()
 
   if (!force && cached?.result && cached.expiresAt > now) {
@@ -76,24 +79,24 @@ export async function loadCachedResource<T>(
 
   const promise = load().then((result) => {
     if (isCacheableResult(result)) {
-      resourceCache.set(key, {
+      resourceCache.set(versionedKey, {
         expiresAt: Date.now() + staleMs,
         promise: null,
         result,
       })
     } else if (cached?.result) {
-      resourceCache.set(key, {
+      resourceCache.set(versionedKey, {
         expiresAt: Date.now(),
         promise: null,
         result: cached.result,
       })
     } else {
-      resourceCache.delete(key)
+      resourceCache.delete(versionedKey)
     }
     return result
   })
 
-  resourceCache.set(key, {
+  resourceCache.set(versionedKey, {
     expiresAt: cached?.expiresAt ?? 0,
     promise,
     result: cached?.result ?? { data: null, error: null },
@@ -111,6 +114,14 @@ function hasUsefulData(data: unknown): boolean {
   if (data === null || data === undefined) return false
   if (Array.isArray(data)) return data.length > 0
   if (typeof data !== 'object') return true
+
+  if ('health' in data && 'counters' in data) {
+    const counters = (data as { counters?: Record<string, unknown> }).counters
+    if (!counters) return false
+    return Object.values(counters).some(
+      (value) => typeof value === 'number' && value > 0,
+    )
+  }
 
   if ('items' in data && Array.isArray(data.items) && data.items.length === 0) {
     return false

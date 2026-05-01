@@ -200,7 +200,7 @@ export function OverviewRoute() {
           icon={<Boxes className="size-4" />}
           label="Assets"
           note="Resources in view"
-          value={counterValue(counters.assets)}
+          value={counterValue(counters.assets, assetRows.length)}
         />
         <MetricTile
           icon={<GitBranch className="size-4" />}

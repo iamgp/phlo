@@ -45,6 +45,7 @@ function Data() {
   const result = useLiveResource(getV2TableRecords)
   const assetResult = useLiveResource(getV2AssetRecords)
   const tables = result.data ?? []
+  const hasLoadedTables = result.data !== null
   const assets = assetResult.data ?? []
   const sortedTables = useMemo(() => sortTablesForFlow(tables), [tables])
   const [tableQuery, setTableQuery] = useState('')
@@ -55,8 +56,7 @@ function Data() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected =
     sortedTables.find((table) => table.id === selectedId) ??
-    filteredTables[0] ??
-    sortedTables[0] ??
+    chooseDefaultTable(filteredTables.length ? filteredTables : sortedTables) ??
     null
   const [activeDetail, setActiveDetail] = useState<DataDetailTab>('sql')
   const [mainView, setMainView] = useState<DataMainView>('rows')
@@ -170,7 +170,7 @@ function Data() {
               <span>Format</span>
               <span>Branch</span>
               <span>Rows</span>
-              <span>Freshness</span>
+              <span>Catalog</span>
             </div>
             {filteredTables.map((table) => (
               <button
@@ -188,19 +188,18 @@ function Data() {
                 <span>
                   {table.id === selected?.id && selectedRowCount !== null
                     ? selectedRowCount
-                    : (readMetric(table.metadata, 'records') ??
-                      'Profile on select')}
+                    : (readTableRecordCount(table) ?? '—')}
                 </span>
-                <span>
-                  {readMetric(table.metadata, 'freshness') ?? 'Catalog'}
-                </span>
+                <span>{tableCatalogState(table)}</span>
               </button>
             ))}
             {filteredTables.length === 0 && (
               <div className="phlo-v2-empty-state">
-                {tables.length === 0
-                  ? 'No tables registered yet.'
-                  : 'No tables match this filter.'}
+                {!hasLoadedTables
+                  ? 'Loading tables...'
+                  : tables.length === 0
+                    ? 'No tables registered yet.'
+                    : 'No tables match this filter.'}
               </div>
             )}
           </div>
@@ -257,6 +256,7 @@ function Data() {
                 />
                 <Fact label="Format" value={selected.format ?? 'unknown'} />
                 <Fact label="Branch" value={selected.branch ?? 'main'} />
+                <Fact label="Catalog" value={tableCatalogState(selected)} />
               </dl>
               <div className="phlo-v2-mini-preview">
                 <div>
@@ -460,7 +460,7 @@ function DataPreviewTable({
         </div>
       ) : (
         <div className="phlo-v2-data-preview-empty">
-          {preview ? 'Preview rows are unavailable.' : 'Loading preview rows.'}
+          {preview ? previewEmptyCopy(selected) : 'Loading preview rows...'}
         </div>
       )}
     </div>
@@ -682,6 +682,35 @@ function sortTablesForFlow(tables: Array<V2Table>): Array<V2Table> {
   })
 }
 
+function chooseDefaultTable(tables: Array<V2Table>): V2Table | null {
+  return (
+    tables.find(
+      (table) =>
+        tableCatalogState(table) === 'Queryable' &&
+        readTableRecordCount(table) !== null,
+    ) ??
+    tables.find(
+      (table) =>
+        tableCatalogState(table) === 'Queryable' &&
+        tableLane(table) === 'silver',
+    ) ??
+    tables.find((table) => tableCatalogState(table) === 'Queryable') ??
+    tables.find((table) => tableLane(table) === 'silver') ??
+    tables[0] ??
+    null
+  )
+}
+
+function readTableRecordCount(
+  table: V2Table,
+): string | number | boolean | null {
+  return (
+    readMetric(table.metadata, 'rows') ??
+    readMetric(table.metadata, 'records') ??
+    readMetric(table.metadata, 'row_count')
+  )
+}
+
 function filterTables(tables: Array<V2Table>, query: string): Array<V2Table> {
   const needle = query.trim().toLowerCase()
   if (!needle) return tables
@@ -702,6 +731,25 @@ function filterTables(tables: Array<V2Table>, query: string): Array<V2Table> {
 
 function isTransientPreviewMiss(error: string | null): boolean {
   return error?.toLowerCase().includes('table not found') ?? false
+}
+
+function tableCatalogState(table: V2Table): string {
+  const state = readMetric(table.metadata, 'catalog_state')
+  if (state === 'queryable') return 'Queryable'
+  if (state === 'model_only') return 'Model only'
+
+  const present = readMetric(table.metadata, 'catalog_present')
+  if (present === true) return 'Queryable'
+  if (present === false) return 'Model only'
+
+  return 'Catalog'
+}
+
+function previewEmptyCopy(table: V2Table): string {
+  if (tableCatalogState(table) === 'Model only') {
+    return 'This model is registered, but it is not materialized in the active query catalog.'
+  }
+  return 'Preview rows are unavailable.'
 }
 
 function formatCell(value: unknown): string {

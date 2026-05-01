@@ -1843,6 +1843,16 @@ button.phlo-v2-mini-row {
     border-left: 0;
     padding: 16px 0 0;
   }
+
+  .phlo-v2-settings-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .phlo-v2-settings-panel > p,
+  .phlo-v2-settings-panel-body {
+    grid-column: auto;
+    grid-row: auto;
+  }
 }
 
 .phlo-v2 {
@@ -1977,7 +1987,7 @@ button.phlo-v2-mini-row {
 
 .phlo-v2-section-header {
   margin-bottom: 18px;
-  padding-bottom: 8px;
+  padding-bottom: 0;
   border-bottom: 0;
 }
 
@@ -2078,6 +2088,11 @@ button.phlo-v2-mini-row {
   overflow: visible;
 }
 
+.phlo-v2-command-primary > .phlo-v2-panel,
+.phlo-v2-command-primary > .phlo-v2-diff-metrics {
+  margin: 0;
+}
+
 .phlo-v2-command-primary .phlo-v2-diff-metrics {
   margin-bottom: 0;
 }
@@ -2108,6 +2123,11 @@ button.phlo-v2-mini-row {
       0.68fr
     );
   gap: 18px;
+}
+
+.phlo-v2-browser-toolbar {
+  min-height: 42px;
+  align-items: center;
 }
 
 .phlo-v2-flow-canvas {
@@ -2213,8 +2233,19 @@ button.phlo-v2-mini-row {
 
 .phlo-v2-table-head,
 .phlo-v2-table-row {
-  min-height: 36px;
+  min-height: 34px;
   padding: 0 12px;
+}
+
+.phlo-v2-table-grid {
+  max-height: 300px;
+}
+
+.phlo-v2-table-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--v2-sheet);
 }
 
 .phlo-v2-timeline-row,
@@ -2243,6 +2274,61 @@ button.phlo-v2-mini-row {
 
 .phlo-v2-log-line {
   min-height: 34px;
+}
+
+.phlo-v2-log-console .phlo-v2-filter-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(140px, max-content) minmax(
+      132px,
+      max-content
+    );
+  gap: 8px;
+}
+
+.phlo-v2-log-console .phlo-v2-filter-row select {
+  min-width: 132px;
+}
+
+.phlo-v2-settings-workbench {
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 8px;
+  background: var(--v2-sheet);
+  overflow: hidden;
+}
+
+.phlo-v2-settings-toolbar {
+  border-bottom: 1px solid var(--v2-sheet-border);
+  background: var(--v2-sheet);
+}
+
+.phlo-v2-settings-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.38fr) minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px;
+}
+
+.phlo-v2-settings-panel > p {
+  grid-column: 1;
+  margin: 6px 0 0;
+}
+
+.phlo-v2-settings-panel-body {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 0;
+}
+
+@media (max-width: 1120px) {
+  .phlo-v2-settings-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .phlo-v2-settings-panel > p,
+  .phlo-v2-settings-panel-body {
+    grid-column: auto;
+    grid-row: auto;
+  }
 }
 
 .phlo-v2[data-theme='dark'],
