@@ -109,7 +109,7 @@ function Services() {
             services={runtimeServices}
             title="Runtime stack"
           />
-          <section className="phlo-v2-service-section">
+          <section className="phlo-v2-service-section phlo-v2-service-definitions">
             <div className="phlo-v2-browser-toolbar">
               <span>
                 <Package className="size-4" />

@@ -611,28 +611,63 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   min-width: 0;
 }
 
+.phlo-v2-service-section > .phlo-v2-browser-toolbar {
+  min-height: 32px;
+  border-bottom: 0;
+  padding: 0 12px 8px;
+}
+
+.phlo-v2-service-definitions {
+  margin-top: 12px;
+}
+
+.phlo-v2-service-definitions > .phlo-v2-browser-toolbar {
+  padding-top: 4px;
+}
+
 .phlo-v2-service-category-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 18px 14px;
 }
 
 .phlo-v2-section-note {
   max-width: 760px;
-  margin: -4px 0 14px;
+  margin: -2px 0 18px;
   color: var(--v2-muted);
   font-size: 13px;
   line-height: 1.45;
 }
 
 .phlo-v2-service-section[data-compact='true'] .phlo-v2-browser-toolbar {
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: 28px;
+  padding: 0 10px 6px;
+  color: var(--v2-muted);
+  font-size: 12px;
+  text-transform: none;
+}
+
+.phlo-v2-service-section[data-compact='true'] .phlo-v2-service-list {
+  display: grid;
+  gap: 4px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .phlo-v2-service-section[data-compact='true'] .phlo-v2-service-row {
   min-height: 38px;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 7px;
+  background: var(--v2-sheet);
   grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.phlo-v2-service-section[data-compact='true'] .phlo-v2-service-row:hover,
+.phlo-v2-service-section[data-compact='true']
+  .phlo-v2-service-row[data-active='true'] {
+  background: var(--v2-tile);
 }
 
 .phlo-v2-service-section[data-compact='true'] .phlo-v2-service-row small {
@@ -678,6 +713,16 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
 .phlo-v2-service-row strong {
   color: var(--v2-muted);
   font-size: 12px;
+}
+
+.phlo-v2-service-list .phlo-v2-service-row:last-child {
+  border-bottom-color: transparent;
+}
+
+.phlo-v2-service-section[data-compact='true']
+  .phlo-v2-service-list
+  .phlo-v2-service-row:last-child {
+  border-bottom-color: var(--v2-sheet-border);
 }
 
 .phlo-v2-service-detail {
