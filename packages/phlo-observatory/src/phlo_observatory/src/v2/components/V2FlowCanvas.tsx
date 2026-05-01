@@ -59,6 +59,7 @@ const laneX: Record<string, number> = {
   bronze: 220,
   silver: 440,
   gold: 680,
+  marts: 900,
   branch: 0,
   table: 260,
   quality: 540,

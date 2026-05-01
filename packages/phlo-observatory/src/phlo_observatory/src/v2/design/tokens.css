@@ -601,6 +601,44 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   background: var(--v2-sheet);
 }
 
+.phlo-v2-service-directory {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.phlo-v2-service-section {
+  min-width: 0;
+}
+
+.phlo-v2-service-category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.phlo-v2-section-note {
+  max-width: 760px;
+  margin: -4px 0 14px;
+  color: var(--v2-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.phlo-v2-service-section[data-compact='true'] .phlo-v2-browser-toolbar {
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.phlo-v2-service-section[data-compact='true'] .phlo-v2-service-row {
+  min-height: 38px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.phlo-v2-service-section[data-compact='true'] .phlo-v2-service-row small {
+  display: none;
+}
+
 .phlo-v2-service-row,
 .phlo-v2-setting-row {
   display: grid;
@@ -671,6 +709,30 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
 .phlo-v2-action-row button:disabled {
   cursor: not-allowed;
   opacity: 0.52;
+}
+
+.phlo-v2-operation-empty {
+  display: grid;
+  min-height: 360px;
+  align-content: center;
+  gap: 22px;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 8px;
+  background: var(--v2-sheet);
+  padding: 36px;
+}
+
+.phlo-v2-operation-empty h2 {
+  margin: 8px 0 8px;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.phlo-v2-operation-empty p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--v2-muted);
+  line-height: 1.5;
 }
 
 .phlo-v2-filter-row {
@@ -802,16 +864,201 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   padding: 10px 14px;
 }
 
-.phlo-v2-setting-row input {
-  height: 30px;
+.phlo-v2-settings-grid {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.phlo-v2-settings-workbench {
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 8px;
+  background: var(--v2-sheet);
+}
+
+.phlo-v2-settings-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  padding: 14px 16px;
+}
+
+.phlo-v2-settings-toolbar > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.phlo-v2-settings-toolbar span {
+  color: var(--v2-muted);
+  font-size: 12px;
+}
+
+.phlo-v2-settings-error {
+  border-bottom: 1px solid var(--v2-sheet-border);
+  background: oklch(0.68 0.2 28 / 0.1);
+  padding: 10px 16px;
+  color: var(--v2-red);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.phlo-v2-settings-panel {
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  padding: 16px;
+}
+
+.phlo-v2-settings-panel:last-child {
+  border-bottom: 0;
+}
+
+.phlo-v2-settings-panel > p {
+  margin: -4px 0 2px;
+  color: var(--v2-muted);
+  font-size: 12px;
+}
+
+.phlo-v2-settings-panel-body {
+  display: grid;
+  gap: 12px;
+}
+
+.phlo-v2-settings-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.phlo-v2-settings-field {
+  display: grid;
+  gap: 6px;
   min-width: 0;
+}
+
+.phlo-v2-settings-field > span {
+  color: var(--v2-text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.phlo-v2-settings-field > small {
+  overflow: hidden;
+  color: var(--v2-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phlo-v2-settings-field input,
+.phlo-v2-settings-field select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 8px;
+  background: var(--v2-tile);
+  color: var(--v2-text);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.phlo-v2-settings-field input:disabled {
+  color: var(--v2-faint);
+  opacity: 0.62;
+}
+
+.phlo-v2-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 8px;
+  background: var(--v2-tile);
+  padding: 10px;
+}
+
+.phlo-v2-toggle-row input {
+  margin-top: 2px;
+  accent-color: var(--v2-blue);
+}
+
+.phlo-v2-toggle-row span {
+  display: grid;
+  gap: 2px;
+}
+
+.phlo-v2-toggle-row small {
+  color: var(--v2-muted);
+  font-size: 12px;
+}
+
+.phlo-v2-cache-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.phlo-v2-cache-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.phlo-v2-cache-metric {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 8px;
+  background: var(--v2-tile);
+  padding: 10px;
+}
+
+.phlo-v2-cache-metric span {
+  color: var(--v2-muted);
+  font-size: 12px;
+}
+
+.phlo-v2-cache-metric strong {
+  font-size: 20px;
+}
+
+.phlo-v2-settings-section {
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 8px;
+  background: var(--v2-sheet);
+}
+
+.phlo-v2-settings-section > .phlo-v2-callout-title {
+  padding: 12px 14px 6px;
+}
+
+.phlo-v2-settings-section > p {
+  margin: 0;
+  padding: 0 14px 12px;
+  color: var(--v2-muted);
+  font-size: 12px;
+}
+
+.phlo-v2-setting-value {
+  min-width: 120px;
+  max-width: 360px;
+  overflow: hidden;
   border: 1px solid var(--v2-sheet-border);
   border-radius: 999px;
   background: var(--v2-tile);
-  padding: 0 10px;
+  padding: 5px 10px;
   color: var(--v2-muted);
-  font: inherit;
   font-size: 12px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .phlo-v2-settings-actions {
@@ -1304,6 +1551,14 @@ button.phlo-v2-mini-row {
   font-weight: 650;
 }
 
+.phlo-v2-browser-toolbar > span:first-child,
+.phlo-v2-console-toolbar > span:first-child {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 .phlo-v2-table-grid {
   min-width: 720px;
 }
@@ -1391,6 +1646,17 @@ button.phlo-v2-mini-row {
   padding: 0 14px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.phlo-v2-log-line[data-active='true'] {
+  background: oklch(0.32 0.07 250 / 0.18);
 }
 
 .phlo-v2-log-level,
@@ -1813,6 +2079,11 @@ button.phlo-v2-mini-row {
 .phlo-v2-setting-row {
   min-height: 40px;
   padding: 0 12px;
+}
+
+.phlo-v2-settings-section .phlo-v2-setting-row {
+  min-height: 58px;
+  padding: 10px 14px;
 }
 
 .phlo-v2-service-detail,

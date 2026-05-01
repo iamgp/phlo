@@ -124,14 +124,7 @@ export function OverviewRoute() {
     [serviceRows],
   )
   const attentionServices = useMemo(
-    () =>
-      serviceRows.filter(
-        (service) =>
-          service.status === 'stopped' ||
-          service.status === 'unhealthy' ||
-          service.health.state === 'error' ||
-          service.health.state === 'warning',
-      ).length,
+    () => serviceRows.filter(serviceNeedsAttention).length,
     [serviceRows],
   )
   const blockingChecks = qualityRows.filter((check) => check.blocking).length
@@ -186,10 +179,7 @@ export function OverviewRoute() {
           icon={<AlertCircle className="size-4" />}
           label="Attention"
           note="Services, checks, operations, logs"
-          value={counterValue(
-            counters.incidents,
-            attentionServices + blockingChecks + failedOperations + errorLogs,
-          )}
+          value={formatter.format(attentionItems.length)}
         />
         <MetricTile
           icon={<Boxes className="size-4" />}
@@ -392,13 +382,7 @@ function buildAttentionItems({
 }) {
   return [
     ...services
-      .filter(
-        (service) =>
-          service.status === 'stopped' ||
-          service.status === 'unhealthy' ||
-          service.health.state === 'warning' ||
-          service.health.state === 'error',
-      )
+      .filter(serviceNeedsAttention)
       .slice(0, 3)
       .map((service) => ({
         id: `service:${service.id}`,
@@ -442,4 +426,12 @@ function buildAttentionItems({
         state: 'error',
       })),
   ]
+}
+
+function serviceNeedsAttention(service: V2Service): boolean {
+  if (service.health.state === 'error' || service.health.state === 'warning') {
+    return true
+  }
+  if (service.status === 'unhealthy') return true
+  return service.status === 'stopped' && service.health.state !== 'ok'
 }

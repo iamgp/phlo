@@ -9,7 +9,7 @@ import {
   Table2,
   Terminal,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
@@ -18,6 +18,7 @@ import type {
   V2Operation,
   V2QualityCheck,
   V2Table,
+  V2TablePreview,
 } from '@/v2/api/types'
 import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 import {
@@ -25,6 +26,7 @@ import {
   getV2LogRecords,
   getV2OperationRecords,
   getV2QualityRecords,
+  getV2TablePreview,
   getV2TableRecords,
 } from '@/v2/api/resources'
 import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
@@ -55,9 +57,7 @@ function Assets() {
   )
   const selected =
     assets.find((asset) => asset.id === selectedId) ??
-    filteredAssets[0] ??
-    assets[0] ??
-    null
+    chooseDefaultAsset(filteredAssets.length ? filteredAssets : assets, assets)
   const graph = useMemo(
     () => buildAssetNeighborhood(assets, selected?.id ?? null),
     [assets, selected?.id],
@@ -74,12 +74,48 @@ function Assets() {
   const detail = selected
     ? buildAssetDetail(selected, assets, tables, quality, logs, operations)
     : null
+  const primaryTable = detail?.tables[0] ?? null
+  const [preview, setPreview] = useState<{
+    tableId: string | null
+    data: V2TablePreview | null
+    error: string | null
+  }>({ tableId: null, data: null, error: null })
+
+  useEffect(() => {
+    if (!primaryTable) {
+      setPreview({ tableId: null, data: null, error: null })
+      return
+    }
+
+    let cancelled = false
+    setPreview({ tableId: primaryTable.id, data: null, error: null })
+    getV2TablePreview({ data: { tableId: primaryTable.id, limit: 5 } }).then(
+      (response) => {
+        if (cancelled) return
+        setPreview({
+          tableId: primaryTable.id,
+          data: response.data,
+          error: response.error,
+        })
+      },
+    )
+
+    return () => {
+      cancelled = true
+    }
+  }, [primaryTable?.id])
+
+  const selectedPreview =
+    preview.tableId === primaryTable?.id ? preview.data : null
+  const selectedTableStats = primaryTable
+    ? tableStats(primaryTable, selectedPreview, preview.error)
+    : null
 
   return (
     <V2Page
       kicker="Assets"
-      title="Asset graph"
-      description="Search assets, inspect checks, and follow upstream impact."
+      title="Asset impact"
+      description="Select an asset to inspect upstream inputs, downstream blast radius, checks, and bound tables."
       action={<span className="phlo-v2-pill">{assets.length} assets</span>}
     >
       <section className="phlo-v2-diff-metrics">
@@ -164,24 +200,24 @@ function Assets() {
               <div className="phlo-v2-detail-header">
                 <span>{selected.group ?? 'asset'}</span>
                 <h2>{selected.name}</h2>
-                <p>{selected.description ?? 'No description returned.'}</p>
+                <p>{summarizeDescription(selected.description)}</p>
               </div>
               <dl className="phlo-v2-facts">
                 <Fact
-                  label="Freshness"
-                  value={readMetric(selected.metadata, 'freshness')}
+                  label="Records"
+                  value={selectedTableStats?.records ?? readMetric(selected.metadata, 'records')}
                 />
                 <Fact
-                  label="Records"
-                  value={readMetric(selected.metadata, 'records')}
+                  label="Columns"
+                  value={selectedTableStats?.columns ?? readMetric(selected.metadata, 'columns')}
                 />
                 <Fact
                   label="Format"
-                  value={readMetric(selected.metadata, 'format')}
+                  value={selectedTableStats?.format ?? readMetric(selected.metadata, 'format')}
                 />
                 <Fact
-                  label="Branch"
-                  value={readMetric(selected.metadata, 'branch')}
+                  label="Namespace"
+                  value={selectedTableStats?.namespace ?? readMetric(selected.metadata, 'namespace')}
                 />
               </dl>
               <div className="phlo-v2-chip-cloud">
@@ -221,6 +257,7 @@ function Assets() {
                 <AssetDetailPanel
                   active={activeDetail}
                   detail={detail}
+                  preview={selectedPreview}
                   selected={selected}
                 />
               )}
@@ -270,10 +307,12 @@ interface AssetDetailModel {
 function AssetDetailPanel({
   active,
   detail,
+  preview,
   selected,
 }: {
   active: AssetDetailTab
   detail: AssetDetailModel
+  preview: V2TablePreview | null
   selected: V2Asset
 }) {
   if (active === 'tables') {
@@ -288,8 +327,18 @@ function AssetDetailPanel({
                   : table.name}
               </span>
               <small>
-                {[table.format, table.branch].filter(Boolean).join(' · ') ||
-                  'table'}
+                {table.id === preview?.table.id
+                  ? [
+                      table.format,
+                      preview.row_count === null || preview.row_count === undefined
+                        ? null
+                        : `${preview.row_count} records`,
+                      `${preview.columns.length} columns`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : [table.format, table.branch].filter(Boolean).join(' · ') ||
+                    'table'}
               </small>
             </div>
           ))
@@ -436,6 +485,31 @@ function filterAssets(assets: Array<V2Asset>, query: string): Array<V2Asset> {
   )
 }
 
+function chooseDefaultAsset(
+  candidates: Array<V2Asset>,
+  assets: Array<V2Asset>,
+): V2Asset | null {
+  if (!candidates.length) return null
+  const downstreamCounts = new Map<string, number>()
+  assets.forEach((asset) => {
+    asset.dependencies.forEach((dependency) => {
+      downstreamCounts.set(dependency, (downstreamCounts.get(dependency) ?? 0) + 1)
+    })
+  })
+
+  return candidates
+    .slice()
+    .sort((left, right) => assetScore(right, downstreamCounts) - assetScore(left, downstreamCounts))[0]
+}
+
+function assetScore(asset: V2Asset, downstreamCounts: Map<string, number>): number {
+  return (
+    asset.dependencies.length * 2 +
+    (downstreamCounts.get(asset.id) ?? 0) * 3 +
+    asset.checks.length
+  )
+}
+
 function buildAssetNeighborhood(
   assets: Array<V2Asset>,
   selectedId: string | null,
@@ -459,7 +533,7 @@ function buildAssetNeighborhood(
       id: asset.id,
       label: asset.name,
       kind: 'asset',
-      lane: asset.group ?? 'other',
+      lane: assetLane(asset),
       subtitle: asset.description,
       metric: `${asset.checks.length} checks`,
     }),
@@ -477,17 +551,62 @@ function buildAssetNeighborhood(
   return { nodes, edges }
 }
 
+function assetLane(asset: V2Asset): string {
+  const group = (asset.group ?? '').toLowerCase()
+  const name = asset.name.toLowerCase()
+  if (group === 'nightscout' || name.startsWith('dlt_')) return 'raw'
+  if (group === 'bronze' || name.startsWith('stg_')) return 'bronze'
+  if (group === 'silver') return 'silver'
+  if (group === 'gold') return 'gold'
+  if (group === 'marts' || name.startsWith('mrt_')) return 'marts'
+  return 'other'
+}
+
+function summarizeDescription(description?: string | null): string {
+  if (!description) return 'No description returned.'
+  const compact = description.replace(/\s+/g, ' ').trim()
+  return compact.length > 220 ? `${compact.slice(0, 217)}...` : compact
+}
+
 function Fact({
   label,
   value,
 }: {
   label: string
-  value: string | number | boolean | null
+  value: string | number | boolean | null | undefined
 }) {
   return (
     <>
       <dt>{label}</dt>
-      <dd>{value === null ? 'n/a' : String(value)}</dd>
+      <dd>{value === null || value === undefined || value === '' ? 'pending' : String(value)}</dd>
     </>
   )
+}
+
+function tableStats(
+  table: V2Table,
+  preview: V2TablePreview | null,
+  error: string | null,
+): {
+  records: string | number
+  columns: string | number
+  format: string
+  namespace: string
+} {
+  const records =
+    preview?.row_count ??
+    readMetric(table.metadata, 'records') ??
+    readMetric(table.metadata, 'row_count') ??
+    (error ? 'unavailable' : 'profiling')
+  const columns =
+    preview?.columns.length ??
+    readMetric(table.metadata, 'columns') ??
+    (error ? 'unavailable' : 'profiling')
+
+  return {
+    records,
+    columns,
+    format: table.format ?? 'table',
+    namespace: table.namespace ?? table.schema_name ?? 'default',
+  }
 }

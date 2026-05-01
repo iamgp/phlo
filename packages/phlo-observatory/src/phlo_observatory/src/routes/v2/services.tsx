@@ -1,6 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { ExternalLink, Play, RotateCcw, Server, Square } from 'lucide-react'
+import {
+  ExternalLink,
+  Layers3,
+  Package,
+  Play,
+  RotateCcw,
+  Server,
+  Square,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 
 import type {
   V2ResourceResult,
@@ -23,8 +32,24 @@ function Services() {
   const result = useLiveResource(getV2Services)
   const services = result.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const runtimeServices = useMemo(
+    () => services.filter((service) => isRuntimeService(service)),
+    [services],
+  )
+  const availableServices = useMemo(
+    () => services.filter((service) => !isRuntimeService(service)),
+    [services],
+  )
+  const availableSections = useMemo(
+    () => groupServicesByKind(availableServices),
+    [availableServices],
+  )
   const selected =
-    services.find((service) => service.id === selectedId) ?? services[0] ?? null
+    services.find((service) => service.id === selectedId) ??
+    runtimeServices.find((service) => service.status === 'running') ??
+    runtimeServices[0] ??
+    services[0] ??
+    null
   const [detail, setDetail] = useState<V2ResourceResult<V2ServiceDetail>>({
     data: null,
     error: null,
@@ -34,16 +59,17 @@ function Services() {
     () => ({
       running: services.filter((service) => service.status === 'running')
         .length,
-      attention: services.filter(
+      attention: runtimeServices.filter(
         (service) =>
-          service.status === 'stopped' ||
           service.status === 'unhealthy' ||
           service.health.state === 'warning' ||
-          service.health.state === 'error',
+          service.health.state === 'error' ||
+          (service.status === 'stopped' && service.health.state !== 'ok'),
       ).length,
-      total: services.length,
+      runtime: runtimeServices.length,
+      available: availableServices.length,
     }),
-    [services],
+    [availableServices.length, runtimeServices, services],
   )
 
   useEffect(() => {
@@ -63,30 +89,53 @@ function Services() {
     <V2Page
       kicker="Services"
       title="Service hub"
-      description="Runtime status, impact, links, and guarded service actions."
-      action={<span className="phlo-v2-pill">{counts.total} services</span>}
+      description="Control the running stack; browse optional service definitions by category."
+      action={<span className="phlo-v2-pill">{counts.runtime} in stack</span>}
     >
       <section className="phlo-v2-diff-metrics">
         <Metric label="Running" value={counts.running} />
         <Metric label="Needs Attention" value={counts.attention} />
-        <Metric label="Registered" value={counts.total} />
+        <Metric label="Available Definitions" value={counts.available} />
       </section>
       <section className="phlo-v2-services-workbench">
-        <div className="phlo-v2-service-list">
-          {services.map((service) => (
-            <button
-              className="phlo-v2-service-row"
-              data-active={service.id === selected?.id}
-              key={service.id}
-              onClick={() => setSelectedId(service.id)}
-              type="button"
-            >
-              <span className="phlo-v2-dot" data-state={service.status} />
-              <span>{service.name}</span>
-              <small>{service.kind}</small>
-              <strong>{service.status}</strong>
-            </button>
-          ))}
+        <div className="phlo-v2-service-directory">
+          <ServiceSection
+            countLabel={`${runtimeServices.length} services`}
+            icon={<Server className="size-4" />}
+            onSelect={setSelectedId}
+            selectedId={selected?.id}
+            services={runtimeServices}
+            title="Runtime stack"
+          />
+          <section className="phlo-v2-service-section">
+            <div className="phlo-v2-browser-toolbar">
+              <span>
+                <Package className="size-4" />
+                Available definitions
+              </span>
+              <span className="phlo-v2-pill">
+                {availableServices.length} optional
+              </span>
+            </div>
+            <p className="phlo-v2-section-note">
+              These are service definitions Observatory can describe. They are
+              not running in this lakehouse until added to the stack.
+            </p>
+            <div className="phlo-v2-service-category-grid">
+              {availableSections.map((section) => (
+                <ServiceSection
+                  compact
+                  countLabel={`${section.services.length}`}
+                  icon={<Layers3 className="size-4" />}
+                  key={section.kind}
+                  onSelect={setSelectedId}
+                  selectedId={selected?.id}
+                  services={section.services}
+                  title={labelize(section.kind)}
+                />
+              ))}
+            </div>
+          </section>
         </div>
         <aside className="phlo-v2-service-detail">
           {selected ? (
@@ -107,6 +156,7 @@ function Services() {
                   )
                 })
               }}
+              runtime={isRuntimeService(selected)}
               service={selected}
             />
           ) : (
@@ -130,23 +180,29 @@ function Services() {
 function ServiceDetail({
   detail,
   onAction,
+  runtime,
   service,
 }: {
   detail: V2ServiceDetail | null
   onAction: (actionId: string) => void
+  runtime: boolean
   service: V2Service
 }) {
-  const actions = detail?.actions ?? []
+  const actions = runtime ? (detail?.actions ?? []) : []
   return (
     <>
       <div className="phlo-v2-detail-header">
         <span>{service.kind}</span>
         <h2>{service.name}</h2>
-        <p>{service.health.message ?? 'No runtime health message returned.'}</p>
+        <p>
+          {runtime
+            ? (service.health.message ?? 'No runtime health message returned.')
+            : 'Available definition. Not part of the current runtime stack.'}
+        </p>
       </div>
       <dl className="phlo-v2-facts">
-        <Fact label="Status" value={service.status} />
-        <Fact label="Health" value={service.health.state} />
+        <Fact label="Status" value={runtime ? service.status : 'available'} />
+        <Fact label="Health" value={runtime ? service.health.state : 'n/a'} />
         <Fact
           label="Depends on"
           value={service.depends_on.join(', ') || 'none'}
@@ -229,6 +285,98 @@ function ServiceDetail({
       </div>
     </>
   )
+}
+
+function ServiceSection({
+  compact = false,
+  countLabel,
+  icon,
+  onSelect,
+  selectedId,
+  services,
+  title,
+}: {
+  compact?: boolean
+  countLabel: string
+  icon: ReactNode
+  onSelect: (id: string) => void
+  selectedId?: string | null
+  services: Array<V2Service>
+  title: string
+}) {
+  return (
+    <section className="phlo-v2-service-section" data-compact={compact}>
+      <div className="phlo-v2-browser-toolbar">
+        <span>
+          {icon}
+          {title}
+        </span>
+        <span className="phlo-v2-pill">{countLabel}</span>
+      </div>
+      <div className="phlo-v2-service-list">
+        {services.map((service) => (
+          <button
+            className="phlo-v2-service-row"
+            data-active={service.id === selectedId}
+            key={service.id}
+            onClick={() => onSelect(service.id)}
+            type="button"
+          >
+            <span className="phlo-v2-dot" data-state={serviceDotState(service)} />
+            <span>{service.name}</span>
+            <small>{service.kind}</small>
+            <strong>{serviceStatusLabel(service)}</strong>
+          </button>
+        ))}
+        {services.length === 0 && (
+          <div className="phlo-v2-empty-state">No services in this group.</div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function groupServicesByKind(services: Array<V2Service>): Array<{
+  kind: string
+  services: Array<V2Service>
+}> {
+  const groups = new Map<string, Array<V2Service>>()
+  for (const service of services) {
+    const kind = service.kind || 'other'
+    groups.set(kind, [...(groups.get(kind) ?? []), service])
+  }
+  return Array.from(groups.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([kind, kindServices]) => ({ kind, services: kindServices }))
+}
+
+function isRuntimeService(service: V2Service): boolean {
+  return (
+    service.status !== 'unknown' ||
+    service.health.state !== 'unknown' ||
+    service.health.message !== 'Runtime status unavailable'
+  )
+}
+
+function serviceStatusLabel(service: V2Service): string {
+  if (!isRuntimeService(service)) return 'available'
+  if (service.status === 'stopped' && service.health.state === 'ok') {
+    return 'completed'
+  }
+  return service.status
+}
+
+function serviceDotState(service: V2Service): string {
+  if (service.status === 'stopped' && service.health.state === 'ok') {
+    return 'ok'
+  }
+  return service.status
+}
+
+function labelize(value: string): string {
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
 function iconForAction(kind: string) {

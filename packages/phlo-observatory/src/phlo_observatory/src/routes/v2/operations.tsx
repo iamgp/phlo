@@ -45,7 +45,10 @@ function Operations() {
   const graph = useMemo(() => buildOperationGraph(operations), [operations])
 
   useEffect(() => {
-    if (!latest) return
+    if (!latest) {
+      setDetail({ data: null, error: null })
+      return
+    }
     let cancelled = false
     void getV2OperationDetail({ data: { operationId: latest.id } }).then(
       (next) => {
@@ -68,53 +71,83 @@ function Operations() {
     >
       <section className="phlo-v2-command">
         <div className="phlo-v2-command-primary">
-          <div className="phlo-v2-flow-band">
-            <div className="phlo-v2-workspace-toolbar">
-              <span>Recovery graph</span>
-              <span className="phlo-v2-pill">{graph.edges.length} links</span>
-            </div>
-            <V2FlowCanvas
-              edges={graph.edges}
-              nodes={graph.nodes}
-              onSelect={setSelectedId}
-              selectedId={latest?.id}
-            />
-          </div>
-          <div className="phlo-v2-command-strip">
-            <Metric
-              icon={<CheckCircle2 className="size-4" />}
-              label="Recovered"
-              value={recovered}
-            />
-            <Metric
-              icon={<ShieldAlert className="size-4" />}
-              label="Failed"
-              value={failed}
-            />
-            <Metric
-              icon={<Clock3 className="size-4" />}
-              label="Last duration"
-              value={
-                latest?.duration_seconds ? `${latest.duration_seconds}s` : 'n/a'
-              }
-            />
-          </div>
-
-          <div className="phlo-v2-timeline">
-            {operations.map((operation) => (
-              <OperationLine
-                key={operation.id}
-                onSelect={setSelectedId}
-                operation={operation}
-                selected={operation.id === latest?.id}
-              />
-            ))}
-            {operations.length === 0 && (
-              <div className="phlo-v2-empty-state">
-                No operations recorded yet.
+          {operations.length > 0 ? (
+            <>
+              <div className="phlo-v2-flow-band">
+                <div className="phlo-v2-workspace-toolbar">
+                  <span>Recovery graph</span>
+                  <span className="phlo-v2-pill">
+                    {graph.edges.length} links
+                  </span>
+                </div>
+                <V2FlowCanvas
+                  edges={graph.edges}
+                  nodes={graph.nodes}
+                  onSelect={setSelectedId}
+                  selectedId={latest?.id}
+                />
               </div>
-            )}
-          </div>
+              <div className="phlo-v2-command-strip">
+                <Metric
+                  icon={<CheckCircle2 className="size-4" />}
+                  label="Recovered"
+                  value={recovered}
+                />
+                <Metric
+                  icon={<ShieldAlert className="size-4" />}
+                  label="Failed"
+                  value={failed}
+                />
+                <Metric
+                  icon={<Clock3 className="size-4" />}
+                  label="Last duration"
+                  value={
+                    latest?.duration_seconds
+                      ? `${latest.duration_seconds}s`
+                      : 'n/a'
+                  }
+                />
+              </div>
+              <div className="phlo-v2-timeline">
+                {operations.map((operation) => (
+                  <OperationLine
+                    key={operation.id}
+                    onSelect={setSelectedId}
+                    operation={operation}
+                    selected={operation.id === latest?.id}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="phlo-v2-operation-empty">
+              <div>
+                <span className="phlo-v2-inspector-label">
+                  No Phlo operations recorded
+                </span>
+                <h2>Operational history is quiet.</h2>
+                <p>
+                  Dagster owns asset materialization runs. Observatory will show
+                  Phlo recovery, branch, service, and maintenance operations
+                  here once phlo-api records them.
+                </p>
+              </div>
+              <div className="phlo-v2-detail-list">
+                <div className="phlo-v2-mini-row">
+                  <span>Dagster runs</span>
+                  <small>Managed in Dagster</small>
+                </div>
+                <div className="phlo-v2-mini-row">
+                  <span>Phlo operations</span>
+                  <small>0 recorded</small>
+                </div>
+                <div className="phlo-v2-mini-row">
+                  <span>Recovery actions</span>
+                  <small>No guarded action history yet</small>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <aside className="phlo-v2-inspector">
@@ -175,7 +208,12 @@ function Operations() {
               </div>
             </>
           ) : (
-            <p>No operation is selected.</p>
+            <>
+              <h2>No operation selected</h2>
+              <p>
+                There are no Phlo operation records for this lakehouse yet.
+              </p>
+            </>
           )}
           {detail.error && (
             <div className="phlo-v2-panel-footer">{detail.error}</div>

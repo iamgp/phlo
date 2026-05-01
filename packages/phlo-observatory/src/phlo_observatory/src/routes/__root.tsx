@@ -110,7 +110,11 @@ function RootLayoutGate() {
           <HeadContent />
         </head>
         <body className="phlo-v2-document min-h-svh bg-background text-foreground">
-          <Outlet />
+          <ObservatorySettingsProvider>
+            <ObservatoryExtensionProvider>
+              <Outlet />
+            </ObservatoryExtensionProvider>
+          </ObservatorySettingsProvider>
           <Toaster />
           <Scripts />
         </body>

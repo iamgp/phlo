@@ -6,6 +6,7 @@ import type {
   V2Asset,
   V2AssetDetail,
   V2BranchDetail,
+  V2Extension,
   V2ExtensionDetail,
   V2LogEvent,
   V2LogFacets,
@@ -380,7 +381,7 @@ export const getV2BranchDetail = createServerFn()
   )
 
 export const getV2Extensions = createServerFn().handler(() =>
-  getCollection('extensions'),
+  getRawCollection<V2Extension>('extensions'),
 )
 
 export const getV2ExtensionDetail = createServerFn()
@@ -502,6 +503,14 @@ function normalizeItem(
 }
 
 function normalizeSettings(settings: V2ApiSettings): V2Settings {
+  const metadata = Object.entries(settings.metadata).map(([key, value]) => ({
+    id: `metadata:${key}`,
+    label: labelize(key),
+    value: valueToSetting(value),
+    kind: 'metadata',
+    description: 'Control-plane metadata',
+    metadata: {},
+  }))
   const defaults = Object.entries(settings.defaults).map(([key, value]) => ({
     id: `default:${key}`,
     label: labelize(key),
@@ -527,7 +536,19 @@ function normalizeSettings(settings: V2ApiSettings): V2Settings {
     metadata: {},
   }))
 
-  return { items: [...defaults, ...features, ...storage] }
+  return { items: [...metadata, ...defaults, ...features, ...storage] }
+}
+
+function valueToSetting(value: unknown): string | boolean | number | null {
+  if (value === null || value === undefined) return null
+  if (
+    typeof value === 'string' ||
+    typeof value === 'boolean' ||
+    typeof value === 'number'
+  ) {
+    return value
+  }
+  return JSON.stringify(value)
 }
 
 function summaryFor(endpoint: string, item: Record<string, unknown>): string {

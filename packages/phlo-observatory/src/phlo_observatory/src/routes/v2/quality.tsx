@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import {
   AlertTriangle,
   CircleHelp,
-  Play,
   Shield,
   ShieldCheck,
 } from 'lucide-react'
@@ -32,9 +31,10 @@ function Quality() {
   const warnings = checks.filter((check) => check.severity === 'warning').length
   const unknown = checks.filter((check) => check.status === 'unknown').length
   const failing = checks.filter((check) => check.status === 'failing').length
-  const score = checks.length
-    ? Math.round(((checks.length - failing - unknown) / checks.length) * 100)
-    : 0
+  const observed = checks.length - unknown
+  const score = observed
+    ? Math.round(((observed - failing) / observed) * 100)
+    : null
   const selected =
     checks.find((check) => check.id === selectedId) ?? checks[0] ?? null
   const [detail, setDetail] = useState<V2ResourceResult<V2QualityDetail>>({
@@ -64,10 +64,10 @@ function Quality() {
       <section className="phlo-v2-quality-shell">
         <div className="phlo-v2-quality-board">
           <div className="phlo-v2-quality-score">
-            <strong>{score}</strong>
-            <span>Quality score</span>
+            <strong>{score === null ? '—' : score}</strong>
+            <span>Observed pass rate</span>
             <small>
-              {failing} failing · {warnings} warnings · {unknown} unknown
+              {observed} observed · {failing} failing · {unknown} not observed
             </small>
           </div>
           <div className="phlo-v2-flow-band">
@@ -95,11 +95,11 @@ function Quality() {
               label="Warnings"
               value={warnings}
             />
-            <Metric
-              icon={<CircleHelp className="size-4" />}
-              label="Unknown"
-              value={unknown}
-            />
+              <Metric
+                icon={<CircleHelp className="size-4" />}
+                label="Not observed"
+                value={unknown}
+              />
           </div>
           <div className="phlo-v2-check-list">
             {checks.map((check) => (
@@ -134,22 +134,13 @@ function Quality() {
                   label="Blocking"
                   value={selected.blocking ? 'yes' : 'no'}
                 />
-                <Fact label="Status" value={selected.status} />
+                <Fact label="Status" value={qualityStatusLabel(selected)} />
               </dl>
-              <div className="phlo-v2-action-row">
-                {(detail.data?.actions ?? []).map((action) => (
-                  <button
-                    disabled={!action.enabled}
-                    key={action.id}
-                    title={action.reason ?? undefined}
-                    type="button"
-                  >
-                    <Play className="size-3.5" />
-                    {action.label}
-                  </button>
-                ))}
-              </div>
               <div className="phlo-v2-detail-list">
+                <div className="phlo-v2-mini-row">
+                  <span>Execution result</span>
+                  <small>{qualityResultSummary(selected)}</small>
+                </div>
                 <div className="phlo-v2-mini-row">
                   <span>Asset detail</span>
                   <small>
@@ -165,6 +156,10 @@ function Quality() {
                 <div className="phlo-v2-mini-row">
                   <span>Logs</span>
                   <small>{detail.data?.logs.length ?? 0} linked events</small>
+                </div>
+                <div className="phlo-v2-mini-row">
+                  <span>Available actions</span>
+                  <small>{qualityActionsSummary(detail.data)}</small>
                 </div>
               </div>
             </>
@@ -219,7 +214,13 @@ function CheckRow({
     >
       <span
         className="phlo-v2-dot"
-        data-state={check.status === 'failing' ? 'error' : check.status}
+        data-state={
+          check.status === 'failing'
+            ? 'error'
+            : check.status === 'unknown'
+              ? 'warning'
+              : check.status
+        }
       />
       <div>
         <div className="phlo-v2-row-title">
@@ -228,7 +229,9 @@ function CheckRow({
         </div>
         <div className="phlo-v2-row-meta">{check.asset_id}</div>
       </div>
-      <span className="phlo-v2-pill">{check.severity ?? check.status}</span>
+      <span className="phlo-v2-pill">
+        {check.severity ?? qualityStatusLabel(check)}
+      </span>
       <span className="phlo-v2-pill">
         {check.blocking ? 'blocking' : 'advisory'}
       </span>
@@ -259,7 +262,7 @@ function buildQualityGraph(checks: Array<V2QualityCheck>): {
       kind: 'quality',
       lane: 'quality',
       subtitle: check.asset_id,
-      metric: `${check.severity ?? check.status} · ${check.blocking ? 'blocking' : 'advisory'}`,
+      metric: `${check.severity ?? qualityStatusLabel(check)} · ${check.blocking ? 'blocking' : 'advisory'}`,
     }),
   )
 
@@ -272,6 +275,27 @@ function buildQualityGraph(checks: Array<V2QualityCheck>): {
   )
 
   return { nodes: [...assetNodes, ...checkNodes], edges }
+}
+
+function qualityStatusLabel(check: V2QualityCheck): string {
+  if (check.status === 'unknown') return 'not observed'
+  return check.status
+}
+
+function qualityResultSummary(check: V2QualityCheck): string {
+  if (check.status === 'unknown') {
+    return 'No result has been returned by the quality read model yet.'
+  }
+  if (check.status === 'passing') return 'Latest observed run passed.'
+  if (check.status === 'warning') return 'Latest observed run raised a warning.'
+  return 'Latest observed run failed.'
+}
+
+function qualityActionsSummary(detail: V2QualityDetail | null): string {
+  const actions = detail?.actions ?? []
+  const enabled = actions.filter((action) => action.enabled)
+  if (enabled.length === 0) return 'No guarded quality mutation exposed.'
+  return enabled.map((action) => action.label).join(', ')
 }
 
 function Fact({ label, value }: { label: string; value: string }) {

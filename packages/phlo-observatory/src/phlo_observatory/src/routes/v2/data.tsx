@@ -11,10 +11,16 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import type { V2ResourceResult, V2Table, V2TablePreview } from '@/v2/api/types'
+import type {
+  V2Asset,
+  V2ResourceResult,
+  V2Table,
+  V2TablePreview,
+} from '@/v2/api/types'
 import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 import {
   getV2SavedQueries,
+  getV2AssetRecords,
   getV2TablePreview,
   getV2TableRecords,
   runV2Query,
@@ -30,10 +36,15 @@ export const Route = createFileRoute('/v2/data')({
 
 function Data() {
   const result = useLiveResource(getV2TableRecords)
+  const assetResult = useLiveResource(getV2AssetRecords)
   const tables = result.data ?? []
+  const assets = assetResult.data ?? []
+  const sortedTables = useMemo(() => sortTablesForFlow(tables), [tables])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected =
-    tables.find((table) => table.id === selectedId) ?? tables[0] ?? null
+    sortedTables.find((table) => table.id === selectedId) ??
+    sortedTables[0] ??
+    null
   const [activeDetail, setActiveDetail] = useState<DataDetailTab>('preview')
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
   const [sql, setSql] = useState('select * from selected_table limit 100')
@@ -62,7 +73,11 @@ function Data() {
   const namespaces = new Set(
     tables.map((table) => table.namespace ?? 'default'),
   )
-  const graph = useMemo(() => buildTableGraph(tables), [tables])
+  const graph = useMemo(() => buildTableGraph(tables, assets), [assets, tables])
+  const selectedRowCount =
+    preview.data && selected && preview.data.table.id === selected.id
+      ? preview.data.row_count
+      : null
 
   useEffect(() => {
     if (!selected) return
@@ -94,7 +109,7 @@ function Data() {
         <div className="phlo-v2-table-browser">
           <div className="phlo-v2-flow-band">
             <div className="phlo-v2-workspace-toolbar">
-              <span>Namespace map</span>
+              <span>Lakehouse table flow</span>
               <span className="phlo-v2-pill">
                 {graph.edges.length} bindings
               </span>
@@ -122,7 +137,7 @@ function Data() {
               <span>Rows</span>
               <span>Freshness</span>
             </div>
-            {tables.map((table) => (
+            {sortedTables.map((table) => (
               <button
                 className="phlo-v2-table-row"
                 data-active={table.id === selected?.id}
@@ -135,8 +150,12 @@ function Data() {
                 <span>{table.namespace ?? 'default'}</span>
                 <span>{table.format ?? 'unknown'}</span>
                 <span>{table.branch ?? 'main'}</span>
-                <span>{readMetric(table.metadata, 'records') ?? 'n/a'}</span>
-                <span>{readMetric(table.metadata, 'freshness') ?? 'n/a'}</span>
+                <span>
+                  {table.id === selected?.id && selectedRowCount !== null
+                    ? selectedRowCount
+                    : readMetric(table.metadata, 'records') ?? 'Profile on select'}
+                </span>
+                <span>{readMetric(table.metadata, 'freshness') ?? 'Catalog'}</span>
               </button>
             ))}
             {tables.length === 0 && (
@@ -167,15 +186,14 @@ function Data() {
                   <Rows3 className="size-4" />
                   {preview.data?.row_count ??
                     readMetric(selected.metadata, 'records') ??
-                    'n/a'}{' '}
+                    'Profile pending'}{' '}
                   records
                 </div>
                 <div>
                   <Columns3 className="size-4" />
-                  {preview.data?.columns.length ||
-                    readMetric(selected.metadata, 'schema') ||
-                    selected.schema_name ||
-                    'n/a'}{' '}
+                  {preview.data?.columns.length
+                    ? preview.data.columns.length
+                    : 'Profile pending'}{' '}
                   columns
                 </div>
               </div>
@@ -428,42 +446,73 @@ function DataDetailPanel({
   )
 }
 
-function buildTableGraph(tables: Array<V2Table>): {
+function buildTableGraph(
+  tables: Array<V2Table>,
+  assets: Array<V2Asset>,
+): {
   nodes: Array<V2FlowNode>
   edges: Array<V2FlowEdge>
 } {
-  const namespaceNodes = Array.from(
-    new Set(tables.map((table) => table.namespace ?? 'default')),
-  ).map(
-    (namespace): V2FlowNode => ({
-      id: `namespace:${namespace}`,
-      label: namespace,
-      kind: 'branch',
-      lane: 'branch',
-      subtitle: 'namespace',
-    }),
+  const tableByAsset = new Map(
+    tables
+      .filter((table) => table.asset_id)
+      .map((table) => [table.asset_id!, table]),
   )
+  const assetById = new Map(assets.map((asset) => [asset.id, asset]))
 
-  const tableNodes = tables.map(
+  const tableNodes = sortTablesForFlow(tables)
+    .map(
     (table): V2FlowNode => ({
       id: table.id,
       label: table.name,
       kind: 'table',
-      lane: 'table',
-      subtitle: table.asset_id ?? table.schema_name,
-      metric: `${table.format ?? 'unknown'} · ${readMetric(table.metadata, 'records') ?? 'n/a'} rows`,
+      lane: tableLane(table),
+      subtitle: table.namespace ?? table.schema_name,
+      metric: table.format ?? 'table',
     }),
   )
 
-  const edges = tables.map(
-    (table): V2FlowEdge => ({
-      id: `namespace:${table.namespace ?? 'default'}->${table.id}`,
-      source: `namespace:${table.namespace ?? 'default'}`,
-      target: table.id,
-    }),
-  )
+  const edges = tables.flatMap((table): Array<V2FlowEdge> => {
+    if (!table.asset_id) return []
+    const asset = assetById.get(table.asset_id)
+    if (!asset) return []
+    return asset.dependencies
+      .map((dependencyId) => tableByAsset.get(dependencyId))
+      .filter((dependency): dependency is V2Table => Boolean(dependency))
+      .map((dependency) => ({
+        id: `${dependency.id}->${table.id}`,
+        source: dependency.id,
+        target: table.id,
+      }))
+  })
 
-  return { nodes: [...namespaceNodes, ...tableNodes], edges }
+  return { nodes: tableNodes, edges }
+}
+
+function sortTablesForFlow(tables: Array<V2Table>): Array<V2Table> {
+  return [...tables].sort((left, right) => {
+    const leftLane = tableLane(left)
+    const rightLane = tableLane(right)
+    if (leftLane !== rightLane) {
+      return laneRank(leftLane) - laneRank(rightLane)
+    }
+    return left.name.localeCompare(right.name)
+  })
+}
+
+function tableLane(table: V2Table): string {
+  const namespace = (table.namespace ?? '').toLowerCase()
+  const name = table.name.toLowerCase()
+  if (namespace === 'nightscout' || name.startsWith('dlt_')) return 'raw'
+  if (namespace === 'bronze' || name.startsWith('stg_')) return 'bronze'
+  if (namespace === 'silver') return 'silver'
+  if (namespace === 'gold') return 'gold'
+  if (namespace === 'marts' || name.startsWith('mrt_')) return 'marts'
+  return 'table'
+}
+
+function laneRank(lane: string): number {
+  return ['raw', 'bronze', 'silver', 'gold', 'marts', 'table'].indexOf(lane)
 }
 
 function Fact({

@@ -466,10 +466,14 @@ def _overview_health_from_services(services: Sequence[V2Service]) -> V2Health:
     if not services:
         return V2Health(state="unknown", message="No services discovered")
 
-    status_counts = Counter(service.status for service in services)
+    runtime_services = _runtime_services(services)
+    if not runtime_services:
+        return V2Health(state="unknown", message="No runtime containers found")
+
+    status_counts = Counter(service.status for service in runtime_services)
     attention = sum(
         1
-        for service in services
+        for service in runtime_services
         if service.status in {"unhealthy", "starting"}
         or service.health.state in {"error", "warning"}
         or (service.status == "stopped" and service.health.state != "ok")
@@ -486,10 +490,20 @@ def _overview_health_from_services(services: Sequence[V2Service]) -> V2Health:
         return V2Health(state="ok", message=f"{running} services running")
 
     unknown = status_counts["unknown"]
-    if unknown == len(services):
+    if unknown == len(runtime_services):
         return V2Health(state="unknown", message="No runtime containers found")
 
     return V2Health(state="unknown", message="Runtime status incomplete")
+
+
+def _runtime_services(services: Sequence[V2Service]) -> list[V2Service]:
+    return [
+        service
+        for service in services
+        if service.status != "unknown"
+        or service.health.state != "unknown"
+        or service.health.message != "Runtime status unavailable"
+    ]
 
 
 def _load_assets() -> list[V2Asset]:
@@ -791,6 +805,144 @@ def _table_rows(
     return rows
 
 
+def _run_query_engine(sql: str, *, schema: str | None = None, limit: int = 500) -> Mapping[str, Any] | None:
+    try:
+        from phlo_api.observatory_api.trino import QueryExecutionError, execute_trino_query
+    except Exception:
+        return None
+
+    async def _execute() -> Any:
+        return await execute_trino_query(sql, schema=schema, timeout_ms=12000)
+
+    try:
+        result = asyncio.run(_execute())
+    except Exception:
+        return None
+
+    if isinstance(result, QueryExecutionError) or not isinstance(result, Mapping):
+        return None
+    rows = result.get("rows")
+    columns = result.get("columns")
+    if not isinstance(rows, list) or not isinstance(columns, list):
+        return None
+    clean_rows = [row for row in rows[:limit] if isinstance(row, Mapping)]
+    return {
+        "columns": [str(column) for column in columns],
+        "rows": [dict(row) for row in clean_rows],
+        "column_types": result.get("column_types") if isinstance(result.get("column_types"), list) else [],
+    }
+
+
+def _relation_from_metadata(table: V2Table) -> str | None:
+    relation = table.metadata.get("relation")
+    if isinstance(relation, str) and relation.strip():
+        return relation.strip()
+
+    catalog = table.metadata.get("catalog") or table.metadata.get("database")
+    schema = table.metadata.get("schema") or table.schema_name or table.namespace
+    name = table.metadata.get("table_name") or table.metadata.get("table") or table.name
+    if all(isinstance(value, str) and value.strip() for value in (catalog, schema, name)):
+        return ".".join(f'"{str(value).strip().strip(chr(34))}"' for value in (catalog, schema, name))
+    return None
+
+
+def _discovered_relation(table: V2Table) -> str | None:
+    try:
+        from phlo_api.observatory_api.trino import resolve_default_catalog
+    except Exception:
+        return None
+
+    try:
+        catalog = resolve_default_catalog()
+    except Exception:
+        return None
+
+    schema_result = _run_query_engine(f"SHOW SCHEMAS FROM {catalog}", limit=200)
+    if schema_result is None:
+        return None
+
+    names = {
+        str(value)
+        for value in (
+            table.name,
+            table.metadata.get("table"),
+            table.metadata.get("table_name"),
+        )
+        if value
+    }
+    for row in schema_result["rows"]:
+        schema = row.get("Schema") or row.get("schema")
+        if not isinstance(schema, str) or schema == "information_schema":
+            continue
+        table_result = _run_query_engine(f'SHOW TABLES FROM "{catalog}"."{schema}"', limit=500)
+        if table_result is None:
+            continue
+        for table_row in table_result["rows"]:
+            table_name = table_row.get("Table") or table_row.get("table")
+            if isinstance(table_name, str) and table_name in names:
+                return f'"{catalog}"."{schema}"."{table_name}"'
+    return None
+
+
+def _query_relation_for_table(table: V2Table) -> str | None:
+    return _relation_from_metadata(table) or _discovered_relation(table)
+
+
+def _select_sql_for_table(table: V2Table, *, limit: int, offset: int = 0) -> str | None:
+    relation = _query_relation_for_table(table)
+    if relation is None:
+        return None
+    sql = f"select * from {relation} limit {max(1, min(limit, 500))}"
+    if offset > 0:
+        sql = f"{sql} offset {max(0, offset)}"
+    return sql
+
+
+def _count_sql_for_table(table: V2Table) -> str | None:
+    relation = _query_relation_for_table(table)
+    if relation is None:
+        return None
+    return f"select count(*) as row_count from {relation}"
+
+
+def _preview_from_query_engine(table: V2Table, limit: int, offset: int) -> V2TablePreview | None:
+    effective_limit = max(1, min(limit, 500))
+    sql = _select_sql_for_table(table, limit=effective_limit, offset=offset)
+    if sql is None:
+        return None
+
+    result = _run_query_engine(sql, schema=table.schema_name or table.namespace, limit=effective_limit)
+    if result is None:
+        return None
+
+    row_count: int | None = None
+    count_sql = _count_sql_for_table(table)
+    if count_sql is not None:
+        count_result = _run_query_engine(count_sql, schema=table.schema_name or table.namespace, limit=1)
+        if count_result and count_result["rows"]:
+            raw_count = count_result["rows"][0].get("row_count")
+            if isinstance(raw_count, int):
+                row_count = raw_count
+
+    columns = [str(column) for column in result["columns"]]
+    rows = [dict(row) for row in result["rows"]]
+    metadata = dict(table.metadata)
+    if row_count is not None:
+        metadata["records"] = row_count
+    if table.metadata != metadata:
+        table = table.model_copy(update={"metadata": metadata})
+
+    return V2TablePreview(
+        table=table,
+        columns=columns,
+        rows=rows,
+        row_count=row_count,
+        limit=effective_limit,
+        offset=offset,
+        has_more=row_count is not None and offset + len(rows) < row_count,
+    )
+
+
 def _find_table(table_id: str, tables: list[V2Table] | None = None) -> V2Table | None:
     available = tables if tables is not None else _load_tables()
     return next(
@@ -973,18 +1125,21 @@ def _load_table_preview(table_id: str, limit: int, offset: int) -> V2TablePrevie
     if table is None:
         raise _not_found("table", table_id)
 
+    query_preview = _preview_from_query_engine(table, limit=limit, offset=max(0, offset))
+    if query_preview is not None:
+        return query_preview
+
     row_count_raw = table.metadata.get("records")
     row_count = row_count_raw if isinstance(row_count_raw, int) else None
     columns = _table_columns_from_metadata(table)
-    rows = _table_rows(table, columns, limit=limit, offset=offset)
     return V2TablePreview(
         table=table,
         columns=columns,
-        rows=rows,
+        rows=[],
         row_count=row_count,
         limit=limit,
         offset=offset,
-        has_more=row_count is not None and offset + len(rows) < row_count,
+        has_more=False,
     )
 
 
@@ -999,6 +1154,21 @@ def _run_read_query(request: V2QueryRequest) -> V2QueryResult:
     table_id = match.group("table")
     requested_limit = int(match.group("limit") or request.limit)
     limit = max(1, min(requested_limit, 500))
+    table = _find_table(table_id)
+    if table is not None:
+        sql = _select_sql_for_table(table, limit=limit, offset=max(0, request.offset))
+        if sql is not None:
+            trino_result = _try_run_query_engine(
+                sql,
+                branch=table.schema_name or table.namespace or request.branch,
+                limit=limit,
+            )
+            if trino_result is not None:
+                warnings = list(trino_result.warnings)
+                if requested_limit > limit:
+                    warnings.append("Limit capped at 500 rows.")
+                return trino_result.model_copy(update={"warnings": warnings})
+
     trino_result = _try_run_query_engine(request.sql, branch=request.branch, limit=limit)
     if trino_result is not None:
         return trino_result
@@ -1538,13 +1708,14 @@ def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
 def get_v2_overview() -> V2Overview:
     """Get the provider-neutral Observatory v2 overview."""
     services = _load_services()
+    runtime_services = _runtime_services(services)
     assets = _load_assets()
     tables = _load_tables()
     quality = _load_quality()
     return V2Overview(
         health=_overview_health_from_services(services),
         counters={
-            "services": len(services),
+            "services": len(runtime_services),
             "operations": len(_load_operations()),
             "assets": len(assets),
             "tables": len(tables),

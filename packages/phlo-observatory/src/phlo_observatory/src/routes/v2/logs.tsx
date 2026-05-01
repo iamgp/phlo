@@ -17,6 +17,7 @@ function Logs() {
   const [level, setLevel] = useState('all')
   const [source, setSource] = useState('all')
   const [query, setQuery] = useState('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [facets, setFacets] = useState<V2ResourceResult<V2LogFacets>>({
     data: null,
     error: null,
@@ -35,7 +36,8 @@ function Logs() {
       ),
     [level, logs, query, source],
   )
-  const latest = filtered[0] ?? null
+  const selected =
+    filtered.find((log) => log.id === selectedId) ?? filtered[0] ?? null
 
   useEffect(() => {
     void getV2LogFacets().then(setFacets)
@@ -92,7 +94,12 @@ function Logs() {
           </div>
           <div className="phlo-v2-console-body">
             {filtered.map((log) => (
-              <LogLine key={log.id} log={log} />
+              <LogLine
+                key={log.id}
+                log={log}
+                onSelect={setSelectedId}
+                selected={log.id === selected?.id}
+              />
             ))}
             {filtered.length === 0 && (
               <div className="phlo-v2-empty-state">
@@ -104,22 +111,39 @@ function Logs() {
 
         <aside className="phlo-v2-inspector">
           <div className="phlo-v2-inspector-label">Evidence detail</div>
-          {latest ? (
+          {selected ? (
             <>
-              <h2>{latest.source ?? 'platform'}</h2>
-              <p>{latest.message}</p>
+              <h2>{selected.source ?? 'platform'}</h2>
+              <p>{selected.message}</p>
               <dl className="phlo-v2-facts">
-                <Fact label="Level" value={latest.level} />
+                <Fact label="Level" value={selected.level} />
                 <Fact
                   label="Resource"
-                  value={latest.resource?.label ?? 'platform'}
+                  value={selected.resource?.label ?? 'platform'}
                 />
-                <Fact label="Kind" value={latest.resource?.kind ?? 'event'} />
+                <Fact
+                  label="Kind"
+                  value={selected.resource?.kind ?? 'event'}
+                />
                 <Fact
                   label="Timestamp"
-                  value={latest.timestamp ?? 'not timestamped'}
+                  value={selected.timestamp ?? 'not timestamped'}
                 />
               </dl>
+              <div className="phlo-v2-detail-list">
+                {Object.entries(selected.metadata).map(([key, value]) => (
+                  <div className="phlo-v2-mini-row" key={key}>
+                    <span>{key}</span>
+                    <small>{formatLogValue(value)}</small>
+                  </div>
+                ))}
+                {Object.keys(selected.metadata).length === 0 && (
+                  <div className="phlo-v2-mini-row">
+                    <span>Metadata</span>
+                    <small>No structured fields returned</small>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <>
@@ -162,7 +186,15 @@ function matchesLogQuery(log: V2LogEvent, query: string): boolean {
     .some((value) => value!.toLowerCase().includes(needle))
 }
 
-function LogLine({ log }: { log: V2LogEvent }) {
+function LogLine({
+  log,
+  onSelect,
+  selected,
+}: {
+  log: V2LogEvent
+  onSelect: (id: string) => void
+  selected: boolean
+}) {
   const Icon =
     log.level === 'error'
       ? AlertCircle
@@ -171,7 +203,12 @@ function LogLine({ log }: { log: V2LogEvent }) {
         : FileText
 
   return (
-    <div className="phlo-v2-log-line">
+    <button
+      className="phlo-v2-log-line"
+      data-active={selected}
+      onClick={() => onSelect(log.id)}
+      type="button"
+    >
       <span className="phlo-v2-log-time">{log.timestamp ?? '--:--:--'}</span>
       <span className="phlo-v2-log-level" data-level={log.level}>
         <Icon className="size-3.5" />
@@ -181,8 +218,17 @@ function LogLine({ log }: { log: V2LogEvent }) {
       <span className="phlo-v2-log-source">
         {log.source ?? log.resource?.label ?? 'platform'}
       </span>
-    </div>
+    </button>
   )
+}
+
+function formatLogValue(value: unknown): string {
+  if (value === null || value === undefined) return 'unset'
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  return JSON.stringify(value)
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
