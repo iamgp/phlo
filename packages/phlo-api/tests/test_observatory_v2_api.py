@@ -393,6 +393,7 @@ def test_v2_table_preview_endpoint_returns_provider_neutral_payload() -> None:
     assert set(payload) == {
         "table",
         "columns",
+        "column_types",
         "rows",
         "row_count",
         "limit",
@@ -400,6 +401,7 @@ def test_v2_table_preview_endpoint_returns_provider_neutral_payload() -> None:
         "has_more",
     }
     assert payload["table"]["id"] == tables[0]["id"]
+    assert len(payload["column_types"]) == len(payload["columns"])
     _assert_no_provider_url_settings(payload)
 
 

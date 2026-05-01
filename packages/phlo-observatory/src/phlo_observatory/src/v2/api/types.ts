@@ -174,6 +174,7 @@ export interface V2Table {
 export interface V2TablePreview {
   table: V2Table
   columns: Array<string>
+  column_types: Array<string>
   rows: Array<Record<string, unknown>>
   row_count?: number | null
   limit: number

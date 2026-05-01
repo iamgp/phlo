@@ -210,6 +210,7 @@ class V2TablePreview(BaseModel):
 
     table: V2Table
     columns: list[str] = Field(default_factory=list)
+    column_types: list[str] = Field(default_factory=list)
     rows: list[dict[str, Any]] = Field(default_factory=list)
     row_count: int | None = None
     limit: int = 50

@@ -922,13 +922,46 @@ def _operation_actions(operation: V2Operation) -> list[V2Action]:
 def _table_columns_from_metadata(table: V2Table) -> list[str]:
     columns = table.metadata.get("columns")
     if isinstance(columns, list):
-        return [str(column) for column in columns if column is not None]
+        names: list[str] = []
+        for column in columns:
+            if isinstance(column, Mapping):
+                name = column.get("name") or column.get("column_name")
+                if name is not None:
+                    names.append(str(name))
+            elif column is not None:
+                names.append(str(column))
+        return names
 
     schema = table.metadata.get("schema")
     if isinstance(schema, Mapping):
         return [str(key) for key in schema.keys()]
 
     return []
+
+
+def _table_column_types_from_metadata(table: V2Table, columns: list[str]) -> list[str]:
+    by_name: dict[str, str] = {}
+    metadata_columns = table.metadata.get("columns")
+    if isinstance(metadata_columns, list):
+        for column in metadata_columns:
+            if not isinstance(column, Mapping):
+                continue
+            name = column.get("name") or column.get("column_name")
+            column_type = column.get("type") or column.get("data_type")
+            if name is not None and column_type is not None:
+                by_name[str(name)] = str(column_type)
+
+    schema = table.metadata.get("schema")
+    if isinstance(schema, Mapping):
+        for name, value in schema.items():
+            if isinstance(value, str):
+                by_name[str(name)] = value
+            elif isinstance(value, Mapping):
+                column_type = value.get("type") or value.get("data_type")
+                if column_type is not None:
+                    by_name[str(name)] = str(column_type)
+
+    return [by_name.get(column, "unknown") for column in columns]
 
 
 def _sample_value(table: V2Table, column: str, row_index: int) -> Any:
@@ -1101,6 +1134,17 @@ def _preview_from_query_engine(table: V2Table, limit: int, offset: int) -> V2Tab
                 row_count = raw_count
 
     columns = [str(column) for column in result["columns"]]
+    raw_column_types = result.get("column_types")
+    column_types = (
+        [
+            str(column_type) if column_type is not None else "unknown"
+            for column_type in raw_column_types[: len(columns)]
+        ]
+        if isinstance(raw_column_types, list)
+        else []
+    )
+    if len(column_types) < len(columns):
+        column_types.extend(["unknown"] * (len(columns) - len(column_types)))
     rows = [dict(row) for row in result["rows"]]
     metadata = dict(table.metadata)
     if row_count is not None:
@@ -1111,6 +1155,7 @@ def _preview_from_query_engine(table: V2Table, limit: int, offset: int) -> V2Tab
     return V2TablePreview(
         table=_compact_table(table),
         columns=columns,
+        column_types=column_types,
         rows=rows,
         row_count=row_count,
         limit=effective_limit,
@@ -1308,9 +1353,11 @@ def _load_table_preview(table_id: str, limit: int, offset: int) -> V2TablePrevie
     row_count_raw = table.metadata.get("records")
     row_count = row_count_raw if isinstance(row_count_raw, int) else None
     columns = _table_columns_from_metadata(table)
+    column_types = _table_column_types_from_metadata(table, columns)
     return V2TablePreview(
         table=_compact_table(table),
         columns=columns,
+        column_types=column_types,
         rows=[],
         row_count=row_count,
         limit=limit,

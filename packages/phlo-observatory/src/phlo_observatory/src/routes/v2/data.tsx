@@ -407,12 +407,12 @@ function DataPreviewTable({
         <div className="phlo-v2-schema-grid" role="table">
           <div className="phlo-v2-schema-head" role="row">
             <span>Column</span>
-            <span>Position</span>
+            <span>Type</span>
           </div>
           {columns.map((column, index) => (
             <div className="phlo-v2-schema-row" key={column} role="row">
               <span>{column}</span>
-              <span>{index + 1}</span>
+              <span>{columnTypeFor(preview, column, index)}</span>
             </div>
           ))}
           {columns.length === 0 && (
@@ -465,6 +465,37 @@ function DataPreviewTable({
       )}
     </div>
   )
+}
+
+function columnTypeFor(
+  preview: V2TablePreview | null,
+  column: string,
+  index: number,
+): string {
+  const explicitType = preview?.column_types?.[index]
+  if (typeof explicitType === 'string' && explicitType.trim()) {
+    return explicitType
+  }
+
+  const sampledValue = preview?.rows.find(
+    (row) => row[column] !== null && row[column] !== undefined,
+  )?.[column]
+  if (typeof sampledValue === 'number') {
+    return Number.isInteger(sampledValue) ? 'integer' : 'double'
+  }
+  if (typeof sampledValue === 'boolean') {
+    return 'boolean'
+  }
+  if (typeof sampledValue === 'string') {
+    return 'varchar'
+  }
+  if (Array.isArray(sampledValue)) {
+    return 'array'
+  }
+  if (typeof sampledValue === 'object' && sampledValue !== null) {
+    return 'object'
+  }
+  return 'unknown'
 }
 
 function DataDetailPanel({
