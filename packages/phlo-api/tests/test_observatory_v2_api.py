@@ -899,6 +899,26 @@ def test_v2_search_endpoint_returns_provider_neutral_payload() -> None:
     _assert_no_provider_url_settings(payload)
 
 
+def test_v2_search_endpoint_url_encodes_resource_href_segments(monkeypatch) -> None:
+    client = TestClient(app)
+    asset = V2Asset(id="silver/demo", name="silver/demo", group="silver", kinds=["table"])
+    table = V2Table(id="analytics/demo", name="demo", namespace="analytics")
+    extension = V2Extension(id="demo/ext", name="Demo Extension", version="0.1.0")
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_services", lambda: [])
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_assets", lambda: [asset])
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_tables", lambda: [table])
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_quality", lambda: [])
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_extensions", lambda: [extension])
+
+    response = client.get("/api/observatory/v2/search", params={"q": "demo"})
+
+    assert response.status_code == 200
+    hrefs = {item["kind"]: item["href"] for item in response.json()["items"]}
+    assert hrefs["asset"] == "/asset/silver%2Fdemo"
+    assert hrefs["table"] == "/table/analytics%2Fdemo"
+    assert hrefs["extension"] == "/extension/demo%2Fext"
+
+
 def test_v2_all_endpoints_do_not_leak_provider_url_setting_names() -> None:
     client = TestClient(app)
 

@@ -17,6 +17,7 @@ import threading
 import time
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import quote
 from uuid import uuid4
 
 from fastapi import APIRouter
@@ -1661,7 +1662,7 @@ def _search_results(query: str) -> list[V2SearchResult]:
                     label=asset.name,
                     kind="asset",
                     summary=asset.description or asset.group,
-                    href=f"/asset/{asset.id}",
+                    href=f"/asset/{_route_path_segment(asset.id)}",
                 )
             )
 
@@ -1676,7 +1677,7 @@ def _search_results(query: str) -> list[V2SearchResult]:
                     label=table.namespace + "." + table.name if table.namespace else table.name,
                     kind="table",
                     summary=f"{table.format or 'table'} · {table.branch or 'main'}",
-                    href=f"/table/{table.id}",
+                    href=f"/table/{_route_path_segment(table.id)}",
                 )
             )
 
@@ -1704,11 +1705,15 @@ def _search_results(query: str) -> list[V2SearchResult]:
                     label=extension.name,
                     kind="extension",
                     summary=extension.settings_scope or extension.version,
-                    href=f"/extension/{extension.id}",
+                    href=f"/extension/{_route_path_segment(extension.id)}",
                 )
             )
 
     return results[:25]
+
+
+def _route_path_segment(resource_id: str) -> str:
+    return quote(resource_id, safe="")
 
 
 def _load_extension_detail(extension_id: str) -> V2ExtensionDetail:
