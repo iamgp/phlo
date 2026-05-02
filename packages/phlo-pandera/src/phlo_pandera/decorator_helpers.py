@@ -47,13 +47,13 @@ from __future__ import annotations
 from typing import Any, List
 
 from phlo.capabilities.runtime import RuntimeContext
-from phlo.hooks import (
-    HookCorrelation,
+from phlo.hooks.emitters import (
     QualityResultEventContext,
     QualityResultEventEmitter,
     TelemetryEventContext,
     TelemetryEventEmitter,
 )
+from phlo.hooks.events import HookCorrelation
 
 from phlo_pandera.checks import QualityCheckResult
 from phlo_pandera.contract import QualityCheckContract

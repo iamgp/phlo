@@ -18,11 +18,23 @@ Example:
 from __future__ import annotations
 
 from functools import lru_cache
+import os
 from pathlib import Path
 
 from pydantic import Field, computed_field
 
 from phlo.config.base import BaseConfig
+
+
+def _project_root() -> Path:
+    return Path(os.environ.get("PHLO_PROJECT_PATH", Path.cwd())).resolve()
+
+
+def _resolve_project_path(value: str) -> Path:
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    return _project_root() / path
 
 
 class DbtSettings(BaseConfig):
@@ -144,7 +156,7 @@ class DbtSettings(BaseConfig):
             Filesystem path to the dbt project root.
 
         """
-        return Path(self.dbt_project_dir)
+        return _resolve_project_path(self.dbt_project_dir)
 
     @property
     def dbt_profiles_path(self) -> Path:
@@ -154,7 +166,7 @@ class DbtSettings(BaseConfig):
             Filesystem path to the dbt profiles directory.
 
         """
-        return Path(self.dbt_profiles_dir)
+        return _resolve_project_path(self.dbt_profiles_dir)
 
 
 @lru_cache(maxsize=1)

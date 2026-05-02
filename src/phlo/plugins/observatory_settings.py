@@ -19,6 +19,7 @@ logger = get_logger(__name__)
 def _get_psycopg2():
     try:
         import psycopg2
+        import psycopg2.extras
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
             "psycopg2 is required to use PostgreSQL-backed observatory settings storage."
@@ -100,6 +101,7 @@ class SettingsService:
         """Upsert settings for a scope and namespace."""
         self._validate(settings, schema)
         psycopg2 = _get_psycopg2()
+        json_settings = psycopg2.extras.Json(settings)
         with psycopg2.connect(self._db_url) as conn:
             self._ensure_table(conn)
             with conn.cursor() as cursor:
@@ -111,7 +113,7 @@ class SettingsService:
                     DO UPDATE SET settings = EXCLUDED.settings, updated_at = NOW()
                     RETURNING settings, updated_at
                     """,
-                    (scope.value, namespace, settings),
+                    (scope.value, namespace, json_settings),
                 )
                 stored_settings, updated_at = cursor.fetchone()
                 conn.commit()

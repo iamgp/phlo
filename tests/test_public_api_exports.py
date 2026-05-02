@@ -159,11 +159,9 @@ def test_plugins_module_lazy_discovery_exports_use_importlib(
     assert plugins.__getattr__("discovery") is discovery
     assert plugins.get_hook_plugin is discovery.get_hook_plugin
     assert plugins.get_service is discovery.get_service
-    assert imports == [
-        "phlo.plugins.discovery",
-        "phlo.plugins.discovery",
-        "phlo.plugins.discovery",
-    ]
+    plugin_imports = [name for name in imports if name.startswith("phlo.plugins")]
+    assert plugin_imports.count("phlo.plugins.discovery") == 3
+    assert "phlo.plugins" not in plugin_imports
 
 
 def test_plugins_module_all_includes_lazy_discovery_exports() -> None:

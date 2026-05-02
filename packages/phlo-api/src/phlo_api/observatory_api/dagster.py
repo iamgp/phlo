@@ -261,6 +261,31 @@ query RunStatus($runId: ID!) {
 }
 """
 
+RUNS_QUERY = """
+query Runs($limit: Int!) {
+    runsOrError(limit: $limit) {
+        __typename
+        ... on Runs {
+            results {
+                runId
+                status
+                startTime
+                endTime
+                pipelineName
+                assetSelection {
+                    path
+                }
+                tags {
+                    key
+                    value
+                }
+            }
+        }
+        ... on PythonError { message }
+    }
+}
+"""
+
 
 # --- Pydantic Models ---
 
@@ -1085,6 +1110,46 @@ async def get_run_status(
     except Exception as e:
         logger.exception("Failed to get run status")
         return {"error": str(e)}
+
+
+async def get_runs(
+    limit: int = 100,
+    dagster_url: str | None = None,
+) -> list[dict[str, Any]]:
+    """Get recent Dagster runs for provider-neutral adapters."""
+    url = resolve_dagster_url(dagster_url)
+
+    try:
+        result = await graphql_request(url, RUNS_QUERY, {"limit": limit})
+        if result.get("errors"):
+            return []
+
+        runs_or_error = result.get("data", {}).get("runsOrError", {})
+        if runs_or_error.get("message"):
+            return []
+
+        runs = runs_or_error.get("results", [])
+        if not isinstance(runs, list):
+            return []
+
+        return [_normalize_run_payload(run) for run in runs if isinstance(run, dict)]
+    except Exception:
+        logger.exception("Failed to get runs")
+        return []
+
+
+def _normalize_run_payload(run: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a Dagster GraphQL run payload for v2 adapters."""
+    asset_selection = run.get("assetSelection")
+    if isinstance(asset_selection, list):
+        asset_keys = [
+            item.get("path")
+            for item in asset_selection
+            if isinstance(item, dict) and isinstance(item.get("path"), list)
+        ]
+        if asset_keys:
+            return {**run, "assetKeys": asset_keys}
+    return run
 
 
 @router.post("/runs/{run_id}/retry", response_model=DagsterOperationResponse | dict)

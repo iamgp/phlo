@@ -2,6 +2,7 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/jetbrains-mono';
+@import './v2/design/tokens.css';
 
 @custom-variant dark (&:is(.dark *));
 

@@ -8,6 +8,7 @@ import viteTsConfigPaths from 'vite-tsconfig-paths'
 
 const devHost = process.env.DEV_HOST ?? 'localhost'
 const devHmrHost = process.env.DEV_HMR_HOST ?? devHost
+const devHmrClientPort = process.env.DEV_HMR_CLIENT_PORT
 const devAllowedHosts = (process.env.DEV_ALLOWED_HOSTS ?? devHost)
   .split(',')
   .map((host) => host.trim())
@@ -20,7 +21,9 @@ const config = defineConfig({
     host: devHost,
     hmr: {
       host: devHmrHost,
-      clientPort: 3003,
+      ...(devHmrClientPort
+        ? { clientPort: Number.parseInt(devHmrClientPort, 10) }
+        : {}),
       protocol: 'ws',
     },
   },

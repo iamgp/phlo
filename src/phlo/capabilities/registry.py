@@ -29,6 +29,7 @@ from phlo.capabilities.specs import (
     SchemaMigrationSpec,
     SecretBackendSpec,
     TableStoreSpec,
+    UiContributionSpec,
 )
 
 
@@ -61,6 +62,7 @@ class CapabilityRegistry:
     data_migration_sources: dict[str, DataMigrationSourceSpec] = field(default_factory=dict)
     observability_backends: dict[str, ObservabilityBackendSpec] = field(default_factory=dict)
     regulated_surfaces: dict[str, RegulatedSurfaceSpec] = field(default_factory=dict)
+    ui_contributions: dict[str, UiContributionSpec] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def register_asset(self, spec: AssetSpec) -> None:
@@ -323,6 +325,16 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.regulated_surfaces.values())
 
+    def register_ui_contribution(self, spec: UiContributionSpec) -> None:
+        """Register or replace a UI contribution spec by name."""
+        with self._lock:
+            self.ui_contributions[spec.name] = spec
+
+    def list_ui_contributions(self) -> list[UiContributionSpec]:
+        """Return a snapshot list of registered UI contribution specs."""
+        with self._lock:
+            return list(self.ui_contributions.values())
+
     def clear(self) -> None:
         """Remove all assets, checks, and resources from the registry."""
 
@@ -350,6 +362,7 @@ class CapabilityRegistry:
             self.data_migration_sources.clear()
             self.observability_backends.clear()
             self.regulated_surfaces.clear()
+            self.ui_contributions.clear()
 
     def clear_checks(self) -> None:
         """Remove all registered checks while preserving assets/resources."""
