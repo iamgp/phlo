@@ -6,7 +6,6 @@ from typing import Any
 import yaml
 
 from phlo.logging import get_logger, log_event
-from phlo.plugins.discovery import _service_loading
 from phlo.plugins.discovery._service_cycles import find_cycles as _find_cycles_impl
 from phlo.plugins.discovery._service_definition import ServiceDefinition
 from phlo.plugins.discovery._service_dependency_resolution import resolve_service_dependencies
@@ -39,6 +38,8 @@ def _emit_service_discovery_signal(
 
 def discover_plugins(plugin_type: str = "services", auto_register: bool = True):
     """Compatibility wrapper for tests and service discovery call sites."""
+    import phlo.plugins.discovery._service_loading as _service_loading
+
     return _service_loading.discover_plugins(plugin_type=plugin_type, auto_register=auto_register)
 
 
@@ -98,6 +99,8 @@ class ServiceDiscovery:
 
         self._services = {}
         plugin_service_count = self._load_service_plugins()
+        import phlo.plugins.discovery._service_loading as _service_loading
+
         file_service_count = _service_loading.load_services_from_directory(
             self.services_dir,
             self._services,
@@ -141,6 +144,8 @@ class ServiceDiscovery:
 
     def _load_service_plugins(self) -> int:
         """Load services from installed plugins."""
+        import phlo.plugins.discovery._service_loading as _service_loading
+
         loaded_count = 0
         registry = get_global_registry()
         discover_plugins(plugin_type="services", auto_register=True)

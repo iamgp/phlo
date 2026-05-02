@@ -15,12 +15,16 @@ from phlo.cli.infrastructure.container_backend import (
 from phlo.config_schema import InfrastructureConfig
 
 
-def test_docker_backend_compose_base_cmd_includes_env_files(tmp_path: Path) -> None:
+def test_docker_backend_compose_base_cmd_includes_env_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     phlo_dir = tmp_path / ".phlo"
     phlo_dir.mkdir()
     (phlo_dir / "docker-compose.yml").write_text("services: {}\n")
     (phlo_dir / ".env").write_text("POSTGRES_PORT=5432\n")
     (phlo_dir / ".env.local").write_text("POSTGRES_PASSWORD=secret\n")
+    monkeypatch.setattr(DockerBackend, "_compose_binary", lambda self: "docker")
 
     cmd = DockerBackend().compose_base_cmd(
         phlo_dir=phlo_dir,
@@ -41,6 +45,32 @@ def test_docker_backend_compose_base_cmd_includes_env_files(tmp_path: Path) -> N
         str(phlo_dir / ".env.local"),
         "--profile",
         "observability",
+    ]
+
+
+def test_docker_backend_compose_base_cmd_supports_standalone_compose(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text("services: {}\n")
+
+    monkeypatch.setattr(DockerBackend, "_compose_binary", lambda self: "docker-compose")
+
+    cmd = DockerBackend().compose_base_cmd(
+        phlo_dir=phlo_dir,
+        project_name="demo",
+    )
+
+    assert cmd == [
+        "docker-compose",
+        "-p",
+        "demo",
+        "-f",
+        str(phlo_dir / "docker-compose.yml"),
+        "--env-file",
+        str(phlo_dir / ".env"),
     ]
 
 

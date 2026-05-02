@@ -72,7 +72,7 @@ from dataclasses import asdict
 
 from phlo.capabilities.schema import default_classify_change, worst_classification
 from phlo.capabilities.specs import NormalizedSchema, SchemaChange, SchemaMigrationPlan
-from phlo.hooks import SchemaMigrationEventContext, SchemaMigrationEventEmitter
+from phlo.hooks.emitters import SchemaMigrationEventContext, SchemaMigrationEventEmitter
 from phlo.logging import get_logger
 from phlo_iceberg.catalog import get_catalog
 from phlo_iceberg.settings import get_settings

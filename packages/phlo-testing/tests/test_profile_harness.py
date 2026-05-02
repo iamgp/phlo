@@ -25,12 +25,14 @@ def test_bundled_stack_contract_enabled_reads_truthy_env(
     assert bundled_stack_contract_enabled() is True
 
 
-def test_build_bundled_stack_env_updates_resolves_core_ports() -> None:
+def test_build_bundled_stack_env_updates_resolves_core_ports(monkeypatch) -> None:
     calls: list[tuple[str, int]] = []
 
     def fake_resolve_port(service_name: str, default_port: int) -> int:
         calls.append((service_name, default_port))
         return default_port + 10
+
+    monkeypatch.setattr("phlo_testing.profile_harness._port_in_use", lambda port: False)
 
     updates = build_bundled_stack_env_updates(fake_resolve_port)
 

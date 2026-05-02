@@ -299,6 +299,31 @@ class DbtSpecTranslator:
 
         """
         metadata: dict[str, Any] = {}
+        name = str(dbt_resource_props.get("name") or "")
+        alias = str(dbt_resource_props.get("alias") or name)
+        schema = str(dbt_resource_props.get("schema") or "")
+        database = str(dbt_resource_props.get("database") or "")
+        relation_name = str(dbt_resource_props.get("relation_name") or "")
+        config = dbt_resource_props.get("config")
+        materialized = ""
+        if isinstance(config, Mapping):
+            materialized = str(config.get("materialized") or "")
+
+        if alias:
+            metadata["table"] = alias
+            metadata["table_name"] = alias
+        if schema:
+            metadata["schema"] = schema
+            metadata["namespace"] = schema
+        if database:
+            metadata["database"] = database
+            metadata["catalog"] = database
+        if relation_name:
+            metadata["relation"] = relation_name
+        if materialized:
+            metadata["materialized"] = materialized
+        metadata["format"] = "dbt"
+
         columns = dbt_resource_props.get("columns", {})
         if isinstance(columns, dict) and columns:
             table_columns = []
@@ -338,4 +363,4 @@ class DbtSpecTranslator:
             Set of kind labels.
 
         """
-        return {"dbt"}
+        return {"dbt", "table"}

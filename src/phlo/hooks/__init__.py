@@ -53,6 +53,7 @@ Note:
 
 from __future__ import annotations
 
+from importlib import import_module
 from typing import TYPE_CHECKING
 
 __all__ = [
@@ -182,16 +183,13 @@ def __getattr__(name: str):  # noqa: ANN001
 
     """
     if name in _BUS_EXPORTS:
-        from phlo.hooks import bus as _bus
-
+        _bus = import_module("phlo.hooks.bus")
         return getattr(_bus, name)
     if name in _EMITTER_EXPORTS:
-        from phlo.hooks import emitters as _emitters
-
+        _emitters = import_module("phlo.hooks.emitters")
         return getattr(_emitters, name)
     if name in _EVENT_EXPORTS:
-        from phlo.hooks import events as _events
-
+        _events = import_module("phlo.hooks.events")
         return getattr(_events, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

@@ -335,3 +335,17 @@ class RegulatedSurfaceSpec:
     name: str
     provider: Any
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class UiContributionSpec:
+    """UI contribution declared by a capability provider."""
+
+    name: str
+    capability_type: str
+    capability_name: str
+    surfaces: list[str] = field(default_factory=list)
+    read_models: dict[str, str] = field(default_factory=dict)
+    actions: list[str] = field(default_factory=list)
+    native_links: list[dict[str, str]] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)

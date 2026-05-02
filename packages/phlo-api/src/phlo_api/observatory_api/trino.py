@@ -60,6 +60,7 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["trino"])
 
 _DEFAULT_QUERY_ENGINE_ENV = "PHLO_QUERY_ENGINE"
+_DEFAULT_TRINO_CAPABILITY_NAME = "trino"
 _QUERY_ENGINE_URL_ENV = "PHLO_QUERY_ENGINE_URL"
 _DISCOVERY_SCHEMAS_ENV = "PHLO_API_DISCOVERY_SCHEMAS"
 _SAFE_ROW_ID_RE = re.compile(r"^[a-zA-Z0-9_.\-:]+$")
@@ -104,7 +105,10 @@ def _resolve_query_engine() -> Any | None:
 
     """
     discover_capabilities()
-    return resolve_capability("query_engine", os.environ.get(_DEFAULT_QUERY_ENGINE_ENV))
+    return resolve_capability(
+        "query_engine",
+        os.environ.get(_DEFAULT_QUERY_ENGINE_ENV) or _DEFAULT_TRINO_CAPABILITY_NAME,
+    )
 
 
 def resolve_trino_url(override: str | None = None) -> str:

@@ -9,28 +9,98 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as V2RouteImport } from './routes/v2'
+import { Route as StorageRouteImport } from './routes/storage'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ServicesRouteImport } from './routes/services'
+import { Route as RunsRouteImport } from './routes/runs'
+import { Route as OperationsRouteImport } from './routes/operations'
+import { Route as ObservabilityRouteImport } from './routes/observability'
 import { Route as LogsRouteImport } from './routes/logs'
+import { Route as GovernanceRouteImport } from './routes/governance'
+import { Route as CatalogRouteImport } from './routes/catalog'
+import { Route as BiRouteImport } from './routes/bi'
+import { Route as ApisRouteImport } from './routes/apis'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as V2IndexRouteImport } from './routes/v2/index'
 import { Route as QualityIndexRouteImport } from './routes/quality/index'
 import { Route as HubIndexRouteImport } from './routes/hub/index'
 import { Route as GraphIndexRouteImport } from './routes/graph/index'
+import { Route as ExtensionsIndexRouteImport } from './routes/extensions/index'
 import { Route as DataIndexRouteImport } from './routes/data/index'
 import { Route as BranchesIndexRouteImport } from './routes/branches/index'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
+import { Route as V2StorageRouteImport } from './routes/v2/storage'
+import { Route as V2SettingsRouteImport } from './routes/v2/settings'
+import { Route as V2ServicesRouteImport } from './routes/v2/services'
+import { Route as V2RunsRouteImport } from './routes/v2/runs'
+import { Route as V2QualityRouteImport } from './routes/v2/quality'
+import { Route as V2OperationsRouteImport } from './routes/v2/operations'
+import { Route as V2ObservabilityRouteImport } from './routes/v2/observability'
+import { Route as V2LogsRouteImport } from './routes/v2/logs'
+import { Route as V2GovernanceRouteImport } from './routes/v2/governance'
+import { Route as V2ExtensionsRouteImport } from './routes/v2/extensions'
+import { Route as V2DataRouteImport } from './routes/v2/data'
+import { Route as V2CatalogRouteImport } from './routes/v2/catalog'
+import { Route as V2BranchesRouteImport } from './routes/v2/branches'
+import { Route as V2BiRouteImport } from './routes/v2/bi'
+import { Route as V2AssetsRouteImport } from './routes/v2/assets'
+import { Route as V2ApisRouteImport } from './routes/v2/apis'
+import { Route as TableTableIdRouteImport } from './routes/table/$tableId'
 import { Route as HubPluginsRouteImport } from './routes/hub/plugins'
 import { Route as ExtensionsExtensionNameRouteImport } from './routes/extensions/$extensionName'
+import { Route as ExtensionExtensionIdRouteImport } from './routes/extension/$extensionId'
 import { Route as DataBranchNameRouteImport } from './routes/data/$branchName'
 import { Route as BranchesBranchNameRouteImport } from './routes/branches/$branchName'
+import { Route as BranchBranchNameRouteImport } from './routes/branch/$branchName'
 import { Route as AssetsAssetIdRouteImport } from './routes/assets/$assetId'
+import { Route as AssetAssetIdRouteImport } from './routes/asset/$assetId'
 import { Route as DataBranchNameIndexRouteImport } from './routes/data/$branchName/index'
+import { Route as V2TableTableIdRouteImport } from './routes/v2/table/$tableId'
+import { Route as V2ExtensionsExtensionIdRouteImport } from './routes/v2/extensions/$extensionId'
+import { Route as V2ExtensionExtensionIdRouteImport } from './routes/v2/extension/$extensionId'
+import { Route as V2DataTableIdRouteImport } from './routes/v2/data/$tableId'
+import { Route as V2BranchesBranchNameRouteImport } from './routes/v2/branches/$branchName'
+import { Route as V2BranchBranchNameRouteImport } from './routes/v2/branch/$branchName'
+import { Route as V2AssetsAssetIdRouteImport } from './routes/v2/assets/$assetId'
+import { Route as V2AssetAssetIdRouteImport } from './routes/v2/asset/$assetId'
 import { Route as DataSchemaTableRouteImport } from './routes/data/$schema.$table'
 import { Route as DataBranchNameSchemaTableRouteImport } from './routes/data/$branchName/$schema.$table'
 import { Route as DataBranchNameSchemaTableRowIdRouteImport } from './routes/data/$branchName/$schema/$table/$rowId'
 
+const V2Route = V2RouteImport.update({
+  id: '/v2',
+  path: '/v2',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StorageRoute = StorageRouteImport.update({
+  id: '/storage',
+  path: '/storage',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RunsRoute = RunsRouteImport.update({
+  id: '/runs',
+  path: '/runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OperationsRoute = OperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ObservabilityRoute = ObservabilityRouteImport.update({
+  id: '/observability',
+  path: '/observability',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LogsRoute = LogsRouteImport.update({
@@ -38,10 +108,35 @@ const LogsRoute = LogsRouteImport.update({
   path: '/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GovernanceRoute = GovernanceRouteImport.update({
+  id: '/governance',
+  path: '/governance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogRoute = CatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BiRoute = BiRouteImport.update({
+  id: '/bi',
+  path: '/bi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApisRoute = ApisRouteImport.update({
+  id: '/apis',
+  path: '/apis',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const V2IndexRoute = V2IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => V2Route,
 } as any)
 const QualityIndexRoute = QualityIndexRouteImport.update({
   id: '/quality/',
@@ -56,6 +151,11 @@ const HubIndexRoute = HubIndexRouteImport.update({
 const GraphIndexRoute = GraphIndexRouteImport.update({
   id: '/graph/',
   path: '/graph/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExtensionsIndexRoute = ExtensionsIndexRouteImport.update({
+  id: '/extensions/',
+  path: '/extensions/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DataIndexRoute = DataIndexRouteImport.update({
@@ -73,6 +173,91 @@ const AssetsIndexRoute = AssetsIndexRouteImport.update({
   path: '/assets/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V2StorageRoute = V2StorageRouteImport.update({
+  id: '/storage',
+  path: '/storage',
+  getParentRoute: () => V2Route,
+} as any)
+const V2SettingsRoute = V2SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => V2Route,
+} as any)
+const V2ServicesRoute = V2ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => V2Route,
+} as any)
+const V2RunsRoute = V2RunsRouteImport.update({
+  id: '/runs',
+  path: '/runs',
+  getParentRoute: () => V2Route,
+} as any)
+const V2QualityRoute = V2QualityRouteImport.update({
+  id: '/quality',
+  path: '/quality',
+  getParentRoute: () => V2Route,
+} as any)
+const V2OperationsRoute = V2OperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => V2Route,
+} as any)
+const V2ObservabilityRoute = V2ObservabilityRouteImport.update({
+  id: '/observability',
+  path: '/observability',
+  getParentRoute: () => V2Route,
+} as any)
+const V2LogsRoute = V2LogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => V2Route,
+} as any)
+const V2GovernanceRoute = V2GovernanceRouteImport.update({
+  id: '/governance',
+  path: '/governance',
+  getParentRoute: () => V2Route,
+} as any)
+const V2ExtensionsRoute = V2ExtensionsRouteImport.update({
+  id: '/extensions',
+  path: '/extensions',
+  getParentRoute: () => V2Route,
+} as any)
+const V2DataRoute = V2DataRouteImport.update({
+  id: '/data',
+  path: '/data',
+  getParentRoute: () => V2Route,
+} as any)
+const V2CatalogRoute = V2CatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
+  getParentRoute: () => V2Route,
+} as any)
+const V2BranchesRoute = V2BranchesRouteImport.update({
+  id: '/branches',
+  path: '/branches',
+  getParentRoute: () => V2Route,
+} as any)
+const V2BiRoute = V2BiRouteImport.update({
+  id: '/bi',
+  path: '/bi',
+  getParentRoute: () => V2Route,
+} as any)
+const V2AssetsRoute = V2AssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => V2Route,
+} as any)
+const V2ApisRoute = V2ApisRouteImport.update({
+  id: '/apis',
+  path: '/apis',
+  getParentRoute: () => V2Route,
+} as any)
+const TableTableIdRoute = TableTableIdRouteImport.update({
+  id: '/table/$tableId',
+  path: '/table/$tableId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HubPluginsRoute = HubPluginsRouteImport.update({
   id: '/hub/plugins',
   path: '/hub/plugins',
@@ -81,6 +266,11 @@ const HubPluginsRoute = HubPluginsRouteImport.update({
 const ExtensionsExtensionNameRoute = ExtensionsExtensionNameRouteImport.update({
   id: '/extensions/$extensionName',
   path: '/extensions/$extensionName',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExtensionExtensionIdRoute = ExtensionExtensionIdRouteImport.update({
+  id: '/extension/$extensionId',
+  path: '/extension/$extensionId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DataBranchNameRoute = DataBranchNameRouteImport.update({
@@ -93,15 +283,65 @@ const BranchesBranchNameRoute = BranchesBranchNameRouteImport.update({
   path: '/branches/$branchName',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BranchBranchNameRoute = BranchBranchNameRouteImport.update({
+  id: '/branch/$branchName',
+  path: '/branch/$branchName',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AssetsAssetIdRoute = AssetsAssetIdRouteImport.update({
   id: '/assets/$assetId',
   path: '/assets/$assetId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssetAssetIdRoute = AssetAssetIdRouteImport.update({
+  id: '/asset/$assetId',
+  path: '/asset/$assetId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DataBranchNameIndexRoute = DataBranchNameIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => DataBranchNameRoute,
+} as any)
+const V2TableTableIdRoute = V2TableTableIdRouteImport.update({
+  id: '/table/$tableId',
+  path: '/table/$tableId',
+  getParentRoute: () => V2Route,
+} as any)
+const V2ExtensionsExtensionIdRoute = V2ExtensionsExtensionIdRouteImport.update({
+  id: '/$extensionId',
+  path: '/$extensionId',
+  getParentRoute: () => V2ExtensionsRoute,
+} as any)
+const V2ExtensionExtensionIdRoute = V2ExtensionExtensionIdRouteImport.update({
+  id: '/extension/$extensionId',
+  path: '/extension/$extensionId',
+  getParentRoute: () => V2Route,
+} as any)
+const V2DataTableIdRoute = V2DataTableIdRouteImport.update({
+  id: '/$tableId',
+  path: '/$tableId',
+  getParentRoute: () => V2DataRoute,
+} as any)
+const V2BranchesBranchNameRoute = V2BranchesBranchNameRouteImport.update({
+  id: '/$branchName',
+  path: '/$branchName',
+  getParentRoute: () => V2BranchesRoute,
+} as any)
+const V2BranchBranchNameRoute = V2BranchBranchNameRouteImport.update({
+  id: '/branch/$branchName',
+  path: '/branch/$branchName',
+  getParentRoute: () => V2Route,
+} as any)
+const V2AssetsAssetIdRoute = V2AssetsAssetIdRouteImport.update({
+  id: '/$assetId',
+  path: '/$assetId',
+  getParentRoute: () => V2AssetsRoute,
+} as any)
+const V2AssetAssetIdRoute = V2AssetAssetIdRouteImport.update({
+  id: '/asset/$assetId',
+  path: '/asset/$assetId',
+  getParentRoute: () => V2Route,
 } as any)
 const DataSchemaTableRoute = DataSchemaTableRouteImport.update({
   id: '/data/$schema/$table',
@@ -123,39 +363,118 @@ const DataBranchNameSchemaTableRowIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/apis': typeof ApisRoute
+  '/bi': typeof BiRoute
+  '/catalog': typeof CatalogRoute
+  '/governance': typeof GovernanceRoute
   '/logs': typeof LogsRoute
+  '/observability': typeof ObservabilityRoute
+  '/operations': typeof OperationsRoute
+  '/runs': typeof RunsRoute
+  '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/storage': typeof StorageRoute
+  '/v2': typeof V2RouteWithChildren
+  '/asset/$assetId': typeof AssetAssetIdRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
+  '/branch/$branchName': typeof BranchBranchNameRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/data/$branchName': typeof DataBranchNameRouteWithChildren
+  '/extension/$extensionId': typeof ExtensionExtensionIdRoute
   '/extensions/$extensionName': typeof ExtensionsExtensionNameRoute
   '/hub/plugins': typeof HubPluginsRoute
+  '/table/$tableId': typeof TableTableIdRoute
+  '/v2/apis': typeof V2ApisRoute
+  '/v2/assets': typeof V2AssetsRouteWithChildren
+  '/v2/bi': typeof V2BiRoute
+  '/v2/branches': typeof V2BranchesRouteWithChildren
+  '/v2/catalog': typeof V2CatalogRoute
+  '/v2/data': typeof V2DataRouteWithChildren
+  '/v2/extensions': typeof V2ExtensionsRouteWithChildren
+  '/v2/governance': typeof V2GovernanceRoute
+  '/v2/logs': typeof V2LogsRoute
+  '/v2/observability': typeof V2ObservabilityRoute
+  '/v2/operations': typeof V2OperationsRoute
+  '/v2/quality': typeof V2QualityRoute
+  '/v2/runs': typeof V2RunsRoute
+  '/v2/services': typeof V2ServicesRoute
+  '/v2/settings': typeof V2SettingsRoute
+  '/v2/storage': typeof V2StorageRoute
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
   '/data': typeof DataIndexRoute
+  '/extensions': typeof ExtensionsIndexRoute
   '/graph': typeof GraphIndexRoute
   '/hub': typeof HubIndexRoute
   '/quality': typeof QualityIndexRoute
+  '/v2/': typeof V2IndexRoute
   '/data/$schema/$table': typeof DataSchemaTableRoute
+  '/v2/asset/$assetId': typeof V2AssetAssetIdRoute
+  '/v2/assets/$assetId': typeof V2AssetsAssetIdRoute
+  '/v2/branch/$branchName': typeof V2BranchBranchNameRoute
+  '/v2/branches/$branchName': typeof V2BranchesBranchNameRoute
+  '/v2/data/$tableId': typeof V2DataTableIdRoute
+  '/v2/extension/$extensionId': typeof V2ExtensionExtensionIdRoute
+  '/v2/extensions/$extensionId': typeof V2ExtensionsExtensionIdRoute
+  '/v2/table/$tableId': typeof V2TableTableIdRoute
   '/data/$branchName/': typeof DataBranchNameIndexRoute
   '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRouteWithChildren
   '/data/$branchName/$schema/$table/$rowId': typeof DataBranchNameSchemaTableRowIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/apis': typeof ApisRoute
+  '/bi': typeof BiRoute
+  '/catalog': typeof CatalogRoute
+  '/governance': typeof GovernanceRoute
   '/logs': typeof LogsRoute
+  '/observability': typeof ObservabilityRoute
+  '/operations': typeof OperationsRoute
+  '/runs': typeof RunsRoute
+  '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/storage': typeof StorageRoute
+  '/asset/$assetId': typeof AssetAssetIdRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
+  '/branch/$branchName': typeof BranchBranchNameRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
+  '/extension/$extensionId': typeof ExtensionExtensionIdRoute
   '/extensions/$extensionName': typeof ExtensionsExtensionNameRoute
   '/hub/plugins': typeof HubPluginsRoute
+  '/table/$tableId': typeof TableTableIdRoute
+  '/v2/apis': typeof V2ApisRoute
+  '/v2/assets': typeof V2AssetsRouteWithChildren
+  '/v2/bi': typeof V2BiRoute
+  '/v2/branches': typeof V2BranchesRouteWithChildren
+  '/v2/catalog': typeof V2CatalogRoute
+  '/v2/data': typeof V2DataRouteWithChildren
+  '/v2/extensions': typeof V2ExtensionsRouteWithChildren
+  '/v2/governance': typeof V2GovernanceRoute
+  '/v2/logs': typeof V2LogsRoute
+  '/v2/observability': typeof V2ObservabilityRoute
+  '/v2/operations': typeof V2OperationsRoute
+  '/v2/quality': typeof V2QualityRoute
+  '/v2/runs': typeof V2RunsRoute
+  '/v2/services': typeof V2ServicesRoute
+  '/v2/settings': typeof V2SettingsRoute
+  '/v2/storage': typeof V2StorageRoute
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
   '/data': typeof DataIndexRoute
+  '/extensions': typeof ExtensionsIndexRoute
   '/graph': typeof GraphIndexRoute
   '/hub': typeof HubIndexRoute
   '/quality': typeof QualityIndexRoute
+  '/v2': typeof V2IndexRoute
   '/data/$schema/$table': typeof DataSchemaTableRoute
+  '/v2/asset/$assetId': typeof V2AssetAssetIdRoute
+  '/v2/assets/$assetId': typeof V2AssetsAssetIdRoute
+  '/v2/branch/$branchName': typeof V2BranchBranchNameRoute
+  '/v2/branches/$branchName': typeof V2BranchesBranchNameRoute
+  '/v2/data/$tableId': typeof V2DataTableIdRoute
+  '/v2/extension/$extensionId': typeof V2ExtensionExtensionIdRoute
+  '/v2/extensions/$extensionId': typeof V2ExtensionsExtensionIdRoute
+  '/v2/table/$tableId': typeof V2TableTableIdRoute
   '/data/$branchName': typeof DataBranchNameIndexRoute
   '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRouteWithChildren
   '/data/$branchName/$schema/$table/$rowId': typeof DataBranchNameSchemaTableRowIdRoute
@@ -163,20 +482,60 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/apis': typeof ApisRoute
+  '/bi': typeof BiRoute
+  '/catalog': typeof CatalogRoute
+  '/governance': typeof GovernanceRoute
   '/logs': typeof LogsRoute
+  '/observability': typeof ObservabilityRoute
+  '/operations': typeof OperationsRoute
+  '/runs': typeof RunsRoute
+  '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
+  '/storage': typeof StorageRoute
+  '/v2': typeof V2RouteWithChildren
+  '/asset/$assetId': typeof AssetAssetIdRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
+  '/branch/$branchName': typeof BranchBranchNameRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/data/$branchName': typeof DataBranchNameRouteWithChildren
+  '/extension/$extensionId': typeof ExtensionExtensionIdRoute
   '/extensions/$extensionName': typeof ExtensionsExtensionNameRoute
   '/hub/plugins': typeof HubPluginsRoute
+  '/table/$tableId': typeof TableTableIdRoute
+  '/v2/apis': typeof V2ApisRoute
+  '/v2/assets': typeof V2AssetsRouteWithChildren
+  '/v2/bi': typeof V2BiRoute
+  '/v2/branches': typeof V2BranchesRouteWithChildren
+  '/v2/catalog': typeof V2CatalogRoute
+  '/v2/data': typeof V2DataRouteWithChildren
+  '/v2/extensions': typeof V2ExtensionsRouteWithChildren
+  '/v2/governance': typeof V2GovernanceRoute
+  '/v2/logs': typeof V2LogsRoute
+  '/v2/observability': typeof V2ObservabilityRoute
+  '/v2/operations': typeof V2OperationsRoute
+  '/v2/quality': typeof V2QualityRoute
+  '/v2/runs': typeof V2RunsRoute
+  '/v2/services': typeof V2ServicesRoute
+  '/v2/settings': typeof V2SettingsRoute
+  '/v2/storage': typeof V2StorageRoute
   '/assets/': typeof AssetsIndexRoute
   '/branches/': typeof BranchesIndexRoute
   '/data/': typeof DataIndexRoute
+  '/extensions/': typeof ExtensionsIndexRoute
   '/graph/': typeof GraphIndexRoute
   '/hub/': typeof HubIndexRoute
   '/quality/': typeof QualityIndexRoute
+  '/v2/': typeof V2IndexRoute
   '/data/$schema/$table': typeof DataSchemaTableRoute
+  '/v2/asset/$assetId': typeof V2AssetAssetIdRoute
+  '/v2/assets/$assetId': typeof V2AssetsAssetIdRoute
+  '/v2/branch/$branchName': typeof V2BranchBranchNameRoute
+  '/v2/branches/$branchName': typeof V2BranchesBranchNameRoute
+  '/v2/data/$tableId': typeof V2DataTableIdRoute
+  '/v2/extension/$extensionId': typeof V2ExtensionExtensionIdRoute
+  '/v2/extensions/$extensionId': typeof V2ExtensionsExtensionIdRoute
+  '/v2/table/$tableId': typeof V2TableTableIdRoute
   '/data/$branchName/': typeof DataBranchNameIndexRoute
   '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRouteWithChildren
   '/data/$branchName/$schema/$table/$rowId': typeof DataBranchNameSchemaTableRowIdRoute
@@ -185,59 +544,178 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/apis'
+    | '/bi'
+    | '/catalog'
+    | '/governance'
     | '/logs'
+    | '/observability'
+    | '/operations'
+    | '/runs'
+    | '/services'
     | '/settings'
+    | '/storage'
+    | '/v2'
+    | '/asset/$assetId'
     | '/assets/$assetId'
+    | '/branch/$branchName'
     | '/branches/$branchName'
     | '/data/$branchName'
+    | '/extension/$extensionId'
     | '/extensions/$extensionName'
     | '/hub/plugins'
+    | '/table/$tableId'
+    | '/v2/apis'
+    | '/v2/assets'
+    | '/v2/bi'
+    | '/v2/branches'
+    | '/v2/catalog'
+    | '/v2/data'
+    | '/v2/extensions'
+    | '/v2/governance'
+    | '/v2/logs'
+    | '/v2/observability'
+    | '/v2/operations'
+    | '/v2/quality'
+    | '/v2/runs'
+    | '/v2/services'
+    | '/v2/settings'
+    | '/v2/storage'
     | '/assets'
     | '/branches'
     | '/data'
+    | '/extensions'
     | '/graph'
     | '/hub'
     | '/quality'
+    | '/v2/'
     | '/data/$schema/$table'
+    | '/v2/asset/$assetId'
+    | '/v2/assets/$assetId'
+    | '/v2/branch/$branchName'
+    | '/v2/branches/$branchName'
+    | '/v2/data/$tableId'
+    | '/v2/extension/$extensionId'
+    | '/v2/extensions/$extensionId'
+    | '/v2/table/$tableId'
     | '/data/$branchName/'
     | '/data/$branchName/$schema/$table'
     | '/data/$branchName/$schema/$table/$rowId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/apis'
+    | '/bi'
+    | '/catalog'
+    | '/governance'
     | '/logs'
+    | '/observability'
+    | '/operations'
+    | '/runs'
+    | '/services'
     | '/settings'
+    | '/storage'
+    | '/asset/$assetId'
     | '/assets/$assetId'
+    | '/branch/$branchName'
     | '/branches/$branchName'
+    | '/extension/$extensionId'
     | '/extensions/$extensionName'
     | '/hub/plugins'
+    | '/table/$tableId'
+    | '/v2/apis'
+    | '/v2/assets'
+    | '/v2/bi'
+    | '/v2/branches'
+    | '/v2/catalog'
+    | '/v2/data'
+    | '/v2/extensions'
+    | '/v2/governance'
+    | '/v2/logs'
+    | '/v2/observability'
+    | '/v2/operations'
+    | '/v2/quality'
+    | '/v2/runs'
+    | '/v2/services'
+    | '/v2/settings'
+    | '/v2/storage'
     | '/assets'
     | '/branches'
     | '/data'
+    | '/extensions'
     | '/graph'
     | '/hub'
     | '/quality'
+    | '/v2'
     | '/data/$schema/$table'
+    | '/v2/asset/$assetId'
+    | '/v2/assets/$assetId'
+    | '/v2/branch/$branchName'
+    | '/v2/branches/$branchName'
+    | '/v2/data/$tableId'
+    | '/v2/extension/$extensionId'
+    | '/v2/extensions/$extensionId'
+    | '/v2/table/$tableId'
     | '/data/$branchName'
     | '/data/$branchName/$schema/$table'
     | '/data/$branchName/$schema/$table/$rowId'
   id:
     | '__root__'
     | '/'
+    | '/apis'
+    | '/bi'
+    | '/catalog'
+    | '/governance'
     | '/logs'
+    | '/observability'
+    | '/operations'
+    | '/runs'
+    | '/services'
     | '/settings'
+    | '/storage'
+    | '/v2'
+    | '/asset/$assetId'
     | '/assets/$assetId'
+    | '/branch/$branchName'
     | '/branches/$branchName'
     | '/data/$branchName'
+    | '/extension/$extensionId'
     | '/extensions/$extensionName'
     | '/hub/plugins'
+    | '/table/$tableId'
+    | '/v2/apis'
+    | '/v2/assets'
+    | '/v2/bi'
+    | '/v2/branches'
+    | '/v2/catalog'
+    | '/v2/data'
+    | '/v2/extensions'
+    | '/v2/governance'
+    | '/v2/logs'
+    | '/v2/observability'
+    | '/v2/operations'
+    | '/v2/quality'
+    | '/v2/runs'
+    | '/v2/services'
+    | '/v2/settings'
+    | '/v2/storage'
     | '/assets/'
     | '/branches/'
     | '/data/'
+    | '/extensions/'
     | '/graph/'
     | '/hub/'
     | '/quality/'
+    | '/v2/'
     | '/data/$schema/$table'
+    | '/v2/asset/$assetId'
+    | '/v2/assets/$assetId'
+    | '/v2/branch/$branchName'
+    | '/v2/branches/$branchName'
+    | '/v2/data/$tableId'
+    | '/v2/extension/$extensionId'
+    | '/v2/extensions/$extensionId'
+    | '/v2/table/$tableId'
     | '/data/$branchName/'
     | '/data/$branchName/$schema/$table'
     | '/data/$branchName/$schema/$table/$rowId'
@@ -245,16 +723,31 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApisRoute: typeof ApisRoute
+  BiRoute: typeof BiRoute
+  CatalogRoute: typeof CatalogRoute
+  GovernanceRoute: typeof GovernanceRoute
   LogsRoute: typeof LogsRoute
+  ObservabilityRoute: typeof ObservabilityRoute
+  OperationsRoute: typeof OperationsRoute
+  RunsRoute: typeof RunsRoute
+  ServicesRoute: typeof ServicesRoute
   SettingsRoute: typeof SettingsRoute
+  StorageRoute: typeof StorageRoute
+  V2Route: typeof V2RouteWithChildren
+  AssetAssetIdRoute: typeof AssetAssetIdRoute
   AssetsAssetIdRoute: typeof AssetsAssetIdRoute
+  BranchBranchNameRoute: typeof BranchBranchNameRoute
   BranchesBranchNameRoute: typeof BranchesBranchNameRoute
   DataBranchNameRoute: typeof DataBranchNameRouteWithChildren
+  ExtensionExtensionIdRoute: typeof ExtensionExtensionIdRoute
   ExtensionsExtensionNameRoute: typeof ExtensionsExtensionNameRoute
   HubPluginsRoute: typeof HubPluginsRoute
+  TableTableIdRoute: typeof TableTableIdRoute
   AssetsIndexRoute: typeof AssetsIndexRoute
   BranchesIndexRoute: typeof BranchesIndexRoute
   DataIndexRoute: typeof DataIndexRoute
+  ExtensionsIndexRoute: typeof ExtensionsIndexRoute
   GraphIndexRoute: typeof GraphIndexRoute
   HubIndexRoute: typeof HubIndexRoute
   QualityIndexRoute: typeof QualityIndexRoute
@@ -263,11 +756,53 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/v2': {
+      id: '/v2'
+      path: '/v2'
+      fullPath: '/v2'
+      preLoaderRoute: typeof V2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/storage': {
+      id: '/storage'
+      path: '/storage'
+      fullPath: '/storage'
+      preLoaderRoute: typeof StorageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/runs': {
+      id: '/runs'
+      path: '/runs'
+      fullPath: '/runs'
+      preLoaderRoute: typeof RunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/operations': {
+      id: '/operations'
+      path: '/operations'
+      fullPath: '/operations'
+      preLoaderRoute: typeof OperationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/observability': {
+      id: '/observability'
+      path: '/observability'
+      fullPath: '/observability'
+      preLoaderRoute: typeof ObservabilityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/logs': {
@@ -277,12 +812,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LogsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/governance': {
+      id: '/governance'
+      path: '/governance'
+      fullPath: '/governance'
+      preLoaderRoute: typeof GovernanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalog': {
+      id: '/catalog'
+      path: '/catalog'
+      fullPath: '/catalog'
+      preLoaderRoute: typeof CatalogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bi': {
+      id: '/bi'
+      path: '/bi'
+      fullPath: '/bi'
+      preLoaderRoute: typeof BiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apis': {
+      id: '/apis'
+      path: '/apis'
+      fullPath: '/apis'
+      preLoaderRoute: typeof ApisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/v2/': {
+      id: '/v2/'
+      path: '/'
+      fullPath: '/v2/'
+      preLoaderRoute: typeof V2IndexRouteImport
+      parentRoute: typeof V2Route
     }
     '/quality/': {
       id: '/quality/'
@@ -303,6 +873,13 @@ declare module '@tanstack/react-router' {
       path: '/graph'
       fullPath: '/graph'
       preLoaderRoute: typeof GraphIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/extensions/': {
+      id: '/extensions/'
+      path: '/extensions'
+      fullPath: '/extensions'
+      preLoaderRoute: typeof ExtensionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/data/': {
@@ -326,6 +903,125 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssetsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v2/storage': {
+      id: '/v2/storage'
+      path: '/storage'
+      fullPath: '/v2/storage'
+      preLoaderRoute: typeof V2StorageRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/settings': {
+      id: '/v2/settings'
+      path: '/settings'
+      fullPath: '/v2/settings'
+      preLoaderRoute: typeof V2SettingsRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/services': {
+      id: '/v2/services'
+      path: '/services'
+      fullPath: '/v2/services'
+      preLoaderRoute: typeof V2ServicesRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/runs': {
+      id: '/v2/runs'
+      path: '/runs'
+      fullPath: '/v2/runs'
+      preLoaderRoute: typeof V2RunsRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/quality': {
+      id: '/v2/quality'
+      path: '/quality'
+      fullPath: '/v2/quality'
+      preLoaderRoute: typeof V2QualityRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/operations': {
+      id: '/v2/operations'
+      path: '/operations'
+      fullPath: '/v2/operations'
+      preLoaderRoute: typeof V2OperationsRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/observability': {
+      id: '/v2/observability'
+      path: '/observability'
+      fullPath: '/v2/observability'
+      preLoaderRoute: typeof V2ObservabilityRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/logs': {
+      id: '/v2/logs'
+      path: '/logs'
+      fullPath: '/v2/logs'
+      preLoaderRoute: typeof V2LogsRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/governance': {
+      id: '/v2/governance'
+      path: '/governance'
+      fullPath: '/v2/governance'
+      preLoaderRoute: typeof V2GovernanceRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/extensions': {
+      id: '/v2/extensions'
+      path: '/extensions'
+      fullPath: '/v2/extensions'
+      preLoaderRoute: typeof V2ExtensionsRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/data': {
+      id: '/v2/data'
+      path: '/data'
+      fullPath: '/v2/data'
+      preLoaderRoute: typeof V2DataRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/catalog': {
+      id: '/v2/catalog'
+      path: '/catalog'
+      fullPath: '/v2/catalog'
+      preLoaderRoute: typeof V2CatalogRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/branches': {
+      id: '/v2/branches'
+      path: '/branches'
+      fullPath: '/v2/branches'
+      preLoaderRoute: typeof V2BranchesRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/bi': {
+      id: '/v2/bi'
+      path: '/bi'
+      fullPath: '/v2/bi'
+      preLoaderRoute: typeof V2BiRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/assets': {
+      id: '/v2/assets'
+      path: '/assets'
+      fullPath: '/v2/assets'
+      preLoaderRoute: typeof V2AssetsRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/apis': {
+      id: '/v2/apis'
+      path: '/apis'
+      fullPath: '/v2/apis'
+      preLoaderRoute: typeof V2ApisRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/table/$tableId': {
+      id: '/table/$tableId'
+      path: '/table/$tableId'
+      fullPath: '/table/$tableId'
+      preLoaderRoute: typeof TableTableIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/hub/plugins': {
       id: '/hub/plugins'
       path: '/hub/plugins'
@@ -338,6 +1034,13 @@ declare module '@tanstack/react-router' {
       path: '/extensions/$extensionName'
       fullPath: '/extensions/$extensionName'
       preLoaderRoute: typeof ExtensionsExtensionNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/extension/$extensionId': {
+      id: '/extension/$extensionId'
+      path: '/extension/$extensionId'
+      fullPath: '/extension/$extensionId'
+      preLoaderRoute: typeof ExtensionExtensionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/data/$branchName': {
@@ -354,11 +1057,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BranchesBranchNameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/branch/$branchName': {
+      id: '/branch/$branchName'
+      path: '/branch/$branchName'
+      fullPath: '/branch/$branchName'
+      preLoaderRoute: typeof BranchBranchNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assets/$assetId': {
       id: '/assets/$assetId'
       path: '/assets/$assetId'
       fullPath: '/assets/$assetId'
       preLoaderRoute: typeof AssetsAssetIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/asset/$assetId': {
+      id: '/asset/$assetId'
+      path: '/asset/$assetId'
+      fullPath: '/asset/$assetId'
+      preLoaderRoute: typeof AssetAssetIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/data/$branchName/': {
@@ -367,6 +1084,62 @@ declare module '@tanstack/react-router' {
       fullPath: '/data/$branchName/'
       preLoaderRoute: typeof DataBranchNameIndexRouteImport
       parentRoute: typeof DataBranchNameRoute
+    }
+    '/v2/table/$tableId': {
+      id: '/v2/table/$tableId'
+      path: '/table/$tableId'
+      fullPath: '/v2/table/$tableId'
+      preLoaderRoute: typeof V2TableTableIdRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/extensions/$extensionId': {
+      id: '/v2/extensions/$extensionId'
+      path: '/$extensionId'
+      fullPath: '/v2/extensions/$extensionId'
+      preLoaderRoute: typeof V2ExtensionsExtensionIdRouteImport
+      parentRoute: typeof V2ExtensionsRoute
+    }
+    '/v2/extension/$extensionId': {
+      id: '/v2/extension/$extensionId'
+      path: '/extension/$extensionId'
+      fullPath: '/v2/extension/$extensionId'
+      preLoaderRoute: typeof V2ExtensionExtensionIdRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/data/$tableId': {
+      id: '/v2/data/$tableId'
+      path: '/$tableId'
+      fullPath: '/v2/data/$tableId'
+      preLoaderRoute: typeof V2DataTableIdRouteImport
+      parentRoute: typeof V2DataRoute
+    }
+    '/v2/branches/$branchName': {
+      id: '/v2/branches/$branchName'
+      path: '/$branchName'
+      fullPath: '/v2/branches/$branchName'
+      preLoaderRoute: typeof V2BranchesBranchNameRouteImport
+      parentRoute: typeof V2BranchesRoute
+    }
+    '/v2/branch/$branchName': {
+      id: '/v2/branch/$branchName'
+      path: '/branch/$branchName'
+      fullPath: '/v2/branch/$branchName'
+      preLoaderRoute: typeof V2BranchBranchNameRouteImport
+      parentRoute: typeof V2Route
+    }
+    '/v2/assets/$assetId': {
+      id: '/v2/assets/$assetId'
+      path: '/$assetId'
+      fullPath: '/v2/assets/$assetId'
+      preLoaderRoute: typeof V2AssetsAssetIdRouteImport
+      parentRoute: typeof V2AssetsRoute
+    }
+    '/v2/asset/$assetId': {
+      id: '/v2/asset/$assetId'
+      path: '/asset/$assetId'
+      fullPath: '/v2/asset/$assetId'
+      preLoaderRoute: typeof V2AssetAssetIdRouteImport
+      parentRoute: typeof V2Route
     }
     '/data/$schema/$table': {
       id: '/data/$schema/$table'
@@ -391,6 +1164,103 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface V2AssetsRouteChildren {
+  V2AssetsAssetIdRoute: typeof V2AssetsAssetIdRoute
+}
+
+const V2AssetsRouteChildren: V2AssetsRouteChildren = {
+  V2AssetsAssetIdRoute: V2AssetsAssetIdRoute,
+}
+
+const V2AssetsRouteWithChildren = V2AssetsRoute._addFileChildren(
+  V2AssetsRouteChildren,
+)
+
+interface V2BranchesRouteChildren {
+  V2BranchesBranchNameRoute: typeof V2BranchesBranchNameRoute
+}
+
+const V2BranchesRouteChildren: V2BranchesRouteChildren = {
+  V2BranchesBranchNameRoute: V2BranchesBranchNameRoute,
+}
+
+const V2BranchesRouteWithChildren = V2BranchesRoute._addFileChildren(
+  V2BranchesRouteChildren,
+)
+
+interface V2DataRouteChildren {
+  V2DataTableIdRoute: typeof V2DataTableIdRoute
+}
+
+const V2DataRouteChildren: V2DataRouteChildren = {
+  V2DataTableIdRoute: V2DataTableIdRoute,
+}
+
+const V2DataRouteWithChildren =
+  V2DataRoute._addFileChildren(V2DataRouteChildren)
+
+interface V2ExtensionsRouteChildren {
+  V2ExtensionsExtensionIdRoute: typeof V2ExtensionsExtensionIdRoute
+}
+
+const V2ExtensionsRouteChildren: V2ExtensionsRouteChildren = {
+  V2ExtensionsExtensionIdRoute: V2ExtensionsExtensionIdRoute,
+}
+
+const V2ExtensionsRouteWithChildren = V2ExtensionsRoute._addFileChildren(
+  V2ExtensionsRouteChildren,
+)
+
+interface V2RouteChildren {
+  V2ApisRoute: typeof V2ApisRoute
+  V2AssetsRoute: typeof V2AssetsRouteWithChildren
+  V2BiRoute: typeof V2BiRoute
+  V2BranchesRoute: typeof V2BranchesRouteWithChildren
+  V2CatalogRoute: typeof V2CatalogRoute
+  V2DataRoute: typeof V2DataRouteWithChildren
+  V2ExtensionsRoute: typeof V2ExtensionsRouteWithChildren
+  V2GovernanceRoute: typeof V2GovernanceRoute
+  V2LogsRoute: typeof V2LogsRoute
+  V2ObservabilityRoute: typeof V2ObservabilityRoute
+  V2OperationsRoute: typeof V2OperationsRoute
+  V2QualityRoute: typeof V2QualityRoute
+  V2RunsRoute: typeof V2RunsRoute
+  V2ServicesRoute: typeof V2ServicesRoute
+  V2SettingsRoute: typeof V2SettingsRoute
+  V2StorageRoute: typeof V2StorageRoute
+  V2IndexRoute: typeof V2IndexRoute
+  V2AssetAssetIdRoute: typeof V2AssetAssetIdRoute
+  V2BranchBranchNameRoute: typeof V2BranchBranchNameRoute
+  V2ExtensionExtensionIdRoute: typeof V2ExtensionExtensionIdRoute
+  V2TableTableIdRoute: typeof V2TableTableIdRoute
+}
+
+const V2RouteChildren: V2RouteChildren = {
+  V2ApisRoute: V2ApisRoute,
+  V2AssetsRoute: V2AssetsRouteWithChildren,
+  V2BiRoute: V2BiRoute,
+  V2BranchesRoute: V2BranchesRouteWithChildren,
+  V2CatalogRoute: V2CatalogRoute,
+  V2DataRoute: V2DataRouteWithChildren,
+  V2ExtensionsRoute: V2ExtensionsRouteWithChildren,
+  V2GovernanceRoute: V2GovernanceRoute,
+  V2LogsRoute: V2LogsRoute,
+  V2ObservabilityRoute: V2ObservabilityRoute,
+  V2OperationsRoute: V2OperationsRoute,
+  V2QualityRoute: V2QualityRoute,
+  V2RunsRoute: V2RunsRoute,
+  V2ServicesRoute: V2ServicesRoute,
+  V2SettingsRoute: V2SettingsRoute,
+  V2StorageRoute: V2StorageRoute,
+  V2IndexRoute: V2IndexRoute,
+  V2AssetAssetIdRoute: V2AssetAssetIdRoute,
+  V2BranchBranchNameRoute: V2BranchBranchNameRoute,
+  V2ExtensionExtensionIdRoute: V2ExtensionExtensionIdRoute,
+  V2TableTableIdRoute: V2TableTableIdRoute,
+}
+
+const V2RouteWithChildren = V2Route._addFileChildren(V2RouteChildren)
 
 interface DataBranchNameSchemaTableRouteChildren {
   DataBranchNameSchemaTableRowIdRoute: typeof DataBranchNameSchemaTableRowIdRoute
@@ -422,16 +1292,31 @@ const DataBranchNameRouteWithChildren = DataBranchNameRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApisRoute: ApisRoute,
+  BiRoute: BiRoute,
+  CatalogRoute: CatalogRoute,
+  GovernanceRoute: GovernanceRoute,
   LogsRoute: LogsRoute,
+  ObservabilityRoute: ObservabilityRoute,
+  OperationsRoute: OperationsRoute,
+  RunsRoute: RunsRoute,
+  ServicesRoute: ServicesRoute,
   SettingsRoute: SettingsRoute,
+  StorageRoute: StorageRoute,
+  V2Route: V2RouteWithChildren,
+  AssetAssetIdRoute: AssetAssetIdRoute,
   AssetsAssetIdRoute: AssetsAssetIdRoute,
+  BranchBranchNameRoute: BranchBranchNameRoute,
   BranchesBranchNameRoute: BranchesBranchNameRoute,
   DataBranchNameRoute: DataBranchNameRouteWithChildren,
+  ExtensionExtensionIdRoute: ExtensionExtensionIdRoute,
   ExtensionsExtensionNameRoute: ExtensionsExtensionNameRoute,
   HubPluginsRoute: HubPluginsRoute,
+  TableTableIdRoute: TableTableIdRoute,
   AssetsIndexRoute: AssetsIndexRoute,
   BranchesIndexRoute: BranchesIndexRoute,
   DataIndexRoute: DataIndexRoute,
+  ExtensionsIndexRoute: ExtensionsIndexRoute,
   GraphIndexRoute: GraphIndexRoute,
   HubIndexRoute: HubIndexRoute,
   QualityIndexRoute: QualityIndexRoute,

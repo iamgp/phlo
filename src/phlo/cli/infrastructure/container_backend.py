@@ -49,16 +49,19 @@ def _compose_base_cmd(
     compose_file = phlo_dir / "docker-compose.yml"
     env_file = phlo_dir / ".env"
     env_local_file = phlo_dir / ".env.local"
-    cmd = [
-        binary,
-        "compose",
-        "-p",
-        project_name,
-        "-f",
-        str(compose_file),
-        "--env-file",
-        str(env_file),
-    ]
+    cmd = [binary]
+    if binary != "docker-compose":
+        cmd.append("compose")
+    cmd.extend(
+        [
+            "-p",
+            project_name,
+            "-f",
+            str(compose_file),
+            "--env-file",
+            str(env_file),
+        ]
+    )
     if env_local_file.exists():
         cmd.extend(["--env-file", str(env_local_file)])
     for profile in profiles:
@@ -111,6 +114,30 @@ def _podman_service_label(labels: dict[str, str]) -> str:
 class DockerBackend:
     name = "docker"
 
+    @staticmethod
+    def _compose_binary() -> str | None:
+        if shutil.which("docker") is not None:
+            result = subprocess.run(
+                ["docker", "compose", "version"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                return "docker"
+        if shutil.which("docker-compose") is not None:
+            result = subprocess.run(
+                ["docker-compose", "version"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                return "docker-compose"
+        return None
+
     def compose_base_cmd(
         self,
         *,
@@ -118,8 +145,9 @@ class DockerBackend:
         project_name: str,
         profiles: tuple[str, ...] = (),
     ) -> list[str]:
+        binary = self._compose_binary() or self.name
         return _compose_base_cmd(
-            binary=self.name,
+            binary=binary,
             phlo_dir=phlo_dir,
             project_name=project_name,
             profiles=profiles,
@@ -128,14 +156,7 @@ class DockerBackend:
     def check_available(self) -> tuple[bool, str | None]:
         if shutil.which("docker") is None:
             return False, "Install Docker Desktop or ensure docker is on PATH."
-        result = subprocess.run(
-            ["docker", "compose", "version"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=10,
-        )
-        if result.returncode != 0:
+        if self._compose_binary() is None:
             return False, "Install Docker Compose v2 or update Docker Desktop."
         return True, None
 
