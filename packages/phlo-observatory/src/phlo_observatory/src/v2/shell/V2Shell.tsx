@@ -49,9 +49,9 @@ import {
 import { loadCachedResource } from '@/v2/routes/liveResource'
 
 const fallbackPages: Array<V2CapabilityPage> = [
-  corePage('overview', 'Overview', '/v2'),
-  corePage('services', 'Services', '/v2/services'),
-  corePage('settings', 'Settings', '/v2/settings'),
+  corePage('overview', 'Overview', '/'),
+  corePage('services', 'Services', '/services'),
+  corePage('settings', 'Settings', '/settings'),
 ]
 
 const navOrder = [
@@ -525,7 +525,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
                       <CommandPrimitive.Item
                         className="phlo-v2-command-item"
                         onSelect={handleCommandSelect}
-                        value="open:/v2/data"
+                        value="open:/data"
                       >
                         <Database className="size-4" />
                         <span>Browse tables</span>
@@ -534,7 +534,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
                       <CommandPrimitive.Item
                         className="phlo-v2-command-item"
                         onSelect={handleCommandSelect}
-                        value="open:/v2/assets"
+                        value="open:/assets"
                       >
                         <Boxes className="size-4" />
                         <span>Inspect assets and lineage</span>
@@ -543,7 +543,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
                       <CommandPrimitive.Item
                         className="phlo-v2-command-item"
                         onSelect={handleCommandSelect}
-                        value="open:/v2/runs"
+                        value="open:/runs"
                       >
                         <CirclePlay className="size-4" />
                         <span>Review orchestration runs</span>
@@ -562,7 +562,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
                           className="phlo-v2-command-item"
                           key={`table:${table.id}`}
                           onSelect={handleCommandSelect}
-                          value={`open:/v2/table/${encodeURIComponent(table.id)}`}
+                          value={`open:/table/${encodeURIComponent(table.id)}`}
                         >
                           <Database className="size-4" />
                           <span>{tableLabel(table)}</span>
@@ -575,7 +575,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
                         <CommandPrimitive.Item
                           className="phlo-v2-command-item"
                           onSelect={handleCommandSelect}
-                          value="open:/v2/data"
+                          value="open:/data"
                         >
                           <Database className="size-4" />
                           <span>Open table browser</span>
@@ -597,7 +597,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
                             className="phlo-v2-command-item"
                             key={`service:${service.id}`}
                             onSelect={handleCommandSelect}
-                            value="open:/v2/services"
+                            value="open:/services"
                           >
                             <Server className="size-4" />
                             <span>{service.name}</span>
@@ -612,7 +612,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
                         <CommandPrimitive.Item
                           className="phlo-v2-command-item"
                           onSelect={handleCommandSelect}
-                          value="open:/v2/services"
+                          value="open:/services"
                         >
                           <Server className="size-4" />
                           <span>Open service directory</span>
@@ -633,7 +633,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
                           className="phlo-v2-command-item"
                           key={result.id}
                           onSelect={handleCommandSelect}
-                          value={`open:${result.href ?? '/v2'}`}
+                          value={`open:${cleanPath(result.href ?? '/')}`}
                         >
                           {iconForSearchKind(result.kind)}
                           <span>{result.label}</span>
@@ -746,8 +746,12 @@ function tableFromSearchResult(result: V2SearchResult): V2Table | null {
 }
 
 function isActive(pathname: string, href: string): boolean {
-  if (href === '/v2') return pathname === '/v2'
-  return pathname === href || pathname.startsWith(`${href}/`)
+  const cleanPathname = cleanPath(pathname)
+  const cleanHref = cleanPath(href)
+  if (cleanHref === '/') return cleanPathname === '/'
+  return (
+    cleanPathname === cleanHref || cleanPathname.startsWith(`${cleanHref}/`)
+  )
 }
 
 function navRank(pageId: string): number {
@@ -759,24 +763,31 @@ function pageForPath(
   pathname: string,
   pages: Array<V2CapabilityPage>,
 ): V2CapabilityPage | null {
-  const exact = pages.find((page) => pathname === page.path)
+  const cleanPathname = cleanPath(pathname)
+  const exact = pages.find((page) => cleanPathname === cleanPath(page.path))
   if (exact) return exact
 
   const aliases: Record<string, string> = {
-    '/v2/table/': 'data',
-    '/v2/data/': 'data',
-    '/v2/asset/': 'assets',
-    '/v2/assets/': 'assets',
-    '/v2/branch/': 'branches',
-    '/v2/branches/': 'branches',
-    '/v2/extension/': 'extensions',
-    '/v2/extensions/': 'extensions',
+    '/table/': 'data',
+    '/data/': 'data',
+    '/asset/': 'assets',
+    '/assets/': 'assets',
+    '/branch/': 'branches',
+    '/branches/': 'branches',
+    '/extension/': 'extensions',
+    '/extensions/': 'extensions',
   }
   const match = Object.entries(aliases).find(([prefix]) =>
-    pathname.startsWith(prefix),
+    cleanPathname.startsWith(prefix),
   )
   if (!match) return null
   return pages.find((page) => page.id === match[1]) ?? null
+}
+
+function cleanPath(path: string): string {
+  if (path === '/v2') return '/'
+  if (path.startsWith('/v2/')) return path.slice(3) || '/'
+  return path
 }
 
 function warmRouteResources(capabilities: V2Capabilities | null) {

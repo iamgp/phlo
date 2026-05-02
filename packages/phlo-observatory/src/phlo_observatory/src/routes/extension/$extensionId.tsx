@@ -2,11 +2,11 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { ExtensionDetailView } from '@/routes/v2/extensions/$extensionId'
 
-export const Route = createFileRoute('/extensions/$extensionName')({
+export const Route = createFileRoute('/extension/$extensionId')({
   component: ExtensionDetailRoute,
 })
 
 function ExtensionDetailRoute() {
-  const { extensionName } = Route.useParams()
-  return <ExtensionDetailView extensionId={extensionName} />
+  const { extensionId } = Route.useParams()
+  return <ExtensionDetailView extensionId={extensionId} />
 }

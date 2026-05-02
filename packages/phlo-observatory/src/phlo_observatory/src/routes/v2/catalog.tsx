@@ -8,7 +8,7 @@ export const Route = createFileRoute('/v2/catalog')({
   component: Catalog,
 })
 
-function Catalog() {
+export function Catalog() {
   const result = useLiveResource(getV2CatalogItems, 120_000, 'v2:catalog')
   const items = result.data ?? []
 

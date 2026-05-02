@@ -156,7 +156,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
               {table.asset_id && (
                 <Link
                   className="phlo-v2-mini-row"
-                  to="/v2/asset/$assetId"
+                  to="/asset/$assetId"
                   params={{ assetId: table.asset_id }}
                 >
                   <span>Open asset</span>

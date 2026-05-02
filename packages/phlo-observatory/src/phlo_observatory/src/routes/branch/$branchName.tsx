@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { BranchDetailView } from '@/routes/v2/branches/$branchName'
 
-export const Route = createFileRoute('/branches/$branchName')({
+export const Route = createFileRoute('/branch/$branchName')({
   component: BranchDetailRoute,
 })
 

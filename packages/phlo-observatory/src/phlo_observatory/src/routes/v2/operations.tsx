@@ -23,7 +23,7 @@ export const Route = createFileRoute('/v2/operations')({
   component: Operations,
 })
 
-function Operations() {
+export function Operations() {
   const result = useLiveResource(
     getV2OperationRecords,
     120_000,

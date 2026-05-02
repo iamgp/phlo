@@ -263,7 +263,7 @@ export function OverviewRoute() {
           <section className="phlo-v2-diff-metrics">
             {featureEnabled(capabilities?.data, 'issues') && (
               <CommandTile
-                href="/v2/quality"
+                href="/quality"
                 icon={<ListChecks className="size-5" />}
                 label="Triage issues"
                 value={`${blockingChecks} blocking`}
@@ -271,21 +271,21 @@ export function OverviewRoute() {
             )}
             {featureEnabled(capabilities?.data, 'operations') && (
               <CommandTile
-                href="/v2/operations"
+                href="/operations"
                 icon={<Activity className="size-5" />}
                 label="Review actions"
                 value={`${failedOperations} failed`}
               />
             )}
             <CommandTile
-              href="/v2/assets"
+              href="/assets"
               icon={<Boxes className="size-5" />}
               label="Inspect impact"
               value={`${assetRows.length} assets`}
             />
             {featureEnabled(capabilities?.data, 'branches') && (
               <CommandTile
-                href="/v2/branches"
+                href="/branches"
                 icon={<GitBranch className="size-5" />}
                 label="Check changes"
                 value={`${activeBranches} active`}
@@ -429,7 +429,7 @@ function buildAttentionItems({
       .slice(0, 3)
       .map((service) => ({
         id: `service:${service.id}`,
-        href: '/v2/services',
+        href: '/services',
         kind: 'service',
         label: service.name,
         meta: service.health.message ?? service.status,
@@ -442,7 +442,7 @@ function buildAttentionItems({
           .slice(0, 3)
           .map((check) => ({
             id: `quality:${check.id}`,
-            href: '/v2/quality',
+            href: '/quality',
             kind: 'quality',
             label: check.name,
             meta: `${check.asset_id} · ${check.severity ?? check.status}`,
@@ -455,7 +455,7 @@ function buildAttentionItems({
           .slice(0, 2)
           .map((operation) => ({
             id: `operation:${operation.id}`,
-            href: '/v2/operations',
+            href: '/operations',
             kind: 'operation',
             label: operation.name,
             meta: operation.target?.label ?? operation.kind,
@@ -468,7 +468,7 @@ function buildAttentionItems({
           .slice(0, 2)
           .map((log) => ({
             id: `log:${log.id}`,
-            href: '/v2/logs',
+            href: '/logs',
             kind: 'log',
             label: log.message,
             meta: [log.source, log.timestamp].filter(Boolean).join(' · '),

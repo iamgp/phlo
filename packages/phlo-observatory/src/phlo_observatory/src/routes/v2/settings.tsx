@@ -38,7 +38,7 @@ type CacheStats = {
   entriesByPrefix: Record<string, number>
 }
 
-function SettingsRoute() {
+export function SettingsRoute() {
   const { settings, defaults, setSettings, resetToDefaults } =
     useObservatorySettings()
   const { settingsSections } = useObservatoryExtensions()

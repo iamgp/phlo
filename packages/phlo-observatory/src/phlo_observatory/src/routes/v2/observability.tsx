@@ -8,7 +8,7 @@ export const Route = createFileRoute('/v2/observability')({
   component: Observability,
 })
 
-function Observability() {
+export function Observability() {
   const result = useLiveResource(
     getV2ObservabilityItems,
     120_000,

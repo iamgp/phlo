@@ -12,7 +12,7 @@ export const Route = createFileRoute('/v2/runs')({
   component: Runs,
 })
 
-function Runs() {
+export function Runs() {
   const result = useLiveResource(getV2RunRecords, 60_000, 'v2:runs')
   const runs = result.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)

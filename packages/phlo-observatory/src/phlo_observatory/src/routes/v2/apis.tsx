@@ -8,7 +8,7 @@ export const Route = createFileRoute('/v2/apis')({
   component: APIs,
 })
 
-function APIs() {
+export function APIs() {
   const result = useLiveResource(getV2ApiItems, 120_000, 'v2:apis')
   const items = result.data ?? []
 

@@ -40,20 +40,20 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="overview",
         label="Overview",
-        path="/v2",
+        path="/",
         reason="Core lakehouse attention surface.",
     ),
     V2RouteRequirement(
         route_id="data",
         label="Data",
-        path="/v2/data",
+        path="/data",
         required_any=["query_engine", "table_store"],
         reason="Install a query engine or table store to browse data.",
     ),
     V2RouteRequirement(
         route_id="assets",
         label="Assets",
-        path="/v2/assets",
+        path="/assets",
         required_any=["query_engine", "table_store", "lineage_sink"],
         optional=["quality_backend", "maintenance_read_model"],
         reason="Install asset metadata or lineage providers to inspect impact.",
@@ -61,14 +61,14 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="issues",
         label="Issues",
-        path="/v2/quality",
+        path="/quality",
         required_any=["quality_backend"],
         reason="Install a quality provider to triage issues.",
     ),
     V2RouteRequirement(
         route_id="quality",
         label="Quality",
-        path="/v2/quality",
+        path="/quality",
         required_any=["quality_backend"],
         nav=False,
         reason="Install a quality provider to triage checks.",
@@ -76,7 +76,7 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="logs",
         label="Logs",
-        path="/v2/logs",
+        path="/logs",
         required_any=["observability_backend"],
         optional=["maintenance_read_model"],
         reason="Install an observability backend to inspect logs.",
@@ -84,7 +84,7 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="branches",
         label="Changes",
-        path="/v2/branches",
+        path="/branches",
         required_any=["catalog"],
         optional=["table_store"],
         reason="Install a catalog provider with refs to compare changes.",
@@ -92,21 +92,21 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="operations",
         label="Operations",
-        path="/v2/operations",
+        path="/operations",
         required_any=["maintenance_read_model"],
         reason="Install a maintenance read-model provider to inspect operations.",
     ),
     V2RouteRequirement(
         route_id="runs",
         label="Runs",
-        path="/v2/runs",
+        path="/runs",
         optional=["maintenance_read_model"],
         reason="Core provider-neutral run history surface.",
     ),
     V2RouteRequirement(
         route_id="storage",
         label="Storage",
-        path="/v2/storage",
+        path="/storage",
         required_any=["table_store", "object_store"],
         nav=False,
         reason="Install a table store or object store to inspect storage surfaces.",
@@ -114,7 +114,7 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="observability",
         label="Observability",
-        path="/v2/observability",
+        path="/observability",
         required_any=["observability_backend"],
         optional=["alert_sink"],
         nav=False,
@@ -123,7 +123,7 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="governance",
         label="Governance",
-        path="/v2/governance",
+        path="/governance",
         required_any=[
             "governance_backend",
             "authorization_policy_backend",
@@ -136,7 +136,7 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="catalog",
         label="Catalog",
-        path="/v2/catalog",
+        path="/catalog",
         required_any=["metadata_catalog", "catalog_scanner"],
         nav=False,
         reason="Install a metadata catalog or scanner to inspect catalog surfaces.",
@@ -144,7 +144,7 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="apis",
         label="APIs",
-        path="/v2/apis",
+        path="/apis",
         required_any=["api_backend"],
         nav=False,
         reason="Install an API backend to inspect published API surfaces.",
@@ -152,7 +152,7 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="bi",
         label="BI",
-        path="/v2/bi",
+        path="/bi",
         required_any=["publish_target"],
         optional=["query_engine"],
         nav=False,
@@ -161,7 +161,7 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="extensions",
         label="Extensions",
-        path="/v2/extensions",
+        path="/extensions",
         required_any=["observatory_extension"],
         nav=False,
         reason="Extension inventory is available in Settings.",
@@ -169,13 +169,13 @@ ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
         route_id="services",
         label="Services",
-        path="/v2/services",
+        path="/services",
         reason="Core runtime service inventory.",
     ),
     V2RouteRequirement(
         route_id="settings",
         label="Settings",
-        path="/v2/settings",
+        path="/settings",
         reason="Core Observatory settings.",
     ),
 ]

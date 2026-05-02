@@ -43,7 +43,7 @@ export const Route = createFileRoute('/v2/data')({
   component: Data,
 })
 
-function Data() {
+export function Data() {
   const result = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
   const assetResult = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
   const tables = result.data ?? []
@@ -724,7 +724,7 @@ function DataDetailPanel({
         {selected.asset_id && (
           <Link
             className="phlo-v2-mini-row"
-            to="/v2/asset/$assetId"
+            to="/asset/$assetId"
             params={{ assetId: selected.asset_id }}
           >
             <span>Open asset</span>

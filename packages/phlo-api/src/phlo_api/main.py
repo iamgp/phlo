@@ -48,7 +48,10 @@ require_regulated_validation(runtime=app)
 
 # Allow CORS for Observatory
 _cors_origins_raw = os.environ.get(
-    "PHLO_API_CORS_ORIGINS", "http://localhost:3000,http://localhost:4000"
+    "PHLO_API_CORS_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000,"
+    "http://localhost:3005,http://127.0.0.1:3005,"
+    "http://localhost:4000,http://127.0.0.1:4000",
 )
 _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
 app.add_middleware(

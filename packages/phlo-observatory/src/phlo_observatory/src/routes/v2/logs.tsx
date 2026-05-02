@@ -11,7 +11,7 @@ export const Route = createFileRoute('/v2/logs')({
   component: Logs,
 })
 
-function Logs() {
+export function Logs() {
   const result = useLiveResource(getV2LogRecords, 120_000, 'v2:logs')
   const logs = result.data ?? []
   const [level, setLevel] = useState('all')
@@ -184,15 +184,15 @@ function Logs() {
 function routeForResource(
   resource: V2LogEvent['resource'],
 ):
-  | { to: '/v2/asset/$assetId'; params: { assetId: string } }
-  | { to: '/v2/data/$tableId'; params: { tableId: string } }
+  | { to: '/asset/$assetId'; params: { assetId: string } }
+  | { to: '/table/$tableId'; params: { tableId: string } }
   | null {
   if (!resource) return null
   if (resource.kind === 'asset') {
-    return { to: '/v2/asset/$assetId', params: { assetId: resource.id } }
+    return { to: '/asset/$assetId', params: { assetId: resource.id } }
   }
   if (resource.kind === 'table') {
-    return { to: '/v2/data/$tableId', params: { tableId: resource.id } }
+    return { to: '/table/$tableId', params: { tableId: resource.id } }
   }
   return null
 }

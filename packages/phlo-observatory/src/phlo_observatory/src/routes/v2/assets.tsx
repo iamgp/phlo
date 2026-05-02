@@ -36,7 +36,7 @@ export const Route = createFileRoute('/v2/assets')({
   component: Assets,
 })
 
-function Assets() {
+export function Assets() {
   const result = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
   const tablesResult = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
   const qualityResult = useLiveResource(

@@ -28,7 +28,7 @@ export const Route = createFileRoute('/v2/services')({
   component: Services,
 })
 
-function Services() {
+export function Services() {
   const result = useLiveResource(getV2Services, 120_000, 'v2:services')
   const services = result.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)

@@ -8,7 +8,7 @@ export const Route = createFileRoute('/v2/storage')({
   component: Storage,
 })
 
-function Storage() {
+export function Storage() {
   const result = useLiveResource(getV2StorageItems, 120_000, 'v2:storage')
   const items = result.data ?? []
 

@@ -8,7 +8,7 @@ export const Route = createFileRoute('/v2/bi')({
   component: BI,
 })
 
-function BI() {
+export function BI() {
   const result = useLiveResource(getV2BiItems, 120_000, 'v2:bi')
   const items = result.data ?? []
 

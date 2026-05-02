@@ -15,7 +15,7 @@ export const Route = createFileRoute('/v2/extensions')({
   component: Extensions,
 })
 
-function Extensions() {
+export function Extensions() {
   const result = useLiveResource(getV2Extensions)
   const extensions = result.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)

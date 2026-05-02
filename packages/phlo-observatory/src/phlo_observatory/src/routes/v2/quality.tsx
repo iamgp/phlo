@@ -23,7 +23,7 @@ export const Route = createFileRoute('/v2/quality')({
   component: Quality,
 })
 
-function Quality() {
+export function Quality() {
   const result = useLiveResource(getV2QualityRecords, 120_000, 'v2:quality')
   const checks = result.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)

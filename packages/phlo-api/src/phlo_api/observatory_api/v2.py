@@ -1646,7 +1646,7 @@ def _search_results(query: str) -> list[V2SearchResult]:
                     label=service.name,
                     kind="service",
                     summary=f"{service.kind} · {service.status}",
-                    href="/v2/services",
+                    href="/services",
                 )
             )
 
@@ -1661,7 +1661,7 @@ def _search_results(query: str) -> list[V2SearchResult]:
                     label=asset.name,
                     kind="asset",
                     summary=asset.description or asset.group,
-                    href=f"/v2/asset/{asset.id}",
+                    href=f"/asset/{asset.id}",
                 )
             )
 
@@ -1676,7 +1676,7 @@ def _search_results(query: str) -> list[V2SearchResult]:
                     label=table.namespace + "." + table.name if table.namespace else table.name,
                     kind="table",
                     summary=f"{table.format or 'table'} · {table.branch or 'main'}",
-                    href=f"/v2/table/{table.id}",
+                    href=f"/table/{table.id}",
                 )
             )
 
@@ -1691,7 +1691,7 @@ def _search_results(query: str) -> list[V2SearchResult]:
                     label=check.name,
                     kind="quality",
                     summary=f"{check.asset_id} · {check.status}",
-                    href="/v2/quality",
+                    href="/quality",
                 )
             )
 
@@ -1704,7 +1704,7 @@ def _search_results(query: str) -> list[V2SearchResult]:
                     label=extension.name,
                     kind="extension",
                     summary=extension.settings_scope or extension.version,
-                    href=f"/v2/extension/{extension.id}",
+                    href=f"/extension/{extension.id}",
                 )
             )
 

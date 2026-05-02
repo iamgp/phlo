@@ -19,7 +19,7 @@ export const Route = createFileRoute('/v2/branches')({
   component: Branches,
 })
 
-function Branches() {
+export function Branches() {
   const result = useLiveResource(getV2Branches)
   const [createdBranches, setCreatedBranches] = useState<Array<V2ResourceItem>>(
     [],

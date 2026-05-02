@@ -8,7 +8,7 @@ export const Route = createFileRoute('/v2/governance')({
   component: Governance,
 })
 
-function Governance() {
+export function Governance() {
   const result = useLiveResource(getV2GovernanceItems, 120_000, 'v2:governance')
   const items = result.data ?? []
 
