@@ -34,6 +34,7 @@ export interface V2FlowNode {
   id: string
   label: string
   kind: V2FlowNodeKind
+  selectId?: string | null
   lane?: string | null
   subtitle?: string | null
   metric?: string | null
@@ -50,6 +51,7 @@ interface FlowNodeData extends Record<string, unknown> {
   label: string
   kind: V2FlowNodeKind
   lane: string
+  selectId?: string | null
   subtitle?: string | null
   metric?: string | null
 }
@@ -146,6 +148,7 @@ export function V2FlowCanvas({
           label: graphNode.label,
           kind: graphNode.kind,
           lane,
+          selectId: graphNode.selectId ?? graphNode.id,
           subtitle: graphNode.subtitle,
           metric: graphNode.metric,
         },
@@ -186,7 +189,7 @@ export function V2FlowCanvas({
 
   const handleNodeClick = useCallback(
     (_: MouseEvent, node: Node) => {
-      onSelect?.(node.id)
+      onSelect?.(String(node.data.selectId ?? node.id))
     },
     [onSelect],
   )

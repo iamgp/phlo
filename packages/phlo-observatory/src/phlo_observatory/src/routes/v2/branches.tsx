@@ -83,7 +83,7 @@ function Branches() {
                       next.error ??
                       'Branch action completed',
                   )
-                  if (!next.error) {
+                  if (next.data?.status === 'succeeded') {
                     setCreatedBranches((current) =>
                       mergeBranches(current, [
                         {

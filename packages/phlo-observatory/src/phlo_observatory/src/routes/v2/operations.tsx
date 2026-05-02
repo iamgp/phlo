@@ -1,11 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import {
-  CheckCircle2,
-  Clock3,
-  Play,
-  RotateCcw,
-  ShieldAlert,
-} from 'lucide-react'
+import { CheckCircle2, Clock3, RotateCcw, ShieldAlert } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -15,7 +9,12 @@ import type {
   V2ResourceResult,
 } from '@/v2/api/types'
 import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
-import { getV2OperationDetail, getV2OperationRecords } from '@/v2/api/resources'
+import {
+  getV2OperationDetail,
+  getV2OperationRecords,
+  runV2Action,
+} from '@/v2/api/resources'
+import { ActionButton } from '@/v2/components/ActionButton'
 import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
 import { readMetric, useLiveResource } from '@/v2/routes/liveResource'
@@ -40,6 +39,7 @@ function Operations() {
     data: null,
     error: null,
   })
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
   const failed = operations.filter(
     (operation) => operation.status === 'failed',
   ).length
@@ -183,17 +183,24 @@ function Operations() {
               </dl>
               <div className="phlo-v2-action-row">
                 {(detail.data?.actions ?? []).map((action) => (
-                  <button
-                    disabled={!action.enabled}
+                  <ActionButton
+                    action={action}
                     key={action.id}
-                    title={action.reason ?? undefined}
-                    type="button"
-                  >
-                    <Play className="size-3.5" />
-                    {action.label}
-                  </button>
+                    onRun={(actionId) => {
+                      void runV2Action({ data: { actionId } }).then((next) => {
+                        setActionMessage(
+                          next.data?.message ??
+                            next.error ??
+                            'Action requested',
+                        )
+                      })
+                    }}
+                  />
                 ))}
               </div>
+              {actionMessage && (
+                <div className="phlo-v2-panel-footer">{actionMessage}</div>
+              )}
               <div className="phlo-v2-detail-list">
                 <div className="phlo-v2-mini-row">
                   <span>Related</span>
@@ -293,6 +300,9 @@ function buildOperationGraph(operations: Array<V2Operation>): {
       label: target.label,
       kind: target.kind === 'branch' ? 'branch' : 'service',
       lane: 'branch',
+      selectId: operations.find(
+        (operation) => operation.target?.id === target.id,
+      )?.id,
       subtitle: target.kind,
     }),
   )

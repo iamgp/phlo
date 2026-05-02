@@ -29,6 +29,8 @@ from phlo.capabilities import (
     resolve_runtime_ref,
     routing_from_context,
 )
+from phlo.capabilities.registry import CapabilityRegistry
+from phlo.capabilities.specs import UiContributionSpec
 from phlo.config import _get_config
 from phlo.plugins.base import PluginMetadata
 from tests.helpers import reset_capability_test_state
@@ -58,6 +60,18 @@ def test_registry_tracks_new_platform_capability_types() -> None:
     assert "trino" in names(registry.list_query_engines())
     assert "iceberg" in names(registry.list_schema_migrators())
     assert "postgres" in names(registry.list_publish_targets())
+
+
+def test_registry_tracks_ui_contributions() -> None:
+    registry = CapabilityRegistry()
+    spec = UiContributionSpec(
+        name="trino-data",
+        capability_type="query_engine",
+        capability_name="trino",
+        surfaces=["data", "observability"],
+    )
+    registry.register_ui_contribution(spec)
+    assert registry.list_ui_contributions() == [spec]
 
 
 def test_resolve_capability_prefers_explicit_name() -> None:

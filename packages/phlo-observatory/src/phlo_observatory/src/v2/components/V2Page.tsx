@@ -55,7 +55,14 @@ export function V2ResourcePanel({
         </span>
       </div>
       <div className="phlo-v2-list">
-        {rows.length > 0 ? (
+        {result.error && rows.length === 0 ? (
+          <div className="phlo-v2-row">
+            <div className="phlo-v2-row-main">
+              <div className="phlo-v2-row-title">Unable to load {title}</div>
+              <div className="phlo-v2-row-meta">{result.error}</div>
+            </div>
+          </div>
+        ) : rows.length > 0 ? (
           rows.map((item) => <V2ResourceRow key={item.id} item={item} />)
         ) : (
           <div className="phlo-v2-row">

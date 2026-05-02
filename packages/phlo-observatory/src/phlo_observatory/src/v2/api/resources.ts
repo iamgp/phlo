@@ -21,12 +21,14 @@ import type {
   V2ResourceItem,
   V2ResourceResult,
   V2RowJourney,
+  V2Run,
   V2SavedQuery,
   V2SearchResult,
   V2Service,
   V2ServiceDetail,
   V2Settings,
   V2StageDiff,
+  V2SurfaceItem,
   V2Table,
   V2TablePreview,
 } from './types'
@@ -163,6 +165,34 @@ export const getV2OperationDetail = createServerFn()
       }
     },
   )
+
+export const getV2RunRecords = createServerFn().handler(() =>
+  getRawCollection<V2Run>('runs'),
+)
+
+export const getV2StorageItems = createServerFn().handler(() =>
+  getRawCollection<V2SurfaceItem>('storage'),
+)
+
+export const getV2ObservabilityItems = createServerFn().handler(() =>
+  getRawCollection<V2SurfaceItem>('observability'),
+)
+
+export const getV2GovernanceItems = createServerFn().handler(() =>
+  getRawCollection<V2SurfaceItem>('governance'),
+)
+
+export const getV2CatalogItems = createServerFn().handler(() =>
+  getRawCollection<V2SurfaceItem>('catalog'),
+)
+
+export const getV2ApiItems = createServerFn().handler(() =>
+  getRawCollection<V2SurfaceItem>('apis'),
+)
+
+export const getV2BiItems = createServerFn().handler(() =>
+  getRawCollection<V2SurfaceItem>('bi'),
+)
 
 export const getV2Assets = createServerFn().handler(() =>
   getCollection('assets'),

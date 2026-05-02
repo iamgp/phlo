@@ -10,6 +10,7 @@ HealthState = Literal["ok", "warning", "error", "unknown"]
 ServiceStatus = Literal["running", "stopped", "unhealthy", "starting", "unknown"]
 ServiceDefinitionState = Literal["configured", "available"]
 OperationStatus = Literal["queued", "running", "succeeded", "failed", "unknown"]
+RunStatus = Literal["queued", "running", "succeeded", "failed", "cancelled", "unknown"]
 QualityStatus = Literal["passing", "failing", "warning", "unknown"]
 
 
@@ -50,12 +51,88 @@ class V2Capabilities(BaseModel):
     providers: dict[str, list[str]] = Field(default_factory=dict)
 
 
+class V2CapabilitySupport(BaseModel):
+    """Provider support flags exposed to Observatory."""
+
+    supports_refs: bool = False
+    supports_snapshots: bool = False
+    supports_schema_evolution: bool = False
+    supports_atomic_validation: bool = False
+    supports_promote: bool = False
+    supports_time_travel: bool = False
+    supports_metrics: bool = False
+    supports_logs: bool = False
+    supports_dashboards: bool = False
+    supports_alerts: bool = False
+    supports_permissions: bool = False
+    supports_attributes: bool = False
+
+
+class V2CapabilityProvider(BaseModel):
+    """One installed provider for a Phlo capability type."""
+
+    capability_type: str
+    name: str
+    display_name: str
+    package: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    support: V2CapabilitySupport = Field(default_factory=V2CapabilitySupport)
+    health: V2Health = Field(default_factory=lambda: V2Health(state="unknown"))
+    native_links: list[V2ExternalLink] = Field(default_factory=list)
+
+
+class V2UiContribution(BaseModel):
+    """Provider-neutral UI contribution exposed by a Phlo capability."""
+
+    name: str
+    capability_type: str
+    capability_name: str
+    surfaces: list[str]
+    read_models: dict[str, str]
+    actions: list[str]
+    native_links: list[V2ExternalLink] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class V2RouteRequirement(BaseModel):
+    """Capability requirements for one Observatory route."""
+
+    route_id: str
+    label: str
+    path: str
+    required_any: list[str] = Field(default_factory=list)
+    required_all: list[str] = Field(default_factory=list)
+    optional: list[str] = Field(default_factory=list)
+    nav: bool = True
+    reason: str = ""
+
+
+class V2CapabilityInventory(BaseModel):
+    """Full capability inventory used to drive Observatory navigation."""
+
+    version: int = 2
+    providers: dict[str, list[V2CapabilityProvider]] = Field(default_factory=dict)
+    requirements: list[V2RouteRequirement] = Field(default_factory=list)
+    ui_contributions: list[V2UiContribution] = Field(default_factory=list)
+
+
 class V2ResourceRef(BaseModel):
     """Small reference to another Observatory v2 resource."""
 
     kind: str
     id: str
     label: str
+
+
+class V2SurfaceItem(BaseModel):
+    """Provider-neutral top-level surface summary."""
+
+    id: str
+    name: str
+    kind: str
+    health: V2Health = Field(default_factory=lambda: V2Health(state="unknown"))
+    summary: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class V2Action(BaseModel):
@@ -67,6 +144,13 @@ class V2Action(BaseModel):
     enabled: bool = False
     requires_confirmation: bool = True
     reason: str | None = None
+    risk_level: Literal["low", "medium", "high", "critical"] = "low"
+    required_capability: str | None = None
+    required_service: str | None = None
+    required_permission: str | None = None
+    equivalent_cli_command: str | None = None
+    expected_evidence: list[str] = Field(default_factory=list)
+    background_operation_id: str | None = None
 
 
 class V2ActionRequest(BaseModel):
@@ -163,6 +247,21 @@ class V2OperationDetail(BaseModel):
     related: list[V2ResourceRef] = Field(default_factory=list)
     logs: list["V2LogEvent"] = Field(default_factory=list)
     actions: list[V2Action] = Field(default_factory=list)
+
+
+class V2Run(BaseModel):
+    """Provider-neutral orchestrator run summary."""
+
+    id: str
+    name: str
+    status: RunStatus = "unknown"
+    started_at: str | None = None
+    completed_at: str | None = None
+    duration_seconds: float | None = None
+    assets: list[V2ResourceRef] = Field(default_factory=list)
+    checks: list[V2ResourceRef] = Field(default_factory=list)
+    logs: list[V2ResourceRef] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class V2Asset(BaseModel):

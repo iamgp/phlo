@@ -23,7 +23,13 @@ from fastapi import APIRouter
 from fastapi import HTTPException
 from pydantic import BaseModel
 
+from phlo_api.observatory_api.v2_actions import execute_v2_action
+from phlo_api.observatory_api.v2_capabilities import build_capability_inventory
+from phlo_api.observatory_api.v2_catalog import load_catalog_items
+from phlo_api.observatory_api.v2_governance import load_governance_items
 from phlo_api.observatory_api.v2_models import (
+    HealthState,
+    ServiceStatus,
     V2Action,
     V2ActionRequest,
     V2ActionResult,
@@ -32,6 +38,7 @@ from phlo_api.observatory_api.v2_models import (
     V2Branch,
     V2BranchDetail,
     V2Capabilities,
+    V2CapabilityInventory,
     V2CapabilityPage,
     V2Extension,
     V2ExtensionDetail,
@@ -47,7 +54,9 @@ from phlo_api.observatory_api.v2_models import (
     V2QueryRequest,
     V2QueryResult,
     V2ResourceRef,
+    V2RouteRequirement,
     V2RowJourney,
+    V2Run,
     V2SavedQuery,
     V2SavedQueryRequest,
     V2SearchResult,
@@ -57,25 +66,19 @@ from phlo_api.observatory_api.v2_models import (
     V2ServicePort,
     V2Settings,
     V2StageDiff,
+    V2SurfaceItem,
     V2Table,
     V2TablePreview,
 )
+from phlo_api.observatory_api.v2_metadata import safe_metadata as _safe_metadata
+from phlo_api.observatory_api.v2_observability import load_observability_items
+from phlo_api.observatory_api.v2_products import load_api_items, load_bi_items
+from phlo_api.observatory_api.v2_runs import load_runs
+from phlo_api.observatory_api.v2_storage import load_storage_items
 
 router = APIRouter(tags=["observatory-v2"])
 
-_PRIVATE_METADATA_TOKENS = (
-    "url",
-    "uri",
-    "dsn",
-    "endpoint",
-    "connection",
-    "password",
-    "secret",
-    "token",
-    "key",
-)
-
-_DOCKER_SERVICE_STATUS_RANK = {
+_DOCKER_SERVICE_STATUS_RANK: dict[ServiceStatus, int] = {
     "running": 4,
     "unhealthy": 3,
     "starting": 2,
@@ -132,6 +135,12 @@ class V2OperationList(BaseModel):
     items: list[V2Operation]
 
 
+class V2RunList(BaseModel):
+    """List envelope for v2 orchestrator runs."""
+
+    items: list[V2Run]
+
+
 class V2AssetList(BaseModel):
     """List envelope for v2 assets."""
 
@@ -168,70 +177,6 @@ class V2ExtensionList(BaseModel):
     items: list[V2Extension]
 
 
-_CAPABILITY_PAGE_DEFINITIONS = (
-    ("overview", "Overview", "/v2", True, True, "Core lakehouse attention surface."),
-    ("data", "Data", "/v2/data", False, True, "Install a table or query provider to browse data."),
-    (
-        "assets",
-        "Assets",
-        "/v2/assets",
-        False,
-        True,
-        "Install asset metadata or lineage providers to inspect impact.",
-    ),
-    (
-        "issues",
-        "Issues",
-        "/v2/quality",
-        False,
-        True,
-        "Install a quality provider to triage issues.",
-    ),
-    (
-        "quality",
-        "Quality",
-        "/v2/quality",
-        False,
-        False,
-        "Install a quality provider to triage checks.",
-    ),
-    (
-        "logs",
-        "Logs",
-        "/v2/logs",
-        False,
-        True,
-        "Install a log or telemetry provider to inspect evidence.",
-    ),
-    (
-        "branches",
-        "Changes",
-        "/v2/branches",
-        False,
-        True,
-        "Install a branching catalog provider to compare changes.",
-    ),
-    ("services", "Services", "/v2/services", True, True, "Core runtime service inventory."),
-    (
-        "operations",
-        "Actions",
-        "/v2/operations",
-        False,
-        True,
-        "Install an operation provider to review recovery activity.",
-    ),
-    (
-        "extensions",
-        "Extensions",
-        "/v2/extensions",
-        False,
-        False,
-        "Extension inventory is available in Settings.",
-    ),
-    ("settings", "Settings", "/v2/settings", True, True, "Core Observatory settings."),
-)
-
-
 class V2SearchList(BaseModel):
     """List envelope for v2 search results."""
 
@@ -244,34 +189,14 @@ class V2SavedQueryList(BaseModel):
     items: list[V2SavedQuery]
 
 
+class V2SurfaceList(BaseModel):
+    """List envelope for top-level v2 surfaces."""
+
+    items: list[V2SurfaceItem]
+
+
 def _not_found(kind: str, resource_id: str) -> HTTPException:
     return HTTPException(status_code=404, detail=f"{kind} not found: {resource_id}")
-
-
-def _safe_metadata(value: Any) -> dict[str, Any]:
-    """Return deterministic non-secret, non-provider-URL metadata."""
-    if not isinstance(value, Mapping):
-        return {}
-
-    safe: dict[str, Any] = {}
-    for raw_key, raw_value in value.items():
-        key = str(raw_key)
-        key_l = key.lower()
-        if any(token in key_l for token in _PRIVATE_METADATA_TOKENS):
-            continue
-        if isinstance(raw_value, str | int | float | bool) or raw_value is None:
-            safe[key] = raw_value
-        elif isinstance(raw_value, list | tuple | set):
-            safe[key] = [
-                item
-                for item in raw_value
-                if isinstance(item, str | int | float | bool) or item is None
-            ]
-        elif isinstance(raw_value, Mapping):
-            nested = _safe_metadata(raw_value)
-            if nested:
-                safe[key] = nested
-    return safe
 
 
 def _coerce_str(value: Any, default: str = "") -> str:
@@ -391,7 +316,7 @@ def _fallback_services() -> list[V2Service]:
     ]
 
 
-def _docker_status_from_container(container: Mapping[str, Any]) -> tuple[str, V2Health]:
+def _docker_status_from_container(container: Mapping[str, Any]) -> tuple[ServiceStatus, V2Health]:
     state = _coerce_str(container.get("State"), "unknown").lower()
     status_text = _coerce_str(container.get("Status"), "")
     status_lower = status_text.lower()
@@ -401,7 +326,7 @@ def _docker_status_from_container(container: Mapping[str, Any]) -> tuple[str, V2
     if state == "running" and "starting" in status_lower:
         return "starting", V2Health(state="warning", message=status_text)
     if state == "running":
-        health = "ok" if "(healthy)" in status_lower else "unknown"
+        health: HealthState = "ok" if "(healthy)" in status_lower else "unknown"
         return "running", V2Health(state=health, message=status_text or None)
     if state in {"created", "restarting"}:
         return "starting", V2Health(state="warning", message=status_text or state)
@@ -413,13 +338,17 @@ def _docker_status_from_container(container: Mapping[str, Any]) -> tuple[str, V2
 
 
 def _service_name_from_container(name: str, service_ids: set[str]) -> str | None:
-    for service_id in sorted(service_ids, key=len, reverse=True):
+    ordered_service_ids = list(service_ids)
+    ordered_service_ids.sort(key=lambda value: len(value), reverse=True)
+    for service_id in ordered_service_ids:
         if name == service_id or name.endswith(f"-{service_id}-1"):
             return service_id
     return None
 
 
-def _load_docker_service_statuses(service_ids: set[str]) -> dict[str, tuple[str, V2Health]]:
+def _load_docker_service_statuses(
+    service_ids: set[str],
+) -> dict[str, tuple[ServiceStatus, V2Health]]:
     if not service_ids:
         return {}
 
@@ -437,7 +366,7 @@ def _load_docker_service_statuses(service_ids: set[str]) -> dict[str, tuple[str,
     if result.returncode != 0:
         return {}
 
-    statuses: dict[str, tuple[str, V2Health]] = {}
+    statuses: dict[str, tuple[ServiceStatus, V2Health]] = {}
     for line in result.stdout.splitlines():
         try:
             container = json.loads(line)
@@ -1164,7 +1093,7 @@ def _preview_from_query_engine(table: V2Table, limit: int, offset: int) -> V2Tab
 
     columns = [str(column) for column in result["columns"]]
     raw_column_types = result.get("column_types")
-    column_types = (
+    column_types: list[str] = (
         [
             str(column_type) if column_type is not None else "unknown"
             for column_type in raw_column_types[: len(columns)]
@@ -1407,23 +1336,22 @@ def _run_read_query(request: V2QueryRequest) -> V2QueryResult:
     requested_limit = int(match.group("limit") or request.limit)
     limit = max(1, min(requested_limit, 500))
     table = _find_table(table_id)
-    if table is not None:
-        sql = _select_sql_for_table(table, limit=limit, offset=max(0, request.offset))
-        if sql is not None:
-            trino_result = _try_run_query_engine(
-                sql,
-                branch=table.schema_name or table.namespace or request.branch,
-                limit=limit,
-            )
-            if trino_result is not None:
-                warnings = list(trino_result.warnings)
-                if requested_limit > limit:
-                    warnings.append("Limit capped at 500 rows.")
-                return trino_result.model_copy(update={"warnings": warnings})
+    if table is None:
+        raise _not_found("table", table_id)
 
-    trino_result = _try_run_query_engine(request.sql, branch=request.branch, limit=limit)
-    if trino_result is not None:
-        return trino_result
+    sql = _select_sql_for_table(table, limit=limit, offset=max(0, request.offset))
+    if sql is not None:
+        trino_result = _try_run_query_engine(
+            sql,
+            branch=table.schema_name or table.namespace or request.branch,
+            limit=limit,
+            offset=max(0, request.offset),
+        )
+        if trino_result is not None:
+            warnings = list(trino_result.warnings)
+            if requested_limit > limit:
+                warnings.append("Limit capped at 500 rows.")
+            return trino_result.model_copy(update={"warnings": warnings})
 
     preview = _load_table_preview(table_id, limit=limit, offset=max(0, request.offset))
     effective_sql = f"select * from {preview.table.name} limit {limit}"
@@ -1441,7 +1369,13 @@ def _run_read_query(request: V2QueryRequest) -> V2QueryResult:
     )
 
 
-def _try_run_query_engine(sql: str, *, branch: str | None, limit: int) -> V2QueryResult | None:
+def _try_run_query_engine(
+    sql: str,
+    *,
+    branch: str | None,
+    limit: int,
+    offset: int,
+) -> V2QueryResult | None:
     try:
         from phlo_api.observatory_api.trino import QueryExecutionError, execute_trino_query
     except Exception:
@@ -1471,7 +1405,7 @@ def _try_run_query_engine(sql: str, *, branch: str | None, limit: int) -> V2Quer
         row_count=len(clean_rows),
         effective_sql=_coerce_str(result.get("effective_query"), sql),
         limit=limit,
-        offset=0,
+        offset=offset,
         warnings=[],
     )
 
@@ -1819,75 +1753,115 @@ def _providers_matching(extensions: Sequence[V2Extension], *needles: str) -> lis
 
 
 def _load_capabilities() -> V2Capabilities:
-    services = _load_services()
-    runtime_services = _runtime_services(services)
-    assets = _load_assets()
-    tables = _load_tables_without_catalog()
-    checks = _load_quality()
-    logs = _load_logs()
-    operations = _load_operations()
-
-    service_ids = {service.id.lower() for service in runtime_services}
-    data_providers = _providers_from_services(service_ids, "trino", "query")
-    asset_providers = ["phlo"] if assets else []
-    quality_providers = ["phlo"] if checks else []
-    log_providers = ["phlo"] if logs else []
-    branch_providers = _providers_from_services(service_ids, "nessie", "branch") if tables else []
-    operation_providers = ["phlo"] if operations else []
-
-    features = {
-        "overview": True,
-        "services": True,
-        "data": bool(tables or data_providers),
-        "assets": bool(assets or asset_providers),
-        "issues": bool(checks or quality_providers),
-        "quality": bool(checks or quality_providers),
-        "logs": bool(logs or log_providers),
-        "branches": bool(branch_providers),
-        "operations": bool(operations or operation_providers),
-        "extensions": False,
-        "settings": True,
-    }
-    providers = {
-        "data": data_providers,
-        "assets": asset_providers,
-        "issues": quality_providers,
-        "quality": quality_providers,
-        "logs": log_providers,
-        "branches": branch_providers,
-        "operations": operation_providers,
-    }
-
-    pages: list[V2CapabilityPage] = []
-    for page_id, label, path, core_available, nav, reason in _CAPABILITY_PAGE_DEFINITIONS:
-        available = core_available or features.get(page_id, False)
-        page_providers = providers.get(page_id, [])
-        pages.append(
-            V2CapabilityPage(
-                id=page_id,
-                label=label,
-                path=path,
-                available=available,
-                nav=nav and available,
-                reason=None if available else reason,
-                providers=page_providers,
-            )
-        )
+    inventory = build_capability_inventory(_load_capability_registry())
+    pages = _pages_from_inventory(inventory)
+    features = {page.id: page.available for page in pages}
+    providers = {page.id: page.providers for page in pages if page.providers}
 
     return V2Capabilities(
         pages=pages,
         features=features,
-        providers={key: value for key, value in providers.items() if value},
+        providers=providers,
     )
 
 
-def _providers_from_services(service_ids: set[str], *needles: str) -> list[str]:
-    lowered_needles = tuple(needle.lower() for needle in needles)
-    return sorted(
-        service_id
-        for service_id in service_ids
-        if any(needle in service_id for needle in lowered_needles)
-    )
+def _branches_available() -> bool:
+    """Return whether branch actions can be backed by a catalog provider."""
+    return False
+
+
+def _pages_from_inventory(inventory: V2CapabilityInventory) -> list[V2CapabilityPage]:
+    """Derive Observatory v2 page availability from capability requirements."""
+    pages: list[V2CapabilityPage] = []
+    for requirement in inventory.requirements:
+        required_all_available = all(
+            inventory.providers.get(capability_type) for capability_type in requirement.required_all
+        )
+        required_any_available = not requirement.required_any or any(
+            inventory.providers.get(capability_type) for capability_type in requirement.required_any
+        )
+        available = required_all_available and required_any_available
+        pages.append(
+            V2CapabilityPage(
+                id=requirement.route_id,
+                label=requirement.label,
+                path=requirement.path,
+                available=available,
+                nav=requirement.nav and available,
+                reason=None if available else requirement.reason,
+                providers=_provider_names_for_requirement(inventory, requirement),
+                metadata={
+                    "required_any": list(requirement.required_any),
+                    "required_all": list(requirement.required_all),
+                    "optional": list(requirement.optional),
+                    "nav": requirement.nav,
+                },
+            )
+        )
+    return pages
+
+
+def _provider_names_for_requirement(
+    inventory: V2CapabilityInventory,
+    requirement: V2RouteRequirement,
+) -> list[str]:
+    """Return installed provider names relevant to a route requirement."""
+    names: list[str] = []
+    seen: set[str] = set()
+    capability_types = [
+        *requirement.required_any,
+        *requirement.required_all,
+        *requirement.optional,
+    ]
+    for capability_type in capability_types:
+        for provider in inventory.providers.get(capability_type, []):
+            if provider.name in seen:
+                continue
+            seen.add(provider.name)
+            names.append(provider.name)
+    return names
+
+
+def _surface_items_from_inventory(
+    *capability_types: str,
+    kind: str,
+) -> list[V2SurfaceItem]:
+    """Return provider-backed surface summaries from the capability inventory."""
+    inventory = build_capability_inventory(_load_capability_registry())
+    items: list[V2SurfaceItem] = []
+    seen: set[tuple[str, str]] = set()
+    for capability_type in capability_types:
+        for provider in inventory.providers.get(capability_type, []):
+            key = (capability_type, provider.name)
+            if key in seen:
+                continue
+            seen.add(key)
+            items.append(
+                V2SurfaceItem(
+                    id=f"{capability_type}:{provider.name}",
+                    name=provider.display_name or provider.name,
+                    kind=kind,
+                    health=provider.health,
+                    summary=f"{capability_type.replace('_', ' ')} provider",
+                    metadata={
+                        "capability_type": capability_type,
+                        "provider": provider.name,
+                        **provider.metadata,
+                    },
+                )
+            )
+    return items
+
+
+def _surface_items_with_provider_fallback(
+    loader: Any,
+    *capability_types: str,
+    kind: str,
+) -> list[V2SurfaceItem]:
+    items = loader()
+    if items:
+        return items
+    return _surface_items_from_inventory(*capability_types, kind=kind)
 
 
 def _load_settings() -> V2Settings:
@@ -1933,6 +1907,14 @@ def _execute_action(request: V2ActionRequest) -> V2ActionResult:
     )
     if action is None:
         raise HTTPException(status_code=400, detail="Unsupported action.")
+
+    if not action.enabled:
+        message = action.reason or f"{action.label} action is disabled."
+        return V2ActionResult(
+            action=action,
+            status="skipped",
+            message=message,
+        )
 
     command = ["phlo", "services", action_name, "--service", service.id]
     try:
@@ -1988,6 +1970,24 @@ def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
     if not branch_name:
         raise HTTPException(status_code=400, detail="Branch name is required.")
 
+    branches_available = _branches_available()
+    branch_unavailable_reason = "A catalog provider is required for branch actions."
+    action = V2Action(
+        id=request.action_id,
+        label=action_name.title(),
+        kind=f"branch.{action_name}",
+        enabled=branches_available,
+        requires_confirmation=True,
+        reason=None if branches_available else branch_unavailable_reason,
+    )
+    if not action.enabled:
+        return V2ActionResult(
+            action=action,
+            status="skipped",
+            message=action.reason or branch_unavailable_reason,
+            operation=None,
+        )
+
     branches = _load_branches()
     existing = next((branch for branch in branches if branch.id == branch_name), None)
     if action_name == "create":
@@ -2022,13 +2022,6 @@ def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
     else:
         raise HTTPException(status_code=400, detail="Unsupported branch action.")
 
-    action = V2Action(
-        id=request.action_id,
-        label=action_name.title(),
-        kind=f"branch.{action_name}",
-        enabled=True,
-        requires_confirmation=True,
-    )
     return V2ActionResult(
         action=action,
         status=status,  # type: ignore[arg-type]
@@ -2071,6 +2064,16 @@ def get_v2_capabilities() -> V2Capabilities:
     return _cached_read_model("capabilities", _EXPENSIVE_READ_MODEL_TTL_SECONDS, _load_capabilities)
 
 
+@router.get("/capability-inventory", response_model=V2CapabilityInventory)
+def get_v2_capability_inventory() -> V2CapabilityInventory:
+    """Get the full provider-neutral capability inventory."""
+    return _cached_read_model(
+        "capability-inventory",
+        _EXPENSIVE_READ_MODEL_TTL_SECONDS,
+        lambda: build_capability_inventory(_load_capability_registry()),
+    )
+
+
 @router.get("/services", response_model=V2ServiceList)
 def get_v2_services() -> V2ServiceList:
     """List provider-neutral Observatory v2 services."""
@@ -2101,6 +2104,96 @@ def get_v2_operations() -> V2OperationList:
 def get_v2_operation_detail(operation_id: str) -> V2OperationDetail:
     """Get provider-neutral Observatory v2 operation detail."""
     return _load_operation_detail(operation_id)
+
+
+@router.get("/runs", response_model=V2RunList)
+def get_v2_runs() -> V2RunList:
+    """List provider-neutral orchestrator runs."""
+    return _cached_read_model(
+        "runs",
+        _FAST_READ_MODEL_TTL_SECONDS,
+        lambda: V2RunList(items=load_runs()),
+    )
+
+
+@router.get("/storage", response_model=V2SurfaceList)
+def get_v2_storage() -> V2SurfaceList:
+    """List provider-neutral storage surfaces."""
+    return V2SurfaceList(
+        items=_surface_items_with_provider_fallback(
+            load_storage_items,
+            "table_store",
+            "object_store",
+            kind="storage",
+        )
+    )
+
+
+@router.get("/observability", response_model=V2SurfaceList)
+def get_v2_observability() -> V2SurfaceList:
+    """List provider-neutral observability surfaces."""
+    return V2SurfaceList(
+        items=_surface_items_with_provider_fallback(
+            load_observability_items,
+            "observability_backend",
+            "alert_sink",
+            kind="observability",
+        )
+    )
+
+
+@router.get("/governance", response_model=V2SurfaceList)
+def get_v2_governance() -> V2SurfaceList:
+    """List provider-neutral governance surfaces."""
+    return V2SurfaceList(
+        items=_surface_items_with_provider_fallback(
+            load_governance_items,
+            "governance_backend",
+            "authorization_policy_backend",
+            "authentication_provider",
+            "regulated_surface",
+            kind="governance",
+        )
+    )
+
+
+@router.get("/catalog", response_model=V2SurfaceList)
+def get_v2_catalog() -> V2SurfaceList:
+    """List provider-neutral catalog surfaces."""
+    return V2SurfaceList(
+        items=_surface_items_with_provider_fallback(
+            load_catalog_items,
+            "metadata_catalog",
+            "catalog_scanner",
+            "catalog",
+            kind="catalog",
+        )
+    )
+
+
+@router.get("/apis", response_model=V2SurfaceList)
+def get_v2_apis() -> V2SurfaceList:
+    """List provider-neutral API surfaces."""
+    return V2SurfaceList(
+        items=_surface_items_with_provider_fallback(
+            load_api_items,
+            "api_backend",
+            kind="api",
+        )
+    )
+
+
+@router.get("/bi", response_model=V2SurfaceList)
+def get_v2_bi() -> V2SurfaceList:
+    """List provider-neutral BI surfaces."""
+    return V2SurfaceList(
+        items=_surface_items_with_provider_fallback(
+            load_bi_items,
+            "publish_target",
+            "query_engine",
+            kind="bi",
+        )
+    )
 
 
 @router.get("/assets", response_model=V2AssetList)
@@ -2258,6 +2351,12 @@ def get_v2_search(q: str) -> V2SearchList:
 @router.post("/actions", response_model=V2ActionResult)
 def post_v2_action(request: V2ActionRequest) -> V2ActionResult:
     """Execute a guarded Observatory v2 action."""
-    result = _execute_action(request)
+    resource_id, separator, action_name = request.action_id.rpartition(":")
+    is_service_control_action = (
+        bool(separator)
+        and action_name in {"start", "stop", "restart"}
+        and any(service.id == resource_id for service in _load_services())
+    )
+    result = _execute_action(request) if is_service_control_action else execute_v2_action(request)
     _clear_read_model_cache()
     return result

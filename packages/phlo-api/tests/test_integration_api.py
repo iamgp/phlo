@@ -566,6 +566,40 @@ class TestDagsterGraphEndpoints:
             "tags": {"asset": "silver/orders"},
         }
 
+    def test_dagster_get_runs_normalizes_asset_selection(self, monkeypatch):
+        """Runs helper exposes asset keys for provider-neutral adapters."""
+        import asyncio
+
+        from phlo_api.observatory_api import dagster
+
+        async def fake_graphql_request(url, query, variables=None, timeout=10.0, initiator=None):
+            assert variables == {"limit": 100}
+            assert "assetSelection" in query
+            return {
+                "data": {
+                    "runsOrError": {
+                        "__typename": "Runs",
+                        "results": [
+                            {
+                                "runId": "run-123",
+                                "status": "SUCCESS",
+                                "startTime": "2026-05-02T10:00:00Z",
+                                "endTime": "2026-05-02T10:01:00Z",
+                                "pipelineName": "daily_orders",
+                                "assetSelection": [{"path": ["bronze", "orders"]}],
+                            }
+                        ],
+                    }
+                }
+            }
+
+        monkeypatch.setattr(dagster, "graphql_request", fake_graphql_request)
+
+        runs = asyncio.run(dagster.get_runs())
+
+        assert runs[0]["runId"] == "run-123"
+        assert runs[0]["assetKeys"] == [["bronze", "orders"]]
+
     def test_dagster_retry_dry_run_validates_failed_run(self, monkeypatch):
         """Dry-run retry endpoint validates a failed run without launching retry."""
         from fastapi.testclient import TestClient

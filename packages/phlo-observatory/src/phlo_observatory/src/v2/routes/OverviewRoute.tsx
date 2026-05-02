@@ -206,8 +206,8 @@ export function OverviewRoute() {
         <MetricTile
           icon={<Server className="size-4" />}
           label="Services"
-          note={`${formatter.format(runningServices)} running`}
-          value={counterValue(counters.services, serviceRows.length)}
+          note={`${counterValue(counters.services, serviceRows.length)} tracked`}
+          value={formatter.format(runningServices)}
         />
         <MetricTile
           icon={<AlertCircle className="size-4" />}

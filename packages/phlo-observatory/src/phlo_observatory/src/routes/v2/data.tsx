@@ -63,7 +63,7 @@ function Data() {
   const [activeDetail, setActiveDetail] = useState<DataDetailTab>('sql')
   const [mainView, setMainView] = useState<DataMainView>('rows')
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
-  const [sql, setSql] = useState('select * from selected_table limit 100')
+  const [sql, setSql] = useState('')
   const [queryResult, setQueryResult] = useState<
     V2ResourceResult<{
       columns: Array<string>
@@ -103,6 +103,7 @@ function Data() {
     if (!selected) return
     let cancelled = false
     let retryTimer: number | undefined
+    setSql(defaultSqlForTable(selected))
     setIsLoadingMoreRows(false)
     setPreview({ data: null, error: null })
     const key = `v2:table-preview:${selected.id}:${previewLimit}:0:${previewRefreshKey}`
@@ -358,7 +359,7 @@ function Data() {
                 onRefresh={() => setPreviewRefreshKey((key) => key + 1)}
                 onRunQuery={(nextSql) => {
                   const request = {
-                    sql: nextSql.replace('selected_table', selected.name),
+                    sql: nextSql,
                     limit: 100,
                     ...(branchesAvailable
                       ? { branch: selected.branch ?? 'main' }
@@ -373,7 +374,7 @@ function Data() {
                   if (!name) return
                   const request = {
                     name,
-                    sql: nextSql.replace('selected_table', selected.name),
+                    sql: nextSql,
                     ...(branchesAvailable
                       ? { branch: selected.branch ?? 'main' }
                       : {}),
@@ -645,7 +646,7 @@ function DataDetailPanel({
         </div>
         <textarea
           onChange={(event) => setSql(event.target.value)}
-          value={selected ? sql.replace('selected_table', selected.name) : sql}
+          value={sql}
         />
         <div className="phlo-v2-action-row">
           <button onClick={() => onRunQuery(sql)} type="button">
@@ -886,6 +887,10 @@ function previewEmptyCopy(table: V2Table): string {
     return 'This model is registered, but it is not materialized in the active query catalog.'
   }
   return 'Preview rows are unavailable.'
+}
+
+function defaultSqlForTable(table: V2Table): string {
+  return `select * from ${table.id} limit ${previewLimit}`
 }
 
 function formatCell(value: unknown): string {

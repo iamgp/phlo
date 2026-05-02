@@ -31,6 +31,7 @@ flowchart TD
 - [Canonical RBAC](canonical-rbac.md): source-of-truth RBAC config, authz workflow, and backend support.
 - [Configuration Reference](configuration-reference.md): env vars, defaults, and precedence.
 - [Architecture](architecture.md): system model and component boundaries.
+- [Observatory v2 Contracts](observatory-v2-contracts.md): provider-neutral UI and capability contribution contracts.
 - [Plugin API](plugin-api.md): extension contracts and base types.
 - [phlo-api](phlo-api.md): Phlo's Python API service surface.
 - [Quality Checks Catalog](quality-checks-catalog.md): built-in quality checks.

@@ -36,6 +36,46 @@ export interface V2Capabilities {
   providers: Record<string, Array<string>>
 }
 
+export interface V2CapabilityProvider {
+  capability_type: string
+  name: string
+  display_name: string
+  package?: string | null
+  metadata: Record<string, unknown>
+  support: Record<string, boolean>
+  health: V2Health
+  native_links: Array<V2ExternalLink>
+}
+
+export interface V2RouteRequirement {
+  route_id: string
+  label: string
+  path: string
+  required_any: Array<string>
+  required_all: Array<string>
+  optional: Array<string>
+  nav: boolean
+  reason: string
+}
+
+export interface V2UiContribution {
+  name: string
+  capability_type: string
+  capability_name: string
+  surfaces: Array<string>
+  read_models: Record<string, string>
+  actions: Array<string>
+  native_links: Array<V2ExternalLink>
+  metadata: Record<string, unknown>
+}
+
+export interface V2CapabilityInventory {
+  version: number
+  providers: Record<string, Array<V2CapabilityProvider>>
+  requirements: Array<V2RouteRequirement>
+  ui_contributions: Array<V2UiContribution>
+}
+
 export interface V2ResourceRef {
   kind: string
   id: string
@@ -49,6 +89,13 @@ export interface V2Action {
   enabled: boolean
   requires_confirmation: boolean
   reason?: string | null
+  risk_level: 'low' | 'medium' | 'high' | 'critical'
+  required_capability?: string | null
+  required_service?: string | null
+  required_permission?: string | null
+  equivalent_cli_command?: string | null
+  expected_evidence: Array<string>
+  background_operation_id?: string | null
 }
 
 export interface V2ActionResult {
@@ -117,6 +164,15 @@ export interface V2ResourceItem {
   metadata: Record<string, unknown>
 }
 
+export interface V2SurfaceItem {
+  id: string
+  name: string
+  kind: string
+  health: V2Health
+  summary?: string | null
+  metadata: Record<string, unknown>
+}
+
 export interface V2ResourceCollection {
   items: Array<V2ResourceItem>
 }
@@ -139,6 +195,27 @@ export interface V2OperationDetail {
   related: Array<V2ResourceRef>
   logs: Array<V2LogEvent>
   actions: Array<V2Action>
+}
+
+export type V2RunStatus =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled'
+  | 'unknown'
+
+export interface V2Run {
+  id: string
+  name: string
+  status: V2RunStatus
+  started_at?: string | null
+  completed_at?: string | null
+  duration_seconds?: number | null
+  assets: Array<V2ResourceRef>
+  checks: Array<V2ResourceRef>
+  logs: Array<V2ResourceRef>
+  metadata: Record<string, unknown>
 }
 
 export interface V2Asset {

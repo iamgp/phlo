@@ -1,7 +1,10 @@
-import { Link, useRouterState } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import { Command as CommandPrimitive } from 'cmdk'
 import {
   Activity,
   Boxes,
+  CirclePlay,
+  Clipboard,
   Database,
   GitBranch,
   LayoutDashboard,
@@ -15,7 +18,7 @@ import {
   Settings,
   Sun,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
@@ -23,6 +26,7 @@ import type {
   V2CapabilityPage,
   V2ResourceResult,
   V2SearchResult,
+  V2Service,
   V2Table,
 } from '@/v2/api/types'
 import type { V2ThemeMode } from '@/v2/shell/theme'
@@ -36,6 +40,7 @@ import {
   getV2Capabilities,
   getV2LogRecords,
   getV2QualityRecords,
+  getV2RunRecords,
   getV2Services,
   getV2TablePreview,
   getV2TableRecords,
@@ -51,24 +56,33 @@ const fallbackPages: Array<V2CapabilityPage> = [
 
 const navOrder = [
   'overview',
+  'operations',
   'data',
   'assets',
+  'runs',
   'issues',
   'quality',
-  'logs',
   'branches',
-  'changes',
+  'storage',
+  'observability',
+  'logs',
+  'governance',
+  'catalog',
+  'apis',
+  'bi',
+  'extensions',
   'services',
-  'operations',
   'settings',
 ]
 
 const warmPreviewLimit = 100
+const commandGroupLimit = 6
 
 const iconByPageId: Record<string, typeof LayoutDashboard> = {
   overview: LayoutDashboard,
   services: Server,
   operations: Activity,
+  runs: CirclePlay,
   data: Database,
   assets: Boxes,
   issues: ListChecks,
@@ -76,6 +90,12 @@ const iconByPageId: Record<string, typeof LayoutDashboard> = {
   logs: Logs,
   branches: GitBranch,
   extensions: Plug,
+  storage: Database,
+  observability: Activity,
+  governance: Settings,
+  catalog: Boxes,
+  apis: Server,
+  bi: LayoutDashboard,
   settings: Settings,
 }
 
@@ -90,6 +110,7 @@ const themeModes = [
 }>
 
 export function V2Shell({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
@@ -98,10 +119,23 @@ export function V2Shell({ children }: { children: ReactNode }) {
   const [systemPrefersDark, setSystemPrefersDark] = useState(false)
   const [hydrated, setHydrated] = useState(false)
   const [query, setQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [capabilities, setCapabilities] =
     useState<V2ResourceResult<V2Capabilities> | null>(null)
   const [results, setResults] = useState<
     V2ResourceResult<Array<V2SearchResult>>
+  >({
+    data: null,
+    error: null,
+  })
+  const [commandTables, setCommandTables] = useState<
+    V2ResourceResult<Array<V2Table>>
+  >({
+    data: null,
+    error: null,
+  })
+  const [commandServices, setCommandServices] = useState<
+    V2ResourceResult<Array<V2Service>>
   >({
     data: null,
     error: null,
@@ -188,6 +222,166 @@ export function V2Shell({ children }: { children: ReactNode }) {
     }
   }, [query, searchOpen])
 
+  useEffect(() => {
+    if (!searchOpen) return
+    let cancelled = false
+    void Promise.all([
+      loadCachedResource('v2:tables', getV2TableRecords, {
+        staleMs: 120_000,
+      }),
+      loadCachedResource('v2:services', getV2Services, {
+        staleMs: 120_000,
+      }),
+    ]).then(([tables, services]) => {
+      if (cancelled) return
+      setCommandTables(tables)
+      setCommandServices(services)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [searchOpen])
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const isCommandSearch =
+        event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)
+      if (isCommandSearch) {
+        event.preventDefault()
+        setSearchOpen(true)
+        return
+      }
+      if (event.key === 'Escape' && searchOpen) {
+        event.preventDefault()
+        setSearchOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [searchOpen])
+
+  useEffect(() => {
+    if (!searchOpen) return
+    const timer = window.setTimeout(() => searchInputRef.current?.focus(), 0)
+    return () => window.clearTimeout(timer)
+  }, [searchOpen])
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    setQuery('')
+  }, [])
+
+  const handleCommandSelect = useCallback(
+    (value: string) => {
+      if (value.startsWith('copy-sql:')) {
+        const tableId = value.replace('copy-sql:', '')
+        const sql = `select * from ${tableId} limit 100`
+        void navigator.clipboard?.writeText(sql)
+        closeSearch()
+        return
+      }
+
+      const href = value.replace('open:', '')
+      closeSearch()
+      void navigate({ to: href })
+    },
+    [closeSearch, navigate],
+  )
+
+  const groupedResults = useMemo(() => {
+    const groups = new Map<string, Array<V2SearchResult>>()
+    for (const result of results.data ?? []) {
+      if (['service', 'table', 'dataset'].includes(result.kind)) continue
+      const key = result.kind || 'result'
+      groups.set(key, [...(groups.get(key) ?? []), result])
+    }
+    return Array.from(groups.entries())
+  }, [results.data])
+
+  const tableResults = useMemo(
+    () =>
+      (results.data ?? []).filter((result) =>
+        ['table', 'dataset'].includes(result.kind),
+      ),
+    [results.data],
+  )
+
+  const tableMatches = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    const tables = commandTables.data ?? []
+    if (!needle) return tables.slice(0, 12)
+
+    return tables
+      .filter((table) =>
+        [
+          table.id,
+          table.name,
+          tableLabel(table),
+          table.namespace,
+          table.schema_name,
+          table.branch,
+          table.format,
+          table.asset_id,
+          table.metadata.table,
+          table.metadata.table_name,
+          table.metadata.schema,
+          table.metadata.database,
+          table.metadata.catalog,
+          table.metadata.relation,
+          table.metadata.materialized,
+        ]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(needle)),
+      )
+      .slice(0, 16)
+  }, [commandTables.data, query])
+
+  const serviceMatches = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    const services = commandServices.data ?? []
+    if (!needle) return services.slice(0, 12)
+
+    return services
+      .filter((service) =>
+        [
+          service.id,
+          service.name,
+          service.kind,
+          service.status,
+          service.profile,
+          service.backend,
+          service.health.state,
+          service.health.message,
+          service.metadata.description,
+        ]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(needle)),
+      )
+      .slice(0, 16)
+  }, [commandServices.data, query])
+
+  const pageMatches = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return navItems
+    return navItems.filter((item) =>
+      [item.id, item.label, item.path, ...item.providers]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle)),
+    )
+  }, [navItems, query])
+
+  const hasLocalMatches =
+    pageMatches.length > 0 ||
+    tableMatches.length > 0 ||
+    serviceMatches.length > 0
+  const sqlTemplateTargets = tableMatches.length
+    ? tableMatches
+    : tableResults
+        .slice(0, 6)
+        .map((result) => tableFromSearchResult(result))
+        .filter((table): table is V2Table => table !== null)
+
   return (
     <main
       className="phlo-v2"
@@ -201,33 +395,43 @@ export function V2Shell({ children }: { children: ReactNode }) {
             <span className="phlo-v2-mark">P</span>
             <span>Phlo Observatory</span>
           </div>
-          <div className="phlo-v2-nav-links">
+          <div className="phlo-v2-nav-links" aria-label="Primary sections">
             {navItems.map((item) => {
               const Icon = iconByPageId[item.id] ?? LayoutDashboard
               return (
                 <Link
-                  key={item.id}
-                  to={item.path}
+                  aria-current={
+                    hydrated && isActive(pathname, item.path)
+                      ? 'page'
+                      : undefined
+                  }
                   className="phlo-v2-nav-link"
                   data-active={hydrated && isActive(pathname, item.path)}
+                  key={item.id}
                   title={
                     hydrated && item.providers.length
                       ? item.providers.join(', ')
                       : undefined
                   }
+                  to={item.path}
                 >
                   <Icon className="size-3.5" />
                   <span>{item.label}</span>
                 </Link>
               )
             })}
+          </div>
+          <div className="phlo-v2-nav-actions">
             <button
-              className="phlo-v2-nav-link"
-              onClick={() => setSearchOpen((open) => !open)}
+              aria-expanded={searchOpen}
+              aria-haspopup="dialog"
+              className="phlo-v2-nav-link phlo-v2-search-trigger"
+              onClick={() => setSearchOpen(true)}
               type="button"
             >
               <Search className="size-3.5" />
               <span>Search</span>
+              <kbd>⌘K</kbd>
             </button>
             <div className="phlo-v2-theme-toggle" aria-label="Theme">
               {themeModes.map((item) => {
@@ -253,44 +457,292 @@ export function V2Shell({ children }: { children: ReactNode }) {
       </div>
       <div className="phlo-v2-shell phlo-v2-body">
         {searchOpen && (
-          <div className="phlo-v2-search-popover">
-            <label className="phlo-v2-search-field">
-              <Search className="size-4" />
-              <input
-                aria-label="Search Observatory"
-                autoFocus
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search services, assets, tables, checks"
-                value={query}
-              />
-            </label>
-            <div className="phlo-v2-search-results">
-              {(results.data ?? []).map((result) => (
-                <Link
-                  className="phlo-v2-search-result"
-                  key={result.id}
-                  onClick={() => setSearchOpen(false)}
-                  to={result.href ?? '/v2'}
-                >
-                  <span>{result.label}</span>
-                  <small>
-                    {[result.kind, result.summary].filter(Boolean).join(' · ')}
-                  </small>
-                </Link>
-              ))}
-              {query.trim().length >= 2 && results.data?.length === 0 && (
-                <p>No matches.</p>
-              )}
-              {results.error && <p>{results.error}</p>}
+          <div
+            aria-label="Command search"
+            aria-modal="true"
+            className="phlo-v2-command-overlay"
+            role="dialog"
+          >
+            <button
+              aria-label="Close search"
+              className="phlo-v2-command-backdrop"
+              onClick={() => setSearchOpen(false)}
+              type="button"
+            />
+            <div className="phlo-v2-search-popover">
+              <CommandPrimitive
+                className="phlo-v2-command phlo-v2-command-palette"
+                loop
+                shouldFilter={false}
+              >
+                <div className="phlo-v2-search-field">
+                  <Search className="size-4" />
+                  <CommandPrimitive.Input
+                    aria-label="Search Observatory"
+                    id="phlo-v2-command-input"
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        event.preventDefault()
+                        setSearchOpen(false)
+                      }
+                    }}
+                    onValueChange={setQuery}
+                    placeholder="Search services, assets, tables, checks"
+                    ref={searchInputRef}
+                    value={query}
+                  />
+                  <kbd>Esc</kbd>
+                </div>
+                <CommandPrimitive.List className="phlo-v2-command-list">
+                  {query.trim().length >= 2 && pageMatches.length > 0 && (
+                    <CommandPrimitive.Group
+                      className="phlo-v2-command-group"
+                      heading={`Pages (${pageMatches.length})`}
+                    >
+                      {pageMatches.slice(0, commandGroupLimit).map((item) => {
+                        const Icon = iconByPageId[item.id] ?? LayoutDashboard
+                        return (
+                          <CommandPrimitive.Item
+                            className="phlo-v2-command-item"
+                            key={`nav:${item.id}`}
+                            onSelect={handleCommandSelect}
+                            value={`open:${item.path}`}
+                          >
+                            <Icon className="size-4" />
+                            <span>{item.label}</span>
+                            <small>{item.providers.join(', ') || 'core'}</small>
+                          </CommandPrimitive.Item>
+                        )
+                      })}
+                    </CommandPrimitive.Group>
+                  )}
+
+                  {query.trim().length < 2 && (
+                    <CommandPrimitive.Group
+                      className="phlo-v2-command-group"
+                      heading="Fast actions"
+                    >
+                      <CommandPrimitive.Item
+                        className="phlo-v2-command-item"
+                        onSelect={handleCommandSelect}
+                        value="open:/v2/data"
+                      >
+                        <Database className="size-4" />
+                        <span>Browse tables</span>
+                        <small>Data</small>
+                      </CommandPrimitive.Item>
+                      <CommandPrimitive.Item
+                        className="phlo-v2-command-item"
+                        onSelect={handleCommandSelect}
+                        value="open:/v2/assets"
+                      >
+                        <Boxes className="size-4" />
+                        <span>Inspect assets and lineage</span>
+                        <small>Assets</small>
+                      </CommandPrimitive.Item>
+                      <CommandPrimitive.Item
+                        className="phlo-v2-command-item"
+                        onSelect={handleCommandSelect}
+                        value="open:/v2/runs"
+                      >
+                        <CirclePlay className="size-4" />
+                        <span>Review orchestration runs</span>
+                        <small>Runs</small>
+                      </CommandPrimitive.Item>
+                    </CommandPrimitive.Group>
+                  )}
+
+                  {query.trim().length >= 2 && tableMatches.length > 0 && (
+                    <CommandPrimitive.Group
+                      className="phlo-v2-command-group"
+                      heading={`Tables (${tableMatches.length})`}
+                    >
+                      {tableMatches.slice(0, commandGroupLimit).map((table) => (
+                        <CommandPrimitive.Item
+                          className="phlo-v2-command-item"
+                          key={`table:${table.id}`}
+                          onSelect={handleCommandSelect}
+                          value={`open:/v2/table/${encodeURIComponent(table.id)}`}
+                        >
+                          <Database className="size-4" />
+                          <span>{tableLabel(table)}</span>
+                          <small>
+                            {table.branch ?? table.format ?? 'table'}
+                          </small>
+                        </CommandPrimitive.Item>
+                      ))}
+                      {tableMatches.length > commandGroupLimit && (
+                        <CommandPrimitive.Item
+                          className="phlo-v2-command-item"
+                          onSelect={handleCommandSelect}
+                          value="open:/v2/data"
+                        >
+                          <Database className="size-4" />
+                          <span>Open table browser</span>
+                          <small>{tableMatches.length} matches</small>
+                        </CommandPrimitive.Item>
+                      )}
+                    </CommandPrimitive.Group>
+                  )}
+
+                  {query.trim().length >= 2 && serviceMatches.length > 0 && (
+                    <CommandPrimitive.Group
+                      className="phlo-v2-command-group"
+                      heading={`Services (${serviceMatches.length})`}
+                    >
+                      {serviceMatches
+                        .slice(0, commandGroupLimit)
+                        .map((service) => (
+                          <CommandPrimitive.Item
+                            className="phlo-v2-command-item"
+                            key={`service:${service.id}`}
+                            onSelect={handleCommandSelect}
+                            value="open:/v2/services"
+                          >
+                            <Server className="size-4" />
+                            <span>{service.name}</span>
+                            <small>
+                              {[service.kind, service.status]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </small>
+                          </CommandPrimitive.Item>
+                        ))}
+                      {serviceMatches.length > commandGroupLimit && (
+                        <CommandPrimitive.Item
+                          className="phlo-v2-command-item"
+                          onSelect={handleCommandSelect}
+                          value="open:/v2/services"
+                        >
+                          <Server className="size-4" />
+                          <span>Open service directory</span>
+                          <small>{serviceMatches.length} matches</small>
+                        </CommandPrimitive.Item>
+                      )}
+                    </CommandPrimitive.Group>
+                  )}
+
+                  {groupedResults.map(([kind, items]) => (
+                    <CommandPrimitive.Group
+                      className="phlo-v2-command-group"
+                      heading={`${commandHeading(kind)} (${items.length})`}
+                      key={kind}
+                    >
+                      {items.slice(0, commandGroupLimit).map((result) => (
+                        <CommandPrimitive.Item
+                          className="phlo-v2-command-item"
+                          key={result.id}
+                          onSelect={handleCommandSelect}
+                          value={`open:${result.href ?? '/v2'}`}
+                        >
+                          {iconForSearchKind(result.kind)}
+                          <span>{result.label}</span>
+                          <small>{result.summary ?? result.kind}</small>
+                        </CommandPrimitive.Item>
+                      ))}
+                    </CommandPrimitive.Group>
+                  ))}
+
+                  {query.trim().length >= 2 &&
+                    sqlTemplateTargets.length > 0 && (
+                      <CommandPrimitive.Group
+                        className="phlo-v2-command-group"
+                        heading="SQL templates"
+                      >
+                        {sqlTemplateTargets.slice(0, 4).map((table) => (
+                          <CommandPrimitive.Item
+                            className="phlo-v2-command-item"
+                            key={`sql:${table.id}`}
+                            onSelect={handleCommandSelect}
+                            value={`copy-sql:${table.id}`}
+                          >
+                            <Clipboard className="size-4" />
+                            <span>Copy SELECT from {tableLabel(table)}</span>
+                            <small>Read-only template</small>
+                          </CommandPrimitive.Item>
+                        ))}
+                      </CommandPrimitive.Group>
+                    )}
+
+                  {query.trim().length >= 2 &&
+                    results.data?.length === 0 &&
+                    !hasLocalMatches && (
+                      <CommandPrimitive.Empty className="phlo-v2-command-empty">
+                        No results found.
+                      </CommandPrimitive.Empty>
+                    )}
+                  {results.error && (
+                    <div className="phlo-v2-command-empty">{results.error}</div>
+                  )}
+                </CommandPrimitive.List>
+                <div className="phlo-v2-command-footer">
+                  <span>↑↓ navigate</span>
+                  <span>↵ select</span>
+                  <span>esc close</span>
+                </div>
+              </CommandPrimitive>
             </div>
           </div>
         )}
-        <section className="phlo-v2-sheet">
-          {pageUnavailable ? <UnavailablePage page={activePage} /> : children}
-        </section>
+        <div className="phlo-v2-app-layout">
+          <section className="phlo-v2-sheet">
+            {pageUnavailable ? <UnavailablePage page={activePage} /> : children}
+          </section>
+        </div>
       </div>
     </main>
   )
+}
+
+function commandHeading(kind: string): string {
+  const labels: Record<string, string> = {
+    asset: 'Assets',
+    table: 'Tables',
+    service: 'Services',
+    log: 'Logs',
+    operation: 'Operations',
+    branch: 'Branches',
+    extension: 'Extensions',
+    run: 'Runs',
+    quality: 'Quality',
+    setting: 'Settings',
+  }
+  return labels[kind] ?? kind
+}
+
+function iconForSearchKind(kind: string): ReactNode {
+  if (kind === 'asset') return <Boxes className="size-4" />
+  if (kind === 'table') return <Database className="size-4" />
+  if (kind === 'service') return <Server className="size-4" />
+  if (kind === 'log') return <Logs className="size-4" />
+  if (kind === 'branch') return <GitBranch className="size-4" />
+  if (kind === 'run') return <CirclePlay className="size-4" />
+  return <Search className="size-4" />
+}
+
+function tableLabel(table: V2Table): string {
+  const namespace = table.namespace ?? table.schema_name
+  if (!namespace) return table.name
+  return `${namespace}.${table.name}`
+}
+
+function tableFromSearchResult(result: V2SearchResult): V2Table | null {
+  if (!['table', 'dataset'].includes(result.kind)) return null
+  const id = result.id.replace(/^table:/, '').replace(/^dataset:/, '')
+  const labelParts = result.label.split('.')
+  const name = labelParts.at(-1) ?? id
+  const namespace =
+    labelParts.length > 1 ? labelParts.slice(0, -1).join('.') : undefined
+  return {
+    id,
+    name,
+    namespace,
+    schema_name: namespace,
+    branch: undefined,
+    format: undefined,
+    asset_id: undefined,
+    metadata: {},
+  }
 }
 
 function isActive(pathname: string, href: string): boolean {
@@ -340,6 +792,9 @@ function warmRouteResources(capabilities: V2Capabilities | null) {
     void loadCachedResource('v2:assets', getV2AssetRecords, {
       staleMs: 120_000,
     })
+  }
+  if (features.runs) {
+    void loadCachedResource('v2:runs', getV2RunRecords, { staleMs: 120_000 })
   }
   if (features.issues || features.quality) {
     void loadCachedResource('v2:quality', getV2QualityRecords, {

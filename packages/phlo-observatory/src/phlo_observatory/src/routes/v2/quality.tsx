@@ -9,7 +9,12 @@ import type {
   V2ResourceResult,
 } from '@/v2/api/types'
 import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
-import { getV2QualityDetail, getV2QualityRecords } from '@/v2/api/resources'
+import {
+  getV2QualityDetail,
+  getV2QualityRecords,
+  runV2Action,
+} from '@/v2/api/resources'
+import { ActionButton } from '@/v2/components/ActionButton'
 import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
 import { loadCachedResource, useLiveResource } from '@/v2/routes/liveResource'
@@ -37,6 +42,7 @@ function Quality() {
     data: null,
     error: null,
   })
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
   const graph = useMemo(() => buildQualityGraph(checks), [checks])
 
   useEffect(() => {
@@ -180,6 +186,30 @@ function Quality() {
                   <small>{qualityActionsSummary(detail.data)}</small>
                 </div>
               </div>
+              {(detail.data?.actions ?? []).length > 0 && (
+                <div className="phlo-v2-action-row">
+                  {(detail.data?.actions ?? []).map((action) => (
+                    <ActionButton
+                      action={action}
+                      key={action.id}
+                      onRun={(actionId) => {
+                        void runV2Action({ data: { actionId } }).then(
+                          (next) => {
+                            setActionMessage(
+                              next.data?.message ??
+                                next.error ??
+                                'Action requested',
+                            )
+                          },
+                        )
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+              {actionMessage && (
+                <div className="phlo-v2-panel-footer">{actionMessage}</div>
+              )}
             </>
           ) : (
             <p>No quality check selected.</p>
@@ -280,6 +310,7 @@ function buildQualityGraph(checks: Array<V2QualityCheck>): {
       label: asset,
       kind: 'asset',
       lane: 'table',
+      selectId: checks.find((check) => check.asset_id === asset)?.id,
       subtitle: 'protected asset',
     }),
   )
