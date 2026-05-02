@@ -10,7 +10,7 @@ type CachedEntry<T> = {
 
 const resourceCache = new Map<string, CachedEntry<unknown>>()
 const resourceKeys = new WeakMap<object, string>()
-const cacheVersion = '2026-05-01-capability-aware-read-model-cache'
+const cacheVersion = '2026-05-01-product-workflow-cache'
 let nextResourceKey = 0
 
 export function useLiveResource<T>(

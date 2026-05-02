@@ -38,11 +38,19 @@ export const Route = createFileRoute('/v2/assets')({
 })
 
 function Assets() {
-  const result = useLiveResource(getV2AssetRecords)
-  const tablesResult = useLiveResource(getV2TableRecords)
-  const qualityResult = useLiveResource(getV2QualityRecords)
-  const logsResult = useLiveResource(getV2LogRecords)
-  const operationsResult = useLiveResource(getV2OperationRecords)
+  const result = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
+  const tablesResult = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
+  const qualityResult = useLiveResource(
+    getV2QualityRecords,
+    120_000,
+    'v2:quality',
+  )
+  const logsResult = useLiveResource(getV2LogRecords, 120_000, 'v2:logs')
+  const operationsResult = useLiveResource(
+    getV2OperationRecords,
+    120_000,
+    'v2:operations',
+  )
   const assets = result.data ?? []
   const tables = tablesResult.data ?? []
   const quality = qualityResult.data ?? []
@@ -51,9 +59,18 @@ function Assets() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeDetail, setActiveDetail] = useState<AssetDetailTab>('overview')
   const [query, setQuery] = useState('')
+  const downstreamCounts = useMemo(
+    () => buildDownstreamCounts(assets),
+    [assets],
+  )
   const filteredAssets = useMemo(
-    () => filterAssets(assets, query),
-    [assets, query],
+    () =>
+      filterAssets(assets, query).sort(
+        (left, right) =>
+          assetScore(right, downstreamCounts) -
+          assetScore(left, downstreamCounts),
+      ),
+    [assets, downstreamCounts, query],
   )
   const selected =
     assets.find((asset) => asset.id === selectedId) ??
@@ -114,8 +131,8 @@ function Assets() {
   return (
     <V2Page
       kicker="Assets"
-      title="Asset impact"
-      description="Select an asset to inspect upstream inputs, downstream blast radius, checks, and bound tables."
+      title="Impact browser"
+      description="Find an asset, inspect its blast radius, then follow the table, issue, and activity evidence around it."
       action={<span className="phlo-v2-pill">{assets.length} assets</span>}
     >
       <section className="phlo-v2-diff-metrics">
@@ -159,7 +176,7 @@ function Assets() {
             <div className="phlo-v2-asset-table-head" role="row">
               <span>Name</span>
               <span>Checks</span>
-              <span>Deps</span>
+              <span>Impact</span>
             </div>
             {filteredAssets.map((asset) => (
               <button
@@ -172,7 +189,7 @@ function Assets() {
               >
                 <span>{asset.name}</span>
                 <span>{asset.checks.length}</span>
-                <span>{asset.dependencies.length}</span>
+                <span>{downstreamCounts.get(asset.id) ?? 0}</span>
               </button>
             ))}
           </div>
@@ -204,20 +221,36 @@ function Assets() {
               </div>
               <dl className="phlo-v2-facts">
                 <Fact
+                  label="Downstream"
+                  value={downstreamCounts.get(selected.id) ?? 0}
+                />
+                <Fact
                   label="Records"
-                  value={selectedTableStats?.records ?? readMetric(selected.metadata, 'records')}
+                  value={
+                    selectedTableStats?.records ??
+                    readMetric(selected.metadata, 'records')
+                  }
                 />
                 <Fact
                   label="Columns"
-                  value={selectedTableStats?.columns ?? readMetric(selected.metadata, 'columns')}
+                  value={
+                    selectedTableStats?.columns ??
+                    readMetric(selected.metadata, 'columns')
+                  }
                 />
                 <Fact
                   label="Format"
-                  value={selectedTableStats?.format ?? readMetric(selected.metadata, 'format')}
+                  value={
+                    selectedTableStats?.format ??
+                    readMetric(selected.metadata, 'format')
+                  }
                 />
                 <Fact
                   label="Namespace"
-                  value={selectedTableStats?.namespace ?? readMetric(selected.metadata, 'namespace')}
+                  value={
+                    selectedTableStats?.namespace ??
+                    readMetric(selected.metadata, 'namespace')
+                  }
                 />
               </dl>
               <div className="phlo-v2-chip-cloud">
@@ -330,7 +363,8 @@ function AssetDetailPanel({
                 {table.id === preview?.table.id
                   ? [
                       table.format,
-                      preview.row_count === null || preview.row_count === undefined
+                      preview.row_count === null ||
+                      preview.row_count === undefined
                         ? null
                         : `${preview.row_count} records`,
                       `${preview.columns.length} columns`,
@@ -490,19 +524,34 @@ function chooseDefaultAsset(
   assets: Array<V2Asset>,
 ): V2Asset | null {
   if (!candidates.length) return null
-  const downstreamCounts = new Map<string, number>()
-  assets.forEach((asset) => {
-    asset.dependencies.forEach((dependency) => {
-      downstreamCounts.set(dependency, (downstreamCounts.get(dependency) ?? 0) + 1)
-    })
-  })
+  const downstreamCounts = buildDownstreamCounts(assets)
 
   return candidates
     .slice()
-    .sort((left, right) => assetScore(right, downstreamCounts) - assetScore(left, downstreamCounts))[0]
+    .sort(
+      (left, right) =>
+        assetScore(right, downstreamCounts) -
+        assetScore(left, downstreamCounts),
+    )[0]
 }
 
-function assetScore(asset: V2Asset, downstreamCounts: Map<string, number>): number {
+function buildDownstreamCounts(assets: Array<V2Asset>): Map<string, number> {
+  const downstreamCounts = new Map<string, number>()
+  assets.forEach((asset) => {
+    asset.dependencies.forEach((dependency) => {
+      downstreamCounts.set(
+        dependency,
+        (downstreamCounts.get(dependency) ?? 0) + 1,
+      )
+    })
+  })
+  return downstreamCounts
+}
+
+function assetScore(
+  asset: V2Asset,
+  downstreamCounts: Map<string, number>,
+): number {
   return (
     asset.dependencies.length * 2 +
     (downstreamCounts.get(asset.id) ?? 0) * 3 +
@@ -578,7 +627,11 @@ function Fact({
   return (
     <>
       <dt>{label}</dt>
-      <dd>{value === null || value === undefined || value === '' ? 'pending' : String(value)}</dd>
+      <dd>
+        {value === null || value === undefined || value === ''
+          ? 'pending'
+          : String(value)}
+      </dd>
     </>
   )
 }

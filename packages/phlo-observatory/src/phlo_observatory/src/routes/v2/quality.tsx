@@ -19,7 +19,7 @@ export const Route = createFileRoute('/v2/quality')({
 })
 
 function Quality() {
-  const result = useLiveResource(getV2QualityRecords)
+  const result = useLiveResource(getV2QualityRecords, 120_000, 'v2:quality')
   const checks = result.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<QualityView>('queue')
@@ -58,16 +58,16 @@ function Quality() {
     <V2Page
       kicker="Issues"
       title="Data issues"
-      description="Triage quality, freshness, and blocking trust signals by asset."
+      description="Review failing, warning, and not-yet-observed checks as one operational queue."
       action={<span className="phlo-v2-pill">{checks.length} checks</span>}
     >
       <section className="phlo-v2-quality-shell">
         <div className="phlo-v2-quality-board">
           <div className="phlo-v2-quality-score">
             <strong>{score === null ? '—' : score}</strong>
-            <span>Observed pass rate</span>
+            <span>Observed health</span>
             <small>
-              {observed} observed · {failing} failing · {unknown} not observed
+              {observed} observed · {failing} failing · {unknown} pending
             </small>
           </div>
           <div className="phlo-v2-command-strip">
@@ -156,7 +156,7 @@ function Quality() {
               </dl>
               <div className="phlo-v2-detail-list">
                 <div className="phlo-v2-mini-row">
-                  <span>Execution result</span>
+                  <span>Latest result</span>
                   <small>{qualityResultSummary(selected)}</small>
                 </div>
                 <div className="phlo-v2-mini-row">
@@ -176,7 +176,7 @@ function Quality() {
                   <small>{detail.data?.logs.length ?? 0} linked events</small>
                 </div>
                 <div className="phlo-v2-mini-row">
-                  <span>Available actions</span>
+                  <span>Actions</span>
                   <small>{qualityActionsSummary(detail.data)}</small>
                 </div>
               </div>

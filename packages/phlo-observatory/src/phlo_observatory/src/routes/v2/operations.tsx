@@ -25,7 +25,11 @@ export const Route = createFileRoute('/v2/operations')({
 })
 
 function Operations() {
-  const result = useLiveResource(getV2OperationRecords)
+  const result = useLiveResource(
+    getV2OperationRecords,
+    120_000,
+    'v2:operations',
+  )
   const operations = result.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const latest =

@@ -29,7 +29,7 @@ export const Route = createFileRoute('/v2/services')({
 })
 
 function Services() {
-  const result = useLiveResource(getV2Services)
+  const result = useLiveResource(getV2Services, 120_000, 'v2:services')
   const services = result.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const runtimeServices = useMemo(

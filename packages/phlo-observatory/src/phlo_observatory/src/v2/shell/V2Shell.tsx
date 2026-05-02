@@ -23,6 +23,7 @@ import type {
   V2CapabilityPage,
   V2ResourceResult,
   V2SearchResult,
+  V2Table,
 } from '@/v2/api/types'
 import type { V2ThemeMode } from '@/v2/shell/theme'
 import {
@@ -30,7 +31,16 @@ import {
   readV2ThemeMode,
   resolveV2Theme,
 } from '@/v2/shell/theme'
-import { getV2Capabilities, searchV2 } from '@/v2/api/resources'
+import {
+  getV2AssetRecords,
+  getV2Capabilities,
+  getV2LogRecords,
+  getV2QualityRecords,
+  getV2Services,
+  getV2TablePreview,
+  getV2TableRecords,
+  searchV2,
+} from '@/v2/api/resources'
 import { loadCachedResource } from '@/v2/routes/liveResource'
 
 const fallbackPages: Array<V2CapabilityPage> = [
@@ -38,6 +48,22 @@ const fallbackPages: Array<V2CapabilityPage> = [
   corePage('services', 'Services', '/v2/services'),
   corePage('settings', 'Settings', '/v2/settings'),
 ]
+
+const navOrder = [
+  'overview',
+  'data',
+  'assets',
+  'issues',
+  'quality',
+  'logs',
+  'branches',
+  'changes',
+  'services',
+  'operations',
+  'settings',
+]
+
+const warmPreviewLimit = 100
 
 const iconByPageId: Record<string, typeof LayoutDashboard> = {
   overview: LayoutDashboard,
@@ -85,7 +111,9 @@ export function V2Shell({ children }: { children: ReactNode }) {
     ? (capabilities?.data?.pages ?? fallbackPages)
     : fallbackPages
   const navItems = hydrated
-    ? pages.filter((page) => page.nav && page.available)
+    ? pages
+        .filter((page) => page.nav && page.available)
+        .sort((left, right) => navRank(left.id) - navRank(right.id))
     : []
   const activePage = pageForPath(pathname, pages)
   const pageUnavailable =
@@ -131,7 +159,9 @@ export function V2Shell({ children }: { children: ReactNode }) {
         getV2Capabilities,
         { staleMs: 120_000 },
       )
-      if (!cancelled) setCapabilities(next)
+      if (cancelled) return
+      setCapabilities(next)
+      warmRouteResources(next.data)
     }
     void load()
     const interval = window.setInterval(load, 30_000)
@@ -187,7 +217,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
                   }
                 >
                   <Icon className="size-3.5" />
-                  {item.label}
+                  <span>{item.label}</span>
                 </Link>
               )
             })}
@@ -197,7 +227,7 @@ export function V2Shell({ children }: { children: ReactNode }) {
               type="button"
             >
               <Search className="size-3.5" />
-              Search
+              <span>Search</span>
             </button>
             <div className="phlo-v2-theme-toggle" aria-label="Theme">
               {themeModes.map((item) => {
@@ -268,6 +298,11 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+function navRank(pageId: string): number {
+  const index = navOrder.indexOf(pageId)
+  return index === -1 ? navOrder.length : index
+}
+
 function pageForPath(
   pathname: string,
   pages: Array<V2CapabilityPage>,
@@ -290,6 +325,75 @@ function pageForPath(
   )
   if (!match) return null
   return pages.find((page) => page.id === match[1]) ?? null
+}
+
+function warmRouteResources(capabilities: V2Capabilities | null) {
+  if (!capabilities) return
+  const features = capabilities.features
+  void loadCachedResource('v2:services', getV2Services, { staleMs: 120_000 })
+  if (features.data) {
+    void loadCachedResource('v2:tables', getV2TableRecords, {
+      staleMs: 120_000,
+    }).then((result) => warmDefaultTablePreview(result.data ?? []))
+  }
+  if (features.assets) {
+    void loadCachedResource('v2:assets', getV2AssetRecords, {
+      staleMs: 120_000,
+    })
+  }
+  if (features.issues || features.quality) {
+    void loadCachedResource('v2:quality', getV2QualityRecords, {
+      staleMs: 120_000,
+    })
+  }
+  if (features.logs) {
+    void loadCachedResource('v2:logs', getV2LogRecords, { staleMs: 120_000 })
+  }
+}
+
+function warmDefaultTablePreview(tables: Array<V2Table>) {
+  const table = choosePreviewTable(tables)
+  if (!table) return
+  void loadCachedResource(
+    `v2:table-preview:${table.id}:${warmPreviewLimit}:0:0`,
+    () =>
+      getV2TablePreview({
+        data: { tableId: table.id, limit: warmPreviewLimit, offset: 0 },
+      }),
+    { staleMs: 120_000 },
+  )
+}
+
+function choosePreviewTable(tables: Array<V2Table>): V2Table | null {
+  return (
+    tables.find((table) => isQueryableTable(table) && hasRowCount(table)) ??
+    tables.find(
+      (table) => isQueryableTable(table) && tableLane(table) === 'silver',
+    ) ??
+    tables.find(isQueryableTable) ??
+    tables.find((table) => tableLane(table) === 'silver') ??
+    tables[0] ??
+    null
+  )
+}
+
+function isQueryableTable(table: V2Table): boolean {
+  const state = table.metadata.catalog_state
+  if (state === 'queryable') return true
+  if (state === 'model_only') return false
+  return table.metadata.catalog_present === true
+}
+
+function hasRowCount(table: V2Table): boolean {
+  return (
+    table.metadata.rows !== undefined ||
+    table.metadata.records !== undefined ||
+    table.metadata.row_count !== undefined
+  )
+}
+
+function tableLane(table: V2Table): string {
+  return String(table.namespace ?? table.schema_name ?? '').toLowerCase()
 }
 
 function UnavailablePage({ page }: { page: V2CapabilityPage }) {

@@ -44,8 +44,8 @@ export const Route = createFileRoute('/v2/data')({
 })
 
 function Data() {
-  const result = useLiveResource(getV2TableRecords)
-  const assetResult = useLiveResource(getV2AssetRecords)
+  const result = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
+  const assetResult = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
   const tables = result.data ?? []
   const hasLoadedTables = result.data !== null
   const assets = assetResult.data ?? []

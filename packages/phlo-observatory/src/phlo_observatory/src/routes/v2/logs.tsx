@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { AlertCircle, FileText, Radio, Search, Terminal } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -12,7 +12,7 @@ export const Route = createFileRoute('/v2/logs')({
 })
 
 function Logs() {
-  const result = useLiveResource(getV2LogRecords)
+  const result = useLiveResource(getV2LogRecords, 120_000, 'v2:logs')
   const logs = result.data ?? []
   const [level, setLevel] = useState('all')
   const [source, setSource] = useState('all')
@@ -49,7 +49,7 @@ function Logs() {
     <V2Page
       kicker="Logs"
       title="Evidence console"
-      description="Recent events attached to services, assets, runs, and recovery actions."
+      description="Filter recent events, open the full payload, and jump back to the affected resource."
       action={<span className="phlo-v2-pill">{sources.size} sources</span>}
     >
       <section className="phlo-v2-log-shell">
@@ -57,7 +57,7 @@ function Logs() {
           <div className="phlo-v2-console-toolbar phlo-v2-log-toolbar">
             <span className="phlo-v2-log-toolbar-title">
               <Terminal className="size-4" />
-              Live tail
+              Event stream
             </span>
             <span className="phlo-v2-pill">{filtered.length} events</span>
           </div>
@@ -129,6 +129,16 @@ function Logs() {
                   value={selected.timestamp ?? 'not timestamped'}
                 />
               </dl>
+              {selected.resource && routeForResource(selected.resource) && (
+                <Link
+                  className="phlo-v2-linked-resource"
+                  to={routeForResource(selected.resource)!.to}
+                  params={routeForResource(selected.resource)!.params}
+                >
+                  <FileText className="size-3.5" />
+                  Open {selected.resource.kind}
+                </Link>
+              )}
               <div className="phlo-v2-detail-list">
                 {Object.entries(selected.metadata).map(([key, value]) => (
                   <div className="phlo-v2-mini-row" key={key}>
@@ -169,6 +179,22 @@ function Logs() {
       </section>
     </V2Page>
   )
+}
+
+function routeForResource(
+  resource: V2LogEvent['resource'],
+):
+  | { to: '/v2/asset/$assetId'; params: { assetId: string } }
+  | { to: '/v2/data/$tableId'; params: { tableId: string } }
+  | null {
+  if (!resource) return null
+  if (resource.kind === 'asset') {
+    return { to: '/v2/asset/$assetId', params: { assetId: resource.id } }
+  }
+  if (resource.kind === 'table') {
+    return { to: '/v2/data/$tableId', params: { tableId: resource.id } }
+  }
+  return null
 }
 
 function matchesLogQuery(log: V2LogEvent, query: string): boolean {
