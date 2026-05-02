@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import pytest
-from phlo_dlt.scaffold import create_ingestion_workflow, parse_field_specs
+from phlo_dlt.scaffold import (
+    _resolve_schema_base_import,
+    create_ingestion_workflow,
+    parse_field_specs,
+)
 
 
 def test_parse_field_specs_validates_and_dedupes() -> None:
@@ -11,6 +16,34 @@ def test_parse_field_specs_validates_and_dedupes() -> None:
     specs = parse_field_specs(["User ID:str!", "created_at:datetime", "user_id:int"])
     assert [s.name for s in specs] == ["user_id", "created_at"]
     assert specs[0].nullable is False
+
+
+def test_scaffold_schema_base_comes_from_quality_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keeps generated schema imports behind the quality-provider capability."""
+    import phlo.plugins.discovery as discovery
+
+    class FakeQualityProvider:
+        def get_schema_base_import(self) -> tuple[str, str]:
+            return ("example_quality.schemas", "ExampleSchema")
+
+    monkeypatch.setattr(discovery, "discover_plugins", lambda: None, raising=False)
+    monkeypatch.setattr(
+        discovery,
+        "get_quality_provider",
+        lambda name: FakeQualityProvider() if name == "pandera" else None,
+        raising=False,
+    )
+
+    assert _resolve_schema_base_import() == ("example_quality.schemas", "ExampleSchema")
+
+
+def test_phlo_dlt_does_not_depend_on_pandera_packages() -> None:
+    """Quality providers own Pandera dependencies; phlo-dlt only consumes capability metadata."""
+    pyproject = tomllib.loads(Path("packages/phlo-dlt/pyproject.toml").read_text())
+    dependencies = pyproject["project"]["dependencies"]
+
+    assert "pandera" not in {dependency.split(">=", 1)[0] for dependency in dependencies}
+    assert "phlo-pandera" not in {dependency.split(">=", 1)[0] for dependency in dependencies}
 
 
 def test_scaffold_generates_no_todos_and_is_syntax_valid(

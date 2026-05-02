@@ -3700,9 +3700,7 @@ source = { editable = "packages/phlo-dlt" }
 dependencies = [
     { name = "dlt" },
     { name = "pandas" },
-    { name = "pandera" },
     { name = "phlo" },
-    { name = "phlo-pandera" },
     { name = "pyarrow" },
     { name = "pyiceberg" },
     { name = "python-ulid" },
@@ -3718,9 +3716,7 @@ dev = [
 requires-dist = [
     { name = "dlt", specifier = ">=1.18.2" },
     { name = "pandas", specifier = ">=2.3.3" },
-    { name = "pandera", specifier = ">=0.26.1" },
     { name = "phlo", editable = "." },
-    { name = "phlo-pandera", editable = "packages/phlo-pandera" },
     { name = "pyarrow", specifier = ">=21.0.0" },
     { name = "pyiceberg", specifier = ">=0.10.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },

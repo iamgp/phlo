@@ -5,6 +5,8 @@ DLT (Data Load Tool) ingestion engine for Phlo.
 ## Description
 
 Provides the `@phlo_ingestion` decorator for defining data ingestion pipelines using DLT. Automatically materializes data into Iceberg tables with schema evolution and lineage tracking.
+Schema validation is supplied by installed quality-provider capabilities such as `phlo-pandera`;
+`phlo-dlt` does not depend on a specific quality provider.
 
 ## Installation
 

@@ -171,6 +171,23 @@ _MINIMAL_TEST_VALUES: dict[str, str] = {
 }
 
 
+def _resolve_schema_base_import() -> tuple[str, str]:
+    """Resolve the generated schema base class from the active quality provider."""
+    try:
+        from phlo.plugins.discovery import discover_plugins, get_quality_provider
+
+        discover_plugins()
+        provider = get_quality_provider("pandera")
+        if provider is not None:
+            schema_base_import = provider.get_schema_base_import()
+            if schema_base_import is not None:
+                return schema_base_import
+    except Exception:
+        pass
+
+    return ("pandera.pandas", "DataFrameModel")
+
+
 def _minimal_test_value(type_name: str) -> str:
     """Return Python source for a minimal valid test value."""
     return _MINIMAL_TEST_VALUES.get(type_name, '"test-001"')
@@ -341,6 +358,7 @@ def create_ingestion_workflow(
     unique_key_field = field_by_name.get(unique_key)
     unique_key_type = unique_key_field.type_name if unique_key_field else "str"
     unique_key_nullable = unique_key_field.nullable if unique_key_field else False
+    schema_base_module, schema_base_name = _resolve_schema_base_import()
 
     schema_fields_lines = [
         (
@@ -365,9 +383,9 @@ Extend this schema with additional fields as you stabilize the source contract.
 
 import pandera as pa
 from pandera.typing import Series
-from phlo_pandera.schemas import PhloSchema
+from {schema_base_module} import {schema_base_name}
 
-{type_imports}class {schema_class}(PhloSchema):
+{type_imports}class {schema_class}({schema_base_name}):
 {schema_fields}
 
     class Config:

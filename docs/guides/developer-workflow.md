@@ -44,8 +44,8 @@ For the full command-by-command authoring loop with `phlo workflow check`, see
 
 ```bash
 phlo materialize <asset_name>
-docker exec dagster-webserver dbt run
-docker exec dagster-webserver dbt test
+phlo dbt run
+phlo dbt test
 ```
 
 ### 5. Inspect results

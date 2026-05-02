@@ -43,11 +43,8 @@ from typing import Any
 
 import dlt
 import pandas as pd
-import pandera.errors
 import ulid
 from dlt.common.pipeline import LoadInfo
-from pandera.engines import pandas_engine
-from pandera.pandas import DataFrameModel
 from phlo.capabilities import CapabilitySupport, resolve_runtime_ref
 from phlo.capabilities.interfaces import TableStore
 from phlo.exceptions import PhloConfigError
@@ -235,7 +232,7 @@ def inject_metadata_columns(
 def validate_with_pandera(
     context,
     data: list[dict[str, Any]],
-    schema_class: type[DataFrameModel],
+    schema_class: type[Any],
     column_mapping: dict[str, str] | None = None,
     strict: bool = False,
 ) -> bool:
@@ -273,6 +270,9 @@ def validate_with_pandera(
         ```
 
     """
+    import pandera.errors
+    from pandera.engines import pandas_engine
+
     try:
         logger.info(
             "dlt_pandera_validation_started",
