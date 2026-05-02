@@ -35,6 +35,11 @@ console = Console()
 logger = get_logger(__name__)
 
 
+def _value_or_call(value):
+    """Return an attribute value across PyIceberg property/method API versions."""
+    return value() if callable(value) else value
+
+
 def _get_iceberg_catalog(ref: str = "main"):
     """Load the PyIceberg catalog for the specified Nessie reference.
 
@@ -195,11 +200,11 @@ def describe(table_name: str, ref: str) -> None:
         current_snapshot = table.current_snapshot()
 
         console.print(f"\n[bold blue]Table: {table_name}[/bold blue]")
-        console.print(f"Location: {table.location()}")
+        console.print(f"Location: {_value_or_call(table.location)}")
         console.print(
             f"Current Snapshot ID: {current_snapshot.snapshot_id if current_snapshot else 'None'}"
         )
-        console.print(f"Format Version: {table.format_version()}")
+        console.print(f"Format Version: {_value_or_call(table.format_version)}")
 
         console.print("\n[bold]Schema:[/bold]")
         schema_table = Table()

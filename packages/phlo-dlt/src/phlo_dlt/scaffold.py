@@ -161,6 +161,21 @@ _TYPE_IMPORTS: dict[str, tuple[str, str] | None] = {
 }
 
 
+_MINIMAL_TEST_VALUES: dict[str, str] = {
+    "str": '"test-001"',
+    "int": "1",
+    "float": "1.0",
+    "bool": "True",
+    "datetime": 'pd.Timestamp("2024-01-01T00:00:00Z")',
+    "date": 'pd.Timestamp("2024-01-01").date()',
+}
+
+
+def _minimal_test_value(type_name: str) -> str:
+    """Return Python source for a minimal valid test value."""
+    return _MINIMAL_TEST_VALUES.get(type_name, '"test-001"')
+
+
 def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
     """Parse raw CLI field specifications.
 
@@ -322,8 +337,16 @@ def create_ingestion_workflow(
     if type_imports:
         type_imports = f"{type_imports}\n\n"
 
+    field_by_name = {field.name: field for field in field_specs}
+    unique_key_field = field_by_name.get(unique_key)
+    unique_key_type = unique_key_field.type_name if unique_key_field else "str"
+    unique_key_nullable = unique_key_field.nullable if unique_key_field else False
+
     schema_fields_lines = [
-        f'    {unique_key}: Series[str] = pa.Field(description="Unique key", nullable=False)'
+        (
+            f"    {unique_key}: Series[{unique_key_type}] = "
+            f'pa.Field(description="Unique key", nullable={unique_key_nullable})'
+        )
     ]
     for field in field_specs:
         if field.name == unique_key:
@@ -342,8 +365,9 @@ Extend this schema with additional fields as you stabilize the source contract.
 
 import pandera as pa
 from pandera.typing import Series
+from phlo_pandera.schemas import PhloSchema
 
-{type_imports}class {schema_class}(pa.DataFrameModel):
+{type_imports}class {schema_class}(PhloSchema):
 {schema_fields}
 
     class Config:
@@ -420,9 +444,9 @@ def test_schema_contains_unique_key() -> None:
 
 
 def test_schema_validates_minimal_row() -> None:
-    df = pd.DataFrame([{{"{unique_key}": "test-001"}}])
+    df = pd.DataFrame([{{"{unique_key}": {_minimal_test_value(unique_key_type)}}}])
     validated = {schema_class}.validate(df)
-    assert validated["{unique_key}"].iloc[0] == "test-001"
+    assert validated["{unique_key}"].iloc[0] == {_minimal_test_value(unique_key_type)}
 '''
 
     test_file.write_text(test_content)

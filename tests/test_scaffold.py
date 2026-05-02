@@ -49,3 +49,30 @@ def test_scaffold_generates_no_todos_and_is_syntax_valid(
     assert "return rest_api(" in asset_contents
     assert "client={" in asset_contents
     assert "resources=[" in asset_contents
+
+
+def test_scaffold_uses_unique_key_field_type_when_declared(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Lets API schemas declare integer primary keys such as Fake Store product ids."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "workflows" / "schemas").mkdir(parents=True)
+    (tmp_path / "workflows" / "ingestion").mkdir(parents=True)
+
+    created = create_ingestion_workflow(
+        domain="commerce",
+        table_name="products",
+        unique_key="id",
+        api_base_url="https://fakestoreapi.com",
+        fields=["id:int", "title:str", "price:float"],
+    )
+
+    schema_path = tmp_path / "workflows" / "schemas" / "commerce.py"
+    test_path = next(tmp_path / path for path in created if path.startswith("tests/"))
+
+    assert "from phlo_pandera.schemas import PhloSchema" in schema_path.read_text()
+    assert "class RawProducts(PhloSchema):" in schema_path.read_text()
+    assert 'id: Series[int] = pa.Field(description="Unique key", nullable=False)' in (
+        schema_path.read_text()
+    )
+    assert '"id": 1' in test_path.read_text()

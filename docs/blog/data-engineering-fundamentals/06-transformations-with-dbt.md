@@ -84,9 +84,9 @@ group by 1, 2
 ## Run dbt from Services
 
 ```bash
-docker exec my-first-phlo-project-dagster-1 dbt compile --project-dir /app/workflows/transforms/dbt
-docker exec my-first-phlo-project-dagster-1 dbt run --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt
-docker exec my-first-phlo-project-dagster-1 dbt test --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt
+docker exec my-first-phlo-project-dagster-1 dbt compile --project-dir /app/workflows/transforms/dbt --profiles-dir /app/workflows/transforms/dbt/profiles
+docker exec my-first-phlo-project-dagster-1 dbt run --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt --profiles-dir /app/workflows/transforms/dbt/profiles
+docker exec my-first-phlo-project-dagster-1 dbt test --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt --profiles-dir /app/workflows/transforms/dbt/profiles
 ```
 
 Expected output from `dbt compile`:
@@ -101,7 +101,7 @@ Compiled successfully.
 The dbt plugin contributes a `publishing` command group.
 
 ```bash
-docker exec my-first-phlo-project-dagster-1 dbt run --select tag:publish --project-dir /app/workflows/transforms/dbt
+docker exec my-first-phlo-project-dagster-1 dbt run --select tag:publish --project-dir /app/workflows/transforms/dbt --profiles-dir /app/workflows/transforms/dbt/profiles
 ```
 
 

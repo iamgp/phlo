@@ -30,3 +30,8 @@ def test_get_iceberg_catalog_raises_clear_error_when_backend_missing(monkeypatch
 
     with pytest.raises(RuntimeError, match="Iceberg catalog support is not installed"):
         cli_catalog._get_iceberg_catalog()
+
+
+def test_value_or_call_supports_property_and_method_values() -> None:
+    assert cli_catalog._value_or_call(2) == 2
+    assert cli_catalog._value_or_call(lambda: 2) == 2

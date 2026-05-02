@@ -30,7 +30,7 @@ In this post, `RawOrders` is the raw-zone contract for one order record:
 ```python
 import pandera as pa
 from pandera.typing import Series
-from phlo_quality.schemas import PhloSchema
+from phlo_pandera.schemas import PhloSchema
 
 class RawOrders(PhloSchema):
     id: Series[int] = pa.Field(nullable=False)

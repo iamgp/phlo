@@ -37,7 +37,7 @@ Run this once before following any command snippets:
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install phlo phlo-dagster phlo-dlt phlo-pandera phlo-nessie phlo-iceberg phlo-dbt phlo-trino phlo-otel phlo-clickstack phlo-lineage
+uv pip install "phlo[defaults]" phlo-otel phlo-clickstack phlo-lineage
 ```
 
 Then run the blog commands from your working project directory (for example `/Users/garethprice/Developer/phlo-examples/blog`).

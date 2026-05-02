@@ -48,7 +48,6 @@ compose:
     - "${MINIO_CONSOLE_PORT:-9001}:9001"
   volumes:
     - ./volumes/minio:/data
-    - ./volumes/minio-certs:/root/.minio/certs:ro
   healthcheck:
     test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
     interval: 10s
