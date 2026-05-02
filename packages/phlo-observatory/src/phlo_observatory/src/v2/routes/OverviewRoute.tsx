@@ -2,7 +2,6 @@ import {
   Activity,
   AlertCircle,
   Boxes,
-  Database,
   GitBranch,
   ListChecks,
   Server,
@@ -24,7 +23,7 @@ import type {
 } from '@/v2/api/types'
 import {
   getV2AssetRecords,
-  getV2Branches,
+  getV2BranchRecords,
   getV2Capabilities,
   getV2LogRecords,
   getV2OperationRecords,
@@ -118,7 +117,7 @@ export function OverviewRoute() {
           : loadCachedResource('v2:logs', getV2LogRecords, { staleMs: 30_000 }),
         features?.branches === false
           ? empty
-          : loadCachedResource('v2:branches', getV2Branches, {
+          : loadCachedResource('v2:branches', getV2BranchRecords, {
               staleMs: 60_000,
             }),
       ])

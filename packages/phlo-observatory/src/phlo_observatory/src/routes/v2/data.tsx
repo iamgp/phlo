@@ -21,9 +21,9 @@ import type {
 } from '@/v2/api/types'
 import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 import {
-  getV2SavedQueries,
   getV2AssetRecords,
   getV2Capabilities,
+  getV2SavedQueries,
   getV2TablePreview,
   getV2TableRecords,
   runV2Query,
@@ -875,7 +875,7 @@ function tableCatalogState(table: V2Table): string {
   if (state === 'queryable') return 'Queryable'
   if (state === 'model_only') return 'Model only'
 
-  const present = readMetric(table.metadata, 'catalog_present')
+  const present = table.metadata.catalog_present
   if (present === true) return 'Queryable'
   if (present === false) return 'Model only'
 

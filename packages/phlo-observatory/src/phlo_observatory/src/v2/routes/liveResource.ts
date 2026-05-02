@@ -139,13 +139,9 @@ function stableResourceKey(load: object): string {
 export function readMetric(
   metadata: Record<string, unknown>,
   key: string,
-): string | number | boolean | null {
+): string | number | null {
   const value = metadata[key]
-  if (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  ) {
+  if (typeof value === 'string' || typeof value === 'number') {
     return value
   }
   return null

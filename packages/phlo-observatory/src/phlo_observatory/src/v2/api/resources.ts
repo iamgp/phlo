@@ -5,19 +5,20 @@ import type {
   V2ApiSettings,
   V2Asset,
   V2AssetDetail,
+  V2Branch,
   V2BranchDetail,
   V2Capabilities,
   V2Extension,
   V2ExtensionDetail,
   V2LogEvent,
   V2LogFacets,
+  V2Metadata,
   V2Operation,
   V2OperationDetail,
   V2Overview,
   V2QualityCheck,
   V2QualityDetail,
   V2QueryResult,
-  V2ResourceCollection,
   V2ResourceItem,
   V2ResourceResult,
   V2RowJourney,
@@ -127,9 +128,11 @@ async function getCollection(
   endpoint: string,
 ): Promise<V2ResourceResult<Array<V2ResourceItem>>> {
   try {
-    const response = await apiGet<
-      V2ResourceCollection | { items: Array<Record<string, unknown>> }
-    >(`${V2_API_PREFIX}/${endpoint}`, undefined, 8000)
+    const response = await apiGet<{ items: Array<Record<string, unknown>> }>(
+      `${V2_API_PREFIX}/${endpoint}`,
+      undefined,
+      8000,
+    )
     return {
       data: response.items.map((item) => normalizeItem(endpoint, item)),
       error: null,
@@ -407,6 +410,10 @@ export const getV2Branches = createServerFn().handler(() =>
   getCollection('branches'),
 )
 
+export const getV2BranchRecords = createServerFn().handler(() =>
+  getRawCollection<V2Branch>('branches'),
+)
+
 export const getV2BranchDetail = createServerFn()
   .inputValidator((input: { branchName: string }) => input)
   .handler(
@@ -528,12 +535,13 @@ function normalizeItem(
   if ('kind' in item && typeof item.kind === 'string') {
     return item as V2ResourceItem
   }
+  const record = item as Record<string, unknown>
 
-  const id = readString(item, 'id') || readString(item, 'name') || endpoint
-  const name = readString(item, 'name') || id
-  const health = readHealth(item)
-  const status = readString(item, 'status') || readBooleanStatus(item)
-  const kind = endpointKind(endpoint, item)
+  const id = readString(record, 'id') || readString(record, 'name') || endpoint
+  const name = readString(record, 'name') || id
+  const health = readHealth(record)
+  const status = readString(record, 'status') || readBooleanStatus(record)
+  const kind = endpointKind(endpoint, record)
 
   return {
     id,
@@ -541,10 +549,11 @@ function normalizeItem(
     kind,
     health,
     status,
-    summary: summaryFor(endpoint, item),
-    updated_at: readString(item, 'updated_at') || readString(item, 'timestamp'),
+    summary: summaryFor(endpoint, record),
+    updated_at:
+      readString(record, 'updated_at') || readString(record, 'timestamp'),
     links: [],
-    metadata: readRecord(item, 'metadata'),
+    metadata: readRecord(record, 'metadata'),
   }
 }
 
@@ -694,12 +703,9 @@ function readStringList(
     : []
 }
 
-function readRecord(
-  item: Record<string, unknown>,
-  key: string,
-): Record<string, unknown> {
+function readRecord(item: Record<string, unknown>, key: string): V2Metadata {
   const value = item[key]
-  return isRecord(value) ? value : {}
+  return isRecord(value) ? (value as V2Metadata) : {}
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

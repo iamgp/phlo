@@ -1,5 +1,8 @@
 export type V2HealthState = 'ok' | 'warning' | 'error' | 'unknown'
 
+export type V2Metadata = Record<string, NonNullable<unknown>>
+export type V2Record = Record<string, NonNullable<unknown>>
+
 export type V2ServiceStatus =
   | 'running'
   | 'stopped'
@@ -26,7 +29,7 @@ export interface V2CapabilityPage {
   nav: boolean
   reason?: string | null
   providers: Array<string>
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2Capabilities {
@@ -41,7 +44,7 @@ export interface V2CapabilityProvider {
   name: string
   display_name: string
   package?: string | null
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
   support: Record<string, boolean>
   health: V2Health
   native_links: Array<V2ExternalLink>
@@ -66,7 +69,7 @@ export interface V2UiContribution {
   read_models: Record<string, string>
   actions: Array<string>
   native_links: Array<V2ExternalLink>
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2CapabilityInventory {
@@ -133,7 +136,7 @@ export interface V2Service {
   depends_on: Array<string>
   impacts: Array<string>
   links: Array<V2ExternalLink>
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2ServiceDetail {
@@ -161,7 +164,7 @@ export interface V2ResourceItem {
   summary?: string | null
   updated_at?: string | null
   links?: Array<V2ExternalLink>
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2SurfaceItem {
@@ -170,7 +173,7 @@ export interface V2SurfaceItem {
   kind: string
   health: V2Health
   summary?: string | null
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2ResourceCollection {
@@ -187,7 +190,7 @@ export interface V2Operation {
   started_at?: string | null
   completed_at?: string | null
   duration_seconds?: number | null
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2OperationDetail {
@@ -215,7 +218,7 @@ export interface V2Run {
   assets: Array<V2ResourceRef>
   checks: Array<V2ResourceRef>
   logs: Array<V2ResourceRef>
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2Asset {
@@ -227,7 +230,7 @@ export interface V2Asset {
   dependencies: Array<string>
   resources: Array<string>
   checks: Array<string>
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2AssetDetail {
@@ -251,14 +254,14 @@ export interface V2Table {
   format?: string | null
   branch?: string | null
   schema_name?: string | null
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2TablePreview {
   table: V2Table
   columns: Array<string>
   column_types: Array<string>
-  rows: Array<Record<string, unknown>>
+  rows: Array<V2Record>
   row_count?: number | null
   limit: number
   offset: number
@@ -267,7 +270,7 @@ export interface V2TablePreview {
 
 export interface V2QueryResult {
   columns: Array<string>
-  rows: Array<Record<string, unknown>>
+  rows: Array<V2Record>
   row_count?: number | null
   effective_sql: string
   limit: number
@@ -282,27 +285,27 @@ export interface V2SavedQuery {
   branch?: string | null
   created_at: string
   updated_at: string
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2StageDiff {
   source: V2Table
   target: V2Table
   columns: Record<string, Array<string>>
-  rows: Array<Record<string, unknown>>
+  rows: Array<V2Record>
   summary: Record<string, number>
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2RowJourney {
   table: V2Table
   row_id: string
-  row: Record<string, unknown>
+  row: V2Record
   upstream: Array<V2ResourceRef>
   downstream: Array<V2ResourceRef>
   stages: Array<V2ResourceRef>
   logs: Array<V2LogEvent>
-  diff: Record<string, unknown>
+  diff: V2Record
 }
 
 export interface V2QualityCheck {
@@ -313,7 +316,7 @@ export interface V2QualityCheck {
   severity?: string | null
   blocking: boolean
   description?: string | null
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2QualityDetail {
@@ -331,7 +334,7 @@ export interface V2LogEvent {
   message: string
   source?: string | null
   resource?: V2ResourceRef | null
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2LogFacets {
@@ -345,7 +348,7 @@ export interface V2Branch {
   name: string
   current: boolean
   protected: boolean
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2BranchDetail {
@@ -364,7 +367,7 @@ export interface V2Extension {
   routes: Array<string>
   nav: Array<string>
   settings_scope?: string | null
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2ExtensionDetail {
@@ -380,7 +383,7 @@ export interface V2Setting {
   value: string | boolean | number | null
   kind: string
   description?: string | null
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2Settings {
@@ -392,7 +395,7 @@ export interface V2ApiSettings {
   defaults: Record<string, string>
   features: Record<string, boolean>
   storage: Record<string, string>
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2SearchResult {
@@ -401,7 +404,7 @@ export interface V2SearchResult {
   kind: string
   summary?: string | null
   href?: string | null
-  metadata: Record<string, unknown>
+  metadata: V2Metadata
 }
 
 export interface V2ResourceResult<T> {

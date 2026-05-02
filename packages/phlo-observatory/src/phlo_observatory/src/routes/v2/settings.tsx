@@ -14,16 +14,16 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { useObservatoryExtensions } from '@/extensions/registry'
 import type { ObservatorySettings } from '@/lib/observatorySettings'
+import type { V2Capabilities, V2ResourceResult } from '@/v2/api/types'
+import { useObservatoryExtensions } from '@/extensions/registry'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import {
   clearCacheEndpoint,
   getCacheStatsEndpoint,
 } from '@/server/cache.server'
-import { V2Page } from '@/v2/components/V2Page'
-import type { V2Capabilities, V2ResourceResult } from '@/v2/api/types'
 import { getV2Capabilities } from '@/v2/api/resources'
-import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { V2Page } from '@/v2/components/V2Page'
 import { loadCachedResource } from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/settings')({
@@ -483,7 +483,7 @@ function SettingsRoute() {
             <CacheMetric label="Misses" value={stats?.misses ?? 0} />
             <CacheMetric
               label="Hit rate"
-              value={`${(((stats?.hitRate ?? 0) as number) * 100).toFixed(1)}%`}
+              value={`${((stats?.hitRate ?? 0) * 100).toFixed(1)}%`}
             />
             <CacheMetric label="Entries" value={stats?.entries ?? 0} />
           </div>

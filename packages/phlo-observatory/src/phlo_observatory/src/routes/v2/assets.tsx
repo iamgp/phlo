@@ -7,7 +7,6 @@ import {
   Search,
   ShieldCheck,
   Table2,
-  Terminal,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
