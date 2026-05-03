@@ -13,7 +13,7 @@ dependencies = [
 description = "oauth2-proxy service plugin for Phlo"
 name = "phlo-oauth2-proxy"
 requires-python = ">=3.11"
-version = "0.1.0"
+version = "0.2.0"
 
 [[project.authors]]
 email = "team@phlo.dev"

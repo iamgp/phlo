@@ -13,7 +13,7 @@ dependencies = [
 description = "Core plugin package for Phlo"
 name = "phlo-core-plugins"
 requires-python = ">=3.11"
-version = "0.2.3"
+version = "0.2.4"
 
 [[project.authors]]
 email = "team@phlo.dev"

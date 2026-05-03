@@ -1,5 +1,130 @@
 # Changelog
 
+## [phlo 0.8.0 + 25 packages] - 2026-05-03
+
+### Added
+- phlo: pymdx driven docs (#327)
+- phlo: harden service discovery and add quickstart smoke (#451)
+- phlo: expand regulated surface coverage (#466)
+- phlo: add evidence, signatures, and governance operations (#467)
+- phlo: add phlo MCP trace inspection tools (#468)
+- phlo: add podman container backend
+- phlo: add phlo doctor diagnostics
+- phlo: polish workflow authoring path (#469)
+- phlo: add project template gallery (#472)
+- phlo: expand observatory v2 capability UI (#473)
+- phlo-alerting: expand regulated surface coverage (#466)
+- phlo-api: expand regulated surface coverage (#466)
+- phlo-api: add phlo MCP trace inspection tools (#468)
+- phlo-api: expand observatory v2 capability UI (#473)
+- phlo-clickhouse: expand regulated surface coverage (#466)
+- phlo-clickhouse: add podman container backend
+- phlo-clickstack: expand regulated surface coverage (#466)
+- phlo-clickstack: add phlo MCP trace inspection tools (#468)
+- phlo-clickstack: add podman container backend
+- phlo-dagster: expand regulated surface coverage (#466)
+- phlo-dagster: add phlo MCP trace inspection tools (#468)
+- phlo-dbt: expand regulated surface coverage (#466)
+- phlo-dbt: expand observatory v2 capability UI (#473)
+- phlo-delta: expand observatory v2 capability UI (#473)
+- phlo-dlt: expand regulated surface coverage (#466)
+- phlo-dlt: polish workflow authoring path (#469)
+- phlo-iceberg: expand observatory v2 capability UI (#473)
+- phlo-lineage: expand regulated surface coverage (#466)
+- phlo-mcp: add phlo MCP trace inspection tools (#468)
+- phlo-minio: expand regulated surface coverage (#466)
+- phlo-minio: add podman container backend
+- phlo-nessie: expand regulated surface coverage (#466)
+- phlo-oauth2-proxy: expand regulated surface coverage (#466)
+- phlo-observatory: expand observatory v2 capability UI (#473)
+- phlo-openmetadata: expand regulated surface coverage (#466)
+- phlo-pandera: expand regulated surface coverage (#466)
+- phlo-pandera: polish workflow authoring path (#469)
+- phlo-pandera: expand observatory v2 capability UI (#473)
+- phlo-postgres: expand regulated surface coverage (#466)
+- phlo-postgres: add podman container backend
+- phlo-sling: expand regulated surface coverage (#466)
+- phlo-testing: expand observatory v2 capability UI (#473)
+- phlo-trino: expand regulated surface coverage (#466)
+- phlo-trino: add podman container backend
+
+### Changed
+- phlo: code quality improvements batch (#369)
+- phlo: extract shared dependency expansion logic (#430)
+- phlo: hook and service test helpers (#434)
+- phlo: unify yaml service plugins and test doubles (#443)
+- phlo: consolidate plugin discovery cleanup paths (#444)
+- phlo-api: unify yaml service plugins and test doubles (#443)
+- phlo-clickhouse: unify yaml service plugins and test doubles (#443)
+- phlo-clickstack: code quality improvements batch (#369)
+- phlo-dagster: unify yaml service plugins and test doubles (#443)
+- phlo-hasura: unify yaml service plugins and test doubles (#443)
+- phlo-minio: unify yaml service plugins and test doubles (#443)
+- phlo-nessie: code quality improvements batch (#369)
+- phlo-observatory: unify yaml service plugins and test doubles (#443)
+- phlo-openmetadata: code quality improvements batch (#369)
+- phlo-postgres: code quality improvements batch (#369)
+- phlo-postgrest: unify yaml service plugins and test doubles (#443)
+- phlo-superset: unify yaml service plugins and test doubles (#443)
+- phlo-testing: unify yaml service plugins and test doubles (#443)
+- phlo-trino: code quality improvements batch (#369)
+- phlo-trino: extract shared dependency expansion logic (#430)
+
+### Fixed
+- phlo: add manual release publish trigger
+- phlo: accept bare version in manual release trigger
+- phlo: gather remaining release artifacts into root dist
+- phlo: simplify release publish and disable docs workflow
+- phlo: keep docs
+- phlo: clean deploy gh-pages, preserve cairn, move pymdx to dev deps
+- phlo: inject basePath into next.config for GitHub Pages
+- phlo: resolve pandera mutation, null column loop, hardcoded version, plugin registration (#357)
+- phlo: security hardening — SQL injection, timing attacks, path traversal, stub reverts (#358)
+- phlo: dev mode production guard, command injection, hardcoded creds, auth logging, CLI fixes (#359)
+- phlo: correctness fixes, dead code removal, and security hardening (#360)
+- phlo: security hardening and config correctness (#362)
+- phlo: CLI and plugin system correctness fixes (#361)
+- phlo: correct 4 CLI correctness issues from batch #347 (#364)
+- phlo: normalize tags dict in HookFilter.__post_init__ (#365)
+- phlo: prevent info leak from exception cause chain (#366)
+- phlo: proxy auth signing and project root resolution (#367)
+- phlo: restrict CORS to configured origins (#427)
+- phlo: resolve 10 audit findings across security batch (#431)
+- phlo: address CLI test fragility, add utils tests, add Prettier hook (#432)
+- phlo: harden plugin discovery imports (#435)
+- phlo: lazy-load observatory settings dependency (#437)
+- phlo: review regressions in Trino governance and pytest collection (#448)
+- phlo: cairn CI races and artifact gaps (#449)
+- phlo: address P1/P2 audit findings (#450)
+- phlo: reject unsupported canonical deny policies (#459)
+- phlo: correct PostgREST view RLS docs mismatch (#463)
+- phlo: escape angle brackets in docstrings for MDX compatibility
+- phlo: align scaffolding and service defaults (#474)
+- phlo-api: restrict CORS to configured origins (#427)
+- phlo-api: resolve 10 audit findings across security batch (#431)
+- phlo-core-plugins: address P1/P2 audit findings (#450)
+- phlo-dbt: security hardening — SQL injection, timing attacks, path traversal, stub reverts (#358)
+- phlo-dbt: dev mode production guard, command injection, hardcoded creds, auth logging, CLI fixes (#359)
+- phlo-dlt: resolve pandera mutation, null column loop, hardcoded version, plugin registration (#357)
+- phlo-dlt: align scaffolding and service defaults (#474)
+- phlo-hasura: resolve 10 audit findings across security batch (#431)
+- phlo-minio: align scaffolding and service defaults (#474)
+- phlo-nessie: align scaffolding and service defaults (#474)
+- phlo-openmetadata: review regressions in Trino governance and pytest collection (#448)
+- phlo-pandera: correctness fixes, dead code removal, and security hardening (#360)
+- phlo-pandera: align scaffolding and service defaults (#474)
+- phlo-postgres: align scaffolding and service defaults (#474)
+- phlo-postgrest: resolve 10 audit findings across security batch (#431)
+- phlo-postgrest: correct PostgREST view RLS docs mismatch (#463)
+- phlo-superset: resolve 10 audit findings across security batch (#431)
+- phlo-testing: resolve 10 audit findings across security batch (#431)
+- phlo-trino: review regressions in Trino governance and pytest collection (#448)
+- phlo-trino: align scaffolding and service defaults (#474)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (139 commits)
+
 ## [phlo 0.7.10] - 2026-03-31
 
 ### Fixed
