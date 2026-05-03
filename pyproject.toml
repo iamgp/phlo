@@ -8,14 +8,14 @@ dev = [
     "phlo-alloy>=0.1.0",
     "phlo-api>=0.1.0",
     "phlo-core-plugins>=0.1.0",
-    "phlo-dagster>=0.1.0",
+    "phlo-dagster>=0.3.1b1",
     "phlo-delta>=0.1.0",
     "pytest>=8.4.2",
     "pytest-cov>=6.0",
     "sqlfluff>=3.5.0",
     "phlo-clickstack>=0.1.0",
     "phlo-clickhouse>=0.1.0",
-    "phlo-dlt>=0.1.0",
+    "phlo-dlt>=0.3.1b1",
     "phlo-iceberg>=0.1.0",
     "phlo-dbt>=0.1.0",
     "phlo-grafana>=0.1.0",
@@ -30,7 +30,7 @@ dev = [
     "phlo-observatory-example>=0.1.0",
     "phlo-openmetadata>=0.1.0",
     "phlo-otel>=0.1.0",
-    "phlo-pandera>=0.1.0",
+    "phlo-pandera>=0.3.1b1",
     "phlo-pgweb>=0.1.0",
     "phlo-postgres>=0.1.0",
     "phlo-postgrest>=0.1.0",
@@ -88,7 +88,7 @@ description = "Lakehouse platform"
 name = "phlo"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.8.0"
+version = "0.8.1b1"
 
 [project.entry-points."phlo.plugins.quality"]
 
@@ -98,7 +98,7 @@ version = "0.8.0"
 
 [project.optional-dependencies]
 core-services = [
-    "phlo-dagster>=0.1.0",
+    "phlo-dagster>=0.3.1b1",
     "phlo-postgres>=0.1.0",
     "phlo-minio>=0.1.0",
     "phlo-nessie>=0.1.0",
@@ -107,10 +107,10 @@ core-services = [
 defaults = [
     "phlo-core-plugins>=0.1.0",
     "phlo-iceberg>=0.1.0",
-    "phlo-dlt>=0.1.0",
+    "phlo-dlt>=0.3.1b1",
     "phlo-dbt>=0.1.0",
-    "phlo-pandera>=0.1.0",
-    "phlo-dagster>=0.1.0",
+    "phlo-pandera>=0.3.1b1",
+    "phlo-dagster>=0.3.1b1",
     "phlo-postgres>=0.1.0",
     "phlo-minio>=0.1.0",
     "phlo-nessie>=0.1.0",

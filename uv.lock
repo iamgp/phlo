@@ -3215,7 +3215,7 @@ wheels = [
 
 [[package]]
 name = "phlo"
-version = "0.8.0"
+version = "0.8.1b1"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
@@ -3585,7 +3585,7 @@ provides-extras = ["dev", "quality"]
 
 [[package]]
 name = "phlo-dagster"
-version = "0.3.0"
+version = "0.3.1b1"
 source = { editable = "packages/phlo-dagster" }
 dependencies = [
     { name = "dagster-graphql" },
@@ -3697,7 +3697,7 @@ provides-extras = ["dev", "minio"]
 
 [[package]]
 name = "phlo-dlt"
-version = "0.3.0"
+version = "0.3.1b1"
 source = { editable = "packages/phlo-dlt" }
 dependencies = [
     { name = "dlt" },
@@ -4116,7 +4116,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-pandera"
-version = "0.3.0"
+version = "0.3.1b1"
 source = { editable = "packages/phlo-pandera" }
 dependencies = [
     { name = "click" },
