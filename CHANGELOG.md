@@ -1,5 +1,21 @@
 # Changelog
 
+## [phlo 0.8.2 + 7 packages] - 2026-05-03
+
+### Fixed
+- phlo-dagster: smooth first workshop materialization
+- phlo-dlt: smooth first workshop materialization
+- phlo: smooth first workshop materialization
+- phlo-iceberg: smooth first workshop materialization
+- phlo-lineage: smooth first workshop materialization
+- phlo-minio: smooth first workshop materialization
+- phlo-nessie: smooth first workshop materialization
+- phlo-pandera: smooth first workshop materialization
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (2 commits)
+
 ## [phlo 0.8.0 + 25 packages] - 2026-05-03
 
 ### Added

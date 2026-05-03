@@ -3215,7 +3215,7 @@ wheels = [
 
 [[package]]
 name = "phlo"
-version = "0.8.1b5"
+version = "0.8.2"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
@@ -3585,7 +3585,7 @@ provides-extras = ["dev", "quality"]
 
 [[package]]
 name = "phlo-dagster"
-version = "0.3.1b3"
+version = "0.3.2"
 source = { editable = "packages/phlo-dagster" }
 dependencies = [
     { name = "dagster-graphql" },
@@ -3699,7 +3699,7 @@ provides-extras = ["dev", "minio"]
 
 [[package]]
 name = "phlo-dlt"
-version = "0.3.1b1"
+version = "0.3.2"
 source = { editable = "packages/phlo-dlt" }
 dependencies = [
     { name = "dlt" },
@@ -3785,7 +3785,7 @@ provides-extras = ["dev", "postgres"]
 
 [[package]]
 name = "phlo-iceberg"
-version = "0.3.1b1"
+version = "0.3.2"
 source = { editable = "packages/phlo-iceberg" }
 dependencies = [
     { name = "pandera" },
@@ -3819,7 +3819,7 @@ provides-extras = ["dev", "minio", "nessie"]
 
 [[package]]
 name = "phlo-lineage"
-version = "0.3.1b1"
+version = "0.3.2"
 source = { editable = "packages/phlo-lineage" }
 dependencies = [
     { name = "click" },
@@ -3911,7 +3911,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-minio"
-version = "0.3.1b1"
+version = "0.3.2"
 source = { editable = "packages/phlo-minio" }
 dependencies = [
     { name = "phlo" },
@@ -3935,7 +3935,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-nessie"
-version = "0.3.1b1"
+version = "0.3.2"
 source = { editable = "packages/phlo-nessie" }
 dependencies = [
     { name = "marshmallow" },
@@ -4118,7 +4118,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-pandera"
-version = "0.3.1b1"
+version = "0.3.2"
 source = { editable = "packages/phlo-pandera" }
 dependencies = [
     { name = "click" },
