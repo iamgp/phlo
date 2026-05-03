@@ -6,16 +6,15 @@
 
 - Why dbt belongs between raw ingestion and serving layers
 - How Phlo discovers dbt projects in `workflows/transforms/dbt`
-- How to structure bronze, silver, and gold models
+- How to structure bronze and silver models
 - How to scaffold publishing config for marts
 
 ## Prerequisites
 
 - Ingestion assets landing data in Iceberg
-- dbt project scaffold under `workflows/transforms/dbt`
 - Trino service running
 
-The models below use an orders domain schema (`order_id`, `customer_id`, `total_amount`, `order_timestamp`) that is richer than the demo products data from Part 2. Adapt column names to match your own ingested data, or follow these examples as a standalone reference.
+The examples below continue from the Fake Store ingestion in Part 2. That source lands product-like fields in `raw.orders`: `id`, `title`, `price`, and `category`.
 
 ## Where dbt Fits
 
@@ -29,24 +28,74 @@ Model flow:
 graph LR
     A[raw.orders] --> B[bronze.stg_orders]
     B --> C[silver.fct_orders]
-    C --> D[gold.mrt_revenue_daily]
 ```
 
 
-## Example dbt Model
+## Create the dbt Project
+
+Phlo looks for dbt projects under `workflows/transforms/dbt`.
+
+```bash
+mkdir -p workflows/transforms/dbt/models/bronze workflows/transforms/dbt/models/silver workflows/transforms/dbt/profiles
+```
+
+Create `workflows/transforms/dbt/dbt_project.yml`:
+
+```yaml
+name: phlo_fundamentals
+version: "1.0"
+config-version: 2
+profile: phlo
+
+model-paths: ["models"]
+
+models:
+  phlo_fundamentals:
+    +materialized: table
+```
+
+Create `workflows/transforms/dbt/profiles/profiles.yml`:
+
+```yaml
+phlo:
+  target: dev
+  outputs:
+    dev:
+      type: trino
+      host: trino
+      port: 8080
+      user: phlo
+      catalog: iceberg
+      schema: raw
+      method: none
+      threads: 4
+```
+
+Create `workflows/transforms/dbt/models/sources.yml`:
+
+```yaml
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: orders
+```
+
+## Example dbt Models
 
 Bronze model (type cleanup and source normalisation):
 
 ```sql
 -- workflows/transforms/dbt/models/bronze/stg_orders.sql
 select
-  cast(order_id as varchar) as order_id,
-  cast(customer_id as varchar) as customer_id,
-  cast(order_timestamp as timestamp) as order_timestamp,
-  cast(total_amount as double) as total_amount,
-  cast(currency as varchar) as currency
+  cast(id as integer) as order_id,
+  cast(title as varchar) as title,
+  cast(price as double) as price,
+  cast(category as varchar) as category
 from {{ source('raw', 'orders') }}
-where order_id is not null
+where id is not null
 ```
 
 Silver model (business rules and entity logic):
@@ -55,29 +104,40 @@ Silver model (business rules and entity logic):
 -- workflows/transforms/dbt/models/silver/fct_orders.sql
 select
   order_id,
-  customer_id,
-  order_timestamp,
-  total_amount,
+  title,
+  price,
+  category,
   case
-    when total_amount >= 1000 then 'enterprise'
-    when total_amount >= 200 then 'mid_market'
-    else 'self_serve'
-  end as segment
+    when price >= 100 then 'premium'
+    when price >= 25 then 'standard'
+    else 'entry'
+  end as price_band
 from {{ ref('stg_orders') }}
 ```
 
-Gold model (reporting-ready mart):
+Add tests in `workflows/transforms/dbt/models/silver/schema.yml`:
 
-```sql
--- workflows/transforms/dbt/models/gold/mrt_revenue_daily.sql
-select
-  date_trunc('day', order_timestamp) as order_date,
-  segment,
-  count(*) as order_count,
-  sum(total_amount) as total_revenue,
-  avg(total_amount) as avg_order_value
-from {{ ref('fct_orders') }}
-group by 1, 2
+```yaml
+version: 2
+
+models:
+  - name: stg_orders
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+          - unique
+  - name: fct_orders
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+          - unique
+      - name: price_band
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["premium", "standard", "entry"]
 ```
 
 
@@ -92,7 +152,7 @@ phlo dbt test --select stg_orders --select fct_orders
 Expected output from `dbt compile`:
 
 ```text
-Found 3 models, 4 tests, 1 source
+Found 2 models, 5 tests, 1 source
 Compiled successfully.
 ```
 
@@ -130,17 +190,13 @@ Example incremental pattern:
 
 select
   order_id,
-  customer_id,
-  order_timestamp,
-  total_amount,
-  case
-    when total_amount >= 1000 then 'enterprise'
-    when total_amount >= 200 then 'mid_market'
-    else 'self_serve'
-  end as segment
+  title,
+  price,
+  category,
+  price_band
 from {{ ref('stg_orders') }}
 {% if is_incremental() %}
-where order_timestamp > (select max(order_timestamp) from {{ this }})
+where order_id > (select max(order_id) from {{ this }})
 {% endif %}
 ```
 
@@ -169,13 +225,14 @@ models:
         tests:
           - not_null
           - unique
-      - name: total_amount
+      - name: price
         tests:
           - not_null
-      - name: segment
+      - name: price_band
         tests:
           - accepted_values:
-              values: ['enterprise', 'mid_market', 'self_serve']
+              arguments:
+                values: ['premium', 'standard', 'entry']
 ```
 
 Test tiers:
@@ -232,8 +289,7 @@ That sentence keeps modelling grounded in user value instead of internal style p
 1. dbt project placed outside `workflows/transforms/dbt` and not discovered.
 2. Model names drift from downstream expectations.
 3. Teams skip dbt tests and debug in dashboards.
-4. Gold models mix transformation and serving concerns.
-5. Publishing configs become stale after model rename.
+4. Publishing configs become stale after model rename.
 
 For failed commands and environment drift, use [Troubleshooting](../../operations/troubleshooting.md).
 
@@ -244,7 +300,7 @@ dbt gives a clean SQL boundary for transformation logic, while Phlo keeps discov
 ## Next Steps
 
 1. Continue to [Part 7](07-quality-checks-with-pandera-and-phlo-pandera.md) to enforce contracts and checks.
-2. Add model test coverage for every gold output used by stakeholders.
+2. Add model test coverage for every output used by stakeholders.
 
 ## See Also
 

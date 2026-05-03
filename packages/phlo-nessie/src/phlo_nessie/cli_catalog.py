@@ -40,6 +40,17 @@ def _value_or_call(value):
     return value() if callable(value) else value
 
 
+def _schema_field_display(field) -> tuple[str, str, str]:
+    """Return display-safe name, type, and required marker for PyIceberg fields."""
+    field_type = getattr(field, "field_type", getattr(field, "type", None))
+    required_flag = getattr(field, "required", None)
+    if required_flag is None and field_type is not None:
+        is_optional = getattr(field_type, "is_optional", False)
+        required_flag = not is_optional
+    required = "✓" if required_flag else ""
+    return str(field.name), str(field_type), required
+
+
 def _get_iceberg_catalog(ref: str = "main"):
     """Load the PyIceberg catalog for the specified Nessie reference.
 
@@ -213,8 +224,7 @@ def describe(table_name: str, ref: str) -> None:
         schema_table.add_column("Required", justify="center")
 
         for field in schema.fields:
-            required = "✓" if not field.type.is_optional else ""
-            schema_table.add_row(field.name, str(field.type), required)
+            schema_table.add_row(*_schema_field_display(field))
         console.print(schema_table)
 
         spec = table.spec()

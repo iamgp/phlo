@@ -86,7 +86,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_TAG: ${{ inputs.tag }}
-          GITHUB_REF_NAME: ${{ github.ref }}
+          PUBLISH_GITHUB_REF: ${{ github.ref }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             tag_input="$INPUT_TAG"
@@ -96,7 +96,7 @@ jobs:
             esac
             ref="refs/tags/$tag_input"
           else
-            ref="$GITHUB_REF_NAME"
+            ref="$PUBLISH_GITHUB_REF"
           fi
 
           case "$ref" in

@@ -9,6 +9,7 @@ from click.testing import CliRunner
 
 from phlo.cli.commands.services.utils import detect_phlo_source_path
 from phlo.cli.infrastructure.selection import select_services_to_install
+from phlo.plugins.compose.env import generate_env
 from phlo.plugins.compose.generator import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 from tests.helpers import FakeDiscovery, _service
@@ -156,6 +157,27 @@ def test_compose_generator_declares_named_volumes(tmp_path) -> None:
 
     data = yaml.safe_load(compose_yaml)
     assert data["volumes"] == {"postgres-data": {}}
+
+
+def test_generate_env_pins_phlo_version_for_service_builds(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keeps repeated service builds on the installed Phlo version, not Docker's stale latest."""
+    monkeypatch.setattr("phlo.plugins.compose.env.version", lambda package: "9.8.7")
+    service = ServiceDefinition(
+        name="dagster",
+        description="dagster",
+        category="orchestration",
+        default=True,
+        env_vars={
+            "PHLO_VERSION": {
+                "default": "",
+                "description": "Phlo version to install",
+            }
+        },
+    )
+
+    env = generate_env([service])
+
+    assert "PHLO_VERSION=9.8.7" in env
 
 
 def test_compose_generator_resolves_source_path_dev_volumes(tmp_path) -> None:

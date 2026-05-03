@@ -1,8 +1,17 @@
 """Render `.env` and `.env.local` content from discovered service definitions."""
 
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from phlo.plugins.discovery import ServiceDefinition
+
+
+def _default_phlo_version() -> str:
+    """Return the installed Phlo version for repeatable service image builds."""
+    try:
+        return version("phlo")
+    except PackageNotFoundError:
+        return ""
 
 
 def normalize_env_value(value: Any) -> str:
@@ -107,6 +116,8 @@ def render_env(
                 continue
 
             default = var_config.get("default", "")
+            if var_name == "PHLO_VERSION" and not default:
+                default = _default_phlo_version()
             description = var_config.get("description", "")
             value = overrides.get(var_name, normalize_env_value(default))
 

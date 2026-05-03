@@ -62,6 +62,7 @@ Example:
 
 from __future__ import annotations
 
+from importlib.metadata import entry_points
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -179,6 +180,18 @@ def _resolve_schema_base_import() -> tuple[str, str]:
         discover_plugins()
         provider = get_quality_provider("pandera")
         if provider is not None:
+            schema_base_import = provider.get_schema_base_import()
+            if schema_base_import is not None:
+                return schema_base_import
+    except Exception:
+        pass
+
+    try:
+        providers = entry_points(group="phlo.plugins.quality_providers")
+        for provider_entry in providers:
+            if provider_entry.name != "pandera":
+                continue
+            provider = provider_entry.load()()
             schema_base_import = provider.get_schema_base_import()
             if schema_base_import is not None:
                 return schema_base_import
