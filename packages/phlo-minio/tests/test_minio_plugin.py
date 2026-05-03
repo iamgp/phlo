@@ -13,6 +13,16 @@ def test_minio_service_definition():
     assert service_definition["category"] == "core"
 
 
+def test_minio_service_uses_named_volume():
+    """MinIO should not bind-mount a local data directory."""
+
+    plugin = MinioServicePlugin()
+    volumes = plugin.service_definition["compose"]["volumes"]
+
+    assert "minio-data:/data" in volumes
+    assert all("./volumes/minio" not in volume for volume in volumes)
+
+
 def test_minio_resource_provider_exposes_object_store(monkeypatch) -> None:
     """MinIO should expose an object_store capability."""
     monkeypatch.setattr(

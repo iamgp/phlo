@@ -29,4 +29,4 @@ from phlo_minio.plugin import MinioServicePlugin
 from phlo_minio.settings import MinioSettings, get_settings
 
 __all__ = ["MinioServicePlugin", "MinioSettings", "get_settings"]
-__version__ = "0.2.4"
+__version__ = "0.3.1b1"
