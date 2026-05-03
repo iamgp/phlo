@@ -13,7 +13,7 @@ dependencies = [
 description = "clickstack service plugin for Phlo"
 name = "phlo-clickstack"
 requires-python = ">=3.11"
-version = "0.2.3"
+version = "0.3.0"
 
 [[project.authors]]
 email = "team@phlo.dev"
@@ -22,11 +22,11 @@ name = "Phlo Team"
 [project.entry-points."phlo.plugins.cli"]
 clickstack = "phlo_clickstack.cli_plugin:ClickStackCliPlugin"
 
-[project.entry-points."phlo.plugins.services"]
-clickstack = "phlo_clickstack.plugin:ClickStackServicePlugin"
-
 [project.entry-points."phlo.plugins.resources"]
 clickstack = "phlo_clickstack.resource_provider:ClickStackResourceProvider"
+
+[project.entry-points."phlo.plugins.services"]
+clickstack = "phlo_clickstack.plugin:ClickStackServicePlugin"
 
 [project.license]
 text = "MIT"

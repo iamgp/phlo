@@ -88,7 +88,7 @@ description = "Lakehouse platform"
 name = "phlo"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.7.10"
+version = "0.8.0"
 
 [project.entry-points."phlo.plugins.quality"]
 
@@ -174,20 +174,6 @@ select = [
     "PTH",
 ]
 
-[tool.ty.rules]
-invalid-argument-type = "warn"
-invalid-assignment = "warn"
-invalid-method-override = "warn"
-invalid-raise = "warn"
-invalid-return-type = "warn"
-invalid-type-form = "warn"
-missing-argument = "warn"
-no-matching-overload = "warn"
-too-many-positional-arguments = "warn"
-unknown-argument = "warn"
-unresolved-attribute = "warn"
-unsupported-operator = "warn"
-
 [tool.ty.environment]
 extra-paths = [
     "packages/phlo-alerting/src",
@@ -226,6 +212,20 @@ extra-paths = [
 ]
 python-version = "3.11"
 root = ["./src"]
+
+[tool.ty.rules]
+invalid-argument-type = "warn"
+invalid-assignment = "warn"
+invalid-method-override = "warn"
+invalid-raise = "warn"
+invalid-return-type = "warn"
+invalid-type-form = "warn"
+missing-argument = "warn"
+no-matching-overload = "warn"
+too-many-positional-arguments = "warn"
+unknown-argument = "warn"
+unresolved-attribute = "warn"
+unsupported-operator = "warn"
 
 [tool.ty.src]
 exclude = ["**/testing/**"]
