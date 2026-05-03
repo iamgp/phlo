@@ -22,6 +22,26 @@ from phlo.plugins.discovery import ServiceDiscovery
 logger = get_logger(__name__)
 
 
+def _dependent_closure(
+    all_services: dict[str, object],
+    service_name: str,
+) -> list[str]:
+    """Return services that directly or transitively depend on a service."""
+    dependents: list[str] = []
+    queue = [service_name]
+    seen = {service_name}
+    while queue:
+        current = queue.pop(0)
+        for candidate_name, candidate in all_services.items():
+            depends_on = getattr(candidate, "depends_on", [])
+            if current not in depends_on or candidate_name in seen:
+                continue
+            seen.add(candidate_name)
+            dependents.append(candidate_name)
+            queue.append(candidate_name)
+    return dependents
+
+
 @click.command("remove")
 @click.argument("service_name")
 @click.option("--keep-running", is_flag=True, help="Don't stop the service")
@@ -117,9 +137,12 @@ def remove_cmd(service_name: str, keep_running: bool):
     enabled, disabled = normalize_services_enabled_disabled_config(config)
     canonical_service_name = service.name
 
+    dependent_names = _dependent_closure(all_services, canonical_service_name)
+    names_to_disable = [canonical_service_name, *dependent_names]
+
     # Remove from enabled if present; add to disabled.
-    enabled = [name for name in enabled if name != canonical_service_name]
-    disabled.append(canonical_service_name)
+    enabled = [name for name in enabled if name not in names_to_disable]
+    disabled.extend(names_to_disable)
     config["services"]["enabled"] = enabled
     config["services"]["disabled"] = disabled
     normalize_services_enabled_disabled_config(config)
@@ -129,7 +152,13 @@ def remove_cmd(service_name: str, keep_running: bool):
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
     logger.info("services_remove_config_updated", service_name=service_name)
 
-    click.echo(f"Removed '{service_name}' from phlo.yaml")
+    if dependent_names:
+        click.echo(
+            f"Removed '{service_name}' and dependent services from phlo.yaml: "
+            + ", ".join(dependent_names)
+        )
+    else:
+        click.echo(f"Removed '{service_name}' from phlo.yaml")
 
     # Regenerate docker-compose.yml
     _regenerate_compose(discovery, config, phlo_dir)

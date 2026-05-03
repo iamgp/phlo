@@ -3247,6 +3247,7 @@ core-services = [
     { name = "phlo-trino" },
 ]
 defaults = [
+    { name = "phlo-api" },
     { name = "phlo-core-plugins" },
     { name = "phlo-dagster" },
     { name = "phlo-dbt" },
@@ -3254,6 +3255,7 @@ defaults = [
     { name = "phlo-iceberg" },
     { name = "phlo-minio" },
     { name = "phlo-nessie" },
+    { name = "phlo-observatory" },
     { name = "phlo-pandera" },
     { name = "phlo-postgres" },
     { name = "phlo-trino" },
@@ -3325,6 +3327,7 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.23.0" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pandera", specifier = ">=0.26.1" },
+    { name = "phlo-api", marker = "extra == 'defaults'", editable = "packages/phlo-api" },
     { name = "phlo-core-plugins", marker = "extra == 'defaults'", editable = "packages/phlo-core-plugins" },
     { name = "phlo-dagster", marker = "extra == 'core-services'", editable = "packages/phlo-dagster" },
     { name = "phlo-dagster", marker = "extra == 'defaults'", editable = "packages/phlo-dagster" },
@@ -3335,6 +3338,7 @@ requires-dist = [
     { name = "phlo-minio", marker = "extra == 'defaults'", editable = "packages/phlo-minio" },
     { name = "phlo-nessie", marker = "extra == 'core-services'", editable = "packages/phlo-nessie" },
     { name = "phlo-nessie", marker = "extra == 'defaults'", editable = "packages/phlo-nessie" },
+    { name = "phlo-observatory", marker = "extra == 'defaults'", editable = "packages/phlo-observatory" },
     { name = "phlo-openmetadata", marker = "extra == 'openmetadata'", editable = "packages/phlo-openmetadata" },
     { name = "phlo-pandera", marker = "extra == 'defaults'", editable = "packages/phlo-pandera" },
     { name = "phlo-postgres", marker = "extra == 'core-services'", editable = "packages/phlo-postgres" },

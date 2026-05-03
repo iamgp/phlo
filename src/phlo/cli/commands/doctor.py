@@ -161,7 +161,14 @@ def _check_docker_backend(*, verbose: bool) -> list[DiagnosticResult]:
         return results
 
     try:
-        compose = _run_probe(["docker", "compose", "version"])
+        compose_cmd = ["docker", "compose", "version"]
+        compose = _run_probe(compose_cmd)
+        if compose.returncode != 0 and shutil.which("docker-compose"):
+            fallback_cmd = ["docker-compose", "version"]
+            fallback = _run_probe(fallback_cmd)
+            if fallback.returncode == 0:
+                compose_cmd = fallback_cmd
+                compose = fallback
     except (OSError, subprocess.SubprocessError) as exc:
         results.append(
             DiagnosticResult(
@@ -174,7 +181,9 @@ def _check_docker_backend(*, verbose: bool) -> list[DiagnosticResult]:
             )
         )
     else:
-        details = {"stderr": compose.stderr.strip()} if verbose and compose.stderr else {}
+        details = {"command": " ".join(compose_cmd)}
+        if verbose and compose.stderr:
+            details["stderr"] = compose.stderr.strip()
         results.append(
             DiagnosticResult(
                 "env.docker.compose",

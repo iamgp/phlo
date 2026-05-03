@@ -61,9 +61,12 @@ INTERNAL_TO_REGISTRY_TYPE = {
 
 SCAFFOLD_TYPE_MAP = {
     "sources": "source",
+    "source": "source",
     "quality": "quality",
     "transforms": "transform",
+    "transform": "transform",
     "services": "service",
+    "service": "service",
     "hooks": "hook",
     "catalogs": "catalog",
     "assets": "asset",

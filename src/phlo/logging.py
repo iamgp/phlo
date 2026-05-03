@@ -246,7 +246,7 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
     root.setLevel(level)
     _remove_phlo_handlers(root)
 
-    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler = logging.StreamHandler(sys.stderr)
     stream_handler.setLevel(level)
     stream_handler.setFormatter(stream_formatter)
     _mark_phlo_handler(stream_handler)

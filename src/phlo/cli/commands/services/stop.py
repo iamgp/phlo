@@ -19,10 +19,21 @@ from phlo.cli.commands.services.utils import (
     require_container_backend,
 )
 from phlo.cli.infrastructure.compose import compose_base_cmd
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _remaining_project_containers(project_name: str, backend_name: str | None) -> list[str]:
+    """Return running containers still attached to the compose project."""
+    try:
+        backend = select_project_container_backend(cli_backend=backend_name)
+        return [container.name for container in backend.list_project_containers(project_name)]
+    except Exception:
+        logger.warning("services_stop_remaining_container_check_failed", exc_info=True)
+        return []
 
 
 @click.command("stop")
@@ -185,6 +196,19 @@ def stop_cmd(
 
     result = run_compose(cmd, check=False, capture_output=False)
     if result.returncode == 0:
+        remaining = (
+            [] if services_list else _remaining_project_containers(project_name, backend_name)
+        )
+        if remaining:
+            logger.error(
+                "services_stop_left_running_containers",
+                project_name=project_name,
+                remaining_count=len(remaining),
+                remaining_containers=remaining,
+            )
+            raise click.ClickException(
+                "container compose completed but containers still running: " + ", ".join(remaining)
+            )
         logger.info(
             "services_stop_succeeded",
             project_name=project_name,

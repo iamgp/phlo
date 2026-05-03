@@ -178,6 +178,31 @@ def test_ports_cmd_json_output(monkeypatch: pytest.MonkeyPatch, tmp_path) -> Non
     assert result.output.strip() == "[]"
 
 
+def test_ports_cmd_json_output_is_payload_only(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    (tmp_path / ".phlo").mkdir()
+    (tmp_path / "phlo.yaml").write_text("name: test\n")
+    service = ServiceDefinition(
+        name="postgres",
+        description="PostgreSQL",
+        compose={"ports": ["${POSTGRES_PORT:-5432}:5432"]},
+    )
+
+    class PortFakeDiscovery(FakeDiscovery):
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {"postgres": service}
+
+    monkeypatch.setattr(ports_module, "ServiceDiscovery", PortFakeDiscovery)
+    monkeypatch.setattr(ports_module, "get_project_name", lambda: "test")
+    monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda *_args: {})
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(ports_module.ports_cmd, ["--json"])
+
+    assert result.exit_code == 0
+    assert result.output.lstrip().startswith("[")
+    assert '"service": "postgres"' in result.output
+
+
 def test_get_running_container_ports_uses_backend(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeBackend:
         name = "podman"
@@ -319,7 +344,9 @@ def test_get_service_ports_no_ports() -> None:
     assert ports == []
 
 
-def test_get_service_ports_filters_stopped_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_service_ports_shows_stopped_configured_ports_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     env: dict[str, str] = {}
     running_containers: dict[str, dict] = {}
     show_all = False
@@ -331,7 +358,9 @@ def test_get_service_ports_filters_stopped_by_default(monkeypatch: pytest.Monkey
     )
 
     ports = ports_module._get_service_ports(service, env, running_containers, show_all)
-    assert ports == []
+    assert len(ports) == 1
+    assert ports[0].host_port == 5432
+    assert ports[0].status == "Stopped"
 
 
 def test_get_service_routes_requires_active_traefik() -> None:

@@ -64,7 +64,7 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
             output = {"installed": installed}
             if include_registry:
                 output["available"] = available
-            console.print(json.dumps(output, indent=2))
+            click.echo(json.dumps(output, indent=2))
             logger.info(
                 "plugin_list_succeeded",
                 installed_count=len(installed),

@@ -125,7 +125,7 @@ def _start_services(
     "--service",
     "services",
     multiple=True,
-    help="Render explicit service(s) (e.g., --service superset --service phlo-api)",
+    help="Render explicit service(s) (e.g., --service phlo-api --service observatory)",
 )
 @click.option("--no-start", is_flag=True, help="Don't start newly-added services after rendering")
 def add_cmd(
@@ -139,8 +139,8 @@ def add_cmd(
     Examples:
         phlo services add phlo-api
         phlo services add --profile api
-        phlo services add --profile proxy --service superset
-        phlo services add --service hasura --service postgrest --no-start
+        phlo services add observability
+        phlo services add --service phlo-api --service observatory --no-start
     """
     phlo_dir = get_phlo_dir()
     config_file = Path.cwd() / PHLO_CONFIG_FILE
@@ -163,8 +163,12 @@ def add_cmd(
     normalized_profiles = validate_requested_profiles(profiles)
     explicit_services = parse_service_args(services)
     if service_name:
-        explicit_services = [service_name, *explicit_services]
-        explicit_services = list(dict.fromkeys(explicit_services))
+        available_profiles = discovery.get_available_profiles()
+        if service_name in available_profiles and service_name not in all_services:
+            normalized_profiles = tuple(dict.fromkeys([*normalized_profiles, service_name]))
+        else:
+            explicit_services = [service_name, *explicit_services]
+            explicit_services = list(dict.fromkeys(explicit_services))
 
     if not normalized_profiles and not explicit_services:
         raise click.ClickException("Specify a service name, --service, or --profile.")

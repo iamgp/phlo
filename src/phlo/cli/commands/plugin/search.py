@@ -11,6 +11,7 @@ from rich.table import Table
 from phlo.cli.commands.plugin.utils import (
     INTERNAL_TO_REGISTRY_TYPE,
     PLUGIN_TYPE_CHOICES,
+    collect_installed_plugins,
     console,
     registry_plugin_to_dict,
 )
@@ -18,6 +19,30 @@ from phlo.logging import get_logger
 from phlo.plugins.registry_client import search_plugins
 
 logger = get_logger(__name__)
+
+
+def _matches_installed_plugin(
+    plugin: dict,
+    *,
+    query: str | None,
+    plugin_type: str | None,
+    tags: tuple[str, ...],
+) -> bool:
+    """Return true when an installed plugin matches search filters."""
+    if plugin_type and plugin.get("type") != plugin_type:
+        return False
+    if tags:
+        plugin_tags = {str(tag).lower() for tag in plugin.get("tags", [])}
+        if not all(tag.lower() in plugin_tags for tag in tags):
+            return False
+    if not query:
+        return True
+    needle = query.lower()
+    haystack = " ".join(
+        str(plugin.get(key, "")) for key in ("name", "type", "description", "package", "author")
+    ).lower()
+    haystack_tags = " ".join(str(tag) for tag in plugin.get("tags", [])).lower()
+    return needle in haystack or needle in haystack_tags
 
 
 @click.command(name="search")
@@ -55,16 +80,32 @@ def search_cmd(
         )
         if plugin_type:
             plugin_type = INTERNAL_TO_REGISTRY_TYPE.get(plugin_type, plugin_type)
+        installed_type = "all"
+        installed_results = [
+            plugin
+            for plugin in collect_installed_plugins(installed_type)
+            if _matches_installed_plugin(
+                plugin,
+                query=query,
+                plugin_type=plugin_type,
+                tags=tags,
+            )
+        ]
+
         results = search_plugins(
             query=query,
             plugin_type=plugin_type,
             tags=list(tags) if tags else None,
         )
 
-        output = [registry_plugin_to_dict(plugin) for plugin in results]
+        output_by_key = {(plugin["name"], plugin["type"]): plugin for plugin in installed_results}
+        for plugin in results:
+            payload = registry_plugin_to_dict(plugin)
+            output_by_key.setdefault((payload["name"], payload["type"]), payload)
+        output = list(output_by_key.values())
 
         if output_json:
-            console.print(json.dumps(output, indent=2))
+            click.echo(json.dumps(output, indent=2))
             logger.info("plugin_search_succeeded", result_count=len(output), output_json=True)
             return
 

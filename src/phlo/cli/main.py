@@ -4,6 +4,7 @@ Phlo CLI Main Entry Point
 Provides command-line interface for Phlo workflows.
 """
 
+import importlib.util
 import os
 import subprocess
 import sys
@@ -207,6 +208,32 @@ def _display_created_structure(project_dir: Path, selected_template) -> None:
             click.echo(f"    - {path}")
 
 
+def _available_service_count() -> int:
+    """Return discovered service count, tolerating minimal installs."""
+    try:
+        from phlo.plugins.discovery import ServiceDiscovery
+
+        return len(ServiceDiscovery().discover())
+    except Exception:
+        return 0
+
+
+def _render_next_steps(selected_template) -> list[str]:
+    """Tailor project next steps to the packages installed in this environment."""
+    steps = list(selected_template.metadata.next_steps)
+    if "phlo workflow create" in steps and importlib.util.find_spec("phlo_dlt") is None:
+        steps = [step for step in steps if step != "phlo workflow create"]
+        steps.append('Install workflow plugins: uv pip install "phlo[defaults]"')
+
+    if "phlo services init" in steps and _available_service_count() == 0:
+        steps = [step for step in steps if step != "phlo services init"]
+        install_step = 'Install service plugins: uv pip install "phlo[defaults]"'
+        if install_step not in steps:
+            steps.append(install_step)
+
+    return steps
+
+
 @cli.command("init")
 @click.argument("project_name", required=False)
 @click.option(
@@ -268,7 +295,7 @@ def init(project_name: str | None, template: str, force: bool, list_templates: b
         if project_dir != Path.cwd():
             click.echo(f"  {step_number}. cd {project_dir}")
             step_number += 1
-        for next_step in selected_template.metadata.next_steps:
+        for next_step in _render_next_steps(selected_template):
             click.echo(f"  {step_number}. {next_step}")
             step_number += 1
 

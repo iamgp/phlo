@@ -141,7 +141,14 @@ def test_plugin_list_json_installed(setup_registry):
     # #then
     data = json.loads(result.output)
     types = {plugin["type"] for plugin in data["installed"]}
-    assert result.exit_code == 0 and types == {"source", "quality", "transform", "service"}
+    assert result.exit_code == 0
+    assert types >= {"source", "quality", "transform", "service"}
+    assert {plugin["name"] for plugin in data["installed"]} >= {
+        "dummy_source",
+        "dummy_quality",
+        "dummy_transform",
+        "dummy_service",
+    }
 
 
 def test_plugin_list_all_json(setup_registry, monkeypatch):
@@ -217,6 +224,22 @@ def test_plugin_search(monkeypatch):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data[0]["name"] == "registry_service"
+
+
+def test_plugin_search_includes_installed_plugins(monkeypatch, setup_registry):
+    """Search should not hide installed plugins when registry results are sparse."""
+    monkeypatch.setattr("phlo.cli.commands.plugin.search.search_plugins", lambda *_args, **_kw: [])
+
+    result = CliRunner().invoke(plugin_group, ["search", "dummy", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert {item["name"] for item in data} >= {
+        "dummy_source",
+        "dummy_quality",
+        "dummy_transform",
+        "dummy_service",
+    }
 
 
 def test_plugin_install(monkeypatch):

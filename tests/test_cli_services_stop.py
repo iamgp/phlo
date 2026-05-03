@@ -43,3 +43,54 @@ def test_services_stop_uses_podman_backend(monkeypatch, tmp_path) -> None:
     assert calls
     assert calls[0][:2] == ["podman", "compose"]
     assert calls[0][-1] == "down"
+
+
+def test_services_stop_fails_when_containers_remain(monkeypatch, tmp_path) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text("services:\n  postgres: {}\n")
+    (phlo_dir / ".env").write_text("")
+    monkeypatch.chdir(tmp_path)
+
+    def _fake_run_compose(
+        cmd: list[str],
+        *,
+        check: bool = False,
+        capture_output: bool = False,
+    ) -> CompletedProcess:
+        return CompletedProcess(cmd, 0)
+
+    class FakeBackend:
+        def list_project_containers(self, project_name: str):
+            from phlo.cli.infrastructure.container_backend import ContainerInfo
+
+            return [
+                ContainerInfo(
+                    service="postgres",
+                    name=f"{project_name}-postgres-1",
+                    state="running",
+                    labels={},
+                    ports="",
+                )
+            ]
+
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.stop.require_container_backend",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr("phlo.cli.commands.services.stop.ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr("phlo.cli.commands.services.stop.get_project_name", lambda: "demo")
+    monkeypatch.setattr("phlo.cli.commands.services.stop.run_compose", _fake_run_compose)
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.stop.select_project_container_backend",
+        lambda **_kwargs: FakeBackend(),
+    )
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.stop._emit_service_lifecycle_events",
+        lambda *args, **kwargs: None,
+    )
+
+    result = CliRunner().invoke(stop_cmd)
+
+    assert result.exit_code != 0
+    assert "containers still running" in result.output

@@ -30,6 +30,25 @@ def _expand_selected_services(
     return expand_service_dependencies(discovery, services)
 
 
+def _is_uninitialized_phlo_dir(phlo_dir: Path) -> bool:
+    """Return true when `.phlo` only contains runtime artifacts created before init."""
+    if not phlo_dir.exists():
+        return False
+    allowed_files = {".DS_Store"}
+    for path in phlo_dir.rglob("*"):
+        if path.is_dir():
+            if path.relative_to(phlo_dir).parts[:1] == ("logs",):
+                continue
+            return False
+        relative = path.relative_to(phlo_dir)
+        if relative.parts[:1] == ("logs",):
+            continue
+        if path.name in allowed_files:
+            continue
+        return False
+    return True
+
+
 @click.command("init")
 @click.option("--force", is_flag=True, help="Overwrite existing configuration")
 @click.option("--name", "project_name", help="Project name (default: directory name)")
@@ -98,7 +117,7 @@ def init_cmd(
     phlo_dir = get_phlo_dir()
     config_file = Path.cwd() / PHLO_CONFIG_FILE
 
-    if phlo_dir.exists() and not force:
+    if phlo_dir.exists() and not force and not _is_uninitialized_phlo_dir(phlo_dir):
         click.echo(f"Directory {phlo_dir} already exists.", err=True)
         click.echo("Use --force to overwrite.", err=True)
         sys.exit(1)
