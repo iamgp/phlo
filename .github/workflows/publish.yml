@@ -23,6 +23,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     environment: pypi
+    concurrency:
+      group: pypi-publish-${{ github.repository }}
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
