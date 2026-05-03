@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 from click.testing import CliRunner
+from pyiceberg.exceptions import NoSuchTableError
 
 from phlo.capabilities.specs import (
     FieldSpec,
@@ -622,3 +623,50 @@ def test_build_scaffold_payload_from_contract_rejects_table_mismatch(monkeypatch
             table_name="warehouse.customers",
             contract_path=Path(".phlo/contracts/warehouse__customers.json"),
         )
+
+
+def test_refresh_contracts_skips_missing_tables_without_warning(monkeypatch) -> None:
+    """First materialization can refresh before the Iceberg table exists."""
+
+    class FakeLogger:
+        def __init__(self) -> None:
+            self.debug_events: list[tuple[str, dict[str, object]]] = []
+            self.warning_events: list[tuple[str, dict[str, object]]] = []
+
+        def debug(self, event: str, **kwargs: object) -> None:
+            self.debug_events.append((event, kwargs))
+
+        def warning(self, event: str, **kwargs: object) -> None:
+            self.warning_events.append((event, kwargs))
+
+    class FakeAsset:
+        key = "dlt_orders"
+        kinds = {"dlt"}
+        metadata = {"table_name": "raw.orders"}
+
+    class FakeRegistry:
+        def list_assets(self) -> list[FakeAsset]:
+            return [FakeAsset()]
+
+    logger = FakeLogger()
+    calls: list[str] = []
+
+    def _missing_table(*, table_name: str, force: bool = True) -> Path:
+        calls.append(table_name)
+        raise NoSuchTableError(f"Table does not exist: {table_name}")
+
+    monkeypatch.setattr(schema_migrate_commands, "get_capability_registry", lambda: FakeRegistry())
+    monkeypatch.setattr(schema_migrate_commands, "export_contract_for_table", _missing_table)
+    monkeypatch.setattr(schema_migrate_commands, "logger", logger)
+
+    refreshed = schema_migrate_commands.refresh_contracts_for_selection(selection="dlt_orders")
+
+    assert refreshed == 0
+    assert calls == ["raw.orders"]
+    assert logger.warning_events == []
+    assert logger.debug_events == [
+        (
+            "schema_contract_refresh_skipped_table_missing",
+            {"table_name": "raw.orders", "selection": "dlt_orders"},
+        )
+    ]
