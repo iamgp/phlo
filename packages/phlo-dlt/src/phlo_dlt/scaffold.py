@@ -411,7 +411,7 @@ from {schema_import_path} import {schema_class}
 
 @phlo_ingestion(
     table_name="{table_name}",
-    unique_key="{unique_key}",
+    unique_key="{unique_key_normalized}",
     validation_schema={schema_class},
     group="{domain_snake}",
     cron="{cron}",

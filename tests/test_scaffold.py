@@ -90,7 +90,7 @@ def test_scaffold_generates_no_todos_and_is_syntax_valid(
 def test_scaffold_uses_unique_key_field_type_when_declared(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Lets API schemas declare integer primary keys such as Fake Store product ids."""
+    """Normalizes and types API primary keys such as Fake Store product ids."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "workflows" / "schemas").mkdir(parents=True)
     (tmp_path / "workflows" / "ingestion").mkdir(parents=True)
@@ -98,19 +98,24 @@ def test_scaffold_uses_unique_key_field_type_when_declared(
     created = create_ingestion_workflow(
         domain="commerce",
         table_name="products",
-        unique_key="id",
+        unique_key="ProductId",
         api_base_url="https://fakestoreapi.com",
-        fields=["id:int", "title:str", "price:float"],
+        fields=["ProductId:int", "title:str", "price:float"],
     )
 
     schema_path = tmp_path / "workflows" / "schemas" / "commerce.py"
+    asset_path = tmp_path / "workflows" / "ingestion" / "commerce" / "products.py"
     test_path_str = next((p for p in created if p.startswith("tests/")), None)
     assert test_path_str is not None, "Expected test file was not created"
     test_path = tmp_path / test_path_str
 
     assert "from phlo_pandera.schemas import PhloSchema" in schema_path.read_text()
     assert "class RawProducts(PhloSchema):" in schema_path.read_text()
-    assert 'id: Series[int] = pa.Field(description="Unique key", nullable=False)' in (
+    assert 'product_id: Series[int] = pa.Field(description="Unique key", nullable=False)' in (
         schema_path.read_text()
     )
-    assert '"id": 1' in test_path.read_text()
+    assert 'unique_key="product_id"' in asset_path.read_text()
+    assert 'unique_key="ProductId"' not in asset_path.read_text()
+    assert '"product_id": 1' in test_path.read_text()
+    assert '"title": "test-001"' in test_path.read_text()
+    assert '"price": 1.0' in test_path.read_text()
