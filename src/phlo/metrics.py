@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -27,8 +28,8 @@ class MetricsBackendSettings(BaseConfig):
 
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
     postgres_port: int = Field(default=5432, description="PostgreSQL port")
-    postgres_user: str = Field(description="PostgreSQL username")
-    postgres_password: str = Field(description="PostgreSQL password")
+    postgres_user: str = Field(default="phlo", description="PostgreSQL username")
+    postgres_password: str = Field(default="phlo", description="PostgreSQL password")
     postgres_db: str = Field(default="phlo", description="PostgreSQL database name")
     nessie_host: str = Field(default="nessie", description="Nessie host")
     nessie_port: int = Field(default=19120, description="Nessie port")
@@ -202,7 +203,8 @@ class MetricsCollector:
             )
 
         try:
-            iceberg_metrics = self._get_iceberg_table_stats(asset_name)
+            iceberg_table_name = self._resolve_asset_table_name_from_postgres(asset_name)
+            iceberg_metrics = self._get_iceberg_table_stats(iceberg_table_name)
             metrics.data_growth_bytes = iceberg_metrics.get("total_bytes", 0)
         except Exception:
             logger.warning("asset_iceberg_stats_failed", asset_name=asset_name, exc_info=True)
@@ -357,21 +359,34 @@ class MetricsCollector:
                     """
                     SELECT
                         r.run_id,
-                        COALESCE(r.start_time, r.create_timestamp) AS start_time,
-                        COALESCE(r.end_time, r.update_timestamp) AS end_time,
+                        CASE
+                            WHEN r.start_time IS NOT NULL THEN to_timestamp(r.start_time)
+                            ELSE r.create_timestamp
+                        END AS start_time,
+                        CASE
+                            WHEN r.end_time IS NOT NULL THEN to_timestamp(r.end_time)
+                            ELSE r.update_timestamp
+                        END AS end_time,
                         r.status
-                    FROM dagster_runs AS r
-                    LEFT JOIN run_tags AS t ON t.run_id = r.run_id
+                    FROM runs AS r
                     WHERE r.pipeline_name = %s
-                       OR (
-                           t.key = 'dagster/asset_selection'
-                           AND t.value ILIKE %s ESCAPE '\\'
+                       OR EXISTS (
+                           SELECT 1
+                           FROM run_tags AS t
+                           WHERE t.run_id = r.run_id
+                             AND t.key = 'dagster/asset_selection'
+                             AND t.value ILIKE %s ESCAPE '\\'
                        )
-                    GROUP BY r.run_id, start_time, end_time, r.status
+                       OR EXISTS (
+                           SELECT 1
+                           FROM event_logs AS e
+                           WHERE e.run_id = r.run_id
+                             AND e.asset_key ILIKE %s ESCAPE '\\'
+                       )
                     ORDER BY start_time DESC
                     LIMIT %s
                     """,
-                    (asset_name, f"%{escaped_asset_name}%", limit),
+                    (asset_name, f"%{escaped_asset_name}%", f"%{escaped_asset_name}%", limit),
                 )
                 rows = cur.fetchall()
         except PsycopgError as exc:
@@ -398,6 +413,72 @@ class MetricsCollector:
             )
         return runs
 
+    def _resolve_asset_table_name_from_postgres(self, asset_name: str) -> str:
+        """Resolve a Dagster asset key to its physical table when metadata records it."""
+        try:
+            conn = psycopg2.connect(
+                host=self.settings.postgres_host,
+                port=self.settings.postgres_port,
+                database=self.settings.postgres_db,
+                user=self.settings.postgres_user,
+                password=self.settings.postgres_password,
+            )
+        except PsycopgError as exc:
+            raise MetricsDependencyError("Postgres unavailable for asset table lookup") from exc
+
+        try:
+            escaped_asset_name = (
+                asset_name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            )
+            with conn, conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT event
+                    FROM event_logs
+                    WHERE dagster_event_type = 'ASSET_MATERIALIZATION'
+                      AND asset_key ILIKE %s ESCAPE '\\'
+                    ORDER BY timestamp DESC
+                    LIMIT 20
+                    """,
+                    (f"%{escaped_asset_name}%",),
+                )
+                rows = cur.fetchall()
+        except PsycopgError as exc:
+            raise MetricsDependencyError("Failed querying asset materialization metadata") from exc
+        finally:
+            conn.close()
+
+        for row in rows:
+            table_name = self._extract_materialized_table_name(row.get("event"))
+            if table_name:
+                return table_name
+
+        return asset_name
+
+    def _extract_materialized_table_name(self, raw_event: Any) -> str | None:
+        if not isinstance(raw_event, str) or not raw_event:
+            return None
+        try:
+            event = json.loads(raw_event)
+        except json.JSONDecodeError:
+            return None
+
+        entries = (
+            event.get("dagster_event", {})
+            .get("event_specific_data", {})
+            .get("materialization", {})
+            .get("metadata_entries", [])
+        )
+        if not isinstance(entries, list):
+            return None
+        for entry in entries:
+            if entry.get("label") != "table_name":
+                continue
+            text = entry.get("entry_data", {}).get("text")
+            if isinstance(text, str) and text:
+                return text
+        return None
+
     def _get_iceberg_table_stats(self, table_name: str) -> dict[str, Any]:
         """Get table statistics from Iceberg."""
         query_engine = self._load_query_engine()
@@ -423,7 +504,7 @@ class MetricsCollector:
                 f"Failed querying Iceberg table stats for {table_name}"
             ) from exc
 
-        if not isinstance(row, list) or len(row) != 1 or not isinstance(row[0], tuple):
+        if not isinstance(row, list) or len(row) != 1 or not isinstance(row[0], (list, tuple)):
             raise MetricsMalformedResponseError(
                 f"Unexpected Iceberg table stats shape for {table_name}: {row!r}"
             )

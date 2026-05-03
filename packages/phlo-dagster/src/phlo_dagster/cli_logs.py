@@ -32,14 +32,18 @@ Example:
 
 """
 
+import json
 import os
 import re
 from datetime import datetime, timedelta, timezone
 
 import click
+import psycopg2
+import psycopg2.extras
 import requests as http_requests
 from rich.console import Console
 
+from phlo.config.network import resolve_host
 from phlo.logging import get_logger
 from phlo_dagster.cli_logs_display import _display_logs, _tail_logs
 from phlo_dagster.settings import get_settings
@@ -293,10 +297,11 @@ def _get_logs(filters: dict) -> list[dict]:
             return logs_list
 
         except Exception:
-            logger.warning(
-                "dagster_logs_graphql_query_failed",
-                exc_info=True,
-            )
+            postgres_logs = _get_logs_from_postgres(filters)
+            if postgres_logs:
+                logger.debug("dagster_logs_graphql_failed_postgres_fallback_used")
+                return postgres_logs
+            logger.warning("dagster_logs_graphql_query_failed", exc_info=True)
             return []
 
     except Exception:
@@ -304,7 +309,123 @@ def _get_logs(filters: dict) -> list[dict]:
             "dagster_logs_graphql_client_unavailable",
             exc_info=True,
         )
+        postgres_logs = _get_logs_from_postgres(filters)
+        if postgres_logs:
+            logger.debug("dagster_logs_graphql_client_unavailable_postgres_fallback_used")
+        return postgres_logs
+
+
+def _get_logs_from_postgres(filters: dict) -> list[dict]:
+    """Retrieve Dagster event logs directly from Dagster's Postgres storage."""
+    try:
+        host, port = resolve_host(
+            os.getenv("POSTGRES_HOST", "postgres"),
+            int(os.getenv("POSTGRES_PORT", "5432")),
+            port_env_var="POSTGRES_PORT",
+        )
+        conn = psycopg2.connect(
+            host=host,
+            port=port,
+            database=os.getenv("POSTGRES_DB", "phlo"),
+            user=os.getenv("POSTGRES_USER", "phlo"),
+            password=os.getenv("POSTGRES_PASSWORD", "phlo"),
+        )
+    except Exception:
+        logger.warning("dagster_logs_postgres_connect_failed", exc_info=True)
         return []
+
+    where = ["TRUE"]
+    params: list[object] = []
+    if filters.get("asset"):
+        asset = str(filters["asset"]).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        where.append("asset_key ILIKE %s ESCAPE '\\'")
+        params.append(f"%{asset}%")
+    if filters.get("run_id"):
+        where.append("run_id = %s")
+        params.append(filters["run_id"])
+    if filters.get("start_time"):
+        where.append("timestamp >= %s")
+        params.append(filters["start_time"])
+
+    params.append(int(filters.get("limit", 100)))
+    try:
+        with conn, conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(
+                f"""
+                SELECT run_id, dagster_event_type, timestamp, event, step_key
+                FROM event_logs
+                WHERE {" AND ".join(where)}
+                ORDER BY id DESC
+                LIMIT %s
+                """,
+                params,
+            )
+            rows = cur.fetchall()
+    except Exception:
+        logger.warning("dagster_logs_postgres_query_failed", exc_info=True)
+        return []
+    finally:
+        conn.close()
+
+    logs_list: list[dict] = []
+    for row in rows:
+        entry = _event_log_row_to_entry(row)
+        if not entry:
+            continue
+        if filters.get("job") and entry.get("job_name") != filters["job"]:
+            continue
+        if filters.get("level") and entry.get("level") != filters["level"]:
+            continue
+        logs_list.append(entry)
+    logs_list.reverse()
+    return logs_list
+
+
+def _event_log_row_to_entry(row) -> dict | None:
+    raw_event = row.get("event")
+    payload: dict = {}
+    if isinstance(raw_event, str) and raw_event:
+        try:
+            payload = json.loads(raw_event)
+        except json.JSONDecodeError:
+            payload = {}
+
+    dagster_event = payload.get("dagster_event") or {}
+    logging_tags = dagster_event.get("logging_tags") or {}
+    event_type = row.get("dagster_event_type") or dagster_event.get("event_type_value") or ""
+    message = (
+        payload.get("user_message")
+        or dagster_event.get("message")
+        or payload.get("message")
+        or event_type
+    )
+    timestamp = row.get("timestamp")
+    if isinstance(timestamp, datetime):
+        timestamp_value = timestamp.replace(tzinfo=timezone.utc).isoformat()
+    else:
+        timestamp_value = str(timestamp) if timestamp is not None else ""
+
+    return {
+        "timestamp": timestamp_value,
+        "level": _level_from_event_payload(payload, event_type),
+        "message": str(message or ""),
+        "event_type": str(event_type),
+        "run_id": str(row.get("run_id") or payload.get("run_id") or ""),
+        "job_name": str(logging_tags.get("job_name") or payload.get("pipeline_name") or ""),
+        "run_status": "",
+    }
+
+
+def _level_from_event_payload(payload: dict, event_type: str) -> str:
+    level = payload.get("level")
+    if isinstance(level, int):
+        if level >= 40:
+            return "ERROR"
+        if level >= 30:
+            return "WARNING"
+        if level >= 20:
+            return "INFO"
+    return _get_log_level(event_type)
 
 
 def _build_logs_query(filters: dict) -> str:

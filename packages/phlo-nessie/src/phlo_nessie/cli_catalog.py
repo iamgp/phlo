@@ -237,12 +237,13 @@ def describe(table_name: str, ref: str) -> None:
                 part_table.add_row(str(part_field.source_id), str(part_field.transform))
             console.print(part_table)
 
-        if table.properties():
+        properties = _value_or_call(table.properties)
+        if properties:
             console.print("\n[bold]Properties:[/bold]")
             prop_table = Table()
             prop_table.add_column("Key", style="cyan")
             prop_table.add_column("Value", style="green")
-            for key, value in sorted(table.properties().items()):
+            for key, value in sorted(properties.items()):
                 prop_table.add_row(key, value)
             console.print(prop_table)
         logger.info(
