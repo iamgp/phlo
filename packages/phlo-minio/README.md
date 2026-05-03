@@ -35,7 +35,7 @@ This package is **fully auto-configured**:
 | ----------------------- | ---------------------------------------------------- |
 | **Metrics Labels**      | Exposes MinIO metrics at `/minio/v2/metrics/cluster` |
 | **Prometheus Scraping** | Auto-scraped by Prometheus via Docker labels         |
-| **Volume Mounting**     | Persists data to `./volumes/minio`                   |
+| **Volume Mounting**     | Persists data to the `minio-data` Docker volume      |
 
 ### Metrics Labels
 
