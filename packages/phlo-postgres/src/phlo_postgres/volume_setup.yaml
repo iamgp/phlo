@@ -17,4 +17,4 @@ compose:
     echo 'Postgres data volume ownership initialized'
     "
   volumes:
-    - ./volumes/postgres:/var/lib/postgresql/data
+    - postgres-data:/var/lib/postgresql/data

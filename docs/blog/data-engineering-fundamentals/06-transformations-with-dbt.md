@@ -81,12 +81,12 @@ group by 1, 2
 ```
 
 
-## Run dbt from Services
+## Run dbt through Phlo
 
 ```bash
-docker exec my-first-phlo-project-dagster-1 dbt compile --project-dir /app/workflows/transforms/dbt
-docker exec my-first-phlo-project-dagster-1 dbt run --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt
-docker exec my-first-phlo-project-dagster-1 dbt test --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt
+phlo dbt compile
+phlo dbt run --select stg_orders --select fct_orders
+phlo dbt test --select stg_orders --select fct_orders
 ```
 
 Expected output from `dbt compile`:
@@ -101,7 +101,7 @@ Compiled successfully.
 The dbt plugin contributes a `publishing` command group.
 
 ```bash
-docker exec my-first-phlo-project-dagster-1 dbt run --select tag:publish --project-dir /app/workflows/transforms/dbt
+phlo dbt run --select tag:publish
 ```
 
 

@@ -58,6 +58,8 @@ include-package-data = true
 [tool.setuptools.package-data]
 phlo_trino = [
     "service.yaml",
+    "jvm.config",
+    "config.properties",
     "catalog/*.properties",
     "observatory_assets/*",
 ]

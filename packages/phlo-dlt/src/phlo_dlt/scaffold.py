@@ -161,6 +161,38 @@ _TYPE_IMPORTS: dict[str, tuple[str, str] | None] = {
 }
 
 
+_MINIMAL_TEST_VALUES: dict[str, str] = {
+    "str": '"test-001"',
+    "int": "1",
+    "float": "1.0",
+    "bool": "True",
+    "datetime": 'pd.Timestamp("2024-01-01T00:00:00Z")',
+    "date": 'pd.Timestamp("2024-01-01").date()',
+}
+
+
+def _resolve_schema_base_import() -> tuple[str, str]:
+    """Resolve the generated schema base class from the active quality provider."""
+    try:
+        from phlo.plugins.discovery import discover_plugins, get_quality_provider
+
+        discover_plugins()
+        provider = get_quality_provider("pandera")
+        if provider is not None:
+            schema_base_import = provider.get_schema_base_import()
+            if schema_base_import is not None:
+                return schema_base_import
+    except Exception:
+        pass
+
+    return ("pandera.pandas", "DataFrameModel")
+
+
+def _minimal_test_value(type_name: str) -> str:
+    """Return Python source for a minimal valid test value."""
+    return _MINIMAL_TEST_VALUES.get(type_name, '"test-001"')
+
+
 def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
     """Parse raw CLI field specifications.
 
@@ -322,11 +354,21 @@ def create_ingestion_workflow(
     if type_imports:
         type_imports = f"{type_imports}\n\n"
 
+    field_by_name = {field.name: field for field in field_specs}
+    unique_key_normalized = _to_snake_case(unique_key)
+    unique_key_field = field_by_name.get(unique_key_normalized)
+    unique_key_type = unique_key_field.type_name if unique_key_field else "str"
+    unique_key_nullable = unique_key_field.nullable if unique_key_field else False
+    schema_base_module, schema_base_name = _resolve_schema_base_import()
+
     schema_fields_lines = [
-        f'    {unique_key}: Series[str] = pa.Field(description="Unique key", nullable=False)'
+        (
+            f"    {unique_key_normalized}: Series[{unique_key_type}] = "
+            f'pa.Field(description="Unique key", nullable={unique_key_nullable})'
+        )
     ]
     for field in field_specs:
-        if field.name == unique_key:
+        if field.name == unique_key_normalized:
             continue
         schema_fields_lines.append(
             f"    {field.name}: Series[{field.type_name}] = pa.Field(nullable={field.nullable})"
@@ -342,8 +384,9 @@ Extend this schema with additional fields as you stabilize the source contract.
 
 import pandera as pa
 from pandera.typing import Series
+from {schema_base_module} import {schema_base_name}
 
-{type_imports}class {schema_class}(pa.DataFrameModel):
+{type_imports}class {schema_class}({schema_base_name}):
 {schema_fields}
 
     class Config:
@@ -368,7 +411,7 @@ from {schema_import_path} import {schema_class}
 
 @phlo_ingestion(
     table_name="{table_name}",
-    unique_key="{unique_key}",
+    unique_key="{unique_key_normalized}",
     validation_schema={schema_class},
     group="{domain_snake}",
     cron="{cron}",
@@ -405,6 +448,15 @@ def {table_snake}(partition_date: str):
 
     asset_file.write_text(asset_content)
 
+    extra_required_fields_lines = [
+        f'        "{field.name}": {_minimal_test_value(field.type_name)},'
+        for field in field_specs
+        if not field.nullable and field.name != unique_key_normalized
+    ]
+    extra_required_fields = "\n".join(extra_required_fields_lines)
+    if extra_required_fields:
+        extra_required_fields = "\n" + extra_required_fields
+
     test_content = f'''"""
 Tests for {domain} {table_name} scaffolded workflow.
 """
@@ -416,13 +468,15 @@ from {schema_import_path} import {schema_class}
 
 def test_schema_contains_unique_key() -> None:
     schema_fields = {schema_class}.to_schema().columns.keys()
-    assert "{unique_key}" in schema_fields
+    assert "{unique_key_normalized}" in schema_fields
 
 
 def test_schema_validates_minimal_row() -> None:
-    df = pd.DataFrame([{{"{unique_key}": "test-001"}}])
+    df = pd.DataFrame([{{
+        "{unique_key_normalized}": {_minimal_test_value(unique_key_type)},{extra_required_fields}
+    }}])
     validated = {schema_class}.validate(df)
-    assert validated["{unique_key}"].iloc[0] == "test-001"
+    assert validated["{unique_key_normalized}"].iloc[0] == {_minimal_test_value(unique_key_type)}
 '''
 
     test_file.write_text(test_content)

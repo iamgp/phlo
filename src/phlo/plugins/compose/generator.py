@@ -71,6 +71,10 @@ class ComposeGenerator:
                 user_override=service_override,
             )
 
+        named_volumes = self._collect_named_volumes(compose["services"].values())
+        if named_volumes:
+            compose["volumes"] = {name: {} for name in sorted(named_volumes)}
+
         # Add header comment with dev mode flag for stale detection
         dev_mode_str = "true" if dev_mode else "false"
         header = f"""# Phlo Infrastructure Stack
@@ -80,6 +84,35 @@ class ComposeGenerator:
 
 """
         return header + yaml.dump(compose, default_flow_style=False, sort_keys=False)
+
+    def _collect_named_volumes(self, services: Any) -> set[str]:
+        """Collect named service volumes that need top-level compose declarations."""
+        named_volumes: set[str] = set()
+        for service in services:
+            for volume in service.get("volumes", []):
+                name = self._named_volume_from_mount(volume)
+                if name:
+                    named_volumes.add(name)
+        return named_volumes
+
+    def _named_volume_from_mount(self, volume: Any) -> str | None:
+        """Return the named volume source for a short-syntax mount, if any."""
+        if not isinstance(volume, str) or ":" not in volume:
+            return None
+
+        # Check for Windows drive-letter prefix (e.g., "C:\path")
+        if len(volume) >= 2 and volume[0].isalpha() and volume[1] == ":":
+            return None
+
+        source = volume.split(":", 1)[0]
+        if not source:
+            return None
+        if source.startswith((".", "/", "~", "$", "{")):
+            return None
+        if source.startswith("${"):
+            return None
+
+        return source
 
     def _build_service_config(
         self,

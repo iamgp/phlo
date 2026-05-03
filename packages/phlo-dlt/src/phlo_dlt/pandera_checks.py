@@ -35,13 +35,24 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import pandera.errors
-from pandera.engines import pandas_engine
-from pandera.pandas import DataFrameModel
 
 from phlo.capabilities.specs import CheckResult
 
 PANDERA_CONTRACT_CHECK_NAME = "pandera_contract"
+
+
+def _pandera_schema_errors() -> type[Exception]:
+    """Return Pandera's lazy validation exception class."""
+    import pandera.errors
+
+    return pandera.errors.SchemaErrors
+
+
+def _pandas_datetime_engine() -> type[Any]:
+    """Return Pandera's pandas datetime dtype marker."""
+    from pandera.engines import pandas_engine
+
+    return pandas_engine.DateTime
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,7 +131,7 @@ class PanderaContractValidationError(RuntimeError):
 def _nullable_series_for_schema_column(column: Any, size: int) -> pd.Series[Any]:
     """Create a null-filled Series using the closest pandas dtype for a schema column."""
     column_dtype = getattr(column, "dtype", None)
-    if isinstance(column_dtype, pandas_engine.DateTime):
+    if isinstance(column_dtype, _pandas_datetime_engine()):
         return pd.Series([pd.NaT] * size, dtype="datetime64[ns]")
 
     dtype_name = str(column_dtype).lower()
@@ -149,7 +160,7 @@ def _nullable_series_for_schema_column(column: Any, size: int) -> pd.Series[Any]
 def evaluate_pandera_contract_parquet(
     parquet_path: Path,
     *,
-    schema_class: type[DataFrameModel],
+    schema_class: type[Any],
 ) -> PanderaContractEvaluation:
     """Load parquet data and validate it against a Pandera schema class.
 
@@ -187,7 +198,7 @@ def evaluate_pandera_contract_parquet(
 def evaluate_pandera_contract_parquet_files(
     parquet_paths: list[Path],
     *,
-    schema_class: type[DataFrameModel],
+    schema_class: type[Any],
 ) -> PanderaContractEvaluation:
     """Load one or more parquet files and validate them as a single staged dataset.
 
@@ -232,7 +243,7 @@ def evaluate_pandera_contract_parquet_files(
 def evaluate_pandera_contract(
     df: pd.DataFrame,
     *,
-    schema_class: type[DataFrameModel],
+    schema_class: type[Any],
 ) -> PanderaContractEvaluation:
     """Validate a dataframe against a Pandera schema class.
 
@@ -280,7 +291,7 @@ def evaluate_pandera_contract(
     datetime_columns = [
         name
         for name, column in schema.columns.items()
-        if isinstance(column.dtype, pandas_engine.DateTime)
+        if isinstance(column.dtype, _pandas_datetime_engine())
     ]
     for column_name in datetime_columns:
         if column_name not in validated_df.columns:
@@ -299,8 +310,8 @@ def evaluate_pandera_contract(
 
     try:
         schema_class.validate(validated_df, lazy=True)
-    except pandera.errors.SchemaErrors as err:
-        failure_cases = err.failure_cases
+    except _pandera_schema_errors() as err:
+        failure_cases = getattr(err, "failure_cases")
         sample = failure_cases.head(20).to_dict(orient="records")
         return PanderaContractEvaluation(
             passed=False,
@@ -331,7 +342,7 @@ def pandera_contract_asset_check_result(
     *,
     partition_key: str | None,
     asset_key: str,
-    schema_class: type[DataFrameModel],
+    schema_class: type[Any],
     query_or_sql: str,
 ) -> CheckResult:
     """Build a normalized Phlo check result from Pandera evaluation output.

@@ -5,6 +5,8 @@ DLT (Data Load Tool) ingestion engine for Phlo.
 ## Overview
 
 `phlo-dlt` provides the `@phlo_ingestion` decorator for defining data ingestion pipelines using DLT. It materializes data into the active `table_store` with schema evolution and full lineage tracking.
+Schema validation is supplied by installed quality-provider capabilities such as `phlo-pandera`;
+`phlo-dlt` does not depend on a specific quality provider.
 
 When multiple `table_store` providers are installed, selection is deterministic:
 
@@ -96,7 +98,7 @@ from phlo.contracts import Consumer, SLA
 | ------------------- | ----------------- | --------------------------------------------------- |
 | `table_name`        | `str`             | Target table-store table name                       |
 | `unique_key`        | `str`             | Column for deduplication                            |
-| `validation_schema` | `DataFrameModel`  | Pandera schema for validation                       |
+| `validation_schema` | `type`            | Provider-owned schema for validation                |
 | `table_schema`      | `Any`             | Explicit table-store schema (optional)              |
 | `group`             | `str`             | Asset group name                                    |
 | `cron`              | `str`             | Schedule expression                                 |

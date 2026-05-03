@@ -62,7 +62,6 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any, Literal
 
-from pandera.pandas import DataFrameModel
 from phlo.capabilities import (
     AssetCheckSpec,
     AssetSpec,
@@ -497,12 +496,10 @@ def phlo_ingestion(
             ],
         )
 
-    from typing import cast
-
     table_config = TableConfig(
         table_name=table_name,
         table_schema=table_schema,
-        validation_schema=cast("type[DataFrameModel] | None", validation_schema),
+        validation_schema=validation_schema,
         unique_key=unique_key,
         group_name=group,
         partition_spec=partition_spec,

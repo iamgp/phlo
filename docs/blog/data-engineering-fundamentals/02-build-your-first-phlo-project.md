@@ -38,7 +38,10 @@ Project scaffold created with phlo.yaml, workflows/, and tests/.
 
 ```text
 my-first-phlo-project/
+  contracts/
+  data/
   phlo.yaml
+  plugins/
   workflows/
     ingestion/
     schemas/
@@ -89,7 +92,7 @@ If Docker and the stack are up, you should see core services reported as healthy
 ## Create Your First Ingestion Asset
 
 ```bash
-phlo workflow create --type ingestion --domain commerce --table orders --unique-key id --cron "0 * * * *" --api-base-url "https://fakestoreapi.com"
+phlo workflow create --type ingestion --domain commerce --table orders --unique-key id --cron "0 * * * *" --api-base-url "https://fakestoreapi.com" --field id:int --field title:str --field price:float --field category:str
 ```
 
 Your output should look roughly like this:
@@ -99,6 +102,24 @@ Created ingestion workflow scaffold under workflows/ingestion/commerce/orders.py
 ```
 
 At this point, your first asset name is `dlt_orders` (Phlo prefixes ingestion assets as `dlt_<table>`).
+
+The scaffold uses the table name as the default REST endpoint. For Fake Store, open `workflows/ingestion/commerce/orders.py` and replace the generated `resources=` argument in the `rest_api(...)` call:
+
+```python
+return rest_api(
+    client={
+        "base_url": base_url,
+    },
+    resources=[
+        {
+            "name": "products",
+            "endpoint": {
+                "path": "/products",
+            },
+        }
+    ],
+)
+```
 
 ## First Materialization Dry Run
 

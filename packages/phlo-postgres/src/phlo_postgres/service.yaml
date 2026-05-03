@@ -26,8 +26,7 @@ compose:
   ports:
     - "${POSTGRES_PORT:-5432}:5432"
   volumes:
-    - ./volumes/postgres:/var/lib/postgresql/data
-    - ./volumes/postgres-certs:/var/lib/postgresql/certs:ro
+    - postgres-data:/var/lib/postgresql/data
   healthcheck:
     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-phlo}"]
     interval: 10s

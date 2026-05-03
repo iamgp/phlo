@@ -133,6 +133,31 @@ def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
     assert trino["ulimits"] == {"nofile": {"soft": 16384, "hard": 16384}}
 
 
+def test_compose_generator_declares_named_volumes(tmp_path) -> None:
+    class MinimalFakeDiscovery(FakeDiscovery):
+        def resolve_dependencies(
+            self, services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
+            return services
+
+    service = ServiceDefinition(
+        name="postgres",
+        description="postgres",
+        category="core",
+        default=True,
+        compose={"volumes": ["postgres-data:/var/lib/postgresql/data", "./logs:/logs"]},
+    )
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, MinimalFakeDiscovery()))
+    compose_yaml = generator.generate_compose(
+        services=[service],
+        output_dir=tmp_path,
+    )
+
+    data = yaml.safe_load(compose_yaml)
+    assert data["volumes"] == {"postgres-data": {}}
+
+
 def test_compose_generator_resolves_source_path_dev_volumes(tmp_path) -> None:
     class MinimalFakeDiscovery(FakeDiscovery):
         def resolve_dependencies(
