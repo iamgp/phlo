@@ -23,7 +23,7 @@ dev = [
     "phlo-lineage>=0.1.0",
     "phlo-loki>=0.1.0",
     "phlo-mcp>=0.1.0",
-    "phlo-minio>=0.1.0",
+    "phlo-minio>=0.3.1b1",
     "phlo-sling>=0.1.0",
     "phlo-nessie>=0.1.0",
     "phlo-observatory>=0.1.0",
@@ -88,7 +88,7 @@ description = "Lakehouse platform"
 name = "phlo"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.8.1b2"
+version = "0.8.1b3"
 
 [project.entry-points."phlo.plugins.quality"]
 
@@ -100,7 +100,7 @@ version = "0.8.1b2"
 core-services = [
     "phlo-dagster>=0.3.1b2",
     "phlo-postgres>=0.1.0",
-    "phlo-minio>=0.1.0",
+    "phlo-minio>=0.3.1b1",
     "phlo-nessie>=0.1.0",
     "phlo-trino>=0.1.0",
 ]
@@ -112,7 +112,7 @@ defaults = [
     "phlo-pandera>=0.3.1b1",
     "phlo-dagster>=0.3.1b2",
     "phlo-postgres>=0.1.0",
-    "phlo-minio>=0.1.0",
+    "phlo-minio>=0.3.1b1",
     "phlo-nessie>=0.1.0",
     "phlo-trino>=0.1.0",
 ]
