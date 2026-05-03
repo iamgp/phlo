@@ -37,10 +37,10 @@ Run this once before following any command snippets:
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install "phlo[defaults]" phlo-otel phlo-clickstack phlo-lineage
+uv pip install "phlo[defaults]" phlo-otel phlo-clickstack phlo-lineage pytest
 ```
 
-Then run the blog commands from your working project directory (for example `~/dev/phlo-examples/blog`).
+Then run the blog commands from your working project directory (for example `/path/to/your/project`).
 
 ## Posts
 
