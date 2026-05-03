@@ -13,9 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install phlo from PyPI (or specific version if provided)
 RUN if [ -n "$PHLO_VERSION" ]; then \
-        uv pip install --system "phlo[defaults]==$PHLO_VERSION" "phlo-pandera==$PHLO_VERSION" dagster-postgres; \
+        uv pip install --system "phlo[defaults]==$PHLO_VERSION" dagster-postgres; \
     else \
-        uv pip install --system "phlo[defaults]" phlo-pandera dagster-postgres; \
+        uv pip install --system "phlo[defaults]" dagster-postgres; \
     fi
 
 # Keep entrypoint outside /opt/dagster so dev volume mounts never hide it.

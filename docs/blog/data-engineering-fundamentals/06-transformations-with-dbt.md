@@ -200,6 +200,10 @@ where order_id > (select max(order_id) from {{ this }})
 {% endif %}
 ```
 
+The `order_id > max(order_id)` predicate is only safe when `order_id` is strictly
+increasing. For most production sources, replace this with a timestamp watermark
+such as `updated_at > (select max(updated_at) from {{ this }})`.
+
 When to use incremental:
 
 - Source volume grows daily and full scans are slow
