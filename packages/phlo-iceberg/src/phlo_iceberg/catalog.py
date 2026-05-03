@@ -40,6 +40,22 @@ from phlo_iceberg.settings import get_settings
 logger = get_logger(__name__)
 
 
+def _is_namespace_already_exists_error(exc: BaseException) -> bool:
+    """Return whether PyIceberg reported an idempotent namespace create conflict."""
+    try:
+        from pyiceberg.exceptions import NamespaceAlreadyExistsError
+    except Exception:
+        already_exists_types: tuple[type[BaseException], ...] = ()
+    else:
+        already_exists_types = (NamespaceAlreadyExistsError,)
+
+    if already_exists_types and isinstance(exc, already_exists_types):
+        return True
+
+    message = str(exc).lower()
+    return "namespace already exists" in message or "alreadyexistsexception" in message
+
+
 @lru_cache(maxsize=16)
 def get_catalog(ref: str = "main"):
     """Get a configured PyIceberg REST catalog instance (cached).
@@ -216,10 +232,17 @@ def create_namespace(namespace: str, ref: str = "main") -> None:
             namespace=namespace,
             ref=ref,
         )
-    except Exception:
-        # Namespace might already exist
+    except Exception as exc:
+        if _is_namespace_already_exists_error(exc):
+            logger.info(
+                "iceberg_catalog_create_namespace_exists",
+                namespace=namespace,
+                ref=ref,
+            )
+            return None
+
         logger.warning(
-            "iceberg_catalog_create_namespace_skipped",
+            "iceberg_catalog_create_namespace_failed",
             namespace=namespace,
             ref=ref,
             exc_info=True,
