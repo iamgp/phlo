@@ -47,8 +47,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pandera.pandas import DataFrameModel
-
 from phlo_dlt.settings import get_settings
 
 
@@ -91,7 +89,7 @@ class TableConfig:
 
     table_name: str
     table_schema: Any | None
-    validation_schema: type[DataFrameModel] | None
+    validation_schema: type[Any] | None
     unique_key: str
     group_name: str
     partition_spec: list[tuple[str, str]] | None = None

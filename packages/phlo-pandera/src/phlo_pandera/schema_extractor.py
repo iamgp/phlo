@@ -128,6 +128,27 @@ def _unwrap_optional(tp: Any) -> type:
     return tp
 
 
+def _unwrap_pandera_series(tp: Any) -> Any:
+    """Unwrap Pandera Series[T] annotations to their scalar type."""
+    origin = get_origin(tp)
+    if origin is None:
+        return tp
+
+    origin_module = getattr(origin, "__module__", "")
+    origin_name = getattr(origin, "__name__", "")
+    if origin_name == "Series" or origin_module.startswith("pandera.typing"):
+        args = get_args(tp)
+        if args:
+            return args[0]
+
+    return tp
+
+
+def _unwrap_field_type(tp: Any) -> type:
+    """Unwrap Optional and Pandera Series annotations before dtype mapping."""
+    return _unwrap_optional(_unwrap_pandera_series(_unwrap_optional(tp)))
+
+
 class PanderaSchemaExtractor:
     """Extract a NormalizedSchema from a Pandera DataFrameModel subclass.
 
@@ -202,7 +223,7 @@ class PanderaSchemaExtractor:
             if name.startswith("__") or name == "Config":
                 continue
 
-            inner_type = _unwrap_optional(annotation)
+            inner_type = _unwrap_field_type(annotation)
             dtype = _map_dtype(inner_type)
 
             nullable = True

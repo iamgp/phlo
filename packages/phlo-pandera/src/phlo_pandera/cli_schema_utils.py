@@ -1,6 +1,7 @@
 """Shared CLI utilities for schema commands."""
 
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -107,38 +108,52 @@ def discover_pandera_schemas(
         if not path.exists():
             continue
 
-        for py_file in path.glob("**/schemas/*.py"):
-            if py_file.name.startswith("_"):
-                continue
+        import_root = str(path.parent.resolve())
+        added_import_root = False
+        if import_root not in sys.path:
+            sys.path.insert(0, import_root)
+            added_import_root = True
 
-            try:
-                parts = py_file.relative_to(path.parent).parts[:-1] + (py_file.stem,)
-                module_name = ".".join(parts)
-
-                try:
-                    module = import_module(module_name)
-                except (ImportError, ModuleNotFoundError):
-                    logger.debug(
-                        "schema_discovery_import_failed",
-                        module_name=module_name,
-                    )
+        try:
+            for py_file in path.glob("**/schemas/*.py"):
+                if py_file.name.startswith("_"):
                     continue
 
-                for name, obj in inspect.getmembers(module):
-                    if (
-                        inspect.isclass(obj)
-                        and issubclass(obj, DataFrameModel)
-                        and obj is not DataFrameModel
-                    ):
-                        schemas[name] = obj
+                try:
+                    parts = py_file.relative_to(path.parent).parts[:-1] + (py_file.stem,)
+                    module_name = ".".join(parts)
 
-            except Exception:
-                logger.warning(
-                    "schema_discovery_file_scan_failed",
-                    search_path=str(path),
-                    schema_file=str(py_file),
-                )
-                continue
+                    try:
+                        module = import_module(module_name)
+                    except (ImportError, ModuleNotFoundError):
+                        logger.debug(
+                            "schema_discovery_import_failed",
+                            module_name=module_name,
+                        )
+                        continue
+
+                    for name, obj in inspect.getmembers(module):
+                        if (
+                            inspect.isclass(obj)
+                            and issubclass(obj, DataFrameModel)
+                            and obj is not DataFrameModel
+                            and obj.__module__ == module.__name__
+                        ):
+                            schemas[name] = obj
+
+                except Exception:
+                    logger.warning(
+                        "schema_discovery_file_scan_failed",
+                        search_path=str(path),
+                        schema_file=str(py_file),
+                    )
+                    continue
+        finally:
+            if added_import_root:
+                try:
+                    sys.path.remove(import_root)
+                except ValueError:
+                    pass
 
     return schemas
 

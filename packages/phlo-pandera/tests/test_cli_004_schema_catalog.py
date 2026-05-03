@@ -8,6 +8,7 @@ Tests cover:
 """
 
 import json
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -188,6 +189,26 @@ class TestDiscoverPanderaSchemas:
         assert raw_glucose is not None
         assert hasattr(raw_glucose, "__annotations__")
         assert len(raw_glucose.__annotations__) > 0
+
+    def test_discovery_imports_workflows_from_project_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Discovers generated project schemas even when cwd is not already importable."""
+        workflows = tmp_path / "workflows"
+        schemas_dir = workflows / "schemas"
+        schemas_dir.mkdir(parents=True)
+        (workflows / "__init__.py").write_text("")
+        (schemas_dir / "__init__.py").write_text("")
+        (schemas_dir / "commerce.py").write_text(
+            "from phlo_pandera.schemas import PhloSchema\n\n"
+            "class RawProducts(PhloSchema):\n"
+            "    id: int\n"
+        )
+        monkeypatch.chdir(tmp_path.parent)
+
+        schemas = discover_pandera_schemas(search_paths=[str(workflows)])
+
+        assert "RawProducts" in schemas
 
 
 class TestClassifySchemaChange:

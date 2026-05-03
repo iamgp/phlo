@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pandera.pandas import Field
+from pandera.typing import Series
 
 from phlo.capabilities.interfaces import SchemaExtractor
 from phlo_pandera.schema_extractor import PanderaSchemaExtractor, _map_dtype
@@ -28,6 +29,12 @@ class SchemaWithConfig(PhloSchema):
 
     class Config:
         strict = True
+
+
+class PanderaSeriesSchema(PhloSchema):
+    id: Series[int] = Field(nullable=False)
+    title: Series[str]
+    price: Series[float] = Field(nullable=True)
 
 
 pytestmark = pytest.mark.core_regression
@@ -80,3 +87,13 @@ class TestPanderaSchemaExtractor:
     def test_map_dtype_unsupported(self):
         with pytest.raises(ValueError, match="Unsupported type"):
             _map_dtype(list)
+
+    def test_unwraps_pandera_series_annotations(self):
+        extractor = PanderaSchemaExtractor()
+        result = extractor.extract(PanderaSeriesSchema)
+
+        by_name = {f.name: f for f in result.fields}
+        assert by_name["id"].dtype == "int64"
+        assert by_name["title"].dtype == "string"
+        assert by_name["price"].dtype == "float64"
+        assert by_name["price"].nullable is True

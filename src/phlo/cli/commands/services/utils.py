@@ -57,11 +57,10 @@ description: "{description}"
 #       mode: required
 #
 # Project capability defaults:
-#
-# capabilities:
-#   defaults:
-#     table_store: iceberg
-#     query_engine: trino
+capabilities:
+  defaults:
+    table_store: iceberg
+    query_engine: trino
 #
 # Secrets belong in .phlo/.env.local (not committed).
 """

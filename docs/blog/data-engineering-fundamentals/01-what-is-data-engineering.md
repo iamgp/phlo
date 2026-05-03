@@ -62,13 +62,13 @@ First, make sure the CLI is installed in your environment:
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install phlo phlo-dagster phlo-dlt phlo-pandera phlo-nessie phlo-iceberg phlo-dbt phlo-trino phlo-otel phlo-clickstack phlo-lineage
+uv pip install "phlo[defaults]" phlo-otel phlo-clickstack phlo-lineage
 ```
 
 The command should return something like this:
 
 ```text
-Installed 10 packages in 3.2s
+Installed packages in 3.2s
 ```
 
 ```bash
@@ -78,7 +78,7 @@ phlo --version
 You should see something like this:
 
 ```text
-phlo, version 0.1.0
+phlo, version 0.7.x
 ```
 
 ```bash

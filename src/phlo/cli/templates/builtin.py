@@ -81,6 +81,9 @@ def _write_common_project_files(
         project_dir / ".env.example",
         _build_env_example_content(),
     )
+    for local_dir in ("contracts", "data", "plugins"):
+        (project_dir / local_dir).mkdir(exist_ok=True)
+        _write_text(project_dir / local_dir / ".gitkeep", "")
     _write_pyproject_toml(project_dir, project_name, required_packages)
     _write_text(
         project_dir / ".gitignore",

@@ -192,6 +192,10 @@ class PanderaQualityProvider(QualityProviderPlugin):
 
         return PanderaSchemaExtractor
 
+    def get_schema_base_import(self) -> tuple[str, str]:
+        """Return the Phlo schema base class used by generated project schemas."""
+        return ("phlo_pandera.schemas", "PhloSchema")
+
     def get_reconciliation_checks(self) -> dict[str, type] | None:
         """Return reconciliation check classes.
 

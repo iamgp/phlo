@@ -2,12 +2,12 @@
 
 This package provides DLT (Data Load Tool) based ingestion capabilities for Phlo,
 enabling decorator-driven data extraction and loading into the lakehouse. It
-integrates with Pandera for schema validation and supports multiple table store
-backends through the Phlo capability system.
+uses quality-provider capabilities for schema validation and supports multiple
+table store backends through the Phlo capability system.
 
 Key Features:
     - Decorator-based ingestion definition (@phlo_ingestion)
-    - Automatic schema validation with Pandera
+    - Optional schema validation through installed quality providers
     - Support for append and merge strategies
     - Partitioned ingestion with daily scheduling
     - Write-Audit-Publish (WAP) pattern support
@@ -21,7 +21,7 @@ Internal Modules:
     - :mod:`phlo_dlt.decorator`: Core ingestion decorator implementation
     - :mod:`phlo_dlt.executor`: DLT ingestion execution engine
     - :mod:`phlo_dlt.dlt_helpers`: Shared utilities for DLT operations
-    - :mod:`phlo_dlt.pandera_checks`: Pandera schema validation integration
+    - :mod:`phlo_dlt.pandera_checks`: Optional Pandera-backed validation integration
     - :mod:`phlo_dlt.registry`: Table configuration and registration
     - :mod:`phlo_dlt.settings`: Package configuration settings
     - :mod:`phlo_dlt.plugin`: Plugin interface for Phlo integration
@@ -31,7 +31,6 @@ Internal Modules:
 
 Dependencies:
     - dlt: Data Load Tool for extraction
-    - pandera: Schema validation
     - pyarrow: Parquet file handling
     - pandas: Data manipulation
 

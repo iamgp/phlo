@@ -98,6 +98,16 @@ class QualityProviderPlugin(Plugin, ABC):
         """
         return None
 
+    def get_schema_base_import(self) -> tuple[str, str] | None:
+        """Return the schema base import for generated project schemas.
+
+        Returns:
+            Tuple of (module, symbol), or None if this provider does not expose
+            a generated-schema base class.
+
+        """
+        return None
+
     def get_reconciliation_checks(self) -> dict[str, type] | None:
         """Return reconciliation check classes.
 

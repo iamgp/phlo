@@ -25,7 +25,7 @@ Example Pandera model:
 ```python
 import pandera as pa
 from pandera.typing import Series
-from phlo_quality.schemas import PhloSchema
+from phlo_pandera.schemas import PhloSchema
 
 class RawOrders(PhloSchema):
     order_id: Series[str] = pa.Field(nullable=False)
@@ -38,7 +38,7 @@ class RawOrders(PhloSchema):
 ## Add Declarative Quality Checks
 
 ```python
-from phlo_quality import phlo_quality, NullCheck, RangeCheck, FreshnessCheck, CustomSQLCheck
+from phlo_pandera import phlo_quality, NullCheck, RangeCheck, FreshnessCheck, CustomSQLCheck
 
 @phlo_quality(
     table="silver.fct_orders",
@@ -85,7 +85,7 @@ Use this policy in early production:
 Not every check needs zero tolerance. Use `allow_threshold` for soft quality gates:
 
 ```python
-from phlo_quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck, FreshnessCheck
+from phlo.quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck, FreshnessCheck
 
 @phlo_quality(
     table="bronze.customer_data",

@@ -368,3 +368,7 @@ def test_init_with_absolute_path_uses_directory_name_for_project_metadata(tmp_pa
     pyproject_content = (project_dir / "pyproject.toml").read_text()
     assert f'name = "{project_dir.name}"' in pyproject_content
     assert f'name = "{project_dir}"' not in pyproject_content
+    assert (project_dir / "contracts" / ".gitkeep").exists()
+    assert (project_dir / "data" / ".gitkeep").exists()
+    assert (project_dir / "plugins" / ".gitkeep").exists()
+    assert "capabilities:" in (project_dir / "phlo.yaml").read_text()
