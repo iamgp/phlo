@@ -62,7 +62,7 @@ First, make sure the CLI is installed in your environment:
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install "phlo[defaults]" phlo-otel phlo-clickstack phlo-lineage
+uv pip install "phlo[defaults]" phlo-otel phlo-clickstack phlo-lineage pytest
 ```
 
 The command should return something like this:
