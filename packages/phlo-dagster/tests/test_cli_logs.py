@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from click.testing import CliRunner
 
 from phlo_dagster.cli_logs import (
+    _event_log_row_to_entry,
     _get_log_level,
     _parse_since,
     logs,
@@ -33,6 +34,30 @@ class TestLogLevelMapping:
         """Map DEBUG event type."""
         assert _get_log_level("LOG_MESSAGE") == "DEBUG"
         assert _get_log_level("STEP_INPUT") == "DEBUG"
+
+
+def test_event_log_row_to_entry_parses_dagster_event_payload() -> None:
+    row = {
+        "run_id": "run-123",
+        "dagster_event_type": "ASSET_MATERIALIZATION",
+        "timestamp": datetime(2026, 2, 1, 10, 0, tzinfo=timezone.utc),
+        "event": (
+            '{"level": 20, "user_message": "Materialized value dlt_orders.", '
+            '"dagster_event": {"logging_tags": {"job_name": "__ASSET_JOB"}}}'
+        ),
+    }
+
+    entry = _event_log_row_to_entry(row)
+
+    assert entry == {
+        "timestamp": "2026-02-01T10:00:00+00:00",
+        "level": "INFO",
+        "message": "Materialized value dlt_orders.",
+        "event_type": "ASSET_MATERIALIZATION",
+        "run_id": "run-123",
+        "job_name": "__ASSET_JOB",
+        "run_status": "",
+    }
 
 
 class TestTimeParsing:

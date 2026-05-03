@@ -9,13 +9,14 @@ requires = [
 dependencies = [
     "phlo>=0.1.0",
     "dagster-graphql>=1.12.1",
+    "psycopg2-binary>=2.9.11",
     "pyyaml>=6.0.1",
     "requests>=2.32.5",
 ]
 description = "Dagster service plugin for Phlo"
 name = "phlo-dagster"
 requires-python = ">=3.11"
-version = "0.3.1b2"
+version = "0.3.1b3"
 
 [[project.authors]]
 email = "team@phlo.dev"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -124,6 +125,58 @@ def test_get_asset_runs_from_postgres_success(monkeypatch: pytest.MonkeyPatch) -
     assert runs[0].duration_seconds == 300.0
     assert FakeCursor.last_params is not None
     assert FakeCursor.last_params[1] == r"%dlt\_users%"
+    assert FakeCursor.last_params[2] == r"%dlt\_users%"
+
+
+def test_resolve_asset_table_name_from_materialization_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event = {
+        "dagster_event": {
+            "event_specific_data": {
+                "materialization": {
+                    "metadata_entries": [
+                        {
+                            "label": "table_name",
+                            "entry_data": {"text": "raw.orders"},
+                        }
+                    ]
+                }
+            }
+        }
+    }
+
+    class FakeCursor:
+        def execute(self, _query, _params):
+            return None
+
+        def fetchall(self):
+            return [{"event": json.dumps(event)}]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeConnection:
+        def cursor(self, **_kwargs):
+            return FakeCursor()
+
+        def close(self):
+            return None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr("phlo.metrics.psycopg2.connect", lambda **_kwargs: FakeConnection())
+
+    collector = MetricsCollector()
+
+    assert collector._resolve_asset_table_name_from_postgres("dlt_orders") == "raw.orders"
 
 
 def test_get_iceberg_table_stats_dependency_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:

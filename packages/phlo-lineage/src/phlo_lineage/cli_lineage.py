@@ -56,6 +56,7 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from phlo_lineage import get_lineage_graph
 
@@ -107,6 +108,18 @@ def _resolve_asset_name(graph, asset_name: str) -> tuple[str | None, list[str]]:
     normalized = asset_name.replace("/", ".")
     if normalized in graph.assets:
         return normalized, [normalized]
+
+    if asset_name.startswith("dlt_"):
+        raw_table = asset_name.removeprefix("dlt_")
+        dlt_matches = [
+            name
+            for name in graph.assets.keys()
+            if name == raw_table or name.split(".")[-1] == raw_table
+        ]
+        if len(dlt_matches) == 1:
+            return dlt_matches[0], dlt_matches
+        if dlt_matches:
+            return None, dlt_matches
 
     query_segments = [seg for seg in re.split(r"[./]", asset_name) if seg]
     matches: list[str] = []
@@ -236,7 +249,7 @@ def show_lineage(asset_name: str, direction: str, depth: Optional[int]) -> None:
     if depth:
         title += f" (depth ≤ {depth})"
 
-    console.print(Panel(tree, title=title, expand=False))
+    console.print(Panel(Text(tree), title=title, expand=False))
 
 
 @lineage_group.command(name="export")

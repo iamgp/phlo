@@ -3215,7 +3215,7 @@ wheels = [
 
 [[package]]
 name = "phlo"
-version = "0.8.1b3"
+version = "0.8.1b4"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
@@ -3585,11 +3585,12 @@ provides-extras = ["dev", "quality"]
 
 [[package]]
 name = "phlo-dagster"
-version = "0.3.1b2"
+version = "0.3.1b3"
 source = { editable = "packages/phlo-dagster" }
 dependencies = [
     { name = "dagster-graphql" },
     { name = "phlo" },
+    { name = "psycopg2-binary" },
     { name = "pyyaml" },
     { name = "requests" },
 ]
@@ -3620,6 +3621,7 @@ requires-dist = [
     { name = "phlo-iceberg", marker = "extra == 'iceberg'", editable = "packages/phlo-iceberg" },
     { name = "phlo-nessie", marker = "extra == 'nessie'", editable = "packages/phlo-nessie" },
     { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
+    { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "requests", specifier = ">=2.32.5" },
@@ -3817,7 +3819,7 @@ provides-extras = ["dev", "minio", "nessie"]
 
 [[package]]
 name = "phlo-lineage"
-version = "0.3.0"
+version = "0.3.1b1"
 source = { editable = "packages/phlo-lineage" }
 dependencies = [
     { name = "click" },
@@ -3933,7 +3935,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-nessie"
-version = "0.3.0"
+version = "0.3.1b1"
 source = { editable = "packages/phlo-nessie" }
 dependencies = [
     { name = "marshmallow" },
