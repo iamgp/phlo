@@ -141,3 +141,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          UV_PUBLISH_CHECK_URL: https://pypi.org/simple/
