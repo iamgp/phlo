@@ -16,6 +16,7 @@ from phlo_iceberg.tables import (
     ensure_table,
     get_table_schema,
 )
+from pyiceberg.exceptions import NamespaceAlreadyExistsError
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType, TimestampType
 
@@ -128,6 +129,27 @@ class TestIcebergCatalogUnitTests:
         mock_catalog.create_namespace.side_effect = Exception("Namespace already exists")
         create_namespace("raw")  # Should not raise
         assert mock_catalog.create_namespace.call_count == 2
+
+    @patch("phlo_iceberg.catalog.logger")
+    @patch("phlo_iceberg.catalog.get_catalog")
+    def test_create_namespace_logs_existing_namespace_without_stack(
+        self, mock_get_catalog, mock_logger
+    ):
+        """Existing namespaces are an idempotent condition, not a warning."""
+        mock_catalog = MagicMock()
+        mock_get_catalog.return_value = mock_catalog
+        mock_catalog.create_namespace.side_effect = NamespaceAlreadyExistsError(
+            "Namespace already exists: raw"
+        )
+
+        create_namespace("raw")
+
+        mock_logger.info.assert_any_call(
+            "iceberg_catalog_create_namespace_exists",
+            namespace="raw",
+            ref="main",
+        )
+        mock_logger.warning.assert_not_called()
 
     def test_reset_catalog_cache_clears_cli_utils_cache(self):
         """reset_catalog_cache should clear the CLI-level catalog cache too."""

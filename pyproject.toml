@@ -16,7 +16,7 @@ dev = [
     "phlo-clickstack>=0.1.0",
     "phlo-clickhouse>=0.1.0",
     "phlo-dlt>=0.3.1b1",
-    "phlo-iceberg>=0.1.0",
+    "phlo-iceberg>=0.3.1b1",
     "phlo-dbt>=0.1.0",
     "phlo-grafana>=0.1.0",
     "phlo-hasura>=0.1.0",
@@ -88,7 +88,7 @@ description = "Lakehouse platform"
 name = "phlo"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.8.1b4"
+version = "0.8.1b5"
 
 [project.entry-points."phlo.plugins.quality"]
 
@@ -106,7 +106,7 @@ core-services = [
 ]
 defaults = [
     "phlo-core-plugins>=0.1.0",
-    "phlo-iceberg>=0.1.0",
+    "phlo-iceberg>=0.3.1b1",
     "phlo-dlt>=0.3.1b1",
     "phlo-dbt>=0.1.0",
     "phlo-pandera>=0.3.1b1",

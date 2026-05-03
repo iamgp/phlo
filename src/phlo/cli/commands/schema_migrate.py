@@ -312,6 +312,27 @@ def export_contract_for_table(
     return destination
 
 
+def _is_missing_table_error(exc: BaseException) -> bool:
+    """Return whether a schema refresh failed because the table is not available yet."""
+    try:
+        from pyiceberg.exceptions import NoSuchIdentifierError, NoSuchTableError
+    except Exception:
+        missing_error_types: tuple[type[BaseException], ...] = ()
+    else:
+        missing_error_types = (NoSuchIdentifierError, NoSuchTableError)
+
+    if missing_error_types and isinstance(exc, missing_error_types):
+        return True
+
+    exc_name = type(exc).__name__
+    message = str(exc).lower()
+    return (
+        exc_name in {"NoSuchIdentifierError", "NoSuchTableError"}
+        or "table does not exist" in message
+        or "missing namespace or invalid identifier" in message
+    )
+
+
 def refresh_contracts_for_selection(
     *,
     selection: str | None = None,
@@ -321,6 +342,7 @@ def refresh_contracts_for_selection(
     registry = get_capability_registry()
     candidate_tables: set[str] = set()
     selection_value = (selection or "").strip()
+    found_matching_dlt_asset = False
 
     if selection_value.startswith("dlt_"):
         candidate_tables.add(selection_value.removeprefix("dlt_"))
@@ -334,7 +356,11 @@ def refresh_contracts_for_selection(
             continue
         if selection_value and selection_value.startswith("dlt_") and asset.key != selection_value:
             continue
+        found_matching_dlt_asset = True
         candidate_tables.add(table_name)
+
+    if found_matching_dlt_asset and selection_value.startswith("dlt_"):
+        candidate_tables.discard(selection_value.removeprefix("dlt_"))
 
     refreshed_count = 0
     for table in sorted(candidate_tables):
@@ -355,7 +381,14 @@ def refresh_contracts_for_selection(
                 export_contract_for_table(table_name=candidate, force=force)
             except SystemExit:
                 raise
-            except Exception:
+            except Exception as exc:
+                if _is_missing_table_error(exc):
+                    logger.debug(
+                        "schema_contract_refresh_skipped_table_missing",
+                        table_name=candidate,
+                        selection=selection_value or None,
+                    )
+                    continue
                 logger.warning(
                     "schema_contract_refresh_failed",
                     table_name=candidate,
