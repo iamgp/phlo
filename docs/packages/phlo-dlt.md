@@ -109,7 +109,7 @@ from phlo.contracts import Consumer, SLA
 | `consumers`         | `list[Consumer \| str]` | Optional downstream consumer metadata         |
 | `sla`               | `SLA`             | Optional freshness/quality contract metadata        |
 | `capabilities`      | `dict[str, str]`  | Optional capability provider overrides for the asset |
-| `validate`          | `bool`            | Run Pandera validation (default: True)            |
+| `validate`          | `bool`            | Run configured provider validation using `validation_schema` (default: True) |
 | `strict_validation` | `bool`            | Fail on validation errors (default: True)           |
 | `max_runtime_seconds`| `int`            | Maximum runtime before timeout (default: 300)       |
 | `max_retries`       | `int`             | Maximum retry attempts (default: 3)                 |

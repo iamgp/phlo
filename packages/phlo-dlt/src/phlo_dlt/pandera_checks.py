@@ -39,18 +39,28 @@ import pandas as pd
 from phlo.capabilities.specs import CheckResult
 
 PANDERA_CONTRACT_CHECK_NAME = "pandera_contract"
+_PANDERA_INSTALL_HINT = (
+    "pandera is required for validation; install the quality provider "
+    "(for example, pip install phlo-pandera or pip install pandera)"
+)
 
 
 def _pandera_schema_errors() -> type[Exception]:
     """Return Pandera's lazy validation exception class."""
-    import pandera.errors
+    try:
+        import pandera.errors
+    except ModuleNotFoundError as exc:
+        raise ImportError(_PANDERA_INSTALL_HINT) from exc
 
     return pandera.errors.SchemaErrors
 
 
 def _pandas_datetime_engine() -> type[Any]:
     """Return Pandera's pandas datetime dtype marker."""
-    from pandera.engines import pandas_engine
+    try:
+        from pandera.engines import pandas_engine
+    except ModuleNotFoundError as exc:
+        raise ImportError(_PANDERA_INSTALL_HINT) from exc
 
     return pandas_engine.DateTime
 

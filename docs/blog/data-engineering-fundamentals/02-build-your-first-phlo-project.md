@@ -180,7 +180,7 @@ Example first-day checklist:
 2. Confirm .phlo directory and generated compose files.
 3. Confirm service inventory from phlo services list.
 4. Confirm at least one materialize dry-run works.
-5. Confirm schema and workflow validation commands run.
+5. Confirm the generated pytest file and materialization dry-run pass.
 ```
 
 ## Naming Conventions That Save Time Later

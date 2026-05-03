@@ -66,7 +66,7 @@ from importlib.metadata import entry_points
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 
 def _to_snake_case(name: str) -> str:
@@ -172,17 +172,15 @@ _MINIMAL_TEST_VALUES: dict[str, str] = {
 }
 
 
-def _resolve_schema_base_import() -> tuple[str, str]:
-    """Resolve the generated schema base class from the active quality provider."""
+def _load_quality_provider() -> Any | None:
+    """Load the active quality provider used for generated schemas."""
     try:
         from phlo.plugins.discovery import discover_plugins, get_quality_provider
 
         discover_plugins()
         provider = get_quality_provider("pandera")
         if provider is not None:
-            schema_base_import = provider.get_schema_base_import()
-            if schema_base_import is not None:
-                return schema_base_import
+            return provider
     except Exception:
         pass
 
@@ -191,14 +189,85 @@ def _resolve_schema_base_import() -> tuple[str, str]:
         for provider_entry in providers:
             if provider_entry.name != "pandera":
                 continue
-            provider = provider_entry.load()()
-            schema_base_import = provider.get_schema_base_import()
-            if schema_base_import is not None:
-                return schema_base_import
+            return provider_entry.load()()
     except Exception:
         pass
 
+    return None
+
+
+def _resolve_schema_base_import() -> tuple[str, str]:
+    """Resolve the generated schema base class from the active quality provider."""
+    provider = _load_quality_provider()
+    if provider is not None:
+        schema_base_import = provider.get_schema_base_import()
+        if schema_base_import is not None:
+            return schema_base_import
+
     return ("pandera.pandas", "DataFrameModel")
+
+
+def _render_schema_field(
+    provider: Any | None,
+    *,
+    name: str,
+    type_name: str,
+    nullable: bool,
+    description: str | None = None,
+) -> str:
+    """Render a generated schema field through the quality provider when available."""
+    if provider is not None and hasattr(provider, "render_schema_field"):
+        rendered = provider.render_schema_field(
+            name=name,
+            type_name=type_name,
+            nullable=nullable,
+            description=description,
+        )
+        if rendered is not None:
+            return rendered
+
+    description_arg = f'description="{description}", ' if description else ""
+    return f"    {name}: Series[{type_name}] = pa.Field({description_arg}nullable={nullable})"
+
+
+def _render_schema_module(
+    provider: Any | None,
+    *,
+    domain: str,
+    schema_class: str,
+    schema_base_module: str,
+    schema_base_name: str,
+    type_imports: str,
+    schema_fields: str,
+) -> str:
+    """Render a generated schema module through the quality provider when available."""
+    if provider is not None and hasattr(provider, "render_schema_module"):
+        rendered = provider.render_schema_module(
+            domain=domain,
+            schema_class=schema_class,
+            type_imports=type_imports,
+            schema_fields=schema_fields,
+        )
+        if rendered is not None:
+            return rendered
+
+    return f'''"""
+Pandera schemas for {domain} domain.
+
+Extend this schema with additional fields as you stabilize the source contract.
+"""
+
+import pandera as pa
+from pandera.typing import Series
+from {schema_base_module} import {schema_base_name}
+
+{type_imports}class {schema_class}({schema_base_name}):
+{schema_fields}
+
+    class Config:
+        strict = False
+        coerce = True
+'''
 
 
 def _minimal_test_value(type_name: str) -> str:
@@ -371,41 +440,44 @@ def create_ingestion_workflow(
     unique_key_normalized = _to_snake_case(unique_key)
     unique_key_field = field_by_name.get(unique_key_normalized)
     unique_key_type = unique_key_field.type_name if unique_key_field else "str"
-    unique_key_nullable = unique_key_field.nullable if unique_key_field else False
+    if unique_key_field and unique_key_field.nullable:
+        raise ValueError(f"Unique key '{unique_key_normalized}' cannot be nullable")
+    unique_key_nullable = False
+    schema_provider = _load_quality_provider()
     schema_base_module, schema_base_name = _resolve_schema_base_import()
 
     schema_fields_lines = [
-        (
-            f"    {unique_key_normalized}: Series[{unique_key_type}] = "
-            f'pa.Field(description="Unique key", nullable={unique_key_nullable})'
+        _render_schema_field(
+            schema_provider,
+            name=unique_key_normalized,
+            type_name=unique_key_type,
+            nullable=unique_key_nullable,
+            description="Unique key",
         )
     ]
     for field in field_specs:
         if field.name == unique_key_normalized:
             continue
         schema_fields_lines.append(
-            f"    {field.name}: Series[{field.type_name}] = pa.Field(nullable={field.nullable})"
+            _render_schema_field(
+                schema_provider,
+                name=field.name,
+                type_name=field.type_name,
+                nullable=field.nullable,
+            )
         )
 
     schema_fields = "\n".join(schema_fields_lines)
 
-    schema_content = f'''"""
-Pandera schemas for {domain} domain.
-
-Extend this schema with additional fields as you stabilize the source contract.
-"""
-
-import pandera as pa
-from pandera.typing import Series
-from {schema_base_module} import {schema_base_name}
-
-{type_imports}class {schema_class}({schema_base_name}):
-{schema_fields}
-
-    class Config:
-        strict = False
-        coerce = True
-'''
+    schema_content = _render_schema_module(
+        schema_provider,
+        domain=domain,
+        schema_class=schema_class,
+        schema_base_module=schema_base_module,
+        schema_base_name=schema_base_name,
+        type_imports=type_imports,
+        schema_fields=schema_fields,
+    )
 
     schema_file.write_text(schema_content)
 

@@ -44,8 +44,21 @@ def test_schema_field_display_supports_current_pyiceberg_nested_field() -> None:
     assert cli_catalog._schema_field_display(field) == ("id", "long", "✓")
 
 
+def test_schema_field_display_supports_current_pyiceberg_optional_field() -> None:
+    field = SimpleNamespace(name="nickname", field_type="string", required=False)
+
+    assert cli_catalog._schema_field_display(field) == ("nickname", "string", "")
+
+
 def test_schema_field_display_supports_legacy_type_optional_marker() -> None:
     field_type = SimpleNamespace(is_optional=True)
     field = SimpleNamespace(name="name", type=field_type)
 
     assert cli_catalog._schema_field_display(field) == ("name", str(field_type), "")
+
+
+def test_schema_field_display_supports_legacy_type_required_marker() -> None:
+    field_type = SimpleNamespace(is_optional=False)
+    field = SimpleNamespace(name="name", type=field_type)
+
+    assert cli_catalog._schema_field_display(field) == ("name", str(field_type), "✓")
