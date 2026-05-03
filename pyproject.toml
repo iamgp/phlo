@@ -109,6 +109,7 @@ defaults = [
     "phlo-iceberg>=0.1.0",
     "phlo-dlt>=0.1.0",
     "phlo-dbt>=0.1.0",
+    "phlo-pandera>=0.1.0",
     "phlo-dagster>=0.1.0",
     "phlo-postgres>=0.1.0",
     "phlo-minio>=0.1.0",

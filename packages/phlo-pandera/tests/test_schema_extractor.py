@@ -97,3 +97,4 @@ class TestPanderaSchemaExtractor:
         assert by_name["title"].dtype == "string"
         assert by_name["price"].dtype == "float64"
         assert by_name["price"].nullable is True
+        assert by_name["id"].nullable is False

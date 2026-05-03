@@ -196,6 +196,45 @@ class PanderaQualityProvider(QualityProviderPlugin):
         """Return the Phlo schema base class used by generated project schemas."""
         return ("phlo_pandera.schemas", "PhloSchema")
 
+    def render_schema_field(
+        self,
+        *,
+        name: str,
+        type_name: str,
+        nullable: bool,
+        description: str | None = None,
+    ) -> str:
+        """Render a Pandera schema field for generated project schemas."""
+        description_arg = f'description="{description}", ' if description else ""
+        return f"    {name}: Series[{type_name}] = pa.Field({description_arg}nullable={nullable})"
+
+    def render_schema_module(
+        self,
+        *,
+        domain: str,
+        schema_class: str,
+        type_imports: str,
+        schema_fields: str,
+    ) -> str:
+        """Render a Pandera-backed schema module for generated project schemas."""
+        return f'''"""
+Pandera schemas for {domain} domain.
+
+Extend this schema with additional fields as you stabilize the source contract.
+"""
+
+import pandera as pa
+from pandera.typing import Series
+from phlo_pandera.schemas import PhloSchema
+
+{type_imports}class {schema_class}(PhloSchema):
+{schema_fields}
+
+    class Config:
+        strict = False
+        coerce = True
+'''
+
     def get_reconciliation_checks(self) -> dict[str, type] | None:
         """Return reconciliation check classes.
 

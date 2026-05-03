@@ -1,5 +1,7 @@
 """Shared CLI utilities for schema commands."""
 
+import importlib
+from importlib import import_module
 import os
 import sys
 from pathlib import Path
@@ -94,7 +96,6 @@ def discover_pandera_schemas(
 
     """
     import inspect
-    from importlib import import_module
 
     from pandera.pandas import DataFrameModel
 
@@ -113,7 +114,9 @@ def discover_pandera_schemas(
         if import_root not in sys.path:
             sys.path.insert(0, import_root)
             added_import_root = True
+            importlib.invalidate_caches()
 
+        old_modules = dict(sys.modules)
         try:
             for py_file in path.glob("**/schemas/*.py"):
                 if py_file.name.startswith("_"):
@@ -149,6 +152,11 @@ def discover_pandera_schemas(
                     )
                     continue
         finally:
+            for module_name in set(sys.modules) - set(old_modules):
+                sys.modules.pop(module_name, None)
+            for module_name, module in old_modules.items():
+                if sys.modules.get(module_name) is not module:
+                    sys.modules[module_name] = module
             if added_import_root:
                 try:
                     sys.path.remove(import_root)

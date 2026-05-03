@@ -40,7 +40,7 @@ source .venv/bin/activate
 uv pip install "phlo[defaults]" phlo-otel phlo-clickstack phlo-lineage
 ```
 
-Then run the blog commands from your working project directory (for example `/Users/garethprice/Developer/phlo-examples/blog`).
+Then run the blog commands from your working project directory (for example `~/dev/phlo-examples/blog`).
 
 ## Posts
 

@@ -108,6 +108,40 @@ class QualityProviderPlugin(Plugin, ABC):
         """
         return None
 
+    def render_schema_field(
+        self,
+        *,
+        name: str,
+        type_name: str,
+        nullable: bool,
+        description: str | None = None,
+    ) -> str | None:
+        """Render one generated schema field for this quality provider.
+
+        Returns:
+            Python source for a class-level field declaration, or None when the
+            provider does not support schema scaffolding.
+
+        """
+        return None
+
+    def render_schema_module(
+        self,
+        *,
+        domain: str,
+        schema_class: str,
+        type_imports: str,
+        schema_fields: str,
+    ) -> str | None:
+        """Render a complete generated schema module for this quality provider.
+
+        Returns:
+            Python source for the schema module, or None when the provider does
+            not support schema scaffolding.
+
+        """
+        return None
+
     def get_reconciliation_checks(self) -> dict[str, type] | None:
         """Return reconciliation check classes.
 
