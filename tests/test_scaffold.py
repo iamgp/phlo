@@ -1,14 +1,21 @@
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 
+import phlo_dlt.scaffold as scaffold_module
 import pytest
 from phlo_dlt.scaffold import (
     _resolve_schema_base_import,
     create_ingestion_workflow,
     parse_field_specs,
 )
+
+
+def _requirement_name(requirement: str) -> str:
+    """Return the package name from a simple PEP 508 dependency string."""
+    return re.split(r"\s*(?:[<>=!~]=?|@|\[|;)", requirement, maxsplit=1)[0].strip().lower()
 
 
 def test_parse_field_specs_validates_and_dedupes() -> None:
@@ -39,12 +46,10 @@ def test_scaffold_schema_base_comes_from_quality_provider(monkeypatch: pytest.Mo
 
 def test_phlo_dlt_does_not_depend_on_pandera_packages() -> None:
     """Quality providers own Pandera dependencies; phlo-dlt only consumes capability metadata."""
-    from packaging.requirements import Requirement
-
     pyproject = tomllib.loads(Path("packages/phlo-dlt/pyproject.toml").read_text())
     dependencies = pyproject["project"]["dependencies"]
 
-    package_names = {Requirement(dependency).name for dependency in dependencies}
+    package_names = {_requirement_name(dependency) for dependency in dependencies}
     assert "pandera" not in package_names
     assert "phlo-pandera" not in package_names
 
@@ -91,6 +96,11 @@ def test_scaffold_uses_unique_key_field_type_when_declared(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Normalizes and types API primary keys such as Fake Store product ids."""
+    monkeypatch.setattr(
+        scaffold_module,
+        "_resolve_schema_base_import",
+        lambda: ("phlo_pandera.schemas", "PhloSchema"),
+    )
     monkeypatch.chdir(tmp_path)
     (tmp_path / "workflows" / "schemas").mkdir(parents=True)
     (tmp_path / "workflows" / "ingestion").mkdir(parents=True)
