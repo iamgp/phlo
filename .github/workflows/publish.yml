@@ -81,7 +81,57 @@ jobs:
 
       - name: Publish to PyPI
         if: inputs.dry_run != 'true'
-        run: uv publish dist/* --token "$PYPI_API_TOKEN" --check-url https://pypi.org/simple/
+        run: |
+          python <<'PY'
+          from __future__ import annotations
+
+          import re
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          def canonical_name(name: str) -> str:
+              return re.sub(r"[-_.]+", "-", name).lower()
+
+          def project_name(filename: str) -> str:
+              if filename.endswith(".whl"):
+                  return filename.split("-", 2)[0]
+              for suffix in (".tar.gz", ".zip"):
+                  if filename.endswith(suffix):
+                      return filename[: -len(suffix)].rsplit("-", 1)[0]
+              raise ValueError(f"Unsupported artifact filename: {filename}")
+
+          cache: dict[str, str] = {}
+          for artifact in sorted(Path("dist").glob("*")):
+              if not artifact.is_file() or not artifact.name.endswith((".whl", ".tar.gz", ".zip")):
+                  continue
+              package = canonical_name(project_name(artifact.name))
+              if package not in cache:
+                  try:
+                      with urllib.request.urlopen(
+                          f"https://pypi.org/simple/{package}/", timeout=30
+                      ) as response:
+                          cache[package] = response.read().decode("utf-8", "replace")
+                  except urllib.error.HTTPError as exc:
+                      if exc.code == 404:
+                          cache[package] = ""
+                      else:
+                          raise
+              if artifact.name in cache[package]:
+                  artifact.unlink()
+                  print(f"Skipping existing PyPI artifact: {artifact}")
+              else:
+                  print(f"Will publish: {artifact}")
+          PY
+
+          mapfile -d '' artifacts < <(
+            find dist \( -name '*.whl' -o -name '*.tar.gz' \) -print0
+          )
+          if [ "${#artifacts[@]}" -eq 0 ]; then
+            echo "No unpublished artifacts to publish."
+            exit 0
+          fi
+          uv publish "${artifacts[@]}" --token "$PYPI_API_TOKEN"
         env:
           PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
 

@@ -135,10 +135,65 @@ jobs:
             uv build --directory "$pkg" --out-dir "$package_dist"
           done
 
-      - uses: iamgp/ReleaseX@65c40c6bb71f99ce60cbc607e2f611711895b802
-        with:
-          command: release publish --skip-published
+      - name: Remove already-published artifacts
+        run: |
+          python <<'PY'
+          from __future__ import annotations
+
+          import re
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          def canonical_name(name: str) -> str:
+              return re.sub(r"[-_.]+", "-", name).lower()
+
+          def project_name(filename: str) -> str:
+              if filename.endswith(".whl"):
+                  return filename.split("-", 2)[0]
+              for suffix in (".tar.gz", ".zip"):
+                  if filename.endswith(suffix):
+                      return filename[: -len(suffix)].rsplit("-", 1)[0]
+              raise ValueError(f"Unsupported artifact filename: {filename}")
+
+          artifacts = sorted(
+              [
+                  *Path("dist").glob("*"),
+                  *Path("packages").glob("*/dist/*"),
+              ]
+          )
+          cache: dict[str, str] = {}
+          for artifact in artifacts:
+              if not artifact.is_file() or not artifact.name.endswith((".whl", ".tar.gz", ".zip")):
+                  continue
+              package = canonical_name(project_name(artifact.name))
+              if package not in cache:
+                  try:
+                      with urllib.request.urlopen(
+                          f"https://pypi.org/simple/{package}/", timeout=30
+                      ) as response:
+                          cache[package] = response.read().decode("utf-8", "replace")
+                  except urllib.error.HTTPError as exc:
+                      if exc.code == 404:
+                          cache[package] = ""
+                      else:
+                          raise
+              if artifact.name in cache[package]:
+                  artifact.unlink()
+                  print(f"Skipping existing PyPI artifact: {artifact}")
+              else:
+                  print(f"Will publish: {artifact}")
+          PY
+
+      - name: Publish packages
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-          UV_PUBLISH_CHECK_URL: https://pypi.org/simple/
+        run: |
+          mapfile -d '' artifacts < <(
+            find dist packages -type f \( -path 'dist/*' -o -path 'packages/*/dist/*' \) \( -name '*.whl' -o -name '*.tar.gz' \) -print0
+          )
+          if [ "${#artifacts[@]}" -eq 0 ]; then
+            echo "No unpublished artifacts to publish."
+            exit 0
+          fi
+          uv publish "${artifacts[@]}" --token "$PYPI_API_TOKEN"
