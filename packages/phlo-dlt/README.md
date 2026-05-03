@@ -47,18 +47,22 @@ This package is **fully auto-configured**:
 ### Defining Ingestion
 
 ```python
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt import phlo_ingestion
+from dlt.sources.rest_api import rest_api
 
 @phlo_ingestion(
-    name="github_events",
-    source="rest_api",
-    destination="bronze.github_events"
+    table_name="github_events",
+    unique_key="id",
+    group="bronze",
 )
-def ingest_github_events():
-    return {
-        "client": {"base_url": "https://api.github.com"},
-        "resources": ["events"]
-    }
+def ingest_github_events(partition_date: str):
+    return rest_api(
+        client={"base_url": "https://api.github.com"},
+        resources=[{
+            "name": "events",
+            "endpoint": {"path": "/events"},
+        }]
+    )
 ```
 
 ### Running Ingestion

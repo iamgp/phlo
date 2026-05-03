@@ -100,6 +100,10 @@ class ComposeGenerator:
         if not isinstance(volume, str) or ":" not in volume:
             return None
 
+        # Check for Windows drive-letter prefix (e.g., "C:\path")
+        if len(volume) >= 2 and volume[0].isalpha() and volume[1] == ":":
+            return None
+
         source = volume.split(":", 1)[0]
         if not source:
             return None

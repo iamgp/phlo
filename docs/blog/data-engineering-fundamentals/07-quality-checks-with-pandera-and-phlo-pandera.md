@@ -38,7 +38,7 @@ class RawOrders(PhloSchema):
 ## Add Declarative Quality Checks
 
 ```python
-from phlo.quality import phlo_quality, NullCheck, RangeCheck, FreshnessCheck, CustomSQLCheck
+from phlo_pandera import phlo_quality, NullCheck, RangeCheck, FreshnessCheck, CustomSQLCheck
 
 @phlo_quality(
     table="silver.fct_orders",

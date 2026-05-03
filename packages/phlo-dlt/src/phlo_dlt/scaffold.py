@@ -355,19 +355,20 @@ def create_ingestion_workflow(
         type_imports = f"{type_imports}\n\n"
 
     field_by_name = {field.name: field for field in field_specs}
-    unique_key_field = field_by_name.get(unique_key)
+    unique_key_normalized = _to_snake_case(unique_key)
+    unique_key_field = field_by_name.get(unique_key_normalized)
     unique_key_type = unique_key_field.type_name if unique_key_field else "str"
     unique_key_nullable = unique_key_field.nullable if unique_key_field else False
     schema_base_module, schema_base_name = _resolve_schema_base_import()
 
     schema_fields_lines = [
         (
-            f"    {unique_key}: Series[{unique_key_type}] = "
+            f"    {unique_key_normalized}: Series[{unique_key_type}] = "
             f'pa.Field(description="Unique key", nullable={unique_key_nullable})'
         )
     ]
     for field in field_specs:
-        if field.name == unique_key:
+        if field.name == unique_key_normalized:
             continue
         schema_fields_lines.append(
             f"    {field.name}: Series[{field.type_name}] = pa.Field(nullable={field.nullable})"
@@ -447,6 +448,15 @@ def {table_snake}(partition_date: str):
 
     asset_file.write_text(asset_content)
 
+    extra_required_fields_lines = [
+        f'        "{field.name}": {_minimal_test_value(field.type_name)},'
+        for field in field_specs
+        if not field.nullable and field.name != unique_key_normalized
+    ]
+    extra_required_fields = "\n".join(extra_required_fields_lines)
+    if extra_required_fields:
+        extra_required_fields = "\n" + extra_required_fields
+
     test_content = f'''"""
 Tests for {domain} {table_name} scaffolded workflow.
 """
@@ -458,13 +468,15 @@ from {schema_import_path} import {schema_class}
 
 def test_schema_contains_unique_key() -> None:
     schema_fields = {schema_class}.to_schema().columns.keys()
-    assert "{unique_key}" in schema_fields
+    assert "{unique_key_normalized}" in schema_fields
 
 
 def test_schema_validates_minimal_row() -> None:
-    df = pd.DataFrame([{{"{unique_key}": {_minimal_test_value(unique_key_type)}}}])
+    df = pd.DataFrame([{{
+        "{unique_key_normalized}": {_minimal_test_value(unique_key_type)},{extra_required_fields}
+    }}])
     validated = {schema_class}.validate(df)
-    assert validated["{unique_key}"].iloc[0] == {_minimal_test_value(unique_key_type)}
+    assert validated["{unique_key_normalized}"].iloc[0] == {_minimal_test_value(unique_key_type)}
 '''
 
     test_file.write_text(test_content)

@@ -103,17 +103,22 @@ Created ingestion workflow scaffold under workflows/ingestion/commerce/orders.py
 
 At this point, your first asset name is `dlt_orders` (Phlo prefixes ingestion assets as `dlt_<table>`).
 
-The scaffold uses the table name as the default REST endpoint. For Fake Store, open `workflows/ingestion/commerce/orders.py` and make the resource explicit:
+The scaffold uses the table name as the default REST endpoint. For Fake Store, open `workflows/ingestion/commerce/orders.py` and replace the generated `resources=` argument in the `rest_api(...)` call:
 
 ```python
-resources=[
-    {
-        "name": "products",
-        "endpoint": {
-            "path": "/products",
-        },
-    }
-]
+return rest_api(
+    client={
+        "base_url": base_url,
+    },
+    resources=[
+        {
+            "name": "products",
+            "endpoint": {
+                "path": "/products",
+            },
+        }
+    ],
+)
 ```
 
 ## First Materialization Dry Run

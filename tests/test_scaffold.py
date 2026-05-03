@@ -39,11 +39,14 @@ def test_scaffold_schema_base_comes_from_quality_provider(monkeypatch: pytest.Mo
 
 def test_phlo_dlt_does_not_depend_on_pandera_packages() -> None:
     """Quality providers own Pandera dependencies; phlo-dlt only consumes capability metadata."""
+    from packaging.requirements import Requirement
+
     pyproject = tomllib.loads(Path("packages/phlo-dlt/pyproject.toml").read_text())
     dependencies = pyproject["project"]["dependencies"]
 
-    assert "pandera" not in {dependency.split(">=", 1)[0] for dependency in dependencies}
-    assert "phlo-pandera" not in {dependency.split(">=", 1)[0] for dependency in dependencies}
+    package_names = {Requirement(dependency).name for dependency in dependencies}
+    assert "pandera" not in package_names
+    assert "phlo-pandera" not in package_names
 
 
 def test_scaffold_generates_no_todos_and_is_syntax_valid(
@@ -101,7 +104,9 @@ def test_scaffold_uses_unique_key_field_type_when_declared(
     )
 
     schema_path = tmp_path / "workflows" / "schemas" / "commerce.py"
-    test_path = next(tmp_path / path for path in created if path.startswith("tests/"))
+    test_path_str = next((p for p in created if p.startswith("tests/")), None)
+    assert test_path_str is not None, "Expected test file was not created"
+    test_path = tmp_path / test_path_str
 
     assert "from phlo_pandera.schemas import PhloSchema" in schema_path.read_text()
     assert "class RawProducts(PhloSchema):" in schema_path.read_text()
