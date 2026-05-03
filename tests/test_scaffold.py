@@ -44,6 +44,76 @@ def test_scaffold_schema_base_comes_from_quality_provider(monkeypatch: pytest.Mo
     assert _resolve_schema_base_import() == ("example_quality.schemas", "ExampleSchema")
 
 
+def test_scaffold_rejects_nullable_unique_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rejects merge keys that cannot reliably deduplicate downstream."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "workflows" / "schemas").mkdir(parents=True)
+    (tmp_path / "workflows" / "ingestion").mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="Unique key 'id' cannot be nullable"):
+        create_ingestion_workflow(
+            domain="commerce",
+            table_name="orders",
+            unique_key="id",
+            fields=["id:int?"],
+        )
+
+
+def test_scaffold_schema_rendering_comes_from_quality_provider(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Lets quality providers own generated schema source rendering."""
+
+    class FakeQualityProvider:
+        def get_schema_base_import(self) -> tuple[str, str]:
+            return ("example_quality.schemas", "ExampleSchema")
+
+        def render_schema_field(
+            self,
+            *,
+            name: str,
+            type_name: str,
+            nullable: bool,
+            description: str | None = None,
+        ) -> str:
+            suffix = f"  # {description}" if description else ""
+            return f"    {name}: {type_name} = field(nullable={nullable}){suffix}"
+
+        def render_schema_module(
+            self,
+            *,
+            domain: str,
+            schema_class: str,
+            type_imports: str,
+            schema_fields: str,
+        ) -> str:
+            return (
+                f'"""Schema for {domain}."""\n\n'
+                "from example_quality import field\n\n\n"
+                f"class {schema_class}:\n"
+                f"{schema_fields}\n"
+            )
+
+    monkeypatch.setattr(scaffold_module, "_load_quality_provider", lambda: FakeQualityProvider())
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "workflows" / "schemas").mkdir(parents=True)
+    (tmp_path / "workflows" / "ingestion").mkdir(parents=True)
+
+    create_ingestion_workflow(
+        domain="commerce",
+        table_name="products",
+        unique_key="id",
+        fields=["id:int", "title:str"],
+    )
+
+    schema_text = (tmp_path / "workflows" / "schemas" / "commerce.py").read_text()
+    assert "from example_quality import field" in schema_text
+    assert "import pandera" not in schema_text
+    assert "id: int = field(nullable=False)  # Unique key" in schema_text
+
+
 def test_phlo_dlt_does_not_depend_on_pandera_packages() -> None:
     """Quality providers own Pandera dependencies; phlo-dlt only consumes capability metadata."""
     pyproject = tomllib.loads(Path("packages/phlo-dlt/pyproject.toml").read_text())

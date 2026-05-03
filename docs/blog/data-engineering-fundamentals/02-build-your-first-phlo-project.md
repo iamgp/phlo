@@ -180,7 +180,7 @@ Example first-day checklist:
 2. Confirm .phlo directory and generated compose files.
 3. Confirm service inventory from phlo services list.
 4. Confirm at least one materialize dry-run works.
-5. Confirm schema and workflow validation commands run.
+5. Confirm the generated pytest file and materialization dry-run pass.
 ```
 
 ## Naming Conventions That Save Time Later
@@ -223,7 +223,7 @@ Anti-pattern 1: "One global project for everything"
 Anti-pattern 2: "Skip validations until real data arrives"
 
 - Result: schema and workflow mistakes discovered too late.
-- Better: run `phlo validate-workflow` at scaffold time.
+- Better: run the generated pytest file and a dry-run materialization before loading data.
 
 Anti-pattern 3: "Ad hoc service starts"
 
@@ -331,7 +331,7 @@ When onboarding pain is low, platform adoption rises naturally.
 1. Run `phlo workflow create` and scaffold one ingestion workflow.
 2. Open generated schema and ingestion files.
 3. Replace placeholder fields with your own domain fields.
-4. Run `phlo validate-workflow <path-to-file>` on your new workflow.
+4. Run the generated pytest file and `phlo materialize <asset-name> --dry-run`.
 
 ## Common Issues
 

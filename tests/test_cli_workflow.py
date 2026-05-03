@@ -195,11 +195,11 @@ def test_workflow_create_prints_runnable_next_steps(monkeypatch, tmp_path) -> No
     )
 
     assert result.exit_code == 0
-    assert "phlo schema validate workflows/schemas/weather.py" in result.output
-    assert "phlo validate-workflow workflows/ingestion/weather/observations.py" in result.output
     assert "phlo services restart --service dagster" in result.output
     assert "phlo materialize dlt_observations" in result.output
-    assert "phlo status" in result.output
+    assert "Inspect status: phlo status" in result.output
+    assert "phlo schema validate workflows/schemas/weather.py" not in result.output
+    assert "phlo validate-workflow workflows/ingestion/weather/observations.py" not in result.output
     assert "phlo status --select" not in result.output
     assert "phlo test weather" not in result.output
     assert "phlo services restart dagster" not in result.output

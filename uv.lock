@@ -3254,6 +3254,7 @@ defaults = [
     { name = "phlo-iceberg" },
     { name = "phlo-minio" },
     { name = "phlo-nessie" },
+    { name = "phlo-pandera" },
     { name = "phlo-postgres" },
     { name = "phlo-trino" },
 ]
@@ -3335,6 +3336,7 @@ requires-dist = [
     { name = "phlo-nessie", marker = "extra == 'core-services'", editable = "packages/phlo-nessie" },
     { name = "phlo-nessie", marker = "extra == 'defaults'", editable = "packages/phlo-nessie" },
     { name = "phlo-openmetadata", marker = "extra == 'openmetadata'", editable = "packages/phlo-openmetadata" },
+    { name = "phlo-pandera", marker = "extra == 'defaults'", editable = "packages/phlo-pandera" },
     { name = "phlo-postgres", marker = "extra == 'core-services'", editable = "packages/phlo-postgres" },
     { name = "phlo-postgres", marker = "extra == 'defaults'", editable = "packages/phlo-postgres" },
     { name = "phlo-trino", marker = "extra == 'core-services'", editable = "packages/phlo-trino" },
