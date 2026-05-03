@@ -3215,7 +3215,7 @@ wheels = [
 
 [[package]]
 name = "phlo"
-version = "0.8.1b5"
+version = "0.8.2"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
@@ -3785,7 +3785,7 @@ provides-extras = ["dev", "postgres"]
 
 [[package]]
 name = "phlo-iceberg"
-version = "0.3.1b1"
+version = "0.3.2"
 source = { editable = "packages/phlo-iceberg" }
 dependencies = [
     { name = "pandera" },

@@ -1,5 +1,15 @@
 # Changelog
 
+## [phlo 0.8.2 + 1 packages] - 2026-05-03
+
+### Fixed
+- phlo: smooth first workshop materialization
+- phlo-iceberg: smooth first workshop materialization
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (2 commits)
+
 ## [phlo 0.8.0 + 25 packages] - 2026-05-03
 
 ### Added

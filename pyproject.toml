@@ -88,7 +88,7 @@ description = "Lakehouse platform"
 name = "phlo"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.8.1b5"
+version = "0.8.2"
 
 [project.entry-points."phlo.plugins.quality"]
 
