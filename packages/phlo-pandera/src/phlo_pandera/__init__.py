@@ -167,4 +167,4 @@ __all__ = [
     "dbt_check_name",
 ]
 
-__version__ = "0.2.3"
+__version__ = "0.3.1b1"
