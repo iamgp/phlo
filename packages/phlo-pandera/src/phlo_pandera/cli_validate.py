@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 
 @click.command()
-@click.argument("schema_file", type=click.Path(exists=True))
+@click.argument("schema_file", type=click.Path(dir_okay=False))
 @click.option(
     "--check-constraints",
     is_flag=True,
@@ -65,10 +65,16 @@ def validate_schema(
         ```
 
     """
+    schema_path = Path(schema_file)
+    if not schema_path.exists():
+        raise click.ClickException(
+            f"Schema file not found: {schema_path}\n\nRun: phlo workflow create"
+        )
+
     console.print(f"\n[bold blue]🔍 Validating Schema[/bold blue]: {schema_file}\n")
 
     # Load the module
-    schema_module = _load_module_from_file(Path(schema_file))
+    schema_module = _load_module_from_file(schema_path)
     if schema_module is None:
         console.print("[red]✗ Failed to load schema file[/red]")
         raise click.Abort()

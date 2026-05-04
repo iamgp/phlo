@@ -57,7 +57,7 @@ def _project_env() -> dict[str, str]:
     return load_project_env()
 
 
-@click.command()
+@click.command(help="Access and filter Dagster run logs.")
 @click.option(
     "--asset",
     type=str,
@@ -119,32 +119,24 @@ def logs(
     limit: int,
     output_json: bool,
 ):
-    """Access and filter Dagster run logs from CLI.
-
-    Supports multiple filtering options:
-    - By asset name: --asset dlt_orders
-    - By job name: --job orders_pipeline
-    - By log level: --level ERROR
-    - By time range: --since 1h (last hour)
-    - By specific run: --run-id abc123
-    - Tail mode: --follow (real-time updates)
+    """Access and filter Dagster run logs.
 
     Args:
-        asset: Filter by asset name.
-        job: Filter by job name.
-        level: Filter by log level (DEBUG, INFO, WARNING, ERROR).
-        since: Time filter (e.g., 1h, 30m, 2d).
-        run_id: Filter by specific run ID.
-        follow: If True, tail logs in real-time.
-        full: If True, don't truncate long messages.
-        limit: Number of logs to retrieve (default: 100).
-        output_json: If True, output as JSON.
+        asset: Optional asset name filter.
+        job: Optional job name filter.
+        level: Optional log level filter.
+        since: Optional relative time window.
+        run_id: Optional Dagster run identifier.
+        follow: If True, follow new log output.
+        full: If True, do not truncate long messages.
+        limit: Maximum number of log rows to display.
+        output_json: If True, emit JSON for scripting.
 
     Returns:
         None
 
     Raises:
-        No explicit exceptions raised. Logs warnings on query failures.
+        ClickException: If incompatible options are provided.
 
     """
     if follow and output_json:
@@ -247,6 +239,12 @@ def _get_logs(filters: dict) -> list[dict]:
         List of log dictionaries
 
     """
+    if filters.get("level"):
+        postgres_logs = _get_logs_from_postgres(filters)
+        if postgres_logs:
+            logger.debug("dagster_logs_level_filter_postgres_used")
+            return postgres_logs
+
     try:
         env = _project_env()
         settings = get_settings()
@@ -365,7 +363,12 @@ def _get_logs_from_postgres(filters: dict) -> list[dict]:
         where.append("timestamp >= %s")
         params.append(filters["start_time"])
 
-    params.append(int(filters.get("limit", 100)))
+    requested_limit = int(filters.get("limit", 100))
+    query_limit = requested_limit
+    if filters.get("level"):
+        query_limit = max(requested_limit * 20, 200)
+
+    params.append(query_limit)
     try:
         with conn, conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
             cur.execute(
@@ -395,6 +398,8 @@ def _get_logs_from_postgres(filters: dict) -> list[dict]:
         if filters.get("level") and entry.get("level") != filters["level"]:
             continue
         logs_list.append(entry)
+        if len(logs_list) >= requested_limit:
+            break
     logs_list.reverse()
     return logs_list
 
@@ -411,8 +416,10 @@ def _event_log_row_to_entry(row) -> dict | None:
     dagster_event = payload.get("dagster_event") or {}
     logging_tags = dagster_event.get("logging_tags") or {}
     event_type = row.get("dagster_event_type") or dagster_event.get("event_type_value") or ""
+    error_message = _extract_error_message(dagster_event)
     message = (
-        payload.get("user_message")
+        error_message
+        or payload.get("user_message")
         or dagster_event.get("message")
         or payload.get("message")
         or event_type
@@ -432,6 +439,51 @@ def _event_log_row_to_entry(row) -> dict | None:
         "job_name": str(logging_tags.get("job_name") or payload.get("pipeline_name") or ""),
         "run_status": "",
     }
+
+
+def _extract_error_message(dagster_event: dict) -> str | None:
+    """Extract the most specific useful error message from a Dagster event payload."""
+    event_data = dagster_event.get("event_specific_data")
+    candidates: list[dict] = []
+    if isinstance(event_data, dict):
+        if isinstance(event_data.get("error"), dict):
+            candidates.append(event_data["error"])
+        first_failure = event_data.get("first_step_failure_event")
+        if isinstance(first_failure, dict):
+            first_failure_data = first_failure.get("event_specific_data")
+            if isinstance(first_failure_data, dict) and isinstance(
+                first_failure_data.get("error"), dict
+            ):
+                candidates.append(first_failure_data["error"])
+
+    messages: list[str] = []
+    for candidate in candidates:
+        current: dict | None = candidate
+        while isinstance(current, dict):
+            message = current.get("message")
+            if isinstance(message, str) and message.strip():
+                messages.append(message.strip())
+            next_cause = current.get("cause")
+            current = next_cause if isinstance(next_cause, dict) else None
+
+    if not messages:
+        return None
+
+    return _clean_error_message(messages[-1])
+
+
+def _clean_error_message(message: str) -> str:
+    """Return the first readable sentence from a nested framework error."""
+    lines = [line.strip() for line in message.splitlines() if line.strip()]
+    if not lines:
+        return message.strip()
+    if lines[0].startswith(("dlt.", "dagster.")):
+        _, _, detail = lines[0].partition(":")
+        if detail.strip():
+            return detail.strip()
+        if len(lines) >= 2:
+            return lines[1]
+    return lines[0]
 
 
 def _level_from_event_payload(payload: dict, event_type: str) -> str:
@@ -460,6 +512,8 @@ def _build_logs_query(filters: dict) -> str:
     # Simplified query structure - in production would be more comprehensive
     limit = int(filters.get("limit", 100))
     event_limit = max(limit, 1)
+    if filters.get("level"):
+        event_limit = max(event_limit * 20, 200)
     query = """
     {
         runsOrError(limit: %d) {

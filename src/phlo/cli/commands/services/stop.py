@@ -37,7 +37,7 @@ def _remaining_project_containers(project_name: str, backend_name: str | None) -
         return []
 
 
-@click.command("stop")
+@click.command("stop", help="Stop Phlo infrastructure services.")
 @click.option("-v", "--volumes", is_flag=True, help="Remove volumes (deletes data)")
 @click.option(
     "--native",

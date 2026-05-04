@@ -139,6 +139,24 @@ def test_trino_query_rejects_missing_input(monkeypatch) -> None:
     assert 'Run: phlo trino query "SELECT 1"' in result.output
 
 
+def test_trino_query_requires_initialized_services(monkeypatch, tmp_path) -> None:
+    """Query command should hide raw compose errors before services are initialized."""
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setitem(
+        trino_query.callback.__globals__, "_require_container_backend", lambda: None
+    )
+
+    result = CliRunner().invoke(trino_group, ["query", "SELECT 1"])
+
+    assert result.exit_code != 0
+    assert "Error: Phlo services have not been initialized" in result.output
+    assert "Missing: .phlo/docker-compose.yml" in result.output
+    assert "Run: phlo services init" in result.output
+    assert "couldn't find env file" not in result.output
+
+
 def test_trino_query_surfaces_timeout(monkeypatch) -> None:
     """Query command should surface timeouts as click exceptions."""
 

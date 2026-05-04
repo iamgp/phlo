@@ -5,7 +5,96 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from phlo_dagster.cli_materialize import materialize
+from phlo_dagster.cli_materialize import materialize, wait_for_dagster_runtime
+
+
+class FakePodmanBackend:
+    name = "podman"
+
+    def container_exec_cmd(self, *, container_name, command, env=None, workdir=None):
+        cmd = ["podman", "exec"]
+        for key, value in (env or {}).items():
+            cmd.extend(["-e", f"{key}={value}"])
+        if workdir:
+            cmd.extend(["-w", workdir])
+        cmd.append(container_name)
+        cmd.extend(command)
+        return cmd
+
+
+def test_materialize_help_is_user_facing() -> None:
+    result = CliRunner().invoke(materialize, ["--help"])
+
+    assert result.exit_code == 0
+    assert "Materialize Dagster assets via the configured container backend." in result.output
+    assert "Args:" not in result.output
+    assert "Returns:" not in result.output
+    assert "Raises:" not in result.output
+
+
+def test_wait_for_dagster_runtime_uses_ready_marker(monkeypatch) -> None:
+    calls = []
+
+    def fake_run(cmd, check, capture_output, text):
+        calls.append(cmd)
+
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr("phlo_dagster.cli_materialize.subprocess.run", fake_run)
+
+    wait_for_dagster_runtime("dagster-1", timeout_seconds=0.1)
+
+    assert calls == [
+        [
+            "docker",
+            "exec",
+            "dagster-1",
+            "sh",
+            "-lc",
+            "test -f /tmp/phlo-dagster-ready "
+            "|| python -c 'import phlo_dagster.framework.definitions'",
+        ]
+    ]
+
+
+def test_wait_for_dagster_runtime_uses_selected_backend(monkeypatch) -> None:
+    calls = []
+
+    def fake_run(cmd, check, capture_output, text):
+        calls.append(cmd)
+
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr("phlo_dagster.cli_materialize.subprocess.run", fake_run)
+
+    wait_for_dagster_runtime("dagster-1", timeout_seconds=0.1, backend=FakePodmanBackend())
+
+    assert calls[0][:3] == ["podman", "exec", "dagster-1"]
+
+
+def test_wait_for_dagster_runtime_times_out(monkeypatch) -> None:
+    def fake_run(cmd, check, capture_output, text):
+        class Result:
+            returncode = 1
+
+        return Result()
+
+    monkeypatch.setattr("phlo_dagster.cli_materialize.subprocess.run", fake_run)
+    monkeypatch.setattr("phlo_dagster.cli_materialize.time.sleep", lambda seconds: None)
+
+    try:
+        wait_for_dagster_runtime("dagster-1", timeout_seconds=0)
+    except RuntimeError as exc:
+        assert "still finishing runtime setup" in str(exc)
+        assert "phlo services logs --tail 120 dagster" in str(exc)
+    else:
+        raise AssertionError("expected RuntimeError")
 
 
 @patch("phlo_dagster.cli_materialize.find_dagster_container", return_value="mock-container")
@@ -73,6 +162,10 @@ def test_materialize_failure_hides_raw_process_output(
         return FakeProcess()
 
     monkeypatch.setattr("phlo_dagster.cli_materialize.subprocess.Popen", fake_popen)
+    monkeypatch.setattr(
+        "phlo_dagster.cli_materialize.wait_for_dagster_runtime",
+        lambda *args, **kwargs: None,
+    )
 
     result = CliRunner().invoke(materialize, ["dlt_orders"])
 
@@ -82,3 +175,39 @@ def test_materialize_failure_hides_raw_process_output(
     assert "Exit code: 2" in result.output
     assert "Last output: User-facing failure" in result.output
     assert "Run: phlo logs --level ERROR --limit 20" in result.output
+
+
+@patch(
+    "phlo_dagster.cli_materialize.find_dagster_container",
+    side_effect=RuntimeError("Could not find running dagster container"),
+)
+@patch("phlo_dagster.cli_materialize.get_project_name", return_value="mock-project")
+def test_materialize_missing_dagster_container_is_actionable(mock_project, mock_container) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(materialize, ["dlt_orders"])
+
+    assert result.exit_code != 0
+    assert "Traceback" not in result.output
+    assert "Error: dagster is not available" in result.output
+    assert "Make sure the dagster service is running." in result.output
+    assert "Run: phlo services start" in result.output
+
+
+@patch("phlo_dagster.cli_materialize.find_dagster_container", return_value="mock-container")
+@patch("phlo_dagster.cli_materialize.get_project_name", return_value="mock-project")
+def test_materialize_dry_run_uses_configured_container_backend(
+    mock_project,
+    mock_container,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "phlo_dagster.cli_materialize.select_project_container_backend",
+        lambda: FakePodmanBackend(),
+    )
+
+    result = CliRunner().invoke(materialize, ["dlt_orders", "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    assert "podman exec" in result.output
+    assert "docker exec" not in result.output

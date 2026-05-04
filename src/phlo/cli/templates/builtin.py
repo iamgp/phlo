@@ -257,6 +257,9 @@ import pandera.pandas as pa
 
 
 class EventsSchema(pa.DataFrameModel):
+    '''CSV demo event records.'''
+
+    event_id: str
     id: int
     name: str
     value: int
@@ -268,15 +271,25 @@ class EventsSchema(pa.DataFrameModel):
 
 from pathlib import Path
 
+import dlt
 import pandas as pd
 import phlo
 
 from workflows.schemas.csv import EventsSchema
 
 
-@phlo.ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="csv")
-def csv_events():
-    return pd.read_csv(Path("data/events.csv"))
+@phlo.ingestion(
+    table_name="events",
+    unique_key="event_id",
+    validation_schema=EventsSchema,
+    group="csv",
+    freshness_hours=(1, 24),
+)
+def csv_events(partition_date: str) -> object:
+    events = pd.read_csv(Path("data/events.csv"))
+    events["event_id"] = events["id"].astype(str) + "-" + partition_date
+    rows = events.to_dict(orient="records")
+    return dlt.resource(rows, name="events")
 """,
         )
 
@@ -309,6 +322,9 @@ import pandera.pandas as pa
 
 
 class EventsSchema(pa.DataFrameModel):
+    '''API demo event records.'''
+
+    event_id: str
     id: int
     name: str
 """,
@@ -319,13 +335,23 @@ class EventsSchema(pa.DataFrameModel):
 
 import pandas as pd
 import phlo
+import dlt
 
 from workflows.schemas.api import EventsSchema
 
 
-@phlo.ingestion(table_name="events", unique_key="id", validation_schema=EventsSchema, group="api")
-def api_events():
-    return pd.DataFrame([{"id": 1, "name": "sample"}])
+@phlo.ingestion(
+    table_name="events",
+    unique_key="event_id",
+    validation_schema=EventsSchema,
+    group="api",
+    freshness_hours=(1, 24),
+)
+def api_events(partition_date: str) -> object:
+    events = pd.DataFrame([{"id": 1, "name": "sample"}])
+    events["event_id"] = events["id"].astype(str) + "-" + partition_date
+    rows = events.to_dict(orient="records")
+    return dlt.resource(rows, name="events")
 """,
         )
 
@@ -400,6 +426,7 @@ class ObservabilityDemoTemplate:
 
 import logging
 
+import dlt
 import pandas as pd
 import phlo
 
@@ -410,12 +437,16 @@ logger = logging.getLogger(__name__)
 
 @phlo.ingestion(
     table_name="observability_events",
-    unique_key="id",
+    unique_key="event_id",
     validation_schema=EventsSchema,
     group="observability",
+    freshness_hours=(1, 24),
 )
-def observability_events():
+def observability_events(partition_date: str) -> object:
     logger.info("loading observability demo events")
-    return pd.DataFrame([{"id": 1, "name": "traceable", "value": 1}])
+    events = pd.DataFrame([{"id": 1, "name": "traceable", "value": 1}])
+    events["event_id"] = events["id"].astype(str) + "-" + partition_date
+    rows = events.to_dict(orient="records")
+    return dlt.resource(rows, name="observability_events")
 """,
         )

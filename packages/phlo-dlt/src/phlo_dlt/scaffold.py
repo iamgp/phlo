@@ -262,6 +262,8 @@ from pandera.typing import Series
 from {schema_base_module} import {schema_base_name}
 
 class {schema_class}({schema_base_name}):
+    """Raw {domain} {schema_class} records."""
+
 {schema_fields}
 
     class Config:
@@ -272,12 +274,15 @@ class {schema_class}({schema_base_name}):
 
 def _render_schema_class_block(
     *,
+    domain: str,
     schema_class: str,
     schema_base_name: str,
     schema_fields: str,
 ) -> str:
     """Render one schema class block for an existing schema module."""
     return f"""class {schema_class}({schema_base_name}):
+    \"\"\"Raw {domain} {schema_class} records.\"\"\"
+
 {schema_fields}
 
     class Config:
@@ -302,6 +307,16 @@ def _append_missing_imports(path: Path, import_lines: str) -> None:
             insert_at = index + 1
     lines.insert(insert_at, insertion)
     path.write_text("".join(lines))
+
+
+def _schema_runtime_imports(schema_base_module: str, schema_base_name: str) -> str:
+    """Return imports required by generated schema fields and base classes."""
+    return "\n".join(
+        [
+            "from pandera.typing import Series",
+            f"from {schema_base_module} import {schema_base_name}",
+        ]
+    )
 
 
 def _append_schema_class(path: Path, schema_class: str, class_block: str) -> None:
@@ -547,11 +562,13 @@ def create_ingestion_workflow(
     )
 
     if schema_file.exists():
-        _append_missing_imports(schema_file, type_imports)
+        schema_imports = _schema_runtime_imports(schema_base_module, schema_base_name)
+        _append_missing_imports(schema_file, f"{schema_imports}\n{type_imports}".strip())
         _append_schema_class(
             schema_file,
             schema_class,
             _render_schema_class_block(
+                domain=domain,
                 schema_class=schema_class,
                 schema_base_name=schema_base_name,
                 schema_fields=schema_fields,

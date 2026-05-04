@@ -238,6 +238,43 @@ def test_scaffold_appends_schema_class_for_existing_domain(
     assert "class RawCustomers(PhloSchema):" in schema_text
 
 
+def test_scaffold_appends_required_imports_to_existing_template_schema(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Generated workflows remain importable when init templates already created a schema."""
+    monkeypatch.setattr(
+        scaffold_module,
+        "_resolve_schema_base_import",
+        lambda: ("phlo_pandera.schemas", "PhloSchema"),
+    )
+    monkeypatch.chdir(tmp_path)
+    schema_dir = tmp_path / "workflows" / "schemas"
+    schema_dir.mkdir(parents=True)
+    (tmp_path / "workflows" / "ingestion").mkdir(parents=True)
+    schema_file = schema_dir / "api.py"
+    schema_file.write_text(
+        "from __future__ import annotations\n\n"
+        "import pandera.pandas as pa\n\n\n"
+        "class EventsSchema(pa.DataFrameModel):\n"
+        "    id: int\n"
+    )
+
+    create_ingestion_workflow(
+        domain="api",
+        table_name="purchases",
+        unique_key="id",
+        api_base_url="https://example.test/api",
+        fields=["id:int", "amount:float", "customer_id:str"],
+    )
+
+    schema_text = schema_file.read_text()
+    assert "from pandera.typing import Series" in schema_text
+    assert "from phlo_pandera.schemas import PhloSchema" in schema_text
+    assert "class RawPurchases(PhloSchema):" in schema_text
+    assert '"""Raw api RawPurchases records."""' in schema_text
+
+
 def test_scaffold_uses_normalized_table_identifier(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

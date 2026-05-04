@@ -14,7 +14,11 @@ from phlo.logging import get_logger
 logger = get_logger(__name__)
 
 
-@click.command("exec", context_settings={"ignore_unknown_options": True})
+@click.command(
+    "exec",
+    context_settings={"ignore_unknown_options": True},
+    help="Run a command inside a running Phlo service container.",
+)
 @click.argument("service_name")
 @click.argument("command", nargs=-1, type=click.UNPROCESSED)
 @click.option("--tty/--no-tty", default=False, show_default=True, help="Allocate a TTY.")

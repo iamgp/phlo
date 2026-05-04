@@ -228,6 +228,8 @@ from pandera.typing import Series
 from phlo_pandera.schemas import PhloSchema
 
 {type_imports}class {schema_class}(PhloSchema):
+    """Raw {domain} {schema_class} records."""
+
 {schema_fields}
 
     class Config:

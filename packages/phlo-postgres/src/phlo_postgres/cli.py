@@ -24,13 +24,18 @@ from subprocess import TimeoutExpired
 import click
 
 from phlo.cli.commands.services.utils import (
-    ensure_phlo_dir,
+    ensure_compose_project,
     require_container_backend as _require_selected_container_backend,
 )
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
-from phlo.cli.output import empty_file_error, exclusive_options_error, file_read_error
+from phlo.cli.output import (
+    command_failed_error,
+    empty_file_error,
+    exclusive_options_error,
+    file_read_error,
+)
 from phlo.cli.output import missing_query_error
 from phlo_postgres.settings import get_settings
 
@@ -95,7 +100,7 @@ def _postgres_exec_base(*, tty: bool) -> list[str]:
         >>> # Returns: ['docker', 'compose', '-p', 'phlo', '-f', '...', 'exec', '-t', 'postgres']
 
     """
-    phlo_dir = ensure_phlo_dir()
+    phlo_dir = ensure_compose_project()
     project_name = get_project_name()
     cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
     cmd.append("exec")
@@ -246,7 +251,12 @@ def postgres_query(
         )
     except CommandError as exc:
         stderr = exc.stderr.strip()
-        raise click.ClickException(stderr or str(exc)) from exc
+        raise command_failed_error(
+            "psql",
+            exit_code=exc.returncode,
+            details=[stderr] if stderr else ["PostgreSQL did not complete the query."],
+            run="phlo services status postgres",
+        ) from exc
     except TimeoutExpired as exc:
         raise click.ClickException(f"Query timed out after {timeout_seconds} seconds.") from exc
 
@@ -304,7 +314,12 @@ def postgres_dump(
         )
     except CommandError as exc:
         stderr = exc.stderr.strip()
-        raise click.ClickException(stderr or str(exc)) from exc
+        raise command_failed_error(
+            "pg_dump",
+            exit_code=exc.returncode,
+            details=[stderr] if stderr else ["PostgreSQL did not create the dump."],
+            run="phlo services status postgres",
+        ) from exc
     except TimeoutExpired as exc:
         raise click.ClickException(f"Dump timed out after {timeout_seconds} seconds.") from exc
 
