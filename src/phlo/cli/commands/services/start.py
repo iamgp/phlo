@@ -97,12 +97,21 @@ def _load_project_config(project_root: Path) -> dict[str, Any]:
 
 def _is_host_port_available(port: int) -> bool:
     """Return whether the local host can bind the given TCP port."""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("0.0.0.0", port))
-    except OSError:
-        return False
+    bind_targets = [(socket.AF_INET, ("0.0.0.0", port))]
+    if hasattr(socket, "AF_INET6"):
+        bind_targets.append((socket.AF_INET6, ("::", port)))
+
+    for family, address in bind_targets:
+        try:
+            with socket.socket(family, socket.SOCK_STREAM) as sock:
+                if family == socket.AF_INET6 and hasattr(socket, "IPV6_V6ONLY"):
+                    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind(address)
+        except AttributeError:
+            continue
+        except OSError:
+            return False
     return True
 
 

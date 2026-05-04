@@ -186,6 +186,33 @@ class TestServiceHealth:
             "nessie": "http://localhost:29120/api/v1/config",
         }
 
+    def test_dagster_graphql_url_falls_back_on_invalid_port(self, monkeypatch: pytest.MonkeyPatch):
+        """Invalid Dagster port overrides should not produce malformed URLs."""
+        monkeypatch.setattr(
+            status_module,
+            "_project_env",
+            lambda: {"DAGSTER_WEBSERVER_PORT": "auto"},
+        )
+        monkeypatch.setattr(
+            status_module, "get_settings", lambda: type("S", (), {"dagster_port": 3000})()
+        )
+
+        assert status_module._dagster_graphql_url() == "http://localhost:3000/graphql"
+
+    def test_dagster_health_handles_request_exceptions(self, monkeypatch: pytest.MonkeyPatch):
+        """Dagster health should return a structured error for non-connection request errors."""
+
+        def raise_invalid_url(*_args, **_kwargs):
+            raise status_module.requests_exceptions.InvalidURL("bad url")
+
+        monkeypatch.setattr(status_module.http_requests, "post", raise_invalid_url)
+
+        result = status_module._check_dagster_health("not-a-url")
+
+        assert result["name"] == "Dagster"
+        assert result["status"] == "error"
+        assert "bad url" in result["error"]
+
 
 class TestStatusCLI:
     """Tests for the status CLI command."""

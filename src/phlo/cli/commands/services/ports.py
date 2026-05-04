@@ -347,6 +347,8 @@ def _get_service_ports(
         return ports
 
     is_running = service.name in running_containers
+    if not is_running and not show_all:
+        return ports
 
     routes = service_routes.get(service.name, {}) if service_routes else {}
 

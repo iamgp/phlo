@@ -148,7 +148,7 @@ def render_env(
             if bool(var_config.get("secret", False))
         }
         extra_existing = {
-            k: v for k, v in existing_values.items() if k not in seen_vars or k not in secret_vars
+            k: v for k, v in existing_values.items() if k not in seen_vars and k not in secret_vars
         }
         if extra_existing:
             lines.append("# Local Overrides")

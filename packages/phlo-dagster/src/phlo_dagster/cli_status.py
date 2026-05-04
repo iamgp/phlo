@@ -77,8 +77,10 @@ def _dagster_graphql_url() -> str:
     env = _project_env()
     settings = get_settings()
     dagster_host = env.get("DAGSTER_WEBSERVER_HOST", "localhost")
-    dagster_port = (
-        env.get("DAGSTER_WEBSERVER_PORT") or env.get("DAGSTER_PORT") or str(settings.dagster_port)
+    dagster_port = _project_port(
+        env,
+        "DAGSTER_WEBSERVER_PORT",
+        _project_port(env, "DAGSTER_PORT", settings.dagster_port),
     )
     return f"http://{dagster_host}:{dagster_port}/graphql"
 
@@ -393,7 +395,11 @@ def _check_dagster_health(url: str) -> dict[str, Any]:
         start = time.time()
         response = http_requests.post(url, json={"query": "{ version }"}, timeout=2)
         latency = (time.time() - start) * 1000
-        is_healthy = response.status_code == 200 and "data" in response.text
+        try:
+            body = response.json()
+        except ValueError:
+            body = None
+        is_healthy = response.status_code == 200 and isinstance(body, dict) and "data" in body
         if not is_healthy:
             logger.warning(
                 "dagster_status_service_health_unhealthy",
@@ -429,6 +435,18 @@ def _check_dagster_health(url: str) -> dict[str, Any]:
             "status": "down",
             "latency_ms": None,
             "error": "Connection refused",
+        }
+    except requests_exceptions.RequestException as exc:
+        logger.warning(
+            "dagster_status_service_health_failed",
+            service_name="Dagster",
+            error=str(exc),
+        )
+        return {
+            "name": "Dagster",
+            "status": "error",
+            "latency_ms": None,
+            "error": str(exc),
         }
 
 

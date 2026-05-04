@@ -173,7 +173,7 @@ def test_ports_cmd_json_output(monkeypatch: pytest.MonkeyPatch, tmp_path) -> Non
     monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda *_args: {})
     monkeypatch.chdir(tmp_path)
 
-    result = CliRunner().invoke(ports_module.ports_cmd, ["--json"])
+    result = CliRunner().invoke(ports_module.ports_cmd, ["--json", "--all"])
     assert result.exit_code == 0
     assert result.output.strip() == "[]"
 
@@ -196,7 +196,7 @@ def test_ports_cmd_json_output_is_payload_only(monkeypatch: pytest.MonkeyPatch, 
     monkeypatch.setattr(ports_module, "_get_running_container_ports", lambda *_args: {})
     monkeypatch.chdir(tmp_path)
 
-    result = CliRunner().invoke(ports_module.ports_cmd, ["--json"])
+    result = CliRunner().invoke(ports_module.ports_cmd, ["--json", "--all"])
 
     assert result.exit_code == 0
     assert result.output.lstrip().startswith("[")
@@ -344,12 +344,29 @@ def test_get_service_ports_no_ports() -> None:
     assert ports == []
 
 
-def test_get_service_ports_shows_stopped_configured_ports_by_default(
+def test_get_service_ports_hides_stopped_configured_ports_by_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     env: dict[str, str] = {}
     running_containers: dict[str, dict] = {}
     show_all = False
+
+    service = ServiceDefinition(
+        name="postgres",
+        description="PostgreSQL",
+        compose={"ports": ["${POSTGRES_PORT:-5432}:5432"]},
+    )
+
+    ports = ports_module._get_service_ports(service, env, running_containers, show_all)
+    assert ports == []
+
+
+def test_get_service_ports_shows_stopped_configured_ports_with_all(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env: dict[str, str] = {}
+    running_containers: dict[str, dict] = {}
+    show_all = True
 
     service = ServiceDefinition(
         name="postgres",

@@ -63,9 +63,11 @@ def logs_cmd(service: str | None, follow: bool, tail: int, backend_name: str | N
                 service_name=service,
                 returncode=result.returncode,
             )
-            raise click.ClickException(
+            exc = click.ClickException(
                 f"container compose failed with code {result.returncode}: {' '.join(cmd)}"
             )
+            exc.exit_code = result.returncode
+            raise exc
         logger.info(
             "services_logs_completed",
             project_name=project_name,

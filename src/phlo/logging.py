@@ -210,7 +210,7 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
     elif log_format == "auto":
         stream_renderer = (
             structlog.dev.ConsoleRenderer()
-            if sys.stdout.isatty()
+            if sys.stderr.isatty()
             else structlog.processors.JSONRenderer()
         )
     else:

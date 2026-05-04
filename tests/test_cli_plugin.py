@@ -466,3 +466,11 @@ def test_run_pip_errors_when_no_pip_and_no_uv(monkeypatch):
 
     with pytest.raises(RuntimeError, match="pip module is unavailable"):
         run_pip(["install", "demo-plugin"])
+
+
+def test_normalize_plugin_type_reports_unknown_type() -> None:
+    """Internal callers get a clear error for unmapped plugin types."""
+    from phlo.cli.commands.plugin.utils import normalize_plugin_type
+
+    with pytest.raises(ValueError, match="Unknown plugin type: nope"):
+        normalize_plugin_type("nope")

@@ -131,10 +131,7 @@ def materialize(
             "phlo_dagster.framework.definitions",
         ]
 
-        if select:
-            cmd.extend(["--select", select])
-        else:
-            cmd.extend(["--select", effective_selection])
+        cmd.extend(["--select", effective_selection])
 
         if partition:
             cmd.extend(["--partition", partition])

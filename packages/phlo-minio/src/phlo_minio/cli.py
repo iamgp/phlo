@@ -167,8 +167,8 @@ def minio_group(ctx: click.Context, mc_args: tuple[str, ...]) -> None:
         return
 
     _require_container_backend()
-    cmd = _mc_exec_base(tty=True)
-    cmd.extend(mc_args)
+    cmd = _mc_shell_exec_base(tty=True)
+    cmd.extend(_mc_with_local_alias(list(mc_args)))
     result = subprocess.run(cmd, check=False)
     if result.returncode != 0:
         raise click.ClickException(f"mc exited with status {result.returncode}.")

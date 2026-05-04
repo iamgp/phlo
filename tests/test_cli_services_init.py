@@ -9,7 +9,7 @@ from click.testing import CliRunner
 
 from phlo.cli.commands.services.utils import detect_phlo_source_path
 from phlo.cli.infrastructure.selection import select_services_to_install
-from phlo.plugins.compose.env import generate_env
+from phlo.plugins.compose.env import generate_env, generate_env_local
 from phlo.plugins.compose.generator import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 from tests.helpers import FakeDiscovery, _service
@@ -178,6 +178,39 @@ def test_generate_env_pins_phlo_version_for_service_builds(monkeypatch: pytest.M
     env = generate_env([service])
 
     assert "PHLO_VERSION=9.8.7" in env
+
+
+def test_generate_env_local_keeps_known_non_secret_values_out_of_local_overrides() -> None:
+    service = ServiceDefinition(
+        name="postgres",
+        description="postgres",
+        category="core",
+        default=True,
+        env_vars={
+            "POSTGRES_PORT": {
+                "default": "5432",
+                "description": "Postgres port",
+            },
+            "POSTGRES_PASSWORD": {
+                "default": "postgres",
+                "description": "Postgres password",
+                "secret": True,
+            },
+        },
+    )
+
+    env_local = generate_env_local(
+        [service],
+        existing_values={
+            "POSTGRES_PORT": "15432",
+            "POSTGRES_PASSWORD": "secret",
+            "CUSTOM_LOCAL": "kept",
+        },
+    )
+
+    assert "POSTGRES_PASSWORD=secret" in env_local
+    assert "CUSTOM_LOCAL=kept" in env_local
+    assert "POSTGRES_PORT=15432" not in env_local
 
 
 def test_compose_generator_resolves_source_path_dev_volumes(tmp_path) -> None:

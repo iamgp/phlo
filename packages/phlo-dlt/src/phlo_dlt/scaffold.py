@@ -323,7 +323,11 @@ def _ensure_project_dependencies(project_root: Path, dependencies: tuple[str, ..
     if not match:
         return
     body = match.group("body")
-    missing = [dependency for dependency in dependencies if f'"{dependency}"' not in body]
+    missing = [
+        dependency
+        for dependency in dependencies
+        if not re.search(rf'"\s*{re.escape(dependency)}\s*(?:[<>=!~\[]|")', body)
+    ]
     if not missing:
         return
     additions = "".join(f'    "{dependency}",\n' for dependency in missing)

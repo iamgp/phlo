@@ -231,10 +231,11 @@ def _render_next_steps(selected_template) -> list[str]:
         steps.append('Install workflow plugins: uv pip install "phlo[defaults]"')
 
     if "phlo services init" in steps and _available_service_count() == 0:
+        insert_at = steps.index("phlo services init")
         steps = [step for step in steps if step != "phlo services init"]
         install_step = 'Install service plugins: uv pip install "phlo[defaults]"'
         if install_step not in steps:
-            steps.append(install_step)
+            steps.insert(min(insert_at, len(steps)), install_step)
 
     return steps
 

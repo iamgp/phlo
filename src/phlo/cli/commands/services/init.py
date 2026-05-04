@@ -32,8 +32,6 @@ def _expand_selected_services(
 
 def _is_uninitialized_phlo_dir(phlo_dir: Path) -> bool:
     """Return true when `.phlo` only contains runtime artifacts created before init."""
-    if not phlo_dir.exists():
-        return False
     allowed_files = {".DS_Store"}
     for path in phlo_dir.rglob("*"):
         if path.is_dir():

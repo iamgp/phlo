@@ -124,7 +124,9 @@ def normalize_plugin_type(plugin_type: str | None) -> str:
         return "all"
     if plugin_type == "all":
         return "all"
-    internal = PLUGIN_TYPE_MAP[plugin_type]
+    internal = PLUGIN_TYPE_MAP.get(plugin_type)
+    if internal is None:
+        raise ValueError(f"Unknown plugin type: {plugin_type}")
     for candidate, candidate_internal in PLUGIN_TYPE_MAP.items():
         if candidate_internal == internal and candidate.endswith("s"):
             return candidate

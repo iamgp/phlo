@@ -105,12 +105,40 @@ def test_minio_shell_passthrough(monkeypatch) -> None:
             "demo",
             "exec",
             "minio",
-            "mc",
-            "cp",
-            "local/a.txt",
-            "local/bucket/a.txt",
+            "/bin/sh",
+            "-c",
+            'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" '
+            '"$MINIO_ROOT_PASSWORD" >/dev/null && mc cp local/a.txt local/bucket/a.txt',
         ]
     ]
+
+
+def test_minio_shell_passthrough_quotes_targets_with_spaces(monkeypatch) -> None:
+    captured: list[list[str]] = []
+
+    monkeypatch.setattr("phlo_minio.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_minio.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        "phlo_minio.cli.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr(
+        "phlo_minio.cli.run_command",
+        lambda cmd, **_kwargs: CompletedProcess(cmd, 0, stdout="", stderr=""),
+    )
+
+    def _subprocess_run(cmd, check):
+        captured.append(cmd)
+        return CompletedProcess(cmd, 0, stdout=None, stderr=None)
+
+    monkeypatch.setattr("phlo_minio.cli.subprocess.run", _subprocess_run)
+
+    result = CliRunner().invoke(minio_group, ["cp", "warehouse with space/", "local/bucket/"])
+
+    assert result.exit_code == 0
+    shell_payload = captured[0][-1]
+    assert "mc alias set local http://localhost:9000" in shell_payload
+    assert "mc cp 'warehouse with space/' local/bucket/" in shell_payload
 
 
 def test_minio_ls_timeout(monkeypatch) -> None:
