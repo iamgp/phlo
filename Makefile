@@ -68,7 +68,7 @@ PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(
 	health-observability health-api health-catalog \
 	check lint lint-sql lint-python format-python typecheck-python \
 	lint-ts format-ts typecheck-ts test-core-regression test-quickstart-smoke fix-sql \
-	prek-install prek-run prek-validate zizmor docs-install docs-dev docs-build docs-serve
+	prek-install prek-run prek-validate zizmor actionlint docs-install docs-dev docs-build docs-serve
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -131,7 +131,7 @@ test-core-regression:
 	uv run pytest $(CORE_REGRESSION_TEST_PATHS) -m core_regression $(CORE_REGRESSION_PYTEST_ARGS)
 
 test-quickstart-smoke:
-	uv run pytest tests/test_quickstart_smoke.py $(QUICKSTART_SMOKE_PYTEST_ARGS)
+	uv run pytest tests/cli/test_quickstart_smoke.py $(QUICKSTART_SMOKE_PYTEST_ARGS)
 
 dagster:
 	@open http://localhost:$${DAGSTER_PORT:-10006}
@@ -371,3 +371,6 @@ prek-validate:
 
 zizmor:
 	uvx zizmor --no-online-audits --no-progress --min-severity low .github/workflows
+
+actionlint:
+	docker run --rm -v "$(PWD):/repo" -w /repo rhysd/actionlint:1.7.7 -color

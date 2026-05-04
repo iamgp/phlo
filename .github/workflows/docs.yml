@@ -9,28 +9,30 @@ on:
       - "docs/**"
       - "pymdx.toml"
       - ".github/workflows/docs.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/phlo/**"
+      - "packages/**"
+      - "docs/**"
+      - "pymdx.toml"
+      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   PYMDX_VERSION: "0.1.4"
 
 jobs:
-  build-and-deploy:
+  build:
+    name: docs / build
     runs-on: ubuntu-latest
-    concurrency:
-      group: gh-pages-writers
-      cancel-in-progress: false
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -64,6 +66,35 @@ jobs:
 
       - name: Build static site
         run: pymdx build docs-site
+
+      - name: Upload docs site artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: docs-site-out
+          path: docs-site/out
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: docs / deploy
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: gh-pages-writers
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Download docs site artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: docs-site-out
+          path: docs-site/out
 
       - name: Preserve cairn reports
         run: |

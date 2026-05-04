@@ -21,6 +21,8 @@ from phlo.compliance.signatures import (
     SignatureServiceConfig,
 )
 
+pytestmark = pytest.mark.integration
+
 
 class TestSignatureEnforcement:
     """Integration tests for electronic signature enforcement."""

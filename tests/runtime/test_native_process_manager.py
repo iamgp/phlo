@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import phlo.plugins.compose.native as compose_native
 from phlo.plugins.compose.native import NativeProcess, NativeProcessManager
 from phlo.plugins.discovery import ServiceDefinition
 
@@ -187,7 +188,7 @@ class TestNativeEnvSetup:
             captured_env.update(kwargs["env"])
             return _Proc()
 
-        monkeypatch.setattr("phlo.plugins.compose.native.subprocess.Popen", fake_popen)
+        monkeypatch.setattr(compose_native.subprocess, "Popen", fake_popen)
         monkeypatch.setattr(
             NativeProcessManager,
             "_wait_for_health",

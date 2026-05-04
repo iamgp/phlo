@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner, Result
 
-GOLDEN_DIR = Path(__file__).parent / "goldens" / "cli_error_contracts"
+GOLDEN_DIR = Path(__file__).resolve().parents[1] / "goldens" / "cli_error_contracts"
 
 
 def _normalize_output(output: str, replacements: Mapping[str, str] | None = None) -> str:

@@ -22,6 +22,8 @@ import contextlib
 
 import pytest
 
+pytest_plugins = ("phlo_testing.fixtures",)
+
 # Add src to path for imports
 src_path = Path(__file__).parent / "src"
 if str(src_path) not in sys.path:

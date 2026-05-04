@@ -15,7 +15,33 @@ permissions:
   contents: read
 
 jobs:
-  lint:
+  ci-config:
+    name: ci / config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "latest"
+
+      - name: Validate workflow YAML
+        run: ruby -e 'Dir[".github/workflows/*.yml"].each { |file| YAML.load_file(file) }' -r yaml
+
+      - name: Check package test groups
+        run: python3 scripts/check_ci_package_groups.py
+
+      - name: Lint workflows with zizmor
+        run: make zizmor
+
+      - name: Lint workflows with actionlint
+        run: make actionlint
+
+  python-quality:
+    name: python / quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -31,7 +57,7 @@ jobs:
         run: uv python install 3.11
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --dev --locked
 
       - name: Lint with ruff
         id: ruff_lint
@@ -41,7 +67,7 @@ jobs:
           mkdir -p cairn-artifacts
 
           set +e
-          uv run ruff check . --output-format json --output-file cairn-artifacts/ruff-results.json
+          uv run --locked ruff check . --output-format json --output-file cairn-artifacts/ruff-results.json
           ruff_exit=$?
           set -e
 
@@ -54,7 +80,7 @@ jobs:
             exit "${ruff_exit}"
           fi
 
-      - name: Check formatting
+      - name: Check Python formatting
         id: ruff_format
         shell: bash
         run: |
@@ -62,7 +88,7 @@ jobs:
           mkdir -p cairn-artifacts
 
           set +e
-          uv run ruff format --check .
+          uv run --locked ruff format --check .
           format_exit=$?
           set -e
 
@@ -91,6 +117,18 @@ jobs:
             exit "${format_exit}"
           fi
 
+      - name: Type check with ty
+        run: make typecheck-python
+
+      - name: Lint SQL with sqlfluff
+        run: |
+          set -euo pipefail
+          if [ -d "workflows/transforms/dbt" ]; then
+            uv run --locked sqlfluff lint workflows/transforms/dbt
+          else
+            echo "Skipping sqlfluff: no workflows/transforms/dbt directory."
+          fi
+
       - name: Upload Cairn lint artifacts
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
@@ -99,28 +137,8 @@ jobs:
           path: cairn-artifacts/
           if-no-files-found: warn
 
-  type-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
-        with:
-          version: "latest"
-
-      - name: Set up Python
-        run: uv python install 3.11
-
-      - name: Install dependencies
-        run: uv sync --dev
-
-      - name: Type check with ty
-        run: make typecheck-python
-
-  test-core:
+  python-core-tests:
+    name: python / core tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -140,7 +158,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --dev --locked
 
       - name: Run core regression suite
         id: core_regression
@@ -153,7 +171,7 @@ jobs:
 
           echo "regression_exit=${regression_exit}" >> "$GITHUB_OUTPUT"
 
-      - name: Run tests
+      - name: Run core tests
         if: always()
         id: core_tests
         shell: bash
@@ -163,7 +181,7 @@ jobs:
           junit_path="cairn-artifacts/pytest-${{ matrix.python-version }}.xml"
 
           set +e
-          uv run pytest tests -m "not integration" --tb=short --cov=phlo --cov-report=term-missing --junitxml "${junit_path}"
+          uv run --locked pytest tests -m "not integration" --tb=short --cov=phlo --cov-report=term-missing --junitxml "${junit_path}"
           pytest_exit=$?
           set -e
 
@@ -208,6 +226,7 @@ jobs:
           fi
 
   quickstart-smoke:
+    name: python / quickstart smoke
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -223,7 +242,7 @@ jobs:
         run: uv python install 3.11
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --dev --locked
 
       - name: Run quickstart smoke test
         id: quickstart_smoke
@@ -236,7 +255,7 @@ jobs:
 
           set +e
           PHLO_QUICKSTART_SMOKE_ARTIFACT_DIR="${smoke_artifacts}" \
-            uv run pytest tests/test_quickstart_smoke.py --tb=short --junitxml "${junit_path}"
+            uv run --locked pytest tests/cli/test_quickstart_smoke.py --tb=short --junitxml "${junit_path}"
           smoke_exit=$?
           set -e
 
@@ -267,72 +286,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          smoke_exit="${SMOKE_EXIT}"
+          smoke_exit="${SMOKE_EXIT:-0}"
           if [ "${smoke_exit}" -ne 0 ]; then
             echo "Quickstart smoke test failed with exit ${smoke_exit}" >&2
             exit 1
           fi
 
-  test-packages:
+  python-package-tests:
+    name: python / package tests (${{ matrix.group }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - package: phlo-alerting
-            extra: ""
-          - package: phlo-alloy
-            extra: ""
-          - package: phlo-api
-            extra: ""
-          - package: phlo-core-plugins
-            extra: ""
-          - package: phlo-dagster
-            extra: ""
-          - package: phlo-dbt
-            extra: ""
-          - package: phlo-delta
-            extra: ""
-          - package: phlo-dlt
-            extra: ""
-          - package: phlo-grafana
-            extra: ""
-          - package: phlo-hasura
-            extra: ""
-          - package: phlo-iceberg
-            extra: ""
-          - package: phlo-lineage
-            extra: ""
-          - package: phlo-loki
-            extra: ""
-          - package: phlo-minio
-            extra: ""
-          - package: phlo-nessie
-            extra: ""
-          - package: phlo-observatory
-            extra: ""
-          - package: phlo-observatory-example
-            extra: ""
-          - package: phlo-openmetadata
-            extra: ""
-          - package: phlo-otel
-            extra: ""
-          - package: phlo-pgweb
-            extra: ""
-          - package: phlo-postgres
-            extra: ""
-          - package: phlo-postgrest
-            extra: ""
-          - package: phlo-prometheus
-            extra: ""
-          - package: phlo-pandera
-            extra: ""
-          - package: phlo-superset
-            extra: ""
-          - package: phlo-testing
-            extra: ""
-          - package: phlo-trino
-            extra: ""
+          - group: platform
+            packages: phlo-alerting phlo-clickstack phlo-delta phlo-iceberg phlo-minio phlo-observatory-example phlo-pgweb phlo-rustfs phlo-traefik
+          - group: data
+            packages: phlo-alloy phlo-core-plugins phlo-dlt phlo-lineage phlo-nessie phlo-openmetadata phlo-postgres phlo-sling phlo-trino
+          - group: runtime
+            packages: phlo-api phlo-dagster phlo-grafana phlo-loki phlo-oauth2-proxy phlo-otel phlo-postgrest phlo-superset
+          - group: interfaces
+            packages: phlo-clickhouse phlo-dbt phlo-hasura phlo-mcp phlo-observatory phlo-pandera phlo-prometheus phlo-testing
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -346,96 +320,44 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      - name: Run package tests
+      - name: Run package test group
+        env:
+          PACKAGES: ${{ matrix.packages }}
+        shell: bash
         run: |
-          set +e
-          run_args=(--package "${{ matrix.package }}" --with pytest)
-          if [ -n "${{ matrix.extra }}" ]; then
-            run_args+=(--extra "${{ matrix.extra }}")
-          fi
-          uv run "${run_args[@]}" \
-            pytest -m "not integration" --tb=short "packages/${{ matrix.package }}/tests"
-          exit_code=$?
-          set -e
-          if [ "$exit_code" -eq 5 ]; then
-            echo "No tests selected for ${{ matrix.package }} under marker filter; skipping."
-            exit 0
-          fi
-          exit "$exit_code"
+          set -euo pipefail
 
-  lint-sql:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
+          failed_count=0
+          for package in ${PACKAGES}; do
+            test_dir="packages/${package}/tests"
+            if [ ! -d "${test_dir}" ]; then
+              echo "::error::Package test directory missing: ${test_dir}"
+              failed_count=$((failed_count + 1))
+              continue
+            fi
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
-        with:
-          version: "latest"
+            echo "::group::${package}"
+            set +e
+            uv run --locked --package "${package}" --with pytest \
+              pytest -m "not integration" --tb=short "${test_dir}"
+            exit_code=$?
+            set -e
+            echo "::endgroup::"
 
-      - name: Set up Python
-        run: uv python install 3.11
+            if [ "${exit_code}" -eq 5 ]; then
+              echo "No tests selected for ${package} under marker filter; skipping."
+            elif [ "${exit_code}" -ne 0 ]; then
+              echo "::error::${package} tests failed with exit ${exit_code}"
+              failed_count=$((failed_count + 1))
+            fi
+          done
 
-      - name: Install dependencies
-        run: uv sync --dev
-
-      - name: Lint SQL with sqlfluff
-        run: |
-          if [ -d "workflows/transforms/dbt" ]; then
-            uv run sqlfluff lint workflows/transforms/dbt
-          else
-            echo "Skipping sqlfluff: no workflows/transforms/dbt directory."
+          if [ "${failed_count}" -ne 0 ]; then
+            exit 1
           fi
 
-  lint-ts:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/phlo-observatory/src/phlo_observatory
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
-        with:
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: packages/phlo-observatory/src/phlo_observatory/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint with ESLint
-        run: npx eslint src --ext .ts,.tsx
-
-  type-check-ts:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/phlo-observatory/src/phlo_observatory
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
-        with:
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: packages/phlo-observatory/src/phlo_observatory/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Type check with TypeScript
-        run: npx tsc --noEmit
-
-  format-ts:
+  frontend:
+    name: frontend / observatory
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -458,38 +380,77 @@ jobs:
       - name: Check formatting with Prettier
         run: npx prettier --check .
 
-  test-ts:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/phlo-observatory/src/phlo_observatory
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: false
+      - name: Lint with ESLint
+        run: npx eslint src --ext .ts,.tsx
 
-      - name: Set up Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
-        with:
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: packages/phlo-observatory/src/phlo_observatory/package-lock.json
+      - name: Type check with TypeScript
+        run: npx tsc --noEmit
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Build production bundle
+        run: npm run build
 
       - name: Run tests
         run: npm test
 
+  ci-status:
+    name: ci / status
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - ci-config
+      - python-quality
+      - python-core-tests
+      - quickstart-smoke
+      - python-package-tests
+      - frontend
+    steps:
+      - name: Summarize CI lane results
+        shell: bash
+        env:
+          CI_CONFIG: ${{ needs.ci-config.result }}
+          PYTHON_QUALITY: ${{ needs.python-quality.result }}
+          PYTHON_CORE_TESTS: ${{ needs.python-core-tests.result }}
+          QUICKSTART_SMOKE: ${{ needs.quickstart-smoke.result }}
+          PYTHON_PACKAGE_TESTS: ${{ needs.python-package-tests.result }}
+          FRONTEND: ${{ needs.frontend.result }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "### CI summary"
+            echo ""
+            echo "| Lane | Result |"
+            echo "|---|---|"
+            echo "| ci / config | ${CI_CONFIG} |"
+            echo "| python / quality | ${PYTHON_QUALITY} |"
+            echo "| python / core tests | ${PYTHON_CORE_TESTS} |"
+            echo "| python / quickstart smoke | ${QUICKSTART_SMOKE} |"
+            echo "| python / package tests | ${PYTHON_PACKAGE_TESTS} |"
+            echo "| frontend / observatory | ${FRONTEND} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for result in \
+            "${CI_CONFIG}" \
+            "${PYTHON_QUALITY}" \
+            "${PYTHON_CORE_TESTS}" \
+            "${QUICKSTART_SMOKE}" \
+            "${PYTHON_PACKAGE_TESTS}" \
+            "${FRONTEND}"; do
+            if [ "${result}" != "success" ]; then
+              exit 1
+            fi
+          done
+
   cairn:
+    name: cairn / report
     runs-on: ubuntu-latest
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
     concurrency:
       group: gh-pages-writers
       cancel-in-progress: false
     needs:
-      - lint
-      - test-core
+      - python-quality
+      - python-core-tests
       - quickstart-smoke
     permissions:
       contents: write
