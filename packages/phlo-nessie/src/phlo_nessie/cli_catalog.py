@@ -264,6 +264,8 @@ def describe(table_name: str, ref: str) -> None:
             schema_field_count=len(schema.fields),
         )
     except Exception as e:
+        if isinstance(e, click.ClickException):
+            raise
         logger.error(
             "nessie_catalog_describe_failed",
             table_name=table_name,
@@ -367,6 +369,8 @@ def history(table_name: str, limit: int, ref: str, output_format: str) -> None:
         )
         console.print(table_out)
     except Exception as e:
+        if isinstance(e, click.ClickException):
+            raise
         logger.error(
             "nessie_catalog_history_failed",
             table_name=table_name,

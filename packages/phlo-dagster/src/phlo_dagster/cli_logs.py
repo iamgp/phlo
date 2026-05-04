@@ -232,6 +232,7 @@ def _parse_since(since_str: str) -> datetime:
             since=since_str,
             error=str(e),
         )
+        console.print("[yellow]Invalid --since value; defaulting to last 24 hours[/yellow]")
         return datetime.now(timezone.utc) - timedelta(hours=24)  # Default to last 24 hours
 
 

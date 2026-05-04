@@ -156,7 +156,7 @@ class TestLogsCLI:
         runner = CliRunner()
         result = runner.invoke(logs, ["--json", "--follow"])
 
-        assert result.exit_code != 0
+        assert result.exit_code == 1
         assert "--json cannot be combined with --follow yet" in result.output
 
     def test_limit_parameter(self):

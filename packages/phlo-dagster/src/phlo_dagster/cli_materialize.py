@@ -218,7 +218,6 @@ def materialize(
                 details=[f"Last output: {output_hint}"] if output_hint else None,
                 run="phlo logs --level ERROR --limit 20",
             )
-        sys.exit(0)
     except FileNotFoundError:
         logger.error(
             "dagster_materialize_command_failed",
@@ -233,6 +232,8 @@ def materialize(
             exc_info=True,
         )
         raise service_unavailable_error(container_name) from None
+    except click.ClickException:
+        raise
     except Exception as exc:
         logger.error(
             "dagster_materialize_command_failed",

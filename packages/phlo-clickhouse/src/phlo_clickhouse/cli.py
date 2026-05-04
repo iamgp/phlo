@@ -30,6 +30,7 @@ from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.cli.output import (
+    command_failed_error,
     empty_file_error,
     exclusive_options_error,
     file_read_error,
@@ -200,7 +201,12 @@ def clickhouse_query(
         )
     except CommandError as exc:
         stderr = exc.stderr.strip()
-        raise click.ClickException(stderr or str(exc)) from exc
+        raise command_failed_error(
+            "clickhouse-client",
+            exit_code=exc.returncode,
+            details=[f"ClickHouse error: {stderr}"] if stderr else None,
+            run='phlo clickhouse query "SELECT 1"',
+        ) from exc
     except TimeoutExpired as exc:
         raise click.ClickException(f"Query timed out after {timeout_seconds} seconds.") from exc
 
@@ -249,8 +255,12 @@ def clickhouse_status() -> None:
             check=True,
         )
     except CommandError as exc:
-        stderr = exc.stderr.strip()
-        raise click.ClickException(stderr or str(exc)) from exc
+        raise command_failed_error(
+            "clickhouse-client",
+            exit_code=exc.returncode,
+            details=["ClickHouse did not respond to the status query."],
+            run="phlo services status clickhouse",
+        ) from exc
     except TimeoutExpired as exc:
         raise click.ClickException("Status check timed out.") from exc
 

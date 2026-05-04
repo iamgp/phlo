@@ -591,7 +591,7 @@ def _validate_workflow_function(
             warnings.append("No type hints found - add type annotations for clarity")
 
     except Exception as e:
-        logger.warning(
+        logger.exception(
             "validate_workflow_source_inspection_failed",
             function_name=func_name,
             file_path=str(file_path),

@@ -89,7 +89,7 @@ def _should_run_in_container(local: bool) -> bool:
         return False
     try:
         ensure_phlo_dir()
-    except SystemExit:
+    except (SystemExit, click.ClickException):
         return False
     return True
 
