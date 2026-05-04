@@ -242,6 +242,31 @@ class TestBackfillCLI:
             "mock-container",
         )
 
+    @patch("phlo_dagster.cli_backfill.find_dagster_container", return_value="mock-container")
+    @patch("phlo_dagster.cli_backfill.get_project_name", return_value="mock-project")
+    @patch(
+        "phlo_dagster.cli_backfill.wait_for_dagster_runtime",
+        side_effect=FileNotFoundError("docker"),
+    )
+    def test_backfill_missing_docker_is_actionable(
+        self,
+        mock_wait,
+        mock_project,
+        mock_container,
+    ):
+        """Missing Docker during readiness checks should not show a traceback."""
+        runner = CliRunner()
+        result = runner.invoke(
+            backfill,
+            ["dlt_events", "--partitions", "2024-01-01"],
+        )
+
+        assert result.exit_code != 0
+        assert "Traceback" not in result.output
+        assert "Error: dagster is not available" in result.output
+        assert "Make sure the dagster service is running." in result.output
+        assert "Run: phlo services start" in result.output
+
     def test_resume_without_state(self):
         """Reject resume without state file."""
         runner = CliRunner()

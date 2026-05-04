@@ -49,6 +49,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.cli.output import service_unavailable_error
 from phlo.logging import get_logger
 from phlo_dagster.cli_materialize import wait_for_dagster_runtime
 from phlo_dagster.containers import find_dagster_container
@@ -411,6 +412,14 @@ def _run_backfill(
     try:
         container_name = find_dagster_container(get_project_name())
         wait_for_dagster_runtime(container_name)
+    except FileNotFoundError as exc:
+        logger.error(
+            "dagster_backfill_service_unavailable",
+            asset_name=asset_name,
+            error=str(exc),
+            exc_info=True,
+        )
+        raise service_unavailable_error("dagster") from exc
     except RuntimeError as exc:
         logger.error(
             "dagster_backfill_service_unavailable",
