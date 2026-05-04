@@ -181,10 +181,10 @@ def discover_command(connection: str, schema: str | None, output_format: str) ->
             click.echo(json.dumps(_parse_discovery_output(result.stdout), indent=2))
             return
 
-        click.echo(f"Discovering streams from {connection}...")
+        click.echo(f"Streams from {connection}:")
         click.echo(result.stdout, nl=False)
     except Exception as exc:
-        logger.warning(
+        logger.error(
             "sling_discovery_failed",
             connection=connection,
             schema=schema,

@@ -26,7 +26,7 @@ def test_missing_compose_file_error_is_actionable() -> None:
     error = missing_compose_file_error(".phlo/docker-compose.yml")
 
     assert error.message == (
-        "services have not been initialized\n"
+        "Phlo services have not been initialized\n"
         "\n"
         "Missing: .phlo/docker-compose.yml\n"
         "\n"

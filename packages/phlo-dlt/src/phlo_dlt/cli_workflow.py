@@ -47,8 +47,6 @@ Example:
 
 from __future__ import annotations
 
-import sys
-
 import click
 
 from phlo.cli.output import user_error
@@ -218,14 +216,6 @@ def create_workflow_cmd(
                 table=table,
                 file_count=len(files),
             )
-        else:
-            logger.warning(
-                "dlt_workflow_create_unsupported_type",
-                workflow_type=workflow_type,
-            )
-            click.echo(f"Error: Workflow type '{workflow_type}' not yet implemented", err=True)
-            click.echo("Currently supported: ingestion", err=True)
-            sys.exit(1)
     except Exception as exc:
         logger.exception(
             "dlt_workflow_create_failed",

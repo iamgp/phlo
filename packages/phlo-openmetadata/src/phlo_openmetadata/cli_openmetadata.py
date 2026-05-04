@@ -31,13 +31,13 @@ logger = get_logger(__name__)
 
 
 def _resolve_database_name() -> str:
-    """Resolve the database name or exit with a clear configuration error.
+    """Resolve the database name or raise a clear user-facing CLI error.
 
     Returns:
         str: The resolved database name.
 
     Raises:
-        SystemExit: If database resolution fails (exit code 1).
+        click.ClickException: If database resolution fails.
 
     """
     try:
@@ -51,13 +51,13 @@ def _resolve_database_name() -> str:
 
 
 def _resolve_service_type() -> str:
-    """Resolve the service type or exit with a clear configuration error.
+    """Resolve the service type or raise a clear user-facing CLI error.
 
     Returns:
         str: The resolved service type (e.g., 'Trino').
 
     Raises:
-        SystemExit: If service type resolution fails (exit code 1).
+        click.ClickException: If service type resolution fails.
 
     """
     try:

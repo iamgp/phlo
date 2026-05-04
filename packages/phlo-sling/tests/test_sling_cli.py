@@ -149,9 +149,13 @@ def test_discover_command_hides_raw_sling_error(monkeypatch) -> None:
 
 def test_conns_command_hides_raw_native_sling_error(monkeypatch) -> None:
     """Native connection listing should keep raw Sling exceptions in logs."""
+
+    def stub_run_sling_cli_command(_args: list[str]) -> subprocess.CompletedProcess[str]:
+        raise RuntimeError("secret DSN")
+
     monkeypatch.setattr(
         "phlo_sling.cli_commands._run_sling_cli_command",
-        lambda _args: (_ for _ in ()).throw(RuntimeError("secret DSN")),
+        stub_run_sling_cli_command,
     )
 
     result = CliRunner().invoke(conns_command, ["--no-auto"])

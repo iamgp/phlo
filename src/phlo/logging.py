@@ -212,10 +212,6 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
         cache_logger_on_first_use=True,
     )
 
-    if log_format in {"auto", "console"}:
-        stream_renderer = PhloConsoleRenderer()
-    else:
-        stream_renderer = structlog.processors.JSONRenderer()
     file_renderer = structlog.processors.JSONRenderer()
 
     foreign_pre_chain = [
@@ -228,13 +224,6 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
         _redact_sensitive_processor,
     ]
 
-    stream_formatter = structlog.stdlib.ProcessorFormatter(
-        processors=[
-            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            stream_renderer,
-        ],
-        foreign_pre_chain=foreign_pre_chain,
-    )
     file_formatter = structlog.stdlib.ProcessorFormatter(
         processors=[
             structlog.stdlib.ProcessorFormatter.remove_processors_meta,
@@ -248,6 +237,17 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
     _remove_phlo_handlers(root)
 
     if log_format in {"console", "json"}:
+        if log_format == "console":
+            stream_renderer = PhloConsoleRenderer()
+        else:
+            stream_renderer = structlog.processors.JSONRenderer()
+        stream_formatter = structlog.stdlib.ProcessorFormatter(
+            processors=[
+                structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                stream_renderer,
+            ],
+            foreign_pre_chain=foreign_pre_chain,
+        )
         stream_handler = logging.StreamHandler(sys.stderr)
         stream_handler.setLevel(level)
         stream_handler.setFormatter(stream_formatter)

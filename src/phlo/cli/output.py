@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +14,7 @@ def user_error(
     *,
     missing: str | Path | None = None,
     run: str | None = None,
-    details: Mapping[str, Any] | Iterable[str] | None = None,
+    details: Mapping[str, Any] | Sequence[str] | None = None,
 ) -> click.ClickException:
     """Build a concise, recoverable CLI error.
 
@@ -51,7 +51,7 @@ def missing_phlo_project_error() -> click.ClickException:
 def missing_compose_file_error(compose_file: str | Path) -> click.ClickException:
     """Return the standard error for commands that require generated Compose config."""
     return user_error(
-        "services have not been initialized",
+        "Phlo services have not been initialized",
         missing=compose_file,
         run="phlo services init",
     )
@@ -89,7 +89,7 @@ def command_failed_error(
     *,
     exit_code: int | None = None,
     run: str | None = None,
-    details: Mapping[str, Any] | Iterable[str] | None = None,
+    details: Mapping[str, Any] | Sequence[str] | None = None,
 ) -> click.ClickException:
     """Return the standard error for external command failures."""
     failure_details: list[str] = []
