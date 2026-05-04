@@ -32,6 +32,7 @@ import requests
 from rich.console import Console
 from rich.table import Table
 
+from phlo.cli.output import service_unavailable_error, user_error
 from phlo.logging import get_logger
 from phlo_nessie.settings import get_settings as get_nessie_settings
 
@@ -137,7 +138,7 @@ def get_nessie_client():
             error=str(e),
             exc_info=True,
         )
-        raise click.ClickException(f"Error connecting to Nessie: {e}")
+        raise service_unavailable_error("Nessie") from e
 
 
 @click.group()
@@ -198,6 +199,9 @@ def list(all: bool, format: str):
 
         if not refs:
             logger.info("nessie_branch_list_empty")
+            if format == "json":
+                click.echo("[]")
+                return
             console.print("[yellow]No branches found[/yellow]")
             return
 
@@ -241,7 +245,7 @@ def list(all: bool, format: str):
             error=str(e),
             exc_info=True,
         )
-        raise click.ClickException(f"Error listing branches: {e}")
+        raise user_error("could not list Nessie branches", run="phlo services status") from e
 
 
 @branch.command()
@@ -283,7 +287,11 @@ def create(branch_name: str, from_ref: str):
                 branch_name=branch_name,
                 from_ref=from_ref,
             )
-            raise click.ClickException(f"Reference not found: {from_ref}")
+            raise user_error(
+                "reference not found",
+                details={"Reference": from_ref},
+                run="phlo branch list",
+            )
         assert source_ref is not None
 
         # Create branch
@@ -310,7 +318,11 @@ def create(branch_name: str, from_ref: str):
                     branch_name=branch_name,
                     from_ref=from_ref,
                 )
-                raise click.ClickException(f"Branch already exists: {branch_name}")
+                raise user_error(
+                    "branch already exists",
+                    details={"Branch": branch_name},
+                    run="phlo branch list",
+                )
             else:
                 logger.error(
                     "nessie_branch_create_failed",
@@ -319,7 +331,14 @@ def create(branch_name: str, from_ref: str):
                     error=str(e),
                     exc_info=True,
                 )
-                raise click.ClickException(f"Error creating branch: {e}")
+                raise user_error(
+                    "could not create branch",
+                    details={
+                        "Branch": branch_name,
+                        "From": from_ref,
+                    },
+                    run="phlo branch list",
+                ) from e
 
     except click.ClickException:
         raise
@@ -331,7 +350,14 @@ def create(branch_name: str, from_ref: str):
             error=str(e),
             exc_info=True,
         )
-        raise click.ClickException(str(e))
+        raise user_error(
+            "could not create branch",
+            details={
+                "Branch": branch_name,
+                "From": from_ref,
+            },
+            run="phlo services status",
+        ) from e
 
 
 @branch.command()
@@ -363,7 +389,10 @@ def delete(branch_name: str, force: bool):
                 "nessie_branch_delete_default_forbidden",
                 branch_name=branch_name,
             )
-            raise click.ClickException(f"Cannot delete default branch: {branch_name}")
+            raise user_error(
+                "cannot delete the default branch",
+                details={"Branch": branch_name},
+            )
 
         client = get_nessie_client()
 
@@ -379,14 +408,22 @@ def delete(branch_name: str, force: bool):
                 "nessie_branch_delete_not_found",
                 branch_name=branch_name,
             )
-            raise click.ClickException(f"Branch not found: {branch_name}")
+            raise user_error(
+                "branch not found",
+                details={"Branch": branch_name},
+                run="phlo branch list",
+            )
         assert branch_ref is not None
 
         # Delete branch
         try:
             branch_hash = _ref_hash(branch_ref)
             if not branch_hash:
-                raise click.ClickException(f"Branch hash unavailable: {branch_name}")
+                raise user_error(
+                    "branch hash unavailable",
+                    details={"Branch": branch_name},
+                    run="phlo branch list",
+                )
             client.delete_branch(branch=branch_name, hash_=branch_hash)
             console.print(f"[green]✓ Deleted branch: {branch_name}[/green]")
             logger.info(
@@ -402,7 +439,11 @@ def delete(branch_name: str, force: bool):
                 error=str(e),
                 exc_info=True,
             )
-            raise click.ClickException(f"Error deleting branch: {e}")
+            raise user_error(
+                "could not delete branch",
+                details={"Branch": branch_name},
+                run="phlo branch list",
+            ) from e
 
     except click.ClickException:
         raise
@@ -414,7 +455,11 @@ def delete(branch_name: str, force: bool):
             error=str(e),
             exc_info=True,
         )
-        raise click.ClickException(str(e))
+        raise user_error(
+            "could not delete branch",
+            details={"Branch": branch_name},
+            run="phlo services status",
+        ) from e
 
 
 @branch.command()
@@ -467,7 +512,11 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
                 source_branch=source_branch,
                 target_branch=target_branch,
             )
-            raise click.ClickException(f"Source branch not found: {source_branch}")
+            raise user_error(
+                "source branch not found",
+                details={"Branch": source_branch},
+                run="phlo branch list",
+            )
         assert source_ref is not None
 
         if not target_ref:
@@ -476,13 +525,24 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
                 source_branch=source_branch,
                 target_branch=target_branch,
             )
-            raise click.ClickException(f"Target branch not found: {target_branch}")
+            raise user_error(
+                "target branch not found",
+                details={"Branch": target_branch},
+                run="phlo branch list",
+            )
         assert target_ref is not None
 
         source_hash = _ref_hash(source_ref)
         target_hash = _ref_hash(target_ref)
         if not source_hash or not target_hash:
-            raise click.ClickException("Source or target branch hash unavailable")
+            raise user_error(
+                "branch hash unavailable",
+                details={
+                    "Source": source_branch,
+                    "Target": target_branch,
+                },
+                run="phlo branch list",
+            )
 
         if dry_run:
             logger.info(
@@ -530,7 +590,9 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
                         error=str(e),
                         exc_info=True,
                     )
-                    console.print(f"[yellow]Warning: Could not delete source branch: {e}[/yellow]")
+                    console.print(
+                        f"[yellow]Warning: Could not delete source branch {source_branch}[/yellow]"
+                    )
 
         except click.ClickException:
             raise
@@ -544,7 +606,14 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
                     error=str(e),
                     exc_info=True,
                 )
-                raise click.ClickException(f"Merge conflict detected. Details: {e}")
+                raise user_error(
+                    "merge conflict detected",
+                    details={
+                        "Source": source_branch,
+                        "Target": target_branch,
+                    },
+                    run=f"phlo branch diff {source_branch} {target_branch}",
+                ) from e
             else:
                 logger.error(
                     "nessie_branch_merge_failed",
@@ -553,7 +622,14 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
                     error=str(e),
                     exc_info=True,
                 )
-                raise click.ClickException(f"Error merging branches: {e}")
+                raise user_error(
+                    "could not merge branches",
+                    details={
+                        "Source": source_branch,
+                        "Target": target_branch,
+                    },
+                    run=f"phlo branch diff {source_branch} {target_branch}",
+                ) from e
 
     except click.ClickException:
         raise
@@ -567,7 +643,14 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
             error=str(e),
             exc_info=True,
         )
-        raise click.ClickException(str(e))
+        raise user_error(
+            "could not merge branches",
+            details={
+                "Source": source_branch,
+                "Target": target_branch,
+            },
+            run="phlo services status",
+        ) from e
 
 
 @branch.command()
@@ -614,7 +697,14 @@ def diff(source_branch: str, target_branch: str, format: str):
                 source_branch=source_branch,
                 target_branch=target_branch,
             )
-            raise click.ClickException("One or both branches not found")
+            raise user_error(
+                "one or both branches were not found",
+                details={
+                    "Source": source_branch,
+                    "Target": target_branch,
+                },
+                run="phlo branch list",
+            )
         assert source_ref is not None
         assert target_ref is not None
 
@@ -694,4 +784,11 @@ def diff(source_branch: str, target_branch: str, format: str):
             error=str(e),
             exc_info=True,
         )
-        raise click.ClickException(f"Error comparing branches: {e}")
+        raise user_error(
+            "could not compare branches",
+            details={
+                "Source": source_branch,
+                "Target": target_branch,
+            },
+            run="phlo branch list",
+        ) from e

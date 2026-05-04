@@ -24,6 +24,7 @@ Example:
 import click
 from phlo.logging import get_logger
 
+from phlo.cli.output import user_error
 from phlo_hasura.client import HasuraClient
 from phlo_hasura.permissions import HasuraPermissionManager
 from phlo_hasura.sync import HasuraMetadataSync
@@ -44,8 +45,12 @@ def _log_error_and_raise(exception: Exception, log_context: dict, error_msg: str
         click.ClickException: Always raises with the provided error message.
 
     """
-    logger.exception("hasura_command_failed", **log_context)
-    raise click.ClickException(str(exception))
+    logger.exception("hasura_command_failed", error=str(exception), **log_context)
+    raise user_error(
+        error_msg,
+        details=["Check that Hasura and Postgres services are running."],
+        run="phlo services status",
+    ) from exception
 
 
 @click.group()
@@ -120,7 +125,9 @@ def track(schema: str, exclude: tuple, verbose: bool) -> None:
 
     except Exception as e:
         _log_error_and_raise(
-            e, {"schema": schema, "exclude_count": len(exclude), "verbose": verbose}, str(e)
+            e,
+            {"schema": schema, "exclude_count": len(exclude), "verbose": verbose},
+            "could not track Hasura tables",
         )
 
 
@@ -166,7 +173,11 @@ def relationships(schema: str, verbose: bool) -> None:
         click.echo(f"Created {successful}/{total} relationships")
 
     except Exception as e:
-        _log_error_and_raise(e, {"schema": schema, "verbose": verbose}, str(e))
+        _log_error_and_raise(
+            e,
+            {"schema": schema, "verbose": verbose},
+            "could not create Hasura relationships",
+        )
 
 
 @hasura.command()
@@ -211,7 +222,11 @@ def permissions(schema: str, verbose: bool) -> None:
         click.echo(f"Created {successful}/{total} permissions")
 
     except Exception as e:
-        _log_error_and_raise(e, {"schema": schema, "verbose": verbose}, str(e))
+        _log_error_and_raise(
+            e,
+            {"schema": schema, "verbose": verbose},
+            "could not create Hasura permissions",
+        )
 
 
 @hasura.command()
@@ -248,7 +263,11 @@ def auto_setup(schema: str, verbose: bool) -> None:
     try:
         auto_track(schema, verbose=verbose)
     except Exception as e:
-        _log_error_and_raise(e, {"schema": schema, "verbose": verbose}, str(e))
+        _log_error_and_raise(
+            e,
+            {"schema": schema, "verbose": verbose},
+            "could not auto-configure Hasura",
+        )
 
 
 @hasura.command()
@@ -279,7 +298,7 @@ def export(output: str) -> None:
         syncer.export_metadata(output)
         click.echo(f"Metadata exported to {output}")
     except Exception as e:
-        _log_error_and_raise(e, {"output_path": output}, str(e))
+        _log_error_and_raise(e, {"output_path": output}, "could not export Hasura metadata")
 
 
 @hasura.command(name="apply")
@@ -310,7 +329,7 @@ def apply_meta(input: str) -> None:
         syncer.import_metadata(input)
         click.echo(f"Metadata applied from {input}")
     except Exception as e:
-        _log_error_and_raise(e, {"input_path": input}, str(e))
+        _log_error_and_raise(e, {"input_path": input}, "could not apply Hasura metadata")
 
 
 @hasura.command()
@@ -341,7 +360,7 @@ def status() -> None:
                 click.echo(f"    - {table}")
 
     except Exception as e:
-        _log_error_and_raise(e, {}, str(e))
+        _log_error_and_raise(e, {}, "could not read Hasura status")
 
 
 @hasura.command(name="sync-permissions")
@@ -374,4 +393,8 @@ def sync_permissions(config: str) -> None:
         manager.sync_permissions(config_dict, verbose=True)
         click.echo("Permissions synced")
     except Exception as e:
-        _log_error_and_raise(e, {"config_path": config}, str(e))
+        _log_error_and_raise(
+            e,
+            {"config_path": config},
+            "could not sync Hasura permissions",
+        )

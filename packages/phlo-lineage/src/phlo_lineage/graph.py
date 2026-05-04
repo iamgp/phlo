@@ -652,7 +652,7 @@ def _build_lineage_from_store() -> LineageGraph:
     graph = LineageGraph()
     connection_string = resolve_lineage_db_url_with_postgres_fallback()
     if not connection_string:
-        logger.debug("Lineage graph initialized (no lineage DB configured)")
+        logger.debug("lineage_graph_init_skipped_database_unconfigured")
         return graph
 
     try:
@@ -669,6 +669,6 @@ def _build_lineage_from_store() -> LineageGraph:
         for edge in store.list_asset_edges():
             graph.add_edge(edge["source_asset"], edge["target_asset"])
     except Exception as exc:
-        logger.warning("Failed to build lineage graph from store: %s", exc)
+        logger.warning("lineage_graph_store_load_failed", error=str(exc), exc_info=True)
 
     return graph

@@ -19,6 +19,7 @@ from typing import Optional
 
 import click
 
+from phlo.cli.output import user_error
 from phlo.logging import get_logger
 from phlo_postgrest.setup import setup_postgrest
 from phlo_postgrest.views import generate_views
@@ -126,8 +127,12 @@ def generate_postgrest_views(
         )
 
     except Exception as e:
-        logger.exception("postgrest_generate_views_failed")
-        raise click.ClickException(str(e))
+        logger.exception("postgrest_generate_views_failed", error=str(e))
+        raise user_error(
+            "could not generate PostgREST views",
+            details={"Schema": schema},
+            run="phlo postgrest generate-views --help",
+        ) from e
 
 
 @postgrest.command(name="setup-auth")
@@ -187,5 +192,8 @@ def setup_postgrest_cmd(host, port, database, user, password, force, quiet):
         )
         logger.info("postgrest_setup_completed", force=force)
     except Exception as e:
-        logger.exception("postgrest_setup_failed")
-        raise click.ClickException(str(e))
+        logger.exception("postgrest_setup_failed", error=str(e))
+        raise user_error(
+            "could not set up PostgREST authentication",
+            run="phlo services status",
+        ) from e

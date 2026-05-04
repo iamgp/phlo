@@ -126,8 +126,9 @@ def _load_module_from_file(file_path: Path) -> Any:
         logger.exception(
             "validate_schema_module_load_failed",
             schema_path=str(file_path),
+            error=str(e),
         )
-        console.print(f"[red]Error loading module: {e}[/red]")
+        console.print("[red]Could not load schema file[/red]")
         return None
     finally:
         if inserted_import_root:
@@ -256,8 +257,9 @@ def _validate_single_schema(
         logger.exception(
             "validate_single_schema_failed",
             schema_name=getattr(schema_class, "__name__", type(schema_class).__name__),
+            error=str(e),
         )
-        console.print(f"  [red]✗ Error validating schema: {e}[/red]\n")
+        console.print("  [red]✗ Could not validate schema[/red]\n")
         return False
 
 
@@ -589,13 +591,13 @@ def _validate_workflow_function(
             warnings.append("No type hints found - add type annotations for clarity")
 
     except Exception as e:
-        logger.warning(
+        logger.exception(
             "validate_workflow_source_inspection_failed",
             function_name=func_name,
             file_path=str(file_path),
             error=str(e),
         )
-        console.print(f"    [yellow]⚠ Could not fully validate source: {e}[/yellow]")
+        console.print("    [yellow]⚠ Could not fully validate source[/yellow]")
 
     # Display results
     if issues or warnings:

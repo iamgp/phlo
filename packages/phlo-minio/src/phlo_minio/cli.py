@@ -35,6 +35,10 @@ from phlo.cli.commands.services.utils import (
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.cli.output import command_failed_error
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _require_container_backend() -> None:
@@ -171,7 +175,11 @@ def minio_group(ctx: click.Context, mc_args: tuple[str, ...]) -> None:
     cmd.extend(_mc_with_local_alias(list(mc_args)))
     result = subprocess.run(cmd, check=False)
     if result.returncode != 0:
-        raise click.ClickException(f"mc exited with status {result.returncode}.")
+        raise command_failed_error(
+            "MinIO client command",
+            exit_code=result.returncode,
+            run="phlo services status",
+        )
 
 
 @click.command(name="ls")
@@ -245,8 +253,20 @@ def minio_ls(target: str, recursive: bool, as_json: bool, timeout_seconds: int) 
             check=True,
         )
     except CommandError as exc:
-        stderr = exc.stderr.strip()
-        raise click.ClickException(stderr or str(exc)) from exc
+        logger.error(
+            "minio_ls_failed",
+            target=target,
+            recursive=recursive,
+            as_json=as_json,
+            stderr=exc.stderr.strip(),
+            error=str(exc),
+            exc_info=True,
+        )
+        raise command_failed_error(
+            "MinIO list",
+            details={"Target": target},
+            run="phlo services status",
+        ) from exc
     except TimeoutExpired as exc:
         raise click.ClickException(f"List timed out after {timeout_seconds} seconds.") from exc
 
@@ -319,8 +339,19 @@ def minio_admin_info(target: str, as_json: bool, timeout_seconds: int) -> None:
             check=True,
         )
     except CommandError as exc:
-        stderr = exc.stderr.strip()
-        raise click.ClickException(stderr or str(exc)) from exc
+        logger.error(
+            "minio_admin_info_failed",
+            target=target,
+            as_json=as_json,
+            stderr=exc.stderr.strip(),
+            error=str(exc),
+            exc_info=True,
+        )
+        raise command_failed_error(
+            "MinIO admin info",
+            details={"Target": target},
+            run="phlo services status",
+        ) from exc
     except TimeoutExpired as exc:
         raise click.ClickException(
             f"Admin info timed out after {timeout_seconds} seconds."

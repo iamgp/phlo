@@ -424,8 +424,9 @@ def generate(
         logger.exception(
             "schema_codegen_dlt_import_failed",
             from_ref=from_ref,
+            error=str(exc),
         )
-        raise click.ClickException(f"Failed to import DLT types: {exc}") from exc
+        raise click.ClickException("Failed to import DLT types.") from exc
 
     if isinstance(dlt_obj, DltSource):
         for r in dlt_obj.resources.values():

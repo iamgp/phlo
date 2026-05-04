@@ -13,6 +13,7 @@ import yaml
 from phlo.cli.commands.services.utils import _get_env_overrides, get_enabled_disabled_service_names
 from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name, parse_env_file
+from phlo.cli.output import missing_phlo_project_error
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
@@ -500,8 +501,7 @@ def ports_cmd(output_json: bool, show_all: bool, backend_name: str | None):
 
     phlo_dir = Path.cwd() / ".phlo"
     if not phlo_dir.exists():
-        click.echo("Error: .phlo directory not found. Run 'phlo services init' first.", err=True)
-        raise SystemExit(1)
+        raise missing_phlo_project_error()
 
     config_file = Path.cwd() / "phlo.yaml"
     existing_config: dict = {}

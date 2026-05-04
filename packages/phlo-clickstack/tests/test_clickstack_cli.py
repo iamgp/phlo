@@ -148,7 +148,9 @@ def test_clickstack_query_rejects_missing_input(monkeypatch) -> None:
     result = CliRunner().invoke(clickstack_group, ["query"])
 
     assert result.exit_code != 0
-    assert "Provide a SQL query argument or --file." in result.output
+    assert "Error: no SQL query provided" in result.output
+    assert "Provide an inline query argument or pass --file." in result.output
+    assert 'Run: phlo clickstack query "SELECT 1"' in result.output
 
 
 def test_clickstack_query_surfaces_timeout(monkeypatch) -> None:

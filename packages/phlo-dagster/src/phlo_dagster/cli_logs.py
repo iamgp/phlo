@@ -147,6 +147,12 @@ def logs(
         No explicit exceptions raised. Logs warnings on query failures.
 
     """
+    if follow and output_json:
+        raise click.ClickException(
+            "--json cannot be combined with --follow yet. Use --json without --follow, "
+            "or omit --json for live logs."
+        )
+
     if not output_json:
         console.print("\n[bold blue]📋 Logs[/bold blue]\n")
 
@@ -226,7 +232,7 @@ def _parse_since(since_str: str) -> datetime:
             since=since_str,
             error=str(e),
         )
-        console.print(f"[yellow]Warning: Invalid time filter '{since_str}': {e}[/yellow]")
+        console.print("[yellow]Invalid --since value; defaulting to last 24 hours[/yellow]")
         return datetime.now(timezone.utc) - timedelta(hours=24)  # Default to last 24 hours
 
 

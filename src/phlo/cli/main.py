@@ -310,12 +310,12 @@ def init(project_name: str | None, template: str, force: bool, list_templates: b
     except click.ClickException:
         raise
     except Exception as e:
-        logger.exception("project_initialization_failed", project_dir=str(project_dir))
-        click.echo(f"\nError initializing project: {e}", err=True)
-        import traceback
-
-        traceback.print_exc()
-        sys.exit(1)
+        logger.exception(
+            "project_initialization_failed",
+            project_dir=str(project_dir),
+            error=str(e),
+        )
+        raise click.ClickException("could not initialize project") from e
 
 
 def _create_project_structure(project_dir: Path, project_name: str, template: str):

@@ -149,7 +149,7 @@ PHLO_ORCHESTRATOR_NAME=dagster
 # Log level (default: WARNING)
 PHLO_LOG_LEVEL=WARNING
 
-# Log output format: auto (tty=console, else JSON), json, console
+# Terminal log format: auto keeps stderr quiet; console/json opt into log stderr
 PHLO_LOG_FORMAT=auto
 
 # Emit structured log events to the hook bus (default: true)
@@ -162,6 +162,9 @@ PHLO_LOG_SERVICE_NAME=phlo
 # Available placeholders: {YMD}, {YM}, {Y}, {YYYY}, {M}, {MM}, {D}, {DD}, {H}, {HM}, {HMS}, {DATE}, {TIMESTAMP}
 # Set empty to disable file logging
 PHLO_LOG_FILE_TEMPLATE=.phlo/logs/{YMD}.log
+
+# With auto, user-facing CLI messages stay separate from internal diagnostics.
+# Structured JSON remains available via the log file, hook bus, or PHLO_LOG_FORMAT=json.
 
 # Default service namespace attached to observability resources (default: phlo)
 PHLO_SERVICE_NAMESPACE=phlo

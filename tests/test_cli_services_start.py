@@ -142,6 +142,27 @@ def test_services_start_rejects_unknown_profile(monkeypatch: pytest.MonkeyPatch,
     assert "Valid profile options: api, observability" in result.output
 
 
+def test_services_start_missing_compose_is_polished_without_log_leak(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(start_module.logger, "error", lambda *_args, **_kwargs: None)
+
+    result = CliRunner().invoke(start_module.start_cmd, [])
+
+    assert result.exit_code != 0
+    assert "services_start_missing_compose_file" not in result.output
+    assert "Error: Phlo services have not been initialized" in result.output
+    assert "Missing: .phlo/docker-compose.yml" in result.output
+    assert "Run: phlo services init" in result.output
+
+
 def test_services_start_uses_podman_backend(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     from phlo.cli.commands.services import start as start_module
 

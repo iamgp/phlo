@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import click
 
+from phlo.cli.output import user_error
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -158,9 +158,16 @@ def create_workflow_cmd(
             workflow_type=workflow_type,
             domain=domain,
             table=table,
+            error=str(exc),
         )
-        click.echo(f"Error creating workflow: {exc}", err=True)
-        sys.exit(1)
+        raise user_error(
+            "could not create workflow",
+            details={
+                "Workflow": workflow_type,
+                "Dataset": f"{domain}.{table}",
+            },
+            run="phlo workflow create --help",
+        ) from exc
 
 
 @workflow_group.command("check")

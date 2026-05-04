@@ -57,11 +57,17 @@ def _load_entry_points(group: str) -> list[CatalogPlugin]:
                 catalogs.append(plugin)
             else:
                 logger.error(
-                    "Catalog plugin %s does not inherit from CatalogPlugin",
-                    entry_point.name,
+                    "trino_catalog_plugin_invalid_type",
+                    entry_point_name=entry_point.name,
+                    expected_type="CatalogPlugin",
                 )
         except Exception as exc:
-            logger.error("Failed to instantiate catalog plugin %s: %s", entry_point.name, exc)
+            logger.error(
+                "trino_catalog_plugin_instantiation_failed",
+                entry_point_name=entry_point.name,
+                error=str(exc),
+                exc_info=True,
+            )
 
     return catalogs
 
@@ -81,13 +87,17 @@ def _filter_catalogs(catalogs: list[CatalogPlugin], target: str) -> list[Catalog
     for catalog in catalogs:
         if catalog.supports_target(target):
             filtered.append(catalog)
-            logger.info("Discovered %s catalog: %s", target, catalog.catalog_name)
+            logger.info(
+                "trino_catalog_discovered",
+                target=target,
+                catalog_name=catalog.catalog_name,
+            )
         else:
             logger.debug(
-                "Skipping catalog %s (targets=%s) for target=%s",
-                catalog.catalog_name,
-                catalog.targets,
-                target,
+                "trino_catalog_skipped_unsupported_target",
+                catalog_name=catalog.catalog_name,
+                supported_targets=catalog.targets,
+                target=target,
             )
     return filtered
 
@@ -103,8 +113,9 @@ def discover_trino_catalogs() -> list[CatalogPlugin]:
     legacy_catalogs = _load_entry_points("phlo.plugins.trino_catalogs")
     if legacy_catalogs:
         logger.warning(
-            "Detected legacy phlo.plugins.trino_catalogs entry points. "
-            "Please migrate to phlo.plugins.catalogs."
+            "trino_legacy_catalog_entry_points_detected",
+            legacy_group="phlo.plugins.trino_catalogs",
+            replacement_group="phlo.plugins.catalogs",
         )
 
     combined = catalogs + legacy_catalogs
@@ -181,9 +192,19 @@ def generate_catalog_files(output_dir: str | Path | None = None) -> dict[str, Pa
 
             filepath.write_text(content)
             generated[catalog.catalog_name] = filepath
-            logger.info("Generated catalog file: %s", filepath)
+            logger.info(
+                "trino_catalog_file_generated",
+                catalog_name=catalog.catalog_name,
+                path=str(filepath),
+            )
         except Exception as exc:
-            logger.error("Failed to generate catalog %s: %s", catalog.catalog_name, exc)
+            logger.error(
+                "trino_catalog_file_generation_failed",
+                catalog_name=catalog.catalog_name,
+                output_dir=str(output_dir),
+                error=str(exc),
+                exc_info=True,
+            )
 
     return generated
 
@@ -195,6 +216,6 @@ if __name__ == "__main__":
 
     output = sys.argv[1] if len(sys.argv) > 1 else None
     result = generate_catalog_files(output)
-    logger.info("Generated %s catalog files:", len(result))
+    logger.info("trino_catalog_generation_completed", catalog_count=len(result))
     for name, path in result.items():
-        logger.info("  - %s: %s", name, path)
+        logger.info("trino_catalog_generation_result", catalog_name=name, path=str(path))

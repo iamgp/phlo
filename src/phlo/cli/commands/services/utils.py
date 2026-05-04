@@ -15,6 +15,7 @@ import click
 
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.container_backend import select_project_container_backend
+from phlo.cli.output import missing_phlo_project_error
 from phlo.infrastructure.containers import resolve_container_name as _resolve_container_name
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -76,9 +77,7 @@ def ensure_phlo_dir() -> Path:
     phlo_dir = get_phlo_dir()
 
     if not phlo_dir.exists():
-        click.echo("Error: .phlo directory not found.", err=True)
-        click.echo("Run 'phlo services init' first.", err=True)
-        sys.exit(1)
+        raise missing_phlo_project_error()
 
     return phlo_dir
 
