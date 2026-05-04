@@ -6,6 +6,7 @@ from pathlib import Path
 import click
 import yaml
 
+from phlo.cli.commands.services.ports import _parse_compose_port_spec
 from phlo.cli.commands.services.utils import get_enabled_disabled_service_names
 from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name
@@ -28,6 +29,38 @@ def _get_running_containers(
             "ports": container.ports,
         }
     return containers
+
+
+def _first_declared_container_port(svc: ServiceDefinition) -> str | None:
+    """Return the first container port declared by the service compose config."""
+    for entry in svc.compose.get("ports", []) or []:
+        if isinstance(entry, str):
+            port_spec = _parse_compose_port_spec(entry)
+            if port_spec.container_port.isdigit():
+                return port_spec.container_port
+        elif isinstance(entry, dict):
+            target = entry.get("target")
+            if target is not None and str(target).isdigit():
+                return str(target)
+    return None
+
+
+def _external_port_for_container(
+    port_str: str,
+    preferred_container_port: str | None,
+) -> str:
+    """Extract a host port, preferring the service's first declared container port."""
+    segments = [part.strip() for part in port_str.split(",") if "->" in part]
+    if not segments:
+        return ""
+
+    if preferred_container_port:
+        suffix = f"->{preferred_container_port}/"
+        for segment in segments:
+            if suffix in segment:
+                return segment.split("->", 1)[0].split(":")[-1]
+
+    return segments[0].split("->", 1)[0].split(":")[-1]
 
 
 @click.command("list")
@@ -150,12 +183,10 @@ def list_cmd(show_all: bool, output_json: bool, backend_name: str | None):
             status_marker = "✓" if state == "running" else "✗"
             status = "Running" if state == "running" else state.title() or "Unknown"
             port_str = container.get("ports", "")
-            # Extract first exposed port (format: "0.0.0.0:3000->3000/tcp")
-            if "->" in port_str:
-                external_port = port_str.split("->")[0].split(":")[-1]
-                ports = f":{external_port}"
-            else:
-                ports = ""
+            external_port = _external_port_for_container(
+                port_str, _first_declared_container_port(svc)
+            )
+            ports = f":{external_port}" if external_port else ""
             suffix = ""
         else:
             status_marker = " "
@@ -187,6 +218,7 @@ def list_cmd(show_all: bool, output_json: bool, backend_name: str | None):
                 and svc.profile
                 and not svc.default
                 and svc.name not in enabled_services
+                and svc.name not in running_containers
             ):
                 continue
             click.echo(format_service_line(svc))

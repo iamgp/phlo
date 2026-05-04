@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from click.testing import CliRunner
 
 from phlo_dagster.cli_logs import (
+    _build_logs_query,
     _event_log_row_to_entry,
     _get_log_level,
     _get_logs,
@@ -190,6 +191,69 @@ def test_get_logs_uses_project_dagster_port_override(monkeypatch) -> None:
 
     assert _get_logs({"limit": 10}) == []
     assert captured["url"] == "http://localhost:3300/graphql"
+
+
+def test_build_logs_query_matches_current_dagster_runs_schema() -> None:
+    """GraphQL query should use Dagster 1.13 run and event field names."""
+    query = _build_logs_query({"limit": 7})
+
+    assert "runsOrError(limit: 7)" in query
+    assert "results {" in query
+    assert "eventConnection(limit: 7)" in query
+    assert "runs(limit:" not in query
+    assert "... on StepFailureEvent" not in query
+    assert "... on StepSuccessEvent" not in query
+    assert "ExecutionStepFailureEvent" in query
+    assert "ExecutionStepSuccessEvent" in query
+
+
+def test_get_logs_parses_current_dagster_graphql_shape(monkeypatch) -> None:
+    """GraphQL parser should read runsOrError.results[].eventConnection.events."""
+    from phlo_dagster import cli_logs as logs_module
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "data": {
+                    "runsOrError": {
+                        "results": [
+                            {
+                                "runId": "run-1",
+                                "jobName": "__ASSET_JOB",
+                                "status": "SUCCESS",
+                                "eventConnection": {
+                                    "events": [
+                                        {
+                                            "__typename": "ExecutionStepSuccessEvent",
+                                            "eventType": "STEP_SUCCESS",
+                                            "message": "step ok",
+                                            "timestamp": "2026-05-04T09:00:00Z",
+                                        }
+                                    ]
+                                },
+                            }
+                        ]
+                    }
+                }
+            }
+
+    monkeypatch.setattr(logs_module, "_project_env", lambda: {"DAGSTER_PORT": "13000"})
+    monkeypatch.setattr(logs_module.http_requests, "post", lambda *_args, **_kwargs: FakeResponse())
+
+    assert _get_logs({"limit": 1}) == [
+        {
+            "timestamp": "2026-05-04T09:00:00Z",
+            "level": "INFO",
+            "message": "step ok",
+            "event_type": "STEP_SUCCESS",
+            "run_id": "run-1",
+            "job_name": "__ASSET_JOB",
+            "run_status": "SUCCESS",
+        }
+    ]
 
 
 def test_get_logs_from_postgres_uses_project_env(monkeypatch) -> None:

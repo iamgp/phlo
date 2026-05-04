@@ -22,6 +22,7 @@ from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
+from phlo.plugins.discovery import ServiceDiscovery
 
 logger = get_logger(__name__)
 
@@ -170,10 +171,14 @@ def stop_cmd(
             metadata={"native": False},
         )
 
+    compose_profiles = profile
+    if not services_list and not profile:
+        compose_profiles = tuple(sorted(ServiceDiscovery().get_available_profiles()))
+
     cmd = compose_base_cmd(
         phlo_dir=phlo_dir,
         project_name=project_name,
-        profiles=profile,
+        profiles=compose_profiles,
         backend_name=backend_name,
     )
 

@@ -9,7 +9,6 @@ import {
   Save,
   Settings,
   SlidersHorizontal,
-  Wifi,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -39,8 +38,7 @@ type CacheStats = {
 }
 
 export function SettingsRoute() {
-  const { settings, defaults, setSettings, resetToDefaults } =
-    useObservatorySettings()
+  const { settings, setSettings, resetToDefaults } = useObservatorySettings()
   const { settingsSections } = useObservatoryExtensions()
   const [draft, setDraft] = useState<ObservatorySettings>(settings)
   const [error, setError] = useState<string | null>(null)
@@ -63,10 +61,6 @@ export function SettingsRoute() {
     [draft, settings],
   )
   const capabilityFeatures = capabilities?.data?.features ?? {}
-  const showProviderConnections =
-    capabilityFeatures.operations ||
-    capabilityFeatures.data ||
-    capabilityFeatures.branches
 
   useEffect(() => {
     setDraft(settings)
@@ -150,66 +144,6 @@ export function SettingsRoute() {
         </div>
 
         {error && <div className="phlo-v2-settings-error">{error}</div>}
-
-        {showProviderConnections && (
-          <SettingsPanel
-            description="Provider endpoints currently inferred by Observatory. Future project-level edits should go through phlo-api capability write contracts."
-            icon={<Wifi className="size-4" />}
-            title="Provider endpoints"
-          >
-            {capabilityFeatures.operations && (
-              <SettingField
-                hint={`Default: ${defaults.connections.dagsterGraphqlUrl}`}
-                label="Dagster GraphQL URL"
-              >
-                <TextInput
-                  value={draft.connections.dagsterGraphqlUrl}
-                  onChange={(value) =>
-                    setDraft((current) => ({
-                      ...current,
-                      connections: {
-                        ...current.connections,
-                        dagsterGraphqlUrl: value,
-                      },
-                    }))
-                  }
-                />
-              </SettingField>
-            )}
-            {capabilityFeatures.data && (
-              <SettingField
-                hint={`Default: ${defaults.connections.trinoUrl}`}
-                label="Query endpoint"
-              >
-                <TextInput
-                  value={draft.connections.trinoUrl}
-                  onChange={(value) =>
-                    setDraft((current) => ({
-                      ...current,
-                      connections: { ...current.connections, trinoUrl: value },
-                    }))
-                  }
-                />
-              </SettingField>
-            )}
-            {capabilityFeatures.branches && (
-              <SettingField
-                hint={`Default: ${defaults.connections.nessieUrl}`}
-                label="Branch catalog endpoint"
-              >
-                <TextInput
-                  value={draft.connections.nessieUrl}
-                  onChange={(value) =>
-                    setDraft((current) => ({
-                      ...current,
-                      connections: { ...current.connections, nessieUrl: value },
-                    }))
-                  }
-                />
-              </SettingField>
-            )}
-          </SettingsPanel>
-        )}
 
         <SettingsPanel
           description="Defaults used when opening data and catalog views."

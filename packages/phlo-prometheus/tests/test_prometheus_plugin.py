@@ -10,6 +10,8 @@ def test_prometheus_service_definition():
 
     assert defn["name"] == "prometheus"
     assert defn["profile"] == "observability"
+    assert "prometheus-data:/prometheus" in defn["compose"]["volumes"]
+    assert "./volumes/prometheus:/prometheus" not in defn["compose"]["volumes"]
 
 
 def test_prometheus_plugin_metadata():

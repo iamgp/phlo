@@ -211,6 +211,41 @@ def _expand_requested_services(
     return expand_service_dependencies(discovery, requested)
 
 
+def _preflight_required_env_vars(
+    *,
+    phlo_dir: Path,
+    project_root: Path,
+    services: list[ServiceDefinition],
+) -> None:
+    """Fail before compose start when selected services are missing required env values."""
+    if not services:
+        return
+
+    env = _load_environment(phlo_dir, _load_project_config(project_root))
+    missing: list[str] = []
+    for service in services:
+        for env_name, spec in sorted((service.env_vars or {}).items()):
+            if not isinstance(spec, dict) or "default" in spec:
+                continue
+            value = env.get(env_name)
+            if value is None or value == "":
+                missing.append(f"{service.name}: {env_name}")
+
+    if not missing:
+        return
+
+    rendered = ", ".join(missing)
+    logger.warning(
+        "services_start_required_env_missing",
+        missing=rendered,
+        service_count=len(services),
+    )
+    raise click.ClickException(
+        "required environment values are missing for selected services: "
+        f"{rendered}. Set them in phlo.yaml env: or .phlo/.env.local."
+    )
+
+
 @click.command("start")
 @click.option(
     "-d",
@@ -327,6 +362,12 @@ def start_cmd(
                 error=str(exc),
             )
             raise click.ClickException(str(exc)) from exc
+
+    _preflight_required_env_vars(
+        phlo_dir=phlo_dir,
+        project_root=Path.cwd(),
+        services=resolved_services,
+    )
 
     # If native dev services are enabled, start Docker services excluding native ones,
     # then start native processes for the excluded services.

@@ -360,6 +360,57 @@ def test_services_start_includes_setup_companions_for_explicit_targets(
     assert docker_calls[0][-3:] == ["rustfs-volume-setup", "rustfs", "rustfs-setup"]
 
 
+def test_services_start_preflights_required_env_for_selected_services(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("OAUTH2_PROXY_CLIENT_ID=\n")
+    (phlo_dir / ".env.local").write_text("")
+    (tmp_path / "phlo.yaml").write_text("name: demo\n")
+    (phlo_dir / "docker-compose.yml").write_text("services:\n  oauth2-proxy: {}\n")
+
+    oauth = ServiceDefinition(
+        name="oauth2-proxy",
+        description="OAuth proxy",
+        category="auth",
+        profile="proxy",
+        env_vars={
+            "OAUTH2_PROXY_CLIENT_ID": {"description": "Client ID"},
+            "OAUTH2_PROXY_CLIENT_SECRET": {"description": "Client secret"},
+            "OAUTH2_PROXY_PROVIDER": {"default": "oidc", "description": "Provider"},
+        },
+    )
+
+    class ProxyFakeDiscovery(FakeDiscovery):
+        def get_available_profiles(self) -> set[str]:
+            return {"proxy"}
+
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {oauth.name: oauth}
+
+    def _unexpected_call(*_args, **_kwargs):
+        raise AssertionError("Docker should not run when required env is missing")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", ProxyFakeDiscovery)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(start_module, "get_profile_service_names", lambda _profiles: [oauth.name])
+    monkeypatch.setattr(start_module, "require_container_backend", _unexpected_call)
+    monkeypatch.setattr(start_module, "run_command", _unexpected_call)
+
+    result = CliRunner().invoke(start_module.start_cmd, ["--profile", "proxy"])
+
+    assert result.exit_code != 0
+    assert "required environment values are missing" in result.output
+    assert "oauth2-proxy: OAUTH2_PROXY_CLIENT_ID" in result.output
+    assert "oauth2-proxy: OAUTH2_PROXY_CLIENT_SECRET" in result.output
+    assert "OAUTH2_PROXY_PROVIDER" not in result.output
+
+
 def test_services_start_rejects_unknown_explicit_targets(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:

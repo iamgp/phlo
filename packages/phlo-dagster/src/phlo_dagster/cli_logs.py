@@ -270,16 +270,17 @@ def _get_logs(filters: dict) -> list[dict]:
             logs_list: list[dict] = []
 
             if result and "data" in result:
-                runs = result["data"].get("runsOrError", {}).get("runs", [])
+                runs = result["data"].get("runsOrError", {}).get("results", [])
                 for run in runs:
                     run_id = run.get("runId", "")
                     job_name = run.get("jobName", "")
                     run_status = run.get("status", "")
 
                     # Get events for this run
-                    events = run.get("events", [])
+                    event_connection = run.get("eventConnection", {}) or {}
+                    events = event_connection.get("events", [])
                     for event in events:
-                        event_type = event.get("eventType", "")
+                        event_type = event.get("eventType") or event.get("__typename", "")
                         message = event.get("message", "")
                         timestamp = event.get("timestamp")
                         event_level = _get_log_level(event_type)
@@ -451,49 +452,69 @@ def _build_logs_query(filters: dict) -> str:
 
     """
     # Simplified query structure - in production would be more comprehensive
+    limit = int(filters.get("limit", 100))
+    event_limit = max(limit, 1)
     query = """
     {
-        runsOrError {
+        runsOrError(limit: %d) {
             ... on Runs {
-                runs(limit: %d, statuses: []) {
+                results {
                     runId
                     jobName
                     status
                     startTime
                     endTime
-                    events {
-                        ... on ExecutionStepInputEvent {
-                            eventType
-                            message
-                            timestamp
-                        }
-                        ... on ExecutionStepOutputEvent {
-                            eventType
-                            message
-                            timestamp
-                        }
-                        ... on StepFailureEvent {
-                            eventType
-                            message
-                            timestamp
-                        }
-                        ... on StepSuccessEvent {
-                            eventType
-                            message
-                            timestamp
-                        }
-                        ... on LogMessageEvent {
-                            eventType
-                            message
-                            timestamp
-                            level
+                    eventConnection(limit: %d) {
+                        events {
+                            __typename
+                            ... on ExecutionStepInputEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on ExecutionStepOutputEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on ExecutionStepFailureEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on ExecutionStepSuccessEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on RunStartEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on RunSuccessEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on RunFailureEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on LogMessageEvent {
+                                eventType
+                                message
+                                timestamp
+                                level
+                            }
                         }
                     }
                 }
             }
         }
     }
-    """ % (filters.get("limit", 100))
+    """ % (limit, event_limit)
     return query
 
 
