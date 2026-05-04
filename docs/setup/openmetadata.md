@@ -33,7 +33,7 @@ flowchart TB
     mysql["MySQL<br/>(metadata)"]
     elastic["Elasticsearch<br/>(search)"]
     trino["Trino"]
-    iceberg["Iceberg Tables<br/>Nessie catalog<br/><br/>bronze.entries_cleaned<br/>silver.glucose_daily_stats<br/>gold.dim_date<br/>marts.glucose_analytics_mart"]
+    iceberg["Iceberg Tables<br/>Nessie catalog<br/><br/>bronze.events_cleaned<br/>silver.event_daily_stats<br/>gold.dim_date<br/>marts.event_analytics_mart"]
 
     trino --> iceberg
     iceberg -->|metadata ingestion| ui
@@ -253,8 +253,8 @@ INFO - Connecting to Trino at trino:8080
 INFO - Processing catalog: iceberg
 INFO - Processing schema: raw
 INFO - Discovered 1 tables in schema raw
-INFO - Processing table: glucose_entries
-INFO - Successfully ingested table: trino.iceberg.raw.glucose_entries
+INFO - Processing table: events
+INFO - Successfully ingested table: trino.iceberg.raw.events
 INFO - Processing schema: bronze
 INFO - Processing schema: silver
 INFO - Processing schema: gold
@@ -307,14 +307,14 @@ After initial ingestion, search will NOT work until you populate the search inde
 
 1. Go to **Explore** page
 2. Should see databases/tables listed (no errors)
-3. Type `glucose` in search bar
-4. Should find `glucose_entries` table
+3. Type `event` in search bar
+4. Should find `events` table
 
 **Browse via Navigation:**
 
 1. Go to **Settings → Services → Database Services**
 2. Click on **trino**
-3. Navigate: iceberg → raw → glucose_entries
+3. Navigate: iceberg → raw → events
 4. You should see:
    - Table schema with all columns
    - Column descriptions
@@ -323,7 +323,7 @@ After initial ingestion, search will NOT work until you populate the search inde
 **Direct URL Access:**
 
 ```
-http://localhost:10020/table/trino.iceberg.raw.glucose_entries
+http://localhost:10020/table/trino.iceberg.raw.events
 ```
 
 **Check Elasticsearch Indices:**
@@ -418,13 +418,13 @@ After ingestion, you'll see:
 
 ### Bronze Layer (Staging)
 
-- `bronze.entries_cleaned` - CGM entries with type conversions
+- `bronze.events_cleaned` - CGM entries with type conversions
 - `bronze.device_status_cleaned` - Device status events
 
 ### Silver Layer (Facts)
 
-- `silver.glucose_daily_stats` - Daily glucose aggregations
-- `silver.glucose_weekly_stats` - Weekly glucose aggregations
+- `silver.event_daily_stats` - Daily event aggregations
+- `silver.event_weekly_stats` - Weekly event aggregations
 
 ### Gold Layer (Dimensions)
 
@@ -432,7 +432,7 @@ After ingestion, you'll see:
 
 ### Marts (BI-Ready)
 
-- `marts.glucose_analytics_mart` - Published to Postgres for Superset
+- `marts.event_analytics_mart` - Published to Postgres for Superset
 
 ## Using the Data Catalog
 
@@ -440,10 +440,10 @@ After ingestion, you'll see:
 
 1. Use the search bar at the top
 2. Search by:
-   - Table name: `glucose_daily_stats`
-   - Column name: `mean_glucose`
+   - Table name: `event_daily_stats`
+   - Column name: `mean_event_value`
    - Description keywords: `"blood sugar"`
-   - Tags: `#glucose` (after adding tags)
+   - Tags: `#events` (after adding tags)
 
 ### View Table Details
 
@@ -457,15 +457,15 @@ Click on any table to see:
 
 ### Add Documentation
 
-1. Click on a table (e.g., `silver.glucose_daily_stats`)
+1. Click on a table (e.g., `silver.event_daily_stats`)
 2. Click **Edit** (pencil icon)
 3. Add description:
 
 ```markdown
 ## Description
 
-Daily aggregated glucose statistics including mean, standard deviation,
-time in range, and estimated A1C.
+Daily aggregated event statistics including mean, standard deviation,
+target range, and estimated quality score.
 
 ## Update Schedule
 
@@ -473,16 +473,16 @@ Updated daily at 2:00 AM UTC via Dagster pipeline.
 
 ## Business Logic
 
-- `time_in_range_pct`: Percentage of readings between 70-180 mg/dL
-- `estimated_a1c`: Calculated using formula: (mean_glucose + 46.7) / 28.7
+- `target_range_pct`: Percentage of events between target range
+- `quality_score`: Calculated using formula: (mean_event_value + 46.7) / 28.7
 ```
 
 4. Add column descriptions:
 
    - `date`: Measurement date (partition key)
-   - `mean_glucose`: Daily average glucose in mg/dL
-   - `std_glucose`: Standard deviation of glucose readings
-   - `time_in_range_pct`: % of time in target range (70-180 mg/dL)
+   - `mean_event_value`: Daily average normalized event value
+   - `std_event_value`: Standard deviation of events
+   - `target_range_pct`: % of time in target range (target range)
 
 5. Click **Save**
 
@@ -508,11 +508,11 @@ OpenMetadata can show visual lineage graphs:
 ```
 entries_raw (raw)
     ↓
-entries_cleaned (bronze) ← dbt model
+events_cleaned (bronze) ← dbt model
     ↓
-glucose_daily_stats (silver) ← dbt model
+event_daily_stats (silver) ← dbt model
     ↓
-glucose_analytics_mart (mart) ← Trino publish
+event_analytics_mart (mart) ← Trino publish
     ↓
 Superset Dashboard: "CGM Overview"
 ```
@@ -598,9 +598,9 @@ Click **Next** → **Deploy**.
 INFO - Starting dbt metadata ingestion
 INFO - Reading manifest from /dbt/target/manifest.json
 INFO - Found 12 dbt models
-INFO - Processing model: glucose_daily_stats
-INFO - Linking model to table: trino.iceberg.silver.glucose_daily_stats
-INFO - Extracted lineage: bronze.entries_cleaned → silver.glucose_daily_stats
+INFO - Processing model: event_daily_stats
+INFO - Linking model to table: trino.iceberg.silver.event_daily_stats
+INFO - Extracted lineage: bronze.events_cleaned → silver.event_daily_stats
 INFO - Successfully ingested dbt metadata
 ```
 
@@ -616,7 +616,7 @@ After ingestion:
 
 **Verify dbt Integration:**
 
-Navigate to a table created by dbt (e.g., `silver.glucose_daily_stats`):
+Navigate to a table created by dbt (e.g., `silver.event_daily_stats`):
 
 - **Lineage** tab: Shows upstream dependencies
 - **Schema** tab: Has column descriptions from dbt
@@ -641,8 +641,8 @@ Create a business glossary:
 
 1. **Settings** → **Glossary**
 2. Add terms:
-   - **Time in Range (TIR)**: Percentage of glucose readings within target range (70-180 mg/dL)
-   - **A1C**: Hemoglobin A1C estimated from mean glucose
+   - **Target-range percentage**: Percentage of events within the configured target range
+   - **quality score**: Quality score estimated from normalized event values
 3. Link terms to table columns
 
 ### API Access
@@ -654,10 +654,10 @@ OpenMetadata provides a REST API:
 curl http://localhost:10020/api/v1/tables
 
 # Get specific table
-curl http://localhost:10020/api/v1/tables/name/iceberg.silver.glucose_daily_stats
+curl http://localhost:10020/api/v1/tables/name/iceberg.silver.event_daily_stats
 
 # Search
-curl "http://localhost:10020/api/v1/search/query?q=glucose"
+curl "http://localhost:10020/api/v1/search/query?q=events"
 ```
 
 ## Integration with Phlo Workflows
@@ -676,20 +676,20 @@ OpenMetadata Ingestion: Daily at 3:00 AM (1 hour after data refresh)
 Add descriptions to dbt models that will appear in OpenMetadata:
 
 ```yaml
-# workflows/transforms/dbt/models/silver/glucose_daily_stats.yml
+# workflows/transforms/dbt/models/silver/event_daily_stats.yml
 version: 2
 
 models:
-  - name: glucose_daily_stats
+  - name: event_daily_stats
     description: |
-      Daily aggregated glucose statistics with A1C estimates.
-      Source: bronze.entries_cleaned
+      Daily aggregated event statistics with quality score estimates.
+      Source: bronze.events_cleaned
       Refresh: Daily at 2 AM
     columns:
       - name: date
         description: Measurement date (partition key)
-      - name: mean_glucose
-        description: Daily average glucose in mg/dL
+      - name: mean_event_value
+        description: Daily average normalized event value
         tests:
           - not_null
           - dbt_utils.accepted_range:
@@ -764,7 +764,7 @@ docker exec openmetadata-elasticsearch curl -s "http://localhost:9200/_cat/alias
 
 # Test search query
 docker exec openmetadata-elasticsearch curl -s \
-  "http://localhost:9200/all/_search?q=glucose&size=1" | grep -o '"total":{"value":[0-9]*'
+  "http://localhost:9200/all/_search?q=events&size=1" | grep -o '"total":{"value":[0-9]*'
 ```
 
 ### Missing Elasticsearch Indices
@@ -882,14 +882,14 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 
 2. **Search by fully qualified name:**
 
-   - In UI search bar: `trino.iceberg.raw.glucose_entries`
+   - In UI search bar: `trino.iceberg.raw.events`
    - Navigate to Explore → Tables and browse database hierarchy
 
 3. **Check Elasticsearch index:**
    ```bash
    # Verify table is in Elasticsearch
    docker exec openmetadata-elasticsearch curl -s \
-     "http://localhost:9200/table_search_index/_search?q=glucose_entries&pretty"
+     "http://localhost:9200/table_search_index/_search?q=events&pretty"
    ```
 
 ## Resource Requirements
@@ -942,7 +942,7 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 
 ## Related Phlo Documentation
 
-- [Quick Start Guide](quick-start.md) - Get Phlo running
+- [Quick Start Guide](../getting-started/quickstart.md) - Get Phlo running
 - [API Documentation](../reference/phlo-api.md) - FastAPI and Hasura setup
 - [dbt Development Guide](../guides/dbt-development.md) - Creating dbt models
 - [Workflow Development Guide](../guides/workflow-development.md) - Dagster pipelines

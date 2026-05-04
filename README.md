@@ -14,43 +14,45 @@
 
 ## Features
 
-- **Decorator-driven development** — `@phlo.ingestion` and `@phlo.quality` replace hundreds of lines of boilerplate
-- **Write-Audit-Publish pattern** — Git-like branching with automatic quality gates and promotion
-- **Type-safe data quality** — Pandera schemas enforce validation at ingestion time
-- **Plugin architecture** — 12 plugin types: sources, quality, ingestion, transforms, services, hooks, catalogs, assets, resources, orchestrators, and CLI commands
-- **Storage-agnostic** — Iceberg, Delta, or bring-your-own via table-format plugins
-- **Observatory UI** — Web-based data exploration, lineage, and monitoring
-- **Observability** — OpenTelemetry traces, metrics, and logs via `phlo-otel`; Grafana/Prometheus/Loki stack
-- **Production-ready** — Auto-publishing, configurable merge strategies, freshness policies, data migrations
+- **Template-first projects** — `phlo init` creates focused starters for CSV, REST APIs, dbt medallion projects, Sling replication, and observability demos
+- **Decorator-driven ingestion** — `phlo-dlt` and `phlo-sling` register assets without hand-written Dagster boilerplate
+- **Type-safe quality contracts** — `phlo-pandera` schemas validate data before it lands in managed tables
+- **Capability plugins** — packages contribute services, CLI commands, assets, resources, catalogs, hooks, and Observatory surfaces through Python entry points
+- **Storage-agnostic data plane** — Iceberg, Delta, ClickHouse, Trino, MinIO, RustFS, Nessie, and PostgreSQL can be composed as needed
+- **Operator surfaces** — `phlo-api`, Observatory, MCP, PostgREST, Hasura, Superset, pgweb, and observability packages expose runtime state and actions
+- **Local-first operations** — `phlo services` generates and runs the project stack through Docker or Podman
 
 ## What It Looks Like
 
 ```python
-import phlo
+from pathlib import Path
 
-@phlo.ingestion(
+import pandas as pd
+import pandera.pandas as pa
+from pandera.typing import Series
+
+from phlo_dlt.decorator import phlo_ingestion
+
+
+class EventsSchema(pa.DataFrameModel):
+    id: Series[int] = pa.Field(ge=1)
+    name: Series[str]
+    value: Series[int] = pa.Field(ge=0)
+
+    class Config:
+        strict = True
+        coerce = True
+
+
+@phlo_ingestion(
     table_name="events",
     unique_key="id",
-    validation_schema=EventSchema,
-    group="api",
-    cron="0 */1 * * *",
+    validation_schema=EventsSchema,
+    group="demo",
     freshness_hours=(1, 24),
 )
-def api_events(partition_date: str):
-    return rest_api(...)  # Any DLT source
-
-
-@phlo.quality(
-    table="bronze.events",
-    checks=[
-        NullCheck(columns=["id", "timestamp"]),
-        RangeCheck(column="value", min_value=0, max_value=100),
-        UniqueCheck(columns=["id"]),
-        FreshnessCheck(column="timestamp", max_age_hours=24),
-    ],
-)
-def events_quality():
-    pass
+def events(partition_date: str):
+    return pd.read_csv(Path("data/events.csv"))
 ```
 
 ## Prerequisites
@@ -64,26 +66,24 @@ def events_quality():
 # Install with default plugins
 uv pip install phlo[defaults]
 
-# Initialize a new project
-phlo init my-project
+# Initialize a runnable local starter
+phlo init my-project --template csv-batch
 cd my-project
 
 # Generate service configuration, start services, and materialize
 phlo services init
 phlo services start
-phlo materialize --select "dlt_glucose_entries+"
+phlo materialize dlt_events --partition 2026-05-04
 ```
 
 ## Documentation
 
-Full documentation source lives under [docs/index.md](docs/index.md). The Fumadocs site now builds from `docs-app/` against that same Markdown tree:
+Full documentation source lives under [docs/index.md](docs/index.md). The published site is generated with `pymdx`, matching the GitHub Pages workflow:
 
 ```bash
-npm --prefix docs-app install
-npm --prefix docs-app run dev
+pymdx generate src/phlo --docs docs --output docs-site
+pymdx build docs-site
 ```
-
-The docs app serves locally on `http://localhost:3101`.
 
 Primary entry points:
 
@@ -122,15 +122,15 @@ Phlo is a monorepo of composable packages — install only what you need:
 | Layer             | Packages                                                                                  |
 | ----------------- | ----------------------------------------------------------------------------------------- |
 | **Orchestration** | `phlo-dagster`                                                                            |
-| **Ingestion**     | `phlo-dlt`                                                                                |
+| **Ingestion**     | `phlo-dlt`, `phlo-sling`                                                                  |
 | **Quality**       | `phlo-pandera`                                                                            |
 | **Transforms**    | `phlo-dbt`                                                                                |
 | **Table formats** | `phlo-iceberg`, `phlo-delta`, `phlo-clickhouse`                                           |
-| **Infrastructure**  | `phlo-traefik`, `phlo-postgres`                                                                           |
-| **Storage**       | `phlo-minio`                                                                              |
+| **Infrastructure**  | `phlo-traefik`, `phlo-postgres`, `phlo-oauth2-proxy`                                    |
+| **Storage**       | `phlo-minio`, `phlo-rustfs`                                                               |
 | **Catalog**       | `phlo-nessie`, `phlo-openmetadata`                                                        |
 | **Query**         | `phlo-trino`                                                                              |
-| **Observability** | `phlo-otel`, `phlo-clickstack`, `phlo-grafana`, `phlo-prometheus`, `phlo-loki`, `phlo-alloy` |
+| **Observability** | `phlo-otel`, `phlo-clickstack`, `phlo-grafana`, `phlo-prometheus`, `phlo-loki`, `phlo-alloy`, `phlo-alerting` |
 | **UI**            | `phlo-observatory`, `phlo-pgweb`, `phlo-superset`                                         |
-| **API**           | `phlo-api`, `phlo-hasura`, `phlo-postgrest`                                               |
+| **API**           | `phlo-api`, `phlo-mcp`, `phlo-hasura`, `phlo-postgrest`                                  |
 | **Dev/Test**      | `phlo-testing`                                                                            |

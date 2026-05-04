@@ -48,12 +48,12 @@ graph LR
 
 | Layer | Goal | Phlo Building Blocks |
 | --- | --- | --- |
-| Ingestion | Pull source data reliably | `@phlo.ingestion`, DLT, staging + merge |
+| Ingestion | Pull source data reliably | `phlo_ingestion`, DLT, staging + merge |
 | Storage | Transactional open tables | Apache Iceberg + MinIO |
 | Versioning | Isolated change flow | Nessie branches/tags |
 | Orchestration | Deterministic execution | Dagster assets via `phlo materialize` |
 | Transformation | Business logic in SQL | dbt project in `workflows/transforms/dbt` |
-| Quality + Ops | Confidence and response | Pandera, `@phlo.quality`, logs, metrics, lineage |
+| Quality + Ops | Confidence and response | Pandera, `phlo_quality`, logs, metrics, lineage |
 
 ## First Contact with the CLI
 
@@ -124,9 +124,9 @@ Phlo helps by making those decisions explicit in code and commands.
 
 For example, this is not just syntax:
 
-- `unique_key` in `@phlo.ingestion` is a deduplication decision.
+- `unique_key` in `phlo_ingestion` is a deduplication decision.
 - `merge_strategy` is a correctness-vs-throughput decision.
-- `blocking` checks in `@phlo.quality` are a risk decision.
+- `blocking` checks in `phlo_quality` are a risk decision.
 - `phlo backfill --parallel N` is a source-pressure decision.
 
 When you treat those as product decisions, your data system becomes much easier to operate.

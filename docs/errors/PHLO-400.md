@@ -213,4 +213,4 @@ except Exception as e:
 - [Nessie Documentation](https://projectnessie.org/)
 - [Nessie REST API](https://projectnessie.org/nessie-latest/api/)
 - [PyIceberg Catalog Configuration](https://py.iceberg.apache.org/)
-- [Phlo Services Guide](../guides/services.md)
+- [Service Packages Guide](../guides/service-packages.md)

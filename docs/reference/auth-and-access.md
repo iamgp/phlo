@@ -197,5 +197,5 @@ behavior, and backend support matrix.
 - [Security](../setup/security.md) for operator setup and posture
 - [Service Credentials](../setup/service-credentials.md) for scoped backend roles and secrets
 - [Canonical RBAC](canonical-rbac.md) for the control-plane model and workflow
-- [Python Reference](../python-reference/index.mdx) for capability-level auth interfaces
+- Python Reference in the pymdx site for capability-level auth interfaces
 - [API Surfaces](api-surfaces.md) for how access shows up across external entry points

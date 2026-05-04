@@ -4,7 +4,7 @@
 
 ## What You'll Learn
 
-- How `@phlo.ingestion` turns a source function into a managed asset
+- How `phlo_ingestion` turns a source function into a managed asset
 - Why two-step ingestion (stage then merge) improves reliability
 - How to choose `merge` vs `append`
 - How partition keys affect replay and idempotency
@@ -515,7 +515,7 @@ Debug patterns: [Troubleshooting](../../operations/troubleshooting.md)
 
 ## Summary
 
-`@phlo.ingestion` is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.
+`phlo_ingestion` is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.
 
 ## Next Steps
 

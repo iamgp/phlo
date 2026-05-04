@@ -95,8 +95,8 @@ NULLIF(TRIM(field), '') AS field  -- Empty strings → NULL
 
 ```sql
 -- Make names descriptive and consistent
-sgv AS glucose_value,
-bg AS blood_glucose_mg_dl,
+event_code AS event_type,
+value AS event_value,
 ts AS timestamp_utc
 ```
 
@@ -181,7 +181,7 @@ Examples:
 - stg_salesforce_accounts
 - stg_stripe_payments
 - stg_google_analytics_pageviews
-- stg_nightscout_glucose_entries
+- stg_csv_events
 ```
 
 ---
@@ -275,7 +275,7 @@ LEFT JOIN {{ ref('stg_products') }} p ON o.product_id = p.product_id
 - Grain: One row per event/transaction
 - Many rows (millions+)
 - Mostly numeric data
-- Examples: `fct_orders`, `fct_glucose_readings`, `fct_pageviews`
+- Examples: `fct_orders`, `fct_events`, `fct_pageviews`
 
 ```sql
 -- Example fact table
@@ -375,7 +375,7 @@ dim_<entity>              -- Dimension tables
 Examples:
 Fact Tables:
 - fct_order_line_items
-- fct_glucose_readings
+- fct_events
 - fct_website_sessions
 - fct_payment_transactions
 

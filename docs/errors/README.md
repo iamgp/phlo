@@ -6,21 +6,21 @@ Comprehensive documentation for all Phlo error codes with solutions, examples, a
 
 | Error Code            | Description             | Severity | Category       |
 | --------------------- | ----------------------- | -------- | -------------- |
-| [PHLO-001](#phlo-001) | Asset Not Discovered    | High     | Discovery      |
-| [PHLO-002](#phlo-002) | Schema Mismatch         | High     | Configuration  |
-| [PHLO-003](#phlo-003) | Invalid Cron Expression | Medium   | Configuration  |
-| [PHLO-004](#phlo-004) | Validation Failed       | High     | Validation     |
-| [PHLO-005](#phlo-005) | Missing Schema          | High     | Configuration  |
-| [PHLO-006](#phlo-006) | Ingestion Failed        | High     | Runtime        |
-| [PHLO-007](#phlo-007) | Table Not Found         | High     | Runtime        |
-| [PHLO-008](#phlo-008) | Infrastructure Error    | Critical | Infrastructure |
-| [PHLO-200](#phlo-200) | Schema Conversion Error | High     | Schema         |
-| [PHLO-201](#phlo-201) | Type Conversion Error   | Medium   | Schema         |
-| [PHLO-300](#phlo-300) | DLT Pipeline Failed     | High     | DLT            |
-| [PHLO-301](#phlo-301) | DLT Source Error        | High     | DLT            |
-| [PHLO-400](#phlo-400) | Iceberg Catalog Error   | High     | Iceberg        |
-| [PHLO-401](#phlo-401) | Iceberg Table Error     | High     | Iceberg        |
-| [PHLO-402](#phlo-402) | Iceberg Write Error     | High     | Iceberg        |
+| [PHLO-001](PHLO-001.md) | Asset Not Discovered    | High     | Discovery      |
+| [PHLO-002](PHLO-002.md) | Schema Mismatch         | High     | Configuration  |
+| [PHLO-003](PHLO-003.md) | Invalid Cron Expression | Medium   | Configuration  |
+| [PHLO-004](PHLO-004.md) | Validation Failed       | High     | Validation     |
+| [PHLO-005](PHLO-005.md) | Missing Schema          | High     | Configuration  |
+| [PHLO-006](PHLO-006.md) | Ingestion Failed        | High     | Runtime        |
+| [PHLO-007](PHLO-007.md) | Table Not Found         | High     | Runtime        |
+| [PHLO-008](PHLO-008.md) | Infrastructure Error    | Critical | Infrastructure |
+| [PHLO-200](PHLO-200.md) | Schema Conversion Error | High     | Schema         |
+| [PHLO-201](PHLO-201.md) | Type Conversion Error   | Medium   | Schema         |
+| [PHLO-300](PHLO-300.md) | DLT Pipeline Failed     | High     | DLT            |
+| [PHLO-301](PHLO-301.md) | DLT Source Error        | High     | DLT            |
+| [PHLO-400](PHLO-400.md) | Iceberg Catalog Error   | High     | Iceberg        |
+| [PHLO-401](PHLO-401.md) | Iceberg Table Error     | High     | Iceberg        |
+| [PHLO-402](PHLO-402.md) | Iceberg Write Error     | High     | Iceberg        |
 
 ## Error Categories
 

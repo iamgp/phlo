@@ -4,7 +4,7 @@ This guide covers deploying PostgREST alongside the existing FastAPI service in 
 
 ## Overview
 
-PostgREST is a standalone web server that automatically generates a RESTful API from your PostgreSQL database schema. This deployment implements Phase 1 of the [PostgREST Migration PRD](prd-postgrest-migration.md).
+PostgREST is a standalone web server that automatically generates a RESTful API from your PostgreSQL database schema.
 
 **Key Benefits:**
 
@@ -73,8 +73,8 @@ This will:
 1. Install PostgreSQL extensions (`pgcrypto`)
 2. Create `auth` schema with users table
 3. Create JWT signing/verification functions
-4. Create `api` schema with glucose views
-5. Implement API functions (`login`, `glucose_statistics`, `user_info`)
+4. Create `api` schema with event views
+5. Implement API functions (`login`, `event_statistics`, `user_info`)
 6. Create PostgreSQL roles and grant-based API access scaffolding
 
 **Verify migrations:**
@@ -92,9 +92,9 @@ Expected output:
 ```
  schemaname |        viewname
 ------------+--------------------------
- api        | glucose_readings
- api        | glucose_daily_summary
- api        | glucose_hourly_patterns
+ api        | events
+ api        | event_daily_summary
+ api        | event_hourly_patterns
 ```
 
 ### Step 3: Start PostgREST Service
@@ -204,43 +204,43 @@ TOKEN=$(curl -s -X POST http://localhost:10018/rpc/login \
 echo "Token: $TOKEN"
 ```
 
-### Test 2: Get Glucose Readings
+### Test 2: Get Events
 
 ```bash
-curl "http://localhost:10018/glucose_readings?order=reading_date.desc&limit=5" \
+curl "http://localhost:10018/events?order=event_date.desc&limit=5" \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
-Expected response (array of glucose readings):
+Expected response (array of events):
 
 ```json
 [
   {
-    "reading_date": "2024-01-15",
+    "event_date": "2024-01-15",
     "day_name": "Monday",
-    "avg_glucose_mg_dl": 125.5,
-    "reading_count": 288,
-    "time_in_range_pct": 78.2
+    "avg_event_value": 125.5,
+    "event_count": 288,
+    "target_range_pct": 78.2
   },
   ...
 ]
 ```
 
-### Test 3: Filter Glucose Readings
+### Test 3: Filter Events
 
 PostgREST supports powerful filtering via URL parameters:
 
 ```bash
-# Get readings from a specific date range
-curl "http://localhost:10018/glucose_readings?reading_date=gte.2024-01-01&reading_date=lte.2024-01-31" \
+# Get events from a specific date range
+curl "http://localhost:10018/events?event_date=gte.2024-01-01&event_date=lte.2024-01-31" \
   -H "Authorization: Bearer $TOKEN" | jq .
 
-# Get readings where time in range > 70%
-curl "http://localhost:10018/glucose_readings?time_in_range_pct=gt.70&order=time_in_range_pct.desc" \
+# Get events where target range > 70%
+curl "http://localhost:10018/events?target_range_pct=gt.70&order=target_range_pct.desc" \
   -H "Authorization: Bearer $TOKEN" | jq .
 
 # Get only specific columns
-curl "http://localhost:10018/glucose_readings?select=reading_date,avg_glucose_mg_dl,time_in_range_pct&limit=10" \
+curl "http://localhost:10018/events?select=event_date,avg_event_value,target_range_pct&limit=10" \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
@@ -258,14 +258,14 @@ curl "http://localhost:10018/glucose_readings?select=reading_date,avg_glucose_mg
 ### Test 4: Get Daily Summary
 
 ```bash
-curl "http://localhost:10018/glucose_daily_summary?order=reading_date.desc&limit=7" \
+curl "http://localhost:10018/event_daily_summary?order=event_date.desc&limit=7" \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 ### Test 5: Get Hourly Patterns
 
 ```bash
-curl "http://localhost:10018/glucose_hourly_patterns?day_name=eq.Monday" \
+curl "http://localhost:10018/event_hourly_patterns?day_name=eq.Monday" \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
@@ -273,11 +273,11 @@ curl "http://localhost:10018/glucose_hourly_patterns?day_name=eq.Monday" \
 
 ```bash
 # Default 30-day statistics
-curl "http://localhost:10018/rpc/glucose_statistics" \
+curl "http://localhost:10018/rpc/event_statistics" \
   -H "Authorization: Bearer $TOKEN" | jq .
 
 # Custom period (7 days)
-curl "http://localhost:10018/rpc/glucose_statistics?period_days=7" \
+curl "http://localhost:10018/rpc/event_statistics?period_days=7" \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
@@ -288,11 +288,11 @@ Expected response:
   "period_days": 7,
   "start_date": "2024-01-08",
   "end_date": "2024-01-15",
-  "avg_glucose_mg_dl": 128.5,
-  "min_glucose_mg_dl": 65,
-  "max_glucose_mg_dl": 210,
-  "avg_time_in_range_pct": 75.3,
-  "total_readings": 2016,
+  "avg_event_value": 128.5,
+  "min_event_value": 65,
+  "max_event_value": 210,
+  "avg_target_range_pct": 75.3,
+  "total_events": 2016,
   "days_with_data": 7
 }
 ```
@@ -319,10 +319,10 @@ Expected response:
 
 ```bash
 # Missing token (should return 401)
-curl -i "http://localhost:10018/glucose_readings"
+curl -i "http://localhost:10018/events"
 
 # Invalid token (should return 401)
-curl -i "http://localhost:10018/glucose_readings" \
+curl -i "http://localhost:10018/events" \
   -H "Authorization: Bearer invalid.token.here"
 ```
 
@@ -346,14 +346,14 @@ curl "http://localhost:10018/" \
 **FastAPI** (current):
 
 ```bash
-curl "http://localhost:10010/api/v1/glucose/readings?limit=1" \
+curl "http://localhost:10010/api/v1/event/events?limit=1" \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 **PostgREST** (new):
 
 ```bash
-curl "http://localhost:10018/glucose_readings?limit=1" \
+curl "http://localhost:10018/events?limit=1" \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
@@ -432,7 +432,7 @@ psql: error: connection to server at "localhost" (127.0.0.1), port 10000 failed:
 **Symptom:**
 
 ```
-ERROR:  relation "api.glucose_readings" does not exist
+ERROR:  relation "api.events" does not exist
 ```
 
 **Solution:**
@@ -518,9 +518,9 @@ psql "postgresql://authenticator:authenticator_password_change_in_production@loc
 To maintain backward compatibility with existing FastAPI clients, configure nginx to route requests:
 
 ```nginx
-# /api/v1/glucose/readings → /glucose_readings
-location /api/v1/glucose/readings {
-  rewrite ^/api/v1/glucose/readings$ /glucose_readings break;
+# /api/v1/event/events → /events
+location /api/v1/event/events {
+  rewrite ^/api/v1/event/events$ /events break;
   proxy_pass http://postgrest:3000;
   proxy_set_header Authorization $http_authorization;
 }
@@ -558,10 +558,10 @@ Once validated:
 | Endpoint                   | Method   | Description                       | Auth Required |
 | -------------------------- | -------- | --------------------------------- | ------------- |
 | `/rpc/login`               | POST     | Authenticate and get JWT token    | No            |
-| `/glucose_readings`        | GET      | Get glucose readings              | Yes           |
-| `/glucose_daily_summary`   | GET      | Get daily summary                 | Yes           |
-| `/glucose_hourly_patterns` | GET      | Get hourly patterns               | Yes           |
-| `/rpc/glucose_statistics`  | GET/POST | Get statistics for period         | Yes           |
+| `/events`        | GET      | Get events              | Yes           |
+| `/event_daily_summary`   | GET      | Get daily summary                 | Yes           |
+| `/event_hourly_patterns` | GET      | Get hourly patterns               | Yes           |
+| `/rpc/event_statistics`  | GET/POST | Get statistics for period         | Yes           |
 | `/rpc/user_info`           | GET/POST | Get current user info             | Yes           |
 | `/rpc/health`              | GET/POST | Health check                      | No            |
 | `/`                        | GET      | OpenAPI spec (with Accept header) | No            |
@@ -576,8 +576,8 @@ Once validated:
 
 Examples:
 
-- `?reading_date=gte.2024-01-01`
-- `?avg_glucose_mg_dl=gt.120&time_in_range_pct=gte.70`
+- `?event_date=gte.2024-01-01`
+- `?avg_event_value=gt.120&target_range_pct=gte.70`
 
 **Ordering:**
 
@@ -587,8 +587,8 @@ Examples:
 
 Examples:
 
-- `?order=reading_date.desc`
-- `?order=time_in_range_pct.desc,reading_date.asc`
+- `?order=event_date.desc`
+- `?order=target_range_pct.desc,event_date.asc`
 
 **Limiting:**
 
@@ -609,7 +609,7 @@ Examples:
 
 Examples:
 
-- `?select=reading_date,avg_glucose_mg_dl`
+- `?select=event_date,avg_event_value`
 
 ---
 
@@ -618,7 +618,7 @@ Examples:
 - **PostgREST Documentation**: https://postgrest.org
 - **PostgREST API Reference**: https://postgrest.org/en/stable/api.html
 - **PostgreSQL RLS Guide**: https://www.postgresql.org/docs/current/ddl-rowsecurity.html
-- **Migration PRD**: [docs/prd-postgrest-migration.md](prd-postgrest-migration.md)
+- **Setup reference**: this page is the canonical PostgREST setup guide.
 
 ---
 

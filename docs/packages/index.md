@@ -10,7 +10,7 @@ Use this section to answer:
 
 For environment-specific setup of external surfaces such as Hasura, PostgREST, or OpenMetadata, use [Setup](../setup/index.md).
 
-Use [Python Reference](../python-reference/index.mdx) when you need symbol-level docstring and API reference for the package modules themselves.
+Use the generated Python Reference in the pymdx site when you need symbol-level docstring and API reference for package modules.
 
 ## Complete Package Index
 
@@ -146,24 +146,15 @@ Core framework only:
 uv pip install phlo
 ```
 
-### Profile-Based Installation
+### Root Extras
 
-```bash
-# Observability stack (monitoring, logging, tracing)
-uv pip install phlo[observability]
+The root `phlo` package exposes a small set of extras. Other package families are installed by naming the packages directly.
 
-# API layer (REST, GraphQL)
-uv pip install phlo[api]
-
-# Data catalog (OpenMetadata)
-uv pip install phlo[catalog]
-
-# Query engines (Trino + ClickHouse)
-uv pip install phlo[query]
-
-# UI layer (Observatory + BI tools)
-uv pip install phlo[ui]
-```
+| Extra | Use when | Included packages |
+| --- | --- | --- |
+| `phlo[defaults]` | You want the recommended local stack | `phlo-core-plugins`, `phlo-api`, `phlo-observatory`, `phlo-dagster`, `phlo-dlt`, `phlo-dbt`, `phlo-pandera`, `phlo-iceberg`, `phlo-postgres`, `phlo-minio`, `phlo-nessie`, `phlo-trino` |
+| `phlo[core-services]` | You only want the core runtime services | `phlo-dagster`, `phlo-postgres`, `phlo-minio`, `phlo-nessie`, `phlo-trino` |
+| `phlo[openmetadata]` | You want to add OpenMetadata to an existing install | `phlo-openmetadata` |
 
 ### Development Installation
 
@@ -185,22 +176,22 @@ uv pip install -e ./packages/phlo-dlt -e ./packages/phlo-pandera
 
 ## Plugin Entry Points
 
-All packages register plugins through Python entry points. These are the available entry point groups:
+Packages register plugins through Python entry points. These are the entry point groups currently used by the workspace package metadata:
 
 | Entry Point Group | Description | Example Provider |
 |-------------------|-------------|------------------|
 | `phlo.plugins.services` | Infrastructure service definitions | phlo-postgres, phlo-minio |
-| `phlo.sources` | Data source connectors | phlo-core-plugins |
-| `phlo.ingestion_providers` | Ingestion system providers | phlo-dlt, phlo-sling |
-| `phlo.quality` | Quality check implementations | phlo-core-plugins |
-| `phlo.quality_providers` | Quality validation providers | phlo-pandera |
-| `phlo.transformation_providers` | Transformation providers | phlo-dbt |
-| `phlo.transforms` | Data transformation tools | phlo-dbt |
+| `phlo.plugins.sources` | Data source connectors | phlo-core-plugins |
+| `phlo.plugins.ingestion_providers` | Ingestion system providers | phlo-dlt, phlo-sling |
+| `phlo.plugins.quality` | Quality check implementations | phlo-core-plugins |
+| `phlo.plugins.quality_providers` | Quality validation providers | phlo-pandera |
+| `phlo.plugins.transformation_providers` | Transformation providers | phlo-dbt |
+| `phlo.plugins.transforms` | Data transformation tools | phlo |
 | `phlo.plugins.catalogs` | Catalog configurations | phlo-nessie, phlo-openmetadata |
-| `phlo.orchestrators` | Orchestrator adapters | phlo-dagster |
-| `phlo.asset_providers` | Asset definition providers | phlo-dagster, phlo-dbt |
-| `phlo.resource_providers` | Resource definition providers | phlo-iceberg, phlo-trino |
-| `phlo.cli_commands` | CLI command extensions | phlo-nessie, phlo-dbt |
+| `phlo.plugins.orchestrators` | Orchestrator adapters | phlo-dagster |
+| `phlo.plugins.assets` | Asset definition providers | phlo-dlt, phlo-dbt, phlo-sling |
+| `phlo.plugins.resources` | Resource and runtime capability providers | phlo-iceberg, phlo-trino, phlo-postgres |
+| `phlo.plugins.cli` | CLI command extensions | phlo-nessie, phlo-dbt, phlo-sling |
 | `phlo.plugins.hooks` | Event hook handlers | phlo-otel, phlo-alerting |
 | `phlo.plugins.observatory` | Observatory UI extensions | phlo-observatory-example |
 
@@ -242,7 +233,8 @@ uv pip install phlo phlo-dagster phlo-postgres phlo-trino phlo-minio \
 ```bash
 uv pip install phlo phlo-dagster phlo-postgres phlo-trino phlo-minio \
   phlo-nessie phlo-iceberg phlo-dlt phlo-dbt phlo-pandera \
-  phlo-otel phlo-prometheus phlo-grafana phlo-loki phlo-alerting
+  phlo-otel phlo-clickstack phlo-alloy phlo-prometheus phlo-grafana \
+  phlo-loki phlo-alerting
 ```
 
 ### With API Layer
@@ -256,7 +248,11 @@ uv pip install phlo phlo-dagster phlo-postgres phlo-trino phlo-minio \
 ### Complete Stack
 
 ```bash
-uv pip install phlo[defaults] phlo[observability] phlo[api] phlo[catalog] phlo[ui]
+uv pip install "phlo[defaults]" \
+  phlo-alerting phlo-alloy phlo-clickhouse phlo-clickstack phlo-delta \
+  phlo-grafana phlo-hasura phlo-lineage phlo-loki phlo-mcp \
+  phlo-openmetadata phlo-otel phlo-pgweb phlo-postgrest \
+  phlo-prometheus phlo-rustfs phlo-sling phlo-superset phlo-traefik
 ```
 
 ---

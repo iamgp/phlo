@@ -186,9 +186,9 @@ Physical Table (for active store)
 
 | Entry Point                   | Plugin                                  |
 | ----------------------------- | --------------------------------------- |
-| `phlo.asset_providers`        | `DltAssetProvider` for ingestion specs  |
-| `phlo.ingestion_providers`    | `DLTIngestionProvider` for decorator    |
-| `phlo.cli_commands`           | `DltCliPlugin` for workflow scaffolding |
+| `phlo.plugins.assets`         | `DltAssetProvider` for ingestion specs  |
+| `phlo.plugins.ingestion_providers` | `DLTIngestionProvider` for decorator |
+| `phlo.plugins.cli`            | `DltCliPlugin` for workflow scaffolding |
 
 ## Related Packages
 

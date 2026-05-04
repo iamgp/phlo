@@ -46,7 +46,7 @@ flowchart TD
 
 ## Code And Docblock Reference
 
-The generated [Python Reference](../python-reference/index.mdx) covers symbols, signatures, and docstrings for the core runtime and workspace packages. It complements the hand-written reference pages:
+The generated Python Reference in the pymdx site covers symbols, signatures, and docstrings for the core runtime and workspace packages. It complements the hand-written reference pages:
 
 - generated pages: symbols, signatures, docstrings, and source-level detail
 - hand-written pages: platform behavior, contracts, commands, and architecture

@@ -199,4 +199,4 @@ def weather_observations(partition: str):
 ## Additional Resources
 
 - [Pandera DataFrameModel](https://pandera.readthedocs.io/en/stable/dataframe_models.html)
-- [Phlo Asset Creation Guide](../TESTING_GUIDE.md#creating-assets)
+- [Workflow Development Guide](../guides/workflow-development.md)

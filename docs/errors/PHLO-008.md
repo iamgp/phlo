@@ -230,5 +230,5 @@ except Exception as e:
 ## Additional Resources
 
 - [Docker Documentation](https://docs.docker.com/)
-- [Phlo Services Guide](../guides/services.md)
+- [Service Packages Guide](../guides/service-packages.md)
 - [Troubleshooting Guide](../operations/troubleshooting.md)

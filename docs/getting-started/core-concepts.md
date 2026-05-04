@@ -261,9 +261,9 @@ class EventSchema(pa.DataFrameModel):
 from phlo_dbt.dbt_schema import dbt_model_to_pandera
 
 # Define schema once in dbt YAML, auto-generate Pandera
-FactGlucoseReadings = dbt_model_to_pandera(
-    "workflows/transforms/dbt/models/silver/fct_glucose_readings.yml",
-    "fct_glucose_readings"
+FactEvents = dbt_model_to_pandera(
+    "workflows/transforms/dbt/models/silver/fct_events.yml",
+    "fct_events"
 )
 ```
 

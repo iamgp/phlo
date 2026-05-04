@@ -7,7 +7,7 @@ Complete guide to building data pipelines with Phlo's decorator-driven framework
 Phlo provides powerful decorators that transform simple functions into complete data pipelines. This guide covers:
 
 - Using `@phlo_ingestion` for data ingestion
-- Using `@phlo_pandera` for data quality checks
+- Using `@phlo_quality` for data quality checks
 - Schema definition with Pandera
 - Integration with dbt
 - Publishing to BI tools
@@ -19,7 +19,7 @@ flowchart LR
     ingestion["@phlo_ingestion"]
     staging[DLT staging]
     tables[Table-store writes]
-    quality["@phlo_pandera"]
+    quality["@phlo_quality"]
     dbt[dbt models]
     publish[Publishing assets]
     bi[BI tools]
@@ -67,9 +67,9 @@ def api_events(partition_date: str):
     )
 
 # workflows/quality/api.py
-from phlo_pandera import phlo_quality, NullCheck, RangeCheck, UniqueCheck
+from phlo.quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck
 
-@phlo_pandera(
+@phlo_quality(
     table="bronze.events",
     checks=[
         NullCheck(columns=["id", "timestamp"]),
@@ -506,17 +506,17 @@ class MultiColumnSchema(pa.DataFrameModel):
 ```yaml
 # dbt model YAML - defines schema tests
 columns:
-  - name: glucose_mg_dl
+  - name: event_value
     data_tests:
       - not_null
       - accepted_values:
-          values: [70, 80, 90, 100, ...]
+          values: [0, 25, 50, 75, 100]
 ```
 
 ```python
 # Pandera schema - duplicates the same validation logic
-class FactGlucoseReadings(PhloSchema):
-    glucose_mg_dl: Series[int] = pa.Field(nullable=False, isin=[70, 80, 90, 100, ...])
+class FactEvents(PhloSchema):
+    event_value: Series[int] = pa.Field(nullable=False, isin=[0, 25, 50, 75, 100])
 ```
 
 **Solution**: Use `dbt_model_to_pandera` to generate Pandera schemas from dbt YAML:
@@ -526,10 +526,10 @@ from pathlib import Path
 from phlo_dbt.dbt_schema import dbt_model_to_pandera
 
 # Point to your dbt model YAML
-_dbt_model_path = Path(__file__).parent.parent / "transforms/dbt/models/silver/fct_glucose_readings.yml"
+_dbt_model_path = Path(__file__).parent.parent / "transforms/dbt/models/silver/fct_events.yml"
 
 # Auto-generate Pandera schema from dbt YAML
-FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_readings")
+FactEvents = dbt_model_to_pandera(_dbt_model_path, "fct_events")
 ```
 
 **Benefits**:
@@ -537,45 +537,44 @@ FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_reading
 - 50% less code to maintain
 - No schema drift between dbt and Pandera
 - dbt data_tests automatically become Pandera Field constraints
-- Works seamlessly with `@phlo_pandera` decorator
+- Works seamlessly with `@phlo_quality` decorator
 
 #### Step 1: Define Schema in dbt YAML
 
 Use dbt `data_tests` to define your validation rules:
 
 ```yaml
-# workflows/transforms/dbt/models/silver/fct_glucose_readings.yml
+# workflows/transforms/dbt/models/silver/fct_events.yml
 version: 2
 
 models:
-  - name: fct_glucose_readings
-    description: "Silver layer fact table for enriched glucose readings"
+  - name: fct_events
+    description: "Silver layer fact table for enriched events"
     columns:
-      - name: entry_id
-        description: "Unique identifier for the glucose entry"
+      - name: event_id
+        description: "Unique identifier for the event"
         data_tests:
           - not_null
           - unique
 
-      - name: glucose_mg_dl
-        description: "Blood glucose level in mg/dL"
+      - name: event_value
+        description: "Normalized event value"
         data_tests:
           - not_null
 
-      - name: glucose_category
-        description: "Categorized glucose level"
+      - name: event_category
+        description: "Categorized event value"
         data_tests:
           - not_null
           - accepted_values:
               arguments:
                 values:
-                  - "hypoglycemia"
-                  - "in_range"
-                  - "hyperglycemia_mild"
-                  - "hyperglycemia_severe"
+                  - "low"
+                  - "normal"
+                  - "high"
 
       - name: hour_of_day
-        description: "Hour when reading was taken"
+        description: "Hour when the event occurred"
         data_tests:
           - not_null
           - accepted_values:
@@ -597,7 +596,7 @@ models:
 In your schemas file, generate the Pandera class:
 
 ```python
-# workflows/schemas/nightscout.py
+# workflows/schemas/events.py
 from pathlib import Path
 from phlo_dbt.dbt_schema import dbt_model_to_pandera
 
@@ -608,42 +607,41 @@ _dbt_model_path = (
     / "dbt"
     / "models"
     / "silver"
-    / "fct_glucose_readings.yml"
+    / "fct_events.yml"
 )
 
 # Generate Pandera schema from dbt YAML
-FactGlucoseReadings = dbt_model_to_pandera(
+FactEvents = dbt_model_to_pandera(
     _dbt_model_path,
-    "fct_glucose_readings"  # Model name in YAML
+    "fct_events"  # Model name in YAML
 )
 
 # Optional: specify custom class name
-# FactGlucoseReadings = dbt_model_to_pandera(
+# FactEvents = dbt_model_to_pandera(
 #     _dbt_model_path,
-#     "fct_glucose_readings",
+#     "fct_events",
 #     class_name="CustomClassName"
 # )
 ```
 
 The generated schema automatically inherits from `PhloSchema` and includes all constraints from dbt tests.
 
-#### Step 3: Use with @phlo_pandera
+#### Step 3: Use with @phlo_quality
 
 The generated schema works seamlessly with quality checks:
 
 ```python
-# workflows/quality/nightscout.py
-from phlo_pandera import phlo_quality
-from phlo_pandera.checks import SchemaCheck
-from workflows.schemas.nightscout import FactGlucoseReadings
+# workflows/quality/events.py
+from phlo.quality import phlo_quality, SchemaCheck
+from workflows.schemas.events import FactEvents
 
-@phlo_pandera(
-    table="silver.fct_glucose_readings",
+@phlo_quality(
+    table="silver.fct_events",
     checks=[
-        SchemaCheck(schema=FactGlucoseReadings)  # Uses auto-generated schema
+        SchemaCheck(schema=FactEvents)  # Uses auto-generated schema
     ]
 )
-def glucose_quality():
+def events_quality():
     pass
 ```
 
@@ -679,33 +677,32 @@ Since dbt YAML doesn't specify types (they're in the SQL), `dbt_model_to_pandera
 - ✅ Multi-column checks required
 - ✅ Advanced Pandera features needed (custom checks, coercion strategies)
 
-**Common pattern** (as seen in nightscout example):
+**Common pattern**:
 ```python
 # Raw layer - manual schema (no dbt model)
-class RawGlucoseEntries(PhloSchema):
-    _id: str = Field(unique=True)
-    sgv: int = Field(ge=1, le=1000)
+class RawEvents(PhloSchema):
+    event_id: str = Field(unique=True)
+    event_value: int = Field(ge=0, le=100)
     # ... manual definition
 
 # Silver layer - generated from dbt YAML (single source of truth)
-FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_readings")
+FactEvents = dbt_model_to_pandera(_dbt_model_path, "fct_events")
 
 # Gold layer - manual schema (complex aggregations)
-class FactDailyGlucoseMetrics(PhloSchema):
-    reading_date: datetime = Field(unique=True)
+class FactDailyEventMetrics(PhloSchema):
+    event_date: datetime = Field(unique=True)
     # ... manual definition with custom logic
 ```
 
 #### Complete Example
 
-See the nightscout example for a production implementation:
+Use the same layout in a project generated from the CSV batch template:
 
-- dbt YAML: `/home/ubuntu/phlo/phlo-examples/nightscout/workflows/transforms/dbt/models/silver/fct_glucose_readings.yml`
-- Schema generation: `/home/ubuntu/phlo/phlo-examples/nightscout/workflows/schemas/nightscout.py`
+- dbt YAML: `workflows/transforms/dbt/models/silver/fct_events.yml`
+- Schema generation: `workflows/schemas/events.py`
 
 ```python
-# From nightscout/workflows/schemas/nightscout.py
-"""Pandera schemas for Nightscout glucose data validation.
+"""Pandera schemas for event data validation.
 
 Raw layer schemas are defined manually.
 Fact layer schema is GENERATED from dbt model YAML (single source of truth).
@@ -719,10 +716,10 @@ from phlo_pandera.schemas import PhloSchema
 # RAW LAYER - Manual schemas (internal, not published)
 # =============================================================================
 
-class RawGlucoseEntries(PhloSchema):
-    """Schema for raw Nightscout glucose entries from the API."""
-    _id: str = Field(unique=True)
-    sgv: int = Field(ge=1, le=1000)
+class RawEvents(PhloSchema):
+    """Schema for raw event records."""
+    event_id: str = Field(unique=True)
+    event_value: int = Field(ge=0, le=100)
     # ... more fields
 
 # =============================================================================
@@ -735,17 +732,17 @@ _dbt_model_path = (
     / "dbt"
     / "models"
     / "silver"
-    / "fct_glucose_readings.yml"
+    / "fct_events.yml"
 )
-FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_readings")
+FactEvents = dbt_model_to_pandera(_dbt_model_path, "fct_events")
 
 # =============================================================================
 # GOLD LAYER - Manual schema (complex aggregations)
 # =============================================================================
 
-class FactDailyGlucoseMetrics(PhloSchema):
-    """Schema for the fct_daily_glucose_metrics table (gold layer)."""
-    reading_date: datetime = Field(unique=True)
+class FactDailyEventMetrics(PhloSchema):
+    """Schema for the fct_daily_event_metrics table (gold layer)."""
+    event_date: datetime = Field(unique=True)
     # ... complex aggregation fields
 ```
 
@@ -781,15 +778,14 @@ Schema(
 )
 ```
 
-## @phlo_pandera Decorator
+## @phlo_quality Decorator
 
 ### Basic Usage
 
 ```python
-from phlo_pandera import phlo_quality
-from phlo_pandera.checks import NullCheck, RangeCheck
+from phlo.quality import phlo_quality, NullCheck, RangeCheck
 
-@phlo_pandera(
+@phlo_quality(
     table="bronze.events",
     checks=[
         NullCheck(columns=["id", "timestamp"]),
@@ -954,7 +950,7 @@ ChecksumReconciliationCheck(
 **Multiple tables**:
 
 ```python
-@phlo_pandera(
+@phlo_quality(
     table="bronze.events",
     checks=[
         CustomSQLCheck(
@@ -998,7 +994,7 @@ class ConditionalCheck(QualityCheck):
             message=f"Validated {len(df)} rows"
         )
 
-@phlo_pandera(
+@phlo_quality(
     table="bronze.events",
     checks=[ConditionalCheck()]
 )

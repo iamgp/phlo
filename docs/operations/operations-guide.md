@@ -51,7 +51,7 @@ phlo status
 phlo status --stale
 
 # Specific group
-phlo status --group nightscout
+phlo status --group csv
 ```
 
 ### Manual Materialization
@@ -60,16 +60,16 @@ Trigger asset runs manually:
 
 ```bash
 # Single asset
-phlo materialize dlt_glucose_entries
+phlo materialize dlt_events
 
 # With downstream
-phlo materialize dlt_glucose_entries+
+phlo materialize dlt_events+
 
 # Specific partition
-phlo materialize dlt_glucose_entries --partition 2025-01-15
+phlo materialize dlt_events --partition 2026-05-04
 
 # By tag
-phlo materialize --select "tag:nightscout"
+phlo materialize --select "tag:csv"
 ```
 
 ## Backup and Recovery

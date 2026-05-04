@@ -110,17 +110,17 @@ Query Iceberg tables using their S3/MinIO paths:
 ```sql
 -- Query raw entries table
 SELECT *
-FROM iceberg_scan('s3://lake/warehouse/raw/entries')
+FROM iceberg_scan('s3://lake/warehouse/raw/events')
 LIMIT 10;
 
 -- Query bronze staging table
 SELECT *
-FROM iceberg_scan('s3://lake/warehouse/bronze/stg_entries')
+FROM iceberg_scan('s3://lake/warehouse/bronze/stg_csv_events')
 WHERE date_partition >= CURRENT_DATE - INTERVAL 7 DAY;
 
 -- Query silver fact table
 SELECT *
-FROM iceberg_scan('s3://lake/warehouse/silver/fct_glucose_readings')
+FROM iceberg_scan('s3://lake/warehouse/silver/fct_events')
 WHERE date >= CURRENT_DATE - INTERVAL 30 DAY;
 
 -- Query gold dimension table
@@ -151,13 +151,13 @@ FROM iceberg_scan(
 ### 1. Quick Data Exploration
 
 ```sql
--- See latest glucose readings
+-- See latest events
 SELECT
-    date_string,
-    sgv,
-    direction,
-    device
-FROM iceberg_scan('s3://lake/warehouse/raw/entries')
+    event_id,
+    event_type,
+    event_value,
+    timestamp
+FROM iceberg_scan('s3://lake/warehouse/raw/events')
 ORDER BY date DESC
 LIMIT 20;
 ```
@@ -168,25 +168,25 @@ LIMIT 20;
 -- Check for null values in critical fields
 SELECT
     COUNT(*) as total_rows,
-    COUNT(sgv) as non_null_sgv,
+    COUNT(event_id) as non_null_event_id,
     COUNT(date) as non_null_date,
-    COUNT(*) - COUNT(sgv) as null_sgv_count
-FROM iceberg_scan('s3://lake/warehouse/raw/entries')
+    COUNT(*) - COUNT(event_id) as null_event_id_count
+FROM iceberg_scan('s3://lake/warehouse/raw/events')
 WHERE date_partition >= CURRENT_DATE - INTERVAL 7 DAY;
 ```
 
 ### 3. Aggregations and Analysis
 
 ```sql
--- Daily glucose statistics
+-- Daily event statistics
 SELECT
     date_trunc('day', timestamp) as day,
-    COUNT(*) as reading_count,
-    AVG(sgv) as avg_glucose,
-    MIN(sgv) as min_glucose,
-    MAX(sgv) as max_glucose,
-    STDDEV(sgv) as std_glucose
-FROM iceberg_scan('s3://lake/warehouse/silver/fct_glucose_readings')
+    COUNT(*) as event_count,
+    AVG(event_value) as avg_event_value,
+    MIN(event_value) as min_event_value,
+    MAX(event_value) as max_event_value,
+    STDDEV(event_value) as std_event_value
+FROM iceberg_scan('s3://lake/warehouse/silver/fct_events')
 WHERE date >= CURRENT_DATE - INTERVAL 30 DAY
 GROUP BY day
 ORDER BY day DESC;
@@ -209,12 +209,12 @@ ORDER BY timestamp DESC;
 COPY (
     SELECT
         date_partition,
-        AVG(sgv) as avg_glucose,
-        COUNT(*) as reading_count
-    FROM iceberg_scan('s3://lake/warehouse/silver/fct_glucose_readings')
+        AVG(event_value) as avg_event_value,
+        COUNT(*) as event_count
+    FROM iceberg_scan('s3://lake/warehouse/silver/fct_events')
     WHERE date >= CURRENT_DATE - INTERVAL 90 DAY
     GROUP BY date_partition
-) TO 'glucose_analysis.csv' (HEADER, DELIMITER ',');
+) TO 'event_analysis.csv' (HEADER, DELIMITER ',');
 ```
 
 ## Python Integration Examples
@@ -238,7 +238,7 @@ conn.execute("SET s3_secret_access_key = 'minio123'")
 # Query to DataFrame
 df = conn.execute("""
     SELECT *
-    FROM iceberg_scan('s3://lake/warehouse/silver/fct_glucose_readings')
+    FROM iceberg_scan('s3://lake/warehouse/silver/fct_events')
     WHERE date >= CURRENT_DATE - INTERVAL 7 DAY
 """).df()
 
@@ -267,14 +267,14 @@ conn.execute("SET s3_secret_access_key = 'minio123'")
 df = conn.execute("""
     SELECT
         timestamp,
-        sgv
-    FROM iceberg_scan('s3://lake/warehouse/silver/fct_glucose_readings')
+        event_value
+    FROM iceberg_scan('s3://lake/warehouse/silver/fct_events')
     WHERE date >= CURRENT_DATE - INTERVAL 7 DAY
     ORDER BY timestamp
 """).df()
 
 # Plot with Plotly
-fig = px.line(df, x='timestamp', y='sgv', title='Glucose Readings (Last 7 Days)')
+fig = px.line(df, x='timestamp', y='event_value', title='Event Values (Last 7 Days)')
 fig.show()
 ```
 
@@ -325,20 +325,20 @@ Query these Iceberg tables based on your pipeline layer:
 
 ### Raw Layer
 
-- `s3://lake/warehouse/raw/entries` - Nightscout CGM entries (raw ingestion)
+- `s3://lake/warehouse/raw/events` - raw event records from the CSV batch template
 
 ### Bronze Layer (via dbt)
 
-- `s3://lake/warehouse/bronze/stg_entries` - Staged entries with basic transformations
+- `s3://lake/warehouse/bronze/stg_csv_events` - Staged events with basic transformations
 
 ### Silver Layer (via dbt)
 
-- `s3://lake/warehouse/silver/fct_glucose_readings` - Cleaned glucose facts
+- `s3://lake/warehouse/silver/fct_events` - Cleaned event facts
 
 ### Gold Layer (via dbt)
 
 - `s3://lake/warehouse/gold/dim_date` - Date dimension table
-- `s3://lake/warehouse/gold/mrt_glucose_readings` - Glucose mart (materialized)
+- `s3://lake/warehouse/gold/mrt_events` - Event mart (materialized)
 
 ## Troubleshooting
 
