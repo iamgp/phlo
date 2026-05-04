@@ -29,6 +29,7 @@ import click
 from phlo.cli.commands.services.utils import ensure_phlo_dir
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.cli.output import user_error
 from phlo.logging import get_logger
 from phlo.plugins.base import CliCommandPlugin, PluginMetadata
 from phlo_dbt.cli_publishing import publishing
@@ -132,8 +133,12 @@ def _run_dbt_in_container(
     exec_service_name = _resolve_exec_service_name()
 
     if not (project_dir / "dbt_project.yml").exists():
-        click.echo(f"No dbt project found at {project_dir}", err=True)
-        sys.exit(1)
+        raise user_error(
+            "no dbt project found",
+            missing=project_dir / "dbt_project.yml",
+            details=["Create or copy a dbt project under workflows/transforms/dbt."],
+            run="phlo workflow create --help",
+        )
 
     phlo_dir = ensure_phlo_dir()
     compose_cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=get_project_name())
@@ -209,8 +214,12 @@ def _run_dbt_local(subcommand: str, target: str, select_expr: str | None = None)
     profiles_dir = settings.dbt_profiles_path
 
     if not (project_dir / "dbt_project.yml").exists():
-        click.echo(f"No dbt project found at {project_dir}", err=True)
-        sys.exit(1)
+        raise user_error(
+            "no dbt project found",
+            missing=project_dir / "dbt_project.yml",
+            details=["Create or copy a dbt project under workflows/transforms/dbt."],
+            run="phlo workflow create --help",
+        )
 
     ensure_dbt_profile(profiles_dir, target=target)
 

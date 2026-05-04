@@ -74,6 +74,28 @@ def test_docker_backend_compose_base_cmd_supports_standalone_compose(
     ]
 
 
+def test_docker_backend_container_exec_cmd_builds_docker_exec() -> None:
+    cmd = DockerBackend().container_exec_cmd(
+        container_name="demo-dagster-1",
+        env={"PHLO_PROJECT_PATH": "/app"},
+        workdir="/app",
+        command=["dagster", "asset", "materialize"],
+    )
+
+    assert cmd == [
+        "docker",
+        "exec",
+        "-e",
+        "PHLO_PROJECT_PATH=/app",
+        "-w",
+        "/app",
+        "demo-dagster-1",
+        "dagster",
+        "asset",
+        "materialize",
+    ]
+
+
 def test_podman_backend_compose_base_cmd_uses_podman(tmp_path: Path) -> None:
     phlo_dir = tmp_path / ".phlo"
     phlo_dir.mkdir()
@@ -87,6 +109,28 @@ def test_podman_backend_compose_base_cmd_uses_podman(tmp_path: Path) -> None:
 
     assert cmd[:2] == ["podman", "compose"]
     assert str(phlo_dir / "docker-compose.yml") in cmd
+
+
+def test_podman_backend_container_exec_cmd_builds_podman_exec() -> None:
+    cmd = PodmanBackend().container_exec_cmd(
+        container_name="demo_dagster_1",
+        env={"PHLO_PROJECT_PATH": "/app"},
+        workdir="/app",
+        command=["dagster", "asset", "materialize"],
+    )
+
+    assert cmd == [
+        "podman",
+        "exec",
+        "-e",
+        "PHLO_PROJECT_PATH=/app",
+        "-w",
+        "/app",
+        "demo_dagster_1",
+        "dagster",
+        "asset",
+        "materialize",
+    ]
 
 
 def test_podman_backend_lists_containers_with_podman_compose_labels(

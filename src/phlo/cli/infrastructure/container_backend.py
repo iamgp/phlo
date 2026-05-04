@@ -38,6 +38,16 @@ class ContainerBackend(Protocol):
     def list_project_containers(self, project_name: str) -> list[ContainerInfo]:
         """Return containers for a compose project."""
 
+    def container_exec_cmd(
+        self,
+        *,
+        container_name: str,
+        command: list[str],
+        env: dict[str, str] | None = None,
+        workdir: str | None = None,
+    ) -> list[str]:
+        """Return command tokens for executing a process inside a running container."""
+
 
 def _compose_base_cmd(
     *,
@@ -195,6 +205,23 @@ class DockerBackend:
             )
         return containers
 
+    def container_exec_cmd(
+        self,
+        *,
+        container_name: str,
+        command: list[str],
+        env: dict[str, str] | None = None,
+        workdir: str | None = None,
+    ) -> list[str]:
+        cmd = ["docker", "exec"]
+        for key, value in (env or {}).items():
+            cmd.extend(["-e", f"{key}={value}"])
+        if workdir:
+            cmd.extend(["-w", workdir])
+        cmd.append(container_name)
+        cmd.extend(command)
+        return cmd
+
 
 class PodmanBackend:
     name = "podman"
@@ -283,6 +310,23 @@ class PodmanBackend:
             labels=labels,
             ports=_format_podman_ports(info.get("Ports")),
         )
+
+    def container_exec_cmd(
+        self,
+        *,
+        container_name: str,
+        command: list[str],
+        env: dict[str, str] | None = None,
+        workdir: str | None = None,
+    ) -> list[str]:
+        cmd = ["podman", "exec"]
+        for key, value in (env or {}).items():
+            cmd.extend(["-e", f"{key}={value}"])
+        if workdir:
+            cmd.extend(["-w", workdir])
+        cmd.append(container_name)
+        cmd.extend(command)
+        return cmd
 
 
 def select_container_backend(

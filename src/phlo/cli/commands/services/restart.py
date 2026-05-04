@@ -19,7 +19,7 @@ from phlo.logging import get_logger
 logger = get_logger(__name__)
 
 
-@click.command("restart")
+@click.command("restart", help="Restart Phlo infrastructure services.")
 @click.option("--build", is_flag=True, help="Build images before starting")
 @click.option(
     "--profile",
@@ -50,15 +50,15 @@ def restart_cmd(
     dev: bool,
     backend_name: str | None,
 ):
-    """Restart Phlo infrastructure services (stop + start).
+    """Restart Phlo infrastructure services.
 
     Combines stop and start in a single command for convenience.
 
     Examples:
-        phlo services restart                          # Restart all services
-        phlo services restart --profile observability  # Restart profile services only
-        phlo services restart --service postgres       # Restart specific service
-        phlo services restart --build                  # Rebuild before starting
+        phlo services restart
+        phlo services restart --profile observability
+        phlo services restart --service postgres
+        phlo services restart --build
     """
     require_container_backend(backend_name)
     if dev:

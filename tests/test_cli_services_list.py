@@ -197,3 +197,39 @@ def test_services_list_handles_backend_status_failures(
     result = CliRunner().invoke(list_module.list_cmd, ["--json"])
     assert result.exit_code == 0
     assert result.output.strip() == "[]"
+
+
+def test_services_list_aligns_long_service_names(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    from phlo.cli.commands.services import list as list_module
+
+    class ServiceFakeDiscovery(FakeDiscovery):
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {
+                "postgres": ServiceDefinition(
+                    name="postgres",
+                    description="Postgres",
+                    category="metadata",
+                ),
+                "postgres-volume-setup": ServiceDefinition(
+                    name="postgres-volume-setup",
+                    description="Volume setup",
+                    category="metadata",
+                ),
+            }
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(list_module, "ServiceDiscovery", ServiceFakeDiscovery)
+    monkeypatch.setattr(list_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        list_module,
+        "select_project_container_backend",
+        lambda **_kwargs: (_ for _ in ()).throw(ValueError("no backend")),
+    )
+
+    result = CliRunner().invoke(list_module.list_cmd, [])
+
+    assert result.exit_code == 0
+    lines = result.output.splitlines()
+    postgres_line = next(line for line in lines if " postgres " in line)
+    setup_line = next(line for line in lines if " postgres-volume-setup " in line)
+    assert postgres_line.index("Stopped") == setup_line.index("Stopped")

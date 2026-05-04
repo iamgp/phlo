@@ -1,7 +1,7 @@
-"""Docker container discovery for Dagster services.
+"""Container discovery for Dagster services.
 
 This module provides utilities for finding and managing Dagster-related
-Docker containers within a Docker Compose environment. It handles
+containers within a compose environment. It handles
 candidate container name generation and resolution across different
 naming conventions.
 

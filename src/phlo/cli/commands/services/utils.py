@@ -15,7 +15,7 @@ import click
 
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.container_backend import select_project_container_backend
-from phlo.cli.output import missing_phlo_project_error
+from phlo.cli.output import missing_compose_file_error, missing_phlo_project_error, user_error
 from phlo.infrastructure.containers import resolve_container_name as _resolve_container_name
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -79,6 +79,23 @@ def ensure_phlo_dir() -> Path:
     if not phlo_dir.exists():
         raise missing_phlo_project_error()
 
+    return phlo_dir
+
+
+def ensure_compose_project() -> Path:
+    """Ensure generated service configuration exists before compose-backed commands run."""
+    phlo_dir = ensure_phlo_dir()
+    compose_file = phlo_dir / "docker-compose.yml"
+    env_file = phlo_dir / ".env"
+
+    if not compose_file.exists():
+        raise missing_compose_file_error(".phlo/docker-compose.yml")
+    if not env_file.exists():
+        raise user_error(
+            "Phlo services have not been initialized",
+            missing=".phlo/.env",
+            run="phlo services init",
+        )
     return phlo_dir
 
 

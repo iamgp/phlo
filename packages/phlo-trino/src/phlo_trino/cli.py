@@ -28,13 +28,18 @@ from subprocess import TimeoutExpired
 import click
 
 from phlo.cli.commands.services.utils import (
-    ensure_phlo_dir,
+    ensure_compose_project,
     require_container_backend as _require_selected_container_backend,
 )
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
-from phlo.cli.output import empty_file_error, exclusive_options_error, file_read_error
+from phlo.cli.output import (
+    command_failed_error,
+    empty_file_error,
+    exclusive_options_error,
+    file_read_error,
+)
 from phlo.cli.output import missing_query_error
 
 
@@ -62,7 +67,7 @@ def _require_container_backend() -> None:
 
 def _trino_exec_base(*, tty: bool) -> list[str]:
     """Build the docker compose exec command for the Trino container."""
-    phlo_dir = ensure_phlo_dir()
+    phlo_dir = ensure_compose_project()
     project_name = get_project_name()
     cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
     cmd.append("exec")
@@ -133,7 +138,12 @@ def trino_query(
         )
     except CommandError as exc:
         stderr = exc.stderr.strip()
-        raise click.ClickException(stderr or str(exc)) from exc
+        raise command_failed_error(
+            "trino",
+            exit_code=exc.returncode,
+            details=[stderr] if stderr else ["The Trino service did not complete the query."],
+            run="phlo services status trino",
+        ) from exc
     except TimeoutExpired as exc:
         raise click.ClickException(f"Query timed out after {timeout_seconds} seconds.") from exc
 

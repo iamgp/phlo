@@ -42,7 +42,9 @@ def test_postgres_query_runs_psql(monkeypatch) -> None:
         ]
         return CompletedProcess(cmd, 0, stdout="1\n", stderr="")
 
-    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr(
+        "phlo_postgres.cli.ensure_compose_project", lambda: Path("/tmp/project/.phlo")
+    )
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
@@ -56,6 +58,20 @@ def test_postgres_query_runs_psql(monkeypatch) -> None:
     assert result.output == "1\n"
 
 
+def test_postgres_query_requires_initialized_services(monkeypatch, tmp_path) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(postgres_group, ["query", "SELECT 1"])
+
+    assert result.exit_code != 0
+    assert "Error: Phlo services have not been initialized" in result.output
+    assert "Missing: .phlo/docker-compose.yml" in result.output
+    assert "Run: phlo services init" in result.output
+    assert "couldn't find env file" not in result.output
+
+
 def test_postgres_dump_writes_gzip_file(monkeypatch, tmp_path) -> None:
     output_file = tmp_path / "backup.sql.gz"
 
@@ -65,7 +81,9 @@ def test_postgres_dump_writes_gzip_file(monkeypatch, tmp_path) -> None:
         assert cmd[-4:] == ["pg_dump", "-U", "phlo", "phlo"]
         return CompletedProcess(cmd, 0, stdout="CREATE TABLE test ();", stderr="")
 
-    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr(
+        "phlo_postgres.cli.ensure_compose_project", lambda: Path("/tmp/project/.phlo")
+    )
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
@@ -86,7 +104,9 @@ def test_postgres_restore_reads_file(monkeypatch, tmp_path) -> None:
     input_file.write_text("SELECT 1;", encoding="utf-8")
     captured: list[tuple[list[str], str]] = []
 
-    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr(
+        "phlo_postgres.cli.ensure_compose_project", lambda: Path("/tmp/project/.phlo")
+    )
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
@@ -136,7 +156,9 @@ def test_postgres_vacuum_runs_vacuumdb(monkeypatch) -> None:
         assert cmd[-5:] == ["vacuumdb", "-U", "phlo", "-z", "phlo"]
         return CompletedProcess(cmd, 0, stdout="VACUUM\n", stderr="")
 
-    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr(
+        "phlo_postgres.cli.ensure_compose_project", lambda: Path("/tmp/project/.phlo")
+    )
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
@@ -153,7 +175,9 @@ def test_postgres_vacuum_runs_vacuumdb(monkeypatch) -> None:
 def test_postgres_shell_passthrough(monkeypatch) -> None:
     captured: list[list[str]] = []
 
-    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr(
+        "phlo_postgres.cli.ensure_compose_project", lambda: Path("/tmp/project/.phlo")
+    )
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
@@ -197,7 +221,9 @@ def test_postgres_query_timeout(monkeypatch) -> None:
             return CompletedProcess(cmd, 0, stdout="", stderr="")
         raise TimeoutExpired(cmd=cmd, timeout=30)
 
-    monkeypatch.setattr("phlo_postgres.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr(
+        "phlo_postgres.cli.ensure_compose_project", lambda: Path("/tmp/project/.phlo")
+    )
     monkeypatch.setattr("phlo_postgres.cli.get_project_name", lambda: "demo")
     monkeypatch.setattr(
         "phlo_postgres.cli.compose_base_cmd",
