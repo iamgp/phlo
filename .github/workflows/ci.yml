@@ -15,6 +15,31 @@ permissions:
   contents: read
 
 jobs:
+  ci-config:
+    name: ci / config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
+        with:
+          version: "latest"
+
+      - name: Validate workflow YAML
+        run: ruby -e 'Dir[".github/workflows/*.yml"].each { |file| YAML.load_file(file) }' -r yaml
+
+      - name: Check package test groups
+        run: python3 scripts/check_ci_package_groups.py
+
+      - name: Lint workflows with zizmor
+        run: make zizmor
+
+      - name: Lint workflows with actionlint
+        run: make actionlint
+
   python-quality:
     name: python / quality
     runs-on: ubuntu-latest
@@ -261,7 +286,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          smoke_exit="${SMOKE_EXIT}"
+          smoke_exit="${SMOKE_EXIT:-0}"
           if [ "${smoke_exit}" -ne 0 ]; then
             echo "Quickstart smoke test failed with exit ${smoke_exit}" >&2
             exit 1
@@ -361,6 +386,9 @@ jobs:
       - name: Type check with TypeScript
         run: npx tsc --noEmit
 
+      - name: Build production bundle
+        run: npm run build
+
       - name: Run tests
         run: npm test
 
@@ -369,6 +397,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     needs:
+      - ci-config
       - python-quality
       - python-core-tests
       - quickstart-smoke
@@ -378,6 +407,7 @@ jobs:
       - name: Summarize CI lane results
         shell: bash
         env:
+          CI_CONFIG: ${{ needs.ci-config.result }}
           PYTHON_QUALITY: ${{ needs.python-quality.result }}
           PYTHON_CORE_TESTS: ${{ needs.python-core-tests.result }}
           QUICKSTART_SMOKE: ${{ needs.quickstart-smoke.result }}
@@ -391,6 +421,7 @@ jobs:
             echo ""
             echo "| Lane | Result |"
             echo "|---|---|"
+            echo "| ci / config | ${CI_CONFIG} |"
             echo "| python / quality | ${PYTHON_QUALITY} |"
             echo "| python / core tests | ${PYTHON_CORE_TESTS} |"
             echo "| python / quickstart smoke | ${QUICKSTART_SMOKE} |"
@@ -399,6 +430,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
           for result in \
+            "${CI_CONFIG}" \
             "${PYTHON_QUALITY}" \
             "${PYTHON_CORE_TESTS}" \
             "${QUICKSTART_SMOKE}" \
