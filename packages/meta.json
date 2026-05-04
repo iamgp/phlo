@@ -24,6 +24,7 @@
     "phlo-api",
     "phlo-postgrest",
     "phlo-hasura",
+    "phlo-oauth2-proxy",
     "phlo-openmetadata",
     "phlo-observatory",
     "phlo-superset",
