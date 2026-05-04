@@ -1,6 +1,5 @@
 """Remove command for removing services from the project."""
 
-import sys
 from pathlib import Path
 from subprocess import TimeoutExpired
 
@@ -16,6 +15,7 @@ from phlo.cli.commands.services.utils import (
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.cli.output import missing_phlo_project_error, user_error
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDiscovery
 
@@ -64,8 +64,7 @@ def remove_cmd(service_name: str, keep_running: bool):
 
     if not phlo_dir.exists():
         logger.error("services_remove_missing_phlo_dir", phlo_dir=str(phlo_dir))
-        click.echo("Error: .phlo directory not found.", err=True)
-        sys.exit(1)
+        raise missing_phlo_project_error()
 
     # Load project config
     if config_file.exists():
@@ -73,8 +72,7 @@ def remove_cmd(service_name: str, keep_running: bool):
             config = yaml.safe_load(f) or {}
     else:
         logger.error("services_remove_missing_config", config_file=str(config_file))
-        click.echo("Error: phlo.yaml not found.", err=True)
-        sys.exit(1)
+        raise user_error("project configuration not found", missing="phlo.yaml")
 
     # Discover available services
     discovery = ServiceDiscovery()
@@ -86,8 +84,11 @@ def remove_cmd(service_name: str, keep_running: bool):
             service_name=service_name,
             available_count=len(all_services),
         )
-        click.echo(f"Error: Service '{service_name}' not found.", err=True)
-        sys.exit(1)
+        raise user_error(
+            "service not found",
+            details={"Service": service_name},
+            run="phlo services list",
+        )
 
     service = all_services[service_name]
 

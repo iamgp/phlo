@@ -1,5 +1,6 @@
 """Tests for `phlo materialize` CLI command behavior."""
 
+from subprocess import PIPE, STDOUT
 from unittest.mock import patch
 
 from click.testing import CliRunner
@@ -46,3 +47,38 @@ def test_materialize_accepts_select_without_asset_argument(mock_project, mock_co
     assert result.exit_code == 0
     assert "PHLO_CONTRACT_REFRESH_SELECTION=tag:bronze" in result.output
     assert "--select tag:bronze" in result.output
+
+
+@patch("phlo_dagster.cli_materialize.find_dagster_container", return_value="mock-container")
+@patch("phlo_dagster.cli_materialize.get_project_name", return_value="mock-project")
+def test_materialize_failure_hides_raw_process_output(
+    mock_project, mock_container, monkeypatch
+) -> None:
+    """Container stdout should go to structured debug logs, not normal CLI output."""
+
+    class FakeStdout:
+        def __iter__(self):
+            return iter(['{"event":"internal"}\n', "User-facing failure\n"])
+
+    class FakeProcess:
+        stdout = FakeStdout()
+
+        def wait(self) -> int:
+            return 2
+
+    def fake_popen(cmd, stdout, stderr, text):
+        assert stdout is PIPE
+        assert stderr is STDOUT
+        assert text is True
+        return FakeProcess()
+
+    monkeypatch.setattr("phlo_dagster.cli_materialize.subprocess.Popen", fake_popen)
+
+    result = CliRunner().invoke(materialize, ["dlt_orders"])
+
+    assert result.exit_code != 0
+    assert '{"event":"internal"}' not in result.output
+    assert "Error: materialization failed" in result.output
+    assert "Exit code: 2" in result.output
+    assert "Last output: User-facing failure" in result.output
+    assert "Run: phlo logs --level ERROR --limit 20" in result.output

@@ -146,7 +146,8 @@ def _run_dbt_in_container(
 
     click.echo(f"Running dbt {subcommand} in {exec_service_name}...")
     logger.debug(
-        f"dbt_{subcommand}_container_started",
+        "dbt_command_container_started",
+        subcommand=subcommand,
         project_dir=str(project_dir),
         service_name=exec_service_name,
         target=target,
@@ -226,7 +227,8 @@ def _run_dbt_local(subcommand: str, target: str, select_expr: str | None = None)
 
     click.echo(f"Running dbt {subcommand} at {project_dir}...")
     logger.debug(
-        f"dbt_{subcommand}_started",
+        "dbt_command_started",
+        subcommand=subcommand,
         project_dir=str(project_dir),
         target=target,
         select=select_expr,

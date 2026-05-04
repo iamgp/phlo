@@ -61,7 +61,7 @@ def compile_dbt() -> int:
 
     Raises:
         No explicit exceptions raised; errors are logged and reported via
-        return code and print statements.
+        return code and structured log events.
 
     Example:
         >>> from phlo_dbt.hooks import compile_dbt
@@ -95,7 +95,6 @@ def compile_dbt() -> int:
         "dbt_hook_compile_started",
         dbt_project_path=str(local_project),
     )
-    print("Compiling dbt models...")
     time.sleep(5)
 
     project_name = get_project_name()
@@ -125,8 +124,8 @@ def compile_dbt() -> int:
                 project_name=project_name,
                 container_name=container_name,
                 returncode=deps_result.returncode,
+                stderr=deps_result.stderr,
             )
-            print(f"Warning: dbt deps failed: {deps_result.stderr}")
 
         compile_result = run_command(
             [
@@ -146,8 +145,6 @@ def compile_dbt() -> int:
                 project_name=project_name,
                 container_name=container_name,
             )
-            print("dbt models compiled successfully.")
-            print("Restarting Dagster to pick up dbt manifest...")
             run_command(
                 [
                     "docker",
@@ -164,23 +161,22 @@ def compile_dbt() -> int:
                 project_name=project_name,
                 container_name=container_name,
                 returncode=compile_result.returncode,
+                stderr=compile_result.stderr,
             )
-            print(f"Warning: dbt compile failed: {compile_result.stderr}")
-            print("You may need to run 'dbt compile' manually.")
     except CommandError as exc:
         logger.exception(
             "dbt_hook_compile_command_error",
             project_name=project_name,
             container_name=container_name,
+            error=str(exc),
         )
-        print(f"Warning: Could not compile dbt: {exc}")
     except OSError as exc:
         logger.exception(
             "dbt_hook_compile_os_error",
             project_name=project_name,
             container_name=container_name,
+            error=str(exc),
         )
-        print(f"Warning: Could not run dbt compile: {exc}")
 
     logger.info(
         "dbt_hook_compile_finished",

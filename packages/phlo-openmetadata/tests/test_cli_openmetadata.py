@@ -92,7 +92,10 @@ def test_sync_fails_cleanly_when_catalog_scanner_missing():
         result = runner.invoke(openmetadata, ["sync", "--no-dbt"])
 
     assert result.exit_code == 1
-    assert "No catalog scanner capability is available." in result.output
+    assert "No catalog scanner capability is available." not in result.output
+    assert "Error: OpenMetadata catalog scanner is unavailable" in result.output
+    assert "Scanner: None" in result.output
+    assert "Run: phlo services status" in result.output
 
 
 def test_health_fails_cleanly_when_database_name_cannot_be_resolved():
@@ -113,7 +116,9 @@ def test_health_fails_cleanly_when_database_name_cannot_be_resolved():
         result = runner.invoke(openmetadata, ["health"])
 
     assert result.exit_code == 1
-    assert "No query engine capability is available." in result.output
+    assert "No query engine capability is available." not in result.output
+    assert "Error: OpenMetadata database is not configured" in result.output
+    assert "Run: phlo openmetadata health" in result.output
 
 
 def test_health_fails_cleanly_when_service_type_cannot_be_resolved():
@@ -136,4 +141,6 @@ def test_health_fails_cleanly_when_service_type_cannot_be_resolved():
         result = runner.invoke(openmetadata, ["health"])
 
     assert result.exit_code == 1
-    assert "does not declare service_type metadata" in result.output
+    assert "does not declare service_type metadata" not in result.output
+    assert "Error: OpenMetadata service type is not configured" in result.output
+    assert "Run: phlo openmetadata health" in result.output

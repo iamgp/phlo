@@ -44,13 +44,24 @@ import platform
 import subprocess
 import sys
 import time
+from collections import deque
 from typing import Optional
 
 import click
 
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.cli.output import command_failed_error, service_unavailable_error
 from phlo_dagster.containers import find_dagster_container
 from phlo.logging import get_logger
+
+
+def _summarize_process_output(lines: list[str]) -> str | None:
+    """Return a short human-readable failure hint from process output."""
+    for line in reversed(lines):
+        message = line.strip()
+        if message and not message.startswith("{"):
+            return message[:240]
+    return None
 
 
 @click.command()
@@ -161,13 +172,17 @@ def materialize(
             stderr=subprocess.STDOUT,
             text=True,
         )
+        recent_output: deque[str] = deque(maxlen=20)
         if process.stdout:
             for line in process.stdout:
-                sys.stdout.write(line)
-                sys.stdout.flush()
                 message = line.rstrip()
                 if message:
-                    logger.info(message, tags={"source": "dagster"})
+                    recent_output.append(message)
+                    logger.debug(
+                        "dagster_materialize_process_output",
+                        source="dagster",
+                        line=message,
+                    )
         returncode = process.wait()
         if returncode == 0:
             click.echo(f"\nSuccessfully materialized {effective_selection}")
@@ -184,10 +199,7 @@ def materialize(
                 returncode=returncode,
             )
         else:
-            click.echo(
-                f"\nMaterialization failed with exit code {returncode}",
-                err=True,
-            )
+            output_hint = _summarize_process_output(list(recent_output))
             logger.error(
                 "dagster_materialize_command_failed",
                 asset_name=effective_selection,
@@ -200,7 +212,13 @@ def materialize(
                 duration_seconds=round(time.perf_counter() - started_at, 3),
                 returncode=returncode,
             )
-        sys.exit(returncode)
+            raise command_failed_error(
+                "materialization",
+                exit_code=returncode,
+                details=[f"Last output: {output_hint}"] if output_hint else None,
+                run="phlo logs --level ERROR --limit 20",
+            )
+        sys.exit(0)
     except FileNotFoundError:
         logger.error(
             "dagster_materialize_command_failed",
@@ -214,12 +232,7 @@ def materialize(
             error="docker_not_found_or_container_not_running",
             exc_info=True,
         )
-        click.echo(
-            f"Error: Docker not found or {container_name} container not running",
-            err=True,
-        )
-        click.echo("\nStart services with: phlo services start", err=True)
-        sys.exit(1)
+        raise service_unavailable_error(container_name) from None
     except Exception as exc:
         logger.error(
             "dagster_materialize_command_failed",

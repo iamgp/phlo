@@ -81,7 +81,7 @@ def _load_registry_from_local() -> dict[str, Any]:
     try:
         return _load_registry_from_package()
     except Exception as exc:
-        logger.debug("Failed to load registry from package: %s", exc)
+        logger.debug("plugin_registry_package_load_failed", error=str(exc), exc_info=True)
 
     repo_registry = _load_registry_from_repo()
     if repo_registry:

@@ -348,7 +348,6 @@ def init_branches() -> int:
             base_url=base_url,
             max_attempts=30,
         )
-        print("Warning: Nessie not ready; skipping branch initialization.")
         return 0
 
     try:
@@ -361,7 +360,6 @@ def init_branches() -> int:
             error=str(exc),
             exc_info=True,
         )
-        print(f"Warning: Could not check Nessie branches: {exc}")
         return 0
 
     if "main" not in existing:
@@ -370,7 +368,6 @@ def init_branches() -> int:
             base_url=base_url,
             existing_branch_count=len(existing),
         )
-        print("Warning: Nessie main branch missing; cannot create dev.")
         return 0
 
     try:
@@ -382,7 +379,6 @@ def init_branches() -> int:
             error=str(exc),
             exc_info=True,
         )
-        print(f"Warning: Could not bootstrap Nessie main branch: {exc}")
         return 0
 
     if "dev" in existing:
@@ -395,13 +391,11 @@ def init_branches() -> int:
                 error=str(exc),
                 exc_info=True,
             )
-            print(f"Warning: Could not bootstrap Nessie dev branch: {exc}")
             return 0
         logger.info(
             "nessie_hooks_dev_branch_exists",
             base_url=base_url,
         )
-        print("Nessie branches ready (main, dev).")
         return 0
 
     try:
@@ -412,7 +406,6 @@ def init_branches() -> int:
                 "nessie_hooks_main_hash_missing",
                 base_url=base_url,
             )
-            print("Warning: Nessie main branch hash missing; cannot create dev.")
             return 0
         created = _post_json(
             f"{base_url}/api/v1/trees/tree",
@@ -424,14 +417,12 @@ def init_branches() -> int:
                 base_url=base_url,
                 source_hash=main_hash,
             )
-            print("Created Nessie 'dev' branch.")
         else:
             logger.warning(
                 "nessie_hooks_dev_branch_create_unexpected_payload",
                 base_url=base_url,
                 payload_keys=sorted(created.keys()),
             )
-            print("Warning: Nessie dev branch create did not return expected payload.")
         _ensure_bootstrap_commit(base_url, "dev")
     except Exception as exc:
         logger.warning(
@@ -440,7 +431,6 @@ def init_branches() -> int:
             error=str(exc),
             exc_info=True,
         )
-        print(f"Warning: Could not create dev branch: {exc}")
 
     logger.info(
         "nessie_hooks_init_branches_completed",

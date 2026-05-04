@@ -7,7 +7,7 @@ import subprocess
 
 from click.testing import CliRunner
 
-from phlo_sling.cli_commands import discover_command, run_command
+from phlo_sling.cli_commands import conns_command, discover_command, run_command
 
 
 def test_run_command_derives_target_object_from_stream(monkeypatch) -> None:
@@ -101,8 +101,7 @@ def test_discover_command_uses_sling_conns_discover(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert calls == [["conns", "discover", "PHLO_POSTGRES", "--pattern", "public.*"]]
-    _, json_output = result.output.split("\n", 1)
-    payload = json.loads(json_output)
+    payload = json.loads(result.output)
     assert payload == [{"database": "warehouse", "schema": "public", "table": "users"}]
 
 
@@ -126,6 +125,37 @@ def test_discover_command_returns_empty_json_for_no_matches(monkeypatch) -> None
     )
 
     assert result.exit_code == 0
-    _, json_output = result.output.split("\n", 1)
-    payload = json.loads(json_output)
+    payload = json.loads(result.output)
     assert payload == []
+
+
+def test_discover_command_hides_raw_sling_error(monkeypatch) -> None:
+    """Discovery failures should be actionable without leaking subprocess internals."""
+
+    def _run_command(args: list[str]) -> subprocess.CompletedProcess[str]:
+        raise RuntimeError("binary blew up with secret DSN")
+
+    monkeypatch.setattr("phlo_sling.cli_commands.apply_sling_connection_env", lambda: {})
+    monkeypatch.setattr("phlo_sling.cli_commands._run_sling_cli_command", _run_command)
+
+    result = CliRunner().invoke(discover_command, ["PHLO_POSTGRES"])
+
+    assert result.exit_code != 0
+    assert "secret DSN" not in result.output
+    assert "Error: Sling discovery failed" in result.output
+    assert "Connection: PHLO_POSTGRES" in result.output
+    assert "Run: phlo sling conns" in result.output
+
+
+def test_conns_command_hides_raw_native_sling_error(monkeypatch) -> None:
+    """Native connection listing should keep raw Sling exceptions in logs."""
+    monkeypatch.setattr(
+        "phlo_sling.cli_commands._run_sling_cli_command",
+        lambda _args: (_ for _ in ()).throw(RuntimeError("secret DSN")),
+    )
+
+    result = CliRunner().invoke(conns_command, ["--no-auto"])
+
+    assert result.exit_code == 0
+    assert "secret DSN" not in result.output
+    assert "Native Sling connections unavailable. Run: sling conns list" in result.output

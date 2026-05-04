@@ -29,6 +29,13 @@ from phlo.cli.commands.services.utils import (
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.cli.output import (
+    empty_file_error,
+    exclusive_options_error,
+    file_read_error,
+    missing_phlo_project_error,
+    missing_query_error,
+)
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -58,18 +65,18 @@ def _read_query(*, query: str | None, file: Path | None) -> str:
 
     """
     if query and file:
-        raise click.ClickException("Use either an inline query or --file, not both.")
+        raise exclusive_options_error("an inline query", "--file")
     if file is not None:
         try:
             sql = file.read_text(encoding="utf-8")
         except OSError as exc:
-            raise click.ClickException(f"Failed to read SQL file: {file}") from exc
+            raise file_read_error(file) from exc
         if sql.strip():
             return sql
-        raise click.ClickException(f"SQL file is empty: {file}")
+        raise empty_file_error(file)
     if query and query.strip():
         return query
-    raise click.ClickException("Provide a SQL query argument or --file.")
+    raise missing_query_error(command_hint='phlo clickhouse query "SELECT 1"')
 
 
 def _ensure_phlo_dir() -> Path:
@@ -94,7 +101,7 @@ def _ensure_phlo_dir() -> Path:
     phlo_dir = Path.cwd() / ".phlo"
     if phlo_dir.exists():
         return phlo_dir
-    raise click.ClickException(".phlo directory not found. Run 'phlo services init' first.")
+    raise missing_phlo_project_error()
 
 
 def _require_container_backend() -> None:

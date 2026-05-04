@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from phlo.logging import get_logger
+from phlo.logging import get_logger, log_event
 from phlo.plugins.discovery._service_definition import ServiceDefinition
 from phlo.plugins.discovery.plugins import discover_plugins as _discover_plugins
 from phlo.plugins.discovery.registry import get_global_registry
@@ -48,7 +48,14 @@ def load_plugin_services(services: dict[str, ServiceDefinition]) -> int:
             loaded_count += 1
             loaded_count += load_companion_service_files(source_path, services)
         except (KeyError, ValueError) as exc:
-            logger.warning("Service plugin %s has invalid service definition: %s", name, exc)
+            log_event(
+                logger,
+                "warning",
+                "service_plugin_definition_invalid",
+                plugin_name=name,
+                source_path=str(source_path) if source_path else None,
+                error=str(exc),
+            )
     return loaded_count
 
 
@@ -73,7 +80,13 @@ def load_services_from_directory(
             services[service.name] = service
             loaded_count += 1
         except (yaml.YAMLError, KeyError, ValueError) as exc:
-            logger.warning("Failed to load %s: %s", yaml_path, exc)
+            log_event(
+                logger,
+                "warning",
+                "service_definition_file_load_failed",
+                path=str(yaml_path),
+                error=str(exc),
+            )
     return loaded_count
 
 
@@ -99,7 +112,14 @@ def load_companion_service_files(
             services[service.name] = service
             loaded_count += 1
         except (yaml.YAMLError, KeyError, ValueError) as exc:
-            logger.warning("Failed to load companion service %s: %s", yaml_path, exc)
+            log_event(
+                logger,
+                "warning",
+                "companion_service_definition_file_load_failed",
+                path=str(yaml_path),
+                source_path=str(source_path),
+                error=str(exc),
+            )
     return loaded_count
 
 

@@ -25,6 +25,7 @@ import subprocess
 
 import click
 
+from phlo.cli.output import command_failed_error
 from phlo.logging import get_logger
 from phlo_sling.connections import apply_sling_connection_env
 from phlo_sling.settings import get_settings
@@ -137,7 +138,8 @@ def conns_command(auto: bool) -> None:
         result = _run_sling_cli_command(["conns", "list"])
         click.echo(result.stdout, nl=False)
     except Exception as exc:
-        click.echo(f"  Could not list native connections: {exc}")
+        logger.warning("sling_native_connections_list_failed", error=str(exc), exc_info=True)
+        click.echo("  Native Sling connections unavailable. Run: sling conns list")
 
 
 @sling_group.command("discover")
@@ -169,7 +171,6 @@ def discover_command(connection: str, schema: str | None, output_format: str) ->
     """
     apply_sling_connection_env()
 
-    click.echo(f"Discovering streams from {connection}...")
     try:
         command = ["conns", "discover", connection]
         if schema:
@@ -180,9 +181,22 @@ def discover_command(connection: str, schema: str | None, output_format: str) ->
             click.echo(json.dumps(_parse_discovery_output(result.stdout), indent=2))
             return
 
+        click.echo(f"Discovering streams from {connection}...")
         click.echo(result.stdout, nl=False)
     except Exception as exc:
-        raise click.ClickException(f"Discovery failed: {exc}") from exc
+        logger.warning(
+            "sling_discovery_failed",
+            connection=connection,
+            schema=schema,
+            output_format=output_format,
+            error=str(exc),
+            exc_info=True,
+        )
+        raise command_failed_error(
+            "Sling discovery",
+            details=[f"Connection: {connection}"],
+            run="phlo sling conns",
+        ) from exc
 
 
 def _resolve_target_object(stream: str, target_object: str | None) -> str:

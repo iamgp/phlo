@@ -18,6 +18,7 @@ import sys
 import click
 from rich.console import Console
 
+from phlo.cli.output import user_error
 from phlo.logging import get_logger
 from phlo_openmetadata.capabilities import resolve_catalog_scanner
 from phlo_openmetadata.dbt_sync import DbtManifestParser
@@ -43,8 +44,10 @@ def _resolve_database_name() -> str:
         return get_settings().openmetadata_database()
     except RuntimeError as exc:
         logger.error("openmetadata_database_resolution_failed", error=str(exc))
-        console.print(f"[red]{exc}[/red]")
-        sys.exit(1)
+        raise user_error(
+            "OpenMetadata database is not configured",
+            run="phlo openmetadata health",
+        ) from exc
 
 
 def _resolve_service_type() -> str:
@@ -61,8 +64,10 @@ def _resolve_service_type() -> str:
         return get_settings().openmetadata_database_service_type()
     except RuntimeError as exc:
         logger.error("openmetadata_service_type_resolution_failed", error=str(exc))
-        console.print(f"[red]{exc}[/red]")
-        sys.exit(1)
+        raise user_error(
+            "OpenMetadata service type is not configured",
+            run="phlo openmetadata health",
+        ) from exc
 
 
 @click.group()
@@ -179,8 +184,11 @@ def sync(
             scanner_name=cfg.openmetadata_catalog_scanner,
             error=str(exc),
         )
-        console.print(f"[red]{exc}[/red]")
-        sys.exit(1)
+        raise user_error(
+            "OpenMetadata catalog scanner is unavailable",
+            details={"Scanner": cfg.openmetadata_catalog_scanner},
+            run="phlo services status",
+        ) from exc
 
     nessie_stats = sync_nessie_tables_to_openmetadata(
         scanner,
@@ -213,5 +221,7 @@ def sync(
             console.print("[yellow]dbt manifest not found; skipping dbt sync[/yellow]")
         except json.JSONDecodeError as e:
             logger.error("openmetadata_dbt_manifest_invalid_json", error=str(e))
-            console.print(f"[red]Failed to parse dbt manifest: {e}[/red]")
-            sys.exit(1)
+            raise user_error(
+                "could not parse dbt manifest",
+                run="dbt docs generate",
+            ) from e

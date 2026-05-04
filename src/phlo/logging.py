@@ -125,6 +125,13 @@ _SENSITIVE_FIELD_TOKENS = (
 )
 _ROUTER_ACTIVE = contextvars.ContextVar("phlo_log_router_active", default=False)
 _LOGGING_CONFIGURED = False
+_STREAM_METADATA_FIELDS = {
+    "timestamp",
+    "logger",
+    "level",
+    "service",
+    "environment",
+}
 
 
 @dataclass(frozen=True)
@@ -205,14 +212,8 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
         cache_logger_on_first_use=True,
     )
 
-    if log_format == "console":
-        stream_renderer = structlog.dev.ConsoleRenderer()
-    elif log_format == "auto":
-        stream_renderer = (
-            structlog.dev.ConsoleRenderer()
-            if sys.stderr.isatty()
-            else structlog.processors.JSONRenderer()
-        )
+    if log_format in {"auto", "console"}:
+        stream_renderer = PhloConsoleRenderer()
     else:
         stream_renderer = structlog.processors.JSONRenderer()
     file_renderer = structlog.processors.JSONRenderer()
@@ -246,11 +247,12 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
     root.setLevel(level)
     _remove_phlo_handlers(root)
 
-    stream_handler = logging.StreamHandler(sys.stderr)
-    stream_handler.setLevel(level)
-    stream_handler.setFormatter(stream_formatter)
-    _mark_phlo_handler(stream_handler)
-    root.addHandler(stream_handler)
+    if log_format in {"console", "json"}:
+        stream_handler = logging.StreamHandler(sys.stderr)
+        stream_handler.setLevel(level)
+        stream_handler.setFormatter(stream_formatter)
+        _mark_phlo_handler(stream_handler)
+        root.addHandler(stream_handler)
 
     if resolved.log_file_template:
         file_handler = _build_file_handler(resolved.log_file_template, file_formatter)
@@ -365,6 +367,29 @@ class LogRouterHandler(logging.Handler):
             self.handleError(record)
         finally:
             _ROUTER_ACTIVE.reset(token)
+
+
+class PhloConsoleRenderer:
+    """Render concise, stable diagnostics for humans at the terminal."""
+
+    def __call__(self, _: Any, __: str, event_dict: MutableMapping[str, Any]) -> str:
+        """Render a structured event as one readable terminal line."""
+        event = str(event_dict.pop("event", "")).strip()
+        level = str(event_dict.pop("level", "info")).lower()
+        event_dict.pop("timestamp", None)
+        event_dict.pop("logger", None)
+        event_dict.pop("service", None)
+        event_dict.pop("environment", None)
+
+        fields = [
+            f"{key}={_format_console_value(value)}"
+            for key, value in sorted(event_dict.items())
+            if key not in _STREAM_METADATA_FIELDS and value is not None
+        ]
+        prefix = _format_console_level(level)
+        if fields:
+            return f"{prefix} {event} {' '.join(fields)}"
+        return f"{prefix} {event}" if event else prefix
 
 
 def _record_to_event(record: logging.LogRecord, default_service: str) -> LogEvent | None:
@@ -562,8 +587,8 @@ def _render_log_file_path(template: str) -> Path | None:
         rendered = template.format(**tokens)
     except KeyError as exc:
         logging.getLogger(__name__).warning(
-            "Unknown log file template placeholder: %s",
-            exc,
+            "log_file_template_placeholder_unknown",
+            extra={"placeholder": str(exc), "template": template},
         )
         return None
     path = Path(rendered)
@@ -605,6 +630,44 @@ def _pop_value(extra: dict[str, Any], key: str) -> str | None:
     value = extra.pop(key, None)
     if value is None:
         return None
+    return str(value)
+
+
+def _format_console_level(level: str) -> str:
+    """Return a compact terminal prefix for a log level."""
+    match level:
+        case "debug":
+            return "debug"
+        case "info":
+            return "info"
+        case "warning" | "warn":
+            return "warn"
+        case "error":
+            return "error"
+        case "critical":
+            return "critical"
+        case _:
+            return level
+
+
+def _format_console_value(value: Any) -> str:
+    """Render a structured field value without JSON noise."""
+    if isinstance(value, str):
+        if not value:
+            return '""'
+        if any(char.isspace() for char in value):
+            return repr(value)
+        return value
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, Mapping):
+        inner = ", ".join(
+            f"{key}: {_format_console_value(nested_value)}"
+            for key, nested_value in sorted(value.items())
+        )
+        return f"{{{inner}}}"
+    if isinstance(value, (list, tuple, set)):
+        return "[" + ", ".join(_format_console_value(item) for item in value) + "]"
     return str(value)
 
 

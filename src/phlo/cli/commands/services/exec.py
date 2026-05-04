@@ -49,7 +49,9 @@ def exec_cmd(
         project_name=project_name,
         service_name=service_name,
         tty=tty,
-        command=list(command),
+        command_name=command[0],
+        arg_count=max(len(command) - 1, 0),
+        backend_name=backend_name or "auto",
     )
 
     cmd = compose_base_cmd(
