@@ -8,6 +8,7 @@ from click.testing import CliRunner
 
 from phlo_dagster.cli_backfill import (
     _generate_partition_dates,
+    _run_backfill,
     _validate_partition_dates,
     backfill,
 )
@@ -214,6 +215,32 @@ class TestBackfillCLI:
         )
         assert result.exit_code == 1
         assert "Parallel must be >= 1" in result.output
+
+    @patch("phlo_dagster.cli_backfill.find_dagster_container", return_value="mock-container")
+    @patch("phlo_dagster.cli_backfill.get_project_name", return_value="mock-project")
+    @patch("phlo_dagster.cli_backfill.wait_for_dagster_runtime")
+    @patch("phlo_dagster.cli_backfill._materialize_partition", return_value=(True, "ok"))
+    def test_backfill_waits_for_runtime_before_partitions(
+        self,
+        mock_materialize,
+        mock_wait,
+        mock_project,
+        mock_container,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Wait for Dagster setup before partition docker exec calls."""
+        monkeypatch.chdir(tmp_path)
+
+        _run_backfill("dlt_events", ["2024-01-01"], parallel=1)
+
+        mock_wait.assert_called_once_with("mock-container")
+        mock_materialize.assert_called_once_with(
+            "dlt_events",
+            "2024-01-01",
+            0,
+            "mock-container",
+        )
 
     def test_resume_without_state(self):
         """Reject resume without state file."""

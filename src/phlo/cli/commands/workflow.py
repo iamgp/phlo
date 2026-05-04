@@ -80,7 +80,8 @@ def _validate_schema_file(path: str) -> None:
     "--type",
     "workflow_type",
     type=click.Choice(["ingestion"]),
-    prompt="Workflow type",
+    default="ingestion",
+    show_default=True,
     help="Type of workflow to create (ingestion only)",
 )
 @click.option("--domain", prompt="Domain name", help="Domain name (e.g., weather, stripe, github)")
@@ -98,7 +99,6 @@ def _validate_schema_file(path: str) -> None:
 )
 @click.option(
     "--api-base-url",
-    prompt="API base URL (optional)",
     default="",
     help="REST API base URL",
 )
@@ -171,10 +171,17 @@ def create_workflow_cmd(
 
 
 @workflow_group.command("check")
-@click.argument("workflow_file", type=click.Path(exists=True, dir_okay=False))
+@click.argument("workflow_file", type=click.Path(dir_okay=False))
 def check_workflow_cmd(workflow_file: str) -> None:
     """Validate a workflow and its inferred schema before materialization."""
     workflow_path = Path(workflow_file)
+    if not workflow_path.exists():
+        raise user_error(
+            "workflow file not found",
+            missing=str(workflow_path),
+            run="phlo workflow create",
+        )
+
     schema_path = _infer_schema_path(workflow_path)
 
     _validate_workflow_file(str(workflow_path))

@@ -105,8 +105,16 @@ def test_csv_batch_template_generates_runnable_files(tmp_path) -> None:
     workflow_text = workflow_file.read_text()
     assert "import phlo" in workflow_text
     assert "@phlo.ingestion(" in workflow_text
+    assert 'unique_key="event_id"' in workflow_text
+    assert 'events["event_id"]' in workflow_text
+    assert "freshness_hours=(1, 24)" in workflow_text
+    assert "partition_date: str" in workflow_text
+    assert "dlt.resource" in workflow_text
+    assert 'name="events"' in workflow_text
     assert "phlo_ingestion" not in workflow_text
-    assert (project_dir / "workflows" / "schemas" / "csv.py").exists()
+    schema_text = (project_dir / "workflows" / "schemas" / "csv.py").read_text()
+    assert "CSV demo event records." in schema_text
+    assert "event_id: str" in schema_text
     _assert_python_files_parse(project_dir)
     _assert_generated_module_imports(project_dir, "workflows.ingestion.csv.events")
 
@@ -161,7 +169,15 @@ def test_api_ingestion_template_generates_runnable_files(tmp_path) -> None:
 
     assert result.exit_code == 0, result.output
     assert (project_dir / "workflows" / "ingestion" / "api" / "events.py").exists()
-    assert (project_dir / "workflows" / "schemas" / "api.py").exists()
+    workflow_text = (project_dir / "workflows" / "ingestion" / "api" / "events.py").read_text()
+    schema_text = (project_dir / "workflows" / "schemas" / "api.py").read_text()
+    assert 'unique_key="event_id"' in workflow_text
+    assert 'events["event_id"]' in workflow_text
+    assert "freshness_hours=(1, 24)" in workflow_text
+    assert "partition_date: str" in workflow_text
+    assert "dlt.resource" in workflow_text
+    assert "API demo event records." in schema_text
+    assert "event_id: str" in schema_text
     _assert_python_files_parse(project_dir)
     _assert_generated_module_imports(project_dir, "workflows.ingestion.api.events")
 

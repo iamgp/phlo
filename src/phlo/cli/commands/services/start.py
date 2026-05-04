@@ -282,7 +282,7 @@ def _preflight_required_env_vars(
     )
 
 
-@click.command("start")
+@click.command("start", help="Start Phlo infrastructure services.")
 @click.option(
     "-d",
     "--detach/--no-detach",
@@ -330,7 +330,7 @@ def start_cmd(
         phlo services start --build
         phlo services start --profile observability
         phlo services start --service postgres
-        phlo services start --native  # Run Observatory/phlo-api as subprocesses
+        phlo services start --native
     """
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"

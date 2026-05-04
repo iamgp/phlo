@@ -64,7 +64,35 @@ def _summarize_process_output(lines: list[str]) -> str | None:
     return None
 
 
-@click.command()
+def wait_for_dagster_runtime(container_name: str, timeout_seconds: float = 600.0) -> None:
+    """Wait until the Dagster container has finished entrypoint setup."""
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        result = subprocess.run(
+            [
+                "docker",
+                "exec",
+                container_name,
+                "sh",
+                "-lc",
+                "test -f /tmp/phlo-dagster-ready "
+                "|| python -c 'import phlo_dagster.framework.definitions'",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return
+        time.sleep(1)
+
+    raise RuntimeError(
+        "Dagster container is still finishing runtime setup. "
+        "Inspect startup logs with: phlo services logs --tail 120 dagster"
+    )
+
+
+@click.command(help="Materialize Dagster assets via Docker.")
 @click.argument("asset_name", required=False)
 @click.option("-p", "--partition", help="Partition date (YYYY-MM-DD)")
 @click.option("--select", help="Asset selector expression")
@@ -120,6 +148,7 @@ def materialize(
 
         if not dry_run:
             container_name = find_dagster_container(project_name)
+            wait_for_dagster_runtime(container_name)
 
         cmd = [
             "docker",
@@ -232,6 +261,20 @@ def materialize(
             exc_info=True,
         )
         raise service_unavailable_error(container_name) from None
+    except RuntimeError as exc:
+        logger.error(
+            "dagster_materialize_service_unavailable",
+            asset_name=effective_selection,
+            partition=partition,
+            select=select,
+            no_contract_refresh=no_contract_refresh,
+            dry_run=dry_run,
+            project_name=project_name,
+            duration_seconds=round(time.perf_counter() - started_at, 3),
+            error=str(exc),
+            exc_info=True,
+        )
+        raise service_unavailable_error("dagster") from exc
     except click.ClickException:
         raise
     except Exception as exc:

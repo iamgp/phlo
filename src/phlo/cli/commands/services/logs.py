@@ -11,7 +11,7 @@ from phlo.logging import get_logger
 logger = get_logger(__name__)
 
 
-@click.command("logs")
+@click.command("logs", help="View logs from Phlo infrastructure services.")
 @click.argument("service", required=False)
 @click.option("-f", "--follow", is_flag=True, help="Follow log output")
 @click.option("-n", "--tail", default=100, help="Number of lines to show")

@@ -66,6 +66,44 @@ def test_workflow_create_uses_cron_default_noninteractively(monkeypatch) -> None
     assert calls["cron"] == "0 */1 * * *"
 
 
+def test_workflow_create_defaults_ingestion_noninteractively(monkeypatch) -> None:
+    calls: dict[str, object] = {}
+
+    def fake_create_ingestion_workflow(**kwargs):
+        calls.update(kwargs)
+        return [
+            "workflows/schemas/weather.py",
+            "workflows/ingestion/weather/observations.py",
+            "tests/test_weather_observations.py",
+        ]
+
+    monkeypatch.setattr(
+        "phlo_dlt.scaffold.create_ingestion_workflow",
+        fake_create_ingestion_workflow,
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "workflow",
+            "create",
+            "--domain",
+            "weather",
+            "--table",
+            "observations",
+            "--unique-key",
+            "station_id",
+            "--field",
+            "station_id:str",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls["domain"] == "weather"
+    assert calls["api_base_url"] is None
+    assert "Workflow type" not in result.output
+
+
 def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
     """Passes CLI options to ingestion scaffold creation."""
     calls = {}
@@ -313,6 +351,20 @@ def test_workflow_check_delegates_to_existing_validators(monkeypatch, tmp_path) 
     assert ("workflow", str(workflow_file)) in calls
     assert ("schema", str(schema_file)) in calls
     assert "phlo materialize dlt_observations" in result.output
+
+
+def test_workflow_check_missing_file_is_actionable(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        cli,
+        ["workflow", "check", "workflows/ingestion/weather/missing.py"],
+    )
+
+    assert result.exit_code == 1
+    assert "Error: workflow file not found" in result.output
+    assert "Missing: workflows/ingestion/weather/missing.py" in result.output
+    assert "Run: phlo workflow create" in result.output
 
 
 def test_workflow_check_rejects_files_without_ingestion_workflow(tmp_path, monkeypatch) -> None:

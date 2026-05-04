@@ -1,6 +1,7 @@
 """Tests for the phlo logs CLI command."""
 
 from datetime import datetime, timedelta, timezone
+import json
 
 from click.testing import CliRunner
 
@@ -14,6 +15,17 @@ from phlo_dagster.cli_logs import (
     logs,
 )
 from phlo_dagster.cli_logs_display import _is_json
+
+
+def test_logs_help_is_user_facing() -> None:
+    result = CliRunner().invoke(logs, ["--help"])
+
+    assert result.exit_code == 0
+    assert "Access and filter Dagster run logs." in result.output
+    assert "Args:" not in result.output
+    assert "Returns:" not in result.output
+    assert "Raises:" not in result.output
+    assert "output_json" not in result.output
 
 
 class TestLogLevelMapping:
@@ -61,6 +73,41 @@ def test_event_log_row_to_entry_parses_dagster_event_payload() -> None:
         "job_name": "__ASSET_JOB",
         "run_status": "",
     }
+
+
+def test_event_log_row_to_entry_surfaces_nested_failure_cause() -> None:
+    row = {
+        "run_id": "run-123",
+        "dagster_event_type": "STEP_FAILURE",
+        "timestamp": None,
+        "event": json.dumps(
+            {
+                "dagster_event": {
+                    "event_specific_data": {
+                        "error": {
+                            "message": "Exceeded max_retries of 3",
+                            "cause": {
+                                "message": (
+                                    "dlt.extract.exceptions.ResourceNameMissing: "
+                                    "Resource name is missing.\nIf you create a resource directly "
+                                    "from data pass `name`."
+                                ),
+                                "cause": None,
+                            },
+                        }
+                    },
+                    "logging_tags": {"job_name": "__ASSET_JOB"},
+                }
+            }
+        ),
+        "step_key": "dlt_events",
+    }
+
+    entry = _event_log_row_to_entry(row)
+
+    assert entry is not None
+    assert entry["level"] == "ERROR"
+    assert entry["message"] == "Resource name is missing."
 
 
 class TestTimeParsing:
@@ -215,6 +262,13 @@ def test_build_logs_query_matches_current_dagster_runs_schema() -> None:
     assert "ExecutionStepSuccessEvent" in query
 
 
+def test_build_logs_query_expands_event_window_for_level_filters() -> None:
+    query = _build_logs_query({"limit": 20, "level": "ERROR"})
+
+    assert "runsOrError(limit: 20)" in query
+    assert "eventConnection(limit: 400)" in query
+
+
 def test_get_logs_parses_current_dagster_graphql_shape(monkeypatch) -> None:
     """GraphQL parser should read runsOrError.results[].eventConnection.events."""
     from phlo_dagster import cli_logs as logs_module
@@ -262,6 +316,35 @@ def test_get_logs_parses_current_dagster_graphql_shape(monkeypatch) -> None:
             "run_status": "SUCCESS",
         }
     ]
+
+
+def test_get_logs_prefers_postgres_for_level_filters(monkeypatch) -> None:
+    from phlo_dagster import cli_logs as logs_module
+
+    monkeypatch.setattr(
+        logs_module,
+        "_get_logs_from_postgres",
+        lambda _filters: [
+            {
+                "timestamp": "",
+                "level": "ERROR",
+                "message": "root cause",
+                "event_type": "STEP_FAILURE",
+                "run_id": "run-1",
+                "job_name": "__ASSET_JOB",
+                "run_status": "",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        logs_module.http_requests,
+        "post",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("skip GraphQL")),
+    )
+
+    result = _get_logs({"limit": 20, "level": "ERROR"})
+
+    assert result[0]["message"] == "root cause"
 
 
 def test_get_logs_from_postgres_uses_project_env(monkeypatch) -> None:
@@ -313,6 +396,73 @@ def test_get_logs_from_postgres_uses_project_env(monkeypatch) -> None:
         "user": "user",
         "password": "secret",
     }
+
+
+def test_get_logs_from_postgres_expands_level_filter_window(monkeypatch) -> None:
+    """ERROR lookups should not miss failures just outside the latest display limit."""
+    from phlo_dagster import cli_logs as logs_module
+
+    captured: dict[str, object] = {}
+
+    class FakeCursor:
+        def __enter__(self) -> "FakeCursor":
+            return self
+
+        def __exit__(self, *_args) -> None:
+            return None
+
+        def execute(self, _query, params) -> None:
+            captured["params"] = params
+
+        def fetchall(self) -> list[dict]:
+            return [
+                {
+                    "run_id": "run-1",
+                    "dagster_event_type": "STEP_SUCCESS",
+                    "timestamp": None,
+                    "event": "{}",
+                    "step_key": "dlt_events",
+                },
+                {
+                    "run_id": "run-1",
+                    "dagster_event_type": "STEP_FAILURE",
+                    "timestamp": None,
+                    "event": '{"level": 40, "user_message": "failed"}',
+                    "step_key": "dlt_events",
+                },
+            ]
+
+    class FakeConnection:
+        def __enter__(self) -> "FakeConnection":
+            return self
+
+        def __exit__(self, *_args) -> None:
+            return None
+
+        def cursor(self, *_args, **_kwargs) -> FakeCursor:
+            return FakeCursor()
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        logs_module,
+        "_project_env",
+        lambda: {
+            "POSTGRES_HOST": "localhost",
+            "POSTGRES_PORT": "15432",
+            "POSTGRES_DB": "phlo",
+            "POSTGRES_USER": "phlo",
+            "POSTGRES_PASSWORD": "phlo",
+        },
+    )
+    monkeypatch.setattr(logs_module.psycopg2, "connect", lambda **_kwargs: FakeConnection())
+
+    result = _get_logs_from_postgres({"limit": 1, "level": "ERROR"})
+
+    assert captured["params"][-1] == 200
+    assert len(result) == 1
+    assert result[0]["level"] == "ERROR"
 
 
 class TestLogsPerformance:

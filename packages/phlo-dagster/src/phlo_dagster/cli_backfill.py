@@ -50,6 +50,7 @@ from rich.table import Table
 
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
+from phlo_dagster.cli_materialize import wait_for_dagster_runtime
 from phlo_dagster.containers import find_dagster_container
 
 console = Console()
@@ -57,7 +58,7 @@ logger = get_logger(__name__)
 BACKFILL_STATE_FILE = Path(".phlo/backfill_state.json")
 
 
-@click.command()
+@click.command(help="Run asset materialization across a date range with parallel execution.")
 @click.argument("asset_name", required=False)
 @click.option(
     "--start-date",
@@ -407,6 +408,17 @@ def _run_backfill(
         parallel=parallel,
         delay=delay,
     )
+    try:
+        container_name = find_dagster_container(get_project_name())
+        wait_for_dagster_runtime(container_name)
+    except RuntimeError as exc:
+        logger.error(
+            "dagster_backfill_service_unavailable",
+            asset_name=asset_name,
+            error=str(exc),
+            exc_info=True,
+        )
+        raise click.ClickException(str(exc)) from exc
 
     # Use ThreadPoolExecutor for parallel execution
     with Progress(
@@ -424,6 +436,7 @@ def _run_backfill(
                     asset_name,
                     date,
                     delay if i > 0 else 0,
+                    container_name,
                 ): date
                 for i, date in enumerate(remaining)
             }
@@ -539,6 +552,7 @@ def _materialize_partition(
     asset_name: str,
     partition_date: str,
     delay: float = 0.0,
+    container_name: str | None = None,
 ) -> tuple[bool, str]:
     """
     Materialize a single partition.
@@ -557,7 +571,7 @@ def _materialize_partition(
     if delay > 0:
         time.sleep(delay)
 
-    cmd = _build_materialize_command(asset_name, partition_date)
+    cmd = _build_materialize_command(asset_name, partition_date, container_name=container_name)
     logger.debug(
         "dagster_backfill_partition_materialize_started",
         asset_name=asset_name,

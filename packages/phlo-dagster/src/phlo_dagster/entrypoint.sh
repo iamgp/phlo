@@ -80,5 +80,7 @@ except ImportError:
     pass
 EOF
 
+touch /tmp/phlo-dagster-ready
+
 # Execute the main command
 exec "$@"

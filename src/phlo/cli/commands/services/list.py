@@ -169,6 +169,25 @@ def list_cmd(show_all: bool, output_json: bool, backend_name: str | None):
         click.echo(json.dumps(payload, indent=2))
         return
 
+    # Separate services by type
+    package_services = [s for s in available_services.values() if not s.core]
+    visible_services = [
+        svc
+        for svc in sorted(package_services, key=lambda x: x.name)
+        if show_all
+        or not svc.profile
+        or svc.default
+        or svc.name in enabled_services
+        or svc.name in running_containers
+    ]
+    name_width = max(
+        [
+            18,
+            *(len(svc.name) for svc in visible_services),
+            *(len(name) for name in disabled_services),
+        ]
+    )
+
     # Helper to format service line
     def format_service_line(svc, custom_status=None):
         """Format a service line with status, ports, and description."""
@@ -198,29 +217,18 @@ def list_cmd(show_all: bool, output_json: bool, backend_name: str | None):
             suffix = custom_status
 
         # Format: "  ✓ service-name    Running    :3000   Description [extra]"
-        name_col = f"{svc.name:<18}"
+        name_col = f"{svc.name:<{name_width}}"
         status_col = f"{status:<10}"
         ports_col = f"{ports:<7}"
         desc_with_suffix = f"{svc.description} {suffix}".strip()
 
         return f"  {status_marker} {name_col} {status_col} {ports_col} {desc_with_suffix}"
 
-    # Separate services by type
-    package_services = [s for s in available_services.values() if not s.core]
-
     # Display package services
     if package_services or disabled_services:
         click.echo("\nPackage Services (installed):")
         displayed = set()
-        for svc in sorted(package_services, key=lambda x: x.name):
-            if (
-                not show_all
-                and svc.profile
-                and not svc.default
-                and svc.name not in enabled_services
-                and svc.name not in running_containers
-            ):
-                continue
+        for svc in visible_services:
             click.echo(format_service_line(svc))
             displayed.add(svc.name)
 

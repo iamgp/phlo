@@ -3,7 +3,7 @@
 import click
 
 from phlo.cli.commands.services.common import run_compose
-from phlo.cli.commands.services.utils import ensure_phlo_dir, require_container_backend
+from phlo.cli.commands.services.utils import ensure_compose_project, require_container_backend
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
@@ -26,7 +26,7 @@ def status_cmd(backend_name: str | None):
         phlo services status
     """
     require_container_backend(backend_name)
-    phlo_dir = ensure_phlo_dir()
+    phlo_dir = ensure_compose_project()
     project_name = get_project_name()
     logger.info(
         "services_status_requested",
@@ -39,9 +39,9 @@ def status_cmd(backend_name: str | None):
         project_name=project_name,
         backend_name=backend_name,
     )
-    cmd.extend(["ps", "--format", "table {{.Name}}\t{{.Status}}\t{{.Ports}}"])
+    cmd.extend(["ps", "--format", "table {{.Service}}\t{{.Status}}\t{{.Ports}}"])
 
-    result = run_compose(cmd, check=False, capture_output=False)
+    result = run_compose(cmd, check=False, capture_output=True)
     if result.returncode != 0:
         logger.warning(
             "services_status_failed",
@@ -49,4 +49,10 @@ def status_cmd(backend_name: str | None):
             returncode=result.returncode,
         )
         raise click.ClickException("No services running or error checking status.")
+    if result.stdout:
+        click.echo(result.stdout, nl=False)
+    lines = [line for line in (result.stdout or "").splitlines() if line.strip()]
+    if len(lines) <= 1:
+        click.echo("\nNo services are running.")
+        click.echo("Run: phlo services start")
     logger.info("services_status_succeeded", project_name=project_name)

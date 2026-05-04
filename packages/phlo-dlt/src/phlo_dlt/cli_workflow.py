@@ -99,7 +99,8 @@ def _print_ingestion_next_steps(files: list[str], *, table: str) -> None:
     "--type",
     "workflow_type",
     type=click.Choice(["ingestion"]),
-    prompt="Workflow type",
+    default="ingestion",
+    show_default=True,
     help="Type of workflow to create (ingestion only)",
 )
 @click.option("--domain", prompt="Domain name", help="Domain name (e.g., weather, stripe, github)")
@@ -112,12 +113,11 @@ def _print_ingestion_next_steps(files: list[str], *, table: str) -> None:
 @click.option(
     "--cron",
     default="0 */1 * * *",
-    prompt="Cron schedule",
+    show_default=True,
     help="Cron schedule expression",
 )
 @click.option(
     "--api-base-url",
-    prompt="API base URL (optional)",
     default="",
     help="REST API base URL",
 )
