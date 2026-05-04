@@ -953,7 +953,7 @@ twine upload --repository-url https://pypi.yourcompany.com dist/*
 ## Next Steps
 
 - Review [Data Engineering Fundamentals Part 12](../blog/data-engineering-fundamentals/12-extending-phlo-with-plugins-and-observatory.md) for examples
-- Check [ADR 0030: Unified Plugin System](../architecture/decisions/0030-unified-plugin-system-with-registry.md)
+- Check the [Plugin API](../reference/plugin-api.md)
 - Explore existing plugins in `packages/phlo-core-plugins/`
 - Join the community to share your plugins
 

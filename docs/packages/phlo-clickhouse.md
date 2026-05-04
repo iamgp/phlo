@@ -126,4 +126,4 @@ Example dbt model config:
 
 - [Architecture Reference](../reference/architecture.md) - System design
 - [Core Concepts](../getting-started/core-concepts.md) - Understand patterns
-- [Integration Profiles](../reference/integration-profiles.md) - Profile configuration
+- [Integration Profiles](../guides/integration-profiles.md) - Profile configuration

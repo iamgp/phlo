@@ -187,9 +187,9 @@ GROUP BY 1, 2
 
 | Entry Point                   | Plugin                                   |
 | ----------------------------- | ---------------------------------------- |
-| `phlo.asset_providers`        | `DbtAssetProvider` for asset specs       |
-| `phlo.transformation_providers` | `DbtTransformationProvider` for transforms |
-| `phlo.cli_commands`           | `DbtCliPlugin` for dbt CLI commands      |
+| `phlo.plugins.assets`         | `DbtAssetProvider` for asset specs       |
+| `phlo.plugins.transformation_providers` | `DbtTransformationProvider` for transforms |
+| `phlo.plugins.cli`            | `DbtCliPlugin` for dbt CLI commands      |
 
 ## Related Packages
 

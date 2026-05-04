@@ -114,11 +114,11 @@ class FinancialData(pa.DataFrameModel):
 3. **Test individual field conversion**
 
    ```python
-   from phlo_quality.iceberg import pandera_type_to_iceberg
+   from phlo_iceberg.schema_conversion import pandera_to_iceberg
 
    try:
-       iceberg_type = pandera_type_to_iceberg("float")
-       print(f"✅ Mapped to: {iceberg_type}")
+       iceberg_schema = pandera_to_iceberg(EventData)
+       print(f"✅ Mapped schema: {iceberg_schema}")
    except Exception as e:
        print(f"❌ Cannot map: {e}")
    ```
@@ -149,8 +149,8 @@ class FinancialData(pa.DataFrameModel):
 
    ```python
    def test_new_schema_converts():
-       from phlo_quality.iceberg import pandera_to_iceberg_schema
-       iceberg_schema = pandera_to_iceberg_schema(MyNewSchema)
+       from phlo_iceberg.schema_conversion import pandera_to_iceberg
+       iceberg_schema = pandera_to_iceberg(MyNewSchema)
        assert len(iceberg_schema.fields) == len(MyNewSchema.to_schema().columns)
    ```
 

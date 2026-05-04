@@ -212,6 +212,6 @@ phlo_quality = provider.get_decorator()
 
 ## Related Documentation
 
-- [Capability Primitives](capability-primitives.md) - Spec types and interfaces
+- [Capability Primitives](../guides/capability-primitives.md) - Spec types and interfaces
 - [Plugin API](plugin-api.md) - Base classes for building plugins
-- [Package Documentation](packages/index.md) - Individual package docs
+- [Package Documentation](../packages/index.md) - Individual package docs

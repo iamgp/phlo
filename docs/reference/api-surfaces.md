@@ -147,4 +147,4 @@ If you expose either surface in a regulated deployment, you must ensure:
 - [PostgREST Setup](../setup/postgrest.md)
 - [OpenMetadata Setup](../setup/openmetadata.md)
 - [phlo-api](phlo-api.md)
-- [Regulated Access Mode](../setup/regulated-access.md)
+- [Security Setup](../setup/security.md)

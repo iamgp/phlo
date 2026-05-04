@@ -53,7 +53,7 @@ graph TB
     end
 
     subgraph ingest["Ingestion"]
-        NS[Nightscout API]
+        NS[REST API]
         FILES[CSV and Excel Files]
         EXTERNAL[External APIs]
         DLT[DLT Python]
@@ -162,7 +162,7 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph sources["Data Sources"]
-        NS[Nightscout API]
+        NS[REST API]
         FILES[CSV and Excel Files]
         EXTERNAL[External APIs]
     end
@@ -292,8 +292,8 @@ flowchart TB
 
 For more details, see:
 - [Data Engineering Fundamentals Part 12](../blog/data-engineering-fundamentals/12-extending-phlo-with-plugins-and-observatory.md)
-- [ADR 0030: Unified Plugin System](../architecture/decisions/0030-unified-plugin-system-with-registry.md)
-- [ADR 0046: Phlo Contracts for Migration Scaffolding](../architecture/decisions/0046-phlo-contracts-for-schema-migration-scaffolding.md)
+- [Plugin API](plugin-api.md)
+- [Schema Migration Reference](cli-reference.md#phlo-schema-migrate-export-contract)
 
 ## Branching Strategy
 

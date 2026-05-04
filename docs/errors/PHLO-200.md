@@ -115,11 +115,11 @@ class EventLog(pa.DataFrameModel):
 2. **Test conversion manually**
 
    ```python
-   from phlo_quality.iceberg import pandera_to_iceberg_schema
+   from phlo_iceberg.schema_conversion import pandera_to_iceberg
    from workflows.schemas.weather import WeatherObservations
 
    try:
-       iceberg_schema = pandera_to_iceberg_schema(WeatherObservations)
+       iceberg_schema = pandera_to_iceberg(WeatherObservations)
        print(f"✅ Conversion OK: {iceberg_schema}")
    except SchemaConversionError as e:
        print(f"❌ Conversion failed: {e}")
@@ -170,11 +170,11 @@ class EventLog(pa.DataFrameModel):
 
    ```python
    # tests/test_schema_conversion.py
-   from phlo_quality.iceberg import pandera_to_iceberg_schema
+   from phlo_iceberg.schema_conversion import pandera_to_iceberg
    from workflows.schemas.weather import WeatherObservations
 
    def test_schema_converts_to_iceberg():
-       iceberg_schema = pandera_to_iceberg_schema(WeatherObservations)
+       iceberg_schema = pandera_to_iceberg(WeatherObservations)
        assert len(iceberg_schema.fields) > 0
    ```
 

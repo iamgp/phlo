@@ -34,15 +34,14 @@ pip install phlo-core-plugins
 ### Quality Check Usage
 
 ```python
-from phlo.quality import phlo_quality
-from phlo_quality.checks import null_check, uniqueness_check, range_check
+from phlo.quality import NullCheck, RangeCheck, UniqueCheck, phlo_quality
 
 @phlo_quality(
-    asset="bronze.users",
+    table="bronze.users",
     checks=[
-        null_check(column="id"),
-        uniqueness_check(column="email"),
-        range_check(column="age", min_value=0, max_value=150),
+        NullCheck(columns=["id"]),
+        UniqueCheck(columns=["email"]),
+        RangeCheck(column="age", min_value=0, max_value=150),
     ]
 )
 def validate_users():

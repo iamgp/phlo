@@ -286,7 +286,7 @@ def weather_data(
     iceberg: IcebergResource,
 ) -> dg.MaterializeResult:
     """
-    Ingest weather data using two-step DLT pattern (like glucose example):
+    Ingest weather data using the two-step DLT pattern:
 
     1. Fetch data from OpenWeather API
     2. DLT stages data to parquet files
@@ -295,7 +295,7 @@ def weather_data(
     Why DLT?
     - Handles schema evolution automatically
     - Robust error handling and retries
-    - Consistent with other ingestion assets (dlt_glucose_entries)
+    - Consistent with other ingestion assets (for example dlt_events)
     - State management for incremental loads
     """
     iceberg_settings = get_iceberg_settings()
@@ -496,7 +496,7 @@ dagster asset materialize -m phlo_dagster.framework.definitions -a dlt_weather_d
 
 **Why DLT?**
 
-- Consistent with the glucose example pattern (`dlt_glucose_entries`)
+- Consistent with the generated ingestion asset pattern (`dlt_events`)
 - Handles schema evolution automatically
 - Robust parquet file generation with proper typing
 - State management for incremental loads
@@ -827,7 +827,7 @@ daily_stats AS (
         country,
 
         -- Temperature statistics
-        COUNT(*) AS reading_count,
+        COUNT(*) AS event_count,
         ROUND(AVG(temperature_c), 2) AS avg_temp_c,
         ROUND(MIN(temperature_c), 2) AS min_temp_c,
         ROUND(MAX(temperature_c), 2) AS max_temp_c,
@@ -970,7 +970,7 @@ enriched AS (
         d.had_precipitation,
 
         -- Metadata
-        d.reading_count,
+        d.event_count,
         CURRENT_TIMESTAMP AS last_updated
 
     FROM daily_summary d

@@ -76,12 +76,12 @@ workflows/transforms/dbt/
 │   │   └── sources_weather.yml
 │   │
 │   ├── bronze/               # Staging models
-│   │   ├── stg_glucose_entries.sql
+│   │   ├── stg_csv_events.sql
 │   │   ├── stg_weather_observations.sql
 │   │   └── schema.yml        # Tests and documentation
 │   │
 │   ├── silver/               # Fact/dimension models
-│   │   ├── fct_glucose_readings.sql
+│   │   ├── fct_events.sql
 │   │   ├── fct_weather_readings.sql
 │   │   └── schema.yml
 │   │
@@ -90,7 +90,7 @@ workflows/transforms/dbt/
 │   │   └── schema.yml
 │   │
 │   └── marts_postgres/       # Published marts
-│       ├── mrt_glucose_overview.sql
+│       ├── mrt_event_overview.sql
 │       └── schema.yml
 │
 ├── macros/                   # Reusable SQL functions
@@ -146,8 +146,8 @@ sources:
               - not_null
               - dbt_utils.at_least_one
 
-      - name: glucose_entries
-        description: "Raw glucose readings from Nightscout"
+      - name: events
+        description: "Raw event records from the CSV batch template"
         # ... columns
 ```
 
@@ -754,12 +754,12 @@ Gold:        agg_grain_subject
 Marts:       mrt_audience_subject
 
 Examples:
-raw.nightscout_entries
-stg_nightscout_glucose_entries
-fct_glucose_readings
+raw.events
+stg_csv_events
+fct_events
 dim_date
-agg_daily_glucose_summary
-mrt_patient_glucose_overview
+agg_daily_event_summary
+mrt_event_overview
 ```
 
 ### 2. DRY (Don't Repeat Yourself)

@@ -1,6 +1,6 @@
 # Phlo Comprehensive Test Strategy Matrix
 
-This document outlines the testing requirements for all components in the Phlo ecosystem. It defines **where** tests should live and **what** they should verify at each level of the [Test Pyramid](testing_architecture_proposal.md).
+This document outlines the testing requirements for all components in the Phlo ecosystem. It defines **where** tests should live and **what** they should verify at each level of the test pyramid.
 
 ```mermaid
 flowchart TB

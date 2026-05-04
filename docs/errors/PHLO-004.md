@@ -219,4 +219,4 @@ class SensorReadings(pa.DataFrameModel):
 
 - [Pandera Documentation](https://pandera.readthedocs.io/)
 - [Pandera DataFrameModel](https://pandera.readthedocs.io/en/stable/dataframe_models.html)
-- [Phlo Quality Guide](../guides/quality.md)
+- [phlo-pandera package](../packages/phlo-pandera.md)

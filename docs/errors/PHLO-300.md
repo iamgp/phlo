@@ -227,4 +227,4 @@ def weather_observations(partition: str):
 
 - [DLT Documentation](https://dlthub.com/docs/)
 - [DLT Pipeline Traces](https://dlthub.com/docs/running-in-production/running#inspect-save-and-alert-on-load-info)
-- [Phlo Ingestion Guide](../guides/ingestion.md)
+- [phlo-dlt package](../packages/phlo-dlt.md)

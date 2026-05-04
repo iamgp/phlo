@@ -57,26 +57,23 @@ jobs:
         run: npm audit --audit-level=high
 
   docs-dependencies:
-    name: security / docs dependencies
+    name: security / docs site generation
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: docs-app
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
 
-      - name: Set up Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+      - name: Install uv
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: docs-app/package-lock.json
+          version: "latest"
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install pymdx
+        run: uv tool install "pymdx==0.1.4"
 
-      - name: Audit docs dependencies
-        continue-on-error: true
-        run: npm audit --audit-level=high
+      - name: Generate docs site
+        run: pymdx generate src/phlo --docs docs --output docs-site
+
+      - name: Build docs site
+        run: pymdx build docs-site

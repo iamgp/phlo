@@ -167,4 +167,4 @@ def weather_observations(partition: str):
 
 - [Dagster Asset Discovery](https://docs.dagster.io/concepts/assets/software-defined-assets)
 - [Python Import System](https://docs.python.org/3/reference/import.html)
-- [Phlo Asset Creation Guide](../TESTING_GUIDE.md#creating-assets)
+- [Workflow Development Guide](../guides/workflow-development.md)

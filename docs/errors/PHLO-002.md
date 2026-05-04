@@ -252,5 +252,5 @@ def weather_observations(partition: str):
 ## Additional Resources
 
 - [Pandera Documentation](https://pandera.readthedocs.io/)
-- [Phlo Schema Guide](../TESTING_GUIDE.md#schema-definitions)
+- [Data Modeling Guide](../guides/data-modeling.md)
 - [Python String Case Methods](https://docs.python.org/3/library/stdtypes.html#string-methods)

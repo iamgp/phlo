@@ -1196,22 +1196,22 @@ tag:group_name           # All assets with tag
 
 ```bash
 # Single asset
-phlo materialize dlt_glucose_entries
+phlo materialize dlt_events
 
 # Asset and downstream
-phlo materialize dlt_glucose_entries+
+phlo materialize dlt_events+
 
 # Specific partition
-phlo materialize dlt_glucose_entries --partition 2025-01-15
+phlo materialize dlt_events --partition 2026-05-04
 
 # By tag
-phlo materialize --select "tag:nightscout"
+phlo materialize --select "tag:csv"
 
 # Dry run
-phlo materialize dlt_glucose_entries --dry-run
+phlo materialize dlt_events --dry-run
 
 # Skip automatic contract refresh
-phlo materialize dlt_glucose_entries --no-contract-refresh
+phlo materialize dlt_events --no-contract-refresh
 ```
 
 ## Testing Commands
@@ -1394,7 +1394,7 @@ phlo test -m unit
 phlo test --local
 
 # Specific test
-phlo test -k test_glucose_ingestion
+phlo test -k test_events_ingestion
 
 # With coverage
 phlo test --coverage
@@ -1435,7 +1435,7 @@ rather than only the top-level Dagster wrapper.
 phlo logs
 
 # Filter by asset
-phlo logs --asset dlt_glucose_entries
+phlo logs --asset dlt_events
 
 # Filter by log level
 phlo logs --level ERROR
@@ -1485,22 +1485,22 @@ partition work begins.
 
 ```bash
 # Backfill for date range
-phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-31
+phlo backfill dlt_events --start-date 2026-05-01 --end-date 2026-05-07
 
 # Specific partitions
-phlo backfill dlt_glucose_entries --partitions 2025-01-15,2025-01-16,2025-01-17
+phlo backfill dlt_events --partitions 2026-05-01,2026-05-02,2026-05-03
 
 # Parallel backfill (5 concurrent)
-phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-31 --parallel 5
+phlo backfill dlt_events --start-date 2026-05-01 --end-date 2026-05-07 --parallel 5
 
 # Resume interrupted backfill
-phlo backfill dlt_glucose_entries --resume
+phlo backfill dlt_events --resume
 
 # Dry run to see what would execute
-phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-07 --dry-run
+phlo backfill dlt_events --start-date 2026-05-01 --end-date 2026-05-07 --dry-run
 
 # With delay between executions
-phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-31 --parallel 3 --delay 2.5
+phlo backfill dlt_events --start-date 2026-05-01 --end-date 2026-05-07 --parallel 3 --delay 2.5
 ```
 
 ## Branch Commands
@@ -1762,13 +1762,13 @@ phlo lineage show ASSET_NAME [OPTIONS]
 
 ```bash
 # Show full lineage
-phlo lineage show dlt_glucose_entries
+phlo lineage show dlt_events
 
 # Show only upstream dependencies
-phlo lineage show dlt_glucose_entries --direction upstream
+phlo lineage show dlt_events --direction upstream
 
 # Limit depth
-phlo lineage show dlt_glucose_entries --depth 2
+phlo lineage show dlt_events --depth 2
 ```
 
 ### phlo lineage export
@@ -1794,13 +1794,13 @@ phlo lineage export ASSET_NAME [OPTIONS]
 
 ```bash
 # Export to Graphviz DOT
-phlo lineage export dlt_glucose_entries --format dot --output lineage.dot
+phlo lineage export dlt_events --format dot --output lineage.dot
 
 # Export to Mermaid diagram
-phlo lineage export dlt_glucose_entries --format mermaid --output lineage.md
+phlo lineage export dlt_events --format mermaid --output lineage.md
 
 # Export to JSON
-phlo lineage export dlt_glucose_entries --format json --output lineage.json
+phlo lineage export dlt_events --format json --output lineage.json
 ```
 
 ## Configuration Commands
@@ -1889,7 +1889,7 @@ phlo status [OPTIONS]
 ```bash
 phlo status
 phlo status --stale
-phlo status --group nightscout
+phlo status --group csv
 ```
 
 ### phlo validate-schema

@@ -5,7 +5,7 @@
 ## What You'll Learn
 
 - How Pandera schemas define enforceable contracts
-- How `@phlo.quality` generates asset checks
+- How `phlo_quality` generates asset checks
 - When to block downstream runs vs warn
 - How to validate schemas and workflow files from CLI
 
@@ -38,7 +38,7 @@ class RawOrders(PhloSchema):
 ## Add Declarative Quality Checks
 
 ```python
-from phlo_pandera import phlo_quality, NullCheck, RangeCheck, FreshnessCheck, CustomSQLCheck
+from phlo.quality import phlo_quality, NullCheck, RangeCheck, FreshnessCheck, CustomSQLCheck
 
 @phlo_quality(
     table="silver.fct_orders",
