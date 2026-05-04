@@ -16,13 +16,13 @@ Usage:
         >>> setup_postgrest()
 """
 
-import os
 from pathlib import Path
 from typing import Optional
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
+from phlo.config.env import load_project_env
 from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -48,12 +48,13 @@ def get_db_connection(
         psycopg2 connection object
 
     """
+    env = load_project_env()
     conn_params = {
-        "host": host or os.getenv("POSTGRES_HOST", "localhost"),
-        "port": port or int(os.getenv("POSTGRES_PORT", "5432")),
-        "database": database or os.getenv("POSTGRES_DB", "lakehouse"),
-        "user": user or os.getenv("POSTGRES_USER", "lake"),
-        "password": password or os.getenv("POSTGRES_PASSWORD", "lakepass"),
+        "host": host or env.get("POSTGRES_HOST", "localhost"),
+        "port": port or int(env.get("POSTGRES_PORT", "5432")),
+        "database": database or env.get("POSTGRES_DB", "lakehouse"),
+        "user": user or env.get("POSTGRES_USER", "lake"),
+        "password": password or env.get("POSTGRES_PASSWORD", "lakepass"),
     }
 
     conn = psycopg2.connect(**conn_params)

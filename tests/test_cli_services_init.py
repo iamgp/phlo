@@ -9,7 +9,7 @@ from click.testing import CliRunner
 
 from phlo.cli.commands.services.utils import detect_phlo_source_path
 from phlo.cli.infrastructure.selection import select_services_to_install
-from phlo.plugins.compose.env import generate_env
+from phlo.plugins.compose.env import generate_env, generate_env_local
 from phlo.plugins.compose.generator import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 from tests.helpers import FakeDiscovery, _service
@@ -180,6 +180,39 @@ def test_generate_env_pins_phlo_version_for_service_builds(monkeypatch: pytest.M
     assert "PHLO_VERSION=9.8.7" in env
 
 
+def test_generate_env_local_keeps_known_non_secret_values_out_of_local_overrides() -> None:
+    service = ServiceDefinition(
+        name="postgres",
+        description="postgres",
+        category="core",
+        default=True,
+        env_vars={
+            "POSTGRES_PORT": {
+                "default": "5432",
+                "description": "Postgres port",
+            },
+            "POSTGRES_PASSWORD": {
+                "default": "postgres",
+                "description": "Postgres password",
+                "secret": True,
+            },
+        },
+    )
+
+    env_local = generate_env_local(
+        [service],
+        existing_values={
+            "POSTGRES_PORT": "15432",
+            "POSTGRES_PASSWORD": "secret",
+            "CUSTOM_LOCAL": "kept",
+        },
+    )
+
+    assert "POSTGRES_PASSWORD=secret" in env_local
+    assert "CUSTOM_LOCAL=kept" in env_local
+    assert "POSTGRES_PORT=15432" not in env_local
+
+
 def test_compose_generator_resolves_source_path_dev_volumes(tmp_path) -> None:
     class MinimalFakeDiscovery(FakeDiscovery):
         def resolve_dependencies(
@@ -253,6 +286,44 @@ def test_services_init_excludes_profile_services_by_default(
     compose = (tmp_path / ".phlo" / "docker-compose.yml").read_text()
     assert "postgres" in compose
     assert "prometheus" not in compose
+
+
+def test_services_init_allows_logs_only_phlo_dir(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    """A fresh `phlo init` can create .phlo/logs before infrastructure is rendered."""
+    postgres = _service("postgres", default=True)
+    fake_discovery = FakeDiscovery({postgres.name: postgres}, default_names=(postgres.name,))
+
+    class FakeComposer:
+        def __init__(self, _discovery):
+            pass
+
+        def generate_compose(self, services, output_dir, **_kwargs):
+            return "services: {}\n"
+
+        def generate_env(self, _services, env_overrides=None):
+            return ""
+
+        def generate_env_local(self, _services, env_overrides=None, existing_values=None):
+            return ""
+
+        def generate_gitignore(self, _services):
+            return ""
+
+        def copy_service_files(self, _services, _output_dir):
+            return []
+
+    (tmp_path / ".phlo" / "logs").mkdir(parents=True)
+    (tmp_path / ".phlo" / "logs" / "20260503.log").write_text("{}\n")
+    monkeypatch.chdir(tmp_path)
+    from phlo.cli.commands.services import init as init_module
+
+    monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
+    monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
+
+    result = CliRunner().invoke(init_module.init_cmd, [])
+
+    assert result.exit_code == 0
+    assert (tmp_path / ".phlo" / "docker-compose.yml").exists()
 
 
 def test_services_init_includes_requested_profile_services(

@@ -33,7 +33,8 @@ def check_cmd(output_json: bool):
         phlo plugin check --json    # Output as JSON
     """
     try:
-        console.print("Validating plugins...")
+        if not output_json:
+            console.print("Validating plugins...")
 
         # First discover plugins
         discover_plugins(auto_register=True)
@@ -42,7 +43,7 @@ def check_cmd(output_json: bool):
         validation_results = validate_plugins()
 
         if output_json:
-            console.print(json.dumps(validation_results, indent=2))
+            click.echo(json.dumps(validation_results, indent=2))
             return
 
         # Rich formatted output

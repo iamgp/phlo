@@ -35,6 +35,7 @@ Example:
 """
 
 import json
+import re
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -229,7 +230,7 @@ def backfill(
         )
         console.print("\n[yellow]Dry run - showing first 5 commands:[/yellow]\n")
         for date in partition_dates[:5]:
-            cmd = _build_materialize_command(asset_name, date)
+            cmd = _build_materialize_command(asset_name, date, container_name="dagster")
             console.print(f"[dim]{' '.join(cmd)}[/dim]")
         if len(partition_dates) > 5:
             console.print(f"[dim]... and {len(partition_dates) - 5} more[/dim]")
@@ -325,7 +326,9 @@ def _validate_partition_dates(dates: list[str]) -> None:
             sys.exit(1)
 
 
-def _build_materialize_command(asset_name: str, partition_date: str) -> list[str]:
+def _build_materialize_command(
+    asset_name: str, partition_date: str, container_name: str | None = None
+) -> list[str]:
     """
     Build the docker exec command for materializing an asset.
 
@@ -339,8 +342,9 @@ def _build_materialize_command(asset_name: str, partition_date: str) -> list[str
     """
     import platform
 
-    project_name = get_project_name()
-    container_name = find_dagster_container(project_name)
+    if container_name is None:
+        project_name = get_project_name()
+        container_name = find_dagster_container(project_name)
     host_platform = platform.system()
 
     return [
@@ -571,7 +575,7 @@ def _materialize_partition(
         if result.returncode == 0:
             return True, f"Materialized {partition_date}"
         else:
-            error_msg = result.stderr if result.stderr else result.stdout
+            error_msg = _summarize_materialize_error(result.stderr or result.stdout)
             logger.warning(
                 "dagster_backfill_partition_materialize_nonzero_exit",
                 asset_name=asset_name,
@@ -603,6 +607,34 @@ def _materialize_partition(
             exc_info=True,
         )
         return False, str(e)
+
+
+def _summarize_materialize_error(output: str) -> str:
+    """Extract a concise root-cause line from Dagster materialization output."""
+    if not output.strip():
+        return "materialization failed"
+
+    patterns = (
+        r"dagster\.[\w.]+:\s*(?P<message>.+)",
+        r"dagster_shared\.[\w.]+:\s*(?P<message>.+)",
+        r"CheckError:\s*(?P<message>.+)",
+        r"Error:\s*(?P<message>.+)",
+    )
+    for line in reversed(output.splitlines()):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("{"):
+            continue
+        for pattern in patterns:
+            match = re.search(pattern, stripped)
+            if match:
+                return match.group("message").strip()
+        if "Traceback " in stripped or stripped.startswith("File "):
+            continue
+        if stripped.startswith(("WARNING:", "INFO:", "DEBUG:")):
+            continue
+        return stripped
+
+    return output.strip().splitlines()[-1][:200]
 
 
 def _save_backfill_state(
@@ -739,7 +771,7 @@ def _display_backfill_results(results: dict[str, Any]) -> None:
                 date = item
                 error = "unknown"
 
-            fail_table.add_row(date, error[:100])
+            fail_table.add_row(date, error[:200])
 
         console.print(fail_table)
 

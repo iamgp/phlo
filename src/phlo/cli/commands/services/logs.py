@@ -63,12 +63,16 @@ def logs_cmd(service: str | None, follow: bool, tail: int, backend_name: str | N
                 service_name=service,
                 returncode=result.returncode,
             )
-        else:
-            logger.info(
-                "services_logs_completed",
-                project_name=project_name,
-                service_name=service,
+            exc = click.ClickException(
+                f"container compose failed with code {result.returncode}: {' '.join(cmd)}"
             )
+            exc.exit_code = result.returncode
+            raise exc
+        logger.info(
+            "services_logs_completed",
+            project_name=project_name,
+            service_name=service,
+        )
     except KeyboardInterrupt:
         logger.warning(
             "services_logs_interrupted",

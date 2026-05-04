@@ -3,15 +3,31 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 
 import click
 
-from phlo.cli.commands.plugin.utils import PLUGIN_TYPE_CHOICES, PLUGIN_TYPE_MAP, console
+from phlo.cli.commands.plugin.utils import (
+    PLUGIN_TYPE_CHOICES,
+    PLUGIN_TYPE_MAP,
+    console,
+    normalize_plugin_type,
+)
 from phlo.logging import get_logger
 from phlo.plugins import get_plugin_info, list_plugins
 
 logger = get_logger(__name__)
+
+
+def _plugin_name_key(value: str) -> str:
+    """Normalize plugin/package names for lookup."""
+    normalized = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+    for prefix in ("phlo_plugin_", "phlo_"):
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix) :]
+            break
+    return normalized
 
 
 @click.command(name="info")
@@ -45,8 +61,12 @@ def info_cmd(plugin_name: str, plugin_type: str | None, output_json: bool) -> No
 
         if not plugin_type_provided:
             for ptype_key, names in all_plugins.items():
-                if plugin_name in names:
+                requested = _plugin_name_key(plugin_name)
+                if any(requested == _plugin_name_key(name) for name in names):
                     detected_type = ptype_key
+                    plugin_name = next(
+                        name for name in names if requested == _plugin_name_key(name)
+                    )
                     break
 
             if detected_type is None:
@@ -57,8 +77,8 @@ def info_cmd(plugin_name: str, plugin_type: str | None, output_json: bool) -> No
                 raise SystemExit(1)
 
         if plugin_type_provided:
-            internal_type = PLUGIN_TYPE_MAP[plugin_type]
-            display_type = plugin_type
+            display_type = normalize_plugin_type(plugin_type)
+            internal_type = PLUGIN_TYPE_MAP[display_type]
         else:
             internal_type = detected_type
             display_type = detected_type

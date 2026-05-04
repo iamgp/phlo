@@ -45,6 +45,8 @@ from pydantic import BaseModel, Field
 
 from phlo.capabilities import resolve_capability
 from phlo.capabilities.discovery import discover_capabilities
+from phlo.config.env import project_env_value
+from phlo.config.network import resolve_url
 from phlo.logging import get_bound_correlation_context, get_logger
 from phlo_api.api.authorization import check_dataset_query, check_dataset_read
 from phlo_api.observatory_api.trino_sql import (
@@ -107,7 +109,7 @@ def _resolve_query_engine() -> Any | None:
     discover_capabilities()
     return resolve_capability(
         "query_engine",
-        os.environ.get(_DEFAULT_QUERY_ENGINE_ENV) or _DEFAULT_TRINO_CAPABILITY_NAME,
+        project_env_value(_DEFAULT_QUERY_ENGINE_ENV) or _DEFAULT_TRINO_CAPABILITY_NAME,
     )
 
 
@@ -124,18 +126,18 @@ def resolve_trino_url(override: str | None = None) -> str:
         RuntimeError: If no query-engine URL is configured.
 
     """
-    env_url = os.environ.get(_QUERY_ENGINE_URL_ENV) or os.environ.get("TRINO_URL")
+    env_url = project_env_value(_QUERY_ENGINE_URL_ENV) or project_env_value("TRINO_URL")
     if override and override.strip():
-        return override
+        return resolve_url(override, port_env_var="TRINO_PORT")
     if env_url:
-        return env_url
+        return resolve_url(env_url, port_env_var="TRINO_PORT")
 
     resolution = _resolve_query_engine()
     if resolution is not None:
         for key in ("url", "http_url", "endpoint"):
             value = resolution.metadata.get(key)
             if isinstance(value, str) and value:
-                return value
+                return resolve_url(value, port_env_var="TRINO_PORT")
 
         host = resolution.metadata.get("host")
         port = resolution.metadata.get("port")
@@ -143,7 +145,7 @@ def resolve_trino_url(override: str | None = None) -> str:
             resolution.metadata.get("scheme") or resolution.metadata.get("http_scheme") or "http"
         )
         if isinstance(host, str) and host and port is not None:
-            return f"{scheme}://{host}:{port}"
+            return resolve_url(f"{scheme}://{host}:{port}", port_env_var="TRINO_PORT")
 
     raise RuntimeError(
         "No query-engine URL is configured. Set PHLO_QUERY_ENGINE_URL or TRINO_URL, "
@@ -164,7 +166,7 @@ def resolve_default_catalog() -> str:
         RuntimeError: If no default catalog is configured.
 
     """
-    env_catalog = os.environ.get("PHLO_QUERY_CATALOG") or os.environ.get("TRINO_CATALOG")
+    env_catalog = project_env_value("PHLO_QUERY_CATALOG") or project_env_value("TRINO_CATALOG")
     if env_catalog:
         return env_catalog
 
@@ -193,7 +195,7 @@ def resolve_default_ref() -> str:
         RuntimeError: If no default ref is configured.
 
     """
-    env_ref = os.environ.get("PHLO_DEFAULT_REF") or os.environ.get("NESSIE_DEFAULT_REF")
+    env_ref = project_env_value("PHLO_DEFAULT_REF") or project_env_value("NESSIE_DEFAULT_REF")
     if env_ref:
         return env_ref
 
@@ -229,7 +231,7 @@ def resolve_table_discovery_schemas(
     if preferred_schema and preferred_schema.strip():
         return [preferred_schema.strip()]
 
-    env_schemas = os.environ.get(_DISCOVERY_SCHEMAS_ENV)
+    env_schemas = project_env_value(_DISCOVERY_SCHEMAS_ENV)
     if env_schemas:
         schemas = [schema.strip() for schema in env_schemas.split(",") if schema.strip()]
         if schemas:

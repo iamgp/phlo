@@ -9,9 +9,11 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from click.testing import CliRunner
 
+from phlo_dagster import cli_status as status_module
 from phlo_dagster.cli_status import (
     _check_if_stale,
     _check_service_health,
+    _get_asset_status,
     _get_freshness_indicator,
     status,
 )
@@ -144,6 +146,72 @@ class TestServiceHealth:
 
         valid_statuses = {"healthy", "down", "timeout", "error", "unhealthy"}
         assert result["status"] in valid_statuses
+
+    def test_service_status_uses_project_port_overrides(self, monkeypatch: pytest.MonkeyPatch):
+        """Service health checks should honor project .phlo env port overrides."""
+        checked_urls: dict[str, str] = {}
+
+        monkeypatch.setattr(
+            status_module,
+            "_project_env",
+            lambda: {
+                "TRINO_PORT": "18080",
+                "MINIO_API_PORT": "19000",
+                "NESSIE_PORT": "29120",
+            },
+        )
+        monkeypatch.setattr(
+            status_module,
+            "_dagster_graphql_url",
+            lambda: "http://localhost:3300/graphql",
+        )
+        monkeypatch.setattr(
+            status_module,
+            "_check_dagster_health",
+            lambda url: {"name": "Dagster", "status": "healthy", "url": url},
+        )
+
+        def fake_check(url: str, name: str) -> dict[str, str]:
+            checked_urls[name.lower()] = url
+            return {"name": name, "status": "healthy"}
+
+        monkeypatch.setattr(status_module, "_check_service_health", fake_check)
+
+        services = status_module._get_service_status()
+
+        assert services["dagster"]["url"] == "http://localhost:3300/graphql"
+        assert checked_urls == {
+            "trino": "http://localhost:18080/v1/info",
+            "minio": "http://localhost:19000/minio/health/ready",
+            "nessie": "http://localhost:29120/api/v1/config",
+        }
+
+    def test_dagster_graphql_url_falls_back_on_invalid_port(self, monkeypatch: pytest.MonkeyPatch):
+        """Invalid Dagster port overrides should not produce malformed URLs."""
+        monkeypatch.setattr(
+            status_module,
+            "_project_env",
+            lambda: {"DAGSTER_WEBSERVER_PORT": "auto"},
+        )
+        monkeypatch.setattr(
+            status_module, "get_settings", lambda: type("S", (), {"dagster_port": 3000})()
+        )
+
+        assert status_module._dagster_graphql_url() == "http://localhost:3000/graphql"
+
+    def test_dagster_health_handles_request_exceptions(self, monkeypatch: pytest.MonkeyPatch):
+        """Dagster health should return a structured error for non-connection request errors."""
+
+        def raise_invalid_url(*_args, **_kwargs):
+            raise status_module.requests_exceptions.InvalidURL("bad url")
+
+        monkeypatch.setattr(status_module.http_requests, "post", raise_invalid_url)
+
+        result = status_module._check_dagster_health("not-a-url")
+
+        assert result["name"] == "Dagster"
+        assert result["status"] == "error"
+        assert "bad url" in result["error"]
 
 
 class TestStatusCLI:
@@ -336,6 +404,41 @@ class TestStatusFiltering:
 
 class TestStatusEdgeCases:
     """Tests for edge cases in status command."""
+
+    def test_asset_status_handles_null_dagster_definition(self, monkeypatch: pytest.MonkeyPatch):
+        """Dagster may return asset nodes with null definition during startup."""
+
+        class FakeResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {
+                    "data": {
+                        "assetsOrError": {
+                            "nodes": [
+                                {
+                                    "key": {"path": ["dlt_events"]},
+                                    "definition": None,
+                                }
+                            ]
+                        }
+                    }
+                }
+
+        monkeypatch.setattr(status_module, "_dagster_graphql_url", lambda: "http://dagster")
+        monkeypatch.setattr(
+            status_module.http_requests,
+            "post",
+            lambda *_args, **_kwargs: FakeResponse(),
+        )
+        monkeypatch.setattr(status_module, "_get_asset_last_run", lambda _asset_name: None)
+
+        assets = _get_asset_status()
+
+        assert assets[0]["name"] == "dlt_events"
+        assert assets[0]["group"] == ""
+        assert assets[0]["status"] == "never_run"
 
     def test_status_with_all_flags(self):
         """Test status with all filtering flags combined."""

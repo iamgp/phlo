@@ -58,6 +58,7 @@ def test_resolve_trino_url_uses_query_engine_metadata(monkeypatch) -> None:
     """Query-engine URL resolution should prefer capability metadata."""
     monkeypatch.delenv("PHLO_QUERY_ENGINE_URL", raising=False)
     monkeypatch.delenv("TRINO_URL", raising=False)
+    monkeypatch.setattr("phlo.config.network.socket.gethostbyname", lambda _host: "127.0.0.1")
 
     with (
         patch("phlo_api.observatory_api.trino.discover_capabilities"),

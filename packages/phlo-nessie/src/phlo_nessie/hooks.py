@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import time
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from phlo.config.env import load_project_env
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -168,9 +168,10 @@ def _resolve_nessie_url() -> str:
         'http://localhost:19120'
 
     """
-    if url := os.environ.get("NESSIE_URL"):
+    env = load_project_env()
+    if url := env.get("NESSIE_URL"):
         return url.rstrip("/")
-    port = os.environ.get("NESSIE_PORT", "19120")
+    port = env.get("NESSIE_PORT", "19120")
     return f"http://localhost:{port}"
 
 

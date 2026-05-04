@@ -31,7 +31,6 @@ Example:
 
 from __future__ import annotations
 
-import os
 import time
 from datetime import datetime
 from typing import Any
@@ -40,6 +39,8 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from phlo.config.env import project_env_value
+from phlo.config.network import resolve_url
 from phlo.logging import get_bound_correlation_context, get_logger
 from phlo.security.service_identity import build_service_headers
 from phlo_api.observatory_api.quality import fetch_quality_snapshot
@@ -64,12 +65,12 @@ def resolve_dagster_url(override: str | None = None) -> str:
         None: No exceptions raised directly.
 
     """
-    env_url = os.environ.get("DAGSTER_GRAPHQL_URL")
+    env_url = project_env_value("DAGSTER_GRAPHQL_URL")
     if override and override.strip():
         if env_url and override.strip() == "http://localhost:3000/graphql":
-            return env_url
-        return override
-    return env_url or DEFAULT_DAGSTER_URL
+            return resolve_url(env_url, port_env_var="DAGSTER_PORT")
+        return resolve_url(override, port_env_var="DAGSTER_PORT")
+    return resolve_url(env_url or DEFAULT_DAGSTER_URL, port_env_var="DAGSTER_PORT")
 
 
 # --- GraphQL Queries ---

@@ -19,10 +19,22 @@ from phlo.cli.commands.services.utils import (
     require_container_backend,
 )
 from phlo.cli.infrastructure.compose import compose_base_cmd
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
+from phlo.plugins.discovery import ServiceDiscovery
 
 logger = get_logger(__name__)
+
+
+def _remaining_project_containers(project_name: str, backend_name: str | None) -> list[str]:
+    """Return running containers still attached to the compose project."""
+    try:
+        backend = select_project_container_backend(cli_backend=backend_name)
+        return [container.name for container in backend.list_project_containers(project_name)]
+    except Exception:
+        logger.warning("services_stop_remaining_container_check_failed", exc_info=True)
+        return []
 
 
 @click.command("stop")
@@ -130,9 +142,10 @@ def stop_cmd(
     # Parse comma-separated services
     services_list = parse_service_args(service)
 
-    # When --profile is specified without --service, target only profile services
-    # This prevents stopping all services when only profile services should be affected
-    if profile and not services_list:
+    # When --profile is specified without --service, target only profile services.
+    # With --volumes, use compose down for the profile so dependencies and project
+    # volumes created by the profile are removed too.
+    if profile and not services_list and not volumes:
         services_list = get_profile_service_names(profile)
     logger.info(
         "services_stop_targets_resolved",
@@ -159,10 +172,14 @@ def stop_cmd(
             metadata={"native": False},
         )
 
+    compose_profiles = profile
+    if not services_list and not profile:
+        compose_profiles = tuple(sorted(ServiceDiscovery().get_available_profiles()))
+
     cmd = compose_base_cmd(
         phlo_dir=phlo_dir,
         project_name=project_name,
-        profiles=profile,
+        profiles=compose_profiles,
         backend_name=backend_name,
     )
 
@@ -185,6 +202,19 @@ def stop_cmd(
 
     result = run_compose(cmd, check=False, capture_output=False)
     if result.returncode == 0:
+        remaining = (
+            [] if services_list else _remaining_project_containers(project_name, backend_name)
+        )
+        if remaining:
+            logger.error(
+                "services_stop_left_running_containers",
+                project_name=project_name,
+                remaining_count=len(remaining),
+                remaining_containers=remaining,
+            )
+            raise click.ClickException(
+                "container compose completed but containers still running: " + ", ".join(remaining)
+            )
         logger.info(
             "services_stop_succeeded",
             project_name=project_name,

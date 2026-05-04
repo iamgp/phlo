@@ -432,13 +432,10 @@ def _run_service_hooks(
             if not command:
                 continue
 
-            # Use project's venv python if command starts with 'python'
+            # Use the Phlo interpreter for package hook modules. Generated project
+            # venvs do not necessarily install every optional service package.
             if command and command[0] in ("python", "python3"):
-                venv_python = project_root / ".venv" / "bin" / "python"
-                if venv_python.exists():
-                    command = [str(venv_python), *command[1:]]
-                else:
-                    command = [sys.executable, *command[1:]]
+                command = [sys.executable, *command[1:]]
 
             timeout = hook.get("timeout_seconds")
             if isinstance(timeout, str) and timeout.isdigit():

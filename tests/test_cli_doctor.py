@@ -235,8 +235,8 @@ def test_port_checks_report_conflicts(monkeypatch) -> None:
     monkeypatch.setattr(
         "phlo.cli.commands.doctor._collect_port_mappings",
         lambda: [
-            PortMapping("postgres", 5432, 5432, "default", "Stopped"),
-            PortMapping("trino", 5432, 8080, "env", "Stopped", env_var="TRINO_PORT"),
+            PortMapping("postgres", 5432, 5432, "default", "Running"),
+            PortMapping("trino", 5432, 8080, "env", "Running", env_var="TRINO_PORT"),
         ],
     )
 

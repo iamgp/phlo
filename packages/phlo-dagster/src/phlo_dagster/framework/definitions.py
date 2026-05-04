@@ -55,6 +55,7 @@ Example:
 
 from __future__ import annotations
 
+import os
 import platform
 from pathlib import Path
 from typing import Any
@@ -89,6 +90,12 @@ def _collect_wap_definitions() -> dg.Definitions | None:
         No explicit exceptions raised. Logs warnings for incompatible providers.
 
     """
+    wap_sensors_raw = os.getenv("PHLO_WAP_SENSORS_ENABLED", "")
+    wap_sensors_enabled = wap_sensors_raw.lower() in {"1", "true", "yes"}
+    if os.getenv("PHLO_DAGSTER_DEV") == "1" and not wap_sensors_enabled:
+        logger.info("dagster_wap_definitions_skipped_in_local_dev")
+        return None
+
     resolution = resolve_capability("catalog")
     if resolution is None:
         return None

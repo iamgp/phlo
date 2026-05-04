@@ -28,6 +28,44 @@ def test_workflow_group_help_lists_create() -> None:
     assert "create" in result.output
 
 
+def test_workflow_create_uses_cron_default_noninteractively(monkeypatch) -> None:
+    calls: dict[str, object] = {}
+
+    def fake_create_ingestion_workflow(**kwargs):
+        calls.update(kwargs)
+        return [
+            "workflows/schemas/demo.py",
+            "workflows/ingestion/demo/orders.py",
+            "tests/test_orders.py",
+        ]
+
+    monkeypatch.setattr(
+        "phlo_dlt.scaffold.create_ingestion_workflow",
+        fake_create_ingestion_workflow,
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "workflow",
+            "create",
+            "--type",
+            "ingestion",
+            "--domain",
+            "demo",
+            "--table",
+            "orders",
+            "--unique-key",
+            "id",
+            "--api-base-url",
+            "https://example.com/api",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls["cron"] == "0 */1 * * *"
+
+
 def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
     """Passes CLI options to ingestion scaffold creation."""
     calls = {}

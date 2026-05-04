@@ -28,7 +28,6 @@ Example:
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from typing import Any, Literal
 
@@ -36,6 +35,8 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from phlo.config.env import project_env_value
+from phlo.config.network import resolve_url
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -56,8 +57,11 @@ def resolve_dagster_url(override: str | None = None) -> str:
 
     """
     if override and override.strip():
-        return override
-    return os.environ.get("DAGSTER_GRAPHQL_URL", DEFAULT_DAGSTER_URL)
+        return resolve_url(override, port_env_var="DAGSTER_PORT")
+    return resolve_url(
+        project_env_value("DAGSTER_GRAPHQL_URL", DEFAULT_DAGSTER_URL) or DEFAULT_DAGSTER_URL,
+        port_env_var="DAGSTER_PORT",
+    )
 
 
 # --- GraphQL Queries ---

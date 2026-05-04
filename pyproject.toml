@@ -106,6 +106,7 @@ core-services = [
 ]
 defaults = [
     "phlo-core-plugins>=0.1.0",
+    "phlo-api>=0.1.0",
     "phlo-iceberg>=0.3.2",
     "phlo-dlt>=0.3.2",
     "phlo-dbt>=0.1.0",
@@ -114,6 +115,7 @@ defaults = [
     "phlo-postgres>=0.1.0",
     "phlo-minio>=0.3.2",
     "phlo-nessie>=0.3.2",
+    "phlo-observatory>=0.1.0",
     "phlo-trino>=0.1.0",
 ]
 openmetadata = ["phlo-openmetadata>=0.1.0"]

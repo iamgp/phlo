@@ -31,3 +31,18 @@ def test_materialize_can_disable_contract_refresh(mock_project, mock_container) 
 
     assert result.exit_code == 0
     assert "PHLO_AUTO_REFRESH_CONTRACTS=0" in result.output
+
+
+@patch(
+    "phlo_dagster.cli_materialize.find_dagster_container",
+    side_effect=AssertionError("dry-run should not inspect Docker"),
+)
+@patch("phlo_dagster.cli_materialize.get_project_name", return_value="mock-project")
+def test_materialize_accepts_select_without_asset_argument(mock_project, mock_container) -> None:
+    """Docs use `phlo materialize --select ...`; keep that path runnable."""
+    runner = CliRunner()
+    result = runner.invoke(materialize, ["--select", "tag:bronze", "--dry-run"])
+
+    assert result.exit_code == 0
+    assert "PHLO_CONTRACT_REFRESH_SELECTION=tag:bronze" in result.output
+    assert "--select tag:bronze" in result.output
