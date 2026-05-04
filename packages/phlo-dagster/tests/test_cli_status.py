@@ -147,6 +147,45 @@ class TestServiceHealth:
         valid_statuses = {"healthy", "down", "timeout", "error", "unhealthy"}
         assert result["status"] in valid_statuses
 
+    def test_service_status_uses_project_port_overrides(self, monkeypatch: pytest.MonkeyPatch):
+        """Service health checks should honor project .phlo env port overrides."""
+        checked_urls: dict[str, str] = {}
+
+        monkeypatch.setattr(
+            status_module,
+            "_project_env",
+            lambda: {
+                "TRINO_PORT": "18080",
+                "MINIO_API_PORT": "19000",
+                "NESSIE_PORT": "29120",
+            },
+        )
+        monkeypatch.setattr(
+            status_module,
+            "_dagster_graphql_url",
+            lambda: "http://localhost:3300/graphql",
+        )
+        monkeypatch.setattr(
+            status_module,
+            "_check_dagster_health",
+            lambda url: {"name": "Dagster", "status": "healthy", "url": url},
+        )
+
+        def fake_check(url: str, name: str) -> dict[str, str]:
+            checked_urls[name.lower()] = url
+            return {"name": name, "status": "healthy"}
+
+        monkeypatch.setattr(status_module, "_check_service_health", fake_check)
+
+        services = status_module._get_service_status()
+
+        assert services["dagster"]["url"] == "http://localhost:3300/graphql"
+        assert checked_urls == {
+            "trino": "http://localhost:18080/v1/info",
+            "minio": "http://localhost:19000/minio/health/ready",
+            "nessie": "http://localhost:29120/api/v1/config",
+        }
+
 
 class TestStatusCLI:
     """Tests for the status CLI command."""

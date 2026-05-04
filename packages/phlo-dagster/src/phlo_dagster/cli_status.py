@@ -49,6 +49,13 @@ from phlo_dagster.settings import get_settings
 console = Console()
 logger = get_logger(__name__)
 
+DEFAULT_SERVICE_PORTS = {
+    "dagster": 3000,
+    "trino": 8080,
+    "minio": 9000,
+    "nessie": 19120,
+}
+
 
 def _project_env() -> dict[str, str]:
     """Load project-level Phlo env files for CLI commands run on the host."""
@@ -60,6 +67,18 @@ def _project_env() -> dict[str, str]:
     return env
 
 
+def _project_port(env: dict[str, str], key: str, default: int) -> int:
+    """Resolve a project port override, falling back to the service default."""
+    value = env.get(key)
+    if not value:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        logger.warning("dagster_status_invalid_port_override", key=key, value=value)
+        return default
+
+
 def _dagster_graphql_url() -> str:
     """Resolve the Dagster GraphQL URL using project env overrides."""
     env = _project_env()
@@ -69,6 +88,19 @@ def _dagster_graphql_url() -> str:
         env.get("DAGSTER_WEBSERVER_PORT") or env.get("DAGSTER_PORT") or str(settings.dagster_port)
     )
     return f"http://{dagster_host}:{dagster_port}/graphql"
+
+
+def _service_health_urls() -> dict[str, str]:
+    """Resolve service health URLs using project env overrides."""
+    env = _project_env()
+    trino_port = _project_port(env, "TRINO_PORT", DEFAULT_SERVICE_PORTS["trino"])
+    minio_port = _project_port(env, "MINIO_API_PORT", DEFAULT_SERVICE_PORTS["minio"])
+    nessie_port = _project_port(env, "NESSIE_PORT", DEFAULT_SERVICE_PORTS["nessie"])
+    return {
+        "trino": f"http://localhost:{trino_port}/v1/info",
+        "minio": f"http://localhost:{minio_port}/minio/health/ready",
+        "nessie": f"http://localhost:{nessie_port}/api/v1/config",
+    }
 
 
 @click.command()
@@ -335,32 +367,26 @@ def _get_freshness_indicator(last_run: dict[str, Any] | None) -> str:
 def _get_service_status() -> dict[str, dict[str, Any]]:
     """Get service health status."""
     services: dict[str, dict[str, Any]] = {}
+    health_urls = _service_health_urls()
 
     # Check Dagster
     services["dagster"] = _check_dagster_health(_dagster_graphql_url())
 
     # Check Trino
     services["trino"] = _check_service_health(
-        "http://localhost:8080/v1/info",
+        health_urls["trino"],
         name="Trino",
     )
 
     # Check MinIO
     services["minio"] = _check_service_health(
-        "http://localhost:9000/minio/health/ready",
+        health_urls["minio"],
         name="MinIO",
     )
 
     # Check Nessie
-    nessie_port = 19120
-    try:
-        from phlo_nessie.settings import get_settings as get_nessie_settings
-
-        nessie_port = get_nessie_settings().nessie_port
-    except Exception:
-        pass
     services["nessie"] = _check_service_health(
-        f"http://localhost:{nessie_port}/api/v1/config",
+        health_urls["nessie"],
         name="Nessie",
     )
     logger.info("dagster_status_service_checks_completed", service_count=len(services))
