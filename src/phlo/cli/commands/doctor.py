@@ -560,6 +560,8 @@ def check_ports(*, verbose: bool = False) -> list[DiagnosticResult]:
         ]
     by_port: dict[int, list[PortMapping]] = defaultdict(list)
     for mapping in mappings:
+        if mapping.status != "Running":
+            continue
         by_port[mapping.host_port].append(mapping)
     conflicts = {port: items for port, items in by_port.items() if len(items) > 1}
     if conflicts:

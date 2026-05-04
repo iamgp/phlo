@@ -123,11 +123,11 @@ def search_cmd(
 
         for plugin in output:
             table.add_row(
-                plugin["name"],
-                plugin["type"],
-                plugin["version"],
-                plugin["package"],
-                "yes" if plugin["verified"] else "no",
+                str(plugin.get("name", "")),
+                str(plugin.get("type", "")),
+                str(plugin.get("version", "")),
+                str(plugin.get("package") or plugin.get("name", "")),
+                "yes" if plugin.get("verified") else "no",
             )
 
         console.print(table)

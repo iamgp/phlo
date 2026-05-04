@@ -388,6 +388,8 @@ def _detect_conflicts(port_mappings: list[PortMapping]) -> list[tuple[str, str, 
     """Detect port conflicts. Returns list of (service1, service2, port) tuples."""
     host_port_to_services: dict[int, list[str]] = {}
     for pm in port_mappings:
+        if pm.status != "Running":
+            continue
         if pm.host_port not in host_port_to_services:
             host_port_to_services[pm.host_port] = []
         if pm.service not in host_port_to_services[pm.host_port]:

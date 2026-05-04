@@ -257,11 +257,11 @@ Pandera schemas for {domain} domain.
 Extend this schema with additional fields as you stabilize the source contract.
 """
 
-import pandera as pa
+{type_imports}import pandera as pa
 from pandera.typing import Series
 from {schema_base_module} import {schema_base_name}
 
-{type_imports}class {schema_class}({schema_base_name}):
+class {schema_class}({schema_base_name}):
 {schema_fields}
 
     class Config:
@@ -566,8 +566,8 @@ Ingests {table_name} from a REST API via `dlt.sources.rest_api`.
 """
 
 from dlt.sources.rest_api import rest_api
-
 from phlo_dlt import phlo_ingestion
+
 from {schema_import_path} import {schema_class}
 
 
@@ -634,9 +634,13 @@ def test_schema_contains_unique_key() -> None:
 
 
 def test_schema_validates_minimal_row() -> None:
-    df = pd.DataFrame([{{
-        "{unique_key_normalized}": {_minimal_test_value(unique_key_type)},{extra_required_fields}
-    }}])
+    df = pd.DataFrame(
+        [
+            {{
+                "{unique_key_normalized}": {_minimal_test_value(unique_key_type)},{extra_required_fields}
+            }}
+        ]
+    )
     validated = {schema_class}.validate(df)
     assert validated["{unique_key_normalized}"].iloc[0] == {_minimal_test_value(unique_key_type)}
 '''

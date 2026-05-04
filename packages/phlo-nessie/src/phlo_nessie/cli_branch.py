@@ -319,6 +319,8 @@ def create(branch_name: str, from_ref: str):
                 )
                 raise click.ClickException(f"Error creating branch: {e}")
 
+    except click.ClickException:
+        raise
     except Exception as e:
         logger.error(
             "nessie_branch_create_terminated",

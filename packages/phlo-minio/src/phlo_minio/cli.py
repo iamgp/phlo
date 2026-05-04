@@ -22,6 +22,7 @@ Note:
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 from subprocess import TimeoutExpired
 
@@ -81,6 +82,27 @@ def _mc_exec_base(*, tty: bool) -> list[str]:
         cmd.append("-T")
     cmd.extend(["minio", "mc"])
     return cmd
+
+
+def _mc_shell_exec_base(*, tty: bool) -> list[str]:
+    """Build a compose exec shell command that configures the default mc alias."""
+    phlo_dir = ensure_phlo_dir()
+    project_name = get_project_name()
+    cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
+    cmd.append("exec")
+    if not tty:
+        cmd.append("-T")
+    cmd.extend(["minio", "/bin/sh", "-c"])
+    return cmd
+
+
+def _mc_with_local_alias(args: list[str]) -> list[str]:
+    """Return a shell command that ensures `local` has generated stack credentials."""
+    alias_cmd = (
+        'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" '
+        '"$MINIO_ROOT_PASSWORD" >/dev/null'
+    )
+    return [f"{alias_cmd} && mc {shlex.join(args)}"]
 
 
 @click.command(
@@ -206,13 +228,14 @@ def minio_ls(target: str, recursive: bool, as_json: bool, timeout_seconds: int) 
 
     """
     _require_container_backend()
-    cmd = _mc_exec_base(tty=False)
-    cmd.append("ls")
+    mc_args = ["ls"]
     if recursive:
-        cmd.append("--recursive")
+        mc_args.append("--recursive")
     if as_json:
-        cmd.append("--json")
-    cmd.append(target)
+        mc_args.append("--json")
+    mc_args.append(target)
+    cmd = _mc_shell_exec_base(tty=False)
+    cmd.extend(_mc_with_local_alias(mc_args))
 
     try:
         result = run_command(
@@ -281,11 +304,12 @@ def minio_admin_info(target: str, as_json: bool, timeout_seconds: int) -> None:
 
     """
     _require_container_backend()
-    cmd = _mc_exec_base(tty=False)
-    cmd.extend(["admin", "info"])
+    mc_args = ["admin", "info"]
     if as_json:
-        cmd.append("--json")
-    cmd.append(target)
+        mc_args.append("--json")
+    mc_args.append(target)
+    cmd = _mc_shell_exec_base(tty=False)
+    cmd.extend(_mc_with_local_alias(mc_args))
 
     try:
         result = run_command(

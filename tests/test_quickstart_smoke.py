@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from click.testing import CliRunner
 
+from phlo.cli.infrastructure.container_backend import ContainerInfo
 from phlo.plugins.discovery import ServiceDefinition
 
 pytestmark = pytest.mark.core_regression
@@ -126,6 +127,18 @@ def test_documented_quickstart_bootstrap_path_reaches_services_start(
         docker_calls.append(cmd)
         return CompletedProcess(args=cmd, returncode=0)
 
+    class _FakeBackend:
+        def list_project_containers(self, project_name: str):
+            return [
+                ContainerInfo(
+                    service="postgres",
+                    name=f"{project_name}-postgres-1",
+                    state="running",
+                    labels={"com.docker.compose.service": "postgres"},
+                    ports="",
+                )
+            ]
+
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(builtin_templates, "_build_env_example_content", lambda: "PHLO_SECRET=\n")
     monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
@@ -133,6 +146,9 @@ def test_documented_quickstart_bootstrap_path_reaches_services_start(
     monkeypatch.setattr(start_module, "ServiceDiscovery", lambda: fake_discovery)
     monkeypatch.setattr(start_module, "get_project_name", lambda: "demo")
     monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
+    monkeypatch.setattr(
+        start_module, "select_project_container_backend", lambda **_kwargs: _FakeBackend()
+    )
     monkeypatch.setattr(start_module, "run_command", _fake_run_command)
     monkeypatch.setattr(start_module, "require_container_backend", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(

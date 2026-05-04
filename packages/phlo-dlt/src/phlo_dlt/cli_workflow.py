@@ -87,11 +87,11 @@ def _print_ingestion_next_steps(files: list[str], *, table: str) -> None:
     if test_file:
         click.echo(f"  3. Run generated tests: uv run pytest {test_file} -q")
         click.echo("  4. Restart Dagster: phlo services restart --service dagster")
-        click.echo(f"  5. Materialize: phlo materialize dlt_{table}")
+        click.echo(f"  5. Materialize: phlo materialize dlt_{table} --partition YYYY-MM-DD")
         click.echo("  6. Inspect status: phlo status")
     else:
         click.echo("  3. Restart Dagster: phlo services restart --service dagster")
-        click.echo(f"  4. Materialize: phlo materialize dlt_{table}")
+        click.echo(f"  4. Materialize: phlo materialize dlt_{table} --partition YYYY-MM-DD")
         click.echo("  5. Inspect status: phlo status")
 
 

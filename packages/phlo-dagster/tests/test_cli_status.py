@@ -9,9 +9,11 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from click.testing import CliRunner
 
+from phlo_dagster import cli_status as status_module
 from phlo_dagster.cli_status import (
     _check_if_stale,
     _check_service_health,
+    _get_asset_status,
     _get_freshness_indicator,
     status,
 )
@@ -336,6 +338,41 @@ class TestStatusFiltering:
 
 class TestStatusEdgeCases:
     """Tests for edge cases in status command."""
+
+    def test_asset_status_handles_null_dagster_definition(self, monkeypatch: pytest.MonkeyPatch):
+        """Dagster may return asset nodes with null definition during startup."""
+
+        class FakeResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {
+                    "data": {
+                        "assetsOrError": {
+                            "nodes": [
+                                {
+                                    "key": {"path": ["dlt_events"]},
+                                    "definition": None,
+                                }
+                            ]
+                        }
+                    }
+                }
+
+        monkeypatch.setattr(status_module, "_dagster_graphql_url", lambda: "http://dagster")
+        monkeypatch.setattr(
+            status_module.http_requests,
+            "post",
+            lambda *_args, **_kwargs: FakeResponse(),
+        )
+        monkeypatch.setattr(status_module, "_get_asset_last_run", lambda _asset_name: None)
+
+        assets = _get_asset_status()
+
+        assert assets[0]["name"] == "dlt_events"
+        assert assets[0]["group"] == ""
+        assert assets[0]["status"] == "never_run"
 
     def test_status_with_all_flags(self):
         """Test status with all filtering flags combined."""

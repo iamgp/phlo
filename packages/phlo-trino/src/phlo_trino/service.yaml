@@ -100,6 +100,8 @@ files:
     dest: trino/jvm.config
   - source: config.properties
     dest: trino/config.properties
+  - source: node.properties
+    dest: trino/node.properties
   - source: catalog/iceberg.properties
     dest: trino/catalog/iceberg.properties
   - source: catalog/iceberg_dev.properties

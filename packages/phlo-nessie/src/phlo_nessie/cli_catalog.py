@@ -201,7 +201,6 @@ def describe(table_name: str, ref: str) -> None:
                 table_name=table_name,
                 ref=ref,
                 error=str(e),
-                exc_info=True,
             )
             console.print(f"[red]Table not found: {table_name}[/red]")
             console.print(f"[yellow]Error: {e}[/yellow]")

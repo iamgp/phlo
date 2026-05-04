@@ -137,9 +137,13 @@ class TestLogsCLI:
         result = runner.invoke(logs, ["--level", "ERROR"])
         assert result.exit_code == 0
 
-    def test_json_output(self):
+    def test_json_output(self, monkeypatch):
         """Output logs in JSON format (empty when services disconnected)."""
+        from phlo_dagster import cli_logs as logs_module
+
         runner = CliRunner()
+        monkeypatch.setitem(logs.callback.__globals__, "_get_logs", lambda _filters: [])
+        monkeypatch.setattr(logs_module, "_get_logs", lambda _filters: [])
         result = runner.invoke(logs, ["--json", "--limit", "2"])
         assert result.exit_code == 0
         assert result.output.strip() == "[]"

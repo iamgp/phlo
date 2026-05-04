@@ -236,7 +236,7 @@ class CsvBatchTemplate:
         ),
         next_steps=(
             "phlo test",
-            "phlo materialize dlt_events",
+            "phlo materialize dlt_events --partition YYYY-MM-DD",
         ),
     )
 
@@ -292,7 +292,7 @@ class ApiIngestionTemplate:
         ),
         next_steps=(
             "phlo test",
-            "phlo materialize dlt_events",
+            "phlo materialize dlt_events --partition YYYY-MM-DD",
         ),
     )
 

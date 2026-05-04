@@ -28,7 +28,11 @@ def test_minio_ls_runs_mc(monkeypatch) -> None:
     def _run_command(cmd, **_kwargs):
         if cmd[:2] == ["docker", "info"]:
             return CompletedProcess(cmd, 0, stdout="", stderr="")
-        assert cmd[-3:] == ["mc", "ls", "local/warehouse/"]
+        assert cmd[-4:-1] == ["minio", "/bin/sh", "-c"]
+        assert (
+            cmd[-1] == 'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" '
+            '"$MINIO_ROOT_PASSWORD" >/dev/null && mc ls local/warehouse/'
+        )
         return CompletedProcess(cmd, 0, stdout="bucket\n", stderr="")
 
     monkeypatch.setattr("phlo_minio.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
@@ -49,7 +53,11 @@ def test_minio_admin_info_runs_mc(monkeypatch) -> None:
     def _run_command(cmd, **_kwargs):
         if cmd[:2] == ["docker", "info"]:
             return CompletedProcess(cmd, 0, stdout="", stderr="")
-        assert cmd[-5:] == ["mc", "admin", "info", "--json", "local/"]
+        assert cmd[-4:-1] == ["minio", "/bin/sh", "-c"]
+        assert (
+            cmd[-1] == 'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" '
+            '"$MINIO_ROOT_PASSWORD" >/dev/null && mc admin info --json local/'
+        )
         return CompletedProcess(cmd, 0, stdout='{"status":"ok"}\n', stderr="")
 
     monkeypatch.setattr("phlo_minio.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))

@@ -87,8 +87,8 @@ def list_cmd(show_all: bool, output_json: bool, backend_name: str | None):
             "`phlo plugins list` for diagnostics."
         ) from exc
 
-    # Check which services are disabled.
-    _, disabled_services = get_enabled_disabled_service_names(existing_config)
+    # Check which services are explicitly enabled/disabled.
+    enabled_services, disabled_services = get_enabled_disabled_service_names(existing_config)
 
     # Collect inline custom services
     inline_services = []
@@ -123,7 +123,7 @@ def list_cmd(show_all: bool, output_json: bool, backend_name: str | None):
                 "core": svc.core,
                 "disabled": svc.name in disabled_services,
                 "inline": svc in inline_services,
-                "running": svc.name in running_containers,
+                "running": running_containers.get(svc.name, {}).get("status") == "running",
             }
             for svc in all_services
         ]
@@ -145,9 +145,10 @@ def list_cmd(show_all: bool, output_json: bool, backend_name: str | None):
             ports = ""
             suffix = "(disabled in phlo.yaml)"
         elif svc.name in running_containers:
-            status_marker = "✓"
-            status = "Running"
             container = running_containers[svc.name]
+            state = container.get("status", "")
+            status_marker = "✓" if state == "running" else "✗"
+            status = "Running" if state == "running" else state.title() or "Unknown"
             port_str = container.get("ports", "")
             # Extract first exposed port (format: "0.0.0.0:3000->3000/tcp")
             if "->" in port_str:
@@ -181,7 +182,12 @@ def list_cmd(show_all: bool, output_json: bool, backend_name: str | None):
         click.echo("\nPackage Services (installed):")
         displayed = set()
         for svc in sorted(package_services, key=lambda x: x.name):
-            if not show_all and svc.profile and not svc.default:
+            if (
+                not show_all
+                and svc.profile
+                and not svc.default
+                and svc.name not in enabled_services
+            ):
                 continue
             click.echo(format_service_line(svc))
             displayed.add(svc.name)

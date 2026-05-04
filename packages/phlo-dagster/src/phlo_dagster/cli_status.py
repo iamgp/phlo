@@ -33,6 +33,7 @@ import json
 import os
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import click
@@ -41,11 +42,33 @@ from requests import exceptions as requests_exceptions
 from rich.console import Console
 from rich.table import Table
 
+from phlo.cli.infrastructure.utils import parse_env_file
 from phlo.logging import get_logger
 from phlo_dagster.settings import get_settings
 
 console = Console()
 logger = get_logger(__name__)
+
+
+def _project_env() -> dict[str, str]:
+    """Load project-level Phlo env files for CLI commands run on the host."""
+    env: dict[str, str] = {}
+    for path in (Path.cwd() / ".phlo" / ".env", Path.cwd() / ".phlo" / ".env.local"):
+        if path.exists():
+            env.update(parse_env_file(path, strip_quotes=True))
+    env.update(os.environ)
+    return env
+
+
+def _dagster_graphql_url() -> str:
+    """Resolve the Dagster GraphQL URL using project env overrides."""
+    env = _project_env()
+    settings = get_settings()
+    dagster_host = env.get("DAGSTER_WEBSERVER_HOST", "localhost")
+    dagster_port = (
+        env.get("DAGSTER_WEBSERVER_PORT") or env.get("DAGSTER_PORT") or str(settings.dagster_port)
+    )
+    return f"http://{dagster_host}:{dagster_port}/graphql"
 
 
 @click.command()
@@ -182,11 +205,7 @@ def _get_asset_status(
     )
 
     try:
-        settings = get_settings()
-        dagster_host = os.getenv("DAGSTER_WEBSERVER_HOST", "localhost")
-        dagster_port = os.getenv("DAGSTER_WEBSERVER_PORT") or str(settings.dagster_port)
-
-        dagster_url = f"http://{dagster_host}:{dagster_port}/graphql"
+        dagster_url = _dagster_graphql_url()
 
         # Query asset materializations
         query = """
@@ -215,9 +234,13 @@ def _get_asset_status(
 
             if result and "data" in result:
                 for asset in result["data"].get("assetsOrError", {}).get("nodes", []):
-                    asset_path = asset.get("key", {}).get("path", [])
+                    if not isinstance(asset, dict):
+                        continue
+                    asset_key = asset.get("key") or {}
+                    asset_definition = asset.get("definition") or {}
+                    asset_path = asset_key.get("path", [])
                     asset_name = "/".join(asset_path) if asset_path else "unknown"
-                    asset_group = asset.get("definition", {}).get("groupName", "")
+                    asset_group = asset_definition.get("groupName", "")
 
                     if group and asset_group != group:
                         continue
@@ -238,8 +261,15 @@ def _get_asset_status(
                         "is_stale": is_stale,
                     }
                     assets.append(status_info)
-        except Exception:
+        except requests_exceptions.RequestException as exc:
             # If GraphQL fails, silently continue (service might be down)
+            logger.warning(
+                "dagster_status_asset_query_failed",
+                group=group,
+                stale_only=stale,
+                error=str(exc),
+            )
+        except Exception:
             logger.warning(
                 "dagster_status_asset_query_failed",
                 group=group,
@@ -306,13 +336,8 @@ def _get_service_status() -> dict[str, dict[str, Any]]:
     """Get service health status."""
     services: dict[str, dict[str, Any]] = {}
 
-    settings = get_settings()
-
     # Check Dagster
-    services["dagster"] = _check_service_health(
-        f"http://localhost:{settings.dagster_port}/server_info",
-        name="Dagster",
-    )
+    services["dagster"] = _check_dagster_health(_dagster_graphql_url())
 
     # Check Trino
     services["trino"] = _check_service_health(
@@ -341,6 +366,51 @@ def _get_service_status() -> dict[str, dict[str, Any]]:
     logger.info("dagster_status_service_checks_completed", service_count=len(services))
 
     return services
+
+
+def _check_dagster_health(url: str) -> dict[str, Any]:
+    """Check Dagster health via GraphQL."""
+    try:
+        start = time.time()
+        response = http_requests.post(url, json={"query": "{ version }"}, timeout=2)
+        latency = (time.time() - start) * 1000
+        is_healthy = response.status_code == 200 and "data" in response.text
+        if not is_healthy:
+            logger.warning(
+                "dagster_status_service_health_unhealthy",
+                service_name="Dagster",
+                status_code=response.status_code,
+                latency_ms=round(latency, 1),
+            )
+        return {
+            "name": "Dagster",
+            "status": "healthy" if is_healthy else "unhealthy",
+            "latency_ms": round(latency, 1),
+            "status_code": response.status_code,
+        }
+    except requests_exceptions.Timeout:
+        logger.warning(
+            "dagster_status_service_health_timeout",
+            service_name="Dagster",
+            timeout_seconds=2,
+        )
+        return {
+            "name": "Dagster",
+            "status": "timeout",
+            "latency_ms": 2000,
+            "error": "Request timeout",
+        }
+    except requests_exceptions.ConnectionError:
+        logger.warning(
+            "dagster_status_service_health_connection_error",
+            service_name="Dagster",
+        )
+        return {
+            "name": "Dagster",
+            "status": "down",
+            "latency_ms": None,
+            "error": "Connection refused",
+        }
 
 
 def _check_service_health(

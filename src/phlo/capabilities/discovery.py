@@ -109,11 +109,12 @@ def discover_capabilities() -> None:
             for observability_backend in plugin.get_observability_backends():
                 register_observability_backend(observability_backend)
         except Exception as exc:
+            missing_optional_config = "must be provided" in str(exc)
             logger.warning(
                 "capability_resource_provider_registration_failed",
                 provider_name=name,
                 error=str(exc),
-                exc_info=True,
+                exc_info=not missing_optional_config,
             )
 
     logger.info(
