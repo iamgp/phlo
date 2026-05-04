@@ -7,10 +7,12 @@ from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, is_dataclass
 import importlib.util
+import http.client
 import json
 import os
 from pathlib import Path
 import re
+import socket
 import subprocess
 import sys
 import threading
@@ -41,6 +43,7 @@ from phlo_api.observatory_api.v2_models import (
     V2Capabilities,
     V2CapabilityInventory,
     V2CapabilityPage,
+    V2CapabilityProvider,
     V2Extension,
     V2ExtensionDetail,
     V2ExternalLink,
@@ -97,6 +100,7 @@ _FAST_READ_MODEL_TTL_SECONDS = 30
 _EXPENSIVE_READ_MODEL_TTL_SECONDS = 120
 _READ_MODEL_CACHE: dict[tuple[str, str], tuple[float, Any]] = {}
 _READ_MODEL_CACHE_LOCK = threading.RLock()
+_DOCKER_SOCKET = "/var/run/docker.sock"
 
 
 def _read_model_cache_key(name: str) -> tuple[str, str]:
@@ -338,6 +342,136 @@ def _docker_status_from_container(container: Mapping[str, Any]) -> tuple[Service
     return "unknown", V2Health(state="unknown", message=status_text or None)
 
 
+def _container_labels(container: Mapping[str, Any]) -> dict[str, str]:
+    labels = container.get("Labels")
+    if isinstance(labels, Mapping):
+        return {str(key): str(value) for key, value in labels.items()}
+    if not isinstance(labels, str) or not labels:
+        return {}
+    parsed: dict[str, str] = {}
+    for item in labels.split(","):
+        if "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        parsed[key] = value
+    return parsed
+
+
+class _UnixSocketHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, socket_path: str):
+        super().__init__("localhost")
+        self.socket_path = socket_path
+
+    def connect(self) -> None:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect(self.socket_path)
+        self.sock = sock
+
+
+def _docker_socket_json(path: str) -> Any:
+    connection = _UnixSocketHTTPConnection(_DOCKER_SOCKET)
+    try:
+        connection.request("GET", path)
+        response = connection.getresponse()
+        if response.status >= 400:
+            return None
+        body = response.read().decode()
+        return json.loads(body) if body else None
+    except (OSError, json.JSONDecodeError, http.client.HTTPException):
+        return None
+    finally:
+        connection.close()
+
+
+def _normalize_docker_api_container(container: Mapping[str, Any]) -> dict[str, Any]:
+    names = container.get("Names")
+    if isinstance(names, list) and names:
+        name = str(names[0]).lstrip("/")
+    else:
+        name = _coerce_str(container.get("Names") or container.get("Name"), "").lstrip("/")
+    return {
+        "ID": _coerce_str(container.get("Id") or container.get("ID"), ""),
+        "Names": name,
+        "State": _coerce_str(container.get("State"), ""),
+        "Status": _coerce_str(container.get("Status"), ""),
+        "Labels": container.get("Labels") if isinstance(container.get("Labels"), Mapping) else {},
+    }
+
+
+def _load_docker_containers() -> list[dict[str, Any]]:
+    try:
+        result = subprocess.run(
+            ["docker", "ps", "-a", "--format", "{{json .}}"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        result = None
+
+    if result is not None and result.returncode == 0:
+        containers: list[dict[str, Any]] = []
+        for line in result.stdout.splitlines():
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, Mapping):
+                containers.append(dict(parsed))
+        return containers
+
+    if not Path(_DOCKER_SOCKET).exists():
+        return []
+    payload = _docker_socket_json("/containers/json?all=1")
+    if not isinstance(payload, list):
+        return []
+    return [
+        _normalize_docker_api_container(container)
+        for container in payload
+        if isinstance(container, Mapping)
+    ]
+
+
+def _current_compose_project(containers: Sequence[Mapping[str, Any]]) -> str | None:
+    configured = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get("COMPOSE_PROJECT_NAME")
+    if configured:
+        return configured
+
+    hostname = os.environ.get("HOSTNAME", "")
+    if not hostname:
+        return None
+
+    for container in containers:
+        container_id = _coerce_str(container.get("ID") or container.get("Id"), "")
+        if container_id and container_id.startswith(hostname):
+            labels = _container_labels(container)
+            project = labels.get("com.docker.compose.project")
+            if project:
+                return project
+
+    inspected = _docker_socket_json(f"/containers/{hostname}/json")
+    if isinstance(inspected, Mapping):
+        config = inspected.get("Config")
+        labels = config.get("Labels") if isinstance(config, Mapping) else None
+        if isinstance(labels, Mapping):
+            project = labels.get("com.docker.compose.project")
+            if project:
+                return str(project)
+    return None
+
+
+def _compose_service_name(container: Mapping[str, Any]) -> str | None:
+    labels = _container_labels(container)
+    service_name = labels.get("com.docker.compose.service")
+    if service_name:
+        return service_name
+    name = _coerce_str(container.get("Names"), "")
+    if name.endswith("-1") and "-" in name:
+        return name.rsplit("-", 2)[-2]
+    return None
+
+
 def _service_name_from_container(name: str, service_ids: set[str]) -> str | None:
     ordered_service_ids = list(service_ids)
     ordered_service_ids.sort(key=lambda value: len(value), reverse=True)
@@ -353,28 +487,20 @@ def _load_docker_service_statuses(
     if not service_ids:
         return {}
 
-    try:
-        result = subprocess.run(
-            ["docker", "ps", "-a", "--format", "{{json .}}"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=2,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return {}
-
-    if result.returncode != 0:
-        return {}
-
     statuses: dict[str, tuple[ServiceStatus, V2Health]] = {}
-    for line in result.stdout.splitlines():
-        try:
-            container = json.loads(line)
-        except json.JSONDecodeError:
-            continue
+    containers = _load_docker_containers()
+    compose_project = _current_compose_project(containers)
+    for container in containers:
+        if compose_project:
+            labels = _container_labels(container)
+            if labels.get("com.docker.compose.project") != compose_project:
+                continue
         name = _coerce_str(container.get("Names"), "")
-        service_id = _service_name_from_container(name, service_ids)
+        service_id = _compose_service_name(container) or _service_name_from_container(
+            name, service_ids
+        )
+        if service_id not in service_ids:
+            service_id = _service_name_from_container(name, service_ids)
         if service_id is None:
             continue
         status, health = _docker_status_from_container(container)
@@ -385,6 +511,38 @@ def _load_docker_service_statuses(
         ):
             statuses[service_id] = (status, health)
     return statuses
+
+
+def _runtime_services_from_containers(
+    containers: Sequence[Mapping[str, Any]],
+    known_ids: set[str],
+) -> list[V2Service]:
+    compose_project = _current_compose_project(containers)
+    services: list[V2Service] = []
+    for container in containers:
+        labels = _container_labels(container)
+        if compose_project and labels.get("com.docker.compose.project") != compose_project:
+            continue
+        service_id = _compose_service_name(container)
+        if not service_id or service_id in known_ids:
+            continue
+        status, health = _docker_status_from_container(container)
+        services.append(
+            V2Service(
+                id=service_id,
+                name=service_id,
+                kind=labels.get("phlo.service.category", "service"),
+                status=status,
+                health=health,
+                definition_state="configured",
+                runtime_state=status,
+                in_stack=True,
+                backend="docker",
+                metadata=_safe_metadata({"source": "docker", "compose_project": compose_project}),
+            )
+        )
+        known_ids.add(service_id)
+    return services
 
 
 def _service_links_from_definition(service: Any) -> list[V2ExternalLink]:
@@ -473,9 +631,11 @@ def _load_services() -> list[V2Service]:
 
         discovered = ServiceDiscovery().discover().values()
     except Exception:
-        return _fallback_services()
+        discovered = []
 
     services: list[V2Service] = []
+    containers = _load_docker_containers()
+    discovered = list(discovered)
     runtime_statuses = _load_docker_service_statuses({service.name for service in discovered})
     for service in discovered:
         in_stack = service.name in runtime_statuses
@@ -509,6 +669,10 @@ def _load_services() -> list[V2Service]:
                 ),
             )
         )
+
+    services.extend(
+        _runtime_services_from_containers(containers, {service.id for service in services})
+    )
 
     return sorted(services, key=lambda item: item.id) if services else _fallback_services()
 
@@ -1759,6 +1923,7 @@ def _providers_matching(extensions: Sequence[V2Extension], *needles: str) -> lis
 
 def _load_capabilities() -> V2Capabilities:
     inventory = build_capability_inventory(_load_capability_registry())
+    _add_runtime_capability_providers(inventory)
     pages = _pages_from_inventory(inventory)
     features = {page.id: page.available for page in pages}
     providers = {page.id: page.providers for page in pages if page.providers}
@@ -1768,6 +1933,49 @@ def _load_capabilities() -> V2Capabilities:
         features=features,
         providers=providers,
     )
+
+
+_RUNTIME_SERVICE_CAPABILITIES: dict[str, tuple[str, ...]] = {
+    "trino": ("query_engine",),
+    "nessie": ("catalog", "catalog_scanner"),
+    "minio": ("object_store", "table_store"),
+    "rustfs": ("object_store", "table_store"),
+    "loki": ("observability_backend",),
+    "prometheus": ("observability_backend",),
+    "grafana": ("observability_backend",),
+    "clickstack": ("observability_backend",),
+    "alloy": ("observability_backend",),
+    "phlo-api": ("api_backend", "maintenance_read_model"),
+    "postgrest": ("api_backend",),
+    "hasura": ("api_backend",),
+    "superset": ("publish_target",),
+}
+
+
+def _add_runtime_capability_providers(inventory: V2CapabilityInventory) -> None:
+    """Expose running service-backed capabilities even when provider packages are absent."""
+    runtime_services = [service for service in _load_services() if service.in_stack]
+    for service in runtime_services:
+        for capability_type in _RUNTIME_SERVICE_CAPABILITIES.get(service.id, ()):
+            providers = inventory.providers.setdefault(capability_type, [])
+            if any(provider.name == service.id for provider in providers):
+                continue
+            providers.append(
+                V2CapabilityProvider(
+                    capability_type=capability_type,
+                    name=service.id,
+                    display_name=service.name,
+                    package=None,
+                    health=service.health,
+                    metadata=_safe_metadata(
+                        {
+                            "source": "runtime-service",
+                            "service": service.id,
+                            "status": service.status,
+                        }
+                    ),
+                )
+            )
 
 
 def _branches_available() -> bool:

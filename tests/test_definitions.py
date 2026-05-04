@@ -125,3 +125,15 @@ def test_build_definitions_merges_wap_sensors_when_versioned_catalog_present() -
         result = build_definitions(workflows_path="workflows")
         assert isinstance(result, dg.Definitions)
         collect_wap.assert_called_once()
+
+
+def test_wap_sensors_dev_flag_requires_truthy_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Falsy PHLO_WAP_SENSORS_ENABLED values should still skip WAP sensors in dev."""
+    monkeypatch.setenv("PHLO_DAGSTER_DEV", "1")
+    monkeypatch.setenv("PHLO_WAP_SENSORS_ENABLED", "false")
+
+    with patch("phlo_dagster.framework.definitions.resolve_capability") as resolve_capability:
+        from phlo_dagster.framework.definitions import _collect_wap_definitions
+
+        assert _collect_wap_definitions() is None
+        resolve_capability.assert_not_called()

@@ -22,3 +22,5 @@ def test_grafana_service_definition():
     service_def = plugin.service_definition
 
     assert isinstance(service_def, dict)
+    assert "grafana-data:/var/lib/grafana" in service_def["compose"]["volumes"]
+    assert "./volumes/grafana:/var/lib/grafana" not in service_def["compose"]["volumes"]

@@ -6,6 +6,7 @@ import pytest
 from click.testing import CliRunner
 
 from phlo.cli.commands.services.utils import get_profile_service_names
+from phlo.cli.infrastructure.container_backend import ContainerInfo
 from phlo.plugins.discovery import ServiceDefinition
 from tests.helpers import FakeDiscovery, _service
 
@@ -79,7 +80,7 @@ def test_run_service_hooks_uses_sys_executable_when_project_venv_missing(
     assert calls[0][0] == "/usr/local/bin/current-python"
 
 
-def test_run_service_hooks_prefers_project_venv_python(
+def test_run_service_hooks_prefers_phlo_interpreter(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     from phlo.cli.commands.services import utils as services_utils
@@ -101,11 +102,6 @@ def test_run_service_hooks_prefers_project_venv_python(
         calls.append(list(cmd))
         return CompletedProcess(cmd, 0, "", "")
 
-    venv_python = tmp_path / ".venv" / "bin" / "python"
-    venv_python.parent.mkdir(parents=True)
-    venv_python.write_text("#!/usr/bin/env python3\n")
-    venv_python.chmod(0o755)
-
     monkeypatch.setattr("phlo.plugins.discovery.ServiceDiscovery", ServiceFakeDiscovery)
     monkeypatch.setattr(services_utils, "run_command", _fake_run_command)
 
@@ -117,7 +113,7 @@ def test_run_service_hooks_prefers_project_venv_python(
     )
 
     assert calls
-    assert calls[0][0] == str(venv_python)
+    assert calls[0][0] == services_utils.sys.executable
 
 
 def test_services_start_rejects_unknown_profile(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
@@ -232,6 +228,121 @@ def test_services_start_uses_profile_targets_without_default_fallback(
     assert "postgres" not in docker_calls[0]
 
 
+def test_services_start_preflights_env_local_port_collisions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("DAGSTER_PORT=3000\n")
+    (phlo_dir / ".env.local").write_text("DAGSTER_PORT=3300\n")
+    compose_file = phlo_dir / "docker-compose.yml"
+    compose_file.write_text(
+        "services:\n  dagster:\n    ports:\n      - ${DAGSTER_PORT:-3000}:3000\n"
+    )
+
+    class FakeBackend:
+        def list_project_containers(self, project_name: str):
+            return []
+
+    monkeypatch.setattr(
+        start_module, "select_project_container_backend", lambda **_kwargs: FakeBackend()
+    )
+    monkeypatch.setattr(start_module, "_is_host_port_available", lambda port: port != 3300)
+
+    with pytest.raises(Exception) as exc_info:
+        start_module._preflight_requested_host_ports(
+            phlo_dir=phlo_dir,
+            compose_file=compose_file,
+            project_root=tmp_path,
+            project_name="demo",
+            service_names=["dagster"],
+            backend_name=None,
+        )
+
+    assert "dagster -> 3300 (DAGSTER_PORT)" in str(exc_info.value)
+
+
+def test_services_start_preflights_invalid_env_port_values(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("POSTGRES_PORT=not-a-port\n")
+    compose_file = phlo_dir / "docker-compose.yml"
+    compose_file.write_text(
+        "services:\n  postgres:\n    ports:\n      - ${POSTGRES_PORT:-5432}:5432\n"
+    )
+
+    class FakeBackend:
+        def list_project_containers(self, project_name: str):
+            return []
+
+    monkeypatch.setattr(
+        start_module, "select_project_container_backend", lambda **_kwargs: FakeBackend()
+    )
+    monkeypatch.setattr(
+        start_module,
+        "_is_host_port_available",
+        lambda _port: (_ for _ in ()).throw(AssertionError("port bind should not run")),
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        start_module._preflight_requested_host_ports(
+            phlo_dir=phlo_dir,
+            compose_file=compose_file,
+            project_root=tmp_path,
+            project_name="demo",
+            service_names=["postgres"],
+            backend_name=None,
+        )
+
+    assert "invalid host port value" in str(exc_info.value)
+    assert "postgres -> not-a-port (POSTGRES_PORT)" in str(exc_info.value)
+
+
+def test_services_start_preflight_skips_already_running_project_service(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    compose_file = phlo_dir / "docker-compose.yml"
+    compose_file.write_text(
+        "services:\n  dagster:\n    ports:\n      - ${DAGSTER_PORT:-3000}:3000\n"
+    )
+
+    class FakeBackend:
+        def list_project_containers(self, project_name: str):
+            return [
+                ContainerInfo(
+                    service="dagster",
+                    name=f"{project_name}-dagster-1",
+                    state="running",
+                    labels={"com.docker.compose.service": "dagster"},
+                    ports="0.0.0.0:3000->3000/tcp",
+                )
+            ]
+
+    monkeypatch.setattr(
+        start_module, "select_project_container_backend", lambda **_kwargs: FakeBackend()
+    )
+    monkeypatch.setattr(start_module, "_is_host_port_available", lambda _port: False)
+
+    start_module._preflight_requested_host_ports(
+        phlo_dir=phlo_dir,
+        compose_file=compose_file,
+        project_root=tmp_path,
+        project_name="demo",
+        service_names=["dagster"],
+        backend_name=None,
+    )
+
+
 def test_services_start_includes_setup_companions_for_explicit_targets(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
@@ -287,6 +398,57 @@ def test_services_start_includes_setup_companions_for_explicit_targets(
     assert result.exit_code == 0
     assert docker_calls
     assert docker_calls[0][-3:] == ["rustfs-volume-setup", "rustfs", "rustfs-setup"]
+
+
+def test_services_start_preflights_required_env_for_selected_services(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("OAUTH2_PROXY_CLIENT_ID=\n")
+    (phlo_dir / ".env.local").write_text("")
+    (tmp_path / "phlo.yaml").write_text("name: demo\n")
+    (phlo_dir / "docker-compose.yml").write_text("services:\n  oauth2-proxy: {}\n")
+
+    oauth = ServiceDefinition(
+        name="oauth2-proxy",
+        description="OAuth proxy",
+        category="auth",
+        profile="proxy",
+        env_vars={
+            "OAUTH2_PROXY_CLIENT_ID": {"description": "Client ID"},
+            "OAUTH2_PROXY_CLIENT_SECRET": {"description": "Client secret"},
+            "OAUTH2_PROXY_PROVIDER": {"default": "oidc", "description": "Provider"},
+        },
+    )
+
+    class ProxyFakeDiscovery(FakeDiscovery):
+        def get_available_profiles(self) -> set[str]:
+            return {"proxy"}
+
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {oauth.name: oauth}
+
+    def _unexpected_call(*_args, **_kwargs):
+        raise AssertionError("Docker should not run when required env is missing")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", ProxyFakeDiscovery)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(start_module, "get_profile_service_names", lambda _profiles: [oauth.name])
+    monkeypatch.setattr(start_module, "require_container_backend", _unexpected_call)
+    monkeypatch.setattr(start_module, "run_command", _unexpected_call)
+
+    result = CliRunner().invoke(start_module.start_cmd, ["--profile", "proxy"])
+
+    assert result.exit_code != 0
+    assert "required environment values are missing" in result.output
+    assert "oauth2-proxy: OAUTH2_PROXY_CLIENT_ID" in result.output
+    assert "oauth2-proxy: OAUTH2_PROXY_CLIENT_SECRET" in result.output
+    assert "OAUTH2_PROXY_PROVIDER" not in result.output
 
 
 def test_services_start_rejects_unknown_explicit_targets(

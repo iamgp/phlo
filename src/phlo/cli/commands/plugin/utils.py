@@ -25,33 +25,53 @@ logger = get_logger(__name__)
 
 PLUGIN_TYPE_MAP = {
     "sources": "source_connectors",
+    "source": "source_connectors",
     "quality": "quality_checks",
+    "quality-providers": "quality_providers",
+    "quality-provider": "quality_providers",
+    "quality_providers": "quality_providers",
+    "quality_provider": "quality_providers",
+    "ingestion": "ingestion_providers",
+    "ingestion-providers": "ingestion_providers",
+    "ingestion-provider": "ingestion_providers",
+    "ingestion_providers": "ingestion_providers",
+    "ingestion_provider": "ingestion_providers",
+    "transformation-providers": "transformation_providers",
+    "transformation-provider": "transformation_providers",
+    "transformation_providers": "transformation_providers",
+    "transformation_provider": "transformation_providers",
     "transforms": "transformations",
+    "transform": "transformations",
     "services": "services",
+    "service": "services",
+    "cli": "cli_commands",
+    "cli-commands": "cli_commands",
+    "cli-command": "cli_commands",
+    "cli_commands": "cli_commands",
+    "cli_command": "cli_commands",
     "hooks": "hooks",
+    "hook": "hooks",
     "assets": "asset_providers",
+    "asset": "asset_providers",
     "resources": "resource_providers",
+    "resource": "resource_providers",
     "orchestrators": "orchestrators",
+    "orchestrator": "orchestrators",
     "catalogs": "catalogs",
+    "catalog": "catalogs",
 }
 
-PLUGIN_TYPE_CHOICES = [
-    "sources",
-    "quality",
-    "transforms",
-    "services",
-    "hooks",
-    "assets",
-    "resources",
-    "orchestrators",
-    "catalogs",
-]
+PLUGIN_TYPE_CHOICES = list(PLUGIN_TYPE_MAP)
 
 INTERNAL_TO_REGISTRY_TYPE = {
     "source_connectors": "source",
     "quality_checks": "quality",
+    "quality_providers": "quality_provider",
+    "ingestion_providers": "ingestion_provider",
+    "transformation_providers": "transformation_provider",
     "transformations": "transform",
     "services": "service",
+    "cli_commands": "cli",
     "hooks": "hooks",
     "asset_providers": "assets",
     "resource_providers": "resources",
@@ -59,11 +79,75 @@ INTERNAL_TO_REGISTRY_TYPE = {
     "catalogs": "catalogs",
 }
 
+REGISTRY_TYPE_ALIASES = {
+    "sources": "source",
+    "source": "source",
+    "quality": "quality",
+    "quality-providers": "quality_provider",
+    "quality-provider": "quality_provider",
+    "quality_providers": "quality_provider",
+    "quality_provider": "quality_provider",
+    "ingestion": "ingestion_provider",
+    "ingestion-providers": "ingestion_provider",
+    "ingestion-provider": "ingestion_provider",
+    "ingestion_providers": "ingestion_provider",
+    "ingestion_provider": "ingestion_provider",
+    "transformation-providers": "transformation_provider",
+    "transformation-provider": "transformation_provider",
+    "transformation_providers": "transformation_provider",
+    "transformation_provider": "transformation_provider",
+    "transforms": "transform",
+    "transform": "transform",
+    "services": "service",
+    "service": "service",
+    "cli": "cli",
+    "cli-commands": "cli",
+    "cli-command": "cli",
+    "cli_commands": "cli",
+    "cli_command": "cli",
+    "hooks": "hooks",
+    "hook": "hooks",
+    "assets": "assets",
+    "asset": "assets",
+    "resources": "resources",
+    "resource": "resources",
+    "orchestrators": "orchestrators",
+    "orchestrator": "orchestrators",
+    "catalogs": "catalogs",
+    "catalog": "catalogs",
+}
+
+
+def normalize_plugin_type(plugin_type: str | None) -> str:
+    """Return canonical CLI plugin type."""
+    if plugin_type is None:
+        return "all"
+    if plugin_type == "all":
+        return "all"
+    internal = PLUGIN_TYPE_MAP.get(plugin_type)
+    if internal is None:
+        raise ValueError(f"Unknown plugin type: {plugin_type}")
+    for candidate, candidate_internal in PLUGIN_TYPE_MAP.items():
+        if candidate_internal == internal and candidate.endswith("s"):
+            return candidate
+    return plugin_type
+
+
+def registry_type_for_cli(plugin_type: str | None) -> str | None:
+    """Return registry-facing plugin type for a CLI type or alias."""
+    if plugin_type is None:
+        return None
+    return REGISTRY_TYPE_ALIASES.get(plugin_type, plugin_type)
+
+
 SCAFFOLD_TYPE_MAP = {
     "sources": "source",
+    "source": "source",
     "quality": "quality",
     "transforms": "transform",
+    "transform": "transform",
     "services": "service",
+    "service": "service",
     "hooks": "hook",
     "catalogs": "catalog",
     "assets": "asset",
@@ -127,6 +211,7 @@ def registry_plugin_to_dict(plugin) -> dict:
 
 def collect_installed_plugins(plugin_type: str) -> list[dict]:
     """Collect installed plugins of given type."""
+    plugin_type = normalize_plugin_type(plugin_type)
     registry = get_global_registry()
     installed: list[dict] = []
 
@@ -208,6 +293,7 @@ def collect_registry_plugins(plugin_type: str) -> list[dict]:
     from phlo.plugins.registry_client import list_registry_plugins
 
     registry_plugins = list_registry_plugins()
+    plugin_type = normalize_plugin_type(plugin_type)
     if plugin_type != "all":
         # Translate CLI type to internal type first, then to registry type
         internal_type = PLUGIN_TYPE_MAP.get(plugin_type, plugin_type)

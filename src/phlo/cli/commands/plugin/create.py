@@ -25,9 +25,12 @@ logger = get_logger(__name__)
     type=click.Choice(
         [
             "sources",
+            "source",
             "quality",
             "transforms",
+            "transform",
             "services",
+            "service",
             "hooks",
             "catalogs",
             "assets",

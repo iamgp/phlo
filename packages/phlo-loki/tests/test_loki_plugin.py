@@ -11,6 +11,8 @@ def test_loki_service_definition():
 
     assert defn["name"] == "loki"
     assert defn["profile"] == "observability"
+    assert "loki-data:/loki" in defn["compose"]["volumes"]
+    assert "./volumes/loki:/loki" not in defn["compose"]["volumes"]
 
 
 def test_loki_plugin_metadata():

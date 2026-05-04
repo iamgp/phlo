@@ -27,7 +27,7 @@ class Settings(BaseConfig):
 
     Attributes:
         phlo_orchestrator: Active orchestrator adapter name (default: "dagster").
-        phlo_log_level: Default log level (default: "INFO").
+        phlo_log_level: Default log level (default: "WARNING").
         phlo_log_format: Log output format - "auto", "json", or "console".
         phlo_log_router_enabled: Enable structured log event routing to hook bus.
         phlo_log_service_name: Default service name for log records.
@@ -63,7 +63,7 @@ class Settings(BaseConfig):
         description="Active orchestrator adapter name",
     )
 
-    phlo_log_level: str = Field(default="INFO", description="Default log level for Phlo")
+    phlo_log_level: str = Field(default="WARNING", description="Default log level for Phlo")
     phlo_log_format: str = Field(
         default="auto",
         description="Log format (auto|json|console)",

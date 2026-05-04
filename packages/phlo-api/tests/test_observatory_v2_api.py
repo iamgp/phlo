@@ -13,6 +13,7 @@ from phlo_api.observatory_api.v2 import (
     _fallback_services,
     _load_capabilities,
     _load_docker_service_statuses,
+    _load_services,
     _overview_health_from_services,
     _run_read_query,
     _safe_metadata,
@@ -247,6 +248,96 @@ def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch)
     )
 
 
+def test_v2_docker_statuses_fall_back_to_socket_and_scope_project(monkeypatch, tmp_path) -> None:
+    def fake_run(*args, **kwargs):
+        raise OSError("docker cli missing")
+
+    payload = [
+        {
+            "Id": "abc123",
+            "Names": ["/phlo-postgres-1"],
+            "State": "running",
+            "Status": "Up 3 minutes (healthy)",
+            "Labels": {
+                "com.docker.compose.project": "phlo",
+                "com.docker.compose.service": "postgres",
+            },
+        },
+        {
+            "Id": "def456",
+            "Names": ["/other-postgres-1"],
+            "State": "running",
+            "Status": "Up 3 minutes (healthy)",
+            "Labels": {
+                "com.docker.compose.project": "other",
+                "com.docker.compose.service": "postgres",
+            },
+        },
+    ]
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr("phlo_api.observatory_api.v2._DOCKER_SOCKET", str(tmp_path / "docker.sock"))
+    monkeypatch.setattr("phlo_api.observatory_api.v2.Path.exists", lambda self: True)
+    monkeypatch.setattr("phlo_api.observatory_api.v2._docker_socket_json", lambda path: payload)
+    monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "phlo")
+
+    statuses = _load_docker_service_statuses({"postgres"})
+
+    assert statuses["postgres"][0] == "running"
+    assert statuses["postgres"][1].state == "ok"
+
+
+def test_v2_load_services_includes_runtime_containers_missing_from_discovery(monkeypatch) -> None:
+    containers = [
+        {
+            "ID": "abc123",
+            "Names": "phlo-postgres-1",
+            "State": "running",
+            "Status": "Up 3 minutes (healthy)",
+            "Labels": ("com.docker.compose.project=phlo,com.docker.compose.service=postgres"),
+        }
+    ]
+
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_docker_containers", lambda: containers)
+    monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "phlo")
+
+    services = _load_services()
+
+    postgres = next(service for service in services if service.id == "postgres")
+    assert postgres.in_stack is True
+    assert postgres.backend == "docker"
+    assert postgres.status == "running"
+
+
+def test_v2_capabilities_include_running_service_backed_providers(monkeypatch) -> None:
+    trino = V2Service(
+        id="trino",
+        name="trino",
+        kind="service",
+        status="running",
+        health=V2Health(state="ok", message="healthy"),
+        in_stack=True,
+    )
+    loki = V2Service(
+        id="loki",
+        name="loki",
+        kind="service",
+        status="running",
+        health=V2Health(state="ok", message="healthy"),
+        in_stack=True,
+    )
+
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_capability_registry", lambda: None)
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_services", lambda: [trino, loki])
+
+    capabilities = _load_capabilities()
+
+    assert capabilities.features["data"] is True
+    assert capabilities.features["logs"] is True
+    assert "trino" in capabilities.providers["data"]
+    assert "loki" in capabilities.providers["logs"]
+
+
 def test_v2_disabled_service_action_skips_without_subprocess(monkeypatch) -> None:
     service = V2Service(
         id="phlo-api",
@@ -337,6 +428,7 @@ def test_v2_capabilities_gate_provider_pages_when_providers_are_absent(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr("phlo_api.observatory_api.v2._load_capability_registry", lambda: None)
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_services", lambda: [])
 
     payload = _load_capabilities().model_dump()
 

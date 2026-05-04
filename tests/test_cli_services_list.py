@@ -50,6 +50,102 @@ def test_services_list_uses_backend_container_listing(
     assert '"running": true' in result.output
 
 
+def test_services_list_shows_running_optional_services_by_default(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import list as list_module
+
+    class ServiceFakeDiscovery(FakeDiscovery):
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {
+                "phlo-api": ServiceDefinition(
+                    name="phlo-api",
+                    description="API",
+                    category="api",
+                    profile="api",
+                    default=False,
+                )
+            }
+
+    class FakeBackend:
+        name = "docker"
+
+        def list_project_containers(self, project_name: str):
+            return [
+                ContainerInfo(
+                    service="phlo-api",
+                    name=f"{project_name}-phlo-api-1",
+                    state="running",
+                    labels={"com.docker.compose.service": "phlo-api"},
+                    ports="0.0.0.0:4000->4000/tcp",
+                )
+            ]
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(list_module, "ServiceDiscovery", ServiceFakeDiscovery)
+    monkeypatch.setattr(list_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        list_module, "select_project_container_backend", lambda **_kwargs: FakeBackend()
+    )
+
+    result = CliRunner().invoke(list_module.list_cmd, [])
+
+    assert result.exit_code == 0
+    assert "phlo-api" in result.output
+    assert "Running" in result.output
+
+
+def test_services_list_uses_first_declared_port_for_multi_port_services(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import list as list_module
+
+    class ServiceFakeDiscovery(FakeDiscovery):
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {
+                "clickstack": ServiceDefinition(
+                    name="clickstack",
+                    description="ClickStack",
+                    category="observability",
+                    profile="observability",
+                    default=False,
+                    compose={
+                        "ports": [
+                            "${CLICKSTACK_PORT:-8080}:8080",
+                            "${CLICKSTACK_OTLP_GRPC_PORT:-4317}:4317",
+                        ]
+                    },
+                )
+            }
+
+    class FakeBackend:
+        name = "docker"
+
+        def list_project_containers(self, project_name: str):
+            return [
+                ContainerInfo(
+                    service="clickstack",
+                    name=f"{project_name}-clickstack-1",
+                    state="running",
+                    labels={"com.docker.compose.service": "clickstack"},
+                    ports="0.0.0.0:34317->4317/tcp, 0.0.0.0:38082->8080/tcp",
+                )
+            ]
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(list_module, "ServiceDiscovery", ServiceFakeDiscovery)
+    monkeypatch.setattr(list_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        list_module, "select_project_container_backend", lambda **_kwargs: FakeBackend()
+    )
+
+    result = CliRunner().invoke(list_module.list_cmd, [])
+
+    assert result.exit_code == 0, result.output
+    assert ":38082" in result.output
+    assert ":34317" not in result.output
+
+
 def test_services_list_wraps_config_parse_failures(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:

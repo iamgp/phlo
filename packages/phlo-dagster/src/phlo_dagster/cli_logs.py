@@ -33,7 +33,6 @@ Example:
 """
 
 import json
-import os
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -43,6 +42,7 @@ import psycopg2.extras
 import requests as http_requests
 from rich.console import Console
 
+from phlo.config.env import load_project_env
 from phlo.config.network import resolve_host
 from phlo.logging import get_logger
 from phlo_dagster.cli_logs_display import _display_logs, _tail_logs
@@ -50,6 +50,11 @@ from phlo_dagster.settings import get_settings
 
 console = Console()
 logger = get_logger(__name__)
+
+
+def _project_env() -> dict[str, str]:
+    """Load project-level Phlo env files for host-side log lookups."""
+    return load_project_env()
 
 
 @click.command()
@@ -237,9 +242,14 @@ def _get_logs(filters: dict) -> list[dict]:
 
     """
     try:
+        env = _project_env()
         settings = get_settings()
-        dagster_host = os.getenv("DAGSTER_WEBSERVER_HOST", "localhost")
-        dagster_port = os.getenv("DAGSTER_WEBSERVER_PORT") or str(settings.dagster_port)
+        dagster_host = env.get("DAGSTER_WEBSERVER_HOST", "localhost")
+        dagster_port = (
+            env.get("DAGSTER_WEBSERVER_PORT")
+            or env.get("DAGSTER_PORT")
+            or str(settings.dagster_port)
+        )
 
         dagster_url = f"http://{dagster_host}:{dagster_port}/graphql"
 
@@ -260,16 +270,17 @@ def _get_logs(filters: dict) -> list[dict]:
             logs_list: list[dict] = []
 
             if result and "data" in result:
-                runs = result["data"].get("runsOrError", {}).get("runs", [])
+                runs = result["data"].get("runsOrError", {}).get("results", [])
                 for run in runs:
                     run_id = run.get("runId", "")
                     job_name = run.get("jobName", "")
                     run_status = run.get("status", "")
 
                     # Get events for this run
-                    events = run.get("events", [])
+                    event_connection = run.get("eventConnection", {}) or {}
+                    events = event_connection.get("events", [])
                     for event in events:
-                        event_type = event.get("eventType", "")
+                        event_type = event.get("eventType") or event.get("__typename", "")
                         message = event.get("message", "")
                         timestamp = event.get("timestamp")
                         event_level = _get_log_level(event_type)
@@ -318,17 +329,18 @@ def _get_logs(filters: dict) -> list[dict]:
 def _get_logs_from_postgres(filters: dict) -> list[dict]:
     """Retrieve Dagster event logs directly from Dagster's Postgres storage."""
     try:
+        env = _project_env()
         host, port = resolve_host(
-            os.getenv("POSTGRES_HOST", "postgres"),
-            int(os.getenv("POSTGRES_PORT", "5432")),
+            env.get("POSTGRES_HOST", "postgres"),
+            int(env.get("POSTGRES_PORT", "5432")),
             port_env_var="POSTGRES_PORT",
         )
         conn = psycopg2.connect(
             host=host,
             port=port,
-            database=os.getenv("POSTGRES_DB", "phlo"),
-            user=os.getenv("POSTGRES_USER", "phlo"),
-            password=os.getenv("POSTGRES_PASSWORD", "phlo"),
+            database=env.get("POSTGRES_DB", "phlo"),
+            user=env.get("POSTGRES_USER", "phlo"),
+            password=env.get("POSTGRES_PASSWORD", "phlo"),
         )
     except Exception:
         logger.warning("dagster_logs_postgres_connect_failed", exc_info=True)
@@ -440,49 +452,69 @@ def _build_logs_query(filters: dict) -> str:
 
     """
     # Simplified query structure - in production would be more comprehensive
+    limit = int(filters.get("limit", 100))
+    event_limit = max(limit, 1)
     query = """
     {
-        runsOrError {
+        runsOrError(limit: %d) {
             ... on Runs {
-                runs(limit: %d, statuses: []) {
+                results {
                     runId
                     jobName
                     status
                     startTime
                     endTime
-                    events {
-                        ... on ExecutionStepInputEvent {
-                            eventType
-                            message
-                            timestamp
-                        }
-                        ... on ExecutionStepOutputEvent {
-                            eventType
-                            message
-                            timestamp
-                        }
-                        ... on StepFailureEvent {
-                            eventType
-                            message
-                            timestamp
-                        }
-                        ... on StepSuccessEvent {
-                            eventType
-                            message
-                            timestamp
-                        }
-                        ... on LogMessageEvent {
-                            eventType
-                            message
-                            timestamp
-                            level
+                    eventConnection(limit: %d) {
+                        events {
+                            __typename
+                            ... on ExecutionStepInputEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on ExecutionStepOutputEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on ExecutionStepFailureEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on ExecutionStepSuccessEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on RunStartEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on RunSuccessEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on RunFailureEvent {
+                                eventType
+                                message
+                                timestamp
+                            }
+                            ... on LogMessageEvent {
+                                eventType
+                                message
+                                timestamp
+                                level
+                            }
                         }
                     }
                 }
             }
         }
     }
-    """ % (filters.get("limit", 100))
+    """ % (limit, event_limit)
     return query
 
 

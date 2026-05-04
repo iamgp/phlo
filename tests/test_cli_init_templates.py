@@ -120,7 +120,7 @@ def test_csv_batch_template_prints_metadata_next_steps(tmp_path) -> None:
     assert "workflows/transforms/dbt" not in result.output
     assert "workflows/ingestion/csv/events.py" in result.output
     assert "phlo test" in result.output
-    assert "phlo materialize dlt_events" in result.output
+    assert "phlo materialize dlt_events --partition YYYY-MM-DD" in result.output
     assert "phlo workflow check" not in result.output
     assert "phlo dev" not in result.output
 

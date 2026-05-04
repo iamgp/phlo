@@ -54,7 +54,7 @@ from phlo.logging import get_logger
 
 
 @click.command()
-@click.argument("asset_name")
+@click.argument("asset_name", required=False)
 @click.option("-p", "--partition", help="Partition date (YYYY-MM-DD)")
 @click.option("--select", help="Asset selector expression")
 @click.option(
@@ -64,7 +64,7 @@ from phlo.logging import get_logger
 )
 @click.option("--dry-run", is_flag=True, help="Show command without executing")
 def materialize(
-    asset_name: str,
+    asset_name: str | None,
     partition: Optional[str],
     select: Optional[str],
     no_contract_refresh: bool,
@@ -86,13 +86,17 @@ def materialize(
         SystemExit: On command failure or Docker not found.
 
     """
+    if not asset_name and not select:
+        raise click.UsageError("Provide ASSET_NAME or --select.")
+    effective_selection = select or asset_name or ""
+
     logger = get_logger("phlo.dagster.materialize", service="dagster")
     started_at = time.perf_counter()
     project_name = get_project_name()
     container_name = "dagster"
     logger.info(
         "dagster_materialize_command_started",
-        asset_name=asset_name,
+        asset_name=effective_selection,
         partition=partition,
         select=select,
         no_contract_refresh=no_contract_refresh,
@@ -101,8 +105,10 @@ def materialize(
     )
 
     try:
-        container_name = find_dagster_container(project_name)
         host_platform = platform.system()
+
+        if not dry_run:
+            container_name = find_dagster_container(project_name)
 
         cmd = [
             "docker",
@@ -114,7 +120,7 @@ def materialize(
             "-e",
             f"PHLO_AUTO_REFRESH_CONTRACTS={'0' if no_contract_refresh else '1'}",
             "-e",
-            f"PHLO_CONTRACT_REFRESH_SELECTION={select or asset_name}",
+            f"PHLO_CONTRACT_REFRESH_SELECTION={effective_selection}",
             "-w",
             "/app",
             container_name,
@@ -125,10 +131,7 @@ def materialize(
             "phlo_dagster.framework.definitions",
         ]
 
-        if select:
-            cmd.extend(["--select", select])
-        else:
-            cmd.extend(["--select", asset_name])
+        cmd.extend(["--select", effective_selection])
 
         if partition:
             cmd.extend(["--partition", partition])
@@ -138,7 +141,7 @@ def materialize(
             click.echo(" ".join(cmd))
             logger.info(
                 "dagster_materialize_command_completed",
-                asset_name=asset_name,
+                asset_name=effective_selection,
                 partition=partition,
                 select=select,
                 no_contract_refresh=no_contract_refresh,
@@ -150,7 +153,7 @@ def materialize(
             )
             sys.exit(0)
 
-        click.echo(f"Materializing {asset_name}...\n")
+        click.echo(f"Materializing {effective_selection}...\n")
 
         process = subprocess.Popen(
             cmd,
@@ -167,10 +170,10 @@ def materialize(
                     logger.info(message, tags={"source": "dagster"})
         returncode = process.wait()
         if returncode == 0:
-            click.echo(f"\nSuccessfully materialized {asset_name}")
+            click.echo(f"\nSuccessfully materialized {effective_selection}")
             logger.info(
                 "dagster_materialize_command_completed",
-                asset_name=asset_name,
+                asset_name=effective_selection,
                 partition=partition,
                 select=select,
                 no_contract_refresh=no_contract_refresh,
@@ -187,7 +190,7 @@ def materialize(
             )
             logger.error(
                 "dagster_materialize_command_failed",
-                asset_name=asset_name,
+                asset_name=effective_selection,
                 partition=partition,
                 select=select,
                 no_contract_refresh=no_contract_refresh,
@@ -201,7 +204,7 @@ def materialize(
     except FileNotFoundError:
         logger.error(
             "dagster_materialize_command_failed",
-            asset_name=asset_name,
+            asset_name=effective_selection,
             partition=partition,
             select=select,
             no_contract_refresh=no_contract_refresh,
@@ -220,7 +223,7 @@ def materialize(
     except Exception as exc:
         logger.error(
             "dagster_materialize_command_failed",
-            asset_name=asset_name,
+            asset_name=effective_selection,
             partition=partition,
             select=select,
             no_contract_refresh=no_contract_refresh,

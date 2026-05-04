@@ -141,7 +141,15 @@ def render_env(
             lines.append("")
 
     if include_secrets:
-        extra_existing = {k: v for k, v in existing_values.items() if k not in seen_vars}
+        secret_vars = {
+            var_name
+            for service in services
+            for var_name, var_config in service.env_vars.items()
+            if bool(var_config.get("secret", False))
+        }
+        extra_existing = {
+            k: v for k, v in existing_values.items() if k not in seen_vars and k not in secret_vars
+        }
         if extra_existing:
             lines.append("# Local Overrides")
             for key in sorted(extra_existing):

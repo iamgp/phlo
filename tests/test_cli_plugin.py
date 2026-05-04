@@ -14,6 +14,12 @@ from phlo.plugins import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
+from phlo.plugins.base import (
+    CliCommandPlugin,
+    IngestionProviderPlugin,
+    QualityProviderPlugin,
+    TransformationProviderPlugin,
+)
 from phlo.plugins.discovery import get_global_registry
 from phlo.plugins.registry_client import RegistryPlugin
 
@@ -113,6 +119,56 @@ class DummyService(ServicePlugin):
         return {"category": "core", "compose": {"image": "dummy:latest"}}
 
 
+class DummyIngestionProvider(IngestionProviderPlugin):
+    """Stub ingestion provider for CLI plugin tests."""
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(name="dummy_ingestion", version="1.0.0")
+
+    def get_decorator(self):
+        return lambda fn=None, **_kwargs: fn
+
+    def get_asset_retriever(self):
+        return list
+
+
+class DummyQualityProvider(QualityProviderPlugin):
+    """Stub quality provider for CLI plugin tests."""
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(name="dummy_quality_provider", version="1.0.0")
+
+    def get_decorator(self):
+        return lambda fn=None, **_kwargs: fn
+
+    def get_check_classes(self) -> dict[str, type]:
+        return {}
+
+
+class DummyTransformationProvider(TransformationProviderPlugin):
+    """Stub transformation provider for CLI plugin tests."""
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(name="dummy_transformation_provider", version="1.0.0")
+
+    def get_asset_retriever(self):
+        return list
+
+
+class DummyCliCommand(CliCommandPlugin):
+    """Stub CLI command plugin for CLI plugin tests."""
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(name="dummy_cli", version="1.0.0")
+
+    def get_cli_commands(self):
+        return []
+
+
 @pytest.fixture
 def setup_registry():
     """Provide an isolated plugin registry for each test.
@@ -141,7 +197,72 @@ def test_plugin_list_json_installed(setup_registry):
     # #then
     data = json.loads(result.output)
     types = {plugin["type"] for plugin in data["installed"]}
-    assert result.exit_code == 0 and types == {"source", "quality", "transform", "service"}
+    assert result.exit_code == 0
+    assert types >= {"source", "quality", "transform", "service"}
+    assert {plugin["name"] for plugin in data["installed"]} >= {
+        "dummy_source",
+        "dummy_quality",
+        "dummy_transform",
+        "dummy_service",
+    }
+
+
+def test_plugin_list_accepts_singular_type_alias(setup_registry):
+    """List accepts the same singular aliases as plugin create."""
+    result = CliRunner().invoke(plugin_group, ["list", "--type", "source", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert [plugin["name"] for plugin in data["installed"]] == ["dummy_source"]
+
+
+def test_plugin_list_accepts_provider_and_cli_type_aliases(setup_registry):
+    """List can filter plugin categories that are shown in all-plugin output."""
+    registry = setup_registry
+    registry.register_ingestion_provider(DummyIngestionProvider(), replace=True)
+    registry.register_quality_provider(DummyQualityProvider(), replace=True)
+    registry.register_transformation_provider(DummyTransformationProvider(), replace=True)
+    registry.register_cli_command_plugin(DummyCliCommand(), replace=True)
+
+    runner = CliRunner()
+
+    ingestion = runner.invoke(plugin_group, ["list", "--type", "ingestion", "--json"])
+    quality_provider = runner.invoke(plugin_group, ["list", "--type", "quality-provider", "--json"])
+    transformation_provider = runner.invoke(
+        plugin_group, ["list", "--type", "transformation-provider", "--json"]
+    )
+    cli = runner.invoke(plugin_group, ["list", "--type", "cli", "--json"])
+
+    assert ingestion.exit_code == 0
+    assert quality_provider.exit_code == 0
+    assert transformation_provider.exit_code == 0
+    assert cli.exit_code == 0
+    assert json.loads(ingestion.output)["installed"][0]["type"] == "ingestion_provider"
+    assert json.loads(quality_provider.output)["installed"][0]["type"] == "quality_provider"
+    assert (
+        json.loads(transformation_provider.output)["installed"][0]["type"]
+        == "transformation_provider"
+    )
+    assert json.loads(cli.output)["installed"][0]["type"] == "cli"
+
+
+def test_plugin_info_resolves_phlo_distribution_alias(setup_registry):
+    """Info resolves common package-style names such as phlo-trino."""
+    result = CliRunner().invoke(plugin_group, ["info", "phlo-dummy-source", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["name"] == "dummy_source"
+
+
+def test_plugin_check_json_emits_only_json(setup_registry):
+    """Check --json stdout is parseable JSON without prose prefixes."""
+    result = CliRunner().invoke(plugin_group, ["check", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert "valid" in data
+    assert "invalid" in data
 
 
 def test_plugin_list_all_json(setup_registry, monkeypatch):
@@ -217,6 +338,22 @@ def test_plugin_search(monkeypatch):
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data[0]["name"] == "registry_service"
+
+
+def test_plugin_search_includes_installed_plugins(monkeypatch, setup_registry):
+    """Search should not hide installed plugins when registry results are sparse."""
+    monkeypatch.setattr("phlo.cli.commands.plugin.search.search_plugins", lambda *_args, **_kw: [])
+
+    result = CliRunner().invoke(plugin_group, ["search", "dummy", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert {item["name"] for item in data} >= {
+        "dummy_source",
+        "dummy_quality",
+        "dummy_transform",
+        "dummy_service",
+    }
 
 
 def test_plugin_install(monkeypatch):
@@ -329,3 +466,11 @@ def test_run_pip_errors_when_no_pip_and_no_uv(monkeypatch):
 
     with pytest.raises(RuntimeError, match="pip module is unavailable"):
         run_pip(["install", "demo-plugin"])
+
+
+def test_normalize_plugin_type_reports_unknown_type() -> None:
+    """Internal callers get a clear error for unmapped plugin types."""
+    from phlo.cli.commands.plugin.utils import normalize_plugin_type
+
+    with pytest.raises(ValueError, match="Unknown plugin type: nope"):
+        normalize_plugin_type("nope")

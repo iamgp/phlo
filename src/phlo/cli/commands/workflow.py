@@ -93,7 +93,7 @@ def _validate_schema_file(path: str) -> None:
 @click.option(
     "--cron",
     default="0 */1 * * *",
-    prompt="Cron schedule",
+    show_default=True,
     help="Cron schedule expression",
 )
 @click.option(

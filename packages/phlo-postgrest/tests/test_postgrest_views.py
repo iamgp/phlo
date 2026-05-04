@@ -13,6 +13,43 @@ from phlo_postgrest.views import (
 )
 
 
+def test_setup_connection_uses_project_env(monkeypatch) -> None:
+    """PostgREST setup auth should honor project Postgres env overrides."""
+    from phlo_postgrest import setup as setup_module
+
+    captured: dict[str, object] = {}
+
+    class FakeConnection:
+        def set_isolation_level(self, level) -> None:
+            captured["isolation_level"] = level
+
+    monkeypatch.setattr(
+        setup_module,
+        "load_project_env",
+        lambda: {
+            "POSTGRES_HOST": "localhost",
+            "POSTGRES_PORT": "15432",
+            "POSTGRES_DB": "custom",
+            "POSTGRES_USER": "user",
+            "POSTGRES_PASSWORD": "secret",
+        },
+    )
+
+    def fake_connect(**kwargs) -> FakeConnection:
+        captured.update(kwargs)
+        return FakeConnection()
+
+    monkeypatch.setattr(setup_module.psycopg2, "connect", fake_connect)
+
+    setup_module.get_db_connection()
+
+    assert captured["host"] == "localhost"
+    assert captured["port"] == 15432
+    assert captured["database"] == "custom"
+    assert captured["user"] == "user"
+    assert captured["password"] == "secret"
+
+
 @pytest.fixture
 def sample_manifest():
     """Create a sample dbt manifest for testing."""

@@ -14,7 +14,8 @@ Example:
     >>> client.create_select_permission("api", "orders", "anon")
 
 Environment Variables:
-    HASURA_ADMIN_SECRET: Admin secret for Hasura authentication.
+    HASURA_ADMIN_SECRET: Hasura admin secret. Defaults to the generated
+        development Compose secret when not provided.
     HASURA_PORT: Port override for Hasura URL resolution.
 
 """
@@ -37,7 +38,7 @@ class HasuraClientSettings(BaseConfig):
     """Configuration for Hasura client connectivity and authentication."""
 
     hasura_admin_secret: str | None = Field(
-        default=None,
+        default="phlo-hasura-admin-secret",
         description="Hasura admin secret used for Metadata API requests",
     )
 
@@ -87,7 +88,8 @@ class HasuraClient:
         >>> metadata = client.export_metadata()
 
     Environment Variables:
-        HASURA_ADMIN_SECRET: Hasura admin secret (required).
+        HASURA_ADMIN_SECRET: Hasura admin secret. Defaults to the generated
+            development Compose secret when not provided.
         HASURA_PORT: Override the port in the URL.
 
     """
@@ -102,8 +104,8 @@ class HasuraClient:
         Args:
             hasura_url: Hasura GraphQL endpoint URL (default: http://hasura:8080).
                 The URL will be resolved to handle Docker hostnames.
-            admin_secret: Hasura admin secret (required; set via argument or
-                HASURA_ADMIN_SECRET env var).
+            admin_secret: Hasura admin secret. Defaults to the generated
+                development Compose secret when not provided.
 
         Example:
             >>> client = HasuraClient()
@@ -122,6 +124,14 @@ class HasuraClient:
             raise ValueError(
                 "Hasura admin secret must be provided via the 'admin_secret' argument "
                 "or the HASURA_ADMIN_SECRET environment/.phlo config."
+            )
+        if self.admin_secret == "phlo-hasura-admin-secret":
+            logger.warning(
+                "hasura_using_generated_default_admin_secret",
+                message=(
+                    "Using the generated default Hasura admin secret. "
+                    "Set HASURA_ADMIN_SECRET for non-local deployments."
+                ),
             )
         self.metadata_url = f"{self.hasura_url}/v1/metadata"
 

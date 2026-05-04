@@ -2,9 +2,11 @@
 
 import asyncio
 import signal
+import socket
 import subprocess
 import time
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import click
@@ -14,6 +16,11 @@ from phlo.cli.commands.services.common import (
     load_compose_service_names,
     parse_service_args,
     validate_requested_profiles,
+)
+from phlo.cli.commands.services.ports import (
+    _load_environment,
+    _parse_compose_port_spec,
+    _resolve_host_port,
 )
 from phlo.cli.commands.services.utils import (
     _emit_service_lifecycle_events,
@@ -29,6 +36,7 @@ from phlo.cli.commands.services.utils import (
 )
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
+from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name, parse_env_file
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -68,6 +76,159 @@ def _load_disabled_service_names(project_root: Path) -> set[str]:
     return disabled_names
 
 
+def _load_project_config(project_root: Path) -> dict[str, Any]:
+    """Load project config for service startup checks."""
+    config_file = project_root / "phlo.yaml"
+    if not config_file.exists():
+        return {}
+
+    try:
+        config = yaml.safe_load(config_file.read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        logger.warning(
+            "services_start_config_read_failed",
+            config_file=str(config_file),
+            exc_info=True,
+        )
+        return {}
+
+    return config if isinstance(config, dict) else {}
+
+
+def _is_host_port_available(port: int) -> bool:
+    """Return whether the local host can bind the given TCP port."""
+    bind_targets = [(socket.AF_INET, ("0.0.0.0", port))]
+    if hasattr(socket, "AF_INET6"):
+        bind_targets.append((socket.AF_INET6, ("::", port)))
+
+    for family, address in bind_targets:
+        try:
+            with socket.socket(family, socket.SOCK_STREAM) as sock:
+                if family == socket.AF_INET6 and hasattr(socket, "IPV6_V6ONLY"):
+                    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind(address)
+        except AttributeError:
+            continue
+        except OSError:
+            return False
+    return True
+
+
+def _preflight_requested_host_ports(
+    *,
+    phlo_dir: Path,
+    compose_file: Path,
+    project_root: Path,
+    project_name: str,
+    service_names: list[str],
+    backend_name: str | None,
+) -> None:
+    """Fail early when requested stopped services would collide with local host ports."""
+    try:
+        compose_config = yaml.safe_load(compose_file.read_text()) or {}
+    except OSError as exc:
+        raise click.ClickException(f"Failed to read {compose_file}: {exc}") from exc
+    except yaml.YAMLError as exc:
+        raise click.ClickException(f"Failed to parse {compose_file}: {exc}") from exc
+
+    services = compose_config.get("services") or {}
+    if not isinstance(services, dict):
+        return
+
+    selected_services = {
+        name: service_config
+        for name in service_names
+        if isinstance((service_config := services.get(name)), dict)
+        and bool(service_config.get("ports"))
+    }
+    if not selected_services:
+        return
+
+    config = _load_project_config(project_root)
+    env = _load_environment(phlo_dir, config)
+    backend = select_project_container_backend(cli_backend=backend_name)
+    running_containers = {
+        container.service: {
+            "status": container.state,
+            "ports": [],
+        }
+        for container in backend.list_project_containers(project_name)
+    }
+
+    conflicts: list[tuple[str, int, str | None]] = []
+    invalid_ports: list[tuple[str, str, str | None, str]] = []
+    for service_name, service_config in selected_services.items():
+        if service_name in running_containers:
+            continue
+
+        for port_entry in service_config.get("ports") or []:
+            env_var: str | None = None
+            host_port: int | None = None
+
+            if isinstance(port_entry, str):
+                port_spec = _parse_compose_port_spec(port_entry)
+                if not port_spec.container_port.isdigit():
+                    continue
+                if port_spec.env_var:
+                    resolved_value = env.get(port_spec.env_var)
+                    if resolved_value and not resolved_value.isdigit():
+                        invalid_ports.append(
+                            (service_name, str(port_entry), port_spec.env_var, resolved_value)
+                        )
+                        continue
+                elif port_spec.host_port and not port_spec.host_port.isdigit():
+                    invalid_ports.append((service_name, str(port_entry), None, port_spec.host_port))
+                    continue
+                host_port, _, env_var = _resolve_host_port(
+                    port_str=port_entry,
+                    port_spec=port_spec,
+                    service_name=service_name,
+                    container_port=int(port_spec.container_port),
+                    env=env,
+                    running_containers={},
+                )
+            elif isinstance(port_entry, dict):
+                published = port_entry.get("published")
+                if published is not None and str(published).isdigit():
+                    host_port = int(published)
+
+            if host_port is not None and not _is_host_port_available(host_port):
+                conflicts.append((service_name, host_port, env_var))
+
+    if invalid_ports:
+        rendered = ", ".join(
+            f"{service} -> {value}" + (f" ({env_var})" if env_var else f" in {port_spec}")
+            for service, port_spec, env_var, value in invalid_ports
+        )
+        logger.warning(
+            "services_start_invalid_host_ports",
+            project_name=project_name,
+            invalid_ports=rendered,
+        )
+        raise click.ClickException(
+            "invalid host port value before starting services: "
+            f"{rendered}. Use a numeric TCP port in .phlo/.env.local or phlo.yaml env:."
+        )
+
+    if not conflicts:
+        return
+
+    rendered = ", ".join(
+        f"{service} -> {port}" + (f" ({env_var})" if env_var else "")
+        for service, port, env_var in conflicts
+    )
+    logger.warning(
+        "services_start_host_port_conflicts",
+        project_name=project_name,
+        conflicts=rendered,
+    )
+    raise click.ClickException(
+        "host port already in use before starting services: "
+        f"{rendered}. Stop the process using the port or override it in .phlo/.env.local."
+    )
+
+
 def _expand_requested_services(
     discovery: ServiceDiscovery,
     service_names: list[str],
@@ -83,6 +244,41 @@ def _expand_requested_services(
 
     requested = [all_services[name] for name in service_names]
     return expand_service_dependencies(discovery, requested)
+
+
+def _preflight_required_env_vars(
+    *,
+    phlo_dir: Path,
+    project_root: Path,
+    services: list[ServiceDefinition],
+) -> None:
+    """Fail before compose start when selected services are missing required env values."""
+    if not services:
+        return
+
+    env = _load_environment(phlo_dir, _load_project_config(project_root))
+    missing: list[str] = []
+    for service in services:
+        for env_name, spec in sorted((service.env_vars or {}).items()):
+            if not isinstance(spec, dict) or "default" in spec:
+                continue
+            value = env.get(env_name)
+            if value is None or value == "":
+                missing.append(f"{service.name}: {env_name}")
+
+    if not missing:
+        return
+
+    rendered = ", ".join(missing)
+    logger.warning(
+        "services_start_required_env_missing",
+        missing=rendered,
+        service_count=len(services),
+    )
+    raise click.ClickException(
+        "required environment values are missing for selected services: "
+        f"{rendered}. Set them in phlo.yaml env: or .phlo/.env.local."
+    )
 
 
 @click.command("start")
@@ -202,6 +398,12 @@ def start_cmd(
             )
             raise click.ClickException(str(exc)) from exc
 
+    _preflight_required_env_vars(
+        phlo_dir=phlo_dir,
+        project_root=Path.cwd(),
+        services=resolved_services,
+    )
+
     # If native dev services are enabled, start Docker services excluding native ones,
     # then start native processes for the excluded services.
     native_service_names: set[str] = set()
@@ -292,6 +494,14 @@ def start_cmd(
 
     if not skip_docker_compose:
         require_container_backend(backend_name)
+        _preflight_requested_host_ports(
+            phlo_dir=phlo_dir,
+            compose_file=compose_file,
+            project_root=Path.cwd(),
+            project_name=project_name,
+            service_names=docker_service_names,
+            backend_name=backend_name,
+        )
     elif build:
         logger.warning(
             "services_start_build_ignored_native_only",
@@ -530,6 +740,30 @@ def start_cmd(
                     ]
                 else:
                     started_services = compose_service_names
+                backend = select_project_container_backend(cli_backend=backend_name)
+                containers = backend.list_project_containers(project_name)
+                active_services = {
+                    container.service
+                    for container in containers
+                    if container.state == "running"
+                    and (not started_services or container.service in started_services)
+                }
+                bad_services = {
+                    container.service: container.state
+                    for container in containers
+                    if container.service in started_services and container.state != "running"
+                }
+                if bad_services:
+                    rendered = ", ".join(
+                        f"{name} ({state})" for name, state in sorted(bad_services.items())
+                    )
+                    logger.error(
+                        "services_start_unhealthy_containers",
+                        project_name=project_name,
+                        services=bad_services,
+                    )
+                    raise click.ClickException(f"services did not reach running state: {rendered}")
+                started_services = sorted(active_services)
 
             _emit_service_lifecycle_events(
                 "post_start",

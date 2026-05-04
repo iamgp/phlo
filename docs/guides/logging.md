@@ -41,7 +41,7 @@ All settings are read from environment variables (or `.phlo/.env` / `.phlo/.env.
 
 | Variable                   | Default              | Description                                     |
 | -------------------------- | -------------------- | ----------------------------------------------- |
-| `PHLO_LOG_LEVEL`           | `INFO`               | Minimum log level (`DEBUG`, `INFO`, `WARNING`, …) |
+| `PHLO_LOG_LEVEL`           | `WARNING`            | Minimum log level (`DEBUG`, `INFO`, `WARNING`, …) |
 | `PHLO_LOG_FORMAT`          | `auto`               | Output format: `auto`, `json`, or `console`     |
 | `PHLO_LOG_ROUTER_ENABLED`  | `true`               | Emit log records to the hook bus as `LogEvent`s  |
 | `PHLO_LOG_SERVICE_NAME`    | `phlo`               | Default `service` field on every log record      |

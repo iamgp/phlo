@@ -90,6 +90,7 @@ def dev(host: str, port: int, workflows_path: str) -> None:
         (workflows_dir / "__init__.py").write_text('"""User workflows."""\n')
 
     os.environ["PHLO_WORKFLOWS_PATH"] = workflows_path
+    os.environ.setdefault("PHLO_DAGSTER_DEV", "1")
 
     click.echo(f"Workflows directory: {workflows_path}")
     click.echo(f"Starting server at http://{host}:{port}\n")

@@ -7,6 +7,18 @@ from unittest.mock import call, patch
 from phlo_nessie import hooks
 
 
+def test_resolve_nessie_url_uses_project_env(monkeypatch) -> None:
+    monkeypatch.setattr(hooks, "load_project_env", lambda: {"NESSIE_PORT": "29120"})
+
+    assert hooks._resolve_nessie_url() == "http://localhost:29120"
+
+
+def test_resolve_nessie_url_prefers_project_url(monkeypatch) -> None:
+    monkeypatch.setattr(hooks, "load_project_env", lambda: {"NESSIE_URL": "http://custom/"})
+
+    assert hooks._resolve_nessie_url() == "http://custom"
+
+
 def test_ensure_bootstrap_commit_noops_when_log_exists() -> None:
     with (
         patch.object(hooks, "_get_ref_log", return_value=[{"commitMeta": {"hash": "abc"}}]),

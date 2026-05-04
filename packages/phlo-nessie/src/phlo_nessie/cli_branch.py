@@ -231,6 +231,8 @@ def list(all: bool, format: str):
                 ref_count=len(refs),
             )
 
+    except click.ClickException:
+        raise
     except Exception as e:
         logger.error(
             "nessie_branch_list_failed",
@@ -319,6 +321,8 @@ def create(branch_name: str, from_ref: str):
                 )
                 raise click.ClickException(f"Error creating branch: {e}")
 
+    except click.ClickException:
+        raise
     except Exception as e:
         logger.error(
             "nessie_branch_create_terminated",
@@ -389,6 +393,8 @@ def delete(branch_name: str, force: bool):
                 "nessie_branch_delete_succeeded",
                 branch_name=branch_name,
             )
+        except click.ClickException:
+            raise
         except Exception as e:
             logger.error(
                 "nessie_branch_delete_failed",
@@ -398,6 +404,8 @@ def delete(branch_name: str, force: bool):
             )
             raise click.ClickException(f"Error deleting branch: {e}")
 
+    except click.ClickException:
+        raise
     except Exception as e:
         logger.error(
             "nessie_branch_delete_terminated",
@@ -524,6 +532,8 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
                     )
                     console.print(f"[yellow]Warning: Could not delete source branch: {e}[/yellow]")
 
+        except click.ClickException:
+            raise
         except Exception as e:
             error_msg = str(e).lower()
             if "conflict" in error_msg:
@@ -545,6 +555,8 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
                 )
                 raise click.ClickException(f"Error merging branches: {e}")
 
+    except click.ClickException:
+        raise
     except Exception as e:
         logger.error(
             "nessie_branch_merge_terminated",
@@ -671,6 +683,8 @@ def diff(source_branch: str, target_branch: str, format: str):
                 deleted_count=len(differences["deleted_tables"]),
             )
 
+    except click.ClickException:
+        raise
     except Exception as e:
         logger.error(
             "nessie_branch_diff_failed",

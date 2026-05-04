@@ -10,6 +10,8 @@ def test_clickstack_service_definition() -> None:
 
     assert defn["name"] == "clickstack"
     assert defn["profile"] == "observability"
+    assert "clickstack-data:/var/lib/clickhouse" in defn["compose"]["volumes"]
+    assert "./volumes/clickstack:/var/lib/clickhouse" not in defn["compose"]["volumes"]
 
 
 def test_clickstack_plugin_metadata() -> None:

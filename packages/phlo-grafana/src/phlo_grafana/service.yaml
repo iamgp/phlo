@@ -26,7 +26,7 @@ compose:
   volumes:
     - ./grafana/provisioning:/etc/grafana/provisioning:ro
     - ./grafana/dashboards:/etc/grafana/dashboards:ro
-    - ./volumes/grafana:/var/lib/grafana
+    - grafana-data:/var/lib/grafana
   healthcheck:
     test:
       [

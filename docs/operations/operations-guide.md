@@ -124,6 +124,40 @@ mc mirror local/lake /backups/minio/lake
 mc mirror /backups/minio/lake local/lake
 ```
 
+### Migrating Service Data Volumes
+
+Some Phlo service packages persist runtime data in Docker named volumes instead of
+project-local `./volumes/<service>` bind mounts. Before upgrading an existing
+project that already has bind-mounted data, copy the old directory contents into
+the named volume once.
+
+Run these commands from the project root, after stopping the Phlo stack:
+
+```bash
+docker volume create loki-data
+docker run --rm -v "$(pwd)/volumes/loki:/source:ro" -v loki-data:/dest \
+  alpine sh -c "cp -a /source/. /dest/"
+
+docker volume create grafana-data
+docker run --rm -v "$(pwd)/volumes/grafana:/source:ro" -v grafana-data:/dest \
+  alpine sh -c "cp -a /source/. /dest/"
+
+docker volume create prometheus-data
+docker run --rm -v "$(pwd)/volumes/prometheus:/source:ro" -v prometheus-data:/dest \
+  alpine sh -c "cp -a /source/. /dest/"
+
+docker volume create clickstack-data
+docker run --rm -v "$(pwd)/volumes/clickstack:/source:ro" -v clickstack-data:/dest \
+  alpine sh -c "cp -a /source/. /dest/"
+
+docker volume create superset-home
+docker run --rm -v "$(pwd)/volumes/superset:/source:ro" -v superset-home:/dest \
+  alpine sh -c "cp -a /source/. /dest/"
+```
+
+Skip any command for a service you have not used or whose source directory does
+not exist.
+
 **Automated S3 sync**:
 
 ```bash

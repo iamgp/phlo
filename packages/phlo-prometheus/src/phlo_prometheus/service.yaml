@@ -22,7 +22,7 @@ compose:
     - "${PROMETHEUS_PORT:-9090}:9090"
   volumes:
     - ./prometheus:/etc/prometheus:ro
-    - ./volumes/prometheus:/prometheus
+    - prometheus-data:/prometheus
   healthcheck:
     test:
       [

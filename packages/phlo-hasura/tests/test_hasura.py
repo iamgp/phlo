@@ -86,6 +86,20 @@ class TestHasuraClient:
 
         assert client.admin_secret == "file-secret"
 
+    def test_init_uses_service_default_admin_secret(self, tmp_path, monkeypatch):
+        """Client default should match the generated Hasura service default."""
+        phlo_dir = tmp_path / ".phlo"
+        phlo_dir.mkdir()
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("HASURA_ADMIN_SECRET", raising=False)
+        from phlo_hasura import client as client_module
+
+        client_module.get_settings.cache_clear()
+
+        client = HasuraClient()
+
+        assert client.admin_secret == "phlo-hasura-admin-secret"
+
     @patch("phlo_hasura.client.requests.request")
     def test_track_table(self, mock_request):
         """Should track table via API."""
