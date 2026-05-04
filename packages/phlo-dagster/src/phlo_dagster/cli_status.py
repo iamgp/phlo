@@ -30,10 +30,8 @@ Example:
 """
 
 import json
-import os
 import time
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 
 import click
@@ -42,7 +40,7 @@ from requests import exceptions as requests_exceptions
 from rich.console import Console
 from rich.table import Table
 
-from phlo.cli.infrastructure.utils import parse_env_file
+from phlo.config.env import load_project_env
 from phlo.logging import get_logger
 from phlo_dagster.settings import get_settings
 
@@ -59,12 +57,7 @@ DEFAULT_SERVICE_PORTS = {
 
 def _project_env() -> dict[str, str]:
     """Load project-level Phlo env files for CLI commands run on the host."""
-    env: dict[str, str] = {}
-    for path in (Path.cwd() / ".phlo" / ".env", Path.cwd() / ".phlo" / ".env.local"):
-        if path.exists():
-            env.update(parse_env_file(path, strip_quotes=True))
-    env.update(os.environ)
-    return env
+    return load_project_env()
 
 
 def _project_port(env: dict[str, str], key: str, default: int) -> int:

@@ -33,7 +33,6 @@ Example:
 
 from __future__ import annotations
 
-import os
 from typing import Any, Literal
 from urllib.parse import quote
 
@@ -41,6 +40,8 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from phlo.config.env import project_env_value
+from phlo.config.network import resolve_url
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -60,12 +61,12 @@ def resolve_nessie_url(override: str | None = None) -> str:
         Nessie URL from override, environment, or default.
 
     """
-    env_url = os.environ.get("NESSIE_URL")
+    env_url = project_env_value("NESSIE_URL")
     if override and override.strip():
         if env_url and override.strip() == "http://localhost:19120/api/v2":
-            return env_url
-        return override
-    return env_url or DEFAULT_NESSIE_URL
+            return resolve_url(env_url, port_env_var="NESSIE_PORT")
+        return resolve_url(override, port_env_var="NESSIE_PORT")
+    return resolve_url(env_url or DEFAULT_NESSIE_URL, port_env_var="NESSIE_PORT")
 
 
 # --- Pydantic Models ---

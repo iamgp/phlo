@@ -8,11 +8,12 @@ appropriate exposed port.
 
 from __future__ import annotations
 
-import os
 import socket
 from urllib.parse import urlsplit, urlunsplit
 
 import structlog
+
+from phlo.config.env import project_env_value
 
 logger = structlog.get_logger(__name__)
 
@@ -39,7 +40,7 @@ def resolve_host(host: str, port: int, *, port_env_var: str | None = None) -> tu
         socket.gethostbyname(host)
         return host, port
     except socket.gaierror:
-        resolved_port = int(os.environ.get(port_env_var, str(port))) if port_env_var else port
+        resolved_port = int(project_env_value(port_env_var, str(port))) if port_env_var else port
         logger.debug(
             "host_resolved_to_localhost",
             original_host=host,
@@ -75,7 +76,7 @@ def resolve_url(url: str, *, port_env_var: str | None = None) -> str:
     except socket.gaierror:
         original_port = parsed.port
         resolved_port = (
-            int(os.environ.get(port_env_var, str(original_port or 80)))
+            int(project_env_value(port_env_var, str(original_port or 80)))
             if port_env_var
             else original_port
         )

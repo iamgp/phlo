@@ -33,7 +33,6 @@ Example:
 """
 
 import json
-import os
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -43,6 +42,7 @@ import psycopg2.extras
 import requests as http_requests
 from rich.console import Console
 
+from phlo.config.env import load_project_env
 from phlo.config.network import resolve_host
 from phlo.logging import get_logger
 from phlo_dagster.cli_logs_display import _display_logs, _tail_logs
@@ -50,6 +50,11 @@ from phlo_dagster.settings import get_settings
 
 console = Console()
 logger = get_logger(__name__)
+
+
+def _project_env() -> dict[str, str]:
+    """Load project-level Phlo env files for host-side log lookups."""
+    return load_project_env()
 
 
 @click.command()
@@ -237,9 +242,14 @@ def _get_logs(filters: dict) -> list[dict]:
 
     """
     try:
+        env = _project_env()
         settings = get_settings()
-        dagster_host = os.getenv("DAGSTER_WEBSERVER_HOST", "localhost")
-        dagster_port = os.getenv("DAGSTER_WEBSERVER_PORT") or str(settings.dagster_port)
+        dagster_host = env.get("DAGSTER_WEBSERVER_HOST", "localhost")
+        dagster_port = (
+            env.get("DAGSTER_WEBSERVER_PORT")
+            or env.get("DAGSTER_PORT")
+            or str(settings.dagster_port)
+        )
 
         dagster_url = f"http://{dagster_host}:{dagster_port}/graphql"
 
@@ -318,17 +328,18 @@ def _get_logs(filters: dict) -> list[dict]:
 def _get_logs_from_postgres(filters: dict) -> list[dict]:
     """Retrieve Dagster event logs directly from Dagster's Postgres storage."""
     try:
+        env = _project_env()
         host, port = resolve_host(
-            os.getenv("POSTGRES_HOST", "postgres"),
-            int(os.getenv("POSTGRES_PORT", "5432")),
+            env.get("POSTGRES_HOST", "postgres"),
+            int(env.get("POSTGRES_PORT", "5432")),
             port_env_var="POSTGRES_PORT",
         )
         conn = psycopg2.connect(
             host=host,
             port=port,
-            database=os.getenv("POSTGRES_DB", "phlo"),
-            user=os.getenv("POSTGRES_USER", "phlo"),
-            password=os.getenv("POSTGRES_PASSWORD", "phlo"),
+            database=env.get("POSTGRES_DB", "phlo"),
+            user=env.get("POSTGRES_USER", "phlo"),
+            password=env.get("POSTGRES_PASSWORD", "phlo"),
         )
     except Exception:
         logger.warning("dagster_logs_postgres_connect_failed", exc_info=True)

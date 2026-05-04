@@ -7,6 +7,8 @@ from click.testing import CliRunner
 from phlo_dagster.cli_logs import (
     _event_log_row_to_entry,
     _get_log_level,
+    _get_logs,
+    _get_logs_from_postgres,
     _parse_since,
     logs,
 )
@@ -159,6 +161,86 @@ class TestLogsCLI:
         runner = CliRunner()
         result = runner.invoke(logs, ["--since", "invalid_time"])
         assert result.exit_code == 0
+
+
+def test_get_logs_uses_project_dagster_port_override(monkeypatch) -> None:
+    """GraphQL log lookups should honor project Dagster port overrides."""
+    from phlo_dagster import cli_logs as logs_module
+
+    captured: dict[str, str] = {}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"data": {"runsOrError": {"runs": []}}}
+
+    monkeypatch.setattr(
+        logs_module,
+        "_project_env",
+        lambda: {"DAGSTER_PORT": "3300", "DAGSTER_WEBSERVER_HOST": "localhost"},
+    )
+
+    def fake_post(url: str, **_kwargs) -> FakeResponse:
+        captured["url"] = url
+        return FakeResponse()
+
+    monkeypatch.setattr(logs_module.http_requests, "post", fake_post)
+
+    assert _get_logs({"limit": 10}) == []
+    assert captured["url"] == "http://localhost:3300/graphql"
+
+
+def test_get_logs_from_postgres_uses_project_env(monkeypatch) -> None:
+    """Postgres fallback should honor project DB env overrides."""
+    from phlo_dagster import cli_logs as logs_module
+
+    captured: dict[str, object] = {}
+
+    class FakeCursor:
+        def execute(self, *_args, **_kwargs) -> None:
+            return None
+
+        def fetchall(self) -> list:
+            return []
+
+        def close(self) -> None:
+            return None
+
+    class FakeConnection:
+        def cursor(self, *_args, **_kwargs) -> FakeCursor:
+            return FakeCursor()
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        logs_module,
+        "_project_env",
+        lambda: {
+            "POSTGRES_HOST": "localhost",
+            "POSTGRES_PORT": "15432",
+            "POSTGRES_DB": "custom",
+            "POSTGRES_USER": "user",
+            "POSTGRES_PASSWORD": "secret",
+        },
+    )
+
+    def fake_connect(**kwargs) -> FakeConnection:
+        captured.update(kwargs)
+        return FakeConnection()
+
+    monkeypatch.setattr(logs_module.psycopg2, "connect", fake_connect)
+
+    assert _get_logs_from_postgres({}) == []
+    assert captured == {
+        "host": "localhost",
+        "port": 15432,
+        "database": "custom",
+        "user": "user",
+        "password": "secret",
+    }
 
 
 class TestLogsPerformance:
