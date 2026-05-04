@@ -42,9 +42,24 @@ release_branch_prefix = "relx/release"
 pending_label = "autorelease: pending"
 tagged_label = "autorelease: tagged"
 
+[[channels]]
+branch = "main"
+publish = true
+
+[[channels]]
+branch = "beta"
+publish = true
+prerelease = "b"
+
 [monorepo]
 enabled = true
 release_mode = "release_set"
 
 [workspace]
 cascade_bumps = false
+
+[prerelease]
+enabled = true
+
+[prerelease.workspace]
+sync_root_extras = ["defaults", "core-services"]

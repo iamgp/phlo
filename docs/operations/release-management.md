@@ -1,0 +1,215 @@
+# Release Management
+
+Use this runbook to cut stable and beta Phlo releases.
+
+Phlo releases are driven by ReleaseX and GitHub Actions:
+
+- `relx.toml` defines the release channels, versioning rules, and prerelease workspace behavior.
+- `.github/workflows/release.yml` opens release PRs, tags merged release PRs, and publishes tagged artifacts to PyPI.
+- `.github/workflows/publish.yml` is a manual recovery workflow for PyPI publishing.
+- `.github/workflows/build-core-services.yml` builds release images for `phlo-api` and Observatory when a GitHub Release is published.
+
+The release workflow pins ReleaseX `v1.3.0`.
+
+## Release Channels
+
+Phlo has two ReleaseX channels:
+
+| Branch | Channel | Version shape | Purpose |
+|---|---|---:|---|
+| `main` | stable | `0.8.3` | Normal public releases |
+| `beta` | beta | `0.8.3b1` | Prerelease validation, workshops, and release candidates |
+
+Beta releases sync selected workspace package versions into the root `defaults` and
+`core-services` extras. This matters because `phlo[defaults]` must resolve the
+matching beta package set instead of mixing beta root packages with older stable
+workspace packages.
+
+## Before You Release
+
+Start from a clean checkout of the branch you intend to release.
+
+```bash
+git status --short
+relx validate
+relx status --channel
+```
+
+If local ignored runtime folders exist under `packages/`, use a clean worktree for
+ReleaseX checks. Generated local folders can confuse workspace discovery because
+the real workspace also uses `packages/*`.
+
+For a clean worktree:
+
+```bash
+git worktree add --detach /tmp/phlo-release-check HEAD
+cd /tmp/phlo-release-check
+relx validate
+relx status --channel
+```
+
+## Stable Release
+
+Use this flow for a normal release from `main`.
+
+1. Merge product, fix, and release-worthy PRs into `main`.
+2. Let the `Release` workflow run on the push to `main`.
+3. Review the ReleaseX PR named like `chore(release): phlo <version> + <n> packages`.
+4. Confirm the release PR only changes expected version files, `uv.lock`, and `CHANGELOG.md`.
+5. Wait for CI on the release PR to pass.
+6. Merge the release PR.
+7. Confirm the `Release` workflow creates the tag and GitHub Release.
+8. Confirm the publish job uploads or skips the expected PyPI artifacts.
+9. Confirm the core service image workflow finishes if the release includes image changes.
+
+Useful checks:
+
+```bash
+git fetch --tags
+git tag --list 'v*' --sort=-creatordate | head
+python -m pip index versions phlo
+```
+
+## Beta Release
+
+Use the beta channel when you need a PyPI prerelease before cutting stable.
+
+1. Create or update `beta` from the candidate commit.
+
+```bash
+git fetch origin
+git checkout beta
+git merge origin/main
+git push origin beta
+```
+
+2. Let the `Release` workflow run on the push to `beta`.
+3. Review the beta release PR against `beta`.
+4. Confirm the version set uses beta versions, for example `phlo 0.8.3b1`.
+5. Confirm the root extras point at selected beta package versions.
+6. Merge the beta release PR.
+7. Confirm the beta tag is created and the publish job uploads or skips expected artifacts.
+8. Validate installation with explicit prerelease pins from the release PR body or from the package list.
+
+Prefer exact beta pins over broad prerelease resolution:
+
+```bash
+uv venv /tmp/phlo-beta-check
+source /tmp/phlo-beta-check/bin/activate
+uv pip install --prerelease explicit \
+  "phlo[defaults]==0.8.3b1" \
+  "phlo-dagster==0.3.3b1" \
+  "phlo-dlt==0.3.3b1" \
+  "phlo-iceberg==0.3.3b1"
+phlo --version
+```
+
+Adjust the package pins to match the beta release PR. Do not use
+`--prerelease allow` for routine verification because it can pull unrelated
+third-party prereleases.
+
+## Finalize A Beta
+
+When the beta has passed validation, finalize it into a stable release.
+
+1. Bring the validated beta changes back to `main`.
+2. Run a final ReleaseX dry run from a clean `main` checkout.
+
+```bash
+relx release pr --dry-run --finalize
+```
+
+3. Open the final release PR.
+
+```bash
+relx release pr --finalize
+```
+
+4. Review, merge, and verify the stable tag and publish job as in the stable release flow.
+
+The finalize flow selects packages currently on prerelease versions and converts them to stable versions, even when they have no new file changes after the latest beta tag.
+
+## Manual Publish Recovery
+
+Use manual publish only when the normal tag publish did not complete.
+
+There are two recovery paths:
+
+- Run the `Release` workflow manually with the failed tag in `workflow_dispatch`.
+- Run `Publish to PyPI` manually for a dry run, an explicit package list, or a targeted recovery.
+
+For the `Release` workflow, provide the version tag, with or without `v`:
+
+```text
+v0.8.3
+```
+
+The publish job checks PyPI and removes artifacts that already exist before it calls `uv publish`, so rerunning after a partial publish is expected to be safe.
+
+For targeted publishing, use the `packages` input in `Publish to PyPI`:
+
+```text
+phlo, phlo-dagster, phlo-dlt
+```
+
+Run a dry run first when recovering a partial publish.
+
+## Tag Recovery
+
+If ReleaseX updates the release PR but does not create the tag after merge:
+
+1. Confirm the release commit is on `main` or `beta`.
+2. Confirm the version files and changelog already contain the intended release version.
+3. Create an annotated tag on the release commit.
+
+```bash
+git fetch origin
+git checkout main
+git pull --ff-only
+git tag -a v0.8.3 -m "v0.8.3"
+git push origin v0.8.3
+```
+
+4. Watch the `Release` workflow publish job.
+5. If publish does not run or only partially completes, use manual publish recovery.
+
+Use the `beta` branch and beta tag when recovering a beta release.
+
+## Image Release Checks
+
+The core service image workflow runs when GitHub publishes a Release. Watch it
+alongside the PyPI publish job.
+
+After image builds complete:
+
+```bash
+docker pull ghcr.io/phlohouse/phlo-api:<version>
+docker pull ghcr.io/phlohouse/phlo-observatory:<version>
+```
+
+Use the version tag without the leading `v` if the image metadata workflow emits semver tags that way.
+
+## Troubleshooting
+
+### ReleaseX Sees Local Generated Folders
+
+Symptom:
+
+```text
+error: monorepo package packages/.phlo has no supported version files
+```
+
+Cause: the local checkout has ignored runtime folders under `packages/`.
+
+Fix: use a clean worktree for ReleaseX checks, or remove the ignored local folder if it is safe to do so.
+
+### PyPI Shows A Version Before `pip` Can Install It
+
+PyPI package JSON can update before the simple index used by installers catches up.
+Wait a few minutes and retry the exact install command.
+
+### Beta Install Pulls Unrelated Prereleases
+
+Use `--prerelease explicit` and exact beta pins for Phlo packages. Avoid
+`--prerelease allow` unless you intentionally want prereleases from the full
+dependency graph.

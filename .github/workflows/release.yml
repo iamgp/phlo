@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, beta]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -18,7 +18,7 @@ jobs:
   release-pr:
     if: >
       github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') &&
       !startsWith(github.event.head_commit.message, 'chore(release):') &&
       !startsWith(github.event.head_commit.message, 'chore:') &&
       !startsWith(github.event.head_commit.message, 'docs:') &&
@@ -43,14 +43,15 @@ jobs:
           version: "latest"
           enable-cache: false
 
-      - uses: iamgp/ReleaseX@65c40c6bb71f99ce60cbc607e2f611711895b802
+      - uses: iamgp/ReleaseX@0f77cbd306b3e726e3a44d8546ae01548af40829
         with:
           command: release pr
+          version: v1.3.0
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   release-tag:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore(release):')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') && startsWith(github.event.head_commit.message, 'chore(release):')
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -68,9 +69,10 @@ jobs:
           version: "latest"
           enable-cache: false
 
-      - uses: iamgp/ReleaseX@65c40c6bb71f99ce60cbc607e2f611711895b802
+      - uses: iamgp/ReleaseX@0f77cbd306b3e726e3a44d8546ae01548af40829
         with:
           command: release tag
+          version: v1.3.0
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
