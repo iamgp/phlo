@@ -32,6 +32,8 @@ from phlo.security.validation import (
     run_regulated_validation,
 )
 
+pytestmark = pytest.mark.integration
+
 
 class MockRegulatedSurfaceAdapter:
     """Mock adapter for testing surface registration."""

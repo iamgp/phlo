@@ -12,8 +12,12 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from phlo.audit.events import CanonicalAuditEvent
 from phlo.compliance.audit import InMemoryAuditStore, TamperEvidentAuditSink
+
+pytestmark = pytest.mark.integration
 
 
 class TestTamperEvidentPipeline:

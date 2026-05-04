@@ -11,10 +11,12 @@ from typing import Any, cast
 
 import pytest
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 # Import the script as a module
 _spec = importlib.util.spec_from_file_location(
     "run_golden_path",
-    Path(__file__).resolve().parent.parent / "scripts" / "run_golden_path.py",
+    REPO_ROOT / "scripts" / "run_golden_path.py",
 )
 assert _spec and _spec.loader
 _mod = importlib.util.module_from_spec(_spec)
