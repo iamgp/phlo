@@ -37,7 +37,7 @@ class HasuraClientSettings(BaseConfig):
     """Configuration for Hasura client connectivity and authentication."""
 
     hasura_admin_secret: str | None = Field(
-        default=None,
+        default="phlo-hasura-admin-secret",
         description="Hasura admin secret used for Metadata API requests",
     )
 

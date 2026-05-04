@@ -142,9 +142,10 @@ def stop_cmd(
     # Parse comma-separated services
     services_list = parse_service_args(service)
 
-    # When --profile is specified without --service, target only profile services
-    # This prevents stopping all services when only profile services should be affected
-    if profile and not services_list:
+    # When --profile is specified without --service, target only profile services.
+    # With --volumes, use compose down for the profile so dependencies and project
+    # volumes created by the profile are removed too.
+    if profile and not services_list and not volumes:
         services_list = get_profile_service_names(profile)
     logger.info(
         "services_stop_targets_resolved",

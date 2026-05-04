@@ -264,6 +264,46 @@ def test_services_start_preflights_env_local_port_collisions(
     assert "dagster -> 3300 (DAGSTER_PORT)" in str(exc_info.value)
 
 
+def test_services_start_preflights_invalid_env_port_values(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("POSTGRES_PORT=not-a-port\n")
+    compose_file = phlo_dir / "docker-compose.yml"
+    compose_file.write_text(
+        "services:\n  postgres:\n    ports:\n      - ${POSTGRES_PORT:-5432}:5432\n"
+    )
+
+    class FakeBackend:
+        def list_project_containers(self, project_name: str):
+            return []
+
+    monkeypatch.setattr(
+        start_module, "select_project_container_backend", lambda **_kwargs: FakeBackend()
+    )
+    monkeypatch.setattr(
+        start_module,
+        "_is_host_port_available",
+        lambda _port: (_ for _ in ()).throw(AssertionError("port bind should not run")),
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        start_module._preflight_requested_host_ports(
+            phlo_dir=phlo_dir,
+            compose_file=compose_file,
+            project_root=tmp_path,
+            project_name="demo",
+            service_names=["postgres"],
+            backend_name=None,
+        )
+
+    assert "invalid host port value" in str(exc_info.value)
+    assert "postgres -> not-a-port (POSTGRES_PORT)" in str(exc_info.value)
+
+
 def test_services_start_preflight_skips_already_running_project_service(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:

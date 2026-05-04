@@ -148,6 +148,7 @@ def _preflight_requested_host_ports(
     }
 
     conflicts: list[tuple[str, int, str | None]] = []
+    invalid_ports: list[tuple[str, str, str | None, str]] = []
     for service_name, service_config in selected_services.items():
         if service_name in running_containers:
             continue
@@ -159,6 +160,16 @@ def _preflight_requested_host_ports(
             if isinstance(port_entry, str):
                 port_spec = _parse_compose_port_spec(port_entry)
                 if not port_spec.container_port.isdigit():
+                    continue
+                if port_spec.env_var:
+                    resolved_value = env.get(port_spec.env_var)
+                    if resolved_value and not resolved_value.isdigit():
+                        invalid_ports.append(
+                            (service_name, str(port_entry), port_spec.env_var, resolved_value)
+                        )
+                        continue
+                elif port_spec.host_port and not port_spec.host_port.isdigit():
+                    invalid_ports.append((service_name, str(port_entry), None, port_spec.host_port))
                     continue
                 host_port, _, env_var = _resolve_host_port(
                     port_str=port_entry,
@@ -175,6 +186,21 @@ def _preflight_requested_host_ports(
 
             if host_port is not None and not _is_host_port_available(host_port):
                 conflicts.append((service_name, host_port, env_var))
+
+    if invalid_ports:
+        rendered = ", ".join(
+            f"{service} -> {value}" + (f" ({env_var})" if env_var else f" in {port_spec}")
+            for service, port_spec, env_var, value in invalid_ports
+        )
+        logger.warning(
+            "services_start_invalid_host_ports",
+            project_name=project_name,
+            invalid_ports=rendered,
+        )
+        raise click.ClickException(
+            "invalid host port value before starting services: "
+            f"{rendered}. Use a numeric TCP port in .phlo/.env.local or phlo.yaml env:."
+        )
 
     if not conflicts:
         return
