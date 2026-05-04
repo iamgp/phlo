@@ -43,11 +43,19 @@ uv pip install phlo[defaults]
 ```
 
 The `[defaults]` extra installs these core service packages:
-- `phlo-dagster` - Data orchestration platform
-- `phlo-postgres` - PostgreSQL database
-- `phlo-trino` - Distributed SQL query engine
+
+- `phlo-core-plugins` - built-in sources and quality checks
+- `phlo-api` - REST API used by Observatory and operator tooling
+- `phlo-observatory` - browser UI service
+- `phlo-dagster` - orchestration
+- `phlo-dlt` - ingestion decorators and DLT execution
+- `phlo-dbt` - dbt project integration and CLI helpers
+- `phlo-pandera` - schema and quality contracts
+- `phlo-iceberg` - Iceberg table-store capability
+- `phlo-postgres` - metadata and application state database
+- `phlo-minio` - S3-compatible local object storage
 - `phlo-nessie` - Git-like catalog for Iceberg
-- `phlo-minio` - S3-compatible object storage
+- `phlo-trino` - SQL query engine
 
 Verify installation:
 
@@ -57,10 +65,11 @@ phlo --version
 
 ### Step 2: Initialize a Project
 
-Create a new Phlo project:
+Create a new Phlo project. Use `minimal` for an empty project or choose a starter template when you want runnable example files:
 
 ```bash
-phlo init my-project
+phlo init --list-templates
+phlo init my-project --template csv-batch
 cd my-project
 ```
 
@@ -68,6 +77,9 @@ This creates:
 ```
 my-project/
 ├── .env.example         # Local secrets template (.phlo/.env.local)
+├── contracts/           # Contract snapshots and generated migration inputs
+├── data/                # Local example/source data when the template needs it
+├── plugins/             # Project-local plugin modules
 ├── workflows/           # Data ingestion workflows
 │   ├── ingestion/
 │   ├── schemas/
@@ -196,16 +208,24 @@ Then install services individually as needed:
 uv pip install phlo-dagster phlo-postgres phlo-trino
 ```
 
+The root package currently exposes these extras:
+
+| Extra | Intended use | Installs |
+| --- | --- | --- |
+| `phlo[defaults]` | Full local starter stack for most projects | core plugins, API, Observatory, Dagster, DLT, dbt, Pandera, Iceberg, Postgres, MinIO, Nessie, Trino |
+| `phlo[core-services]` | Infrastructure-only core services | Dagster, Postgres, MinIO, Nessie, Trino |
+| `phlo[openmetadata]` | Add OpenMetadata package to an existing install | OpenMetadata integration package |
+
 ### With Optional Services
 
-Install additional service packages:
+Install additional package families directly. These are packages, not root `phlo[...]` extras:
 
 ```bash
 # Business intelligence
 uv pip install phlo-superset
 
 # Observability stack
-uv pip install phlo-otel phlo-clickstack
+uv pip install phlo-otel phlo-clickstack phlo-alloy phlo-prometheus phlo-grafana phlo-loki
 
 # API layers
 uv pip install phlo-postgrest phlo-hasura
@@ -223,12 +243,11 @@ phlo services start --profile observability
 # With API layer (PostgREST, Hasura)
 phlo services start --profile api
 
-# With data catalog
-phlo services start --profile catalog
-
 # Multiple profiles
 phlo services start --profile observability --profile api
 ```
+
+Available profiles come from the installed service plugins and the generated `.phlo/docker-compose.yml`. Use `phlo services list` after `phlo services init` to see what your project can start.
 
 ### Native Services Mode
 
@@ -256,7 +275,7 @@ This mounts the phlo monorepo into the Dagster container and installs `phlo[defa
 
 ### Production Deployment
 
-For production deployments, see the [Production Deployment Guide](../operations/production-deployment.md).
+For production readiness and hardening guidance, see [Production Readiness](../operations/production-readiness.md) and [Security Setup](../setup/security.md).
 
 ## Verify Components
 

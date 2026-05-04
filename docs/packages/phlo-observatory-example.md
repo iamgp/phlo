@@ -397,7 +397,7 @@ class ExampleObservatoryExtension(ObservatoryExtensionPlugin):
 
 ## See Also
 
-- [phlo-observatory](../phlo-observatory.md) - Main Observatory package
-- [Plugin Development Guide](../../guides/plugin-development.md)
-- [Extension Model](../../guides/extension-model.md)
-- [Phlo API](../../reference/phlo-api.md)
+- [phlo-observatory](phlo-observatory.md) - Main Observatory package
+- [Plugin Development Guide](../guides/plugin-development.md)
+- [Extension Model](../guides/extension-model.md)
+- [Phlo API](../reference/phlo-api.md)

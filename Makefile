@@ -54,21 +54,22 @@ QUICKSTART_SMOKE_PYTEST_ARGS ?= --tb=short
 PROFILE_CORE ?= postgres minio minio-setup dagster-webserver dagster-daemon hub
 PROFILE_QUERY ?= nessie nessie-setup trino
 PROFILE_BI ?= superset pgweb
-PROFILE_DOCS ?= mkdocs
 PROFILE_OBSERVABILITY ?= prometheus loki alloy grafana postgres-exporter
 PROFILE_API ?= api hasura
 PROFILE_CATALOG ?= openmetadata-mysql openmetadata-elasticsearch openmetadata-server openmetadata-ingestion
-PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(PROFILE_OBSERVABILITY) $(PROFILE_API) $(PROFILE_CATALOG)
+PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_OBSERVABILITY) $(PROFILE_API) $(PROFILE_CATALOG)
+PYMDX_DOCS_DIR ?= docs-site
+PYMDX_DOCS_PORT ?= 3000
 
 .PHONY: up down stop restart build rebuild pull ps logs exec clean clean-all fresh-start \
 	setup install install-dagster health test \
 	up-core up-query up-bi up-docs up-observability up-api up-catalog up-all \
-	dagster superset hub minio pgweb trino nessie grafana prometheus api hasura mkdocs openmetadata catalog docs-open \
+	dagster superset hub minio pgweb trino nessie grafana prometheus api hasura openmetadata catalog docs-open \
 	dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
 	health-observability health-api health-catalog \
 	check lint lint-sql lint-python format-python typecheck-python \
 	lint-ts format-ts typecheck-ts test-core-regression test-quickstart-smoke fix-sql \
-	prek-install prek-run prek-validate zizmor actionlint docs-install docs-dev docs-build docs-serve
+	prek-install prek-run prek-validate zizmor actionlint docs-generate docs-dev docs-build docs-serve docs-clean
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -169,7 +170,7 @@ hasura:
 docs: docs-serve
 
 docs-open:
-	@open http://localhost:3101
+	@open http://localhost:$(PYMDX_DOCS_PORT)
 
 openmetadata:
 	@open http://localhost:$${OPENMETADATA_PORT:-10020}
@@ -187,7 +188,7 @@ up-bi:
 	$(COMPOSE) up -d $(PROFILE_BI)
 
 up-docs:
-	$(COMPOSE) --profile docs up -d $(PROFILE_DOCS)
+	$(MAKE) docs-dev
 
 up-observability:
 	$(COMPOSE) --profile observability up -d $(PROFILE_OBSERVABILITY)
@@ -201,17 +202,19 @@ up-catalog:
 up-all:
 	$(COMPOSE) up -d $(PROFILE_ALL)
 
-docs-dev:
-	npm --prefix docs-app run dev
+docs-generate:
+	uv run pymdx generate src/phlo --docs docs --output $(PYMDX_DOCS_DIR)
 
-docs-build:
-	npm --prefix docs-app run build
+docs-dev: docs-generate
+	uv run pymdx dev $(PYMDX_DOCS_DIR) --port $(PYMDX_DOCS_PORT)
 
-docs-install:
-	@if [ ! -d docs-app/node_modules ]; then npm --prefix docs-app install; fi
+docs-build: docs-generate
+	uv run pymdx build $(PYMDX_DOCS_DIR)
 
-docs-serve: docs-install
-	npm --prefix docs-app run dev
+docs-serve: docs-dev
+
+docs-clean:
+	uv run pymdx clean $(PYMDX_DOCS_DIR)
 
 # Health check target
 health:

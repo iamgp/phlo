@@ -23,7 +23,7 @@ Ensure the asset lives under `workflows/` and imports cleanly.
 docker restart dagster-webserver
 ```
 
-**Details**: [Troubleshooting Guide - Asset Not Found](../operations/troubleshooting.md#asset-not-found)
+**Details**: [Troubleshooting Guide - Assets Not Showing in UI](../operations/troubleshooting.md#assets-not-showing-in-ui)
 
 ---
 
@@ -53,7 +53,7 @@ class MySchema(pa.DataFrameModel):
     ...
 ```
 
-**Details**: [Error Message Audit](./audit/error_message_audit.md#scenario-2)
+**Details**: Schema mismatch diagnostics are covered in [PHLO-002](../errors/PHLO-002.md).
 
 ---
 
@@ -87,7 +87,7 @@ ValueError: Invalid cron expression: 'every hour'
 
 **Test your cron**: https://crontab.guru/
 
-**Details**: [Error Message Audit](./audit/error_message_audit.md#scenario-3)
+**Details**: Validation diagnostics are covered in [PHLO-004](../errors/PHLO-004.md).
 
 ---
 
@@ -121,7 +121,7 @@ class MySchema(pa.DataFrameModel):
 2. Adjust schema constraint if value is valid
 3. Add data filtering in asset function
 
-**Details**: [Error Message Audit](./audit/error_message_audit.md#scenario-4)
+**Details**: Missing schema diagnostics are covered in [PHLO-005](../errors/PHLO-005.md).
 
 ---
 
@@ -150,7 +150,7 @@ ValueError: Missing required schema parameter (`validation_schema` or `table_sch
 **Best practice**: Use `validation_schema` for contracts and provide `table_schema` when your
 active `table_store` cannot derive storage schema from validation models.
 
-**Details**: [Error Message Audit](./audit/error_message_audit.md#scenario-5)
+**Details**: Ingestion failure diagnostics are covered in [PHLO-006](../errors/PHLO-006.md).
 
 ---
 
@@ -188,7 +188,7 @@ docker exec dagster-webserver dagster asset materialize \
   --select my_asset --partition 2024-01-15
 ```
 
-**Details**: [Error Message Audit](./audit/error_message_audit.md#scenario-6)
+**Details**: Table lookup diagnostics are covered in [PHLO-007](../errors/PHLO-007.md).
 
 ---
 
@@ -215,7 +215,7 @@ docker exec dagster-webserver dagster asset materialize \
 
 **Note**: Tables are created on first materialization, not when asset is defined.
 
-**Details**: [Error Message Audit](./audit/error_message_audit.md#scenario-7)
+**Details**: Infrastructure diagnostics are covered in [PHLO-008](../errors/PHLO-008.md).
 
 ---
 
@@ -249,7 +249,7 @@ curl http://localhost:19120/api/v2/config  # Nessie
 curl http://localhost:9001  # MinIO console
 ```
 
-**Details**: [Error Message Audit](./audit/error_message_audit.md#scenario-8)
+**Details**: Iceberg catalog diagnostics are covered in [PHLO-400](../errors/PHLO-400.md).
 
 ---
 

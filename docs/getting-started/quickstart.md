@@ -1,340 +1,214 @@
 # 10-Minute Quickstart
 
-Get Phlo running and see your first data pipeline in action in under 10 minutes.
+Create a new Phlo project, run a generated ingestion asset, and query the local lakehouse stack.
 
-## What You'll Build
+This quickstart uses the `csv-batch` template because it is deterministic: it does not require an external API key, a public demo service, or cloning the Phlo source repository.
 
-A simple glucose data ingestion pipeline that:
+## What You Will Build
 
-1. Fetches data from Nightscout API
-2. Validates with Pandera schemas
-3. Stores in Apache Iceberg table
-4. Views in Dagster UI
+A local CSV ingestion pipeline that:
+
+1. reads `data/events.csv`
+2. validates rows with a Pandera schema
+3. registers a DLT-backed Phlo asset
+4. materializes the asset through the local Dagster runtime
+5. makes the resulting table available through the project data plane
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- 10 minutes
-- Text editor
+- Python 3.11 or later
+- Docker with Compose v2, or Podman with a Compose provider
+- `uv`
 
-### Choose a starter template
-
-List available project templates:
+Install Phlo with the default local stack:
 
 ```bash
+uv pip install "phlo[defaults]"
+```
+
+Verify the CLI:
+
+```bash
+phlo --version
 phlo init --list-templates
 ```
 
-For a local file-backed first pipeline, use:
+The current starter templates are:
+
+| Template | Use it when you want |
+| --- | --- |
+| `minimal` | an empty project |
+| `csv-batch` | a local file-backed ingestion asset |
+| `api-ingestion` | a REST API ingestion asset |
+| `basic` | a dbt-ready project shell |
+| `dbt-medallion` | bronze, silver, and gold dbt layers |
+| `sling-replication` | Sling-based replication |
+| `observability-demo` | a small pipeline with telemetry wiring |
+
+## Step 1: Create a Project
 
 ```bash
 phlo init my-project --template csv-batch
+cd my-project
 ```
 
-## Step 1: Clone and Setup (2 minutes)
+The template creates the files you own:
+
+```text
+my-project/
+├── data/events.csv
+├── phlo.yaml
+├── pyproject.toml
+├── workflows/
+│   ├── ingestion/csv/events.py
+│   └── schemas/csv.py
+└── tests/
+```
+
+Install the project dependencies in your environment:
 
 ```bash
-git clone https://github.com/iamgp/phlo.git
-cd phlo
-
-# Initialize infrastructure (generates .phlo/.env and .phlo/.env.local)
-phlo services init
-# Edit .phlo/.env.local if needed (defaults work for local development)
-
-# Start core services
-phlo services start --profile core --profile query
+uv pip install -e .
 ```
 
-Wait for services to start (~60 seconds).
+## Step 2: Inspect the Asset
 
-## Step 2: View Dagster UI (30 seconds)
-
-```bash
-open http://localhost:10006
-# Opens http://localhost:10006
-```
-
-You'll see the existing glucose ingestion asset already defined!
-
-## Step 3: Understand the Asset (2 minutes)
-
-Open `workflows/ingestion/nightscout/glucose.py`:
+Open `workflows/ingestion/csv/events.py`. The important part is the Phlo ingestion decorator:
 
 ```python
-from dlt.sources.rest_api import rest_api
+from pathlib import Path
+
+import pandas as pd
+
 from phlo_dlt.decorator import phlo_ingestion
-from workflows.schemas.glucose import RawGlucoseEntries
+from workflows.schemas.csv import EventsSchema
+
 
 @phlo_ingestion(
-    table_name="glucose_entries",
-    unique_key="_id",
-    validation_schema=RawGlucoseEntries,
-    group="nightscout",
-    cron="0 */1 * * *",
+    table_name="events",
+    unique_key="id",
+    validation_schema=EventsSchema,
+    group="csv",
     freshness_hours=(1, 24),
 )
-def glucose_entries(partition_date: str):
-    """Ingest Nightscout glucose entries."""
-    start_time_iso = f"{partition_date}T00:00:00.000Z"
-    end_time_iso = f"{partition_date}T23:59:59.999Z"
-
-    source = rest_api(
-        client={
-            "base_url": "https://gwp-diabetes.fly.dev/api/v1",
-        },
-        resources=[
-            {
-                "name": "entries",
-                "endpoint": {
-                    "path": "entries.json",
-                    "params": {
-                        "count": 10000,
-                        "find[dateString][$gte]": start_time_iso,
-                        "find[dateString][$lt]": end_time_iso,
-                    },
-                },
-            }
-        ],
-    )
-
-    return source
+def events(partition_date: str):
+    return pd.read_csv(Path("data/events.csv"))
 ```
 
-**Notice**: Only 60 lines! The `@phlo_ingestion` decorator handles:
+The decorator registers an asset that can be discovered by the orchestrator. The schema in `workflows/schemas/csv.py` defines the validation contract.
 
-- DLT pipeline setup
-- Pandera validation
-- Iceberg table creation
-- Merge with deduplication
-- Timing instrumentation
+## Step 3: Initialize Services
 
-## Step 4: Materialize the Asset (1 minute)
+Generate the local service configuration:
 
 ```bash
-# Materialize for today's date
-phlo materialize dlt_glucose_entries
-
-# Or in Dagster UI:
-# Navigate to Assets → dlt_glucose_entries → Materialize
+phlo services init
 ```
 
-Watch the execution in the Dagster UI. You'll see:
+This creates `.phlo/docker-compose.yml`, `.phlo/.env`, and `.phlo/.env.local`. The generated files are project-local runtime state; source files stay in your project root.
 
-1. DLT fetching data from API
-2. Pandera validation
-3. Staging to parquet
-4. Merge to Iceberg
-
-## Step 5: Query Your Data (2 minutes)
-
-### Option A: Trino (SQL)
+Start the default stack:
 
 ```bash
-# Connect to Trino
-phlo trino --catalog iceberg_dev --schema raw
-
-# Query your data
-SELECT _id, sgv, dateString
-FROM glucose_entries
-ORDER BY dateString DESC
-LIMIT 10;
+phlo services start
 ```
 
-### Option B: DuckDB (local analysis)
+Check health:
 
-```python
-import duckdb
-
-conn = duckdb.connect()
-
-# Install Iceberg extension
-conn.execute("INSTALL iceberg;")
-conn.execute("LOAD iceberg;")
-
-# Query Iceberg table (adapt path to your MinIO endpoint)
-result = conn.execute("""
-    SELECT _id, sgv, dateString
-    FROM iceberg_scan('s3://warehouse/raw/glucose_entries', ...)
-    LIMIT 10
-""").df()
-
-print(result)
+```bash
+phlo services status
+phlo doctor
 ```
 
-## What You Just Did
+By default, Dagster is available at `http://localhost:10006`.
 
-In 10 minutes, you:
+## Step 4: Materialize the Asset
 
-1. Started Phlo's lakehouse platform
-2. Explored an ingestion asset
-3. Materialized data to Iceberg
-4. Queried with SQL engines
+Run the generated asset for a specific partition:
 
-**Key Concepts**:
+```bash
+phlo materialize dlt_events --partition 2026-05-04
+```
 
-- **Decorator-driven**: Minimal boilerplate with `@phlo_ingestion`
-- **Schema-first**: Pandera validates data quality
-- **Iceberg tables**: ACID transactions, time travel, schema evolution
-- **Multi-engine**: Query with Trino, DuckDB, Spark
+You can also open Dagster and materialize the `dlt_events` asset from the UI.
+
+## Step 5: Query and Inspect
+
+Use Trino for SQL inspection:
+
+```bash
+phlo trino
+```
+
+Then query the table using the catalog and schema configured for your generated stack. For most local projects, start by listing tables:
+
+```bash
+phlo catalog tables
+```
+
+Inspect the table metadata:
+
+```bash
+phlo catalog describe raw.events
+phlo catalog history raw.events
+```
+
+If your table name includes a prefix or a different namespace, use the exact value returned by `phlo catalog tables`.
+
+## What You Just Learned
+
+- `phlo init` creates project-owned workflow files from templates.
+- `phlo services init` generates runtime infrastructure under `.phlo/`.
+- `phlo services start` starts the generated stack without requiring hand-written Compose files.
+- `phlo materialize` delegates execution to the configured orchestrator runtime.
+- Package plugins add CLI commands, services, assets, resources, and UI surfaces as they are installed.
 
 ## Next Steps
 
-### Create Your Own Ingestion Asset (15 minutes)
-
-1. Define schema in `workflows/schemas/mydata.py`:
-
-```python
-import pandera as pa
-from pandera.typing import Series
-
-class RawWeatherData(pa.DataFrameModel):
-    city_name: Series[str] = pa.Field(description="City name")
-    temperature: Series[float] = pa.Field(ge=-50, le=50)
-    timestamp: Series[str] = pa.Field(description="ISO 8601 timestamp")
-
-    class Config:
-        strict = True
-        coerce = True
-```
-
-2. Create asset in `workflows/ingestion/weather/observations.py`:
-
-```python
-from dlt.sources.rest_api import rest_api
-from phlo_dlt.decorator import phlo_ingestion
-from workflows.schemas.mydata import RawWeatherData
-
-@phlo_ingestion(
-    table_name="weather_observations",
-    unique_key="timestamp",
-    validation_schema=RawWeatherData,
-    group="weather",
-    cron="0 */1 * * *",
-    freshness_hours=(1, 24),
-)
-def weather_observations(partition_date: str):
-    """Ingest weather observations."""
-    source = rest_api(
-        client={
-            "base_url": "https://api.openweathermap.org/data/3.0",
-            "auth": {"token": "YOUR_API_KEY"},
-        },
-        resources=[
-            {
-                "name": "observations",
-                "endpoint": {
-                    "path": "onecall/timemachine",
-                    "params": {"dt": partition_date},
-                },
-            }
-        ],
-    )
-    return source
-```
-
-3. No manual registration is needed. Phlo discovers assets under `workflows/`.
-
-4. Restart Dagster:
-
-```bash
-phlo services restart --service dagster
-```
-
-5. Materialize in UI!
-
-### Build Complete Pipeline (60 minutes)
-
-Follow the comprehensive tutorial:
-
-- **[Workflow Development Guide](../guides/workflow-development.md)** (42KB, 10-step tutorial)
-
-This covers:
-
-- Bronze/Silver/Gold layers with dbt
-- Data quality checks
-- Publishing to Postgres
-- Scheduling and automation
-
-### Explore Advanced Features
-
-- **Time Travel**: Query historical snapshots
-- **Git-like Branching**: Nessie for data versioning
-- **Data Catalog**: OpenMetadata integration
-- **Observability**: Grafana dashboards
-
-## Learning Resources
-
-- **Concepts**: [Core Concepts](core-concepts.md) - Understand lakehouse fundamentals
-- **Complete Tutorial**: [Workflow Development Guide](../guides/workflow-development.md) - Build full pipeline
-- **Best Practices**: [Best Practices Guide](../operations/best-practices.md) - Production patterns
-- **Architecture**: [Architecture](../reference/architecture.md) - System design
-- **Troubleshooting**: [Troubleshooting Guide](../operations/troubleshooting.md) - Common issues
+- Build a REST ingestion asset with `phlo init my-api-project --template api-ingestion`.
+- Build a transformation project with `phlo init my-dbt-project --template dbt-medallion`.
+- Learn the development loop in [Developer Workflow](../guides/developer-workflow.md).
+- Learn package selection in [Choosing Components](../guides/choosing-components.md).
+- Keep command details close with [CLI Reference](../reference/cli-reference.md).
 
 ## Common Issues
 
-**"Services won't start"**
+### Services do not start
+
+Check that your container backend is running:
 
 ```bash
-# Check Docker is running
 docker ps
-
-# Check logs
-phlo services logs -f dagster
-
-# Restart services
-phlo services stop
-phlo services start --profile core --profile query
+phlo services status
+phlo doctor --verbose
 ```
 
-**"Asset not showing in UI"**
+For Podman, set the backend explicitly:
 
 ```bash
-# Restart Dagster
+export PHLO_CONTAINER_BACKEND=podman
+phlo services start --backend podman
+```
+
+### The asset is not visible in Dagster
+
+Restart the orchestration service after adding or renaming workflow files:
+
+```bash
 phlo services restart --service dagster
-
-# Ensure asset file lives under workflows/ and imports cleanly
+phlo status --assets
 ```
 
-**"Validation failed"**
+### A command says a service package is missing
+
+Install the package that owns the surface you are using. The default quickstart uses:
 
 ```bash
-# Check schema matches your data types
-# Common issue: timestamp as datetime instead of string
-# Review Pandera schema in workflows/schemas/
+uv pip install "phlo[defaults]"
 ```
 
-**"Permission denied in MinIO"**
+For minimal installs, add packages directly, for example:
 
 ```bash
-# Check .phlo/.env.local has correct MinIO credentials
-# Default: MINIO_ROOT_USER=minioadmin, MINIO_ROOT_PASSWORD=minioadmin
+uv pip install phlo-dagster phlo-dlt phlo-pandera phlo-iceberg phlo-trino
 ```
-
-## Why Phlo?
-
-**74% less boilerplate** vs manual Dagster/Iceberg/DLT integration:
-
-| Operation      | Manual Code    | With Phlo                | Reduction |
-| -------------- | -------------- | ------------------------ | --------- |
-| DLT setup      | ~50 lines      | 0 lines                  | 100%      |
-| Iceberg schema | ~40 lines      | 0 lines (auto-generated) | 100%      |
-| Merge logic    | ~60 lines      | 0 lines                  | 100%      |
-| Error handling | ~40 lines      | 0 lines                  | 100%      |
-| Timing/logging | ~30 lines      | 0 lines                  | 100%      |
-| **Total**      | **~270 lines** | **~60 lines**            | **74%**   |
-
-**Unique Features**:
-
-- Git-like branching for data (Nessie)
-- Time travel queries (Iceberg)
-- Schema auto-generation (Pandera → PyIceberg)
-- Idempotent ingestion (deduplication built-in)
-- Multi-engine analytics (Trino, DuckDB, Spark)
-
-## Get Help
-
-- **Documentation**: [docs/index.md](../index.md)
-- **GitHub Issues**: Report bugs and request features
-- **GitHub Discussions**: Ask questions and share ideas
-
-**Next**: [Complete Tutorial](../guides/workflow-development.md) | [Best Practices](../operations/best-practices.md)

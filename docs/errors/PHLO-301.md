@@ -244,4 +244,4 @@ def weather_observations(partition: str, context):
 
 - [DLT Sources Documentation](https://dlthub.com/docs/general-usage/source)
 - [Requests Library](https://docs.python-requests.org/)
-- [Phlo Ingestion Guide](../guides/ingestion.md)
+- [phlo-dlt package](../packages/phlo-dlt.md)

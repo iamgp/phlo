@@ -175,8 +175,8 @@ See [Plugin Development Guide](../guides/plugin-development.md) for details.
 
 | Entry Point                   | Plugin                    |
 | ----------------------------- | ------------------------- |
-| `phlo.quality_providers`      | `PanderaQualityProvider`  |
-| `phlo.cli_commands`           | Quality CLI commands      |
+| `phlo.plugins.quality_providers` | `PanderaQualityProvider` |
+| `phlo.plugins.cli`           | Quality CLI commands      |
 
 ## Related Packages
 

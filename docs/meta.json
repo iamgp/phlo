@@ -9,6 +9,7 @@
     "setup",
     "operations",
     "packages",
+    "observatory",
     "reference",
     "python-reference",
     "errors"

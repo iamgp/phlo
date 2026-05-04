@@ -169,7 +169,7 @@ that the supported capability combination actually wires together correctly.
 
 ```python
 from phlo_testing.utils import create_test_dataframe
-from phlo_quality.checks import null_check
+from phlo.quality import NullCheck
 
 def test_null_check_fails_on_nulls():
     # Create data with nulls
@@ -180,11 +180,11 @@ def test_null_check_fails_on_nulls():
     )
 
     # Run check
-    check = null_check(column="name")
-    result = check.execute(df)
+    check = NullCheck(columns=["name"])
+    result = check.execute(df, context=None)
 
     # Assert
-    assert not result["passed"]
+    assert not result.passed
 ```
 
 ## Note

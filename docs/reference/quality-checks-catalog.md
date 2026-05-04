@@ -29,27 +29,27 @@ Phlo's declarative quality framework reduces quality check boilerplate by 70-80%
 | [ReconciliationCheck](#reconciliationcheck) | Compare row counts across tables | Pipeline integrity |
 | [AggregateConsistencyCheck](#aggregateconsistencycheck) | Verify aggregates match source | Aggregation accuracy |
 | [KeyParityCheck](#keyparitycheck) | Verify matching keys across tables | Missing/extra row detection |
-| [MultiAggregateConsistencyCheck](#multiaggregatecheck) | Verify multiple aggregates efficiently | Multi-metric validation |
+| [MultiAggregateConsistencyCheck](#multiaggregateconsistencycheck) | Verify multiple aggregates efficiently | Multi-metric validation |
 | [ChecksumReconciliationCheck](#checksumreconciliationcheck) | Row-level hash comparison | Data drift detection |
 
 ## Basic Example
 
 ```python
-from phlo_quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck
+from phlo.quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck
 
 @phlo_quality(
-    table="silver.fct_glucose_readings",
+    table="silver.events",
     checks=[
-        NullCheck(columns=["entry_id", "glucose_mg_dl"]),
-        UniqueCheck(columns=["entry_id"]),
-        RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
+        NullCheck(columns=["event_id", "event_type"]),
+        UniqueCheck(columns=["event_id"]),
+        RangeCheck(column="event_value", min_value=0, max_value=100),
     ],
-    group="nightscout",
+    group="csv",
     blocking=True,
-    partition_column="reading_date",
+    partition_column="event_date",
 )
-def glucose_readings_quality():
-    """Declarative quality checks for glucose readings."""
+def events_quality():
+    """Declarative quality checks for events."""
     pass
 ```
 
@@ -81,7 +81,7 @@ Verifies that specified columns contain no null values.
 **Example:**
 
 ```python
-from phlo_quality import NullCheck, phlo_quality
+from phlo.quality import NullCheck, phlo_quality
 
 @phlo_quality(
     table="bronze.weather_observations",
@@ -134,13 +134,13 @@ Verifies that specified columns have unique value combinations (no duplicates).
 **Example:**
 
 ```python
-from phlo_quality import UniqueCheck, phlo_quality
+from phlo.quality import UniqueCheck, phlo_quality
 
 @phlo_quality(
-    table="silver.fct_glucose_readings",
+    table="silver.fct_events",
     checks=[
         # Single column uniqueness
-        UniqueCheck(columns=["entry_id"]),
+        UniqueCheck(columns=["event_id"]),
 
         # Composite key uniqueness
         UniqueCheck(columns=["station_id", "observation_time"]),
@@ -192,13 +192,13 @@ Verifies that numeric column values fall within a specified range.
 **Example:**
 
 ```python
-from phlo_quality import RangeCheck, phlo_quality
+from phlo.quality import RangeCheck, phlo_quality
 
 @phlo_quality(
-    table="silver.fct_glucose_readings",
+    table="silver.fct_events",
     checks=[
         # Both bounds
-        RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
+        RangeCheck(column="event_value", min_value=0, max_value=100),
         RangeCheck(column="hour_of_day", min_value=0, max_value=23),
 
         # Only minimum bound
@@ -219,8 +219,8 @@ def range_validations():
 **Failure Example:**
 
 ```
-Column 'glucose_mg_dl' has 0.8% out-of-range values (threshold: 0.0%).
-Expected range: [20, 600], Actual range: [15, 650]
+Column 'event_value' has 0.8% out-of-range values (threshold: 0.0%).
+Expected range: [0, 100], Actual range: [-5, 130]
 ```
 
 **When to use vs dbt tests:**
@@ -255,7 +255,7 @@ Verifies that string column values match a regular expression pattern.
 **Example:**
 
 ```python
-from phlo_quality import PatternCheck, phlo_quality
+from phlo.quality import PatternCheck, phlo_quality
 
 @phlo_quality(
     table="raw.user_profile",
@@ -331,10 +331,10 @@ Verifies that the table row count meets expectations.
 **Example:**
 
 ```python
-from phlo_quality import CountCheck, phlo_quality
+from phlo.quality import CountCheck, phlo_quality
 
 @phlo_quality(
-    table="silver.fct_glucose_readings",
+    table="silver.fct_events",
     checks=[
         # At least 1 row (ensure partition not empty)
         CountCheck(min_rows=1),
@@ -346,7 +346,7 @@ from phlo_quality import CountCheck, phlo_quality
         CountCheck(max_rows=1000000),
     ],
     group="volume",
-    partition_column="reading_date",
+    partition_column="event_date",
 )
 def volume_checks():
     pass
@@ -390,13 +390,13 @@ Verifies that data is fresh (not stale) by checking the maximum timestamp.
 **Example:**
 
 ```python
-from phlo_quality import FreshnessCheck, phlo_quality
+from phlo.quality import FreshnessCheck, phlo_quality
 
 @phlo_quality(
-    table="silver.fct_glucose_readings",
+    table="silver.fct_events",
     checks=[
         # Data should be less than 24 hours old
-        FreshnessCheck(timestamp_column="reading_timestamp", max_age_hours=24),
+        FreshnessCheck(timestamp_column="event_timestamp", max_age_hours=24),
 
         # Real-time data (less than 2 hours old)
         FreshnessCheck(timestamp_column="ingestion_time", max_age_hours=2),
@@ -448,7 +448,7 @@ Verifies that a DataFrame matches a Pandera schema with type-safe validation.
 ```python
 import pandera as pa
 from pandera.typing import Series
-from phlo_quality import SchemaCheck, phlo_quality
+from phlo.quality import SchemaCheck, phlo_quality
 
 # Define Pandera schema
 class WeatherObservations(pa.DataFrameModel):
@@ -515,7 +515,7 @@ Executes arbitrary SQL to validate data using custom business logic.
 **Example:**
 
 ```python
-from phlo_quality import CustomSQLCheck, phlo_quality
+from phlo.quality import CustomSQLCheck, phlo_quality
 
 @phlo_quality(
     table="silver.fct_weather_observations",
@@ -591,7 +591,7 @@ Compares row counts between source and target tables to detect data loss or dupl
 **Example:**
 
 ```python
-from phlo_quality import ReconciliationCheck, phlo_quality
+from phlo.quality import ReconciliationCheck, phlo_quality
 
 @phlo_quality(
     table="gold.fct_github_events",
@@ -675,7 +675,7 @@ Verifies that computed aggregates in a target table match the expected computati
 **Example:**
 
 ```python
-from phlo_quality import AggregateConsistencyCheck, phlo_quality
+from phlo.quality import AggregateConsistencyCheck, phlo_quality
 
 @phlo_quality(
     table="gold.fct_daily_github_metrics",
@@ -758,7 +758,7 @@ Verifies that source and target tables have matching keys to catch missing or ex
 **Example:**
 
 ```python
-from phlo_quality import KeyParityCheck, phlo_quality
+from phlo.quality import KeyParityCheck, phlo_quality
 
 @phlo_quality(
     table="gold.dim_customers",
@@ -835,7 +835,7 @@ Efficiently validates multiple aggregates in a single query to reduce source tab
 **Example:**
 
 ```python
-from phlo_quality import AggregateSpec, MultiAggregateConsistencyCheck, phlo_quality
+from phlo.quality import AggregateSpec, MultiAggregateConsistencyCheck, phlo_quality
 
 @phlo_quality(
     table="gold.fct_daily_metrics",
@@ -909,7 +909,7 @@ Performs row-level hash comparison between source and target tables to detect da
 **Example:**
 
 ```python
-from phlo_quality import ChecksumReconciliationCheck, phlo_quality
+from phlo.quality import ChecksumReconciliationCheck, phlo_quality
 
 @phlo_quality(
     table="gold.dim_products",
@@ -1188,19 +1188,16 @@ Use docstrings to explain why checks exist:
 
 ```python
 @phlo_quality(
-    table="silver.fct_glucose_readings",
+    table="silver.fct_events",
     checks=[
-        RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
+        RangeCheck(column="event_value", min_value=0, max_value=100),
     ],
 )
-def glucose_quality():
+def events_quality():
     """
-    Validate glucose readings are within medically valid ranges.
+    Validate event values are within the expected normalized range.
 
-    Range 20-600 mg/dL covers hypoglycemia to severe hyperglycemia.
-    Values outside this range indicate sensor errors.
-
-    See: https://diabetes.org/glucose-ranges
+    Values outside 0-100 indicate upstream normalization errors or malformed source records.
     """
     pass
 ```
@@ -1255,15 +1252,14 @@ def events_quality():
 ## Additional Resources
 
 - [phlo-pandera Package Source](https://github.com/your-org/phlo/tree/main/packages/phlo-pandera)
-- [Nightscout Example](https://github.com/your-org/phlo-examples/tree/main/nightscout/workflows/quality)
-- [GitHub Example](https://github.com/your-org/phlo-examples/tree/main/github/workflows/quality)
+- [CSV Batch Template](../getting-started/quickstart.md)
 - [Pandera Documentation](https://pandera.readthedocs.io/)
 
 ---
 
 ## Contributing
 
-Found a bug or want to add a new check type? See [CONTRIBUTING.md](../CONTRIBUTING.md).
+Found a bug or want to add a new check type? Start with [Plugin Development](../guides/plugin-development.md).
 
 ## Questions?
 

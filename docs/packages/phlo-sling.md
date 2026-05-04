@@ -294,7 +294,7 @@ Ensure the database user has SELECT permissions on source tables.
 
 ## See Also
 
-- [phlo-dlt](../phlo-dlt.md) - Alternative ingestion with DLT
-- [phlo-postgres](../phlo-postgres.md) - PostgreSQL integration
-- [Developer Guide](../../guides/developer-guide.md)
+- [phlo-dlt](phlo-dlt.md) - Alternative ingestion with DLT
+- [phlo-postgres](phlo-postgres.md) - PostgreSQL integration
+- [Developer Guide](../guides/developer-guide.md)
 - [Sling Documentation](https://docs.sling.io/) - Official Sling docs

@@ -41,7 +41,7 @@ flowchart TD
 - [Packages](packages/index.md): what each installable package contributes to the platform.
 - [Setup](setup/index.md): operator runbooks for optional external surfaces that need extra configuration after install.
 - [Reference](reference/index.md): canonical contracts, commands, configuration, and API surfaces.
-- [Python Reference](python-reference/index.mdx): generated symbol-level API and docstring reference for the core runtime.
+- Python Reference: generated symbol-level API and docstring reference for the core runtime in the pymdx site.
 - [Operations](operations/operations-guide.md): production operation, troubleshooting, and maintenance.
 
 ## Recommended Paths
@@ -69,7 +69,7 @@ flowchart TD
 2. [Plugin Development](guides/plugin-development.md)
 3. [Plugin API](reference/plugin-api.md)
 4. [Packages](packages/index.md)
-5. [Python Reference](python-reference/index.mdx)
+5. Python Reference in the pymdx site
 
 ## Setup Surfaces
 
@@ -123,5 +123,5 @@ Use [Packages](packages/index.md) for component detail and [Reference](reference
 - [Configuration Reference](reference/configuration-reference.md)
 - [Plugin API](reference/plugin-api.md)
 - [phlo-api](reference/phlo-api.md)
-- [Python Reference](python-reference/index.mdx)
+- Python Reference in the pymdx site
 - [Error Codes](errors/README.md)

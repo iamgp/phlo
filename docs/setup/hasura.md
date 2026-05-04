@@ -35,8 +35,8 @@ Hasura needs to "track" tables to generate GraphQL schema.
 2. Navigate to **Data** tab
 3. Click **public** schema (or marts if you have it)
 4. You'll see available tables:
-   - `mrt_glucose_overview`
-   - `mrt_glucose_hourly_patterns`
+   - `mrt_event_overview`
+   - `mrt_event_hourly_patterns`
 5. Click **Track** for each table you want to expose
 6. Click **Track All** to track all foreign keys/relationships
 
@@ -50,7 +50,7 @@ By default, tracked tables have NO permissions. You must configure access.
 
 #### Configure `admin` Role
 
-1. Click on `mrt_glucose_overview` table
+1. Click on `mrt_event_overview` table
 2. Go to **Permissions** tab
 3. Click **Enter new role** → type `admin`
 4. Click **select** column
@@ -76,7 +76,7 @@ By default, tracked tables have NO permissions. You must configure access.
 
 Repeat the above for:
 
-- `mrt_glucose_hourly_patterns`
+- `mrt_event_hourly_patterns`
 - Any other marts tables
 
 ---
@@ -88,13 +88,13 @@ Repeat the above for:
 3. Try a query:
 
 ```graphql
-query GetGlucoseReadings {
-  mrt_glucose_overview(limit: 10, order_by: { date: desc }) {
+query GetEventEvents {
+  mrt_event_overview(limit: 10, order_by: { date: desc }) {
     date
-    avg_glucose
-    min_glucose
-    max_glucose
-    readings_count
+    avg_event_value
+    min_event_value
+    max_event_value
+    event_count
   }
 }
 ```
@@ -140,13 +140,13 @@ Create views in Postgres for common queries, then track them in Hasura.
 **Example:**
 
 ```sql
-CREATE VIEW marts.v_recent_readings AS
+CREATE VIEW marts.v_recent_events AS
 SELECT *
-FROM marts.mrt_glucose_overview
+FROM marts.mrt_event_overview
 WHERE date >= CURRENT_DATE - INTERVAL '30 days';
 ```
 
-Then track `v_recent_readings` in Hasura console.
+Then track `v_recent_events` in Hasura console.
 
 ---
 
@@ -159,7 +159,7 @@ If you have foreign keys between tables, Hasura can auto-track relationships.
 1. Create foreign key in Postgres:
 
 ```sql
-ALTER TABLE marts.mrt_glucose_overview
+ALTER TABLE marts.mrt_event_overview
 ADD COLUMN user_id TEXT REFERENCES users(id);
 ```
 
@@ -167,14 +167,14 @@ ADD COLUMN user_id TEXT REFERENCES users(id);
 3. Hasura generates nested queries:
 
 ```graphql
-query GetUserWithReadings {
+query GetUserWithEvents {
   users {
     id
     name
-    glucose_readings {
+    events {
       # Auto-generated relationship
       date
-      avg_glucose
+      avg_event_value
     }
   }
 }
@@ -189,11 +189,11 @@ Add server-side computed values to GraphQL responses.
 **Example:** Create Postgres function:
 
 ```sql
-CREATE FUNCTION marts.glucose_status(mrt_glucose_overview_row marts.mrt_glucose_overview)
+CREATE FUNCTION marts.event_status(mrt_event_overview_row marts.mrt_event_overview)
 RETURNS TEXT AS $$
   SELECT CASE
-    WHEN mrt_glucose_overview_row.avg_glucose < 70 THEN 'low'
-    WHEN mrt_glucose_overview_row.avg_glucose > 180 THEN 'high'
+    WHEN mrt_event_overview_row.avg_event_value < 70 THEN 'low'
+    WHEN mrt_event_overview_row.avg_event_value > 180 THEN 'high'
     ELSE 'normal'
   END;
 $$ LANGUAGE SQL STABLE;
@@ -201,18 +201,18 @@ $$ LANGUAGE SQL STABLE;
 
 Add computed field in Hasura:
 
-1. **Data** → `mrt_glucose_overview` → **Modify** tab
+1. **Data** → `mrt_event_overview` → **Modify** tab
 2. **Add a computed field**
-3. Function: `glucose_status`
+3. Function: `event_status`
 4. Save
 
 Query with computed field:
 
 ```graphql
 query {
-  mrt_glucose_overview {
+  mrt_event_overview {
     date
-    avg_glucose
+    avg_event_value
     status # Computed field
   }
 }
@@ -254,7 +254,7 @@ Call external REST endpoints from GraphQL.
 
 ```graphql
 type Mutation {
-  refreshGlucoseData: RefreshResponse
+  refreshEventData: RefreshResponse
 }
 
 type RefreshResponse {
@@ -271,7 +271,7 @@ Query:
 
 ```graphql
 mutation {
-  refreshGlucoseData {
+  refreshEventData {
     success
     message
   }
@@ -284,17 +284,17 @@ mutation {
 
 Run webhooks when data changes.
 
-**Example:** Send alert when glucose reading is high:
+**Example:** Send alert when event reading is high:
 
 1. **Events** tab → **Create Event Trigger**
-2. Table: `mrt_glucose_overview`
+2. Table: `mrt_event_overview`
 3. Operations: Insert, Update
-4. Webhook: `http://api:8000/api/v1/webhooks/glucose-alert`
+4. Webhook: `http://api:8000/api/v1/webhooks/event-alert`
 5. Add condition:
 
 ```json
 {
-  "avg_glucose": {
+  "avg_event_value": {
     "_gt": 180
   }
 }
@@ -313,10 +313,10 @@ Real-time data via WebSockets.
 **Example subscription:**
 
 ```graphql
-subscription WatchGlucose {
-  mrt_glucose_overview(limit: 1, order_by: { date: desc }) {
+subscription WatchEvents {
+  mrt_event_overview(limit: 1, order_by: { date: desc }) {
     date
-    avg_glucose
+    avg_event_value
   }
 }
 ```
@@ -339,7 +339,7 @@ const client = createClient({
 
 client.subscribe(
   {
-    query: `subscription { mrt_glucose_overview(limit: 1, order_by: {date: desc}) { date avg_glucose } }`,
+    query: `subscription { mrt_event_overview(limit: 1, order_by: {date: desc}) { date avg_event_value } }`,
   },
   {
     next: (data) => console.log("Update:", data),
@@ -502,7 +502,7 @@ Hasura reads `x-hasura-*` claims for permission checks.
 1. Add indexes to Postgres tables:
 
 ```sql
-CREATE INDEX idx_glucose_date ON marts.mrt_glucose_overview(date);
+CREATE INDEX idx_event_date ON marts.mrt_event_overview(date);
 ```
 
 2. Limit query depth in Hasura settings
@@ -538,14 +538,14 @@ docker exec hasura env | grep JWT_SECRET
 Always paginate large result sets:
 
 ```graphql
-query GetReadingsPaginated($limit: Int!, $offset: Int!) {
-  mrt_glucose_overview(
+query GetEventsPaginated($limit: Int!, $offset: Int!) {
+  mrt_event_overview(
     limit: $limit
     offset: $offset
     order_by: { date: desc }
   ) {
     date
-    avg_glucose
+    avg_event_value
   }
 }
 ```
@@ -556,17 +556,17 @@ Use aggregation queries for summaries:
 
 ```graphql
 query GetStats {
-  mrt_glucose_overview_aggregate {
+  mrt_event_overview_aggregate {
     aggregate {
       count
       avg {
-        avg_glucose
+        avg_event_value
       }
       max {
-        max_glucose
+        max_event_value
       }
       min {
-        min_glucose
+        min_event_value
       }
     }
   }
@@ -579,7 +579,7 @@ Always name your queries:
 
 ```graphql
 # Good
-query GetGlucoseReadings { ... }
+query GetEventEvents { ... }
 
 # Bad (anonymous)
 query { ... }

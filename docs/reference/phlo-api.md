@@ -7,6 +7,7 @@ Observatory backend API for Phlo infrastructure management.
 The `phlo-api` is a FastAPI-based backend service that provides the Observatory UI with access to:
 
 - **Plugin & Service Management**: Discover and manage plugins and services
+- **Observatory v2**: Provider-neutral read models, capability inventory, guarded actions, and UI surface contracts
 - **Data Querying**: Execute queries against Trino and Iceberg tables
 - **Orchestration**: Interact with Dagster assets and runs
 - **Data Catalog**: Manage Nessie branches and catalog metadata
@@ -36,13 +37,17 @@ Access the API at:
 
 ## Complete API Reference
 
-See the full API reference documentation in the phlo-api package:
+The live OpenAPI document is the canonical endpoint reference for a running service:
 
-**[phlo-api API Reference](../../packages/phlo-api/docs/api-reference.md)**
+- Swagger UI: `http://localhost:4000/docs`
+- OpenAPI JSON: `http://localhost:4000/openapi.json`
+
+The [phlo-api package page](../packages/phlo-api.md) describes installation and service packaging.
 
 This includes detailed documentation for all endpoints:
 
 - Core endpoints (health, config, plugins, services, registry)
+- Observatory v2 read models and actions
 - Trino query engine (connection, preview, profiling, metrics, query execution)
 - Iceberg tables (list, schema, metadata)
 - Dagster assets (health, assets, history)
@@ -53,6 +58,67 @@ This includes detailed documentation for all endpoints:
 - Maintenance (status, metrics)
 - API backends (capability-backed Graph/API backend discovery)
 - Search index (assets, tables, columns)
+
+## Core Endpoints
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | Liveness check |
+| `GET /api/config` | Active Phlo project configuration |
+| `GET /api/plugins` | Installed plugins grouped by type |
+| `GET /api/plugins/{plugin_type}` | Plugins for one entry point type |
+| `GET /api/plugins/{plugin_type}/{name}` | Metadata for one plugin |
+| `GET /api/services` | Discovered service definitions |
+| `GET /api/services/{name}` | Service definition detail |
+| `GET /api/registry` | Plugin registry metadata |
+| `GET /api/backends` | Capability-backed API backends |
+| `GET /api/backends/{name}` | API backend detail |
+| `GET /api/contracts` | Known contract snapshots |
+| `GET /api/contracts/{table_name}` | Contract for one table |
+
+## Observatory v2 Endpoints
+
+Observatory v2 endpoints live under `/api/observatory/v2`. They are provider-neutral contracts: the UI should consume these read models and guarded actions instead of calling provider-specific services directly.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/observatory/v2/overview` | Runtime overview summary |
+| `GET /api/observatory/v2/capabilities` | High-level available capabilities |
+| `GET /api/observatory/v2/capability-inventory` | Source of truth for v2 surfaces, read models, actions, and native link declarations |
+| `GET /api/observatory/v2/services` | Service list |
+| `GET /api/observatory/v2/services/{service_id}` | Service detail |
+| `GET /api/observatory/v2/operations` | Operator workflow and recovery operations |
+| `GET /api/observatory/v2/operations/{operation_id}` | Operation detail |
+| `GET /api/observatory/v2/runs` | Runtime run list |
+| `GET /api/observatory/v2/storage` | Storage surface read model |
+| `GET /api/observatory/v2/observability` | Observability surface read model |
+| `GET /api/observatory/v2/governance` | Governance surface read model |
+| `GET /api/observatory/v2/catalog` | Catalog surface read model |
+| `GET /api/observatory/v2/apis` | API surface read model |
+| `GET /api/observatory/v2/bi` | BI surface read model |
+| `GET /api/observatory/v2/assets` | Asset list |
+| `GET /api/observatory/v2/assets/{asset_id}` | Asset detail |
+| `GET /api/observatory/v2/tables` | Table list |
+| `GET /api/observatory/v2/table-preview/{table_id}` | Read-only table preview |
+| `GET /api/observatory/v2/saved-queries` | Saved query list |
+| `POST /api/observatory/v2/saved-queries` | Create a saved query |
+| `GET /api/observatory/v2/stage-diff` | Table or branch stage diff |
+| `POST /api/observatory/v2/query` | Guarded read-only query execution |
+| `GET /api/observatory/v2/row-journey/{table_id}/{row_id}` | Row journey/provenance view |
+| `GET /api/observatory/v2/quality` | Quality check list |
+| `GET /api/observatory/v2/quality/{check_id}` | Quality check detail |
+| `GET /api/observatory/v2/logs` | Log list |
+| `GET /api/observatory/v2/logs/facets` | Log filter facets |
+| `GET /api/observatory/v2/branches` | Branch list |
+| `POST /api/observatory/v2/branches/actions` | Guarded branch action execution |
+| `GET /api/observatory/v2/branches/{branch_name}` | Branch detail |
+| `GET /api/observatory/v2/extensions` | Extension list |
+| `GET /api/observatory/v2/extensions/{extension_id}` | Extension detail |
+| `GET /api/observatory/v2/settings` | Settings and capability inventory surface |
+| `GET /api/observatory/v2/search` | Global Observatory search |
+| `POST /api/observatory/v2/actions` | Generic guarded v2 action execution |
+
+See [Observatory v2 Contracts](observatory-v2-contracts.md) for the capability contribution model and browser-safety rules.
 
 ## Key Features
 
@@ -157,8 +223,10 @@ The API is structured as:
 
 ```
 phlo-api/
-├── main.py                      # Core endpoints (config, plugins, services)
+├── main.py                      # Core endpoints (config, plugins, services, contracts)
+├── api/                         # capability APIs such as observability and maintenance
 └── observatory_api/
+    ├── v2.py                    # provider-neutral Observatory v2 contracts
     ├── trino.py                 # Query execution
     ├── iceberg.py               # Table catalog
     ├── dagster.py               # Asset management
@@ -264,7 +332,7 @@ curl http://localhost:3100/ready
 
 ## Next Steps
 
-- [phlo-api Package README](../../packages/phlo-api/README.md)
-- [phlo-api Complete API Reference](../../packages/phlo-api/docs/api-reference.md)
-- [Observatory Package](../../packages/phlo-observatory/README.md)
+- [phlo-api package](../packages/phlo-api.md)
+- [Observatory package](../packages/phlo-observatory.md)
+- [Observatory v2 Contracts](observatory-v2-contracts.md)
 - [CLI Reference](cli-reference.md)
