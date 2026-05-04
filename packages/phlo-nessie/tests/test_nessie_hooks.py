@@ -55,56 +55,58 @@ def test_ensure_bootstrap_commit_creates_and_deletes_namespace() -> None:
     )
 
 
-def test_init_branches_bootstraps_main_before_creating_dev(capsys) -> None:
-    with (
-        patch.object(hooks, "_resolve_nessie_url", return_value="http://nessie"),
-        patch.object(hooks, "_post_json", return_value={"name": "dev"}),
-        patch.object(hooks, "_ensure_bootstrap_commit") as ensure_bootstrap,
-        patch.object(
-            hooks,
-            "_get_json",
-            side_effect=[
-                {"references": [{"name": "main", "type": "BRANCH"}]},
-                {"references": [{"name": "main", "type": "BRANCH"}]},
-                {"hash": "main-hash"},
-            ],
-        ),
-    ):
-        exit_code = hooks.init_branches()
+def test_init_branches_bootstraps_main_before_creating_dev(caplog) -> None:
+    with caplog.at_level("INFO", logger="phlo_nessie.hooks"):
+        with (
+            patch.object(hooks, "_resolve_nessie_url", return_value="http://nessie"),
+            patch.object(hooks, "_post_json", return_value={"name": "dev"}),
+            patch.object(hooks, "_ensure_bootstrap_commit") as ensure_bootstrap,
+            patch.object(
+                hooks,
+                "_get_json",
+                side_effect=[
+                    {"references": [{"name": "main", "type": "BRANCH"}]},
+                    {"references": [{"name": "main", "type": "BRANCH"}]},
+                    {"hash": "main-hash"},
+                ],
+            ),
+        ):
+            exit_code = hooks.init_branches()
 
     assert exit_code == 0
     assert ensure_bootstrap.call_args_list == [
         call("http://nessie", "main"),
         call("http://nessie", "dev"),
     ]
-    assert "Created Nessie 'dev' branch." in capsys.readouterr().out
+    assert "nessie_hooks_dev_branch_created" in caplog.text
 
 
-def test_init_branches_bootstraps_existing_dev(capsys) -> None:
-    with (
-        patch.object(hooks, "_resolve_nessie_url", return_value="http://nessie"),
-        patch.object(hooks, "_ensure_bootstrap_commit") as ensure_bootstrap,
-        patch.object(hooks, "_post_json") as post_json,
-        patch.object(
-            hooks,
-            "_get_json",
-            side_effect=[
-                {
-                    "references": [
-                        {"name": "main", "type": "BRANCH"},
-                        {"name": "dev", "type": "BRANCH"},
-                    ]
-                },
-                {
-                    "references": [
-                        {"name": "main", "type": "BRANCH"},
-                        {"name": "dev", "type": "BRANCH"},
-                    ]
-                },
-            ],
-        ),
-    ):
-        exit_code = hooks.init_branches()
+def test_init_branches_bootstraps_existing_dev(caplog) -> None:
+    with caplog.at_level("INFO", logger="phlo_nessie.hooks"):
+        with (
+            patch.object(hooks, "_resolve_nessie_url", return_value="http://nessie"),
+            patch.object(hooks, "_ensure_bootstrap_commit") as ensure_bootstrap,
+            patch.object(hooks, "_post_json") as post_json,
+            patch.object(
+                hooks,
+                "_get_json",
+                side_effect=[
+                    {
+                        "references": [
+                            {"name": "main", "type": "BRANCH"},
+                            {"name": "dev", "type": "BRANCH"},
+                        ]
+                    },
+                    {
+                        "references": [
+                            {"name": "main", "type": "BRANCH"},
+                            {"name": "dev", "type": "BRANCH"},
+                        ]
+                    },
+                ],
+            ),
+        ):
+            exit_code = hooks.init_branches()
 
     assert exit_code == 0
     assert ensure_bootstrap.call_args_list == [
@@ -112,4 +114,4 @@ def test_init_branches_bootstraps_existing_dev(capsys) -> None:
         call("http://nessie", "dev"),
     ]
     post_json.assert_not_called()
-    assert "Nessie branches ready (main, dev)." in capsys.readouterr().out
+    assert "nessie_hooks_dev_branch_exists" in caplog.text

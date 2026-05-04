@@ -47,10 +47,9 @@ Example:
 
 from __future__ import annotations
 
-import sys
-
 import click
 
+from phlo.cli.output import user_error
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -217,20 +216,19 @@ def create_workflow_cmd(
                 table=table,
                 file_count=len(files),
             )
-        else:
-            logger.warning(
-                "dlt_workflow_create_unsupported_type",
-                workflow_type=workflow_type,
-            )
-            click.echo(f"Error: Workflow type '{workflow_type}' not yet implemented", err=True)
-            click.echo("Currently supported: ingestion", err=True)
-            sys.exit(1)
     except Exception as exc:
         logger.exception(
             "dlt_workflow_create_failed",
             workflow_type=workflow_type,
             domain=domain,
             table=table,
+            error=str(exc),
         )
-        click.echo(f"Error creating workflow: {exc}", err=True)
-        sys.exit(1)
+        raise user_error(
+            "could not create workflow",
+            details={
+                "Workflow": workflow_type,
+                "Dataset": f"{domain}.{table}",
+            },
+            run="phlo workflow create --help",
+        ) from exc

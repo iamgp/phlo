@@ -400,7 +400,12 @@ class ComposeGenerator:
                 dest = output_dir / file_spec["dest"]
 
                 if not source.exists():
-                    logger.warning("Source file not found: %s", source)
+                    logger.warning(
+                        "compose_service_file_source_missing",
+                        service_name=service.name,
+                        source=str(source),
+                        destination=str(dest),
+                    )
                     continue
 
                 # Create parent directories

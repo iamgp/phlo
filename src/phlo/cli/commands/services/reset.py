@@ -9,6 +9,7 @@ from phlo.cli.commands.services.common import parse_service_args, run_compose
 from phlo.cli.commands.services.utils import ensure_phlo_dir, require_container_backend
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.cli.output import missing_compose_file_error
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -18,7 +19,10 @@ logger = get_logger(__name__)
 @click.option(
     "--service",
     multiple=True,
-    help="Reset only specific service(s) volumes (e.g., --service postgres,minio or --service postgres --service minio)",
+    help=(
+        "Reset only specific service volume(s), e.g. --service postgres,minio "
+        "or --service postgres --service minio."
+    ),
 )
 @click.option(
     "--yes",
@@ -64,7 +68,7 @@ def reset_cmd(service: tuple[str, ...], yes: bool, backend_name: str | None):
             project_name=project_name,
             compose_file=str(compose_file),
         )
-        raise click.ClickException("docker-compose.yml not found. Run 'phlo services init' first.")
+        raise missing_compose_file_error(compose_file.relative_to(Path.cwd()))
 
     # Parse comma-separated services
     services_list = parse_service_args(service)

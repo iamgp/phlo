@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import sys
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -91,7 +93,7 @@ def test_render_log_file_path_warns_on_unknown_placeholder(
         path = _render_log_file_path(template)
 
     assert path is None
-    assert "Unknown log file template placeholder" in caplog.text
+    assert "log_file_template_placeholder_unknown" in caplog.text
 
 
 def test_setup_logging_writes_to_file(tmp_path: Path) -> None:
@@ -151,6 +153,94 @@ def test_setup_logging_redacts_sensitive_fields(tmp_path: Path) -> None:
     assert "<redacted>" in contents
     assert "abc123" not in contents
     assert "p@ss" not in contents
+
+
+def test_auto_format_keeps_stderr_quiet_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keeps CLI-facing stderr free of internal structured diagnostics."""
+    stream = StringIO()
+    monkeypatch.setattr(sys, "stderr", stream)
+
+    settings = LoggingSettings(
+        level="INFO",
+        log_format="auto",
+        router_enabled=False,
+        service_name="phlo-cli",
+        log_file_template=None,
+        environment="test",
+    )
+
+    setup_logging(settings, force=True)
+    logger = get_logger("phlo.tests.logging", service="phlo-cli")
+    logger.info("project_initialized", project_name="demo", file_count=7)
+
+    for handler in logging.root.handlers:
+        handler.flush()
+
+    rendered = stream.getvalue()
+    assert rendered == ""
+
+
+def test_console_format_renders_human_stream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Preserves opt-in compact terminal diagnostics for debugging."""
+    stream = StringIO()
+    monkeypatch.setattr(sys, "stderr", stream)
+
+    settings = LoggingSettings(
+        level="INFO",
+        log_format="console",
+        router_enabled=False,
+        service_name="phlo-cli",
+        log_file_template=None,
+        environment="test",
+    )
+
+    setup_logging(settings, force=True)
+    logger = get_logger("phlo.tests.logging", service="phlo-cli")
+    logger.info("project_initialized", project_name="demo", file_count=7)
+
+    for handler in logging.root.handlers:
+        handler.flush()
+
+    rendered = stream.getvalue()
+    assert rendered
+    assert not rendered.lstrip().startswith("{")
+    assert "project_initialized" in rendered
+    assert "project_name=demo" in rendered
+    assert "file_count=7" in rendered
+    assert "timestamp=" not in rendered
+
+
+def test_json_format_still_renders_structured_stream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Preserves explicit JSON stream logging for machines."""
+    stream = StringIO()
+    monkeypatch.setattr(sys, "stderr", stream)
+
+    settings = LoggingSettings(
+        level="INFO",
+        log_format="json",
+        router_enabled=False,
+        service_name="phlo-worker",
+        log_file_template=None,
+        environment="test",
+    )
+
+    setup_logging(settings, force=True)
+    logger = get_logger("phlo.tests.logging", service="phlo-worker")
+    logger.info("worker_started", worker_id="w1")
+
+    for handler in logging.root.handlers:
+        handler.flush()
+
+    rendered = stream.getvalue()
+    assert rendered.lstrip().startswith("{")
+    assert '"event": "worker_started"' in rendered
+    assert '"worker_id": "w1"' in rendered
 
 
 def test_record_to_event_extracts_tags_and_metadata() -> None:

@@ -171,7 +171,7 @@ def backfill(
                 error=str(e),
                 exc_info=True,
             )
-            click.echo(f"Error reading backfill state: {e}", err=True)
+            click.echo("Error: Could not read backfill state.", err=True)
             sys.exit(1)
     else:
         # Determine partition list

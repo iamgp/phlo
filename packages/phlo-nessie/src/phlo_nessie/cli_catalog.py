@@ -22,13 +22,13 @@ Commands:
 from __future__ import annotations
 
 import json
-import sys
 from typing import Optional
 
 import click
 from rich.console import Console
 from rich.table import Table
 
+from phlo.cli.output import user_error
 from phlo.logging import get_logger
 
 console = Console()
@@ -131,7 +131,7 @@ def tables(namespace: Optional[str], ref: str, output_format: str) -> None:
                     error=str(e),
                     exc_info=True,
                 )
-                console.print(f"[yellow]Warning: Could not list tables in {ns_name}: {e}[/yellow]")
+                console.print(f"[yellow]Warning: Could not list tables in {ns_name}[/yellow]")
 
         if not all_tables:
             logger.info(
@@ -139,6 +139,9 @@ def tables(namespace: Optional[str], ref: str, output_format: str) -> None:
                 namespace=namespace,
                 ref=ref,
             )
+            if output_format == "json":
+                click.echo("[]")
+                return
             console.print("[yellow]No tables found[/yellow]")
             return
 
@@ -177,8 +180,11 @@ def tables(namespace: Optional[str], ref: str, output_format: str) -> None:
             error=str(e),
             exc_info=True,
         )
-        console.print(f"[red]Error listing tables: {e}[/red]")
-        sys.exit(1)
+        raise user_error(
+            "could not list catalog tables",
+            details={"Reference": ref},
+            run="phlo services status",
+        ) from e
 
 
 @catalog.command()
@@ -202,9 +208,14 @@ def describe(table_name: str, ref: str) -> None:
                 ref=ref,
                 error=str(e),
             )
-            console.print(f"[red]Table not found: {table_name}[/red]")
-            console.print(f"[yellow]Error: {e}[/yellow]")
-            sys.exit(1)
+            raise user_error(
+                "table not found",
+                details={
+                    "Table": table_name,
+                    "Reference": ref,
+                },
+                run=f"phlo catalog tables --ref {ref}",
+            ) from e
 
         schema = table.schema()
         current_snapshot = table.current_snapshot()
@@ -253,6 +264,8 @@ def describe(table_name: str, ref: str) -> None:
             schema_field_count=len(schema.fields),
         )
     except Exception as e:
+        if isinstance(e, click.ClickException):
+            raise
         logger.error(
             "nessie_catalog_describe_failed",
             table_name=table_name,
@@ -260,8 +273,14 @@ def describe(table_name: str, ref: str) -> None:
             error=str(e),
             exc_info=True,
         )
-        console.print(f"[red]Error describing table: {e}[/red]")
-        sys.exit(1)
+        raise user_error(
+            "could not describe catalog table",
+            details={
+                "Table": table_name,
+                "Reference": ref,
+            },
+            run="phlo services status",
+        ) from e
 
 
 @catalog.command()
@@ -290,8 +309,14 @@ def history(table_name: str, limit: int, ref: str, output_format: str) -> None:
                 error=str(exc),
                 exc_info=True,
             )
-            console.print(f"[red]Table not found: {table_name}[/red]")
-            sys.exit(1)
+            raise user_error(
+                "table not found",
+                details={
+                    "Table": table_name,
+                    "Reference": ref,
+                },
+                run=f"phlo catalog tables --ref {ref}",
+            ) from exc
 
         snapshots = []
         for snapshot in table.snapshots():
@@ -344,6 +369,8 @@ def history(table_name: str, limit: int, ref: str, output_format: str) -> None:
         )
         console.print(table_out)
     except Exception as e:
+        if isinstance(e, click.ClickException):
+            raise
         logger.error(
             "nessie_catalog_history_failed",
             table_name=table_name,
@@ -353,5 +380,11 @@ def history(table_name: str, limit: int, ref: str, output_format: str) -> None:
             error=str(e),
             exc_info=True,
         )
-        console.print(f"[red]Error showing history: {e}[/red]")
-        sys.exit(1)
+        raise user_error(
+            "could not show table history",
+            details={
+                "Table": table_name,
+                "Reference": ref,
+            },
+            run="phlo services status",
+        ) from e

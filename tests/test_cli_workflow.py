@@ -277,7 +277,11 @@ def test_workflow_create_reports_scaffold_failures(monkeypatch) -> None:
     )
 
     assert result.exit_code == 1
-    assert "Error creating workflow: schema field is invalid" in result.output
+    assert "schema field is invalid" not in result.output
+    assert "Error: could not create workflow" in result.output
+    assert "Workflow: ingestion" in result.output
+    assert "Dataset: weather.observations" in result.output
+    assert "Run: phlo workflow create --help" in result.output
 
 
 def test_workflow_check_delegates_to_existing_validators(monkeypatch, tmp_path) -> None:

@@ -23,6 +23,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
 
+from phlo.cli.output import user_error
 from phlo.logging import get_logger
 from phlo_pandera.cli_schema_codegen import generate as codegen_generate
 from phlo_pandera.cli_schema_utils import classify_schema_change, discover_pandera_schemas
@@ -73,6 +74,9 @@ def list(domain: Optional[str], format: str):
         schemas = discover_pandera_schemas()
 
         if not schemas:
+            if format == "json":
+                click.echo("{}")
+                return
             console.print("[yellow]No schemas found[/yellow]")
             return
 
@@ -83,6 +87,9 @@ def list(domain: Optional[str], format: str):
             }
 
         if not schemas:
+            if format == "json":
+                click.echo("{}")
+                return
             console.print(f"[yellow]No schemas found for domain: {domain}[/yellow]")
             return
 
@@ -114,9 +121,9 @@ def list(domain: Optional[str], format: str):
             "schema_list_failed",
             domain=domain,
             output_format=format,
+            error=str(e),
         )
-        console.print(f"[red]Error listing schemas: {e}[/red]")
-        sys.exit(1)
+        raise user_error("could not list schemas", run="phlo schema list --help") from e
 
 
 @schema.command()
@@ -197,9 +204,13 @@ def show(schema_name: str, iceberg: bool):
             "schema_show_failed",
             schema_name=schema_name,
             iceberg=iceberg,
+            error=str(e),
         )
-        console.print(f"[red]Error: {e}[/red]")
-        sys.exit(1)
+        raise user_error(
+            "could not show schema",
+            details={"Schema": schema_name},
+            run="phlo schema list",
+        ) from e
 
 
 @schema.command()
@@ -275,9 +286,16 @@ def diff(schema_name: str, old: str, format: str):
             schema_name=schema_name,
             old_ref=old,
             output_format=format,
+            error=str(e),
         )
-        console.print(f"[red]Error: {e}[/red]")
-        sys.exit(1)
+        raise user_error(
+            "could not diff schema",
+            details={
+                "Schema": schema_name,
+                "Old": old,
+            },
+            run="phlo schema diff --help",
+        ) from e
 
 
 @schema.command()
@@ -328,9 +346,10 @@ def validate(schema_path: str):
                 schema_path=str(path),
                 line=e.lineno,
                 offset=e.offset,
+                error=str(e),
             )
             checks["Valid Python"] = False
-            console.print(f"[red]Syntax error: {e}[/red]")
+            console.print("[red]Syntax error[/red]")
 
         # Show results
         table = Table(title=f"Schema Validation: {schema_path}")
@@ -357,9 +376,13 @@ def validate(schema_path: str):
         logger.exception(
             "schema_validate_failed",
             schema_path=schema_path,
+            error=str(e),
         )
-        console.print(f"[red]Error validating schema: {e}[/red]")
-        sys.exit(1)
+        raise user_error(
+            "could not validate schema",
+            details={"File": schema_path},
+            run="phlo schema validate --help",
+        ) from e
 
 
 def _load_old_schema(schema_cls: type, schema_name: str, old_ref: str) -> dict[str, str]:

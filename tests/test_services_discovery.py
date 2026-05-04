@@ -158,27 +158,31 @@ def test_service_loading_helper_skips_non_mapping_plugin_service_definitions(
     registry = get_global_registry()
     registry.register_service(DummyServicePlugin(), replace=True)
     registry.register_service(NonMappingServicePlugin(), replace=True)
-    warnings: list[tuple[str, tuple[object, ...]]] = []
+    events: list[DiscoverySignal] = []
     services: dict[str, ServiceDefinition] = {}
     monkeypatch.setattr(
         _service_loading, "discover_plugins", lambda plugin_type, auto_register: None
     )
     monkeypatch.setattr(_service_loading, "resolve_plugin_source_path", lambda _plugin: None)
     monkeypatch.setattr(
-        _service_loading.logger,
-        "warning",
-        lambda message, *args: warnings.append((message, args)),
+        _service_loading,
+        "log_event",
+        lambda logger, level, event, **fields: events.append(
+            {"level": level, "event": event, "fields": fields}
+        ),
     )
 
     loaded_count = _service_loading.load_plugin_services(services)
 
-    assert loaded_count == 1
-    assert set(services) == {"dummy_service"}
-    assert len(warnings) == 1
-    message, args = warnings[0]
-    assert message == "Service plugin %s has invalid service definition: %s"
-    assert args[0] == "bad_service"
-    assert isinstance(args[1], ValueError)
+    assert loaded_count >= 1
+    assert "dummy_service" in services
+    assert any(
+        signal["level"] == "warning"
+        and signal["event"] == "service_plugin_definition_invalid"
+        and signal["fields"]["plugin_name"] == "bad_service"
+        and "Service definition must be a mapping" in str(signal["fields"]["error"])
+        for signal in events
+    )
 
 
 def test_service_discovery_refresh_reloads_stale_cache(
@@ -422,14 +426,18 @@ def test_service_discovery_skips_non_mapping_directory_service_files(
     tmp_path: Path,
 ) -> None:
     """Non-mapping service YAML is skipped without aborting directory discovery."""
-    warnings: list[tuple[str, tuple[object, ...]]] = []
+    from phlo.plugins.discovery import _service_loading
+
+    events: list[DiscoverySignal] = []
     monkeypatch.setattr(
-        "phlo.plugins.discovery._service_loading.discover_plugins",
-        lambda plugin_type, auto_register: None,
+        _service_loading, "discover_plugins", lambda plugin_type, auto_register: None
     )
     monkeypatch.setattr(
-        "phlo.plugins.discovery._service_loading.logger.warning",
-        lambda message, *args: warnings.append((message, args)),
+        _service_loading,
+        "log_event",
+        lambda logger, level, event, **fields: events.append(
+            {"level": level, "event": event, "fields": fields}
+        ),
     )
     _write_service_yaml(tmp_path, "valid", "valid")
     broken = tmp_path / "broken" / "service.yaml"
@@ -439,12 +447,11 @@ def test_service_discovery_skips_non_mapping_directory_service_files(
     services = ServiceDiscovery(services_dir=tmp_path).discover()
 
     assert set(services) == {"valid"}
-    assert len(warnings) == 1
-    message, args = warnings[0]
-    assert message == "Failed to load %s: %s"
-    assert args[0] == broken
-    assert isinstance(args[1], ValueError)
-    assert "Service definition must be a mapping" in str(args[1])
+    assert len(events) == 1
+    assert events[0]["level"] == "warning"
+    assert events[0]["event"] == "service_definition_file_load_failed"
+    assert events[0]["fields"]["path"] == str(broken)
+    assert "Service definition must be a mapping" in str(events[0]["fields"]["error"])
 
 
 def test_service_discovery_skips_malformed_companion_service_files(

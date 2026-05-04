@@ -120,7 +120,7 @@ def discover_observatory_extensions() -> list[ObservatoryExtensionPlugin]:
     """Discover installed Observatory extension plugins."""
     settings = get_settings()
     if not settings.plugins_enabled:
-        logger.info("Plugin system is disabled")
+        logger.info("observatory_extension_discovery_skipped_plugins_disabled")
         return []
 
     entry_points = entry_points_for_group(_ENTRY_POINT_GROUP)
@@ -133,13 +133,19 @@ def discover_observatory_extensions() -> list[ObservatoryExtensionPlugin]:
             plugin_class = entry_point.load()
             plugin = plugin_class() if isinstance(plugin_class, type) else plugin_class
         except Exception as exc:
-            logger.warning("Failed to load Observatory extension %s: %s", entry_point.name, exc)
+            logger.warning(
+                "observatory_extension_load_failed",
+                entry_point_name=entry_point.name,
+                error=str(exc),
+                exc_info=True,
+            )
             continue
         if not isinstance(plugin, ObservatoryExtensionPlugin):
             logger.warning(
-                "Observatory extension %s has invalid type %s",
-                entry_point.name,
-                type(plugin).__name__,
+                "observatory_extension_invalid_type",
+                entry_point_name=entry_point.name,
+                plugin_type=type(plugin).__name__,
+                expected_type="ObservatoryExtensionPlugin",
             )
             continue
         plugins.append(plugin)

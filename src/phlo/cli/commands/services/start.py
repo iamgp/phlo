@@ -38,6 +38,7 @@ from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.container_backend import select_project_container_backend
 from phlo.cli.infrastructure.utils import get_project_name, parse_env_file
+from phlo.cli.output import missing_compose_file_error
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
@@ -297,7 +298,10 @@ def _preflight_required_env_vars(
 @click.option(
     "--service",
     multiple=True,
-    help="Start only specific service(s) (e.g., --service postgres,minio or --service postgres --service minio)",
+    help=(
+        "Start only specific service(s), e.g. --service postgres,minio "
+        "or --service postgres --service minio."
+    ),
 )
 @click.option(
     "--native",
@@ -348,7 +352,7 @@ def start_cmd(
             project_name=project_name,
             compose_file=str(compose_file),
         )
-        raise click.ClickException("docker-compose.yml not found. Run 'phlo services init' first.")
+        raise missing_compose_file_error(compose_file.relative_to(Path.cwd()))
 
     profile = validate_requested_profiles(profile)
 

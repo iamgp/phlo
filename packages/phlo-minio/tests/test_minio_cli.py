@@ -8,6 +8,7 @@ from subprocess import CompletedProcess, TimeoutExpired
 import pytest
 from click.testing import CliRunner
 
+from phlo.cli.infrastructure.command import CommandError
 from phlo_minio.cli import minio_group
 from phlo_minio.cli_plugin import MinioCliPlugin
 
@@ -159,3 +160,24 @@ def test_minio_ls_timeout(monkeypatch) -> None:
 
     assert result.exit_code != 0
     assert "List timed out after 30 seconds." in result.output
+
+
+def test_minio_ls_hides_raw_mc_stderr(monkeypatch) -> None:
+    def _run_command(cmd, **_kwargs):
+        raise CommandError(cmd=cmd, returncode=1, stdout="", stderr="secret endpoint failed")
+
+    monkeypatch.setattr("phlo_minio.cli.ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr("phlo_minio.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        "phlo_minio.cli.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr("phlo_minio.cli.run_command", _run_command)
+
+    result = CliRunner().invoke(minio_group, ["ls", "local/warehouse/"])
+
+    assert result.exit_code != 0
+    assert "secret endpoint failed" not in result.output
+    assert "Error: MinIO list failed" in result.output
+    assert "Target: local/warehouse/" in result.output
+    assert "Run: phlo services status" in result.output

@@ -139,7 +139,9 @@ def test_ports_cmd_requires_phlo_dir(monkeypatch: pytest.MonkeyPatch, tmp_path) 
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(ports_module.ports_cmd)
     assert result.exit_code == 1
-    assert "Error: .phlo directory not found" in result.output
+    assert "Error: Phlo services have not been initialized" in result.output
+    assert "Missing: .phlo/" in result.output
+    assert "Run: phlo services init" in result.output
 
 
 def test_ports_cmd_handles_no_services(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:

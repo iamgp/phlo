@@ -132,11 +132,19 @@ def _load_manifest_models(manifest_path: Path) -> dict[str, dict[str, Any]]:
     try:
         manifest = json.loads(manifest_path.read_text())
     except OSError as e:
-        logger.exception("dbt_publishing_manifest_read_failed", manifest_path=str(manifest_path))
-        raise click.ClickException(f"Failed to read manifest: {manifest_path} ({e})") from e
+        logger.exception(
+            "dbt_publishing_manifest_read_failed",
+            manifest_path=str(manifest_path),
+            error=str(e),
+        )
+        raise click.ClickException(f"Failed to read manifest: {manifest_path}") from e
     except json.JSONDecodeError as e:
-        logger.exception("dbt_publishing_manifest_invalid_json", manifest_path=str(manifest_path))
-        raise click.ClickException(f"Invalid JSON in manifest: {manifest_path} ({e})") from e
+        logger.exception(
+            "dbt_publishing_manifest_invalid_json",
+            manifest_path=str(manifest_path),
+            error=str(e),
+        )
+        raise click.ClickException(f"Invalid JSON in manifest: {manifest_path}") from e
 
     models: dict[str, dict[str, Any]] = {}
     for unique_id, node in (manifest.get("nodes") or {}).items():
