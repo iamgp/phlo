@@ -270,6 +270,67 @@ from {schema_base_module} import {schema_base_name}
 '''
 
 
+def _render_schema_class_block(
+    *,
+    schema_class: str,
+    schema_base_name: str,
+    schema_fields: str,
+) -> str:
+    """Render one schema class block for an existing schema module."""
+    return f"""class {schema_class}({schema_base_name}):
+{schema_fields}
+
+    class Config:
+        strict = False
+        coerce = True
+"""
+
+
+def _append_missing_imports(path: Path, import_lines: str) -> None:
+    """Append missing type imports to an existing generated schema module."""
+    if not import_lines:
+        return
+    content = path.read_text()
+    missing = [line for line in import_lines.splitlines() if line and line not in content]
+    if not missing:
+        return
+    insertion = "\n".join(missing) + "\n"
+    lines = content.splitlines(keepends=True)
+    insert_at = 0
+    for index, line in enumerate(lines):
+        if line.startswith("import ") or line.startswith("from "):
+            insert_at = index + 1
+    lines.insert(insert_at, insertion)
+    path.write_text("".join(lines))
+
+
+def _append_schema_class(path: Path, schema_class: str, class_block: str) -> None:
+    """Append a schema class to an existing schema file."""
+    content = path.read_text()
+    if re.search(rf"^class\s+{re.escape(schema_class)}\b", content, flags=re.MULTILINE):
+        raise FileExistsError(f"Schema class already exists: {schema_class}")
+    separator = "\n\n" if content.endswith("\n") else "\n\n\n"
+    path.write_text(f"{content.rstrip()}{separator}{class_block}")
+
+
+def _ensure_project_dependencies(project_root: Path, dependencies: tuple[str, ...]) -> None:
+    """Ensure scaffold-required dependencies are present in project pyproject.toml."""
+    pyproject = project_root / "pyproject.toml"
+    if not pyproject.exists():
+        return
+    content = pyproject.read_text()
+    match = re.search(r"(?ms)^dependencies\s*=\s*\[(?P<body>.*?)^]", content)
+    if not match:
+        return
+    body = match.group("body")
+    missing = [dependency for dependency in dependencies if f'"{dependency}"' not in body]
+    if not missing:
+        return
+    additions = "".join(f'    "{dependency}",\n' for dependency in missing)
+    insert_at = match.end("body")
+    pyproject.write_text(f"{content[:insert_at]}{additions}{content[insert_at:]}")
+
+
 def _minimal_test_value(type_name: str) -> str:
     """Return Python source for a minimal valid test value."""
     return _MINIMAL_TEST_VALUES.get(type_name, '"test-001"')
@@ -334,8 +395,10 @@ def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
             allowed = ", ".join(sorted(_TYPE_IMPORTS.keys()))
             raise ValueError(f"Invalid field type '{type_part}' for '{name}'. Allowed: {allowed}")
 
-        if not name or name in seen:
+        if not name:
             continue
+        if name in seen:
+            raise ValueError(f"Duplicate field '{name}'")
         seen.add(name)
         fields.append(FieldSpec(name=name, type_name=type_part, nullable=nullable))
 
@@ -400,7 +463,7 @@ def create_ingestion_workflow(
     """
     domain_snake = _to_snake_case(domain)
     table_snake = _to_snake_case(table_name)
-    schema_class = f"Raw{_to_pascal_case(table_name)}"
+    schema_class = f"Raw{_to_pascal_case(table_snake)}"
     field_specs = parse_field_specs(fields)
 
     project_root = Path.cwd()
@@ -414,7 +477,7 @@ def create_ingestion_workflow(
     asset_file = asset_dir / f"{table_snake}.py"
     test_file = test_dir / f"test_{domain_snake}_{table_snake}.py"
 
-    existing = [str(f) for f in (schema_file, asset_file, test_file) if f.exists()]
+    existing = [str(f) for f in (asset_file, test_file) if f.exists()]
     if existing:
         raise FileExistsError("Files already exist:\n" + "\n".join(f"  - {f}" for f in existing))
 
@@ -479,7 +542,21 @@ def create_ingestion_workflow(
         schema_fields=schema_fields,
     )
 
-    schema_file.write_text(schema_content)
+    if schema_file.exists():
+        _append_missing_imports(schema_file, type_imports)
+        _append_schema_class(
+            schema_file,
+            schema_class,
+            _render_schema_class_block(
+                schema_class=schema_class,
+                schema_base_name=schema_base_name,
+                schema_fields=schema_fields,
+            ),
+        )
+    else:
+        schema_file.write_text(schema_content)
+
+    _ensure_project_dependencies(project_root, ("phlo-dlt", "phlo-pandera"))
 
     base_url_literal = api_base_url or ""
     asset_content = f'''"""
@@ -495,7 +572,7 @@ from {schema_import_path} import {schema_class}
 
 
 @phlo_ingestion(
-    table_name="{table_name}",
+    table_name="{table_snake}",
     unique_key="{unique_key_normalized}",
     validation_schema={schema_class},
     group="{domain_snake}",

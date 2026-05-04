@@ -9,11 +9,11 @@ import click
 from rich.table import Table
 
 from phlo.cli.commands.plugin.utils import (
-    INTERNAL_TO_REGISTRY_TYPE,
     PLUGIN_TYPE_CHOICES,
     collect_installed_plugins,
     console,
     registry_plugin_to_dict,
+    registry_type_for_cli,
 )
 from phlo.logging import get_logger
 from phlo.plugins.registry_client import search_plugins
@@ -79,7 +79,7 @@ def search_cmd(
             output_json=output_json,
         )
         if plugin_type:
-            plugin_type = INTERNAL_TO_REGISTRY_TYPE.get(plugin_type, plugin_type)
+            plugin_type = registry_type_for_cli(plugin_type)
         installed_type = "all"
         installed_results = [
             plugin

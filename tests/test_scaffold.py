@@ -19,10 +19,16 @@ def _requirement_name(requirement: str) -> str:
 
 
 def test_parse_field_specs_validates_and_dedupes() -> None:
-    """Normalizes field specs and keeps first occurrence for duplicate names."""
-    specs = parse_field_specs(["User ID:str!", "created_at:datetime", "user_id:int"])
+    """Normalizes field specs."""
+    specs = parse_field_specs(["User ID:str!", "created_at:datetime"])
     assert [s.name for s in specs] == ["user_id", "created_at"]
     assert specs[0].nullable is False
+
+
+def test_parse_field_specs_rejects_duplicate_normalized_names() -> None:
+    """Reject ambiguous duplicate field declarations."""
+    with pytest.raises(ValueError, match="Duplicate field"):
+        parse_field_specs(["User ID:str!", "user_id:int"])
 
 
 def test_scaffold_schema_base_comes_from_quality_provider(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -199,3 +205,58 @@ def test_scaffold_uses_unique_key_field_type_when_declared(
     assert '"product_id": 1' in test_path.read_text()
     assert '"title": "test-001"' in test_path.read_text()
     assert '"price": 1.0' in test_path.read_text()
+
+
+def test_scaffold_appends_schema_class_for_existing_domain(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Allow multiple ingestion tables in one domain schema module."""
+    monkeypatch.setattr(
+        scaffold_module,
+        "_resolve_schema_base_import",
+        lambda: ("phlo_pandera.schemas", "PhloSchema"),
+    )
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "workflows" / "schemas").mkdir(parents=True)
+    (tmp_path / "workflows" / "ingestion").mkdir(parents=True)
+
+    create_ingestion_workflow(
+        domain="commerce",
+        table_name="orders",
+        unique_key="id",
+        fields=["id:int"],
+    )
+    create_ingestion_workflow(
+        domain="commerce",
+        table_name="customers",
+        unique_key="id",
+        fields=["id:int"],
+    )
+
+    schema_text = (tmp_path / "workflows" / "schemas" / "commerce.py").read_text()
+    assert "class RawOrders(PhloSchema):" in schema_text
+    assert "class RawCustomers(PhloSchema):" in schema_text
+
+
+def test_scaffold_uses_normalized_table_identifier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep Phlo table identifiers valid while preserving REST endpoint path."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "workflows" / "schemas").mkdir(parents=True)
+    (tmp_path / "workflows" / "ingestion").mkdir(parents=True)
+
+    created = create_ingestion_workflow(
+        domain="demo",
+        table_name="bad-name",
+        unique_key="id",
+        api_base_url="https://example.com",
+        fields=["id:int"],
+    )
+
+    asset_path = tmp_path / next(
+        path for path in created if path.startswith("workflows/ingestion/")
+    )
+    asset_text = asset_path.read_text()
+    assert 'table_name="bad_name"' in asset_text
+    assert '"path": "bad-name"' in asset_text

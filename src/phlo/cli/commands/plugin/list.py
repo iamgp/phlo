@@ -12,6 +12,7 @@ from phlo.cli.commands.plugin.utils import (
     collect_installed_plugins,
     collect_registry_plugins,
     console,
+    normalize_plugin_type,
     render_plugin_table,
 )
 from phlo.logging import get_logger
@@ -51,6 +52,7 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
         phlo plugin list --all              # Include registry plugins
     """
     try:
+        plugin_type = normalize_plugin_type(plugin_type)
         logger.info(
             "plugin_list_started",
             plugin_type=plugin_type,

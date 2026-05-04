@@ -6,6 +6,7 @@ Provides command-line interface for Phlo workflows.
 
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 from importlib.metadata import version
@@ -170,9 +171,13 @@ def test(
     if coverage:
         pytest_args.extend(["--cov=phlo", "--cov-report=html", "--cov-report=term"])
 
+    command = pytest_args
+    if shutil.which("uv") and Path("pyproject.toml").exists():
+        command = ["uv", "run", *pytest_args]
+
     # Run pytest
     try:
-        result = subprocess.run(pytest_args, check=False)
+        result = subprocess.run(command, check=False)
         sys.exit(result.returncode)
     except FileNotFoundError:
         logger.error("pytest_binary_not_found")

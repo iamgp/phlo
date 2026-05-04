@@ -133,6 +133,28 @@ class TestBackfillCLI:
         assert "2024-01-02" in result.output
         assert "2024-01-03" in result.output
 
+    @patch(
+        "phlo_dagster.cli_backfill.find_dagster_container",
+        side_effect=AssertionError("dry-run should not inspect Docker"),
+    )
+    @patch("phlo_dagster.cli_backfill.get_project_name", return_value="mock-project")
+    def test_dry_run_without_running_container(self, mock_project, mock_container):
+        """Dry-run previews commands without requiring Docker state."""
+        runner = CliRunner()
+        result = runner.invoke(
+            backfill,
+            [
+                "glucose_entries",
+                "--start-date",
+                "2024-01-01",
+                "--end-date",
+                "2024-01-01",
+                "--dry-run",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "docker exec" in result.output
+
     @patch("phlo_dagster.cli_backfill.find_dagster_container", return_value="mock-container")
     @patch("phlo_dagster.cli_backfill.get_project_name", return_value="mock-project")
     def test_dry_run_with_partitions(self, mock_project, mock_container):

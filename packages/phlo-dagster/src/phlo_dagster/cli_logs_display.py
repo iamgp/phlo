@@ -165,6 +165,9 @@ def _display_logs(
     """
     if not logs_data:
         logger.info("dagster_logs_display_no_results", output_json=output_json)
+        if output_json:
+            click.echo("[]")
+            return
         console.print("[yellow]No logs found[/yellow]")
         return
 

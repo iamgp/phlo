@@ -151,6 +151,34 @@ def test_plugin_list_json_installed(setup_registry):
     }
 
 
+def test_plugin_list_accepts_singular_type_alias(setup_registry):
+    """List accepts the same singular aliases as plugin create."""
+    result = CliRunner().invoke(plugin_group, ["list", "--type", "source", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert [plugin["name"] for plugin in data["installed"]] == ["dummy_source"]
+
+
+def test_plugin_info_resolves_phlo_distribution_alias(setup_registry):
+    """Info resolves common package-style names such as phlo-trino."""
+    result = CliRunner().invoke(plugin_group, ["info", "phlo-dummy-source", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["name"] == "dummy_source"
+
+
+def test_plugin_check_json_emits_only_json(setup_registry):
+    """Check --json stdout is parseable JSON without prose prefixes."""
+    result = CliRunner().invoke(plugin_group, ["check", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert "valid" in data
+    assert "invalid" in data
+
+
 def test_plugin_list_all_json(setup_registry, monkeypatch):
     """List command includes registry plugins when --all is set."""
     registry_plugins = [

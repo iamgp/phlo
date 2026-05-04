@@ -146,8 +146,8 @@ PHLO_ORCHESTRATOR_NAME=dagster
 ### Logging Configuration
 
 ```bash
-# Log level (default: INFO)
-PHLO_LOG_LEVEL=INFO
+# Log level (default: WARNING)
+PHLO_LOG_LEVEL=WARNING
 
 # Log output format: auto (tty=console, else JSON), json, console
 PHLO_LOG_FORMAT=auto

@@ -229,7 +229,7 @@ def backfill(
         )
         console.print("\n[yellow]Dry run - showing first 5 commands:[/yellow]\n")
         for date in partition_dates[:5]:
-            cmd = _build_materialize_command(asset_name, date)
+            cmd = _build_materialize_command(asset_name, date, container_name="dagster")
             console.print(f"[dim]{' '.join(cmd)}[/dim]")
         if len(partition_dates) > 5:
             console.print(f"[dim]... and {len(partition_dates) - 5} more[/dim]")
@@ -325,7 +325,9 @@ def _validate_partition_dates(dates: list[str]) -> None:
             sys.exit(1)
 
 
-def _build_materialize_command(asset_name: str, partition_date: str) -> list[str]:
+def _build_materialize_command(
+    asset_name: str, partition_date: str, container_name: str | None = None
+) -> list[str]:
     """
     Build the docker exec command for materializing an asset.
 
@@ -339,8 +341,9 @@ def _build_materialize_command(asset_name: str, partition_date: str) -> list[str
     """
     import platform
 
-    project_name = get_project_name()
-    container_name = find_dagster_container(project_name)
+    if container_name is None:
+        project_name = get_project_name()
+        container_name = find_dagster_container(project_name)
     host_platform = platform.system()
 
     return [

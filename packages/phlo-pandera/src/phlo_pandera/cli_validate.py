@@ -78,7 +78,7 @@ def validate_schema(
 
     if not schema_classes:
         console.print("[yellow]⚠ No Pandera DataFrameModel classes found[/yellow]")
-        return
+        sys.exit(1)
 
     console.print(f"[green]✓[/green] Found {len(schema_classes)} schema(s)\n")
 

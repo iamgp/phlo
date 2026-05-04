@@ -142,6 +142,7 @@ class TestLogsCLI:
         runner = CliRunner()
         result = runner.invoke(logs, ["--json", "--limit", "2"])
         assert result.exit_code == 0
+        assert result.output.strip() == "[]"
 
     def test_limit_parameter(self):
         """Limit number of logs."""
