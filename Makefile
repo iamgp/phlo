@@ -131,7 +131,7 @@ test-core-regression:
 	uv run pytest $(CORE_REGRESSION_TEST_PATHS) -m core_regression $(CORE_REGRESSION_PYTEST_ARGS)
 
 test-quickstart-smoke:
-	uv run pytest tests/test_quickstart_smoke.py $(QUICKSTART_SMOKE_PYTEST_ARGS)
+	uv run pytest tests/cli/test_quickstart_smoke.py $(QUICKSTART_SMOKE_PYTEST_ARGS)
 
 dagster:
 	@open http://localhost:$${DAGSTER_PORT:-10006}

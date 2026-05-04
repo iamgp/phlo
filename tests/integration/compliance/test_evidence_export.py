@@ -14,6 +14,8 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+import pytest
+
 from phlo.compliance.audit import InMemoryAuditStore, TamperEvidentAuditSink
 from phlo.compliance.evidence import (
     create_evidence_pack,
@@ -24,6 +26,8 @@ from phlo.compliance.manifest import (
     DeploymentEnvironment,
     capture_manifest,
 )
+
+pytestmark = pytest.mark.integration
 
 
 class TestEvidenceExport:

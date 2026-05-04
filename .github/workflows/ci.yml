@@ -255,7 +255,7 @@ jobs:
 
           set +e
           PHLO_QUICKSTART_SMOKE_ARTIFACT_DIR="${smoke_artifacts}" \
-            uv run --locked pytest tests/test_quickstart_smoke.py --tb=short --junitxml "${junit_path}"
+            uv run --locked pytest tests/cli/test_quickstart_smoke.py --tb=short --junitxml "${junit_path}"
           smoke_exit=$?
           set -e
 
