@@ -2,7 +2,7 @@
 
 import json
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from click.testing import CliRunner
 
@@ -234,12 +234,13 @@ class TestBackfillCLI:
 
         _run_backfill("dlt_events", ["2024-01-01"], parallel=1)
 
-        mock_wait.assert_called_once_with("mock-container")
+        mock_wait.assert_called_once_with("mock-container", backend=ANY)
         mock_materialize.assert_called_once_with(
             "dlt_events",
             "2024-01-01",
             0,
             "mock-container",
+            ANY,
         )
 
     @patch("phlo_dagster.cli_backfill.find_dagster_container", return_value="mock-container")

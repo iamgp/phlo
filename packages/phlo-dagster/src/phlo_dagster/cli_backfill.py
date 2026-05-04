@@ -11,7 +11,7 @@ Features:
     - Dry-run mode for previewing operations
     - Rate limiting with delay between executions
     - Progress tracking with Rich UI
-    - Docker container execution
+    - Container backend execution
 
 State Management:
     Backfill state is persisted to `.phlo/backfill_state.json` to enable
@@ -19,7 +19,7 @@ State Management:
     partitions, and remaining work.
 
 Execution:
-    Backfills run via Docker exec into the Dagster container, enabling
+    Backfills run via the selected container backend into the Dagster container, enabling
     access to the full Dagster environment while maintaining isolation
     from the host system.
 
@@ -48,6 +48,10 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+from phlo.cli.infrastructure.container_backend import (
+    ContainerBackend,
+    select_project_container_backend,
+)
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.cli.output import service_unavailable_error
 from phlo.logging import get_logger
@@ -329,10 +333,13 @@ def _validate_partition_dates(dates: list[str]) -> None:
 
 
 def _build_materialize_command(
-    asset_name: str, partition_date: str, container_name: str | None = None
+    asset_name: str,
+    partition_date: str,
+    container_name: str | None = None,
+    backend: ContainerBackend | None = None,
 ) -> list[str]:
     """
-    Build the docker exec command for materializing an asset.
+    Build the container exec command for materializing an asset.
 
     Args:
         asset_name: Name of the asset to materialize
@@ -348,27 +355,27 @@ def _build_materialize_command(
         project_name = get_project_name()
         container_name = find_dagster_container(project_name)
     host_platform = platform.system()
+    selected_backend = backend or select_project_container_backend()
 
-    return [
-        "docker",
-        "exec",
-        "-e",
-        f"PHLO_HOST_PLATFORM={host_platform}",
-        "-e",
-        "PHLO_PROJECT_PATH=/app",
-        "-w",
-        "/app",
-        container_name,
-        "dagster",
-        "asset",
-        "materialize",
-        "-m",
-        "phlo_dagster.framework.definitions",
-        "--select",
-        asset_name,
-        "--partition",
-        partition_date,
-    ]
+    return selected_backend.container_exec_cmd(
+        container_name=container_name,
+        env={
+            "PHLO_HOST_PLATFORM": host_platform,
+            "PHLO_PROJECT_PATH": "/app",
+        },
+        workdir="/app",
+        command=[
+            "dagster",
+            "asset",
+            "materialize",
+            "-m",
+            "phlo_dagster.framework.definitions",
+            "--select",
+            asset_name,
+            "--partition",
+            partition_date,
+        ],
+    )
 
 
 def _run_backfill(
@@ -410,8 +417,9 @@ def _run_backfill(
         delay=delay,
     )
     try:
+        backend = select_project_container_backend()
         container_name = find_dagster_container(get_project_name())
-        wait_for_dagster_runtime(container_name)
+        wait_for_dagster_runtime(container_name, backend=backend)
     except FileNotFoundError as exc:
         logger.error(
             "dagster_backfill_service_unavailable",
@@ -446,6 +454,7 @@ def _run_backfill(
                     date,
                     delay if i > 0 else 0,
                     container_name,
+                    backend,
                 ): date
                 for i, date in enumerate(remaining)
             }
@@ -562,6 +571,7 @@ def _materialize_partition(
     partition_date: str,
     delay: float = 0.0,
     container_name: str | None = None,
+    backend: ContainerBackend | None = None,
 ) -> tuple[bool, str]:
     """
     Materialize a single partition.
@@ -580,7 +590,12 @@ def _materialize_partition(
     if delay > 0:
         time.sleep(delay)
 
-    cmd = _build_materialize_command(asset_name, partition_date, container_name=container_name)
+    cmd = _build_materialize_command(
+        asset_name,
+        partition_date,
+        container_name=container_name,
+        backend=backend,
+    )
     logger.debug(
         "dagster_backfill_partition_materialize_started",
         asset_name=asset_name,
@@ -620,7 +635,7 @@ def _materialize_partition(
             asset_name=asset_name,
             partition_date=partition_date,
         )
-        return False, "Docker not found or container not running"
+        return False, "Container backend not found or container not running"
     except Exception as e:
         logger.error(
             "dagster_backfill_partition_materialize_failed",

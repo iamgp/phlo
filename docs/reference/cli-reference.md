@@ -1167,10 +1167,10 @@ Materialize Dagster assets.
 phlo materialize ASSET_NAME [OPTIONS]
 ```
 
-When running through Docker, Phlo waits for the Dagster runtime to finish startup and
-local package installation before executing the materialization. If the run fails, normal
-terminal output stays concise; use `phlo logs --level ERROR --limit 20` for the structured
-failure details.
+When running through Docker or Podman, Phlo waits for the Dagster runtime to finish
+startup and local package installation before executing the materialization. If the run
+fails, normal terminal output stays concise; use `phlo logs --level ERROR --limit 20`
+for the structured failure details.
 
 **Options**:
 
@@ -1461,9 +1461,9 @@ Backfill partitioned assets over a date range.
 phlo backfill [ASSET_NAME] [OPTIONS]
 ```
 
-Backfills use the same Docker runtime readiness checks as `phlo materialize`, so a freshly
-started Dagster container does not race local package installation before partition work
-begins.
+Backfills use the same container runtime readiness checks as `phlo materialize`, so a
+freshly started Dagster container does not race local package installation before
+partition work begins.
 
 **Arguments**:
 

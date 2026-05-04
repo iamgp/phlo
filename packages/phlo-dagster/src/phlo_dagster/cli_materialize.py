@@ -1,9 +1,9 @@
-"""Materialize command for Dagster assets via Docker.
+"""Materialize command for Dagster assets via the configured container backend.
 
 This module implements the `phlo materialize` CLI command, providing a
-convenient interface for materializing Dagster assets through Docker
-container execution. It handles environment setup and passes through
-to Dagster's asset materialization CLI.
+convenient interface for materializing Dagster assets through Docker or
+Podman container execution. It handles environment setup and passes
+through to Dagster's asset materialization CLI.
 
 Features:
     - Single asset or asset selection expression materialization
@@ -20,9 +20,9 @@ Environment Variables:
     - PHLO_AUTO_REFRESH_CONTRACTS: Enable schema contract refresh
     - PHLO_CONTRACT_REFRESH_SELECTION: Assets to refresh contracts for
 
-Docker Integration:
-    The command uses `docker exec` to run Dagster CLI commands within
-the running Dagster container. This ensures:
+Container Integration:
+    The command uses the selected project container backend to run Dagster
+CLI commands within the running Dagster container. This ensures:
     - Access to configured resources (Trino, MinIO, etc.)
     - Consistent Python environment
     - Proper logging context
@@ -49,6 +49,10 @@ from typing import Optional
 
 import click
 
+from phlo.cli.infrastructure.container_backend import (
+    ContainerBackend,
+    select_project_container_backend,
+)
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.cli.output import command_failed_error, service_unavailable_error
 from phlo_dagster.containers import find_dagster_container
@@ -64,20 +68,25 @@ def _summarize_process_output(lines: list[str]) -> str | None:
     return None
 
 
-def wait_for_dagster_runtime(container_name: str, timeout_seconds: float = 600.0) -> None:
+def wait_for_dagster_runtime(
+    container_name: str,
+    timeout_seconds: float = 600.0,
+    backend: ContainerBackend | None = None,
+) -> None:
     """Wait until the Dagster container has finished entrypoint setup."""
+    selected_backend = backend or select_project_container_backend()
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         result = subprocess.run(
-            [
-                "docker",
-                "exec",
-                container_name,
-                "sh",
-                "-lc",
-                "test -f /tmp/phlo-dagster-ready "
-                "|| python -c 'import phlo_dagster.framework.definitions'",
-            ],
+            selected_backend.container_exec_cmd(
+                container_name=container_name,
+                command=[
+                    "sh",
+                    "-lc",
+                    "test -f /tmp/phlo-dagster-ready "
+                    "|| python -c 'import phlo_dagster.framework.definitions'",
+                ],
+            ),
             check=False,
             capture_output=True,
             text=True,
@@ -92,7 +101,7 @@ def wait_for_dagster_runtime(container_name: str, timeout_seconds: float = 600.0
     )
 
 
-@click.command(help="Materialize Dagster assets via Docker.")
+@click.command(help="Materialize Dagster assets via the configured container backend.")
 @click.argument("asset_name", required=False)
 @click.option("-p", "--partition", help="Partition date (YYYY-MM-DD)")
 @click.option("--select", help="Asset selector expression")
@@ -109,7 +118,7 @@ def materialize(
     no_contract_refresh: bool,
     dry_run: bool,
 ) -> None:
-    """Materialize Dagster assets via Docker.
+    """Materialize Dagster assets via the configured container backend.
 
     Args:
         asset_name: Name of the asset to materialize.
@@ -122,7 +131,7 @@ def materialize(
         None
 
     Raises:
-        SystemExit: On command failure or Docker not found.
+        SystemExit: On command failure or container backend not found.
 
     """
     if not asset_name and not select:
@@ -145,31 +154,29 @@ def materialize(
 
     try:
         host_platform = platform.system()
+        backend = select_project_container_backend()
 
         if not dry_run:
             container_name = find_dagster_container(project_name)
-            wait_for_dagster_runtime(container_name)
+            wait_for_dagster_runtime(container_name, backend=backend)
 
-        cmd = [
-            "docker",
-            "exec",
-            "-e",
-            f"PHLO_HOST_PLATFORM={host_platform}",
-            "-e",
-            "PHLO_PROJECT_PATH=/app",
-            "-e",
-            f"PHLO_AUTO_REFRESH_CONTRACTS={'0' if no_contract_refresh else '1'}",
-            "-e",
-            f"PHLO_CONTRACT_REFRESH_SELECTION={effective_selection}",
-            "-w",
-            "/app",
-            container_name,
-            "dagster",
-            "asset",
-            "materialize",
-            "-m",
-            "phlo_dagster.framework.definitions",
-        ]
+        cmd = backend.container_exec_cmd(
+            container_name=container_name,
+            env={
+                "PHLO_HOST_PLATFORM": host_platform,
+                "PHLO_PROJECT_PATH": "/app",
+                "PHLO_AUTO_REFRESH_CONTRACTS": "0" if no_contract_refresh else "1",
+                "PHLO_CONTRACT_REFRESH_SELECTION": effective_selection,
+            },
+            workdir="/app",
+            command=[
+                "dagster",
+                "asset",
+                "materialize",
+                "-m",
+                "phlo_dagster.framework.definitions",
+            ],
+        )
 
         cmd.extend(["--select", effective_selection])
 
