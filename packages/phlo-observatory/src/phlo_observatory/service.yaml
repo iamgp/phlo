@@ -26,8 +26,6 @@ compose:
     PHLO_API_BROWSER_URL: ${PHLO_API_BROWSER_URL:-http://127.0.0.1:${PHLO_API_PORT:-4000}}
   ports:
     - '${OBSERVATORY_PORT:-3001}:3000'
-  volumes:
-    - '/var/run/docker.sock:/var/run/docker.sock'
   healthcheck:
     test:
       [

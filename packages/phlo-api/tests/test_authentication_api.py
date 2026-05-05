@@ -151,7 +151,7 @@ def test_phlo_api_service_passes_clickstack_query_env() -> None:
         assert env["CLICKSTACK_QUERY_PASSWORD"] == "${CLICKSTACK_QUERY_PASSWORD:-}"
 
 
-def test_phlo_api_service_mounts_docker_socket_read_only_for_runtime_status() -> None:
+def test_phlo_api_service_does_not_mount_docker_socket_by_default() -> None:
     import yaml
     from importlib.resources import files
 
@@ -160,9 +160,8 @@ def test_phlo_api_service_mounts_docker_socket_read_only_for_runtime_status() ->
     with open(service_defn_path) as f:
         service_defn = yaml.safe_load(f)
 
-    assert "/var/run/docker.sock:/var/run/docker.sock:ro" in service_defn["compose"].get(
-        "volumes", []
-    )
+    volumes = service_defn["compose"].get("volumes", [])
+    assert not any("/var/run/docker.sock" in volume for volume in volumes)
 
 
 def test_phlo_api_service_build_context_is_package_portable() -> None:

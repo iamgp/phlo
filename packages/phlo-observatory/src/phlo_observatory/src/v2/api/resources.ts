@@ -59,7 +59,21 @@ function browserApiBase(): string | null {
 async function browserApiGet<T>(endpoint: string): Promise<T> {
   const base = browserApiBase()
   if (!base) throw new Error('Browser API fallback is unavailable during SSR')
-  const response = await fetch(`${base}${endpoint}`)
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 8000)
+  let response: Response
+  try {
+    response = await fetch(`${base}${endpoint}`, {
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('phlo-api request timed out')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
   if (!response.ok) {
     throw new Error(`phlo-api error: ${response.status} ${response.statusText}`)
   }
