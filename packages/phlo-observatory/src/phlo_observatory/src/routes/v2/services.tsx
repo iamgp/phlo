@@ -19,6 +19,7 @@ import type {
 import {
   getV2ServiceDetail,
   getV2Services,
+  getV2ServicesDirect,
   runV2Action,
 } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
@@ -30,7 +31,10 @@ export const Route = createFileRoute('/v2/services')({
 
 export function Services() {
   const result = useLiveResource(getV2Services, 120_000, 'v2:services')
-  const services = result.data ?? []
+  const [directResult, setDirectResult] = useState<V2ResourceResult<
+    Array<V2Service>
+  > | null>(null)
+  const services = result.data ?? directResult?.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const runtimeServices = useMemo(
     () => services.filter((service) => isRuntimeService(service)),
@@ -55,6 +59,17 @@ export function Services() {
     error: null,
   })
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (result.data || directResult) return
+    let cancelled = false
+    void getV2ServicesDirect().then((next) => {
+      if (!cancelled) setDirectResult(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [directResult, result.data])
   const counts = useMemo(
     () => ({
       running: runtimeServices.filter((service) => service.status === 'running')
@@ -172,6 +187,9 @@ export function Services() {
           )}
           {result.error && (
             <div className="phlo-v2-panel-footer">{result.error}</div>
+          )}
+          {!result.error && directResult?.error && (
+            <div className="phlo-v2-panel-footer">{directResult.error}</div>
           )}
         </aside>
       </section>

@@ -160,6 +160,40 @@ def test_phlo_api_service_does_not_mount_docker_socket_by_default() -> None:
     with open(service_defn_path) as f:
         service_defn = yaml.safe_load(f)
 
-    assert "/var/run/docker.sock:/var/run/docker.sock" not in service_defn["compose"].get(
-        "volumes", []
-    )
+    volumes = service_defn["compose"].get("volumes", [])
+    assert not any("/var/run/docker.sock" in volume for volume in volumes)
+
+
+def test_phlo_api_service_build_context_is_package_portable() -> None:
+    import yaml
+    from importlib.resources import files
+
+    service_defn_path = files("phlo_api") / "service.yaml"
+
+    with open(service_defn_path) as f:
+        service_defn = yaml.safe_load(f)
+
+    assert service_defn["build"] == {
+        "context": "source",
+        "dockerfile": "Dockerfile",
+        "args": {
+            "PHLO_VERSION": "${PHLO_VERSION:-}",
+            "PHLO_API_VERSION": "${PHLO_API_VERSION:-}",
+        },
+    }
+    assert service_defn["env_vars"]["PHLO_VERSION"]["package"] == "phlo"
+    assert service_defn["env_vars"]["PHLO_API_VERSION"]["package"] == "phlo-api"
+
+
+def test_phlo_api_service_does_not_publish_unauthenticated_traefik_route() -> None:
+    import yaml
+    from importlib.resources import files
+
+    service_defn_path = files("phlo_api") / "service.yaml"
+
+    with open(service_defn_path) as f:
+        service_defn = yaml.safe_load(f)
+
+    labels = service_defn["compose"].get("labels", {})
+    assert "traefik.http.routers.api.rule" not in labels
+    assert "traefik.http.routers.api.entrypoints" not in labels

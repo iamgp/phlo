@@ -159,25 +159,35 @@ def test_compose_generator_declares_named_volumes(tmp_path) -> None:
     assert data["volumes"] == {"postgres-data": {}}
 
 
-def test_generate_env_pins_phlo_version_for_service_builds(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_generate_env_pins_package_versions_for_service_builds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Keeps repeated service builds on the installed Phlo version, not Docker's stale latest."""
-    monkeypatch.setattr("phlo.plugins.compose.env.version", lambda package: "9.8.7")
+    versions = {"phlo": "9.8.7", "phlo-api": "3.2.1"}
+    monkeypatch.setattr("phlo.plugins.compose.env.version", versions.__getitem__)
     service = ServiceDefinition(
-        name="dagster",
-        description="dagster",
-        category="orchestration",
+        name="phlo-api",
+        description="api",
+        category="api",
         default=True,
         env_vars={
             "PHLO_VERSION": {
                 "default": "",
+                "package": "phlo",
                 "description": "Phlo version to install",
-            }
+            },
+            "PHLO_API_VERSION": {
+                "default": "",
+                "package": "phlo-api",
+                "description": "phlo-api version to install",
+            },
         },
     )
 
     env = generate_env([service])
 
     assert "PHLO_VERSION=9.8.7" in env
+    assert "PHLO_API_VERSION=3.2.1" in env
 
 
 def test_generate_env_local_keeps_known_non_secret_values_out_of_local_overrides() -> None:

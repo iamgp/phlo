@@ -146,7 +146,7 @@ def test_links_resolve_from_service_config(monkeypatch, tmp_path: Path) -> None:
     services = {
         "clickstack": SimpleNamespace(
             env_vars={
-                "CLICKSTACK_PORT": {"default": 8080},
+                "CLICKSTACK_PORT": {"default": 18080},
                 "CLICKSTACK_DASHBOARDS_PATH": {"default": "/"},
                 "CLICKSTACK_LOGS_PATH": {"default": "/"},
                 "CLICKSTACK_METRICS_PATH": {"default": "/"},
@@ -177,6 +177,6 @@ def test_links_resolve_from_service_config(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("phlo.capabilities.observability._discover_service", services.get)
 
     links = backend.dashboard_links()
-    assert links[0].url == "http://localhost:8080"
-    assert backend.logs_query_link("dagster") == "http://localhost:8080?service=dagster"
-    assert backend.metrics_query_link("up") == "http://localhost:8080?metric=up"
+    assert links[0].url == "http://localhost:18080"
+    assert backend.logs_query_link("dagster") == "http://localhost:18080?service=dagster"
+    assert backend.metrics_query_link("up") == "http://localhost:18080?metric=up"

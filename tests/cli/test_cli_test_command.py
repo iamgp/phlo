@@ -46,3 +46,20 @@ def test_phlo_test_keeps_direct_pytest_fallback(monkeypatch, tmp_path) -> None:
 
     assert result.exit_code == 0
     assert calls == [["pytest"]]
+
+
+def test_phlo_test_treats_empty_fresh_suite_as_success(monkeypatch, tmp_path) -> None:
+    """Fresh generated projects should not fail their first `phlo test` solely for no tests."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='demo'\nversion='0.1.0'\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("phlo.cli.main.shutil.which", lambda name: "/usr/bin/uv")
+
+    class Result:
+        returncode = 5
+
+    monkeypatch.setattr("phlo.cli.main.subprocess.run", lambda *args, **kwargs: Result())
+
+    result = CliRunner().invoke(cli, ["test"])
+
+    assert result.exit_code == 0
+    assert "No tests were collected" in result.output
