@@ -6,10 +6,10 @@ from typing import Any
 from phlo.plugins.discovery import ServiceDefinition
 
 
-def _default_phlo_version() -> str:
-    """Return the installed Phlo version for repeatable service image builds."""
+def _default_package_version(package: str) -> str:
+    """Return the installed package version for repeatable service image builds."""
     try:
-        return version("phlo")
+        return version(package)
     except PackageNotFoundError:
         return ""
 
@@ -116,8 +116,11 @@ def render_env(
                 continue
 
             default = var_config.get("default", "")
-            if var_name == "PHLO_VERSION" and not default:
-                default = _default_phlo_version()
+            package_name = var_config.get("package")
+            if package_name and not default:
+                default = _default_package_version(str(package_name))
+            elif var_name == "PHLO_VERSION" and not default:
+                default = _default_package_version("phlo")
             description = var_config.get("description", "")
             value = overrides.get(var_name, normalize_env_value(default))
 

@@ -30,6 +30,7 @@ dev = [
     "phlo-observatory-example>=0.1.0",
     "phlo-openmetadata>=0.1.0",
     "phlo-otel>=0.1.0",
+    "phlo-oauth2-proxy>=0.1.0",
     "phlo-pandera>=0.3.2",
     "phlo-pgweb>=0.1.0",
     "phlo-postgres>=0.1.0",
@@ -198,6 +199,7 @@ extra-paths = [
     "packages/phlo-nessie/src",
     "packages/phlo-observatory-example/src",
     "packages/phlo-observatory/src",
+    "packages/phlo-oauth2-proxy/src",
     "packages/phlo-openmetadata/src",
     "packages/phlo-pgweb/src",
     "packages/phlo-postgres/src",
@@ -291,6 +293,9 @@ workspace = true
 workspace = true
 
 [tool.uv.sources.phlo-observatory-example]
+workspace = true
+
+[tool.uv.sources.phlo-oauth2-proxy]
 workspace = true
 
 [tool.uv.sources.phlo-openmetadata]

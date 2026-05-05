@@ -3,10 +3,10 @@
 from importlib import resources
 
 
-def test_observatory_service_mounts_docker_socket() -> None:
-    """Service definition should expose Docker socket to observatory container."""
+def test_observatory_service_does_not_mount_docker_socket() -> None:
+    """Bundled defaults should not expose host Docker daemon control."""
     service_yaml = resources.files("phlo_observatory").joinpath("service.yaml").read_text()
-    assert "/var/run/docker.sock:/var/run/docker.sock" in service_yaml
+    assert "/var/run/docker.sock" not in service_yaml
 
 
 def test_observatory_dockerfile_installs_docker_cli() -> None:

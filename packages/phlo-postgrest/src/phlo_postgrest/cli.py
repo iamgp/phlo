@@ -21,6 +21,7 @@ import click
 
 from phlo.cli.output import user_error
 from phlo.logging import get_logger
+from phlo_postgrest.hooks import reload_schema
 from phlo_postgrest.setup import setup_postgrest
 from phlo_postgrest.views import generate_views
 
@@ -197,3 +198,19 @@ def setup_postgrest_cmd(host, port, database, user, password, force, quiet):
             "could not set up PostgREST authentication",
             run="phlo services status",
         ) from e
+
+
+@postgrest.command(name="reload-schema")
+def reload_postgrest_schema_cmd():
+    """Reload PostgREST's schema cache after migrations or table creation."""
+    logger.info("postgrest_reload_schema_started")
+    try:
+        reload_schema()
+    except Exception as e:
+        logger.exception("postgrest_reload_schema_failed", error=str(e))
+        raise user_error(
+            "could not reload PostgREST schema cache",
+            run="phlo services status",
+        ) from e
+    click.echo("PostgREST schema cache reload requested.")
+    logger.info("postgrest_reload_schema_completed")

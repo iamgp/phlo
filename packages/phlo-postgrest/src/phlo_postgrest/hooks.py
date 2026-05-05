@@ -249,6 +249,73 @@ def _discover_schemas_via_docker(db_uri: str) -> list[str]:
     return schemas
 
 
+def _run_psql(db_uri: str, sql: str) -> None:
+    """Run a SQL statement in the configured PostgreSQL container."""
+    db_parts = _parse_db_uri(db_uri)
+    if not db_parts["username"] or not db_parts["database"]:
+        raise ValueError("db-uri must include username and database")
+
+    postgres_container = _resolve_container_name("postgres")
+    cmd = ["docker", "exec"]
+    if db_parts["password"]:
+        cmd.extend(["-e", f"PGPASSWORD={db_parts['password']}"])
+    cmd.extend(
+        [
+            postgres_container,
+            "psql",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-U",
+            db_parts["username"],
+            "-d",
+            db_parts["database"],
+            "-c",
+            sql,
+        ]
+    )
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    except Exception:
+        logger.exception(
+            "postgrest_schema_reload_psql_failed",
+            postgres_container=postgres_container,
+            database=db_parts["database"],
+            db_user=db_parts["username"],
+        )
+        raise
+    if result.returncode != 0:
+        stderr_lines = [line for line in result.stderr.splitlines() if line.strip()]
+        logger.error(
+            "postgrest_schema_reload_psql_failed",
+            postgres_container=postgres_container,
+            database=db_parts["database"],
+            db_user=db_parts["username"],
+            return_code=result.returncode,
+            stderr_line_count=len(stderr_lines),
+        )
+        raise RuntimeError(f"psql failed: {result.stderr.strip()}")
+
+
+def _get_db_uri() -> str:
+    """Read db-uri from postgrest.conf."""
+    config_file = _get_config_file()
+    if not config_file.exists():
+        raise FileNotFoundError(f"Config file not found at {config_file}")
+
+    config_values = _read_config_values(config_file)
+    db_uri = config_values.get("db-uri")
+    if not db_uri:
+        raise ValueError("db-uri not found in PostgREST config")
+    return db_uri
+
+
+def reload_schema() -> None:
+    """Ask PostgREST to reload its schema cache without restarting the container."""
+    db_uri = _get_db_uri()
+    _run_psql(db_uri, "NOTIFY pgrst, 'reload schema';")
+    logger.info("postgrest_schema_reload_notified")
+
+
 def discover_schemas() -> list[str]:
     """Discover all user schemas containing tables.
 
@@ -269,15 +336,7 @@ def discover_schemas() -> list[str]:
         ['marts', 'public']
 
     """
-    config_file = _get_config_file()
-    if not config_file.exists():
-        raise FileNotFoundError(f"Config file not found at {config_file}")
-
-    config_values = _read_config_values(config_file)
-    db_uri = config_values.get("db-uri")
-    if not db_uri:
-        raise ValueError("db-uri not found in PostgREST config")
-
+    db_uri = _get_db_uri()
     return _discover_schemas_via_docker(db_uri)
 
 
@@ -371,8 +430,16 @@ def configure_schemas() -> None:
             _wait_for_healthy(container_name, timeout=30)
         else:
             logger.warning("Failed to restart PostgREST: %s", result.stderr)
+            try:
+                reload_schema()
+            except Exception as e:
+                logger.warning("Could not notify PostgREST schema reload: %s", e)
     except Exception as e:
         logger.warning("Could not restart PostgREST container: %s", e)
+        try:
+            reload_schema()
+        except Exception as e:
+            logger.warning("Could not notify PostgREST schema reload: %s", e)
 
 
 def _wait_for_healthy(container_name: str, timeout: int = 30) -> None:
@@ -424,5 +491,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1] == "configure-schemas":
         configure_schemas()
+    elif len(sys.argv) > 1 and sys.argv[1] == "reload-schema":
+        reload_schema()
     else:
-        logger.info("Usage: python -m phlo_postgrest.hooks configure-schemas")
+        logger.info("Usage: python -m phlo_postgrest.hooks configure-schemas|reload-schema")

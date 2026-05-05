@@ -7,6 +7,9 @@ profile: api
 build:
     context: source
     dockerfile: Dockerfile
+    args:
+        PHLO_VERSION: ${PHLO_VERSION:-}
+        PHLO_API_VERSION: ${PHLO_API_VERSION:-}
 
 compose:
     restart: unless-stopped
@@ -14,10 +17,6 @@ compose:
         phlo.metrics.enabled: "true"
         phlo.metrics.port: "phlo-api:4000"
         phlo.metrics.path: "/api/maintenance/metrics"
-        traefik.enable: "true"
-        traefik.http.routers.api.rule: "Host(`api.${TRAEFIK_DOMAIN:-phlo.localhost}`)"
-        traefik.http.routers.api.entrypoints: "web"
-        traefik.http.services.api.loadbalancer.server.port: "4000"
     environment:
         HOST: 0.0.0.0
         PORT: 4000
@@ -41,6 +40,14 @@ compose:
         start_period: 10s
 
 env_vars:
+    PHLO_VERSION:
+        default: ""
+        package: phlo
+        description: Phlo package version to install in service images
+    PHLO_API_VERSION:
+        default: ""
+        package: phlo-api
+        description: phlo-api package version to install in the service image
     PHLO_API_PORT:
         default: 4000
         description: Phlo API port
