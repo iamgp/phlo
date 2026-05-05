@@ -18,8 +18,8 @@ import type {
 } from '@/v2/api/types'
 import {
   getV2ServiceDetail,
-  getV2ServicesDirect,
   getV2Services,
+  getV2ServicesDirect,
   runV2Action,
 } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
@@ -61,15 +61,15 @@ export function Services() {
   const [actionMessage, setActionMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (result.data || directResult?.data) return
+    if (result.data || directResult) return
     let cancelled = false
-    getV2ServicesDirect().then((next) => {
+    void getV2ServicesDirect().then((next) => {
       if (!cancelled) setDirectResult(next)
     })
     return () => {
       cancelled = true
     }
-  }, [directResult?.data, result.data])
+  }, [directResult, result.data])
   const counts = useMemo(
     () => ({
       running: runtimeServices.filter((service) => service.status === 'running')
@@ -187,6 +187,9 @@ export function Services() {
           )}
           {result.error && (
             <div className="phlo-v2-panel-footer">{result.error}</div>
+          )}
+          {!result.error && directResult?.error && (
+            <div className="phlo-v2-panel-footer">{directResult.error}</div>
           )}
         </aside>
       </section>

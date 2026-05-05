@@ -273,7 +273,16 @@ def _run_psql(db_uri: str, sql: str) -> None:
             sql,
         ]
     )
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    except Exception:
+        logger.exception(
+            "postgrest_schema_reload_psql_failed",
+            postgres_container=postgres_container,
+            database=db_parts["database"],
+            db_user=db_parts["username"],
+        )
+        raise
     if result.returncode != 0:
         raise RuntimeError(f"psql failed: {result.stderr.strip()}")
 
@@ -415,9 +424,12 @@ def configure_schemas() -> None:
             _wait_for_healthy(container_name, timeout=30)
         else:
             logger.warning("Failed to restart PostgREST: %s", result.stderr)
+            try:
+                reload_schema()
+            except Exception as e:
+                logger.warning("Could not notify PostgREST schema reload: %s", e)
     except Exception as e:
         logger.warning("Could not restart PostgREST container: %s", e)
-    else:
         try:
             reload_schema()
         except Exception as e:
