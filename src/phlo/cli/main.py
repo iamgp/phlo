@@ -178,6 +178,9 @@ def test(
     # Run pytest
     try:
         result = subprocess.run(command, check=False)
+        if result.returncode == 5 and asset_name is None:
+            click.echo("\nNo tests were collected. Add tests under tests/ to enable this gate.")
+            sys.exit(0)
         sys.exit(result.returncode)
     except FileNotFoundError:
         logger.error("pytest_binary_not_found")

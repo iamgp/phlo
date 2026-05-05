@@ -18,6 +18,7 @@ import type {
 } from '@/v2/api/types'
 import {
   getV2ServiceDetail,
+  getV2ServicesDirect,
   getV2Services,
   runV2Action,
 } from '@/v2/api/resources'
@@ -30,7 +31,10 @@ export const Route = createFileRoute('/v2/services')({
 
 export function Services() {
   const result = useLiveResource(getV2Services, 120_000, 'v2:services')
-  const services = result.data ?? []
+  const [directResult, setDirectResult] = useState<V2ResourceResult<
+    Array<V2Service>
+  > | null>(null)
+  const services = result.data ?? directResult?.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const runtimeServices = useMemo(
     () => services.filter((service) => isRuntimeService(service)),
@@ -55,6 +59,17 @@ export function Services() {
     error: null,
   })
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (result.data || directResult?.data) return
+    let cancelled = false
+    getV2ServicesDirect().then((next) => {
+      if (!cancelled) setDirectResult(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [directResult?.data, result.data])
   const counts = useMemo(
     () => ({
       running: runtimeServices.filter((service) => service.status === 'running')

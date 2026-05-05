@@ -12,11 +12,9 @@ compose:
   environment:
     FRONTEND_URL: ${CLICKSTACK_PUBLIC_URL:-}
   ports:
-    - "${CLICKSTACK_PORT:-8080}:8080"
-    - "${CLICKSTACK_HTTP_PORT:-8123}:8123"
-    - "${CLICKSTACK_OTLP_GRPC_PORT:-4317}:4317"
-    - "${CLICKSTACK_OTLP_HTTP_PORT:-4318}:4318"
-    - "${CLICKSTACK_NATIVE_PORT:-9000}:9000"
+    - "${CLICKSTACK_PORT:-18080}:8080"
+    - "${CLICKSTACK_HTTP_PORT:-18123}:8123"
+    - "${CLICKSTACK_NATIVE_PORT:-19002}:9000"
   volumes:
     - clickstack-data:/var/lib/clickhouse
   healthcheck:
@@ -38,19 +36,13 @@ env_vars:
     default: "docker.hyperdx.io/hyperdx/hyperdx-all-in-one"
     description: Official ClickStack all-in-one image reference
   CLICKSTACK_PORT:
-    default: 8080
+    default: 18080
     description: ClickStack UI port
   CLICKSTACK_HTTP_PORT:
-    default: 8123
+    default: 18123
     description: ClickHouse HTTP query port used by phlo-api trace endpoints
-  CLICKSTACK_OTLP_GRPC_PORT:
-    default: 4317
-    description: ClickStack OTLP gRPC ingest port
-  CLICKSTACK_OTLP_HTTP_PORT:
-    default: 4318
-    description: ClickStack OTLP HTTP ingest port
   CLICKSTACK_NATIVE_PORT:
-    default: 9000
+    default: 19002
     description: ClickHouse native port exposed by the all-in-one image
   CLICKSTACK_PUBLIC_URL:
     default: ""

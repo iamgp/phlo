@@ -37,12 +37,33 @@ import { apiGet, apiPost } from '@/server/phlo-api'
 
 const V2_API_PREFIX = '/api/observatory/v2'
 
+declare global {
+  interface Window {
+    __PHLO_API_BROWSER_URL__?: string
+  }
+}
+
 function apiUnavailable<T>(error: unknown): V2ResourceResult<T> {
   return {
     data: null,
     error:
       error instanceof Error ? error.message : 'Lakehouse API is unavailable',
   }
+}
+
+function browserApiBase(): string | null {
+  if (typeof window === 'undefined') return null
+  return window.__PHLO_API_BROWSER_URL__ || null
+}
+
+async function browserApiGet<T>(endpoint: string): Promise<T> {
+  const base = browserApiBase()
+  if (!base) throw new Error('Browser API fallback is unavailable during SSR')
+  const response = await fetch(`${base}${endpoint}`)
+  if (!response.ok) {
+    throw new Error(`phlo-api error: ${response.status} ${response.statusText}`)
+  }
+  return response.json()
 }
 
 export const getV2Overview = createServerFn().handler(
@@ -89,6 +110,19 @@ export const getV2Services = createServerFn().handler(
     }
   },
 )
+
+export async function getV2ServicesDirect(): Promise<
+  V2ResourceResult<Array<V2Service>>
+> {
+  try {
+    const response = await browserApiGet<{ items: Array<V2Service> }>(
+      `${V2_API_PREFIX}/services`,
+    )
+    return { data: response.items, error: null }
+  } catch (error) {
+    return apiUnavailable<Array<V2Service>>(error)
+  }
+}
 
 export const getV2ServiceDetail = createServerFn()
   .inputValidator((input: { serviceId: string }) => input)

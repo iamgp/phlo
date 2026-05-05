@@ -64,12 +64,24 @@ const V2_THEME_BOOTSTRAP = `;(() => {
   } catch (_) {}
 })();`
 
+function runtimeBootstrapScript() {
+  const browserApiUrl =
+    typeof process !== 'undefined' ? process.env.PHLO_API_BROWSER_URL || '' : ''
+  return `;(() => {
+    window.__PHLO_API_BROWSER_URL__ = ${JSON.stringify(browserApiUrl)};
+  })();`
+}
+
 function RootLayout() {
   return (
     <html lang="en" className="" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{ __html: V2_THEME_BOOTSTRAP }}
+          suppressHydrationWarning
+        />
+        <script
+          dangerouslySetInnerHTML={{ __html: runtimeBootstrapScript() }}
           suppressHydrationWarning
         />
         <HeadContent />

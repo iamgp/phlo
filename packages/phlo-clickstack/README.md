@@ -5,8 +5,7 @@ ClickStack observability service for Phlo.
 ## Overview
 
 `phlo-clickstack` packages the official ClickStack all-in-one image so Phlo can
-ship a single OpenTelemetry-native observability target with logs, metrics, and
-traces in one UI.
+query ClickHouse-backed observability data and link to the HyperDX UI.
 
 ## Installation
 
@@ -27,11 +26,6 @@ phlo services start --service clickstack
 phlo clickstack query "SELECT count() FROM default.otel_logs"
 ```
 
-Point `phlo-otel` at ClickStack:
-
-```bash
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-export OTEL_TRACES_EXPORTER=otlp
-export OTEL_METRICS_EXPORTER=otlp
-export OTEL_LOGS_EXPORTER=otlp
-```
+The bundled all-in-one image exposes the HyperDX UI and ClickHouse query ports.
+Use Alloy or another collector for OTLP ingest; this service does not publish
+OTLP ports by default because the image does not listen on those ports.

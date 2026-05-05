@@ -249,6 +249,50 @@ def _discover_schemas_via_docker(db_uri: str) -> list[str]:
     return schemas
 
 
+def _run_psql(db_uri: str, sql: str) -> None:
+    """Run a SQL statement in the configured PostgreSQL container."""
+    db_parts = _parse_db_uri(db_uri)
+    if not db_parts["username"] or not db_parts["database"]:
+        raise ValueError("db-uri must include username and database")
+
+    postgres_container = _resolve_container_name("postgres")
+    cmd = ["docker", "exec"]
+    if db_parts["password"]:
+        cmd.extend(["-e", f"PGPASSWORD={db_parts['password']}"])
+    cmd.extend(
+        [
+            postgres_container,
+            "psql",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-U",
+            db_parts["username"],
+            "-d",
+            db_parts["database"],
+            "-c",
+            sql,
+        ]
+    )
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    if result.returncode != 0:
+        raise RuntimeError(f"psql failed: {result.stderr.strip()}")
+
+
+def reload_schema() -> None:
+    """Ask PostgREST to reload its schema cache without restarting the container."""
+    config_file = _get_config_file()
+    if not config_file.exists():
+        raise FileNotFoundError(f"Config file not found at {config_file}")
+
+    config_values = _read_config_values(config_file)
+    db_uri = config_values.get("db-uri")
+    if not db_uri:
+        raise ValueError("db-uri not found in PostgREST config")
+
+    _run_psql(db_uri, "NOTIFY pgrst, 'reload schema';")
+    logger.info("postgrest_schema_reload_notified")
+
+
 def discover_schemas() -> list[str]:
     """Discover all user schemas containing tables.
 
@@ -373,6 +417,11 @@ def configure_schemas() -> None:
             logger.warning("Failed to restart PostgREST: %s", result.stderr)
     except Exception as e:
         logger.warning("Could not restart PostgREST container: %s", e)
+    else:
+        try:
+            reload_schema()
+        except Exception as e:
+            logger.warning("Could not notify PostgREST schema reload: %s", e)
 
 
 def _wait_for_healthy(container_name: str, timeout: int = 30) -> None:
@@ -424,5 +473,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1] == "configure-schemas":
         configure_schemas()
+    elif len(sys.argv) > 1 and sys.argv[1] == "reload-schema":
+        reload_schema()
     else:
-        logger.info("Usage: python -m phlo_postgrest.hooks configure-schemas")
+        logger.info("Usage: python -m phlo_postgrest.hooks configure-schemas|reload-schema")

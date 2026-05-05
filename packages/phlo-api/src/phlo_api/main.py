@@ -50,6 +50,7 @@ require_regulated_validation(runtime=app)
 _cors_origins_raw = os.environ.get(
     "PHLO_API_CORS_ORIGINS",
     "http://localhost:3000,http://127.0.0.1:3000,"
+    "http://localhost:3001,http://127.0.0.1:3001,"
     "http://localhost:3005,http://127.0.0.1:3005,"
     "http://localhost:4000,http://127.0.0.1:4000",
 )
