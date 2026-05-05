@@ -86,7 +86,7 @@ description = "Lakehouse platform"
 name = "phlo"
 readme = "README.md"
 requires-python = ">=3.11"
-version = "0.8.2"
+version = "0.8.3"
 
 [project.entry-points."phlo.plugins.quality"]
 
@@ -289,13 +289,13 @@ workspace = true
 [tool.uv.sources.phlo-nessie]
 workspace = true
 
+[tool.uv.sources.phlo-oauth2-proxy]
+workspace = true
+
 [tool.uv.sources.phlo-observatory]
 workspace = true
 
 [tool.uv.sources.phlo-observatory-example]
-workspace = true
-
-[tool.uv.sources.phlo-oauth2-proxy]
 workspace = true
 
 [tool.uv.sources.phlo-openmetadata]

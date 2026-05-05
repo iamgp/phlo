@@ -14,7 +14,7 @@ dependencies = [
 description = "postgrest service plugin for Phlo"
 name = "phlo-postgrest"
 requires-python = ">=3.11"
-version = "0.2.4"
+version = "0.2.5"
 
 [[project.authors]]
 email = "team@phlo.dev"

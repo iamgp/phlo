@@ -15,7 +15,7 @@ dependencies = [
 description = "Trino service plugin for Phlo"
 name = "phlo-trino"
 requires-python = ">=3.11"
-version = "0.3.0"
+version = "0.3.1"
 
 [[project.authors]]
 email = "team@phlo.dev"
