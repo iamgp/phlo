@@ -1,5 +1,57 @@
 # Changelog
 
+## [phlo 0.8.3 + 21 packages] - 2026-05-05
+
+### Fixed
+- phlo: harden service lifecycle and plugin boundaries (#484)
+- phlo: polish CLI output and structured logging (#486)
+- phlo: polish CLI feedback and runtime readiness (#487)
+- phlo: harden docker-backed service fixes (#492)
+- phlo-api: harden service lifecycle and plugin boundaries (#484)
+- phlo-api: harden docker-backed service fixes (#492)
+- phlo-clickhouse: polish CLI output and structured logging (#486)
+- phlo-clickstack: harden service lifecycle and plugin boundaries (#484)
+- phlo-clickstack: polish CLI output and structured logging (#486)
+- phlo-clickstack: harden docker-backed service fixes (#492)
+- phlo-dagster: harden service lifecycle and plugin boundaries (#484)
+- phlo-dagster: polish CLI output and structured logging (#486)
+- phlo-dagster: polish CLI feedback and runtime readiness (#487)
+- phlo-dbt: polish CLI output and structured logging (#486)
+- phlo-dbt: polish CLI feedback and runtime readiness (#487)
+- phlo-dlt: harden service lifecycle and plugin boundaries (#484)
+- phlo-dlt: polish CLI output and structured logging (#486)
+- phlo-dlt: polish CLI feedback and runtime readiness (#487)
+- phlo-grafana: harden service lifecycle and plugin boundaries (#484)
+- phlo-hasura: harden service lifecycle and plugin boundaries (#484)
+- phlo-hasura: polish CLI output and structured logging (#486)
+- phlo-lineage: polish CLI output and structured logging (#486)
+- phlo-loki: harden service lifecycle and plugin boundaries (#484)
+- phlo-minio: harden service lifecycle and plugin boundaries (#484)
+- phlo-minio: polish CLI output and structured logging (#486)
+- phlo-nessie: harden service lifecycle and plugin boundaries (#484)
+- phlo-nessie: polish CLI output and structured logging (#486)
+- phlo-observatory: harden service lifecycle and plugin boundaries (#484)
+- phlo-observatory: harden docker-backed service fixes (#492)
+- phlo-openmetadata: polish CLI output and structured logging (#486)
+- phlo-pandera: harden service lifecycle and plugin boundaries (#484)
+- phlo-pandera: polish CLI output and structured logging (#486)
+- phlo-pandera: polish CLI feedback and runtime readiness (#487)
+- phlo-postgres: polish CLI output and structured logging (#486)
+- phlo-postgres: polish CLI feedback and runtime readiness (#487)
+- phlo-postgrest: harden service lifecycle and plugin boundaries (#484)
+- phlo-postgrest: polish CLI output and structured logging (#486)
+- phlo-postgrest: harden docker-backed service fixes (#492)
+- phlo-prometheus: harden service lifecycle and plugin boundaries (#484)
+- phlo-sling: polish CLI output and structured logging (#486)
+- phlo-superset: harden service lifecycle and plugin boundaries (#484)
+- phlo-trino: harden service lifecycle and plugin boundaries (#484)
+- phlo-trino: polish CLI output and structured logging (#486)
+- phlo-trino: polish CLI feedback and runtime readiness (#487)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (48 commits)
+
 ## [phlo 0.8.2 + 7 packages] - 2026-05-03
 
 ### Fixed
