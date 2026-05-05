@@ -69,6 +69,40 @@ def test_run_psql_logs_subprocess_failures(monkeypatch):
     assert captured["db_user"] == "phlo"
 
 
+def test_run_psql_logs_nonzero_exits(monkeypatch):
+    """Failed psql exits should log structured context before raising."""
+    from phlo_postgrest import hooks
+
+    captured = {}
+
+    monkeypatch.setattr(hooks, "_resolve_container_name", lambda service: f"demo-{service}-1")
+
+    class Result:
+        returncode = 1
+        stderr = "first line\nsecond line\n"
+
+    monkeypatch.setattr(hooks.subprocess, "run", lambda *args, **kwargs: Result())
+    monkeypatch.setattr(
+        hooks.logger,
+        "error",
+        lambda event, **kwargs: captured.update({"event": event, **kwargs}),
+    )
+
+    try:
+        hooks._run_psql("postgresql://phlo:secret@postgres:5432/phlo", "SELECT 1;")
+    except RuntimeError as exc:
+        assert str(exc) == "psql failed: first line\nsecond line"
+    else:
+        raise AssertionError("RuntimeError was not raised")
+
+    assert captured["event"] == "postgrest_schema_reload_psql_failed"
+    assert captured["postgres_container"] == "demo-postgres-1"
+    assert captured["database"] == "phlo"
+    assert captured["db_user"] == "phlo"
+    assert captured["return_code"] == 1
+    assert captured["stderr_line_count"] == 2
+
+
 def test_configure_schemas_does_not_reload_after_successful_restart(monkeypatch, tmp_path):
     """A successful restart already applies config, so no extra NOTIFY is needed."""
     from phlo_postgrest import hooks
@@ -84,7 +118,12 @@ def test_configure_schemas_does_not_reload_after_successful_restart(monkeypatch,
     monkeypatch.setattr(hooks, "discover_schemas", lambda: ["public"])
     monkeypatch.setattr(hooks, "_resolve_container_name", lambda service: f"demo-{service}-1")
     monkeypatch.setattr(hooks, "_wait_for_healthy", lambda *args, **kwargs: None)
-    monkeypatch.setattr(hooks, "reload_schema", lambda: (_ for _ in ()).throw(AssertionError))
+    calls = {"reloads": 0}
+    monkeypatch.setattr(
+        hooks,
+        "reload_schema",
+        lambda: calls.update({"reloads": calls["reloads"] + 1}),
+    )
 
     class Result:
         returncode = 0
@@ -93,6 +132,8 @@ def test_configure_schemas_does_not_reload_after_successful_restart(monkeypatch,
     monkeypatch.setattr(hooks.subprocess, "run", lambda *args, **kwargs: Result())
 
     hooks.configure_schemas()
+
+    assert calls["reloads"] == 0
 
 
 def test_configure_schemas_reloads_when_restart_fails(monkeypatch, tmp_path):

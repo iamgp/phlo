@@ -284,11 +284,20 @@ def _run_psql(db_uri: str, sql: str) -> None:
         )
         raise
     if result.returncode != 0:
+        stderr_lines = [line for line in result.stderr.splitlines() if line.strip()]
+        logger.error(
+            "postgrest_schema_reload_psql_failed",
+            postgres_container=postgres_container,
+            database=db_parts["database"],
+            db_user=db_parts["username"],
+            return_code=result.returncode,
+            stderr_line_count=len(stderr_lines),
+        )
         raise RuntimeError(f"psql failed: {result.stderr.strip()}")
 
 
-def reload_schema() -> None:
-    """Ask PostgREST to reload its schema cache without restarting the container."""
+def _get_db_uri() -> str:
+    """Read db-uri from postgrest.conf."""
     config_file = _get_config_file()
     if not config_file.exists():
         raise FileNotFoundError(f"Config file not found at {config_file}")
@@ -297,7 +306,12 @@ def reload_schema() -> None:
     db_uri = config_values.get("db-uri")
     if not db_uri:
         raise ValueError("db-uri not found in PostgREST config")
+    return db_uri
 
+
+def reload_schema() -> None:
+    """Ask PostgREST to reload its schema cache without restarting the container."""
+    db_uri = _get_db_uri()
     _run_psql(db_uri, "NOTIFY pgrst, 'reload schema';")
     logger.info("postgrest_schema_reload_notified")
 
@@ -322,15 +336,7 @@ def discover_schemas() -> list[str]:
         ['marts', 'public']
 
     """
-    config_file = _get_config_file()
-    if not config_file.exists():
-        raise FileNotFoundError(f"Config file not found at {config_file}")
-
-    config_values = _read_config_values(config_file)
-    db_uri = config_values.get("db-uri")
-    if not db_uri:
-        raise ValueError("db-uri not found in PostgREST config")
-
+    db_uri = _get_db_uri()
     return _discover_schemas_via_docker(db_uri)
 
 
