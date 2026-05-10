@@ -8,6 +8,7 @@ import pytest
 from phlo.plugins import PluginMetadata, ServicePlugin
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery, get_global_registry
 from phlo.plugins.discovery._service_discovery import ServiceDiscovery as CompatServiceDiscovery
+from phlo.plugins.discovery.service_manifest import ServiceManifest, ServiceManifestError
 
 pytestmark = pytest.mark.core_regression
 
@@ -122,28 +123,30 @@ def test_service_discovery_includes_plugins(
     assert services["dummy_service"].category == "core"
 
 
-def test_service_discovery_skips_non_mapping_plugin_service_definitions(
+def test_service_discovery_raises_for_non_mapping_plugin_service_definitions(
     clean_registry: object,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     service_discovery_signals: list[DiscoverySignal],
 ) -> None:
-    """A plugin returning non-mapping service data is skipped without aborting discovery."""
+    """A plugin returning non-mapping service data raises a contextual manifest error."""
     registry = get_global_registry()
     registry.register_service(DummyServicePlugin(), replace=True)
     registry.register_service(NonMappingServicePlugin(), replace=True)
     monkeypatch.setattr(
-        "phlo.plugins.discovery._service_loading.discover_plugins",
-        lambda plugin_type, auto_register: None,
+        "phlo.plugins.discovery.service_manifest.discover_plugins",
+        lambda plugin_type="services", auto_register=True: None,
     )
 
-    services = ServiceDiscovery(services_dir=tmp_path).discover()
+    with pytest.raises(ServiceManifestError) as exc:
+        ServiceDiscovery(services_dir=tmp_path).discover()
 
-    assert set(services) == {"dummy_service"}
+    assert "invalid plugin service definition" in str(exc.value)
+    assert "service=bad_service" in str(exc.value)
     assert any(
-        signal["event"] == "service_discovery_plugin_load_failed"
-        and signal["fields"]["plugin_name"] == "bad_service"
-        and signal["fields"]["error_type"] == "ValueError"
+        signal["event"] == "service_discovery_manifest_load_failed"
+        and signal["fields"]["error_type"] == "ServiceManifestError"
+        and "bad_service" in str(signal["fields"]["error"])
         for signal in service_discovery_signals
     )
 
@@ -192,8 +195,8 @@ def test_service_discovery_refresh_reloads_stale_cache(
 ) -> None:
     """Verify cached discovery remains stale until explicit refresh."""
     monkeypatch.setattr(
-        "phlo.plugins.discovery._service_loading.discover_plugins",
-        lambda plugin_type, auto_register: None,
+        "phlo.plugins.discovery.service_manifest.discover_plugins",
+        lambda plugin_type="services", auto_register=True: None,
     )
     _write_service_yaml(tmp_path, "alpha", "alpha")
 
@@ -220,33 +223,39 @@ def test_service_discovery_delegates_loading_behind_cache(
     plugin_loads = 0
     directory_loads = 0
 
-    def _load_plugin_services(self: ServiceDiscovery) -> int:
+    def _resolve_plugin_manifests(self) -> list[ServiceManifest]:
         nonlocal plugin_loads
         plugin_loads += 1
-        self._services["plugin"] = ServiceDefinition(
-            name="plugin",
-            description="Plugin service",
-            category="core",
-        )
-        return 1
+        return [
+            ServiceManifest(
+                ServiceDefinition(
+                    name="plugin",
+                    description="Plugin service",
+                    category="core",
+                )
+            )
+        ]
 
-    def _load_services_from_directory(
-        _services_dir: Path | None,
-        services: dict[str, ServiceDefinition],
-    ) -> int:
+    def _resolve_directory_manifests(self) -> list[ServiceManifest]:
         nonlocal directory_loads
         directory_loads += 1
-        services["file"] = ServiceDefinition(
-            name="file",
-            description="File service",
-            category="core",
-        )
-        return 1
+        return [
+            ServiceManifest(
+                ServiceDefinition(
+                    name="file",
+                    description="File service",
+                    category="core",
+                )
+            )
+        ]
 
-    monkeypatch.setattr(ServiceDiscovery, "_load_service_plugins", _load_plugin_services)
     monkeypatch.setattr(
-        "phlo.plugins.discovery._service_loading.load_services_from_directory",
-        _load_services_from_directory,
+        "phlo.plugins.discovery.service_manifest.ServiceManifestResolver.resolve_plugin_manifests",
+        _resolve_plugin_manifests,
+    )
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.ServiceManifestResolver.resolve_directory_manifests",
+        _resolve_directory_manifests,
     )
 
     discovery = ServiceDiscovery()
@@ -260,6 +269,74 @@ def test_service_discovery_delegates_loading_behind_cache(
     assert directory_loads == 2
 
 
+def test_service_discovery_reports_manifest_load_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    service_discovery_signals: list[DiscoverySignal],
+) -> None:
+    """Resolver errors are logged with context and re-raised."""
+
+    def _raise_manifest_error(self) -> list[ServiceManifest]:
+        raise ServiceManifestError("bad manifest", service_name="broken")
+
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.ServiceManifestResolver.resolve_plugin_manifests",
+        _raise_manifest_error,
+    )
+
+    with pytest.raises(ServiceManifestError, match="bad manifest: service=broken"):
+        ServiceDiscovery().discover()
+
+    assert any(
+        signal["event"] == "service_discovery_manifest_load_failed"
+        and signal["fields"]["error_type"] == "ServiceManifestError"
+        and signal["fields"]["error"] == "bad manifest: service=broken"
+        for signal in service_discovery_signals
+    )
+
+
+def test_service_discovery_resolver_counts_completion_signal(
+    monkeypatch: pytest.MonkeyPatch,
+    service_discovery_signals: list[DiscoverySignal],
+) -> None:
+    """Completion signals report plugin and directory manifest counts."""
+
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.ServiceManifestResolver.resolve_plugin_manifests",
+        lambda self: [
+            ServiceManifest(
+                ServiceDefinition(
+                    name="plugin",
+                    description="Plugin service",
+                    category="core",
+                )
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.ServiceManifestResolver.resolve_directory_manifests",
+        lambda self: [
+            ServiceManifest(
+                ServiceDefinition(
+                    name="file",
+                    description="File service",
+                    category="core",
+                )
+            )
+        ],
+    )
+
+    services = ServiceDiscovery().discover()
+
+    assert set(services) == {"plugin", "file"}
+    completed = next(
+        signal
+        for signal in service_discovery_signals
+        if signal["event"] == "service_discovery_completed"
+    )
+    assert completed["fields"]["plugin_service_count"] == 1
+    assert completed["fields"]["file_service_count"] == 1
+
+
 def test_service_discovery_clear_cache_and_refresh_alias(
     clean_registry: object,
     monkeypatch: pytest.MonkeyPatch,
@@ -267,8 +344,8 @@ def test_service_discovery_clear_cache_and_refresh_alias(
 ) -> None:
     """Verify cache invalidation API triggers rediscovery."""
     monkeypatch.setattr(
-        "phlo.plugins.discovery._service_loading.discover_plugins",
-        lambda plugin_type, auto_register: None,
+        "phlo.plugins.discovery.service_manifest.discover_plugins",
+        lambda plugin_type="services", auto_register=True: None,
     )
     _write_service_yaml(tmp_path, "alpha", "alpha")
 
@@ -293,8 +370,8 @@ def test_service_discovery_emits_cache_refresh_observability_signals(
 ) -> None:
     """Cache and refresh flows emit structured, queryable discovery signals."""
     monkeypatch.setattr(
-        "phlo.plugins.discovery._service_loading.discover_plugins",
-        lambda plugin_type, auto_register: None,
+        "phlo.plugins.discovery.service_manifest.discover_plugins",
+        lambda plugin_type="services", auto_register=True: None,
     )
     _write_service_yaml(tmp_path, "alpha", "alpha")
 
@@ -349,8 +426,8 @@ def test_service_discovery_filters_services_by_profile(
 ) -> None:
     """Profile lookup returns only matching discovered service definitions."""
     monkeypatch.setattr(
-        "phlo.plugins.discovery.services.discover_plugins",
-        lambda plugin_type, auto_register: None,
+        "phlo.plugins.discovery.service_manifest.discover_plugins",
+        lambda plugin_type="services", auto_register=True: None,
     )
     _write_service_yaml(tmp_path, "core", "core-service")
     profile_service = tmp_path / "analytics" / "service.yaml"
@@ -420,38 +497,33 @@ def test_service_discovery_loads_companion_service_files(
     )
 
 
-def test_service_discovery_skips_non_mapping_directory_service_files(
+def test_service_discovery_raises_for_non_mapping_directory_service_files(
     clean_registry: object,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    service_discovery_signals: list[DiscoverySignal],
 ) -> None:
-    """Non-mapping service YAML is skipped without aborting directory discovery."""
-    from phlo.plugins.discovery import _service_loading
-
-    events: list[DiscoverySignal] = []
+    """Non-mapping service YAML raises a contextual manifest error."""
     monkeypatch.setattr(
-        _service_loading, "discover_plugins", lambda plugin_type, auto_register: None
-    )
-    monkeypatch.setattr(
-        _service_loading,
-        "log_event",
-        lambda logger, level, event, **fields: events.append(
-            {"level": level, "event": event, "fields": fields}
-        ),
+        "phlo.plugins.discovery.service_manifest.discover_plugins",
+        lambda plugin_type="services", auto_register=True: None,
     )
     _write_service_yaml(tmp_path, "valid", "valid")
     broken = tmp_path / "broken" / "service.yaml"
     broken.parent.mkdir()
     broken.write_text("- not\n- a\n- mapping\n", encoding="utf-8")
 
-    services = ServiceDiscovery(services_dir=tmp_path).discover()
+    with pytest.raises(ServiceManifestError) as exc:
+        ServiceDiscovery(services_dir=tmp_path).discover()
 
-    assert set(services) == {"valid"}
-    assert len(events) == 1
-    assert events[0]["level"] == "warning"
-    assert events[0]["event"] == "service_definition_file_load_failed"
-    assert events[0]["fields"]["path"] == str(broken)
-    assert "Service definition must be a mapping" in str(events[0]["fields"]["error"])
+    assert "invalid service definition file" in str(exc.value)
+    assert f"source={broken}" in str(exc.value)
+    assert any(
+        signal["event"] == "service_discovery_manifest_load_failed"
+        and signal["fields"]["error_type"] == "ServiceManifestError"
+        and str(broken) in str(signal["fields"]["error"])
+        for signal in service_discovery_signals
+    )
 
 
 def test_service_discovery_skips_malformed_companion_service_files(

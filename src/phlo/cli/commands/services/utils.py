@@ -19,6 +19,7 @@ from phlo.cli.output import missing_compose_file_error, missing_phlo_project_err
 from phlo.infrastructure.containers import resolve_container_name as _resolve_container_name
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
+from phlo.plugins.discovery.service_manifest import ServiceManifestResolver
 from phlo.utils import dedupe_preserve_order
 
 logger = get_logger(__name__)
@@ -701,34 +702,16 @@ def expand_service_dependencies(
 ) -> list[ServiceDefinition]:
     """Expand a list of services with their transitive dependencies and setup companions.
 
-    Returns services in topological (dependency) order via ``discovery.resolve_dependencies``.
+    Returns services in topological (dependency) order via manifest resolution.
     """
     if not services:
         return []
 
-    all_services = discovery.discover()
-
-    selected: dict[str, ServiceDefinition] = {service.name: service for service in services}
-    queue = list(services)
-    while queue:
-        service = queue.pop(0)
-        for dependency_name in service.depends_on:
-            dependency = all_services.get(dependency_name)
-            if dependency and dependency.name not in selected:
-                selected[dependency.name] = dependency
-                queue.append(dependency)
-
-    bootstrap_companions = [
-        service
-        for service in all_services.values()
-        if service.name.endswith("-setup")
-        and service.depends_on
-        and all(dependency in selected for dependency in service.depends_on)
-    ]
-    for companion in bootstrap_companions:
-        selected.setdefault(companion.name, companion)
-
-    return discovery.resolve_dependencies(list(selected.values()))
+    all_services = list(discovery.discover().values())
+    return ServiceManifestResolver.expand_dependencies(
+        all_services,
+        [service.name for service in services],
+    )
 
 
 def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
