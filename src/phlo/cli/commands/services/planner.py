@@ -83,12 +83,13 @@ def build_start_preflight_plan(
     project_name: str,
     services: list[ServiceDefinition],
     backend_name: str | None,
+    service_names: list[str] | None = None,
 ) -> StartPreflightPlan:
     return StartPreflightPlan(
         phlo_dir=phlo_dir,
         compose_file=compose_file,
         project_root=project_root,
         project_name=project_name,
-        service_names=[service.name for service in services],
+        service_names=service_names if service_names is not None else [service.name for service in services],
         backend_name=backend_name,
     )

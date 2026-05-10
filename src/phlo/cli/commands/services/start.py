@@ -17,6 +17,7 @@ from phlo.cli.commands.services.common import (
     parse_service_args,
     validate_requested_profiles,
 )
+from phlo.cli.commands.services.planner import build_start_preflight_plan
 from phlo.cli.commands.services.ports import (
     _load_environment,
     _parse_compose_port_spec,
@@ -498,13 +499,22 @@ def start_cmd(
 
     if not skip_docker_compose:
         require_container_backend(backend_name)
-        _preflight_requested_host_ports(
+        preflight_plan = build_start_preflight_plan(
             phlo_dir=phlo_dir,
             compose_file=compose_file,
             project_root=Path.cwd(),
             project_name=project_name,
-            service_names=docker_service_names,
+            services=resolved_services,
             backend_name=backend_name,
+            service_names=docker_service_names,
+        )
+        _preflight_requested_host_ports(
+            phlo_dir=preflight_plan.phlo_dir,
+            compose_file=preflight_plan.compose_file,
+            project_root=preflight_plan.project_root,
+            project_name=preflight_plan.project_name,
+            service_names=preflight_plan.service_names,
+            backend_name=preflight_plan.backend_name,
         )
     elif build:
         logger.warning(

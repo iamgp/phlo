@@ -421,6 +421,56 @@ def test_services_start_includes_setup_companions_for_explicit_targets(
     assert docker_calls[0][-3:] == ["rustfs-volume-setup", "rustfs", "rustfs-setup"]
 
 
+def test_services_start_builds_preflight_plan_for_selected_services(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("", encoding="utf-8")
+    (phlo_dir / "docker-compose.yml").write_text(
+        "services:\n  postgres:\n    image: postgres:16\n",
+        encoding="utf-8",
+    )
+    postgres = _service("postgres", default=True)
+    captured: dict[str, object] = {}
+
+    class PostgresFakeDiscovery(FakeDiscovery):
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {postgres.name: postgres}
+
+        def get_available_profiles(self) -> set[str]:
+            return set()
+
+    def _fake_run_command(cmd: list[str], check=False, capture_output=False) -> CompletedProcess:
+        return CompletedProcess(args=cmd, returncode=0)
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", PostgresFakeDiscovery)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
+    monkeypatch.setattr(start_module, "require_container_backend", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        start_module,
+        "_preflight_requested_host_ports",
+        lambda **kwargs: captured.update(kwargs),
+    )
+    monkeypatch.setattr(start_module, "_preflight_required_env_vars", lambda **_kwargs: None)
+    monkeypatch.setattr(start_module, "run_command", _fake_run_command)
+    monkeypatch.setattr(
+        start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+
+    result = CliRunner().invoke(start_module.start_cmd, ["--service", "postgres"])
+
+    assert result.exit_code == 0
+    assert captured["service_names"] == ["postgres"]
+
+
 def test_services_start_preflights_required_env_for_selected_services(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
