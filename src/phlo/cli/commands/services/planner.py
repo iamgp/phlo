@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import click
+
 from phlo.cli.commands.services.utils import get_enabled_disabled_service_names
 from phlo.plugins.discovery import ServiceDefinition
 from phlo.utils import dedupe_preserve_order
@@ -26,6 +28,10 @@ def build_service_selection_plan(
     profiles: tuple[str, ...],
     requested_names: list[str],
 ) -> ServiceSelectionPlan:
+    unknown_requested = [name for name in requested_names if name not in services]
+    if unknown_requested:
+        raise click.ClickException(f"Unknown service name(s): {', '.join(unknown_requested)}")
+
     enabled_names, disabled_names = get_enabled_disabled_service_names(config)
     selected_names: list[str] = []
     if requested_names:
