@@ -23,6 +23,7 @@ from typing import Any, cast
 import pyarrow as pa
 from pandera.pandas import DataFrameModel
 
+from phlo.capabilities.interfaces import TableStoreSupport
 from phlo.exceptions import PhloConfigError
 from phlo.logging import get_logger
 from phlo_delta.settings import get_settings
@@ -160,6 +161,17 @@ class DeltaResource:
         stats = resource.append_parquet("raw.events", "/data/file.parquet")
 
     """
+
+    @property
+    def support(self) -> TableStoreSupport:
+        """Return Delta table-store support metadata."""
+        return TableStoreSupport(
+            supports_refs=False,
+            partition_transforms=frozenset({"identity"}),
+            supports_snapshots=True,
+            supports_compaction=True,
+            supports_vacuum=True,
+        )
 
     def table_uri(self, table_name: str) -> str:
         """Construct the full S3 path for a Delta table.

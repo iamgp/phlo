@@ -9,6 +9,16 @@ from phlo.exceptions import PhloConfigError
 from phlo_delta.resource import DeltaResource
 
 
+def test_delta_resource_support_is_main_ref_identity_partitioned() -> None:
+    support = DeltaResource().support
+
+    assert support.supports_refs is False
+    assert support.partition_transforms == frozenset({"identity"})
+    assert support.supports_snapshots is True
+    assert support.supports_compaction is True
+    assert support.supports_vacuum is True
+
+
 def test_delta_resource_ensure_table_maps_identity_partition_spec() -> None:
     """DeltaResource should translate identity partition specs into Delta columns."""
     resource = DeltaResource()
