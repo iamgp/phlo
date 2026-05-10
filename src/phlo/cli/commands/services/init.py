@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 import yaml
 
+from phlo.cli.commands.services.planner import build_service_selection_plan
 from phlo.cli.commands.services.utils import (
     PHLO_CONFIG_FILE,
     PHLO_CONFIG_TEMPLATE,
@@ -213,13 +214,6 @@ def init_cmd(
     user_overrides = existing_config.get("services", {})
     env_overrides = _get_env_overrides(existing_config)
 
-    # Collect disabled services (those with enabled: false)
-    disabled_services = {
-        name
-        for name, cfg in user_overrides.items()
-        if isinstance(cfg, dict) and cfg.get("enabled") is False
-    }
-
     # Collect inline custom services (those with type: inline)
     inline_services = [
         ServiceDefinition.from_inline(name, cfg)
@@ -227,11 +221,9 @@ def init_cmd(
         if isinstance(cfg, dict) and cfg.get("type") == "inline"
     ]
 
-    # Get default services (excluding disabled) + requested profile services + inline services
-    default_services = discovery.get_default_services(disabled_services=disabled_services)
-    requested_profiles = {profile.strip() for profile in profiles if profile.strip()}
+    requested_profiles = tuple(dict.fromkeys(profile.strip() for profile in profiles if profile.strip()))
     available_profiles = discovery.get_available_profiles()
-    unknown_profiles = sorted(requested_profiles - available_profiles)
+    unknown_profiles = sorted(set(requested_profiles) - available_profiles)
     if unknown_profiles:
         click.echo(
             f"Error: Unknown profile(s): {', '.join(unknown_profiles)}. "
@@ -240,18 +232,14 @@ def init_cmd(
         )
         sys.exit(1)
 
-    profile_services = []
-    for profile in sorted(requested_profiles):
-        profile_services.extend(
-            [
-                service
-                for service in discovery.get_services_by_profile(profile)
-                if service.name not in disabled_services
-            ]
-        )
-
+    selection_plan = build_service_selection_plan(
+        services=all_services,
+        config=existing_config,
+        profiles=requested_profiles,
+        requested_names=[],
+    )
     deduped_services: dict[str, ServiceDefinition] = {}
-    for service in [*default_services, *profile_services, *inline_services]:
+    for service in [*selection_plan.selected_services, *inline_services]:
         deduped_services[service.name] = service
     services_to_install = _expand_selected_services(discovery, list(deduped_services.values()))
     _warn_secret_env_overrides(env_overrides, services_to_install)
@@ -305,6 +293,7 @@ def init_cmd(
     click.echo("Phlo infrastructure initialized.")
     click.echo("")
 
+    default_services = discovery.get_default_services(disabled_services=selection_plan.disabled_names)
     default_names = sorted([s.name for s in default_services])
     click.echo(f"Default services: {', '.join(default_names)}")
 
