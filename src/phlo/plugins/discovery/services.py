@@ -10,6 +10,7 @@ from phlo.plugins.discovery._service_cycles import find_cycles as _find_cycles_i
 from phlo.plugins.discovery._service_definition import ServiceDefinition
 from phlo.plugins.discovery._service_dependency_resolution import resolve_service_dependencies
 from phlo.plugins.discovery.registry import get_global_registry
+from phlo.plugins.discovery.service_manifest import ServiceManifestError, ServiceManifestResolver
 
 logger = get_logger(__name__)
 
@@ -98,13 +99,27 @@ class ServiceDiscovery:
         )
 
         self._services = {}
-        plugin_service_count = self._load_service_plugins()
-        import phlo.plugins.discovery._service_loading as _service_loading
+        resolver = ServiceManifestResolver(services_dir=self.services_dir)
+        try:
+            plugin_manifests = resolver.resolve_plugin_manifests()
+            directory_manifests = resolver.resolve_directory_manifests()
+        except ServiceManifestError as exc:
+            _emit_service_discovery_signal(
+                event_name="service_discovery_manifest_load_failed",
+                level="warning",
+                services_dir=self.services_dir,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            raise
 
-        file_service_count = _service_loading.load_services_from_directory(
-            self.services_dir,
-            self._services,
-        )
+        for manifest in plugin_manifests:
+            self._services.setdefault(manifest.name, manifest.definition)
+        for manifest in directory_manifests:
+            self._services.setdefault(manifest.name, manifest.definition)
+
+        plugin_service_count = len(plugin_manifests)
+        file_service_count = len(directory_manifests)
 
         self._loaded = True
         _emit_service_discovery_signal(

@@ -3,6 +3,8 @@ from pathlib import Path
 import pytest
 
 from phlo.plugins.discovery._service_definition import ServiceDefinition
+from phlo.plugins.discovery.registry import get_global_registry
+from phlo.plugins.discovery.services import ServiceDiscovery
 from phlo.plugins.discovery.service_manifest import (
     ServiceManifest,
     ServiceManifestError,
@@ -148,3 +150,31 @@ def test_resolver_skips_companion_duplicate_names(
     manifests = ServiceManifestResolver().resolve_plugin_manifests()
 
     assert [manifest.name for manifest in manifests] == ["worker"]
+
+
+def test_service_discovery_uses_manifest_resolver_for_directory_services(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    get_global_registry().clear()
+    monkeypatch.setattr(
+        "phlo.plugins.discovery._service_loading.discover_plugins",
+        lambda plugin_type, auto_register: None,
+    )
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.discover_plugins",
+        lambda plugin_type="services", auto_register=True: None,
+    )
+    service_dir = tmp_path / "services"
+    service_dir.mkdir()
+    (service_dir / "service.yaml").write_text(
+        "name: postgres\ndescription: Postgres\nimage: postgres:16\n",
+        encoding="utf-8",
+    )
+
+    discovery = ServiceDiscovery(services_dir=service_dir)
+
+    services = discovery.discover(refresh=True)
+
+    assert list(services) == ["postgres"]
+    assert services["postgres"].image == "postgres:16"
