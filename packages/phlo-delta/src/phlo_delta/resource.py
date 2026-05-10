@@ -75,9 +75,10 @@ def _resolve_delta_ref(override_ref: str | None) -> None:
     if override_ref in (None, "", "main"):
         return
     raise PhloConfigError(
-        message=f"Delta table_store does not support override_ref={override_ref!r}",
+        message=f"Delta table_store does not support refs; got override_ref={override_ref!r}",
         suggestions=[
             "Use the default main ref when writing to Delta tables",
+            "Use resource.support.supports_refs to branch behaviour before calling table-store operations",
             "Use phlo-iceberg if you need Nessie branch-aware table writes",
         ],
     )
