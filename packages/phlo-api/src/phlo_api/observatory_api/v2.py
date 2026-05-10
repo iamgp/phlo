@@ -15,8 +15,6 @@ import re
 import socket
 import subprocess
 import sys
-import threading
-import time
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
@@ -27,6 +25,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 
 from phlo_api.observatory_api.v2_actions import execute_v2_action
+from phlo_api.observatory_api.v2_cache import ReadModelCache
 from phlo_api.observatory_api.v2_capabilities import build_capability_inventory
 from phlo_api.observatory_api.v2_catalog import load_catalog_items
 from phlo_api.observatory_api.v2_governance import load_governance_items
@@ -98,34 +97,16 @@ _ENV_DEFAULT_RE = re.compile(r"^\$\{[^}:]+:-(?P<default>[^}]+)\}$")
 _TABLE_LIST_METADATA_PREFIX_DENYLIST = ("phlo/compiled_sql",)
 _FAST_READ_MODEL_TTL_SECONDS = 30
 _EXPENSIVE_READ_MODEL_TTL_SECONDS = 120
-_READ_MODEL_CACHE: dict[tuple[str, str], tuple[float, Any]] = {}
-_READ_MODEL_CACHE_LOCK = threading.RLock()
+_READ_MODEL_CACHE = ReadModelCache(project_key=lambda: str(_project_root()))
 _DOCKER_SOCKET = "/var/run/docker.sock"
 
 
-def _read_model_cache_key(name: str) -> tuple[str, str]:
-    return (str(_project_root()), name)
-
-
 def _cached_read_model(name: str, ttl_seconds: float, loader: Any) -> Any:
-    key = _read_model_cache_key(name)
-    now = time.monotonic()
-
-    with _READ_MODEL_CACHE_LOCK:
-        cached = _READ_MODEL_CACHE.get(key)
-        if cached is not None:
-            expires_at, value = cached
-            if expires_at > now:
-                return value
-
-        value = loader()
-        _READ_MODEL_CACHE[key] = (time.monotonic() + ttl_seconds, value)
-        return value
+    return _READ_MODEL_CACHE.cached(name, ttl_seconds, loader)
 
 
 def _clear_read_model_cache() -> None:
-    with _READ_MODEL_CACHE_LOCK:
-        _READ_MODEL_CACHE.clear()
+    _READ_MODEL_CACHE.clear()
 
 
 class V2ServiceList(BaseModel):
