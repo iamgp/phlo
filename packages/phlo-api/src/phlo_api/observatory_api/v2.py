@@ -77,6 +77,7 @@ from phlo_api.observatory_api.v2_metadata import safe_metadata as _safe_metadata
 from phlo_api.observatory_api.v2_observability import load_observability_items
 from phlo_api.observatory_api.v2_products import load_api_items, load_bi_items
 from phlo_api.observatory_api.v2_runs import load_runs
+from phlo_api.observatory_api.v2_services import load_services as _load_services_impl
 from phlo_api.observatory_api.v2_storage import load_storage_items
 
 router = APIRouter(tags=["observatory-v2"])
@@ -606,56 +607,7 @@ def _service_config_from_definition(service: Any) -> list[V2ServiceConfigEntry]:
 
 
 def _load_services() -> list[V2Service]:
-    """Load services through core discovery, falling back deterministically."""
-    try:
-        from phlo.plugins.discovery import ServiceDiscovery
-
-        discovered = ServiceDiscovery().discover().values()
-    except Exception:
-        discovered = []
-
-    services: list[V2Service] = []
-    containers = _load_docker_containers()
-    discovered = list(discovered)
-    runtime_statuses = _load_docker_service_statuses({service.name for service in discovered})
-    for service in discovered:
-        in_stack = service.name in runtime_statuses
-        status, health = runtime_statuses.get(
-            service.name,
-            ("unknown", V2Health(state="unknown", message="Runtime status unavailable")),
-        )
-        services.append(
-            V2Service(
-                id=service.name,
-                name=service.name,
-                kind=service.category or "service",
-                status=status,
-                health=health,
-                definition_state="configured" if in_stack else "available",
-                runtime_state=status,
-                in_stack=in_stack,
-                disabled=bool(getattr(service, "disabled", False)),
-                profile=_coerce_str(service.profile, "") or None,
-                backend="docker" if in_stack else "unknown",
-                depends_on=list(service.depends_on or []),
-                impacts=[],
-                links=_service_links_from_definition(service),
-                metadata=_safe_metadata(
-                    {
-                        "default": bool(service.default),
-                        "profile": service.profile,
-                        "core": bool(getattr(service, "core", False)),
-                        "description": getattr(service, "description", None),
-                    }
-                ),
-            )
-        )
-
-    services.extend(
-        _runtime_services_from_containers(containers, {service.id for service in services})
-    )
-
-    return sorted(services, key=lambda item: item.id) if services else _fallback_services()
+    return _load_services_impl(_project_root(), containers=_load_docker_containers())
 
 
 def _overview_health_from_services(services: Sequence[V2Service]) -> V2Health:
