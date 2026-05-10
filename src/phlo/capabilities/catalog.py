@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
 from typing import Generic, Protocol, TypeVar
@@ -27,8 +28,8 @@ class CapabilityFamily(Generic[SpecT, KeyT]):
     def register(self, spec: SpecT) -> None:
         self._items[self.key(spec)] = spec
 
-    def list(self) -> list[SpecT]:
-        return list(self._items.values())
+    def list(self) -> builtins.list[SpecT]:
+        return builtins.list(self._items.values())
 
     def clear(self) -> None:
         self._items.clear()
