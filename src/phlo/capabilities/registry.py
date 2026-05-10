@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, field
 
+from phlo.capabilities.catalog import CapabilityFamily
 from phlo.capabilities.specs import (
     AlertSinkSpec,
     ApiBackendSpec,
@@ -63,6 +64,21 @@ class CapabilityRegistry:
     observability_backends: dict[str, ObservabilityBackendSpec] = field(default_factory=dict)
     regulated_surfaces: dict[str, RegulatedSurfaceSpec] = field(default_factory=dict)
     ui_contributions: dict[str, UiContributionSpec] = field(default_factory=dict)
+    _asset_family: CapabilityFamily[AssetSpec, str] = field(
+        default_factory=lambda: CapabilityFamily(key=lambda spec: spec.key),
+        init=False,
+        repr=False,
+    )
+    _check_family: CapabilityFamily[AssetCheckSpec, tuple[str, str]] = field(
+        default_factory=lambda: CapabilityFamily(key=lambda spec: (spec.asset_key, spec.name)),
+        init=False,
+        repr=False,
+    )
+    _resource_family: CapabilityFamily[ResourceSpec, str] = field(
+        default_factory=lambda: CapabilityFamily(key=lambda spec: spec.name),
+        init=False,
+        repr=False,
+    )
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def register_asset(self, spec: AssetSpec) -> None:
@@ -73,7 +89,8 @@ class CapabilityRegistry:
         """
 
         with self._lock:
-            self.assets[spec.key] = spec
+            self._asset_family.register(spec)
+            self.assets = dict(self._asset_family._items)
 
     def register_check(self, spec: AssetCheckSpec) -> None:
         """Register or replace an asset check spec by asset/name tuple.
@@ -83,7 +100,8 @@ class CapabilityRegistry:
         """
 
         with self._lock:
-            self.checks[(spec.asset_key, spec.name)] = spec
+            self._check_family.register(spec)
+            self.checks = dict(self._check_family._items)
 
     def register_resource(self, spec: ResourceSpec) -> None:
         """Register or replace a resource spec by name.
@@ -93,7 +111,8 @@ class CapabilityRegistry:
         """
 
         with self._lock:
-            self.resources[spec.name] = spec
+            self._resource_family.register(spec)
+            self.resources = dict(self._resource_family._items)
 
     def list_assets(self) -> list[AssetSpec]:
         """Return a snapshot list of all registered assets.
@@ -103,7 +122,7 @@ class CapabilityRegistry:
         """
 
         with self._lock:
-            return list(self.assets.values())
+            return self._asset_family.list()
 
     def list_checks(self) -> list[AssetCheckSpec]:
         """Return a snapshot list of all registered checks.
@@ -113,7 +132,7 @@ class CapabilityRegistry:
         """
 
         with self._lock:
-            return list(self.checks.values())
+            return self._check_family.list()
 
     def list_resources(self) -> list[ResourceSpec]:
         """Return a snapshot list of all registered resources.
@@ -123,7 +142,7 @@ class CapabilityRegistry:
         """
 
         with self._lock:
-            return list(self.resources.values())
+            return self._resource_family.list()
 
     def register_table_store(self, spec: TableStoreSpec) -> None:
         """Register or replace a table store spec by name."""
@@ -339,9 +358,12 @@ class CapabilityRegistry:
         """Remove all assets, checks, and resources from the registry."""
 
         with self._lock:
-            self.assets.clear()
-            self.checks.clear()
-            self.resources.clear()
+            self._asset_family.clear()
+            self.assets = dict(self._asset_family._items)
+            self._check_family.clear()
+            self.checks = dict(self._check_family._items)
+            self._resource_family.clear()
+            self.resources = dict(self._resource_family._items)
             self.table_stores.clear()
             self.catalogs.clear()
             self.catalog_scanners.clear()
@@ -368,7 +390,8 @@ class CapabilityRegistry:
         """Remove all registered checks while preserving assets/resources."""
 
         with self._lock:
-            self.checks.clear()
+            self._check_family.clear()
+            self.checks = dict(self._check_family._items)
 
 
 _GLOBAL_REGISTRY = CapabilityRegistry()

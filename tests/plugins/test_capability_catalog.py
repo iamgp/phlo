@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from phlo.capabilities.catalog import CapabilityFamily
+from phlo.capabilities.registry import CapabilityRegistry
+from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec, RunSpec
 
 
 @dataclass(frozen=True)
@@ -28,3 +30,23 @@ def test_capability_family_replaces_same_key() -> None:
     family.register(DummySpec(name="trino", value=2))
 
     assert family.list() == [DummySpec(name="trino", value=2)]
+
+
+def test_registry_core_families_keep_existing_interface() -> None:
+    registry = CapabilityRegistry()
+    asset = AssetSpec(
+        key="raw.events",
+        group=None,
+        description=None,
+        run=RunSpec(fn=lambda _ctx: []),
+    )
+    check = AssetCheckSpec(asset_key="raw.events", name="freshness", fn=lambda _ctx: None)
+    resource = ResourceSpec(name="trino", resource=object())
+
+    registry.register_asset(asset)
+    registry.register_check(check)
+    registry.register_resource(resource)
+
+    assert registry.list_assets() == [asset]
+    assert registry.list_checks() == [check]
+    assert registry.list_resources() == [resource]
