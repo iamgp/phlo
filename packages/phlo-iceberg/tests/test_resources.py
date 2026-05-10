@@ -64,6 +64,18 @@ class TestResourcesUnitTests:
             table_name="raw.entries", data_path="/path/to/data.parquet", ref="dev"
         )
 
+    def test_iceberg_resource_supports_refs_and_partition_transforms(self) -> None:
+        """IcebergResource should advertise branch and partition transform support."""
+        support = IcebergResource().support
+
+        assert support.supports_refs is True
+        assert support.partition_transforms == frozenset(
+            {"identity", "day", "hour", "month", "year"}
+        )
+        assert support.supports_snapshots is True
+        assert support.supports_vacuum is True
+        assert support.supports_compaction is False
+
     @patch("phlo_trino.resource.connect")
     @patch("phlo_trino.resource.config")
     def test_trino_resource_get_connection_creates_connections_with_correct_catalog(

@@ -9,6 +9,16 @@ from phlo.exceptions import PhloConfigError
 from phlo_delta.resource import DeltaResource
 
 
+def test_delta_resource_support_is_main_ref_identity_partitioned() -> None:
+    support = DeltaResource().support
+
+    assert support.supports_refs is False
+    assert support.partition_transforms == frozenset({"identity"})
+    assert support.supports_snapshots is True
+    assert support.supports_compaction is True
+    assert support.supports_vacuum is True
+
+
 def test_delta_resource_ensure_table_maps_identity_partition_spec() -> None:
     """DeltaResource should translate identity partition specs into Delta columns."""
     resource = DeltaResource()
@@ -68,10 +78,22 @@ def test_delta_resource_merge_parquet_rejects_non_main_override_ref() -> None:
     """DeltaResource should reject branch-like override refs it cannot honor."""
     resource = DeltaResource()
 
-    with pytest.raises(PhloConfigError, match="does not support override_ref='dev'"):
+    with pytest.raises(PhloConfigError, match="does not support refs; got override_ref='dev'"):
         resource.merge_parquet(
             table_name="raw.pokemon_species",
             data_path="/tmp/pokemon.parquet",
             unique_key="pokemon_id",
             override_ref="dev",
         )
+
+
+def test_delta_ref_validation_error_mentions_support_metadata() -> None:
+    with pytest.raises(PhloConfigError) as exc:
+        DeltaResource().merge_parquet(
+            table_name="raw.events",
+            data_path="/tmp/events.parquet",
+            unique_key="id",
+            override_ref="dev",
+        )
+
+    assert "does not support refs" in str(exc.value)
