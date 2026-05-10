@@ -55,6 +55,7 @@ from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 
+from phlo.capabilities.interfaces import TableStoreSupport
 from phlo.logging import get_logger
 from phlo_iceberg.catalog import get_catalog
 from phlo_iceberg.settings import get_settings
@@ -106,6 +107,17 @@ class IcebergResource:
     """
 
     ref: str = field(default_factory=lambda: get_settings().iceberg_default_ref)
+
+    @property
+    def support(self) -> TableStoreSupport:
+        """Return Iceberg table-store support metadata."""
+        return TableStoreSupport(
+            supports_refs=True,
+            partition_transforms=frozenset({"identity", "day", "hour", "month", "year"}),
+            supports_snapshots=True,
+            supports_compaction=False,
+            supports_vacuum=True,
+        )
 
     def get_catalog(self, override_ref: str | None = None) -> Catalog:
         """Return an Iceberg catalog client for the active branch.

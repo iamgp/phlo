@@ -9,6 +9,20 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 
+@dataclass(frozen=True, slots=True)
+class TableStoreSupport:
+    """Explicit support metadata for table-store adapters."""
+
+    supports_refs: bool = False
+    partition_transforms: frozenset[str] = frozenset({"identity"})
+    supports_snapshots: bool = False
+    supports_compaction: bool = False
+    supports_vacuum: bool = False
+
+    def supports_partition_transform(self, transform: str) -> bool:
+        return transform in self.partition_transforms
+
+
 @runtime_checkable
 class TableStore(Protocol):
     """Protocol for table-store providers used by ingestion components.
@@ -18,6 +32,11 @@ class TableStore(Protocol):
     ``list_snapshots``, ``rollback_to_snapshot``, ``vacuum``) raise
     ``NotImplementedError`` by default so providers opt in incrementally.
     """
+
+    @property
+    def support(self) -> TableStoreSupport:
+        """Return explicit support metadata for this table-store adapter."""
+        return TableStoreSupport()
 
     def ensure_table(
         self,
