@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import click
 
@@ -19,6 +20,18 @@ class ServiceSelectionPlan:
     disabled_names: set[str] = field(default_factory=set)
     requested_names: list[str] = field(default_factory=list)
     profiles: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class StartPreflightPlan:
+    """Inputs needed by services start preflight checks."""
+
+    phlo_dir: Path
+    compose_file: Path
+    project_root: Path
+    project_name: str
+    service_names: list[str]
+    backend_name: str | None
 
 
 def build_service_selection_plan(
@@ -59,4 +72,23 @@ def build_service_selection_plan(
         disabled_names=disabled_names,
         requested_names=requested_names,
         profiles=profiles,
+    )
+
+
+def build_start_preflight_plan(
+    *,
+    phlo_dir: Path,
+    compose_file: Path,
+    project_root: Path,
+    project_name: str,
+    services: list[ServiceDefinition],
+    backend_name: str | None,
+) -> StartPreflightPlan:
+    return StartPreflightPlan(
+        phlo_dir=phlo_dir,
+        compose_file=compose_file,
+        project_root=project_root,
+        project_name=project_name,
+        service_names=[service.name for service in services],
+        backend_name=backend_name,
     )
