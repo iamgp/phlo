@@ -5,6 +5,7 @@ from subprocess import CompletedProcess
 import pytest
 from click.testing import CliRunner
 
+from phlo.cli.commands.services.planner import StartPreflightPlan
 from phlo.cli.commands.services.utils import get_profile_service_names
 from phlo.cli.infrastructure.container_backend import ContainerInfo
 from phlo.plugins.discovery import ServiceDefinition
@@ -274,12 +275,14 @@ def test_services_start_preflights_env_local_port_collisions(
 
     with pytest.raises(Exception) as exc_info:
         start_module._preflight_requested_host_ports(
-            phlo_dir=phlo_dir,
-            compose_file=compose_file,
-            project_root=tmp_path,
-            project_name="demo",
-            service_names=["dagster"],
-            backend_name=None,
+            plan=StartPreflightPlan(
+                phlo_dir=phlo_dir,
+                compose_file=compose_file,
+                project_root=tmp_path,
+                project_name="demo",
+                service_names=["dagster"],
+                backend_name=None,
+            ),
         )
 
     assert "dagster -> 3300 (DAGSTER_PORT)" in str(exc_info.value)
@@ -313,12 +316,14 @@ def test_services_start_preflights_invalid_env_port_values(
 
     with pytest.raises(Exception) as exc_info:
         start_module._preflight_requested_host_ports(
-            phlo_dir=phlo_dir,
-            compose_file=compose_file,
-            project_root=tmp_path,
-            project_name="demo",
-            service_names=["postgres"],
-            backend_name=None,
+            plan=StartPreflightPlan(
+                phlo_dir=phlo_dir,
+                compose_file=compose_file,
+                project_root=tmp_path,
+                project_name="demo",
+                service_names=["postgres"],
+                backend_name=None,
+            ),
         )
 
     assert "invalid host port value" in str(exc_info.value)
@@ -355,12 +360,14 @@ def test_services_start_preflight_skips_already_running_project_service(
     monkeypatch.setattr(start_module, "_is_host_port_available", lambda _port: False)
 
     start_module._preflight_requested_host_ports(
-        phlo_dir=phlo_dir,
-        compose_file=compose_file,
-        project_root=tmp_path,
-        project_name="demo",
-        service_names=["dagster"],
-        backend_name=None,
+        plan=StartPreflightPlan(
+            phlo_dir=phlo_dir,
+            compose_file=compose_file,
+            project_root=tmp_path,
+            project_name="demo",
+            service_names=["dagster"],
+            backend_name=None,
+        ),
     )
 
 
@@ -468,7 +475,12 @@ def test_services_start_builds_preflight_plan_for_selected_services(
     result = CliRunner().invoke(start_module.start_cmd, ["--service", "postgres"])
 
     assert result.exit_code == 0
-    assert captured["service_names"] == ["postgres"]
+    plan = captured["plan"]
+    assert isinstance(plan, StartPreflightPlan)
+    assert plan.service_names == ["postgres"]
+    assert plan.compose_file.name == "docker-compose.yml"
+    assert plan.project_name == "demo"
+    assert plan.backend_name is None
 
 
 def test_services_start_preflights_required_env_for_selected_services(

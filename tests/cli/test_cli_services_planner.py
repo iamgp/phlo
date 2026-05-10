@@ -39,7 +39,7 @@ def test_selection_plan_includes_default_and_profile_services() -> None:
     )
 
     assert [service.name for service in plan.selected_services] == ["postgres", "grafana"]
-    assert plan.disabled_names == set()
+    assert plan.disabled_names == frozenset()
 
 
 def test_selection_plan_excludes_disabled_services() -> None:
@@ -56,7 +56,38 @@ def test_selection_plan_excludes_disabled_services() -> None:
     )
 
     assert [service.name for service in plan.selected_services] == ["postgres"]
-    assert plan.disabled_names == {"grafana"}
+    assert plan.disabled_names == frozenset({"grafana"})
+
+
+def test_selection_plan_respects_requested_names() -> None:
+    services = {
+        "postgres": _service("postgres", default=True),
+        "grafana": _service("grafana", default=True, profile="observability"),
+    }
+
+    plan = build_service_selection_plan(
+        services=services,
+        config={},
+        profiles=("observability",),
+        requested_names=["postgres"],
+    )
+
+    assert [service.name for service in plan.selected_services] == ["postgres"]
+    assert plan.disabled_names == frozenset()
+
+
+def test_selection_plan_rejects_disabled_requested_service() -> None:
+    services = {"grafana": _service("grafana", default=True)}
+
+    with pytest.raises(click.ClickException) as exc:
+        build_service_selection_plan(
+            services=services,
+            config={"services": {"grafana": {"enabled": False}}},
+            profiles=(),
+            requested_names=["grafana"],
+        )
+
+    assert "grafana" in str(exc.value)
 
 
 def test_selection_plan_rejects_unknown_requested_service() -> None:

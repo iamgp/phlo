@@ -17,7 +17,7 @@ from phlo.cli.commands.services.common import (
     parse_service_args,
     validate_requested_profiles,
 )
-from phlo.cli.commands.services.planner import build_start_preflight_plan
+from phlo.cli.commands.services.planner import StartPreflightPlan, build_start_preflight_plan
 from phlo.cli.commands.services.ports import (
     _load_environment,
     _parse_compose_port_spec,
@@ -119,20 +119,15 @@ def _is_host_port_available(port: int) -> bool:
 
 def _preflight_requested_host_ports(
     *,
-    phlo_dir: Path,
-    compose_file: Path,
-    project_root: Path,
-    project_name: str,
-    service_names: list[str],
-    backend_name: str | None,
+    plan: StartPreflightPlan,
 ) -> None:
     """Fail early when requested stopped services would collide with local host ports."""
     try:
-        compose_config = yaml.safe_load(compose_file.read_text()) or {}
+        compose_config = yaml.safe_load(plan.compose_file.read_text()) or {}
     except OSError as exc:
-        raise click.ClickException(f"Failed to read {compose_file}: {exc}") from exc
+        raise click.ClickException(f"Failed to read {plan.compose_file}: {exc}") from exc
     except yaml.YAMLError as exc:
-        raise click.ClickException(f"Failed to parse {compose_file}: {exc}") from exc
+        raise click.ClickException(f"Failed to parse {plan.compose_file}: {exc}") from exc
 
     services = compose_config.get("services") or {}
     if not isinstance(services, dict):
@@ -140,22 +135,22 @@ def _preflight_requested_host_ports(
 
     selected_services = {
         name: service_config
-        for name in service_names
+        for name in plan.service_names
         if isinstance((service_config := services.get(name)), dict)
         and bool(service_config.get("ports"))
     }
     if not selected_services:
         return
 
-    config = _load_project_config(project_root)
-    env = _load_environment(phlo_dir, config)
-    backend = select_project_container_backend(cli_backend=backend_name)
+    config = _load_project_config(plan.project_root)
+    env = _load_environment(plan.phlo_dir, config)
+    backend = select_project_container_backend(cli_backend=plan.backend_name)
     running_containers = {
         container.service: {
             "status": container.state,
             "ports": [],
         }
-        for container in backend.list_project_containers(project_name)
+        for container in backend.list_project_containers(plan.project_name)
     }
 
     conflicts: list[tuple[str, int, str | None]] = []
@@ -205,7 +200,7 @@ def _preflight_requested_host_ports(
         )
         logger.warning(
             "services_start_invalid_host_ports",
-            project_name=project_name,
+            project_name=plan.project_name,
             invalid_ports=rendered,
         )
         raise click.ClickException(
@@ -222,7 +217,7 @@ def _preflight_requested_host_ports(
     )
     logger.warning(
         "services_start_host_port_conflicts",
-        project_name=project_name,
+        project_name=plan.project_name,
         conflicts=rendered,
     )
     raise click.ClickException(
@@ -509,12 +504,7 @@ def start_cmd(
             service_names=docker_service_names,
         )
         _preflight_requested_host_ports(
-            phlo_dir=preflight_plan.phlo_dir,
-            compose_file=preflight_plan.compose_file,
-            project_root=preflight_plan.project_root,
-            project_name=preflight_plan.project_name,
-            service_names=preflight_plan.service_names,
-            backend_name=preflight_plan.backend_name,
+            plan=preflight_plan,
         )
     elif build:
         logger.warning(

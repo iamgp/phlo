@@ -296,7 +296,7 @@ def init_cmd(
     click.echo("")
 
     default_services = discovery.get_default_services(
-        disabled_services=selection_plan.disabled_names
+        disabled_services=set(selection_plan.disabled_names)
     )
     default_names = sorted([s.name for s in default_services])
     click.echo(f"Default services: {', '.join(default_names)}")

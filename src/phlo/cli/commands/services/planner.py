@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import click
@@ -16,9 +16,9 @@ from phlo.utils import dedupe_preserve_order
 class ServiceSelectionPlan:
     """Selected services for a services command."""
 
-    selected_services: list[ServiceDefinition]
-    disabled_names: set[str] = field(default_factory=set)
-    requested_names: list[str] = field(default_factory=list)
+    selected_services: tuple[ServiceDefinition, ...] = ()
+    disabled_names: frozenset[str] = frozenset()
+    requested_names: tuple[str, ...] = ()
     profiles: tuple[str, ...] = ()
 
 
@@ -46,6 +46,12 @@ def build_service_selection_plan(
         raise click.ClickException(f"Unknown service name(s): {', '.join(unknown_requested)}")
 
     enabled_names, disabled_names = get_enabled_disabled_service_names(config)
+    disabled_requested = [name for name in requested_names if name in disabled_names]
+    if disabled_requested:
+        raise click.ClickException(
+            f"Requested service(s) are disabled in phlo.yaml: {', '.join(disabled_requested)}"
+        )
+
     selected_names: list[str] = []
     if requested_names:
         selected_names.extend(requested_names)
@@ -68,9 +74,9 @@ def build_service_selection_plan(
         if name in services and name not in disabled_names
     ]
     return ServiceSelectionPlan(
-        selected_services=selected,
-        disabled_names=disabled_names,
-        requested_names=requested_names,
+        selected_services=tuple(selected),
+        disabled_names=frozenset(disabled_names),
+        requested_names=tuple(requested_names),
         profiles=profiles,
     )
 
@@ -81,17 +87,21 @@ def build_start_preflight_plan(
     compose_file: Path,
     project_root: Path,
     project_name: str,
-    services: list[ServiceDefinition],
     backend_name: str | None,
+    services: list[ServiceDefinition] | None = None,
     service_names: list[str] | None = None,
 ) -> StartPreflightPlan:
+    resolved_service_names = (
+        service_names if service_names is not None else [service.name for service in services or []]
+    )
+    if not resolved_service_names:
+        raise ValueError("service_names or services must include at least one service")
+
     return StartPreflightPlan(
         phlo_dir=phlo_dir,
         compose_file=compose_file,
         project_root=project_root,
         project_name=project_name,
-        service_names=service_names
-        if service_names is not None
-        else [service.name for service in services],
+        service_names=resolved_service_names,
         backend_name=backend_name,
     )
