@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from phlo_api.observatory_api.v2_cache import ReadModelCache
+from phlo_api.observatory_api.v2_saved_queries import validate_saved_query_sql
 from phlo_api.observatory_api.v2_services import (
     docker_status_from_container,
     service_name_from_container,
@@ -42,3 +43,14 @@ def test_docker_status_from_running_container() -> None:
 
 def test_service_name_from_container_matches_known_service_id() -> None:
     assert service_name_from_container("demo-postgres-1", {"postgres"}) == "postgres"
+
+
+def test_validate_saved_query_sql_accepts_select_star_limit() -> None:
+    assert validate_saved_query_sql("select * from raw.events limit 10") is None
+
+
+def test_validate_saved_query_sql_rejects_delete() -> None:
+    assert (
+        validate_saved_query_sql("delete from raw.events")
+        == "Only simple SELECT preview queries can be saved."
+    )

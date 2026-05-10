@@ -15,10 +15,8 @@ import re
 import socket
 import subprocess
 import sys
-from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
-from uuid import uuid4
 
 from fastapi import APIRouter
 from fastapi import HTTPException
@@ -77,6 +75,13 @@ from phlo_api.observatory_api.v2_metadata import safe_metadata as _safe_metadata
 from phlo_api.observatory_api.v2_observability import load_observability_items
 from phlo_api.observatory_api.v2_products import load_api_items, load_bi_items
 from phlo_api.observatory_api.v2_runs import load_runs
+from phlo_api.observatory_api.v2_saved_queries import (
+    dedupe_saved_queries as _dedupe_saved_queries_impl,
+    load_saved_queries as _load_saved_queries_impl,
+    save_query as _save_query_impl,
+    validate_saved_query_sql as _validate_saved_query_sql_impl,
+    write_saved_queries as _write_saved_queries_impl,
+)
 from phlo_api.observatory_api.v2_services import load_services as _load_services_impl
 from phlo_api.observatory_api.v2_storage import load_storage_items
 
@@ -1552,73 +1557,23 @@ def _row_offset(row_id: str) -> int:
 
 
 def _load_saved_queries() -> list[V2SavedQuery]:
-    path = _saved_queries_path()
-    if not path.exists():
-        return []
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return []
-    items = payload.get("items") if isinstance(payload, Mapping) else None
-    if not isinstance(items, list):
-        return []
-    queries: list[V2SavedQuery] = []
-    for item in items:
-        if isinstance(item, Mapping):
-            try:
-                queries.append(V2SavedQuery.model_validate(item))
-            except Exception:
-                continue
-    return _dedupe_saved_queries(queries)
+    return _load_saved_queries_impl(_project_root())
 
 
 def _dedupe_saved_queries(queries: list[V2SavedQuery]) -> list[V2SavedQuery]:
-    unique: dict[tuple[str, str, str], V2SavedQuery] = {}
-    for query in sorted(queries, key=lambda item: item.updated_at, reverse=True):
-        key = (
-            query.name.strip().casefold(),
-            " ".join(query.sql.split()).casefold(),
-            (query.branch or "main").strip().casefold(),
-        )
-        unique.setdefault(key, query)
-    return list(unique.values())
+    return _dedupe_saved_queries_impl(queries)
 
 
 def _write_saved_queries(queries: list[V2SavedQuery]) -> None:
-    _saved_queries_path().write_text(
-        json.dumps({"items": [query.model_dump() for query in queries]}, indent=2),
-        encoding="utf-8",
-    )
+    _write_saved_queries_impl(_project_root(), queries)
 
 
 def _save_query(request: V2SavedQueryRequest) -> V2SavedQuery:
-    if not request.name.strip():
-        raise HTTPException(status_code=400, detail="Saved query name is required.")
-    validate_error = _validate_saved_query_sql(request.sql)
-    if validate_error:
-        raise HTTPException(status_code=400, detail=validate_error)
-
-    now = datetime.now(UTC).isoformat()
-    query = V2SavedQuery(
-        id=f"query-{uuid4().hex[:12]}",
-        name=request.name.strip(),
-        sql=request.sql.strip(),
-        branch=request.branch,
-        created_at=now,
-        updated_at=now,
-        metadata=_safe_metadata(request.metadata),
-    )
-    queries = _dedupe_saved_queries([query, *_load_saved_queries()])
-    _write_saved_queries(queries[:100])
-    return query
+    return _save_query_impl(_project_root(), request)
 
 
 def _validate_saved_query_sql(sql: str) -> str | None:
-    if not sql.strip():
-        return "SQL is required."
-    if _READ_QUERY_RE.match(sql) is None:
-        return "Only read-only SELECT * FROM <known_table> [LIMIT n] queries can be saved."
-    return None
+    return _validate_saved_query_sql_impl(sql)
 
 
 def _load_stage_diff(source_table_id: str, target_table_id: str) -> V2StageDiff:
