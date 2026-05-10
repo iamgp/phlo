@@ -16,7 +16,6 @@ import socket
 import subprocess
 import sys
 from typing import Any
-from urllib.parse import quote
 
 from fastapi import APIRouter
 from fastapi import HTTPException
@@ -82,6 +81,7 @@ from phlo_api.observatory_api.v2_saved_queries import (
     validate_saved_query_sql as _validate_saved_query_sql_impl,
     write_saved_queries as _write_saved_queries_impl,
 )
+from phlo_api.observatory_api.v2_search import search_results as _search_results_impl
 from phlo_api.observatory_api.v2_services import load_services as _load_services_impl
 from phlo_api.observatory_api.v2_storage import load_storage_items
 
@@ -1685,87 +1685,15 @@ def _load_branch_detail(branch_name: str) -> V2BranchDetail:
 
 
 def _search_results(query: str) -> list[V2SearchResult]:
-    needle = query.strip().lower()
-    if not needle:
-        return []
-
-    results: list[V2SearchResult] = []
-    for service in _load_services():
-        haystack = " ".join([service.id, service.name, service.kind, service.status]).lower()
-        if needle in haystack:
-            results.append(
-                V2SearchResult(
-                    id=f"service:{service.id}",
-                    label=service.name,
-                    kind="service",
-                    summary=f"{service.kind} · {service.status}",
-                    href="/services",
-                )
-            )
-
-    for asset in _load_assets():
-        haystack = " ".join(
-            [asset.id, asset.name, asset.group or "", asset.description or "", *asset.kinds]
-        ).lower()
-        if needle in haystack:
-            results.append(
-                V2SearchResult(
-                    id=f"asset:{asset.id}",
-                    label=asset.name,
-                    kind="asset",
-                    summary=asset.description or asset.group,
-                    href=f"/asset/{_route_path_segment(asset.id)}",
-                )
-            )
-
-    for table in _load_tables_without_catalog():
-        haystack = " ".join(
-            [table.id, table.name, table.namespace or "", table.format or "", table.branch or ""]
-        ).lower()
-        if needle in haystack:
-            results.append(
-                V2SearchResult(
-                    id=f"table:{table.id}",
-                    label=table.namespace + "." + table.name if table.namespace else table.name,
-                    kind="table",
-                    summary=f"{table.format or 'table'} · {table.branch or 'main'}",
-                    href=f"/table/{_route_path_segment(table.id)}",
-                )
-            )
-
-    for check in _load_quality():
-        haystack = " ".join(
-            [check.id, check.name, check.asset_id, check.status, check.severity or ""]
-        ).lower()
-        if needle in haystack:
-            results.append(
-                V2SearchResult(
-                    id=f"quality:{check.id}",
-                    label=check.name,
-                    kind="quality",
-                    summary=f"{check.asset_id} · {check.status}",
-                    href="/quality",
-                )
-            )
-
-    for extension in _load_extensions():
-        haystack = " ".join([extension.id, extension.name, extension.version or ""]).lower()
-        if needle in haystack:
-            results.append(
-                V2SearchResult(
-                    id=f"extension:{extension.id}",
-                    label=extension.name,
-                    kind="extension",
-                    summary=extension.settings_scope or extension.version,
-                    href=f"/extension/{_route_path_segment(extension.id)}",
-                )
-            )
-
-    return results[:25]
-
-
-def _route_path_segment(resource_id: str) -> str:
-    return quote(resource_id, safe="")
+    return _search_results_impl(
+        query=query,
+        services=_load_services(),
+        assets=_load_assets(),
+        tables=_load_tables_without_catalog(),
+        operations=_load_operations(),
+        quality=_load_quality(),
+        extensions=_load_extensions(),
+    )
 
 
 def _load_extension_detail(extension_id: str) -> V2ExtensionDetail:

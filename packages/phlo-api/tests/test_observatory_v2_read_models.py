@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from phlo_api.observatory_api.v2_cache import ReadModelCache
+from phlo_api.observatory_api.v2_models import V2Asset, V2Health, V2Service
 from phlo_api.observatory_api.v2_saved_queries import validate_saved_query_sql
+from phlo_api.observatory_api.v2_search import search_results
 from phlo_api.observatory_api.v2_services import (
     docker_status_from_container,
     service_name_from_container,
@@ -54,3 +56,23 @@ def test_validate_saved_query_sql_rejects_delete() -> None:
         validate_saved_query_sql("delete from raw.events")
         == "Only simple SELECT preview queries can be saved."
     )
+
+
+def test_search_results_matches_services_and_assets() -> None:
+    results = search_results(
+        query="post",
+        services=[
+            V2Service(
+                id="postgres",
+                name="Postgres",
+                kind="service",
+                status="running",
+                health=V2Health(state="ok"),
+            )
+        ],
+        assets=[V2Asset(id="raw.events", name="Raw Events", group="raw")],
+        tables=[],
+        operations=[],
+    )
+
+    assert [result.id for result in results] == ["service:postgres"]
