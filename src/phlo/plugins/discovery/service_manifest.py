@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 from phlo.plugins.discovery._service_definition import ServiceDefinition
+from phlo.plugins.discovery._service_dependency_resolution import resolve_service_dependencies
 from phlo.plugins.discovery._service_loading import resolve_plugin_source_path
 from phlo.plugins.discovery.plugins import discover_plugins
 from phlo.plugins.discovery.registry import get_global_registry
@@ -132,3 +133,40 @@ class ServiceManifestResolver:
                 ) from exc
             manifests.append(ServiceManifest(definition=definition, source_path=yaml_path))
         return manifests
+
+    @staticmethod
+    def expand_dependencies(
+        services: list[ServiceDefinition],
+        requested_names: list[str],
+    ) -> list[ServiceDefinition]:
+        service_by_name = {service.name: service for service in services}
+        missing = [name for name in requested_names if name not in service_by_name]
+        if missing:
+            raise ServiceManifestError(
+                "unknown service dependency request",
+                service_name=", ".join(missing),
+            )
+
+        selected: dict[str, ServiceDefinition] = {}
+
+        def include(service: ServiceDefinition) -> None:
+            for dependency_name in service.depends_on:
+                dependency = service_by_name.get(dependency_name)
+                if dependency is not None:
+                    include(dependency)
+            selected[service.name] = service
+
+        for name in requested_names:
+            include(service_by_name[name])
+
+        bootstrap_companions = [
+            service
+            for service in services
+            if service.name.endswith("-setup")
+            and service.depends_on
+            and all(dependency in selected for dependency in service.depends_on)
+        ]
+        for companion in bootstrap_companions:
+            selected.setdefault(companion.name, companion)
+
+        return resolve_service_dependencies(list(selected.values()))

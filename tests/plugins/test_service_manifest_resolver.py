@@ -4,12 +4,12 @@ import pytest
 
 from phlo.plugins.discovery._service_definition import ServiceDefinition
 from phlo.plugins.discovery.registry import get_global_registry
-from phlo.plugins.discovery.services import ServiceDiscovery
 from phlo.plugins.discovery.service_manifest import (
     ServiceManifest,
     ServiceManifestError,
     ServiceManifestResolver,
 )
+from phlo.plugins.discovery.services import ServiceDiscovery
 
 
 def test_service_manifest_wraps_definition_and_source_path(tmp_path: Path) -> None:
@@ -178,3 +178,17 @@ def test_service_discovery_uses_manifest_resolver_for_directory_services(
 
     assert list(services) == ["postgres"]
     assert services["postgres"].image == "postgres:16"
+
+
+def test_resolver_expands_requested_services_with_dependencies(tmp_path: Path) -> None:
+    definitions = [
+        ServiceDefinition.from_dict({"name": "postgres", "image": "postgres:16"}, tmp_path),
+        ServiceDefinition.from_dict(
+            {"name": "api", "image": "api:latest", "depends_on": ["postgres"]},
+            tmp_path,
+        ),
+    ]
+
+    expanded = ServiceManifestResolver.expand_dependencies(definitions, ["api"])
+
+    assert [service.name for service in expanded] == ["postgres", "api"]
