@@ -33,6 +33,11 @@ class TableStore(Protocol):
     ``NotImplementedError`` by default so providers opt in incrementally.
     """
 
+    @property
+    def support(self) -> TableStoreSupport:
+        """Return explicit support metadata for this table-store adapter."""
+        return TableStoreSupport()
+
     def ensure_table(
         self,
         *,
