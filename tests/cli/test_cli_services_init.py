@@ -377,3 +377,47 @@ def test_services_init_includes_requested_profile_services(
     compose = (tmp_path / ".phlo" / "docker-compose.yml").read_text()
     assert "postgres" in compose
     assert "prometheus" in compose
+
+
+def test_services_init_uses_lifecycle_planner_for_profiles(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    postgres = _service("postgres", default=True)
+    grafana = _service("grafana", profile="observability")
+    fake_discovery = FakeDiscovery(
+        {postgres.name: postgres, grafana.name: grafana},
+        default_names=(postgres.name,),
+    )
+    copied: list[str] = []
+
+    class FakeComposer:
+        def __init__(self, _discovery):
+            pass
+
+        def generate_compose(self, selected, *_args, **_kwargs):
+            copied.extend(service.name for service in selected)
+            return "services: {}\n"
+
+        def generate_env(self, _services, env_overrides=None):
+            return ""
+
+        def generate_env_local(self, _services, env_overrides=None, existing_values=None):
+            return ""
+
+        def generate_gitignore(self, _services):
+            return ""
+
+        def copy_service_files(self, *_args, **_kwargs):
+            return []
+
+    monkeypatch.chdir(tmp_path)
+    from phlo.cli.commands.services import init as init_module
+
+    monkeypatch.setattr(init_module, "ServiceDiscovery", lambda: fake_discovery)
+    monkeypatch.setattr(init_module, "ComposeGenerator", FakeComposer)
+
+    result = CliRunner().invoke(init_module.init_cmd, ["--profile", "observability"])
+
+    assert result.exit_code == 0
+    assert copied == ["postgres", "grafana"]
