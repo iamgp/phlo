@@ -4,10 +4,17 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
+from typing import Generic, Protocol, TypeVar
 
 SpecT = TypeVar("SpecT")
 KeyT = TypeVar("KeyT", bound=Hashable)
+
+
+class NamedSpec(Protocol):
+    name: str
+
+
+NamedSpecT = TypeVar("NamedSpecT", bound=NamedSpec)
 
 
 @dataclass(slots=True)
@@ -25,3 +32,7 @@ class CapabilityFamily(Generic[SpecT, KeyT]):
 
     def clear(self) -> None:
         self._items.clear()
+
+
+def named_family() -> CapabilityFamily[NamedSpecT, str]:
+    return CapabilityFamily(key=lambda spec: spec.name)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, field
 
-from phlo.capabilities.catalog import CapabilityFamily
+from phlo.capabilities.catalog import CapabilityFamily, named_family
 from phlo.capabilities.specs import (
     AlertSinkSpec,
     ApiBackendSpec,
@@ -79,6 +79,11 @@ class CapabilityRegistry:
         init=False,
         repr=False,
     )
+    _table_store_family: CapabilityFamily[TableStoreSpec, str] = field(
+        default_factory=named_family,
+        init=False,
+        repr=False,
+    )
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def register_asset(self, spec: AssetSpec) -> None:
@@ -147,12 +152,13 @@ class CapabilityRegistry:
     def register_table_store(self, spec: TableStoreSpec) -> None:
         """Register or replace a table store spec by name."""
         with self._lock:
-            self.table_stores[spec.name] = spec
+            self._table_store_family.register(spec)
+            self.table_stores = dict(self._table_store_family._items)
 
     def list_table_stores(self) -> list[TableStoreSpec]:
         """Return a snapshot list of registered table store specs."""
         with self._lock:
-            return list(self.table_stores.values())
+            return self._table_store_family.list()
 
     def register_catalog(self, spec: CatalogSpec) -> None:
         """Register or replace a catalog spec by name."""
@@ -364,7 +370,8 @@ class CapabilityRegistry:
             self.checks = dict(self._check_family._items)
             self._resource_family.clear()
             self.resources = dict(self._resource_family._items)
-            self.table_stores.clear()
+            self._table_store_family.clear()
+            self.table_stores = dict(self._table_store_family._items)
             self.catalogs.clear()
             self.catalog_scanners.clear()
             self.query_engines.clear()

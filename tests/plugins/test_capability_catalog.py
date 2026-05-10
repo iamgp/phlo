@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phlo.capabilities.catalog import CapabilityFamily
+from phlo.capabilities.catalog import CapabilityFamily, named_family
 from phlo.capabilities.registry import CapabilityRegistry
 from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec, RunSpec
 
@@ -50,3 +50,11 @@ def test_registry_core_families_keep_existing_interface() -> None:
     assert registry.list_assets() == [asset]
     assert registry.list_checks() == [check]
     assert registry.list_resources() == [resource]
+
+
+def test_named_family_uses_spec_name() -> None:
+    family: CapabilityFamily[DummySpec, str] = named_family()
+
+    family.register(DummySpec(name="iceberg", value=1))
+
+    assert family.list() == [DummySpec(name="iceberg", value=1)]
