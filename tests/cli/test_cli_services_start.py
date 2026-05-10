@@ -5,6 +5,7 @@ from subprocess import CompletedProcess
 import pytest
 from click.testing import CliRunner
 
+from phlo.cli.commands.services.planner import StartPreflightPlan
 from phlo.cli.commands.services.utils import get_profile_service_names
 from phlo.cli.infrastructure.container_backend import ContainerInfo
 from phlo.plugins.discovery import ServiceDefinition
@@ -274,12 +275,14 @@ def test_services_start_preflights_env_local_port_collisions(
 
     with pytest.raises(Exception) as exc_info:
         start_module._preflight_requested_host_ports(
-            phlo_dir=phlo_dir,
-            compose_file=compose_file,
-            project_root=tmp_path,
-            project_name="demo",
-            service_names=["dagster"],
-            backend_name=None,
+            plan=StartPreflightPlan(
+                phlo_dir=phlo_dir,
+                compose_file=compose_file,
+                project_root=tmp_path,
+                project_name="demo",
+                service_names=["dagster"],
+                backend_name=None,
+            ),
         )
 
     assert "dagster -> 3300 (DAGSTER_PORT)" in str(exc_info.value)
@@ -313,12 +316,14 @@ def test_services_start_preflights_invalid_env_port_values(
 
     with pytest.raises(Exception) as exc_info:
         start_module._preflight_requested_host_ports(
-            phlo_dir=phlo_dir,
-            compose_file=compose_file,
-            project_root=tmp_path,
-            project_name="demo",
-            service_names=["postgres"],
-            backend_name=None,
+            plan=StartPreflightPlan(
+                phlo_dir=phlo_dir,
+                compose_file=compose_file,
+                project_root=tmp_path,
+                project_name="demo",
+                service_names=["postgres"],
+                backend_name=None,
+            ),
         )
 
     assert "invalid host port value" in str(exc_info.value)
@@ -355,12 +360,14 @@ def test_services_start_preflight_skips_already_running_project_service(
     monkeypatch.setattr(start_module, "_is_host_port_available", lambda _port: False)
 
     start_module._preflight_requested_host_ports(
-        phlo_dir=phlo_dir,
-        compose_file=compose_file,
-        project_root=tmp_path,
-        project_name="demo",
-        service_names=["dagster"],
-        backend_name=None,
+        plan=StartPreflightPlan(
+            phlo_dir=phlo_dir,
+            compose_file=compose_file,
+            project_root=tmp_path,
+            project_name="demo",
+            service_names=["dagster"],
+            backend_name=None,
+        ),
     )
 
 
@@ -419,6 +426,61 @@ def test_services_start_includes_setup_companions_for_explicit_targets(
     assert result.exit_code == 0
     assert docker_calls
     assert docker_calls[0][-3:] == ["rustfs-volume-setup", "rustfs", "rustfs-setup"]
+
+
+def test_services_start_builds_preflight_plan_for_selected_services(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text("", encoding="utf-8")
+    (phlo_dir / "docker-compose.yml").write_text(
+        "services:\n  postgres:\n    image: postgres:16\n",
+        encoding="utf-8",
+    )
+    postgres = _service("postgres", default=True)
+    captured: dict[str, object] = {}
+
+    class PostgresFakeDiscovery(FakeDiscovery):
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {postgres.name: postgres}
+
+        def get_available_profiles(self) -> set[str]:
+            return set()
+
+    def _fake_run_command(cmd: list[str], check=False, capture_output=False) -> CompletedProcess:
+        return CompletedProcess(args=cmd, returncode=0)
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", PostgresFakeDiscovery)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
+    monkeypatch.setattr(start_module, "require_container_backend", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        start_module,
+        "_preflight_requested_host_ports",
+        lambda **kwargs: captured.update(kwargs),
+    )
+    monkeypatch.setattr(start_module, "_preflight_required_env_vars", lambda **_kwargs: None)
+    monkeypatch.setattr(start_module, "run_command", _fake_run_command)
+    monkeypatch.setattr(
+        start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+
+    result = CliRunner().invoke(start_module.start_cmd, ["--service", "postgres"])
+
+    assert result.exit_code == 0
+    plan = captured["plan"]
+    assert isinstance(plan, StartPreflightPlan)
+    assert plan.service_names == ["postgres"]
+    assert plan.compose_file.name == "docker-compose.yml"
+    assert plan.project_name == "demo"
+    assert plan.backend_name is None
 
 
 def test_services_start_preflights_required_env_for_selected_services(
