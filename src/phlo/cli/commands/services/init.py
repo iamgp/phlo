@@ -221,7 +221,9 @@ def init_cmd(
         if isinstance(cfg, dict) and cfg.get("type") == "inline"
     ]
 
-    requested_profiles = tuple(dict.fromkeys(profile.strip() for profile in profiles if profile.strip()))
+    requested_profiles = tuple(
+        dict.fromkeys(profile.strip() for profile in profiles if profile.strip())
+    )
     available_profiles = discovery.get_available_profiles()
     unknown_profiles = sorted(set(requested_profiles) - available_profiles)
     if unknown_profiles:
@@ -293,7 +295,9 @@ def init_cmd(
     click.echo("Phlo infrastructure initialized.")
     click.echo("")
 
-    default_services = discovery.get_default_services(disabled_services=selection_plan.disabled_names)
+    default_services = discovery.get_default_services(
+        disabled_services=selection_plan.disabled_names
+    )
     default_names = sorted([s.name for s in default_services])
     click.echo(f"Default services: {', '.join(default_names)}")
 

@@ -90,6 +90,8 @@ def build_start_preflight_plan(
         compose_file=compose_file,
         project_root=project_root,
         project_name=project_name,
-        service_names=service_names if service_names is not None else [service.name for service in services],
+        service_names=service_names
+        if service_names is not None
+        else [service.name for service in services],
         backend_name=backend_name,
     )
