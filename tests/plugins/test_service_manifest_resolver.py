@@ -37,7 +37,10 @@ def test_service_manifest_error_includes_context() -> None:
         source_path=Path("services/postgres/service.yaml"),
     )
 
-    assert str(error) == "invalid service definition: service=postgres source=services/postgres/service.yaml"
+    assert (
+        str(error)
+        == "invalid service definition: service=postgres source=services/postgres/service.yaml"
+    )
 
 
 def test_resolver_loads_service_yaml_files_from_directory(tmp_path: Path) -> None:
