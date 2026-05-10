@@ -69,3 +69,82 @@ def test_resolver_raises_contextual_error_for_bad_yaml(tmp_path: Path) -> None:
 
     assert "invalid service definition file" in str(exc.value)
     assert f"source={bad_yaml}" in str(exc.value)
+
+
+def test_resolver_loads_plugin_manifest_and_companion_files(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    package_dir = tmp_path / "phlo_fake"
+    package_dir.mkdir()
+    (package_dir / "__init__.py").write_text("", encoding="utf-8")
+    (package_dir / "worker-setup.yaml").write_text(
+        "name: worker-setup\ndescription: Worker setup\nimage: busybox\ndefault: false\n",
+        encoding="utf-8",
+    )
+
+    class FakePlugin:
+        service_definition = {
+            "name": "worker",
+            "description": "Worker",
+            "image": "busybox",
+            "default": True,
+        }
+
+    plugin = FakePlugin()
+
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.discover_plugins",
+        lambda plugin_type="services", auto_register=True: None,
+    )
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.get_registered_service_plugins",
+        lambda: {"worker": plugin},
+    )
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.resolve_plugin_source_path",
+        lambda _plugin: package_dir,
+    )
+
+    resolver = ServiceManifestResolver()
+
+    manifests = resolver.resolve_plugin_manifests()
+
+    assert [manifest.name for manifest in manifests] == ["worker", "worker-setup"]
+
+
+def test_resolver_skips_companion_duplicate_names(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    package_dir = tmp_path / "phlo_fake"
+    package_dir.mkdir()
+    (package_dir / "service-setup.yaml").write_text(
+        "name: worker\ndescription: Duplicate worker\nimage: duplicate\n",
+        encoding="utf-8",
+    )
+
+    class FakePlugin:
+        service_definition = {
+            "name": "worker",
+            "description": "Worker",
+            "image": "busybox",
+        }
+
+    plugin = FakePlugin()
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.discover_plugins",
+        lambda **_: None,
+    )
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.get_registered_service_plugins",
+        lambda: {"worker": plugin},
+    )
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.service_manifest.resolve_plugin_source_path",
+        lambda _plugin: package_dir,
+    )
+
+    manifests = ServiceManifestResolver().resolve_plugin_manifests()
+
+    assert [manifest.name for manifest in manifests] == ["worker"]

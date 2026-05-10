@@ -4,14 +4,48 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import yaml
 
 from phlo.plugins.discovery._service_definition import ServiceDefinition
+from phlo.plugins.discovery._service_loading import resolve_plugin_source_path
+from phlo.plugins.discovery.plugins import discover_plugins
+from phlo.plugins.discovery.registry import get_global_registry
 
 
 def _is_service_yaml(filename: str) -> bool:
     return filename == "service.yaml" or filename.endswith(("-setup.yaml", "-daemon.yaml"))
+
+
+def get_registered_service_plugins() -> dict[str, Any]:
+    registry = get_global_registry()
+    return {
+        name: plugin
+        for name in registry.list_services()
+        if (plugin := registry.get_service(name)) is not None
+    }
+
+
+def _companion_manifests(
+    source_path: Path | None,
+    existing_names: set[str],
+) -> list[ServiceManifest]:
+    if not source_path or not source_path.exists():
+        return []
+
+    manifests: list[ServiceManifest] = []
+    for yaml_path in sorted(source_path.rglob("*.yaml")):
+        if yaml_path.name == "service.yaml":
+            continue
+        if not yaml_path.name.endswith(("-setup.yaml", "-daemon.yaml")):
+            continue
+        definition = ServiceDefinition.from_yaml(yaml_path)
+        if definition.name in existing_names:
+            continue
+        existing_names.add(definition.name)
+        manifests.append(ServiceManifest(definition=definition, source_path=yaml_path))
+    return manifests
 
 
 class ServiceManifestError(ValueError):
@@ -57,6 +91,27 @@ class ServiceManifestResolver:
     """Resolve service package manifests from plugins and local service directories."""
 
     services_dir: Path | None = None
+
+    def resolve_plugin_manifests(self) -> list[ServiceManifest]:
+        discover_plugins(plugin_type="services", auto_register=True)
+        manifests: list[ServiceManifest] = []
+        names: set[str] = set()
+        for name, plugin in get_registered_service_plugins().items():
+            source_path = resolve_plugin_source_path(plugin)
+            try:
+                definition = ServiceDefinition.from_dict(plugin.service_definition, source_path)
+            except (KeyError, ValueError) as exc:
+                raise ServiceManifestError(
+                    "invalid plugin service definition",
+                    service_name=name,
+                    source_path=source_path,
+                ) from exc
+            if definition.name in names:
+                continue
+            names.add(definition.name)
+            manifests.append(ServiceManifest(definition=definition, source_path=source_path))
+            manifests.extend(_companion_manifests(source_path, names))
+        return manifests
 
     def resolve_directory_manifests(self) -> list[ServiceManifest]:
         if not self.services_dir or not self.services_dir.exists():
