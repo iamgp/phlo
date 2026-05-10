@@ -15,18 +15,14 @@ import re
 import socket
 import subprocess
 import sys
-import threading
-import time
-from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import quote
-from uuid import uuid4
 
 from fastapi import APIRouter
 from fastapi import HTTPException
 from pydantic import BaseModel
 
 from phlo_api.observatory_api.v2_actions import execute_v2_action
+from phlo_api.observatory_api.v2_cache import ReadModelCache
 from phlo_api.observatory_api.v2_capabilities import build_capability_inventory
 from phlo_api.observatory_api.v2_catalog import load_catalog_items
 from phlo_api.observatory_api.v2_governance import load_governance_items
@@ -78,6 +74,15 @@ from phlo_api.observatory_api.v2_metadata import safe_metadata as _safe_metadata
 from phlo_api.observatory_api.v2_observability import load_observability_items
 from phlo_api.observatory_api.v2_products import load_api_items, load_bi_items
 from phlo_api.observatory_api.v2_runs import load_runs
+from phlo_api.observatory_api.v2_saved_queries import (
+    dedupe_saved_queries as _dedupe_saved_queries_impl,
+    load_saved_queries as _load_saved_queries_impl,
+    save_query as _save_query_impl,
+    validate_saved_query_sql as _validate_saved_query_sql_impl,
+    write_saved_queries as _write_saved_queries_impl,
+)
+from phlo_api.observatory_api.v2_search import search_results as _search_results_impl
+from phlo_api.observatory_api.v2_services import load_services as _load_services_impl
 from phlo_api.observatory_api.v2_storage import load_storage_items
 
 router = APIRouter(tags=["observatory-v2"])
@@ -98,34 +103,16 @@ _ENV_DEFAULT_RE = re.compile(r"^\$\{[^}:]+:-(?P<default>[^}]+)\}$")
 _TABLE_LIST_METADATA_PREFIX_DENYLIST = ("phlo/compiled_sql",)
 _FAST_READ_MODEL_TTL_SECONDS = 30
 _EXPENSIVE_READ_MODEL_TTL_SECONDS = 120
-_READ_MODEL_CACHE: dict[tuple[str, str], tuple[float, Any]] = {}
-_READ_MODEL_CACHE_LOCK = threading.RLock()
+_READ_MODEL_CACHE = ReadModelCache(project_key=lambda: str(_project_root()))
 _DOCKER_SOCKET = "/var/run/docker.sock"
 
 
-def _read_model_cache_key(name: str) -> tuple[str, str]:
-    return (str(_project_root()), name)
-
-
 def _cached_read_model(name: str, ttl_seconds: float, loader: Any) -> Any:
-    key = _read_model_cache_key(name)
-    now = time.monotonic()
-
-    with _READ_MODEL_CACHE_LOCK:
-        cached = _READ_MODEL_CACHE.get(key)
-        if cached is not None:
-            expires_at, value = cached
-            if expires_at > now:
-                return value
-
-        value = loader()
-        _READ_MODEL_CACHE[key] = (time.monotonic() + ttl_seconds, value)
-        return value
+    return _READ_MODEL_CACHE.cached(name, ttl_seconds, loader)
 
 
 def _clear_read_model_cache() -> None:
-    with _READ_MODEL_CACHE_LOCK:
-        _READ_MODEL_CACHE.clear()
+    _READ_MODEL_CACHE.clear()
 
 
 class V2ServiceList(BaseModel):
@@ -625,56 +612,7 @@ def _service_config_from_definition(service: Any) -> list[V2ServiceConfigEntry]:
 
 
 def _load_services() -> list[V2Service]:
-    """Load services through core discovery, falling back deterministically."""
-    try:
-        from phlo.plugins.discovery import ServiceDiscovery
-
-        discovered = ServiceDiscovery().discover().values()
-    except Exception:
-        discovered = []
-
-    services: list[V2Service] = []
-    containers = _load_docker_containers()
-    discovered = list(discovered)
-    runtime_statuses = _load_docker_service_statuses({service.name for service in discovered})
-    for service in discovered:
-        in_stack = service.name in runtime_statuses
-        status, health = runtime_statuses.get(
-            service.name,
-            ("unknown", V2Health(state="unknown", message="Runtime status unavailable")),
-        )
-        services.append(
-            V2Service(
-                id=service.name,
-                name=service.name,
-                kind=service.category or "service",
-                status=status,
-                health=health,
-                definition_state="configured" if in_stack else "available",
-                runtime_state=status,
-                in_stack=in_stack,
-                disabled=bool(getattr(service, "disabled", False)),
-                profile=_coerce_str(service.profile, "") or None,
-                backend="docker" if in_stack else "unknown",
-                depends_on=list(service.depends_on or []),
-                impacts=[],
-                links=_service_links_from_definition(service),
-                metadata=_safe_metadata(
-                    {
-                        "default": bool(service.default),
-                        "profile": service.profile,
-                        "core": bool(getattr(service, "core", False)),
-                        "description": getattr(service, "description", None),
-                    }
-                ),
-            )
-        )
-
-    services.extend(
-        _runtime_services_from_containers(containers, {service.id for service in services})
-    )
-
-    return sorted(services, key=lambda item: item.id) if services else _fallback_services()
+    return _load_services_impl(_project_root(), containers=_load_docker_containers())
 
 
 def _overview_health_from_services(services: Sequence[V2Service]) -> V2Health:
@@ -1619,73 +1557,23 @@ def _row_offset(row_id: str) -> int:
 
 
 def _load_saved_queries() -> list[V2SavedQuery]:
-    path = _saved_queries_path()
-    if not path.exists():
-        return []
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return []
-    items = payload.get("items") if isinstance(payload, Mapping) else None
-    if not isinstance(items, list):
-        return []
-    queries: list[V2SavedQuery] = []
-    for item in items:
-        if isinstance(item, Mapping):
-            try:
-                queries.append(V2SavedQuery.model_validate(item))
-            except Exception:
-                continue
-    return _dedupe_saved_queries(queries)
+    return _load_saved_queries_impl(_project_root())
 
 
 def _dedupe_saved_queries(queries: list[V2SavedQuery]) -> list[V2SavedQuery]:
-    unique: dict[tuple[str, str, str], V2SavedQuery] = {}
-    for query in sorted(queries, key=lambda item: item.updated_at, reverse=True):
-        key = (
-            query.name.strip().casefold(),
-            " ".join(query.sql.split()).casefold(),
-            (query.branch or "main").strip().casefold(),
-        )
-        unique.setdefault(key, query)
-    return list(unique.values())
+    return _dedupe_saved_queries_impl(queries)
 
 
 def _write_saved_queries(queries: list[V2SavedQuery]) -> None:
-    _saved_queries_path().write_text(
-        json.dumps({"items": [query.model_dump() for query in queries]}, indent=2),
-        encoding="utf-8",
-    )
+    _write_saved_queries_impl(_project_root(), queries)
 
 
 def _save_query(request: V2SavedQueryRequest) -> V2SavedQuery:
-    if not request.name.strip():
-        raise HTTPException(status_code=400, detail="Saved query name is required.")
-    validate_error = _validate_saved_query_sql(request.sql)
-    if validate_error:
-        raise HTTPException(status_code=400, detail=validate_error)
-
-    now = datetime.now(UTC).isoformat()
-    query = V2SavedQuery(
-        id=f"query-{uuid4().hex[:12]}",
-        name=request.name.strip(),
-        sql=request.sql.strip(),
-        branch=request.branch,
-        created_at=now,
-        updated_at=now,
-        metadata=_safe_metadata(request.metadata),
-    )
-    queries = _dedupe_saved_queries([query, *_load_saved_queries()])
-    _write_saved_queries(queries[:100])
-    return query
+    return _save_query_impl(_project_root(), request)
 
 
 def _validate_saved_query_sql(sql: str) -> str | None:
-    if not sql.strip():
-        return "SQL is required."
-    if _READ_QUERY_RE.match(sql) is None:
-        return "Only read-only SELECT * FROM <known_table> [LIMIT n] queries can be saved."
-    return None
+    return _validate_saved_query_sql_impl(sql)
 
 
 def _load_stage_diff(source_table_id: str, target_table_id: str) -> V2StageDiff:
@@ -1797,87 +1685,15 @@ def _load_branch_detail(branch_name: str) -> V2BranchDetail:
 
 
 def _search_results(query: str) -> list[V2SearchResult]:
-    needle = query.strip().lower()
-    if not needle:
-        return []
-
-    results: list[V2SearchResult] = []
-    for service in _load_services():
-        haystack = " ".join([service.id, service.name, service.kind, service.status]).lower()
-        if needle in haystack:
-            results.append(
-                V2SearchResult(
-                    id=f"service:{service.id}",
-                    label=service.name,
-                    kind="service",
-                    summary=f"{service.kind} · {service.status}",
-                    href="/services",
-                )
-            )
-
-    for asset in _load_assets():
-        haystack = " ".join(
-            [asset.id, asset.name, asset.group or "", asset.description or "", *asset.kinds]
-        ).lower()
-        if needle in haystack:
-            results.append(
-                V2SearchResult(
-                    id=f"asset:{asset.id}",
-                    label=asset.name,
-                    kind="asset",
-                    summary=asset.description or asset.group,
-                    href=f"/asset/{_route_path_segment(asset.id)}",
-                )
-            )
-
-    for table in _load_tables_without_catalog():
-        haystack = " ".join(
-            [table.id, table.name, table.namespace or "", table.format or "", table.branch or ""]
-        ).lower()
-        if needle in haystack:
-            results.append(
-                V2SearchResult(
-                    id=f"table:{table.id}",
-                    label=table.namespace + "." + table.name if table.namespace else table.name,
-                    kind="table",
-                    summary=f"{table.format or 'table'} · {table.branch or 'main'}",
-                    href=f"/table/{_route_path_segment(table.id)}",
-                )
-            )
-
-    for check in _load_quality():
-        haystack = " ".join(
-            [check.id, check.name, check.asset_id, check.status, check.severity or ""]
-        ).lower()
-        if needle in haystack:
-            results.append(
-                V2SearchResult(
-                    id=f"quality:{check.id}",
-                    label=check.name,
-                    kind="quality",
-                    summary=f"{check.asset_id} · {check.status}",
-                    href="/quality",
-                )
-            )
-
-    for extension in _load_extensions():
-        haystack = " ".join([extension.id, extension.name, extension.version or ""]).lower()
-        if needle in haystack:
-            results.append(
-                V2SearchResult(
-                    id=f"extension:{extension.id}",
-                    label=extension.name,
-                    kind="extension",
-                    summary=extension.settings_scope or extension.version,
-                    href=f"/extension/{_route_path_segment(extension.id)}",
-                )
-            )
-
-    return results[:25]
-
-
-def _route_path_segment(resource_id: str) -> str:
-    return quote(resource_id, safe="")
+    return _search_results_impl(
+        query=query,
+        services=_load_services(),
+        assets=_load_assets(),
+        tables=_load_tables_without_catalog(),
+        operations=_load_operations(),
+        quality=_load_quality(),
+        extensions=_load_extensions(),
+    )
 
 
 def _load_extension_detail(extension_id: str) -> V2ExtensionDetail:
