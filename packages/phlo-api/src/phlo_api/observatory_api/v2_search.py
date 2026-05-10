@@ -75,7 +75,9 @@ def search_results(
             )
 
     for operation in operations:
-        haystack = " ".join([operation.id, operation.name, operation.kind, operation.status]).lower()
+        haystack = " ".join(
+            [operation.id, operation.name, operation.kind, operation.status]
+        ).lower()
         if needle in haystack:
             results.append(
                 V2SearchResult(

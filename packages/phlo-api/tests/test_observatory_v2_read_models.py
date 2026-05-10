@@ -35,9 +35,7 @@ def test_read_model_cache_clear_removes_values() -> None:
 
 
 def test_docker_status_from_running_container() -> None:
-    status, health = docker_status_from_container(
-        {"State": "running", "Status": "Up 10 seconds"}
-    )
+    status, health = docker_status_from_container({"State": "running", "Status": "Up 10 seconds"})
 
     assert status == "running"
     assert health.state == "unknown"
