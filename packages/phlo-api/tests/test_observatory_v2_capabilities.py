@@ -174,6 +174,7 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
     assert list(requirements) == [
         "overview",
         "data",
+        "workflows",
         "assets",
         "issues",
         "quality",

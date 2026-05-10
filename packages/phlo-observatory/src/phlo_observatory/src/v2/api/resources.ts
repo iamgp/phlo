@@ -32,6 +32,10 @@ import type {
   V2SurfaceItem,
   V2Table,
   V2TablePreview,
+  V2WorkflowActionResult,
+  V2WorkflowProposal,
+  V2WorkflowProposalRequest,
+  V2WorkflowWizardPayload,
 } from './types'
 import { apiGet, apiPost } from '@/server/phlo-api'
 
@@ -572,6 +576,57 @@ export const runV2BranchAction = createServerFn()
         return { data, error: null }
       } catch (error) {
         return apiUnavailable<V2ActionResult>(error)
+      }
+    },
+  )
+
+export const getV2WorkflowWizard = createServerFn().handler(
+  async (): Promise<V2ResourceResult<V2WorkflowWizardPayload>> => {
+    try {
+      const data = await apiGet<V2WorkflowWizardPayload>(
+        `${V2_API_PREFIX}/workflow-wizard`,
+        undefined,
+        8000,
+      )
+      return { data, error: null }
+    } catch (error) {
+      return apiUnavailable<V2WorkflowWizardPayload>(error)
+    }
+  },
+)
+
+export const createV2WorkflowProposal = createServerFn()
+  .inputValidator((input: V2WorkflowProposalRequest) => input)
+  .handler(async ({ data }): Promise<V2ResourceResult<V2WorkflowProposal>> => {
+    try {
+      const proposal = await apiPost<V2WorkflowProposal>(
+        `${V2_API_PREFIX}/workflow-wizard/proposals`,
+        data,
+        12000,
+      )
+      return { data: proposal, error: null }
+    } catch (error) {
+      return apiUnavailable<V2WorkflowProposal>(error)
+    }
+  })
+
+export const runV2WorkflowAction = createServerFn()
+  .inputValidator(
+    (input: { actionId: string; proposal: V2WorkflowProposal }) => input,
+  )
+  .handler(
+    async ({
+      data: { actionId, proposal },
+    }): Promise<V2ResourceResult<V2WorkflowActionResult>> => {
+      try {
+        const result = await apiPost<V2WorkflowActionResult>(
+          `${V2_API_PREFIX}/workflow-wizard/actions`,
+          { action_id: actionId, proposal },
+          12000,
+        )
+        return { data: result, error: null }
+      } catch (error) {
+        return apiUnavailable<V2WorkflowActionResult>(error)
       }
     },
   )

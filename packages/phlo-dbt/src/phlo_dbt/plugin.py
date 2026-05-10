@@ -22,6 +22,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from phlo.capabilities import (
+    WorkflowContributionMode,
+    WorkflowWizardContribution,
+    WorkflowWizardField,
+)
 from phlo.capabilities.specs import AssetSpec
 from phlo.plugins.base import (
     AssetProviderPlugin,
@@ -30,6 +35,105 @@ from phlo.plugins.base import (
 )
 
 from phlo_dbt.assets import build_dbt_asset_specs
+
+
+def get_workflow_wizard_contributions() -> list[WorkflowWizardContribution]:
+    """Return provider-neutral workflow wizard contributions for dbt."""
+
+    return [
+        WorkflowWizardContribution(
+            id="dbt.initialize-project",
+            package="phlo-dbt",
+            stage="transform",
+            label="Initialize dbt project",
+            description="Create a Phlo-compatible dbt project scaffold if one is missing.",
+            required_capabilities=["query_engine"],
+            fields=[
+                WorkflowWizardField(
+                    name="project_name",
+                    label="Project name",
+                    required=True,
+                    description="dbt project name to write into dbt_project.yml.",
+                )
+            ],
+            modes={WorkflowContributionMode.PROPOSAL, WorkflowContributionMode.APPLY},
+            metadata={"generator": "phlo_dbt.scaffold.write_dbt_scaffold"},
+        ),
+        WorkflowWizardContribution(
+            id="dbt.basic-model",
+            package="phlo-dbt",
+            stage="transform",
+            label="Create staging model",
+            description="Create a basic dbt staging model from the selected source table.",
+            required_capabilities=["query_engine"],
+            fields=[
+                WorkflowWizardField(
+                    name="model_name",
+                    label="Model name",
+                    required=True,
+                    description="Name for the generated dbt model.",
+                ),
+                WorkflowWizardField(
+                    name="source_relation",
+                    label="Source relation",
+                    required=False,
+                    description="Optional source relation used in the SQL skeleton.",
+                ),
+            ],
+            modes={WorkflowContributionMode.PROPOSAL, WorkflowContributionMode.APPLY},
+            metadata={"generator": "phlo-api workflow wizard dbt model scaffold"},
+        ),
+        WorkflowWizardContribution(
+            id="dbt.source-yml",
+            package="phlo-dbt",
+            stage="transform",
+            label="Create dbt source metadata",
+            description="Create source.yml metadata for the selected raw relation.",
+            required_capabilities=["query_engine"],
+            fields=[
+                WorkflowWizardField(
+                    name="source_name",
+                    label="Source name",
+                    required=True,
+                    description="dbt source name, usually raw.",
+                    default="raw",
+                ),
+                WorkflowWizardField(
+                    name="table_name",
+                    label="Table name",
+                    required=True,
+                    description="Source table exposed to dbt.",
+                ),
+            ],
+            modes={WorkflowContributionMode.PROPOSAL, WorkflowContributionMode.APPLY},
+            metadata={"generator": "phlo-api workflow wizard dbt source scaffold"},
+        ),
+        WorkflowWizardContribution(
+            id="dbt.schema-tests",
+            package="phlo-dbt",
+            stage="transform",
+            label="Add model tests",
+            description="Create schema.yml tests and model docs for the staging model.",
+            required_capabilities=["query_engine"],
+            fields=[
+                WorkflowWizardField(
+                    name="model_name",
+                    label="Model name",
+                    required=True,
+                    description="dbt model to document and test.",
+                ),
+                WorkflowWizardField(
+                    name="unique_key",
+                    label="Unique key",
+                    required=True,
+                    description="Column that should be unique and not null.",
+                    default="id",
+                ),
+            ],
+            modes={WorkflowContributionMode.PROPOSAL, WorkflowContributionMode.APPLY},
+            metadata={"generator": "phlo-api workflow wizard dbt tests scaffold"},
+        ),
+    ]
 
 
 class DbtAssetProvider(AssetProviderPlugin):
