@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from importlib.util import find_spec
+
 from fastapi.testclient import TestClient
 
 from phlo_api.main import app
@@ -14,7 +16,8 @@ def test_workflow_wizard_lists_package_contributions() -> None:
     assert response.status_code == 200
     payload = response.json()
     ids = [item["id"] for item in payload["contributions"]]
-    assert "dlt.rest-api-source" in ids
+    if find_spec("phlo_dlt") is not None:
+        assert "dlt.rest-api-source" in ids
     assert "sling.replication-source" in ids
     assert "dbt.transform" in ids
     assert "pandera.quality-checks" in ids

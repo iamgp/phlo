@@ -12,11 +12,6 @@ import { WandSparkles } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, ReactNode } from 'react'
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import type {
   V2ResourceResult,
   V2WorkflowApplyAction,
@@ -26,6 +21,11 @@ import type {
   V2WorkflowWizardField,
   V2WorkflowWizardPayload,
 } from '@/v2/api/types'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   createV2WorkflowProposal,
   getV2WorkflowWizard,
