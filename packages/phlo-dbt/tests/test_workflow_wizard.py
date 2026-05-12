@@ -7,16 +7,16 @@ def test_dbt_contributes_transform_wizard_options() -> None:
 
     ids = [contribution.id for contribution in contributions]
 
-    assert ids == [
-        "dbt.initialize-project",
-        "dbt.basic-model",
-        "dbt.source-yml",
-        "dbt.schema-tests",
-    ]
+    assert ids == ["dbt.transform"]
     assert all(contribution.stage == "transform" for contribution in contributions)
     assert all(
         WorkflowContributionMode.PROPOSAL in contribution.modes for contribution in contributions
     )
-    assert "model_name" in [field.name for field in contributions[1].fields]
-    assert "source_name" in [field.name for field in contributions[2].fields]
-    assert "unique_key" in [field.name for field in contributions[3].fields]
+    fields = [field.name for field in contributions[0].fields]
+    assert "project_name" in fields
+    assert "staging_model_name" in fields
+    assert "renames" in fields
+    assert "casts" in fields
+    assert "where" in fields
+    assert "partition_by" in fields
+    assert "metrics" in fields

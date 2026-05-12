@@ -27,6 +27,9 @@ const config = defineConfig({
       protocol: 'ws',
     },
   },
+  ssr: {
+    noExternal: ['@primer/react'],
+  },
   plugins: [
     devtools(),
     nitro(),

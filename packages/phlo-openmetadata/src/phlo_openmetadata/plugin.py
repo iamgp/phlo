@@ -14,7 +14,71 @@ Example:
 
 from __future__ import annotations
 
+from phlo.capabilities import (
+    WorkflowContributionMode,
+    WorkflowWizardContribution,
+    WorkflowWizardField,
+)
 from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
+
+
+def get_workflow_wizard_contributions() -> list[WorkflowWizardContribution]:
+    """Return provider-neutral workflow wizard contributions for OpenMetadata."""
+
+    return [
+        WorkflowWizardContribution(
+            id="openmetadata.catalog",
+            package="phlo-openmetadata",
+            stage="publish",
+            label="OpenMetadata catalog",
+            description="Create catalog metadata for generated tables, owners, tags, and lineage handoff.",
+            required_capabilities=["metadata_catalog"],
+            fields=[
+                WorkflowWizardField(
+                    name="service_name",
+                    label="Service name",
+                    required=True,
+                    default="phlo",
+                    description="OpenMetadata service that owns the generated table.",
+                ),
+                WorkflowWizardField(
+                    name="database",
+                    label="Database",
+                    required=True,
+                    default="warehouse",
+                    description="Catalog database name.",
+                ),
+                WorkflowWizardField(
+                    name="schema",
+                    label="Schema",
+                    required=True,
+                    description="Catalog schema or namespace.",
+                ),
+                WorkflowWizardField(
+                    name="owner",
+                    label="Owner",
+                    required=False,
+                    description="Team or user owner to assign.",
+                ),
+                WorkflowWizardField(
+                    name="tags",
+                    label="Tags",
+                    field_type="fields",
+                    required=False,
+                    description="One tag per line.",
+                ),
+                WorkflowWizardField(
+                    name="description",
+                    label="Description",
+                    field_type="textarea",
+                    required=False,
+                    description="Human-readable catalog description.",
+                ),
+            ],
+            modes={WorkflowContributionMode.PROPOSAL, WorkflowContributionMode.APPLY},
+            metadata={"generator": "phlo-api workflow wizard OpenMetadata scaffold"},
+        )
+    ]
 
 
 class OpenMetadataServicePlugin(PackageYamlServicePlugin):

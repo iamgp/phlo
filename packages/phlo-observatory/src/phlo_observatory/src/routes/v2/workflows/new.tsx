@@ -1,11 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Check, CheckCircle2, FileCode2, WandSparkles } from 'lucide-react'
+import { Button, IconButton } from '@primer/react'
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CheckCircleIcon,
+  FileCodeIcon,
+  PlusIcon,
+  TrashIcon,
+} from '@primer/octicons-react'
+import { WandSparkles } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, ReactNode } from 'react'
 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import type {
   V2ResourceResult,
   V2WorkflowApplyAction,
+  V2WorkflowGraph,
   V2WorkflowProposal,
   V2WorkflowWizardContribution,
   V2WorkflowWizardField,
@@ -20,10 +35,23 @@ import { V2Page } from '@/v2/components/V2Page'
 import { loadCachedResource } from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/workflows/new')({
-  component: WorkflowWizard,
+  component: WorkflowCanvasBuilder,
 })
 
+type WorkflowNodeData = {
+  contributionId: string
+  description: string
+  label: string
+  packageName: string
+  stage: 'source' | 'transform' | 'quality' | 'publish'
+}
+
+type WorkflowNode = {
+  id: string
+  data: WorkflowNodeData
+}
 type FormValues = Record<string, Record<string, string>>
+type WizardStep = 'info' | 'graph' | 'proposal'
 
 const STAGE_LABELS: Record<string, string> = {
   source: 'Source',
@@ -32,14 +60,44 @@ const STAGE_LABELS: Record<string, string> = {
   publish: 'Publish',
 }
 
-function WorkflowWizard() {
+const WORKFLOW_STEPS: Array<{
+  id: WizardStep
+  label: string
+  description: string
+}> = [
+  {
+    id: 'info',
+    label: 'Workflow info',
+    description: 'Name and domain',
+  },
+  {
+    id: 'graph',
+    label: 'Build graph',
+    description: 'Pipeline nodes',
+  },
+  {
+    id: 'proposal',
+    label: 'Review proposal',
+    description: 'Files and apply action',
+  },
+]
+
+function WorkflowCanvasBuilder() {
   const [wizard, setWizard] = useState<
     V2ResourceResult<V2WorkflowWizardPayload>
-  >({ data: null, error: null })
-  const [selected, setSelected] = useState<Record<string, Array<string>>>({})
+  >({
+    data: null,
+    error: null,
+  })
+  const [nodes, setNodes] = useState<Array<WorkflowNode>>([])
   const [values, setValues] = useState<FormValues>({})
-  const [workflowName, setWorkflowName] = useState('customer_health')
-  const [domain, setDomain] = useState('customers')
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const [insertIndex, setInsertIndex] = useState<number | null>(null)
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [workflowName, setWorkflowName] = useState('recipe_catalog')
+  const [domain, setDomain] = useState('recipes')
+  const [activeStep, setActiveStep] = useState<WizardStep>('info')
   const [proposal, setProposal] = useState<
     V2ResourceResult<V2WorkflowProposal>
   >({
@@ -48,6 +106,9 @@ function WorkflowWizard() {
   })
   const [proposalLoading, setProposalLoading] = useState(false)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const activeStepIndex = WORKFLOW_STEPS.findIndex(
+    (step) => step.id === activeStep,
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -58,15 +119,11 @@ function WorkflowWizard() {
       if (cancelled) return
       setWizard(next)
       const contributions = next.data?.contributions ?? []
-      const source = contributions.find((item) => item.stage === 'source')
-      const transforms = contributions
-        .filter((item) => item.stage === 'transform')
-        .map((item) => item.id)
-      setSelected({
-        ...(source ? { source: [source.id] } : {}),
-        ...(transforms.length ? { transform: transforms } : {}),
-      })
-      setValues(defaultValues(contributions))
+      const starterNodes = starterGraph(contributions).nodes
+      setNodes(starterNodes)
+      setValues(starterValues(contributions, starterNodes))
+      setSelectedNodeId(starterNodes[0]?.id ?? null)
+      setInsertIndex(starterNodes.length)
     })
     return () => {
       cancelled = true
@@ -74,38 +131,107 @@ function WorkflowWizard() {
   }, [])
 
   const contributions = wizard.data?.contributions ?? []
-  const byStage = useMemo(() => groupByStage(contributions), [contributions])
+  const contributionById = useMemo(
+    () => new Map(contributions.map((item) => [item.id, item])),
+    [contributions],
+  )
+  const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null
+  const selectedContribution = selectedNode
+    ? contributionById.get(selectedNode.data.contributionId)
+    : null
 
-  function updateField(contributionId: string, field: string, value: string) {
+  function addContribution(contribution: V2WorkflowWizardContribution) {
+    const nodeId = `${contribution.id}-${crypto.randomUUID()}`
+    const node = toCanvasNode(contribution, nodeId)
+    setNodes((current) => {
+      const next = [...current]
+      const targetIndex =
+        insertIndex === null
+          ? current.length
+          : Math.max(0, Math.min(insertIndex, current.length))
+      next.splice(targetIndex, 0, node)
+      setInsertIndex(targetIndex + 1)
+      return next
+    })
     setValues((current) => ({
       ...current,
-      [contributionId]: {
-        ...(current[contributionId] ?? {}),
+      [nodeId]: defaultsForContribution(contribution),
+    }))
+    setSelectedNodeId(nodeId)
+    setInspectorOpen(true)
+    setAddMenuOpen(false)
+  }
+
+  function removeNode(nodeId: string) {
+    setNodes((current) => {
+      const next = current.filter((node) => node.id !== nodeId)
+      setInsertIndex(Math.min(insertIndex ?? next.length, next.length))
+      return next
+    })
+    setValues((current) => {
+      const next = { ...current }
+      delete next[nodeId]
+      return next
+    })
+    if (selectedNodeId === nodeId) {
+      setSelectedNodeId(null)
+      setInspectorOpen(false)
+    }
+  }
+
+  function moveNode(nodeId: string, direction: -1 | 1) {
+    setNodes((current) => {
+      const index = current.findIndex((node) => node.id === nodeId)
+      const target = index + direction
+      if (index < 0 || target < 0 || target >= current.length) return current
+      const next = [...current]
+      const [node] = next.splice(index, 1)
+      next.splice(target, 0, node)
+      setInsertIndex(target + 1)
+      return next
+    })
+  }
+
+  function updateNodeField(nodeId: string, field: string, value: string) {
+    setValues((current) => ({
+      ...current,
+      [nodeId]: {
+        ...(current[nodeId] ?? {}),
         [field]: value,
       },
     }))
   }
 
-  function buildRequest() {
-    const selections: Record<
-      string,
-      Array<{ contribution_id: string; values: Record<string, string> }>
-    > = {}
-    for (const [stage, contributionIds] of Object.entries(selected)) {
-      const entries = contributionIds.filter(Boolean).map((contributionId) => ({
-        contribution_id: contributionId,
-        values: values[contributionId] ?? {},
-      }))
-      if (entries.length) selections[stage] = entries
+  function buildGraph(): V2WorkflowGraph {
+    return {
+      nodes: nodes.map((node) => ({
+        id: node.id,
+        contribution_id: node.data.contributionId,
+        stage: node.data.stage,
+        values: values[node.id] ?? {},
+      })),
+      edges: nodes.slice(0, -1).map((node, index) => ({
+        id: `${node.id}-${nodes[index + 1].id}`,
+        source: node.id,
+        target: nodes[index + 1].id,
+      })),
     }
-    return { workflow_name: workflowName, domain, selections }
   }
 
   function generateProposal() {
     setActionMessage(null)
     setProposalLoading(true)
-    void createV2WorkflowProposal({ data: buildRequest() })
-      .then(setProposal)
+    void createV2WorkflowProposal({
+      data: {
+        workflow_name: workflowName,
+        domain,
+        graph: buildGraph(),
+      },
+    })
+      .then((next) => {
+        setProposal(next)
+        setActiveStep('proposal')
+      })
       .finally(() => setProposalLoading(false))
   }
 
@@ -122,89 +248,136 @@ function WorkflowWizard() {
 
   return (
     <V2Page
-      action={<span className="phlo-v2-pill">proposal first</span>}
-      description="Compose a complete workflow from package-provided source and transform steps, preview generated files, then apply guarded actions."
+      description="Compose package-provided workflow nodes, configure each step, preview generated files, then apply guarded actions."
       kicker="Workflows"
-      title="New workflow wizard"
+      title="New workflow"
     >
-      <section
-        className="phlo-v2-diff-metrics phlo-workflow-summary"
-        aria-label="Wizard summary"
-      >
-        <Metric label="Contributions" value={contributions.length} />
-        <Metric label="Stages" value={wizard.data?.stages.length ?? 0} />
-        <Metric
-          label="Files previewed"
-          value={proposal.data?.files.length ?? 0}
-        />
-      </section>
-
       {wizard.error && <div className="phlo-v2-callout">{wizard.error}</div>}
 
-      <section className="phlo-workflow-shell">
-        <div className="phlo-workflow-main">
-          <div className="phlo-v2-panel phlo-workflow-card">
-            <div className="phlo-v2-panel-header phlo-workflow-card-header">
-              <div>
-                <h2>Workflow identity</h2>
-                <p>
-                  Name the workflow and choose the domain used for generated
-                  files.
-                </p>
-              </div>
-              <WandSparkles className="size-4" aria-hidden />
-            </div>
-            <div className="phlo-workflow-form-grid phlo-workflow-form-grid--identity">
-              <label className="phlo-workflow-field">
-                <span>Workflow name</span>
-                <input
-                  className="phlo-workflow-input"
-                  onChange={(event) => setWorkflowName(event.target.value)}
-                  value={workflowName}
-                />
-              </label>
-              <label className="phlo-workflow-field">
-                <span>Domain</span>
-                <input
-                  className="phlo-workflow-input"
-                  onChange={(event) => setDomain(event.target.value)}
-                  value={domain}
-                />
-              </label>
-            </div>
-          </div>
-
-          {['source', 'transform', 'quality', 'publish'].map((stage) => (
-            <StagePanel
-              contributions={byStage[stage] ?? []}
-              key={stage}
-              onFieldChange={updateField}
-              onSelect={(id) =>
-                setSelected((current) => ({
-                  ...current,
-                  [stage]: toggleStageSelection(
-                    stage,
-                    current[stage] ?? [],
-                    id,
-                  ),
-                }))
-              }
-              selectedIds={selected[stage] ?? []}
-              stage={stage}
-              values={values}
-            />
-          ))}
-
-          <button
-            className="phlo-v2-primary-button phlo-workflow-generate"
-            disabled={proposalLoading}
-            onClick={generateProposal}
+      <nav className="phlo-workflow-stepper" aria-label="Workflow wizard steps">
+        {WORKFLOW_STEPS.map((step, index) => (
+          <Button
+            alignContent="start"
+            block
+            className="phlo-workflow-step"
+            data-active={activeStep === step.id}
+            data-complete={index < activeStepIndex}
+            key={step.id}
+            onClick={() => setActiveStep(step.id)}
+            type="button"
           >
-            {proposalLoading ? 'Generating proposal...' : 'Generate proposal'}
-          </button>
-        </div>
+            <span className="phlo-workflow-step-index">{index + 1}</span>
+            <span className="phlo-workflow-step-copy">
+              <strong>{step.label}</strong>
+              <em>{step.description}</em>
+            </span>
+          </Button>
+        ))}
+      </nav>
 
-        <aside className="phlo-workflow-review">
+      {activeStep === 'info' && (
+        <section className="phlo-v2-panel phlo-workflow-step-panel">
+          <div className="phlo-v2-panel-header phlo-workflow-card-header">
+            <div>
+              <h2>Workflow info</h2>
+              <p>Set the workflow identity before arranging package nodes.</p>
+            </div>
+            <WandSparkles className="size-4" aria-hidden />
+          </div>
+          <div className="phlo-workflow-info-grid">
+            <label>
+              <span>Workflow</span>
+              <input
+                className="phlo-workflow-input"
+                onChange={(event) => setWorkflowName(event.target.value)}
+                value={workflowName}
+              />
+            </label>
+            <label>
+              <span>Domain</span>
+              <input
+                className="phlo-workflow-input"
+                onChange={(event) => setDomain(event.target.value)}
+                value={domain}
+              />
+            </label>
+          </div>
+          <div className="phlo-workflow-step-actions">
+            <Button
+              className="phlo-workflow-action"
+              onClick={() => setActiveStep('graph')}
+              type="button"
+              variant="primary"
+            >
+              Continue to graph
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {activeStep === 'graph' && (
+        <section className="phlo-workflow-graph-step">
+          <div
+            className="phlo-workflow-canvas-main"
+            data-inspector-open={Boolean(
+              inspectorOpen && selectedNode && selectedContribution,
+            )}
+          >
+            <div className="phlo-workflow-canvas-toolbar">
+              <Button
+                className="phlo-workflow-action"
+                disabled={proposalLoading}
+                leadingVisual={FileCodeIcon}
+                onClick={generateProposal}
+                type="button"
+                variant="primary"
+              >
+                {proposalLoading ? 'Generating...' : 'Generate proposal'}
+              </Button>
+            </div>
+            <PipelineLane
+              addMenuOpen={addMenuOpen}
+              contributions={contributions}
+              insertIndex={insertIndex ?? nodes.length}
+              nodes={nodes}
+              onAddContribution={addContribution}
+              onCloseAddMenu={() => setAddMenuOpen(false)}
+              onMoveNode={moveNode}
+              onRemoveNode={removeNode}
+              onSelectInsert={(index) => {
+                setInsertIndex(index)
+                setAddMenuOpen(true)
+              }}
+              onSelectNode={(nodeId) => {
+                setSelectedNodeId(nodeId)
+                setInspectorOpen(true)
+              }}
+              selectedNodeId={selectedNodeId}
+            />
+            {inspectorOpen && selectedNode && selectedContribution ? (
+              <aside className="phlo-workflow-inspector">
+                <Button
+                  className="phlo-workflow-inspector-close"
+                  onClick={() => setInspectorOpen(false)}
+                  size="small"
+                  type="button"
+                >
+                  Close
+                </Button>
+                <Inspector
+                  contribution={selectedContribution}
+                  node={selectedNode}
+                  onChange={updateNodeField}
+                  values={selectedNode ? (values[selectedNode.id] ?? {}) : {}}
+                />
+              </aside>
+            ) : null}
+          </div>
+        </section>
+      )}
+
+      {activeStep === 'proposal' && (
+        <section className="phlo-workflow-proposal-step">
           <ReviewPanel
             actionMessage={actionMessage}
             loading={proposalLoading}
@@ -212,100 +385,330 @@ function WorkflowWizard() {
             onRunAction={runAction}
             proposal={proposal}
           />
-        </aside>
-      </section>
+        </section>
+      )}
     </V2Page>
   )
 }
 
-function StagePanel({
-  stage,
+function PipelineLane({
+  nodes,
   contributions,
-  selectedIds,
-  values,
-  onSelect,
-  onFieldChange,
+  insertIndex,
+  addMenuOpen,
+  selectedNodeId,
+  onAddContribution,
+  onCloseAddMenu,
+  onMoveNode,
+  onRemoveNode,
+  onSelectInsert,
+  onSelectNode,
 }: {
-  stage: string
+  nodes: Array<WorkflowNode>
   contributions: Array<V2WorkflowWizardContribution>
-  selectedIds: Array<string>
-  values: FormValues
-  onSelect: (id: string) => void
-  onFieldChange: (contributionId: string, field: string, value: string) => void
+  insertIndex: number
+  addMenuOpen: boolean
+  selectedNodeId: string | null
+  onAddContribution: (contribution: V2WorkflowWizardContribution) => void
+  onCloseAddMenu: () => void
+  onMoveNode: (nodeId: string, direction: -1 | 1) => void
+  onRemoveNode: (nodeId: string) => void
+  onSelectInsert: (index: number) => void
+  onSelectNode: (nodeId: string) => void
 }) {
-  const selected = contributions.filter((item) => selectedIds.includes(item.id))
+  const groupedContributions = useMemo(
+    () =>
+      (['source', 'transform', 'quality', 'publish'] as const).map((stage) => ({
+        stage,
+        items: contributions.filter((item) => item.stage === stage),
+      })),
+    [contributions],
+  )
 
   return (
-    <section className="phlo-v2-panel phlo-workflow-card">
-      <div className="phlo-v2-panel-header phlo-workflow-card-header">
-        <div>
-          <h2>{STAGE_LABELS[stage]}</h2>
-          <p>{stageDescription(stage)}</p>
-        </div>
-        <span className="phlo-v2-pill">{contributions.length} options</span>
-      </div>
-      {contributions.length === 0 ? (
-        <div className="phlo-workflow-empty-stage">
-          <div>No contribution available</div>
-          <p>This stage can be skipped in the first workflow wizard slice.</p>
-        </div>
-      ) : (
-        <div className="phlo-workflow-options">
-          {contributions.map((contribution) => (
-            <button
-              className="phlo-workflow-option"
-              data-selected={selectedIds.includes(contribution.id)}
-              key={contribution.id}
-              onClick={() => onSelect(contribution.id)}
-            >
-              <span className="phlo-workflow-check" aria-hidden>
-                {selectedIds.includes(contribution.id) ? (
-                  <Check className="size-3" />
-                ) : null}
-              </span>
-              <div>
-                <strong>{contribution.label}</strong>
-                <p>{contribution.description}</p>
-              </div>
-              <span>{contribution.package}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {selected.map((contribution) => (
-        <div className="phlo-workflow-form-grid" key={contribution.id}>
-          {contribution.fields.map((field) => (
-            <DynamicField
-              contributionId={contribution.id}
-              field={field}
-              key={field.name}
-              onChange={onFieldChange}
-              value={values[contribution.id]?.[field.name] ?? ''}
+    <div className="phlo-workflow-canvas">
+      <div className="phlo-workflow-lane" aria-label="Workflow pipeline">
+        <InsertPoint
+          active={insertIndex === 0}
+          index={0}
+          onOpenChange={(open) => {
+            if (!open) onCloseAddMenu()
+          }}
+          onSelect={onSelectInsert}
+        >
+          {addMenuOpen && insertIndex === 0 ? (
+            <AddStepMenu
+              groupedContributions={groupedContributions}
+              insertIndex={insertIndex}
+              onAddContribution={onAddContribution}
+              onCloseAddMenu={onCloseAddMenu}
             />
-          ))}
+          ) : null}
+        </InsertPoint>
+        {nodes.map((node, index) => (
+          <div className="phlo-workflow-lane-item" key={node.id}>
+            <PipelineNode
+              isFirst={index === 0}
+              isLast={index === nodes.length - 1}
+              node={node}
+              onMoveNode={onMoveNode}
+              onRemoveNode={onRemoveNode}
+              onSelectNode={onSelectNode}
+              selected={selectedNodeId === node.id}
+            />
+            <InsertPoint
+              active={insertIndex === index + 1}
+              index={index + 1}
+              onOpenChange={(open) => {
+                if (!open) onCloseAddMenu()
+              }}
+              onSelect={onSelectInsert}
+            >
+              {addMenuOpen && insertIndex === index + 1 ? (
+                <AddStepMenu
+                  groupedContributions={groupedContributions}
+                  insertIndex={insertIndex}
+                  onAddContribution={onAddContribution}
+                  onCloseAddMenu={onCloseAddMenu}
+                />
+              ) : null}
+            </InsertPoint>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function AddStepMenu({
+  groupedContributions,
+  insertIndex,
+  onAddContribution,
+  onCloseAddMenu,
+}: {
+  groupedContributions: Array<{
+    stage: 'source' | 'transform' | 'quality' | 'publish'
+    items: Array<V2WorkflowWizardContribution>
+  }>
+  insertIndex: number
+  onAddContribution: (contribution: V2WorkflowWizardContribution) => void
+  onCloseAddMenu: () => void
+}) {
+  return (
+    <div className="phlo-workflow-add-menu-surface">
+      <div className="phlo-workflow-add-menu-header">
+        <div>
+          <h2>Add workflow step</h2>
+          <p>Step will be inserted at position {insertIndex + 1}.</p>
         </div>
-      ))}
-    </section>
+        <Button onClick={onCloseAddMenu} size="small" type="button">
+          Close
+        </Button>
+      </div>
+      <div className="phlo-workflow-add-menu-list">
+        {groupedContributions.map((group) =>
+          group.items.length ? (
+            <section key={group.stage}>
+              <h3>{STAGE_LABELS[group.stage]}</h3>
+              {group.items.map((contribution) => (
+                <Button
+                  className="phlo-workflow-add-option"
+                  key={contribution.id}
+                  onClick={() => onAddContribution(contribution)}
+                  type="button"
+                >
+                  <PlusIcon size={16} />
+                  <span>
+                    <strong>{contribution.label}</strong>
+                    <em>{contribution.package}</em>
+                  </span>
+                </Button>
+              ))}
+            </section>
+          ) : null,
+        )}
+      </div>
+    </div>
+  )
+}
+
+function InsertPoint({
+  active,
+  children,
+  index,
+  onOpenChange,
+  onSelect,
+}: {
+  active: boolean
+  children?: ReactNode
+  index: number
+  onOpenChange: (open: boolean) => void
+  onSelect: (index: number) => void
+}) {
+  return (
+    <Popover
+      modal={false}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onOpenChange(false)
+      }}
+    >
+      <div className="phlo-workflow-insert-point" data-active={active}>
+        <PopoverTrigger
+          aria-label={`Add workflow step at position ${index + 1}`}
+          onClick={() => onSelect(index)}
+          type="button"
+        >
+          <span />
+          <em>+</em>
+          <span />
+        </PopoverTrigger>
+        {active && children ? (
+          <PopoverContent
+            align="center"
+            className="phlo-workflow-add-menu"
+            side="right"
+            sideOffset={18}
+          >
+            {children}
+          </PopoverContent>
+        ) : null}
+      </div>
+    </Popover>
+  )
+}
+
+function PipelineNode({
+  node,
+  selected,
+  isFirst,
+  isLast,
+  onMoveNode,
+  onRemoveNode,
+  onSelectNode,
+}: {
+  node: WorkflowNode
+  selected: boolean
+  isFirst: boolean
+  isLast: boolean
+  onMoveNode: (nodeId: string, direction: -1 | 1) => void
+  onRemoveNode: (nodeId: string) => void
+  onSelectNode: (nodeId: string) => void
+}) {
+  return (
+    <article className="phlo-workflow-canvas-node" data-selected={selected}>
+      <button
+        className="phlo-workflow-node-select"
+        onClick={() => onSelectNode(node.id)}
+        type="button"
+      >
+        <span>{STAGE_LABELS[node.data.stage]}</span>
+        <strong>{node.data.label}</strong>
+        <p>{node.data.description}</p>
+      </button>
+      <div className="phlo-workflow-node-footer">
+        <em>{node.data.packageName}</em>
+        <div className="phlo-workflow-node-actions">
+          <IconButton
+            aria-label="Move node up"
+            className="phlo-workflow-node-action"
+            disabled={isFirst}
+            icon={ArrowUpIcon}
+            onClick={() => onMoveNode(node.id, -1)}
+            size="small"
+            title="Move up"
+            type="button"
+            variant="invisible"
+          />
+          <IconButton
+            aria-label="Move node down"
+            className="phlo-workflow-node-action"
+            disabled={isLast}
+            icon={ArrowDownIcon}
+            onClick={() => onMoveNode(node.id, 1)}
+            size="small"
+            title="Move down"
+            type="button"
+            variant="invisible"
+          />
+          <IconButton
+            aria-label="Remove node"
+            className="phlo-workflow-node-action"
+            icon={TrashIcon}
+            onClick={() => onRemoveNode(node.id)}
+            size="small"
+            title="Remove"
+            type="button"
+            variant="invisible"
+          />
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function Inspector({
+  node,
+  contribution,
+  values,
+  onChange,
+}: {
+  node: WorkflowNode | null
+  contribution: V2WorkflowWizardContribution | null | undefined
+  values: Record<string, string>
+  onChange: (nodeId: string, field: string, value: string) => void
+}) {
+  if (!node || !contribution) {
+    return (
+      <div className="phlo-v2-panel phlo-workflow-inspector-card">
+        <div className="phlo-workflow-pane-header">
+          <h2>Inspector</h2>
+        </div>
+        <p>Select a node to configure it.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="phlo-v2-panel phlo-workflow-inspector-card">
+      <div className="phlo-workflow-pane-header">
+        <div>
+          <h2>{contribution.label}</h2>
+          <p>{contribution.description}</p>
+        </div>
+        <span className="phlo-v2-pill">{contribution.package}</span>
+      </div>
+      <div className="phlo-workflow-inspector-fields">
+        {contribution.fields.map((field) => (
+          <DynamicField
+            field={field}
+            key={field.name}
+            nodeId={node.id}
+            onChange={onChange}
+            value={values[field.name] ?? ''}
+          />
+        ))}
+      </div>
+    </div>
   )
 }
 
 function DynamicField({
-  contributionId,
+  nodeId,
   field,
   value,
   onChange,
 }: {
-  contributionId: string
+  nodeId: string
   field: V2WorkflowWizardField
   value: string
-  onChange: (contributionId: string, field: string, value: string) => void
+  onChange: (nodeId: string, field: string, value: string) => void
 }) {
   const common = {
     onChange: (
       event: ChangeEvent<
         HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
       >,
-    ) => onChange(contributionId, field.name, event.target.value),
+    ) => onChange(nodeId, field.name, event.target.value),
     placeholder: field.description ?? field.label,
     value,
   }
@@ -325,7 +728,7 @@ function DynamicField({
           ))}
         </select>
       ) : field.field_type === 'fields' || field.field_type === 'textarea' ? (
-        <textarea className="phlo-workflow-input" rows={3} {...common} />
+        <textarea className="phlo-workflow-input" rows={4} {...common} />
       ) : (
         <input className="phlo-workflow-input" type="text" {...common} />
       )}
@@ -356,14 +759,16 @@ function ReviewPanel({
           </div>
         </div>
         <div className="phlo-v2-panel-footer">{proposal.error}</div>
-        <button
-          className="phlo-v2-primary-button phlo-workflow-apply"
+        <Button
+          className="phlo-workflow-action phlo-workflow-apply"
           disabled={loading}
+          leadingVisual={FileCodeIcon}
           onClick={onGenerate}
+          type="button"
+          variant="primary"
         >
-          <FileCode2 className="size-4" />
           {loading ? 'Generating proposal...' : 'Try again'}
-        </button>
+        </Button>
       </div>
     )
   }
@@ -375,21 +780,13 @@ function ReviewPanel({
             <h2>Review</h2>
             <p>Generated files and guarded actions appear here.</p>
           </div>
-          <FileCode2 className="size-4" aria-hidden />
+          <FileCodeIcon aria-hidden size={16} />
         </div>
         <div className="phlo-workflow-empty-review">
           {loading
-            ? 'Generating a proposal from the selected package contributions...'
-            : 'Generate a proposal to preview the files before anything is written.'}
+            ? 'Generating a proposal from the graph...'
+            : 'Generate a proposal to preview graph-generated files.'}
         </div>
-        <button
-          className="phlo-v2-primary-button phlo-workflow-apply"
-          disabled={loading}
-          onClick={onGenerate}
-        >
-          <FileCode2 className="size-4" />
-          {loading ? 'Generating proposal...' : 'Generate proposal'}
-        </button>
       </div>
     )
   }
@@ -401,7 +798,7 @@ function ReviewPanel({
           <h2>Review proposal</h2>
           <p>
             {proposal.data.planned_assets.length} asset,{' '}
-            {proposal.data.planned_models.length} model
+            {proposal.data.planned_models.length} models
           </p>
         </div>
         <span className="phlo-v2-pill">{proposal.data.files.length} files</span>
@@ -410,7 +807,7 @@ function ReviewPanel({
         {proposal.data.files.map((file) => (
           <details className="phlo-workflow-file" key={file.path}>
             <summary>
-              <FileCode2 className="size-4" />
+              <FileCodeIcon size={16} />
               <span>{file.path}</span>
               <em>{file.mode}</em>
             </summary>
@@ -418,29 +815,27 @@ function ReviewPanel({
           </details>
         ))}
       </div>
-      {proposal.data.warnings.map((warning) => (
-        <div className="phlo-v2-panel-footer" key={warning}>
-          {warning}
-        </div>
-      ))}
       {proposal.data.actions.map((action) => (
-        <button
-          className="phlo-v2-primary-button phlo-workflow-apply"
+        <Button
+          className="phlo-workflow-action phlo-workflow-apply"
           disabled={loading || !action.enabled}
           key={action.id}
+          leadingVisual={CheckCircleIcon}
           onClick={() => onRunAction(action)}
+          type="button"
+          variant="primary"
         >
-          <CheckCircle2 className="size-4" />
           {action.label}
-        </button>
+        </Button>
       ))}
-      <button
+      <Button
         className="phlo-workflow-secondary-action"
         disabled={loading}
         onClick={onGenerate}
+        type="button"
       >
         {loading ? 'Refreshing proposal...' : 'Refresh proposal'}
-      </button>
+      </Button>
       {actionMessage && (
         <div className="phlo-v2-panel-footer">{actionMessage}</div>
       )}
@@ -448,72 +843,142 @@ function ReviewPanel({
   )
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="phlo-v2-diff-metric phlo-workflow-metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
+function starterGraph(contributions: Array<V2WorkflowWizardContribution>) {
+  const ids = [
+    'dlt.rest-api-source',
+    'dbt.transform',
+    'pandera.quality-checks',
+    'dagster.orchestration',
+    'openmetadata.catalog',
+  ]
+  const selected = ids
+    .map((id) => contributions.find((contribution) => contribution.id === id))
+    .filter((item): item is V2WorkflowWizardContribution => Boolean(item))
+  const nodes = selected.map((contribution, index) =>
+    toCanvasNode(contribution, `node-${index + 1}`),
+  )
+  return { nodes }
+}
+
+function toCanvasNode(
+  contribution: V2WorkflowWizardContribution,
+  id: string,
+): WorkflowNode {
+  return {
+    id,
+    data: {
+      contributionId: contribution.id,
+      description: contribution.description,
+      label: contribution.label,
+      packageName: contribution.package,
+      stage: contribution.stage,
+    },
+  }
+}
+
+function starterValues(
+  contributions: Array<V2WorkflowWizardContribution>,
+  nodes: Array<WorkflowNode>,
+) {
+  return nodes.reduce<FormValues>((current, node) => {
+    const contribution = contributions.find(
+      (item) => item.id === node.data.contributionId,
+    )
+    current[node.id] = contribution ? defaultsForContribution(contribution) : {}
+    return current
+  }, {})
+}
+
+function defaultsForContribution(contribution: V2WorkflowWizardContribution) {
+  return contribution.fields.reduce<Record<string, string>>(
+    (current, field) => {
+      current[field.name] =
+        field.default === undefined || field.default === null
+          ? defaultFieldValue(contribution.id, field)
+          : String(field.default)
+      return current
+    },
+    {},
   )
 }
 
-function stageDescription(stage: string) {
-  if (stage === 'source') return 'Choose where the workflow starts.'
-  if (stage === 'transform')
-    return 'Compose dbt setup, sources, models, tests, and docs.'
-  if (stage === 'quality')
-    return 'Attach validation when a provider contributes it.'
-  if (stage === 'publish') return 'Expose downstream outputs when available.'
-  return ''
-}
-
-function toggleStageSelection(
-  stage: string,
-  current: Array<string>,
-  id: string,
+function defaultFieldValue(
+  contributionId: string,
+  field: V2WorkflowWizardField,
 ) {
-  if (stage === 'source') return [id]
-  if (current.includes(id)) return current.filter((item) => item !== id)
-  return [...current, id]
-}
-
-function groupByStage(contributions: Array<V2WorkflowWizardContribution>) {
-  return contributions.reduce<
-    Record<string, Array<V2WorkflowWizardContribution>>
-  >((groups, contribution) => {
-    groups[contribution.stage] = groups[contribution.stage] ?? []
-    groups[contribution.stage].push(contribution)
-    return groups
-  }, {})
-}
-
-function defaultValues(contributions: Array<V2WorkflowWizardContribution>) {
-  return contributions.reduce<FormValues>((next, contribution) => {
-    next[contribution.id] = contribution.fields.reduce<Record<string, string>>(
-      (fieldValues, field) => {
-        fieldValues[field.name] =
-          field.default === undefined || field.default === null
-            ? defaultFieldValue(field)
-            : String(field.default)
-        return fieldValues
-      },
-      {},
-    )
-    return next
-  }, {})
-}
-
-function defaultFieldValue(field: V2WorkflowWizardField) {
-  if (field.name === 'domain') return 'customers'
-  if (field.name === 'table_name') return 'orders'
-  if (field.name === 'unique_key') return 'order_id'
-  if (field.name === 'response_path') return ''
+  if (field.name === 'domain') return 'recipes'
+  if (field.name === 'table_name') return 'recipes'
+  if (field.name === 'unique_key') return 'id'
+  if (field.name === 'api_base_url') return 'https://dummyjson.com/recipes'
+  if (field.name === 'response_path') return 'recipes'
   if (field.name === 'pagination') return 'none'
   if (field.name === 'auth') return 'none'
-  if (field.name === 'project_name') return 'analytics'
+  if (field.name === 'cron') return '0 2 * * *'
+  if (field.name === 'schedule') return '0 2 * * *'
+  if (field.name === 'fields') {
+    return 'name:str\ningredients:str\ninstructions:str\nprepTimeMinutes:int\ncookTimeMinutes:int\nservings:int\ndifficulty:str\ncuisine:str\ncaloriesPerServing:int\ntags:str\nrating:float\nreviewCount:int\nmealType:str'
+  }
   if (field.name === 'source_name') return 'raw'
-  if (field.name === 'model_name') return 'stg_orders'
-  if (field.name === 'source_relation') return 'raw.orders'
-  if (field.name === 'fields') return 'total:float\ncreated_at:datetime'
+  if (field.name === 'source_stream') return 'public.recipes'
+  if (field.name === 'target_table') return 'recipes'
+  if (field.name === 'primary_key') return 'id'
+  if (field.name === 'replication_mode') return 'incremental'
+  if (field.name === 'update_key') return 'updated_at'
+  if (field.name === 'project_name') return 'recipe_catalog'
+  if (field.name === 'source_table') return 'recipes'
+  if (field.name === 'staging_model_name') return 'stg_recipes'
+  if (field.name === 'staging_source_relation') return 'raw.recipes'
+  if (field.name === 'enable_rename') return 'no'
+  if (field.name === 'enable_cast') return 'no'
+  if (field.name === 'enable_aggregate') return 'no'
+  if (contributionId === 'dbt.basic-model' && field.name === 'model_name')
+    return 'stg_recipes'
+  if (contributionId === 'dbt.basic-model' && field.name === 'source_relation')
+    return 'raw.recipes'
+  if (contributionId === 'dbt.source-yml' && field.name === 'source_name')
+    return 'raw'
+  if (contributionId === 'dbt.schema-tests' && field.name === 'model_name')
+    return 'clean_recipes'
+  if (contributionId === 'dbt.filter-rows' && field.name === 'model_name')
+    return 'filtered_recipes'
+  if (contributionId === 'dbt.filter-rows' && field.name === 'source_relation')
+    return "ref('stg_recipes')"
+  if (contributionId === 'dbt.filter-rows' && field.name === 'where')
+    return 'rating >= 4.5'
+  if (contributionId === 'dbt.transform' && field.name === 'where')
+    return 'rating >= 4.5'
+  if (field.name === 'filter_model_name') return 'filtered_recipes'
+  if (field.name === 'dedupe_model_name') return 'clean_recipes'
+  if (field.name === 'test_model_name') return 'clean_recipes'
+  if (contributionId === 'dbt.deduplicate' && field.name === 'model_name')
+    return 'clean_recipes'
+  if (contributionId === 'dbt.deduplicate' && field.name === 'source_relation')
+    return "ref('filtered_recipes')"
+  if (field.name === 'partition_by') return 'id'
+  if (field.name === 'order_by') return 'reviewCount'
+  if (field.name === 'renames')
+    return 'name:recipe_name\ncaloriesPerServing:calories_per_serving'
+  if (field.name === 'casts') return 'rating:double\nreviewCount:integer'
+  if (field.name === 'group_by') return 'cuisine'
+  if (field.name === 'metrics')
+    return 'recipe_count:count(*)\navg_rating:avg(rating)'
+  if (field.name === 'check_name') return 'clean_recipes_quality'
+  if (field.name === 'not_null_columns') return 'id\nname\ncuisine'
+  if (field.name === 'range_checks') return 'rating:0:5\nreviewCount:0:100000'
+  if (field.name === 'freshness_column') return 'updated_at'
+  if (field.name === 'freshness_hours') return '24'
+  if (field.name === 'min_rows') return '1'
+  if (field.name === 'job_name') return 'recipe_catalog_job'
+  if (field.name === 'asset_group') return 'recipes'
+  if (field.name === 'include_sensor') return 'no'
+  if (field.name === 'service_name') return 'phlo'
+  if (field.name === 'database') return 'warehouse'
+  if (field.name === 'schema') return 'recipes'
+  if (field.name === 'owner') return 'data-platform'
+  if (field.name === 'tags') return 'domain.recipes\nsource.dummyjson'
+  if (field.name === 'description')
+    return 'Catalog metadata for the recipe workflow generated from DummyJSON recipes.'
+  if (field.name === 'source_relation') return "ref('clean_recipes')"
+  if (field.name === 'model_name') return 'recipe_model'
   return ''
 }

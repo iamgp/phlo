@@ -109,18 +109,28 @@ export interface V2WorkflowWizardPayload {
   contributions: Array<V2WorkflowWizardContribution>
 }
 
-export interface V2WorkflowStageSelection {
+export interface V2WorkflowGraphNode {
+  id: string
   contribution_id: string
+  stage: 'source' | 'transform' | 'quality' | 'publish'
   values: Record<string, unknown>
+}
+
+export interface V2WorkflowGraphEdge {
+  id: string
+  source: string
+  target: string
+}
+
+export interface V2WorkflowGraph {
+  nodes: Array<V2WorkflowGraphNode>
+  edges: Array<V2WorkflowGraphEdge>
 }
 
 export interface V2WorkflowProposalRequest {
   workflow_name: string
   domain: string
-  selections: Record<
-    string,
-    V2WorkflowStageSelection | Array<V2WorkflowStageSelection>
-  >
+  graph: V2WorkflowGraph
 }
 
 export interface V2WorkflowFilePreview {

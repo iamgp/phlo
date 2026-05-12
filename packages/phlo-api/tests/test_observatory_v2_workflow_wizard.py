@@ -15,25 +15,29 @@ def test_workflow_wizard_lists_package_contributions() -> None:
     payload = response.json()
     ids = [item["id"] for item in payload["contributions"]]
     assert "dlt.rest-api-source" in ids
-    assert "dbt.initialize-project" in ids
+    assert "sling.replication-source" in ids
+    assert "dbt.transform" in ids
+    assert "pandera.quality-checks" in ids
+    assert "dagster.orchestration" in ids
+    assert "openmetadata.catalog" in ids
     assert payload["stages"] == ["source", "transform", "quality", "publish"]
 
 
-def test_workflow_wizard_proposal_requires_source() -> None:
+def test_workflow_wizard_proposal_requires_graph_nodes() -> None:
     response = client.post(
         "/api/observatory/v2/workflow-wizard/proposals",
         json={
             "workflow_name": "customer_health",
             "domain": "customers",
-            "selections": {},
+            "graph": {"nodes": [], "edges": []},
         },
     )
 
     assert response.status_code == 422
-    assert response.json()["detail"]["source"] == ["Select a source contribution."]
+    assert response.json()["detail"]["graph"] == ["Add at least one workflow node."]
 
 
-def test_workflow_wizard_builds_dlt_dbt_proposal(tmp_path, monkeypatch) -> None:
+def test_workflow_wizard_builds_dlt_dbt_graph_proposal(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
 
     response = client.post(
@@ -41,21 +45,39 @@ def test_workflow_wizard_builds_dlt_dbt_proposal(tmp_path, monkeypatch) -> None:
         json={
             "workflow_name": "customer_health",
             "domain": "customers",
-            "selections": {
-                "source": {
-                    "contribution_id": "dlt.rest-api-source",
-                    "values": {
-                        "domain": "customers",
-                        "table_name": "orders",
-                        "unique_key": "order_id",
-                        "api_base_url": "https://api.example.test",
-                        "fields": ["total:float", "created_at:datetime"],
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "source",
+                        "contribution_id": "dlt.rest-api-source",
+                        "stage": "source",
+                        "values": {
+                            "domain": "customers",
+                            "table_name": "orders",
+                            "unique_key": "order_id",
+                            "api_base_url": "https://api.example.test",
+                            "fields": ["total:float", "created_at:datetime"],
+                        },
                     },
-                },
-                "transform": {
-                    "contribution_id": "dbt.basic-model",
-                    "values": {"model_name": "stg_orders", "source_relation": "raw.orders"},
-                },
+                    {
+                        "id": "model",
+                        "contribution_id": "dbt.transform",
+                        "stage": "transform",
+                        "values": {
+                            "project_name": "customer_health",
+                            "source_name": "raw",
+                            "source_table": "orders",
+                            "staging_model_name": "stg_orders",
+                            "staging_source_relation": "raw.orders",
+                            "dedupe_model_name": "clean_orders",
+                            "partition_by": "order_id",
+                            "order_by": "created_at",
+                            "test_model_name": "clean_orders",
+                            "unique_key": "order_id",
+                        },
+                    },
+                ],
+                "edges": [{"id": "source-model", "source": "source", "target": "model"}],
             },
         },
     )
@@ -63,12 +85,12 @@ def test_workflow_wizard_builds_dlt_dbt_proposal(tmp_path, monkeypatch) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["planned_assets"] == ["dlt_orders"]
-    assert payload["planned_models"] == ["stg_orders"]
+    assert payload["planned_models"] == ["stg_orders", "clean_orders"]
     assert "workflows/ingestion/customers/orders.py" in [item["path"] for item in payload["files"]]
     assert payload["actions"][0]["enabled"] is True
 
 
-def test_workflow_wizard_builds_composed_transform_proposal(tmp_path, monkeypatch) -> None:
+def test_workflow_wizard_builds_composed_transform_graph_proposal(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
 
     response = client.post(
@@ -76,10 +98,12 @@ def test_workflow_wizard_builds_composed_transform_proposal(tmp_path, monkeypatc
         json={
             "workflow_name": "recipe_catalog",
             "domain": "recipes",
-            "selections": {
-                "source": [
+            "graph": {
+                "nodes": [
                     {
+                        "id": "source",
                         "contribution_id": "dlt.rest-api-source",
+                        "stage": "source",
                         "values": {
                             "domain": "recipes",
                             "table_name": "recipes",
@@ -88,25 +112,29 @@ def test_workflow_wizard_builds_composed_transform_proposal(tmp_path, monkeypatc
                             "response_path": "recipes",
                             "fields": ["name:str", "rating:float"],
                         },
-                    }
+                    },
+                    {
+                        "id": "transform",
+                        "contribution_id": "dbt.transform",
+                        "stage": "transform",
+                        "values": {
+                            "project_name": "recipe_catalog",
+                            "source_name": "raw",
+                            "source_table": "recipes",
+                            "staging_model_name": "stg_recipes",
+                            "staging_source_relation": "raw.recipes",
+                            "filter_model_name": "filtered_recipes",
+                            "where": "rating >= 4.5",
+                            "dedupe_model_name": "clean_recipes",
+                            "partition_by": "id",
+                            "order_by": "reviewCount",
+                            "test_model_name": "clean_recipes",
+                            "unique_key": "id",
+                        },
+                    },
                 ],
-                "transform": [
-                    {
-                        "contribution_id": "dbt.initialize-project",
-                        "values": {"project_name": "recipe_catalog"},
-                    },
-                    {
-                        "contribution_id": "dbt.source-yml",
-                        "values": {"source_name": "raw", "table_name": "recipes"},
-                    },
-                    {
-                        "contribution_id": "dbt.basic-model",
-                        "values": {"model_name": "stg_recipes", "source_relation": "raw.recipes"},
-                    },
-                    {
-                        "contribution_id": "dbt.schema-tests",
-                        "values": {"model_name": "stg_recipes", "unique_key": "id"},
-                    },
+                "edges": [
+                    {"id": "source-transform", "source": "source", "target": "transform"},
                 ],
             },
         },
@@ -117,7 +145,89 @@ def test_workflow_wizard_builds_composed_transform_proposal(tmp_path, monkeypatc
     assert "workflows/transforms/dbt/dbt_project.yml" in paths
     assert "workflows/transforms/dbt/models/sources/raw.yml" in paths
     assert "workflows/transforms/dbt/models/stg_recipes.sql" in paths
-    assert "workflows/transforms/dbt/models/stg_recipes.yml" in paths
+    assert "workflows/transforms/dbt/models/filtered_recipes.sql" in paths
+    assert "workflows/transforms/dbt/models/clean_recipes.sql" in paths
+    assert "workflows/transforms/dbt/models/clean_recipes.yml" in paths
+
+
+def test_workflow_wizard_builds_quality_and_publish_graph_proposal(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+
+    response = client.post(
+        "/api/observatory/v2/workflow-wizard/proposals",
+        json={
+            "workflow_name": "recipe_catalog",
+            "domain": "recipes",
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "source",
+                        "contribution_id": "sling.replication-source",
+                        "stage": "source",
+                        "values": {
+                            "domain": "recipes",
+                            "source_name": "POSTGRES",
+                            "source_stream": "public.recipes",
+                            "target_table": "recipes",
+                            "primary_key": "id",
+                            "replication_mode": "incremental",
+                            "update_key": "updated_at",
+                        },
+                    },
+                    {
+                        "id": "quality",
+                        "contribution_id": "pandera.quality-checks",
+                        "stage": "quality",
+                        "values": {
+                            "target_table": "recipes.clean_recipes",
+                            "check_name": "clean_recipes_quality",
+                            "unique_key": "id",
+                            "not_null_columns": "id\nname",
+                            "range_checks": "rating:0:5",
+                        },
+                    },
+                    {
+                        "id": "orchestration",
+                        "contribution_id": "dagster.orchestration",
+                        "stage": "publish",
+                        "values": {
+                            "job_name": "recipe_catalog_job",
+                            "asset_group": "recipes",
+                            "schedule": "0 2 * * *",
+                        },
+                    },
+                    {
+                        "id": "catalog",
+                        "contribution_id": "openmetadata.catalog",
+                        "stage": "publish",
+                        "values": {
+                            "service_name": "phlo",
+                            "database": "warehouse",
+                            "schema": "recipes",
+                            "owner": "data-platform",
+                            "tags": "domain.recipes\nsource.postgres",
+                        },
+                    },
+                ],
+                "edges": [
+                    {"id": "source-quality", "source": "source", "target": "quality"},
+                    {"id": "quality-orchestration", "source": "quality", "target": "orchestration"},
+                    {"id": "orchestration-catalog", "source": "orchestration", "target": "catalog"},
+                ],
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    paths = [item["path"] for item in payload["files"]]
+    assert payload["planned_assets"] == ["sling_recipes"]
+    assert payload["disabled_stages"] == {}
+    assert "workflows/ingestion/recipes/recipes_sling.py" in paths
+    assert "workflows/ingestion/recipes/recipes_sling.yml" in paths
+    assert "workflows/quality/recipes/recipes_quality.py" in paths
+    assert "workflows/orchestration/recipe_catalog.py" in paths
+    assert "workflows/catalog/recipes/recipe_catalog.yml" in paths
 
 
 def test_workflow_wizard_apply_fails_on_conflict(tmp_path, monkeypatch) -> None:
@@ -131,15 +241,20 @@ def test_workflow_wizard_apply_fails_on_conflict(tmp_path, monkeypatch) -> None:
         json={
             "workflow_name": "customer_health",
             "domain": "customers",
-            "selections": {
-                "source": {
-                    "contribution_id": "dlt.rest-api-source",
-                    "values": {
-                        "domain": "customers",
-                        "table_name": "orders",
-                        "unique_key": "order_id",
-                    },
-                }
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "source",
+                        "contribution_id": "dlt.rest-api-source",
+                        "stage": "source",
+                        "values": {
+                            "domain": "customers",
+                            "table_name": "orders",
+                            "unique_key": "order_id",
+                        },
+                    }
+                ],
+                "edges": [],
             },
         },
     )

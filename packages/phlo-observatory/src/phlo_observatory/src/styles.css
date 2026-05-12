@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
+@import '@primer/primitives/dist/css/functional/themes/light.css';
+@import '@primer/primitives/dist/css/functional/themes/dark.css';
 @import '@fontsource-variable/jetbrains-mono';
 @import './v2/design/tokens.css';
 
@@ -152,6 +154,24 @@ html[data-density='compact'] {
   td {
     font-family: var(--font-mono);
   }
+}
+
+.phlo-primer-base {
+  min-height: 100vh;
+}
+
+.phlo-primer-base .phlo-v2-nav-link,
+.phlo-primer-base .phlo-v2-nav-link:visited {
+  color: var(--v2-muted);
+  text-decoration: none;
+}
+
+.phlo-primer-base .phlo-v2-nav-link:hover {
+  color: var(--v2-text);
+}
+
+.phlo-primer-base .phlo-v2-nav-link[data-active='true'] {
+  color: var(--v2-text);
 }
 
 /* Touch-friendly scrolling for mobile */
@@ -384,8 +404,8 @@ textarea.phlo-v2-input {
 }
 
 .phlo-workflow-input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary), transparent 82%);
+  border-color: var(--v2-blue);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--v2-blue), transparent 82%);
   outline: none;
 }
 
@@ -423,7 +443,7 @@ textarea.phlo-workflow-input {
 
 .phlo-workflow-option[data-selected='true'] {
   background: var(--v2-tile);
-  box-shadow: inset 3px 0 0 var(--primary);
+  box-shadow: inset 3px 0 0 var(--v2-blue);
 }
 
 .phlo-workflow-option strong {
@@ -456,7 +476,7 @@ textarea.phlo-workflow-input {
   height: 1.15rem;
   border: 1px solid var(--v2-sheet-border);
   border-radius: 999px;
-  color: var(--primary);
+  color: var(--v2-blue);
 }
 
 .phlo-workflow-empty-stage,
@@ -476,69 +496,14 @@ textarea.phlo-workflow-input {
   margin: 0.25rem 0 0;
 }
 
-.phlo-workflow-generate,
-.phlo-workflow-apply {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  min-height: 2.55rem;
-  border: 1px solid color-mix(in oklch, var(--primary), black 12%);
-  border-radius: 0.6rem;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  cursor: pointer;
-  font-weight: 780;
-  padding: 0.6rem 0.9rem;
-  transition:
-    transform 140ms ease,
-    filter 140ms ease,
-    opacity 140ms ease;
-}
-
-.phlo-workflow-generate {
-  width: 100%;
-}
-
 .phlo-workflow-apply {
   margin: 1rem;
   width: calc(100% - 2rem);
 }
 
-.phlo-workflow-generate:hover,
-.phlo-workflow-apply:hover {
-  filter: brightness(1.04);
-}
-
-.phlo-workflow-generate:active,
-.phlo-workflow-apply:active {
-  transform: translateY(1px);
-}
-
-.phlo-workflow-apply:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
-}
-
 .phlo-workflow-secondary-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: calc(100% - 2rem);
-  min-height: 2rem;
   margin: 0 1rem 1rem;
-  border: 1px solid var(--v2-sheet-border);
-  border-radius: 999px;
-  background: var(--v2-sheet);
-  color: var(--v2-muted);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 620;
-}
-
-.phlo-workflow-secondary-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
 }
 
 .phlo-workflow-review {
@@ -624,5 +589,563 @@ textarea.phlo-workflow-input {
   .phlo-workflow-option > span:last-child {
     grid-column: 2;
     justify-self: start;
+  }
+}
+
+.phlo-workflow-graph-step {
+  position: relative;
+  width: 100%;
+}
+
+.phlo-workflow-step-panel,
+.phlo-workflow-proposal-step {
+  width: 100%;
+  max-width: none;
+}
+
+.phlo-v2-content:has(.phlo-workflow-stepper) .phlo-v2-subtitle {
+  max-width: 72rem;
+}
+
+.phlo-workflow-stepper {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+  padding: 0;
+}
+
+.phlo-workflow-stepper::before {
+  content: none;
+}
+
+.phlo-workflow-step {
+  position: relative;
+  z-index: 1;
+  justify-content: stretch;
+  border-color: var(--v2-sheet-border);
+  border-radius: 8px;
+  background: var(--v2-sheet) !important;
+  min-height: 4.75rem;
+  overflow: visible;
+  padding: 0.8rem 0.9rem;
+  text-align: left;
+}
+
+.phlo-workflow-step > span[class*='ButtonContent'] {
+  position: absolute;
+  inset: 0.8rem 0.9rem;
+  display: block !important;
+  width: auto !important;
+}
+
+.phlo-workflow-step span[class*='Label'] {
+  display: grid !important;
+  grid-template-columns: 1.8rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  align-content: center;
+  justify-items: start;
+  width: 100%;
+  height: 100%;
+  text-align: left;
+  white-space: normal !important;
+}
+
+.phlo-workflow-step:hover {
+  background: var(--v2-sheet) !important;
+}
+
+.phlo-workflow-step[data-active='true'] {
+  border-color: var(--v2-sheet-border);
+  background: var(--v2-sheet) !important;
+  box-shadow: none;
+}
+
+.phlo-workflow-step-index {
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--v2-sheet-border);
+  background: var(--v2-tile);
+  color: var(--v2-text);
+  font-size: 0.78rem;
+  font-weight: 650;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.phlo-workflow-step[data-complete='true'] .phlo-workflow-step-index {
+  border-color: var(--v2-blue);
+  background: transparent;
+  color: var(--v2-blue);
+}
+
+.phlo-workflow-step[data-active='true'] .phlo-workflow-step-index {
+  border-color: var(--v2-blue);
+  background: var(--v2-blue);
+  color: #ffffff;
+}
+
+.phlo-workflow-step-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.phlo-workflow-step-copy strong {
+  color: var(--v2-text);
+  font-size: 0.86rem;
+  font-weight: 780;
+}
+
+.phlo-workflow-step-copy em {
+  color: var(--v2-muted);
+  font-size: 0.73rem;
+  font-style: normal;
+}
+
+.phlo-workflow-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.phlo-workflow-info-grid label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.phlo-workflow-info-grid span {
+  color: var(--v2-muted);
+  font-size: 0.72rem;
+  font-weight: 720;
+}
+
+.phlo-workflow-step-actions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--v2-sheet-border);
+  padding: 1rem;
+}
+
+.phlo-workflow-pane-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  padding: 1rem;
+}
+
+.phlo-workflow-pane-header h2 {
+  color: var(--v2-text);
+  font-size: 0.96rem;
+  font-weight: 780;
+  margin: 0;
+}
+
+.phlo-workflow-pane-header p {
+  color: var(--v2-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  margin: 0.2rem 0 0;
+}
+
+.phlo-workflow-canvas-main {
+  position: relative;
+  --phlo-workflow-inspector-width: min(27rem, 34vw);
+  min-width: 0;
+}
+
+.phlo-workflow-canvas-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.phlo-workflow-canvas-toolbar .phlo-workflow-action,
+.phlo-workflow-canvas-toolbar .phlo-workflow-action span {
+  color: #ffffff;
+}
+
+.phlo-workflow-canvas {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 20rem) minmax(0, 1fr);
+  min-height: 46rem;
+  overflow: auto;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 0.75rem;
+  background:
+    radial-gradient(var(--v2-sheet-border) 1px, transparent 1px),
+    var(--v2-sheet);
+  background-size: 20px 20px;
+}
+
+.phlo-workflow-canvas-main[data-inspector-open='true'] .phlo-workflow-canvas {
+  grid-template-columns:
+    minmax(0, 1fr) minmax(15rem, 20rem) minmax(0, 1fr)
+    var(--phlo-workflow-inspector-width);
+}
+
+.phlo-workflow-lane {
+  position: relative;
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 0;
+  min-height: 100%;
+  padding-block: 1.25rem;
+  transition: transform 160ms ease;
+}
+
+.phlo-workflow-lane::before {
+  content: '';
+  position: absolute;
+  top: 1.25rem;
+  bottom: 1.25rem;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: color-mix(in oklch, var(--v2-blue), transparent 42%);
+  pointer-events: none;
+}
+
+.phlo-workflow-lane-item {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+}
+
+.phlo-workflow-insert-point {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  height: 4.4rem;
+}
+
+.phlo-workflow-insert-point > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--v2-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.phlo-workflow-insert-point > button span {
+  display: none;
+}
+
+.phlo-workflow-insert-point > button em {
+  display: grid;
+  place-items: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 999px;
+  background: var(--v2-sheet);
+  color: var(--v2-muted);
+  font-style: normal;
+  font-size: 1.25rem;
+  font-weight: 760;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.phlo-workflow-insert-point > button:hover em,
+.phlo-workflow-insert-point[data-active='true'] > button em {
+  border-color: var(--v2-blue);
+  background: color-mix(in oklch, var(--v2-blue), var(--v2-sheet) 84%);
+  color: var(--v2-text);
+}
+
+.phlo-workflow-insert-point[data-active='true'] > button span {
+  background: transparent;
+}
+
+.phlo-workflow-canvas-node {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 0.65rem;
+  background: color-mix(in oklch, var(--v2-sheet), var(--background) 14%);
+  box-shadow: 0 16px 34px rgb(0 0 0 / 18%);
+  color: var(--v2-text);
+  min-height: 8rem;
+  padding: 0.9rem 1rem;
+}
+
+.phlo-workflow-canvas-node[data-selected='true'] {
+  border-color: var(--v2-sheet-border);
+  background: var(--v2-tile-strong);
+  box-shadow: 0 16px 34px rgb(0 0 0 / 18%);
+}
+
+.phlo-workflow-node-select {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.phlo-workflow-node-select:focus {
+  outline: none;
+}
+
+.phlo-workflow-node-select:focus-visible {
+  box-shadow: none;
+}
+
+.phlo-workflow-node-select > span,
+.phlo-workflow-node-footer > em {
+  color: var(--v2-muted);
+  display: block;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.phlo-workflow-node-select > strong {
+  display: block;
+  color: var(--v2-text);
+  font-size: 0.95rem;
+  font-weight: 780;
+  margin-top: 0.25rem;
+}
+
+.phlo-workflow-node-select > p {
+  color: var(--v2-muted);
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  margin: 0.3rem 0 0.45rem;
+}
+
+.phlo-workflow-node-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 1.75rem;
+}
+
+.phlo-workflow-node-actions {
+  display: flex;
+  visibility: hidden;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.phlo-workflow-canvas-node[data-selected='true'] .phlo-workflow-node-actions {
+  visibility: visible;
+}
+
+.phlo-workflow-node-action {
+  color: var(--fgColor-muted);
+}
+
+.phlo-workflow-inspector-fields {
+  display: grid;
+  gap: 0.85rem;
+  max-height: calc(100vh - 13rem);
+  overflow: auto;
+  padding: 1rem;
+}
+
+.phlo-workflow-add-menu {
+  --v2-sheet: oklch(0.998 0.002 286);
+  --v2-sheet-border: oklch(0.9 0.004 286);
+  --v2-tile: oklch(0.955 0.003 286);
+  --v2-tile-strong: oklch(0.925 0.004 286);
+  --v2-text: oklch(0.22 0.006 286);
+  --v2-muted: oklch(0.49 0.007 286);
+  z-index: 100;
+  width: min(24rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 0.75rem;
+  background: oklch(0.998 0.002 286) !important;
+  background-color: oklch(0.998 0.002 286) !important;
+  background-image: none !important;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 28%);
+  color: var(--v2-text);
+  opacity: 1;
+}
+
+.phlo-workflow-add-menu-surface {
+  background: oklch(0.998 0.002 286) !important;
+  background-color: oklch(0.998 0.002 286) !important;
+  background-image: none !important;
+  color: var(--v2-text);
+  opacity: 1;
+}
+
+html[data-phlo-v2-theme='dark'] .phlo-workflow-add-menu,
+html[data-phlo-v2-theme='dark'] .phlo-workflow-add-menu-surface {
+  --v2-sheet: oklch(0.19 0.016 255);
+  --v2-sheet-border: oklch(0.285 0.018 255);
+  --v2-tile: oklch(0.23 0.018 255);
+  --v2-tile-strong: oklch(0.275 0.022 255);
+  --v2-text: oklch(0.92 0.012 255);
+  --v2-muted: oklch(0.72 0.018 255);
+  background: oklch(0.19 0.016 255) !important;
+  background-color: oklch(0.19 0.016 255) !important;
+  background-image: none !important;
+  color: oklch(0.92 0.012 255);
+}
+
+.phlo-workflow-add-menu-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  padding: 0.9rem 1rem;
+}
+
+.phlo-workflow-add-menu-header h2,
+.phlo-workflow-add-menu-list h3 {
+  color: var(--v2-text);
+  font-size: 0.9rem;
+  font-weight: 780;
+  margin: 0;
+}
+
+.phlo-workflow-add-menu-header p {
+  color: var(--v2-muted);
+  font-size: 0.74rem;
+  margin: 0.2rem 0 0;
+}
+
+.phlo-workflow-add-menu-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  max-height: min(50vh, 30rem);
+  overflow: auto;
+  padding: 1rem;
+}
+
+.phlo-workflow-add-menu-list section {
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+}
+
+.phlo-workflow-add-option {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: start;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 0.5rem;
+  background: var(--v2-tile);
+  color: inherit;
+  cursor: pointer;
+  padding: 0.65rem;
+  text-align: left;
+}
+
+.phlo-workflow-add-option:hover {
+  background: var(--v2-tile-strong);
+}
+
+.phlo-workflow-add-option strong,
+.phlo-workflow-add-option em {
+  display: block;
+}
+
+.phlo-workflow-add-option strong {
+  color: var(--v2-text);
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.phlo-workflow-add-option em {
+  color: var(--v2-muted);
+  font-size: 0.68rem;
+  font-style: normal;
+  margin-top: 0.15rem;
+}
+
+.phlo-workflow-inspector {
+  position: absolute;
+  top: 3.9rem;
+  right: 1rem;
+  z-index: 4;
+  width: var(--phlo-workflow-inspector-width);
+  max-height: calc(100% - 5rem);
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 0.75rem;
+  background: var(--v2-sheet);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 32%);
+}
+
+.phlo-workflow-inspector-card .phlo-workflow-pane-header {
+  padding-right: 5rem;
+}
+
+.phlo-workflow-inspector-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 1;
+}
+
+@media (max-width: 720px) {
+  .phlo-workflow-canvas-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .phlo-workflow-stepper,
+  .phlo-workflow-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .phlo-workflow-add-menu-list {
+    grid-template-columns: 1fr;
+  }
+
+  .phlo-workflow-add-menu {
+    width: min(24rem, calc(100vw - 2rem));
+  }
+
+  .phlo-workflow-inspector {
+    position: fixed;
+    inset: auto 0 0;
+    width: 100%;
+    max-height: 76vh;
+    border-radius: 0.9rem 0.9rem 0 0;
   }
 }
