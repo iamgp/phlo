@@ -761,10 +761,11 @@ def _render_dlt_asset(
         auth_lines = '\n    headers = {"X-API-Key": "${API_KEY}"}'
     else:
         auth_lines = "\n    headers = {}"
+    phlo_dlt_import = "from phlo_dlt import phlo_ingestion"
     return f'''"""Generated DLT ingestion asset for {domain}.{table_name}."""
 
 from dlt.sources.rest_api import rest_api
-from phlo_dlt import phlo_ingestion
+{phlo_dlt_import}
 
 from workflows.schemas.{domain} import {class_name}
 
@@ -813,9 +814,10 @@ def _render_sling_asset(
     cron: str,
 ) -> str:
     resolved_update_key = update_key or primary_key
+    phlo_sling_import = "from phlo_sling import phlo_sling_replication"
     return f'''"""Generated Sling replication asset for {domain}.{table_name}."""
 
-from phlo_sling import phlo_sling_replication
+{phlo_sling_import}
 
 
 @phlo_sling_replication(
@@ -894,16 +896,17 @@ def _render_pandera_quality(
             f"max_age_hours={freshness_hours}),"
         )
     checks = "\n".join(check_lines)
-    return f'''"""Generated Pandera quality checks for {target_table}."""
-
-from phlo_pandera import (
+    phlo_pandera_import = """from phlo_pandera import (
     CountCheck,
     FreshnessCheck,
     NullCheck,
     RangeCheck,
     UniqueCheck,
     phlo_pandera,
-)
+)"""
+    return f'''"""Generated Pandera quality checks for {target_table}."""
+
+{phlo_pandera_import}
 
 
 @phlo_pandera(
