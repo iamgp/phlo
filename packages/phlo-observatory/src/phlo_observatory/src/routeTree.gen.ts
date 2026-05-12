@@ -56,6 +56,7 @@ import { Route as BranchBranchNameRouteImport } from './routes/branch/$branchNam
 import { Route as AssetsAssetIdRouteImport } from './routes/assets/$assetId'
 import { Route as AssetAssetIdRouteImport } from './routes/asset/$assetId'
 import { Route as DataBranchNameIndexRouteImport } from './routes/data/$branchName/index'
+import { Route as V2WorkflowsNewRouteImport } from './routes/v2/workflows/new'
 import { Route as V2TableTableIdRouteImport } from './routes/v2/table/$tableId'
 import { Route as V2ExtensionsExtensionIdRouteImport } from './routes/v2/extensions/$extensionId'
 import { Route as V2ExtensionExtensionIdRouteImport } from './routes/v2/extension/$extensionId'
@@ -303,6 +304,11 @@ const DataBranchNameIndexRoute = DataBranchNameIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DataBranchNameRoute,
 } as any)
+const V2WorkflowsNewRoute = V2WorkflowsNewRouteImport.update({
+  id: '/workflows/new',
+  path: '/workflows/new',
+  getParentRoute: () => V2Route,
+} as any)
 const V2TableTableIdRoute = V2TableTableIdRouteImport.update({
   id: '/table/$tableId',
   path: '/table/$tableId',
@@ -417,6 +423,7 @@ export interface FileRoutesByFullPath {
   '/v2/extension/$extensionId': typeof V2ExtensionExtensionIdRoute
   '/v2/extensions/$extensionId': typeof V2ExtensionsExtensionIdRoute
   '/v2/table/$tableId': typeof V2TableTableIdRoute
+  '/v2/workflows/new': typeof V2WorkflowsNewRoute
   '/data/$branchName/': typeof DataBranchNameIndexRoute
   '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRouteWithChildren
   '/data/$branchName/$schema/$table/$rowId': typeof DataBranchNameSchemaTableRowIdRoute
@@ -475,6 +482,7 @@ export interface FileRoutesByTo {
   '/v2/extension/$extensionId': typeof V2ExtensionExtensionIdRoute
   '/v2/extensions/$extensionId': typeof V2ExtensionsExtensionIdRoute
   '/v2/table/$tableId': typeof V2TableTableIdRoute
+  '/v2/workflows/new': typeof V2WorkflowsNewRoute
   '/data/$branchName': typeof DataBranchNameIndexRoute
   '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRouteWithChildren
   '/data/$branchName/$schema/$table/$rowId': typeof DataBranchNameSchemaTableRowIdRoute
@@ -536,6 +544,7 @@ export interface FileRoutesById {
   '/v2/extension/$extensionId': typeof V2ExtensionExtensionIdRoute
   '/v2/extensions/$extensionId': typeof V2ExtensionsExtensionIdRoute
   '/v2/table/$tableId': typeof V2TableTableIdRoute
+  '/v2/workflows/new': typeof V2WorkflowsNewRoute
   '/data/$branchName/': typeof DataBranchNameIndexRoute
   '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRouteWithChildren
   '/data/$branchName/$schema/$table/$rowId': typeof DataBranchNameSchemaTableRowIdRoute
@@ -598,6 +607,7 @@ export interface FileRouteTypes {
     | '/v2/extension/$extensionId'
     | '/v2/extensions/$extensionId'
     | '/v2/table/$tableId'
+    | '/v2/workflows/new'
     | '/data/$branchName/'
     | '/data/$branchName/$schema/$table'
     | '/data/$branchName/$schema/$table/$rowId'
@@ -656,6 +666,7 @@ export interface FileRouteTypes {
     | '/v2/extension/$extensionId'
     | '/v2/extensions/$extensionId'
     | '/v2/table/$tableId'
+    | '/v2/workflows/new'
     | '/data/$branchName'
     | '/data/$branchName/$schema/$table'
     | '/data/$branchName/$schema/$table/$rowId'
@@ -716,6 +727,7 @@ export interface FileRouteTypes {
     | '/v2/extension/$extensionId'
     | '/v2/extensions/$extensionId'
     | '/v2/table/$tableId'
+    | '/v2/workflows/new'
     | '/data/$branchName/'
     | '/data/$branchName/$schema/$table'
     | '/data/$branchName/$schema/$table/$rowId'
@@ -1085,6 +1097,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DataBranchNameIndexRouteImport
       parentRoute: typeof DataBranchNameRoute
     }
+    '/v2/workflows/new': {
+      id: '/v2/workflows/new'
+      path: '/workflows/new'
+      fullPath: '/v2/workflows/new'
+      preLoaderRoute: typeof V2WorkflowsNewRouteImport
+      parentRoute: typeof V2Route
+    }
     '/v2/table/$tableId': {
       id: '/v2/table/$tableId'
       path: '/table/$tableId'
@@ -1234,6 +1253,7 @@ interface V2RouteChildren {
   V2BranchBranchNameRoute: typeof V2BranchBranchNameRoute
   V2ExtensionExtensionIdRoute: typeof V2ExtensionExtensionIdRoute
   V2TableTableIdRoute: typeof V2TableTableIdRoute
+  V2WorkflowsNewRoute: typeof V2WorkflowsNewRoute
 }
 
 const V2RouteChildren: V2RouteChildren = {
@@ -1258,6 +1278,7 @@ const V2RouteChildren: V2RouteChildren = {
   V2BranchBranchNameRoute: V2BranchBranchNameRoute,
   V2ExtensionExtensionIdRoute: V2ExtensionExtensionIdRoute,
   V2TableTableIdRoute: V2TableTableIdRoute,
+  V2WorkflowsNewRoute: V2WorkflowsNewRoute,
 }
 
 const V2RouteWithChildren = V2Route._addFileChildren(V2RouteChildren)

@@ -49,7 +49,84 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from phlo.capabilities import (
+    WorkflowContributionMode,
+    WorkflowWizardContribution,
+    WorkflowWizardField,
+)
 from phlo.plugins.base import PluginMetadata, QualityProviderPlugin
+
+
+def get_workflow_wizard_contributions() -> list[WorkflowWizardContribution]:
+    """Return provider-neutral workflow wizard contributions for Pandera."""
+
+    return [
+        WorkflowWizardContribution(
+            id="pandera.quality-checks",
+            package="phlo-pandera",
+            stage="quality",
+            label="Pandera quality checks",
+            description="Generate table quality checks for schema, uniqueness, nulls, ranges, and freshness.",
+            required_capabilities=["quality_backend"],
+            fields=[
+                WorkflowWizardField(
+                    name="target_table",
+                    label="Target table",
+                    required=True,
+                    description="Table or model relation to validate.",
+                ),
+                WorkflowWizardField(
+                    name="check_name",
+                    label="Check name",
+                    required=True,
+                    description="Generated Python function name for the quality check.",
+                ),
+                WorkflowWizardField(
+                    name="unique_key",
+                    label="Unique key",
+                    required=True,
+                    default="id",
+                    description="Column expected to be unique and present.",
+                ),
+                WorkflowWizardField(
+                    name="not_null_columns",
+                    label="Not-null columns",
+                    field_type="fields",
+                    required=False,
+                    description="One column per line that must not contain nulls.",
+                ),
+                WorkflowWizardField(
+                    name="range_checks",
+                    label="Range checks",
+                    field_type="fields",
+                    required=False,
+                    description="Optional checks as column:min:max.",
+                ),
+                WorkflowWizardField(
+                    name="freshness_column",
+                    label="Freshness column",
+                    required=False,
+                    description="Optional timestamp column to monitor for freshness.",
+                ),
+                WorkflowWizardField(
+                    name="freshness_hours",
+                    label="Freshness hours",
+                    required=False,
+                    default="24",
+                    description="Maximum age for the freshness column.",
+                ),
+                WorkflowWizardField(
+                    name="min_rows",
+                    label="Minimum rows",
+                    required=False,
+                    default="1",
+                    description="Minimum row count expected after ingestion and transform.",
+                ),
+            ],
+            modes={WorkflowContributionMode.PROPOSAL, WorkflowContributionMode.APPLY},
+            metadata={"generator": "phlo-api workflow wizard Pandera scaffold"},
+        )
+    ]
 
 
 class PanderaQualityProvider(QualityProviderPlugin):

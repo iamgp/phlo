@@ -22,6 +22,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from phlo.capabilities import (
+    WorkflowContributionMode,
+    WorkflowWizardContribution,
+    WorkflowWizardField,
+)
 from phlo.capabilities.specs import AssetSpec
 from phlo.plugins.base import (
     AssetProviderPlugin,
@@ -30,6 +35,160 @@ from phlo.plugins.base import (
 )
 
 from phlo_dbt.assets import build_dbt_asset_specs
+
+
+def get_workflow_wizard_contributions() -> list[WorkflowWizardContribution]:
+    """Return provider-neutral workflow wizard contributions for dbt."""
+
+    return [
+        WorkflowWizardContribution(
+            id="dbt.transform",
+            package="phlo-dbt",
+            stage="transform",
+            label="dbt transform",
+            description="Configure dbt project setup, source metadata, models, tests, and transformation operations.",
+            required_capabilities=["query_engine"],
+            fields=[
+                WorkflowWizardField(
+                    name="project_name",
+                    label="Project name",
+                    required=True,
+                    description="dbt project name to write into dbt_project.yml.",
+                ),
+                WorkflowWizardField(
+                    name="source_name",
+                    label="Source name",
+                    required=True,
+                    description="dbt source name, usually raw.",
+                    default="raw",
+                ),
+                WorkflowWizardField(
+                    name="source_table",
+                    label="Source table",
+                    required=True,
+                    description="Raw table exposed to dbt.",
+                ),
+                WorkflowWizardField(
+                    name="staging_model_name",
+                    label="Staging model",
+                    required=True,
+                    description="Name for the generated staging model.",
+                ),
+                WorkflowWizardField(
+                    name="staging_source_relation",
+                    label="Staging source relation",
+                    required=True,
+                    description="Relation used by the staging model.",
+                ),
+                WorkflowWizardField(
+                    name="enable_rename",
+                    label="Rename columns",
+                    field_type="select",
+                    required=True,
+                    description="Whether to generate a rename projection model.",
+                    options=["no", "yes"],
+                    default="no",
+                ),
+                WorkflowWizardField(
+                    name="renames",
+                    label="Renames",
+                    field_type="fields",
+                    required=False,
+                    description="Optional mappings as source_name:target_name.",
+                ),
+                WorkflowWizardField(
+                    name="enable_cast",
+                    label="Cast columns",
+                    field_type="select",
+                    required=True,
+                    description="Whether to generate a type casting model.",
+                    options=["no", "yes"],
+                    default="no",
+                ),
+                WorkflowWizardField(
+                    name="casts",
+                    label="Casts",
+                    field_type="fields",
+                    required=False,
+                    description="Optional casts as column:type.",
+                ),
+                WorkflowWizardField(
+                    name="filter_model_name",
+                    label="Filter model",
+                    required=True,
+                    description="Name for the optional filtered model.",
+                ),
+                WorkflowWizardField(
+                    name="where",
+                    label="Where clause",
+                    field_type="textarea",
+                    required=False,
+                    description="Optional SQL predicate without the where keyword.",
+                ),
+                WorkflowWizardField(
+                    name="dedupe_model_name",
+                    label="Clean model",
+                    required=True,
+                    description="Name for the optional deduplicated model.",
+                ),
+                WorkflowWizardField(
+                    name="partition_by",
+                    label="Deduplicate by",
+                    required=True,
+                    description="Comma-separated columns that identify duplicates.",
+                ),
+                WorkflowWizardField(
+                    name="order_by",
+                    label="Keep latest by",
+                    required=True,
+                    description="Column or expression used to keep the latest row.",
+                ),
+                WorkflowWizardField(
+                    name="enable_aggregate",
+                    label="Aggregate output",
+                    field_type="select",
+                    required=True,
+                    description="Whether to generate an aggregate model.",
+                    options=["no", "yes"],
+                    default="no",
+                ),
+                WorkflowWizardField(
+                    name="aggregate_model_name",
+                    label="Aggregate model",
+                    required=False,
+                    description="Name for the optional aggregate model.",
+                ),
+                WorkflowWizardField(
+                    name="group_by",
+                    label="Group by",
+                    required=False,
+                    description="Comma-separated grouping columns.",
+                ),
+                WorkflowWizardField(
+                    name="metrics",
+                    label="Metrics",
+                    field_type="fields",
+                    required=False,
+                    description="Optional metrics as name:sql_expression.",
+                ),
+                WorkflowWizardField(
+                    name="test_model_name",
+                    label="Test model",
+                    required=True,
+                    description="dbt model to document and test.",
+                ),
+                WorkflowWizardField(
+                    name="unique_key",
+                    label="Unique key",
+                    required=True,
+                    description="Column that should be unique and not null.",
+                    default="id",
+                ),
+            ],
+            modes={WorkflowContributionMode.PROPOSAL, WorkflowContributionMode.APPLY},
+            metadata={"generator": "phlo-api workflow wizard dbt transform scaffold"},
+        ),
+    ]
 
 
 class DbtAssetProvider(AssetProviderPlugin):

@@ -184,6 +184,18 @@ from phlo.capabilities.specs import (
 )
 from phlo.capabilities.support import CapabilitySupport, coerce_capability_support
 from phlo.capabilities.telemetry import TelemetryRecorder, get_telemetry_path, iter_telemetry_events
+from phlo.capabilities.workflow_wizard import (
+    WorkflowApplyAction,
+    WorkflowContributionMode,
+    WorkflowFilePreview,
+    WorkflowProposal,
+    WorkflowProposalRequest,
+    WorkflowStageSelection,
+    WorkflowWizardContribution,
+    WorkflowWizardField,
+    detect_file_conflicts,
+    validate_proposal_request,
+)
 
 if TYPE_CHECKING:
     from phlo.capabilities.resolver import ResolutionResult
@@ -245,6 +257,14 @@ __all__ = [
     "RunSpec",
     "RuntimeContext",
     "RuntimeRouting",
+    "WorkflowApplyAction",
+    "WorkflowContributionMode",
+    "WorkflowFilePreview",
+    "WorkflowProposal",
+    "WorkflowProposalRequest",
+    "WorkflowStageSelection",
+    "WorkflowWizardContribution",
+    "WorkflowWizardField",
     "SchemaChange",
     "SchemaExtractor",
     "SchemaMigrationPlan",
@@ -255,6 +275,7 @@ __all__ = [
     "coerce_capability_support",
     "clear_capabilities",
     "configured_capability_name",
+    "detect_file_conflicts",
     "get_capability_registry",
     "list_capabilities",
     "list_regulated_surfaces",
@@ -288,6 +309,7 @@ __all__ = [
     "resolve_capability",
     "routing_from_context",
     "TelemetryRecorder",
+    "validate_proposal_request",
     "iter_telemetry_events",
     "load_maintenance_status",
 ]

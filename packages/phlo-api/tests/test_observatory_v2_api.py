@@ -394,6 +394,7 @@ def test_v2_capabilities_endpoint_returns_provider_neutral_payload() -> None:
     assert pages["settings"]["available"] is True
     assert set(pages) == {
         "overview",
+        "workflows",
         "data",
         "assets",
         "issues",
@@ -412,6 +413,7 @@ def test_v2_capabilities_endpoint_returns_provider_neutral_payload() -> None:
         "services",
         "settings",
     }
+    assert pages["workflows"]["available"] is True
     assert pages["data"]["metadata"]["required_any"] == ["query_engine", "table_store"]
     assert pages["quality"]["nav"] is False
     assert pages["storage"]["nav"] is False

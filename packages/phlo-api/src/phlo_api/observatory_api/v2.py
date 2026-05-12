@@ -84,6 +84,14 @@ from phlo_api.observatory_api.v2_saved_queries import (
 from phlo_api.observatory_api.v2_search import search_results as _search_results_impl
 from phlo_api.observatory_api.v2_services import load_services as _load_services_impl
 from phlo_api.observatory_api.v2_storage import load_storage_items
+from phlo_api.observatory_api.v2_workflow_wizard import (
+    V2WorkflowActionRequest,
+    V2WorkflowActionResult,
+    V2WorkflowProposalRequest,
+    apply_workflow_action,
+    build_workflow_proposal,
+    build_workflow_wizard_payload,
+)
 
 router = APIRouter(tags=["observatory-v2"])
 
@@ -2369,6 +2377,29 @@ def get_v2_extension_detail(extension_id: str) -> V2ExtensionDetail:
 def get_v2_settings() -> V2Settings:
     """Get provider-neutral Observatory v2 settings."""
     return _cached_read_model("settings", _EXPENSIVE_READ_MODEL_TTL_SECONDS, _load_settings)
+
+
+@router.get("/workflow-wizard")
+def get_v2_workflow_wizard() -> dict[str, Any]:
+    """Return provider-neutral workflow wizard contributions."""
+
+    return build_workflow_wizard_payload()
+
+
+@router.post("/workflow-wizard/proposals")
+def post_v2_workflow_wizard_proposal(request: V2WorkflowProposalRequest) -> dict[str, Any]:
+    """Build a side-effect-free workflow proposal."""
+
+    return build_workflow_proposal(_project_root(), request)
+
+
+@router.post("/workflow-wizard/actions", response_model=V2WorkflowActionResult)
+def post_v2_workflow_wizard_action(request: V2WorkflowActionRequest) -> V2WorkflowActionResult:
+    """Run a guarded workflow wizard apply action."""
+
+    result = apply_workflow_action(_project_root(), request)
+    _clear_read_model_cache()
+    return result
 
 
 @router.get("/search", response_model=V2SearchList)
