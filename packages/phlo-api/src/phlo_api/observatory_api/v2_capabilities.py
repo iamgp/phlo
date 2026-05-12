@@ -51,6 +51,12 @@ ROUTE_REQUIREMENTS = [
         reason="Install a query engine or table store to browse data.",
     ),
     V2RouteRequirement(
+        route_id="workflows",
+        label="Workflows",
+        path="/workflows/new",
+        reason="Core guided workflow creation surface.",
+    ),
+    V2RouteRequirement(
         route_id="assets",
         label="Assets",
         path="/assets",

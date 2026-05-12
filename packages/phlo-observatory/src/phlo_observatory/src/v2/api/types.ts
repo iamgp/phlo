@@ -79,6 +79,99 @@ export interface V2CapabilityInventory {
   ui_contributions: Array<V2UiContribution>
 }
 
+export interface V2WorkflowWizardField {
+  name: string
+  label: string
+  field_type: 'text' | 'textarea' | 'select' | 'checkbox' | 'fields'
+  required: boolean
+  description?: string | null
+  default?: string | number | boolean
+  options: Array<string>
+  secret: boolean
+}
+
+export interface V2WorkflowWizardContribution {
+  id: string
+  package: string
+  stage: 'source' | 'transform' | 'quality' | 'publish'
+  label: string
+  description: string
+  required_capabilities: Array<string>
+  optional_capabilities: Array<string>
+  fields: Array<V2WorkflowWizardField>
+  modes: Array<'proposal' | 'apply'>
+  metadata: V2Metadata
+}
+
+export interface V2WorkflowWizardPayload {
+  version: number
+  stages: Array<'source' | 'transform' | 'quality' | 'publish'>
+  contributions: Array<V2WorkflowWizardContribution>
+}
+
+export interface V2WorkflowGraphNode {
+  id: string
+  contribution_id: string
+  stage: 'source' | 'transform' | 'quality' | 'publish'
+  values: Record<string, unknown>
+}
+
+export interface V2WorkflowGraphEdge {
+  id: string
+  source: string
+  target: string
+}
+
+export interface V2WorkflowGraph {
+  nodes: Array<V2WorkflowGraphNode>
+  edges: Array<V2WorkflowGraphEdge>
+}
+
+export interface V2WorkflowProposalRequest {
+  workflow_name: string
+  domain: string
+  graph: V2WorkflowGraph
+}
+
+export interface V2WorkflowFilePreview {
+  path: string
+  content: string
+  mode: 'create' | 'modify'
+}
+
+export interface V2WorkflowApplyAction {
+  id: string
+  label: string
+  target_files: Array<string>
+  conflict_policy: 'preview' | 'skip-if-exists' | 'fail-on-conflict'
+  enabled: boolean
+  reason?: string | null
+  risk_level: 'low' | 'medium' | 'high' | 'critical'
+  required_permission?: string | null
+  expected_evidence: Array<string>
+}
+
+export interface V2WorkflowProposal {
+  workflow_name: string
+  domain: string
+  selected_contributions: Array<string>
+  planned_assets: Array<string>
+  planned_tables: Array<string>
+  planned_models: Array<string>
+  files: Array<V2WorkflowFilePreview>
+  warnings: Array<string>
+  missing_capabilities: Array<string>
+  disabled_stages: Record<string, string>
+  actions: Array<V2WorkflowApplyAction>
+}
+
+export interface V2WorkflowActionResult {
+  action_id: string
+  status: 'succeeded' | 'failed' | 'skipped'
+  message: string
+  files: Array<string>
+}
+
 export interface V2ResourceRef {
   kind: string
   id: string

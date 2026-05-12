@@ -15,10 +15,86 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Any
 
+from phlo.capabilities import (
+    WorkflowContributionMode,
+    WorkflowWizardContribution,
+    WorkflowWizardField,
+)
 from phlo.capabilities.specs import AssetCheckSpec, AssetSpec
 from phlo.plugins.base import AssetProviderPlugin, IngestionProviderPlugin, PluginMetadata
 
 from phlo_sling.decorator import clear_sling_assets, get_sling_assets
+
+
+def get_workflow_wizard_contributions() -> list[WorkflowWizardContribution]:
+    """Return provider-neutral workflow wizard contributions for Sling."""
+
+    return [
+        WorkflowWizardContribution(
+            id="sling.replication-source",
+            package="phlo-sling",
+            stage="source",
+            label="Sling replication",
+            description="Replicate database or file streams into a managed Phlo table.",
+            required_capabilities=["table_store"],
+            fields=[
+                WorkflowWizardField(
+                    name="domain",
+                    label="Domain",
+                    required=True,
+                    description="Workflow domain, such as customers or billing.",
+                ),
+                WorkflowWizardField(
+                    name="source_name",
+                    label="Source name",
+                    required=True,
+                    description="Sling source connection name.",
+                ),
+                WorkflowWizardField(
+                    name="source_stream",
+                    label="Source stream",
+                    required=True,
+                    description="Stream, table, or file path to replicate.",
+                ),
+                WorkflowWizardField(
+                    name="target_table",
+                    label="Target table",
+                    required=True,
+                    description="Destination table and generated asset name.",
+                ),
+                WorkflowWizardField(
+                    name="primary_key",
+                    label="Primary key",
+                    required=True,
+                    default="id",
+                    description="Column used for incremental replication and deduplication.",
+                ),
+                WorkflowWizardField(
+                    name="replication_mode",
+                    label="Replication mode",
+                    field_type="select",
+                    required=True,
+                    default="incremental",
+                    options=["incremental", "full-refresh", "snapshot"],
+                    description="How Sling should keep the target table in sync.",
+                ),
+                WorkflowWizardField(
+                    name="update_key",
+                    label="Update key",
+                    required=False,
+                    description="Optional cursor column for incremental streams.",
+                ),
+                WorkflowWizardField(
+                    name="schedule",
+                    label="Schedule",
+                    default="0 2 * * *",
+                    description="Cron schedule for the generated replication asset.",
+                ),
+            ],
+            modes={WorkflowContributionMode.PROPOSAL, WorkflowContributionMode.APPLY},
+            metadata={"generator": "phlo-api workflow wizard Sling scaffold"},
+        )
+    ]
 
 
 class SlingAssetProvider(AssetProviderPlugin):

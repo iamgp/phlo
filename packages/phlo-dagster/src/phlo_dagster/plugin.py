@@ -38,7 +38,60 @@ Example:
 
 from __future__ import annotations
 
+from phlo.capabilities import (
+    WorkflowContributionMode,
+    WorkflowWizardContribution,
+    WorkflowWizardField,
+)
 from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
+
+
+def get_workflow_wizard_contributions() -> list[WorkflowWizardContribution]:
+    """Return provider-neutral workflow wizard contributions for Dagster."""
+
+    return [
+        WorkflowWizardContribution(
+            id="dagster.orchestration",
+            package="phlo-dagster",
+            stage="publish",
+            label="Dagster orchestration",
+            description="Create a Dagster definitions module that wires generated assets into a scheduled job.",
+            required_capabilities=["orchestrator"],
+            optional_capabilities=["asset_observability"],
+            fields=[
+                WorkflowWizardField(
+                    name="job_name",
+                    label="Job name",
+                    required=True,
+                    description="Dagster job name for this workflow.",
+                ),
+                WorkflowWizardField(
+                    name="asset_group",
+                    label="Asset group",
+                    required=True,
+                    description="Group name for generated workflow assets.",
+                ),
+                WorkflowWizardField(
+                    name="schedule",
+                    label="Schedule",
+                    required=True,
+                    default="0 2 * * *",
+                    description="Cron schedule for the generated Dagster schedule.",
+                ),
+                WorkflowWizardField(
+                    name="include_sensor",
+                    label="Include sensor",
+                    field_type="select",
+                    required=True,
+                    default="no",
+                    options=["no", "yes"],
+                    description="Whether to scaffold a placeholder sensor for external events.",
+                ),
+            ],
+            modes={WorkflowContributionMode.PROPOSAL, WorkflowContributionMode.APPLY},
+            metadata={"generator": "phlo-api workflow wizard Dagster scaffold"},
+        )
+    ]
 
 
 class DagsterServicePlugin(PackageYamlServicePlugin):

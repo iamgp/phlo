@@ -1,3 +1,4 @@
+import { BaseStyles, ThemeProvider } from '@primer/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   HeadContent,
@@ -87,15 +88,24 @@ function RootLayout() {
         <HeadContent />
       </head>
       <body className="phlo-v2-document min-h-svh bg-background text-foreground">
-        <QueryClientProvider client={queryClient}>
-          <ObservatorySettingsProvider>
-            <ObservatoryExtensionProvider>
-              <V2Shell>
-                <Outlet />
-              </V2Shell>
-            </ObservatoryExtensionProvider>
-          </ObservatorySettingsProvider>
-        </QueryClientProvider>
+        <ThemeProvider
+          colorMode="auto"
+          dayScheme="light"
+          nightScheme="dark"
+          preventSSRMismatch
+        >
+          <BaseStyles className="phlo-primer-base">
+            <QueryClientProvider client={queryClient}>
+              <ObservatorySettingsProvider>
+                <ObservatoryExtensionProvider>
+                  <V2Shell>
+                    <Outlet />
+                  </V2Shell>
+                </ObservatoryExtensionProvider>
+              </ObservatorySettingsProvider>
+            </QueryClientProvider>
+          </BaseStyles>
+        </ThemeProvider>
         <Toaster />
         <Scripts />
       </body>
