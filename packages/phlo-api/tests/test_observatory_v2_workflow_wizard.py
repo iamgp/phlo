@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from importlib.util import find_spec
+from importlib import import_module
 
 from fastapi.testclient import TestClient
 
@@ -10,13 +10,21 @@ from phlo_api.main import app
 client = TestClient(app)
 
 
+def _can_load_workflow_plugin(module_name: str) -> bool:
+    try:
+        module = import_module(module_name)
+    except Exception:
+        return False
+    return callable(getattr(module, "get_workflow_wizard_contributions", None))
+
+
 def test_workflow_wizard_lists_package_contributions() -> None:
     response = client.get("/api/observatory/v2/workflow-wizard")
 
     assert response.status_code == 200
     payload = response.json()
     ids = [item["id"] for item in payload["contributions"]]
-    if find_spec("phlo_dlt") is not None:
+    if _can_load_workflow_plugin("phlo_dlt.plugin"):
         assert "dlt.rest-api-source" in ids
     assert "sling.replication-source" in ids
     assert "dbt.transform" in ids

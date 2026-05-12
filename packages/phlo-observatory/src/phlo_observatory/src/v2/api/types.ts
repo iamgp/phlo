@@ -85,7 +85,7 @@ export interface V2WorkflowWizardField {
   field_type: 'text' | 'textarea' | 'select' | 'checkbox' | 'fields'
   required: boolean
   description?: string | null
-  default?: unknown
+  default?: string | number | boolean
   options: Array<string>
   secret: boolean
 }
