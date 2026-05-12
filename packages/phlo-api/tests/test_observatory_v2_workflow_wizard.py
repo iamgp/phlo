@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from importlib import import_module
+from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from phlo_api.main import app
@@ -48,7 +50,9 @@ def test_workflow_wizard_proposal_requires_graph_nodes() -> None:
     assert response.json()["detail"]["graph"] == ["Add at least one workflow node."]
 
 
-def test_workflow_wizard_builds_dlt_dbt_graph_proposal(tmp_path, monkeypatch) -> None:
+def test_workflow_wizard_builds_dlt_dbt_graph_proposal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
 
     response = client.post(
@@ -101,7 +105,9 @@ def test_workflow_wizard_builds_dlt_dbt_graph_proposal(tmp_path, monkeypatch) ->
     assert payload["actions"][0]["enabled"] is True
 
 
-def test_workflow_wizard_builds_composed_transform_graph_proposal(tmp_path, monkeypatch) -> None:
+def test_workflow_wizard_builds_composed_transform_graph_proposal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
 
     response = client.post(
@@ -161,7 +167,9 @@ def test_workflow_wizard_builds_composed_transform_graph_proposal(tmp_path, monk
     assert "workflows/transforms/dbt/models/clean_recipes.yml" in paths
 
 
-def test_workflow_wizard_builds_quality_and_publish_graph_proposal(tmp_path, monkeypatch) -> None:
+def test_workflow_wizard_builds_quality_and_publish_graph_proposal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
 
     response = client.post(
@@ -241,7 +249,9 @@ def test_workflow_wizard_builds_quality_and_publish_graph_proposal(tmp_path, mon
     assert "workflows/catalog/recipes/recipe_catalog.yml" in paths
 
 
-def test_workflow_wizard_apply_fails_on_conflict(tmp_path, monkeypatch) -> None:
+def test_workflow_wizard_apply_fails_on_conflict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     existing = tmp_path / "workflows" / "ingestion" / "customers"
     existing.mkdir(parents=True)

@@ -223,7 +223,8 @@ def apply_workflow_action(
 
 def _proposal_from_request(request: WorkflowProposalRequest) -> WorkflowProposal:
     source = request.selection_for("source")
-    assert source is not None
+    if source is None:
+        raise RuntimeError("Missing source selection in workflow proposal request.")
     source_values = source.values
     domain = _slug(str(source_values.get("domain") or request.domain))
     table_name = _slug(
