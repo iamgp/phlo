@@ -183,8 +183,9 @@ function useV2Shell({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (!hydrated) return
     window.localStorage.setItem(V2_THEME_STORAGE_KEY, themeMode)
-  }, [themeMode])
+  }, [hydrated, themeMode])
 
   useEffect(() => {
     document.documentElement.dataset.phloV2Route = 'true'

@@ -399,19 +399,19 @@ function useNodeDetailPanel({
                     }}
                     className="p-3 text-xs leading-relaxed"
                   >
-                    {tokens.map((line) => (
+                    {tokens.map((line, lineIndex) => (
                       <div
-                        key={line
+                        key={`${lineIndex}:${line
                           .map(
                             (token) =>
                               `${token.content}:${token.types.join('.')}`,
                           )
-                          .join('|')}
+                          .join('|')}`}
                         {...getLineProps({ line })}
                       >
-                        {line.map((token) => (
+                        {line.map((token, tokenIndex) => (
                           <span
-                            key={`${token.content}:${token.types.join('.')}`}
+                            key={`${lineIndex}:${tokenIndex}:${token.content}:${token.types.join('.')}`}
                             {...getTokenProps({ token })}
                           />
                         ))}

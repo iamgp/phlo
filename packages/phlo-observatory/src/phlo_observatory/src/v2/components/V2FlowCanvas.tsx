@@ -175,7 +175,16 @@ export function V2FlowCanvas({
       ),
     [graphEdges],
   )
-  const canvasKey = `${selectedId ?? 'none'}:${graphNodes.map((node) => node.id).join('|')}:${graphEdges.map((edge) => edge.id).join('|')}`
+  const canvasKey = `${selectedId ?? 'none'}:${graphNodes
+    .map(
+      (node) =>
+        `${node.id}:${node.label}:${node.lane ?? ''}:${node.metric ?? ''}:${node.subtitle ?? ''}`,
+    )
+    .join('|')}:${graphEdges
+    .map(
+      (edge) => `${edge.id}:${edge.source}:${edge.target}:${edge.label ?? ''}`,
+    )
+    .join('|')}`
 
   return (
     <V2FlowCanvasInstance

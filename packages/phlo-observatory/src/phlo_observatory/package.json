@@ -13,7 +13,8 @@
   },
   "knip": {
     "entry": [
-      "eslint.config.js"
+      "eslint.config.js",
+      "vite.config.ts"
     ]
   },
   "dependencies": {

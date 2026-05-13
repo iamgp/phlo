@@ -203,6 +203,7 @@ interface ImpactAnalysisSectionProps {
 
 type ImpactState = {
   impactedAssets: Array<ImpactedAsset>
+  error: string | null
   loading: boolean
 }
 
@@ -212,12 +213,12 @@ function ImpactAnalysisSection({
   onFocusGraph,
 }: ImpactAnalysisSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [{ impactedAssets, loading }, setImpactState] = useReducer(
+  const [{ impactedAssets, error, loading }, setImpactState] = useReducer(
     (current: ImpactState, next: Partial<ImpactState>) => ({
       ...current,
       ...next,
     }),
-    { impactedAssets: [], loading: false },
+    { impactedAssets: [], error: null, loading: false },
   )
   const { settings } = useObservatorySettings()
 
@@ -225,18 +226,26 @@ function ImpactAnalysisSection({
     const nextExpanded = !isExpanded
     setIsExpanded(nextExpanded)
     if (nextExpanded && impactedAssets.length === 0) {
-      setImpactState({ loading: true })
+      setImpactState({ error: null, loading: true })
       void getAssetImpact({
         data: { assetKey, dagsterUrl: settings.connections.dagsterGraphqlUrl },
       })
         .then((result) =>
           setImpactState(
             'error' in result
-              ? { loading: false }
-              : { impactedAssets: result, loading: false },
+              ? {
+                  error: result.error ?? 'Failed to load impact analysis',
+                  loading: false,
+                }
+              : { impactedAssets: result, error: null, loading: false },
           ),
         )
-        .catch(() => setImpactState({ loading: false }))
+        .catch(() =>
+          setImpactState({
+            error: 'Failed to load impact analysis',
+            loading: false,
+          }),
+        )
     }
   }
 
@@ -276,6 +285,8 @@ function ImpactAnalysisSection({
             <div className="text-sm text-muted-foreground text-center py-2">
               Loading…
             </div>
+          ) : error ? (
+            <div className="text-sm text-red-400 text-center py-2">{error}</div>
           ) : impactedAssets.length > 0 ? (
             <ul className="space-y-1">
               {impactedAssets.map((asset) => (

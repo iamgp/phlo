@@ -353,8 +353,9 @@ export function extractSourceTables(sql: string): Array<string> {
 function buildUpstreamWhereClause(
   downstreamRow: Record<string, unknown>,
   columnMappings: Array<ColumnMapping>,
-): string {
+): { whereClause: string; usedColumns: Array<string> } {
   const conditions: Array<string> = []
+  const usedColumns: Array<string> = []
   const mappingsByTarget = new Map(
     columnMappings.map((mapping) => [mapping.targetColumn, mapping]),
   )
@@ -364,6 +365,8 @@ function buildUpstreamWhereClause(
     'AVG',
     'MIN',
     'MAX',
+    'ARRAY_AGG',
+    'STRING_AGG',
   ])
 
   for (const [downstreamCol, value] of Object.entries(downstreamRow)) {
@@ -387,47 +390,58 @@ function buildUpstreamWhereClause(
         // For DATE transformations, query with date range
         if (typeof value === 'string') {
           conditions.push(`DATE(${mapping.sourceColumn}) = DATE '${value}'`)
+          usedColumns.push(downstreamCol)
         }
       } else if (func === 'CAST') {
         // For CAST, use original column
         if (value === null || value === undefined) {
           conditions.push(`${mapping.sourceColumn} IS NULL`)
+          usedColumns.push(downstreamCol)
         } else if (typeof value === 'string') {
           conditions.push(
             `${mapping.sourceColumn} = '${value.replace(/'/g, "''")}'`,
           )
+          usedColumns.push(downstreamCol)
         } else {
           conditions.push(`${mapping.sourceColumn} = ${value}`)
+          usedColumns.push(downstreamCol)
         }
       } else {
         // For other functions, try to match with the function applied
         if (value === null || value === undefined) {
           conditions.push(`${mapping.sourceExpression} IS NULL`)
+          usedColumns.push(downstreamCol)
         } else if (typeof value === 'string') {
           conditions.push(
             `${mapping.sourceExpression} = '${value.replace(/'/g, "''")}'`,
           )
+          usedColumns.push(downstreamCol)
         } else {
           conditions.push(`${mapping.sourceExpression} = ${value}`)
+          usedColumns.push(downstreamCol)
         }
       }
     } else {
       // No transformation - direct column mapping
       if (value === null || value === undefined) {
         conditions.push(`${mapping.sourceColumn} IS NULL`)
+        usedColumns.push(downstreamCol)
       } else if (typeof value === 'string') {
         conditions.push(
           `${mapping.sourceColumn} = '${value.replace(/'/g, "''")}'`,
         )
+        usedColumns.push(downstreamCol)
       } else if (typeof value === 'number') {
         conditions.push(`${mapping.sourceColumn} = ${value}`)
+        usedColumns.push(downstreamCol)
       } else if (typeof value === 'boolean') {
         conditions.push(`${mapping.sourceColumn} = ${value}`)
+        usedColumns.push(downstreamCol)
       }
     }
   }
 
-  return conditions.join(' AND ')
+  return { whereClause: conditions.join(' AND '), usedColumns }
 }
 
 /**
@@ -797,10 +811,8 @@ export function buildSmartWhereClause(
   // Fall back to regular column mappings
   const fallbackResult = buildUpstreamWhereClause(rowData, columnMappings)
   return {
-    whereClause: fallbackResult,
-    usedColumns: columnMappings.flatMap((mapping) =>
-      mapping.sourceColumn ? [mapping.targetColumn] : [],
-    ),
+    whereClause: fallbackResult.whereClause,
+    usedColumns: fallbackResult.usedColumns,
     strategy: 'column_mappings',
   }
 }

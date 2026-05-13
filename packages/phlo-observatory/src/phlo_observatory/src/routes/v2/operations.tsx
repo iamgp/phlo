@@ -292,8 +292,11 @@ function buildOperationGraph(operations: Array<V2Operation>): {
   const operationIdByTargetId = new Map<string, string>()
   for (const operation of operations) {
     if (operation.target) {
-      targetById.set(operation.target.id, operation.target)
-      operationIdByTargetId.set(operation.target.id, operation.id)
+      const targetId = operation.target.id
+      if (!targetById.has(targetId)) {
+        targetById.set(targetId, operation.target)
+        operationIdByTargetId.set(targetId, operation.id)
+      }
     }
   }
 

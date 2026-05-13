@@ -305,8 +305,9 @@ export function StageDiff({
   }, [transformationSql, upstreamColumns, downstreamColumns])
 
   useEffect(() => {
+    if (!open) return
     void loadDiff()
-  }, [loadDiff])
+  }, [loadDiff, open])
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>

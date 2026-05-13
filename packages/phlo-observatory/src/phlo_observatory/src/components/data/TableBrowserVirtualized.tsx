@@ -260,7 +260,7 @@ export function TableBrowserVirtualized({
     <div
       className="flex flex-col h-full"
       onKeyDown={handleKeyDown}
-      role="tree"
+      role="listbox"
       aria-label="Tables"
       tabIndex={0}
     >

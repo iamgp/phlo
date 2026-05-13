@@ -120,8 +120,8 @@ function explorerReducer(
     case 'syncSearch':
       return {
         ...state,
-        activeTab: action.sql ? 'query' : (action.tab ?? state.activeTab),
-        pendingQuery: action.sql ?? state.pendingQuery,
+        activeTab: action.sql ? 'query' : (action.tab ?? 'preview'),
+        pendingQuery: action.sql ?? null,
       }
     case 'setTab':
       return { ...state, activeTab: action.tab }
@@ -189,10 +189,9 @@ function DataExplorerWithTable() {
   // Reset state when table changes (fixes sidebar navigation bug)
   useEffect(() => {
     dispatch({ type: 'resetForTable' })
-  }, [schema, table])
+  }, [branchName, schema, table])
 
   useEffect(() => {
-    if (!tabFromSearch && !sqlFromSearch) return
     dispatch({ type: 'syncSearch', sql: sqlFromSearch, tab: tabFromSearch })
   }, [sqlFromSearch, tabFromSearch])
 
