@@ -1,5 +1,5 @@
 import { ChevronDown, Loader2, Play, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 
 import type { DataPreviewResult } from '@/server/trino.server'
 import { SaveQueryDialog } from '@/components/data/SaveQueryDialog'
@@ -29,20 +29,16 @@ export function QueryEditor({
   branch,
   autoRun = false,
 }: QueryEditorProps) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useReducer(
+    (_: string, next: string) => next,
+    defaultQuery,
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [effectiveQuery, setEffectiveQuery] = useState<string | null>(null)
   const lastAutoRunQueryRef = useRef<string | null>(null)
   const { settings } = useObservatorySettings()
   const { queries: savedQueries } = useSavedQueries()
-
-  // Sync query when defaultQuery changes from external source
-  useEffect(() => {
-    if (defaultQuery) {
-      setQuery(defaultQuery)
-    }
-  }, [defaultQuery])
 
   // Auto-execute query when autoRun is enabled and defaultQuery changes
   useEffect(() => {

@@ -11,6 +11,11 @@
     "format": "prettier",
     "check": "prettier --write . && eslint --fix"
   },
+  "knip": {
+    "entry": [
+      "eslint.config.js"
+    ]
+  },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",

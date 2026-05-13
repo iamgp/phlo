@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import {
   Background,
@@ -175,17 +175,29 @@ export function V2FlowCanvas({
       ),
     [graphEdges],
   )
+  const canvasKey = `${selectedId ?? 'none'}:${graphNodes.map((node) => node.id).join('|')}:${graphEdges.map((edge) => edge.id).join('|')}`
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+  return (
+    <V2FlowCanvasInstance
+      key={canvasKey}
+      edges={initialEdges}
+      nodes={initialNodes}
+      onSelect={onSelect}
+    />
+  )
+}
 
-  useEffect(() => {
-    setNodes(initialNodes)
-  }, [initialNodes, setNodes])
-
-  useEffect(() => {
-    setEdges(initialEdges)
-  }, [initialEdges, setEdges])
+function V2FlowCanvasInstance({
+  edges: initialEdges,
+  nodes: initialNodes,
+  onSelect,
+}: {
+  edges: Array<Edge>
+  nodes: Array<Node<FlowNodeData, 'phlo'>>
+  onSelect?: (id: string) => void
+}) {
+  const [nodes, , onNodesChange] = useNodesState(initialNodes)
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges)
 
   const handleNodeClick = useCallback(
     (_: MouseEvent, node: Node) => {

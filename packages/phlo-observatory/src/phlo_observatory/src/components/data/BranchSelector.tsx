@@ -1,5 +1,5 @@
 import { GitBranch, Loader2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useReducer } from 'react'
 
 import type { Branch, NessieConfig } from '@/server/nessie.server'
 import { checkNessieConnection, getBranches } from '@/server/nessie.server'
@@ -11,14 +11,35 @@ interface BranchSelectorProps {
 }
 
 export function BranchSelector({ branch, onChange }: BranchSelectorProps) {
-  const [connection, setConnection] = useState<NessieConfig | null>(null)
-  const [branches, setBranches] = useState<Array<Branch>>([])
-  const [loading, setLoading] = useState(true)
+  const [{ branches, connection, loading }, dispatch] = useReducer(
+    (
+      state: {
+        branches: Array<Branch>
+        connection: NessieConfig | null
+        loading: boolean
+      },
+      action:
+        | { type: 'loading' }
+        | { type: 'loaded'; branches: Array<Branch>; connection: NessieConfig },
+    ) => {
+      switch (action.type) {
+        case 'loading':
+          return { ...state, loading: true }
+        case 'loaded':
+          return {
+            branches: action.branches,
+            connection: action.connection,
+            loading: false,
+          }
+      }
+    },
+    { branches: [], connection: null, loading: true },
+  )
   const { settings } = useObservatorySettings()
 
   useEffect(() => {
     async function load() {
-      setLoading(true)
+      dispatch({ type: 'loading' })
       const [conn, refs] = await Promise.all([
         checkNessieConnection({
           data: { nessieUrl: settings.connections.nessieUrl },
@@ -26,13 +47,12 @@ export function BranchSelector({ branch, onChange }: BranchSelectorProps) {
         getBranches({ data: { nessieUrl: settings.connections.nessieUrl } }),
       ])
 
-      setConnection(conn)
-      if (!('error' in refs)) {
-        setBranches(refs.filter((b) => b.type === 'BRANCH'))
-      } else {
-        setBranches([])
-      }
-      setLoading(false)
+      dispatch({
+        type: 'loaded',
+        connection: conn,
+        branches:
+          'error' in refs ? [] : refs.filter((b) => b.type === 'BRANCH'),
+      })
     }
 
     load()

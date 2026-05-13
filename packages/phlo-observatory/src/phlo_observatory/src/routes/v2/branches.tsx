@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { GitBranch, GitCompare, History, Plus, Table2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useReducer } from 'react'
 
 import type {
   V2BranchDetail,
@@ -19,30 +19,71 @@ export const Route = createFileRoute('/v2/branches')({
   component: Branches,
 })
 
+type BranchesState = {
+  actionMessage: string | null
+  activePanel: BranchPanel
+  createdBranches: Array<V2ResourceItem>
+  detail: V2ResourceResult<V2BranchDetail>
+  selectedId: string | null
+}
+
+type BranchesAction =
+  | { type: 'actionMessage'; message: string | null }
+  | { type: 'activePanel'; panel: BranchPanel }
+  | { type: 'detail'; detail: V2ResourceResult<V2BranchDetail> }
+  | { type: 'select'; selectedId: string | null }
+  | { type: 'branchCreated'; branch: V2ResourceItem; message: string | null }
+
+function branchesReducer(
+  state: BranchesState,
+  action: BranchesAction,
+): BranchesState {
+  switch (action.type) {
+    case 'actionMessage':
+      return { ...state, actionMessage: action.message }
+    case 'activePanel':
+      return { ...state, activePanel: action.panel }
+    case 'detail':
+      return { ...state, detail: action.detail }
+    case 'select':
+      return { ...state, selectedId: action.selectedId }
+    case 'branchCreated':
+      return {
+        ...state,
+        actionMessage: action.message,
+        createdBranches: mergeBranches(state.createdBranches, [action.branch]),
+        selectedId: action.branch.id,
+      }
+  }
+}
+
 export function Branches() {
   const result = useLiveResource(getV2Branches)
-  const [createdBranches, setCreatedBranches] = useState<Array<V2ResourceItem>>(
-    [],
-  )
+  const [
+    { actionMessage, activePanel, createdBranches, detail, selectedId },
+    dispatch,
+  ] = useReducer(branchesReducer, {
+    actionMessage: null,
+    activePanel: 'contents',
+    createdBranches: [],
+    detail: {
+      data: null,
+      error: null,
+    },
+    selectedId: null,
+  })
   const branches = mergeBranches(result.data ?? [], createdBranches)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [activePanel, setActivePanel] = useState<BranchPanel>('contents')
   const selected =
     branches.find((branch) => branch.id === selectedId) ??
     branches.find((branch) => branch.status === 'current') ??
     branches[0]
-  const [detail, setDetail] = useState<V2ResourceResult<V2BranchDetail>>({
-    data: null,
-    error: null,
-  })
-  const [actionMessage, setActionMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (!selected) return
     let cancelled = false
     void getV2BranchDetail({ data: { branchName: selected.id } }).then(
       (next) => {
-        if (!cancelled) setDetail(next)
+        if (!cancelled) dispatch({ type: 'detail', detail: next })
       },
     )
     return () => {
@@ -78,25 +119,25 @@ export function Branches() {
                 void runV2BranchAction({
                   data: { actionId: `branch:create:${branchName}` },
                 }).then((next) => {
-                  setActionMessage(
+                  const message =
                     next.data?.message ??
-                      next.error ??
-                      'Branch action completed',
-                  )
+                    next.error ??
+                    'Branch action completed'
                   if (next.data?.status === 'succeeded') {
-                    setCreatedBranches((current) =>
-                      mergeBranches(current, [
-                        {
-                          id: branchName,
-                          kind: 'branch',
-                          metadata: { source: 'local' },
-                          name: branchName,
-                          status: 'branch',
-                          summary: 'Local Observatory branch state',
-                        },
-                      ]),
-                    )
-                    setSelectedId(branchName)
+                    dispatch({
+                      type: 'branchCreated',
+                      branch: {
+                        id: branchName,
+                        kind: 'branch',
+                        metadata: { source: 'local' },
+                        name: branchName,
+                        status: 'branch',
+                        summary: 'Local Observatory branch state',
+                      },
+                      message,
+                    })
+                  } else {
+                    dispatch({ type: 'actionMessage', message })
                   }
                 })
               }}
@@ -111,7 +152,9 @@ export function Branches() {
               className="phlo-v2-row phlo-v2-select-row"
               data-active={branch.id === selected?.id}
               key={branch.id}
-              onClick={() => setSelectedId(branch.id)}
+              onClick={() =>
+                dispatch({ type: 'select', selectedId: branch.id })
+              }
               type="button"
             >
               <div className="phlo-v2-row-main">
@@ -136,7 +179,9 @@ export function Branches() {
           <div className="phlo-v2-action-row">
             <button
               data-active={activePanel === 'compare'}
-              onClick={() => setActivePanel('compare')}
+              onClick={() =>
+                dispatch({ type: 'activePanel', panel: 'compare' })
+              }
               type="button"
             >
               <GitCompare className="size-3.5" />
@@ -144,7 +189,9 @@ export function Branches() {
             </button>
             <button
               data-active={activePanel === 'history'}
-              onClick={() => setActivePanel('history')}
+              onClick={() =>
+                dispatch({ type: 'activePanel', panel: 'history' })
+              }
               type="button"
             >
               <History className="size-3.5" />
@@ -152,7 +199,9 @@ export function Branches() {
             </button>
             <button
               data-active={activePanel === 'contents'}
-              onClick={() => setActivePanel('contents')}
+              onClick={() =>
+                dispatch({ type: 'activePanel', panel: 'contents' })
+              }
               type="button"
             >
               <Table2 className="size-3.5" />

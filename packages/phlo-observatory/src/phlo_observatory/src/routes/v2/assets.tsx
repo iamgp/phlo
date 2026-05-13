@@ -104,7 +104,6 @@ export function Assets() {
     }
 
     let cancelled = false
-    setPreview({ tableId: primaryTable.id, data: null, error: null })
     getV2TablePreview({ data: { tableId: primaryTable.id, limit: 5 } }).then(
       (response) => {
         if (cancelled) return

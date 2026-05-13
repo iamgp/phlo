@@ -1,4 +1,11 @@
-import { createContext, use, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  createContext,
+  use,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+} from 'react'
 import { createRoute, useRouter } from '@tanstack/react-router'
 import type { ComponentType, ReactNode } from 'react'
 import type { AnyRoute } from '@tanstack/react-router'
@@ -31,7 +38,7 @@ export type SlotRegistry = {
 
 type RegisterSlotFn = (registry: SlotRegistry) => void
 
-export type ExtensionSettingsSection = {
+type ExtensionSettingsSection = {
   id: string
   title: string
   description?: string
@@ -47,12 +54,57 @@ export type SettingsRegistry = {
 }
 
 type RegisterSettingsFn = (registry: SettingsRegistry) => void
+type ExtensionModule = Record<string, unknown>
+type ExtensionModuleLoader = () => Promise<ExtensionModule>
 
 type ExtensionRegistryState = {
   extensions: Array<ObservatoryExtension>
   navItems: Array<ObservatoryExtensionNavItem>
   slots: Record<string, Array<ComponentType>>
   settingsSections: Array<ExtensionSettingsSection>
+}
+
+type ExtensionRegistryAction =
+  | {
+      type: 'loaded'
+      extensions: Array<ObservatoryExtension>
+      navItems: Array<ObservatoryExtensionNavItem>
+    }
+  | { type: 'slot'; slotId: string; component: ComponentType }
+  | { type: 'settings'; section: ExtensionSettingsSection }
+
+function extensionRegistryReducer(
+  state: ExtensionRegistryState,
+  action: ExtensionRegistryAction,
+): ExtensionRegistryState {
+  switch (action.type) {
+    case 'loaded':
+      return {
+        ...state,
+        extensions: action.extensions,
+        navItems: action.navItems,
+      }
+    case 'slot':
+      return {
+        ...state,
+        slots: {
+          ...state.slots,
+          [action.slotId]: [
+            ...(state.slots[action.slotId] ?? []),
+            action.component,
+          ],
+        },
+      }
+    case 'settings': {
+      const settingsSections = state.settingsSections.filter(
+        (item) => item.id !== action.section.id,
+      )
+      return {
+        ...state,
+        settingsSections: [...settingsSections, action.section],
+      }
+    }
+  }
 }
 
 const ExtensionRegistryContext = createContext<ExtensionRegistryState | null>(
@@ -69,20 +121,30 @@ function uniqueNavItems(items: Array<ObservatoryExtensionNavItem>) {
   })
 }
 
+const bundledExtensionModules = import.meta.glob<ExtensionModule>(
+  '/src/extensions/**/*.{ts,tsx,js,jsx}',
+)
+
+function loadExtensionModule(moduleUrl: string): Promise<ExtensionModule> {
+  const loader = bundledExtensionModules[moduleUrl] as
+    | ExtensionModuleLoader
+    | undefined
+  if (loader) return loader()
+  return Promise.resolve({})
+}
+
 export function ObservatoryExtensionProvider({
   children,
 }: {
   children: ReactNode
 }) {
   const router = useRouter()
-  const [extensions, setExtensions] = useState<Array<ObservatoryExtension>>([])
-  const [navItems, setNavItems] = useState<Array<ObservatoryExtensionNavItem>>(
-    [],
-  )
-  const [slots, setSlots] = useState<Record<string, Array<ComponentType>>>({})
-  const [settingsSections, setSettingsSections] = useState<
-    Array<ExtensionSettingsSection>
-  >([])
+  const [state, dispatch] = useReducer(extensionRegistryReducer, {
+    extensions: [],
+    navItems: [],
+    slots: {},
+    settingsSections: [],
+  })
   const registeredExtensions = useRef(new Set<string>())
 
   useEffect(() => {
@@ -92,18 +154,12 @@ export function ObservatoryExtensionProvider({
 
     const registerSlot = (slotId: string): SlotRegistry['register'] => {
       return (component) => {
-        setSlots((current) => ({
-          ...current,
-          [slotId]: [...(current[slotId] ?? []), component],
-        }))
+        dispatch({ type: 'slot', slotId, component })
       }
     }
 
     const registerSettings: SettingsRegistry['register'] = (section) => {
-      setSettingsSections((current) => {
-        const next = current.filter((item) => item.id !== section.id)
-        return [...next, section]
-      })
+      dispatch({ type: 'settings', section })
     }
 
     const loadExtensions = async () => {
@@ -124,11 +180,10 @@ export function ObservatoryExtensionProvider({
       }
       if (!active) return
 
-      setExtensions(entries)
       const nextNavItems = uniqueNavItems(
         entries.flatMap((entry) => entry.manifest.ui?.nav ?? []),
       )
-      setNavItems(nextNavItems)
+      dispatch({ type: 'loaded', extensions: entries, navItems: nextNavItems })
 
       const rootRoute = router.options.routeTree as AnyRoute | undefined
       const nextRoutes: Array<AnyRoute> = []
@@ -148,7 +203,7 @@ export function ObservatoryExtensionProvider({
           routeTasks.push(
             (async () => {
               try {
-                const module = await import(/* @vite-ignore */ route.module)
+                const module = await loadExtensionModule(route.module)
                 const registerRoutes = module[route.export] as
                   | RegisterRoutesFn
                   | undefined
@@ -181,7 +236,7 @@ export function ObservatoryExtensionProvider({
           slotTasks.push(
             (async () => {
               try {
-                const module = await import(/* @vite-ignore */ slot.module)
+                const module = await loadExtensionModule(slot.module)
                 const registerSlotFn = module[slot.export] as
                   | RegisterSlotFn
                   | undefined
@@ -199,7 +254,7 @@ export function ObservatoryExtensionProvider({
           settingTasks.push(
             (async () => {
               try {
-                const module = await import(/* @vite-ignore */ setting.module)
+                const module = await loadExtensionModule(setting.module)
                 const registerSettingsFn = module[setting.export] as
                   | RegisterSettingsFn
                   | undefined
@@ -253,10 +308,7 @@ export function ObservatoryExtensionProvider({
     }
   }, [router])
 
-  const value = useMemo<ExtensionRegistryState>(
-    () => ({ extensions, navItems, slots, settingsSections }),
-    [extensions, navItems, slots, settingsSections],
-  )
+  const value = useMemo<ExtensionRegistryState>(() => state, [state])
 
   return (
     <ExtensionRegistryContext.Provider value={value}>

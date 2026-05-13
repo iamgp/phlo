@@ -29,10 +29,15 @@ describe('MetadataCache', () => {
     it('caches successful results', async () => {
       const mock = mockFn(() => ({ data: 'test' }))
 
-      const result1 = await withCache(mock.fn, 'test:key', 60000)
-      const result2 = await withCache(mock.fn, 'test:key', 60000)
+      const result1 = await withCache(mock.fn, 'test:key', 60000).then(
+        async (cachedResult) => {
+          const result2 = await withCache(mock.fn, 'test:key', 60000)
+          return [cachedResult, result2] as const
+        },
+      )
+      const result2 = result1[1]
 
-      expect(result1).toEqual({ data: 'test' })
+      expect(result1[0]).toEqual({ data: 'test' })
       expect(result2).toEqual({ data: 'test' })
       expect(mock.getCallCount()).toBe(1)
     })

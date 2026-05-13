@@ -12,7 +12,7 @@ import {
   GitBranch,
   Loader2,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useReducer } from 'react'
 
 import type { DataPreviewResult } from '@/server/trino.server'
 import { RowJourney } from '@/components/data/RowJourney'
@@ -42,6 +42,31 @@ export const Route = createFileRoute('/data/$branchName/$schema/$table/$rowId')(
   },
 )
 
+type RowDetailState = {
+  error: string | null
+  loading: boolean
+  rowData: DataPreviewResult | null
+}
+
+type RowDetailAction =
+  | { type: 'loading' }
+  | { type: 'error'; error: string }
+  | { type: 'loaded'; rowData: DataPreviewResult }
+
+function rowDetailReducer(
+  state: RowDetailState,
+  action: RowDetailAction,
+): RowDetailState {
+  switch (action.type) {
+    case 'loading':
+      return { ...state, error: null, loading: true }
+    case 'error':
+      return { error: action.error, loading: false, rowData: null }
+    case 'loaded':
+      return { error: null, loading: false, rowData: action.rowData }
+  }
+}
+
 function RowDetailPage() {
   const { branchName, schema, table, rowId } = useParams({
     from: '/data/$branchName/$schema/$table/$rowId',
@@ -49,9 +74,11 @@ function RowDetailPage() {
   const decodedRowId = decodeURIComponent(rowId)
   const { settings } = useObservatorySettings()
 
-  const [rowData, setRowData] = useState<DataPreviewResult | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [{ error, loading, rowData }, dispatch] = useReducer(rowDetailReducer, {
+    error: null,
+    loading: true,
+    rowData: null,
+  })
 
   useEffect(() => {
     // Wait for settings to be loaded
@@ -60,8 +87,7 @@ function RowDetailPage() {
     }
 
     async function loadRow() {
-      setLoading(true)
-      setError(null)
+      dispatch({ type: 'loading' })
       try {
         const catalog = settings.defaults.catalog
         const fullName = `${quoteIdentifier(catalog)}.${quoteIdentifier(schema)}.${quoteIdentifier(table)}`
@@ -78,16 +104,15 @@ function RowDetailPage() {
         })
 
         if ('error' in result) {
-          setError(result.error)
-          setRowData(null)
+          dispatch({ type: 'error', error: result.error })
         } else {
-          setRowData(result)
+          dispatch({ type: 'loaded', rowData: result })
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load row')
-        setRowData(null)
-      } finally {
-        setLoading(false)
+        dispatch({
+          type: 'error',
+          error: err instanceof Error ? err.message : 'Failed to load row',
+        })
       }
     }
 

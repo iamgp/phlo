@@ -224,24 +224,24 @@ const getQualityDashboard = createServerFn()
       try {
         const cached = await withCache(
           async () => {
-            const [overviewResult, failingResult] = await Promise.all([
+            return Promise.all([
               apiGet<ApiQualityOverview | { error: string }>(
                 '/api/quality/overview',
               ),
               apiGet<Array<ApiQualityCheck> | { error: string }>(
                 '/api/quality/failing',
               ),
-            ])
-
-            if ('error' in overviewResult) return overviewResult
-            if ('error' in failingResult) return failingResult
-
-            return {
-              overview: transformOverview(overviewResult),
-              failingChecks: failingResult.map(transformCheck),
-              recentExecutions: [],
-              checks: failingResult.map(transformCheck),
-            }
+            ]).then(([overviewResult, failingResult]) => {
+              if ('error' in overviewResult) return overviewResult
+              if ('error' in failingResult) return failingResult
+              const failingChecks = failingResult.map(transformCheck)
+              return {
+                overview: transformOverview(overviewResult),
+                failingChecks,
+                recentExecutions: [],
+                checks: failingChecks,
+              }
+            })
           },
           cacheKeys.qualityDashboard(),
           cacheTTL.qualityDashboard,

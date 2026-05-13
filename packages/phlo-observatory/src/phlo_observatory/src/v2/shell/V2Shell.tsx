@@ -111,15 +111,21 @@ const themeModes = [
   icon: typeof Monitor
 }>
 
-export function V2Shell({ children }: { children: ReactNode }) {
+export function V2Shell(props: { children: ReactNode }) {
+  return useV2Shell(props)
+}
+
+function useV2Shell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
   const [searchOpen, setSearchOpen] = useState(false)
-  const [themeMode, setThemeMode] = useState<V2ThemeMode>('system')
-  const [systemPrefersDark, setSystemPrefersDark] = useState(false)
-  const [hydrated, setHydrated] = useState(false)
+  const [{ hydrated, systemPrefersDark, themeMode }, setThemeState] = useState({
+    hydrated: false,
+    systemPrefersDark: false,
+    themeMode: 'system' as V2ThemeMode,
+  })
   const [query, setQuery] = useState('')
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [capabilities, setCapabilities] =
@@ -159,14 +165,19 @@ export function V2Shell({ children }: { children: ReactNode }) {
     activePage.available === false
 
   useEffect(() => {
-    setHydrated(true)
-    setThemeMode(readV2ThemeMode(window.localStorage))
-
     const media = window.matchMedia?.('(prefers-color-scheme: dark)')
+    setThemeState({
+      hydrated: true,
+      systemPrefersDark: media?.matches ?? false,
+      themeMode: readV2ThemeMode(window.localStorage),
+    })
     if (!media) return
 
-    const update = () => setSystemPrefersDark(media.matches)
-    update()
+    const update = () =>
+      setThemeState((current) => ({
+        ...current,
+        systemPrefersDark: media.matches,
+      }))
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [])
@@ -190,14 +201,16 @@ export function V2Shell({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
     async function load() {
+      if (cancelled) return
       const next = await loadCachedResource(
         'v2:capabilities',
         getV2Capabilities,
         { staleMs: 120_000 },
       )
-      if (cancelled) return
-      setCapabilities(next)
-      warmRouteResources(next.data)
+      if (!cancelled) {
+        setCapabilities(next)
+        warmRouteResources(next.data)
+      }
     }
     void load()
     const interval = window.setInterval(load, 30_000)
@@ -450,7 +463,12 @@ export function V2Shell({ children }: { children: ReactNode }) {
                     aria-pressed={themeMode === item.mode}
                     data-active={themeMode === item.mode}
                     key={item.mode}
-                    onClick={() => setThemeMode(item.mode)}
+                    onClick={() =>
+                      setThemeState((current) => ({
+                        ...current,
+                        themeMode: item.mode,
+                      }))
+                    }
                     suppressHydrationWarning
                     title={`${item.label} theme`}
                     type="button"

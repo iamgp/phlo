@@ -221,27 +221,24 @@ function ImpactAnalysisSection({
   )
   const { settings } = useObservatorySettings()
 
-  useEffect(() => {
-    if (isExpanded && impactedAssets.length === 0) {
+  const toggleExpanded = () => {
+    const nextExpanded = !isExpanded
+    setIsExpanded(nextExpanded)
+    if (nextExpanded && impactedAssets.length === 0) {
       setImpactState({ loading: true })
-      getAssetImpact({
+      void getAssetImpact({
         data: { assetKey, dagsterUrl: settings.connections.dagsterGraphqlUrl },
       })
-        .then((result) => {
-          if (!('error' in result)) {
-            setImpactState({ impactedAssets: result, loading: false })
-            return
-          }
-          setImpactState({ loading: false })
-        })
+        .then((result) =>
+          setImpactState(
+            'error' in result
+              ? { loading: false }
+              : { impactedAssets: result, loading: false },
+          ),
+        )
         .catch(() => setImpactState({ loading: false }))
     }
-  }, [
-    isExpanded,
-    assetKey,
-    impactedAssets.length,
-    settings.connections.dagsterGraphqlUrl,
-  ])
+  }
 
   const layerColors: Record<string, string> = {
     source: 'text-emerald-400',
@@ -256,7 +253,7 @@ function ImpactAnalysisSection({
   return (
     <div className="border border-primary/20 bg-primary/5 overflow-hidden">
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={toggleExpanded}
         className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-2">

@@ -83,6 +83,10 @@ const WORKFLOW_STEPS: Array<{
 ]
 
 function WorkflowCanvasBuilder() {
+  return useWorkflowCanvasBuilder()
+}
+
+function useWorkflowCanvasBuilder() {
   const [wizard, setWizard] = useState<
     V2ResourceResult<V2WorkflowWizardPayload>
   >({
@@ -109,6 +113,18 @@ function WorkflowCanvasBuilder() {
   const activeStepIndex = WORKFLOW_STEPS.findIndex(
     (step) => step.id === activeStep,
   )
+  const applyWizardPayload = useCallback(
+    (next: V2ResourceResult<V2WorkflowWizardPayload>) => {
+      setWizard(next)
+      const contributions = next.data?.contributions ?? []
+      const starterNodes = starterGraph(contributions).nodes
+      setNodes(starterNodes)
+      setValues(starterValues(contributions, starterNodes))
+      setSelectedNodeId(starterNodes[0]?.id ?? null)
+      setInsertIndex(starterNodes.length)
+    },
+    [],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -117,18 +133,12 @@ function WorkflowCanvasBuilder() {
       staleMs: 60_000,
     }).then((next) => {
       if (cancelled) return
-      setWizard(next)
-      const contributions = next.data?.contributions ?? []
-      const starterNodes = starterGraph(contributions).nodes
-      setNodes(starterNodes)
-      setValues(starterValues(contributions, starterNodes))
-      setSelectedNodeId(starterNodes[0]?.id ?? null)
-      setInsertIndex(starterNodes.length)
+      applyWizardPayload(next)
     })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [applyWizardPayload])
 
   const contributions = wizard.data?.contributions ?? []
   const contributionById = useMemo(

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 
 import { Background, Controls, MarkerType, ReactFlow } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -81,19 +81,25 @@ function extractTransformationSql(asset: {
 }
 
 // Detail panel component shown below the flow
-function NodeDetailPanel({
-  assetKey,
-  isLoading,
-  details,
-  rowData,
-  onQuerySource,
-}: {
+type NodeDetailPanelProps = {
   assetKey: string
   isLoading: boolean
   details: NodeDetails | null
   rowData: Record<string, unknown>
   onQuerySource?: (query: string) => void
-}) {
+}
+
+function NodeDetailPanel(props: NodeDetailPanelProps) {
+  return useNodeDetailPanel(props)
+}
+
+function useNodeDetailPanel({
+  assetKey,
+  isLoading,
+  details,
+  rowData,
+  onQuerySource,
+}: NodeDetailPanelProps) {
   const { settings } = useObservatorySettings()
   const tableName = assetKey.split('/').pop() || assetKey
   const [contribOpen, setContribOpen] = useState(false)
@@ -585,30 +591,85 @@ function cleanSqlForDisplay(sql: string): string {
   return cleaned
 }
 
-export function RowJourney({
+export function RowJourney(props: RowJourneyProps) {
+  return useRowJourney(props)
+}
+
+function useRowJourney({
   assetKey,
   rowData,
   className = '',
   onQuerySource,
 }: RowJourneyProps) {
-  const [graphData, setGraphData] = useState<{
+  type GraphData = {
     nodes: Array<{ keyPath: string; label: string; computeKind?: string }>
     edges: Array<{ source: string; target: string }>
-  } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Selected node for detail panel
-  const [selectedNode, setSelectedNode] = useState<string | null>(null)
-  const [nodeDetails, setNodeDetails] = useState<NodeDetails | null>(null)
-  const [detailsLoading, setDetailsLoading] = useState(false)
+  }
+  type JourneyState = {
+    detailsLoading: boolean
+    error: string | null
+    graphData: GraphData | null
+    loading: boolean
+    nodeDetails: NodeDetails | null
+    selectedNode: string | null
+  }
+  type JourneyAction =
+    | { type: 'graphLoading' }
+    | { type: 'graphError'; error: string }
+    | { type: 'graphLoaded'; assetKey: string; graphData: GraphData }
+    | { type: 'nodeSelected'; selectedNode: string }
+    | { type: 'detailsLoading' }
+    | { type: 'detailsLoaded'; nodeDetails: NodeDetails | null }
+  const [state, dispatch] = useReducer(
+    (current: JourneyState, action: JourneyAction): JourneyState => {
+      switch (action.type) {
+        case 'graphLoading':
+          return { ...current, error: null, loading: true }
+        case 'graphError':
+          return { ...current, error: action.error, loading: false }
+        case 'graphLoaded':
+          return {
+            ...current,
+            error: null,
+            graphData: action.graphData,
+            loading: false,
+            selectedNode: action.assetKey,
+          }
+        case 'nodeSelected':
+          return { ...current, selectedNode: action.selectedNode }
+        case 'detailsLoading':
+          return { ...current, detailsLoading: true }
+        case 'detailsLoaded':
+          return {
+            ...current,
+            detailsLoading: false,
+            nodeDetails: action.nodeDetails,
+          }
+      }
+    },
+    {
+      detailsLoading: false,
+      error: null,
+      graphData: null,
+      loading: true,
+      nodeDetails: null,
+      selectedNode: null,
+    },
+  )
+  const {
+    detailsLoading,
+    error,
+    graphData,
+    loading,
+    nodeDetails,
+    selectedNode,
+  } = state
   const { settings } = useObservatorySettings()
 
   // Load asset neighbors
   useEffect(() => {
     async function loadGraph() {
-      setLoading(true)
-      setError(null)
+      dispatch({ type: 'graphLoading' })
       try {
         const result = await getAssetNeighbors({
           data: {
@@ -619,16 +680,15 @@ export function RowJourney({
           },
         })
         if ('error' in result) {
-          setError(result.error)
+          dispatch({ type: 'graphError', error: result.error })
         } else {
-          setGraphData(result)
-          // Auto-select the current asset to show its details immediately
-          setSelectedNode(assetKey)
+          dispatch({ type: 'graphLoaded', assetKey, graphData: result })
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load lineage')
-      } finally {
-        setLoading(false)
+        dispatch({
+          type: 'graphError',
+          error: err instanceof Error ? err.message : 'Failed to load lineage',
+        })
       }
     }
     loadGraph()
@@ -637,12 +697,12 @@ export function RowJourney({
   // Load details when node is selected
   useEffect(() => {
     if (!selectedNode) {
-      setNodeDetails(null)
+      dispatch({ type: 'detailsLoaded', nodeDetails: null })
       return
     }
 
     async function loadNodeDetails() {
-      setDetailsLoading(true)
+      dispatch({ type: 'detailsLoading' })
       try {
         // Fetch asset details and quality checks
         const [assetInfo, qualityInfo] = await Promise.all([
@@ -680,17 +740,18 @@ export function RowJourney({
           }
         }
 
-        setNodeDetails({
-          sql,
-          checks,
-          stageData: undefined,
-          upstreamAssetKeys,
+        dispatch({
+          type: 'detailsLoaded',
+          nodeDetails: {
+            sql,
+            checks,
+            stageData: undefined,
+            upstreamAssetKeys,
+          },
         })
       } catch (err) {
         console.error('Failed to load node details:', err)
-        setNodeDetails(null)
-      } finally {
-        setDetailsLoading(false)
+        dispatch({ type: 'detailsLoaded', nodeDetails: null })
       }
     }
 
@@ -699,7 +760,7 @@ export function RowJourney({
 
   // Handle node selection
   const handleNodeSelect = useCallback((nodeKey: string) => {
-    setSelectedNode(nodeKey)
+    dispatch({ type: 'nodeSelected', selectedNode: nodeKey })
   }, [])
 
   // Convert graph data to React Flow format

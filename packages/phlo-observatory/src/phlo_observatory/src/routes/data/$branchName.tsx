@@ -24,7 +24,7 @@ import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 type NavigateFn = ReturnType<typeof useNavigate>
 
 function deferNavigate(
-  navigate: NavigateFn,
+  runNavigation: NavigateFn,
   options: Parameters<NavigateFn>[0],
 ) {
   queueMicrotask(() => {

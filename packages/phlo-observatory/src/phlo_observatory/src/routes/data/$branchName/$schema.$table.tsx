@@ -19,7 +19,7 @@ import {
   RefreshCw,
   Terminal,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer } from 'react'
 import { z } from 'zod'
 
 import type { IcebergTable } from '@/server/iceberg.server'
@@ -53,7 +53,7 @@ import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 type NavigateFn = ReturnType<typeof useNavigate>
 
 function deferNavigate(
-  navigate: NavigateFn,
+  runNavigation: NavigateFn,
   options: Parameters<NavigateFn>[0],
 ) {
   queueMicrotask(() => {
@@ -79,6 +79,88 @@ interface JourneyContext {
   columnTypes: Array<string>
 }
 
+type ExplorerState = {
+  queryResults: DataPreviewResult | null
+  activeTab: TabType
+  journeyContext: JourneyContext | null
+  pendingQuery: string | null
+  preview: DataPreviewResult | null
+  previewLoading: boolean
+  previewError: string | null
+  previewPage: number
+}
+
+type ExplorerAction =
+  | { type: 'resetForTable' }
+  | { type: 'syncSearch'; sql?: string; tab?: TabType }
+  | { type: 'setTab'; tab: TabType }
+  | { type: 'setQueryResults'; results: DataPreviewResult | null }
+  | { type: 'showJourney'; context: JourneyContext }
+  | { type: 'querySource'; query: string }
+  | { type: 'previewStart' }
+  | { type: 'previewSuccess'; preview: DataPreviewResult; page: number }
+  | { type: 'previewError'; error: string }
+
+const initialExplorerState: ExplorerState = {
+  queryResults: null,
+  activeTab: 'preview',
+  journeyContext: null,
+  pendingQuery: null,
+  preview: null,
+  previewLoading: false,
+  previewError: null,
+  previewPage: 0,
+}
+
+function explorerReducer(
+  state: ExplorerState,
+  action: ExplorerAction,
+): ExplorerState {
+  switch (action.type) {
+    case 'resetForTable':
+      return initialExplorerState
+    case 'syncSearch':
+      return {
+        ...state,
+        activeTab: action.sql ? 'query' : (action.tab ?? state.activeTab),
+        pendingQuery: action.sql ?? state.pendingQuery,
+      }
+    case 'setTab':
+      return { ...state, activeTab: action.tab }
+    case 'setQueryResults':
+      return { ...state, queryResults: action.results }
+    case 'showJourney':
+      return {
+        ...state,
+        activeTab: 'journey',
+        journeyContext: action.context,
+      }
+    case 'querySource':
+      return {
+        ...state,
+        activeTab: 'query',
+        pendingQuery: action.query,
+      }
+    case 'previewStart':
+      return { ...state, previewLoading: true, previewError: null }
+    case 'previewSuccess':
+      return {
+        ...state,
+        preview: action.preview,
+        previewError: null,
+        previewLoading: false,
+        previewPage: action.page,
+      }
+    case 'previewError':
+      return {
+        ...state,
+        preview: null,
+        previewError: action.error,
+        previewLoading: false,
+      }
+  }
+}
+
 function DataExplorerWithTable() {
   // All hooks must be called before any conditional returns (React rules of hooks)
   const { branchName, schema, table } = useParams({
@@ -88,19 +170,17 @@ function DataExplorerWithTable() {
   const decodedBranchName = decodeURIComponent(branchName)
   const { settings } = useObservatorySettings()
   const navigate = useNavigate()
-
-  const [queryResults, setQueryResults] = useState<DataPreviewResult | null>(
-    null,
-  )
-  const [activeTab, setActiveTab] = useState<TabType>('preview')
-  const [journeyContext, setJourneyContext] = useState<JourneyContext | null>(
-    null,
-  )
-  const [pendingQuery, setPendingQuery] = useState<string | null>(null)
-  const [preview, setPreview] = useState<DataPreviewResult | null>(null)
-  const [previewLoading, setPreviewLoading] = useState(false)
-  const [previewError, setPreviewError] = useState<string | null>(null)
-  const [previewPage, setPreviewPage] = useState(0)
+  const [state, dispatch] = useReducer(explorerReducer, initialExplorerState)
+  const {
+    activeTab,
+    journeyContext,
+    pendingQuery,
+    preview,
+    previewError,
+    previewLoading,
+    previewPage,
+    queryResults,
+  } = state
   const previewPageSize = 50
 
   // Check if child route (row detail) is active
@@ -111,23 +191,12 @@ function DataExplorerWithTable() {
 
   // Reset state when table changes (fixes sidebar navigation bug)
   useEffect(() => {
-    setJourneyContext(null)
-    setActiveTab('preview')
-    setQueryResults(null)
-    setPendingQuery(null)
-    setPreview(null)
-    setPreviewError(null)
-    setPreviewPage(0)
+    dispatch({ type: 'resetForTable' })
   }, [schema, table])
 
   useEffect(() => {
-    if (tabFromSearch) {
-      setActiveTab(tabFromSearch)
-    }
-    if (sqlFromSearch) {
-      setPendingQuery(sqlFromSearch)
-      setActiveTab('query')
-    }
+    if (!tabFromSearch && !sqlFromSearch) return
+    dispatch({ type: 'syncSearch', sql: sqlFromSearch, tab: tabFromSearch })
   }, [sqlFromSearch, tabFromSearch])
 
   // Construct the selected table from URL params
@@ -167,20 +236,21 @@ function DataExplorerWithTable() {
     }
 
     // Fallback: show journey inline (for tables without _phlo_row_id)
-    setJourneyContext({
-      assetKey: selectedTable.name,
-      tableName: selectedTable.name,
-      triggeredBy,
-      rowData,
-      columnTypes,
+    dispatch({
+      type: 'showJourney',
+      context: {
+        assetKey: selectedTable.name,
+        tableName: selectedTable.name,
+        triggeredBy,
+        rowData,
+        columnTypes,
+      },
     })
-    setActiveTab('journey')
   }
 
   // Handle "Query Source Data" from journey view
   const handleQuerySource = (query: string) => {
-    setPendingQuery(query)
-    setActiveTab('query')
+    dispatch({ type: 'querySource', query })
   }
 
   const selectedTableDisplayName = useMemo(() => {
@@ -190,8 +260,7 @@ function DataExplorerWithTable() {
 
   const loadPreview = useCallback(
     async (offset: number) => {
-      setPreviewLoading(true)
-      setPreviewError(null)
+      dispatch({ type: 'previewStart' })
       try {
         const result = await previewData({
           data: {
@@ -205,19 +274,19 @@ function DataExplorerWithTable() {
           },
         })
         if ('error' in result) {
-          setPreviewError(result.error)
-          setPreview(null)
+          dispatch({ type: 'previewError', error: result.error })
           return
         }
-        setPreview(result)
-        setPreviewPage(Math.floor(offset / previewPageSize))
+        dispatch({
+          type: 'previewSuccess',
+          preview: result,
+          page: Math.floor(offset / previewPageSize),
+        })
       } catch (err) {
-        setPreviewError(
-          err instanceof Error ? err.message : 'Failed to load preview',
-        )
-        setPreview(null)
-      } finally {
-        setPreviewLoading(false)
+        dispatch({
+          type: 'previewError',
+          error: err instanceof Error ? err.message : 'Failed to load preview',
+        })
       }
     },
     [
@@ -265,221 +334,409 @@ function DataExplorerWithTable() {
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden min-h-0">
-      {/* Header */}
-      <header className="px-4 py-2 border-b bg-card">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <h1 className="text-lg font-semibold truncate">{table}</h1>
-            {activeTab === 'preview' ? (
-              <Badge variant="secondary" className="text-muted-foreground">
-                {previewPageSize} rows
-              </Badge>
-            ) : null}
-            <span className="text-xs text-muted-foreground truncate">
-              {selectedTableDisplayName}
-            </span>
-          </div>
-
-          <div className="flex-1 flex justify-center">
-            <Tabs
-              value={activeTab}
-              onValueChange={(value) => setActiveTab(value as TabType)}
-              className="gap-0"
-            >
-              <TabsList>
-                <TabsTrigger value="preview">
-                  <Database className="size-4" />
-                  Preview
-                </TabsTrigger>
-                <TabsTrigger value="query">
-                  <Terminal className="size-4" />
-                  SQL
-                </TabsTrigger>
-                <TabsTrigger value="journey">
-                  <GitBranch className="size-4" />
-                  Journey
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {activeTab === 'preview' ? (
-              <>
-                <Button
-                  onClick={handlePreviewRefresh}
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={previewLoading}
-                  title="Refresh"
-                >
-                  <RefreshCw className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={handlePreviewPrev}
-                  disabled={!previewCanPrev}
-                  title="Previous"
-                >
-                  <ChevronLeft className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={handlePreviewNext}
-                  disabled={!previewCanNext}
-                  title="Next"
-                >
-                  <ChevronRight className="size-4" />
-                </Button>
-              </>
-            ) : null}
-          </div>
-        </div>
-      </header>
-
-      {/* Content */}
-      <div className="flex-1 overflow-hidden min-h-0">
-        {activeTab === 'journey' ? (
-          journeyContext ? (
-            <div className="h-full overflow-auto p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-medium">
-                    Data Journey: {journeyContext.tableName}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Lineage visualization showing transformations, ingestions,
-                    and quality checks
-                  </p>
-                </div>
-                <Badge variant="outline" className="text-xs">
-                  {journeyContext.assetKey}
-                </Badge>
-              </div>
-              <RowJourney
-                assetKey={journeyContext.assetKey}
-                rowData={journeyContext.rowData}
-                columnTypes={journeyContext.columnTypes}
-                onQuerySource={handleQuerySource}
-              />
-
-              {/* Row Data Panel */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Database className="size-4 text-primary" />
-                    Selected Row Data
-                  </CardTitle>
-                  <CardDescription>
-                    Data from {journeyContext.tableName}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Column</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Value</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {Object.entries(journeyContext.rowData).map(
-                          ([key, value], idx) => (
-                            <TableRow key={key}>
-                              <TableCell className="font-mono text-primary text-xs">
-                                {key}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground text-xs">
-                                {journeyContext.columnTypes[idx]}
-                              </TableCell>
-                              <TableCell className="font-mono text-xs">
-                                {value === null || value === undefined
-                                  ? '—'
-                                  : String(value)}
-                              </TableCell>
-                            </TableRow>
-                          ),
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <GitBranch className="size-16 mb-4 opacity-30" />
-              <h3 className="text-lg font-medium">No journey selected</h3>
-              <p className="text-sm mt-1">
-                Click on any data row in Preview or SQL Query to view its
-                lineage
-              </p>
-            </div>
-          )
-        ) : activeTab === 'preview' ? (
-          <div className="h-full flex flex-col min-h-0 overflow-hidden">
-            {previewError ? (
-              <div className="p-4 text-sm text-destructive">{previewError}</div>
-            ) : null}
-            <ObservatoryTable
-              columns={preview?.columns ?? []}
-              columnTypes={preview?.columnTypes}
-              rows={preview?.rows ?? []}
-              getRowId={(_, index) =>
-                `${previewPage * previewPageSize}-${index}`
-              }
-              onRowClick={(row) =>
-                handleShowJourney(
-                  selectedTable,
-                  'preview',
-                  row as Record<string, unknown>,
-                  preview?.columnTypes ?? [],
-                )
-              }
-              containerClassName="h-full border-0"
-              maxHeightClassName="h-full"
-              enableSorting
-              enableColumnResizing
-              enableColumnPinning
-              formatCellValue={(value) =>
-                formatPreviewCellValue(value as DataRow[keyof DataRow])
-              }
-            />
-          </div>
-        ) : (
-          <div className="h-full overflow-auto p-4 space-y-4">
-            <QueryEditor
-              branch={decodedBranchName}
-              defaultQuery={
-                pendingQuery ||
-                `SELECT * FROM ${selectedTable.fullName} LIMIT 100`
-              }
-              onResults={setQueryResults}
-              autoRun={!!pendingQuery}
-            />
-            {queryResults && (
-              <Card className="overflow-hidden">
-                <QueryResults
-                  results={queryResults}
-                  onShowJourney={(rowData, columnTypes) =>
-                    handleShowJourney(
-                      selectedTable,
-                      'query',
-                      rowData,
-                      columnTypes,
-                    )
-                  }
-                />
-              </Card>
-            )}
-          </div>
-        )}
-      </div>
+      <DataExplorerHeader
+        activeTab={activeTab}
+        displayName={selectedTableDisplayName}
+        previewCanNext={previewCanNext}
+        previewCanPrev={previewCanPrev}
+        previewLoading={previewLoading}
+        previewPageSize={previewPageSize}
+        table={table}
+        onPreviewNext={handlePreviewNext}
+        onPreviewPrev={handlePreviewPrev}
+        onPreviewRefresh={handlePreviewRefresh}
+        onTabChange={(tab) => dispatch({ type: 'setTab', tab })}
+      />
+      <DataExplorerContent
+        activeTab={activeTab}
+        branch={decodedBranchName}
+        journeyContext={journeyContext}
+        pendingQuery={pendingQuery}
+        preview={preview}
+        previewError={previewError}
+        previewPage={previewPage}
+        previewPageSize={previewPageSize}
+        queryResults={queryResults}
+        selectedTable={selectedTable}
+        onQueryResults={(results) =>
+          dispatch({ type: 'setQueryResults', results })
+        }
+        onQuerySource={handleQuerySource}
+        onShowJourney={handleShowJourney}
+      />
     </main>
+  )
+}
+
+function DataExplorerHeader({
+  activeTab,
+  displayName,
+  previewCanNext,
+  previewCanPrev,
+  previewLoading,
+  previewPageSize,
+  table,
+  onPreviewNext,
+  onPreviewPrev,
+  onPreviewRefresh,
+  onTabChange,
+}: {
+  activeTab: TabType
+  displayName: string
+  previewCanNext: boolean
+  previewCanPrev: boolean
+  previewLoading: boolean
+  previewPageSize: number
+  table: string
+  onPreviewNext: () => void
+  onPreviewPrev: () => void
+  onPreviewRefresh: () => void
+  onTabChange: (tab: TabType) => void
+}) {
+  return (
+    <header className="px-4 py-2 border-b bg-card">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <h1 className="text-lg font-semibold truncate">{table}</h1>
+          {activeTab === 'preview' ? (
+            <Badge variant="secondary" className="text-muted-foreground">
+              {previewPageSize} rows
+            </Badge>
+          ) : null}
+          <span className="text-xs text-muted-foreground truncate">
+            {displayName}
+          </span>
+        </div>
+        <div className="flex-1 flex justify-center">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => onTabChange(value as TabType)}
+            className="gap-0"
+          >
+            <TabsList>
+              <TabsTrigger value="preview">
+                <Database className="size-4" />
+                Preview
+              </TabsTrigger>
+              <TabsTrigger value="query">
+                <Terminal className="size-4" />
+                SQL
+              </TabsTrigger>
+              <TabsTrigger value="journey">
+                <GitBranch className="size-4" />
+                Journey
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <PreviewPager
+          active={activeTab === 'preview'}
+          disabled={previewLoading}
+          canNext={previewCanNext}
+          canPrev={previewCanPrev}
+          onNext={onPreviewNext}
+          onPrev={onPreviewPrev}
+          onRefresh={onPreviewRefresh}
+        />
+      </div>
+    </header>
+  )
+}
+
+function PreviewPager({
+  active,
+  canNext,
+  canPrev,
+  disabled,
+  onNext,
+  onPrev,
+  onRefresh,
+}: {
+  active: boolean
+  canNext: boolean
+  canPrev: boolean
+  disabled: boolean
+  onNext: () => void
+  onPrev: () => void
+  onRefresh: () => void
+}) {
+  if (!active) return <div className="flex items-center gap-2" />
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        onClick={onRefresh}
+        variant="ghost"
+        size="icon-sm"
+        disabled={disabled}
+        title="Refresh"
+      >
+        <RefreshCw className="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={onPrev}
+        disabled={!canPrev}
+        title="Previous"
+      >
+        <ChevronLeft className="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={onNext}
+        disabled={!canNext}
+        title="Next"
+      >
+        <ChevronRight className="size-4" />
+      </Button>
+    </div>
+  )
+}
+
+function DataExplorerContent({
+  activeTab,
+  branch,
+  journeyContext,
+  pendingQuery,
+  preview,
+  previewError,
+  previewPage,
+  previewPageSize,
+  queryResults,
+  selectedTable,
+  onQueryResults,
+  onQuerySource,
+  onShowJourney,
+}: {
+  activeTab: TabType
+  branch: string
+  journeyContext: JourneyContext | null
+  pendingQuery: string | null
+  preview: DataPreviewResult | null
+  previewError: string | null
+  previewPage: number
+  previewPageSize: number
+  queryResults: DataPreviewResult | null
+  selectedTable: IcebergTable
+  onQueryResults: (results: DataPreviewResult | null) => void
+  onQuerySource: (query: string) => void
+  onShowJourney: (
+    table: IcebergTable,
+    triggeredBy: 'preview' | 'query',
+    rowData: Record<string, unknown>,
+    columnTypes: Array<string>,
+  ) => void
+}) {
+  return (
+    <div className="flex-1 overflow-hidden min-h-0">
+      {activeTab === 'journey' ? (
+        <JourneyTab context={journeyContext} onQuerySource={onQuerySource} />
+      ) : activeTab === 'preview' ? (
+        <PreviewTab
+          preview={preview}
+          previewError={previewError}
+          previewPage={previewPage}
+          previewPageSize={previewPageSize}
+          selectedTable={selectedTable}
+          onShowJourney={onShowJourney}
+        />
+      ) : (
+        <QueryTab
+          branch={branch}
+          pendingQuery={pendingQuery}
+          queryResults={queryResults}
+          selectedTable={selectedTable}
+          onQueryResults={onQueryResults}
+          onShowJourney={onShowJourney}
+        />
+      )}
+    </div>
+  )
+}
+
+function JourneyTab({
+  context,
+  onQuerySource,
+}: {
+  context: JourneyContext | null
+  onQuerySource: (query: string) => void
+}) {
+  if (!context) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+        <GitBranch className="size-16 mb-4 opacity-30" />
+        <h3 className="text-lg font-medium">No journey selected</h3>
+        <p className="text-sm mt-1">
+          Click on any data row in Preview or SQL Query to view its lineage
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="h-full overflow-auto p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-medium">
+            Data Journey: {context.tableName}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Lineage visualization showing transformations, ingestions, and
+            quality checks
+          </p>
+        </div>
+        <Badge variant="outline" className="text-xs">
+          {context.assetKey}
+        </Badge>
+      </div>
+      <RowJourney
+        assetKey={context.assetKey}
+        rowData={context.rowData}
+        columnTypes={context.columnTypes}
+        onQuerySource={onQuerySource}
+      />
+      <JourneyRowData context={context} />
+    </div>
+  )
+}
+
+function JourneyRowData({ context }: { context: JourneyContext }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Database className="size-4 text-primary" />
+          Selected Row Data
+        </CardTitle>
+        <CardDescription>Data from {context.tableName}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Column</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Value</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.entries(context.rowData).map(([key, value], idx) => (
+                <TableRow key={key}>
+                  <TableCell className="font-mono text-primary text-xs">
+                    {key}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {context.columnTypes[idx]}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {value === null || value === undefined
+                      ? '—'
+                      : String(value)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function PreviewTab({
+  preview,
+  previewError,
+  previewPage,
+  previewPageSize,
+  selectedTable,
+  onShowJourney,
+}: {
+  preview: DataPreviewResult | null
+  previewError: string | null
+  previewPage: number
+  previewPageSize: number
+  selectedTable: IcebergTable
+  onShowJourney: (
+    table: IcebergTable,
+    triggeredBy: 'preview',
+    rowData: Record<string, unknown>,
+    columnTypes: Array<string>,
+  ) => void
+}) {
+  return (
+    <div className="h-full flex flex-col min-h-0 overflow-hidden">
+      {previewError ? (
+        <div className="p-4 text-sm text-destructive">{previewError}</div>
+      ) : null}
+      <ObservatoryTable
+        columns={preview?.columns ?? []}
+        columnTypes={preview?.columnTypes}
+        rows={preview?.rows ?? []}
+        getRowId={(_, index) => `${previewPage * previewPageSize}-${index}`}
+        onRowClick={(row) =>
+          onShowJourney(
+            selectedTable,
+            'preview',
+            row as Record<string, unknown>,
+            preview?.columnTypes ?? [],
+          )
+        }
+        containerClassName="h-full border-0"
+        maxHeightClassName="h-full"
+        enableSorting
+        enableColumnResizing
+        enableColumnPinning
+        formatCellValue={(value) =>
+          formatPreviewCellValue(value as DataRow[keyof DataRow])
+        }
+      />
+    </div>
+  )
+}
+
+function QueryTab({
+  branch,
+  pendingQuery,
+  queryResults,
+  selectedTable,
+  onQueryResults,
+  onShowJourney,
+}: {
+  branch: string
+  pendingQuery: string | null
+  queryResults: DataPreviewResult | null
+  selectedTable: IcebergTable
+  onQueryResults: (results: DataPreviewResult | null) => void
+  onShowJourney: (
+    table: IcebergTable,
+    triggeredBy: 'query',
+    rowData: Record<string, unknown>,
+    columnTypes: Array<string>,
+  ) => void
+}) {
+  return (
+    <div className="h-full overflow-auto p-4 space-y-4">
+      <QueryEditor
+        key={`${selectedTable.fullName}:${pendingQuery ?? 'default'}`}
+        branch={branch}
+        defaultQuery={
+          pendingQuery || `SELECT * FROM ${selectedTable.fullName} LIMIT 100`
+        }
+        onResults={onQueryResults}
+        autoRun={!!pendingQuery}
+      />
+      {queryResults && (
+        <Card className="overflow-hidden">
+          <QueryResults
+            results={queryResults}
+            onShowJourney={(rowData, columnTypes) =>
+              onShowJourney(selectedTable, 'query', rowData, columnTypes)
+            }
+          />
+        </Card>
+      )}
+    </div>
   )
 }
 

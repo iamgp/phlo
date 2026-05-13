@@ -44,6 +44,10 @@ export const Route = createFileRoute('/v2/data')({
 })
 
 export function Data() {
+  return useDataRoute()
+}
+
+function useDataRoute() {
   const result = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
   const assetResult = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
   const tables = result.data ?? []
@@ -98,14 +102,22 @@ export function Data() {
     preview.data && selected && preview.data.table.id === selected.id
       ? preview.data.row_count
       : null
+  const applySelectedPreview = useCallback(
+    (nextSql: string, nextPreview: V2ResourceResult<V2TablePreview>) => {
+      setSql(nextSql)
+      setPreview(nextPreview)
+    },
+    [],
+  )
+  const applyPreview = useCallback(
+    (nextPreview: V2ResourceResult<V2TablePreview>) => setPreview(nextPreview),
+    [],
+  )
 
   useEffect(() => {
     if (!selected) return
     let cancelled = false
     let retryTimer: number | undefined
-    setSql(defaultSqlForTable(selected))
-    setIsLoadingMoreRows(false)
-    setPreview({ data: null, error: null })
     const key = `v2:table-preview:${selected.id}:${previewLimit}:0:${previewRefreshKey}`
     const loadPreview = (force = false) =>
       loadCachedResource(
@@ -122,11 +134,11 @@ export function Data() {
 
     void loadPreview(previewRefreshKey > 0).then((next) => {
       if (cancelled) return
-      setPreview(next)
+      applySelectedPreview(defaultSqlForTable(selected), next)
       if (isTransientPreviewMiss(next.error)) {
         retryTimer = window.setTimeout(() => {
           void loadPreview(true).then((retry) => {
-            if (!cancelled) setPreview(retry)
+            if (!cancelled) applyPreview(retry)
           })
         }, 750)
       }
@@ -135,7 +147,7 @@ export function Data() {
       cancelled = true
       if (retryTimer !== undefined) window.clearTimeout(retryTimer)
     }
-  }, [previewRefreshKey, selected])
+  }, [applyPreview, applySelectedPreview, previewRefreshKey, selected])
 
   const loadMoreRows = useCallback(() => {
     if (!selected || isLoadingMoreRows) return

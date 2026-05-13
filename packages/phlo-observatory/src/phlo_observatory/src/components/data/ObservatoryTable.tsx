@@ -22,7 +22,7 @@ import {
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
 
-export type ObservatoryRow = Record<string, unknown>
+type ObservatoryRow = Record<string, unknown>
 
 export interface ObservatoryTableProps {
   columns: Array<string>
@@ -71,7 +71,11 @@ function defaultFormatCellValue(value: unknown): string {
   return String(value)
 }
 
-export function ObservatoryTable({
+export function ObservatoryTable(props: ObservatoryTableProps) {
+  return useObservatoryTable(props)
+}
+
+function useObservatoryTable({
   columns,
   columnTypes,
   rows,
