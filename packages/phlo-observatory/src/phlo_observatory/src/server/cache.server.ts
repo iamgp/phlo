@@ -10,7 +10,7 @@ export const getCacheStatsEndpoint = createServerFn().handler(() => {
   return Promise.resolve(getCacheStats())
 })
 
-export const invalidateCacheEndpoint = createServerFn()
+const invalidateCacheEndpoint = createServerFn()
   .inputValidator((input: { pattern: string }) => input)
   .handler(({ data: { pattern } }) => {
     const count = invalidateCache(pattern)

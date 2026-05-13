@@ -25,7 +25,7 @@ import { createMiddleware } from '@tanstack/react-start'
 /**
  * Check if authentication is enabled
  */
-export function isAuthEnabled(): boolean {
+function isAuthEnabled(): boolean {
   return process.env.OBSERVATORY_AUTH_ENABLED === 'true'
 }
 
@@ -47,7 +47,7 @@ export interface AuthError {
 /**
  * Check if a result is an auth error
  */
-export function isAuthError(result: unknown): result is AuthError {
+function isAuthError(result: unknown): result is AuthError {
   return (
     typeof result === 'object' &&
     result !== null &&
@@ -62,7 +62,7 @@ export function isAuthError(result: unknown): result is AuthError {
  * Returns undefined if auth passes, or an AuthError if it fails.
  * When auth is disabled, always returns undefined (passes).
  */
-export function validateAuth(token?: string): AuthError | undefined {
+function validateAuth(token?: string): AuthError | undefined {
   if (!isAuthEnabled()) {
     return undefined
   }
@@ -114,7 +114,7 @@ export const authMiddleware = createMiddleware({ type: 'function' })
  * Legacy withAuth wrapper - kept for backward compatibility
  * Prefer using .middleware([authMiddleware]) instead
  */
-export function withAuth<
+function withAuth<
   TInput extends { authToken?: string },
   TOutput extends object,
 >(

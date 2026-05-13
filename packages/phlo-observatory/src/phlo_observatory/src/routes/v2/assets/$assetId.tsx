@@ -131,7 +131,7 @@ export function AssetDetailView({ assetId }: { assetId: string }) {
         </section>
       ) : (
         <div className="phlo-v2-empty-state">
-          {result.error ?? 'Loading asset detail...'}
+          {result.error ?? 'Loading asset detail…'}
         </div>
       )}
     </V2Page>

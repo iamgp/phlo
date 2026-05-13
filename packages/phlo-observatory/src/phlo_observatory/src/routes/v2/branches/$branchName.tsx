@@ -92,7 +92,7 @@ export function BranchDetailView({ branchName }: { branchName: string }) {
         </section>
       ) : (
         <div className="phlo-v2-empty-state">
-          {result.error ?? 'Loading branch detail...'}
+          {result.error ?? 'Loading branch detail…'}
         </div>
       )}
     </V2Page>

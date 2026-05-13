@@ -29,6 +29,7 @@ const envFilePath = process.env.ENV_FILE_PATH
 const servicesCacheTtlMs = Number(
   process.env.PHLO_SERVICES_CACHE_TTL_MS ?? 5000,
 )
+const ENV_LINE_RE = /^([^=]+)=(.*)$/
 
 let servicesCache: {
   timestamp: number
@@ -149,7 +150,7 @@ interface CliServiceDefinition {
 }
 
 // Types for service definitions
-export interface EnvVar {
+interface EnvVar {
   name: string
   value: string
   description?: string
@@ -303,10 +304,10 @@ async function parseEnvFile(
     for (const line of content.split('\n')) {
       const trimmed = line.trim()
       if (trimmed && !trimmed.startsWith('#')) {
-        const eqIndex = trimmed.indexOf('=')
-        if (eqIndex > 0) {
-          const key = trimmed.slice(0, eqIndex)
-          const value = trimmed.slice(eqIndex + 1)
+        const match = ENV_LINE_RE.exec(trimmed)
+        if (match) {
+          const key = match[1]
+          const value = match[2]
           values[key] = value
         }
       }
@@ -417,8 +418,8 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
 
   try {
     const yamlFiles = await findServiceYamlFiles(packagesPath)
-    for (const yamlPath of yamlFiles) {
-      const service = await parseServiceYaml(yamlPath)
+    const discovered = await Promise.all(yamlFiles.map(parseServiceYaml))
+    for (const service of discovered) {
       if (service) {
         services.push(service)
       }
@@ -477,6 +478,7 @@ export function shouldFallbackToCliDiscovery(
 async function findServiceYamlFiles(root: string): Promise<Array<string>> {
   const results: Array<string> = []
   const entries = await readdir(root, { withFileTypes: true })
+  const directories: Array<string> = []
 
   for (const entry of entries) {
     if (entry.name.startsWith('.')) {
@@ -491,12 +493,16 @@ async function findServiceYamlFiles(root: string): Promise<Array<string>> {
     }
     const entryPath = join(root, entry.name)
     if (entry.isDirectory()) {
-      results.push(...(await findServiceYamlFiles(entryPath)))
+      directories.push(entryPath)
       continue
     }
     if (entry.isFile() && entry.name === 'service.yaml') {
       results.push(entryPath)
     }
+  }
+  const nestedResults = await Promise.all(directories.map(findServiceYamlFiles))
+  for (const nested of nestedResults) {
+    results.push(...nested)
   }
 
   return results
@@ -675,9 +681,13 @@ async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
       execOptions,
     )
     const parsed = JSON.parse(stdout.toString()) as Array<CliServiceDefinition>
-    const services = parsed
-      .map((service) => buildServiceDefinition(service))
-      .filter((service): service is ServiceDefinition => Boolean(service))
+    const services: Array<ServiceDefinition> = []
+    for (const service of parsed) {
+      const definition = buildServiceDefinition(service)
+      if (definition) {
+        services.push(definition)
+      }
+    }
     servicesLog.info(
       {
         source: 'cli',
@@ -746,7 +756,7 @@ async function loadEnvValues(): Promise<Record<string, string>> {
 /**
  * Get Docker container status for all services
  */
-export const getDockerStatus = createServerFn().handler(
+const getDockerStatus = createServerFn().handler(
   async (): Promise<Array<DockerContainerStatus>> => {
     const startedAt = performance.now()
     try {
@@ -773,8 +783,9 @@ export const getDockerStatus = createServerFn().handler(
 /**
  * Get all services with their definitions and Docker status
  */
-export const getServices = createServerFn().handler(
-  async (): Promise<Array<ServiceWithStatus>> => {
+export const getServices = createServerFn()
+  .inputValidator((input: Record<string, never> = {}) => input)
+  .handler(async (): Promise<Array<ServiceWithStatus>> => {
     const now = Date.now()
     if (servicesCache && now - servicesCache.timestamp < servicesCacheTtlMs) {
       return servicesCache.data
@@ -790,62 +801,63 @@ export const getServices = createServerFn().handler(
       ])
 
     // Create a map of service name to container status
-    const containerMap = new Map<string, DockerContainerStatus>()
-    for (const container of containers) {
-      containerMap.set(container.service, container)
-    }
+    const containerMap = new Map(
+      containers.map((container) => [container.service, container]),
+    )
 
     // Merge services with status and env values
-    const data = services
+    const data: Array<ServiceWithStatus> = []
+    for (const service of services) {
       // Hide one-shot init containers from the Hub (they run once and exit successfully).
-      .filter((service) => service.name !== 'minio-setup')
-      .map((service) => {
-        // Update env vars with actual values from env files
-        const enrichedEnvVars = service.envVars.map((ev) => ({
-          ...ev,
-          value: envValues[ev.name] ?? ev.value,
-        }))
+      if (service.name === 'minio-setup') {
+        continue
+      }
 
-        // Also update port descriptions with actual values
-        const enrichedPorts = service.ports.map((port) => {
-          if (port.description && envValues[port.description]) {
-            return {
-              ...port,
-              host: parseInt(envValues[port.description], 10) || port.host,
-            }
+      // Update env vars with actual values from env files
+      const enrichedEnvVars = service.envVars.map((ev) => ({
+        ...ev,
+        value: envValues[ev.name] ?? ev.value,
+      }))
+
+      // Also update port descriptions with actual values
+      const enrichedPorts = service.ports.map((port) => {
+        if (port.description && envValues[port.description]) {
+          return {
+            ...port,
+            host: parseInt(envValues[port.description], 10) || port.host,
           }
-          return port
-        })
-
-        const firstPort = enrichedPorts[0]
-        const url = firstPort ? `http://localhost:${firstPort.host}` : undefined
-
-        const dockerStatus = containerMap.get(service.name) || null
-        const native = nativeProcesses[service.name]
-        const nativeStatus: DockerContainerStatus | null =
-          native && isPidRunning(native.pid)
-            ? {
-                name: `native:${service.name}`,
-                service: service.name,
-                status: 'running',
-                health: 'native',
-                ports: undefined,
-              }
-            : null
-
-        return {
-          ...service,
-          ports: enrichedPorts,
-          envVars: enrichedEnvVars,
-          url,
-          containerStatus: nativeStatus ?? dockerStatus,
         }
+        return port
       })
+
+      const firstPort = enrichedPorts[0]
+      const url = firstPort ? `http://localhost:${firstPort.host}` : undefined
+
+      const dockerStatus = containerMap.get(service.name) || null
+      const native = nativeProcesses[service.name]
+      const nativeStatus: DockerContainerStatus | null =
+        native && isPidRunning(native.pid)
+          ? {
+              name: `native:${service.name}`,
+              service: service.name,
+              status: 'running',
+              health: 'native',
+              ports: undefined,
+            }
+          : null
+
+      data.push({
+        ...service,
+        ports: enrichedPorts,
+        envVars: enrichedEnvVars,
+        url,
+        containerStatus: nativeStatus ?? dockerStatus,
+      })
+    }
 
     servicesCache = { timestamp: now, data }
     return data
-  },
-)
+  })
 
 /**
  * Find container ID by service name

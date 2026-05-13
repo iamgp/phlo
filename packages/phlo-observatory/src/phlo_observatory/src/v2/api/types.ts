@@ -1,7 +1,7 @@
 export type V2HealthState = 'ok' | 'warning' | 'error' | 'unknown'
 
 export type V2Metadata = Record<string, NonNullable<unknown>>
-export type V2Record = Record<string, NonNullable<unknown>>
+type V2Record = Record<string, NonNullable<unknown>>
 
 export type V2ServiceStatus =
   | 'running'
@@ -10,12 +10,12 @@ export type V2ServiceStatus =
   | 'starting'
   | 'unknown'
 
-export interface V2Health {
+interface V2Health {
   state: V2HealthState
   message?: string | null
 }
 
-export interface V2ExternalLink {
+interface V2ExternalLink {
   label: string
   url: string
   kind: string
@@ -39,7 +39,7 @@ export interface V2Capabilities {
   providers: Record<string, Array<string>>
 }
 
-export interface V2CapabilityProvider {
+interface V2CapabilityProvider {
   capability_type: string
   name: string
   display_name: string
@@ -50,7 +50,7 @@ export interface V2CapabilityProvider {
   native_links: Array<V2ExternalLink>
 }
 
-export interface V2RouteRequirement {
+interface V2RouteRequirement {
   route_id: string
   label: string
   path: string
@@ -61,7 +61,7 @@ export interface V2RouteRequirement {
   reason: string
 }
 
-export interface V2UiContribution {
+interface V2UiContribution {
   name: string
   capability_type: string
   capability_name: string
@@ -72,7 +72,7 @@ export interface V2UiContribution {
   metadata: V2Metadata
 }
 
-export interface V2CapabilityInventory {
+interface V2CapabilityInventory {
   version: number
   providers: Record<string, Array<V2CapabilityProvider>>
   requirements: Array<V2RouteRequirement>
@@ -109,14 +109,14 @@ export interface V2WorkflowWizardPayload {
   contributions: Array<V2WorkflowWizardContribution>
 }
 
-export interface V2WorkflowGraphNode {
+interface V2WorkflowGraphNode {
   id: string
   contribution_id: string
   stage: 'source' | 'transform' | 'quality' | 'publish'
   values: Record<string, unknown>
 }
 
-export interface V2WorkflowGraphEdge {
+interface V2WorkflowGraphEdge {
   id: string
   source: string
   target: string
@@ -133,7 +133,7 @@ export interface V2WorkflowProposalRequest {
   graph: V2WorkflowGraph
 }
 
-export interface V2WorkflowFilePreview {
+interface V2WorkflowFilePreview {
   path: string
   content: string
   mode: 'create' | 'modify'
@@ -172,7 +172,7 @@ export interface V2WorkflowActionResult {
   files: Array<string>
 }
 
-export interface V2ResourceRef {
+interface V2ResourceRef {
   kind: string
   id: string
   label: string
@@ -201,13 +201,13 @@ export interface V2ActionResult {
   operation?: V2Operation | null
 }
 
-export interface V2ServicePort {
+interface V2ServicePort {
   name: string
   target: string
   published?: string | null
 }
 
-export interface V2ServiceConfigEntry {
+interface V2ServiceConfigEntry {
   name: string
   value?: string | null
   description?: string | null
@@ -269,7 +269,7 @@ export interface V2SurfaceItem {
   metadata: V2Metadata
 }
 
-export interface V2ResourceCollection {
+interface V2ResourceCollection {
   items: Array<V2ResourceItem>
 }
 
@@ -293,7 +293,7 @@ export interface V2OperationDetail {
   actions: Array<V2Action>
 }
 
-export type V2RunStatus =
+type V2RunStatus =
   | 'queued'
   | 'running'
   | 'succeeded'
@@ -470,7 +470,7 @@ export interface V2ExtensionDetail {
   capabilities: Array<V2ResourceRef>
 }
 
-export interface V2Setting {
+interface V2Setting {
   id: string
   label: string
   value: string | boolean | number | null

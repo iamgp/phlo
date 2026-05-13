@@ -50,6 +50,17 @@ import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { previewData } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
+type NavigateFn = ReturnType<typeof useNavigate>
+
+function deferNavigate(
+  navigate: NavigateFn,
+  options: Parameters<NavigateFn>[0],
+) {
+  queueMicrotask(() => {
+    void runNavigation(options)
+  })
+}
+
 export const Route = createFileRoute('/data/$branchName/$schema/$table')({
   validateSearch: z.object({
     sql: z.string().optional(),
@@ -143,7 +154,7 @@ function DataExplorerWithTable() {
     // If the row has a _phlo_row_id, navigate to the row URL for shareability
     const phloRowId = rowData._phlo_row_id
     if (typeof phloRowId === 'string' && phloRowId) {
-      void navigate({
+      deferNavigate(navigate, {
         to: '/data/$branchName/$schema/$table/$rowId',
         params: {
           branchName,
@@ -277,15 +288,15 @@ function DataExplorerWithTable() {
             >
               <TabsList>
                 <TabsTrigger value="preview">
-                  <Database className="w-4 h-4" />
+                  <Database className="size-4" />
                   Preview
                 </TabsTrigger>
                 <TabsTrigger value="query">
-                  <Terminal className="w-4 h-4" />
+                  <Terminal className="size-4" />
                   SQL
                 </TabsTrigger>
                 <TabsTrigger value="journey">
-                  <GitBranch className="w-4 h-4" />
+                  <GitBranch className="size-4" />
                   Journey
                 </TabsTrigger>
               </TabsList>
@@ -302,7 +313,7 @@ function DataExplorerWithTable() {
                   disabled={previewLoading}
                   title="Refresh"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className="size-4" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -311,7 +322,7 @@ function DataExplorerWithTable() {
                   disabled={!previewCanPrev}
                   title="Previous"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="size-4" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -320,7 +331,7 @@ function DataExplorerWithTable() {
                   disabled={!previewCanNext}
                   title="Next"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="size-4" />
                 </Button>
               </>
             ) : null}
@@ -401,7 +412,7 @@ function DataExplorerWithTable() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <GitBranch className="w-16 h-16 mb-4 opacity-30" />
+              <GitBranch className="size-16 mb-4 opacity-30" />
               <h3 className="text-lg font-medium">No journey selected</h3>
               <p className="text-sm mt-1">
                 Click on any data row in Preview or SQL Query to view its

@@ -12,7 +12,7 @@ import { apiGet, apiPost } from '@/server/phlo-api'
 import { camelizeKeys } from '@/utils/caseTransform'
 
 // Types for Trino responses
-export interface TrinoConnectionStatus {
+interface TrinoConnectionStatus {
   connected: boolean
   error?: string
   clusterVersion?: string
@@ -30,7 +30,7 @@ export interface DataPreviewResult {
   hasMore: boolean
 }
 
-export interface ColumnProfile {
+interface ColumnProfile {
   column: string
   type: string
   nullCount: number
@@ -41,7 +41,7 @@ export interface ColumnProfile {
   sampleValues?: Array<string>
 }
 
-export interface TableMetrics {
+interface TableMetrics {
   rowCount: number
   sizeBytes?: number
   lastModified?: string
@@ -100,7 +100,7 @@ function transformPreviewResult(r: ApiDataPreviewResult): DataPreviewResult {
 /**
  * Check if Trino is reachable
  */
-export const checkTrinoConnection = createServerFn()
+const checkTrinoConnection = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { trinoUrl?: string } = {}) => input)
   .handler(async (): Promise<TrinoConnectionStatus> => {
@@ -163,7 +163,7 @@ export const previewData = createServerFn()
 /**
  * Get column statistics/profile
  */
-export const profileColumn = createServerFn()
+const profileColumn = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: {
@@ -199,7 +199,7 @@ export const profileColumn = createServerFn()
 /**
  * Get table-level metrics
  */
-export const getTableMetrics = createServerFn()
+const getTableMetrics = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: {
@@ -298,7 +298,7 @@ export const executeQuery = createServerFn()
 /**
  * Query a table with specific column value filters
  */
-export const queryTableWithFilters = createServerFn()
+const queryTableWithFilters = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: {

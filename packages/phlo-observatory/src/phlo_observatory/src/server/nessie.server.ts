@@ -18,7 +18,7 @@ export interface Branch {
   hash: string
 }
 
-export interface CommitMeta {
+interface CommitMeta {
   hash: string
   message: string
   committer: string
@@ -28,7 +28,7 @@ export interface CommitMeta {
   parentCommitHashes: Array<string>
 }
 
-export interface LogEntry {
+interface LogEntry {
   commitMeta: CommitMeta
   parentCommitHash: string
   operations: Array<object> | null
@@ -129,7 +129,7 @@ export const getBranches = createServerFn()
 /**
  * Get branch details by name
  */
-export const getBranch = createServerFn()
+const getBranch = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { branchName: string; nessieUrl?: string }) => input)
   .handler(async ({ data }): Promise<Branch | { error: string }> => {
@@ -156,7 +156,7 @@ export const getBranch = createServerFn()
 /**
  * Get commit history for a branch
  */
-export const getCommits = createServerFn()
+const getCommits = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: { branch: string; limit?: number; nessieUrl?: string }) => input,
@@ -190,7 +190,7 @@ export const getCommits = createServerFn()
 /**
  * Get contents (tables) at a specific branch/ref
  */
-export const getContents = createServerFn()
+const getContents = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: { branch: string; prefix?: string; nessieUrl?: string }) => input,
@@ -221,7 +221,7 @@ export const getContents = createServerFn()
 /**
  * Compare two branches (diff)
  */
-export const compareBranches = createServerFn()
+const compareBranches = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: { fromBranch: string; toBranch: string; nessieUrl?: string }) =>
@@ -254,7 +254,7 @@ export const compareBranches = createServerFn()
 /**
  * Create a new branch
  */
-export const createBranch = createServerFn()
+const createBranch = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: { name: string; fromBranch: string; nessieUrl?: string }) => input,
@@ -278,7 +278,7 @@ export const createBranch = createServerFn()
 /**
  * Delete a branch
  */
-export const deleteBranch = createServerFn()
+const deleteBranch = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: { name: string; hash: string; nessieUrl?: string }) => input,
@@ -303,7 +303,7 @@ export const deleteBranch = createServerFn()
 /**
  * Merge branches
  */
-export const mergeBranch = createServerFn()
+const mergeBranch = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: {

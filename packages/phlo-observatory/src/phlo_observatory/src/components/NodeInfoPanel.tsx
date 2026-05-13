@@ -17,7 +17,7 @@ import {
   GitBranch,
   X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import type { GraphNode, ImpactedAsset } from '@/server/graph.server'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -37,8 +37,9 @@ export function NodeInfoPanel({
   onClose,
   onFocusGraph,
 }: NodeInfoPanelProps) {
-  if (!node) return null
   const { settings } = useObservatorySettings()
+
+  if (!node) return null
 
   const lastMaterialized = node.lastMaterialization
     ? formatTimeAgo(
@@ -52,11 +53,11 @@ export function NodeInfoPanel({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <Database className="w-5 h-5 text-primary" />
+          <Database className="size-5 text-primary" />
           <span className="font-medium">Asset Details</span>
         </div>
         <Button variant="ghost" size="icon-sm" onClick={onClose}>
-          <X className="w-4 h-4 text-muted-foreground" />
+          <X className="size-4 text-muted-foreground" />
         </Button>
       </div>
 
@@ -90,14 +91,14 @@ export function NodeInfoPanel({
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-muted/50 border border-border p-3">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <ArrowUpRight className="w-4 h-4" />
+              <ArrowUpRight className="size-4" />
               <span className="text-xs font-medium">Upstream</span>
             </div>
             <div className="text-xl font-bold">{node.upstreamCount}</div>
           </div>
           <div className="bg-muted/50 border border-border p-3">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <ArrowDownLeft className="w-4 h-4" />
+              <ArrowDownLeft className="size-4" />
               <span className="text-xs font-medium">Downstream</span>
             </div>
             <div className="text-xl font-bold">{node.downstreamCount}</div>
@@ -107,7 +108,7 @@ export function NodeInfoPanel({
         {/* Last Materialization */}
         <div className="bg-muted/50 border border-border p-3">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Clock className="w-4 h-4" />
+            <Clock className="size-4" />
             <span className="text-xs font-medium">Last Materialized</span>
           </div>
           <div>{lastMaterialized}</div>
@@ -128,6 +129,7 @@ export function NodeInfoPanel({
         {/* Impact Analysis */}
         {node.downstreamCount > 0 && (
           <ImpactAnalysisSection
+            key={node.keyPath}
             assetKey={node.keyPath}
             downstreamCount={node.downstreamCount}
             onFocusGraph={onFocusGraph}
@@ -145,7 +147,7 @@ export function NodeInfoPanel({
             'w-full justify-center gap-2',
           )}
         >
-          <ExternalLink className="w-4 h-4" />
+          <ExternalLink className="size-4" />
           View Details
         </Link>
         <Button
@@ -153,7 +155,7 @@ export function NodeInfoPanel({
           className="w-full justify-center gap-2"
           onClick={() => onFocusGraph(node.keyPath)}
         >
-          <GitBranch className="w-4 h-4" />
+          <GitBranch className="size-4" />
           Focus on This Asset
         </Button>
       </div>
@@ -199,28 +201,40 @@ interface ImpactAnalysisSectionProps {
   onFocusGraph: (keyPath: string) => void
 }
 
+type ImpactState = {
+  impactedAssets: Array<ImpactedAsset>
+  loading: boolean
+}
+
 function ImpactAnalysisSection({
   assetKey,
   downstreamCount,
   onFocusGraph,
 }: ImpactAnalysisSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [impactedAssets, setImpactedAssets] = useState<Array<ImpactedAsset>>([])
-  const [loading, setLoading] = useState(false)
+  const [{ impactedAssets, loading }, setImpactState] = useReducer(
+    (current: ImpactState, next: Partial<ImpactState>) => ({
+      ...current,
+      ...next,
+    }),
+    { impactedAssets: [], loading: false },
+  )
   const { settings } = useObservatorySettings()
 
   useEffect(() => {
     if (isExpanded && impactedAssets.length === 0) {
-      setLoading(true)
+      setImpactState({ loading: true })
       getAssetImpact({
         data: { assetKey, dagsterUrl: settings.connections.dagsterGraphqlUrl },
       })
         .then((result) => {
           if (!('error' in result)) {
-            setImpactedAssets(result)
+            setImpactState({ impactedAssets: result, loading: false })
+            return
           }
+          setImpactState({ loading: false })
         })
-        .finally(() => setLoading(false))
+        .catch(() => setImpactState({ loading: false }))
     }
   }, [
     isExpanded,
@@ -228,12 +242,6 @@ function ImpactAnalysisSection({
     impactedAssets.length,
     settings.connections.dagsterGraphqlUrl,
   ])
-
-  // Reset when asset changes
-  useEffect(() => {
-    setIsExpanded(false)
-    setImpactedAssets([])
-  }, [assetKey])
 
   const layerColors: Record<string, string> = {
     source: 'text-emerald-400',
@@ -252,16 +260,16 @@ function ImpactAnalysisSection({
         className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-primary" />
+          <AlertTriangle className="size-4 text-primary" />
           <span className="text-sm font-medium">Impact Analysis</span>
           <Badge variant="secondary" className="text-muted-foreground">
             {downstreamCount}
           </Badge>
         </div>
         {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          <ChevronDown className="size-4 text-muted-foreground" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          <ChevronRight className="size-4 text-muted-foreground" />
         )}
       </button>
 
@@ -269,7 +277,7 @@ function ImpactAnalysisSection({
         <div className="border-t border-border p-2 max-h-48 overflow-y-auto">
           {loading ? (
             <div className="text-sm text-muted-foreground text-center py-2">
-              Loading...
+              Loading…
             </div>
           ) : impactedAssets.length > 0 ? (
             <ul className="space-y-1">

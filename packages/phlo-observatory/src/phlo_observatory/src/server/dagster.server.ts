@@ -12,13 +12,13 @@ import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiGet } from '@/server/phlo-api'
 
 // Types
-export interface DagsterConnectionStatus {
+interface DagsterConnectionStatus {
   connected: boolean
   error?: string
   version?: string
 }
 
-export interface HealthMetrics {
+interface HealthMetrics {
   assetsTotal: number
   assetsHealthy: number
   failedJobs24h: number
@@ -28,12 +28,12 @@ export interface HealthMetrics {
   lastUpdated: string
 }
 
-export interface LastMaterialization {
+interface LastMaterialization {
   timestamp: string
   runId: string
 }
 
-export interface Asset {
+interface Asset {
   id: string
   key: Array<string>
   keyPath: string
@@ -44,7 +44,7 @@ export interface Asset {
   hasMaterializePermission: boolean
 }
 
-export interface ColumnLineageDep {
+interface ColumnLineageDep {
   assetKey: Array<string>
   columnName: string
 }
@@ -57,7 +57,7 @@ export interface AssetDetails extends Asset {
   partitionDefinition?: { description: string }
 }
 
-export interface MaterializationEvent {
+interface MaterializationEvent {
   timestamp: string
   runId: string
   status: string
@@ -151,7 +151,7 @@ function transformAssetDetails(a: ApiAssetDetails): AssetDetails {
 /**
  * Check Dagster connection
  */
-export const checkDagsterConnection = createServerFn()
+const checkDagsterConnection = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<DagsterConnectionStatus> => {
@@ -173,7 +173,7 @@ export const checkDagsterConnection = createServerFn()
 /**
  * Get health metrics from Dagster
  */
-export const getHealthMetrics = createServerFn()
+const getHealthMetrics = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<HealthMetrics | { error: string }> => {
@@ -203,7 +203,7 @@ export const getHealthMetrics = createServerFn()
 /**
  * Get all assets
  */
-export const getAssets = createServerFn()
+const getAssets = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<Array<Asset> | { error: string }> => {
@@ -252,7 +252,7 @@ export const getAssetDetails = createServerFn()
 /**
  * Get materialization history for an asset
  */
-export const getMaterializationHistory = createServerFn()
+const getMaterializationHistory = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: { assetKey: Array<string>; limit?: number; dagsterUrl?: string }) =>

@@ -285,6 +285,13 @@ function isKeyword(word: string): boolean {
  */
 export function extractSourceTables(sql: string): Array<string> {
   const tables: Array<string> = []
+  const tableSet = new Set<string>()
+  const addTable = (tableName: string | undefined) => {
+    if (tableName && !tableSet.has(tableName)) {
+      tableSet.add(tableName)
+      tables.push(tableName)
+    }
+  }
 
   // Remove EXTRACT(...FROM...) to avoid false matches
   const cleanedSql = sql.replace(/EXTRACT\s*\([^)]*FROM[^)]*\)/gi, '')
@@ -294,29 +301,20 @@ export function extractSourceTables(sql: string): Array<string> {
   const refPattern = new RegExp(PATTERNS.DBT_REF.source, 'gi')
   let match
   while ((match = refPattern.exec(cleanedSql)) !== null) {
-    const tableName = match[1]
-    if (tableName && !tables.includes(tableName)) {
-      tables.push(tableName)
-    }
+    addTable(match[1])
   }
 
   // Use PATTERNS for dbt source(): {{ source('source_name', 'table_name') }}
   const sourcePattern = new RegExp(PATTERNS.DBT_SOURCE.source, 'gi')
   while ((match = sourcePattern.exec(cleanedSql)) !== null) {
-    const tableName = match[1]
-    if (tableName && !tables.includes(tableName)) {
-      tables.push(tableName)
-    }
+    addTable(match[1])
   }
 
   // Pattern for fully quoted: "catalog"."schema"."table"
   // Captures table name (last quoted part before whitespace/newline)
   const quotedPattern = /\bFROM\s+"[^"]+"\."[^"]+"\."([^"]+)"/gi
   while ((match = quotedPattern.exec(cleanedSql)) !== null) {
-    const tableName = match[1]
-    if (tableName && !tables.includes(tableName)) {
-      tables.push(tableName)
-    }
+    addTable(match[1])
   }
 
   // Pattern for simple unquoted: FROM tablename
@@ -324,28 +322,19 @@ export function extractSourceTables(sql: string): Array<string> {
   if (tables.length === 0) {
     const simplePattern = /\bFROM\s+([a-z_][a-z0-9_]*)\b/gi
     while ((match = simplePattern.exec(cleanedSql)) !== null) {
-      const tableName = match[1]
-      if (tableName && !tables.includes(tableName)) {
-        tables.push(tableName)
-      }
+      addTable(match[1])
     }
   }
 
   // Match JOIN clauses
   const quotedJoinPattern = /\bJOIN\s+"[^"]+"\."[^"]+"\."([^"]+)"/gi
   while ((match = quotedJoinPattern.exec(cleanedSql)) !== null) {
-    const tableName = match[1]
-    if (tableName && !tables.includes(tableName)) {
-      tables.push(tableName)
-    }
+    addTable(match[1])
   }
 
   const simpleJoinPattern = /\bJOIN\s+([a-z_][a-z0-9_]*)\b/gi
   while ((match = simpleJoinPattern.exec(cleanedSql)) !== null) {
-    const tableName = match[1]
-    if (tableName && !tables.includes(tableName)) {
-      tables.push(tableName)
-    }
+    addTable(match[1])
   }
 
   console.log(
@@ -361,23 +350,31 @@ export function extractSourceTables(sql: string): Array<string> {
 /**
  * Build a WHERE clause to query upstream table based on downstream row data
  */
-export function buildUpstreamWhereClause(
+function buildUpstreamWhereClause(
   downstreamRow: Record<string, unknown>,
   columnMappings: Array<ColumnMapping>,
 ): string {
   const conditions: Array<string> = []
+  const mappingsByTarget = new Map(
+    columnMappings.map((mapping) => [mapping.targetColumn, mapping]),
+  )
+  const aggregateTransformations = new Set([
+    'COUNT',
+    'SUM',
+    'AVG',
+    'MIN',
+    'MAX',
+  ])
 
   for (const [downstreamCol, value] of Object.entries(downstreamRow)) {
     // Find the mapping for this column
-    const mapping = columnMappings.find((m) => m.targetColumn === downstreamCol)
+    const mapping = mappingsByTarget.get(downstreamCol)
     if (!mapping || !mapping.sourceColumn) continue
 
     // Skip aggregate functions (can't reverse them)
     if (
       mapping.transformation &&
-      ['COUNT', 'SUM', 'AVG', 'MIN', 'MAX'].includes(
-        mapping.transformation.toUpperCase(),
-      )
+      aggregateTransformations.has(mapping.transformation.toUpperCase())
     ) {
       continue
     }
@@ -570,7 +567,7 @@ function calculateConfidence(
 /**
  * Extract columns from CASE expressions
  */
-export function extractCaseColumns(expr: string): Array<string> {
+function extractCaseColumns(expr: string): Array<string> {
   const columns: Array<string> = []
 
   // Match WHEN conditions
@@ -650,7 +647,7 @@ export function analyzeSQLTransformation(sql: string): SQLAnalysis {
 /**
  * Column priority type for smart matching
  */
-export type ColumnPriority =
+type ColumnPriority =
   | 'primary_key'
   | 'id'
   | 'timestamp'
@@ -661,7 +658,7 @@ export type ColumnPriority =
 /**
  * Key column info for smarter row matching
  */
-export interface KeyColumnInfo {
+interface KeyColumnInfo {
   name: string
   priority: ColumnPriority
   isId: boolean
@@ -669,13 +666,15 @@ export interface KeyColumnInfo {
   isBatchId: boolean
 }
 
+const BATCH_ID_PATTERN = /batch_id/
+const ID_PATTERN = /uuid|_key/
+const TIMESTAMP_PATTERN = /created_at|updated_at|timestamp|_at|_date/
+
 /**
  * Detect key columns in a row based on common patterns
  * Looks for: id, _id, uuid, created_at, updated_at, _dlt_load_id, etc.
  */
-export function detectKeyColumns(
-  columnNames: Array<string>,
-): Array<KeyColumnInfo> {
+function detectKeyColumns(columnNames: Array<string>): Array<KeyColumnInfo> {
   const keyColumns: Array<KeyColumnInfo> = []
 
   for (const name of columnNames) {
@@ -685,7 +684,7 @@ export function detectKeyColumns(
     if (
       lower === '_dlt_load_id' ||
       lower === '_dlt_id' ||
-      lower.includes('batch_id')
+      BATCH_ID_PATTERN.test(lower)
     ) {
       keyColumns.push({
         name,
@@ -710,11 +709,7 @@ export function detectKeyColumns(
     }
 
     // Other ID patterns (foreign keys, UUIDs)
-    if (
-      lower.endsWith('_id') ||
-      lower.includes('uuid') ||
-      lower.includes('_key')
-    ) {
+    if (lower.endsWith('_id') || ID_PATTERN.test(lower)) {
       keyColumns.push({
         name,
         priority: 'id',
@@ -726,14 +721,7 @@ export function detectKeyColumns(
     }
 
     // Timestamp patterns
-    if (
-      lower.includes('created_at') ||
-      lower.includes('updated_at') ||
-      lower.includes('timestamp') ||
-      lower.includes('_at') ||
-      lower.includes('_date') ||
-      lower === 'date'
-    ) {
+    if (TIMESTAMP_PATTERN.test(lower) || lower === 'date') {
       keyColumns.push({
         name,
         priority: 'timestamp',
@@ -752,7 +740,7 @@ export function detectKeyColumns(
  * Get column priority score for sorting
  * Higher score = better for matching
  */
-export function getColumnPriority(priority: ColumnPriority): number {
+function getColumnPriority(priority: ColumnPriority): number {
   const scores: Record<ColumnPriority, number> = {
     primary_key: 100,
     id: 80,
@@ -768,7 +756,7 @@ export function getColumnPriority(priority: ColumnPriority): number {
  * Find common columns between two sets
  * Used to identify columns that can be used for cross-stage matching
  */
-export function findCommonColumns(
+function findCommonColumns(
   upstreamColumns: Array<string>,
   downstreamColumns: Array<string>,
 ): Array<string> {
@@ -796,21 +784,25 @@ export function buildSmartWhereClause(
   const usedColumns: Array<string> = []
 
   // Sort key columns by priority
-  keyColumns.sort(
+  const sortedKeyColumns = keyColumns.toSorted(
     (a, b) => getColumnPriority(b.priority) - getColumnPriority(a.priority),
+  )
+  const mappingsByTarget = new Map(
+    columnMappings.map((mapping) => [
+      mapping.targetColumn.toLowerCase(),
+      mapping,
+    ]),
   )
 
   // First, try to use key columns that exist in both rowData and mappings
-  for (const keyCol of keyColumns) {
+  for (const keyCol of sortedKeyColumns) {
     if (conditions.length >= maxConditions) break
 
     const value = rowData[keyCol.name]
     if (value === undefined) continue
 
     // Check if this column has a mapping to source
-    const mapping = columnMappings.find(
-      (m) => m.targetColumn.toLowerCase() === keyCol.name.toLowerCase(),
-    )
+    const mapping = mappingsByTarget.get(keyCol.name.toLowerCase())
 
     console.log(
       `[buildSmartWhereClause] keyCol: ${keyCol.name}, mapping found:`,
@@ -837,7 +829,7 @@ export function buildSmartWhereClause(
       whereClause: conditions.join(' AND '),
       usedColumns,
       strategy:
-        conditions.length === 1 && keyColumns[0]?.isBatchId
+        conditions.length === 1 && sortedKeyColumns[0]?.isBatchId
           ? 'batch_id'
           : 'key_columns',
     }
@@ -847,9 +839,9 @@ export function buildSmartWhereClause(
   const fallbackResult = buildUpstreamWhereClause(rowData, columnMappings)
   return {
     whereClause: fallbackResult,
-    usedColumns: columnMappings
-      .filter((m) => m.sourceColumn)
-      .map((m) => m.targetColumn),
+    usedColumns: columnMappings.flatMap((mapping) =>
+      mapping.sourceColumn ? [mapping.targetColumn] : [],
+    ),
     strategy: 'column_mappings',
   }
 }

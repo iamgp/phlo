@@ -77,14 +77,8 @@ function RootLayout() {
   return (
     <html lang="en" className="" suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{ __html: V2_THEME_BOOTSTRAP }}
-          suppressHydrationWarning
-        />
-        <script
-          dangerouslySetInnerHTML={{ __html: runtimeBootstrapScript() }}
-          suppressHydrationWarning
-        />
+        <script suppressHydrationWarning>{V2_THEME_BOOTSTRAP}</script>
+        <script suppressHydrationWarning>{runtimeBootstrapScript()}</script>
         <HeadContent />
       </head>
       <body className="phlo-v2-document min-h-svh bg-background text-foreground">

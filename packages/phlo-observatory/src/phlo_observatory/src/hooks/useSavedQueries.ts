@@ -114,7 +114,7 @@ export function useSavedQueries() {
 /**
  * Hook for managing saved views
  */
-export function useSavedViews() {
+function useSavedViews() {
   const views = useSyncExternalStore(
     subscribe,
     getViewsSnapshot,

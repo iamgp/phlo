@@ -70,27 +70,27 @@ export function ServiceCard({
   > = {
     running: {
       color: 'text-green-400',
-      icon: <CheckCircle className="w-4 h-4" />,
+      icon: <CheckCircle className="size-4" />,
       label: 'Running',
     },
     stopped: {
       color: 'text-muted-foreground',
-      icon: <Circle className="w-4 h-4" />,
+      icon: <Circle className="size-4" />,
       label: 'Stopped',
     },
     unhealthy: {
       color: 'text-red-400',
-      icon: <AlertCircle className="w-4 h-4" />,
+      icon: <AlertCircle className="size-4" />,
       label: 'Unhealthy',
     },
     starting: {
       color: 'text-yellow-400',
-      icon: <Loader2 className="w-4 h-4 animate-spin" />,
+      icon: <Loader2 className="size-4 animate-spin" />,
       label: 'Starting',
     },
     unknown: {
       color: 'text-muted-foreground',
-      icon: <Circle className="w-4 h-4" />,
+      icon: <Circle className="size-4" />,
       label: 'Unknown',
     },
   }
@@ -120,11 +120,17 @@ export function ServiceCard({
           '_PASSWORD',
           suffix.replace('_ADMIN', ''),
         )
-        const envVar = service.envVars.find(
-          (ev) =>
-            (ev.name === relatedName || ev.name === adminRelated) &&
-            !secretNames.has(ev.name),
-        )
+        let envVar: (typeof service.envVars)[number] | undefined
+        for (const candidate of service.envVars) {
+          if (
+            (candidate.name === relatedName ||
+              candidate.name === adminRelated) &&
+            !secretNames.has(candidate.name)
+          ) {
+            envVar = candidate
+            break
+          }
+        }
         if (envVar && !relatedVars.some((r) => r.name === envVar.name)) {
           relatedVars.push(envVar)
         }

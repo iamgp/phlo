@@ -51,7 +51,7 @@ export function useLiveResource<T>(
   return result
 }
 
-export function readCachedResource<T>(key: string): V2ResourceResult<T> | null {
+function readCachedResource<T>(key: string): V2ResourceResult<T> | null {
   const versionedKey = `${cacheVersion}:${key}`
   const cached = resourceCache.get(versionedKey) as CachedEntry<T> | undefined
   return cached?.result ?? null

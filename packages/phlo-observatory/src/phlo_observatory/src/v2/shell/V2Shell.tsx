@@ -293,18 +293,24 @@ export function V2Shell({ children }: { children: ReactNode }) {
 
   const groupedResults = useMemo(() => {
     const groups = new Map<string, Array<V2SearchResult>>()
+    const excludedKinds = new Set(['service', 'table', 'dataset'])
     for (const result of results.data ?? []) {
-      if (['service', 'table', 'dataset'].includes(result.kind)) continue
+      if (excludedKinds.has(result.kind)) continue
       const key = result.kind || 'result'
-      groups.set(key, [...(groups.get(key) ?? []), result])
+      const group = groups.get(key)
+      if (group) {
+        group.push(result)
+      } else {
+        groups.set(key, [result])
+      }
     }
     return Array.from(groups.entries())
   }, [results.data])
 
   const tableResults = useMemo(
     () =>
-      (results.data ?? []).filter((result) =>
-        ['table', 'dataset'].includes(result.kind),
+      (results.data ?? []).filter(
+        (result) => result.kind === 'table' || result.kind === 'dataset',
       ),
     [results.data],
   )
@@ -379,10 +385,10 @@ export function V2Shell({ children }: { children: ReactNode }) {
     serviceMatches.length > 0
   const sqlTemplateTargets = tableMatches.length
     ? tableMatches
-    : tableResults
-        .slice(0, 6)
-        .map((result) => tableFromSearchResult(result))
-        .filter((table): table is V2Table => table !== null)
+    : tableResults.slice(0, 6).flatMap((result) => {
+        const table = tableFromSearchResult(result)
+        return table ? [table] : []
+      })
 
   return (
     <main

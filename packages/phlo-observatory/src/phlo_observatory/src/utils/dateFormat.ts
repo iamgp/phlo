@@ -7,7 +7,7 @@ export function formatDate(date: Date, mode: DateFormatMode): string {
   return date.toLocaleDateString()
 }
 
-export function formatDateTime(date: Date, mode: DateFormatMode): string {
+function formatDateTime(date: Date, mode: DateFormatMode): string {
   if (mode === 'iso') {
     return date.toISOString()
   }

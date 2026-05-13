@@ -7,7 +7,7 @@
 
 import pino from 'pino'
 
-export const logger = pino({
+const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
   formatters: {
     level: (label) => ({ level: label }),
@@ -29,7 +29,7 @@ export function fnLogger(fn: string, meta?: Record<string, unknown>) {
  *   // existing logic
  * }, { table, branch })
  */
-export async function withTiming<T>(
+async function withTiming<T>(
   fn: string,
   operation: () => Promise<T>,
   meta?: Record<string, unknown>,
@@ -57,7 +57,7 @@ export async function withTiming<T>(
  *   // existing logic
  * }, { dagsterUrl })
  */
-export async function withTimingBudget<T>(
+async function withTimingBudget<T>(
   fn: string,
   budgetMs: number,
   operation: () => Promise<T>,

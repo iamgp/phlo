@@ -21,6 +21,17 @@ import { TableBrowserVirtualized } from '@/components/data/TableBrowserVirtualiz
 import { getTables } from '@/server/iceberg.server'
 import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
+type NavigateFn = ReturnType<typeof useNavigate>
+
+function deferNavigate(
+  navigate: NavigateFn,
+  options: Parameters<NavigateFn>[0],
+) {
+  queueMicrotask(() => {
+    void runNavigation(options)
+  })
+}
+
 export const Route = createFileRoute('/data/$branchName')({
   loader: ({ params }) => ({
     data: defer(loadTables(params.branchName)),
@@ -50,7 +61,7 @@ function DataExplorerLayout() {
 
   // Navigate to URL-based route when table is selected
   const handleTableSelect = (selectedTable: IcebergTable) => {
-    navigate({
+    deferNavigate(navigate, {
       to: '/data/$branchName/$schema/$table',
       params: {
         branchName,
@@ -64,7 +75,7 @@ function DataExplorerLayout() {
   const handleRunSavedQuery = (query: string, branch?: string) => {
     // Use the saved query's branch if specified, otherwise current branch
     const targetBranch = branch || branchName
-    navigate({
+    deferNavigate(navigate, {
       to: '/data/$branchName',
       params: { branchName: targetBranch },
       search: { sql: query, tab: 'query' },
@@ -79,7 +90,7 @@ function DataExplorerLayout() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Database className="w-5 h-5 text-sidebar-primary" />
+                <Database className="size-5 text-sidebar-primary" />
                 Tables
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
@@ -102,7 +113,7 @@ function DataExplorerLayout() {
         </div>
         <div className="flex-1 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-hidden">
-            <Suspense fallback={<LoadingState message="Loading tables..." />}>
+            <Suspense fallback={<LoadingState message="Loading tables…" />}>
               <Await promise={data}>
                 {(tables) => {
                   const hasError = 'error' in tables

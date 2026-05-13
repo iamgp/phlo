@@ -10,7 +10,7 @@ import {
   Settings,
   SlidersHorizontal,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type { ObservatorySettings } from '@/lib/observatorySettings'
@@ -48,7 +48,7 @@ export function SettingsRoute() {
     useState<V2ResourceResult<V2Capabilities> | null>(null)
   const orderedSettingsSections = useMemo(
     () =>
-      [...settingsSections].sort((a, b) => {
+      settingsSections.toSorted((a, b) => {
         const orderA = a.order ?? 0
         const orderB = b.order ?? 0
         if (orderA !== orderB) return orderA - orderB
@@ -560,9 +560,12 @@ function ToggleRow({
   label: string
   onChange: (checked: boolean) => void
 }) {
+  const inputId = useId()
   return (
-    <label className="phlo-v2-toggle-row">
+    <label className="phlo-v2-toggle-row" htmlFor={inputId}>
       <input
+        id={inputId}
+        aria-label={label}
         checked={checked}
         type="checkbox"
         onChange={(event) => onChange(event.target.checked)}

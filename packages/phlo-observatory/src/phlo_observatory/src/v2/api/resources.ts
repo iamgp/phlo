@@ -194,7 +194,7 @@ async function getCollection(
   }
 }
 
-export const getV2Operations = createServerFn().handler(() =>
+const getV2Operations = createServerFn().handler(() =>
   getCollection('operations'),
 )
 
@@ -249,9 +249,7 @@ export const getV2BiItems = createServerFn().handler(() =>
   getRawCollection<V2SurfaceItem>('bi'),
 )
 
-export const getV2Assets = createServerFn().handler(() =>
-  getCollection('assets'),
-)
+const getV2Assets = createServerFn().handler(() => getCollection('assets'))
 
 export const getV2AssetRecords = createServerFn().handler(() =>
   getRawCollection<V2Asset>('assets'),
@@ -274,9 +272,7 @@ export const getV2AssetDetail = createServerFn()
     },
   )
 
-export const getV2Tables = createServerFn().handler(() =>
-  getCollection('tables'),
-)
+const getV2Tables = createServerFn().handler(() => getCollection('tables'))
 
 export const getV2TableRecords = createServerFn().handler(() =>
   getRawCollection<V2Table>('tables'),
@@ -370,7 +366,7 @@ export const saveV2Query = createServerFn()
     },
   )
 
-export const getV2StageDiff = createServerFn()
+const getV2StageDiff = createServerFn()
   .inputValidator(
     (input: { sourceTableId: string; targetTableId: string }) => input,
   )
@@ -410,9 +406,7 @@ export const getV2RowJourney = createServerFn()
     },
   )
 
-export const getV2Quality = createServerFn().handler(() =>
-  getCollection('quality'),
-)
+const getV2Quality = createServerFn().handler(() => getCollection('quality'))
 
 export const getV2QualityRecords = createServerFn().handler(() =>
   getRawCollection<V2QualityCheck>('quality'),
@@ -437,7 +431,7 @@ export const getV2QualityDetail = createServerFn()
     },
   )
 
-export const getV2Logs = createServerFn().handler(() => getCollection('logs'))
+const getV2Logs = createServerFn().handler(() => getCollection('logs'))
 
 export const getV2LogRecords = createServerFn().handler(() =>
   getRawCollection<V2LogEvent>('logs'),
@@ -508,7 +502,7 @@ export const getV2ExtensionDetail = createServerFn()
     },
   )
 
-export const getV2Settings = createServerFn().handler(
+const getV2Settings = createServerFn().handler(
   async (): Promise<V2ResourceResult<V2Settings>> => {
     try {
       const data = await apiGet<V2ApiSettings>(

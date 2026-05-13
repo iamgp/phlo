@@ -22,7 +22,7 @@ import {
 import type { Edge, Node, NodeProps, NodeTypes } from '@xyflow/react'
 import type { MouseEvent } from 'react'
 
-export type V2FlowNodeKind =
+type V2FlowNodeKind =
   | 'asset'
   | 'table'
   | 'quality'

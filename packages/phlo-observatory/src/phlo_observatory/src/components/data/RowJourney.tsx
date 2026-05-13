@@ -172,9 +172,9 @@ function NodeDetailPanel({
     return (
       <div className="bg-card border border-border p-6">
         <div className="flex items-center gap-3">
-          <Loader2 className="w-5 h-5 text-primary animate-spin" />
+          <Loader2 className="size-5 text-primary animate-spin" />
           <span className="text-muted-foreground">
-            Loading details for {tableName}...
+            Loading details for {tableName}…
           </span>
         </div>
       </div>
@@ -184,7 +184,7 @@ function NodeDetailPanel({
   if (!details) {
     return (
       <div className="bg-card border border-border p-6 text-center text-muted-foreground">
-        <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        <Database className="size-8 mx-auto mb-2 opacity-50" />
         <p>Click a node above to view its details</p>
       </div>
     )
@@ -319,7 +319,7 @@ function NodeDetailPanel({
             <div className="min-h-0 flex-1">
               {contribLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                   Loading…
                 </div>
               ) : contribError ? (
@@ -365,7 +365,7 @@ function NodeDetailPanel({
 
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h4 className="font-medium text-foreground flex items-center gap-2">
-          <Database className="w-4 h-4 text-primary" />
+          <Database className="size-4 text-primary" />
           {tableName}
         </h4>
       </div>
@@ -375,7 +375,7 @@ function NodeDetailPanel({
         {details.sql && (
           <div>
             <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
-              <Code className="w-4 h-4" />
+              <Code className="size-4" />
               Transformation SQL
             </div>
             <Highlight
@@ -393,10 +393,21 @@ function NodeDetailPanel({
                     }}
                     className="p-3 text-xs leading-relaxed"
                   >
-                    {tokens.map((line, i) => (
-                      <div key={i} {...getLineProps({ line })}>
-                        {line.map((token, key) => (
-                          <span key={key} {...getTokenProps({ token })} />
+                    {tokens.map((line) => (
+                      <div
+                        key={line
+                          .map(
+                            (token) =>
+                              `${token.content}:${token.types.join('.')}`,
+                          )
+                          .join('|')}
+                        {...getLineProps({ line })}
+                      >
+                        {line.map((token) => (
+                          <span
+                            key={`${token.content}:${token.types.join('.')}`}
+                            {...getTokenProps({ token })}
+                          />
                         ))}
                       </div>
                     ))}
@@ -413,7 +424,7 @@ function NodeDetailPanel({
           details.upstreamAssetKeys.length > 0 && (
             <div>
               <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
-                <Terminal className="w-4 h-4" />
+                <Terminal className="size-4" />
                 Contributing rows
               </div>
               <div className="space-y-2">
@@ -438,7 +449,7 @@ function NodeDetailPanel({
                             setDiffOpen(true)
                           }}
                         >
-                          <GitCompare className="w-3 h-3 mr-1" />
+                          <GitCompare className="size-3 mr-1" />
                           Compare
                         </Button>
                         <Button
@@ -497,7 +508,7 @@ function NodeDetailPanel({
         {details.checks && details.checks.length > 0 && (
           <div>
             <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
-              <CheckCircle className="w-4 h-4" />
+              <CheckCircle className="size-4" />
               Quality Checks
             </div>
             <div className="flex flex-wrap gap-2">
@@ -507,9 +518,9 @@ function NodeDetailPanel({
                   className="flex items-center gap-2 text-xs bg-muted/30 border border-border px-3 py-1.5 rounded"
                 >
                   {check.status === 'PASSED' ? (
-                    <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    <CheckCircle className="size-4 text-green-400 flex-shrink-0" />
                   ) : (
-                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                    <AlertCircle className="size-4 text-red-400 flex-shrink-0" />
                   )}
                   <span className="text-foreground">{check.name}</span>
                 </div>
@@ -522,7 +533,7 @@ function NodeDetailPanel({
         {details.stageData && details.stageData.length > 0 && (
           <div>
             <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
-              <Database className="w-4 h-4" />
+              <Database className="size-4" />
               {getDataRowMessage().title}{' '}
               <code className="bg-muted px-1.5 py-0.5 rounded text-primary ml-1">
                 {tableName}
@@ -660,11 +671,14 @@ export function RowJourney({
         const sql =
           'error' in assetInfo ? undefined : extractTransformationSql(assetInfo)
 
-        const upstreamAssetKeys = graphData
-          ? graphData.edges
-              .filter((e) => e.target === selectedNode)
-              .map((e) => e.source)
-          : []
+        const upstreamAssetKeys: Array<string> = []
+        if (graphData) {
+          for (const edge of graphData.edges) {
+            if (edge.target === selectedNode) {
+              upstreamAssetKeys.push(edge.source)
+            }
+          }
+        }
 
         setNodeDetails({
           sql,
@@ -788,7 +802,7 @@ export function RowJourney({
   if (loading) {
     return (
       <div className={`flex items-center justify-center h-64 ${className}`}>
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <Loader2 className="size-8 text-primary animate-spin" />
       </div>
     )
   }
@@ -808,7 +822,7 @@ export function RowJourney({
       <div
         className={`flex flex-col items-center justify-center h-64 text-muted-foreground ${className}`}
       >
-        <Database className="w-8 h-8 mb-2 opacity-50" />
+        <Database className="size-8 mb-2 opacity-50" />
         <p>No lineage data available</p>
       </div>
     )

@@ -250,7 +250,7 @@ export function Data() {
             {filteredTables.length === 0 && (
               <div className="phlo-v2-empty-state">
                 {!hasLoadedTables
-                  ? 'Loading tables...'
+                  ? 'Loading tables…'
                   : tables.length === 0
                     ? 'No tables registered yet.'
                     : 'No tables match this filter.'}
@@ -541,13 +541,13 @@ function DataPreviewTable({
               onClick={onLoadMoreRows}
               type="button"
             >
-              {isLoadingMoreRows ? 'Loading more rows...' : 'Load more rows'}
+              {isLoadingMoreRows ? 'Loading more rows…' : 'Load more rows'}
             </button>
           )}
         </div>
       ) : (
         <div className="phlo-v2-data-preview-empty">
-          {preview ? previewEmptyCopy(selected) : 'Loading preview rows...'}
+          {preview ? previewEmptyCopy(selected) : 'Loading preview rows…'}
         </div>
       )}
     </div>
@@ -773,11 +773,12 @@ function buildTableGraph(
   nodes: Array<V2FlowNode>
   edges: Array<V2FlowEdge>
 } {
-  const tableByAsset = new Map(
-    tables
-      .filter((table) => table.asset_id)
-      .map((table) => [table.asset_id!, table]),
-  )
+  const tableByAsset = new Map<string, V2Table>()
+  for (const table of tables) {
+    if (table.asset_id) {
+      tableByAsset.set(table.asset_id, table)
+    }
+  }
   const assetById = new Map(assets.map((asset) => [asset.id, asset]))
 
   const tableNodes = sortTablesForFlow(tables).map(
@@ -795,21 +796,24 @@ function buildTableGraph(
     if (!table.asset_id) return []
     const asset = assetById.get(table.asset_id)
     if (!asset) return []
-    return asset.dependencies
-      .map((dependencyId) => tableByAsset.get(dependencyId))
-      .filter((dependency): dependency is V2Table => Boolean(dependency))
-      .map((dependency) => ({
+    const dependencyEdges: Array<V2FlowEdge> = []
+    for (const dependencyId of asset.dependencies) {
+      const dependency = tableByAsset.get(dependencyId)
+      if (!dependency) continue
+      dependencyEdges.push({
         id: `${dependency.id}->${table.id}`,
         source: dependency.id,
         target: table.id,
-      }))
+      })
+    }
+    return dependencyEdges
   })
 
   return { nodes: tableNodes, edges }
 }
 
 function sortTablesForFlow(tables: Array<V2Table>): Array<V2Table> {
-  return [...tables].sort((left, right) => {
+  return tables.toSorted((left, right) => {
     const leftLane = tableLane(left)
     const rightLane = tableLane(right)
     if (leftLane !== rightLane) {

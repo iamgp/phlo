@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const OBSERVATORY_SETTINGS_STORAGE_KEY = 'phlo-observatory-settings-v1'
+const OBSERVATORY_SETTINGS_STORAGE_KEY = 'phlo-observatory-settings-v1'
 
 const densitySchema = z.enum(['comfortable', 'compact'])
 const dateFormatSchema = z.enum(['iso', 'local'])
@@ -43,7 +43,7 @@ export const observatorySettingsSchema = z.object({
 })
 
 export type ObservatorySettings = z.infer<typeof observatorySettingsSchema>
-export type ObservatorySettingsInput = z.input<typeof observatorySettingsSchema>
+type ObservatorySettingsInput = z.input<typeof observatorySettingsSchema>
 
 export function getFallbackObservatorySettings(): ObservatorySettings {
   return {

@@ -29,7 +29,7 @@ export function QueryEditor({
   branch,
   autoRun = false,
 }: QueryEditorProps) {
-  const [query, setQuery] = useState(defaultQuery)
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [effectiveQuery, setEffectiveQuery] = useState<string | null>(null)
@@ -127,9 +127,9 @@ export function QueryEditor({
         <div className="flex items-center gap-2">
           <Button onClick={runQuery} disabled={loading || !query.trim()}>
             {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <Play className="w-4 h-4" />
+              <Play className="size-4" />
             )}
             Run Query
           </Button>
@@ -140,7 +140,7 @@ export function QueryEditor({
                 render={
                   <Button variant="outline" size="sm">
                     Load Query
-                    <ChevronDown className="w-4 h-4 ml-1" />
+                    <ChevronDown className="size-4 ml-1" />
                   </Button>
                 }
               />
@@ -175,7 +175,7 @@ export function QueryEditor({
           }}
           title="Clear"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="size-4" />
         </Button>
       </div>
 

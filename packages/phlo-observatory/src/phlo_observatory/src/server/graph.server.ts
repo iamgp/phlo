@@ -115,7 +115,7 @@ export async function fetchAssetGraphFromApi(params: {
   })
 }
 
-export async function fetchAssetNeighborsFromApi(params: {
+async function fetchAssetNeighborsFromApi(params: {
   assetKey: string
   direction: 'upstream' | 'downstream' | 'both'
   depth: number

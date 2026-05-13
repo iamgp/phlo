@@ -209,7 +209,7 @@ async function getPluginLists(): Promise<{
   })
 }
 
-export const getPlugins = createServerFn().handler(
+const getPlugins = createServerFn().handler(
   async (): Promise<Array<PluginInfo>> => {
     const lists = await getPluginLists()
     return lists.installed

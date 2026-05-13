@@ -31,7 +31,7 @@ export function V2Page({
   )
 }
 
-export function V2ResourcePanel({
+function V2ResourcePanel({
   title,
   label,
   result,
@@ -83,7 +83,7 @@ export function V2ResourcePanel({
   )
 }
 
-export function V2ResourceRow({ item }: { item: V2ResourceItem }) {
+function V2ResourceRow({ item }: { item: V2ResourceItem }) {
   const status = item.status ?? item.health?.state ?? item.kind
 
   return (
@@ -106,7 +106,7 @@ export function V2ResourceRow({ item }: { item: V2ResourceItem }) {
   )
 }
 
-export function V2EmptyPanel({ title, body }: { title: string; body: string }) {
+function V2EmptyPanel({ title, body }: { title: string; body: string }) {
   return (
     <div className="phlo-v2-callout">
       <div className="phlo-v2-callout-title">{title}</div>

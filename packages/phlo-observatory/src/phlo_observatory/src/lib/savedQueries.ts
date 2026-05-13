@@ -66,7 +66,7 @@ const bookmarksStoreSchema = z.object({
 // Types
 export type SavedQuery = z.infer<typeof savedQuerySchema>
 export type SavedView = z.infer<typeof savedViewSchema>
-export type Bookmark = z.infer<typeof bookmarkSchema>
+type Bookmark = z.infer<typeof bookmarkSchema>
 
 type SavedQueriesStore = z.infer<typeof savedQueriesStoreSchema>
 type BookmarksStore = z.infer<typeof bookmarksStoreSchema>
@@ -77,7 +77,7 @@ export type CreateQueryInput = Omit<
   'id' | 'createdAt' | 'updatedAt'
 >
 export type CreateViewInput = Omit<SavedView, 'id' | 'createdAt' | 'updatedAt'>
-export type CreateBookmarkInput = Omit<Bookmark, 'id' | 'createdAt'>
+type CreateBookmarkInput = Omit<Bookmark, 'id' | 'createdAt'>
 
 // Helper functions
 function getEmptyQueriesStore(): SavedQueriesStore {
@@ -229,22 +229,19 @@ export function deleteSavedView(id: string): boolean {
 }
 
 // Bookmarks CRUD
-export function getBookmarks(): Array<Bookmark> {
+function getBookmarks(): Array<Bookmark> {
   return loadBookmarksStore().bookmarks
 }
 
-export function getBookmarksByType(type: Bookmark['type']): Array<Bookmark> {
+function getBookmarksByType(type: Bookmark['type']): Array<Bookmark> {
   return getBookmarks().filter((b) => b.type === type)
 }
 
-export function isBookmarked(
-  type: Bookmark['type'],
-  targetId: string,
-): boolean {
+function isBookmarked(type: Bookmark['type'], targetId: string): boolean {
   return getBookmarks().some((b) => b.type === type && b.targetId === targetId)
 }
 
-export function createBookmark(input: CreateBookmarkInput): Bookmark {
+function createBookmark(input: CreateBookmarkInput): Bookmark {
   // Prevent duplicates
   if (isBookmarked(input.type, input.targetId)) {
     const existing = getBookmarks().find(
@@ -264,7 +261,7 @@ export function createBookmark(input: CreateBookmarkInput): Bookmark {
   return bookmark
 }
 
-export function deleteBookmark(id: string): boolean {
+function deleteBookmark(id: string): boolean {
   const store = loadBookmarksStore()
   const initialLength = store.bookmarks.length
   store.bookmarks = store.bookmarks.filter((b) => b.id !== id)
@@ -275,7 +272,7 @@ export function deleteBookmark(id: string): boolean {
   return false
 }
 
-export function deleteBookmarkByTarget(
+function deleteBookmarkByTarget(
   type: Bookmark['type'],
   targetId: string,
 ): boolean {
@@ -292,7 +289,7 @@ export function deleteBookmarkByTarget(
 }
 
 // Table bookmark helpers (convenience functions)
-export function getTableBookmarkId(
+function getTableBookmarkId(
   catalog: string,
   schema: string,
   table: string,
@@ -300,7 +297,7 @@ export function getTableBookmarkId(
   return `${catalog}.${schema}.${table}`
 }
 
-export function bookmarkTable(
+function bookmarkTable(
   catalog: string,
   schema: string,
   table: string,
@@ -310,7 +307,7 @@ export function bookmarkTable(
   return createBookmark({ type: 'table', targetId, label: label ?? table })
 }
 
-export function unbookmarkTable(
+function unbookmarkTable(
   catalog: string,
   schema: string,
   table: string,
@@ -319,7 +316,7 @@ export function unbookmarkTable(
   return deleteBookmarkByTarget('table', targetId)
 }
 
-export function isTableBookmarked(
+function isTableBookmarked(
   catalog: string,
   schema: string,
   table: string,

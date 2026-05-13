@@ -103,8 +103,8 @@ function RowDetailPage() {
     return (
       <main className="flex-1 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <p>Loading row data...</p>
+          <Loader2 className="size-8 animate-spin" />
+          <p>Loading row data…</p>
         </div>
       </main>
     )
@@ -116,7 +116,7 @@ function RowDetailPage() {
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-destructive">
-              <AlertCircle className="w-5 h-5" />
+              <AlertCircle className="size-5" />
               Row Not Found
             </CardTitle>
             <CardDescription>
@@ -141,7 +141,7 @@ function RowDetailPage() {
                 params={{ branchName, schema, table }}
                 className="inline-flex items-center justify-center w-full h-8 gap-1.5 px-2.5 text-xs font-medium rounded-none border border-border bg-background hover:bg-muted"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft className="size-4 mr-2" />
                 Back to Table
               </Link>
             </div>
@@ -163,10 +163,10 @@ function RowDetailPage() {
             params={{ branchName, schema, table }}
             className="inline-flex items-center justify-center size-7 rounded-none hover:bg-muted"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="size-4" />
           </Link>
           <div className="flex items-center gap-2 min-w-0">
-            <GitBranch className="w-4 h-4 text-primary" />
+            <GitBranch className="size-4 text-primary" />
             <h1 className="text-lg font-semibold">Row Journey</h1>
             <Badge variant="secondary" className="text-muted-foreground">
               {table}

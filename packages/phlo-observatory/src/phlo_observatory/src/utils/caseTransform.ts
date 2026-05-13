@@ -7,7 +7,7 @@
  * Convert a snake_case string to camelCase
  * Handles SCREAMING_SNAKE_CASE and digits (e.g., column_1 -> column1)
  */
-export function snakeToCamel(str: string): string {
+function snakeToCamel(str: string): string {
   return str
     .toLowerCase()
     .replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase())
@@ -45,11 +45,13 @@ export function camelizeKeys<T>(obj: unknown): T {
       return obj as T
     }
 
-    return Object.fromEntries(
-      Object.entries(obj as Record<string, unknown>)
-        .filter(([key]) => !DANGEROUS_KEYS.has(key))
-        .map(([key, value]) => [snakeToCamel(key), camelizeKeys(value)]),
-    ) as T
+    const entries: Array<[string, unknown]> = []
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      if (!DANGEROUS_KEYS.has(key)) {
+        entries.push([snakeToCamel(key), camelizeKeys(value)])
+      }
+    }
+    return Object.fromEntries(entries) as T
   }
 
   return obj as T

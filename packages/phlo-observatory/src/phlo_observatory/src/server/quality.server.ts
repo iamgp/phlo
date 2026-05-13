@@ -18,12 +18,7 @@ import { authMiddleware } from '@/server/auth.server'
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiGet } from '@/server/phlo-api'
 
-export type {
-  CheckExecution,
-  QualityCheck,
-  QualityOverview,
-  RecentCheckExecution,
-} from './quality.types'
+export type { QualityCheck } from './quality.types'
 
 // Python API types (snake_case)
 interface ApiQualityOverview {
@@ -95,7 +90,7 @@ function transformExecution(e: ApiCheckExecution): CheckExecution {
 /**
  * Get overview of all quality metrics
  */
-export const getQualityOverview = createServerFn()
+const getQualityOverview = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async (): Promise<QualityOverview | { error: string }> => {
@@ -150,7 +145,7 @@ export const getAssetChecks = createServerFn()
 /**
  * Get execution history for a specific check
  */
-export const getCheckHistory = createServerFn()
+const getCheckHistory = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: {
@@ -190,7 +185,7 @@ export const getCheckHistory = createServerFn()
 /**
  * Get all currently failing checks
  */
-export const getFailingChecks = createServerFn()
+const getFailingChecks = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async (): Promise<Array<QualityCheck> | { error: string }> => {
@@ -213,7 +208,7 @@ export const getFailingChecks = createServerFn()
 /**
  * Get quality dashboard (overview + failing + recent)
  */
-export const getQualityDashboard = createServerFn()
+const getQualityDashboard = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(

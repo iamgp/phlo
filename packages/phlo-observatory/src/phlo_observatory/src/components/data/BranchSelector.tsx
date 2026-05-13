@@ -49,10 +49,10 @@ export function BranchSelector({ branch, onChange }: BranchSelectorProps) {
 
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <GitBranch className="w-4 h-4 text-primary" />
+      <GitBranch className="size-4 text-primary" />
       {loading ? (
         <span className="inline-flex items-center gap-2">
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+          <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
           Loading branches…
         </span>
       ) : connection?.connected === false ? (

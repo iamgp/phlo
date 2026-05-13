@@ -93,9 +93,17 @@ function AssetNode({ data, selected }: NodeProps<AssetNodeType>) {
           selected ? 'ring-2 ring-primary/40' : '',
         ].join(' ')}
         onClick={() => data.onSelect(data.keyPath)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            data.onSelect(data.keyPath)
+          }
+        }}
+        role="button"
+        tabIndex={0}
       >
         <div className="flex items-center gap-2">
-          <Database className={`w-4 h-4 ${styles.icon}`} />
+          <Database className={`size-4 ${styles.icon}`} />
           <span className={`text-sm font-medium ${styles.label}`}>
             {data.label}
           </span>
@@ -401,7 +409,7 @@ export function GraphLegend() {
           <div key={key} className="flex items-center gap-1.5">
             <div
               className={[
-                'h-3 w-3 border border-border bg-card',
+                'size-3 border border-border bg-card',
                 styles.accentBorder,
               ].join(' ')}
             />

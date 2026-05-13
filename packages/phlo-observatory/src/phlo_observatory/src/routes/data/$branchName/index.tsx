@@ -44,7 +44,7 @@ function DataExplorerLanding() {
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="px-4 py-3 border-b border-border bg-card">
-          <h1 className="text-xl font-bold">SQL Query</h1>
+          <h1 className="text-xl font-semibold">SQL Query</h1>
           <p className="text-sm text-muted-foreground">
             Run queries on branch: {decodedBranchName}
           </p>
@@ -72,7 +72,7 @@ function DataExplorerLanding() {
     <main className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <header className="px-4 py-3 border-b border-border bg-card">
-        <h1 className="text-xl font-bold">Data Explorer</h1>
+        <h1 className="text-xl font-semibold">Data Explorer</h1>
         <p className="text-sm text-muted-foreground">
           Browse, query, and explore your Iceberg tables
         </p>

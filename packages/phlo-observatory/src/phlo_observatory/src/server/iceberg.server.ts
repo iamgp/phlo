@@ -20,14 +20,14 @@ export interface IcebergTable {
   layer: 'bronze' | 'silver' | 'gold' | 'publish' | 'unknown'
 }
 
-export interface TableColumn {
+interface TableColumn {
   name: string
   type: string
   nullable: boolean
   comment?: string
 }
 
-export interface TableMetadata {
+interface TableMetadata {
   table: IcebergTable
   columns: Array<TableColumn>
   rowCount?: number
@@ -125,7 +125,7 @@ export const getTables = createServerFn()
 /**
  * Get table schema (columns)
  */
-export const getTableSchema = createServerFn()
+const getTableSchema = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: {
@@ -172,7 +172,7 @@ export const getTableSchema = createServerFn()
 /**
  * Get row count for a table
  */
-export const getTableRowCount = createServerFn()
+const getTableRowCount = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: { table: string; branch?: string; catalog?: string }) => input,
@@ -196,7 +196,7 @@ export const getTableRowCount = createServerFn()
 /**
  * Get table metadata including schema and stats
  */
-export const getTableMetadata = createServerFn()
+const getTableMetadata = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
     (input: { table: string; branch?: string; catalog?: string }) => input,

@@ -30,7 +30,7 @@ function PluginsPage() {
   const { data } = Route.useLoaderData()
 
   return (
-    <Suspense fallback={<LoadingState message="Loading plugins..." />}>
+    <Suspense fallback={<LoadingState message="Loading plugins…" />}>
       <Await promise={data}>
         {(resolved) => <PluginsContent {...resolved} />}
       </Await>
@@ -59,7 +59,7 @@ function PluginsContent({
           <div>
             <div className="flex items-center gap-3 mb-2">
               <Boxes className="size-7 text-primary" />
-              <h1 className="text-3xl font-bold">Plugin Registry</h1>
+              <h1 className="text-3xl font-semibold">Plugin Registry</h1>
             </div>
             <p className="text-muted-foreground">
               Discover, install, and manage Phlo plugins across your stack.
@@ -77,17 +77,17 @@ function PluginsContent({
           <StatCard
             label="Installed"
             value={installedCount}
-            icon={<CircleCheck className="w-5 h-5" />}
+            icon={<CircleCheck className="size-5" />}
           />
           <StatCard
             label="Available"
             value={availableCount}
-            icon={<Package className="w-5 h-5" />}
+            icon={<Package className="size-5" />}
           />
           <StatCard
             label="Verified"
             value={verifiedCount}
-            icon={<CircleCheck className="w-5 h-5" />}
+            icon={<CircleCheck className="size-5" />}
           />
         </div>
 

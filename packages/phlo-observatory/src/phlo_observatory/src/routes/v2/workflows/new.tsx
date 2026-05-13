@@ -332,7 +332,7 @@ function WorkflowCanvasBuilder() {
                 type="button"
                 variant="primary"
               >
-                {proposalLoading ? 'Generating...' : 'Generate proposal'}
+                {proposalLoading ? 'Generating…' : 'Generate proposal'}
               </Button>
             </div>
             <PipelineLane
@@ -767,7 +767,7 @@ function ReviewPanel({
           type="button"
           variant="primary"
         >
-          {loading ? 'Generating proposal...' : 'Try again'}
+          {loading ? 'Generating proposal…' : 'Try again'}
         </Button>
       </div>
     )
@@ -784,7 +784,7 @@ function ReviewPanel({
         </div>
         <div className="phlo-workflow-empty-review">
           {loading
-            ? 'Generating a proposal from the graph...'
+            ? 'Generating a proposal from the graph…'
             : 'Generate a proposal to preview graph-generated files.'}
         </div>
       </div>
@@ -834,7 +834,7 @@ function ReviewPanel({
         onClick={onGenerate}
         type="button"
       >
-        {loading ? 'Refreshing proposal...' : 'Refresh proposal'}
+        {loading ? 'Refreshing proposal…' : 'Refresh proposal'}
       </Button>
       {actionMessage && (
         <div className="phlo-v2-panel-footer">{actionMessage}</div>
@@ -851,9 +851,13 @@ function starterGraph(contributions: Array<V2WorkflowWizardContribution>) {
     'dagster.orchestration',
     'openmetadata.catalog',
   ]
-  const selected = ids
-    .map((id) => contributions.find((contribution) => contribution.id === id))
-    .filter((item): item is V2WorkflowWizardContribution => Boolean(item))
+  const contributionsById = new Map(
+    contributions.map((contribution) => [contribution.id, contribution]),
+  )
+  const selected = ids.flatMap((id) => {
+    const contribution = contributionsById.get(id)
+    return contribution ? [contribution] : []
+  })
   const nodes = selected.map((contribution, index) =>
     toCanvasNode(contribution, `node-${index + 1}`),
   )

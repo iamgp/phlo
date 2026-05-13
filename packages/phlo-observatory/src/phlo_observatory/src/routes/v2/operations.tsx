@@ -288,21 +288,22 @@ function buildOperationGraph(operations: Array<V2Operation>): {
   nodes: Array<V2FlowNode>
   edges: Array<V2FlowEdge>
 } {
-  const targetNodes = Array.from(
-    new Map(
-      operations
-        .filter((operation) => operation.target)
-        .map((operation) => [operation.target!.id, operation.target!]),
-    ).values(),
-  ).map(
+  const targetById = new Map<string, NonNullable<V2Operation['target']>>()
+  const operationIdByTargetId = new Map<string, string>()
+  for (const operation of operations) {
+    if (operation.target) {
+      targetById.set(operation.target.id, operation.target)
+      operationIdByTargetId.set(operation.target.id, operation.id)
+    }
+  }
+
+  const targetNodes = Array.from(targetById.values()).map(
     (target): V2FlowNode => ({
       id: `target:${target.id}`,
       label: target.label,
       kind: target.kind === 'branch' ? 'branch' : 'service',
       lane: 'branch',
-      selectId: operations.find(
-        (operation) => operation.target?.id === target.id,
-      )?.id,
+      selectId: operationIdByTargetId.get(target.id),
       subtitle: target.kind,
     }),
   )
@@ -318,15 +319,16 @@ function buildOperationGraph(operations: Array<V2Operation>): {
     }),
   )
 
-  const edges = operations
-    .filter((operation) => operation.target)
-    .map(
-      (operation): V2FlowEdge => ({
-        id: `${operation.target!.id}->${operation.id}`,
-        source: `target:${operation.target!.id}`,
+  const edges: Array<V2FlowEdge> = []
+  for (const operation of operations) {
+    if (operation.target) {
+      edges.push({
+        id: `${operation.target.id}->${operation.id}`,
+        source: `target:${operation.target.id}`,
         target: operation.id,
-      }),
-    )
+      })
+    }
+  }
 
   return { nodes: [...targetNodes, ...operationNodes], edges }
 }
