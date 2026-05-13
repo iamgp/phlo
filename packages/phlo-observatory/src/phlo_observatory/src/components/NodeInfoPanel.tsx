@@ -17,7 +17,7 @@ import {
   GitBranch,
   X,
 } from 'lucide-react'
-import { useEffect, useReducer, useState } from 'react'
+import { useReducer, useState } from 'react'
 import type { GraphNode, ImpactedAsset } from '@/server/graph.server'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'

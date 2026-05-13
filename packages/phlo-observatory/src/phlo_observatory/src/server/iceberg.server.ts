@@ -20,21 +20,6 @@ export interface IcebergTable {
   layer: 'bronze' | 'silver' | 'gold' | 'publish' | 'unknown'
 }
 
-interface TableColumn {
-  name: string
-  type: string
-  nullable: boolean
-  comment?: string
-}
-
-interface TableMetadata {
-  table: IcebergTable
-  columns: Array<TableColumn>
-  rowCount?: number
-  lastModified?: string
-}
-
-// Python API response types (snake_case)
 interface ApiIcebergTable {
   catalog: string
   schema_name: string
@@ -43,21 +28,6 @@ interface ApiIcebergTable {
   layer: 'bronze' | 'silver' | 'gold' | 'publish' | 'unknown'
 }
 
-interface ApiTableColumn {
-  name: string
-  type: string
-  nullable: boolean
-  comment?: string
-}
-
-interface ApiTableMetadata {
-  table: ApiIcebergTable
-  columns: Array<ApiTableColumn>
-  row_count?: number
-  last_modified?: string
-}
-
-// Transform Python snake_case to TypeScript camelCase
 function transformTable(t: ApiIcebergTable): IcebergTable {
   return {
     catalog: t.catalog,
@@ -65,15 +35,6 @@ function transformTable(t: ApiIcebergTable): IcebergTable {
     name: t.name,
     fullName: t.full_name,
     layer: t.layer,
-  }
-}
-
-function transformColumn(c: ApiTableColumn): TableColumn {
-  return {
-    name: c.name,
-    type: c.type,
-    nullable: c.nullable,
-    comment: c.comment,
   }
 }
 
@@ -119,111 +80,5 @@ export const getTables = createServerFn()
         key,
         cacheTTL.tables,
       )
-    },
-  )
-
-/**
- * Get table schema (columns)
- */
-const getTableSchema = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator(
-    (input: {
-      table: string
-      schema?: string
-      branch?: string
-      catalog?: string
-    }) => input,
-  )
-  .handler(
-    async ({
-      data: { table, schema, branch = 'main', catalog },
-    }): Promise<Array<TableColumn> | { error: string }> => {
-      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-      const effectiveSchema = schema ?? branch
-      const key = cacheKeys.tableSchema(
-        effectiveCatalog,
-        effectiveSchema,
-        table,
-      )
-
-      return withCache(
-        async () => {
-          const result = await apiGet<
-            Array<ApiTableColumn> | { error: string }
-          >(`/api/iceberg/tables/${encodeURIComponent(table)}/schema`, {
-            branch,
-            schema: effectiveSchema,
-            catalog: effectiveCatalog,
-          })
-
-          if ('error' in result) {
-            return result
-          }
-
-          return result.map(transformColumn)
-        },
-        key,
-        cacheTTL.tableSchema,
-      )
-    },
-  )
-
-/**
- * Get row count for a table
- */
-const getTableRowCount = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator(
-    (input: { table: string; branch?: string; catalog?: string }) => input,
-  )
-  .handler(
-    async ({
-      data: { table, branch = 'main', catalog },
-    }): Promise<number | { error: string }> => {
-      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-
-      return apiGet<number | { error: string }>(
-        `/api/iceberg/tables/${encodeURIComponent(table)}/row-count`,
-        {
-          branch,
-          catalog: effectiveCatalog,
-        },
-      )
-    },
-  )
-
-/**
- * Get table metadata including schema and stats
- */
-const getTableMetadata = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator(
-    (input: { table: string; branch?: string; catalog?: string }) => input,
-  )
-  .handler(
-    async ({
-      data: { table, branch = 'main', catalog },
-    }): Promise<TableMetadata | { error: string }> => {
-      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-
-      const result = await apiGet<ApiTableMetadata | { error: string }>(
-        `/api/iceberg/tables/${encodeURIComponent(table)}/metadata`,
-        {
-          branch,
-          catalog: effectiveCatalog,
-        },
-      )
-
-      if ('error' in result) {
-        return result
-      }
-
-      return {
-        table: transformTable(result.table),
-        columns: result.columns.map(transformColumn),
-        rowCount: result.row_count,
-        lastModified: result.last_modified,
-      }
     },
   )

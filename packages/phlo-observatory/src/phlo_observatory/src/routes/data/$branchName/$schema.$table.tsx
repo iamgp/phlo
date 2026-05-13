@@ -8,7 +8,6 @@ import {
   Outlet,
   createFileRoute,
   useMatch,
-  useNavigate,
   useParams,
 } from '@tanstack/react-router'
 import {
@@ -50,15 +49,14 @@ import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { previewData } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
-type NavigateFn = ReturnType<typeof useNavigate>
+function deferNavigation(runNavigation: () => void) {
+  queueMicrotask(runNavigation)
+}
 
-function deferNavigate(
-  runNavigation: NavigateFn,
-  options: Parameters<NavigateFn>[0],
-) {
-  queueMicrotask(() => {
-    void runNavigation(options)
-  })
+function openDataExplorerUrl(path: string) {
+  if (typeof window !== 'undefined') {
+    window.location.assign(path)
+  }
 }
 
 export const Route = createFileRoute('/data/$branchName/$schema/$table')({
@@ -169,7 +167,6 @@ function DataExplorerWithTable() {
   const { sql: sqlFromSearch, tab: tabFromSearch } = Route.useSearch()
   const decodedBranchName = decodeURIComponent(branchName)
   const { settings } = useObservatorySettings()
-  const navigate = useNavigate()
   const [state, dispatch] = useReducer(explorerReducer, initialExplorerState)
   const {
     activeTab,
@@ -223,14 +220,12 @@ function DataExplorerWithTable() {
     // If the row has a _phlo_row_id, navigate to the row URL for shareability
     const phloRowId = rowData._phlo_row_id
     if (typeof phloRowId === 'string' && phloRowId) {
-      deferNavigate(navigate, {
-        to: '/data/$branchName/$schema/$table/$rowId',
-        params: {
-          branchName,
-          schema,
-          table,
-          rowId: encodeURIComponent(phloRowId),
-        },
+      deferNavigation(() => {
+        openDataExplorerUrl(
+          `/data/${branchName}/${schema}/${table}/${encodeURIComponent(
+            phloRowId,
+          )}`,
+        )
       })
       return
     }

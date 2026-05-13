@@ -103,7 +103,7 @@ function useSettingsRoute() {
     })
   const orderedSettingsSections = useMemo(
     () =>
-      settingsSections.toSorted((a, b) => {
+      settingsSections.slice().sort((a, b) => {
         const orderA = a.order ?? 0
         const orderB = b.order ?? 0
         if (orderA !== orderB) return orderA - orderB

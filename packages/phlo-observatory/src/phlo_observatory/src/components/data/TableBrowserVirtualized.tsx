@@ -155,7 +155,8 @@ export function TableBrowserVirtualized({
     }
 
     return matches
-      .toSorted((a, b) => b.score - a.score)
+      .slice()
+      .sort((a, b) => b.score - a.score)
       .map((match) => match.table)
   }, [tables, search])
 

@@ -209,13 +209,6 @@ async function getPluginLists(): Promise<{
   })
 }
 
-const getPlugins = createServerFn().handler(
-  async (): Promise<Array<PluginInfo>> => {
-    const lists = await getPluginLists()
-    return lists.installed
-  },
-)
-
 export const getAvailablePlugins = createServerFn().handler(
   async (): Promise<{
     installed: Array<PluginInfo>

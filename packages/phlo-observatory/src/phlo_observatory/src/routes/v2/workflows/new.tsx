@@ -9,7 +9,7 @@ import {
   TrashIcon,
 } from '@primer/octicons-react'
 import { WandSparkles } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, ReactNode } from 'react'
 
 import type {

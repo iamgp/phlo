@@ -825,7 +825,7 @@ function buildTableGraph(
 }
 
 function sortTablesForFlow(tables: Array<V2Table>): Array<V2Table> {
-  return tables.toSorted((left, right) => {
+  return tables.slice().sort((left, right) => {
     const leftLane = tableLane(left)
     const rightLane = tableLane(right)
     if (leftLane !== rightLane) {

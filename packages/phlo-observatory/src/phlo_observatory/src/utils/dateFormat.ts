@@ -6,10 +6,3 @@ export function formatDate(date: Date, mode: DateFormatMode): string {
   }
   return date.toLocaleDateString()
 }
-
-function formatDateTime(date: Date, mode: DateFormatMode): string {
-  if (mode === 'iso') {
-    return date.toISOString()
-  }
-  return date.toLocaleString()
-}

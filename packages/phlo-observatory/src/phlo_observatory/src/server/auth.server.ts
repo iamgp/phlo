@@ -45,18 +45,6 @@ export interface AuthError {
 }
 
 /**
- * Check if a result is an auth error
- */
-function isAuthError(result: unknown): result is AuthError {
-  return (
-    typeof result === 'object' &&
-    result !== null &&
-    'status' in result &&
-    (result as AuthError).status === 401
-  )
-}
-
-/**
  * Validate auth token
  *
  * Returns undefined if auth passes, or an AuthError if it fails.
@@ -109,22 +97,3 @@ export const authMiddleware = createMiddleware({ type: 'function' })
       },
     })
   })
-
-/**
- * Legacy withAuth wrapper - kept for backward compatibility
- * Prefer using .middleware([authMiddleware]) instead
- */
-function withAuth<
-  TInput extends { authToken?: string },
-  TOutput extends object,
->(
-  handler: (ctx: { data: TInput }) => Promise<TOutput>,
-): (ctx: { data: TInput }) => Promise<TOutput | AuthError> {
-  return async (ctx) => {
-    const authError = validateAuth(ctx.data.authToken)
-    if (authError) {
-      return authError
-    }
-    return handler(ctx)
-  }
-}

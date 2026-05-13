@@ -4,18 +4,11 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { clearCache, getCacheStats, invalidateCache } from './cache'
+import { clearCache, getCacheStats } from './cache'
 
 export const getCacheStatsEndpoint = createServerFn().handler(() => {
   return Promise.resolve(getCacheStats())
 })
-
-const invalidateCacheEndpoint = createServerFn()
-  .inputValidator((input: { pattern: string }) => input)
-  .handler(({ data: { pattern } }) => {
-    const count = invalidateCache(pattern)
-    return Promise.resolve({ invalidated: count })
-  })
 
 export const clearCacheEndpoint = createServerFn().handler(() => {
   clearCache()

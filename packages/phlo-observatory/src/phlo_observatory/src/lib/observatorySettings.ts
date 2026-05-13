@@ -43,8 +43,6 @@ export const observatorySettingsSchema = z.object({
 })
 
 export type ObservatorySettings = z.infer<typeof observatorySettingsSchema>
-type ObservatorySettingsInput = z.input<typeof observatorySettingsSchema>
-
 export function getFallbackObservatorySettings(): ObservatorySettings {
   return {
     version: 1,

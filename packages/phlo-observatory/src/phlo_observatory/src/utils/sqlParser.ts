@@ -565,37 +565,6 @@ function calculateConfidence(
 }
 
 /**
- * Extract columns from CASE expressions
- */
-function extractCaseColumns(expr: string): Array<string> {
-  const columns: Array<string> = []
-
-  // Match WHEN conditions
-  const whenMatches = expr.matchAll(/WHEN\s+(\w+)/gi)
-  for (const match of whenMatches) {
-    if (!isKeyword(match[1])) {
-      columns.push(match[1])
-    }
-  }
-
-  // Match THEN values that are columns
-  const thenMatches = expr.matchAll(/THEN\s+(\w+)/gi)
-  for (const match of thenMatches) {
-    if (!isKeyword(match[1])) {
-      columns.push(match[1])
-    }
-  }
-
-  // Match ELSE value if it's a column
-  const elseMatch = expr.match(/ELSE\s+(\w+)/i)
-  if (elseMatch && !isKeyword(elseMatch[1])) {
-    columns.push(elseMatch[1])
-  }
-
-  return [...new Set(columns)]
-}
-
-/**
  * Analyze SQL to extract full transformation information
  */
 export function analyzeSQLTransformation(sql: string): SQLAnalysis {
@@ -753,18 +722,6 @@ function getColumnPriority(priority: ColumnPriority): number {
 }
 
 /**
- * Find common columns between two sets
- * Used to identify columns that can be used for cross-stage matching
- */
-function findCommonColumns(
-  upstreamColumns: Array<string>,
-  downstreamColumns: Array<string>,
-): Array<string> {
-  const upstreamSet = new Set(upstreamColumns.map((c) => c.toLowerCase()))
-  return downstreamColumns.filter((c) => upstreamSet.has(c.toLowerCase()))
-}
-
-/**
  * Build a smart WHERE clause using key columns preferentially
  *
  * Priority order:
@@ -784,9 +741,11 @@ export function buildSmartWhereClause(
   const usedColumns: Array<string> = []
 
   // Sort key columns by priority
-  const sortedKeyColumns = keyColumns.toSorted(
-    (a, b) => getColumnPriority(b.priority) - getColumnPriority(a.priority),
-  )
+  const sortedKeyColumns = keyColumns
+    .slice()
+    .sort(
+      (a, b) => getColumnPriority(b.priority) - getColumnPriority(a.priority),
+    )
   const mappingsByTarget = new Map(
     columnMappings.map((mapping) => [
       mapping.targetColumn.toLowerCase(),
