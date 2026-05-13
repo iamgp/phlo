@@ -38,24 +38,39 @@ export function BranchSelector({ branch, onChange }: BranchSelectorProps) {
   const { settings } = useObservatorySettings()
 
   useEffect(() => {
+    let cancelled = false
+
     async function load() {
       dispatch({ type: 'loading' })
-      const [conn, refs] = await Promise.all([
-        checkNessieConnection({
-          data: { nessieUrl: settings.connections.nessieUrl },
-        }),
-        getBranches({ data: { nessieUrl: settings.connections.nessieUrl } }),
-      ])
+      try {
+        const [conn, refs] = await Promise.all([
+          checkNessieConnection({
+            data: { nessieUrl: settings.connections.nessieUrl },
+          }),
+          getBranches({ data: { nessieUrl: settings.connections.nessieUrl } }),
+        ])
 
-      dispatch({
-        type: 'loaded',
-        connection: conn,
-        branches:
-          'error' in refs ? [] : refs.filter((b) => b.type === 'BRANCH'),
-      })
+        if (cancelled) return
+        dispatch({
+          type: 'loaded',
+          connection: conn,
+          branches:
+            'error' in refs ? [] : refs.filter((b) => b.type === 'BRANCH'),
+        })
+      } catch {
+        if (cancelled) return
+        dispatch({
+          type: 'loaded',
+          connection: { connected: false },
+          branches: [],
+        })
+      }
     }
 
-    load()
+    void load()
+    return () => {
+      cancelled = true
+    }
   }, [settings.connections.nessieUrl])
 
   const options = useMemo(() => {

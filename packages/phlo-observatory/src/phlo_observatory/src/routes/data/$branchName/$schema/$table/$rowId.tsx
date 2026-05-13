@@ -86,6 +86,7 @@ function RowDetailPage() {
       return
     }
 
+    let cancelled = false
     async function loadRow() {
       dispatch({ type: 'loading' })
       try {
@@ -103,12 +104,14 @@ function RowDetailPage() {
           },
         })
 
+        if (cancelled) return
         if ('error' in result) {
           dispatch({ type: 'error', error: result.error })
         } else {
           dispatch({ type: 'loaded', rowData: result })
         }
       } catch (err) {
+        if (cancelled) return
         dispatch({
           type: 'error',
           error: err instanceof Error ? err.message : 'Failed to load row',
@@ -117,6 +120,9 @@ function RowDetailPage() {
     }
 
     void loadRow()
+    return () => {
+      cancelled = true
+    }
   }, [decodedRowId, schema, table, settings])
 
   // Handle "Query Source Data" from journey view - navigate to SQL tab

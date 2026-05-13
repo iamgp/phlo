@@ -122,8 +122,10 @@ export function Assets() {
 
   const selectedPreview =
     preview.tableId === primaryTable?.id ? preview.data : null
+  const selectedPreviewError =
+    preview.tableId === primaryTable?.id ? preview.error : null
   const selectedTableStats = primaryTable
-    ? tableStats(primaryTable, selectedPreview, preview.error)
+    ? tableStats(primaryTable, selectedPreview, selectedPreviewError)
     : null
 
   return (

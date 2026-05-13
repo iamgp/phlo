@@ -98,10 +98,13 @@ function useDataRoute() {
   )
   const graph = useMemo(() => buildTableGraph(tables, assets), [assets, tables])
   const branchesAvailable = capabilities?.data?.features.branches === true
-  const selectedRowCount =
+  const selectedPreview =
     preview.data && selected && preview.data.table.id === selected.id
-      ? preview.data.row_count
+      ? preview.data
       : null
+  const selectedPreviewError = selectedPreview ? preview.error : null
+  const selectedRowCount =
+    selectedPreview && selected ? selectedPreview.row_count : null
   const applySelectedPreview = useCallback(
     (nextSql: string, nextPreview: V2ResourceResult<V2TablePreview>) => {
       setSql(nextSql)
@@ -118,6 +121,7 @@ function useDataRoute() {
     if (!selected) return
     let cancelled = false
     let retryTimer: number | undefined
+    setPreview({ data: null, error: null })
     const key = `v2:table-preview:${selected.id}:${previewLimit}:0:${previewRefreshKey}`
     const loadPreview = (force = false) =>
       loadCachedResource(
@@ -151,7 +155,7 @@ function useDataRoute() {
 
   const loadMoreRows = useCallback(() => {
     if (!selected || isLoadingMoreRows) return
-    const current = preview.data
+    const current = selectedPreview
     if (!current?.has_more) return
     const offset = current.rows.length
     setIsLoadingMoreRows(true)
@@ -177,7 +181,7 @@ function useDataRoute() {
         }
       })
     })
-  }, [isLoadingMoreRows, preview.data, previewRefreshKey, selected])
+  }, [isLoadingMoreRows, previewRefreshKey, selected, selectedPreview])
 
   useEffect(() => {
     void loadCachedResource('v2:saved-queries', getV2SavedQueries, {
@@ -304,7 +308,7 @@ function useDataRoute() {
               isLoadingMoreRows={isLoadingMoreRows}
               onLoadMoreRows={loadMoreRows}
               mode={mainView}
-              preview={preview.data}
+              preview={selectedPreview}
               selected={selected}
             />
           )}
@@ -331,15 +335,15 @@ function useDataRoute() {
               <div className="phlo-v2-mini-preview">
                 <div>
                   <Rows3 className="size-4" />
-                  {preview.data?.row_count ??
+                  {selectedPreview?.row_count ??
                     readMetric(selected.metadata, 'records') ??
                     'Profile pending'}{' '}
                   records
                 </div>
                 <div>
                   <Columns3 className="size-4" />
-                  {preview.data?.columns.length
-                    ? preview.data.columns.length
+                  {selectedPreview?.columns.length
+                    ? selectedPreview.columns.length
                     : 'Profile pending'}{' '}
                   columns
                 </div>
@@ -365,7 +369,7 @@ function useDataRoute() {
               </div>
               <DataDetailPanel
                 active={activeDetail}
-                preview={preview.data}
+                preview={selectedPreview}
                 queryResult={queryResult}
                 selected={selected}
                 onRefresh={() => setPreviewRefreshKey((key) => key + 1)}
@@ -412,8 +416,10 @@ function useDataRoute() {
                 setSql={setSql}
                 sql={sql}
               />
-              {preview.error && (
-                <div className="phlo-v2-panel-footer">{preview.error}</div>
+              {selectedPreviewError && (
+                <div className="phlo-v2-panel-footer">
+                  {selectedPreviewError}
+                </div>
               )}
             </>
           ) : (

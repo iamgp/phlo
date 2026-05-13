@@ -668,6 +668,8 @@ function useRowJourney({
 
   // Load asset neighbors
   useEffect(() => {
+    let cancelled = false
+
     async function loadGraph() {
       dispatch({ type: 'graphLoading' })
       try {
@@ -679,28 +681,36 @@ function useRowJourney({
             dagsterUrl: settings.connections.dagsterGraphqlUrl,
           },
         })
+        if (cancelled) return
         if ('error' in result) {
           dispatch({ type: 'graphError', error: result.error })
         } else {
           dispatch({ type: 'graphLoaded', assetKey, graphData: result })
         }
       } catch (err) {
+        if (cancelled) return
         dispatch({
           type: 'graphError',
           error: err instanceof Error ? err.message : 'Failed to load lineage',
         })
       }
     }
-    loadGraph()
+    void loadGraph()
+    return () => {
+      cancelled = true
+    }
   }, [assetKey, settings.connections.dagsterGraphqlUrl])
 
   // Load details when node is selected
   useEffect(() => {
-    if (!selectedNode) {
+    const nodeKey = selectedNode
+    if (!nodeKey) {
       dispatch({ type: 'detailsLoaded', nodeDetails: null })
       return
     }
 
+    let cancelled = false
+    const nodeAssetKey = nodeKey.split('/')
     async function loadNodeDetails() {
       dispatch({ type: 'detailsLoading' })
       try {
@@ -708,18 +718,19 @@ function useRowJourney({
         const [assetInfo, qualityInfo] = await Promise.all([
           getAssetDetails({
             data: {
-              assetKey: selectedNode!.split('/'),
+              assetKey: nodeAssetKey,
               dagsterUrl: settings.connections.dagsterGraphqlUrl,
             },
           }),
           getAssetChecks({
             data: {
-              assetKey: selectedNode!.split('/'),
+              assetKey: nodeAssetKey,
               dagsterUrl: settings.connections.dagsterGraphqlUrl,
             },
           }),
         ])
 
+        if (cancelled) return
         const checks =
           'error' in qualityInfo
             ? []
@@ -734,7 +745,7 @@ function useRowJourney({
         const upstreamAssetKeys: Array<string> = []
         if (graphData) {
           for (const edge of graphData.edges) {
-            if (edge.target === selectedNode) {
+            if (edge.target === nodeKey) {
               upstreamAssetKeys.push(edge.source)
             }
           }
@@ -750,12 +761,16 @@ function useRowJourney({
           },
         })
       } catch (err) {
+        if (cancelled) return
         console.error('Failed to load node details:', err)
         dispatch({ type: 'detailsLoaded', nodeDetails: null })
       }
     }
 
-    loadNodeDetails()
+    void loadNodeDetails()
+    return () => {
+      cancelled = true
+    }
   }, [selectedNode, rowData, graphData, settings.connections.dagsterGraphqlUrl])
 
   // Handle node selection
