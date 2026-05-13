@@ -22,7 +22,7 @@ import {
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
 
-export type ObservatoryRow = Record<string, unknown>
+type ObservatoryRow = Record<string, unknown>
 
 export interface ObservatoryTableProps {
   columns: Array<string>
@@ -71,7 +71,11 @@ function defaultFormatCellValue(value: unknown): string {
   return String(value)
 }
 
-export function ObservatoryTable({
+export function ObservatoryTable(props: ObservatoryTableProps) {
+  return useObservatoryTable(props)
+}
+
+function useObservatoryTable({
   columns,
   columnTypes,
   rows,
@@ -255,34 +259,34 @@ export function ObservatoryTable({
 
                         <div className="flex items-center gap-1 text-muted-foreground">
                           {isSorted === 'asc' ? (
-                            <ArrowUp className="h-3.5 w-3.5" />
+                            <ArrowUp className="size-3.5" />
                           ) : isSorted === 'desc' ? (
-                            <ArrowDown className="h-3.5 w-3.5" />
+                            <ArrowDown className="size-3.5" />
                           ) : null}
                           {enableColumnPinning ? (
                             <DropdownMenu>
                               <DropdownMenuTrigger
                                 className={cn(
-                                  'inline-flex h-7 w-7 items-center justify-center hover:bg-muted/60',
+                                  'inline-flex size-7 items-center justify-center hover:bg-muted/60',
                                   'opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity',
                                 )}
                                 aria-label={`Column actions for ${String(column.id)}`}
                               >
-                                <MoreVertical className="h-4 w-4" />
+                                <MoreVertical className="size-4" />
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 {pinState ? (
                                   <DropdownMenuItem
                                     onClick={() => column.pin(false)}
                                   >
-                                    <PinOff className="h-4 w-4" />
+                                    <PinOff className="size-4" />
                                     Unpin
                                   </DropdownMenuItem>
                                 ) : (
                                   <DropdownMenuItem
                                     onClick={() => column.pin('left')}
                                   >
-                                    <Pin className="h-4 w-4" />
+                                    <Pin className="size-4" />
                                     Pin left
                                   </DropdownMenuItem>
                                 )}

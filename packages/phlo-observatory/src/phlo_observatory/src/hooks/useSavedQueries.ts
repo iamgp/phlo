@@ -4,23 +4,13 @@
 
 import { useCallback, useSyncExternalStore } from 'react'
 
-import type {
-  CreateQueryInput,
-  CreateViewInput,
-  SavedQuery,
-  SavedView,
-} from '@/lib/savedQueries'
+import type { CreateQueryInput, SavedQuery } from '@/lib/savedQueries'
 import {
   createSavedQuery,
-  createSavedView,
   deleteSavedQuery,
-  deleteSavedView,
   getSavedQueries,
   getSavedQueryById,
-  getSavedViewById,
-  getSavedViews,
   updateSavedQuery,
-  updateSavedView,
 } from '@/lib/savedQueries'
 
 // External store subscription for React 18+
@@ -28,7 +18,6 @@ let listeners: Array<() => void> = []
 
 // Cache for stable snapshot references
 let cachedQueries: Array<SavedQuery> | null = null
-let cachedViews: Array<SavedView> | null = null
 
 function subscribe(callback: () => void): () => void {
   listeners.push(callback)
@@ -40,7 +29,6 @@ function subscribe(callback: () => void): () => void {
 function notifyListeners(): void {
   // Invalidate caches before notifying
   cachedQueries = null
-  cachedViews = null
   listeners.forEach((l) => l())
 }
 
@@ -59,14 +47,7 @@ function getQueriesSnapshot(): Array<SavedQuery> {
   return cachedQueries
 }
 
-function getViewsSnapshot(): Array<SavedView> {
-  if (cachedViews === null) {
-    cachedViews = getSavedViews()
-  }
-  return cachedViews
-}
-
-function getServerSnapshot(): Array<SavedQuery> | Array<SavedView> {
+function getServerSnapshot(): Array<SavedQuery> {
   return []
 }
 
@@ -77,7 +58,7 @@ export function useSavedQueries() {
   const queries = useSyncExternalStore(
     subscribe,
     getQueriesSnapshot,
-    () => getServerSnapshot() as Array<SavedQuery>,
+    getServerSnapshot,
   )
 
   const save = useCallback((input: CreateQueryInput): SavedQuery => {
@@ -108,46 +89,5 @@ export function useSavedQueries() {
     updateQuery: update,
     deleteQuery: remove,
     getQueryById: getById,
-  }
-}
-
-/**
- * Hook for managing saved views
- */
-export function useSavedViews() {
-  const views = useSyncExternalStore(
-    subscribe,
-    getViewsSnapshot,
-    () => getServerSnapshot() as Array<SavedView>,
-  )
-
-  const save = useCallback((input: CreateViewInput): SavedView => {
-    return withNotify(() => createSavedView(input))
-  }, [])
-
-  const update = useCallback(
-    (
-      id: string,
-      updates: Partial<Omit<SavedView, 'id' | 'createdAt'>>,
-    ): SavedView | undefined => {
-      return withNotify(() => updateSavedView(id, updates))
-    },
-    [],
-  )
-
-  const remove = useCallback((id: string): boolean => {
-    return withNotify(() => deleteSavedView(id))
-  }, [])
-
-  const getById = useCallback((id: string): SavedView | undefined => {
-    return getSavedViewById(id)
-  }, [])
-
-  return {
-    views,
-    saveView: save,
-    updateView: update,
-    deleteView: remove,
-    getViewById: getById,
   }
 }

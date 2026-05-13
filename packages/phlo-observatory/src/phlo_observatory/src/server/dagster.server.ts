@@ -8,32 +8,15 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
-import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiGet } from '@/server/phlo-api'
 
 // Types
-export interface DagsterConnectionStatus {
-  connected: boolean
-  error?: string
-  version?: string
-}
-
-export interface HealthMetrics {
-  assetsTotal: number
-  assetsHealthy: number
-  failedJobs24h: number
-  qualityChecksPassing: number
-  qualityChecksTotal: number
-  staleAssets: number
-  lastUpdated: string
-}
-
-export interface LastMaterialization {
+interface LastMaterialization {
   timestamp: string
   runId: string
 }
 
-export interface Asset {
+interface Asset {
   id: string
   key: Array<string>
   keyPath: string
@@ -44,7 +27,7 @@ export interface Asset {
   hasMaterializePermission: boolean
 }
 
-export interface ColumnLineageDep {
+interface ColumnLineageDep {
   assetKey: Array<string>
   columnName: string
 }
@@ -55,26 +38,6 @@ export interface AssetDetails extends Asset {
   columns?: Array<{ name: string; type: string; description?: string }>
   columnLineage?: Record<string, Array<ColumnLineageDep>>
   partitionDefinition?: { description: string }
-}
-
-export interface MaterializationEvent {
-  timestamp: string
-  runId: string
-  status: string
-  stepKey?: string
-  metadata: Array<{ key: string; value: string }>
-  duration?: number
-}
-
-// Python API types (snake_case)
-interface ApiHealthMetrics {
-  assets_total: number
-  assets_healthy: number
-  failed_jobs_24h: number
-  quality_checks_passing: number
-  quality_checks_total: number
-  stale_assets: number
-  last_updated: string
 }
 
 interface ApiAsset {
@@ -99,16 +62,6 @@ interface ApiAssetDetails extends ApiAsset {
   partition_definition?: { description: string }
 }
 
-interface ApiMaterialization {
-  timestamp: string
-  run_id: string
-  status: string
-  step_key?: string
-  metadata: Array<{ key: string; value: string }>
-  duration?: number
-}
-
-// Transform functions
 function transformAsset(a: ApiAsset): Asset {
   return {
     id: a.id,
@@ -149,80 +102,6 @@ function transformAssetDetails(a: ApiAssetDetails): AssetDetails {
 }
 
 /**
- * Check Dagster connection
- */
-export const checkDagsterConnection = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<DagsterConnectionStatus> => {
-    try {
-      const key = cacheKeys.dagsterConnection(data.dagsterUrl ?? 'default')
-      return await withCache(
-        () => apiGet<DagsterConnectionStatus>('/api/dagster/connection'),
-        key,
-        cacheTTL.dagsterConnection,
-      )
-    } catch (error) {
-      return {
-        connected: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }
-    }
-  })
-
-/**
- * Get health metrics from Dagster
- */
-export const getHealthMetrics = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<HealthMetrics | { error: string }> => {
-    try {
-      const key = cacheKeys.dagsterHealth(data.dagsterUrl ?? 'default')
-      const result = await withCache(
-        () =>
-          apiGet<ApiHealthMetrics | { error: string }>('/api/dagster/health'),
-        key,
-        cacheTTL.dagsterHealth,
-      )
-      if ('error' in result) return result
-      return {
-        assetsTotal: result.assets_total,
-        assetsHealthy: result.assets_healthy,
-        failedJobs24h: result.failed_jobs_24h,
-        qualityChecksPassing: result.quality_checks_passing,
-        qualityChecksTotal: result.quality_checks_total,
-        staleAssets: result.stale_assets,
-        lastUpdated: result.last_updated,
-      }
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' }
-    }
-  })
-
-/**
- * Get all assets
- */
-export const getAssets = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<Array<Asset> | { error: string }> => {
-    try {
-      const key = cacheKeys.assets(data.dagsterUrl ?? 'default')
-      const result = await withCache(
-        () =>
-          apiGet<Array<ApiAsset> | { error: string }>('/api/dagster/assets'),
-        key,
-        cacheTTL.assets,
-      )
-      if ('error' in result) return result
-      return result.map(transformAsset)
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' }
-    }
-  })
-
-/**
  * Get asset details
  */
 export const getAssetDetails = createServerFn()
@@ -241,41 +120,6 @@ export const getAssetDetails = createServerFn()
         )
         if ('error' in result) return result
         return transformAssetDetails(result)
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
-      }
-    },
-  )
-
-/**
- * Get materialization history for an asset
- */
-export const getMaterializationHistory = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator(
-    (input: { assetKey: Array<string>; limit?: number; dagsterUrl?: string }) =>
-      input,
-  )
-  .handler(
-    async ({
-      data: { assetKey, limit = 20 },
-    }): Promise<Array<MaterializationEvent> | { error: string }> => {
-      try {
-        const keyPath = assetKey.join('/')
-        const result = await apiGet<
-          Array<ApiMaterialization> | { error: string }
-        >(`/api/dagster/assets/${keyPath}/history`, { limit })
-        if ('error' in result) return result
-        return result.map((m) => ({
-          timestamp: m.timestamp,
-          runId: m.run_id,
-          status: m.status,
-          stepKey: m.step_key,
-          metadata: m.metadata,
-          duration: m.duration,
-        }))
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',

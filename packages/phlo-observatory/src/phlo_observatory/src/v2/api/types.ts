@@ -1,7 +1,7 @@
 export type V2HealthState = 'ok' | 'warning' | 'error' | 'unknown'
 
 export type V2Metadata = Record<string, NonNullable<unknown>>
-export type V2Record = Record<string, NonNullable<unknown>>
+type V2Record = Record<string, NonNullable<unknown>>
 
 export type V2ServiceStatus =
   | 'running'
@@ -10,12 +10,12 @@ export type V2ServiceStatus =
   | 'starting'
   | 'unknown'
 
-export interface V2Health {
+interface V2Health {
   state: V2HealthState
   message?: string | null
 }
 
-export interface V2ExternalLink {
+interface V2ExternalLink {
   label: string
   url: string
   kind: string
@@ -37,46 +37,6 @@ export interface V2Capabilities {
   pages: Array<V2CapabilityPage>
   features: Record<string, boolean>
   providers: Record<string, Array<string>>
-}
-
-export interface V2CapabilityProvider {
-  capability_type: string
-  name: string
-  display_name: string
-  package?: string | null
-  metadata: V2Metadata
-  support: Record<string, boolean>
-  health: V2Health
-  native_links: Array<V2ExternalLink>
-}
-
-export interface V2RouteRequirement {
-  route_id: string
-  label: string
-  path: string
-  required_any: Array<string>
-  required_all: Array<string>
-  optional: Array<string>
-  nav: boolean
-  reason: string
-}
-
-export interface V2UiContribution {
-  name: string
-  capability_type: string
-  capability_name: string
-  surfaces: Array<string>
-  read_models: Record<string, string>
-  actions: Array<string>
-  native_links: Array<V2ExternalLink>
-  metadata: V2Metadata
-}
-
-export interface V2CapabilityInventory {
-  version: number
-  providers: Record<string, Array<V2CapabilityProvider>>
-  requirements: Array<V2RouteRequirement>
-  ui_contributions: Array<V2UiContribution>
 }
 
 export interface V2WorkflowWizardField {
@@ -109,14 +69,14 @@ export interface V2WorkflowWizardPayload {
   contributions: Array<V2WorkflowWizardContribution>
 }
 
-export interface V2WorkflowGraphNode {
+interface V2WorkflowGraphNode {
   id: string
   contribution_id: string
   stage: 'source' | 'transform' | 'quality' | 'publish'
   values: Record<string, unknown>
 }
 
-export interface V2WorkflowGraphEdge {
+interface V2WorkflowGraphEdge {
   id: string
   source: string
   target: string
@@ -133,7 +93,7 @@ export interface V2WorkflowProposalRequest {
   graph: V2WorkflowGraph
 }
 
-export interface V2WorkflowFilePreview {
+interface V2WorkflowFilePreview {
   path: string
   content: string
   mode: 'create' | 'modify'
@@ -172,7 +132,7 @@ export interface V2WorkflowActionResult {
   files: Array<string>
 }
 
-export interface V2ResourceRef {
+interface V2ResourceRef {
   kind: string
   id: string
   label: string
@@ -201,13 +161,13 @@ export interface V2ActionResult {
   operation?: V2Operation | null
 }
 
-export interface V2ServicePort {
+interface V2ServicePort {
   name: string
   target: string
   published?: string | null
 }
 
-export interface V2ServiceConfigEntry {
+interface V2ServiceConfigEntry {
   name: string
   value?: string | null
   description?: string | null
@@ -269,10 +229,6 @@ export interface V2SurfaceItem {
   metadata: V2Metadata
 }
 
-export interface V2ResourceCollection {
-  items: Array<V2ResourceItem>
-}
-
 export interface V2Operation {
   id: string
   name: string
@@ -293,7 +249,7 @@ export interface V2OperationDetail {
   actions: Array<V2Action>
 }
 
-export type V2RunStatus =
+type V2RunStatus =
   | 'queued'
   | 'running'
   | 'succeeded'
@@ -381,15 +337,6 @@ export interface V2SavedQuery {
   metadata: V2Metadata
 }
 
-export interface V2StageDiff {
-  source: V2Table
-  target: V2Table
-  columns: Record<string, Array<string>>
-  rows: Array<V2Record>
-  summary: Record<string, number>
-  metadata: V2Metadata
-}
-
 export interface V2RowJourney {
   table: V2Table
   row_id: string
@@ -468,27 +415,6 @@ export interface V2ExtensionDetail {
   routes: Array<string>
   nav: Array<string>
   capabilities: Array<V2ResourceRef>
-}
-
-export interface V2Setting {
-  id: string
-  label: string
-  value: string | boolean | number | null
-  kind: string
-  description?: string | null
-  metadata: V2Metadata
-}
-
-export interface V2Settings {
-  items: Array<V2Setting>
-}
-
-export interface V2ApiSettings {
-  version: number
-  defaults: Record<string, string>
-  features: Record<string, boolean>
-  storage: Record<string, string>
-  metadata: V2Metadata
 }
 
 export interface V2SearchResult {

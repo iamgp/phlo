@@ -146,11 +146,18 @@ export function TableBrowserVirtualized({
   const filteredTables = useMemo(() => {
     if (!search.trim()) return tables
 
-    return tables
-      .map((t) => ({ table: t, score: matchScore(t, search) }))
-      .filter((x) => x.score > 0)
+    const matches: Array<{ table: IcebergTable; score: number }> = []
+    for (const table of tables) {
+      const score = matchScore(table, search)
+      if (score > 0) {
+        matches.push({ table, score })
+      }
+    }
+
+    return matches
+      .slice()
       .sort((a, b) => b.score - a.score)
-      .map((x) => x.table)
+      .map((match) => match.table)
   }, [tables, search])
 
   // Group tables into flat list with headers (always by layer)
@@ -253,13 +260,15 @@ export function TableBrowserVirtualized({
     <div
       className="flex flex-col h-full"
       onKeyDown={handleKeyDown}
+      role="listbox"
+      aria-label="Tables"
       tabIndex={0}
     >
       {/* Header with search */}
       <div className="p-3 border-b">
         {/* Search input */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             ref={searchInputRef}
             type="text"
@@ -306,11 +315,11 @@ export function TableBrowserVirtualized({
                   }}
                 >
                   {isExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    <ChevronDown className="size-4 text-muted-foreground" />
                   ) : (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    <ChevronRight className="size-4 text-muted-foreground" />
                   )}
-                  <Folder className={`w-4 h-4 ${item.color}`} />
+                  <Folder className={`size-4 ${item.color}`} />
                   <span className={item.color}>{item.label}</span>
                   <span className="ml-auto text-xs text-muted-foreground">
                     {item.count}
@@ -342,7 +351,7 @@ export function TableBrowserVirtualized({
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
               >
-                <Database className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <Database className="size-4 text-muted-foreground flex-shrink-0" />
                 <span className="truncate">{table.name}</span>
               </button>
             )
@@ -352,7 +361,7 @@ export function TableBrowserVirtualized({
         {/* Empty state */}
         {filteredTables.length === 0 && (
           <div className="text-center py-8 text-muted-foreground text-sm">
-            <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <Database className="size-8 mx-auto mb-2 opacity-50" />
             <p>{search ? 'No matching tables' : 'No tables found'}</p>
           </div>
         )}

@@ -29,10 +29,15 @@ describe('MetadataCache', () => {
     it('caches successful results', async () => {
       const mock = mockFn(() => ({ data: 'test' }))
 
-      const result1 = await withCache(mock.fn, 'test:key', 60000)
-      const result2 = await withCache(mock.fn, 'test:key', 60000)
+      const result1 = await withCache(mock.fn, 'test:key', 60000).then(
+        async (cachedResult) => {
+          const result2 = await withCache(mock.fn, 'test:key', 60000)
+          return [cachedResult, result2] as const
+        },
+      )
+      const result2 = result1[1]
 
-      expect(result1).toEqual({ data: 'test' })
+      expect(result1[0]).toEqual({ data: 'test' })
       expect(result2).toEqual({ data: 'test' })
       expect(mock.getCallCount()).toBe(1)
     })
@@ -53,8 +58,10 @@ describe('MetadataCache', () => {
         return Promise.resolve({ data: callCount })
       }
 
-      const result1 = await withCache(fn, 'test:key1', 60000)
-      const result2 = await withCache(fn, 'test:key2', 60000)
+      const [result1, result2] = await Promise.all([
+        withCache(fn, 'test:key1', 60000),
+        withCache(fn, 'test:key2', 60000),
+      ])
 
       expect(result1).toEqual({ data: 1 })
       expect(result2).toEqual({ data: 2 })
@@ -67,8 +74,10 @@ describe('MetadataCache', () => {
       const mock = mockFn(() => ({ data: 'test' }))
 
       await withCache(mock.fn, 'stats:test', 60000)
-      await withCache(mock.fn, 'stats:test', 60000)
-      await withCache(mock.fn, 'stats:other', 60000)
+      await Promise.all([
+        withCache(mock.fn, 'stats:test', 60000),
+        withCache(mock.fn, 'stats:other', 60000),
+      ])
 
       const stats = getCacheStats()
       expect(stats.hits).toBe(1)
@@ -80,9 +89,11 @@ describe('MetadataCache', () => {
     it('groups entries by prefix', async () => {
       const mock = mockFn(() => ({ data: 'test' }))
 
-      await withCache(mock.fn, 'iceberg:tables:cat:main', 60000)
-      await withCache(mock.fn, 'iceberg:schema:cat:s:t', 60000)
-      await withCache(mock.fn, 'dagster:assets:url', 60000)
+      await Promise.all([
+        withCache(mock.fn, 'iceberg:tables:cat:main', 60000),
+        withCache(mock.fn, 'iceberg:schema:cat:s:t', 60000),
+        withCache(mock.fn, 'dagster:assets:url', 60000),
+      ])
 
       const stats = getCacheStats()
       expect(stats.entriesByPrefix).toEqual({

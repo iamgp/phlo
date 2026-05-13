@@ -1,10 +1,10 @@
 import {
   createContext,
-  useContext,
+  use,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
-  useState,
 } from 'react'
 import { createRoute, useRouter } from '@tanstack/react-router'
 import type { ComponentType, ReactNode } from 'react'
@@ -21,14 +21,14 @@ import {
   putExtensionSettings,
 } from '@/server/extension-settings.server'
 
-export type ExtensionRouteContext = {
+type ExtensionRouteContext = {
   createRoute: typeof createRoute
   rootRoute: AnyRoute
   extensionName: string
   route: ObservatoryExtensionRoute
 }
 
-export type RegisterRoutesFn = (
+type RegisterRoutesFn = (
   ctx: ExtensionRouteContext,
 ) => AnyRoute | Array<AnyRoute> | void
 
@@ -36,9 +36,9 @@ export type SlotRegistry = {
   register: (component: ComponentType) => void
 }
 
-export type RegisterSlotFn = (registry: SlotRegistry) => void
+type RegisterSlotFn = (registry: SlotRegistry) => void
 
-export type ExtensionSettingsSection = {
+type ExtensionSettingsSection = {
   id: string
   title: string
   description?: string
@@ -53,13 +53,58 @@ export type SettingsRegistry = {
   scope: 'global' | 'extension'
 }
 
-export type RegisterSettingsFn = (registry: SettingsRegistry) => void
+type RegisterSettingsFn = (registry: SettingsRegistry) => void
+type ExtensionModule = Record<string, unknown>
+type ExtensionModuleLoader = () => Promise<ExtensionModule>
 
 type ExtensionRegistryState = {
   extensions: Array<ObservatoryExtension>
   navItems: Array<ObservatoryExtensionNavItem>
   slots: Record<string, Array<ComponentType>>
   settingsSections: Array<ExtensionSettingsSection>
+}
+
+type ExtensionRegistryAction =
+  | {
+      type: 'loaded'
+      extensions: Array<ObservatoryExtension>
+      navItems: Array<ObservatoryExtensionNavItem>
+    }
+  | { type: 'slot'; slotId: string; component: ComponentType }
+  | { type: 'settings'; section: ExtensionSettingsSection }
+
+function extensionRegistryReducer(
+  state: ExtensionRegistryState,
+  action: ExtensionRegistryAction,
+): ExtensionRegistryState {
+  switch (action.type) {
+    case 'loaded':
+      return {
+        ...state,
+        extensions: action.extensions,
+        navItems: action.navItems,
+      }
+    case 'slot':
+      return {
+        ...state,
+        slots: {
+          ...state.slots,
+          [action.slotId]: [
+            ...(state.slots[action.slotId] ?? []),
+            action.component,
+          ],
+        },
+      }
+    case 'settings': {
+      const settingsSections = state.settingsSections.filter(
+        (item) => item.id !== action.section.id,
+      )
+      return {
+        ...state,
+        settingsSections: [...settingsSections, action.section],
+      }
+    }
+  }
 }
 
 const ExtensionRegistryContext = createContext<ExtensionRegistryState | null>(
@@ -76,20 +121,30 @@ function uniqueNavItems(items: Array<ObservatoryExtensionNavItem>) {
   })
 }
 
+const bundledExtensionModules = import.meta.glob<ExtensionModule>(
+  '/src/extensions/**/*.{ts,tsx,js,jsx}',
+)
+
+function loadExtensionModule(moduleUrl: string): Promise<ExtensionModule> {
+  const loader = bundledExtensionModules[moduleUrl] as
+    | ExtensionModuleLoader
+    | undefined
+  if (loader) return loader()
+  return Promise.resolve({})
+}
+
 export function ObservatoryExtensionProvider({
   children,
 }: {
   children: ReactNode
 }) {
   const router = useRouter()
-  const [extensions, setExtensions] = useState<Array<ObservatoryExtension>>([])
-  const [navItems, setNavItems] = useState<Array<ObservatoryExtensionNavItem>>(
-    [],
-  )
-  const [slots, setSlots] = useState<Record<string, Array<ComponentType>>>({})
-  const [settingsSections, setSettingsSections] = useState<
-    Array<ExtensionSettingsSection>
-  >([])
+  const [state, dispatch] = useReducer(extensionRegistryReducer, {
+    extensions: [],
+    navItems: [],
+    slots: {},
+    settingsSections: [],
+  })
   const registeredExtensions = useRef(new Set<string>())
 
   useEffect(() => {
@@ -99,18 +154,12 @@ export function ObservatoryExtensionProvider({
 
     const registerSlot = (slotId: string): SlotRegistry['register'] => {
       return (component) => {
-        setSlots((current) => ({
-          ...current,
-          [slotId]: [...(current[slotId] ?? []), component],
-        }))
+        dispatch({ type: 'slot', slotId, component })
       }
     }
 
     const registerSettings: SettingsRegistry['register'] = (section) => {
-      setSettingsSections((current) => {
-        const next = current.filter((item) => item.id !== section.id)
-        return [...next, section]
-      })
+      dispatch({ type: 'settings', section })
     }
 
     const loadExtensions = async () => {
@@ -131,102 +180,116 @@ export function ObservatoryExtensionProvider({
       }
       if (!active) return
 
-      setExtensions(entries)
       const nextNavItems = uniqueNavItems(
         entries.flatMap((entry) => entry.manifest.ui?.nav ?? []),
       )
-      setNavItems(nextNavItems)
+      dispatch({ type: 'loaded', extensions: entries, navItems: nextNavItems })
 
       const rootRoute = router.options.routeTree as AnyRoute | undefined
       const nextRoutes: Array<AnyRoute> = []
 
       if (!rootRoute) return
 
-      for (const extension of entries) {
+      const registerExtension = async (extension: ObservatoryExtension) => {
         const extensionName = extension.manifest.name
         if (registeredExtensions.current.has(extensionName)) {
-          continue
+          return
         }
         registeredExtensions.current.add(extensionName)
 
-        const routes = extension.manifest.ui?.routes ?? []
-        for (const route of routes) {
-          if (route.path.startsWith('/extensions/')) {
-            continue
-          }
-          try {
-            const module = await import(/* @vite-ignore */ route.module)
-            const registerRoutes = module[route.export] as
-              | RegisterRoutesFn
-              | undefined
-            if (typeof registerRoutes !== 'function') continue
-            const result = registerRoutes({
-              createRoute,
-              rootRoute,
-              extensionName,
-              route,
-            })
-            if (Array.isArray(result)) {
-              nextRoutes.push(...result)
-            } else if (result) {
-              nextRoutes.push(result)
-            }
-          } catch (error) {
-            console.debug('Failed to register extension routes', {
-              extensionName,
-              module: route.module,
-              export: route.export,
-              error,
-            })
-            continue
-          }
+        const routeTasks: Array<Promise<void>> = []
+        for (const route of extension.manifest.ui?.routes ?? []) {
+          if (route.path.startsWith('/extensions/')) continue
+          routeTasks.push(
+            (async () => {
+              try {
+                const module = await loadExtensionModule(route.module)
+                const registerRoutes = module[route.export] as
+                  | RegisterRoutesFn
+                  | undefined
+                if (typeof registerRoutes !== 'function') return
+                const result = registerRoutes({
+                  createRoute,
+                  rootRoute,
+                  extensionName,
+                  route,
+                })
+                if (Array.isArray(result)) {
+                  nextRoutes.push(...result)
+                } else if (result) {
+                  nextRoutes.push(result)
+                }
+              } catch (error) {
+                console.debug('Failed to register extension routes', {
+                  extensionName,
+                  module: route.module,
+                  export: route.export,
+                  error,
+                })
+              }
+            })(),
+          )
         }
 
-        const slotsToRegister = extension.manifest.ui?.slots ?? []
-        for (const slot of slotsToRegister) {
-          try {
-            const module = await import(/* @vite-ignore */ slot.module)
-            const registerSlotFn = module[slot.export] as
-              | RegisterSlotFn
-              | undefined
-            if (typeof registerSlotFn !== 'function') continue
-            registerSlotFn({ register: registerSlot(slot.slot_id) })
-          } catch {
-            continue
-          }
+        const slotTasks: Array<Promise<void>> = []
+        for (const slot of extension.manifest.ui?.slots ?? []) {
+          slotTasks.push(
+            (async () => {
+              try {
+                const module = await loadExtensionModule(slot.module)
+                const registerSlotFn = module[slot.export] as
+                  | RegisterSlotFn
+                  | undefined
+                if (typeof registerSlotFn !== 'function') return
+                registerSlotFn({ register: registerSlot(slot.slot_id) })
+              } catch {
+                // Ignore optional extension slots that cannot be loaded.
+              }
+            })(),
+          )
         }
 
-        const settingsToRegister = extension.manifest.ui?.settings ?? []
-        for (const setting of settingsToRegister) {
-          try {
-            const module = await import(/* @vite-ignore */ setting.module)
-            const registerSettingsFn = module[setting.export] as
-              | RegisterSettingsFn
-              | undefined
-            if (typeof registerSettingsFn !== 'function') continue
-            const scope = extension.manifest.settings?.scope ?? 'extension'
-            const loadSettings = async () => {
-              const response = await getExtensionSettings({
-                data: { name: extensionName },
-              })
-              return response.settings ?? {}
-            }
-            const saveSettings = async (settings: Record<string, unknown>) => {
-              await putExtensionSettings({
-                data: { name: extensionName, settings },
-              })
-            }
-            registerSettingsFn({
-              register: registerSettings,
-              loadSettings,
-              saveSettings,
-              scope,
-            })
-          } catch {
-            continue
-          }
+        const settingTasks: Array<Promise<void>> = []
+        for (const setting of extension.manifest.ui?.settings ?? []) {
+          settingTasks.push(
+            (async () => {
+              try {
+                const module = await loadExtensionModule(setting.module)
+                const registerSettingsFn = module[setting.export] as
+                  | RegisterSettingsFn
+                  | undefined
+                if (typeof registerSettingsFn !== 'function') return
+                const scope = extension.manifest.settings?.scope ?? 'extension'
+                const loadSettings = async () => {
+                  const response = await getExtensionSettings({
+                    data: { name: extensionName },
+                  })
+                  return response.settings ?? {}
+                }
+                const saveSettings = async (
+                  settings: Record<string, unknown>,
+                ) => {
+                  await putExtensionSettings({
+                    data: { name: extensionName, settings },
+                  })
+                }
+                registerSettingsFn({
+                  register: registerSettings,
+                  loadSettings,
+                  saveSettings,
+                  scope,
+                })
+              } catch {
+                // Ignore optional extension settings that cannot be loaded.
+              }
+            })(),
+          )
         }
+
+        await Promise.all([...routeTasks, ...slotTasks, ...settingTasks])
       }
+
+      await Promise.all(entries.map(registerExtension))
 
       if (nextRoutes.length) {
         const nextRouteTree = rootRoute.addChildren(nextRoutes)
@@ -245,10 +308,7 @@ export function ObservatoryExtensionProvider({
     }
   }, [router])
 
-  const value = useMemo<ExtensionRegistryState>(
-    () => ({ extensions, navItems, slots, settingsSections }),
-    [extensions, navItems, slots, settingsSections],
-  )
+  const value = useMemo<ExtensionRegistryState>(() => state, [state])
 
   return (
     <ExtensionRegistryContext.Provider value={value}>
@@ -258,7 +318,7 @@ export function ObservatoryExtensionProvider({
 }
 
 export function useObservatoryExtensions() {
-  const value = useContext(ExtensionRegistryContext)
+  const value = use(ExtensionRegistryContext)
   if (!value) {
     throw new Error(
       'useObservatoryExtensions must be used within ObservatoryExtensionProvider',
@@ -281,8 +341,10 @@ export function ExtensionSlot({
 
   return (
     <div className={className}>
-      {components.map((Component, index) => (
-        <Component key={`${slotId}-${index}`} />
+      {components.map((Component) => (
+        <Component
+          key={`${slotId}-${Component.displayName ?? Component.name}`}
+        />
       ))}
     </div>
   )

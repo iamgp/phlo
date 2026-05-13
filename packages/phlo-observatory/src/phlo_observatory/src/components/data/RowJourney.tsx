@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 
 import { Background, Controls, MarkerType, ReactFlow } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -81,19 +81,25 @@ function extractTransformationSql(asset: {
 }
 
 // Detail panel component shown below the flow
-function NodeDetailPanel({
-  assetKey,
-  isLoading,
-  details,
-  rowData,
-  onQuerySource,
-}: {
+type NodeDetailPanelProps = {
   assetKey: string
   isLoading: boolean
   details: NodeDetails | null
   rowData: Record<string, unknown>
   onQuerySource?: (query: string) => void
-}) {
+}
+
+function NodeDetailPanel(props: NodeDetailPanelProps) {
+  return useNodeDetailPanel(props)
+}
+
+function useNodeDetailPanel({
+  assetKey,
+  isLoading,
+  details,
+  rowData,
+  onQuerySource,
+}: NodeDetailPanelProps) {
   const { settings } = useObservatorySettings()
   const tableName = assetKey.split('/').pop() || assetKey
   const [contribOpen, setContribOpen] = useState(false)
@@ -172,9 +178,9 @@ function NodeDetailPanel({
     return (
       <div className="bg-card border border-border p-6">
         <div className="flex items-center gap-3">
-          <Loader2 className="w-5 h-5 text-primary animate-spin" />
+          <Loader2 className="size-5 text-primary animate-spin" />
           <span className="text-muted-foreground">
-            Loading details for {tableName}...
+            Loading details for {tableName}…
           </span>
         </div>
       </div>
@@ -184,7 +190,7 @@ function NodeDetailPanel({
   if (!details) {
     return (
       <div className="bg-card border border-border p-6 text-center text-muted-foreground">
-        <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        <Database className="size-8 mx-auto mb-2 opacity-50" />
         <p>Click a node above to view its details</p>
       </div>
     )
@@ -319,7 +325,7 @@ function NodeDetailPanel({
             <div className="min-h-0 flex-1">
               {contribLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                   Loading…
                 </div>
               ) : contribError ? (
@@ -365,7 +371,7 @@ function NodeDetailPanel({
 
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h4 className="font-medium text-foreground flex items-center gap-2">
-          <Database className="w-4 h-4 text-primary" />
+          <Database className="size-4 text-primary" />
           {tableName}
         </h4>
       </div>
@@ -375,7 +381,7 @@ function NodeDetailPanel({
         {details.sql && (
           <div>
             <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
-              <Code className="w-4 h-4" />
+              <Code className="size-4" />
               Transformation SQL
             </div>
             <Highlight
@@ -393,10 +399,21 @@ function NodeDetailPanel({
                     }}
                     className="p-3 text-xs leading-relaxed"
                   >
-                    {tokens.map((line, i) => (
-                      <div key={i} {...getLineProps({ line })}>
-                        {line.map((token, key) => (
-                          <span key={key} {...getTokenProps({ token })} />
+                    {tokens.map((line, lineIndex) => (
+                      <div
+                        key={`${lineIndex}:${line
+                          .map(
+                            (token) =>
+                              `${token.content}:${token.types.join('.')}`,
+                          )
+                          .join('|')}`}
+                        {...getLineProps({ line })}
+                      >
+                        {line.map((token, tokenIndex) => (
+                          <span
+                            key={`${lineIndex}:${tokenIndex}:${token.content}:${token.types.join('.')}`}
+                            {...getTokenProps({ token })}
+                          />
                         ))}
                       </div>
                     ))}
@@ -413,7 +430,7 @@ function NodeDetailPanel({
           details.upstreamAssetKeys.length > 0 && (
             <div>
               <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
-                <Terminal className="w-4 h-4" />
+                <Terminal className="size-4" />
                 Contributing rows
               </div>
               <div className="space-y-2">
@@ -438,7 +455,7 @@ function NodeDetailPanel({
                             setDiffOpen(true)
                           }}
                         >
-                          <GitCompare className="w-3 h-3 mr-1" />
+                          <GitCompare className="size-3 mr-1" />
                           Compare
                         </Button>
                         <Button
@@ -497,7 +514,7 @@ function NodeDetailPanel({
         {details.checks && details.checks.length > 0 && (
           <div>
             <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
-              <CheckCircle className="w-4 h-4" />
+              <CheckCircle className="size-4" />
               Quality Checks
             </div>
             <div className="flex flex-wrap gap-2">
@@ -507,9 +524,9 @@ function NodeDetailPanel({
                   className="flex items-center gap-2 text-xs bg-muted/30 border border-border px-3 py-1.5 rounded"
                 >
                   {check.status === 'PASSED' ? (
-                    <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    <CheckCircle className="size-4 text-green-400 flex-shrink-0" />
                   ) : (
-                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                    <AlertCircle className="size-4 text-red-400 flex-shrink-0" />
                   )}
                   <span className="text-foreground">{check.name}</span>
                 </div>
@@ -522,7 +539,7 @@ function NodeDetailPanel({
         {details.stageData && details.stageData.length > 0 && (
           <div>
             <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
-              <Database className="w-4 h-4" />
+              <Database className="size-4" />
               {getDataRowMessage().title}{' '}
               <code className="bg-muted px-1.5 py-0.5 rounded text-primary ml-1">
                 {tableName}
@@ -574,30 +591,87 @@ function cleanSqlForDisplay(sql: string): string {
   return cleaned
 }
 
-export function RowJourney({
+export function RowJourney(props: RowJourneyProps) {
+  return useRowJourney(props)
+}
+
+function useRowJourney({
   assetKey,
   rowData,
   className = '',
   onQuerySource,
 }: RowJourneyProps) {
-  const [graphData, setGraphData] = useState<{
+  type GraphData = {
     nodes: Array<{ keyPath: string; label: string; computeKind?: string }>
     edges: Array<{ source: string; target: string }>
-  } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Selected node for detail panel
-  const [selectedNode, setSelectedNode] = useState<string | null>(null)
-  const [nodeDetails, setNodeDetails] = useState<NodeDetails | null>(null)
-  const [detailsLoading, setDetailsLoading] = useState(false)
+  }
+  type JourneyState = {
+    detailsLoading: boolean
+    error: string | null
+    graphData: GraphData | null
+    loading: boolean
+    nodeDetails: NodeDetails | null
+    selectedNode: string | null
+  }
+  type JourneyAction =
+    | { type: 'graphLoading' }
+    | { type: 'graphError'; error: string }
+    | { type: 'graphLoaded'; assetKey: string; graphData: GraphData }
+    | { type: 'nodeSelected'; selectedNode: string }
+    | { type: 'detailsLoading' }
+    | { type: 'detailsLoaded'; nodeDetails: NodeDetails | null }
+  const [state, dispatch] = useReducer(
+    (current: JourneyState, action: JourneyAction): JourneyState => {
+      switch (action.type) {
+        case 'graphLoading':
+          return { ...current, error: null, loading: true }
+        case 'graphError':
+          return { ...current, error: action.error, loading: false }
+        case 'graphLoaded':
+          return {
+            ...current,
+            error: null,
+            graphData: action.graphData,
+            loading: false,
+            selectedNode: action.assetKey,
+          }
+        case 'nodeSelected':
+          return { ...current, selectedNode: action.selectedNode }
+        case 'detailsLoading':
+          return { ...current, detailsLoading: true }
+        case 'detailsLoaded':
+          return {
+            ...current,
+            detailsLoading: false,
+            nodeDetails: action.nodeDetails,
+          }
+      }
+    },
+    {
+      detailsLoading: false,
+      error: null,
+      graphData: null,
+      loading: true,
+      nodeDetails: null,
+      selectedNode: null,
+    },
+  )
+  const {
+    detailsLoading,
+    error,
+    graphData,
+    loading,
+    nodeDetails,
+    selectedNode,
+  } = state
   const { settings } = useObservatorySettings()
 
   // Load asset neighbors
   useEffect(() => {
+    let cancelled = false
+
     async function loadGraph() {
-      setLoading(true)
-      setError(null)
+      dispatch({ type: 'graphLoading' })
       try {
         const result = await getAssetNeighbors({
           data: {
@@ -607,48 +681,56 @@ export function RowJourney({
             dagsterUrl: settings.connections.dagsterGraphqlUrl,
           },
         })
+        if (cancelled) return
         if ('error' in result) {
-          setError(result.error)
+          dispatch({ type: 'graphError', error: result.error })
         } else {
-          setGraphData(result)
-          // Auto-select the current asset to show its details immediately
-          setSelectedNode(assetKey)
+          dispatch({ type: 'graphLoaded', assetKey, graphData: result })
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load lineage')
-      } finally {
-        setLoading(false)
+        if (cancelled) return
+        dispatch({
+          type: 'graphError',
+          error: err instanceof Error ? err.message : 'Failed to load lineage',
+        })
       }
     }
-    loadGraph()
+    void loadGraph()
+    return () => {
+      cancelled = true
+    }
   }, [assetKey, settings.connections.dagsterGraphqlUrl])
 
   // Load details when node is selected
   useEffect(() => {
-    if (!selectedNode) {
-      setNodeDetails(null)
+    const nodeKey = selectedNode
+    if (!nodeKey) {
+      dispatch({ type: 'detailsLoaded', nodeDetails: null })
       return
     }
 
+    let cancelled = false
+    const nodeAssetKey = nodeKey.split('/')
     async function loadNodeDetails() {
-      setDetailsLoading(true)
+      dispatch({ type: 'detailsLoading' })
       try {
         // Fetch asset details and quality checks
         const [assetInfo, qualityInfo] = await Promise.all([
           getAssetDetails({
             data: {
-              assetKey: selectedNode!.split('/'),
+              assetKey: nodeAssetKey,
               dagsterUrl: settings.connections.dagsterGraphqlUrl,
             },
           }),
           getAssetChecks({
             data: {
-              assetKey: selectedNode!.split('/'),
+              assetKey: nodeAssetKey,
               dagsterUrl: settings.connections.dagsterGraphqlUrl,
             },
           }),
         ])
 
+        if (cancelled) return
         const checks =
           'error' in qualityInfo
             ? []
@@ -660,32 +742,40 @@ export function RowJourney({
         const sql =
           'error' in assetInfo ? undefined : extractTransformationSql(assetInfo)
 
-        const upstreamAssetKeys = graphData
-          ? graphData.edges
-              .filter((e) => e.target === selectedNode)
-              .map((e) => e.source)
-          : []
+        const upstreamAssetKeys: Array<string> = []
+        if (graphData) {
+          for (const edge of graphData.edges) {
+            if (edge.target === nodeKey) {
+              upstreamAssetKeys.push(edge.source)
+            }
+          }
+        }
 
-        setNodeDetails({
-          sql,
-          checks,
-          stageData: undefined,
-          upstreamAssetKeys,
+        dispatch({
+          type: 'detailsLoaded',
+          nodeDetails: {
+            sql,
+            checks,
+            stageData: undefined,
+            upstreamAssetKeys,
+          },
         })
       } catch (err) {
+        if (cancelled) return
         console.error('Failed to load node details:', err)
-        setNodeDetails(null)
-      } finally {
-        setDetailsLoading(false)
+        dispatch({ type: 'detailsLoaded', nodeDetails: null })
       }
     }
 
-    loadNodeDetails()
+    void loadNodeDetails()
+    return () => {
+      cancelled = true
+    }
   }, [selectedNode, rowData, graphData, settings.connections.dagsterGraphqlUrl])
 
   // Handle node selection
   const handleNodeSelect = useCallback((nodeKey: string) => {
-    setSelectedNode(nodeKey)
+    dispatch({ type: 'nodeSelected', selectedNode: nodeKey })
   }, [])
 
   // Convert graph data to React Flow format
@@ -788,7 +878,7 @@ export function RowJourney({
   if (loading) {
     return (
       <div className={`flex items-center justify-center h-64 ${className}`}>
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <Loader2 className="size-8 text-primary animate-spin" />
       </div>
     )
   }
@@ -808,7 +898,7 @@ export function RowJourney({
       <div
         className={`flex flex-col items-center justify-center h-64 text-muted-foreground ${className}`}
       >
-        <Database className="w-8 h-8 mb-2 opacity-50" />
+        <Database className="size-8 mb-2 opacity-50" />
         <p>No lineage data available</p>
       </div>
     )

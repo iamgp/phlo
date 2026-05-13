@@ -10,8 +10,8 @@ import {
   Settings,
   SlidersHorizontal,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import { useEffect, useId, useMemo, useReducer } from 'react'
+import type { Dispatch, ReactNode } from 'react'
 
 import type { ObservatorySettings } from '@/lib/observatorySettings'
 import type { V2Capabilities, V2ResourceResult } from '@/v2/api/types'
@@ -37,18 +37,73 @@ type CacheStats = {
   entriesByPrefix: Record<string, number>
 }
 
+type SettingsRouteState = {
+  capabilities: V2ResourceResult<V2Capabilities> | null
+  draft: ObservatorySettings
+  error: string | null
+  stats: CacheStats | null
+  statsLoading: boolean
+}
+
+type SettingsRouteAction =
+  | { type: 'draft'; draft: ObservatorySettings }
+  | {
+      type: 'updateDraft'
+      update: (draft: ObservatorySettings) => ObservatorySettings
+    }
+  | { type: 'error'; error: string | null }
+  | { type: 'statsLoading'; loading: boolean }
+  | { type: 'stats'; stats: CacheStats | null }
+  | {
+      type: 'capabilities'
+      capabilities: V2ResourceResult<V2Capabilities> | null
+    }
+
+function settingsRouteReducer(
+  state: SettingsRouteState,
+  action: SettingsRouteAction,
+): SettingsRouteState {
+  switch (action.type) {
+    case 'draft':
+      return { ...state, draft: action.draft }
+    case 'updateDraft':
+      return { ...state, draft: action.update(state.draft) }
+    case 'error':
+      return { ...state, error: action.error }
+    case 'statsLoading':
+      return { ...state, statsLoading: action.loading }
+    case 'stats':
+      return { ...state, stats: action.stats, statsLoading: false }
+    case 'capabilities':
+      return { ...state, capabilities: action.capabilities }
+  }
+}
+
+function updateDraft(
+  dispatch: Dispatch<SettingsRouteAction>,
+  update: (draft: ObservatorySettings) => ObservatorySettings,
+) {
+  dispatch({ type: 'updateDraft', update })
+}
+
 export function SettingsRoute() {
+  return useSettingsRoute()
+}
+
+function useSettingsRoute() {
   const { settings, setSettings, resetToDefaults } = useObservatorySettings()
   const { settingsSections } = useObservatoryExtensions()
-  const [draft, setDraft] = useState<ObservatorySettings>(settings)
-  const [error, setError] = useState<string | null>(null)
-  const [stats, setStats] = useState<CacheStats | null>(null)
-  const [statsLoading, setStatsLoading] = useState(false)
-  const [capabilities, setCapabilities] =
-    useState<V2ResourceResult<V2Capabilities> | null>(null)
+  const [{ capabilities, draft, error, stats, statsLoading }, dispatch] =
+    useReducer(settingsRouteReducer, {
+      capabilities: null,
+      draft: settings,
+      error: null,
+      stats: null,
+      statsLoading: false,
+    })
   const orderedSettingsSections = useMemo(
     () =>
-      [...settingsSections].sort((a, b) => {
+      settingsSections.slice().sort((a, b) => {
         const orderA = a.order ?? 0
         const orderB = b.order ?? 0
         if (orderA !== orderB) return orderA - orderB
@@ -63,42 +118,44 @@ export function SettingsRoute() {
   const capabilityFeatures = capabilities?.data?.features ?? {}
 
   useEffect(() => {
-    setDraft(settings)
+    dispatch({ type: 'draft', draft: settings })
   }, [settings])
 
   useEffect(() => {
     void fetchStats()
     void loadCachedResource('v2:capabilities', getV2Capabilities, {
       staleMs: 120_000,
-    }).then(setCapabilities)
+    }).then((nextCapabilities) =>
+      dispatch({ type: 'capabilities', capabilities: nextCapabilities }),
+    )
   }, [])
 
   async function fetchStats() {
-    setStatsLoading(true)
+    dispatch({ type: 'statsLoading', loading: true })
     try {
-      setStats(await getCacheStatsEndpoint())
+      dispatch({ type: 'stats', stats: await getCacheStatsEndpoint() })
     } catch {
-      setStats(null)
+      dispatch({ type: 'stats', stats: null })
     } finally {
-      setStatsLoading(false)
+      dispatch({ type: 'statsLoading', loading: false })
     }
   }
 
   async function clearCache() {
-    setStatsLoading(true)
+    dispatch({ type: 'statsLoading', loading: true })
     try {
       await clearCacheEndpoint()
       await fetchStats()
     } catch {
-      setStatsLoading(false)
+      dispatch({ type: 'statsLoading', loading: false })
     }
   }
 
   function save() {
-    setError(null)
+    dispatch({ type: 'error', error: null })
     const validation = validateSettings(draft)
     if (validation) {
-      setError(validation)
+      dispatch({ type: 'error', error: validation })
       return
     }
     setSettings(draft)
@@ -129,7 +186,7 @@ export function SettingsRoute() {
             <button
               onClick={() => {
                 resetToDefaults()
-                setError(null)
+                dispatch({ type: 'error', error: null })
               }}
               type="button"
             >
@@ -156,7 +213,7 @@ export function SettingsRoute() {
                 <TextInput
                   value={draft.defaults.branch}
                   onChange={(value) =>
-                    setDraft((current) => ({
+                    updateDraft(dispatch, (current) => ({
                       ...current,
                       defaults: { ...current.defaults, branch: value },
                     }))
@@ -168,7 +225,7 @@ export function SettingsRoute() {
               <TextInput
                 value={draft.defaults.catalog}
                 onChange={(value) =>
-                  setDraft((current) => ({
+                  updateDraft(dispatch, (current) => ({
                     ...current,
                     defaults: { ...current.defaults, catalog: value },
                   }))
@@ -179,7 +236,7 @@ export function SettingsRoute() {
               <TextInput
                 value={draft.defaults.schema}
                 onChange={(value) =>
-                  setDraft((current) => ({
+                  updateDraft(dispatch, (current) => ({
                     ...current,
                     defaults: { ...current.defaults, schema: value },
                   }))
@@ -199,7 +256,7 @@ export function SettingsRoute() {
               <NumberInput
                 value={draft.query.defaultLimit}
                 onChange={(value) =>
-                  setDraft((current) => ({
+                  updateDraft(dispatch, (current) => ({
                     ...current,
                     query: { ...current.query, defaultLimit: value },
                   }))
@@ -210,7 +267,7 @@ export function SettingsRoute() {
               <NumberInput
                 value={draft.query.maxLimit}
                 onChange={(value) =>
-                  setDraft((current) => ({
+                  updateDraft(dispatch, (current) => ({
                     ...current,
                     query: { ...current.query, maxLimit: value },
                   }))
@@ -221,7 +278,7 @@ export function SettingsRoute() {
               <NumberInput
                 value={draft.query.timeoutMs}
                 onChange={(value) =>
-                  setDraft((current) => ({
+                  updateDraft(dispatch, (current) => ({
                     ...current,
                     query: { ...current.query, timeoutMs: value },
                   }))
@@ -234,7 +291,7 @@ export function SettingsRoute() {
             description="Blocks non-read-only statements and enforces limits in SQL workflows."
             label="Read-only mode"
             onChange={(checked) =>
-              setDraft((current) => ({
+              updateDraft(dispatch, (current) => ({
                 ...current,
                 query: { ...current.query, readOnlyMode: checked },
               }))
@@ -256,7 +313,7 @@ export function SettingsRoute() {
                 ]}
                 value={draft.ui.density}
                 onChange={(value) =>
-                  setDraft((current) => ({
+                  updateDraft(dispatch, (current) => ({
                     ...current,
                     ui: {
                       ...current.ui,
@@ -274,7 +331,7 @@ export function SettingsRoute() {
                 ]}
                 value={draft.ui.dateFormat}
                 onChange={(value) =>
-                  setDraft((current) => ({
+                  updateDraft(dispatch, (current) => ({
                     ...current,
                     ui: {
                       ...current.ui,
@@ -302,7 +359,7 @@ export function SettingsRoute() {
               type="password"
               value={draft.auth?.token ?? ''}
               onChange={(value) =>
-                setDraft((current) => ({
+                updateDraft(dispatch, (current) => ({
                   ...current,
                   auth: { ...current.auth, token: value || undefined },
                 }))
@@ -314,7 +371,7 @@ export function SettingsRoute() {
             description="Automatically poll dashboard and quality views for updates."
             label="Enable auto-refresh"
             onChange={(checked) =>
-              setDraft((current) => ({
+              updateDraft(dispatch, (current) => ({
                 ...current,
                 realtime: {
                   enabled: checked,
@@ -331,7 +388,7 @@ export function SettingsRoute() {
               step={1000}
               value={draft.realtime?.intervalMs ?? 5000}
               onChange={(value) =>
-                setDraft((current) => ({
+                updateDraft(dispatch, (current) => ({
                   ...current,
                   realtime: {
                     enabled: current.realtime?.enabled ?? true,
@@ -560,9 +617,12 @@ function ToggleRow({
   label: string
   onChange: (checked: boolean) => void
 }) {
+  const inputId = useId()
   return (
-    <label className="phlo-v2-toggle-row">
+    <label className="phlo-v2-toggle-row" htmlFor={inputId}>
       <input
+        id={inputId}
+        aria-label={label}
         checked={checked}
         type="checkbox"
         onChange={(event) => onChange(event.target.checked)}

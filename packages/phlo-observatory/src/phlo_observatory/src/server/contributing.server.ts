@@ -11,7 +11,7 @@ import { authMiddleware } from '@/server/auth.server'
 import { apiPost } from '@/server/phlo-api'
 import { camelizeKeys } from '@/utils/caseTransform'
 
-export type ContributingRowsMode = 'entity' | 'aggregate'
+type ContributingRowsMode = 'entity' | 'aggregate'
 
 export type ContributingRowsQueryResult =
   | { query: string; upstream: { schema: string; table: string } }

@@ -111,15 +111,21 @@ const themeModes = [
   icon: typeof Monitor
 }>
 
-export function V2Shell({ children }: { children: ReactNode }) {
+export function V2Shell(props: { children: ReactNode }) {
+  return useV2Shell(props)
+}
+
+function useV2Shell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
   const [searchOpen, setSearchOpen] = useState(false)
-  const [themeMode, setThemeMode] = useState<V2ThemeMode>('system')
-  const [systemPrefersDark, setSystemPrefersDark] = useState(false)
-  const [hydrated, setHydrated] = useState(false)
+  const [{ hydrated, systemPrefersDark, themeMode }, setThemeState] = useState({
+    hydrated: false,
+    systemPrefersDark: false,
+    themeMode: 'system' as V2ThemeMode,
+  })
   const [query, setQuery] = useState('')
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [capabilities, setCapabilities] =
@@ -159,21 +165,27 @@ export function V2Shell({ children }: { children: ReactNode }) {
     activePage.available === false
 
   useEffect(() => {
-    setHydrated(true)
-    setThemeMode(readV2ThemeMode(window.localStorage))
-
     const media = window.matchMedia?.('(prefers-color-scheme: dark)')
+    setThemeState({
+      hydrated: true,
+      systemPrefersDark: media?.matches ?? false,
+      themeMode: readV2ThemeMode(window.localStorage),
+    })
     if (!media) return
 
-    const update = () => setSystemPrefersDark(media.matches)
-    update()
+    const update = () =>
+      setThemeState((current) => ({
+        ...current,
+        systemPrefersDark: media.matches,
+      }))
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [])
 
   useEffect(() => {
+    if (!hydrated) return
     window.localStorage.setItem(V2_THEME_STORAGE_KEY, themeMode)
-  }, [themeMode])
+  }, [hydrated, themeMode])
 
   useEffect(() => {
     document.documentElement.dataset.phloV2Route = 'true'
@@ -190,14 +202,16 @@ export function V2Shell({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
     async function load() {
+      if (cancelled) return
       const next = await loadCachedResource(
         'v2:capabilities',
         getV2Capabilities,
         { staleMs: 120_000 },
       )
-      if (cancelled) return
-      setCapabilities(next)
-      warmRouteResources(next.data)
+      if (!cancelled) {
+        setCapabilities(next)
+        warmRouteResources(next.data)
+      }
     }
     void load()
     const interval = window.setInterval(load, 30_000)
@@ -293,18 +307,24 @@ export function V2Shell({ children }: { children: ReactNode }) {
 
   const groupedResults = useMemo(() => {
     const groups = new Map<string, Array<V2SearchResult>>()
+    const excludedKinds = new Set(['service', 'table', 'dataset'])
     for (const result of results.data ?? []) {
-      if (['service', 'table', 'dataset'].includes(result.kind)) continue
+      if (excludedKinds.has(result.kind)) continue
       const key = result.kind || 'result'
-      groups.set(key, [...(groups.get(key) ?? []), result])
+      const group = groups.get(key)
+      if (group) {
+        group.push(result)
+      } else {
+        groups.set(key, [result])
+      }
     }
     return Array.from(groups.entries())
   }, [results.data])
 
   const tableResults = useMemo(
     () =>
-      (results.data ?? []).filter((result) =>
-        ['table', 'dataset'].includes(result.kind),
+      (results.data ?? []).filter(
+        (result) => result.kind === 'table' || result.kind === 'dataset',
       ),
     [results.data],
   )
@@ -379,10 +399,10 @@ export function V2Shell({ children }: { children: ReactNode }) {
     serviceMatches.length > 0
   const sqlTemplateTargets = tableMatches.length
     ? tableMatches
-    : tableResults
-        .slice(0, 6)
-        .map((result) => tableFromSearchResult(result))
-        .filter((table): table is V2Table => table !== null)
+    : tableResults.slice(0, 6).flatMap((result) => {
+        const table = tableFromSearchResult(result)
+        return table ? [table] : []
+      })
 
   return (
     <main
@@ -444,7 +464,12 @@ export function V2Shell({ children }: { children: ReactNode }) {
                     aria-pressed={themeMode === item.mode}
                     data-active={themeMode === item.mode}
                     key={item.mode}
-                    onClick={() => setThemeMode(item.mode)}
+                    onClick={() =>
+                      setThemeState((current) => ({
+                        ...current,
+                        themeMode: item.mode,
+                      }))
+                    }
                     suppressHydrationWarning
                     title={`${item.label} theme`}
                     type="button"

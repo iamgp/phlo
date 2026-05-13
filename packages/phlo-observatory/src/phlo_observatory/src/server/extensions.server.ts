@@ -13,13 +13,13 @@ export type ObservatoryExtensionNavItem = {
   to: string
 }
 
-export type ObservatoryExtensionSlot = {
+type ObservatoryExtensionSlot = {
   slot_id: string
   module: string
   export: string
 }
 
-export type ObservatoryExtensionSettings = {
+type ObservatoryExtensionSettings = {
   module: string
   export: string
 }
@@ -43,7 +43,7 @@ export type ObservatoryExtensionManifest = {
   }
 }
 
-export type ObservatoryExtensionDescriptor = {
+type ObservatoryExtensionDescriptor = {
   manifest: ObservatoryExtensionManifest
   assets_base_path: string
 }

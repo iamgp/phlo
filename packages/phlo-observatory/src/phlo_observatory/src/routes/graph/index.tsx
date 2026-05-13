@@ -59,7 +59,7 @@ function GraphPage() {
   const { data } = Route.useLoaderData()
 
   return (
-    <Suspense fallback={<LoadingState message="Loading lineage graph..." />}>
+    <Suspense fallback={<LoadingState message="Loading lineage graph…" />}>
       <Await promise={data}>
         {(resolved) => <GraphContent {...resolved} />}
       </Await>
@@ -129,7 +129,7 @@ function GraphContent({
         {/* Header Bar */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
           <div className="flex items-center gap-4 min-w-0">
-            <h1 className="text-xl font-bold">Lineage Graph</h1>
+            <h1 className="text-xl font-semibold">Lineage Graph</h1>
             {initialFocus && (
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-sm text-muted-foreground">
@@ -157,7 +157,7 @@ function GraphContent({
         {hasError ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center p-8">
-              <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
+              <AlertCircle className="size-16 text-destructive mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">
                 Failed to load graph
               </h2>
@@ -173,7 +173,7 @@ function GraphContent({
         ) : graph.nodes.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center p-8">
-              <Filter className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <Filter className="size-16 text-muted-foreground mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">No assets found</h2>
               <p className="text-muted-foreground">
                 {initialFocus

@@ -11,8 +11,10 @@ const devHmrHost = process.env.DEV_HMR_HOST ?? devHost
 const devHmrClientPort = process.env.DEV_HMR_CLIENT_PORT
 const devAllowedHosts = (process.env.DEV_ALLOWED_HOSTS ?? devHost)
   .split(',')
-  .map((host) => host.trim())
-  .filter(Boolean)
+  .flatMap((host) => {
+    const trimmed = host.trim()
+    return trimmed ? [trimmed] : []
+  })
 
 const config = defineConfig({
   server: {

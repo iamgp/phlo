@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { AlertCircle, FileText, Radio, Search, Terminal } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useReducer } from 'react'
 
 import type { V2LogEvent, V2LogFacets, V2ResourceResult } from '@/v2/api/types'
 import { getV2LogFacets, getV2LogRecords } from '@/v2/api/resources'
@@ -11,17 +11,53 @@ export const Route = createFileRoute('/v2/logs')({
   component: Logs,
 })
 
+type LogsState = {
+  facets: V2ResourceResult<V2LogFacets>
+  level: string
+  query: string
+  selectedId: string | null
+  source: string
+}
+
+type LogsAction =
+  | { type: 'facets'; facets: V2ResourceResult<V2LogFacets> }
+  | { type: 'level'; level: string }
+  | { type: 'query'; query: string }
+  | { type: 'selected'; selectedId: string | null }
+  | { type: 'source'; source: string }
+
+function logsReducer(state: LogsState, action: LogsAction): LogsState {
+  switch (action.type) {
+    case 'facets':
+      return { ...state, facets: action.facets }
+    case 'level':
+      return { ...state, level: action.level }
+    case 'query':
+      return { ...state, query: action.query }
+    case 'selected':
+      return { ...state, selectedId: action.selectedId }
+    case 'source':
+      return { ...state, source: action.source }
+  }
+}
+
 export function Logs() {
   const result = useLiveResource(getV2LogRecords, 120_000, 'v2:logs')
   const logs = result.data ?? []
-  const [level, setLevel] = useState('all')
-  const [source, setSource] = useState('all')
-  const [query, setQuery] = useState('')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [facets, setFacets] = useState<V2ResourceResult<V2LogFacets>>({
-    data: null,
-    error: null,
-  })
+  const [{ facets, level, query, selectedId, source }, dispatch] = useReducer(
+    logsReducer,
+    {
+      data: null,
+      error: null,
+    },
+    (initialFacets): LogsState => ({
+      facets: initialFacets,
+      level: 'all',
+      query: '',
+      selectedId: null,
+      source: 'all',
+    }),
+  )
   const sources = new Set(
     facets.data?.sources ?? logs.map((log) => log.source ?? 'platform'),
   )
@@ -42,7 +78,7 @@ export function Logs() {
   useEffect(() => {
     void loadCachedResource('v2:log-facets', getV2LogFacets, {
       staleMs: 120_000,
-    }).then(setFacets)
+    }).then((nextFacets) => dispatch({ type: 'facets', facets: nextFacets }))
   }, [])
 
   return (
@@ -66,14 +102,18 @@ export function Logs() {
               <Search className="size-4" />
               <input
                 aria-label="Search logs"
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) =>
+                  dispatch({ type: 'query', query: event.target.value })
+                }
                 placeholder="Search evidence"
                 value={query}
               />
             </label>
             <select
               value={source}
-              onChange={(event) => setSource(event.target.value)}
+              onChange={(event) =>
+                dispatch({ type: 'source', source: event.target.value })
+              }
             >
               <option value="all">All sources</option>
               {Array.from(sources).map((entry) => (
@@ -84,7 +124,9 @@ export function Logs() {
             </select>
             <select
               value={level}
-              onChange={(event) => setLevel(event.target.value)}
+              onChange={(event) =>
+                dispatch({ type: 'level', level: event.target.value })
+              }
             >
               <option value="all">All levels</option>
               {Array.from(levels).map((entry) => (
@@ -99,7 +141,9 @@ export function Logs() {
               <LogLine
                 key={log.id}
                 log={log}
-                onSelect={setSelectedId}
+                onSelect={(nextSelectedId) =>
+                  dispatch({ type: 'selected', selectedId: nextSelectedId })
+                }
                 selected={log.id === selected?.id}
               />
             ))}

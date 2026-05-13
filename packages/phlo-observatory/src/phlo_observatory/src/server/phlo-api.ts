@@ -82,14 +82,3 @@ export async function apiPut<T>(
 ): Promise<T> {
   return request<T>(endpoint, { method: 'PUT', body, timeoutMs })
 }
-
-/**
- * Make a DELETE request to phlo-api
- */
-export async function apiDelete<T>(
-  endpoint: string,
-  params?: Record<string, string>,
-  timeoutMs = 30000,
-): Promise<T> {
-  return request<T>(endpoint, { method: 'DELETE', params, timeoutMs })
-}

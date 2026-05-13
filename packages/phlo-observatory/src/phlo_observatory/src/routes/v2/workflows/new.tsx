@@ -9,7 +9,7 @@ import {
   TrashIcon,
 } from '@primer/octicons-react'
 import { WandSparkles } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, ReactNode } from 'react'
 
 import type {
@@ -83,6 +83,10 @@ const WORKFLOW_STEPS: Array<{
 ]
 
 function WorkflowCanvasBuilder() {
+  return useWorkflowCanvasBuilder()
+}
+
+function useWorkflowCanvasBuilder() {
   const [wizard, setWizard] = useState<
     V2ResourceResult<V2WorkflowWizardPayload>
   >({
@@ -109,6 +113,18 @@ function WorkflowCanvasBuilder() {
   const activeStepIndex = WORKFLOW_STEPS.findIndex(
     (step) => step.id === activeStep,
   )
+  const applyWizardPayload = useCallback(
+    (next: V2ResourceResult<V2WorkflowWizardPayload>) => {
+      setWizard(next)
+      const contributions = next.data?.contributions ?? []
+      const starterNodes = starterGraph(contributions).nodes
+      setNodes(starterNodes)
+      setValues(starterValues(contributions, starterNodes))
+      setSelectedNodeId(starterNodes[0]?.id ?? null)
+      setInsertIndex(starterNodes.length)
+    },
+    [],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -117,18 +133,12 @@ function WorkflowCanvasBuilder() {
       staleMs: 60_000,
     }).then((next) => {
       if (cancelled) return
-      setWizard(next)
-      const contributions = next.data?.contributions ?? []
-      const starterNodes = starterGraph(contributions).nodes
-      setNodes(starterNodes)
-      setValues(starterValues(contributions, starterNodes))
-      setSelectedNodeId(starterNodes[0]?.id ?? null)
-      setInsertIndex(starterNodes.length)
+      applyWizardPayload(next)
     })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [applyWizardPayload])
 
   const contributions = wizard.data?.contributions ?? []
   const contributionById = useMemo(
@@ -332,7 +342,7 @@ function WorkflowCanvasBuilder() {
                 type="button"
                 variant="primary"
               >
-                {proposalLoading ? 'Generating...' : 'Generate proposal'}
+                {proposalLoading ? 'Generating…' : 'Generate proposal'}
               </Button>
             </div>
             <PipelineLane
@@ -767,7 +777,7 @@ function ReviewPanel({
           type="button"
           variant="primary"
         >
-          {loading ? 'Generating proposal...' : 'Try again'}
+          {loading ? 'Generating proposal…' : 'Try again'}
         </Button>
       </div>
     )
@@ -784,7 +794,7 @@ function ReviewPanel({
         </div>
         <div className="phlo-workflow-empty-review">
           {loading
-            ? 'Generating a proposal from the graph...'
+            ? 'Generating a proposal from the graph…'
             : 'Generate a proposal to preview graph-generated files.'}
         </div>
       </div>
@@ -834,7 +844,7 @@ function ReviewPanel({
         onClick={onGenerate}
         type="button"
       >
-        {loading ? 'Refreshing proposal...' : 'Refresh proposal'}
+        {loading ? 'Refreshing proposal…' : 'Refresh proposal'}
       </Button>
       {actionMessage && (
         <div className="phlo-v2-panel-footer">{actionMessage}</div>
@@ -851,9 +861,13 @@ function starterGraph(contributions: Array<V2WorkflowWizardContribution>) {
     'dagster.orchestration',
     'openmetadata.catalog',
   ]
-  const selected = ids
-    .map((id) => contributions.find((contribution) => contribution.id === id))
-    .filter((item): item is V2WorkflowWizardContribution => Boolean(item))
+  const contributionsById = new Map(
+    contributions.map((contribution) => [contribution.id, contribution]),
+  )
+  const selected = ids.flatMap((id) => {
+    const contribution = contributionsById.get(id)
+    return contribution ? [contribution] : []
+  })
   const nodes = selected.map((contribution, index) =>
     toCanvasNode(contribution, `node-${index + 1}`),
   )

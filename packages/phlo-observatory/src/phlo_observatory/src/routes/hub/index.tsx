@@ -42,7 +42,7 @@ function HubPage() {
   const { services } = Route.useLoaderData()
 
   return (
-    <Suspense fallback={<LoadingState message="Loading services..." />}>
+    <Suspense fallback={<LoadingState message="Loading services…" />}>
       <Await promise={services}>
         {(resolved) => <HubContent services={resolved} />}
       </Await>
@@ -145,7 +145,7 @@ function HubContent({ services }: { services: Array<ServiceWithStatus> }) {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <Boxes className="size-7 text-primary" />
-              <h1 className="text-3xl font-bold">Service Hub</h1>
+              <h1 className="text-3xl font-semibold">Service Hub</h1>
             </div>
             <p className="text-muted-foreground">
               Manage and monitor all Phlo platform services
@@ -170,24 +170,24 @@ function HubContent({ services }: { services: Array<ServiceWithStatus> }) {
           <StatCard
             label="Total Services"
             value={totalServices}
-            icon={<Boxes className="w-5 h-5" />}
+            icon={<Boxes className="size-5" />}
           />
           <StatCard
             label="Running"
             value={runningServices}
-            icon={<CheckCircle className="w-5 h-5" />}
+            icon={<CheckCircle className="size-5" />}
             color="text-green-400"
           />
           <StatCard
             label="Stopped"
             value={stoppedServices}
-            icon={<Loader2 className="w-5 h-5" />}
+            icon={<Loader2 className="size-5" />}
             color="text-muted-foreground"
           />
           <StatCard
             label="Unhealthy"
             value={unhealthyServices}
-            icon={<XCircle className="w-5 h-5" />}
+            icon={<XCircle className="size-5" />}
             color="text-red-400"
           />
         </div>
@@ -222,7 +222,7 @@ function HubContent({ services }: { services: Array<ServiceWithStatus> }) {
 function LoadingState({ message }: { message: string }) {
   return (
     <div className="h-full flex items-center justify-center gap-2 text-sm text-muted-foreground">
-      <Loader2 className="h-4 w-4 animate-spin" />
+      <Loader2 className="size-4 animate-spin" />
       {message}
     </div>
   )

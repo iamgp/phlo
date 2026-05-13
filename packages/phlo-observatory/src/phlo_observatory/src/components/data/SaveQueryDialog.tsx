@@ -43,10 +43,10 @@ export function SaveQueryDialog({
   const handleSave = () => {
     if (!name.trim() || !query.trim()) return
 
-    const tags = tagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean)
+    const tags = tagsInput.split(',').flatMap((tag) => {
+      const trimmed = tag.trim()
+      return trimmed ? [trimmed] : []
+    })
 
     const saved = saveQuery({
       name: name.trim(),
@@ -69,7 +69,7 @@ export function SaveQueryDialog({
         render={
           trigger ?? (
             <Button variant="outline" size="sm" disabled={!query.trim()}>
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="size-4 mr-2" />
               Save Query
             </Button>
           )
@@ -88,7 +88,6 @@ export function SaveQueryDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="My useful query"
-              autoFocus
             />
           </div>
 

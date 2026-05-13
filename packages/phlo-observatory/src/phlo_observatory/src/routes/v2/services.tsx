@@ -166,7 +166,7 @@ export function Services() {
                 ) {
                   return
                 }
-                setActionMessage('Running action...')
+                setActionMessage('Running action…')
                 void runV2Action({ data: { actionId } }).then((next) => {
                   setActionMessage(
                     next.data?.message ?? next.error ?? 'Action completed',

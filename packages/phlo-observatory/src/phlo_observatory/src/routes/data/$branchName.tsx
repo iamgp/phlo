@@ -4,13 +4,7 @@
  * This layout route handles the shared sidebar with table browser.
  * Tables are loaded once here and passed to child routes via context.
  */
-import {
-  Await,
-  Outlet,
-  createFileRoute,
-  defer,
-  useNavigate,
-} from '@tanstack/react-router'
+import { Await, Outlet, createFileRoute, defer } from '@tanstack/react-router'
 import { Database } from 'lucide-react'
 import { Suspense } from 'react'
 
@@ -20,6 +14,16 @@ import { SavedQueriesPanel } from '@/components/data/SavedQueriesPanel'
 import { TableBrowserVirtualized } from '@/components/data/TableBrowserVirtualized'
 import { getTables } from '@/server/iceberg.server'
 import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
+
+function deferNavigation(runNavigation: () => void) {
+  queueMicrotask(runNavigation)
+}
+
+function openDataExplorerUrl(path: string) {
+  if (typeof window !== 'undefined') {
+    window.location.assign(path)
+  }
+}
 
 export const Route = createFileRoute('/data/$branchName')({
   loader: ({ params }) => ({
@@ -43,20 +47,18 @@ async function loadTables(branchName: string) {
 }
 
 function DataExplorerLayout() {
-  const navigate = useNavigate()
   const { branchName } = Route.useParams()
   const { data } = Route.useLoaderData()
   const decodedBranchName = decodeURIComponent(branchName)
 
   // Navigate to URL-based route when table is selected
   const handleTableSelect = (selectedTable: IcebergTable) => {
-    navigate({
-      to: '/data/$branchName/$schema/$table',
-      params: {
-        branchName,
-        schema: selectedTable.schema,
-        table: selectedTable.name,
-      },
+    deferNavigation(() => {
+      openDataExplorerUrl(
+        `/data/${branchName}/${encodeURIComponent(
+          selectedTable.schema,
+        )}/${encodeURIComponent(selectedTable.name)}`,
+      )
     })
   }
 
@@ -64,10 +66,9 @@ function DataExplorerLayout() {
   const handleRunSavedQuery = (query: string, branch?: string) => {
     // Use the saved query's branch if specified, otherwise current branch
     const targetBranch = branch || branchName
-    navigate({
-      to: '/data/$branchName',
-      params: { branchName: targetBranch },
-      search: { sql: query, tab: 'query' },
+    deferNavigation(() => {
+      const search = new URLSearchParams({ sql: query, tab: 'query' })
+      openDataExplorerUrl(`/data/${targetBranch}?${search.toString()}`)
     })
   }
 
@@ -79,7 +80,7 @@ function DataExplorerLayout() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Database className="w-5 h-5 text-sidebar-primary" />
+                <Database className="size-5 text-sidebar-primary" />
                 Tables
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
@@ -92,17 +93,14 @@ function DataExplorerLayout() {
             <BranchSelector
               branch={decodedBranchName}
               onChange={(nextBranch) => {
-                navigate({
-                  to: '/data/$branchName',
-                  params: { branchName: encodeURIComponent(nextBranch) },
-                })
+                openDataExplorerUrl(`/data/${encodeURIComponent(nextBranch)}`)
               }}
             />
           </div>
         </div>
         <div className="flex-1 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-hidden">
-            <Suspense fallback={<LoadingState message="Loading tables..." />}>
+            <Suspense fallback={<LoadingState message="Loading tables…" />}>
               <Await promise={data}>
                 {(tables) => {
                   const hasError = 'error' in tables
