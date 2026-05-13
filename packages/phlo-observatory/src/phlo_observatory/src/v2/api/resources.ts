@@ -2,7 +2,6 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type {
   V2ActionResult,
-  V2ApiSettings,
   V2Asset,
   V2AssetDetail,
   V2Branch,
@@ -27,8 +26,6 @@ import type {
   V2SearchResult,
   V2Service,
   V2ServiceDetail,
-  V2Settings,
-  V2StageDiff,
   V2SurfaceItem,
   V2Table,
   V2TablePreview,
@@ -194,10 +191,6 @@ async function getCollection(
   }
 }
 
-export const getV2Operations = createServerFn().handler(() =>
-  getCollection('operations'),
-)
-
 export const getV2OperationRecords = createServerFn().handler(() =>
   getRawCollection<V2Operation>('operations'),
 )
@@ -249,10 +242,6 @@ export const getV2BiItems = createServerFn().handler(() =>
   getRawCollection<V2SurfaceItem>('bi'),
 )
 
-export const getV2Assets = createServerFn().handler(() =>
-  getCollection('assets'),
-)
-
 export const getV2AssetRecords = createServerFn().handler(() =>
   getRawCollection<V2Asset>('assets'),
 )
@@ -273,10 +262,6 @@ export const getV2AssetDetail = createServerFn()
       }
     },
   )
-
-export const getV2Tables = createServerFn().handler(() =>
-  getCollection('tables'),
-)
 
 export const getV2TableRecords = createServerFn().handler(() =>
   getRawCollection<V2Table>('tables'),
@@ -370,27 +355,6 @@ export const saveV2Query = createServerFn()
     },
   )
 
-export const getV2StageDiff = createServerFn()
-  .inputValidator(
-    (input: { sourceTableId: string; targetTableId: string }) => input,
-  )
-  .handler(
-    async ({
-      data: { sourceTableId, targetTableId },
-    }): Promise<V2ResourceResult<V2StageDiff>> => {
-      try {
-        const data = await apiGet<V2StageDiff>(
-          `${V2_API_PREFIX}/stage-diff`,
-          { source_table_id: sourceTableId, target_table_id: targetTableId },
-          8000,
-        )
-        return { data, error: null }
-      } catch (error) {
-        return apiUnavailable<V2StageDiff>(error)
-      }
-    },
-  )
-
 export const getV2RowJourney = createServerFn()
   .inputValidator((input: { tableId: string; rowId: string }) => input)
   .handler(
@@ -409,10 +373,6 @@ export const getV2RowJourney = createServerFn()
       }
     },
   )
-
-export const getV2Quality = createServerFn().handler(() =>
-  getCollection('quality'),
-)
 
 export const getV2QualityRecords = createServerFn().handler(() =>
   getRawCollection<V2QualityCheck>('quality'),
@@ -436,8 +396,6 @@ export const getV2QualityDetail = createServerFn()
       }
     },
   )
-
-export const getV2Logs = createServerFn().handler(() => getCollection('logs'))
 
 export const getV2LogRecords = createServerFn().handler(() =>
   getRawCollection<V2LogEvent>('logs'),
@@ -507,21 +465,6 @@ export const getV2ExtensionDetail = createServerFn()
       }
     },
   )
-
-export const getV2Settings = createServerFn().handler(
-  async (): Promise<V2ResourceResult<V2Settings>> => {
-    try {
-      const data = await apiGet<V2ApiSettings>(
-        `${V2_API_PREFIX}/settings`,
-        undefined,
-        8000,
-      )
-      return { data: normalizeSettings(data), error: null }
-    } catch (error) {
-      return apiUnavailable<V2Settings>(error)
-    }
-  },
-)
 
 export const searchV2 = createServerFn()
   .inputValidator((input: { query: string }) => input)
@@ -660,55 +603,6 @@ function normalizeItem(
   }
 }
 
-function normalizeSettings(settings: V2ApiSettings): V2Settings {
-  const metadata = Object.entries(settings.metadata).map(([key, value]) => ({
-    id: `metadata:${key}`,
-    label: labelize(key),
-    value: valueToSetting(value),
-    kind: 'metadata',
-    description: 'Control-plane metadata',
-    metadata: {},
-  }))
-  const defaults = Object.entries(settings.defaults).map(([key, value]) => ({
-    id: `default:${key}`,
-    label: labelize(key),
-    value,
-    kind: 'default',
-    description: 'Default control-plane value',
-    metadata: {},
-  }))
-  const features = Object.entries(settings.features).map(([key, value]) => ({
-    id: `feature:${key}`,
-    label: labelize(key),
-    value,
-    kind: 'feature',
-    description: value ? 'Enabled' : 'Disabled',
-    metadata: {},
-  }))
-  const storage = Object.entries(settings.storage).map(([key, value]) => ({
-    id: `storage:${key}`,
-    label: labelize(key),
-    value,
-    kind: 'storage',
-    description: 'Storage backend',
-    metadata: {},
-  }))
-
-  return { items: [...metadata, ...defaults, ...features, ...storage] }
-}
-
-function valueToSetting(value: unknown): string | boolean | number | null {
-  if (value === null || value === undefined) return null
-  if (
-    typeof value === 'string' ||
-    typeof value === 'boolean' ||
-    typeof value === 'number'
-  ) {
-    return value
-  }
-  return JSON.stringify(value)
-}
-
 function summaryFor(endpoint: string, item: Record<string, unknown>): string {
   if (endpoint === 'assets') {
     const group = readString(item, 'group')
@@ -813,10 +707,4 @@ function readRecord(item: Record<string, unknown>, key: string): V2Metadata {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function labelize(value: string): string {
-  return value
-    .replace(/[_-]/g, ' ')
-    .replace(/\b\w/g, (match) => match.toUpperCase())
 }

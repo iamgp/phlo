@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  createContext,
+  use,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+} from 'react'
 
 import type { ObservatorySettings } from '@/lib/observatorySettings'
 import {
@@ -23,16 +30,49 @@ type ObservatorySettingsContextValue = {
 const ObservatorySettingsContext =
   createContext<ObservatorySettingsContextValue | null>(null)
 
+type StoredSettingsState = ReturnType<typeof loadStoredObservatorySettings>
+type SettingsState = StoredSettingsState & {
+  defaults: ObservatorySettings
+}
+
+type SettingsAction =
+  | { type: 'defaults'; defaults: ObservatorySettings }
+  | { type: 'settings'; stored: StoredSettingsState }
+  | { type: 'replace'; settings: ObservatorySettings }
+
+function settingsReducer(
+  state: SettingsState,
+  action: SettingsAction,
+): SettingsState {
+  switch (action.type) {
+    case 'defaults':
+      return { ...state, defaults: action.defaults }
+    case 'settings':
+      return { ...state, ...action.stored }
+    case 'replace':
+      return {
+        ...state,
+        settings: action.settings,
+        source: 'localStorage',
+      }
+  }
+}
+
 export function ObservatorySettingsProvider({
   children,
 }: {
   children: React.ReactNode
 }) {
   const fallback = useMemo(() => getFallbackObservatorySettings(), [])
-  const [{ settings }, setStored] = useState(() =>
-    loadStoredObservatorySettings(),
+  const [{ settings, defaults, source }, dispatchSettings] = useReducer(
+    settingsReducer,
+    fallback,
+    (initialDefaults): SettingsState => ({
+      ...loadStoredObservatorySettings(),
+      defaults: initialDefaults,
+    }),
   )
-  const [defaults, setDefaults] = useState<ObservatorySettings>(fallback)
+  const initialSettingsRef = useRef({ settings, source })
 
   useEffect(() => {
     let active = true
@@ -42,7 +82,7 @@ export function ObservatorySettingsProvider({
     ])
       .then(([serverDefaults, serverSettings]) => {
         if (!active) return
-        setDefaults(serverDefaults)
+        dispatchSettings({ type: 'defaults', defaults: serverDefaults })
 
         if (serverSettings.settings) {
           const parsed = parseObservatorySettings(
@@ -50,26 +90,30 @@ export function ObservatorySettingsProvider({
             serverDefaults,
           )
           storeObservatorySettings(parsed)
-          setStored({ settings: parsed, source: 'localStorage' })
+          dispatchSettings({
+            type: 'settings',
+            stored: { settings: parsed, source: 'localStorage' },
+          })
           return
         }
 
-        setStored((current) => {
-          if (current.source === 'localStorage') {
-            void putObservatorySettings({
-              data: { settings: current.settings },
-            })
-            return current
-          }
-          const next = serverDefaults
-          storeObservatorySettings(next)
-          void putObservatorySettings({ data: { settings: next } })
-          return { settings: next, source: 'localStorage' }
+        if (initialSettingsRef.current.source === 'localStorage') {
+          void putObservatorySettings({
+            data: { settings: initialSettingsRef.current.settings },
+          })
+          return
+        }
+        const next = serverDefaults
+        storeObservatorySettings(next)
+        void putObservatorySettings({ data: { settings: next } })
+        dispatchSettings({
+          type: 'settings',
+          stored: { settings: next, source: 'localStorage' },
         })
       })
       .catch(() => {
         if (!active) return
-        setDefaults(fallback)
+        dispatchSettings({ type: 'defaults', defaults: fallback })
       })
     return () => {
       active = false
@@ -82,12 +126,12 @@ export function ObservatorySettingsProvider({
       defaults,
       setSettings: (next) => {
         storeObservatorySettings(next)
-        setStored({ settings: next, source: 'localStorage' })
+        dispatchSettings({ type: 'replace', settings: next })
         void putObservatorySettings({ data: { settings: next } })
       },
       resetToDefaults: () => {
         storeObservatorySettings(defaults)
-        setStored({ settings: defaults, source: 'localStorage' })
+        dispatchSettings({ type: 'replace', settings: defaults })
         void putObservatorySettings({ data: { settings: defaults } })
       },
     }),
@@ -102,7 +146,7 @@ export function ObservatorySettingsProvider({
 }
 
 export function useObservatorySettings(): ObservatorySettingsContextValue {
-  const value = useContext(ObservatorySettingsContext)
+  const value = use(ObservatorySettingsContext)
   if (!value) {
     throw new Error(
       'useObservatorySettings must be used within ObservatorySettingsProvider',

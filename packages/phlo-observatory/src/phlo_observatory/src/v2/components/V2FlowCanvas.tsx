@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import {
   Background,
@@ -22,7 +22,7 @@ import {
 import type { Edge, Node, NodeProps, NodeTypes } from '@xyflow/react'
 import type { MouseEvent } from 'react'
 
-export type V2FlowNodeKind =
+type V2FlowNodeKind =
   | 'asset'
   | 'table'
   | 'quality'
@@ -175,17 +175,38 @@ export function V2FlowCanvas({
       ),
     [graphEdges],
   )
+  const canvasKey = `${selectedId ?? 'none'}:${graphNodes
+    .map(
+      (node) =>
+        `${node.id}:${node.label}:${node.lane ?? ''}:${node.metric ?? ''}:${node.subtitle ?? ''}`,
+    )
+    .join('|')}:${graphEdges
+    .map(
+      (edge) => `${edge.id}:${edge.source}:${edge.target}:${edge.label ?? ''}`,
+    )
+    .join('|')}`
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+  return (
+    <V2FlowCanvasInstance
+      key={canvasKey}
+      edges={initialEdges}
+      nodes={initialNodes}
+      onSelect={onSelect}
+    />
+  )
+}
 
-  useEffect(() => {
-    setNodes(initialNodes)
-  }, [initialNodes, setNodes])
-
-  useEffect(() => {
-    setEdges(initialEdges)
-  }, [initialEdges, setEdges])
+function V2FlowCanvasInstance({
+  edges: initialEdges,
+  nodes: initialNodes,
+  onSelect,
+}: {
+  edges: Array<Edge>
+  nodes: Array<Node<FlowNodeData, 'phlo'>>
+  onSelect?: (id: string) => void
+}) {
+  const [nodes, , onNodesChange] = useNodesState(initialNodes)
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges)
 
   const handleNodeClick = useCallback(
     (_: MouseEvent, node: Node) => {

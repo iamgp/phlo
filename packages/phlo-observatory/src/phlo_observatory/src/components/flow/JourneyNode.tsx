@@ -45,15 +45,16 @@ export function JourneyNode({ data }: NodeProps) {
     }
   }
 
+  const NodeElement = isClickable ? 'button' : 'div'
+
   return (
-    <div
+    <NodeElement
       onClick={isClickable ? handleClick : undefined}
       onKeyDown={isClickable ? handleKeyDown : undefined}
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
       aria-current={isCurrent ? 'true' : undefined}
+      type={isClickable ? 'button' : undefined}
       className={cn(
-        'border bg-card transition-colors',
+        'border bg-card text-left transition-colors',
         isClickable ? 'cursor-pointer' : '',
         isClickable
           ? cn(
@@ -76,7 +77,7 @@ export function JourneyNode({ data }: NodeProps) {
         <div className="flex items-center gap-2 mb-1">
           <Database
             className={cn(
-              'w-4 h-4',
+              'size-4',
               isCurrent ? 'text-primary' : 'text-muted-foreground',
             )}
           />
@@ -96,6 +97,6 @@ export function JourneyNode({ data }: NodeProps) {
       </div>
 
       <Handle type="source" position={Position.Right} className="!bg-border" />
-    </div>
+    </NodeElement>
   )
 }

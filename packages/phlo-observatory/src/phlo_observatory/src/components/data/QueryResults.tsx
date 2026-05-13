@@ -52,7 +52,7 @@ export function QueryResults({ results, onShowJourney }: QueryResultsProps) {
           {results.hasMore && '+'} • {results.columns.length} columns
         </div>
         <Button variant="outline" size="xs" onClick={downloadCSV}>
-          <Download className="w-3 h-3" />
+          <Download className="size-3" />
           CSV
         </Button>
       </div>

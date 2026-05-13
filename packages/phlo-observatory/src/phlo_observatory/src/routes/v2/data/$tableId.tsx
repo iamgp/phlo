@@ -168,7 +168,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
         </section>
       ) : (
         <div className="phlo-v2-empty-state">
-          {result.error ?? 'Loading table detail...'}
+          {result.error ?? 'Loading table detail…'}
         </div>
       )}
     </V2Page>

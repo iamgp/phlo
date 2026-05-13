@@ -7,7 +7,7 @@ import {
   Server,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useReducer } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
@@ -35,43 +35,56 @@ import { StatusBadge } from '@/v2/components/StatusBadge'
 import { loadCachedResource } from '@/v2/routes/liveResource'
 
 const formatter = new Intl.NumberFormat('en')
+const emptyResult = { data: null, error: null }
+
+type OverviewState = {
+  assets: V2ResourceResult<Array<V2Asset>>
+  branches: V2ResourceResult<Array<V2Branch>>
+  capabilities: V2ResourceResult<V2Capabilities> | null
+  logs: V2ResourceResult<Array<V2LogEvent>>
+  operations: V2ResourceResult<Array<V2Operation>>
+  overview: V2ResourceResult<V2Overview>
+  quality: V2ResourceResult<Array<V2QualityCheck>>
+  services: V2ResourceResult<Array<V2Service>>
+  updatedAt: Date | null
+}
+
+function overviewReducer(
+  _: OverviewState,
+  state: OverviewState,
+): OverviewState {
+  return state
+}
 
 export function OverviewRoute() {
-  const [overview, setOverview] = useState<V2ResourceResult<V2Overview>>({
-    data: null,
-    error: null,
+  return useOverviewRoute()
+}
+
+function useOverviewRoute() {
+  const [
+    {
+      assets,
+      branches,
+      capabilities,
+      logs,
+      operations,
+      overview,
+      quality,
+      services,
+      updatedAt,
+    },
+    setOverviewState,
+  ] = useReducer(overviewReducer, {
+    assets: emptyResult,
+    branches: emptyResult,
+    capabilities: null,
+    logs: emptyResult,
+    operations: emptyResult,
+    overview: emptyResult,
+    quality: emptyResult,
+    services: emptyResult,
+    updatedAt: null,
   })
-  const [services, setServices] = useState<V2ResourceResult<Array<V2Service>>>({
-    data: null,
-    error: null,
-  })
-  const [operations, setOperations] = useState<
-    V2ResourceResult<Array<V2Operation>>
-  >({
-    data: null,
-    error: null,
-  })
-  const [assets, setAssets] = useState<V2ResourceResult<Array<V2Asset>>>({
-    data: null,
-    error: null,
-  })
-  const [quality, setQuality] = useState<
-    V2ResourceResult<Array<V2QualityCheck>>
-  >({
-    data: null,
-    error: null,
-  })
-  const [logs, setLogs] = useState<V2ResourceResult<Array<V2LogEvent>>>({
-    data: null,
-    error: null,
-  })
-  const [branches, setBranches] = useState<V2ResourceResult<Array<V2Branch>>>({
-    data: null,
-    error: null,
-  })
-  const [capabilities, setCapabilities] =
-    useState<V2ResourceResult<V2Capabilities> | null>(null)
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -123,15 +136,17 @@ export function OverviewRoute() {
       ])
 
       if (!cancelled) {
-        setOverview(nextOverview)
-        setServices(nextServices)
-        setOperations(nextOperations)
-        setAssets(nextAssets)
-        setQuality(nextQuality)
-        setLogs(nextLogs)
-        setBranches(nextBranches)
-        setCapabilities(nextCapabilities)
-        setUpdatedAt(new Date())
+        setOverviewState({
+          assets: nextAssets,
+          branches: nextBranches,
+          capabilities: nextCapabilities,
+          logs: nextLogs,
+          operations: nextOperations,
+          overview: nextOverview,
+          quality: nextQuality,
+          services: nextServices,
+          updatedAt: new Date(),
+        })
       }
     }
 

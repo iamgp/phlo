@@ -87,7 +87,7 @@ export function ExtensionDetailView({ extensionId }: { extensionId: string }) {
         </section>
       ) : (
         <div className="phlo-v2-empty-state">
-          {result.error ?? 'Loading extension detail...'}
+          {result.error ?? 'Loading extension detail…'}
         </div>
       )}
     </V2Page>

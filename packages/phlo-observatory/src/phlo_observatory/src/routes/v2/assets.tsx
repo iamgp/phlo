@@ -104,7 +104,6 @@ export function Assets() {
     }
 
     let cancelled = false
-    setPreview({ tableId: primaryTable.id, data: null, error: null })
     getV2TablePreview({ data: { tableId: primaryTable.id, limit: 5 } }).then(
       (response) => {
         if (cancelled) return
@@ -123,8 +122,10 @@ export function Assets() {
 
   const selectedPreview =
     preview.tableId === primaryTable?.id ? preview.data : null
+  const selectedPreviewError =
+    preview.tableId === primaryTable?.id ? preview.error : null
   const selectedTableStats = primaryTable
-    ? tableStats(primaryTable, selectedPreview, preview.error)
+    ? tableStats(primaryTable, selectedPreview, selectedPreviewError)
     : null
 
   return (
@@ -524,14 +525,16 @@ function chooseDefaultAsset(
 ): V2Asset | null {
   if (!candidates.length) return null
   const downstreamCounts = buildDownstreamCounts(assets)
-
-  return candidates
-    .slice()
-    .sort(
-      (left, right) =>
-        assetScore(right, downstreamCounts) -
-        assetScore(left, downstreamCounts),
-    )[0]
+  let best = candidates[0]
+  let bestScore = assetScore(best, downstreamCounts)
+  for (const candidate of candidates.slice(1)) {
+    const score = assetScore(candidate, downstreamCounts)
+    if (score > bestScore) {
+      best = candidate
+      bestScore = score
+    }
+  }
+  return best
 }
 
 function buildDownstreamCounts(assets: Array<V2Asset>): Map<string, number> {
@@ -571,9 +574,14 @@ function buildAssetNeighborhood(
 
   const relatedIds = new Set<string>([selected.id])
   selected.dependencies.forEach((dependency) => relatedIds.add(dependency))
-  assets
-    .filter((asset) => asset.dependencies.includes(selected.id))
-    .forEach((asset) => relatedIds.add(asset.id))
+  for (const asset of assets) {
+    for (const dependency of asset.dependencies) {
+      if (dependency === selected.id) {
+        relatedIds.add(asset.id)
+        break
+      }
+    }
+  }
 
   const neighborhood = assets.filter((asset) => relatedIds.has(asset.id))
   const nodes = neighborhood.map(
@@ -586,15 +594,18 @@ function buildAssetNeighborhood(
       metric: `${asset.checks.length} checks`,
     }),
   )
-  const edges = neighborhood.flatMap((asset) =>
-    asset.dependencies
-      .filter((dependency) => relatedIds.has(dependency))
-      .map((dependency) => ({
+  const edges = neighborhood.flatMap((asset) => {
+    const assetEdges: Array<V2FlowEdge> = []
+    for (const dependency of asset.dependencies) {
+      if (!relatedIds.has(dependency)) continue
+      assetEdges.push({
         id: `${dependency}->${asset.id}`,
         source: dependency,
         target: asset.id,
-      })),
-  )
+      })
+    }
+    return assetEdges
+  })
 
   return { nodes, edges }
 }

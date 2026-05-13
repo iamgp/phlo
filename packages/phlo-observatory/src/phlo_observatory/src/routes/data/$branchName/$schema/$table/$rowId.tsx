@@ -12,7 +12,7 @@ import {
   GitBranch,
   Loader2,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useReducer } from 'react'
 
 import type { DataPreviewResult } from '@/server/trino.server'
 import { RowJourney } from '@/components/data/RowJourney'
@@ -42,6 +42,31 @@ export const Route = createFileRoute('/data/$branchName/$schema/$table/$rowId')(
   },
 )
 
+type RowDetailState = {
+  error: string | null
+  loading: boolean
+  rowData: DataPreviewResult | null
+}
+
+type RowDetailAction =
+  | { type: 'loading' }
+  | { type: 'error'; error: string }
+  | { type: 'loaded'; rowData: DataPreviewResult }
+
+function rowDetailReducer(
+  state: RowDetailState,
+  action: RowDetailAction,
+): RowDetailState {
+  switch (action.type) {
+    case 'loading':
+      return { ...state, error: null, loading: true }
+    case 'error':
+      return { error: action.error, loading: false, rowData: null }
+    case 'loaded':
+      return { error: null, loading: false, rowData: action.rowData }
+  }
+}
+
 function RowDetailPage() {
   const { branchName, schema, table, rowId } = useParams({
     from: '/data/$branchName/$schema/$table/$rowId',
@@ -49,9 +74,11 @@ function RowDetailPage() {
   const decodedRowId = decodeURIComponent(rowId)
   const { settings } = useObservatorySettings()
 
-  const [rowData, setRowData] = useState<DataPreviewResult | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [{ error, loading, rowData }, dispatch] = useReducer(rowDetailReducer, {
+    error: null,
+    loading: true,
+    rowData: null,
+  })
 
   useEffect(() => {
     // Wait for settings to be loaded
@@ -59,9 +86,9 @@ function RowDetailPage() {
       return
     }
 
+    let cancelled = false
     async function loadRow() {
-      setLoading(true)
-      setError(null)
+      dispatch({ type: 'loading' })
       try {
         const catalog = settings.defaults.catalog
         const fullName = `${quoteIdentifier(catalog)}.${quoteIdentifier(schema)}.${quoteIdentifier(table)}`
@@ -77,21 +104,25 @@ function RowDetailPage() {
           },
         })
 
+        if (cancelled) return
         if ('error' in result) {
-          setError(result.error)
-          setRowData(null)
+          dispatch({ type: 'error', error: result.error })
         } else {
-          setRowData(result)
+          dispatch({ type: 'loaded', rowData: result })
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load row')
-        setRowData(null)
-      } finally {
-        setLoading(false)
+        if (cancelled) return
+        dispatch({
+          type: 'error',
+          error: err instanceof Error ? err.message : 'Failed to load row',
+        })
       }
     }
 
     void loadRow()
+    return () => {
+      cancelled = true
+    }
   }, [decodedRowId, schema, table, settings])
 
   // Handle "Query Source Data" from journey view - navigate to SQL tab
@@ -103,8 +134,8 @@ function RowDetailPage() {
     return (
       <main className="flex-1 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <p>Loading row data...</p>
+          <Loader2 className="size-8 animate-spin" />
+          <p>Loading row data…</p>
         </div>
       </main>
     )
@@ -116,7 +147,7 @@ function RowDetailPage() {
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-destructive">
-              <AlertCircle className="w-5 h-5" />
+              <AlertCircle className="size-5" />
               Row Not Found
             </CardTitle>
             <CardDescription>
@@ -141,7 +172,7 @@ function RowDetailPage() {
                 params={{ branchName, schema, table }}
                 className="inline-flex items-center justify-center w-full h-8 gap-1.5 px-2.5 text-xs font-medium rounded-none border border-border bg-background hover:bg-muted"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft className="size-4 mr-2" />
                 Back to Table
               </Link>
             </div>
@@ -163,10 +194,10 @@ function RowDetailPage() {
             params={{ branchName, schema, table }}
             className="inline-flex items-center justify-center size-7 rounded-none hover:bg-muted"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="size-4" />
           </Link>
           <div className="flex items-center gap-2 min-w-0">
-            <GitBranch className="w-4 h-4 text-primary" />
+            <GitBranch className="size-4 text-primary" />
             <h1 className="text-lg font-semibold">Row Journey</h1>
             <Badge variant="secondary" className="text-muted-foreground">
               {table}

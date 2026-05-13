@@ -12,12 +12,6 @@ import { apiGet, apiPost } from '@/server/phlo-api'
 import { camelizeKeys } from '@/utils/caseTransform'
 
 // Types for Trino responses
-export interface TrinoConnectionStatus {
-  connected: boolean
-  error?: string
-  clusterVersion?: string
-}
-
 export interface DataRow {
   [key: string]: string | number | boolean | null | undefined
 }
@@ -28,24 +22,6 @@ export interface DataPreviewResult {
   rows: Array<DataRow>
   totalRows?: number
   hasMore: boolean
-}
-
-export interface ColumnProfile {
-  column: string
-  type: string
-  nullCount: number
-  nullPercentage: number
-  distinctCount: number
-  minValue?: string
-  maxValue?: string
-  sampleValues?: Array<string>
-}
-
-export interface TableMetrics {
-  rowCount: number
-  sizeBytes?: number
-  lastModified?: string
-  partitionCount?: number
 }
 
 export interface QueryExecutionError {
@@ -59,33 +35,12 @@ export type QueryExecutionResult = DataPreviewResult & {
 }
 
 // Python API response types (snake_case)
-interface ApiConnectionStatus {
-  connected: boolean
-  error?: string
-  cluster_version?: string
-}
-
 interface ApiDataPreviewResult {
   columns: Array<string>
   column_types: Array<string>
   rows: Array<DataRow>
   total_rows?: number
   has_more: boolean
-}
-
-interface ApiColumnProfile {
-  column: string
-  type: string
-  null_count: number
-  null_percentage: number
-  distinct_count: number
-  min_value?: string
-  max_value?: string
-}
-
-interface ApiTableMetrics {
-  row_count: number
-  size_bytes?: number
 }
 
 interface ApiQueryResult extends ApiDataPreviewResult {
@@ -96,24 +51,6 @@ interface ApiQueryResult extends ApiDataPreviewResult {
 function transformPreviewResult(r: ApiDataPreviewResult): DataPreviewResult {
   return camelizeKeys<DataPreviewResult>(r)
 }
-
-/**
- * Check if Trino is reachable
- */
-export const checkTrinoConnection = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator((input: { trinoUrl?: string } = {}) => input)
-  .handler(async (): Promise<TrinoConnectionStatus> => {
-    try {
-      const result = await apiGet<ApiConnectionStatus>('/api/trino/connection')
-      return camelizeKeys<TrinoConnectionStatus>(result)
-    } catch (error) {
-      return {
-        connected: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }
-    }
-  })
 
 /**
  * Preview data from a table with pagination
@@ -152,77 +89,6 @@ export const previewData = createServerFn()
 
         if ('error' in result) return result
         return transformPreviewResult(result)
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
-      }
-    },
-  )
-
-/**
- * Get column statistics/profile
- */
-export const profileColumn = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator(
-    (input: {
-      table: string
-      column: string
-      branch?: string
-      catalog?: string
-      schema?: string
-      trinoUrl?: string
-      timeoutMs?: number
-    }) => input,
-  )
-  .handler(
-    async ({
-      data: { table, column, branch = 'main', catalog, schema },
-    }): Promise<ColumnProfile | { error: string }> => {
-      try {
-        const result = await apiGet<ApiColumnProfile | { error: string }>(
-          `/api/trino/profile/${encodeURIComponent(table)}/${encodeURIComponent(column)}`,
-          { branch, catalog, schema },
-        )
-
-        if ('error' in result) return result
-        return camelizeKeys<ColumnProfile>(result)
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
-      }
-    },
-  )
-
-/**
- * Get table-level metrics
- */
-export const getTableMetrics = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator(
-    (input: {
-      table: string
-      branch?: string
-      catalog?: string
-      schema?: string
-      trinoUrl?: string
-      timeoutMs?: number
-    }) => input,
-  )
-  .handler(
-    async ({
-      data: { table, branch = 'main', catalog, schema },
-    }): Promise<TableMetrics | { error: string }> => {
-      try {
-        const result = await apiGet<ApiTableMetrics | { error: string }>(
-          `/api/trino/metrics/${encodeURIComponent(table)}`,
-          { branch, catalog, schema },
-        )
-
-        if ('error' in result) return result
-        return camelizeKeys<TableMetrics>(result)
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -290,47 +156,6 @@ export const executeQuery = createServerFn()
           ok: false,
           error: error instanceof Error ? error.message : 'Unknown error',
           kind: 'trino',
-        }
-      }
-    },
-  )
-
-/**
- * Query a table with specific column value filters
- */
-export const queryTableWithFilters = createServerFn()
-  .middleware([authMiddleware])
-  .inputValidator(
-    (input: {
-      tableName: string
-      schema: string
-      filters: Record<string, unknown>
-      catalog?: string
-      trinoUrl?: string
-      timeoutMs?: number
-    }) => input,
-  )
-  .handler(
-    async ({
-      data: { tableName, schema, filters, catalog },
-    }): Promise<DataPreviewResult | { error: string }> => {
-      try {
-        const result = await apiPost<ApiDataPreviewResult | { error: string }>(
-          '/api/trino/query-with-filters',
-          {
-            table_name: tableName,
-            schema,
-            catalog: catalog || 'iceberg',
-            filters,
-            limit: 10,
-          },
-        )
-
-        if ('error' in result) return { error: result.error }
-        return transformPreviewResult(result)
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
         }
       }
     },

@@ -20,6 +20,8 @@ const CHANGE_TYPE_TO_KEY: Record<ColumnChangeType, string> = {
   transformed: 'transformedCount',
   unchanged: 'unchangedCount',
 }
+const AGGREGATE_FUNCTION_RE =
+  /\b(?:COUNT|SUM|AVG|MIN|MAX|ARRAY_AGG|STRING_AGG)\s*\(/i
 
 /**
  * Compute summary counts from column diffs
@@ -46,7 +48,7 @@ function computeDiffSummary(columnDiffs: Array<ColumnDiff>) {
 /**
  * Column change type for diff display
  */
-export type ColumnChangeType =
+type ColumnChangeType =
   | 'added'
   | 'removed'
   | 'renamed'
@@ -132,25 +134,16 @@ function extractGroupByColumns(sql: string): Array<string> {
 function extractAggregates(
   mappings: Array<ColumnMapping>,
 ): Array<{ expression: string; alias: string }> {
-  const aggregateFunctions = [
-    'COUNT',
-    'SUM',
-    'AVG',
-    'MIN',
-    'MAX',
-    'ARRAY_AGG',
-    'STRING_AGG',
-  ]
-
-  return mappings
-    .filter((m) => {
-      const upperExpr = m.sourceExpression.toUpperCase()
-      return aggregateFunctions.some((fn) => upperExpr.includes(`${fn}(`))
-    })
-    .map((m) => ({
-      expression: m.sourceExpression,
-      alias: m.targetColumn,
-    }))
+  const aggregates: Array<{ expression: string; alias: string }> = []
+  for (const mapping of mappings) {
+    if (AGGREGATE_FUNCTION_RE.test(mapping.sourceExpression)) {
+      aggregates.push({
+        expression: mapping.sourceExpression,
+        alias: mapping.targetColumn,
+      })
+    }
+  }
+  return aggregates
 }
 
 /**
@@ -165,15 +158,16 @@ function computeColumnDiffs(
   const upstreamSet = new Set(upstreamColumns.map((c) => c.toLowerCase()))
   const downstreamSet = new Set(downstreamColumns.map((c) => c.toLowerCase()))
   const processedDownstream = new Set<string>()
+  const mappingsByTarget = new Map(
+    mappings.map((mapping) => [mapping.targetColumn.toLowerCase(), mapping]),
+  )
 
   // Check each downstream column
   for (const downCol of downstreamColumns) {
     const lowerDown = downCol.toLowerCase()
 
     // Find if there's a mapping for this column
-    const mapping = mappings.find(
-      (m) => m.targetColumn.toLowerCase() === lowerDown,
-    )
+    const mapping = mappingsByTarget.get(lowerDown)
 
     if (mapping) {
       const sourceCol = mapping.sourceColumn?.toLowerCase()

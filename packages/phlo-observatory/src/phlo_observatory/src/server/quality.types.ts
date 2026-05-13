@@ -20,25 +20,7 @@ export interface QualityCheck {
   }
 }
 
-export interface QualityOverview {
-  totalChecks: number
-  passingChecks: number
-  failingChecks: number
-  warningChecks: number
-  qualityScore: number // 0-100 percentage
-  byCategory: Array<{
-    category: string
-    passing: number
-    total: number
-    percentage: number
-  }>
-  trend: Array<{
-    date: string
-    score: number
-  }>
-}
-
-export interface CheckExecution {
+interface CheckExecution {
   timestamp: string
   passed: boolean
   runId?: string

@@ -106,11 +106,11 @@ export function SavedQueriesPanel({
               className="w-full justify-start gap-2 px-2"
             >
               {isOpen ? (
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="size-4" />
               ) : (
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="size-4" />
               )}
-              <Database className="w-4 h-4" />
+              <Database className="size-4" />
               <span className="font-medium">Saved Queries</span>
               <span className="ml-auto text-xs text-muted-foreground">
                 {queries.length}
@@ -122,7 +122,7 @@ export function SavedQueriesPanel({
         <CollapsibleContent className="pl-4 pt-2">
           {/* Search */}
           <div className="relative mb-2">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
             <Input
               placeholder="Search queries..."
               value={searchTerm}
@@ -156,9 +156,9 @@ export function SavedQueriesPanel({
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="opacity-0 group-hover:opacity-100 h-5 w-5"
+                            className="opacity-0 group-hover:opacity-100 size-5"
                           >
-                            <MoreHorizontal className="w-3 h-3" />
+                            <MoreHorizontal className="size-3" />
                           </Button>
                         }
                       />
@@ -166,26 +166,26 @@ export function SavedQueriesPanel({
                         <DropdownMenuItem
                           onClick={() => onRunQuery(query.query, query.branch)}
                         >
-                          <Play className="w-3 h-3 mr-2" />
+                          <Play className="size-3 mr-2" />
                           Run
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleCopyQuery(query.query)}
                         >
-                          <Copy className="w-3 h-3 mr-2" />
+                          <Copy className="size-3 mr-2" />
                           Copy SQL
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleEditQuery(query)}
                         >
-                          <Pencil className="w-3 h-3 mr-2" />
+                          <Pencil className="size-3 mr-2" />
                           Rename
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleDeleteQuery(query.id)}
                           className="text-destructive"
                         >
-                          <Trash2 className="w-3 h-3 mr-2" />
+                          <Trash2 className="size-3 mr-2" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>

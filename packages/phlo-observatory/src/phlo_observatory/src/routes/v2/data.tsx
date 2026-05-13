@@ -44,6 +44,10 @@ export const Route = createFileRoute('/v2/data')({
 })
 
 export function Data() {
+  return useDataRoute()
+}
+
+function useDataRoute() {
   const result = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
   const assetResult = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
   const tables = result.data ?? []
@@ -94,17 +98,29 @@ export function Data() {
   )
   const graph = useMemo(() => buildTableGraph(tables, assets), [assets, tables])
   const branchesAvailable = capabilities?.data?.features.branches === true
-  const selectedRowCount =
+  const selectedPreview =
     preview.data && selected && preview.data.table.id === selected.id
-      ? preview.data.row_count
+      ? preview.data
       : null
+  const selectedPreviewError = selectedPreview ? preview.error : null
+  const selectedRowCount =
+    selectedPreview && selected ? selectedPreview.row_count : null
+  const applySelectedPreview = useCallback(
+    (nextSql: string, nextPreview: V2ResourceResult<V2TablePreview>) => {
+      setSql(nextSql)
+      setPreview(nextPreview)
+    },
+    [],
+  )
+  const applyPreview = useCallback(
+    (nextPreview: V2ResourceResult<V2TablePreview>) => setPreview(nextPreview),
+    [],
+  )
 
   useEffect(() => {
     if (!selected) return
     let cancelled = false
     let retryTimer: number | undefined
-    setSql(defaultSqlForTable(selected))
-    setIsLoadingMoreRows(false)
     setPreview({ data: null, error: null })
     const key = `v2:table-preview:${selected.id}:${previewLimit}:0:${previewRefreshKey}`
     const loadPreview = (force = false) =>
@@ -122,11 +138,11 @@ export function Data() {
 
     void loadPreview(previewRefreshKey > 0).then((next) => {
       if (cancelled) return
-      setPreview(next)
+      applySelectedPreview(defaultSqlForTable(selected), next)
       if (isTransientPreviewMiss(next.error)) {
         retryTimer = window.setTimeout(() => {
           void loadPreview(true).then((retry) => {
-            if (!cancelled) setPreview(retry)
+            if (!cancelled) applyPreview(retry)
           })
         }, 750)
       }
@@ -135,11 +151,11 @@ export function Data() {
       cancelled = true
       if (retryTimer !== undefined) window.clearTimeout(retryTimer)
     }
-  }, [previewRefreshKey, selected])
+  }, [applyPreview, applySelectedPreview, previewRefreshKey, selected])
 
   const loadMoreRows = useCallback(() => {
     if (!selected || isLoadingMoreRows) return
-    const current = preview.data
+    const current = selectedPreview
     if (!current?.has_more) return
     const offset = current.rows.length
     setIsLoadingMoreRows(true)
@@ -165,7 +181,7 @@ export function Data() {
         }
       })
     })
-  }, [isLoadingMoreRows, preview.data, previewRefreshKey, selected])
+  }, [isLoadingMoreRows, previewRefreshKey, selected, selectedPreview])
 
   useEffect(() => {
     void loadCachedResource('v2:saved-queries', getV2SavedQueries, {
@@ -250,7 +266,7 @@ export function Data() {
             {filteredTables.length === 0 && (
               <div className="phlo-v2-empty-state">
                 {!hasLoadedTables
-                  ? 'Loading tables...'
+                  ? 'Loading tables…'
                   : tables.length === 0
                     ? 'No tables registered yet.'
                     : 'No tables match this filter.'}
@@ -292,7 +308,7 @@ export function Data() {
               isLoadingMoreRows={isLoadingMoreRows}
               onLoadMoreRows={loadMoreRows}
               mode={mainView}
-              preview={preview.data}
+              preview={selectedPreview}
               selected={selected}
             />
           )}
@@ -319,15 +335,15 @@ export function Data() {
               <div className="phlo-v2-mini-preview">
                 <div>
                   <Rows3 className="size-4" />
-                  {preview.data?.row_count ??
+                  {selectedPreview?.row_count ??
                     readMetric(selected.metadata, 'records') ??
                     'Profile pending'}{' '}
                   records
                 </div>
                 <div>
                   <Columns3 className="size-4" />
-                  {preview.data?.columns.length
-                    ? preview.data.columns.length
+                  {selectedPreview?.columns.length
+                    ? selectedPreview.columns.length
                     : 'Profile pending'}{' '}
                   columns
                 </div>
@@ -353,7 +369,7 @@ export function Data() {
               </div>
               <DataDetailPanel
                 active={activeDetail}
-                preview={preview.data}
+                preview={selectedPreview}
                 queryResult={queryResult}
                 selected={selected}
                 onRefresh={() => setPreviewRefreshKey((key) => key + 1)}
@@ -400,8 +416,10 @@ export function Data() {
                 setSql={setSql}
                 sql={sql}
               />
-              {preview.error && (
-                <div className="phlo-v2-panel-footer">{preview.error}</div>
+              {selectedPreviewError && (
+                <div className="phlo-v2-panel-footer">
+                  {selectedPreviewError}
+                </div>
               )}
             </>
           ) : (
@@ -541,13 +559,13 @@ function DataPreviewTable({
               onClick={onLoadMoreRows}
               type="button"
             >
-              {isLoadingMoreRows ? 'Loading more rows...' : 'Load more rows'}
+              {isLoadingMoreRows ? 'Loading more rows…' : 'Load more rows'}
             </button>
           )}
         </div>
       ) : (
         <div className="phlo-v2-data-preview-empty">
-          {preview ? previewEmptyCopy(selected) : 'Loading preview rows...'}
+          {preview ? previewEmptyCopy(selected) : 'Loading preview rows…'}
         </div>
       )}
     </div>
@@ -773,11 +791,12 @@ function buildTableGraph(
   nodes: Array<V2FlowNode>
   edges: Array<V2FlowEdge>
 } {
-  const tableByAsset = new Map(
-    tables
-      .filter((table) => table.asset_id)
-      .map((table) => [table.asset_id!, table]),
-  )
+  const tableByAsset = new Map<string, V2Table>()
+  for (const table of tables) {
+    if (table.asset_id) {
+      tableByAsset.set(table.asset_id, table)
+    }
+  }
   const assetById = new Map(assets.map((asset) => [asset.id, asset]))
 
   const tableNodes = sortTablesForFlow(tables).map(
@@ -795,21 +814,24 @@ function buildTableGraph(
     if (!table.asset_id) return []
     const asset = assetById.get(table.asset_id)
     if (!asset) return []
-    return asset.dependencies
-      .map((dependencyId) => tableByAsset.get(dependencyId))
-      .filter((dependency): dependency is V2Table => Boolean(dependency))
-      .map((dependency) => ({
+    const dependencyEdges: Array<V2FlowEdge> = []
+    for (const dependencyId of asset.dependencies) {
+      const dependency = tableByAsset.get(dependencyId)
+      if (!dependency) continue
+      dependencyEdges.push({
         id: `${dependency.id}->${table.id}`,
         source: dependency.id,
         target: table.id,
-      }))
+      })
+    }
+    return dependencyEdges
   })
 
   return { nodes: tableNodes, edges }
 }
 
 function sortTablesForFlow(tables: Array<V2Table>): Array<V2Table> {
-  return [...tables].sort((left, right) => {
+  return tables.slice().sort((left, right) => {
     const leftLane = tableLane(left)
     const rightLane = tableLane(right)
     if (leftLane !== rightLane) {

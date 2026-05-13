@@ -132,7 +132,7 @@ function ColumnDiffList({
   changeType: ColumnDiff['changeType']
   defaultExpanded?: boolean
 }) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+  const [expanded, setExpanded] = useState(() => defaultExpanded)
   const filteredDiffs = diffs.filter((d) => d.changeType === changeType)
   const display = getColumnChangeDisplay(changeType)
   const Icon = display.icon
@@ -146,7 +146,7 @@ function ColumnDiffList({
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 px-2 py-1.5 bg-muted/30 hover:bg-muted/50"
       >
-        <Icon className={cn('w-3.5 h-3.5', display.className)} />
+        <Icon className={cn('size-3.5', display.className)} />
         <span className={cn('text-xs font-medium', display.className)}>
           {display.label}
         </span>
@@ -155,17 +155,17 @@ function ColumnDiffList({
         </span>
         <div className="flex-1" />
         {expanded ? (
-          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+          <ChevronDown className="size-3.5 text-muted-foreground" />
         ) : (
-          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+          <ChevronRight className="size-3.5 text-muted-foreground" />
         )}
       </button>
 
       {expanded && (
         <div className="px-2 py-1.5 flex flex-wrap gap-1 border-t border-border bg-background">
-          {filteredDiffs.map((diff, idx) => (
+          {filteredDiffs.map((diff) => (
             <code
-              key={`${diff.column}-${idx}`}
+              key={`${diff.column}-${diff.changeType}-${diff.sourceColumn ?? ''}`}
               className={cn(
                 'text-xs px-1.5 py-0.5 rounded bg-muted',
                 changeType === 'removed' && 'text-red-500 line-through',
@@ -226,12 +226,15 @@ function AggregationExplanation({
         <div>
           <div className="text-xs text-muted-foreground mb-1">Aggregations</div>
           <div className="space-y-1">
-            {aggregation.aggregates.map((agg, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-xs">
+            {aggregation.aggregates.map((agg) => (
+              <div
+                key={`${agg.expression}->${agg.alias}`}
+                className="flex items-center gap-2 text-xs"
+              >
                 <code className="bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
                   {agg.expression}
                 </code>
-                <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                <ArrowRight className="size-3 text-muted-foreground" />
                 <code className="bg-muted px-1.5 py-0.5 rounded text-primary">
                   {agg.alias}
                 </code>
@@ -302,10 +305,9 @@ export function StageDiff({
   }, [transformationSql, upstreamColumns, downstreamColumns])
 
   useEffect(() => {
-    if (open) {
-      void loadDiff()
-    }
-  }, [open, loadDiff])
+    if (!open) return
+    void loadDiff()
+  }, [loadDiff, open])
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -329,8 +331,8 @@ export function StageDiff({
         <div className="mt-4 px-6 py-4 space-y-3 overflow-y-auto flex-1">
           {loading && (
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span className="text-xs">Computing diff...</span>
+              <Loader2 className="size-3.5 animate-spin" />
+              <span className="text-xs">Computing diff…</span>
             </div>
           )}
 

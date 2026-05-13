@@ -1,5 +1,5 @@
 import { GitBranch, Loader2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useReducer } from 'react'
 
 import type { Branch, NessieConfig } from '@/server/nessie.server'
 import { checkNessieConnection, getBranches } from '@/server/nessie.server'
@@ -11,31 +11,66 @@ interface BranchSelectorProps {
 }
 
 export function BranchSelector({ branch, onChange }: BranchSelectorProps) {
-  const [connection, setConnection] = useState<NessieConfig | null>(null)
-  const [branches, setBranches] = useState<Array<Branch>>([])
-  const [loading, setLoading] = useState(true)
+  const [{ branches, connection, loading }, dispatch] = useReducer(
+    (
+      state: {
+        branches: Array<Branch>
+        connection: NessieConfig | null
+        loading: boolean
+      },
+      action:
+        | { type: 'loading' }
+        | { type: 'loaded'; branches: Array<Branch>; connection: NessieConfig },
+    ) => {
+      switch (action.type) {
+        case 'loading':
+          return { ...state, loading: true }
+        case 'loaded':
+          return {
+            branches: action.branches,
+            connection: action.connection,
+            loading: false,
+          }
+      }
+    },
+    { branches: [], connection: null, loading: true },
+  )
   const { settings } = useObservatorySettings()
 
   useEffect(() => {
-    async function load() {
-      setLoading(true)
-      const [conn, refs] = await Promise.all([
-        checkNessieConnection({
-          data: { nessieUrl: settings.connections.nessieUrl },
-        }),
-        getBranches({ data: { nessieUrl: settings.connections.nessieUrl } }),
-      ])
+    let cancelled = false
 
-      setConnection(conn)
-      if (!('error' in refs)) {
-        setBranches(refs.filter((b) => b.type === 'BRANCH'))
-      } else {
-        setBranches([])
+    async function load() {
+      dispatch({ type: 'loading' })
+      try {
+        const [conn, refs] = await Promise.all([
+          checkNessieConnection({
+            data: { nessieUrl: settings.connections.nessieUrl },
+          }),
+          getBranches({ data: { nessieUrl: settings.connections.nessieUrl } }),
+        ])
+
+        if (cancelled) return
+        dispatch({
+          type: 'loaded',
+          connection: conn,
+          branches:
+            'error' in refs ? [] : refs.filter((b) => b.type === 'BRANCH'),
+        })
+      } catch {
+        if (cancelled) return
+        dispatch({
+          type: 'loaded',
+          connection: { connected: false },
+          branches: [],
+        })
       }
-      setLoading(false)
     }
 
-    load()
+    void load()
+    return () => {
+      cancelled = true
+    }
   }, [settings.connections.nessieUrl])
 
   const options = useMemo(() => {
@@ -49,10 +84,10 @@ export function BranchSelector({ branch, onChange }: BranchSelectorProps) {
 
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <GitBranch className="w-4 h-4 text-primary" />
+      <GitBranch className="size-4 text-primary" />
       {loading ? (
         <span className="inline-flex items-center gap-2">
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+          <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
           Loading branches…
         </span>
       ) : connection?.connected === false ? (

@@ -162,25 +162,14 @@ function firstKeyword(sql: string): string | null {
   return match ? match[1].toUpperCase() : null
 }
 
+const FORBIDDEN_KEYWORD_RE =
+  /\b(INSERT|UPDATE|DELETE|MERGE|CREATE|DROP|ALTER|TRUNCATE|GRANT|REVOKE|CALL)\b/
+
 function containsForbiddenKeyword(sql: string): string | null {
-  const stripped = stripSqlForInspection(sql).toUpperCase()
-  const forbidden = [
-    'INSERT',
-    'UPDATE',
-    'DELETE',
-    'MERGE',
-    'CREATE',
-    'DROP',
-    'ALTER',
-    'TRUNCATE',
-    'GRANT',
-    'REVOKE',
-    'CALL',
-  ]
-  for (const kw of forbidden) {
-    if (new RegExp(`\\b${kw}\\b`).test(stripped)) return kw
-  }
-  return null
+  return (
+    FORBIDDEN_KEYWORD_RE.exec(stripSqlForInspection(sql).toUpperCase())?.[1] ??
+    null
+  )
 }
 
 function hasLimit(sql: string): boolean {
