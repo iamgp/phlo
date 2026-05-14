@@ -469,7 +469,7 @@ jobs:
           path: cairn-artifacts
 
       - name: Publish Cairn report
-        uses: iamgp/cairn@729fab15d19872023db5864b78a50522217552af # v0.5.0
+        uses: iamgp/cairn@cb2ff6b034452455b6de44887d71f0b93e1eade1 # v0.5.1
         with:
           collect-config: .github/cairn.toml
           pages-subdir: ${{ github.event_name == 'pull_request' && format('previews/pr-{0}/cairn', github.event.pull_request.number) || 'cairn' }}
