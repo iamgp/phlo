@@ -142,6 +142,7 @@ def discover_pandera_schemas(
                             and obj is not DataFrameModel
                             and obj.__module__ == module.__name__
                         ):
+                            setattr(obj, "__phlo_schema_source_path__", str(py_file.resolve()))
                             schemas[name] = obj
 
                 except Exception:

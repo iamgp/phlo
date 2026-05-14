@@ -350,16 +350,27 @@ class TestAppendToTable:
 
 
 @pytest.fixture
-def iceberg_catalog(minio_service, monkeypatch):
+def iceberg_catalog(configured_minio_object_store, monkeypatch):
     """Fixture providing a real Iceberg catalog for testing."""
-    # Explicit endpoint removes hidden dependency on default "minio" DNS alias.
     try:
+        from phlo.capabilities import resolve_capability
         from phlo_iceberg.catalog import get_catalog, reset_catalog_cache
         from phlo_iceberg.settings import get_settings as get_iceberg_settings
-        from phlo_minio.settings import get_settings as get_minio_settings
         from phlo_nessie.settings import get_settings as get_nessie_settings
 
-        endpoint = minio_service.get_url() if minio_service else "http://127.0.0.1:10001"
+        object_store = (
+            resolve_capability("object_store", "minio") if configured_minio_object_store else None
+        )
+        if object_store:
+            config = object_store.provider.to_sling_connection()
+            endpoint = config["endpoint"]
+            monkeypatch.setenv("ICEBERG_S3_ENDPOINT", endpoint)
+            monkeypatch.setenv("ICEBERG_S3_ACCESS_KEY", config["access_key_id"])
+            monkeypatch.setenv("ICEBERG_S3_SECRET_KEY", config["secret_access_key"])
+            monkeypatch.setenv("ICEBERG_S3_REGION", config["region"])
+        else:
+            endpoint = "http://127.0.0.1:10001"
+
         parsed_endpoint = urlparse(endpoint)
         endpoint_host = parsed_endpoint.hostname or "127.0.0.1"
         endpoint_port = parsed_endpoint.port or 80
@@ -370,11 +381,8 @@ def iceberg_catalog(minio_service, monkeypatch):
         except OSError:
             pytest.skip(f"MinIO endpoint not reachable at {endpoint}")
 
-        monkeypatch.setenv("ICEBERG_S3_ENDPOINT", endpoint)
-
         reset_catalog_cache()
         get_iceberg_settings.cache_clear()
-        get_minio_settings.cache_clear()
         get_nessie_settings.cache_clear()
 
         catalog = get_catalog()

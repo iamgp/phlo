@@ -15,7 +15,7 @@ from phlo_trino.plugin import TrinoServicePlugin
 
 pytestmark = pytest.mark.integration
 
-PLACEHOLDER_RE = re.compile(r"\$\{([A-Z0-9_]+)(?::-[^}]+)?\}")
+REQUIRED_PLACEHOLDER_RE = re.compile(r"\$\{([A-Z0-9_]+)\}")
 
 
 class ServiceFixture:
@@ -41,63 +41,63 @@ CORE_SERVICES = {
 }
 
 
-def _extract_placeholders(value: str) -> set[str]:
-    """Extract environment placeholder names from a string.
+def _extract_required_placeholders(value: str) -> set[str]:
+    """Extract environment placeholder names that have no inline default.
 
     Args:
         value: String that may contain `${VAR}` placeholders.
 
     Returns:
-        set[str]: Placeholder names without delimiters.
+        set[str]: Required placeholder names without delimiters.
     """
-    return {match.group(1) for match in PLACEHOLDER_RE.finditer(value)}
+    return {match.group(1) for match in REQUIRED_PLACEHOLDER_RE.finditer(value)}
 
 
-def _collect_placeholders(values: Iterable[object]) -> set[str]:
-    """Collect placeholder names from iterable string values.
+def _collect_required_placeholders(values: Iterable[object]) -> set[str]:
+    """Collect required placeholder names from iterable string values.
 
     Args:
         values: Values to scan for placeholders.
 
     Returns:
-        set[str]: Union of extracted placeholder names.
+        set[str]: Union of extracted required placeholder names.
     """
     placeholders: set[str] = set()
     for item in values:
         if isinstance(item, str):
-            placeholders.update(_extract_placeholders(item))
+            placeholders.update(_extract_required_placeholders(item))
     return placeholders
 
 
-def _collect_service_placeholders(definition: Mapping[str, Any]) -> set[str]:
-    """Collect placeholders referenced by a service definition.
+def _collect_required_service_placeholders(definition: Mapping[str, Any]) -> set[str]:
+    """Collect required placeholders referenced by a service definition.
 
     Args:
         definition: Service definition mapping.
 
     Returns:
-        set[str]: Placeholder names referenced in image, build args, and compose data.
+        set[str]: Required placeholder names referenced in image, build args, and compose data.
     """
     placeholders: set[str] = set()
 
     image = definition.get("image")
     if isinstance(image, str):
-        placeholders.update(_extract_placeholders(image))
+        placeholders.update(_extract_required_placeholders(image))
 
     build = definition.get("build")
     if isinstance(build, dict):
         args = build.get("args")
         if isinstance(args, dict):
-            placeholders.update(_collect_placeholders(args.values()))
+            placeholders.update(_collect_required_placeholders(args.values()))
 
     compose = definition.get("compose")
     if isinstance(compose, dict):
         environment = compose.get("environment")
         if isinstance(environment, dict):
-            placeholders.update(_collect_placeholders(environment.values()))
+            placeholders.update(_collect_required_placeholders(environment.values()))
         ports = compose.get("ports")
         if isinstance(ports, list):
-            placeholders.update(_collect_placeholders(ports))
+            placeholders.update(_collect_required_placeholders(ports))
 
     return placeholders
 
@@ -108,7 +108,7 @@ def test_core_service_dependencies_are_declared() -> None:
         "dagster": {"postgres", "minio", "nessie", "trino"},
         "nessie": {"postgres", "minio"},
         "trino": {"nessie", "minio"},
-        "postgres": set(),
+        "postgres": {"postgres-volume-setup"},
         "minio": set(),
     }
 
@@ -139,15 +139,15 @@ def test_core_service_hooks_configured_for_auto_setup() -> None:
     assert any(hook.get("name") == "init-branches" for hook in post_start if isinstance(hook, dict))
 
 
-def test_core_service_placeholders_defined_in_env_vars() -> None:
-    """Verify referenced placeholders are defined in service env var maps."""
+def test_core_service_required_placeholders_defined_in_env_vars() -> None:
+    """Verify required placeholders are defined in service env var maps."""
     available_env = set()
     placeholders: set[str] = set()
     for fixture in CORE_SERVICES.values():
         env_vars = fixture.definition.get("env_vars", {})
         if isinstance(env_vars, dict):
             available_env.update(env_vars.keys())
-        placeholders.update(_collect_service_placeholders(fixture.definition))
+        placeholders.update(_collect_required_service_placeholders(fixture.definition))
 
     allowed_extras = {"SUPERSET_ADMIN_PASSWORD"}
     missing = placeholders - available_env - allowed_extras
