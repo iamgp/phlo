@@ -8,6 +8,7 @@ to all tests in the repository.
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 # Disable Telemetry aggressively at system level before any imports
 # Note: Lowercase 'false' is safer for TOML-based config parsers in dlt
@@ -52,6 +53,44 @@ def _register_workspace_plugins() -> None:
 _register_workspace_plugins()
 
 # Import fixtures from phlo_testing - these are auto-discovered by pytest
+
+
+def _minio_container_endpoint(minio_service) -> str:
+    """Return the HTTP endpoint for the current testcontainers MinIO API."""
+    if hasattr(minio_service, "get_url"):
+        return minio_service.get_url()
+    if hasattr(minio_service, "get_config"):
+        endpoint = minio_service.get_config()["endpoint"]
+        return endpoint if endpoint.startswith(("http://", "https://")) else f"http://{endpoint}"
+    host = minio_service.get_container_host_ip()
+    port = minio_service.get_exposed_port(getattr(minio_service, "port_to_expose", 9000))
+    return f"http://{host}:{port}"
+
+
+@pytest.fixture
+def configured_minio_object_store(minio_service, monkeypatch):
+    """Register MinIO's object-store capability for tests that need S3 metadata."""
+    if not minio_service:
+        return None
+
+    endpoint = _minio_container_endpoint(minio_service)
+    parsed_endpoint = urlparse(endpoint)
+    endpoint_host = parsed_endpoint.hostname or "127.0.0.1"
+    endpoint_port = parsed_endpoint.port or 80
+
+    monkeypatch.setenv("MINIO_HOST", endpoint_host)
+    monkeypatch.setenv("MINIO_API_PORT", str(endpoint_port))
+    monkeypatch.setenv("MINIO_ROOT_USER", minio_service.access_key)
+    monkeypatch.setenv("MINIO_ROOT_PASSWORD", minio_service.secret_key)
+
+    from phlo_minio.plugin import MinioResourceProvider
+    from phlo_minio.settings import get_settings as get_minio_settings
+
+    from phlo.capabilities import register_object_store, resolve_capability
+
+    get_minio_settings.cache_clear()
+    register_object_store(MinioResourceProvider().get_object_stores()[0])
+    return resolve_capability("object_store", "minio")
 
 
 @pytest.fixture(autouse=True)
@@ -130,7 +169,7 @@ def minio_service():
 
 
 @pytest.fixture
-def iceberg_catalog(minio_service, tmp_path):
+def iceberg_catalog(configured_minio_object_store, tmp_path):
     """
     Return a PyIceberg catalog.
     If minio_service is available, uses MinIO (S3).
@@ -143,15 +182,17 @@ def iceberg_catalog(minio_service, tmp_path):
         "uri": f"sqlite:///{tmp_path}/catalog.db",
     }
 
-    if minio_service:
+    if configured_minio_object_store:
+        provider = configured_minio_object_store.provider
+        config = provider.to_sling_connection()
         warehouse_path = "s3://warehouse"
         catalog_config.update(
             {
                 "warehouse": warehouse_path,
-                "s3.endpoint": minio_service.get_url(),
-                "s3.access-key-id": minio_service.access_key,
-                "s3.secret-access-key": minio_service.secret_key,
-                "s3.region": "us-east-1",
+                "s3.endpoint": config["endpoint"],
+                "s3.access-key-id": config["access_key_id"],
+                "s3.secret-access-key": config["secret_access_key"],
+                "s3.region": config["region"],
                 "py-io-impl": "pyiceberg.io.fsspec.FsspecFileIO",
             }
         )
@@ -167,14 +208,17 @@ def iceberg_catalog(minio_service, tmp_path):
     catalog = load_catalog("default", **catalog_config)
 
     # Init warehouse
-    if minio_service:
+    if configured_minio_object_store:
         import s3fs
 
+        provider = configured_minio_object_store.provider
+        config = provider.to_sling_connection()
+
         fs = s3fs.S3FileSystem(
-            endpoint_url=minio_service.get_url(),
-            key=minio_service.access_key,
-            secret=minio_service.secret_key,
-            client_kwargs={"region_name": "us-east-1"},
+            endpoint_url=config["endpoint"],
+            key=config["access_key_id"],
+            secret=config["secret_access_key"],
+            client_kwargs={"region_name": config["region"]},
         )
         with contextlib.suppress(FileExistsError):
             fs.mkdir("warehouse")
