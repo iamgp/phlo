@@ -60,8 +60,11 @@ def _minio_container_endpoint(minio_service) -> str:
     if hasattr(minio_service, "get_url"):
         return minio_service.get_url()
     if hasattr(minio_service, "get_config"):
-        endpoint = minio_service.get_config()["endpoint"]
-        return endpoint if endpoint.startswith(("http://", "https://")) else f"http://{endpoint}"
+        endpoint = (minio_service.get_config() or {}).get("endpoint")
+        if isinstance(endpoint, str) and endpoint:
+            return (
+                endpoint if endpoint.startswith(("http://", "https://")) else f"http://{endpoint}"
+            )
     host = minio_service.get_container_host_ip()
     port = minio_service.get_exposed_port(getattr(minio_service, "port_to_expose", 9000))
     return f"http://{host}:{port}"
