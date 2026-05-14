@@ -400,7 +400,9 @@ def _load_old_schema(schema_cls: type, schema_name: str, old_ref: str) -> dict[s
         ValueError: If schema cannot be loaded from the reference.
 
     """
-    source_path = inspect.getsourcefile(schema_cls)
+    source_path = getattr(schema_cls, "__phlo_schema_source_path__", None)
+    if source_path is None:
+        source_path = inspect.getsourcefile(schema_cls)
     if source_path is None:
         raise ValueError(f"Could not determine source file for schema '{schema_name}'")
 

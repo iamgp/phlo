@@ -12,10 +12,10 @@ Requires Docker.  Run with:
 # ruff: noqa: E402
 
 import os
+from subprocess import CalledProcessError
 import time
 from collections.abc import Generator
 from pathlib import Path
-
 
 import pandas as pd
 import pyarrow as pa
@@ -79,7 +79,10 @@ def _wait_for_url(url: str, *, timeout: int = 120) -> None:
 def stack() -> Generator[DockerCompose]:
     """Boot the MinIO + Trino compose stack (file-based metastore)."""
     compose = DockerCompose(context=COMPOSE_DIR, wait=False)
-    compose.start()
+    try:
+        compose.start()
+    except (CalledProcessError, FileNotFoundError) as exc:
+        pytest.skip(f"Docker Compose is not available for this integration test: {exc}")
     try:
         trino_host = compose.get_service_host("trino", 8080)
         trino_port = compose.get_service_port("trino", 8080)

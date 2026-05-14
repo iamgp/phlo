@@ -3033,6 +3033,7 @@ openmetadata = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "minio" },
     { name = "phlo-alerting" },
     { name = "phlo-alloy" },
     { name = "phlo-api" },
@@ -3075,7 +3076,6 @@ dev = [
     { name = "s3fs" },
     { name = "sqlfluff" },
     { name = "testcontainers" },
-    { name = "testcontainers-minio" },
     { name = "ty" },
 ]
 
@@ -3122,6 +3122,7 @@ provides-extras = ["core-services", "defaults", "openmetadata"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "minio", specifier = ">=7.2.20" },
     { name = "phlo-alerting", editable = "packages/phlo-alerting" },
     { name = "phlo-alloy", editable = "packages/phlo-alloy" },
     { name = "phlo-api", editable = "packages/phlo-api" },
@@ -3164,7 +3165,6 @@ dev = [
     { name = "s3fs", specifier = ">=2025.9.0" },
     { name = "sqlfluff", specifier = ">=3.5.0" },
     { name = "testcontainers", specifier = ">=4.13.3" },
-    { name = "testcontainers-minio", specifier = ">=0.0.1rc1" },
     { name = "ty", specifier = "==0.0.29" },
 ]
 
@@ -5643,30 +5643,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ca/ac/a597c3a0e02b26cbed6dd07df68be1e57684766fd1c381dee9b170a99690/testcontainers-4.14.2.tar.gz", hash = "sha256:1340ccf16fe3acd9389a6c9e1d9ab21d9fe99a8afdf8165f89c3e69c1967d239", size = 166841, upload-time = "2026-03-18T05:19:16.696Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/13/2d/26b8b30067d94339afee62c3edc9b803a6eb9332f521ba77d8aaab5de873/testcontainers-4.14.2-py3-none-any.whl", hash = "sha256:0d0522c3cd8f8d9627cda41f7a6b51b639fa57bdc492923c045117933c668d68", size = 125712, upload-time = "2026-03-18T05:19:15.29Z" },
-]
-
-[[package]]
-name = "testcontainers-core"
-version = "0.0.1rc1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "docker" },
-    { name = "wrapt" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/84/ac813e7aed7a527e5bc4c7cbb6e47d72498e76b8371e3805ccab96619b38/testcontainers_core-0.0.1rc1-py3-none-any.whl", hash = "sha256:69a8bf2ddb52ac2d03c26401b12c70db0453cced40372ad783d6dce417e52095", size = 11628, upload-time = "2023-01-06T16:37:25.437Z" },
-]
-
-[[package]]
-name = "testcontainers-minio"
-version = "0.0.1rc1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "minio" },
-    { name = "testcontainers-core" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/c4/85466f9aaa1cdbcd94ec57ac6f1d8167f233057779e6af0196beecb593d9/testcontainers_minio-0.0.1rc1-py3-none-any.whl", hash = "sha256:54d330d085c0a11fc5da0b001af87aec4dd3e814104376bf7513e8646c77442a", size = 3218, upload-time = "2023-01-06T16:36:36.653Z" },
 ]
 
 [[package]]

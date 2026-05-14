@@ -498,10 +498,12 @@ class TestTrinoExports:
 
     def test_version_defined(self):
         """Test that version is defined."""
+        from importlib.metadata import version
+
         import phlo_trino
 
         assert hasattr(phlo_trino, "__version__")
-        assert phlo_trino.__version__ == "0.1.0"
+        assert phlo_trino.__version__ == version("phlo-trino")
 
     def test_expected_exports(self):
         """Test that expected classes are exported."""
