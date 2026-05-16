@@ -82,6 +82,7 @@ configured lineage sink when one is installed.
 ### Programmatic Access
 
 ```python
+from phlo_dbt import build_partition_vars, extract_manifest_tables, normalize_selectors
 from phlo_dbt.discovery import find_dbt_projects, get_dbt_project_dir
 
 # Find all dbt projects in workspace
@@ -89,7 +90,23 @@ projects = find_dbt_projects()
 
 # Get the active dbt project directory
 project_dir = get_dbt_project_dir()
+
+# Normalize selectors and prepare partition vars for model execution
+selectors = normalize_selectors("silver.*, gold.mart_orders")
+vars_ = build_partition_vars(partition_key="2026-05-16")
 ```
+
+### Helper Utilities
+
+`phlo-dbt` exposes lightweight helpers for workflow authors:
+
+| Helper | Purpose |
+| --- | --- |
+| `normalize_selectors` | Normalize comma/space-separated selector input. |
+| `select_manifest_models` | Select simple dbt model nodes from a manifest. |
+| `extract_manifest_tables` | Extract model table references from a manifest. |
+| `build_partition_vars` | Build dbt vars for partitioned runs. |
+| `ensure_compiled` | Ensure the active dbt project has a manifest. |
 
 ### Runtime routing
 

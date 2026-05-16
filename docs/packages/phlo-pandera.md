@@ -63,6 +63,30 @@ def validate_users():
     pass
 ```
 
+### Helper Factories
+
+`phlo-pandera` exposes helper factories that turn contracts into common checks:
+
+```python
+from phlo.contracts import SLA
+from phlo_pandera import checks_from_contract
+
+checks = checks_from_contract(
+    schema=UserSchema,
+    unique_key="id",
+    sla=SLA(freshness_hours=24),
+    freshness_column="updated_at",
+)
+```
+
+| Helper | Purpose |
+| --- | --- |
+| `required_field_null_checks` | Generate null checks from non-nullable schema fields. |
+| `unique_key_check` | Generate uniqueness checks for one or more key columns. |
+| `freshness_check_from_sla` | Generate freshness checks from `SLA.freshness_hours`. |
+| `accepted_values_check` | Generate a custom SQL accepted-values check. |
+| `checks_from_contract` | Combine schema, key, and SLA metadata into checks. |
+
 ### Decorator Options
 
 | Option              | Type                           | Description                                              |

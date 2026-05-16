@@ -33,6 +33,7 @@ flowchart TD
 - [Architecture](architecture.md): system model and component boundaries.
 - [Observatory v2 Contracts](observatory-v2-contracts.md): provider-neutral UI and capability contribution contracts.
 - [Plugin API](plugin-api.md): extension contracts and base types.
+- [Helper API](helper-api.md): workflow helper modules and public utility families.
 - [phlo-api](phlo-api.md): Phlo's Python API service surface.
 - [Quality Checks Catalog](quality-checks-catalog.md): built-in quality checks.
 - [DuckDB Queries](duckdb-queries.md): local query reference.

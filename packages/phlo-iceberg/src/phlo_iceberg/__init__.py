@@ -36,6 +36,15 @@ See Also:
 """
 
 from phlo_iceberg.catalog import get_catalog
+from phlo_iceberg.helpers import (
+    identity_partition,
+    load_table_schema,
+    maintenance_recommendations,
+    partition_spec,
+    recommend_table_maintenance,
+    table_exists,
+    temporal_partition,
+)
 from phlo_iceberg.plugin import IcebergResourceProvider
 from phlo_iceberg.resource import IcebergResource
 from phlo_iceberg.schema_conversion import SchemaConversionError, pandera_to_iceberg
@@ -56,13 +65,20 @@ __all__ = [
     "expire_snapshots",
     "get_catalog",
     "get_table_stats",
+    "identity_partition",
     "IcebergResource",
     "IcebergResourceProvider",
     "IcebergSchemaMigrator",
     "IcebergSettings",
+    "load_table_schema",
+    "maintenance_recommendations",
+    "partition_spec",
+    "recommend_table_maintenance",
     "SchemaConversionError",
     "get_settings",
     "merge_to_table",
     "pandera_to_iceberg",
     "remove_orphan_files",
+    "table_exists",
+    "temporal_partition",
 ]
