@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 
 import type { V2ResourceResult } from '@/v2/api/types'
 
+declare global {
+  interface Window {
+    __PHLO_API_BROWSER_URL__?: string
+  }
+}
+
 type CachedEntry<T> = {
   expiresAt: number
   promise: Promise<V2ResourceResult<T>> | null
@@ -77,23 +83,28 @@ export async function loadCachedResource<T>(
   }
   if (cached?.promise) return cached.promise
 
-  const promise = load().then((result) => {
-    if (isCacheableResult(result)) {
-      resourceCache.set(versionedKey, {
-        expiresAt: Date.now() + staleMs,
-        promise: null,
-        result,
-      })
-    } else if (cached?.result) {
-      resourceCache.set(versionedKey, {
-        expiresAt: Date.now(),
-        promise: null,
-        result: cached.result,
-      })
-    } else {
-      resourceCache.delete(versionedKey)
-    }
-    return result
+  const promise = load().then(async (result) => {
+    const fallback = await browserFallbackResource<T>(key)
+    const loaded = isCacheableResult(fallback) ? fallback : result
+
+    return Promise.resolve(loaded).then((nextResult) => {
+      if (isCacheableResult(nextResult)) {
+        resourceCache.set(versionedKey, {
+          expiresAt: Date.now() + staleMs,
+          promise: null,
+          result: nextResult,
+        })
+      } else if (cached?.result) {
+        resourceCache.set(versionedKey, {
+          expiresAt: Date.now(),
+          promise: null,
+          result: cached.result,
+        })
+      } else {
+        resourceCache.delete(versionedKey)
+      }
+      return nextResult
+    })
   })
 
   resourceCache.set(versionedKey, {
@@ -103,6 +114,106 @@ export async function loadCachedResource<T>(
   })
 
   return promise
+}
+
+async function browserFallbackResource<T>(
+  key: string,
+): Promise<V2ResourceResult<T>> {
+  if (typeof window === 'undefined') return { data: null, error: null }
+  const base = window.__PHLO_API_BROWSER_URL__
+  const endpoint = fallbackEndpoint(key)
+  if (!base || !endpoint) return { data: null, error: null }
+
+  try {
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 8000)
+    const response = await fetch(`${base}${endpoint}`, {
+      signal: controller.signal,
+    })
+    window.clearTimeout(timeout)
+    if (!response.ok) {
+      return {
+        data: null,
+        error: `phlo-api error: ${response.status} ${response.statusText}`,
+      }
+    }
+    const payload = await response.json()
+    return {
+      data: normalizeFallbackPayload<T>(key, payload),
+      error: null,
+    }
+  } catch (error) {
+    return {
+      data: null,
+      error:
+        error instanceof Error ? error.message : 'Lakehouse API is unavailable',
+    }
+  }
+}
+
+function fallbackEndpoint(key: string): string | null {
+  const prefix = '/api/observatory/v2'
+  const endpoints: Record<string, string> = {
+    'v2:overview': `${prefix}/overview`,
+    'v2:capabilities': `${prefix}/capabilities`,
+    'v2:services': `${prefix}/services`,
+    'v2:operations': `${prefix}/operations`,
+    'v2:runs': `${prefix}/runs`,
+    'v2:storage': `${prefix}/storage`,
+    'v2:observability': `${prefix}/observability`,
+    'v2:governance': `${prefix}/governance`,
+    'v2:catalog': `${prefix}/catalog`,
+    'v2:apis': `${prefix}/apis`,
+    'v2:bi': `${prefix}/bi`,
+    'v2:assets': `${prefix}/assets`,
+    'v2:tables': `${prefix}/tables`,
+    'v2:saved-queries': `${prefix}/saved-queries`,
+    'v2:quality': `${prefix}/quality`,
+    'v2:logs': `${prefix}/logs`,
+    'v2:branches': `${prefix}/branches`,
+    'v2:extensions': `${prefix}/extensions`,
+    'v2:workflow-wizard': `${prefix}/workflow-wizard`,
+  }
+  return endpoints[key] ?? null
+}
+
+function normalizeFallbackPayload<T>(key: string, payload: unknown): T {
+  if (
+    key === 'v2:branches' &&
+    isRecord(payload) &&
+    Array.isArray(payload.items)
+  ) {
+    return payload.items.map((branch) => normalizeBranchFallback(branch)) as T
+  }
+
+  if (isRecord(payload) && Array.isArray(payload.items)) {
+    return payload.items as T
+  }
+
+  return payload as T
+}
+
+function normalizeBranchFallback(value: unknown): Record<string, unknown> {
+  const branch = isRecord(value) ? value : {}
+  const id = safeString(branch.id) ?? safeString(branch.name) ?? 'branch'
+  const name = safeString(branch.name) ?? id
+  const current = branch.current === true
+  return {
+    id,
+    name,
+    kind: 'branch',
+    status: current ? 'current' : 'branch',
+    summary: current ? 'Current branch' : 'Branch',
+    metadata: isRecord(branch.metadata) ? branch.metadata : {},
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function safeString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
 }
 
 export function invalidateCachedResource(key: string): void {

@@ -67,7 +67,9 @@ const V2_THEME_BOOTSTRAP = `;(() => {
 
 function runtimeBootstrapScript() {
   const browserApiUrl =
-    typeof process !== 'undefined' ? process.env.PHLO_API_BROWSER_URL || '' : ''
+    typeof process !== 'undefined'
+      ? process.env.PHLO_API_BROWSER_URL || 'http://localhost:4000'
+      : 'http://localhost:4000'
   return `;(() => {
     window.__PHLO_API_BROWSER_URL__ = ${JSON.stringify(browserApiUrl)};
   })();`
