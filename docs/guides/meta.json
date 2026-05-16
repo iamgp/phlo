@@ -8,6 +8,7 @@
     "data-lifecycle",
     "developer-guide",
     "workflow-development",
+    "lakehouse-helpers",
     "data-modeling",
     "dbt-development",
     "data-migrations",

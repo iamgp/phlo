@@ -39,6 +39,26 @@ Works out-of-the-box when MinIO and Nessie are running:
 
 ## Usage
 
+### Helper Utilities
+
+`phlo-iceberg` includes helper utilities for common table authoring and inspection tasks:
+
+```python
+from phlo_iceberg import identity_partition, maintenance_recommendations, table_exists
+
+if table_exists("raw.events"):
+    recommendations = maintenance_recommendations({"file_count": 2000, "snapshot_count": 80})
+
+partitioning = identity_partition("event_date")
+```
+
+| Helper | Purpose |
+| --- | --- |
+| `table_exists` | Check whether a table can be loaded from the Iceberg catalog. |
+| `load_table_schema` | Load the current Iceberg schema. |
+| `identity_partition`, `temporal_partition`, `partition_spec` | Build validated partition specs. |
+| `maintenance_recommendations` | Recommend snapshot cleanup, orphan cleanup, or compaction review from stats. |
+
 ### Resource Usage
 
 ```python

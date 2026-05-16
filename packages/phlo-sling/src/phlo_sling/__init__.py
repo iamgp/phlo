@@ -40,6 +40,14 @@ from collections.abc import Callable
 from typing import Any
 
 from phlo_sling.authorization import SlingSurfaceAdapter, get_adapter as get_sling_adapter
+from phlo_sling.helpers import (
+    ConnectionSummary,
+    ReplicationPlan,
+    build_partition_where,
+    build_replication_plan,
+    summarize_connections,
+    table_name_from_stream,
+)
 from phlo_sling.registry import SlingReplication
 
 
@@ -101,8 +109,14 @@ def get_sling_assets() -> list[Any]:
 __all__ = [
     "SlingReplication",
     "SlingSurfaceAdapter",
+    "ConnectionSummary",
+    "ReplicationPlan",
+    "build_partition_where",
+    "build_replication_plan",
     "get_sling_adapter",
     "get_sling_assets",
     "phlo_sling_assets",
     "phlo_sling_replication",
+    "summarize_connections",
+    "table_name_from_stream",
 ]
