@@ -1,3 +1,6 @@
+from phlo.capabilities.registry import CapabilityRegistry
+from phlo.capabilities.specs import AlertSinkSpec, AssetCheckSpec, CheckResult
+
 from phlo_api.observatory_api.v2_actions import execute_v2_action
 from phlo_api.observatory_api.v2_models import V2Action, V2ActionRequest
 
@@ -32,3 +35,55 @@ def test_execute_v2_action_returns_skipped_for_unimplemented_known_family() -> N
     assert result.status == "skipped"
     assert result.action.kind == "quality.rerun"
     assert result.action.required_capability == "quality_backend"
+
+
+def test_execute_v2_action_runs_registered_quality_check() -> None:
+    registry = CapabilityRegistry()
+    seen_context = {}
+
+    def check_fn(context):
+        seen_context["action_id"] = context.tags["phlo/action_id"]
+        return CheckResult(
+            check_name="not_null",
+            asset_key="orders",
+            passed=True,
+            metadata={"rows_checked": 3},
+        )
+
+    registry.register_check(AssetCheckSpec(name="not_null", asset_key="orders", fn=check_fn))
+
+    result = execute_v2_action(
+        V2ActionRequest(action_id="quality:orders:not_null:rerun"),
+        registry=registry,
+    )
+
+    assert result.status == "succeeded"
+    assert result.action.enabled is True
+    assert result.operation is not None
+    assert result.operation.status == "succeeded"
+    assert result.operation.target is not None
+    assert result.operation.target.kind == "quality"
+    assert result.operation.metadata["metadata"] == {"rows_checked": 3}
+    assert seen_context == {"action_id": "quality:orders:not_null:rerun"}
+
+
+def test_execute_v2_action_runs_registered_alert_sink() -> None:
+    class Sink:
+        def __init__(self) -> None:
+            self.messages = []
+
+        def send_alert(self, **kwargs) -> bool:
+            self.messages.append(kwargs)
+            return True
+
+    sink = Sink()
+    registry = CapabilityRegistry()
+    registry.register_alert_sink(AlertSinkSpec(name="alerts", provider=sink))
+
+    result = execute_v2_action(V2ActionRequest(action_id="alert:incident"), registry=registry)
+
+    assert result.status == "succeeded"
+    assert result.action.enabled is True
+    assert result.operation is not None
+    assert result.operation.metadata["provider"] == "alerts"
+    assert sink.messages[0]["severity"] == "warning"

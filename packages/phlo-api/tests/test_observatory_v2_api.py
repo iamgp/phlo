@@ -8,6 +8,8 @@ import subprocess
 
 from fastapi.testclient import TestClient
 
+from phlo.capabilities.registry import CapabilityRegistry
+from phlo.capabilities.specs import CatalogSpec
 from phlo_api.main import app
 from phlo_api.observatory_api import v2
 from phlo_api.observatory_api.v2 import (
@@ -922,6 +924,8 @@ def test_v2_branch_action_contract_skips_until_provider_write_contract_exists(
     monkeypatch, tmp_path
 ) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    v2._clear_read_model_cache()
     response = TestClient(app).post(
         "/api/observatory/v2/branches/actions",
         json={"action_id": "branch:create:review/demo"},
@@ -987,6 +991,63 @@ def test_v2_branch_action_skip_is_recorded(
     operations = TestClient(app).get("/api/observatory/v2/operations").json()["items"]
     assert operations[0]["id"] == payload["operation"]["id"]
     assert operations[0]["metadata"]["action_id"] == "branch:create:experiment"
+
+
+def test_v2_branch_actions_use_registered_catalog_provider(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    class CatalogProvider:
+        def __init__(self) -> None:
+            self.branches: dict[str, str] = {}
+            self.promoted: list[tuple[str, str]] = []
+
+        def list_branches(self):
+            return [
+                {"name": name, "hash": hash_value} for name, hash_value in self.branches.items()
+            ]
+
+        def create_branch(self, name: str, from_ref: str = "main") -> str | None:
+            self.branches[name] = f"{from_ref}-hash"
+            return self.branches[name]
+
+        def merge_branch(self, source: str, target: str = "main") -> bool:
+            self.promoted.append((source, target))
+            return source in self.branches
+
+        def delete_branch(self, name: str) -> bool:
+            return self.branches.pop(name, None) is not None
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    provider = CatalogProvider()
+    registry = CapabilityRegistry()
+    registry.register_catalog(CatalogSpec(name="catalog", provider=provider))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: registry)
+    v2._clear_read_model_cache()
+
+    client = TestClient(app)
+    create_response = client.post(
+        "/api/observatory/v2/branches/actions",
+        json={"action_id": "branch:create:experiment"},
+    )
+    promote_response = client.post(
+        "/api/observatory/v2/branches/actions",
+        json={"action_id": "branch:promote:experiment"},
+    )
+    delete_response = client.post(
+        "/api/observatory/v2/branches/actions",
+        json={"action_id": "branch:delete:experiment"},
+    )
+
+    assert create_response.status_code == 200
+    assert create_response.json()["status"] == "succeeded"
+    assert create_response.json()["operation"]["status"] == "succeeded"
+    assert promote_response.status_code == 200
+    assert promote_response.json()["status"] == "succeeded"
+    assert provider.promoted == [("experiment", "main")]
+    assert delete_response.status_code == 200
+    assert delete_response.json()["status"] == "succeeded"
+    assert provider.branches == {}
 
 
 def test_v2_quality_endpoint_returns_provider_neutral_payload() -> None:

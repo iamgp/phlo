@@ -957,41 +957,40 @@ def _service_actions(service: V2Service) -> list[V2Action]:
 
 
 def _quality_actions(check: V2QualityCheck) -> list[V2Action]:
+    registry = _load_capability_registry()
+    executable = False
+    if registry is not None:
+        try:
+            executable = any(
+                f"{item.asset_key}:{item.name}" == check.id and callable(getattr(item, "fn", None))
+                for item in registry.list_checks()
+            )
+        except Exception:
+            executable = False
     return [
         V2Action(
             id=f"{check.id}:rerun",
             label="Re-run",
             kind="quality.rerun",
-            enabled=False,
-            reason="Quality execution needs a guarded phlo-api operation contract.",
-        ),
-        V2Action(
-            id=f"{check.id}:acknowledge",
-            label="Acknowledge",
-            kind="quality.acknowledge",
-            enabled=False,
-            reason="Acknowledgements need a persisted v2 workflow contract.",
+            enabled=executable,
+            reason=None if executable else "This quality check has no executable function.",
         ),
     ]
 
 
 def _operation_actions(operation: V2Operation) -> list[V2Action]:
-    return [
-        V2Action(
-            id=f"{operation.id}:retry",
-            label="Retry",
-            kind="operation.retry",
-            enabled=False,
-            reason="Retries need a guarded phlo-api operation execution contract.",
-        ),
-        V2Action(
-            id=f"{operation.id}:open-target",
-            label="Open Target",
-            kind="operation.open_target",
-            enabled=operation.target is not None,
-            requires_confirmation=False,
-        ),
-    ]
+    actions = []
+    if operation.target is not None:
+        actions.append(
+            V2Action(
+                id=f"{operation.id}:open-target",
+                label="Open Target",
+                kind="operation.open_target",
+                enabled=True,
+                requires_confirmation=False,
+            )
+        )
+    return actions
 
 
 def _table_columns_from_metadata(table: V2Table) -> list[str]:
@@ -1254,9 +1253,86 @@ def _find_table(table_id: str, tables: list[V2Table] | None = None) -> V2Table |
     )
 
 
+def _catalog_branch_provider() -> Any | None:
+    registry = _load_capability_registry()
+    if registry is None:
+        return None
+    try:
+        catalog_specs = registry.list_catalogs()
+    except Exception:
+        return None
+    for spec in catalog_specs:
+        provider = getattr(spec, "provider", None)
+        if any(
+            callable(getattr(provider, method_name, None))
+            for method_name in ("list_branches", "create_branch", "merge_branch", "delete_branch")
+        ):
+            return provider
+    return None
+
+
+def _provider_branch_name(branch: Any) -> str | None:
+    if isinstance(branch, Mapping):
+        value = branch.get("name") or branch.get("id")
+    else:
+        value = getattr(branch, "name", None) or getattr(branch, "id", None)
+    return str(value) if value else None
+
+
+def _provider_branch_metadata(branch: Any) -> dict[str, Any]:
+    if isinstance(branch, Mapping):
+        raw = dict(branch)
+    else:
+        raw = {
+            key: getattr(branch, key)
+            for key in ("hash", "commit_hash", "created_at", "metadata")
+            if hasattr(branch, key)
+        }
+    metadata = raw.get("metadata") if isinstance(raw.get("metadata"), Mapping) else {}
+    return _safe_metadata(
+        {
+            "source": "catalog-provider",
+            **dict(metadata),
+            "hash": raw.get("hash") or raw.get("commit_hash"),
+            "created_at": raw.get("created_at"),
+        }
+    )
+
+
+def _load_provider_branches() -> list[V2Branch]:
+    provider = _catalog_branch_provider()
+    list_branches = getattr(provider, "list_branches", None)
+    if not callable(list_branches):
+        return []
+    try:
+        raw_branches = list_branches()
+    except Exception:
+        return []
+
+    branches: list[V2Branch] = []
+    for raw_branch in raw_branches or []:
+        name = _provider_branch_name(raw_branch)
+        if not name or name == "main":
+            continue
+        branches.append(
+            V2Branch(
+                id=name,
+                name=name,
+                current=False,
+                protected=False,
+                metadata=_provider_branch_metadata(raw_branch),
+            )
+        )
+    return branches
+
+
 def _load_branches() -> list[V2Branch]:
     """Return neutral branch data; core-only fallback is the main branch."""
-    branches = [V2Branch(id="main", name="main", current=True, protected=True)]
+    branches_by_id = {
+        "main": V2Branch(id="main", name="main", current=True, protected=True),
+    }
+    for branch in _load_provider_branches():
+        branches_by_id.setdefault(branch.id, branch)
     path = _branches_path()
     if path.exists():
         try:
@@ -1272,8 +1348,8 @@ def _load_branches() -> list[V2Branch]:
                     except Exception:
                         continue
                     if branch.id != "main":
-                        branches.append(branch)
-    return sorted(branches, key=lambda item: (not item.current, item.name))
+                        branches_by_id[branch.id] = branch
+    return sorted(branches_by_id.values(), key=lambda item: (not item.current, item.name))
 
 
 def _write_branches(branches: list[V2Branch]) -> None:
@@ -1811,7 +1887,9 @@ def _add_runtime_capability_providers(inventory: V2CapabilityInventory) -> None:
 
 def _branches_available() -> bool:
     """Return whether branch actions can be backed by a catalog provider."""
-    return False
+    if _load_capabilities().features.get("branches") is False:
+        return False
+    return _catalog_branch_provider() is not None
 
 
 def _pages_from_inventory(inventory: V2CapabilityInventory) -> list[V2CapabilityPage]:
@@ -2014,7 +2092,8 @@ def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
     if not branch_name:
         raise HTTPException(status_code=400, detail="Branch name is required.")
 
-    branches_available = _branches_available()
+    provider = _catalog_branch_provider()
+    branches_available = _branches_available() and provider is not None
     branch_unavailable_reason = "A catalog provider is required for branch actions."
     action = V2Action(
         id=request.action_id,
@@ -2036,35 +2115,95 @@ def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
     existing = next((branch for branch in branches if branch.id == branch_name), None)
     if action_name == "create":
         if existing is None:
-            branches.append(
-                V2Branch(
-                    id=branch_name,
-                    name=branch_name,
-                    current=False,
-                    protected=False,
-                    metadata={"source": "observatory-v2"},
-                )
-            )
-            _write_branches(branches)
-            status = "succeeded"
-            message = f"Branch {branch_name} created."
+            create_branch = getattr(provider, "create_branch", None)
+            if not callable(create_branch):
+                status = "skipped"
+                message = "Catalog provider does not support branch creation."
+            else:
+                try:
+                    branch_hash = create_branch(branch_name, from_ref="main")
+                except Exception as exc:
+                    status = "failed"
+                    message = f"Branch {branch_name} creation failed: {exc}"
+                else:
+                    if branch_hash:
+                        branches.append(
+                            V2Branch(
+                                id=branch_name,
+                                name=branch_name,
+                                current=False,
+                                protected=False,
+                                metadata=_safe_metadata(
+                                    {
+                                        "source": "catalog-provider",
+                                        "hash": branch_hash,
+                                    }
+                                ),
+                            )
+                        )
+                        _write_branches(branches)
+                        status = "succeeded"
+                        message = f"Branch {branch_name} created."
+                    else:
+                        status = "failed"
+                        message = f"Catalog provider did not create branch {branch_name}."
         else:
             status = "skipped"
             message = f"Branch {branch_name} already exists."
     elif action_name == "delete":
         if branch_name == "main":
             raise HTTPException(status_code=400, detail="The main branch is protected.")
-        branches = [branch for branch in branches if branch.id != branch_name]
-        _write_branches(branches)
-        status = "succeeded"
-        message = f"Branch {branch_name} deleted."
+        if existing is None:
+            status = "skipped"
+            message = f"Branch {branch_name} does not exist."
+        else:
+            delete_branch = getattr(provider, "delete_branch", None)
+            if not callable(delete_branch):
+                status = "skipped"
+                message = "Catalog provider does not support branch deletion."
+            else:
+                try:
+                    deleted = bool(delete_branch(branch_name))
+                except Exception as exc:
+                    status = "failed"
+                    message = f"Branch {branch_name} deletion failed: {exc}"
+                else:
+                    if deleted:
+                        branches = [branch for branch in branches if branch.id != branch_name]
+                        _write_branches(branches)
+                        status = "succeeded"
+                        message = f"Branch {branch_name} deleted."
+                    else:
+                        status = "failed"
+                        message = f"Catalog provider did not delete branch {branch_name}."
     elif action_name == "promote":
         if existing is None:
             raise _not_found("branch", branch_name)
-        status = "skipped"
-        message = "Promotion requires a catalog provider write contract."
+        merge_branch = getattr(provider, "merge_branch", None)
+        if not callable(merge_branch):
+            status = "skipped"
+            message = "Catalog provider does not support branch promotion."
+        else:
+            try:
+                promoted = bool(merge_branch(branch_name, target="main"))
+            except Exception as exc:
+                status = "failed"
+                message = f"Branch {branch_name} promotion failed: {exc}"
+            else:
+                status = "succeeded" if promoted else "failed"
+                message = (
+                    f"Branch {branch_name} promoted to main."
+                    if promoted
+                    else f"Catalog provider did not promote branch {branch_name}."
+                )
     else:
         raise HTTPException(status_code=400, detail="Unsupported branch action.")
+
+    health_state = "ok"
+    if status == "skipped":
+        health_state = "warning"
+    elif status == "failed":
+        health_state = "error"
 
     return V2ActionResult(
         action=action,
@@ -2074,8 +2213,8 @@ def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
             id=request.action_id,
             name=action.label,
             kind=action.kind,
-            status="succeeded" if status in {"succeeded", "skipped"} else "failed",
-            health=V2Health(state="ok" if status in {"succeeded", "skipped"} else "error"),
+            status=status,  # type: ignore[arg-type]
+            health=V2Health(state=health_state, message=message),  # type: ignore[arg-type]
             target=V2ResourceRef(kind="branch", id=branch_name, label=branch_name),
         ),
     )
@@ -2450,7 +2589,11 @@ def post_v2_action(request: V2ActionRequest) -> V2ActionResult:
         and action_name in {"start", "stop", "restart"}
         and any(service.id == resource_id for service in services)
     )
-    result = _execute_action(request) if is_service_control_action else execute_v2_action(request)
+    result = (
+        _execute_action(request)
+        if is_service_control_action
+        else execute_v2_action(request, registry=_load_capability_registry())
+    )
     recorded = record_action_result(_project_root(), result)
     _clear_read_model_cache()
     return recorded
