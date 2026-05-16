@@ -16,4 +16,4 @@ Examples:
     phlo workflow create --type ingestion --domain weather
 """
 
-__version__ = "0.8.3"
+__version__ = "0.9.0"
