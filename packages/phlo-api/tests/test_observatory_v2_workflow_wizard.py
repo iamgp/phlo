@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from phlo_api.main import app
+from phlo_api.observatory_api import v2
 
 
 client = TestClient(app)
@@ -289,3 +290,91 @@ def test_workflow_wizard_apply_fails_on_conflict(
 
     assert apply_response.status_code == 409
     assert "File conflicts" in apply_response.json()["detail"]
+
+
+def test_workflow_wizard_apply_records_operation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    v2._clear_read_model_cache()
+    proposal_response = client.post(
+        "/api/observatory/v2/workflow-wizard/proposals",
+        json={
+            "workflow_name": "customer_health",
+            "domain": "customers",
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "source",
+                        "contribution_id": "dlt.rest-api-source",
+                        "stage": "source",
+                        "values": {
+                            "domain": "customers",
+                            "table_name": "orders",
+                            "unique_key": "order_id",
+                        },
+                    }
+                ],
+                "edges": [],
+            },
+        },
+    )
+    proposal = proposal_response.json()
+
+    apply_response = client.post(
+        "/api/observatory/v2/workflow-wizard/actions",
+        json={"action_id": proposal["actions"][0]["id"], "proposal": proposal},
+    )
+
+    assert apply_response.status_code == 200
+    operations = client.get("/api/observatory/v2/operations").json()["items"]
+    assert operations[0]["kind"] == "workflow.apply"
+    assert operations[0]["status"] == "succeeded"
+    assert operations[0]["metadata"]["action_id"] == proposal["actions"][0]["id"]
+    assert "workflows/ingestion/customers/orders.py" in operations[0]["metadata"]["files"]
+
+
+def test_workflow_wizard_conflict_records_failed_operation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    v2._clear_read_model_cache()
+    existing = tmp_path / "workflows" / "ingestion" / "customers"
+    existing.mkdir(parents=True)
+    (existing / "orders.py").write_text("# existing\n", encoding="utf-8")
+    proposal_response = client.post(
+        "/api/observatory/v2/workflow-wizard/proposals",
+        json={
+            "workflow_name": "customer_health",
+            "domain": "customers",
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "source",
+                        "contribution_id": "dlt.rest-api-source",
+                        "stage": "source",
+                        "values": {
+                            "domain": "customers",
+                            "table_name": "orders",
+                            "unique_key": "order_id",
+                        },
+                    }
+                ],
+                "edges": [],
+            },
+        },
+    )
+    proposal = proposal_response.json()
+
+    apply_response = client.post(
+        "/api/observatory/v2/workflow-wizard/actions",
+        json={"action_id": proposal["actions"][0]["id"], "proposal": proposal},
+    )
+
+    assert apply_response.status_code == 409
+    operations = client.get("/api/observatory/v2/operations").json()["items"]
+    assert operations[0]["kind"] == "workflow.apply"
+    assert operations[0]["status"] == "failed"
+    assert "File conflicts" in operations[0]["health"]["message"]

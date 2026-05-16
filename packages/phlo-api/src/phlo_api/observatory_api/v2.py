@@ -72,6 +72,13 @@ from phlo_api.observatory_api.v2_models import (
 )
 from phlo_api.observatory_api.v2_metadata import safe_metadata as _safe_metadata
 from phlo_api.observatory_api.v2_observability import load_observability_items
+from phlo_api.observatory_api.v2_operation_journal import (
+    append_operation,
+    load_operation_journal,
+    operation_from_workflow_action,
+    record_action_result,
+    sort_operations,
+)
 from phlo_api.observatory_api.v2_products import load_api_items, load_bi_items
 from phlo_api.observatory_api.v2_runs import load_runs
 from phlo_api.observatory_api.v2_saved_queries import (
@@ -838,11 +845,11 @@ def _operation_from_maintenance_status(status: Any) -> V2Operation:
 
 
 def _load_operations() -> list[V2Operation]:
+    operations = list(load_operation_journal(_project_root()))
     registry = _load_capability_registry()
     if registry is None:
-        return []
+        return sort_operations(operations)
 
-    operations: list[V2Operation] = []
     for spec in registry.list_maintenance_read_models():
         provider = getattr(spec, "provider", None)
         loader = getattr(provider, "load_maintenance_status", None)
@@ -854,7 +861,7 @@ def _load_operations() -> list[V2Operation]:
             continue
         for status in getattr(snapshot, "operations", []):
             operations.append(_operation_from_maintenance_status(status))
-    return sorted(operations, key=lambda item: item.id)
+    return sort_operations(operations)
 
 
 def _load_logs() -> list[V2LogEvent]:
@@ -2347,8 +2354,9 @@ def get_v2_branches() -> V2BranchList:
 def post_v2_branch_action(request: V2ActionRequest) -> V2ActionResult:
     """Execute a guarded branch workflow action."""
     result = _execute_branch_action(request)
+    recorded = record_action_result(_project_root(), result)
     _clear_read_model_cache()
-    return result
+    return recorded
 
 
 @router.get("/branches/{branch_name:path}", response_model=V2BranchDetail)
@@ -2397,7 +2405,31 @@ def post_v2_workflow_wizard_proposal(request: V2WorkflowProposalRequest) -> dict
 def post_v2_workflow_wizard_action(request: V2WorkflowActionRequest) -> V2WorkflowActionResult:
     """Run a guarded workflow wizard apply action."""
 
-    result = apply_workflow_action(_project_root(), request)
+    try:
+        result = apply_workflow_action(_project_root(), request)
+    except HTTPException as exc:
+        message = str(exc.detail)
+        append_operation(
+            _project_root(),
+            operation_from_workflow_action(
+                action_id=request.action_id,
+                status="failed",
+                message=message,
+                files=[],
+            ),
+        )
+        _clear_read_model_cache()
+        raise
+
+    append_operation(
+        _project_root(),
+        operation_from_workflow_action(
+            action_id=request.action_id,
+            status=result.status,
+            message=result.message,
+            files=result.files,
+        ),
+    )
     _clear_read_model_cache()
     return result
 
@@ -2412,11 +2444,13 @@ def get_v2_search(q: str) -> V2SearchList:
 def post_v2_action(request: V2ActionRequest) -> V2ActionResult:
     """Execute a guarded Observatory v2 action."""
     resource_id, separator, action_name = request.action_id.rpartition(":")
+    services = _load_services()
     is_service_control_action = (
         bool(separator)
         and action_name in {"start", "stop", "restart"}
-        and any(service.id == resource_id for service in _load_services())
+        and any(service.id == resource_id for service in services)
     )
     result = _execute_action(request) if is_service_control_action else execute_v2_action(request)
+    recorded = record_action_result(_project_root(), result)
     _clear_read_model_cache()
-    return result
+    return recorded

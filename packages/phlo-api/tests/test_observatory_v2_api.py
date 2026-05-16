@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import subprocess
 
 from fastapi.testclient import TestClient
 
 from phlo_api.main import app
+from phlo_api.observatory_api import v2
 from phlo_api.observatory_api.v2 import (
     _execute_action,
     _fallback_services,
@@ -37,6 +39,7 @@ from phlo_api.observatory_api.v2_models import (
     V2Table,
     V2TablePreview,
 )
+from phlo_api.observatory_api.v2_operation_journal import append_operation
 
 _PROVIDER_URL_SETTING_NAMES = (
     "dagster_url",
@@ -363,6 +366,104 @@ def test_v2_disabled_service_action_skips_without_subprocess(monkeypatch) -> Non
     assert result.message == result.action.reason
     assert subprocess_calls == []
     assert result.operation is None
+
+
+def test_v2_operations_endpoint_includes_journal_records(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    v2._clear_read_model_cache()
+    append_operation(
+        tmp_path,
+        V2Operation(
+            id="phlo-api:restart",
+            name="Restart",
+            kind="service.restart",
+            status="succeeded",
+            health=V2Health(state="ok", message="Restarted"),
+            target=V2ResourceRef(kind="service", id="phlo-api", label="phlo-api"),
+        ),
+        record_id="op-restart",
+        recorded_at="2026-05-16T12:00:00+00:00",
+    )
+
+    response = TestClient(app).get("/api/observatory/v2/operations")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"][0]["id"] == "op-restart"
+    assert payload["items"][0]["kind"] == "service.restart"
+    assert payload["items"][0]["target"]["id"] == "phlo-api"
+
+
+def test_v2_generic_skipped_action_records_operation(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_services", lambda: [])
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    v2._clear_read_model_cache()
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/actions",
+        json={"action_id": "quality:raw.orders:rerun"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "skipped"
+    assert payload["operation"]["status"] == "skipped"
+    assert payload["operation"]["kind"] == "quality.rerun"
+
+    operations = TestClient(app).get("/api/observatory/v2/operations").json()["items"]
+    assert operations[0]["id"] == payload["operation"]["id"]
+    assert operations[0]["metadata"]["action_id"] == "quality:raw.orders:rerun"
+
+
+def test_v2_service_action_records_subprocess_result(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    v2._clear_read_model_cache()
+    service = V2Service(
+        id="phlo-api",
+        name="phlo-api",
+        kind="api",
+        status="stopped",
+        health=V2Health(state="warning", message="stopped"),
+        in_stack=True,
+    )
+
+    def fake_run(*args, **kwargs):
+        assert args[0] == ["phlo", "services", "start", "--service", "phlo-api"]
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="phlo-api start requested\n",
+        )
+
+    monkeypatch.setattr(v2, "_load_services", lambda: [service])
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/actions",
+        json={"action_id": "phlo-api:start"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "succeeded"
+    assert payload["operation"]["kind"] == "service.start"
+    assert payload["operation"]["target"]["id"] == "phlo-api"
+
+    operations = TestClient(app).get("/api/observatory/v2/operations").json()["items"]
+    assert operations[0]["id"] == payload["operation"]["id"]
+    assert operations[0]["status"] == "succeeded"
 
 
 def test_v2_overview_endpoint_returns_provider_neutral_payload() -> None:
@@ -831,7 +932,7 @@ def test_v2_branch_action_contract_skips_until_provider_write_contract_exists(
     assert set(payload) == {"action", "status", "message", "operation"}
     assert payload["status"] == "skipped"
     assert payload["action"]["enabled"] is False
-    assert payload["operation"] is None
+    assert payload["operation"]["status"] == "skipped"
     _assert_no_provider_url_settings(payload)
 
 
@@ -861,7 +962,31 @@ def test_v2_branch_action_skips_when_branches_capability_is_unavailable(
     assert payload["action"]["kind"] == "branch.create"
     assert payload["action"]["enabled"] is False
     assert "catalog provider" in payload["message"]
-    assert payload["operation"] is None
+    assert payload["operation"]["status"] == "skipped"
+
+
+def test_v2_branch_action_skip_is_recorded(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    v2._clear_read_model_cache()
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/branches/actions",
+        json={"action_id": "branch:create:experiment"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "skipped"
+    assert payload["operation"]["status"] == "skipped"
+    assert payload["operation"]["kind"] == "branch.create"
+
+    operations = TestClient(app).get("/api/observatory/v2/operations").json()["items"]
+    assert operations[0]["id"] == payload["operation"]["id"]
+    assert operations[0]["metadata"]["action_id"] == "branch:create:experiment"
 
 
 def test_v2_quality_endpoint_returns_provider_neutral_payload() -> None:
