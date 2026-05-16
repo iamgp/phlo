@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 HealthState = Literal["ok", "warning", "error", "unknown"]
 ServiceStatus = Literal["running", "stopped", "unhealthy", "starting", "unknown"]
 ServiceDefinitionState = Literal["configured", "available"]
-OperationStatus = Literal["queued", "running", "succeeded", "failed", "unknown"]
+OperationStatus = Literal["queued", "running", "succeeded", "failed", "skipped", "unknown"]
 RunStatus = Literal["queued", "running", "succeeded", "failed", "cancelled", "unknown"]
 QualityStatus = Literal["passing", "failing", "warning", "unknown"]
 
