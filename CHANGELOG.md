@@ -1,5 +1,47 @@
 # Changelog
 
+## [phlo 0.9.0 + 11 packages] - 2026-05-16
+
+### Added
+- phlo: add package-driven workflow wizard (#503)
+- phlo: add lakehouse helper utilities (#509)
+- phlo-api: add package-driven workflow wizard (#503)
+- phlo-dagster: add package-driven workflow wizard (#503)
+- phlo-dbt: add package-driven workflow wizard (#503)
+- phlo-dbt: add lakehouse helper utilities (#509)
+- phlo-delta: add lakehouse helper utilities (#509)
+- phlo-dlt: add package-driven workflow wizard (#503)
+- phlo-iceberg: add lakehouse helper utilities (#509)
+- phlo-observatory: add package-driven workflow wizard (#503)
+- phlo-openmetadata: add package-driven workflow wizard (#503)
+- phlo-pandera: add package-driven workflow wizard (#503)
+- phlo-pandera: add lakehouse helper utilities (#509)
+- phlo-sling: add package-driven workflow wizard (#503)
+- phlo-sling: add lakehouse helper utilities (#509)
+
+### Changed
+- phlo: deepen service package manifest resolution (#501)
+- phlo: deepen services lifecycle planning (#498)
+- phlo: deepen capability catalog registration (#502)
+- phlo: deepen table store capability semantics (#500)
+- phlo: deepen Observatory v2 read models (#499)
+- phlo-api: deepen Observatory v2 read models (#499)
+- phlo-delta: deepen table store capability semantics (#500)
+- phlo-iceberg: deepen table store capability semantics (#500)
+
+### Fixed
+- phlo: improve observatory react health (#505)
+- phlo: repair nightly integration suite (#506)
+- phlo-delta: repair nightly integration suite (#506)
+- phlo-iceberg: repair nightly integration suite (#506)
+- phlo-observatory: improve observatory react health (#505)
+- phlo-pandera: repair nightly integration suite (#506)
+- phlo-trino: repair nightly integration suite (#506)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (32 commits)
+
 ## [phlo 0.8.3 + 21 packages] - 2026-05-05
 
 ### Fixed

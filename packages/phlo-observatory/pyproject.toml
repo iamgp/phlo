@@ -10,7 +10,7 @@ dependencies = ["phlo>=0.1.0"]
 description = "Phlo Observatory - Data platform UI (bundled with phlo core)"
 name = "phlo-observatory"
 requires-python = ">=3.11"
-version = "0.3.1"
+version = "0.4.0"
 
 [[project.authors]]
 email = "team@phlo.dev"
