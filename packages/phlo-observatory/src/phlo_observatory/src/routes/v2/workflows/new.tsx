@@ -32,7 +32,10 @@ import {
   runV2WorkflowAction,
 } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
-import { loadCachedResource } from '@/v2/routes/liveResource'
+import {
+  invalidateCachedResource,
+  loadCachedResource,
+} from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/workflows/new')({
   component: WorkflowCanvasBuilder,
@@ -250,6 +253,7 @@ function useWorkflowCanvasBuilder() {
     void runV2WorkflowAction({
       data: { actionId: action.id, proposal: proposal.data },
     }).then((result) => {
+      invalidateCachedResource('v2:operations')
       setActionMessage(
         result.data?.message ?? result.error ?? 'Action finished',
       )

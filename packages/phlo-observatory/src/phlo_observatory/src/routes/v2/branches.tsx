@@ -13,7 +13,10 @@ import {
   runV2BranchAction,
 } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
-import { useLiveResource } from '@/v2/routes/liveResource'
+import {
+  invalidateCachedResources,
+  useLiveResource,
+} from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/branches')({
   component: Branches,
@@ -58,7 +61,7 @@ function branchesReducer(
 }
 
 export function Branches() {
-  const result = useLiveResource(getV2Branches)
+  const result = useLiveResource(getV2Branches, 60_000, 'v2:branches')
   const [
     { actionMessage, activePanel, createdBranches, detail, selectedId },
     dispatch,
@@ -119,6 +122,7 @@ export function Branches() {
                 void runV2BranchAction({
                   data: { actionId: `branch:create:${branchName}` },
                 }).then((next) => {
+                  invalidateCachedResources(['v2:operations', 'v2:branches'])
                   const message =
                     next.data?.message ??
                     next.error ??

@@ -233,7 +233,7 @@ export interface V2Operation {
   id: string
   name: string
   kind: string
-  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'unknown'
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'unknown'
   health: V2Health
   target?: V2ResourceRef | null
   started_at?: string | null

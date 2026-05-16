@@ -105,6 +105,16 @@ export async function loadCachedResource<T>(
   return promise
 }
 
+export function invalidateCachedResource(key: string): void {
+  resourceCache.delete(`${cacheVersion}:${key}`)
+}
+
+export function invalidateCachedResources(keys: Array<string>): void {
+  for (const key of keys) {
+    invalidateCachedResource(key)
+  }
+}
+
 function isCacheableResult<T>(result: V2ResourceResult<T>): boolean {
   if (result.error) return false
   return hasUsefulData(result.data)

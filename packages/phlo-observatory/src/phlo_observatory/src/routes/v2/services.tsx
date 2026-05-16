@@ -23,7 +23,11 @@ import {
   runV2Action,
 } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
-import { loadCachedResource, useLiveResource } from '@/v2/routes/liveResource'
+import {
+  invalidateCachedResources,
+  loadCachedResource,
+  useLiveResource,
+} from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/services')({
   component: Services,
@@ -168,6 +172,7 @@ export function Services() {
                 }
                 setActionMessage('Running action…')
                 void runV2Action({ data: { actionId } }).then((next) => {
+                  invalidateCachedResources(['v2:operations', 'v2:services'])
                   setActionMessage(
                     next.data?.message ?? next.error ?? 'Action completed',
                   )
