@@ -55,6 +55,26 @@ dt = delta.get_table("bronze.users")
 df = dt.to_pandas()
 ```
 
+### Helper Utilities
+
+`phlo-delta` includes lightweight helpers for table inspection and maintenance planning:
+
+```python
+from phlo_delta import identity_partition, maintenance_recommendations, table_exists
+
+if table_exists("bronze.users"):
+    recommendations = maintenance_recommendations({"file_count": 1200, "total_size_mb": 2048})
+
+partition_columns = identity_partition("event_date")
+```
+
+| Helper | Purpose |
+| --- | --- |
+| `table_exists` | Check whether a Delta table can be opened. |
+| `load_table_schema` | Load the Delta schema as a PyArrow schema. |
+| `identity_partition` | Build Delta partition column lists. |
+| `maintenance_recommendations` | Recommend vacuum or optimize review from table stats. |
+
 ### Direct Usage
 
 ```python

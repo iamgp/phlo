@@ -109,7 +109,7 @@ _QUALITY_EXPORTS = {
     "QualityCheckContract",
     "dbt_check_name",
 }
-_SUBMODULE_EXPORTS = {"ingestion", "metrics", "quality"}
+_SUBMODULE_EXPORTS = {"helpers", "ingestion", "metrics", "quality"}
 
 __all__ = [
     "__version__",

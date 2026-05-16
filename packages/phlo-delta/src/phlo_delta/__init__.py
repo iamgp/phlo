@@ -16,6 +16,13 @@ Attributes:
 
 """
 
+from phlo_delta.helpers import (
+    identity_partition,
+    load_table_schema,
+    maintenance_recommendations,
+    recommend_table_maintenance,
+    table_exists,
+)
 from phlo_delta.plugin import DeltaResourceProvider
 from phlo_delta.resource import DeltaResource
 from phlo_delta.schema_conversion import SchemaConversionError, pandera_to_delta
@@ -46,10 +53,15 @@ __all__ = [
     "expire_snapshots",
     "get_settings",
     "get_table_stats",
+    "identity_partition",
     "list_table_versions",
+    "load_table_schema",
+    "maintenance_recommendations",
     "merge_to_table",
     "overwrite_table",
     "pandera_to_delta",
+    "recommend_table_maintenance",
     "remove_orphan_files",
     "rollback_table_to_version",
+    "table_exists",
 ]
