@@ -14,7 +14,7 @@ dependencies = [
 description = "Iceberg table-store capability plugin for Phlo"
 name = "phlo-iceberg"
 requires-python = ">=3.11"
-version = "0.3.2"
+version = "0.4.0"
 
 [[project.authors]]
 email = "team@phlo.dev"
