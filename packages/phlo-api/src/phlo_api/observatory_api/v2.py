@@ -1891,6 +1891,7 @@ def _providers_matching(extensions: Sequence[V2Extension], *needles: str) -> lis
 
 def _load_capabilities() -> V2Capabilities:
     inventory = build_capability_inventory(_load_capability_registry())
+    _add_orchestrator_plugin_providers(inventory)
     _filter_capabilities_to_project_services(inventory, _load_services())
     _add_runtime_capability_providers(inventory)
     pages = _pages_from_inventory(inventory)
@@ -1905,6 +1906,7 @@ def _load_capabilities() -> V2Capabilities:
 
 
 _RUNTIME_SERVICE_CAPABILITIES: dict[str, tuple[str, ...]] = {
+    "dagster": ("orchestrator",),
     "trino": ("query_engine",),
     "nessie": ("catalog", "catalog_scanner"),
     "minio": ("object_store", "table_store"),
@@ -1938,6 +1940,7 @@ _PROVIDER_SERVICE_DEPENDENCIES: dict[tuple[str, str], tuple[str, ...]] = {
     ("observability_backend", "grafana"): ("grafana",),
     ("observability_backend", "loki"): ("loki",),
     ("observability_backend", "prometheus"): ("prometheus",),
+    ("orchestrator", "dagster"): ("dagster", "dagster-daemon"),
     ("publish_target", "clickhouse"): ("clickhouse",),
     ("publish_target", "postgres"): ("postgres",),
     ("publish_target", "trino"): ("trino",),
@@ -1947,6 +1950,35 @@ _PROVIDER_SERVICE_DEPENDENCIES: dict[tuple[str, str], tuple[str, ...]] = {
     ("table_store", "delta"): ("trino", "minio"),
     ("table_store", "iceberg"): ("trino", "minio", "nessie"),
 }
+
+
+def _add_orchestrator_plugin_providers(inventory: V2CapabilityInventory) -> None:
+    """Expose installed orchestrator plugins as route-gating capabilities."""
+    try:
+        from phlo.plugins.discovery import discover_plugins, list_plugins
+
+        discover_plugins(plugin_type="orchestrators", auto_register=True)
+        orchestrators = list_plugins("orchestrators").get("orchestrators", [])
+    except Exception:
+        orchestrators = []
+
+    providers = inventory.providers.setdefault("orchestrator", [])
+    for orchestrator in orchestrators:
+        if any(provider.name == orchestrator for provider in providers):
+            continue
+        providers.append(
+            V2CapabilityProvider(
+                capability_type="orchestrator",
+                name=orchestrator,
+                display_name=orchestrator,
+                metadata=_safe_metadata(
+                    {
+                        "source": "plugin",
+                        "service": orchestrator,
+                    }
+                ),
+            )
+        )
 
 
 def _filter_capabilities_to_project_services(

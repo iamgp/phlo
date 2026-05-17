@@ -54,7 +54,12 @@ function apiUnavailable<T>(error: unknown): V2ResourceResult<T> {
 
 function browserApiBase(): string | null {
   if (typeof window === 'undefined') return null
-  return window.__PHLO_API_BROWSER_URL__ || null
+  return (
+    window.__PHLO_API_BROWSER_URL__ ||
+    document.querySelector<HTMLMetaElement>('meta[name="phlo-api-browser-url"]')
+      ?.content ||
+    null
+  )
 }
 
 async function browserApiGet<T>(endpoint: string): Promise<T> {
@@ -77,6 +82,41 @@ async function browserApiGet<T>(endpoint: string): Promise<T> {
   }
   if (!response.ok) {
     throw new Error(`phlo-api error: ${response.status} ${response.statusText}`)
+  }
+  return response.json()
+}
+
+async function browserApiPost<T>(
+  endpoint: string,
+  body: Record<string, unknown>,
+): Promise<T> {
+  const base = browserApiBase()
+  if (!base) throw new Error('Browser API fallback is unavailable during SSR')
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 12000)
+  let response: Response
+  try {
+    response = await fetch(`${base}${endpoint}`, {
+      body: JSON.stringify(body),
+      headers: { 'content-type': 'application/json' },
+      method: 'POST',
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('phlo-api request timed out')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const detail =
+      payload && typeof payload === 'object' && 'detail' in payload
+        ? String(payload.detail)
+        : `${response.status} ${response.statusText}`
+    throw new Error(`phlo-api error: ${detail}`)
   }
   return response.json()
 }
@@ -256,52 +296,53 @@ export function getV2TableRecords() {
   return getRawCollection<V2Table>('tables')
 }
 
-export const getV2TablePreview = createServerFn()
-  .inputValidator(
-    (input: { tableId: string; limit?: number; offset?: number }) => input,
-  )
-  .handler(
-    async ({
-      data: { tableId, limit = 50, offset = 0 },
-    }): Promise<V2ResourceResult<V2TablePreview>> => {
-      try {
-        const data = await apiGet<V2TablePreview>(
-          `${V2_API_PREFIX}/table-preview/${encodeURIComponent(tableId)}`,
-          { limit, offset },
-          8000,
-        )
-        return { data, error: null }
-      } catch (error) {
-        return apiUnavailable<V2TablePreview>(error)
-      }
-    },
-  )
+export async function getV2TablePreview({
+  data: { tableId, limit = 50, offset = 0 },
+}: {
+  data: { tableId: string; limit?: number; offset?: number }
+}): Promise<V2ResourceResult<V2TablePreview>> {
+  try {
+    const endpoint = `${V2_API_PREFIX}/table-preview/${encodeURIComponent(tableId)}`
+    if (browserApiBase()) {
+      const searchParams = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+      })
+      const data = await browserApiGet<V2TablePreview>(
+        `${endpoint}?${searchParams}`,
+      )
+      return { data, error: null }
+    }
+    const data = await apiGet<V2TablePreview>(endpoint, { limit, offset }, 8000)
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2TablePreview>(error)
+  }
+}
 
-export const runV2Query = createServerFn()
-  .inputValidator(
-    (input: {
-      sql: string
-      branch?: string
-      limit?: number
-      offset?: number
-    }) => input,
-  )
-  .handler(
-    async ({
-      data: { sql, branch, limit = 100, offset = 0 },
-    }): Promise<V2ResourceResult<V2QueryResult>> => {
-      try {
-        const data = await apiPost<V2QueryResult>(
+export async function runV2Query({
+  data: { sql, branch, limit = 100, offset = 0 },
+}: {
+  data: { sql: string; branch?: string; limit?: number; offset?: number }
+}): Promise<V2ResourceResult<V2QueryResult>> {
+  try {
+    const data = browserApiBase()
+      ? await browserApiPost<V2QueryResult>(`${V2_API_PREFIX}/query`, {
+          sql,
+          branch,
+          limit,
+          offset,
+        })
+      : await apiPost<V2QueryResult>(
           `${V2_API_PREFIX}/query`,
           { sql, branch, limit, offset },
           12000,
         )
-        return { data, error: null }
-      } catch (error) {
-        return apiUnavailable<V2QueryResult>(error)
-      }
-    },
-  )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2QueryResult>(error)
+  }
+}
 
 export async function getV2SavedQueries(): Promise<
   V2ResourceResult<Array<V2SavedQuery>>
@@ -316,31 +357,34 @@ export async function getV2SavedQueries(): Promise<
   }
 }
 
-export const saveV2Query = createServerFn()
-  .inputValidator(
-    (input: {
-      name: string
-      sql: string
-      branch?: string
-      metadata?: Record<string, unknown>
-    }) => input,
-  )
-  .handler(
-    async ({
-      data: { name, sql, branch, metadata = {} },
-    }): Promise<V2ResourceResult<V2SavedQuery>> => {
-      try {
-        const data = await apiPost<V2SavedQuery>(
+export async function saveV2Query({
+  data: { name, sql, branch, metadata = {} },
+}: {
+  data: {
+    name: string
+    sql: string
+    branch?: string
+    metadata?: Record<string, unknown>
+  }
+}): Promise<V2ResourceResult<V2SavedQuery>> {
+  try {
+    const data = browserApiBase()
+      ? await browserApiPost<V2SavedQuery>(`${V2_API_PREFIX}/saved-queries`, {
+          name,
+          sql,
+          branch,
+          metadata,
+        })
+      : await apiPost<V2SavedQuery>(
           `${V2_API_PREFIX}/saved-queries`,
           { name, sql, branch, metadata },
           8000,
         )
-        return { data, error: null }
-      } catch (error) {
-        return apiUnavailable<V2SavedQuery>(error)
-      }
-    },
-  )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2SavedQuery>(error)
+  }
+}
 
 export const getV2RowJourney = createServerFn()
   .inputValidator((input: { tableId: string; rowId: string }) => input)

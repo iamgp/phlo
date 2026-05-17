@@ -105,8 +105,9 @@ ROUTE_REQUIREMENTS = [
         route_id="runs",
         label="Runs",
         path="/runs",
+        required_any=["orchestrator"],
         optional=["maintenance_read_model"],
-        reason="Core provider-neutral run history surface.",
+        reason="Install an orchestrator provider to inspect run history.",
     ),
     V2RouteRequirement(
         route_id="storage",

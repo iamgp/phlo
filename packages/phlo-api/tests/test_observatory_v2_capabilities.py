@@ -218,7 +218,7 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
     assert requirements["branches"].required_any == ["catalog"]
     assert requirements["branches"].optional == ["table_store"]
     assert requirements["operations"].required_any == ["maintenance_read_model"]
-    assert requirements["runs"].required_any == []
+    assert requirements["runs"].required_any == ["orchestrator"]
     assert requirements["runs"].optional == ["maintenance_read_model"]
     assert requirements["storage"].required_any == ["table_store", "object_store"]
     assert requirements["storage"].optional == []
@@ -251,7 +251,7 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
             for requirement in requirements.values()
         )
     )
-    assert "orchestrator" not in set().union(
+    assert "orchestrator" in set().union(
         *(
             set(requirement.required_any) | set(requirement.optional)
             for requirement in requirements.values()

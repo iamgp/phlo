@@ -16,7 +16,7 @@ type CachedEntry<T> = {
 
 const resourceCache = new Map<string, CachedEntry<unknown>>()
 const resourceKeys = new WeakMap<object, string>()
-const cacheVersion = '2026-05-17-core-logs-cache'
+const cacheVersion = '2026-05-17-observatory-runtime-v2'
 let nextResourceKey = 0
 
 export function useLiveResource<T>(
@@ -120,7 +120,7 @@ async function browserFallbackResource<T>(
   key: string,
 ): Promise<V2ResourceResult<T>> {
   if (typeof window === 'undefined') return { data: null, error: null }
-  const base = window.__PHLO_API_BROWSER_URL__
+  const base = browserApiBase()
   const endpoint = fallbackEndpoint(key)
   if (!base || !endpoint) return { data: null, error: null }
 
@@ -149,6 +149,15 @@ async function browserFallbackResource<T>(
         error instanceof Error ? error.message : 'Lakehouse API is unavailable',
     }
   }
+}
+
+function browserApiBase(): string | null {
+  return (
+    window.__PHLO_API_BROWSER_URL__ ||
+    document.querySelector<HTMLMetaElement>('meta[name="phlo-api-browser-url"]')
+      ?.content ||
+    null
+  )
 }
 
 function fallbackEndpoint(key: string): string | null {
