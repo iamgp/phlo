@@ -19,8 +19,8 @@ export function Observability() {
   return (
     <V2SurfacePage
       contract="/api/observatory/v2/observability"
-      description="Provider-neutral telemetry, alerting, and monitoring surfaces."
-      emptyCopy="Observability providers can add shallow telemetry summaries here without introducing backend-specific dashboards yet."
+      description="Telemetry, alerting, and monitoring signals from the running stack."
+      emptyCopy="Telemetry summaries will appear here when an observability package reports them."
       error={result.error}
       items={items}
       kicker="Observability"

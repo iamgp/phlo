@@ -357,7 +357,7 @@ function useOverviewRoute() {
               <div className="phlo-v2-mini-row">
                 <span>No recent evidence</span>
                 <small>
-                  Logs will appear as the API read model reports them.
+                  Logs will appear as Phlo and stack services emit events.
                 </small>
               </div>
             )}

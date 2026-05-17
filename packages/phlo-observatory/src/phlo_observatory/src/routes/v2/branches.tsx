@@ -177,8 +177,8 @@ export function Branches() {
           <div className="phlo-v2-inspector-label">Change controls</div>
           <h2>{selected?.name ?? 'No branch selected'}</h2>
           <p>
-            Branch state, compare summary, and commit history from the catalog
-            read model.
+            Branch state, compare summary, and commit history for the selected
+            catalog branch.
           </p>
           <div className="phlo-v2-action-row">
             <button

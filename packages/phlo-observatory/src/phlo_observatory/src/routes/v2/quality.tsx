@@ -352,7 +352,7 @@ function qualityStatusLabel(check: V2QualityCheck): string {
 
 function qualityResultSummary(check: V2QualityCheck): string {
   if (check.status === 'unknown') {
-    return 'No result has been returned by the quality read model yet.'
+    return 'No quality result has been recorded for this check yet.'
   }
   if (check.status === 'passing') return 'Latest observed run passed.'
   if (check.status === 'warning') return 'Latest observed run raised a warning.'
