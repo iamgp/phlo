@@ -43,7 +43,7 @@ export function useLiveResource<T>(
       if (!cancelled) setResult(next)
     }
 
-    void refresh()
+    void refresh(true)
     const interval = window.setInterval(() => {
       void refresh(true)
     }, intervalMs)

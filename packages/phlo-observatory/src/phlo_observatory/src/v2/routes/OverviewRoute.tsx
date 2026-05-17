@@ -89,11 +89,12 @@ function useOverviewRoute() {
   useEffect(() => {
     let cancelled = false
 
-    async function load() {
+    async function load(force = false) {
       const nextCapabilities = await loadCachedResource(
         'v2:capabilities',
         getV2Capabilities,
         {
+          force,
           staleMs: 120_000,
         },
       )
@@ -108,29 +109,42 @@ function useOverviewRoute() {
         nextLogs,
         nextBranches,
       ] = await Promise.all([
-        loadCachedResource('v2:overview', getV2Overview, { staleMs: 30_000 }),
-        loadCachedResource('v2:services', getV2Services, { staleMs: 60_000 }),
+        loadCachedResource('v2:overview', getV2Overview, {
+          force,
+          staleMs: 30_000,
+        }),
+        loadCachedResource('v2:services', getV2Services, {
+          force,
+          staleMs: 60_000,
+        }),
         features?.operations === false
           ? empty
           : loadCachedResource('v2:operations', getV2OperationRecords, {
+              force,
               staleMs: 60_000,
             }),
         features?.assets === false
           ? empty
           : loadCachedResource('v2:assets', getV2AssetRecords, {
+              force,
               staleMs: 60_000,
             }),
         features?.issues === false
           ? empty
           : loadCachedResource('v2:quality', getV2QualityRecords, {
+              force,
               staleMs: 60_000,
             }),
         features?.logs === false
           ? empty
-          : loadCachedResource('v2:logs', getV2LogRecords, { staleMs: 30_000 }),
+          : loadCachedResource('v2:logs', getV2LogRecords, {
+              force,
+              staleMs: 30_000,
+            }),
         features?.branches === false
           ? empty
           : loadCachedResource('v2:branches', getV2BranchRecords, {
+              force,
               staleMs: 60_000,
             }),
       ])
@@ -150,8 +164,10 @@ function useOverviewRoute() {
       }
     }
 
-    void load()
-    const interval = window.setInterval(load, 30_000)
+    void load(true)
+    const interval = window.setInterval(() => {
+      void load(true)
+    }, 30_000)
 
     return () => {
       cancelled = true
