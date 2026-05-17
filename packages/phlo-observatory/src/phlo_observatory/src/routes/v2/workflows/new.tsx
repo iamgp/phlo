@@ -85,7 +85,7 @@ const WORKFLOW_STEPS: Array<{
   },
 ]
 
-function WorkflowCanvasBuilder() {
+export function WorkflowCanvasBuilder() {
   return useWorkflowCanvasBuilder()
 }
 

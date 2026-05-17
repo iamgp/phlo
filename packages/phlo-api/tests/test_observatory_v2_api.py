@@ -207,7 +207,15 @@ def test_v2_fallback_services_are_deterministic_and_provider_neutral() -> None:
 
 def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch) -> None:
     def fake_run(*args, **kwargs):
-        assert args[0] == ["docker", "ps", "-a", "--format", "{{json .}}"]
+        assert args[0] == [
+            "docker",
+            "ps",
+            "-a",
+            "--filter",
+            "label=com.docker.compose.project=phlo",
+            "--format",
+            "{{json .}}",
+        ]
         return subprocess.CompletedProcess(
             args=args[0],
             returncode=0,

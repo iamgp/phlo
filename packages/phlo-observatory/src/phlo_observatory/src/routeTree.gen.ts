@@ -30,6 +30,7 @@ import { Route as ExtensionsIndexRouteImport } from './routes/extensions/index'
 import { Route as DataIndexRouteImport } from './routes/data/index'
 import { Route as BranchesIndexRouteImport } from './routes/branches/index'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
+import { Route as WorkflowsNewRouteImport } from './routes/workflows/new'
 import { Route as V2StorageRouteImport } from './routes/v2/storage'
 import { Route as V2SettingsRouteImport } from './routes/v2/settings'
 import { Route as V2ServicesRouteImport } from './routes/v2/services'
@@ -172,6 +173,11 @@ const BranchesIndexRoute = BranchesIndexRouteImport.update({
 const AssetsIndexRoute = AssetsIndexRouteImport.update({
   id: '/assets/',
   path: '/assets/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkflowsNewRoute = WorkflowsNewRouteImport.update({
+  id: '/workflows/new',
+  path: '/workflows/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const V2StorageRoute = V2StorageRouteImport.update({
@@ -406,6 +412,7 @@ export interface FileRoutesByFullPath {
   '/v2/services': typeof V2ServicesRoute
   '/v2/settings': typeof V2SettingsRoute
   '/v2/storage': typeof V2StorageRoute
+  '/workflows/new': typeof WorkflowsNewRoute
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
   '/data': typeof DataIndexRoute
@@ -465,6 +472,7 @@ export interface FileRoutesByTo {
   '/v2/services': typeof V2ServicesRoute
   '/v2/settings': typeof V2SettingsRoute
   '/v2/storage': typeof V2StorageRoute
+  '/workflows/new': typeof WorkflowsNewRoute
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
   '/data': typeof DataIndexRoute
@@ -527,6 +535,7 @@ export interface FileRoutesById {
   '/v2/services': typeof V2ServicesRoute
   '/v2/settings': typeof V2SettingsRoute
   '/v2/storage': typeof V2StorageRoute
+  '/workflows/new': typeof WorkflowsNewRoute
   '/assets/': typeof AssetsIndexRoute
   '/branches/': typeof BranchesIndexRoute
   '/data/': typeof DataIndexRoute
@@ -590,6 +599,7 @@ export interface FileRouteTypes {
     | '/v2/services'
     | '/v2/settings'
     | '/v2/storage'
+    | '/workflows/new'
     | '/assets'
     | '/branches'
     | '/data'
@@ -649,6 +659,7 @@ export interface FileRouteTypes {
     | '/v2/services'
     | '/v2/settings'
     | '/v2/storage'
+    | '/workflows/new'
     | '/assets'
     | '/branches'
     | '/data'
@@ -710,6 +721,7 @@ export interface FileRouteTypes {
     | '/v2/services'
     | '/v2/settings'
     | '/v2/storage'
+    | '/workflows/new'
     | '/assets/'
     | '/branches/'
     | '/data/'
@@ -756,6 +768,7 @@ export interface RootRouteChildren {
   ExtensionsExtensionNameRoute: typeof ExtensionsExtensionNameRoute
   HubPluginsRoute: typeof HubPluginsRoute
   TableTableIdRoute: typeof TableTableIdRoute
+  WorkflowsNewRoute: typeof WorkflowsNewRoute
   AssetsIndexRoute: typeof AssetsIndexRoute
   BranchesIndexRoute: typeof BranchesIndexRoute
   DataIndexRoute: typeof DataIndexRoute
@@ -913,6 +926,13 @@ declare module '@tanstack/react-router' {
       path: '/assets'
       fullPath: '/assets'
       preLoaderRoute: typeof AssetsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workflows/new': {
+      id: '/workflows/new'
+      path: '/workflows/new'
+      fullPath: '/workflows/new'
+      preLoaderRoute: typeof WorkflowsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v2/storage': {
@@ -1334,6 +1354,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExtensionsExtensionNameRoute: ExtensionsExtensionNameRoute,
   HubPluginsRoute: HubPluginsRoute,
   TableTableIdRoute: TableTableIdRoute,
+  WorkflowsNewRoute: WorkflowsNewRoute,
   AssetsIndexRoute: AssetsIndexRoute,
   BranchesIndexRoute: BranchesIndexRoute,
   DataIndexRoute: DataIndexRoute,

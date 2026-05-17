@@ -7,8 +7,11 @@ from phlo_api.observatory_api.v2_models import V2Asset, V2Health, V2Service
 from phlo_api.observatory_api.v2_saved_queries import validate_saved_query_sql
 from phlo_api.observatory_api.v2_search import search_results
 from phlo_api.observatory_api.v2_services import (
+    DOCKER_PS_TIMEOUT_SECONDS,
     configured_compose_services,
     docker_status_from_container,
+    load_docker_containers,
+    load_project_docker_containers,
     load_docker_service_statuses,
     service_name_from_container,
 )
@@ -41,6 +44,38 @@ def test_docker_status_from_running_container() -> None:
 
     assert status == "running"
     assert health.state == "unknown"
+
+
+def test_load_docker_containers_allows_multi_stack_local_daemon_latency(monkeypatch) -> None:
+    observed: dict[str, object] = {}
+
+    def fake_run(*args, **kwargs):
+        observed["timeout"] = kwargs.get("timeout")
+
+        class Result:
+            returncode = 0
+            stdout = ""
+
+        return Result()
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    assert load_docker_containers() == []
+    assert observed["timeout"] == DOCKER_PS_TIMEOUT_SECONDS
+    assert DOCKER_PS_TIMEOUT_SECONDS >= 10
+
+
+def test_load_project_docker_containers_skips_global_scan_without_compose_project(
+    monkeypatch, tmp_path
+) -> None:
+    def fail_run(*args, **kwargs):
+        raise AssertionError("global docker scan should not run without a project scope")
+
+    monkeypatch.delenv("PHLO_COMPOSE_PROJECT", raising=False)
+    monkeypatch.delenv("COMPOSE_PROJECT_NAME", raising=False)
+    monkeypatch.setattr("subprocess.run", fail_run)
+
+    assert load_project_docker_containers(tmp_path) == []
 
 
 def test_service_name_from_container_matches_known_service_id() -> None:

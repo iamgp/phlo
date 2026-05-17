@@ -14,6 +14,8 @@ def test_clickhouse_service_definition():
 
     assert service_definition["name"] == "clickhouse"
     assert service_definition["category"] == "data"
+    assert "clickhouse-data:/var/lib/clickhouse" in service_definition["compose"]["volumes"]
+    assert "clickhouse-logs:/var/log/clickhouse-server" in service_definition["compose"]["volumes"]
 
 
 def test_clickhouse_service_metadata():

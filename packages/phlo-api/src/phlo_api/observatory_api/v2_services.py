@@ -26,6 +26,7 @@ from phlo_api.observatory_api.v2_models import (
 )
 
 DOCKER_SOCKET = "/var/run/docker.sock"
+DOCKER_PS_TIMEOUT_SECONDS = 30
 DOCKER_SERVICE_STATUS_RANK: dict[ServiceStatus, int] = {
     "running": 4,
     "unhealthy": 3,
@@ -153,27 +154,42 @@ def normalize_docker_api_container(container: Mapping[str, Any]) -> dict[str, An
     }
 
 
-def load_docker_containers() -> list[dict[str, Any]]:
+def parse_docker_ps_output(output: str) -> list[dict[str, Any]]:
+    containers: list[dict[str, Any]] = []
+    for line in output.splitlines():
+        try:
+            parsed = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, Mapping):
+            containers.append(dict(parsed))
+    return containers
+
+
+def docker_ps_containers(*filters: str) -> list[dict[str, Any]] | None:
+    command = ["docker", "ps", "-a"]
+    for filter_value in filters:
+        command.extend(["--filter", filter_value])
+    command.extend(["--format", "{{json .}}"])
     try:
         result = subprocess.run(
-            ["docker", "ps", "-a", "--format", "{{json .}}"],
+            command,
             capture_output=True,
             text=True,
             check=False,
-            timeout=2,
+            timeout=DOCKER_PS_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired):
-        result = None
+        return None
 
-    if result is not None and result.returncode == 0:
-        containers: list[dict[str, Any]] = []
-        for line in result.stdout.splitlines():
-            try:
-                parsed = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(parsed, Mapping):
-                containers.append(dict(parsed))
+    if result.returncode != 0:
+        return None
+    return parse_docker_ps_output(result.stdout)
+
+
+def load_docker_containers() -> list[dict[str, Any]]:
+    containers = docker_ps_containers()
+    if containers is not None:
         return containers
 
     if not Path(DOCKER_SOCKET).exists():
@@ -186,6 +202,15 @@ def load_docker_containers() -> list[dict[str, Any]]:
         for container in payload
         if isinstance(container, Mapping)
     ]
+
+
+def load_project_docker_containers(project_root: Path) -> list[dict[str, Any]]:
+    compose_project = project_compose_name(project_root)
+    if compose_project:
+        containers = docker_ps_containers(f"label=com.docker.compose.project={compose_project}")
+        if containers is not None:
+            return containers
+    return []
 
 
 def project_compose_name(project_root: Path) -> str | None:
@@ -293,7 +318,9 @@ def load_docker_service_statuses(
         return {}
 
     statuses: dict[str, tuple[ServiceStatus, V2Health]] = {}
-    containers = containers if containers is not None else load_docker_containers()
+    containers = (
+        containers if containers is not None else load_project_docker_containers(project_root)
+    )
     compose_project = current_compose_project(containers, project_root)
     if not compose_project:
         return statuses

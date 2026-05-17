@@ -1,7 +1,10 @@
 from types import SimpleNamespace
 
 from phlo_api.observatory_api.v2_capabilities import build_capability_inventory
-from phlo_api.observatory_api.v2 import _pages_from_inventory
+from phlo_api.observatory_api.v2 import (
+    _filter_capabilities_to_project_services,
+    _pages_from_inventory,
+)
 from phlo_api.observatory_api.v2_models import (
     V2CapabilityInventory,
     V2CapabilityProvider,
@@ -207,8 +210,11 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
     assert requirements["issues"].nav is True
     assert requirements["quality"].required_any == ["quality_backend"]
     assert requirements["quality"].nav is False
-    assert requirements["logs"].required_any == ["observability_backend"]
-    assert requirements["logs"].optional == ["maintenance_read_model"]
+    assert requirements["logs"].required_any == []
+    assert requirements["logs"].optional == [
+        "observability_backend",
+        "maintenance_read_model",
+    ]
     assert requirements["branches"].required_any == ["catalog"]
     assert requirements["branches"].optional == ["table_store"]
     assert requirements["operations"].required_any == ["maintenance_read_model"]
@@ -289,3 +295,74 @@ def test_pages_from_inventory_enables_routes_by_required_capabilities() -> None:
         "storage": False,
     }
     assert pages[0].providers == ["trino"]
+
+
+def test_project_service_filter_removes_service_backed_providers_without_project_stack() -> None:
+    inventory = V2CapabilityInventory(
+        providers={
+            "query_engine": [
+                V2CapabilityProvider(
+                    capability_type="query_engine",
+                    name="trino",
+                    display_name="Trino",
+                )
+            ],
+            "observability_backend": [
+                V2CapabilityProvider(
+                    capability_type="observability_backend",
+                    name="loki",
+                    display_name="Loki",
+                )
+            ],
+            "lineage_sink": [
+                V2CapabilityProvider(
+                    capability_type="lineage_sink",
+                    name="phlo-lineage",
+                    display_name="Phlo Lineage",
+                )
+            ],
+        },
+    )
+
+    _filter_capabilities_to_project_services(inventory, [])
+
+    assert inventory.providers["query_engine"] == []
+    assert inventory.providers["observability_backend"] == []
+    assert inventory.providers["lineage_sink"] == []
+
+
+def test_project_service_filter_keeps_configured_service_providers() -> None:
+    inventory = V2CapabilityInventory(
+        providers={
+            "query_engine": [
+                V2CapabilityProvider(
+                    capability_type="query_engine",
+                    name="trino",
+                    display_name="Trino",
+                )
+            ],
+            "observability_backend": [
+                V2CapabilityProvider(
+                    capability_type="observability_backend",
+                    name="loki",
+                    display_name="Loki",
+                )
+            ],
+            "lineage_sink": [
+                V2CapabilityProvider(
+                    capability_type="lineage_sink",
+                    name="phlo-lineage",
+                    display_name="Phlo Lineage",
+                )
+            ],
+        },
+    )
+    services = [
+        SimpleNamespace(id="trino", in_stack=False, definition_state="configured"),
+    ]
+
+    _filter_capabilities_to_project_services(inventory, services)
+
+    assert [provider.name for provider in inventory.providers["query_engine"]] == ["trino"]
+    assert [provider.name for provider in inventory.providers["lineage_sink"]] == ["phlo-lineage"]
+    assert inventory.providers["observability_backend"] == []

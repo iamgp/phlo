@@ -402,13 +402,24 @@ def _normalize_docker_api_container(container: Mapping[str, Any]) -> dict[str, A
 
 
 def _load_docker_containers() -> list[dict[str, Any]]:
+    command = ["docker", "ps", "-a"]
+    compose_project = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get(
+        "COMPOSE_PROJECT_NAME"
+    )
+    if compose_project is None:
+        compose_project = _project_compose_name(_project_root())
+    if compose_project:
+        command.extend(["--filter", f"label=com.docker.compose.project={compose_project}"])
+    else:
+        return []
+    command.extend(["--format", "{{json .}}"])
     try:
         result = subprocess.run(
-            ["docker", "ps", "-a", "--format", "{{json .}}"],
+            command,
             capture_output=True,
             text=True,
             check=False,
-            timeout=2,
+            timeout=30,
         )
     except (OSError, subprocess.TimeoutExpired):
         result = None
@@ -1913,8 +1924,11 @@ _RUNTIME_SERVICE_CAPABILITIES: dict[str, tuple[str, ...]] = {
 _PROVIDER_SERVICE_DEPENDENCIES: dict[tuple[str, str], tuple[str, ...]] = {
     ("api_backend", "hasura"): ("hasura",),
     ("api_backend", "postgrest"): ("postgrest",),
+    ("alert_sink", "alerting"): ("prometheus",),
     ("catalog", "nessie"): ("nessie",),
     ("catalog_scanner", "nessie"): ("nessie",),
+    ("governance_backend", "trino"): ("trino",),
+    ("lineage_sink", "phlo-lineage"): ("trino", "minio", "nessie"),
     ("maintenance_read_model", "default"): ("phlo-api",),
     ("metadata_catalog", "openmetadata"): ("openmetadata",),
     ("object_store", "minio"): ("minio",),
@@ -1945,8 +1959,6 @@ def _filter_capabilities_to_project_services(
         for service in services
         if service.in_stack or service.definition_state == "configured"
     }
-    if not project_service_ids:
-        return
 
     for capability_type, providers in list(inventory.providers.items()):
         filtered: list[V2CapabilityProvider] = []

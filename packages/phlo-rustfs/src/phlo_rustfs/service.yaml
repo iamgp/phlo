@@ -24,7 +24,7 @@ compose:
     - "${RUSTFS_API_PORT:-9000}:9000"
     - "${RUSTFS_CONSOLE_PORT:-9001}:9001"
   volumes:
-    - ./volumes/rustfs:/data
+    - rustfs-data:/data
   healthcheck:
     test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
     interval: 10s
