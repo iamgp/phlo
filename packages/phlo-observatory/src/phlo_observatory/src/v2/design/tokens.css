@@ -243,6 +243,29 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   font-weight: 650;
 }
 
+.phlo-v2-empty-panel {
+  display: grid;
+  gap: 8px;
+  max-width: 620px;
+  padding: 22px 24px;
+}
+
+.phlo-v2-empty-panel h2 {
+  margin: 0;
+  color: var(--v2-text);
+  font-size: 16px;
+  font-weight: 680;
+  line-height: 1.25;
+}
+
+.phlo-v2-empty-panel p {
+  margin: 0;
+  max-width: 56ch;
+  color: var(--v2-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .phlo-v2-list {
   display: grid;
 }
@@ -2910,6 +2933,11 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   .phlo-v2-title {
     font-size: clamp(23px, 8vw, 30px);
     line-height: 1.08;
+  }
+
+  .phlo-v2-empty-panel {
+    max-width: none;
+    padding: 18px;
   }
 
   .phlo-v2-workspace-toolbar,
