@@ -562,6 +562,26 @@ def test_v2_capabilities_endpoint_returns_provider_neutral_payload() -> None:
     _assert_no_provider_url_settings(payload)
 
 
+def test_v2_capabilities_endpoint_reloads_project_capabilities(monkeypatch) -> None:
+    """Route gating must reflect package/service inventory changes immediately."""
+    calls = 0
+
+    def load_capabilities() -> V2Capabilities:
+        nonlocal calls
+        calls += 1
+        return V2Capabilities(features={"data": calls == 2})
+
+    monkeypatch.setattr(v2, "_load_capabilities", load_capabilities)
+
+    first = TestClient(app).get("/api/observatory/v2/capabilities")
+    second = TestClient(app).get("/api/observatory/v2/capabilities")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["features"] == {"data": False}
+    assert second.json()["features"] == {"data": True}
+
+
 def test_v2_capabilities_gate_provider_pages_when_providers_are_absent(
     monkeypatch,
 ) -> None:

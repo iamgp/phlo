@@ -2404,7 +2404,7 @@ def get_v2_overview() -> V2Overview:
 @router.get("/capabilities", response_model=V2Capabilities)
 def get_v2_capabilities() -> V2Capabilities:
     """Get the provider-neutral Observatory surface capabilities."""
-    return _cached_read_model("capabilities", _EXPENSIVE_READ_MODEL_TTL_SECONDS, _load_capabilities)
+    return _load_capabilities()
 
 
 @router.get("/capability-inventory", response_model=V2CapabilityInventory)
