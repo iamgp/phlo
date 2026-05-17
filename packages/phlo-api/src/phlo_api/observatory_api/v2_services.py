@@ -12,6 +12,8 @@ import socket
 import subprocess
 from typing import Any
 
+import yaml
+
 from phlo_api.observatory_api.v2_metadata import safe_metadata
 from phlo_api.observatory_api.v2_models import (
     HealthState,
@@ -186,10 +188,58 @@ def load_docker_containers() -> list[dict[str, Any]]:
     ]
 
 
-def current_compose_project(containers: Sequence[Mapping[str, Any]]) -> str | None:
+def project_compose_name(project_root: Path) -> str | None:
+    """Resolve the compose project name for a Phlo project root."""
     configured = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get("COMPOSE_PROJECT_NAME")
     if configured:
         return configured
+
+    compose_file = project_root / ".phlo" / "docker-compose.yml"
+    if not compose_file.exists():
+        return None
+
+    config_file = project_root / "phlo.yaml"
+    if config_file.exists():
+        try:
+            payload = yaml.safe_load(config_file.read_text()) or {}
+        except (OSError, yaml.YAMLError):
+            payload = {}
+        if isinstance(payload, Mapping):
+            name = payload.get("name")
+            if isinstance(name, str) and name.strip():
+                return name.strip()
+
+    return project_root.name
+
+
+def configured_compose_services(project_root: Path) -> set[str]:
+    """Return service names declared in the generated project compose file."""
+    compose_file = project_root / ".phlo" / "docker-compose.yml"
+    if not compose_file.exists():
+        return set()
+    try:
+        payload = yaml.safe_load(compose_file.read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        return set()
+    if not isinstance(payload, Mapping):
+        return set()
+    services = payload.get("services")
+    if not isinstance(services, Mapping):
+        return set()
+    return {str(name) for name in services}
+
+
+def current_compose_project(
+    containers: Sequence[Mapping[str, Any]],
+    project_root: Path | None = None,
+) -> str | None:
+    configured = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get("COMPOSE_PROJECT_NAME")
+    if configured:
+        return configured
+    if project_root is not None:
+        project_name = project_compose_name(project_root)
+        if project_name:
+            return project_name
 
     hostname = os.environ.get("HOSTNAME", "")
     if not hostname:
@@ -237,18 +287,21 @@ def service_name_from_container(name: str, service_ids: set[str]) -> str | None:
 def load_docker_service_statuses(
     service_ids: set[str],
     containers: Sequence[Mapping[str, Any]] | None = None,
+    project_root: Path | None = None,
 ) -> dict[str, tuple[ServiceStatus, V2Health]]:
     if not service_ids:
         return {}
 
     statuses: dict[str, tuple[ServiceStatus, V2Health]] = {}
     containers = containers if containers is not None else load_docker_containers()
-    compose_project = current_compose_project(containers)
+    compose_project = current_compose_project(containers, project_root)
+    if not compose_project:
+        return statuses
+
     for container in containers:
-        if compose_project:
-            labels = container_labels(container)
-            if labels.get("com.docker.compose.project") != compose_project:
-                continue
+        labels = container_labels(container)
+        if labels.get("com.docker.compose.project") != compose_project:
+            continue
         name = coerce_str(container.get("Names"), "")
         service_id = compose_service_name(container) or service_name_from_container(
             name, service_ids
@@ -270,12 +323,16 @@ def load_docker_service_statuses(
 def runtime_services_from_containers(
     containers: Sequence[Mapping[str, Any]],
     known_ids: set[str],
+    project_root: Path | None = None,
 ) -> list[V2Service]:
-    compose_project = current_compose_project(containers)
+    compose_project = current_compose_project(containers, project_root)
+    if not compose_project:
+        return []
+
     services: list[V2Service] = []
     for container in containers:
         labels = container_labels(container)
-        if compose_project and labels.get("com.docker.compose.project") != compose_project:
+        if labels.get("com.docker.compose.project") != compose_project:
             continue
         service_id = compose_service_name(container)
         if not service_id or service_id in known_ids:
@@ -383,7 +440,6 @@ def load_services(
     containers: Sequence[Mapping[str, Any]] | None = None,
 ) -> list[V2Service]:
     """Load services through core discovery, falling back deterministically."""
-    _ = project_root
     try:
         from phlo.plugins.discovery import ServiceDiscovery
 
@@ -394,12 +450,15 @@ def load_services(
     services: list[V2Service] = []
     containers = containers if containers is not None else load_docker_containers()
     discovered = list(discovered)
+    configured_services = configured_compose_services(project_root)
     runtime_statuses = load_docker_service_statuses(
         {service.name for service in discovered},
         containers,
+        project_root,
     )
     for service in discovered:
         in_stack = service.name in runtime_statuses
+        configured = in_stack or service.name in configured_services
         status, health = runtime_statuses.get(
             service.name,
             ("unknown", V2Health(state="unknown", message="Runtime status unavailable")),
@@ -411,7 +470,7 @@ def load_services(
                 kind=service.category or "service",
                 status=status,
                 health=health,
-                definition_state="configured" if in_stack else "available",
+                definition_state="configured" if configured else "available",
                 runtime_state=status,
                 in_stack=in_stack,
                 disabled=bool(getattr(service, "disabled", False)),
@@ -432,7 +491,9 @@ def load_services(
         )
 
     services.extend(
-        runtime_services_from_containers(containers, {service.id for service in services})
+        runtime_services_from_containers(
+            containers, {service.id for service in services}, project_root
+        )
     )
 
     return sorted(services, key=lambda item: item.id) if services else fallback_services()

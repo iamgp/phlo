@@ -7,7 +7,9 @@ from phlo_api.observatory_api.v2_models import V2Asset, V2Health, V2Service
 from phlo_api.observatory_api.v2_saved_queries import validate_saved_query_sql
 from phlo_api.observatory_api.v2_search import search_results
 from phlo_api.observatory_api.v2_services import (
+    configured_compose_services,
     docker_status_from_container,
+    load_docker_service_statuses,
     service_name_from_container,
 )
 
@@ -43,6 +45,32 @@ def test_docker_status_from_running_container() -> None:
 
 def test_service_name_from_container_matches_known_service_id() -> None:
     assert service_name_from_container("demo-postgres-1", {"postgres"}) == "postgres"
+
+
+def test_docker_statuses_require_project_scope(monkeypatch) -> None:
+    containers = [
+        {
+            "Names": "pokehunt-postgres",
+            "State": "running",
+            "Status": "Up 10 seconds",
+            "Labels": "",
+        }
+    ]
+
+    monkeypatch.delenv("PHLO_COMPOSE_PROJECT", raising=False)
+    monkeypatch.delenv("COMPOSE_PROJECT_NAME", raising=False)
+
+    assert load_docker_service_statuses({"postgres"}, containers) == {}
+
+
+def test_configured_compose_services_reads_generated_compose(tmp_path) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text(
+        "services:\n  postgres:\n    image: postgres\n  trino:\n    image: trino\n"
+    )
+
+    assert configured_compose_services(tmp_path) == {"postgres", "trino"}
 
 
 def test_validate_saved_query_sql_accepts_select_star_limit() -> None:

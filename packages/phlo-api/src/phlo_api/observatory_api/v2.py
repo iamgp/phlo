@@ -90,6 +90,7 @@ from phlo_api.observatory_api.v2_saved_queries import (
 )
 from phlo_api.observatory_api.v2_search import search_results as _search_results_impl
 from phlo_api.observatory_api.v2_services import load_services as _load_services_impl
+from phlo_api.observatory_api.v2_services import project_compose_name as _project_compose_name
 from phlo_api.observatory_api.v2_storage import load_storage_items
 from phlo_api.observatory_api.v2_workflow_wizard import (
     V2WorkflowActionRequest,
@@ -439,6 +440,9 @@ def _current_compose_project(containers: Sequence[Mapping[str, Any]]) -> str | N
     configured = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get("COMPOSE_PROJECT_NAME")
     if configured:
         return configured
+    configured_project = _project_compose_name(_project_root())
+    if configured_project:
+        return configured_project
 
     hostname = os.environ.get("HOSTNAME", "")
     if not hostname:
@@ -492,11 +496,13 @@ def _load_docker_service_statuses(
     statuses: dict[str, tuple[ServiceStatus, V2Health]] = {}
     containers = _load_docker_containers()
     compose_project = _current_compose_project(containers)
+    if not compose_project:
+        return statuses
+
     for container in containers:
-        if compose_project:
-            labels = _container_labels(container)
-            if labels.get("com.docker.compose.project") != compose_project:
-                continue
+        labels = _container_labels(container)
+        if labels.get("com.docker.compose.project") != compose_project:
+            continue
         name = _coerce_str(container.get("Names"), "")
         service_id = _compose_service_name(container) or _service_name_from_container(
             name, service_ids
@@ -521,9 +527,12 @@ def _runtime_services_from_containers(
 ) -> list[V2Service]:
     compose_project = _current_compose_project(containers)
     services: list[V2Service] = []
+    if not compose_project:
+        return services
+
     for container in containers:
         labels = _container_labels(container)
-        if compose_project and labels.get("com.docker.compose.project") != compose_project:
+        if labels.get("com.docker.compose.project") != compose_project:
             continue
         service_id = _compose_service_name(container)
         if not service_id or service_id in known_ids:
@@ -1830,6 +1839,7 @@ def _providers_matching(extensions: Sequence[V2Extension], *needles: str) -> lis
 
 def _load_capabilities() -> V2Capabilities:
     inventory = build_capability_inventory(_load_capability_registry())
+    _filter_capabilities_to_project_services(inventory, _load_services())
     _add_runtime_capability_providers(inventory)
     pages = _pages_from_inventory(inventory)
     features = {page.id: page.available for page in pages}
@@ -1857,6 +1867,71 @@ _RUNTIME_SERVICE_CAPABILITIES: dict[str, tuple[str, ...]] = {
     "hasura": ("api_backend",),
     "superset": ("publish_target",),
 }
+
+
+_PROVIDER_SERVICE_DEPENDENCIES: dict[tuple[str, str], tuple[str, ...]] = {
+    ("api_backend", "hasura"): ("hasura",),
+    ("api_backend", "postgrest"): ("postgrest",),
+    ("catalog", "nessie"): ("nessie",),
+    ("catalog_scanner", "nessie"): ("nessie",),
+    ("maintenance_read_model", "default"): ("phlo-api",),
+    ("metadata_catalog", "openmetadata"): ("openmetadata",),
+    ("object_store", "minio"): ("minio",),
+    ("object_store", "rustfs"): ("rustfs",),
+    ("observability_backend", "default"): ("clickstack",),
+    ("observability_backend", "clickstack"): ("clickstack",),
+    ("observability_backend", "grafana"): ("grafana",),
+    ("observability_backend", "loki"): ("loki",),
+    ("observability_backend", "prometheus"): ("prometheus",),
+    ("publish_target", "clickhouse"): ("clickhouse",),
+    ("publish_target", "postgres"): ("postgres",),
+    ("publish_target", "trino"): ("trino",),
+    ("query_engine", "clickhouse"): ("clickhouse",),
+    ("query_engine", "trino"): ("trino",),
+    ("table_store", "clickhouse"): ("clickhouse",),
+    ("table_store", "delta"): ("trino", "minio"),
+    ("table_store", "iceberg"): ("trino", "minio", "nessie"),
+}
+
+
+def _filter_capabilities_to_project_services(
+    inventory: V2CapabilityInventory,
+    services: Sequence[V2Service],
+) -> None:
+    """Keep service-backed providers aligned with the current project stack."""
+    project_service_ids = {
+        service.id
+        for service in services
+        if service.in_stack or service.definition_state == "configured"
+    }
+    if not project_service_ids:
+        return
+
+    for capability_type, providers in list(inventory.providers.items()):
+        filtered: list[V2CapabilityProvider] = []
+        for provider in providers:
+            dependencies = _provider_service_dependencies(capability_type, provider)
+            if not dependencies or any(
+                service_id in project_service_ids for service_id in dependencies
+            ):
+                filtered.append(provider)
+        inventory.providers[capability_type] = filtered
+
+
+def _provider_service_dependencies(
+    capability_type: str,
+    provider: V2CapabilityProvider,
+) -> tuple[str, ...]:
+    metadata = provider.metadata
+    service_name = metadata.get("service_name") or metadata.get("service")
+    if isinstance(service_name, str) and service_name:
+        return (service_name,)
+
+    dependencies = metadata.get("service_dependencies") or metadata.get("default_stack")
+    if isinstance(dependencies, list):
+        return tuple(str(item) for item in dependencies if str(item))
+
+    return _PROVIDER_SERVICE_DEPENDENCIES.get((capability_type, provider.name), ())
 
 
 def _add_runtime_capability_providers(inventory: V2CapabilityInventory) -> None:

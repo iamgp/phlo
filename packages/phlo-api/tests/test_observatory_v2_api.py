@@ -218,6 +218,7 @@ def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch)
                             "Names": "phlo-trino-1",
                             "State": "running",
                             "Status": "Up 3 minutes (healthy)",
+                            "Labels": "com.docker.compose.project=phlo,com.docker.compose.service=trino",
                         }
                     ),
                     json.dumps(
@@ -225,6 +226,7 @@ def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch)
                             "Names": "old-trino-1",
                             "State": "exited",
                             "Status": "Exited (0) yesterday",
+                            "Labels": "com.docker.compose.project=old,com.docker.compose.service=trino",
                         }
                     ),
                     json.dumps(
@@ -232,6 +234,7 @@ def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch)
                             "Names": "phlo-dagster-1",
                             "State": "created",
                             "Status": "Created",
+                            "Labels": "com.docker.compose.project=phlo,com.docker.compose.service=dagster",
                         }
                     ),
                 ]
@@ -239,6 +242,7 @@ def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch)
         )
 
     monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "phlo")
 
     statuses = _load_docker_service_statuses({"trino", "dagster"})
 
@@ -312,6 +316,27 @@ def test_v2_load_services_includes_runtime_containers_missing_from_discovery(mon
     assert postgres.in_stack is True
     assert postgres.backend == "docker"
     assert postgres.status == "running"
+
+
+def test_v2_docker_statuses_ignore_containers_without_project_scope(monkeypatch) -> None:
+    def fake_run(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "Names": "pokehunt-postgres",
+                    "State": "running",
+                    "Status": "Up 3 minutes (healthy)",
+                }
+            ),
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.delenv("PHLO_COMPOSE_PROJECT", raising=False)
+    monkeypatch.delenv("COMPOSE_PROJECT_NAME", raising=False)
+
+    assert _load_docker_service_statuses({"postgres"}) == {}
 
 
 def test_v2_capabilities_include_running_service_backed_providers(monkeypatch) -> None:
