@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 import http.client
+import importlib.metadata
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,7 @@ import subprocess
 from typing import Any
 
 import yaml
+from phlo.plugins.registry_client import get_registry_data
 
 from phlo_api.observatory_api.v2_metadata import safe_metadata
 from phlo_api.observatory_api.v2_models import (
@@ -35,6 +37,128 @@ DOCKER_SERVICE_STATUS_RANK: dict[ServiceStatus, int] = {
     "unknown": 0,
 }
 ENV_DEFAULT_RE = re.compile(r"^\$\{[^}:]+:-(?P<default>[^}]+)\}$")
+
+
+def _registry_package_entries() -> dict[str, dict[str, Any]]:
+    """Return trusted registry entries keyed by package and friendly aliases."""
+    try:
+        registry = get_registry_data()
+    except Exception:
+        return {}
+
+    plugins = registry.get("plugins") if isinstance(registry, Mapping) else None
+    if not isinstance(plugins, Mapping):
+        return {}
+
+    entries: dict[str, dict[str, Any]] = {}
+    for name, payload in plugins.items():
+        if not isinstance(payload, Mapping):
+            continue
+        package = coerce_str(payload.get("package"), "")
+        if not package:
+            continue
+        normalized = dict(payload)
+        normalized["name"] = str(name)
+        for key in {str(name), package, package.removeprefix("phlo-")}:
+            if key:
+                entries[key] = normalized
+    return entries
+
+
+def _registry_service_entries(
+    entries: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Mapping[str, Any]]:
+    """Return registry entries that should appear before stack discovery."""
+    services: dict[str, Mapping[str, Any]] = {}
+    for entry in entries.values():
+        if entry.get("type") != "service":
+            continue
+        name = coerce_str(entry.get("name"), "")
+        if name:
+            services[name] = entry
+    return services
+
+
+def _registry_entry_for_service(
+    service_name: str,
+    entries: Mapping[str, Mapping[str, Any]],
+) -> Mapping[str, Any] | None:
+    candidates = [service_name]
+    parts = service_name.split("-")
+    candidates.extend("-".join(parts[:index]) for index in range(len(parts) - 1, 0, -1))
+    candidates.extend(f"phlo-{candidate}" for candidate in list(candidates))
+
+    for candidate in candidates:
+        entry = entries.get(candidate)
+        if isinstance(entry, Mapping):
+            return entry
+    return None
+
+
+def _package_installed(package: str) -> bool:
+    try:
+        importlib.metadata.version(package)
+    except importlib.metadata.PackageNotFoundError:
+        return False
+    return True
+
+
+def _registry_metadata(
+    service_name: str,
+    entries: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    entry = _registry_entry_for_service(service_name, entries)
+    if not isinstance(entry, Mapping):
+        return {}
+
+    package = coerce_str(entry.get("package"), "")
+    installed = _package_installed(package) if package else False
+    return {
+        "registry_name": coerce_str(entry.get("name"), service_name),
+        "package": package,
+        "package_version": coerce_str(entry.get("version"), ""),
+        "package_installed": installed,
+        "installable": not installed,
+        "verified": bool(entry.get("verified")),
+        "description": coerce_str(entry.get("description"), ""),
+        "tags": list(entry.get("tags", [])) if isinstance(entry.get("tags"), list) else [],
+    }
+
+
+def _available_registry_service(
+    service_name: str,
+    entry: Mapping[str, Any],
+) -> V2Service:
+    package = coerce_str(entry.get("package"), "")
+    description = coerce_str(entry.get("description"), "")
+    tags = list(entry.get("tags", [])) if isinstance(entry.get("tags"), list) else []
+    return V2Service(
+        id=service_name,
+        name=service_name,
+        kind=coerce_str(entry.get("type"), "service") or "service",
+        status="unknown",
+        health=V2Health(
+            state="unknown",
+            message="Package is available to install.",
+        ),
+        definition_state="available",
+        runtime_state="unknown",
+        in_stack=False,
+        backend="registry",
+        metadata=safe_metadata(
+            {
+                "source": "registry",
+                "registry_name": service_name,
+                "package": package,
+                "package_version": coerce_str(entry.get("version"), ""),
+                "package_installed": False,
+                "installable": True,
+                "verified": bool(entry.get("verified")),
+                "description": description,
+                "tags": tags,
+            }
+        ),
+    )
 
 
 def coerce_str(value: Any, default: str = "") -> str:
@@ -477,6 +601,8 @@ def load_services(
     services: list[V2Service] = []
     containers = containers if containers is not None else load_docker_containers()
     discovered = list(discovered)
+    registry_entries = _registry_package_entries()
+    registry_services = _registry_service_entries(registry_entries)
     configured_services = configured_compose_services(project_root)
     runtime_statuses = load_docker_service_statuses(
         {service.name for service in discovered},
@@ -512,10 +638,17 @@ def load_services(
                         "profile": service.profile,
                         "core": bool(getattr(service, "core", False)),
                         "description": getattr(service, "description", None),
+                        **_registry_metadata(service.name, registry_entries),
                     }
                 ),
             )
         )
+
+    discovered_names = {service.id for service in services}
+    for service_name, entry in registry_services.items():
+        if service_name in discovered_names:
+            continue
+        services.append(_available_registry_service(service_name, entry))
 
     services.extend(
         runtime_services_from_containers(

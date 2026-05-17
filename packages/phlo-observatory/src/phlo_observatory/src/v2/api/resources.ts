@@ -15,6 +15,7 @@ import type {
   V2Operation,
   V2OperationDetail,
   V2Overview,
+  V2PackageInstallResult,
   V2QualityCheck,
   V2QualityDetail,
   V2QueryResult,
@@ -525,6 +526,25 @@ export const runV2Action = createServerFn()
         return { data, error: null }
       } catch (error) {
         return apiUnavailable<V2ActionResult>(error)
+      }
+    },
+  )
+
+export const installV2Package = createServerFn()
+  .inputValidator((input: { packageName: string }) => input)
+  .handler(
+    async ({
+      data: { packageName },
+    }): Promise<V2ResourceResult<V2PackageInstallResult>> => {
+      try {
+        const data = await apiPost<V2PackageInstallResult>(
+          `${V2_API_PREFIX}/packages/install`,
+          { package_name: packageName },
+          310000,
+        )
+        return { data, error: null }
+      } catch (error) {
+        return apiUnavailable<V2PackageInstallResult>(error)
       }
     },
   )

@@ -12,6 +12,7 @@ from phlo.capabilities.registry import CapabilityRegistry
 from phlo.capabilities.specs import CatalogSpec
 from phlo_api.main import app
 from phlo_api.observatory_api import v2
+from phlo_api.observatory_api import v2_services
 from phlo_api.observatory_api.v2 import (
     _execute_action,
     _fallback_services,
@@ -326,6 +327,33 @@ def test_v2_load_services_includes_runtime_containers_missing_from_discovery(mon
     assert postgres.status == "running"
 
 
+def test_v2_service_registry_metadata_matches_helper_services(monkeypatch) -> None:
+    monkeypatch.setattr(
+        v2_services,
+        "get_registry_data",
+        lambda: {
+            "plugins": {
+                "openmetadata": {
+                    "type": "hooks",
+                    "package": "phlo-openmetadata",
+                    "version": "0.1.0",
+                    "description": "OpenMetadata integration",
+                    "verified": True,
+                    "tags": ["metadata"],
+                }
+            }
+        },
+    )
+    monkeypatch.setattr(v2_services, "_package_installed", lambda package: False)
+
+    entries = v2_services._registry_package_entries()
+    metadata = v2_services._registry_metadata("openmetadata-mysql", entries)
+
+    assert metadata["registry_name"] == "openmetadata"
+    assert metadata["package"] == "phlo-openmetadata"
+    assert metadata["installable"] is True
+
+
 def test_v2_docker_statuses_ignore_containers_without_project_scope(monkeypatch) -> None:
     def fake_run(*args, **kwargs):
         return subprocess.CompletedProcess(
@@ -499,6 +527,73 @@ def test_v2_service_action_records_subprocess_result(
     operations = TestClient(app).get("/api/observatory/v2/operations").json()["items"]
     assert operations[0]["id"] == payload["operation"]["id"]
     assert operations[0]["status"] == "succeeded"
+
+
+def test_v2_package_install_uses_trusted_registry_package(monkeypatch) -> None:
+    monkeypatch.setattr(
+        v2,
+        "get_registry_data",
+        lambda: {
+            "plugins": {
+                "openmetadata": {
+                    "type": "service",
+                    "package": "phlo-openmetadata",
+                    "version": "0.1.0",
+                }
+            }
+        },
+    )
+    installed: list[str] = []
+
+    def fake_install(package_spec: str) -> tuple[bool, str]:
+        installed.append(package_spec)
+        return True, "installed"
+
+    monkeypatch.setattr(v2, "_run_python_package_install", fake_install)
+    monkeypatch.setattr(v2, "_load_services", lambda: [])
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/packages/install",
+        json={"package_name": "openmetadata"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "succeeded"
+    assert payload["package_name"] == "phlo-openmetadata"
+    assert installed == ["phlo-openmetadata==0.1.0"]
+
+
+def test_v2_package_install_rejects_unknown_package(monkeypatch) -> None:
+    monkeypatch.setattr(v2, "get_registry_data", lambda: {"plugins": {}})
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/packages/install",
+        json={"package_name": "not-a-phlo-package"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_v2_package_install_prefers_uv_add_for_uv_projects(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    commands: list[tuple[list[str], Path | None]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append((command, kwargs.get("cwd")))
+        return subprocess.CompletedProcess(command, returncode=0, stdout="ok")
+
+    monkeypatch.setattr(v2.shutil, "which", lambda name: "/usr/bin/uv")
+    monkeypatch.setattr(v2, "_uv_project_root", lambda: tmp_path)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    succeeded, message = v2._run_python_package_install("phlo-openmetadata==0.1.0")
+
+    assert succeeded is True
+    assert message == "ok"
+    assert commands == [(["/usr/bin/uv", "add", "--active", "phlo-openmetadata==0.1.0"], tmp_path)]
 
 
 def test_v2_overview_endpoint_returns_provider_neutral_payload() -> None:

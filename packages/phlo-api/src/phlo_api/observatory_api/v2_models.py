@@ -168,6 +168,22 @@ class V2ActionResult(BaseModel):
     operation: "V2Operation | None" = None
 
 
+class V2PackageInstallRequest(BaseModel):
+    """Request to install a Phlo package from the trusted registry."""
+
+    package_name: str
+
+
+class V2PackageInstallResult(BaseModel):
+    """Result of a Python package install requested by Observatory."""
+
+    package_name: str
+    package_spec: str
+    status: Literal["succeeded", "failed", "skipped"]
+    message: str
+    services: list[str] = Field(default_factory=list)
+
+
 class V2ServicePort(BaseModel):
     """Provider-neutral service port exposure."""
 

@@ -202,6 +202,14 @@ export interface V2ServiceDetail {
   config: Array<V2ServiceConfigEntry>
 }
 
+export interface V2PackageInstallResult {
+  package_name: string
+  package_spec: string
+  status: 'succeeded' | 'failed' | 'skipped'
+  message: string
+  services: Array<string>
+}
+
 export interface V2Overview {
   health: V2Health
   counters: Record<string, number>

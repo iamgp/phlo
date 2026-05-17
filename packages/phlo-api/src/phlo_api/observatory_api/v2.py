@@ -6,12 +6,14 @@ import asyncio
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, is_dataclass
+import importlib
 import importlib.util
 import http.client
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -49,6 +51,8 @@ from phlo_api.observatory_api.v2_models import (
     V2Operation,
     V2OperationDetail,
     V2Overview,
+    V2PackageInstallRequest,
+    V2PackageInstallResult,
     V2QualityCheck,
     V2QualityDetail,
     V2QueryRequest,
@@ -100,6 +104,8 @@ from phlo_api.observatory_api.v2_workflow_wizard import (
     build_workflow_proposal,
     build_workflow_wizard_payload,
 )
+from phlo.cli.commands.plugin.install import resolve_install_target
+from phlo.plugins.registry_client import get_registry_data
 
 router = APIRouter(tags=["observatory-v2"])
 
@@ -2242,6 +2248,131 @@ def _execute_action(request: V2ActionRequest) -> V2ActionResult:
     )
 
 
+def _trusted_registry_service_packages() -> dict[str, dict[str, Any]]:
+    try:
+        registry = get_registry_data()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Package registry is unavailable.") from exc
+
+    plugins = registry.get("plugins") if isinstance(registry, Mapping) else None
+    if not isinstance(plugins, Mapping):
+        return {}
+
+    packages: dict[str, dict[str, Any]] = {}
+    for name, payload in plugins.items():
+        if not isinstance(payload, Mapping):
+            continue
+        package = str(payload.get("package") or "").strip()
+        if not package:
+            continue
+        normalized = dict(payload)
+        normalized["name"] = str(name)
+        for key in {str(name), package, package.removeprefix("phlo-")}:
+            if key:
+                packages[key] = normalized
+    return packages
+
+
+def _uv_project_root() -> Path | None:
+    configured = os.environ.get("PHLO_UV_PROJECT") or os.environ.get("UV_PROJECT")
+    if configured:
+        path = Path(configured).expanduser()
+        if (path / "pyproject.toml").exists():
+            return path
+
+    for candidate in [_project_root(), Path.cwd(), *Path.cwd().parents]:
+        if (candidate / "pyproject.toml").exists():
+            return candidate
+    return None
+
+
+def _run_python_package_install(package_spec: str) -> tuple[bool, str]:
+    uv = shutil.which("uv")
+    if uv is not None:
+        project_root = _uv_project_root()
+        if project_root is not None:
+            command = [uv, "add", "--active", package_spec]
+            cwd = project_root
+        else:
+            command = [uv, "pip", "install", package_spec]
+            cwd = None
+    elif importlib.util.find_spec("pip") is not None:
+        command = [sys.executable, "-m", "pip", "install", package_spec]
+        cwd = None
+    else:
+        raise RuntimeError("Neither uv nor pip is available to install packages.")
+
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+    message = (result.stdout or result.stderr or "").strip()
+    return result.returncode == 0, message or "Install command completed."
+
+
+def _install_python_package(request: V2PackageInstallRequest) -> V2PackageInstallResult:
+    requested = request.package_name.strip()
+    if not requested:
+        raise HTTPException(status_code=400, detail="Package name is required.")
+
+    trusted_packages = _trusted_registry_service_packages()
+    registry_entry = trusted_packages.get(requested)
+    if registry_entry is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Only trusted Phlo packages from the registry can be installed.",
+        )
+
+    registry_name = str(registry_entry["name"])
+    package_name = str(registry_entry["package"])
+    package_spec, _display_name = resolve_install_target(registry_name)
+    if not package_spec.startswith(package_name):
+        package_spec = package_name
+        version = str(registry_entry.get("version") or "").strip()
+        if version:
+            package_spec = f"{package_name}=={version}"
+
+    try:
+        succeeded, install_message = _run_python_package_install(package_spec)
+    except Exception as exc:
+        return V2PackageInstallResult(
+            package_name=package_name,
+            package_spec=package_spec,
+            status="failed",
+            message=f"Install failed: {exc}",
+            services=[registry_name],
+        )
+    if not succeeded:
+        return V2PackageInstallResult(
+            package_name=package_name,
+            package_spec=package_spec,
+            status="failed",
+            message=install_message[-500:],
+            services=[registry_name],
+        )
+
+    importlib.invalidate_caches()
+    _clear_read_model_cache()
+    installed_services = [
+        service.id
+        for service in _load_services()
+        if service.metadata.get("package") == package_name
+    ]
+    return V2PackageInstallResult(
+        package_name=package_name,
+        package_spec=package_spec,
+        status="succeeded",
+        message=(
+            f"Installed {package_name}. Regenerate the Phlo service stack before starting it."
+        ),
+        services=installed_services or [registry_name],
+    )
+
+
 def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
     parts = request.action_id.split(":", 2)
     if len(parts) != 3 or parts[0] != "branch":
@@ -2757,3 +2888,11 @@ def post_v2_action(request: V2ActionRequest) -> V2ActionResult:
     recorded = record_action_result(_project_root(), result)
     _clear_read_model_cache()
     return recorded
+
+
+@router.post("/packages/install", response_model=V2PackageInstallResult)
+def post_v2_package_install(request: V2PackageInstallRequest) -> V2PackageInstallResult:
+    """Install a trusted Phlo Python package into the current environment."""
+    result = _install_python_package(request)
+    _clear_read_model_cache()
+    return result
