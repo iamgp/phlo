@@ -83,9 +83,8 @@ ROUTE_REQUIREMENTS = [
         route_id="logs",
         label="Logs",
         path="/logs",
-        required_any=["observability_backend"],
-        optional=["maintenance_read_model"],
-        reason="Install an observability backend to inspect logs.",
+        optional=["observability_backend", "maintenance_read_model"],
+        reason="Core Phlo log evidence surface.",
     ),
     V2RouteRequirement(
         route_id="branches",

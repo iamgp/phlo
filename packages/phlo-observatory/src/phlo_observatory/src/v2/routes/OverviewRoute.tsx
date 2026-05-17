@@ -496,7 +496,7 @@ function featureEnabled(
   capabilities: V2Capabilities | null | undefined,
   key: string,
 ): boolean {
-  if (!capabilities) return true
+  if (!capabilities) return false
   return capabilities.features[key] !== false
 }
 

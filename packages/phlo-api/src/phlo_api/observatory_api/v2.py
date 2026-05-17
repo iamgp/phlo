@@ -874,16 +874,18 @@ def _load_operations() -> list[V2Operation]:
 
 
 def _load_logs() -> list[V2LogEvent]:
+    project_root = _project_root()
+    events = _load_project_log_events(project_root)
     try:
         from phlo.capabilities.telemetry import iter_telemetry_events
     except Exception:
-        return []
+        return events
 
-    events: list[V2LogEvent] = []
     try:
-        raw_events = list(iter_telemetry_events())[-50:]
+        telemetry_path = project_root / ".phlo" / "telemetry" / "events.jsonl"
+        raw_events = list(iter_telemetry_events(telemetry_path))[-50:]
     except Exception:
-        return []
+        return events
 
     for index, event in enumerate(reversed(raw_events)):
         timestamp = event.get("timestamp")
@@ -899,7 +901,46 @@ def _load_logs() -> list[V2LogEvent]:
                 metadata=_safe_metadata(event),
             )
         )
-    return events
+    return events[:100]
+
+
+def _load_project_log_events(project_root: Path) -> list[V2LogEvent]:
+    """Load structured Phlo project logs from `.phlo/logs/*.log`."""
+    logs_dir = project_root / ".phlo" / "logs"
+    if not logs_dir.exists():
+        return []
+
+    events: list[V2LogEvent] = []
+    for log_path in sorted(logs_dir.glob("*.log"), reverse=True):
+        try:
+            lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line_number, line in enumerate(lines[-100:], start=max(len(lines) - 99, 1)):
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                if not line.strip():
+                    continue
+                payload = {"message": line.strip(), "level": "info"}
+            if not isinstance(payload, Mapping):
+                continue
+            message = _coerce_str(
+                payload.get("message") or payload.get("event") or payload.get("logger"),
+                "log event",
+            )
+            events.append(
+                V2LogEvent(
+                    id=f"phlo:{log_path.name}:{line_number}",
+                    timestamp=_coerce_str(payload.get("timestamp"), "") or None,
+                    level=_coerce_str(payload.get("level"), "info").lower(),
+                    message=message,
+                    source=_coerce_str(payload.get("logger") or payload.get("service"), "")
+                    or "phlo",
+                    metadata=_safe_metadata(payload),
+                )
+            )
+    return sorted(events, key=lambda event: event.timestamp or "", reverse=True)[:50]
 
 
 def _asset_related_logs(asset_id: str, logs: list[V2LogEvent]) -> list[V2LogEvent]:

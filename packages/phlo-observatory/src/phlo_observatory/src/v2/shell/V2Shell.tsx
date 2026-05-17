@@ -50,6 +50,7 @@ import { loadCachedResource } from '@/v2/routes/liveResource'
 
 const fallbackPages: Array<V2CapabilityPage> = [
   corePage('overview', 'Overview', '/'),
+  corePage('logs', 'Logs', '/logs'),
   corePage('services', 'Services', '/services'),
   corePage('settings', 'Settings', '/settings'),
 ]
@@ -152,12 +153,11 @@ function useV2Shell({ children }: { children: ReactNode }) {
   const pages = hydrated
     ? (capabilities?.data?.pages ?? fallbackPages)
     : fallbackPages
-  const navItems = hydrated
-    ? pages
-        .filter((page) => page.nav && page.available)
-        .sort((left, right) => navRank(left.id) - navRank(right.id))
-    : []
+  const navItems = pages
+    .filter((page) => page.nav && page.available)
+    .sort((left, right) => navRank(left.id) - navRank(right.id))
   const activePage = pageForPath(pathname, pages)
+  const pagePending = capabilities === null && activePage === null
   const pageUnavailable =
     hydrated &&
     capabilities?.data !== null &&
@@ -713,7 +713,13 @@ function useV2Shell({ children }: { children: ReactNode }) {
         )}
         <div className="phlo-v2-app-layout">
           <section className="phlo-v2-sheet">
-            {pageUnavailable ? <UnavailablePage page={activePage} /> : children}
+            {pagePending ? (
+              <PendingCapabilityPage />
+            ) : pageUnavailable ? (
+              <UnavailablePage page={activePage} />
+            ) : (
+              children
+            )}
           </section>
         </div>
       </div>
@@ -887,6 +893,27 @@ function hasRowCount(table: V2Table): boolean {
 
 function tableLane(table: V2Table): string {
   return String(table.namespace ?? table.schema_name ?? '').toLowerCase()
+}
+
+function PendingCapabilityPage() {
+  return (
+    <div className="phlo-v2-content">
+      <header className="phlo-v2-section-header">
+        <div>
+          <div className="phlo-v2-kicker">Checking capability</div>
+          <h1 className="phlo-v2-title">Loading surface</h1>
+          <p className="phlo-v2-subtitle">
+            Observatory is checking the project packages before opening this
+            page.
+          </p>
+        </div>
+      </header>
+      <section className="phlo-v2-panel phlo-v2-empty-panel">
+        <h2>Reading project capabilities</h2>
+        <p>Pages appear here only when the matching provider is installed.</p>
+      </section>
+    </div>
+  )
 }
 
 function UnavailablePage({ page }: { page: V2CapabilityPage }) {

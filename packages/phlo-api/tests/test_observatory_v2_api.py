@@ -571,10 +571,38 @@ def test_v2_capabilities_gate_provider_pages_when_providers_are_absent(
     assert pages["issues"]["available"] is False
     assert pages["quality"]["available"] is False
     assert pages["quality"]["nav"] is False
-    assert pages["logs"]["available"] is False
+    assert pages["logs"]["available"] is True
+    assert pages["logs"]["nav"] is True
     assert pages["extensions"]["available"] is False
     assert pages["extensions"]["nav"] is False
     _assert_no_provider_url_settings(payload)
+
+
+def test_v2_logs_include_project_phlo_logs(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    v2._clear_read_model_cache()
+    log_dir = tmp_path / ".phlo" / "logs"
+    log_dir.mkdir(parents=True)
+    (log_dir / "20260517.log").write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-05-17T10:00:00Z",
+                "level": "warning",
+                "logger": "phlo.test",
+                "event": "project_log_seen",
+                "path": "/api/observatory/v2/logs",
+            }
+        )
+        + "\n"
+    )
+
+    response = TestClient(app).get("/api/observatory/v2/logs")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"][0]["message"] == "project_log_seen"
+    assert payload["items"][0]["source"] == "phlo.test"
+    assert payload["items"][0]["level"] == "warning"
 
 
 def test_v2_overview_health_describes_missing_runtime_containers() -> None:
