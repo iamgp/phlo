@@ -14,9 +14,11 @@ type CachedEntry<T> = {
   result: V2ResourceResult<T>
 }
 
+type LiveRefreshMode = 'preserve' | 'reset'
+
 const resourceCache = new Map<string, CachedEntry<unknown>>()
 const resourceKeys = new WeakMap<object, string>()
-const cacheVersion = '2026-05-17-observatory-runtime-v2'
+const cacheVersion = '2026-05-17-observatory-runtime-v3'
 let nextResourceKey = 0
 
 export function useLiveResource<T>(
@@ -35,7 +37,10 @@ export function useLiveResource<T>(
   useEffect(() => {
     let cancelled = false
 
-    async function refresh(force = false) {
+    async function refresh(force = false, mode: LiveRefreshMode = 'preserve') {
+      if (force && mode === 'reset' && !cancelled) {
+        setResult({ data: null, error: null })
+      }
       const next = await loadCachedResource<Array<T>>(key, load, {
         force,
         staleMs: intervalMs,
@@ -43,14 +48,24 @@ export function useLiveResource<T>(
       if (!cancelled) setResult(next)
     }
 
-    void refresh(true)
+    const refreshActiveTab = () => {
+      if (document.visibilityState !== 'hidden') {
+        void refresh(true)
+      }
+    }
+
+    void refresh(true, 'reset')
     const interval = window.setInterval(() => {
       void refresh(true)
     }, intervalMs)
+    window.addEventListener('focus', refreshActiveTab)
+    document.addEventListener('visibilitychange', refreshActiveTab)
 
     return () => {
       cancelled = true
       window.clearInterval(interval)
+      window.removeEventListener('focus', refreshActiveTab)
+      document.removeEventListener('visibilitychange', refreshActiveTab)
     }
   }, [intervalMs, key, load])
 

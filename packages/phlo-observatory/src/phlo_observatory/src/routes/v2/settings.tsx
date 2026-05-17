@@ -116,6 +116,7 @@ function useSettingsRoute() {
     [draft, settings],
   )
   const capabilityFeatures = capabilities?.data?.features ?? {}
+  const saveHint = dirty ? 'Save browser preferences' : 'No changes to save'
 
   useEffect(() => {
     dispatch({ type: 'draft', draft: settings })
@@ -124,7 +125,8 @@ function useSettingsRoute() {
   useEffect(() => {
     void fetchStats()
     void loadCachedResource('v2:capabilities', getV2Capabilities, {
-      staleMs: 120_000,
+      force: true,
+      staleMs: 30_000,
     }).then((nextCapabilities) =>
       dispatch({ type: 'capabilities', capabilities: nextCapabilities }),
     )
@@ -193,12 +195,24 @@ function useSettingsRoute() {
               <RotateCcw className="size-3.5" />
               Reset
             </button>
-            <button disabled={!dirty} onClick={save} type="button">
+            <button
+              aria-label={saveHint}
+              disabled={!dirty}
+              onClick={save}
+              title={saveHint}
+              type="button"
+            >
               <Save className="size-3.5" />
               Save
             </button>
           </div>
         </div>
+
+        {!dirty && (
+          <div className="phlo-v2-panel-footer">
+            Settings are saved. Change a preference to enable Save.
+          </div>
+        )}
 
         {error && <div className="phlo-v2-settings-error">{error}</div>}
 

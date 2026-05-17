@@ -206,7 +206,7 @@ function useV2Shell({ children }: { children: ReactNode }) {
       const next = await loadCachedResource(
         'v2:capabilities',
         getV2Capabilities,
-        { staleMs: 120_000 },
+        { force: true, staleMs: 30_000 },
       )
       if (!cancelled) {
         setCapabilities(next)
