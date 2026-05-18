@@ -802,6 +802,122 @@ Use `phlo.quality.rules(...)` when checks can be expressed in Phlo's neutral
 quality vocabulary. Use `phlo.quality.pandera(...)` when you need Pandera-native
 schemas or checks.
 
+## Flow Authoring Decorators
+
+Use these decorators when you want to describe the rest of the flow without
+hand-writing orchestration metadata. They register provider-neutral asset specs
+that adapters can turn into Dagster assets, lineage nodes, catalog entries, or
+operational jobs.
+
+### SQL Transform
+
+```python
+import phlo
+
+@phlo.transform.sql(
+    table="silver.orders",
+    depends_on=["bronze.orders"],
+    materialized="incremental",
+)
+def orders_sql():
+    return """
+    select *
+    from bronze.orders
+    where status != 'cancelled'
+    """
+```
+
+### Publish Surface
+
+```python
+@phlo.publish(
+    table="gold.customer_health",
+    audience=["cs", "sales"],
+    owner="data-platform",
+    freshness_hours=6,
+)
+def customer_health():
+    return "gold.customer_health"
+```
+
+### Operational Observability
+
+```python
+@phlo.observe(
+    table="bronze.events",
+    freshness_hours=2,
+    row_count_change={"warn": 0.3, "fail": 0.6},
+)
+def events_observability():
+    pass
+```
+
+### Repeatable Backfills
+
+```python
+@phlo.backfill(
+    target="silver.orders",
+    partitions={"start": "2026-01-01", "end": "2026-03-31"},
+    mode="replace-partitions",
+)
+def orders_q1_backfill():
+    return orders_sql
+```
+
+### Governance Contracts
+
+Use `@phlo.contract` when the ownership, consumer, SLA, PII, or lifecycle
+metadata belongs to the data product rather than one ingestion or quality
+adapter.
+
+```python
+@phlo.contract(
+    table="gold.customer_health",
+    owner="data-platform",
+    consumers=["cs", phlo.Consumer(name="sales", contact="sales@example.com")],
+    pii=True,
+    freshness_hours=6,
+    lifecycle="production",
+)
+def customer_health_contract():
+    pass
+```
+
+### Access Policies
+
+Use `@phlo.access` to declare intended access controls in one place. Catalog,
+warehouse, and policy-engine adapters can translate the same declaration into
+their native grants or policy objects.
+
+```python
+@phlo.access(
+    table="gold.customer_health",
+    roles=["cs_read", "sales_read"],
+    pii_columns=["email"],
+    policy="read",
+)
+def customer_health_access():
+    pass
+```
+
+### Schedules
+
+Use `@phlo.schedule` to declare when a set of static targets should run. The
+`targets` list is the durable contract: it names the assets or jobs an adapter
+should launch. The decorated function is optional dynamic run configuration; it
+can return partition values, tags, or other parameters for that specific run.
+
+```python
+@phlo.schedule(
+    name="daily_customer_health",
+    cron="0 6 * * *",
+    targets=["transform_silver_orders", "publish_gold_customer_health"],
+    timezone="Europe/London",
+)
+def daily_customer_health():
+    return {"partition_date": "2026-05-18"}
+```
+
 ### Built-in Checks
 
 **NullCheck**: Ensure no null values
