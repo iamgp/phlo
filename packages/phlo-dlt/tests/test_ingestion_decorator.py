@@ -33,6 +33,32 @@ def test_phlo_ingestion_export_is_available() -> None:
     assert callable(phlo_ingestion)
 
 
+def test_dlt_ingestion_asset_has_provider_neutral_metadata() -> None:
+    """DLT assets should expose provider-neutral metadata for core surfaces."""
+
+    class _Schema:
+        __annotations__ = {"id": int}
+
+    @phlo_ingestion(
+        table_name="events",
+        unique_key="id",
+        group="raw",
+        validation_schema=_Schema,
+    )
+    def events(partition_date: str):
+        return []
+
+    asset = get_ingestion_assets()[0]
+
+    assert asset.tags["provider"] == "dlt"
+    assert asset.tags["asset_type"] == "ingestion"
+    assert asset.metadata["provider"] == "dlt"
+    assert asset.metadata["asset_type"] == "ingestion"
+    assert asset.metadata["table_name"] == "events"
+    assert asset.metadata["primary_key"] == ["id"]
+    assert asset.metadata["quality_provider"] == "pandera"
+
+
 def get_asset_spec(asset_key: str) -> Any:
     """Helper to get AssetSpec by key."""
     for spec in get_ingestion_assets():
