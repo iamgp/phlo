@@ -34,7 +34,7 @@ class _Decorators202605Transformer(cst.CSTTransformer):
 
     def visit_Import(self, node: cst.Import) -> bool:
         for alias in node.names:
-            if _name_value(alias.name) == "phlo":
+            if _local_name(alias) == "phlo":
                 self.has_import_phlo = True
         return True
 
@@ -42,7 +42,7 @@ class _Decorators202605Transformer(cst.CSTTransformer):
         module_name = _module_name(node.module)
         if module_name == "phlo":
             for alias in _aliases(node.names):
-                if _name_value(alias.name) == "phlo":
+                if _local_name(alias) == "phlo":
                     self.has_import_phlo = True
 
         if module_name in {"phlo_dlt", "phlo_dlt.decorator"}:

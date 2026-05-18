@@ -80,6 +80,23 @@ def events():
     assert '@phlo.ingest.dlt(table_name="events")' in migrated.code
 
 
+def test_adds_phlo_import_when_existing_phlo_import_is_aliased() -> None:
+    """Aliased phlo imports should not satisfy the emitted phlo namespace."""
+    source = """import phlo as p
+
+
+@phlo.ingestion(table_name="events")
+def events():
+    pass
+"""
+
+    migrated = migrate_decorators_2026_05_source(source)
+
+    assert migrated.changed is True
+    assert "import phlo\nimport phlo as p" in migrated.code
+    assert '@phlo.ingest.dlt(table_name="events")' in migrated.code
+
+
 def test_migrates_aliased_phlo_quality_import() -> None:
     """Aliased quality decorator imports should migrate while preserving checks."""
     source = """from phlo.quality import NullCheck, phlo_quality as quality
