@@ -258,6 +258,61 @@ class BusinessRuleCheck(QualityCheckPlugin):
 
 ---
 
+## IngestionProviderPlugin
+
+`phlo.plugins.base.ingestion_provider.IngestionProviderPlugin`
+
+**Inherits:** `Plugin`, `ABC`
+
+Ingestion providers supply decorator factories and asset registries for engines
+such as DLT and Sling.
+
+### Abstract methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `get_decorator` | `() -> Callable` | Return the provider-native ingestion decorator factory. |
+| `get_asset_retriever` | `() -> Callable[[], list[Any]]` | Return registered ingestion assets for this provider. |
+
+Ingestion providers are consumed by `phlo.ingest.provider("<name>")` and may also
+receive convenience aliases such as `phlo.ingest.dlt(...)` or
+`phlo.ingest.sling(...)`. Provider decorators must register `AssetSpec` objects
+with provider-neutral metadata keys: `provider`, `asset_type`, `source_name`,
+`table_name`, `write_mode`, `primary_key`, `schema_ref`, and `quality_provider`.
+
+---
+
+## QualityProviderPlugin
+
+`phlo.plugins.base.quality_provider.QualityProviderPlugin`
+
+**Inherits:** `Plugin`, `ABC`
+
+Quality providers supply decorator factories, native check classes, schema
+extraction, and optional translation from Phlo's neutral quality vocabulary.
+
+### Abstract methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `get_decorator` | `() -> Callable` | Return the provider-native quality decorator factory. |
+| `get_check_classes` | `() -> dict[str, type]` | Return provider-native check classes keyed by short names. |
+
+### Optional methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `get_schema_extractor` | `() -> Any \| None` | Return a schema extractor for provider-native schemas. |
+| `get_reconciliation_checks` | `() -> dict[str, type] \| None` | Return reconciliation check classes. |
+| `build_checks_from_rules` | `(rules: list[Any]) -> list[Any] \| None` | Translate Phlo `QualityRule` descriptors into provider-native checks. |
+
+Quality providers may implement `build_checks_from_rules(rules)` to translate
+Phlo `QualityRule` descriptors into provider-native checks. Providers that do
+not implement this method can still be used through `phlo.quality.provider(name)`
+or provider-specific aliases, but they cannot back `phlo.quality.rules(...)`.
+
+---
+
 ## TransformationPlugin
 
 `phlo.plugins.base.transform.TransformationPlugin`

@@ -116,13 +116,13 @@ semantics.
 
 Phlo reduces boilerplate through powerful decorators that auto-generate Dagster assets.
 
-#### @phlo_ingestion Decorator
+#### Ingestion Decorators
 
-Transforms a simple function into a complete ingestion pipeline:
+Transforms a simple function or replication declaration into a complete ingestion pipeline:
 
 ```mermaid
 flowchart LR
-    fn["Python function<br/>@phlo_ingestion"]
+    fn["Python function<br/>@phlo.ingest.dlt"]
     asset[Dagster asset]
     dlt[DLT pipeline]
     stage[Parquet staging]
@@ -136,7 +136,7 @@ flowchart LR
 ```
 
 ```python
-@phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="events",
     unique_key="id",
     validation_schema=EventSchema,  # Pandera schema
@@ -148,6 +148,24 @@ flowchart LR
 def api_events(partition_date: str):
     return rest_api(...)  # DLT source
 ```
+
+```python
+@phlo.ingest.sling(
+    stream_name="public.users",
+    table_name="users",
+    source_conn="PHLO_POSTGRES",
+    group="raw",
+    mode="incremental",
+    primary_key="id",
+    update_key="updated_at",
+)
+def users_replication(context):
+    return {"where": f"updated_at >= '{context.partition_key}'"}
+```
+
+DLT and Sling are ingestion providers. Phlo owns the asset contract, metadata,
+lineage, scheduling, and quality handoff; providers own how data is extracted or
+replicated.
 
 **What it does**:
 
@@ -172,23 +190,27 @@ def api_events(partition_date: str):
 # - Dagster asset wrapper (~50 lines)
 ```
 
-#### @phlo_quality Decorator
+#### Quality Decorators
 
 Creates data quality checks:
 
 ```python
-@phlo_quality(
+@phlo.quality.rules(
     table="bronze.events",
-    checks=[
-        NullCheck(columns=["id", "timestamp"]),
-        RangeCheck(column="value", min_value=0, max_value=100),
-        UniqueCheck(columns=["id"]),
-        FreshnessCheck(column="timestamp", max_age_hours=24)
-    ]
+    rules=[
+        phlo.not_null("id", "timestamp"),
+        phlo.range_between("value", min_value=0, max_value=100),
+        phlo.unique("id"),
+        phlo.freshness("timestamp", hours=24),
+    ],
 )
 def events_quality():
     pass
 ```
+
+Use `phlo.quality.rules(...)` for Phlo's neutral quality vocabulary. Use
+`phlo.quality.pandera(...)` when you need Pandera-native schemas or check
+classes.
 
 **Built-in check types**:
 
@@ -530,9 +552,9 @@ Complete end-to-end flow:
 ```mermaid
 flowchart LR
     source[API source]
-    ingest["@phlo_ingestion"]
+    ingest["@phlo.ingest.dlt"]
     branch["Iceberg table on<br/>pipeline/run-abc123"]
-    quality["@phlo_quality checks"]
+    quality["@phlo.quality.rules checks"]
     promote[Auto-promotion sensor]
     dbt[dbt transformations]
     publish[Publishing asset]
