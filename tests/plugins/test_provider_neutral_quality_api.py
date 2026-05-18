@@ -33,6 +33,17 @@ def test_quality_rule_factories_are_provider_neutral() -> None:
     assert rules[4].parameters == {"values": ["active", "paused"]}
 
 
+def test_quality_rule_factories_reject_invalid_unbounded_rules() -> None:
+    """Rule factories should reject inputs that cannot produce executable checks."""
+    import phlo
+
+    with pytest.raises(ValueError, match="range_between requires"):
+        phlo.range_between("score")
+
+    with pytest.raises(ValueError, match="accepted_values requires"):
+        phlo.accepted_values("status", [])
+
+
 def test_pandera_quality_provider_builds_checks_from_neutral_rules() -> None:
     """Pandera provider should translate supported neutral rules into Pandera checks."""
     from phlo_pandera.checks import FreshnessCheck, NullCheck, RangeCheck, UniqueCheck
@@ -56,6 +67,23 @@ def test_pandera_quality_provider_builds_checks_from_neutral_rules() -> None:
         FreshnessCheck,
         RangeCheck,
     ]
+
+
+def test_pandera_quality_provider_quotes_accepted_values_sql() -> None:
+    """Accepted-values translation should quote identifiers and escape literals."""
+    from phlo_pandera.checks_extra import CustomSQLCheck
+    from phlo_pandera.plugin import PanderaQualityProvider
+
+    from phlo.helpers.quality import QualityRule
+
+    provider = PanderaQualityProvider()
+    checks = provider.build_checks_from_rules(
+        [QualityRule("accepted_values", ['status"col'], {"values": ["can't", "done"]})]
+    )
+
+    assert len(checks) == 1
+    assert isinstance(checks[0], CustomSQLCheck)
+    assert checks[0].sql == """SELECT ("status""col" IN ('can''t', 'done')) AS is_valid FROM data"""
 
 
 def test_pandera_quality_provider_rejects_unknown_neutral_rule() -> None:

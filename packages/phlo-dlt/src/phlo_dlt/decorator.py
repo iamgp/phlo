@@ -833,7 +833,7 @@ def phlo_ingestion(
                 "primary_key": [unique_key] if isinstance(unique_key, str) else list(unique_key),
                 "schema_ref": getattr(table_config.validation_schema, "__name__", None),
                 "quality_provider": "pandera"
-                if table_config.validation_schema is not None
+                if validate and table_config.validation_schema is not None
                 else None,
                 "unique_key": table_config.unique_key,
                 "group": table_config.group_name,

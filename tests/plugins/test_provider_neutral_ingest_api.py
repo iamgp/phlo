@@ -106,3 +106,25 @@ def test_ingest_assets_can_return_all_or_one_provider(monkeypatch: pytest.Monkey
 
     assert ingest.assets("dlt") == ["dlt_asset"]
     assert ingest.assets() == ["dlt_asset", "sling_asset"]
+
+
+def test_ingest_assets_discovers_once_for_all_providers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Collecting all provider assets should not rediscover for each provider."""
+    import phlo.plugins.discovery as discovery
+
+    discovery_calls = 0
+    providers = {"dlt": _FakeProvider("dlt"), "sling": _FakeProvider("sling")}
+
+    def _discover_plugins(*args: Any, **kwargs: Any) -> None:
+        nonlocal discovery_calls
+        discovery_calls += 1
+
+    monkeypatch.setattr(discovery, "discover_plugins", _discover_plugins)
+    monkeypatch.setattr(discovery, "list_ingestion_providers", lambda: ["dlt", "sling"])
+    monkeypatch.setattr(discovery, "get_ingestion_provider", lambda name: providers.get(name))
+    monkeypatch.delitem(sys.modules, "phlo.ingest", raising=False)
+
+    ingest = importlib.import_module("phlo.ingest")
+
+    assert ingest.assets() == ["dlt_asset", "sling_asset"]
+    assert discovery_calls == 1

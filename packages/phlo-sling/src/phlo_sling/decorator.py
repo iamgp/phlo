@@ -319,13 +319,14 @@ def _register_sling_asset(
         or f"Replicates {repl_config.stream_name} to {repl_config.full_table_name}",
         kinds={"sling", "replication"},
         tags={
+            **(extra_tags or {}),
             "provider": "sling",
             "asset_type": "ingestion",
             "source": "sling",
             "mode": repl_config.mode,
-            **(extra_tags or {}),
         },
         metadata={
+            **(extra_metadata or {}),
             "provider": "sling",
             "asset_type": "ingestion",
             "source_name": repl_config.stream_name,
@@ -342,7 +343,6 @@ def _register_sling_asset(
             "owner": owner,
             "consumers": serialize_consumers(normalized_consumers),
             "sla": serialize_sla(sla),
-            **(extra_metadata or {}),
         },
         partitions=PartitionSpec(kind="daily"),
         resources=set(),

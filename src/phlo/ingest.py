@@ -35,7 +35,6 @@ def _provider_or_raise(name: str) -> Any:
     """Resolve a provider plugin or raise the public missing-provider error."""
     from phlo.plugins.discovery import get_ingestion_provider
 
-    _discover_ingestion_providers()
     plugin = get_ingestion_provider(name)
     if plugin is None:
         raise _missing_provider_error(name)
@@ -44,17 +43,21 @@ def _provider_or_raise(name: str) -> Any:
 
 def provider(name: str) -> Callable[..., Callable[..., Any]]:
     """Return the decorator factory for a named ingestion provider."""
+    _discover_ingestion_providers()
     return _provider_or_raise(name).get_decorator()
 
 
 def assets(provider_name: str | None = None) -> list[Any]:
     """Return registered ingestion assets for one provider or all providers."""
+    _discover_ingestion_providers()
     if provider_name is not None:
         plugin = _provider_or_raise(provider_name)
         return list(plugin.get_asset_retriever()())
 
+    from phlo.plugins.discovery import list_ingestion_providers
+
     collected: list[Any] = []
-    for name in providers():
+    for name in list_ingestion_providers():
         plugin = _provider_or_raise(name)
         collected.extend(plugin.get_asset_retriever()())
     return collected

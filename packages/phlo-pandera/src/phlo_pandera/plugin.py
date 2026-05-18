@@ -359,6 +359,7 @@ from phlo_pandera.schemas import PhloSchema
 
     def build_checks_from_rules(self, rules: list[Any]) -> list[Any]:
         """Translate provider-neutral QualityRule descriptors into Pandera checks."""
+        from phlo.helpers.sql import literal, quote_identifier
         from phlo_pandera.checks import FreshnessCheck, NullCheck, RangeCheck, UniqueCheck
         from phlo_pandera.checks_extra import CustomSQLCheck
 
@@ -385,13 +386,13 @@ from phlo_pandera.schemas import PhloSchema
                 )
             elif rule.kind == "accepted_values":
                 values = rule.parameters["values"]
-                quoted_values = ", ".join(repr(value) for value in values)
+                column = rule.columns[0]
+                quoted_column = quote_identifier(column)
+                quoted_values = ", ".join(literal(value) for value in values)
                 checks.append(
                     CustomSQLCheck(
-                        name_=f"{rule.columns[0]}_accepted_values",
-                        sql=(
-                            f"SELECT ({rule.columns[0]} IN ({quoted_values})) AS is_valid FROM data"
-                        ),
+                        name_=f"{column}_accepted_values",
+                        sql=f"SELECT ({quoted_column} IN ({quoted_values})) AS is_valid FROM data",
                     )
                 )
             else:
