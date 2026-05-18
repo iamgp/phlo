@@ -116,7 +116,27 @@ _QUALITY_RULE_EXPORTS = {
     "range_between",
     "unique",
 }
-_SUBMODULE_EXPORTS = {"helpers", "ingest", "ingestion", "metrics", "quality"}
+_FLOW_EXPORTS = {
+    "access",
+    "backfill",
+    "clear_access_policies",
+    "clear_backfill_assets",
+    "clear_contract_specs",
+    "clear_observe_assets",
+    "clear_publish_assets",
+    "clear_schedules",
+    "contract",
+    "get_access_policies",
+    "get_backfill_assets",
+    "get_contract_specs",
+    "get_observe_assets",
+    "get_publish_assets",
+    "get_schedules",
+    "observe",
+    "publish",
+    "schedule",
+}
+_SUBMODULE_EXPORTS = {"helpers", "ingest", "ingestion", "metrics", "quality", "transform"}
 
 __all__ = [
     "__version__",
@@ -125,6 +145,7 @@ __all__ = [
     *_INGESTION_EXPORTS,
     *_QUALITY_EXPORTS,
     *_QUALITY_RULE_EXPORTS,
+    *_FLOW_EXPORTS,
 ]
 
 
@@ -170,6 +191,51 @@ def __getattr__(name: str) -> Any:
                 "not_null": not_null,
                 "range_between": range_between,
                 "unique": unique,
+            }
+        )
+        return globals()[name]
+    if name in _FLOW_EXPORTS:
+        from phlo.flow import (
+            access,
+            backfill,
+            clear_access_policies,
+            clear_backfill_assets,
+            clear_contract_specs,
+            clear_observe_assets,
+            clear_publish_assets,
+            clear_schedules,
+            contract,
+            get_access_policies,
+            get_backfill_assets,
+            get_contract_specs,
+            get_observe_assets,
+            get_publish_assets,
+            get_schedules,
+            observe,
+            publish,
+            schedule,
+        )
+
+        globals().update(
+            {
+                "access": access,
+                "backfill": backfill,
+                "clear_access_policies": clear_access_policies,
+                "clear_backfill_assets": clear_backfill_assets,
+                "clear_contract_specs": clear_contract_specs,
+                "clear_observe_assets": clear_observe_assets,
+                "clear_publish_assets": clear_publish_assets,
+                "clear_schedules": clear_schedules,
+                "contract": contract,
+                "get_access_policies": get_access_policies,
+                "get_backfill_assets": get_backfill_assets,
+                "get_contract_specs": get_contract_specs,
+                "get_observe_assets": get_observe_assets,
+                "get_publish_assets": get_publish_assets,
+                "get_schedules": get_schedules,
+                "observe": observe,
+                "publish": publish,
+                "schedule": schedule,
             }
         )
         return globals()[name]
