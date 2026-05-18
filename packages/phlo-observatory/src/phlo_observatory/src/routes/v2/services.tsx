@@ -208,10 +208,11 @@ export function Services() {
             <ServiceDetail
               detail={detail.data}
               group={selected}
-              onAction={(actionId) => {
+              onAction={(actionId, confirmationMessage) => {
                 if (
                   !window.confirm(
-                    `Run ${actionId}? This will call phlo-api to change a local service.`,
+                    confirmationMessage ??
+                      `Run ${actionId}? This will call phlo-api to change a local service.`,
                   )
                 ) {
                   return
@@ -298,7 +299,7 @@ function ServiceDetail({
 }: {
   detail: V2ServiceDetail | null
   group: ServicePackageGroup
-  onAction: (actionId: string) => void
+  onAction: (actionId: string, confirmationMessage?: string) => void
   onInstall: (packageName: string) => void
 }) {
   const { primary: service } = group
@@ -310,6 +311,12 @@ function ServiceDetail({
   const visibleActions = canAddToStack
     ? actions.filter((action) => action.id !== addActionId)
     : actions
+  const servicesAddedWithPrimary = addableDependencyNames(group, detail)
+  const addImpactMessage =
+    servicesAddedWithPrimary.length > 0
+      ? `Adding ${group.name} will also add ${formatHumanList(servicesAddedWithPrimary)}.`
+      : `Adding ${group.name} will only add ${group.name}.`
+  const addConfirmationMessage = `${addImpactMessage}\n\nContinue?`
   const description =
     typeof service.metadata.description === 'string'
       ? service.metadata.description
@@ -344,10 +351,19 @@ function ServiceDetail({
           value={group.services.map((item) => item.name).join(', ') || 'none'}
         />
       </dl>
+      {canAddToStack && (
+        <div className="phlo-v2-service-impact">
+          <span>Stack impact</span>
+          <strong>{addImpactMessage}</strong>
+        </div>
+      )}
       {(actions.length > 0 || canAddToStack || canInstallPackage) && (
         <div className="phlo-v2-action-row">
           {canAddToStack && (
-            <button onClick={() => onAction(addActionId)} type="button">
+            <button
+              onClick={() => onAction(addActionId, addConfirmationMessage)}
+              type="button"
+            >
               <Play className="size-3.5" />
               Add to stack
             </button>
@@ -492,6 +508,26 @@ function ServiceSection({
       </div>
     </section>
   )
+}
+
+function addableDependencyNames(
+  group: ServicePackageGroup,
+  detail: V2ServiceDetail | null,
+): Array<string> {
+  const dependencyNames = new Set<string>()
+  for (const dependency of detail?.dependencies ?? []) {
+    if (dependency.in_stack || dependency.id === group.primary.id) continue
+    dependencyNames.add(dependency.name)
+  }
+  return Array.from(dependencyNames).sort((left, right) =>
+    left.localeCompare(right),
+  )
+}
+
+function formatHumanList(items: Array<string>): string {
+  if (items.length <= 1) return items[0] ?? ''
+  if (items.length === 2) return `${items[0]} and ${items[1]}`
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`
 }
 
 function serviceActionsForDetail(
