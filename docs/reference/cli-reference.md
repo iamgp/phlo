@@ -1309,6 +1309,26 @@ phlo schema-migrate history warehouse.customers --limit 5
 For end-to-end spec authoring and execution workflow, see
 [Data Migrations Guide](../guides/data-migrations.md).
 
+### phlo migrate provider-api
+
+Migrate provider-coupled Phlo APIs to the provider-neutral API surface.
+
+```bash
+phlo migrate provider-api PATH [OPTIONS]
+```
+
+This codemod rewrites supported legacy usage such as `@phlo_ingestion(...)`,
+`@phlo.ingestion(...)`, and `@phlo_quality(...)` to explicit provider-neutral
+calls such as `@phlo.ingest.dlt(...)` and `@phlo.quality.pandera(...)`.
+
+**Options**:
+
+```bash
+--check                 # Fail if migrations are needed
+--write                 # Rewrite files in place
+--diff                  # Print unified diffs for pending changes
+```
+
 ### phlo migrate validate
 
 Validate a migration YAML spec without executing writes.

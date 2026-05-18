@@ -153,3 +153,85 @@ def test_migrate_status_reads_history_table() -> None:
         payload = json.loads(result.output)
         assert payload[0]["name"] == "initial_load_customers"
         assert payload[0]["status"] == "dry_run"
+
+
+def test_migrate_provider_api_check_reports_needed_changes() -> None:
+    """Provider API check mode should report legacy provider-coupled API usage."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        workflow_path = Path("workflows/events.py")
+        workflow_path.parent.mkdir(parents=True, exist_ok=True)
+        workflow_path.write_text(
+            "\n".join(
+                [
+                    "from phlo_dlt import phlo_ingestion",
+                    "",
+                    "",
+                    '@phlo_ingestion(table_name="events")',
+                    "def events():",
+                    "    pass",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(cli, ["migrate", "provider-api", "workflows", "--check"])
+
+        assert result.exit_code == 1
+        assert "Provider API migration needed" in result.output
+        assert "workflows/events.py" in result.output
+        assert "from phlo_dlt import phlo_ingestion" in workflow_path.read_text(encoding="utf-8")
+
+
+def test_migrate_provider_api_write_updates_files() -> None:
+    """Provider API write mode should update legacy imports and decorator calls."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        workflow_path = Path("events.py")
+        workflow_path.write_text(
+            "\n".join(
+                [
+                    "from phlo_dlt import phlo_ingestion",
+                    "",
+                    "",
+                    '@phlo_ingestion(table_name="events")',
+                    "def events():",
+                    "    pass",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(cli, ["migrate", "provider-api", "events.py", "--write"])
+
+        assert result.exit_code == 0
+        assert "Updated 1 file" in result.output
+        assert "@phlo.ingest.dlt" in workflow_path.read_text(encoding="utf-8")
+
+
+def test_migrate_provider_api_check_passes_when_no_changes_needed() -> None:
+    """Provider API check mode should pass when files already use the neutral API."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        workflow_path = Path("events.py")
+        workflow_path.write_text(
+            "\n".join(
+                [
+                    "import phlo",
+                    "",
+                    "",
+                    '@phlo.ingest.dlt(table_name="events")',
+                    "def events():",
+                    "    pass",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(cli, ["migrate", "provider-api", "events.py", "--check"])
+
+        assert result.exit_code == 0
+        assert "No provider API migrations needed" in result.output
