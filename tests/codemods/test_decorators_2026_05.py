@@ -1,8 +1,8 @@
-"""Tests for provider API migration codemods."""
+"""Tests for decorators 2026-05 migration codemods."""
 
 from __future__ import annotations
 
-from phlo.codemods.provider_api import migrate_provider_api_source
+from phlo.codemods.decorators_2026_05 import migrate_decorators_2026_05_source
 
 
 def test_migrates_phlo_dlt_decorator_import_to_provider_neutral_ingest() -> None:
@@ -15,7 +15,7 @@ def events():
     pass
 """
 
-    migrated = migrate_provider_api_source(source)
+    migrated = migrate_decorators_2026_05_source(source)
 
     assert migrated.changed is True
     assert (
@@ -40,7 +40,7 @@ def events():
     pass
 """
 
-    migrated = migrate_provider_api_source(source)
+    migrated = migrate_decorators_2026_05_source(source)
 
     assert migrated.changed is True
     assert "@phlo.ingest.dlt(" in migrated.code
@@ -48,7 +48,7 @@ def events():
 
 
 def test_migrates_aliased_phlo_dlt_decorator_import() -> None:
-    """Aliased DLT decorator imports should migrate to the explicit provider API."""
+    """Aliased DLT decorator imports should migrate to the explicit decorators 2026-05."""
     source = """from phlo_dlt import phlo_ingestion as ingest
 
 
@@ -57,7 +57,7 @@ def events():
     pass
 """
 
-    migrated = migrate_provider_api_source(source)
+    migrated = migrate_decorators_2026_05_source(source)
 
     assert migrated.changed is True
     assert '@phlo.ingest.dlt(table_name="events")' in migrated.code
@@ -74,7 +74,7 @@ def events():
     pass
 """
 
-    migrated = migrate_provider_api_source(source)
+    migrated = migrate_decorators_2026_05_source(source)
 
     assert migrated.changed is True
     assert '@phlo.ingest.dlt(table_name="events")' in migrated.code
@@ -90,7 +90,7 @@ def events_quality():
     pass
 """
 
-    migrated = migrate_provider_api_source(source)
+    migrated = migrate_decorators_2026_05_source(source)
 
     assert migrated.changed is True
     assert "from phlo.quality import NullCheck" in migrated.code
@@ -108,7 +108,7 @@ def events_quality():
     pass
 """
 
-    migrated = migrate_provider_api_source(source)
+    migrated = migrate_decorators_2026_05_source(source)
 
     assert migrated.changed is True
     assert "import phlo" in migrated.code
@@ -127,7 +127,7 @@ def events():
     pass
 """
 
-    migrated = migrate_provider_api_source(source)
+    migrated = migrate_decorators_2026_05_source(source)
 
     assert migrated.changed is False
     assert migrated.code == source

@@ -1309,17 +1309,17 @@ phlo schema-migrate history warehouse.customers --limit 5
 For end-to-end spec authoring and execution workflow, see
 [Data Migrations Guide](../guides/data-migrations.md).
 
-### phlo migrate provider-api
+### phlo migrate decorators-2026-05
 
-Migrate provider-coupled Phlo APIs to the provider-neutral API surface.
+Migrate legacy Phlo decorator usage to the May 2026 API style.
 
 ```bash
-phlo migrate provider-api PATH [OPTIONS]
+phlo migrate decorators-2026-05 PATH [OPTIONS]
 ```
 
 This codemod rewrites supported legacy usage such as `@phlo_ingestion(...)`,
-`@phlo.ingestion(...)`, and `@phlo_quality(...)` to explicit provider-neutral
-calls such as `@phlo.ingest.dlt(...)` and `@phlo.quality.pandera(...)`.
+`@phlo.ingestion(...)`, and `@phlo_quality(...)` to the explicit May 2026
+decorator calls, such as `@phlo.ingest.dlt(...)` and `@phlo.quality.pandera(...)`.
 
 **Options**:
 

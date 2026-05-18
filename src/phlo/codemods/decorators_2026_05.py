@@ -1,4 +1,4 @@
-"""Codemod for migrating provider-coupled APIs to provider-neutral APIs."""
+"""May 2026 codemod for migrating legacy Phlo decorators."""
 
 from __future__ import annotations
 
@@ -8,23 +8,23 @@ import libcst as cst
 
 
 @dataclass(frozen=True)
-class ProviderApiMigration:
+class Decorators202605Migration:
     """Result of migrating one Python source string."""
 
     code: str
     changed: bool
 
 
-def migrate_provider_api_source(source: str) -> ProviderApiMigration:
-    """Migrate legacy provider-coupled decorators to the provider-neutral API."""
+def migrate_decorators_2026_05_source(source: str) -> Decorators202605Migration:
+    """Migrate legacy Phlo decorators to the May 2026 API style."""
     module = cst.parse_module(source)
-    migrated = module.visit(_ProviderApiTransformer())
+    migrated = module.visit(_Decorators202605Transformer())
     code = migrated.code
-    return ProviderApiMigration(code=code, changed=code != source)
+    return Decorators202605Migration(code=code, changed=code != source)
 
 
-class _ProviderApiTransformer(cst.CSTTransformer):
-    """Rewrite legacy Phlo provider API references."""
+class _Decorators202605Transformer(cst.CSTTransformer):
+    """Rewrite legacy Phlo decorator references."""
 
     def __init__(self) -> None:
         self.has_import_phlo = False
