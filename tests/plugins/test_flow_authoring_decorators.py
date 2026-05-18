@@ -8,6 +8,7 @@ import sys
 import pytest
 
 from phlo.contracts import SLA, Consumer
+from phlo.helpers.testing import FakeRuntimeContext
 
 pytestmark = pytest.mark.core_regression
 
@@ -55,6 +56,29 @@ def test_transform_sql_registers_provider_neutral_asset() -> None:
         "max_failures": None,
         "notify": None,
     }
+
+
+def test_transform_sql_defers_context_aware_sql_rendering() -> None:
+    """Context-aware SQL transforms should not execute during decoration."""
+    import phlo
+
+    transform = importlib.import_module("phlo.transform")
+    transform.clear_transform_assets()
+
+    @phlo.transform.sql(table="silver.orders_daily")
+    def orders_sql(context: FakeRuntimeContext) -> str:
+        return f"select * from bronze.orders where ds = '{context.partition_key}'"
+
+    assets = transform.get_transform_assets()
+
+    assert orders_sql(FakeRuntimeContext(partition_key="2026-05-18")) == (
+        "select * from bronze.orders where ds = '2026-05-18'"
+    )
+    assert len(assets) == 1
+    assert assets[0].metadata["sql"] is None
+    assert assets[0].run is not None
+    results = list(assets[0].run.fn(FakeRuntimeContext(partition_key="2026-05-18")))
+    assert results[0].metadata["result"] == "select * from bronze.orders where ds = '2026-05-18'"
 
 
 def test_publish_registers_data_product_surface() -> None:

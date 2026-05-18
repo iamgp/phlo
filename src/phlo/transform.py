@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable
 
 from phlo._flow_authoring import append_asset, asset_key, build_run, contract_metadata
@@ -25,7 +26,7 @@ def sql(
     """Register a SQL transform asset."""
 
     def _decorator(fn: Callable[..., str]) -> Callable[..., str]:
-        sql_text = fn()
+        sql_text = _static_sql_text(fn)
         append_asset(
             _TRANSFORM_ASSETS,
             AssetSpec(
@@ -52,6 +53,20 @@ def sql(
         return fn
 
     return _decorator
+
+
+def _static_sql_text(fn: Callable[..., str]) -> str | None:
+    signature = inspect.signature(fn)
+    required_parameters = [
+        parameter
+        for parameter in signature.parameters.values()
+        if parameter.default is inspect.Parameter.empty
+        and parameter.kind
+        in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
+    ]
+    if required_parameters:
+        return None
+    return fn()
 
 
 def get_transform_assets() -> list[AssetSpec]:
