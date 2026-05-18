@@ -356,3 +356,44 @@ from phlo_pandera.schemas import PhloSchema
             "multi_aggregate": MultiAggregateConsistencyCheck,
             "checksum": ChecksumReconciliationCheck,
         }
+
+    def build_checks_from_rules(self, rules: list[Any]) -> list[Any]:
+        """Translate provider-neutral QualityRule descriptors into Pandera checks."""
+        from phlo_pandera.checks import FreshnessCheck, NullCheck, RangeCheck, UniqueCheck
+        from phlo_pandera.checks_extra import CustomSQLCheck
+
+        checks: list[Any] = []
+        for rule in rules:
+            if rule.kind == "not_null":
+                checks.append(NullCheck(columns=rule.columns))
+            elif rule.kind == "unique":
+                checks.append(UniqueCheck(columns=rule.columns))
+            elif rule.kind == "freshness":
+                checks.append(
+                    FreshnessCheck(
+                        timestamp_column=rule.columns[0],
+                        max_age_hours=rule.parameters["max_age_hours"],
+                    )
+                )
+            elif rule.kind == "range":
+                checks.append(
+                    RangeCheck(
+                        column=rule.columns[0],
+                        min_value=rule.parameters.get("min_value"),
+                        max_value=rule.parameters.get("max_value"),
+                    )
+                )
+            elif rule.kind == "accepted_values":
+                values = rule.parameters["values"]
+                quoted_values = ", ".join(repr(value) for value in values)
+                checks.append(
+                    CustomSQLCheck(
+                        name_=f"{rule.columns[0]}_accepted_values",
+                        sql=(
+                            f"SELECT ({rule.columns[0]} IN ({quoted_values})) AS is_valid FROM data"
+                        ),
+                    )
+                )
+            else:
+                raise ValueError(f"Unsupported neutral quality rule: {rule.kind}")
+        return checks

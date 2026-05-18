@@ -27,3 +27,42 @@ def test_quality_rule_factories_are_provider_neutral() -> None:
     assert rules[2].parameters == {"max_age_hours": 24}
     assert rules[3].parameters == {"min_value": 0, "max_value": 100}
     assert rules[4].parameters == {"values": ["active", "paused"]}
+
+
+def test_pandera_quality_provider_builds_checks_from_neutral_rules() -> None:
+    """Pandera provider should translate supported neutral rules into Pandera checks."""
+    from phlo_pandera.checks import FreshnessCheck, NullCheck, RangeCheck, UniqueCheck
+    from phlo_pandera.plugin import PanderaQualityProvider
+
+    from phlo.helpers.quality import QualityRule
+
+    provider = PanderaQualityProvider()
+    checks = provider.build_checks_from_rules(
+        [
+            QualityRule("not_null", ["id", "email"], {}),
+            QualityRule("unique", ["id"], {}),
+            QualityRule("freshness", ["updated_at"], {"max_age_hours": 24}),
+            QualityRule("range", ["score"], {"min_value": 0, "max_value": 100}),
+        ]
+    )
+
+    assert [type(check) for check in checks] == [
+        NullCheck,
+        UniqueCheck,
+        FreshnessCheck,
+        RangeCheck,
+    ]
+
+
+def test_pandera_quality_provider_rejects_unknown_neutral_rule() -> None:
+    """Unknown neutral rules should fail during decoration, not at runtime."""
+    from phlo_pandera.plugin import PanderaQualityProvider
+
+    from phlo.helpers.quality import QualityRule
+
+    provider = PanderaQualityProvider()
+
+    with pytest.raises(ValueError) as exc_info:
+        provider.build_checks_from_rules([QualityRule("mystery", ["id"], {})])
+
+    assert "Unsupported neutral quality rule: mystery" in str(exc_info.value)
