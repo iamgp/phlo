@@ -544,6 +544,63 @@ class TestDagsterGraphEndpoints:
         assert payload["partition_key"] == "2026-04-26"
         assert payload["details"]["op_names"] == ["orders_op"]
 
+    def test_dagster_materialize_live_launches_dagster_run(self, monkeypatch):
+        """Live materialize endpoint sends a Dagster launch mutation."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        captured = {}
+
+        async def fake_asset_details(asset_key_path: str, dagster_url: str | None = None):
+            return {
+                "key_path": asset_key_path,
+                "has_materialize_permission": True,
+                "op_names": ["orders_op"],
+            }
+
+        async def fake_graphql_request(url, query, variables=None, timeout=10.0, initiator=None):
+            captured["query"] = query
+            captured["variables"] = variables
+            captured["initiator"] = initiator
+            return {
+                "data": {
+                    "launchPipelineExecution": {
+                        "__typename": "LaunchRunSuccess",
+                        "run": {"runId": "run-live-1", "status": "STARTED"},
+                    }
+                }
+            }
+
+        monkeypatch.setattr(
+            "phlo_api.observatory_api.dagster.get_asset_details", fake_asset_details
+        )
+        monkeypatch.setattr(
+            "phlo_api.observatory_api.dagster.graphql_request", fake_graphql_request
+        )
+
+        client = TestClient(app)
+        response = client.post(
+            "/api/dagster/assets/silver/orders/materialize",
+            json={
+                "dry_run": False,
+                "partition_key": "2026-04-26",
+                "job_name": "daily_orders",
+                "repository_location_name": "repo_location",
+                "repository_name": "repo",
+            },
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["dry_run"] is False
+        assert payload["accepted"] is True
+        assert payload["run_id"] == "run-live-1"
+        assert "launchPipelineExecution" in captured["query"]
+        execution_params = captured["variables"]["executionParams"]
+        assert execution_params["selector"]["pipelineName"] == "daily_orders"
+        assert execution_params["selector"]["assetSelection"] == [{"path": ["silver", "orders"]}]
+        assert captured["initiator"] == "observatory"
+
     def test_dagster_run_status_endpoint_transforms_payload(self, monkeypatch):
         """Run status endpoint normalizes Dagster GraphQL run payloads."""
         from fastapi.testclient import TestClient
@@ -636,6 +693,48 @@ class TestDagsterGraphEndpoints:
         assert payload["dry_run"] is True
         assert payload["accepted"] is True
         assert payload["run_id"] == "run-123"
+
+    def test_dagster_retry_live_launches_reexecution(self, monkeypatch):
+        """Live retry endpoint sends a Dagster reexecution mutation."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+        from phlo_api.observatory_api.dagster import DagsterRunStatus
+
+        captured = {}
+
+        async def fake_run_status(run_id: str, dagster_url: str | None = None):
+            return DagsterRunStatus(run_id=run_id, status="FAILURE")
+
+        async def fake_graphql_request(url, query, variables=None, timeout=10.0, initiator=None):
+            captured["query"] = query
+            captured["variables"] = variables
+            captured["initiator"] = initiator
+            return {
+                "data": {
+                    "launchPipelineReexecution": {
+                        "__typename": "LaunchRunSuccess",
+                        "run": {"runId": "retry-run-1", "status": "STARTED"},
+                    }
+                }
+            }
+
+        monkeypatch.setattr("phlo_api.observatory_api.dagster.get_run_status", fake_run_status)
+        monkeypatch.setattr(
+            "phlo_api.observatory_api.dagster.graphql_request", fake_graphql_request
+        )
+
+        client = TestClient(app)
+        response = client.post("/api/dagster/runs/run-123/retry", json={"dry_run": False})
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["dry_run"] is False
+        assert payload["accepted"] is True
+        assert payload["run_id"] == "retry-run-1"
+        assert "launchPipelineReexecution" in captured["query"]
+        assert captured["variables"]["reexecutionParams"]["parentRunId"] == "run-123"
+        assert captured["variables"]["reexecutionParams"]["strategy"] == "FROM_FAILURE"
+        assert captured["initiator"] == "observatory"
 
 
 class TestContributingRowsEndpoints:

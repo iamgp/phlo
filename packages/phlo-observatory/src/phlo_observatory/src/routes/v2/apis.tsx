@@ -15,8 +15,8 @@ export function APIs() {
   return (
     <V2SurfacePage
       contract="/api/observatory/v2/apis"
-      description="Provider-neutral API backend and published data API surfaces."
-      emptyCopy="API providers can add shallow published-surface summaries here before action or schema-management contracts are added."
+      description="Published data APIs and backend services exposed by this stack."
+      emptyCopy="Published APIs will appear here when a matching package reports them."
       error={result.error}
       items={items}
       kicker="APIs"

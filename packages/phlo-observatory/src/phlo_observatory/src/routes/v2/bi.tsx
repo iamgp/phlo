@@ -15,8 +15,8 @@ export function BI() {
   return (
     <V2SurfacePage
       contract="/api/observatory/v2/bi"
-      description="Provider-neutral BI publish targets and analytics delivery surfaces."
-      emptyCopy="BI providers can add shallow publish-target summaries here without requiring vendor-specific dashboard adapters."
+      description="Dashboards, reports, and analytics destinations connected to this project."
+      emptyCopy="Analytics destinations will appear here when a BI package reports them."
       error={result.error}
       items={items}
       kicker="BI"

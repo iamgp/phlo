@@ -37,6 +37,20 @@ def test_rustfs_service_definition():
     assert service_definition["default"] is False
     assert "rustfs/rustfs" in service_definition["image"]
     assert "rustfs-volume-setup" in service_definition["depends_on"]
+    assert "rustfs-data:/data" in service_definition["compose"]["volumes"]
+
+
+def test_rustfs_volume_setup_uses_named_volume():
+    """RustFS ownership setup should not require host bind-mount chown."""
+
+    import yaml
+    from importlib.resources import files
+
+    service_definition = yaml.safe_load(
+        files("phlo_rustfs").joinpath("rustfs-volume-setup.yaml").read_text()
+    )
+
+    assert "rustfs-data:/data" in service_definition["compose"]["volumes"]
 
 
 def test_rustfs_plugin_metadata():

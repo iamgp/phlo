@@ -17,7 +17,11 @@ import {
 import { ActionButton } from '@/v2/components/ActionButton'
 import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
-import { loadCachedResource, useLiveResource } from '@/v2/routes/liveResource'
+import {
+  invalidateCachedResources,
+  loadCachedResource,
+  useLiveResource,
+} from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/quality')({
   component: Quality,
@@ -195,6 +199,10 @@ export function Quality() {
                       onRun={(actionId) => {
                         void runV2Action({ data: { actionId } }).then(
                           (next) => {
+                            invalidateCachedResources([
+                              'v2:operations',
+                              'v2:quality',
+                            ])
                             setActionMessage(
                               next.data?.message ??
                                 next.error ??
@@ -344,7 +352,7 @@ function qualityStatusLabel(check: V2QualityCheck): string {
 
 function qualityResultSummary(check: V2QualityCheck): string {
   if (check.status === 'unknown') {
-    return 'No result has been returned by the quality read model yet.'
+    return 'No quality result has been recorded for this check yet.'
   }
   if (check.status === 'passing') return 'Latest observed run passed.'
   if (check.status === 'warning') return 'Latest observed run raised a warning.'

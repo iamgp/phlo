@@ -15,8 +15,8 @@ export function Storage() {
   return (
     <V2SurfacePage
       contract="/api/observatory/v2/storage"
-      description="Provider-neutral table stores, object stores, and storage-facing lakehouse surfaces."
-      emptyCopy="Storage providers can add shallow surface summaries here without coupling Observatory to a table format or object store adapter."
+      description="Table stores, object stores, and storage services used by this project."
+      emptyCopy="Storage resources will appear here when a storage package reports them."
       error={result.error}
       items={items}
       kicker="Storage"

@@ -65,20 +65,34 @@ const V2_THEME_BOOTSTRAP = `;(() => {
   } catch (_) {}
 })();`
 
+function runtimeBrowserApiUrl() {
+  return typeof process !== 'undefined'
+    ? process.env.PHLO_API_BROWSER_URL || 'http://localhost:4000'
+    : 'http://localhost:4000'
+}
+
 function runtimeBootstrapScript() {
-  const browserApiUrl =
-    typeof process !== 'undefined' ? process.env.PHLO_API_BROWSER_URL || '' : ''
+  const browserApiUrl = runtimeBrowserApiUrl()
   return `;(() => {
     window.__PHLO_API_BROWSER_URL__ = ${JSON.stringify(browserApiUrl)};
   })();`
 }
 
 function RootLayout() {
+  const browserApiUrl = runtimeBrowserApiUrl()
+
   return (
     <html lang="en" className="" suppressHydrationWarning>
       <head>
-        <script suppressHydrationWarning>{V2_THEME_BOOTSTRAP}</script>
-        <script suppressHydrationWarning>{runtimeBootstrapScript()}</script>
+        <meta name="phlo-api-browser-url" content={browserApiUrl} />
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: V2_THEME_BOOTSTRAP }}
+        />
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: runtimeBootstrapScript() }}
+        />
         <HeadContent />
       </head>
       <body className="phlo-v2-document min-h-svh bg-background text-foreground">

@@ -18,8 +18,9 @@ from phlo.cli.infrastructure.container_backend import select_project_container_b
 from phlo.cli.output import missing_compose_file_error, missing_phlo_project_error, user_error
 from phlo.infrastructure.containers import resolve_container_name as _resolve_container_name
 from phlo.logging import get_logger
-from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
+from phlo.plugins.discovery._service_definition import ServiceDefinition
 from phlo.plugins.discovery.service_manifest import ServiceManifestResolver
+from phlo.plugins.discovery.services import ServiceDiscovery
 from phlo.utils import dedupe_preserve_order
 
 logger = get_logger(__name__)
@@ -403,7 +404,7 @@ def _run_service_hooks(
     if not service_names:
         return
 
-    from phlo.plugins.discovery import ServiceDiscovery
+    from phlo.plugins.discovery.services import ServiceDiscovery
 
     logger.debug(
         "service_hook_execution_started",
@@ -684,7 +685,7 @@ def get_profile_service_names(profile_names: tuple[str, ...]) -> list[str]:
     if not profile_names:
         return []
 
-    from phlo.plugins.discovery import ServiceDiscovery
+    from phlo.plugins.discovery.services import ServiceDiscovery
 
     discovery = ServiceDiscovery()
     service_names: list[str] = []

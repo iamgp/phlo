@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import {
+  Download,
   ExternalLink,
   Layers3,
   Package,
@@ -18,16 +19,35 @@ import type {
 } from '@/v2/api/types'
 import {
   getV2ServiceDetail,
+  getV2ServiceDetailDirect,
   getV2Services,
   getV2ServicesDirect,
+  installV2Package,
+  installV2PackageDirect,
   runV2Action,
+  runV2ActionDirect,
 } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
-import { loadCachedResource, useLiveResource } from '@/v2/routes/liveResource'
+import {
+  invalidateCachedResources,
+  loadCachedResource,
+  useLiveResource,
+} from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/services')({
   component: Services,
 })
+
+type ServicePackageGroup = {
+  id: string
+  name: string
+  kind: string
+  packageName: string | null
+  primary: V2Service
+  services: Array<V2Service>
+  inStack: boolean
+  installable: boolean
+}
 
 export function Services() {
   const result = useLiveResource(getV2Services, 120_000, 'v2:services')
@@ -36,24 +56,33 @@ export function Services() {
   > | null>(null)
   const services = result.data ?? directResult?.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const runtimeServices = useMemo(
-    () => services.filter((service) => isRuntimeService(service)),
+  const serviceGroups = useMemo(
+    () => groupServicesByPackage(services),
     [services],
   )
-  const availableServices = useMemo(
-    () => services.filter((service) => !isRuntimeService(service)),
-    [services],
+  const runtimeServiceGroups = useMemo(
+    () => serviceGroups.filter((group) => group.inStack),
+    [serviceGroups],
+  )
+  const availableServiceGroups = useMemo(
+    () => serviceGroups.filter((group) => !group.inStack),
+    [serviceGroups],
   )
   const availableSections = useMemo(
-    () => groupServicesByKind(availableServices),
-    [availableServices],
+    () => groupServicePackagesByKind(availableServiceGroups),
+    [availableServiceGroups],
   )
   const selected =
-    services.find((service) => service.id === selectedId) ??
-    runtimeServices.find((service) => service.status === 'running') ??
-    runtimeServices[0] ??
-    services[0] ??
+    serviceGroups.find((group) => group.id === selectedId) ??
+    runtimeServiceGroups.find((group) => group.primary.status === 'running') ??
+    runtimeServiceGroups[0] ??
+    serviceGroups[0] ??
     null
+  const selectedService = selected?.primary ?? null
+  const runtimeServices = useMemo(
+    () => runtimeServiceGroups.flatMap((group) => group.services),
+    [runtimeServiceGroups],
+  )
   const [detail, setDetail] = useState<V2ResourceResult<V2ServiceDetail>>({
     data: null,
     error: null,
@@ -81,18 +110,38 @@ export function Services() {
           service.health.state === 'error' ||
           (service.status === 'stopped' && service.health.state !== 'ok'),
       ).length,
-      runtime: runtimeServices.length,
-      available: availableServices.length,
+      runtime: runtimeServiceGroups.length,
+      available: availableServiceGroups.length,
     }),
-    [availableServices.length, runtimeServices, services],
+    [
+      availableServiceGroups.length,
+      runtimeServiceGroups.length,
+      runtimeServices,
+    ],
   )
 
   useEffect(() => {
-    if (!selected) return
+    if (!selectedService) return
     let cancelled = false
     void loadCachedResource(
-      `v2:service-detail:${selected.id}`,
-      () => getV2ServiceDetail({ data: { serviceId: selected.id } }),
+      `v2:service-detail:${selectedService.id}`,
+      async () => {
+        const directResponse = await getV2ServiceDetailDirect({
+          serviceId: selectedService.id,
+        })
+        if (directResponse.data || !directResponse.error) return directResponse
+        const response = await getV2ServiceDetail({
+          data: { serviceId: selectedService.id },
+        }).catch((error: unknown) => ({
+          data: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Lakehouse API is unavailable',
+        }))
+        if (response.data || !response.error) return response
+        return directResponse
+      },
       { staleMs: 120_000 },
     ).then((next) => {
       if (!cancelled) setDetail(next)
@@ -100,7 +149,7 @@ export function Services() {
     return () => {
       cancelled = true
     }
-  }, [selected])
+  }, [selectedService])
 
   return (
     <V2Page
@@ -117,11 +166,11 @@ export function Services() {
       <section className="phlo-v2-services-workbench">
         <div className="phlo-v2-service-directory">
           <ServiceSection
-            countLabel={`${runtimeServices.length} services`}
+            countLabel={`${runtimeServiceGroups.length} packages`}
             icon={<Server className="size-4" />}
             onSelect={setSelectedId}
             selectedId={selected?.id}
-            services={runtimeServices}
+            services={runtimeServiceGroups}
             title="Runtime stack"
           />
           <section className="phlo-v2-service-section phlo-v2-service-definitions">
@@ -131,7 +180,7 @@ export function Services() {
                 Available definitions
               </span>
               <span className="phlo-v2-pill">
-                {availableServices.length} optional
+                {availableServiceGroups.length} optional
               </span>
             </div>
             <p className="phlo-v2-section-note">
@@ -158,23 +207,68 @@ export function Services() {
           {selected ? (
             <ServiceDetail
               detail={detail.data}
-              onAction={(actionId) => {
+              group={selected}
+              onAction={(actionId, confirmationMessage) => {
                 if (
                   !window.confirm(
-                    `Run ${actionId}? This will call phlo-api to change a local service.`,
+                    confirmationMessage ??
+                      `Run ${actionId}? This will call phlo-api to change a local service.`,
                   )
                 ) {
                   return
                 }
-                setActionMessage('Running action…')
-                void runV2Action({ data: { actionId } }).then((next) => {
+                setActionMessage('Running action...')
+                void runV2ActionDirect({ actionId }).then(async (next) => {
+                  if (!next.data && next.error) {
+                    next = await runV2Action({ data: { actionId } }).catch(
+                      (error: unknown) => ({
+                        data: null,
+                        error:
+                          error instanceof Error
+                            ? error.message
+                            : 'Action failed',
+                      }),
+                    )
+                  }
+                  invalidateCachedResources(['v2:operations', 'v2:services'])
                   setActionMessage(
                     next.data?.message ?? next.error ?? 'Action completed',
                   )
                 })
               }}
-              runtime={isRuntimeService(selected)}
-              service={selected}
+              onInstall={(packageName) => {
+                if (
+                  !window.confirm(
+                    `Install ${packageName}? This will modify the Python environment used by phlo-api.`,
+                  )
+                ) {
+                  return
+                }
+                setActionMessage(`Installing ${packageName}...`)
+                void installV2PackageDirect({ packageName }).then(
+                  async (next) => {
+                    if (!next.data && next.error) {
+                      next = await installV2Package({
+                        data: { packageName },
+                      }).catch((error: unknown) => ({
+                        data: null,
+                        error:
+                          error instanceof Error
+                            ? error.message
+                            : 'Install failed',
+                      }))
+                    }
+                    invalidateCachedResources([
+                      'v2:capabilities',
+                      'v2:operations',
+                      'v2:services',
+                    ])
+                    setActionMessage(
+                      next.data?.message ?? next.error ?? 'Install completed',
+                    )
+                  },
+                )
+              }}
             />
           ) : (
             <p>No services returned yet.</p>
@@ -185,7 +279,7 @@ export function Services() {
           {detail.error && (
             <div className="phlo-v2-panel-footer">{detail.error}</div>
           )}
-          {result.error && (
+          {services.length === 0 && result.error && (
             <div className="phlo-v2-panel-footer">{result.error}</div>
           )}
           {!result.error && directResult?.error && (
@@ -199,39 +293,88 @@ export function Services() {
 
 function ServiceDetail({
   detail,
+  group,
   onAction,
-  runtime,
-  service,
+  onInstall,
 }: {
   detail: V2ServiceDetail | null
-  onAction: (actionId: string) => void
-  runtime: boolean
-  service: V2Service
+  group: ServicePackageGroup
+  onAction: (actionId: string, confirmationMessage?: string) => void
+  onInstall: (packageName: string) => void
 }) {
-  const actions = runtime ? (detail?.actions ?? []) : []
+  const { primary: service } = group
+  const actions = serviceActionsForDetail(group, detail)
+  const addActionId = `${service.id}:add`
+  const packageInstalled = service.metadata.package_installed !== false
+  const canAddToStack = !group.inStack && packageInstalled
+  const canInstallPackage = !packageInstalled && Boolean(group.packageName)
+  const visibleActions = canAddToStack
+    ? actions.filter((action) => action.id !== addActionId)
+    : actions
+  const servicesAddedWithPrimary = addableDependencyNames(group, detail)
+  const addImpactMessage =
+    servicesAddedWithPrimary.length > 0
+      ? `Adding ${group.name} will also add ${formatHumanList(servicesAddedWithPrimary)}.`
+      : `Adding ${group.name} will only add ${group.name}.`
+  const addConfirmationMessage = `${addImpactMessage}\n\nContinue?`
+  const description =
+    typeof service.metadata.description === 'string'
+      ? service.metadata.description
+      : null
   return (
     <>
       <div className="phlo-v2-detail-header">
-        <span>{service.kind}</span>
-        <h2>{service.name}</h2>
+        <span>{group.packageName ?? service.kind}</span>
+        <h2>{group.name}</h2>
         <p>
-          {runtime
+          {group.inStack
             ? (service.health.message ?? 'No runtime health message returned.')
-            : 'Available definition. Not part of the current runtime stack.'}
+            : packageInstalled
+              ? (description ??
+                'This service package is installed and ready to add to this stack.')
+              : (description ??
+                'Install this package, then add it to this stack.')}
         </p>
       </div>
       <dl className="phlo-v2-facts">
-        <Fact label="Status" value={runtime ? service.status : 'available'} />
-        <Fact label="Health" value={runtime ? service.health.state : 'n/a'} />
         <Fact
-          label="Depends on"
-          value={service.depends_on.join(', ') || 'none'}
+          label="Status"
+          value={group.inStack ? service.status : 'available'}
         />
-        <Fact label="Impacts" value={service.impacts.join(', ') || 'none'} />
+        <Fact
+          label="Health"
+          value={group.inStack ? service.health.state : 'n/a'}
+        />
+        <Fact label="Package" value={group.packageName ?? 'unknown'} />
+        <Fact
+          label="Included services"
+          value={group.services.map((item) => item.name).join(', ') || 'none'}
+        />
       </dl>
-      {actions.length > 0 && (
+      {canAddToStack && (
+        <div className="phlo-v2-service-impact">
+          <span>Stack impact</span>
+          <strong>{addImpactMessage}</strong>
+        </div>
+      )}
+      {(actions.length > 0 || canAddToStack || canInstallPackage) && (
         <div className="phlo-v2-action-row">
-          {actions.map((action) => (
+          {canAddToStack && (
+            <button
+              onClick={() => onAction(addActionId, addConfirmationMessage)}
+              type="button"
+            >
+              <Play className="size-3.5" />
+              Add to stack
+            </button>
+          )}
+          {canInstallPackage && group.packageName && (
+            <button onClick={() => onInstall(group.packageName!)} type="button">
+              <Download className="size-3.5" />
+              Install package
+            </button>
+          )}
+          {visibleActions.map((action) => (
             <button
               disabled={!action.enabled}
               key={action.id}
@@ -249,9 +392,12 @@ function ServiceDetail({
         <div className="phlo-v2-mini-row">
           <span>Safe actions</span>
           <small>
-            {actions.length
-              ? `${actions.filter((action) => action.enabled).length} enabled`
-              : 'No action contract exposed'}
+            {visibleActions.length || canAddToStack
+              ? `${
+                  visibleActions.filter((action) => action.enabled).length +
+                  (canAddToStack ? 1 : 0)
+                } enabled`
+              : 'No actions available'}
           </small>
         </div>
         <div className="phlo-v2-mini-row">
@@ -321,7 +467,7 @@ function ServiceSection({
   icon: ReactNode
   onSelect: (id: string) => void
   selectedId?: string | null
-  services: Array<V2Service>
+  services: Array<ServicePackageGroup>
   title: string
 }) {
   return (
@@ -347,7 +493,12 @@ function ServiceSection({
               data-state={serviceDotState(service)}
             />
             <span>{service.name}</span>
-            <small>{service.kind}</small>
+            <small>
+              {service.packageName ?? service.kind}
+              {service.services.length > 1
+                ? ` · ${service.services.length} services`
+                : ''}
+            </small>
             <strong>{serviceStatusLabel(service)}</strong>
           </button>
         ))}
@@ -359,11 +510,67 @@ function ServiceSection({
   )
 }
 
-function groupServicesByKind(services: Array<V2Service>): Array<{
+function addableDependencyNames(
+  group: ServicePackageGroup,
+  detail: V2ServiceDetail | null,
+): Array<string> {
+  const dependencyNames = new Set<string>()
+  for (const dependency of detail?.dependencies ?? []) {
+    if (dependency.in_stack || dependency.id === group.primary.id) continue
+    dependencyNames.add(dependency.name)
+  }
+  return Array.from(dependencyNames).sort((left, right) =>
+    left.localeCompare(right),
+  )
+}
+
+function formatHumanList(items: Array<string>): string {
+  if (items.length <= 1) return items[0] ?? ''
+  if (items.length === 2) return `${items[0]} and ${items[1]}`
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`
+}
+
+function serviceActionsForDetail(
+  group: ServicePackageGroup,
+  detail: V2ServiceDetail | null,
+) {
+  const actions = detail?.actions ?? []
+  if (
+    group.inStack ||
+    actions.some((action) => action.id === `${group.primary.id}:add`)
+  ) {
+    return actions
+  }
+  const packageInstalled = group.primary.metadata.package_installed !== false
+  return [
+    ...actions,
+    {
+      id: `${group.primary.id}:add`,
+      label: 'Add to stack',
+      kind: 'service.add',
+      enabled: packageInstalled,
+      requires_confirmation: true,
+      reason: packageInstalled
+        ? null
+        : `Install ${group.packageName ?? group.primary.name} before adding it to the stack.`,
+      risk_level: 'low' as const,
+      required_capability: null,
+      required_service: null,
+      required_permission: null,
+      equivalent_cli_command: `phlo services add ${group.primary.id}`,
+      expected_evidence: [],
+      background_operation_id: null,
+    },
+  ]
+}
+
+function groupServicePackagesByKind(
+  services: Array<ServicePackageGroup>,
+): Array<{
   kind: string
-  services: Array<V2Service>
+  services: Array<ServicePackageGroup>
 }> {
-  const groups = new Map<string, Array<V2Service>>()
+  const groups = new Map<string, Array<ServicePackageGroup>>()
   for (const service of services) {
     const kind = service.kind || 'other'
     groups.set(kind, [...(groups.get(kind) ?? []), service])
@@ -371,6 +578,85 @@ function groupServicesByKind(services: Array<V2Service>): Array<{
   return Array.from(groups.entries())
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([kind, kindServices]) => ({ kind, services: kindServices }))
+}
+
+function groupServicesByPackage(
+  services: Array<V2Service>,
+): Array<ServicePackageGroup> {
+  const groups = new Map<string, Array<V2Service>>()
+  for (const service of services) {
+    const key = servicePackageKey(service)
+    groups.set(key, [...(groups.get(key) ?? []), service])
+  }
+
+  return Array.from(groups.entries())
+    .map(([key, groupServices]) => servicePackageGroup(key, groupServices))
+    .sort((left, right) => left.name.localeCompare(right.name))
+}
+
+function servicePackageGroup(
+  key: string,
+  services: Array<V2Service>,
+): ServicePackageGroup {
+  const primary = primaryServiceForPackage(key, services)
+  const packageName = servicePackageName(primary)
+  return {
+    id: key,
+    name: serviceDisplayName(primary, packageName),
+    kind: primary.kind || 'service',
+    packageName,
+    primary,
+    services: services
+      .slice()
+      .sort((left, right) => left.name.localeCompare(right.name)),
+    inStack: services.some((service) => isRuntimeService(service)),
+    installable: services.some(
+      (service) => service.metadata.installable === true,
+    ),
+  }
+}
+
+function primaryServiceForPackage(
+  key: string,
+  services: Array<V2Service>,
+): V2Service {
+  const packageLabel = key.startsWith('package:')
+    ? key.slice('package:'.length).replace(/^phlo-/, '')
+    : key
+  return (
+    services.find((service) => service.name === packageLabel) ??
+    services.find((service) => service.id === packageLabel) ??
+    services.find(
+      (service) => service.metadata.registry_name === packageLabel,
+    ) ??
+    services
+      .slice()
+      .sort((left, right) => left.name.length - right.name.length)[0]
+  )
+}
+
+function servicePackageKey(service: V2Service): string {
+  const packageName = servicePackageName(service)
+  if (packageName) return `package:${packageName}`
+  return `service:${service.id}`
+}
+
+function servicePackageName(service: V2Service): string | null {
+  return typeof service.metadata.package === 'string'
+    ? service.metadata.package
+    : null
+}
+
+function serviceDisplayName(
+  service: V2Service,
+  packageName: string | null,
+): string {
+  if (!packageName) return service.name
+  const packageLabel = packageName.replace(/^phlo-/, '')
+  if (service.name === packageLabel || service.id === packageLabel) {
+    return service.name
+  }
+  return packageLabel
 }
 
 function isRuntimeService(service: V2Service): boolean {
@@ -382,19 +668,24 @@ function isRuntimeService(service: V2Service): boolean {
   )
 }
 
-function serviceStatusLabel(service: V2Service): string {
-  if (!isRuntimeService(service)) return 'available'
-  if (service.status === 'stopped' && service.health.state === 'ok') {
+function serviceStatusLabel(service: ServicePackageGroup): string {
+  if (!service.inStack) {
+    return service.installable ? 'not installed' : 'available'
+  }
+  const primary = service.primary
+  if (primary.status === 'stopped' && primary.health.state === 'ok') {
     return 'completed'
   }
-  return service.status
+  return primary.status
 }
 
-function serviceDotState(service: V2Service): string {
-  if (service.status === 'stopped' && service.health.state === 'ok') {
+function serviceDotState(service: ServicePackageGroup): string {
+  if (!service.inStack) return service.installable ? 'unknown' : 'stopped'
+  const primary = service.primary
+  if (primary.status === 'stopped' && primary.health.state === 'ok') {
     return 'ok'
   }
-  return service.status
+  return primary.status
 }
 
 function labelize(value: string): string {

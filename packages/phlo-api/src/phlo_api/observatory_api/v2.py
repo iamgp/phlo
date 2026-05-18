@@ -6,12 +6,14 @@ import asyncio
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, is_dataclass
+import importlib
 import importlib.util
 import http.client
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -49,6 +51,8 @@ from phlo_api.observatory_api.v2_models import (
     V2Operation,
     V2OperationDetail,
     V2Overview,
+    V2PackageInstallRequest,
+    V2PackageInstallResult,
     V2QualityCheck,
     V2QualityDetail,
     V2QueryRequest,
@@ -72,6 +76,13 @@ from phlo_api.observatory_api.v2_models import (
 )
 from phlo_api.observatory_api.v2_metadata import safe_metadata as _safe_metadata
 from phlo_api.observatory_api.v2_observability import load_observability_items
+from phlo_api.observatory_api.v2_operation_journal import (
+    append_operation,
+    load_operation_journal,
+    operation_from_workflow_action,
+    record_action_result,
+    sort_operations,
+)
 from phlo_api.observatory_api.v2_products import load_api_items, load_bi_items
 from phlo_api.observatory_api.v2_runs import load_runs
 from phlo_api.observatory_api.v2_saved_queries import (
@@ -83,6 +94,7 @@ from phlo_api.observatory_api.v2_saved_queries import (
 )
 from phlo_api.observatory_api.v2_search import search_results as _search_results_impl
 from phlo_api.observatory_api.v2_services import load_services as _load_services_impl
+from phlo_api.observatory_api.v2_services import project_compose_name as _project_compose_name
 from phlo_api.observatory_api.v2_storage import load_storage_items
 from phlo_api.observatory_api.v2_workflow_wizard import (
     V2WorkflowActionRequest,
@@ -92,6 +104,8 @@ from phlo_api.observatory_api.v2_workflow_wizard import (
     build_workflow_proposal,
     build_workflow_wizard_payload,
 )
+from phlo.cli.commands.plugin.install import resolve_install_target
+from phlo.plugins.registry_client import get_registry_data
 
 router = APIRouter(tags=["observatory-v2"])
 
@@ -394,13 +408,24 @@ def _normalize_docker_api_container(container: Mapping[str, Any]) -> dict[str, A
 
 
 def _load_docker_containers() -> list[dict[str, Any]]:
+    command = ["docker", "ps", "-a"]
+    compose_project = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get(
+        "COMPOSE_PROJECT_NAME"
+    )
+    if compose_project is None:
+        compose_project = _project_compose_name(_project_root())
+    if compose_project:
+        command.extend(["--filter", f"label=com.docker.compose.project={compose_project}"])
+    else:
+        return []
+    command.extend(["--format", "{{json .}}"])
     try:
         result = subprocess.run(
-            ["docker", "ps", "-a", "--format", "{{json .}}"],
+            command,
             capture_output=True,
             text=True,
             check=False,
-            timeout=2,
+            timeout=30,
         )
     except (OSError, subprocess.TimeoutExpired):
         result = None
@@ -432,6 +457,9 @@ def _current_compose_project(containers: Sequence[Mapping[str, Any]]) -> str | N
     configured = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get("COMPOSE_PROJECT_NAME")
     if configured:
         return configured
+    configured_project = _project_compose_name(_project_root())
+    if configured_project:
+        return configured_project
 
     hostname = os.environ.get("HOSTNAME", "")
     if not hostname:
@@ -485,11 +513,13 @@ def _load_docker_service_statuses(
     statuses: dict[str, tuple[ServiceStatus, V2Health]] = {}
     containers = _load_docker_containers()
     compose_project = _current_compose_project(containers)
+    if not compose_project:
+        return statuses
+
     for container in containers:
-        if compose_project:
-            labels = _container_labels(container)
-            if labels.get("com.docker.compose.project") != compose_project:
-                continue
+        labels = _container_labels(container)
+        if labels.get("com.docker.compose.project") != compose_project:
+            continue
         name = _coerce_str(container.get("Names"), "")
         service_id = _compose_service_name(container) or _service_name_from_container(
             name, service_ids
@@ -514,9 +544,12 @@ def _runtime_services_from_containers(
 ) -> list[V2Service]:
     compose_project = _current_compose_project(containers)
     services: list[V2Service] = []
+    if not compose_project:
+        return services
+
     for container in containers:
         labels = _container_labels(container)
-        if compose_project and labels.get("com.docker.compose.project") != compose_project:
+        if labels.get("com.docker.compose.project") != compose_project:
             continue
         service_id = _compose_service_name(container)
         if not service_id or service_id in known_ids:
@@ -838,11 +871,11 @@ def _operation_from_maintenance_status(status: Any) -> V2Operation:
 
 
 def _load_operations() -> list[V2Operation]:
+    operations = list(load_operation_journal(_project_root()))
     registry = _load_capability_registry()
     if registry is None:
-        return []
+        return sort_operations(operations)
 
-    operations: list[V2Operation] = []
     for spec in registry.list_maintenance_read_models():
         provider = getattr(spec, "provider", None)
         loader = getattr(provider, "load_maintenance_status", None)
@@ -854,20 +887,22 @@ def _load_operations() -> list[V2Operation]:
             continue
         for status in getattr(snapshot, "operations", []):
             operations.append(_operation_from_maintenance_status(status))
-    return sorted(operations, key=lambda item: item.id)
+    return sort_operations(operations)
 
 
 def _load_logs() -> list[V2LogEvent]:
+    project_root = _project_root()
+    events = _load_project_log_events(project_root)
     try:
         from phlo.capabilities.telemetry import iter_telemetry_events
     except Exception:
-        return []
+        return events
 
-    events: list[V2LogEvent] = []
     try:
-        raw_events = list(iter_telemetry_events())[-50:]
+        telemetry_path = project_root / ".phlo" / "telemetry" / "events.jsonl"
+        raw_events = list(iter_telemetry_events(telemetry_path))[-50:]
     except Exception:
-        return []
+        return events
 
     for index, event in enumerate(reversed(raw_events)):
         timestamp = event.get("timestamp")
@@ -883,7 +918,46 @@ def _load_logs() -> list[V2LogEvent]:
                 metadata=_safe_metadata(event),
             )
         )
-    return events
+    return events[:100]
+
+
+def _load_project_log_events(project_root: Path) -> list[V2LogEvent]:
+    """Load structured Phlo project logs from `.phlo/logs/*.log`."""
+    logs_dir = project_root / ".phlo" / "logs"
+    if not logs_dir.exists():
+        return []
+
+    events: list[V2LogEvent] = []
+    for log_path in sorted(logs_dir.glob("*.log"), reverse=True):
+        try:
+            lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line_number, line in enumerate(lines[-100:], start=max(len(lines) - 99, 1)):
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                if not line.strip():
+                    continue
+                payload = {"message": line.strip(), "level": "info"}
+            if not isinstance(payload, Mapping):
+                continue
+            message = _coerce_str(
+                payload.get("message") or payload.get("event") or payload.get("logger"),
+                "log event",
+            )
+            events.append(
+                V2LogEvent(
+                    id=f"phlo:{log_path.name}:{line_number}",
+                    timestamp=_coerce_str(payload.get("timestamp"), "") or None,
+                    level=_coerce_str(payload.get("level"), "info").lower(),
+                    message=message,
+                    source=_coerce_str(payload.get("logger") or payload.get("service"), "")
+                    or "phlo",
+                    metadata=_safe_metadata(payload),
+                )
+            )
+    return sorted(events, key=lambda event: event.timestamp or "", reverse=True)[:50]
 
 
 def _asset_related_logs(asset_id: str, logs: list[V2LogEvent]) -> list[V2LogEvent]:
@@ -908,13 +982,22 @@ def _asset_related_operations(asset_id: str, operations: list[V2Operation]) -> l
 
 def _service_actions(service: V2Service) -> list[V2Action]:
     if not service.in_stack:
+        package_installed = service.metadata.get("package_installed") is not False
+        package_name = _coerce_str(service.metadata.get("package"), service.name)
         return [
             V2Action(
-                id=f"{service.id}:configure",
-                label="Configure",
-                kind="service.configure",
-                enabled=False,
-                reason="This service is available as a definition but is not configured in the current stack.",
+                id=f"{service.id}:add",
+                label="Add to stack",
+                kind="service.add",
+                enabled=package_installed,
+                reason=None
+                if package_installed
+                else f"Install {package_name} before adding this service to the stack.",
+                equivalent_cli_command=f"phlo services add {service.id}",
+                expected_evidence=[
+                    f"{service.id} appears in .phlo/docker-compose.yml",
+                    f"{service.id} is present in phlo services status",
+                ],
             )
         ]
 
@@ -950,41 +1033,40 @@ def _service_actions(service: V2Service) -> list[V2Action]:
 
 
 def _quality_actions(check: V2QualityCheck) -> list[V2Action]:
+    registry = _load_capability_registry()
+    executable = False
+    if registry is not None:
+        try:
+            executable = any(
+                f"{item.asset_key}:{item.name}" == check.id and callable(getattr(item, "fn", None))
+                for item in registry.list_checks()
+            )
+        except Exception:
+            executable = False
     return [
         V2Action(
             id=f"{check.id}:rerun",
             label="Re-run",
             kind="quality.rerun",
-            enabled=False,
-            reason="Quality execution needs a guarded phlo-api operation contract.",
-        ),
-        V2Action(
-            id=f"{check.id}:acknowledge",
-            label="Acknowledge",
-            kind="quality.acknowledge",
-            enabled=False,
-            reason="Acknowledgements need a persisted v2 workflow contract.",
+            enabled=executable,
+            reason=None if executable else "This quality check has no executable function.",
         ),
     ]
 
 
 def _operation_actions(operation: V2Operation) -> list[V2Action]:
-    return [
-        V2Action(
-            id=f"{operation.id}:retry",
-            label="Retry",
-            kind="operation.retry",
-            enabled=False,
-            reason="Retries need a guarded phlo-api operation execution contract.",
-        ),
-        V2Action(
-            id=f"{operation.id}:open-target",
-            label="Open Target",
-            kind="operation.open_target",
-            enabled=operation.target is not None,
-            requires_confirmation=False,
-        ),
-    ]
+    actions = []
+    if operation.target is not None:
+        actions.append(
+            V2Action(
+                id=f"{operation.id}:open-target",
+                label="Open Target",
+                kind="operation.open_target",
+                enabled=True,
+                requires_confirmation=False,
+            )
+        )
+    return actions
 
 
 def _table_columns_from_metadata(table: V2Table) -> list[str]:
@@ -1247,9 +1329,86 @@ def _find_table(table_id: str, tables: list[V2Table] | None = None) -> V2Table |
     )
 
 
+def _catalog_branch_provider() -> Any | None:
+    registry = _load_capability_registry()
+    if registry is None:
+        return None
+    try:
+        catalog_specs = registry.list_catalogs()
+    except Exception:
+        return None
+    for spec in catalog_specs:
+        provider = getattr(spec, "provider", None)
+        if any(
+            callable(getattr(provider, method_name, None))
+            for method_name in ("list_branches", "create_branch", "merge_branch", "delete_branch")
+        ):
+            return provider
+    return None
+
+
+def _provider_branch_name(branch: Any) -> str | None:
+    if isinstance(branch, Mapping):
+        value = branch.get("name") or branch.get("id")
+    else:
+        value = getattr(branch, "name", None) or getattr(branch, "id", None)
+    return str(value) if value else None
+
+
+def _provider_branch_metadata(branch: Any) -> dict[str, Any]:
+    if isinstance(branch, Mapping):
+        raw = dict(branch)
+    else:
+        raw = {
+            key: getattr(branch, key)
+            for key in ("hash", "commit_hash", "created_at", "metadata")
+            if hasattr(branch, key)
+        }
+    metadata = raw.get("metadata") if isinstance(raw.get("metadata"), Mapping) else {}
+    return _safe_metadata(
+        {
+            "source": "catalog-provider",
+            **dict(metadata),
+            "hash": raw.get("hash") or raw.get("commit_hash"),
+            "created_at": raw.get("created_at"),
+        }
+    )
+
+
+def _load_provider_branches() -> list[V2Branch]:
+    provider = _catalog_branch_provider()
+    list_branches = getattr(provider, "list_branches", None)
+    if not callable(list_branches):
+        return []
+    try:
+        raw_branches = list_branches()
+    except Exception:
+        return []
+
+    branches: list[V2Branch] = []
+    for raw_branch in raw_branches or []:
+        name = _provider_branch_name(raw_branch)
+        if not name or name == "main":
+            continue
+        branches.append(
+            V2Branch(
+                id=name,
+                name=name,
+                current=False,
+                protected=False,
+                metadata=_provider_branch_metadata(raw_branch),
+            )
+        )
+    return branches
+
+
 def _load_branches() -> list[V2Branch]:
     """Return neutral branch data; core-only fallback is the main branch."""
-    branches = [V2Branch(id="main", name="main", current=True, protected=True)]
+    branches_by_id = {
+        "main": V2Branch(id="main", name="main", current=True, protected=True),
+    }
+    for branch in _load_provider_branches():
+        branches_by_id.setdefault(branch.id, branch)
     path = _branches_path()
     if path.exists():
         try:
@@ -1265,8 +1424,8 @@ def _load_branches() -> list[V2Branch]:
                     except Exception:
                         continue
                     if branch.id != "main":
-                        branches.append(branch)
-    return sorted(branches, key=lambda item: (not item.current, item.name))
+                        branches_by_id[branch.id] = branch
+    return sorted(branches_by_id.values(), key=lambda item: (not item.current, item.name))
 
 
 def _write_branches(branches: list[V2Branch]) -> None:
@@ -1747,6 +1906,8 @@ def _providers_matching(extensions: Sequence[V2Extension], *needles: str) -> lis
 
 def _load_capabilities() -> V2Capabilities:
     inventory = build_capability_inventory(_load_capability_registry())
+    _add_orchestrator_plugin_providers(inventory)
+    _filter_capabilities_to_project_services(inventory, _load_services())
     _add_runtime_capability_providers(inventory)
     pages = _pages_from_inventory(inventory)
     features = {page.id: page.available for page in pages}
@@ -1760,6 +1921,7 @@ def _load_capabilities() -> V2Capabilities:
 
 
 _RUNTIME_SERVICE_CAPABILITIES: dict[str, tuple[str, ...]] = {
+    "dagster": ("orchestrator",),
     "trino": ("query_engine",),
     "nessie": ("catalog", "catalog_scanner"),
     "minio": ("object_store", "table_store"),
@@ -1774,6 +1936,102 @@ _RUNTIME_SERVICE_CAPABILITIES: dict[str, tuple[str, ...]] = {
     "hasura": ("api_backend",),
     "superset": ("publish_target",),
 }
+
+
+_PROVIDER_SERVICE_DEPENDENCIES: dict[tuple[str, str], tuple[str, ...]] = {
+    ("api_backend", "hasura"): ("hasura",),
+    ("api_backend", "postgrest"): ("postgrest",),
+    ("alert_sink", "alerting"): ("prometheus",),
+    ("catalog", "nessie"): ("nessie",),
+    ("catalog_scanner", "nessie"): ("nessie",),
+    ("governance_backend", "trino"): ("trino",),
+    ("lineage_sink", "phlo-lineage"): ("trino", "minio", "nessie"),
+    ("maintenance_read_model", "default"): ("phlo-api",),
+    ("metadata_catalog", "openmetadata"): ("openmetadata",),
+    ("object_store", "minio"): ("minio",),
+    ("object_store", "rustfs"): ("rustfs",),
+    ("observability_backend", "default"): ("clickstack",),
+    ("observability_backend", "clickstack"): ("clickstack",),
+    ("observability_backend", "grafana"): ("grafana",),
+    ("observability_backend", "loki"): ("loki",),
+    ("observability_backend", "prometheus"): ("prometheus",),
+    ("orchestrator", "dagster"): ("dagster", "dagster-daemon"),
+    ("publish_target", "clickhouse"): ("clickhouse",),
+    ("publish_target", "postgres"): ("postgres",),
+    ("publish_target", "trino"): ("trino",),
+    ("query_engine", "clickhouse"): ("clickhouse",),
+    ("query_engine", "trino"): ("trino",),
+    ("table_store", "clickhouse"): ("clickhouse",),
+    ("table_store", "delta"): ("trino", "minio"),
+    ("table_store", "iceberg"): ("trino", "minio", "nessie"),
+}
+
+
+def _add_orchestrator_plugin_providers(inventory: V2CapabilityInventory) -> None:
+    """Expose installed orchestrator plugins as route-gating capabilities."""
+    try:
+        from phlo.plugins.discovery import discover_plugins, list_plugins
+
+        discover_plugins(plugin_type="orchestrators", auto_register=True)
+        orchestrators = list_plugins("orchestrators").get("orchestrators", [])
+    except Exception:
+        orchestrators = []
+
+    providers = inventory.providers.setdefault("orchestrator", [])
+    for orchestrator in orchestrators:
+        if any(provider.name == orchestrator for provider in providers):
+            continue
+        providers.append(
+            V2CapabilityProvider(
+                capability_type="orchestrator",
+                name=orchestrator,
+                display_name=orchestrator,
+                metadata=_safe_metadata(
+                    {
+                        "source": "plugin",
+                        "service": orchestrator,
+                    }
+                ),
+            )
+        )
+
+
+def _filter_capabilities_to_project_services(
+    inventory: V2CapabilityInventory,
+    services: Sequence[V2Service],
+) -> None:
+    """Keep service-backed providers aligned with the current project stack."""
+    project_service_ids = {
+        service.id
+        for service in services
+        if service.in_stack or service.definition_state == "configured"
+    }
+
+    for capability_type, providers in list(inventory.providers.items()):
+        filtered: list[V2CapabilityProvider] = []
+        for provider in providers:
+            dependencies = _provider_service_dependencies(capability_type, provider)
+            if not dependencies or any(
+                service_id in project_service_ids for service_id in dependencies
+            ):
+                filtered.append(provider)
+        inventory.providers[capability_type] = filtered
+
+
+def _provider_service_dependencies(
+    capability_type: str,
+    provider: V2CapabilityProvider,
+) -> tuple[str, ...]:
+    metadata = provider.metadata
+    service_name = metadata.get("service_name") or metadata.get("service")
+    if isinstance(service_name, str) and service_name:
+        return (service_name,)
+
+    dependencies = metadata.get("service_dependencies") or metadata.get("default_stack")
+    if isinstance(dependencies, list):
+        return tuple(str(item) for item in dependencies if str(item))
+
+    return _PROVIDER_SERVICE_DEPENDENCIES.get((capability_type, provider.name), ())
 
 
 def _add_runtime_capability_providers(inventory: V2CapabilityInventory) -> None:
@@ -1804,7 +2062,9 @@ def _add_runtime_capability_providers(inventory: V2CapabilityInventory) -> None:
 
 def _branches_available() -> bool:
     """Return whether branch actions can be backed by a catalog provider."""
-    return False
+    if _load_capabilities().features.get("branches") is False:
+        return False
+    return _catalog_branch_provider() is not None
 
 
 def _pages_from_inventory(inventory: V2CapabilityInventory) -> list[V2CapabilityPage]:
@@ -1935,7 +2195,7 @@ def _execute_action(request: V2ActionRequest) -> V2ActionResult:
     resource_id, action_name = parts
     services = _load_services()
     service = next((item for item in services if item.id == resource_id), None)
-    if service is None or action_name not in {"start", "stop", "restart"}:
+    if service is None or action_name not in {"add", "start", "stop", "restart"}:
         raise HTTPException(status_code=400, detail="Unsupported action.")
 
     action = next(
@@ -1953,7 +2213,10 @@ def _execute_action(request: V2ActionRequest) -> V2ActionResult:
             message=message,
         )
 
-    command = ["phlo", "services", action_name, "--service", service.id]
+    if action_name == "add":
+        command = ["phlo", "services", "add", service.id]
+    else:
+        command = ["phlo", "services", action_name, "--service", service.id]
     try:
         result = subprocess.run(
             command,
@@ -1997,6 +2260,131 @@ def _execute_action(request: V2ActionRequest) -> V2ActionResult:
     )
 
 
+def _trusted_registry_service_packages() -> dict[str, dict[str, Any]]:
+    try:
+        registry = get_registry_data()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Package registry is unavailable.") from exc
+
+    plugins = registry.get("plugins") if isinstance(registry, Mapping) else None
+    if not isinstance(plugins, Mapping):
+        return {}
+
+    packages: dict[str, dict[str, Any]] = {}
+    for name, payload in plugins.items():
+        if not isinstance(payload, Mapping):
+            continue
+        package = str(payload.get("package") or "").strip()
+        if not package:
+            continue
+        normalized = dict(payload)
+        normalized["name"] = str(name)
+        for key in {str(name), package, package.removeprefix("phlo-")}:
+            if key:
+                packages[key] = normalized
+    return packages
+
+
+def _uv_project_root() -> Path | None:
+    configured = os.environ.get("PHLO_UV_PROJECT") or os.environ.get("UV_PROJECT")
+    if configured:
+        path = Path(configured).expanduser()
+        if (path / "pyproject.toml").exists():
+            return path
+
+    for candidate in [_project_root(), Path.cwd(), *Path.cwd().parents]:
+        if (candidate / "pyproject.toml").exists():
+            return candidate
+    return None
+
+
+def _run_python_package_install(package_spec: str) -> tuple[bool, str]:
+    uv = shutil.which("uv")
+    if uv is not None:
+        project_root = _uv_project_root()
+        if project_root is not None:
+            command = [uv, "add", "--active", package_spec]
+            cwd = project_root
+        else:
+            command = [uv, "pip", "install", package_spec]
+            cwd = None
+    elif importlib.util.find_spec("pip") is not None:
+        command = [sys.executable, "-m", "pip", "install", package_spec]
+        cwd = None
+    else:
+        raise RuntimeError("Neither uv nor pip is available to install packages.")
+
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+    message = (result.stdout or result.stderr or "").strip()
+    return result.returncode == 0, message or "Install command completed."
+
+
+def _install_python_package(request: V2PackageInstallRequest) -> V2PackageInstallResult:
+    requested = request.package_name.strip()
+    if not requested:
+        raise HTTPException(status_code=400, detail="Package name is required.")
+
+    trusted_packages = _trusted_registry_service_packages()
+    registry_entry = trusted_packages.get(requested)
+    if registry_entry is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Only trusted Phlo packages from the registry can be installed.",
+        )
+
+    registry_name = str(registry_entry["name"])
+    package_name = str(registry_entry["package"])
+    package_spec, _display_name = resolve_install_target(registry_name)
+    if not package_spec.startswith(package_name):
+        package_spec = package_name
+        version = str(registry_entry.get("version") or "").strip()
+        if version:
+            package_spec = f"{package_name}=={version}"
+
+    try:
+        succeeded, install_message = _run_python_package_install(package_spec)
+    except Exception as exc:
+        return V2PackageInstallResult(
+            package_name=package_name,
+            package_spec=package_spec,
+            status="failed",
+            message=f"Install failed: {exc}",
+            services=[registry_name],
+        )
+    if not succeeded:
+        return V2PackageInstallResult(
+            package_name=package_name,
+            package_spec=package_spec,
+            status="failed",
+            message=install_message[-500:],
+            services=[registry_name],
+        )
+
+    importlib.invalidate_caches()
+    _clear_read_model_cache()
+    installed_services = [
+        service.id
+        for service in _load_services()
+        if service.metadata.get("package") == package_name
+    ]
+    return V2PackageInstallResult(
+        package_name=package_name,
+        package_spec=package_spec,
+        status="succeeded",
+        message=(
+            f"Installed {package_name}. Regenerate the Phlo service stack before starting it."
+        ),
+        services=installed_services or [registry_name],
+    )
+
+
 def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
     parts = request.action_id.split(":", 2)
     if len(parts) != 3 or parts[0] != "branch":
@@ -2007,7 +2395,8 @@ def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
     if not branch_name:
         raise HTTPException(status_code=400, detail="Branch name is required.")
 
-    branches_available = _branches_available()
+    provider = _catalog_branch_provider()
+    branches_available = _branches_available() and provider is not None
     branch_unavailable_reason = "A catalog provider is required for branch actions."
     action = V2Action(
         id=request.action_id,
@@ -2029,35 +2418,95 @@ def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
     existing = next((branch for branch in branches if branch.id == branch_name), None)
     if action_name == "create":
         if existing is None:
-            branches.append(
-                V2Branch(
-                    id=branch_name,
-                    name=branch_name,
-                    current=False,
-                    protected=False,
-                    metadata={"source": "observatory-v2"},
-                )
-            )
-            _write_branches(branches)
-            status = "succeeded"
-            message = f"Branch {branch_name} created."
+            create_branch = getattr(provider, "create_branch", None)
+            if not callable(create_branch):
+                status = "skipped"
+                message = "Catalog provider does not support branch creation."
+            else:
+                try:
+                    branch_hash = create_branch(branch_name, from_ref="main")
+                except Exception as exc:
+                    status = "failed"
+                    message = f"Branch {branch_name} creation failed: {exc}"
+                else:
+                    if branch_hash:
+                        branches.append(
+                            V2Branch(
+                                id=branch_name,
+                                name=branch_name,
+                                current=False,
+                                protected=False,
+                                metadata=_safe_metadata(
+                                    {
+                                        "source": "catalog-provider",
+                                        "hash": branch_hash,
+                                    }
+                                ),
+                            )
+                        )
+                        _write_branches(branches)
+                        status = "succeeded"
+                        message = f"Branch {branch_name} created."
+                    else:
+                        status = "failed"
+                        message = f"Catalog provider did not create branch {branch_name}."
         else:
             status = "skipped"
             message = f"Branch {branch_name} already exists."
     elif action_name == "delete":
         if branch_name == "main":
             raise HTTPException(status_code=400, detail="The main branch is protected.")
-        branches = [branch for branch in branches if branch.id != branch_name]
-        _write_branches(branches)
-        status = "succeeded"
-        message = f"Branch {branch_name} deleted."
+        if existing is None:
+            status = "skipped"
+            message = f"Branch {branch_name} does not exist."
+        else:
+            delete_branch = getattr(provider, "delete_branch", None)
+            if not callable(delete_branch):
+                status = "skipped"
+                message = "Catalog provider does not support branch deletion."
+            else:
+                try:
+                    deleted = bool(delete_branch(branch_name))
+                except Exception as exc:
+                    status = "failed"
+                    message = f"Branch {branch_name} deletion failed: {exc}"
+                else:
+                    if deleted:
+                        branches = [branch for branch in branches if branch.id != branch_name]
+                        _write_branches(branches)
+                        status = "succeeded"
+                        message = f"Branch {branch_name} deleted."
+                    else:
+                        status = "failed"
+                        message = f"Catalog provider did not delete branch {branch_name}."
     elif action_name == "promote":
         if existing is None:
             raise _not_found("branch", branch_name)
-        status = "skipped"
-        message = "Promotion requires a catalog provider write contract."
+        merge_branch = getattr(provider, "merge_branch", None)
+        if not callable(merge_branch):
+            status = "skipped"
+            message = "Catalog provider does not support branch promotion."
+        else:
+            try:
+                promoted = bool(merge_branch(branch_name, target="main"))
+            except Exception as exc:
+                status = "failed"
+                message = f"Branch {branch_name} promotion failed: {exc}"
+            else:
+                status = "succeeded" if promoted else "failed"
+                message = (
+                    f"Branch {branch_name} promoted to main."
+                    if promoted
+                    else f"Catalog provider did not promote branch {branch_name}."
+                )
     else:
         raise HTTPException(status_code=400, detail="Unsupported branch action.")
+
+    health_state = "ok"
+    if status == "skipped":
+        health_state = "warning"
+    elif status == "failed":
+        health_state = "error"
 
     return V2ActionResult(
         action=action,
@@ -2067,8 +2516,8 @@ def _execute_branch_action(request: V2ActionRequest) -> V2ActionResult:
             id=request.action_id,
             name=action.label,
             kind=action.kind,
-            status="succeeded" if status in {"succeeded", "skipped"} else "failed",
-            health=V2Health(state="ok" if status in {"succeeded", "skipped"} else "error"),
+            status=status,  # type: ignore[arg-type]
+            health=V2Health(state=health_state, message=message),  # type: ignore[arg-type]
             target=V2ResourceRef(kind="branch", id=branch_name, label=branch_name),
         ),
     )
@@ -2098,7 +2547,7 @@ def get_v2_overview() -> V2Overview:
 @router.get("/capabilities", response_model=V2Capabilities)
 def get_v2_capabilities() -> V2Capabilities:
     """Get the provider-neutral Observatory surface capabilities."""
-    return _cached_read_model("capabilities", _EXPENSIVE_READ_MODEL_TTL_SECONDS, _load_capabilities)
+    return _load_capabilities()
 
 
 @router.get("/capability-inventory", response_model=V2CapabilityInventory)
@@ -2347,8 +2796,9 @@ def get_v2_branches() -> V2BranchList:
 def post_v2_branch_action(request: V2ActionRequest) -> V2ActionResult:
     """Execute a guarded branch workflow action."""
     result = _execute_branch_action(request)
+    recorded = record_action_result(_project_root(), result)
     _clear_read_model_cache()
-    return result
+    return recorded
 
 
 @router.get("/branches/{branch_name:path}", response_model=V2BranchDetail)
@@ -2397,7 +2847,31 @@ def post_v2_workflow_wizard_proposal(request: V2WorkflowProposalRequest) -> dict
 def post_v2_workflow_wizard_action(request: V2WorkflowActionRequest) -> V2WorkflowActionResult:
     """Run a guarded workflow wizard apply action."""
 
-    result = apply_workflow_action(_project_root(), request)
+    try:
+        result = apply_workflow_action(_project_root(), request)
+    except HTTPException as exc:
+        message = str(exc.detail)
+        append_operation(
+            _project_root(),
+            operation_from_workflow_action(
+                action_id=request.action_id,
+                status="failed",
+                message=message,
+                files=[],
+            ),
+        )
+        _clear_read_model_cache()
+        raise
+
+    append_operation(
+        _project_root(),
+        operation_from_workflow_action(
+            action_id=request.action_id,
+            status=result.status,
+            message=result.message,
+            files=result.files,
+        ),
+    )
     _clear_read_model_cache()
     return result
 
@@ -2412,11 +2886,25 @@ def get_v2_search(q: str) -> V2SearchList:
 def post_v2_action(request: V2ActionRequest) -> V2ActionResult:
     """Execute a guarded Observatory v2 action."""
     resource_id, separator, action_name = request.action_id.rpartition(":")
+    services = _load_services()
     is_service_control_action = (
         bool(separator)
-        and action_name in {"start", "stop", "restart"}
-        and any(service.id == resource_id for service in _load_services())
+        and action_name in {"add", "start", "stop", "restart"}
+        and any(service.id == resource_id for service in services)
     )
-    result = _execute_action(request) if is_service_control_action else execute_v2_action(request)
+    result = (
+        _execute_action(request)
+        if is_service_control_action
+        else execute_v2_action(request, registry=_load_capability_registry())
+    )
+    recorded = record_action_result(_project_root(), result)
+    _clear_read_model_cache()
+    return recorded
+
+
+@router.post("/packages/install", response_model=V2PackageInstallResult)
+def post_v2_package_install(request: V2PackageInstallRequest) -> V2PackageInstallResult:
+    """Install a trusted Phlo Python package into the current environment."""
+    result = _install_python_package(request)
     _clear_read_model_cache()
     return result

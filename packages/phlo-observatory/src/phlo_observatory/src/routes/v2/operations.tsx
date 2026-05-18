@@ -17,7 +17,11 @@ import {
 import { ActionButton } from '@/v2/components/ActionButton'
 import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
-import { readMetric, useLiveResource } from '@/v2/routes/liveResource'
+import {
+  invalidateCachedResources,
+  readMetric,
+  useLiveResource,
+} from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/operations')({
   component: Operations,
@@ -30,23 +34,28 @@ export function Operations() {
     'v2:operations',
   )
   const operations = result.data ?? []
+  const [localOperations, setLocalOperations] = useState<Array<V2Operation>>([])
+  const visibleOperations = mergeOperations(localOperations, operations)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const latest =
-    operations.find((operation) => operation.id === selectedId) ??
-    operations[0] ??
+    visibleOperations.find((operation) => operation.id === selectedId) ??
+    visibleOperations[0] ??
     null
   const [detail, setDetail] = useState<V2ResourceResult<V2OperationDetail>>({
     data: null,
     error: null,
   })
   const [actionMessage, setActionMessage] = useState<string | null>(null)
-  const failed = operations.filter(
+  const failed = visibleOperations.filter(
     (operation) => operation.status === 'failed',
   ).length
-  const recovered = operations.filter(
+  const recovered = visibleOperations.filter(
     (operation) => operation.status === 'succeeded',
   ).length
-  const graph = useMemo(() => buildOperationGraph(operations), [operations])
+  const graph = useMemo(
+    () => buildOperationGraph(visibleOperations),
+    [visibleOperations],
+  )
 
   useEffect(() => {
     if (!latest) {
@@ -69,11 +78,13 @@ export function Operations() {
       kicker="Actions"
       title="Recovery activity"
       description="Phlo-owned actions, maintenance status, and service-impacting work."
-      action={<span className="phlo-v2-pill">{operations.length} actions</span>}
+      action={
+        <span className="phlo-v2-pill">{visibleOperations.length} actions</span>
+      }
     >
       <section className="phlo-v2-command">
         <div className="phlo-v2-command-primary">
-          {operations.length > 0 ? (
+          {visibleOperations.length > 0 ? (
             <>
               <div className="phlo-v2-flow-band">
                 <div className="phlo-v2-workspace-toolbar">
@@ -111,7 +122,7 @@ export function Operations() {
                 />
               </div>
               <div className="phlo-v2-timeline">
-                {operations.map((operation) => (
+                {visibleOperations.map((operation) => (
                   <OperationLine
                     key={operation.id}
                     onSelect={setSelectedId}
@@ -188,6 +199,13 @@ export function Operations() {
                     key={action.id}
                     onRun={(actionId) => {
                       void runV2Action({ data: { actionId } }).then((next) => {
+                        const operation = next.data?.operation
+                        if (operation) {
+                          setLocalOperations((current) =>
+                            mergeOperations([operation], current),
+                          )
+                        }
+                        invalidateCachedResources(['v2:operations'])
                         setActionMessage(
                           next.data?.message ??
                             next.error ??
@@ -282,6 +300,23 @@ function OperationLine({
       <span className="phlo-v2-pill">{operation.status}</span>
     </button>
   )
+}
+
+function mergeOperations(
+  primary: Array<V2Operation>,
+  secondary: Array<V2Operation>,
+): Array<V2Operation> {
+  const merged = new Map<string, V2Operation>()
+  for (const operation of [...primary, ...secondary]) {
+    merged.set(operation.id, operation)
+  }
+  return Array.from(merged.values()).sort((left, right) =>
+    operationTimestamp(right).localeCompare(operationTimestamp(left)),
+  )
+}
+
+function operationTimestamp(operation: V2Operation): string {
+  return operation.completed_at ?? operation.started_at ?? operation.id
 }
 
 function buildOperationGraph(operations: Array<V2Operation>): {

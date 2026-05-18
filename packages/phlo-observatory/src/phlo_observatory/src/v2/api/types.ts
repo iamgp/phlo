@@ -202,6 +202,14 @@ export interface V2ServiceDetail {
   config: Array<V2ServiceConfigEntry>
 }
 
+export interface V2PackageInstallResult {
+  package_name: string
+  package_spec: string
+  status: 'succeeded' | 'failed' | 'skipped'
+  message: string
+  services: Array<string>
+}
+
 export interface V2Overview {
   health: V2Health
   counters: Record<string, number>
@@ -233,7 +241,7 @@ export interface V2Operation {
   id: string
   name: string
   kind: string
-  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'unknown'
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'unknown'
   health: V2Health
   target?: V2ResourceRef | null
   started_at?: string | null

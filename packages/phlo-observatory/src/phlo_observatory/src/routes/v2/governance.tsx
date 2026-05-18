@@ -15,8 +15,8 @@ export function Governance() {
   return (
     <V2SurfacePage
       contract="/api/observatory/v2/governance"
-      description="Provider-neutral governance, policy, identity, and regulated-surface summaries."
-      emptyCopy="Governance providers can add shallow summaries here before deeper policy editing or audit workflows exist."
+      description="Policies, ownership, identity, and compliance signals for this project."
+      emptyCopy="Governance signals will appear here when a governance package reports them."
       error={result.error}
       items={items}
       kicker="Governance"

@@ -243,6 +243,29 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   font-weight: 650;
 }
 
+.phlo-v2-empty-panel {
+  display: grid;
+  gap: 8px;
+  max-width: 620px;
+  padding: 22px 24px;
+}
+
+.phlo-v2-empty-panel h2 {
+  margin: 0;
+  color: var(--v2-text);
+  font-size: 16px;
+  font-weight: 680;
+  line-height: 1.25;
+}
+
+.phlo-v2-empty-panel p {
+  margin: 0;
+  max-width: 56ch;
+  color: var(--v2-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .phlo-v2-list {
   display: grid;
 }
@@ -770,6 +793,30 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 18px;
+}
+
+.phlo-v2-service-impact {
+  display: grid;
+  gap: 4px;
+  margin-top: 16px;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 8px;
+  background: var(--v2-sheet);
+  padding: 10px 12px;
+}
+
+.phlo-v2-service-impact span {
+  color: var(--v2-muted);
+  font-size: 11px;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.phlo-v2-service-impact strong {
+  color: var(--v2-ink);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .phlo-v2-action-row button {
@@ -2910,6 +2957,11 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   .phlo-v2-title {
     font-size: clamp(23px, 8vw, 30px);
     line-height: 1.08;
+  }
+
+  .phlo-v2-empty-panel {
+    max-width: none;
+    padding: 18px;
   }
 
   .phlo-v2-workspace-toolbar,

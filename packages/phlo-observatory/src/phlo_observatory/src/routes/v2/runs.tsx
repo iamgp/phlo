@@ -23,7 +23,7 @@ export function Runs() {
     <V2Page
       kicker="Runs"
       title="Orchestrator runs"
-      description="Provider-neutral run history, linked assets, checks, and evidence."
+      description="Pipeline run history with linked assets, checks, logs, and evidence."
       action={<span className="phlo-v2-pill">{runs.length} runs</span>}
     >
       <section className="phlo-v2-command phlo-v2-runs-shell">
@@ -63,8 +63,8 @@ export function Runs() {
                   </span>
                   <h2>Run history is quiet.</h2>
                   <p>
-                    A maintenance read model or orchestrator provider can
-                    populate provider-neutral runs here.
+                    Runs will appear here after a workflow starts or your
+                    orchestrator reports recent activity.
                   </p>
                 </div>
                 <div className="phlo-v2-detail-list">
@@ -114,7 +114,7 @@ export function Runs() {
           ) : (
             <>
               <h2>No run selected</h2>
-              <p>There are no provider-neutral run records yet.</p>
+              <p>There are no runs to inspect yet.</p>
             </>
           )}
           {result.error && (

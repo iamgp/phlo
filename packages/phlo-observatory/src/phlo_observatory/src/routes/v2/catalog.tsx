@@ -15,8 +15,8 @@ export function Catalog() {
   return (
     <V2SurfacePage
       contract="/api/observatory/v2/catalog"
-      description="Provider-neutral metadata catalog and scanner surfaces."
-      emptyCopy="Catalog providers can add shallow metadata summaries here without binding the UI to a catalog vendor."
+      description="Metadata catalogs and scanners connected to this project."
+      emptyCopy="Catalog entries will appear here when a catalog package reports them."
       error={result.error}
       items={items}
       kicker="Catalog"
