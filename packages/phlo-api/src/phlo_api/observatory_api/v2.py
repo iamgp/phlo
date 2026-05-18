@@ -2889,7 +2889,7 @@ def post_v2_action(request: V2ActionRequest) -> V2ActionResult:
     services = _load_services()
     is_service_control_action = (
         bool(separator)
-        and action_name in {"start", "stop", "restart"}
+        and action_name in {"add", "start", "stop", "restart"}
         and any(service.id == resource_id for service in services)
     )
     result = (

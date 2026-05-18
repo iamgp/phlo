@@ -457,6 +457,40 @@ def test_v2_available_installed_service_can_be_added_to_stack(monkeypatch) -> No
     assert commands == [["phlo", "services", "add", "alloy"]]
 
 
+def test_v2_actions_endpoint_routes_add_service_action(monkeypatch, tmp_path: Path) -> None:
+    service = V2Service(
+        id="pgweb",
+        name="pgweb",
+        kind="admin",
+        status="unknown",
+        health=V2Health(state="unknown"),
+        in_stack=False,
+        metadata={"package": "phlo-pgweb", "package_installed": True},
+    )
+    commands: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, returncode=0, stdout="Services added.")
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_services", lambda: [service])
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    v2._clear_read_model_cache()
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/actions",
+        json={"action_id": "pgweb:add"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "succeeded"
+    assert payload["action"]["label"] == "Add to stack"
+    assert payload["action"]["kind"] == "service.add"
+    assert commands == [["phlo", "services", "add", "pgweb"]]
+
+
 def test_v2_available_missing_package_service_add_is_disabled(monkeypatch) -> None:
     service = V2Service(
         id="plugin-example",
