@@ -591,6 +591,12 @@ def get_quality_provider(name: str) -> QualityProviderPlugin | None:
     return registry.get_quality_provider(name)
 
 
+def list_quality_providers() -> list[str]:
+    """List registered quality provider names."""
+    registry = get_global_registry()
+    return registry.list_quality_providers()
+
+
 def get_ingestion_provider(name: str) -> IngestionProviderPlugin | None:
     """
     Get an ingestion provider plugin by name.
@@ -603,6 +609,12 @@ def get_ingestion_provider(name: str) -> IngestionProviderPlugin | None:
     """
     registry = get_global_registry()
     return registry.get_ingestion_provider(name)
+
+
+def list_ingestion_providers() -> list[str]:
+    """List registered ingestion provider names."""
+    registry = get_global_registry()
+    return registry.list_ingestion_providers()
 
 
 def get_transformation_provider(name: str) -> TransformationProviderPlugin | None:

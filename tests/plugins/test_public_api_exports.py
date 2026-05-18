@@ -129,6 +129,33 @@ def test_quality_module_populates_exports_on_discovered_provider(
     assert quality_module.dbt_check_name("dbt", "users") == "dbt_users"
 
 
+def test_plugin_discovery_exports_provider_list_helpers() -> None:
+    """Plugin discovery should expose provider listing helpers for public APIs."""
+    import phlo.plugins.discovery as discovery
+
+    assert callable(discovery.list_ingestion_providers)
+    assert callable(discovery.list_quality_providers)
+
+
+def test_plugin_query_helpers_list_registered_provider_names(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Provider listing helpers should delegate to the global plugin registry."""
+    from phlo.plugins.discovery import _plugin_queries
+
+    class _Registry:
+        def list_ingestion_providers(self) -> list[str]:
+            return ["dlt", "sling"]
+
+        def list_quality_providers(self) -> list[str]:
+            return ["pandera"]
+
+    monkeypatch.setattr(_plugin_queries, "get_global_registry", lambda: _Registry())
+
+    assert _plugin_queries.list_ingestion_providers() == ["dlt", "sling"]
+    assert _plugin_queries.list_quality_providers() == ["pandera"]
+
+
 def test_plugins_module_reexports_provider_getters() -> None:
     """phlo.plugins should expose provider getter helpers."""
     import phlo.plugins as plugins

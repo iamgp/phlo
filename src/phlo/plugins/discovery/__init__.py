@@ -40,7 +40,9 @@ if TYPE_CHECKING:
         get_source_connector,
         get_transformation,
         get_transformation_provider,
+        list_ingestion_providers,
         list_plugins,
+        list_quality_providers,
         validate_plugins,
     )
 
@@ -58,7 +60,9 @@ _PLUGIN_EXPORTS = frozenset(
         "get_hook_plugin",
         "get_source_connector",
         "get_transformation",
+        "list_ingestion_providers",
         "list_plugins",
+        "list_quality_providers",
         "validate_plugins",
     }
 )
@@ -91,7 +95,9 @@ __all__ = [
     "get_hook_plugin",
     "get_source_connector",
     "get_transformation",
+    "list_ingestion_providers",
     "list_plugins",
+    "list_quality_providers",
     "validate_plugins",
     # Registry
     "PluginRegistry",
