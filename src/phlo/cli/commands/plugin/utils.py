@@ -157,18 +157,18 @@ SCAFFOLD_TYPE_MAP = {
 
 
 def run_pip(args: list[str], *, timeout: float = 300) -> None:
-    """Install packages using pip, with uv fallback for uv-managed environments."""
+    """Install packages using uv when available, with pip fallback."""
     operation = args[0] if args else "unknown"
-    if importlib.util.find_spec("pip") is not None:
+    if shutil.which("uv") is not None:
+        command = ["uv", "pip", *args]
+        installer = "uv"
+    elif importlib.util.find_spec("pip") is not None:
         command = [sys.executable, "-m", "pip", *args]
         installer = "pip"
     else:
-        if shutil.which("uv") is None:
-            raise RuntimeError(
-                "pip module is unavailable and 'uv' is not installed; cannot install packages."
-            )
-        command = ["uv", "pip", *args]
-        installer = "uv"
+        raise RuntimeError(
+            "pip module is unavailable and 'uv' is not installed; cannot install packages."
+        )
 
     try:
         logger.info("plugin_pip_command_started", operation=operation, installer=installer)

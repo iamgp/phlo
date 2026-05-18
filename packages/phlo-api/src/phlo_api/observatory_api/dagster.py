@@ -36,8 +36,12 @@ from datetime import datetime
 from typing import Any
 
 import httpx
+from dagster_graphql.client.query import (
+    LAUNCH_PIPELINE_EXECUTION_MUTATION,
+    LAUNCH_PIPELINE_REEXECUTION_MUTATION,
+)
 from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from phlo.config.env import project_env_value
 from phlo.config.network import resolve_url
@@ -372,12 +376,19 @@ class MaterializeAssetRequest(BaseModel):
 
     dry_run: bool = True
     partition_key: str | None = None
+    job_name: str | None = None
+    repository_location_name: str | None = None
+    repository_name: str | None = None
+    run_config: dict[str, Any] | None = None
+    tags: dict[str, str] = Field(default_factory=dict)
 
 
 class RetryRunRequest(BaseModel):
     """Request to retry one Dagster run."""
 
     dry_run: bool = True
+    strategy: str = "FROM_FAILURE"
+    tags: dict[str, str] = Field(default_factory=dict)
 
 
 class DagsterOperationResponse(BaseModel):
@@ -487,6 +498,64 @@ async def graphql_request(
         )
         response.raise_for_status()
         return response.json()
+
+
+def _tags_for_execution(tags: dict[str, str]) -> list[dict[str, str]]:
+    return [{"key": str(key), "value": str(value)} for key, value in tags.items()]
+
+
+def _launch_error_message(result: dict[str, Any]) -> str:
+    if result.get("message"):
+        return str(result["message"])
+    errors = result.get("errors")
+    if isinstance(errors, list) and errors:
+        first_error = errors[0]
+        if isinstance(first_error, dict) and first_error.get("message"):
+            return str(first_error["message"])
+    invalid_step = result.get("invalidStepKey")
+    if invalid_step:
+        return f"Invalid step key: {invalid_step}"
+    return str(result.get("__typename") or "Dagster launch failed")
+
+
+def _launch_operation_response(
+    *,
+    operation: str,
+    dry_run: bool,
+    launch_result: dict[str, Any],
+    asset_key_path: str | None = None,
+    partition_key: str | None = None,
+    fallback_run_id: str | None = None,
+) -> DagsterOperationResponse:
+    typename = str(launch_result.get("__typename") or "DagsterLaunchResult")
+    run = launch_result.get("run") if isinstance(launch_result.get("run"), dict) else {}
+    if typename in {"LaunchRunSuccess", "LaunchPipelineRunSuccess"} and run:
+        run_id = str(run.get("runId") or fallback_run_id or "")
+        status = str(run.get("status") or "STARTED")
+        return DagsterOperationResponse(
+            operation=operation,
+            dry_run=dry_run,
+            accepted=True,
+            run_id=run_id or None,
+            asset_key_path=asset_key_path,
+            partition_key=partition_key,
+            status=status,
+            message=f"Dagster accepted {operation}.",
+            details={"typename": typename},
+        )
+
+    message = _launch_error_message(launch_result)
+    return DagsterOperationResponse(
+        operation=operation,
+        dry_run=dry_run,
+        accepted=False,
+        run_id=fallback_run_id,
+        asset_key_path=asset_key_path,
+        partition_key=partition_key,
+        status=typename,
+        message=message,
+        details={"typename": typename},
+    )
 
 
 def infer_layer(key_path: str) -> str:
@@ -946,14 +1015,6 @@ async def materialize_asset(
     if not asset_key_path:
         return {"error": "Asset key is required"}
 
-    if not payload.dry_run:
-        return {
-            "error": (
-                "Live Dagster materialization launch is not implemented yet. "
-                "Use dry_run=true to validate the request."
-            )
-        }
-
     details = await get_asset_details(asset_key_path, dagster_url=dagster_url)
     if isinstance(details, dict) and details.get("error"):
         return details
@@ -963,6 +1024,66 @@ async def materialize_asset(
     else:
         has_permission = details.has_materialize_permission
         op_names = details.op_names
+
+    if not payload.dry_run:
+        if not has_permission:
+            return DagsterOperationResponse(
+                operation="materialize_asset",
+                dry_run=False,
+                accepted=False,
+                asset_key_path=asset_key_path,
+                partition_key=payload.partition_key,
+                status="NOT_MATERIALIZABLE",
+                message="Dagster reports this asset is not materializable by the current principal.",
+                details={"op_names": op_names},
+            )
+        if not payload.job_name:
+            return DagsterOperationResponse(
+                operation="materialize_asset",
+                dry_run=False,
+                accepted=False,
+                asset_key_path=asset_key_path,
+                partition_key=payload.partition_key,
+                status="MISSING_JOB_NAME",
+                message="Dagster job_name is required to launch live asset materialization.",
+                details={"op_names": op_names},
+            )
+
+        tags = {
+            "phlo/operation": "materialize_asset",
+            "phlo/asset_key": asset_key_path,
+            **payload.tags,
+        }
+        if payload.partition_key:
+            tags.setdefault("dagster/partition", payload.partition_key)
+
+        execution_params: dict[str, Any] = {
+            "selector": {
+                "pipelineName": payload.job_name,
+                "repositoryLocationName": payload.repository_location_name,
+                "repositoryName": payload.repository_name,
+                "assetSelection": [{"path": asset_key_path.split("/")}],
+            },
+            "runConfigData": payload.run_config or {},
+            "mode": "default",
+            "executionMetadata": {"tags": _tags_for_execution(tags)},
+        }
+        result = await graphql_request(
+            resolve_dagster_url(dagster_url),
+            LAUNCH_PIPELINE_EXECUTION_MUTATION,
+            {"executionParams": execution_params},
+            initiator="observatory",
+        )
+        if result.get("errors"):
+            return {"error": result["errors"][0].get("message", "GraphQL error")}
+        launch_result = result.get("data", {}).get("launchPipelineExecution", {})
+        return _launch_operation_response(
+            operation="materialize_asset",
+            dry_run=False,
+            launch_result=launch_result,
+            asset_key_path=asset_key_path,
+            partition_key=payload.partition_key,
+        )
 
     return DagsterOperationResponse(
         operation="materialize_asset",
@@ -1164,15 +1285,48 @@ async def retry_run(
     if isinstance(status, dict) and status.get("error"):
         return status
 
-    if not payload.dry_run:
-        return {
-            "error": (
-                "Live Dagster run retry launch is not implemented yet. "
-                "Use dry_run=true to validate the request."
-            )
-        }
-
     run_status = status.get("status") if isinstance(status, dict) else status.status
+    if not payload.dry_run:
+        if run_status != "FAILURE":
+            return DagsterOperationResponse(
+                operation="retry_failed_run",
+                dry_run=False,
+                accepted=False,
+                run_id=run_id,
+                status=str(run_status),
+                message=f"Run status is {run_status}; only FAILURE runs are retry candidates.",
+                details={"run_status": run_status},
+            )
+
+        tags = {
+            "phlo/operation": "retry_failed_run",
+            "phlo/parent_run_id": run_id,
+            **payload.tags,
+        }
+        result = await graphql_request(
+            resolve_dagster_url(dagster_url),
+            LAUNCH_PIPELINE_REEXECUTION_MUTATION,
+            {
+                "executionParams": None,
+                "reexecutionParams": {
+                    "parentRunId": run_id,
+                    "strategy": payload.strategy,
+                    "extraTags": _tags_for_execution(tags),
+                    "useParentRunTags": True,
+                },
+            },
+            initiator="observatory",
+        )
+        if result.get("errors"):
+            return {"error": result["errors"][0].get("message", "GraphQL error")}
+        launch_result = result.get("data", {}).get("launchPipelineReexecution", {})
+        return _launch_operation_response(
+            operation="retry_failed_run",
+            dry_run=False,
+            launch_result=launch_result,
+            fallback_run_id=run_id,
+        )
+
     return DagsterOperationResponse(
         operation="retry_failed_run",
         dry_run=True,

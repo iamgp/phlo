@@ -129,6 +129,25 @@ Action endpoints:
 Both endpoints should return user-visible status and failure reasons that are
 safe to display in browser UI and support bundles.
 
+## Operation Journal
+
+Observatory v2 records guarded action outcomes in the provider-neutral operation
+journal at `.phlo/observatory-v2/operation_journal.json` for the active project.
+The journal is exposed through `GET /api/observatory/v2/operations` and
+`GET /api/observatory/v2/operations/{operation_id}`.
+
+Journaled operations use the same `V2Operation` contract as provider-backed
+maintenance read models. Action outcomes may have `succeeded`, `failed`, or
+`skipped` status. A skipped operation means Observatory declined the action
+because the required provider contract, capability, service state, or guardrail
+was not available.
+
+Operation metadata follows the standard v2 metadata rules. It may include safe
+values such as action id, action kind, risk level, required capability, message,
+recorded timestamp, and affected file paths. It must not include secrets,
+provider credentials, private connection strings, raw provider URLs, or signed
+URLs.
+
 ## Native Links
 
 Native links may eventually point users to provider-native tools when Observatory

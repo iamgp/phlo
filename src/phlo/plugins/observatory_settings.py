@@ -200,5 +200,12 @@ def get_settings_service() -> SettingsService | InMemorySettingsService:
 
     postgres_settings = get_postgres_settings()
     db_url = postgres_settings.get_postgres_connection_string()
+    psycopg2 = _get_psycopg2()
+    try:
+        with psycopg2.connect(db_url, connect_timeout=1):
+            pass
+    except Exception:
+        logger.warning("observatory_settings_falling_back_to_memory")
+        return InMemorySettingsService()
     logger.debug("observatory_settings_service_initialized", backend="postgres_default")
     return SettingsService(db_url)

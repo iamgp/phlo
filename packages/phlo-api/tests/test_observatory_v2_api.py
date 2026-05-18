@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import subprocess
 
 from fastapi.testclient import TestClient
 
+from phlo.capabilities.registry import CapabilityRegistry
+from phlo.capabilities.specs import CatalogSpec
 from phlo_api.main import app
+from phlo_api.observatory_api import v2
+from phlo_api.observatory_api import v2_services
 from phlo_api.observatory_api.v2 import (
     _execute_action,
     _fallback_services,
@@ -37,6 +42,7 @@ from phlo_api.observatory_api.v2_models import (
     V2Table,
     V2TablePreview,
 )
+from phlo_api.observatory_api.v2_operation_journal import append_operation
 
 _PROVIDER_URL_SETTING_NAMES = (
     "dagster_url",
@@ -202,7 +208,15 @@ def test_v2_fallback_services_are_deterministic_and_provider_neutral() -> None:
 
 def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch) -> None:
     def fake_run(*args, **kwargs):
-        assert args[0] == ["docker", "ps", "-a", "--format", "{{json .}}"]
+        assert args[0] == [
+            "docker",
+            "ps",
+            "-a",
+            "--filter",
+            "label=com.docker.compose.project=phlo",
+            "--format",
+            "{{json .}}",
+        ]
         return subprocess.CompletedProcess(
             args=args[0],
             returncode=0,
@@ -213,6 +227,7 @@ def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch)
                             "Names": "phlo-trino-1",
                             "State": "running",
                             "Status": "Up 3 minutes (healthy)",
+                            "Labels": "com.docker.compose.project=phlo,com.docker.compose.service=trino",
                         }
                     ),
                     json.dumps(
@@ -220,6 +235,7 @@ def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch)
                             "Names": "old-trino-1",
                             "State": "exited",
                             "Status": "Exited (0) yesterday",
+                            "Labels": "com.docker.compose.project=old,com.docker.compose.service=trino",
                         }
                     ),
                     json.dumps(
@@ -227,6 +243,7 @@ def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch)
                             "Names": "phlo-dagster-1",
                             "State": "created",
                             "Status": "Created",
+                            "Labels": "com.docker.compose.project=phlo,com.docker.compose.service=dagster",
                         }
                     ),
                 ]
@@ -234,6 +251,7 @@ def test_v2_docker_statuses_match_services_without_provider_imports(monkeypatch)
         )
 
     monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "phlo")
 
     statuses = _load_docker_service_statuses({"trino", "dagster"})
 
@@ -309,6 +327,98 @@ def test_v2_load_services_includes_runtime_containers_missing_from_discovery(mon
     assert postgres.status == "running"
 
 
+def test_v2_load_services_marks_registry_service_runtime_container_in_stack(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    containers = [
+        {
+            "ID": "abc123",
+            "Names": "phlo-postgres-1",
+            "State": "running",
+            "Status": "Up 3 minutes (healthy)",
+            "Labels": ("com.docker.compose.project=phlo,com.docker.compose.service=postgres"),
+        }
+    ]
+
+    monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "phlo")
+    monkeypatch.setattr(v2_services, "load_docker_containers", lambda: containers)
+    monkeypatch.setattr(
+        v2_services, "load_project_docker_containers", lambda project_root: containers
+    )
+    monkeypatch.setattr(
+        v2_services,
+        "get_registry_data",
+        lambda: {
+            "plugins": {
+                "postgres": {
+                    "type": "service",
+                    "package": "phlo-postgres",
+                    "version": "0.1.0",
+                    "description": "PostgreSQL database",
+                    "tags": ["core", "database"],
+                }
+            }
+        },
+    )
+
+    services = v2_services.load_services(tmp_path, containers=containers)
+
+    postgres = next(service for service in services if service.id == "postgres")
+    assert postgres.in_stack is True
+    assert postgres.backend == "docker"
+    assert postgres.status == "running"
+    assert postgres.definition_state == "configured"
+
+
+def test_v2_service_registry_metadata_matches_helper_services(monkeypatch) -> None:
+    monkeypatch.setattr(
+        v2_services,
+        "get_registry_data",
+        lambda: {
+            "plugins": {
+                "openmetadata": {
+                    "type": "hooks",
+                    "package": "phlo-openmetadata",
+                    "version": "0.1.0",
+                    "description": "OpenMetadata integration",
+                    "verified": True,
+                    "tags": ["metadata"],
+                }
+            }
+        },
+    )
+    monkeypatch.setattr(v2_services, "_package_installed", lambda package: False)
+
+    entries = v2_services._registry_package_entries()
+    metadata = v2_services._registry_metadata("openmetadata-mysql", entries)
+
+    assert metadata["registry_name"] == "openmetadata"
+    assert metadata["package"] == "phlo-openmetadata"
+    assert metadata["installable"] is True
+
+
+def test_v2_docker_statuses_ignore_containers_without_project_scope(monkeypatch) -> None:
+    def fake_run(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "Names": "pokehunt-postgres",
+                    "State": "running",
+                    "Status": "Up 3 minutes (healthy)",
+                }
+            ),
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.delenv("PHLO_COMPOSE_PROJECT", raising=False)
+    monkeypatch.delenv("COMPOSE_PROJECT_NAME", raising=False)
+
+    assert _load_docker_service_statuses({"postgres"}) == {}
+
+
 def test_v2_capabilities_include_running_service_backed_providers(monkeypatch) -> None:
     trino = V2Service(
         id="trino",
@@ -363,6 +473,252 @@ def test_v2_disabled_service_action_skips_without_subprocess(monkeypatch) -> Non
     assert result.message == result.action.reason
     assert subprocess_calls == []
     assert result.operation is None
+
+
+def test_v2_available_installed_service_can_be_added_to_stack(monkeypatch) -> None:
+    service = V2Service(
+        id="alloy",
+        name="alloy",
+        kind="observability",
+        status="unknown",
+        health=V2Health(state="unknown"),
+        in_stack=False,
+        metadata={"package": "phlo-alloy", "package_installed": True},
+    )
+    commands: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, returncode=0, stdout="Services added.")
+
+    monkeypatch.setattr(v2, "_load_services", lambda: [service])
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = _execute_action(V2ActionRequest(action_id="alloy:add"))
+
+    assert result.status == "succeeded"
+    assert result.action.label == "Add to stack"
+    assert commands == [["phlo", "services", "add", "alloy"]]
+
+
+def test_v2_actions_endpoint_routes_add_service_action(monkeypatch, tmp_path: Path) -> None:
+    service = V2Service(
+        id="pgweb",
+        name="pgweb",
+        kind="admin",
+        status="unknown",
+        health=V2Health(state="unknown"),
+        in_stack=False,
+        metadata={"package": "phlo-pgweb", "package_installed": True},
+    )
+    commands: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, returncode=0, stdout="Services added.")
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_services", lambda: [service])
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    v2._clear_read_model_cache()
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/actions",
+        json={"action_id": "pgweb:add"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "succeeded"
+    assert payload["action"]["label"] == "Add to stack"
+    assert payload["action"]["kind"] == "service.add"
+    assert commands == [["phlo", "services", "add", "pgweb"]]
+
+
+def test_v2_available_missing_package_service_add_is_disabled(monkeypatch) -> None:
+    service = V2Service(
+        id="plugin-example",
+        name="plugin-example",
+        kind="service",
+        status="unknown",
+        health=V2Health(state="unknown"),
+        in_stack=False,
+        metadata={"package": "phlo-plugin-example", "package_installed": False},
+    )
+
+    monkeypatch.setattr(v2, "_load_services", lambda: [service])
+
+    result = _execute_action(V2ActionRequest(action_id="plugin-example:add"))
+
+    assert result.status == "skipped"
+    assert result.action.label == "Add to stack"
+    assert result.action.enabled is False
+    assert "Install phlo-plugin-example" in result.message
+
+
+def test_v2_operations_endpoint_includes_journal_records(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    v2._clear_read_model_cache()
+    append_operation(
+        tmp_path,
+        V2Operation(
+            id="phlo-api:restart",
+            name="Restart",
+            kind="service.restart",
+            status="succeeded",
+            health=V2Health(state="ok", message="Restarted"),
+            target=V2ResourceRef(kind="service", id="phlo-api", label="phlo-api"),
+        ),
+        record_id="op-restart",
+        recorded_at="2026-05-16T12:00:00+00:00",
+    )
+
+    response = TestClient(app).get("/api/observatory/v2/operations")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"][0]["id"] == "op-restart"
+    assert payload["items"][0]["kind"] == "service.restart"
+    assert payload["items"][0]["target"]["id"] == "phlo-api"
+
+
+def test_v2_generic_skipped_action_records_operation(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_services", lambda: [])
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    v2._clear_read_model_cache()
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/actions",
+        json={"action_id": "quality:raw.orders:rerun"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "skipped"
+    assert payload["operation"]["status"] == "skipped"
+    assert payload["operation"]["kind"] == "quality.rerun"
+
+    operations = TestClient(app).get("/api/observatory/v2/operations").json()["items"]
+    assert operations[0]["id"] == payload["operation"]["id"]
+    assert operations[0]["metadata"]["action_id"] == "quality:raw.orders:rerun"
+
+
+def test_v2_service_action_records_subprocess_result(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    v2._clear_read_model_cache()
+    service = V2Service(
+        id="phlo-api",
+        name="phlo-api",
+        kind="api",
+        status="stopped",
+        health=V2Health(state="warning", message="stopped"),
+        in_stack=True,
+    )
+
+    def fake_run(*args, **kwargs):
+        assert args[0] == ["phlo", "services", "start", "--service", "phlo-api"]
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="phlo-api start requested\n",
+        )
+
+    monkeypatch.setattr(v2, "_load_services", lambda: [service])
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/actions",
+        json={"action_id": "phlo-api:start"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "succeeded"
+    assert payload["operation"]["kind"] == "service.start"
+    assert payload["operation"]["target"]["id"] == "phlo-api"
+
+    operations = TestClient(app).get("/api/observatory/v2/operations").json()["items"]
+    assert operations[0]["id"] == payload["operation"]["id"]
+    assert operations[0]["status"] == "succeeded"
+
+
+def test_v2_package_install_uses_trusted_registry_package(monkeypatch) -> None:
+    monkeypatch.setattr(
+        v2,
+        "get_registry_data",
+        lambda: {
+            "plugins": {
+                "openmetadata": {
+                    "type": "service",
+                    "package": "phlo-openmetadata",
+                    "version": "0.1.0",
+                }
+            }
+        },
+    )
+    installed: list[str] = []
+
+    def fake_install(package_spec: str) -> tuple[bool, str]:
+        installed.append(package_spec)
+        return True, "installed"
+
+    monkeypatch.setattr(v2, "_run_python_package_install", fake_install)
+    monkeypatch.setattr(v2, "_load_services", lambda: [])
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/packages/install",
+        json={"package_name": "openmetadata"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "succeeded"
+    assert payload["package_name"] == "phlo-openmetadata"
+    assert installed == ["phlo-openmetadata==0.1.0"]
+
+
+def test_v2_package_install_rejects_unknown_package(monkeypatch) -> None:
+    monkeypatch.setattr(v2, "get_registry_data", lambda: {"plugins": {}})
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/packages/install",
+        json={"package_name": "not-a-phlo-package"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_v2_package_install_prefers_uv_add_for_uv_projects(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    commands: list[tuple[list[str], Path | None]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append((command, kwargs.get("cwd")))
+        return subprocess.CompletedProcess(command, returncode=0, stdout="ok")
+
+    monkeypatch.setattr(v2.shutil, "which", lambda name: "/usr/bin/uv")
+    monkeypatch.setattr(v2, "_uv_project_root", lambda: tmp_path)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    succeeded, message = v2._run_python_package_install("phlo-openmetadata==0.1.0")
+
+    assert succeeded is True
+    assert message == "ok"
+    assert commands == [(["/usr/bin/uv", "add", "--active", "phlo-openmetadata==0.1.0"], tmp_path)]
 
 
 def test_v2_overview_endpoint_returns_provider_neutral_payload() -> None:
@@ -426,6 +782,26 @@ def test_v2_capabilities_endpoint_returns_provider_neutral_payload() -> None:
     _assert_no_provider_url_settings(payload)
 
 
+def test_v2_capabilities_endpoint_reloads_project_capabilities(monkeypatch) -> None:
+    """Route gating must reflect package/service inventory changes immediately."""
+    calls = 0
+
+    def load_capabilities() -> V2Capabilities:
+        nonlocal calls
+        calls += 1
+        return V2Capabilities(features={"data": calls == 2})
+
+    monkeypatch.setattr(v2, "_load_capabilities", load_capabilities)
+
+    first = TestClient(app).get("/api/observatory/v2/capabilities")
+    second = TestClient(app).get("/api/observatory/v2/capabilities")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["features"] == {"data": False}
+    assert second.json()["features"] == {"data": True}
+
+
 def test_v2_capabilities_gate_provider_pages_when_providers_are_absent(
     monkeypatch,
 ) -> None:
@@ -443,10 +819,38 @@ def test_v2_capabilities_gate_provider_pages_when_providers_are_absent(
     assert pages["issues"]["available"] is False
     assert pages["quality"]["available"] is False
     assert pages["quality"]["nav"] is False
-    assert pages["logs"]["available"] is False
+    assert pages["logs"]["available"] is True
+    assert pages["logs"]["nav"] is True
     assert pages["extensions"]["available"] is False
     assert pages["extensions"]["nav"] is False
     _assert_no_provider_url_settings(payload)
+
+
+def test_v2_logs_include_project_phlo_logs(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    v2._clear_read_model_cache()
+    log_dir = tmp_path / ".phlo" / "logs"
+    log_dir.mkdir(parents=True)
+    (log_dir / "20260517.log").write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-05-17T10:00:00Z",
+                "level": "warning",
+                "logger": "phlo.test",
+                "event": "project_log_seen",
+                "path": "/api/observatory/v2/logs",
+            }
+        )
+        + "\n"
+    )
+
+    response = TestClient(app).get("/api/observatory/v2/logs")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"][0]["message"] == "project_log_seen"
+    assert payload["items"][0]["source"] == "phlo.test"
+    assert payload["items"][0]["level"] == "warning"
 
 
 def test_v2_overview_health_describes_missing_runtime_containers() -> None:
@@ -821,6 +1225,8 @@ def test_v2_branch_action_contract_skips_until_provider_write_contract_exists(
     monkeypatch, tmp_path
 ) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    v2._clear_read_model_cache()
     response = TestClient(app).post(
         "/api/observatory/v2/branches/actions",
         json={"action_id": "branch:create:review/demo"},
@@ -831,7 +1237,7 @@ def test_v2_branch_action_contract_skips_until_provider_write_contract_exists(
     assert set(payload) == {"action", "status", "message", "operation"}
     assert payload["status"] == "skipped"
     assert payload["action"]["enabled"] is False
-    assert payload["operation"] is None
+    assert payload["operation"]["status"] == "skipped"
     _assert_no_provider_url_settings(payload)
 
 
@@ -861,7 +1267,88 @@ def test_v2_branch_action_skips_when_branches_capability_is_unavailable(
     assert payload["action"]["kind"] == "branch.create"
     assert payload["action"]["enabled"] is False
     assert "catalog provider" in payload["message"]
-    assert payload["operation"] is None
+    assert payload["operation"]["status"] == "skipped"
+
+
+def test_v2_branch_action_skip_is_recorded(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    v2._clear_read_model_cache()
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/branches/actions",
+        json={"action_id": "branch:create:experiment"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "skipped"
+    assert payload["operation"]["status"] == "skipped"
+    assert payload["operation"]["kind"] == "branch.create"
+
+    operations = TestClient(app).get("/api/observatory/v2/operations").json()["items"]
+    assert operations[0]["id"] == payload["operation"]["id"]
+    assert operations[0]["metadata"]["action_id"] == "branch:create:experiment"
+
+
+def test_v2_branch_actions_use_registered_catalog_provider(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    class CatalogProvider:
+        def __init__(self) -> None:
+            self.branches: dict[str, str] = {}
+            self.promoted: list[tuple[str, str]] = []
+
+        def list_branches(self):
+            return [
+                {"name": name, "hash": hash_value} for name, hash_value in self.branches.items()
+            ]
+
+        def create_branch(self, name: str, from_ref: str = "main") -> str | None:
+            self.branches[name] = f"{from_ref}-hash"
+            return self.branches[name]
+
+        def merge_branch(self, source: str, target: str = "main") -> bool:
+            self.promoted.append((source, target))
+            return source in self.branches
+
+        def delete_branch(self, name: str) -> bool:
+            return self.branches.pop(name, None) is not None
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    provider = CatalogProvider()
+    registry = CapabilityRegistry()
+    registry.register_catalog(CatalogSpec(name="catalog", provider=provider))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: registry)
+    v2._clear_read_model_cache()
+
+    client = TestClient(app)
+    create_response = client.post(
+        "/api/observatory/v2/branches/actions",
+        json={"action_id": "branch:create:experiment"},
+    )
+    promote_response = client.post(
+        "/api/observatory/v2/branches/actions",
+        json={"action_id": "branch:promote:experiment"},
+    )
+    delete_response = client.post(
+        "/api/observatory/v2/branches/actions",
+        json={"action_id": "branch:delete:experiment"},
+    )
+
+    assert create_response.status_code == 200
+    assert create_response.json()["status"] == "succeeded"
+    assert create_response.json()["operation"]["status"] == "succeeded"
+    assert promote_response.status_code == 200
+    assert promote_response.json()["status"] == "succeeded"
+    assert provider.promoted == [("experiment", "main")]
+    assert delete_response.status_code == 200
+    assert delete_response.json()["status"] == "succeeded"
+    assert provider.branches == {}
 
 
 def test_v2_quality_endpoint_returns_provider_neutral_payload() -> None:

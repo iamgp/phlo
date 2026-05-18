@@ -17,4 +17,4 @@ compose:
     echo 'RustFS data volume ownership initialized'
     "
   volumes:
-    - ./volumes/rustfs:/data
+    - rustfs-data:/data

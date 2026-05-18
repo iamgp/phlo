@@ -32,13 +32,31 @@ def test_get_profile_service_names_returns_profile_services(
     )
 
     result = get_profile_service_names(("observability",))
-    assert sorted(result) == ["grafana", "loki", "prometheus"]
+    assert sorted(result) == [
+        "alloy",
+        "clickstack",
+        "grafana",
+        "loki",
+        "postgres-exporter",
+        "prometheus",
+    ]
 
     result = get_profile_service_names(("api",))
-    assert result == ["hasura"]
+    assert sorted(result) == ["hasura", "observatory", "phlo-api", "postgrest"]
 
     result = get_profile_service_names(("observability", "api"))
-    assert sorted(result) == ["grafana", "hasura", "loki", "prometheus"]
+    assert sorted(result) == [
+        "alloy",
+        "clickstack",
+        "grafana",
+        "hasura",
+        "loki",
+        "observatory",
+        "phlo-api",
+        "postgres-exporter",
+        "postgrest",
+        "prometheus",
+    ]
 
     result = get_profile_service_names(())
     assert result == []

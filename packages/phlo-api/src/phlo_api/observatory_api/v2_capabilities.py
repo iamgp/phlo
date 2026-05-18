@@ -83,9 +83,8 @@ ROUTE_REQUIREMENTS = [
         route_id="logs",
         label="Logs",
         path="/logs",
-        required_any=["observability_backend"],
-        optional=["maintenance_read_model"],
-        reason="Install an observability backend to inspect logs.",
+        optional=["observability_backend", "maintenance_read_model"],
+        reason="Core Phlo log evidence surface.",
     ),
     V2RouteRequirement(
         route_id="branches",
@@ -106,8 +105,9 @@ ROUTE_REQUIREMENTS = [
         route_id="runs",
         label="Runs",
         path="/runs",
+        required_any=["orchestrator"],
         optional=["maintenance_read_model"],
-        reason="Core provider-neutral run history surface.",
+        reason="Install an orchestrator provider to inspect run history.",
     ),
     V2RouteRequirement(
         route_id="storage",

@@ -60,7 +60,7 @@ export function V2SurfacePage({
                   <span className="phlo-v2-inspector-label">
                     No items returned
                   </span>
-                  <h2>{title} has no provider-neutral items yet.</h2>
+                  <h2>{title} has no items yet.</h2>
                   <p>{emptyCopy}</p>
                 </div>
                 <div className="phlo-v2-detail-list">

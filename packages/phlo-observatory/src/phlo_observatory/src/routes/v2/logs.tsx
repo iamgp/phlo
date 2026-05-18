@@ -201,7 +201,9 @@ export function Logs() {
           ) : (
             <>
               <h2>No events</h2>
-              <p>Connect a v2 telemetry read model to populate this console.</p>
+              <p>
+                Logs will appear here as Phlo and stack services emit events.
+              </p>
             </>
           )}
           <div className="phlo-v2-detail-list">

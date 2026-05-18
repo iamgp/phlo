@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 import http.client
+import importlib.metadata
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,9 @@ import re
 import socket
 import subprocess
 from typing import Any
+
+import yaml
+from phlo.plugins.registry_client import get_registry_data
 
 from phlo_api.observatory_api.v2_metadata import safe_metadata
 from phlo_api.observatory_api.v2_models import (
@@ -24,6 +28,7 @@ from phlo_api.observatory_api.v2_models import (
 )
 
 DOCKER_SOCKET = "/var/run/docker.sock"
+DOCKER_PS_TIMEOUT_SECONDS = 30
 DOCKER_SERVICE_STATUS_RANK: dict[ServiceStatus, int] = {
     "running": 4,
     "unhealthy": 3,
@@ -32,6 +37,128 @@ DOCKER_SERVICE_STATUS_RANK: dict[ServiceStatus, int] = {
     "unknown": 0,
 }
 ENV_DEFAULT_RE = re.compile(r"^\$\{[^}:]+:-(?P<default>[^}]+)\}$")
+
+
+def _registry_package_entries() -> dict[str, dict[str, Any]]:
+    """Return trusted registry entries keyed by package and friendly aliases."""
+    try:
+        registry = get_registry_data()
+    except Exception:
+        return {}
+
+    plugins = registry.get("plugins") if isinstance(registry, Mapping) else None
+    if not isinstance(plugins, Mapping):
+        return {}
+
+    entries: dict[str, dict[str, Any]] = {}
+    for name, payload in plugins.items():
+        if not isinstance(payload, Mapping):
+            continue
+        package = coerce_str(payload.get("package"), "")
+        if not package:
+            continue
+        normalized = dict(payload)
+        normalized["name"] = str(name)
+        for key in {str(name), package, package.removeprefix("phlo-")}:
+            if key:
+                entries[key] = normalized
+    return entries
+
+
+def _registry_service_entries(
+    entries: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Mapping[str, Any]]:
+    """Return registry entries that should appear before stack discovery."""
+    services: dict[str, Mapping[str, Any]] = {}
+    for entry in entries.values():
+        if entry.get("type") != "service":
+            continue
+        name = coerce_str(entry.get("name"), "")
+        if name:
+            services[name] = entry
+    return services
+
+
+def _registry_entry_for_service(
+    service_name: str,
+    entries: Mapping[str, Mapping[str, Any]],
+) -> Mapping[str, Any] | None:
+    candidates = [service_name]
+    parts = service_name.split("-")
+    candidates.extend("-".join(parts[:index]) for index in range(len(parts) - 1, 0, -1))
+    candidates.extend(f"phlo-{candidate}" for candidate in list(candidates))
+
+    for candidate in candidates:
+        entry = entries.get(candidate)
+        if isinstance(entry, Mapping):
+            return entry
+    return None
+
+
+def _package_installed(package: str) -> bool:
+    try:
+        importlib.metadata.version(package)
+    except importlib.metadata.PackageNotFoundError:
+        return False
+    return True
+
+
+def _registry_metadata(
+    service_name: str,
+    entries: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    entry = _registry_entry_for_service(service_name, entries)
+    if not isinstance(entry, Mapping):
+        return {}
+
+    package = coerce_str(entry.get("package"), "")
+    installed = _package_installed(package) if package else False
+    return {
+        "registry_name": coerce_str(entry.get("name"), service_name),
+        "package": package,
+        "package_version": coerce_str(entry.get("version"), ""),
+        "package_installed": installed,
+        "installable": not installed,
+        "verified": bool(entry.get("verified")),
+        "description": coerce_str(entry.get("description"), ""),
+        "tags": list(entry.get("tags", [])) if isinstance(entry.get("tags"), list) else [],
+    }
+
+
+def _available_registry_service(
+    service_name: str,
+    entry: Mapping[str, Any],
+) -> V2Service:
+    package = coerce_str(entry.get("package"), "")
+    description = coerce_str(entry.get("description"), "")
+    tags = list(entry.get("tags", [])) if isinstance(entry.get("tags"), list) else []
+    return V2Service(
+        id=service_name,
+        name=service_name,
+        kind=coerce_str(entry.get("type"), "service") or "service",
+        status="unknown",
+        health=V2Health(
+            state="unknown",
+            message="Package is available to install.",
+        ),
+        definition_state="available",
+        runtime_state="unknown",
+        in_stack=False,
+        backend="registry",
+        metadata=safe_metadata(
+            {
+                "source": "registry",
+                "registry_name": service_name,
+                "package": package,
+                "package_version": coerce_str(entry.get("version"), ""),
+                "package_installed": False,
+                "installable": True,
+                "verified": bool(entry.get("verified")),
+                "description": description,
+                "tags": tags,
+            }
+        ),
+    )
 
 
 def coerce_str(value: Any, default: str = "") -> str:
@@ -151,27 +278,42 @@ def normalize_docker_api_container(container: Mapping[str, Any]) -> dict[str, An
     }
 
 
-def load_docker_containers() -> list[dict[str, Any]]:
+def parse_docker_ps_output(output: str) -> list[dict[str, Any]]:
+    containers: list[dict[str, Any]] = []
+    for line in output.splitlines():
+        try:
+            parsed = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, Mapping):
+            containers.append(dict(parsed))
+    return containers
+
+
+def docker_ps_containers(*filters: str) -> list[dict[str, Any]] | None:
+    command = ["docker", "ps", "-a"]
+    for filter_value in filters:
+        command.extend(["--filter", filter_value])
+    command.extend(["--format", "{{json .}}"])
     try:
         result = subprocess.run(
-            ["docker", "ps", "-a", "--format", "{{json .}}"],
+            command,
             capture_output=True,
             text=True,
             check=False,
-            timeout=2,
+            timeout=DOCKER_PS_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired):
-        result = None
+        return None
 
-    if result is not None and result.returncode == 0:
-        containers: list[dict[str, Any]] = []
-        for line in result.stdout.splitlines():
-            try:
-                parsed = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(parsed, Mapping):
-                containers.append(dict(parsed))
+    if result.returncode != 0:
+        return None
+    return parse_docker_ps_output(result.stdout)
+
+
+def load_docker_containers() -> list[dict[str, Any]]:
+    containers = docker_ps_containers()
+    if containers is not None:
         return containers
 
     if not Path(DOCKER_SOCKET).exists():
@@ -186,10 +328,67 @@ def load_docker_containers() -> list[dict[str, Any]]:
     ]
 
 
-def current_compose_project(containers: Sequence[Mapping[str, Any]]) -> str | None:
+def load_project_docker_containers(project_root: Path) -> list[dict[str, Any]]:
+    compose_project = project_compose_name(project_root)
+    if compose_project:
+        containers = docker_ps_containers(f"label=com.docker.compose.project={compose_project}")
+        if containers is not None:
+            return containers
+    return []
+
+
+def project_compose_name(project_root: Path) -> str | None:
+    """Resolve the compose project name for a Phlo project root."""
     configured = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get("COMPOSE_PROJECT_NAME")
     if configured:
         return configured
+
+    compose_file = project_root / ".phlo" / "docker-compose.yml"
+    if not compose_file.exists():
+        return None
+
+    config_file = project_root / "phlo.yaml"
+    if config_file.exists():
+        try:
+            payload = yaml.safe_load(config_file.read_text()) or {}
+        except (OSError, yaml.YAMLError):
+            payload = {}
+        if isinstance(payload, Mapping):
+            name = payload.get("name")
+            if isinstance(name, str) and name.strip():
+                return name.strip()
+
+    return project_root.name
+
+
+def configured_compose_services(project_root: Path) -> set[str]:
+    """Return service names declared in the generated project compose file."""
+    compose_file = project_root / ".phlo" / "docker-compose.yml"
+    if not compose_file.exists():
+        return set()
+    try:
+        payload = yaml.safe_load(compose_file.read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        return set()
+    if not isinstance(payload, Mapping):
+        return set()
+    services = payload.get("services")
+    if not isinstance(services, Mapping):
+        return set()
+    return {str(name) for name in services}
+
+
+def current_compose_project(
+    containers: Sequence[Mapping[str, Any]],
+    project_root: Path | None = None,
+) -> str | None:
+    configured = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get("COMPOSE_PROJECT_NAME")
+    if configured:
+        return configured
+    if project_root is not None:
+        project_name = project_compose_name(project_root)
+        if project_name:
+            return project_name
 
     hostname = os.environ.get("HOSTNAME", "")
     if not hostname:
@@ -237,18 +436,23 @@ def service_name_from_container(name: str, service_ids: set[str]) -> str | None:
 def load_docker_service_statuses(
     service_ids: set[str],
     containers: Sequence[Mapping[str, Any]] | None = None,
+    project_root: Path | None = None,
 ) -> dict[str, tuple[ServiceStatus, V2Health]]:
     if not service_ids:
         return {}
 
     statuses: dict[str, tuple[ServiceStatus, V2Health]] = {}
-    containers = containers if containers is not None else load_docker_containers()
-    compose_project = current_compose_project(containers)
+    containers = (
+        containers if containers is not None else load_project_docker_containers(project_root)
+    )
+    compose_project = current_compose_project(containers, project_root)
+    if not compose_project:
+        return statuses
+
     for container in containers:
-        if compose_project:
-            labels = container_labels(container)
-            if labels.get("com.docker.compose.project") != compose_project:
-                continue
+        labels = container_labels(container)
+        if labels.get("com.docker.compose.project") != compose_project:
+            continue
         name = coerce_str(container.get("Names"), "")
         service_id = compose_service_name(container) or service_name_from_container(
             name, service_ids
@@ -270,12 +474,16 @@ def load_docker_service_statuses(
 def runtime_services_from_containers(
     containers: Sequence[Mapping[str, Any]],
     known_ids: set[str],
+    project_root: Path | None = None,
 ) -> list[V2Service]:
-    compose_project = current_compose_project(containers)
+    compose_project = current_compose_project(containers, project_root)
+    if not compose_project:
+        return []
+
     services: list[V2Service] = []
     for container in containers:
         labels = container_labels(container)
-        if compose_project and labels.get("com.docker.compose.project") != compose_project:
+        if labels.get("com.docker.compose.project") != compose_project:
             continue
         service_id = compose_service_name(container)
         if not service_id or service_id in known_ids:
@@ -383,7 +591,6 @@ def load_services(
     containers: Sequence[Mapping[str, Any]] | None = None,
 ) -> list[V2Service]:
     """Load services through core discovery, falling back deterministically."""
-    _ = project_root
     try:
         from phlo.plugins.discovery import ServiceDiscovery
 
@@ -394,12 +601,17 @@ def load_services(
     services: list[V2Service] = []
     containers = containers if containers is not None else load_docker_containers()
     discovered = list(discovered)
+    registry_entries = _registry_package_entries()
+    registry_services = _registry_service_entries(registry_entries)
+    configured_services = configured_compose_services(project_root)
     runtime_statuses = load_docker_service_statuses(
-        {service.name for service in discovered},
+        {service.name for service in discovered} | set(registry_services),
         containers,
+        project_root,
     )
     for service in discovered:
         in_stack = service.name in runtime_statuses
+        configured = in_stack or service.name in configured_services
         status, health = runtime_statuses.get(
             service.name,
             ("unknown", V2Health(state="unknown", message="Runtime status unavailable")),
@@ -411,7 +623,7 @@ def load_services(
                 kind=service.category or "service",
                 status=status,
                 health=health,
-                definition_state="configured" if in_stack else "available",
+                definition_state="configured" if configured else "available",
                 runtime_state=status,
                 in_stack=in_stack,
                 disabled=bool(getattr(service, "disabled", False)),
@@ -426,13 +638,38 @@ def load_services(
                         "profile": service.profile,
                         "core": bool(getattr(service, "core", False)),
                         "description": getattr(service, "description", None),
+                        **_registry_metadata(service.name, registry_entries),
                     }
                 ),
             )
         )
 
+    discovered_names = {service.id for service in services}
+    for service_name, entry in registry_services.items():
+        if service_name in discovered_names:
+            continue
+        service = _available_registry_service(service_name, entry)
+        status, health = runtime_statuses.get(
+            service_name,
+            ("unknown", V2Health(state="unknown", message="Runtime status unavailable")),
+        )
+        if service_name in runtime_statuses:
+            service = service.model_copy(
+                update={
+                    "status": status,
+                    "health": health,
+                    "definition_state": "configured",
+                    "runtime_state": status,
+                    "in_stack": True,
+                    "backend": "docker",
+                }
+            )
+        services.append(service)
+
     services.extend(
-        runtime_services_from_containers(containers, {service.id for service in services})
+        runtime_services_from_containers(
+            containers, {service.id for service in services}, project_root
+        )
     )
 
     return sorted(services, key=lambda item: item.id) if services else fallback_services()

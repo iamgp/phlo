@@ -19,3 +19,17 @@ def test_cors_allows_docker_observatory_origin():
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:3001"
+
+
+def test_cors_allows_local_observatory_dev_ports():
+    """Parallel Observatory QA/dev servers can fetch the API directly."""
+    response = TestClient(app).options(
+        "/health",
+        headers={
+            "Origin": "http://127.0.0.1:3002",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:3002"

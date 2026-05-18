@@ -15,6 +15,7 @@ import type {
   V2Operation,
   V2OperationDetail,
   V2Overview,
+  V2PackageInstallResult,
   V2QualityCheck,
   V2QualityDetail,
   V2QueryResult,
@@ -54,7 +55,12 @@ function apiUnavailable<T>(error: unknown): V2ResourceResult<T> {
 
 function browserApiBase(): string | null {
   if (typeof window === 'undefined') return null
-  return window.__PHLO_API_BROWSER_URL__ || null
+  return (
+    window.__PHLO_API_BROWSER_URL__ ||
+    document.querySelector<HTMLMetaElement>('meta[name="phlo-api-browser-url"]')
+      ?.content ||
+    null
+  )
 }
 
 async function browserApiGet<T>(endpoint: string): Promise<T> {
@@ -81,50 +87,79 @@ async function browserApiGet<T>(endpoint: string): Promise<T> {
   return response.json()
 }
 
-export const getV2Overview = createServerFn().handler(
-  async (): Promise<V2ResourceResult<V2Overview>> => {
-    try {
-      const data = await apiGet<V2Overview>(
-        `${V2_API_PREFIX}/overview`,
-        undefined,
-        8000,
-      )
-      return { data, error: null }
-    } catch (error) {
-      return apiUnavailable<V2Overview>(error)
+async function browserApiPost<T>(
+  endpoint: string,
+  body: Record<string, unknown>,
+  timeoutMs = 12000,
+): Promise<T> {
+  const base = browserApiBase()
+  if (!base) throw new Error('Browser API fallback is unavailable during SSR')
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
+  let response: Response
+  try {
+    response = await fetch(`${base}${endpoint}`, {
+      body: JSON.stringify(body),
+      headers: { 'content-type': 'application/json' },
+      method: 'POST',
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('phlo-api request timed out')
     }
-  },
-)
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const detail =
+      payload && typeof payload === 'object' && 'detail' in payload
+        ? String(payload.detail)
+        : `${response.status} ${response.statusText}`
+    throw new Error(`phlo-api error: ${detail}`)
+  }
+  return response.json()
+}
 
-export const getV2Capabilities = createServerFn().handler(
-  async (): Promise<V2ResourceResult<V2Capabilities>> => {
-    try {
-      const data = await apiGet<V2Capabilities>(
-        `${V2_API_PREFIX}/capabilities`,
-        undefined,
-        8000,
-      )
-      return { data, error: null }
-    } catch (error) {
-      return apiUnavailable<V2Capabilities>(error)
-    }
-  },
-)
+async function v2ApiGet<T>(endpoint: string): Promise<T> {
+  if (browserApiBase()) return browserApiGet<T>(endpoint)
+  return apiGet<T>(endpoint, undefined, 8000)
+}
 
-export const getV2Services = createServerFn().handler(
-  async (): Promise<V2ResourceResult<Array<V2Service>>> => {
-    try {
-      const response = await apiGet<{ items: Array<V2Service> }>(
-        `${V2_API_PREFIX}/services`,
-        undefined,
-        8000,
-      )
-      return { data: response.items, error: null }
-    } catch (error) {
-      return apiUnavailable<Array<V2Service>>(error)
-    }
-  },
-)
+export async function getV2Overview(): Promise<V2ResourceResult<V2Overview>> {
+  try {
+    const data = await v2ApiGet<V2Overview>(`${V2_API_PREFIX}/overview`)
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2Overview>(error)
+  }
+}
+
+export async function getV2Capabilities(): Promise<
+  V2ResourceResult<V2Capabilities>
+> {
+  try {
+    const data = await v2ApiGet<V2Capabilities>(`${V2_API_PREFIX}/capabilities`)
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2Capabilities>(error)
+  }
+}
+
+export async function getV2Services(): Promise<
+  V2ResourceResult<Array<V2Service>>
+> {
+  try {
+    const response = await v2ApiGet<{ items: Array<V2Service> }>(
+      `${V2_API_PREFIX}/services`,
+    )
+    return { data: response.items, error: null }
+  } catch (error) {
+    return apiUnavailable<Array<V2Service>>(error)
+  }
+}
 
 export async function getV2ServicesDirect(): Promise<
   V2ResourceResult<Array<V2Service>>
@@ -158,14 +193,27 @@ export const getV2ServiceDetail = createServerFn()
     },
   )
 
+export async function getV2ServiceDetailDirect({
+  serviceId,
+}: {
+  serviceId: string
+}): Promise<V2ResourceResult<V2ServiceDetail>> {
+  try {
+    const data = await browserApiGet<V2ServiceDetail>(
+      `${V2_API_PREFIX}/services/${encodeURIComponent(serviceId)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2ServiceDetail>(error)
+  }
+}
+
 async function getRawCollection<T>(
   endpoint: string,
 ): Promise<V2ResourceResult<Array<T>>> {
   try {
-    const response = await apiGet<{ items: Array<T> }>(
+    const response = await v2ApiGet<{ items: Array<T> }>(
       `${V2_API_PREFIX}/${endpoint}`,
-      undefined,
-      8000,
     )
     return { data: response.items, error: null }
   } catch (error) {
@@ -177,10 +225,8 @@ async function getCollection(
   endpoint: string,
 ): Promise<V2ResourceResult<Array<V2ResourceItem>>> {
   try {
-    const response = await apiGet<{ items: Array<Record<string, unknown>> }>(
+    const response = await v2ApiGet<{ items: Array<Record<string, unknown>> }>(
       `${V2_API_PREFIX}/${endpoint}`,
-      undefined,
-      8000,
     )
     return {
       data: response.items.map((item) => normalizeItem(endpoint, item)),
@@ -191,9 +237,9 @@ async function getCollection(
   }
 }
 
-export const getV2OperationRecords = createServerFn().handler(() =>
-  getRawCollection<V2Operation>('operations'),
-)
+export function getV2OperationRecords() {
+  return getRawCollection<V2Operation>('operations')
+}
 
 export const getV2OperationDetail = createServerFn()
   .inputValidator((input: { operationId: string }) => input)
@@ -214,37 +260,37 @@ export const getV2OperationDetail = createServerFn()
     },
   )
 
-export const getV2RunRecords = createServerFn().handler(() =>
-  getRawCollection<V2Run>('runs'),
-)
+export function getV2RunRecords() {
+  return getRawCollection<V2Run>('runs')
+}
 
-export const getV2StorageItems = createServerFn().handler(() =>
-  getRawCollection<V2SurfaceItem>('storage'),
-)
+export function getV2StorageItems() {
+  return getRawCollection<V2SurfaceItem>('storage')
+}
 
-export const getV2ObservabilityItems = createServerFn().handler(() =>
-  getRawCollection<V2SurfaceItem>('observability'),
-)
+export function getV2ObservabilityItems() {
+  return getRawCollection<V2SurfaceItem>('observability')
+}
 
-export const getV2GovernanceItems = createServerFn().handler(() =>
-  getRawCollection<V2SurfaceItem>('governance'),
-)
+export function getV2GovernanceItems() {
+  return getRawCollection<V2SurfaceItem>('governance')
+}
 
-export const getV2CatalogItems = createServerFn().handler(() =>
-  getRawCollection<V2SurfaceItem>('catalog'),
-)
+export function getV2CatalogItems() {
+  return getRawCollection<V2SurfaceItem>('catalog')
+}
 
-export const getV2ApiItems = createServerFn().handler(() =>
-  getRawCollection<V2SurfaceItem>('apis'),
-)
+export function getV2ApiItems() {
+  return getRawCollection<V2SurfaceItem>('apis')
+}
 
-export const getV2BiItems = createServerFn().handler(() =>
-  getRawCollection<V2SurfaceItem>('bi'),
-)
+export function getV2BiItems() {
+  return getRawCollection<V2SurfaceItem>('bi')
+}
 
-export const getV2AssetRecords = createServerFn().handler(() =>
-  getRawCollection<V2Asset>('assets'),
-)
+export function getV2AssetRecords() {
+  return getRawCollection<V2Asset>('assets')
+}
 
 export const getV2AssetDetail = createServerFn()
   .inputValidator((input: { assetId: string }) => input)
@@ -263,97 +309,99 @@ export const getV2AssetDetail = createServerFn()
     },
   )
 
-export const getV2TableRecords = createServerFn().handler(() =>
-  getRawCollection<V2Table>('tables'),
-)
+export function getV2TableRecords() {
+  return getRawCollection<V2Table>('tables')
+}
 
-export const getV2TablePreview = createServerFn()
-  .inputValidator(
-    (input: { tableId: string; limit?: number; offset?: number }) => input,
-  )
-  .handler(
-    async ({
-      data: { tableId, limit = 50, offset = 0 },
-    }): Promise<V2ResourceResult<V2TablePreview>> => {
-      try {
-        const data = await apiGet<V2TablePreview>(
-          `${V2_API_PREFIX}/table-preview/${encodeURIComponent(tableId)}`,
-          { limit, offset },
-          8000,
-        )
-        return { data, error: null }
-      } catch (error) {
-        return apiUnavailable<V2TablePreview>(error)
-      }
-    },
-  )
+export async function getV2TablePreview({
+  data: { tableId, limit = 50, offset = 0 },
+}: {
+  data: { tableId: string; limit?: number; offset?: number }
+}): Promise<V2ResourceResult<V2TablePreview>> {
+  try {
+    const endpoint = `${V2_API_PREFIX}/table-preview/${encodeURIComponent(tableId)}`
+    if (browserApiBase()) {
+      const searchParams = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+      })
+      const data = await browserApiGet<V2TablePreview>(
+        `${endpoint}?${searchParams}`,
+      )
+      return { data, error: null }
+    }
+    const data = await apiGet<V2TablePreview>(endpoint, { limit, offset }, 8000)
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2TablePreview>(error)
+  }
+}
 
-export const runV2Query = createServerFn()
-  .inputValidator(
-    (input: {
-      sql: string
-      branch?: string
-      limit?: number
-      offset?: number
-    }) => input,
-  )
-  .handler(
-    async ({
-      data: { sql, branch, limit = 100, offset = 0 },
-    }): Promise<V2ResourceResult<V2QueryResult>> => {
-      try {
-        const data = await apiPost<V2QueryResult>(
+export async function runV2Query({
+  data: { sql, branch, limit = 100, offset = 0 },
+}: {
+  data: { sql: string; branch?: string; limit?: number; offset?: number }
+}): Promise<V2ResourceResult<V2QueryResult>> {
+  try {
+    const data = browserApiBase()
+      ? await browserApiPost<V2QueryResult>(`${V2_API_PREFIX}/query`, {
+          sql,
+          branch,
+          limit,
+          offset,
+        })
+      : await apiPost<V2QueryResult>(
           `${V2_API_PREFIX}/query`,
           { sql, branch, limit, offset },
           12000,
         )
-        return { data, error: null }
-      } catch (error) {
-        return apiUnavailable<V2QueryResult>(error)
-      }
-    },
-  )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2QueryResult>(error)
+  }
+}
 
-export const getV2SavedQueries = createServerFn().handler(
-  async (): Promise<V2ResourceResult<Array<V2SavedQuery>>> => {
-    try {
-      const response = await apiGet<{ items: Array<V2SavedQuery> }>(
-        `${V2_API_PREFIX}/saved-queries`,
-        undefined,
-        8000,
-      )
-      return { data: response.items, error: null }
-    } catch (error) {
-      return apiUnavailable<Array<V2SavedQuery>>(error)
-    }
-  },
-)
+export async function getV2SavedQueries(): Promise<
+  V2ResourceResult<Array<V2SavedQuery>>
+> {
+  try {
+    const response = await v2ApiGet<{ items: Array<V2SavedQuery> }>(
+      `${V2_API_PREFIX}/saved-queries`,
+    )
+    return { data: response.items, error: null }
+  } catch (error) {
+    return apiUnavailable<Array<V2SavedQuery>>(error)
+  }
+}
 
-export const saveV2Query = createServerFn()
-  .inputValidator(
-    (input: {
-      name: string
-      sql: string
-      branch?: string
-      metadata?: Record<string, unknown>
-    }) => input,
-  )
-  .handler(
-    async ({
-      data: { name, sql, branch, metadata = {} },
-    }): Promise<V2ResourceResult<V2SavedQuery>> => {
-      try {
-        const data = await apiPost<V2SavedQuery>(
+export async function saveV2Query({
+  data: { name, sql, branch, metadata = {} },
+}: {
+  data: {
+    name: string
+    sql: string
+    branch?: string
+    metadata?: Record<string, unknown>
+  }
+}): Promise<V2ResourceResult<V2SavedQuery>> {
+  try {
+    const data = browserApiBase()
+      ? await browserApiPost<V2SavedQuery>(`${V2_API_PREFIX}/saved-queries`, {
+          name,
+          sql,
+          branch,
+          metadata,
+        })
+      : await apiPost<V2SavedQuery>(
           `${V2_API_PREFIX}/saved-queries`,
           { name, sql, branch, metadata },
           8000,
         )
-        return { data, error: null }
-      } catch (error) {
-        return apiUnavailable<V2SavedQuery>(error)
-      }
-    },
-  )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2SavedQuery>(error)
+  }
+}
 
 export const getV2RowJourney = createServerFn()
   .inputValidator((input: { tableId: string; rowId: string }) => input)
@@ -374,9 +422,9 @@ export const getV2RowJourney = createServerFn()
     },
   )
 
-export const getV2QualityRecords = createServerFn().handler(() =>
-  getRawCollection<V2QualityCheck>('quality'),
-)
+export function getV2QualityRecords() {
+  return getRawCollection<V2QualityCheck>('quality')
+}
 
 export const getV2QualityDetail = createServerFn()
   .inputValidator((input: { checkId: string }) => input)
@@ -397,32 +445,26 @@ export const getV2QualityDetail = createServerFn()
     },
   )
 
-export const getV2LogRecords = createServerFn().handler(() =>
-  getRawCollection<V2LogEvent>('logs'),
-)
+export function getV2LogRecords() {
+  return getRawCollection<V2LogEvent>('logs')
+}
 
-export const getV2LogFacets = createServerFn().handler(
-  async (): Promise<V2ResourceResult<V2LogFacets>> => {
-    try {
-      const data = await apiGet<V2LogFacets>(
-        `${V2_API_PREFIX}/logs/facets`,
-        undefined,
-        8000,
-      )
-      return { data, error: null }
-    } catch (error) {
-      return apiUnavailable<V2LogFacets>(error)
-    }
-  },
-)
+export async function getV2LogFacets(): Promise<V2ResourceResult<V2LogFacets>> {
+  try {
+    const data = await v2ApiGet<V2LogFacets>(`${V2_API_PREFIX}/logs/facets`)
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2LogFacets>(error)
+  }
+}
 
-export const getV2Branches = createServerFn().handler(() =>
-  getCollection('branches'),
-)
+export function getV2Branches() {
+  return getCollection('branches')
+}
 
-export const getV2BranchRecords = createServerFn().handler(() =>
-  getRawCollection<V2Branch>('branches'),
-)
+export function getV2BranchRecords() {
+  return getRawCollection<V2Branch>('branches')
+}
 
 export const getV2BranchDetail = createServerFn()
   .inputValidator((input: { branchName: string }) => input)
@@ -443,9 +485,9 @@ export const getV2BranchDetail = createServerFn()
     },
   )
 
-export const getV2Extensions = createServerFn().handler(() =>
-  getRawCollection<V2Extension>('extensions'),
-)
+export function getV2Extensions() {
+  return getRawCollection<V2Extension>('extensions')
+}
 
 export const getV2ExtensionDetail = createServerFn()
   .inputValidator((input: { extensionId: string }) => input)
@@ -504,6 +546,59 @@ export const runV2Action = createServerFn()
     },
   )
 
+export async function runV2ActionDirect({
+  actionId,
+}: {
+  actionId: string
+}): Promise<V2ResourceResult<V2ActionResult>> {
+  try {
+    const data = await browserApiPost<V2ActionResult>(
+      `${V2_API_PREFIX}/actions`,
+      { action_id: actionId },
+      130000,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2ActionResult>(error)
+  }
+}
+
+export const installV2Package = createServerFn()
+  .inputValidator((input: { packageName: string }) => input)
+  .handler(
+    async ({
+      data: { packageName },
+    }): Promise<V2ResourceResult<V2PackageInstallResult>> => {
+      try {
+        const data = await apiPost<V2PackageInstallResult>(
+          `${V2_API_PREFIX}/packages/install`,
+          { package_name: packageName },
+          310000,
+        )
+        return { data, error: null }
+      } catch (error) {
+        return apiUnavailable<V2PackageInstallResult>(error)
+      }
+    },
+  )
+
+export async function installV2PackageDirect({
+  packageName,
+}: {
+  packageName: string
+}): Promise<V2ResourceResult<V2PackageInstallResult>> {
+  try {
+    const data = await browserApiPost<V2PackageInstallResult>(
+      `${V2_API_PREFIX}/packages/install`,
+      { package_name: packageName },
+      310000,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2PackageInstallResult>(error)
+  }
+}
+
 export const runV2BranchAction = createServerFn()
   .inputValidator((input: { actionId: string }) => input)
   .handler(
@@ -523,20 +618,18 @@ export const runV2BranchAction = createServerFn()
     },
   )
 
-export const getV2WorkflowWizard = createServerFn().handler(
-  async (): Promise<V2ResourceResult<V2WorkflowWizardPayload>> => {
-    try {
-      const data = await apiGet<V2WorkflowWizardPayload>(
-        `${V2_API_PREFIX}/workflow-wizard`,
-        undefined,
-        8000,
-      )
-      return { data, error: null }
-    } catch (error) {
-      return apiUnavailable<V2WorkflowWizardPayload>(error)
-    }
-  },
-)
+export async function getV2WorkflowWizard(): Promise<
+  V2ResourceResult<V2WorkflowWizardPayload>
+> {
+  try {
+    const data = await v2ApiGet<V2WorkflowWizardPayload>(
+      `${V2_API_PREFIX}/workflow-wizard`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2WorkflowWizardPayload>(error)
+  }
+}
 
 export const createV2WorkflowProposal = createServerFn()
   .inputValidator((input: V2WorkflowProposalRequest) => input)
