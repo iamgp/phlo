@@ -605,7 +605,7 @@ def load_services(
     registry_services = _registry_service_entries(registry_entries)
     configured_services = configured_compose_services(project_root)
     runtime_statuses = load_docker_service_statuses(
-        {service.name for service in discovered},
+        {service.name for service in discovered} | set(registry_services),
         containers,
         project_root,
     )
@@ -648,7 +648,23 @@ def load_services(
     for service_name, entry in registry_services.items():
         if service_name in discovered_names:
             continue
-        services.append(_available_registry_service(service_name, entry))
+        service = _available_registry_service(service_name, entry)
+        status, health = runtime_statuses.get(
+            service_name,
+            ("unknown", V2Health(state="unknown", message="Runtime status unavailable")),
+        )
+        if service_name in runtime_statuses:
+            service = service.model_copy(
+                update={
+                    "status": status,
+                    "health": health,
+                    "definition_state": "configured",
+                    "runtime_state": status,
+                    "in_stack": True,
+                    "backend": "docker",
+                }
+            )
+        services.append(service)
 
     services.extend(
         runtime_services_from_containers(

@@ -420,12 +420,33 @@ def test_plugin_update(monkeypatch):
     assert calls == [["install", "--upgrade", "phlo-plugin-registry==2.0.0"]]
 
 
-def test_run_pip_uses_python_pip_when_available(monkeypatch):
-    """Use `python -m pip` when pip module is importable."""
+def test_run_pip_prefers_uv_when_available(monkeypatch):
+    """Use `uv pip` when uv is available."""
     from phlo.cli.commands.plugin.utils import run_pip
 
     calls: list[tuple[list[str], bool, float]] = []
 
+    monkeypatch.setattr("phlo.cli.commands.plugin.utils.shutil.which", lambda _: "/usr/bin/uv")
+    monkeypatch.setattr(
+        "phlo.cli.commands.plugin.utils.importlib.util.find_spec", lambda _: object()
+    )
+    monkeypatch.setattr(
+        "phlo.cli.commands.plugin.utils.subprocess.run",
+        lambda cmd, check, timeout: calls.append((cmd, check, timeout)),
+    )
+
+    run_pip(["install", "demo-plugin"], timeout=12)
+
+    assert calls == [(["uv", "pip", "install", "demo-plugin"], True, 12)]
+
+
+def test_run_pip_uses_python_pip_when_uv_missing(monkeypatch):
+    """Use `python -m pip` when uv is unavailable and pip is importable."""
+    from phlo.cli.commands.plugin.utils import run_pip
+
+    calls: list[tuple[list[str], bool, float]] = []
+
+    monkeypatch.setattr("phlo.cli.commands.plugin.utils.shutil.which", lambda _: None)
     monkeypatch.setattr(
         "phlo.cli.commands.plugin.utils.importlib.util.find_spec", lambda _: object()
     )

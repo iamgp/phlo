@@ -327,6 +327,50 @@ def test_v2_load_services_includes_runtime_containers_missing_from_discovery(mon
     assert postgres.status == "running"
 
 
+def test_v2_load_services_marks_registry_service_runtime_container_in_stack(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    containers = [
+        {
+            "ID": "abc123",
+            "Names": "phlo-postgres-1",
+            "State": "running",
+            "Status": "Up 3 minutes (healthy)",
+            "Labels": ("com.docker.compose.project=phlo,com.docker.compose.service=postgres"),
+        }
+    ]
+
+    monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "phlo")
+    monkeypatch.setattr(v2_services, "load_docker_containers", lambda: containers)
+    monkeypatch.setattr(
+        v2_services, "load_project_docker_containers", lambda project_root: containers
+    )
+    monkeypatch.setattr(
+        v2_services,
+        "get_registry_data",
+        lambda: {
+            "plugins": {
+                "postgres": {
+                    "type": "service",
+                    "package": "phlo-postgres",
+                    "version": "0.1.0",
+                    "description": "PostgreSQL database",
+                    "tags": ["core", "database"],
+                }
+            }
+        },
+    )
+
+    services = v2_services.load_services(tmp_path, containers=containers)
+
+    postgres = next(service for service in services if service.id == "postgres")
+    assert postgres.in_stack is True
+    assert postgres.backend == "docker"
+    assert postgres.status == "running"
+    assert postgres.definition_state == "configured"
+
+
 def test_v2_service_registry_metadata_matches_helper_services(monkeypatch) -> None:
     monkeypatch.setattr(
         v2_services,
