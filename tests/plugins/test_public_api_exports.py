@@ -13,23 +13,26 @@ import pytest
 pytestmark = pytest.mark.core_regression
 
 
-def test_phlo_ingestion_module_is_callable_decorator_alias(
+def test_phlo_ingestion_module_is_dlt_compatibility_alias(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """phlo.ingestion should be the preferred callable decorator alias."""
+    """phlo.ingestion should remain callable while dispatching through phlo.ingest.dlt."""
     import phlo
 
     calls: list[dict[str, str]] = []
 
-    def fake_phlo_ingestion(**kwargs: str) -> str:
+    def fake_dlt(**kwargs: str) -> str:
         calls.append(kwargs)
         return "decorator"
 
-    monkeypatch.setattr(phlo.ingestion, "phlo_ingestion", fake_phlo_ingestion)
+    monkeypatch.setattr(phlo.ingest, "dlt", fake_dlt)
+    monkeypatch.setattr(phlo.ingest, "assets", lambda provider_name=None: ["dlt_asset"])
 
     assert callable(phlo.ingestion)
     assert phlo.ingestion(table_name="events") == "decorator"
-    assert calls == [{"table_name": "events"}]
+    assert phlo.ingestion.phlo_ingestion(table_name="events") == "decorator"
+    assert phlo.ingestion.get_ingestion_assets() == ["dlt_asset"]
+    assert calls == [{"table_name": "events"}, {"table_name": "events"}]
 
 
 def test_quality_module_import_does_not_load_provider(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -127,6 +130,33 @@ def test_quality_module_populates_exports_on_discovered_provider(
     assert quality_module.PANDERA_CONTRACT_CHECK_NAME == "pandera_contract"
     assert callable(quality_module.dbt_check_name)
     assert quality_module.dbt_check_name("dbt", "users") == "dbt_users"
+
+
+def test_plugin_discovery_exports_provider_list_helpers() -> None:
+    """Plugin discovery should expose provider listing helpers for public APIs."""
+    import phlo.plugins.discovery as discovery
+
+    assert callable(discovery.list_ingestion_providers)
+    assert callable(discovery.list_quality_providers)
+
+
+def test_plugin_query_helpers_list_registered_provider_names(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Provider listing helpers should delegate to the global plugin registry."""
+    from phlo.plugins.discovery import _plugin_queries
+
+    class _Registry:
+        def list_ingestion_providers(self) -> list[str]:
+            return ["dlt", "sling"]
+
+        def list_quality_providers(self) -> list[str]:
+            return ["pandera"]
+
+    monkeypatch.setattr(_plugin_queries, "get_global_registry", lambda: _Registry())
+
+    assert _plugin_queries.list_ingestion_providers() == ["dlt", "sling"]
+    assert _plugin_queries.list_quality_providers() == ["pandera"]
 
 
 def test_plugins_module_reexports_provider_getters() -> None:

@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import asdict
+from difflib import unified_diff
 from pathlib import Path
 
 import click
 from rich.console import Console
 from rich.table import Table
 
+from phlo.codemods.decorators_2026_05 import migrate_decorators_2026_05_source
 from phlo.migrations import (
     MigrationExecutionError,
     MigrationExecutor,
@@ -21,10 +23,82 @@ from phlo.migrations import (
 
 console = Console()
 
+_CODEMOD_SKIP_DIRS = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+}
+
 
 @click.group("migrate")
 def migrate_group() -> None:
     """Data migration commands."""
+
+
+@migrate_group.command("decorators-2026-05")
+@click.argument("path", type=click.Path(path_type=Path, exists=True))
+@click.option("--check", is_flag=True, help="Fail if decorators 2026-05 migrations are needed.")
+@click.option("--write", is_flag=True, help="Rewrite files in place.")
+@click.option("--diff", "show_diff", is_flag=True, help="Print unified diffs for pending changes.")
+def decorators_2026_05(path: Path, check: bool, write: bool, show_diff: bool) -> None:
+    """Migrate May 2026 decorator APIs."""
+    if check and write:
+        raise click.UsageError("Use either --check or --write, not both.")
+
+    changed: list[tuple[Path, str, str]] = []
+    for file_path in _iter_python_files(path):
+        source = file_path.read_text(encoding="utf-8")
+        migrated = migrate_decorators_2026_05_source(source)
+        if not migrated.changed:
+            continue
+        changed.append((file_path, source, migrated.code))
+        if write:
+            file_path.write_text(migrated.code, encoding="utf-8")
+
+    if show_diff:
+        for file_path, before, after in changed:
+            click.echo(
+                "".join(
+                    unified_diff(
+                        before.splitlines(keepends=True),
+                        after.splitlines(keepends=True),
+                        fromfile=f"{file_path} (before)",
+                        tofile=f"{file_path} (after)",
+                    )
+                ),
+                nl=False,
+            )
+
+    if write:
+        console.print(
+            f"[green]Updated {len(changed)} file{'s' if len(changed) != 1 else ''}.[/green]"
+        )
+        return
+
+    if changed:
+        console.print("[yellow]Decorators 2026-05 migration needed:[/yellow]")
+        for file_path, _, _ in changed:
+            click.echo(str(file_path))
+        if check:
+            sys.exit(1)
+        return
+
+    console.print("[green]No decorators 2026-05 migrations needed.[/green]")
+
+
+def _iter_python_files(path: Path) -> list[Path]:
+    if path.is_file():
+        return [path] if path.suffix == ".py" else []
+
+    files: list[Path] = []
+    for candidate in sorted(path.rglob("*.py")):
+        if any(part in _CODEMOD_SKIP_DIRS for part in candidate.parts):
+            continue
+        files.append(candidate)
+    return files
 
 
 @migrate_group.command("validate")

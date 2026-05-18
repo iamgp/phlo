@@ -9,8 +9,10 @@ from phlo_sling.decorator import (
     _validate_replication_mode,
     clear_sling_assets,
     get_sling_assets,
+    phlo_sling_assets,
     phlo_sling_replication,
 )
+from phlo_sling.registry import SlingReplication
 
 
 def test_validate_replication_mode_valid():
@@ -56,6 +58,74 @@ def test_decorator_registers_asset():
     assert assets[0].group == "test"
     assert "sling" in assets[0].kinds
     clear_sling_assets()
+
+
+def test_sling_replication_asset_has_provider_neutral_metadata() -> None:
+    """Sling assets should expose provider-neutral metadata for core surfaces."""
+    clear_sling_assets()
+    try:
+
+        @phlo_sling_replication(
+            stream_name="public.users",
+            table_name="users",
+            source_conn="PHLO_POSTGRES",
+            group="raw",
+            mode="incremental",
+            primary_key="id",
+            update_key="updated_at",
+        )
+        def users(context):
+            return None
+
+        asset = get_sling_assets()[0]
+
+        assert asset.tags["provider"] == "sling"
+        assert asset.tags["asset_type"] == "ingestion"
+        assert asset.metadata["provider"] == "sling"
+        assert asset.metadata["asset_type"] == "ingestion"
+        assert asset.metadata["table_name"] == "users"
+        assert asset.metadata["source_name"] == "public.users"
+        assert asset.metadata["write_mode"] == "incremental"
+        assert asset.metadata["primary_key"] == ["id"]
+    finally:
+        clear_sling_assets()
+
+
+def test_sling_replication_reserved_metadata_overrides_extras() -> None:
+    """Provider-neutral Sling metadata should not be overridable by extras."""
+    clear_sling_assets()
+    try:
+
+        @phlo_sling_assets(group="raw")
+        def discover_users():
+            return [
+                SlingReplication(
+                    stream_name="public.users",
+                    table_name="users",
+                    source_conn="PHLO_POSTGRES",
+                    mode="incremental",
+                    primary_key="id",
+                    update_key="updated_at",
+                    tags={"provider": "custom", "asset_type": "custom"},
+                    metadata={
+                        "provider": "custom",
+                        "asset_type": "custom",
+                        "source_name": "custom",
+                        "write_mode": "custom",
+                    },
+                )
+            ]
+
+        asset = get_sling_assets()[0]
+
+        assert asset.tags["provider"] == "sling"
+        assert asset.tags["asset_type"] == "ingestion"
+        assert asset.metadata["provider"] == "sling"
+        assert asset.metadata["asset_type"] == "ingestion"
+        assert asset.metadata["source_name"] == "public.users"
+        assert asset.metadata["write_mode"] == "incremental"
+    finally:
+        clear_sling_assets()
 
 
 def test_decorator_attaches_config():

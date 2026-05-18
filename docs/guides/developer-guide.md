@@ -6,8 +6,8 @@ Complete guide to building data pipelines with Phlo's decorator-driven framework
 
 Phlo provides powerful decorators that transform simple functions into complete data pipelines. This guide covers:
 
-- Using `@phlo_ingestion` for data ingestion
-- Using `@phlo_quality` for data quality checks
+- Using `@phlo.ingest.dlt` for data ingestion
+- Using `phlo.quality.rules(...)` and provider-native quality checks
 - Schema definition with Pandera
 - Integration with dbt
 - Publishing to BI tools
@@ -16,10 +16,10 @@ Phlo provides powerful decorators that transform simple functions into complete 
 ```mermaid
 flowchart LR
     source[Source function]
-    ingestion["@phlo_ingestion"]
+    ingestion["@phlo.ingest.dlt"]
     staging[DLT staging]
     tables[Table-store writes]
-    quality["@phlo_quality"]
+    quality["phlo.quality.rules"]
     dbt[dbt models]
     publish[Publishing assets]
     bi[BI tools]
@@ -44,10 +44,10 @@ class EventSchema(pa.DataFrameModel):
 
 # workflows/ingestion/api/events.py
 from dlt.sources.rest_api import rest_api
-from phlo_dlt import phlo_ingestion
+import phlo
 from workflows.schemas.api import EventSchema
 
-@phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="events",
     unique_key="id",
     validation_schema=EventSchema,
@@ -67,15 +67,15 @@ def api_events(partition_date: str):
     )
 
 # workflows/quality/api.py
-from phlo.quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck
+import phlo
 
-@phlo_quality(
+@phlo.quality.rules(
     table="bronze.events",
-    checks=[
-        NullCheck(columns=["id", "timestamp"]),
-        RangeCheck(column="value", min_value=0, max_value=100),
-        UniqueCheck(columns=["id"])
-    ]
+    rules=[
+        phlo.not_null("id", "timestamp"),
+        phlo.range_between("value", min_value=0, max_value=100),
+        phlo.unique("id"),
+    ],
 )
 def events_quality():
     pass
@@ -92,15 +92,15 @@ That's it! You get:
 - Retry handling
 - Metrics tracking
 
-## @phlo_ingestion Decorator
+## @phlo.ingest.dlt Decorator
 
 ### Basic Usage
 
 ```python
-from phlo_dlt import phlo_ingestion
+import phlo
 from dlt.sources.rest_api import rest_api
 
-@phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="my_table",
     unique_key="id",
     validation_schema=MySchema,
@@ -214,7 +214,7 @@ Phlo works with any DLT source. Common patterns:
 ```python
 from dlt.sources.rest_api import rest_api
 
-@phlo_ingestion(...)
+@phlo.ingest.dlt(...)
 def api_data(partition_date: str):
     return rest_api(
         client={
@@ -254,7 +254,7 @@ def my_source(start_date: str):
             yield record
     return events
 
-@phlo_ingestion(...)
+@phlo.ingest.dlt(...)
 def custom_data(partition_date: str):
     return my_source(start_date=partition_date)
 ```
@@ -264,7 +264,7 @@ def custom_data(partition_date: str):
 ```python
 from dlt.sources.filesystem import filesystem
 
-@phlo_ingestion(...)
+@phlo.ingest.dlt(...)
 def file_data(partition_date: str):
     return filesystem(
         bucket_url=f"s3://bucket/data/{partition_date}",
@@ -278,7 +278,7 @@ def file_data(partition_date: str):
 import dlt
 from sqlalchemy import create_engine
 
-@phlo_ingestion(...)
+@phlo.ingest.dlt(...)
 def sql_data(partition_date: str):
     @dlt.resource
     def query():
@@ -295,7 +295,7 @@ def sql_data(partition_date: str):
 **Append Strategy** (fastest, no deduplication):
 
 ```python
-@phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="logs",
     unique_key="id",
     merge_strategy="append",  # Insert-only
@@ -309,7 +309,7 @@ def logs(partition_date: str):
 **Merge Strategy** (upsert with deduplication):
 
 ```python
-@phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="users",
     unique_key="user_id",
     merge_strategy="merge",
@@ -349,7 +349,7 @@ merge_config={"deduplication_method": "hash"}
 Phlo uses daily partitioning by default:
 
 ```python
-@phlo_ingestion(...)
+@phlo.ingest.dlt(...)
 def my_data(partition_date: str):
     # partition_date is automatically provided by Dagster
     # Format: "YYYY-MM-DD"
@@ -778,23 +778,29 @@ Schema(
 )
 ```
 
-## @phlo_quality Decorator
+## Quality Decorators
 
 ### Basic Usage
 
 ```python
-from phlo.quality import phlo_quality, NullCheck, RangeCheck
+import phlo
 
-@phlo_quality(
+@phlo.quality.rules(
     table="bronze.events",
-    checks=[
-        NullCheck(columns=["id", "timestamp"]),
-        RangeCheck(column="value", min_value=0, max_value=100)
-    ]
+    rules=[
+        phlo.not_null("id", "timestamp"),
+        phlo.range_between("value", min_value=0, max_value=100),
+        phlo.unique("id"),
+        phlo.freshness("timestamp", hours=24),
+    ],
 )
 def events_quality():
     pass
 ```
+
+Use `phlo.quality.rules(...)` when checks can be expressed in Phlo's neutral
+quality vocabulary. Use `phlo.quality.pandera(...)` when you need Pandera-native
+schemas or checks.
 
 ### Built-in Checks
 
@@ -1259,7 +1265,7 @@ class MyAPIResource(ConfigurableResource):
         pass
 
 # Usage in asset:
-@phlo_ingestion(...)
+@phlo.ingest.dlt(...)
 def my_data(context, my_api: MyAPIResource):
     data = my_api.fetch_data("/events")
     return data
@@ -1288,7 +1294,7 @@ def file_sensor(context):
 ### Conditional Execution
 
 ```python
-@phlo_ingestion(...)
+@phlo.ingest.dlt(...)
 def conditional_data(context):
     # Skip on weekends
     if datetime.now().weekday() >= 5:
@@ -1321,7 +1327,7 @@ def my_data(partition_date: str):
 Let Phlo handle retries, but add custom handling where needed:
 
 ```python
-@phlo_ingestion(
+@phlo.ingest.dlt(
     max_retries=3,
     retry_delay_seconds=30,
     max_runtime_seconds=3600
