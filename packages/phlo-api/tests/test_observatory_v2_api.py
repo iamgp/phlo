@@ -431,6 +431,53 @@ def test_v2_disabled_service_action_skips_without_subprocess(monkeypatch) -> Non
     assert result.operation is None
 
 
+def test_v2_available_installed_service_can_be_added_to_stack(monkeypatch) -> None:
+    service = V2Service(
+        id="alloy",
+        name="alloy",
+        kind="observability",
+        status="unknown",
+        health=V2Health(state="unknown"),
+        in_stack=False,
+        metadata={"package": "phlo-alloy", "package_installed": True},
+    )
+    commands: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, returncode=0, stdout="Services added.")
+
+    monkeypatch.setattr(v2, "_load_services", lambda: [service])
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = _execute_action(V2ActionRequest(action_id="alloy:add"))
+
+    assert result.status == "succeeded"
+    assert result.action.label == "Add to stack"
+    assert commands == [["phlo", "services", "add", "alloy"]]
+
+
+def test_v2_available_missing_package_service_add_is_disabled(monkeypatch) -> None:
+    service = V2Service(
+        id="plugin-example",
+        name="plugin-example",
+        kind="service",
+        status="unknown",
+        health=V2Health(state="unknown"),
+        in_stack=False,
+        metadata={"package": "phlo-plugin-example", "package_installed": False},
+    )
+
+    monkeypatch.setattr(v2, "_load_services", lambda: [service])
+
+    result = _execute_action(V2ActionRequest(action_id="plugin-example:add"))
+
+    assert result.status == "skipped"
+    assert result.action.label == "Add to stack"
+    assert result.action.enabled is False
+    assert "Install phlo-plugin-example" in result.message
+
+
 def test_v2_operations_endpoint_includes_journal_records(
     monkeypatch,
     tmp_path: Path,

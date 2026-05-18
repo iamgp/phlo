@@ -982,13 +982,22 @@ def _asset_related_operations(asset_id: str, operations: list[V2Operation]) -> l
 
 def _service_actions(service: V2Service) -> list[V2Action]:
     if not service.in_stack:
+        package_installed = service.metadata.get("package_installed") is not False
+        package_name = _coerce_str(service.metadata.get("package"), service.name)
         return [
             V2Action(
-                id=f"{service.id}:configure",
-                label="Configure",
-                kind="service.configure",
-                enabled=False,
-                reason="This service is available as a definition but is not configured in the current stack.",
+                id=f"{service.id}:add",
+                label="Add to stack",
+                kind="service.add",
+                enabled=package_installed,
+                reason=None
+                if package_installed
+                else f"Install {package_name} before adding this service to the stack.",
+                equivalent_cli_command=f"phlo services add {service.id}",
+                expected_evidence=[
+                    f"{service.id} appears in .phlo/docker-compose.yml",
+                    f"{service.id} is present in phlo services status",
+                ],
             )
         ]
 
@@ -2186,7 +2195,7 @@ def _execute_action(request: V2ActionRequest) -> V2ActionResult:
     resource_id, action_name = parts
     services = _load_services()
     service = next((item for item in services if item.id == resource_id), None)
-    if service is None or action_name not in {"start", "stop", "restart"}:
+    if service is None or action_name not in {"add", "start", "stop", "restart"}:
         raise HTTPException(status_code=400, detail="Unsupported action.")
 
     action = next(
@@ -2204,7 +2213,10 @@ def _execute_action(request: V2ActionRequest) -> V2ActionResult:
             message=message,
         )
 
-    command = ["phlo", "services", action_name, "--service", service.id]
+    if action_name == "add":
+        command = ["phlo", "services", "add", service.id]
+    else:
+        command = ["phlo", "services", action_name, "--service", service.id]
     try:
         result = subprocess.run(
             command,

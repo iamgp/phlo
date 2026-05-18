@@ -18,7 +18,7 @@ type LiveRefreshMode = 'preserve' | 'reset'
 
 const resourceCache = new Map<string, CachedEntry<unknown>>()
 const resourceKeys = new WeakMap<object, string>()
-const cacheVersion = '2026-05-17-observatory-runtime-v3'
+const cacheVersion = '2026-05-18-observatory-runtime-v4'
 let nextResourceKey = 0
 
 export function useLiveResource<T>(

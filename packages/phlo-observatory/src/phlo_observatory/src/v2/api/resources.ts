@@ -90,11 +90,12 @@ async function browserApiGet<T>(endpoint: string): Promise<T> {
 async function browserApiPost<T>(
   endpoint: string,
   body: Record<string, unknown>,
+  timeoutMs = 12000,
 ): Promise<T> {
   const base = browserApiBase()
   if (!base) throw new Error('Browser API fallback is unavailable during SSR')
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 12000)
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
   let response: Response
   try {
     response = await fetch(`${base}${endpoint}`, {
@@ -191,6 +192,21 @@ export const getV2ServiceDetail = createServerFn()
       }
     },
   )
+
+export async function getV2ServiceDetailDirect({
+  serviceId,
+}: {
+  serviceId: string
+}): Promise<V2ResourceResult<V2ServiceDetail>> {
+  try {
+    const data = await browserApiGet<V2ServiceDetail>(
+      `${V2_API_PREFIX}/services/${encodeURIComponent(serviceId)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2ServiceDetail>(error)
+  }
+}
 
 async function getRawCollection<T>(
   endpoint: string,
@@ -530,6 +546,23 @@ export const runV2Action = createServerFn()
     },
   )
 
+export async function runV2ActionDirect({
+  actionId,
+}: {
+  actionId: string
+}): Promise<V2ResourceResult<V2ActionResult>> {
+  try {
+    const data = await browserApiPost<V2ActionResult>(
+      `${V2_API_PREFIX}/actions`,
+      { action_id: actionId },
+      130000,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2ActionResult>(error)
+  }
+}
+
 export const installV2Package = createServerFn()
   .inputValidator((input: { packageName: string }) => input)
   .handler(
@@ -548,6 +581,23 @@ export const installV2Package = createServerFn()
       }
     },
   )
+
+export async function installV2PackageDirect({
+  packageName,
+}: {
+  packageName: string
+}): Promise<V2ResourceResult<V2PackageInstallResult>> {
+  try {
+    const data = await browserApiPost<V2PackageInstallResult>(
+      `${V2_API_PREFIX}/packages/install`,
+      { package_name: packageName },
+      310000,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2PackageInstallResult>(error)
+  }
+}
 
 export const runV2BranchAction = createServerFn()
   .inputValidator((input: { actionId: string }) => input)
