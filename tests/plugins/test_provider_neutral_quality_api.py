@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import importlib
+import sys
+from typing import Any
+
 import pytest
 
 pytestmark = pytest.mark.core_regression
@@ -66,3 +70,87 @@ def test_pandera_quality_provider_rejects_unknown_neutral_rule() -> None:
         provider.build_checks_from_rules([QualityRule("mystery", ["id"], {})])
 
     assert "Unsupported neutral quality rule: mystery" in str(exc_info.value)
+
+
+class _FakeQualityProvider:
+    def __init__(self, name: str = "fake") -> None:
+        self.name = name
+
+    def get_decorator(self):
+        def _decorator(**kwargs: Any):
+            def _wrap(fn):
+                fn._quality_provider_name = self.name
+                fn._quality_kwargs = kwargs
+                return fn
+
+            return _wrap
+
+        return _decorator
+
+    def build_checks_from_rules(self, rules: list[Any]) -> list[Any]:
+        return [f"native:{rule.kind}" for rule in rules]
+
+
+def test_quality_provider_returns_named_provider_decorator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """phlo.quality.provider should resolve named quality providers."""
+    import phlo.plugins.discovery as discovery
+
+    monkeypatch.setattr(discovery, "discover_plugins", lambda *args, **kwargs: None)
+    monkeypatch.setattr(discovery, "get_quality_provider", lambda name: _FakeQualityProvider(name))
+    monkeypatch.delitem(sys.modules, "phlo.quality", raising=False)
+
+    quality = importlib.import_module("phlo.quality")
+
+    @quality.provider("pandera")(table="bronze.users")
+    def users_quality() -> None:
+        return None
+
+    assert users_quality._quality_provider_name == "pandera"
+    assert users_quality._quality_kwargs == {"table": "bronze.users"}
+
+
+def test_quality_rules_decorator_translates_rules_with_selected_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """phlo.quality.rules should translate neutral rules before calling provider decorator."""
+    import phlo
+    import phlo.plugins.discovery as discovery
+
+    monkeypatch.setattr(discovery, "discover_plugins", lambda *args, **kwargs: None)
+    monkeypatch.setattr(discovery, "get_quality_provider", lambda name: _FakeQualityProvider(name))
+    monkeypatch.delitem(sys.modules, "phlo.quality", raising=False)
+
+    quality = importlib.import_module("phlo.quality")
+
+    @quality.rules(table="bronze.users", rules=[phlo.not_null("id")], provider_name="pandera")
+    def users_quality() -> None:
+        return None
+
+    assert users_quality._quality_provider_name == "pandera"
+    assert users_quality._quality_kwargs["table"] == "bronze.users"
+    assert users_quality._quality_kwargs["checks"] == ["native:not_null"]
+
+
+def test_quality_rules_fails_when_provider_cannot_translate_rules(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Providers without neutral rule support should fail with a clear message."""
+    import phlo
+    import phlo.plugins.discovery as discovery
+
+    class _NoRuleProvider(_FakeQualityProvider):
+        def build_checks_from_rules(self, rules: list[Any]) -> None:
+            return None
+
+    monkeypatch.setattr(discovery, "discover_plugins", lambda *args, **kwargs: None)
+    monkeypatch.setattr(discovery, "get_quality_provider", lambda name: _NoRuleProvider(name))
+    monkeypatch.delitem(sys.modules, "phlo.quality", raising=False)
+
+    quality = importlib.import_module("phlo.quality")
+
+    with pytest.raises(ValueError) as exc_info:
+        quality.rules(table="bronze.users", rules=[phlo.not_null("id")], provider_name="basic")
+
+    assert "Quality provider 'basic' cannot translate neutral quality rules" in str(exc_info.value)

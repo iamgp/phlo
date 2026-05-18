@@ -102,7 +102,11 @@ dbt_check_name: Callable[[str, str], str] | None
 phlo_quality: Callable | None
 
 _QUALITY_EXPORTS = {
+    "pandera",
     "phlo_quality",
+    "provider",
+    "providers",
+    "rules",
     "get_quality_checks",
     "clear_quality_checks",
     "QualityCheck",
@@ -316,6 +320,69 @@ def _ensure_quality_provider_loaded() -> None:
     _quality_provider_loaded = True
 
 
+def _discover_quality_providers() -> None:
+    """Load installed quality providers into the plugin registry."""
+    from phlo.plugins.discovery import discover_plugins
+
+    discover_plugins(plugin_type="quality_providers", auto_register=True)
+
+
+def providers() -> list[str]:
+    """Return installed quality provider names."""
+    from phlo.plugins.discovery import list_quality_providers
+
+    _discover_quality_providers()
+    return list_quality_providers()
+
+
+def _missing_quality_provider_error(name: str) -> ModuleNotFoundError:
+    installed = providers()
+    installed_text = ", ".join(installed) if installed else "none"
+    return ModuleNotFoundError(
+        f"Quality provider '{name}' is not installed. "
+        f"Installed quality providers: {installed_text}. "
+        f"Install phlo-{name} or choose one of the installed providers."
+    )
+
+
+def _quality_provider_or_raise(name: str) -> QualityProviderPlugin:
+    """Resolve a quality provider plugin or raise a public install error."""
+    from phlo.plugins.discovery import get_quality_provider
+
+    _discover_quality_providers()
+    provider_plugin = get_quality_provider(name)
+    if provider_plugin is None:
+        raise _missing_quality_provider_error(name)
+    return provider_plugin
+
+
+def provider(name: str) -> Callable:
+    """Return the decorator factory for a named quality provider."""
+    return _quality_provider_or_raise(name).get_decorator()
+
+
+def pandera(*args: Any, **kwargs: Any) -> Any:
+    """Return the Pandera quality decorator factory."""
+    return provider("pandera")(*args, **kwargs)
+
+
+def rules(
+    *,
+    table: str,
+    rules: list[Any],
+    provider_name: str = "pandera",
+    **kwargs: Any,
+) -> Callable:
+    """Build a quality decorator from provider-neutral rules."""
+    provider_plugin = _quality_provider_or_raise(provider_name)
+    native_checks = provider_plugin.build_checks_from_rules(rules)
+    if native_checks is None:
+        raise ValueError(
+            f"Quality provider '{provider_name}' cannot translate neutral quality rules"
+        )
+    return provider_plugin.get_decorator()(table=table, checks=native_checks, **kwargs)
+
+
 def __getattr__(name: str) -> Any:
     """Lazily hydrate provider-backed public exports."""
     if name in _QUALITY_EXPORTS:
@@ -325,7 +392,11 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = [
+    "pandera",
     "phlo_quality",
+    "provider",
+    "providers",
+    "rules",
     "get_quality_checks",
     "clear_quality_checks",
     "QualityCheck",
