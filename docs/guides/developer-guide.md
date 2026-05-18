@@ -802,6 +802,68 @@ Use `phlo.quality.rules(...)` when checks can be expressed in Phlo's neutral
 quality vocabulary. Use `phlo.quality.pandera(...)` when you need Pandera-native
 schemas or checks.
 
+## Flow Authoring Decorators
+
+Use these decorators when you want to describe the rest of the flow without
+hand-writing orchestration metadata. They register provider-neutral asset specs
+that adapters can turn into Dagster assets, lineage nodes, catalog entries, or
+operational jobs.
+
+### SQL Transform
+
+```python
+import phlo
+
+@phlo.transform.sql(
+    table="silver.orders",
+    depends_on=["bronze.orders"],
+    materialized="incremental",
+)
+def orders_sql():
+    return """
+    select *
+    from bronze.orders
+    where status != 'cancelled'
+    """
+```
+
+### Publish Surface
+
+```python
+@phlo.publish(
+    table="gold.customer_health",
+    audience=["cs", "sales"],
+    owner="data-platform",
+    freshness_hours=6,
+)
+def customer_health():
+    return "gold.customer_health"
+```
+
+### Operational Observability
+
+```python
+@phlo.observe(
+    table="bronze.events",
+    freshness_hours=2,
+    row_count_change={"warn": 0.3, "fail": 0.6},
+)
+def events_observability():
+    pass
+```
+
+### Repeatable Backfills
+
+```python
+@phlo.backfill(
+    target="silver.orders",
+    partitions={"start": "2026-01-01", "end": "2026-03-31"},
+    mode="replace-partitions",
+)
+def orders_q1_backfill():
+    return orders_sql
+```
+
 ### Built-in Checks
 
 **NullCheck**: Ensure no null values

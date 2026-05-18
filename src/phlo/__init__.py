@@ -116,7 +116,18 @@ _QUALITY_RULE_EXPORTS = {
     "range_between",
     "unique",
 }
-_SUBMODULE_EXPORTS = {"helpers", "ingest", "ingestion", "metrics", "quality"}
+_FLOW_EXPORTS = {
+    "backfill",
+    "clear_backfill_assets",
+    "clear_observe_assets",
+    "clear_publish_assets",
+    "get_backfill_assets",
+    "get_observe_assets",
+    "get_publish_assets",
+    "observe",
+    "publish",
+}
+_SUBMODULE_EXPORTS = {"helpers", "ingest", "ingestion", "metrics", "quality", "transform"}
 
 __all__ = [
     "__version__",
@@ -125,6 +136,7 @@ __all__ = [
     *_INGESTION_EXPORTS,
     *_QUALITY_EXPORTS,
     *_QUALITY_RULE_EXPORTS,
+    *_FLOW_EXPORTS,
 ]
 
 
@@ -170,6 +182,33 @@ def __getattr__(name: str) -> Any:
                 "not_null": not_null,
                 "range_between": range_between,
                 "unique": unique,
+            }
+        )
+        return globals()[name]
+    if name in _FLOW_EXPORTS:
+        from phlo.flow import (
+            backfill,
+            clear_backfill_assets,
+            clear_observe_assets,
+            clear_publish_assets,
+            get_backfill_assets,
+            get_observe_assets,
+            get_publish_assets,
+            observe,
+            publish,
+        )
+
+        globals().update(
+            {
+                "backfill": backfill,
+                "clear_backfill_assets": clear_backfill_assets,
+                "clear_observe_assets": clear_observe_assets,
+                "clear_publish_assets": clear_publish_assets,
+                "get_backfill_assets": get_backfill_assets,
+                "get_observe_assets": get_observe_assets,
+                "get_publish_assets": get_publish_assets,
+                "observe": observe,
+                "publish": publish,
             }
         )
         return globals()[name]
