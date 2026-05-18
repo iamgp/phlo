@@ -13,23 +13,26 @@ import pytest
 pytestmark = pytest.mark.core_regression
 
 
-def test_phlo_ingestion_module_is_callable_decorator_alias(
+def test_phlo_ingestion_module_is_dlt_compatibility_alias(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """phlo.ingestion should be the preferred callable decorator alias."""
+    """phlo.ingestion should remain callable while dispatching through phlo.ingest.dlt."""
     import phlo
 
     calls: list[dict[str, str]] = []
 
-    def fake_phlo_ingestion(**kwargs: str) -> str:
+    def fake_dlt(**kwargs: str) -> str:
         calls.append(kwargs)
         return "decorator"
 
-    monkeypatch.setattr(phlo.ingestion, "phlo_ingestion", fake_phlo_ingestion)
+    monkeypatch.setattr(phlo.ingest, "dlt", fake_dlt)
+    monkeypatch.setattr(phlo.ingest, "assets", lambda provider_name=None: ["dlt_asset"])
 
     assert callable(phlo.ingestion)
     assert phlo.ingestion(table_name="events") == "decorator"
-    assert calls == [{"table_name": "events"}]
+    assert phlo.ingestion.phlo_ingestion(table_name="events") == "decorator"
+    assert phlo.ingestion.get_ingestion_assets() == ["dlt_asset"]
+    assert calls == [{"table_name": "events"}, {"table_name": "events"}]
 
 
 def test_quality_module_import_does_not_load_provider(monkeypatch: pytest.MonkeyPatch) -> None:
