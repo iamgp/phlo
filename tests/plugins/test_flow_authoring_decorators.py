@@ -150,6 +150,97 @@ def test_backfill_registers_repeatable_backfill_job() -> None:
     assert assets[0].metadata["mode"] == "replace-partitions"
 
 
+def test_contract_registers_governance_contract() -> None:
+    """Contract should declare ownership and lifecycle metadata once."""
+    import phlo
+
+    phlo.clear_contract_specs()
+
+    @phlo.contract(
+        table="gold.customer_health",
+        owner="data-platform",
+        consumers=["cs", Consumer(name="sales", contact="sales@example.com")],
+        pii=True,
+        freshness_hours=6,
+        lifecycle="production",
+    )
+    def customer_health_contract() -> None:
+        return None
+
+    contracts = phlo.get_contract_specs()
+
+    assert customer_health_contract() is None
+    assert len(contracts) == 1
+    assert contracts[0].key == "contract_gold_customer_health"
+    assert contracts[0].table == "gold.customer_health"
+    assert contracts[0].owner == "data-platform"
+    assert contracts[0].pii is True
+    assert contracts[0].lifecycle == "production"
+    assert contracts[0].consumers == [
+        {"name": "cs", "contact": None, "usage": None},
+        {"name": "sales", "contact": "sales@example.com", "usage": None},
+    ]
+    assert contracts[0].sla == {
+        "freshness_hours": 6,
+        "quality_threshold": 1.0,
+        "max_failures": None,
+        "notify": None,
+    }
+
+
+def test_access_registers_access_policy() -> None:
+    """Access should declare intended access policy for a table."""
+    import phlo
+
+    phlo.clear_access_policies()
+
+    @phlo.access(
+        table="gold.customer_health",
+        roles=["cs_read", "sales_read"],
+        pii_columns=["email"],
+        policy="read",
+    )
+    def customer_health_access() -> None:
+        return None
+
+    policies = phlo.get_access_policies()
+
+    assert customer_health_access() is None
+    assert len(policies) == 1
+    assert policies[0].key == "access_gold_customer_health"
+    assert policies[0].table == "gold.customer_health"
+    assert policies[0].roles == ["cs_read", "sales_read"]
+    assert policies[0].pii_columns == ["email"]
+    assert policies[0].policy == "read"
+
+
+def test_schedule_registers_static_targets_and_dynamic_parameters() -> None:
+    """Schedule targets should be static while the function returns run parameters."""
+    import phlo
+
+    phlo.clear_schedules()
+
+    @phlo.schedule(
+        name="daily_customer_health",
+        cron="0 6 * * *",
+        targets=["transform_silver_orders", "publish_gold_customer_health"],
+        timezone="Europe/London",
+    )
+    def daily_customer_health() -> dict[str, str]:
+        return {"partition_date": "2026-05-18"}
+
+    schedules = phlo.get_schedules()
+
+    assert daily_customer_health() == {"partition_date": "2026-05-18"}
+    assert len(schedules) == 1
+    assert schedules[0].key == "schedule_daily_customer_health"
+    assert schedules[0].name == "daily_customer_health"
+    assert schedules[0].cron == "0 6 * * *"
+    assert schedules[0].targets == ["transform_silver_orders", "publish_gold_customer_health"]
+    assert schedules[0].timezone == "Europe/London"
+    assert schedules[0].fn() == {"partition_date": "2026-05-18"}
+
+
 def test_top_level_exports_lazy_load_new_authoring_surfaces() -> None:
     """Top-level phlo exports should expose the new decorators lazily."""
     import phlo
@@ -165,4 +256,7 @@ def test_top_level_exports_lazy_load_new_authoring_surfaces() -> None:
     assert callable(phlo.publish)
     assert callable(phlo.observe)
     assert callable(phlo.backfill)
+    assert callable(phlo.contract)
+    assert callable(phlo.access)
+    assert callable(phlo.schedule)
     assert callable(phlo.transform.sql)

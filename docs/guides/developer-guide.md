@@ -864,6 +864,60 @@ def orders_q1_backfill():
     return orders_sql
 ```
 
+### Governance Contracts
+
+Use `@phlo.contract` when the ownership, consumer, SLA, PII, or lifecycle
+metadata belongs to the data product rather than one ingestion or quality
+adapter.
+
+```python
+@phlo.contract(
+    table="gold.customer_health",
+    owner="data-platform",
+    consumers=["cs", phlo.Consumer(name="sales", contact="sales@example.com")],
+    pii=True,
+    freshness_hours=6,
+    lifecycle="production",
+)
+def customer_health_contract():
+    pass
+```
+
+### Access Policies
+
+Use `@phlo.access` to declare intended access controls in one place. Catalog,
+warehouse, and policy-engine adapters can translate the same declaration into
+their native grants or policy objects.
+
+```python
+@phlo.access(
+    table="gold.customer_health",
+    roles=["cs_read", "sales_read"],
+    pii_columns=["email"],
+    policy="read",
+)
+def customer_health_access():
+    pass
+```
+
+### Schedules
+
+Use `@phlo.schedule` to declare when a set of static targets should run. The
+`targets` list is the durable contract: it names the assets or jobs an adapter
+should launch. The decorated function is optional dynamic run configuration; it
+can return partition values, tags, or other parameters for that specific run.
+
+```python
+@phlo.schedule(
+    name="daily_customer_health",
+    cron="0 6 * * *",
+    targets=["transform_silver_orders", "publish_gold_customer_health"],
+    timezone="Europe/London",
+)
+def daily_customer_health():
+    return {"partition_date": "2026-05-18"}
+```
+
 ### Built-in Checks
 
 **NullCheck**: Ensure no null values
