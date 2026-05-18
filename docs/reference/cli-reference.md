@@ -1309,6 +1309,26 @@ phlo schema-migrate history warehouse.customers --limit 5
 For end-to-end spec authoring and execution workflow, see
 [Data Migrations Guide](../guides/data-migrations.md).
 
+### phlo migrate decorators-2026-05
+
+Migrate legacy Phlo decorator usage to the May 2026 API style.
+
+```bash
+phlo migrate decorators-2026-05 PATH [OPTIONS]
+```
+
+This codemod rewrites supported legacy usage such as `@phlo_ingestion(...)`,
+`@phlo.ingestion(...)`, and `@phlo_quality(...)` to the explicit May 2026
+decorator calls, such as `@phlo.ingest.dlt(...)` and `@phlo.quality.pandera(...)`.
+
+**Options**:
+
+```bash
+--check                 # Fail if migrations are needed
+--write                 # Rewrite files in place
+--diff                  # Print unified diffs for pending changes
+```
+
 ### phlo migrate validate
 
 Validate a migration YAML spec without executing writes.

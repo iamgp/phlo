@@ -31,7 +31,7 @@ import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
 
-from phlo_dlt.decorator import phlo_ingestion
+import phlo
 
 
 class EventsSchema(pa.DataFrameModel):
@@ -44,7 +44,7 @@ class EventsSchema(pa.DataFrameModel):
         coerce = True
 
 
-@phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="events",
     unique_key="id",
     validation_schema=EventsSchema,
@@ -54,6 +54,11 @@ class EventsSchema(pa.DataFrameModel):
 def events(partition_date: str):
     return pd.read_csv(Path("data/events.csv"))
 ```
+
+`phlo.ingest` is the provider-neutral ingestion namespace. Use `phlo.ingest.dlt(...)`
+for Python, REST, and DataFrame sources; `phlo.ingest.sling(...)` for replication;
+or `phlo.ingest.provider("name")` for third-party ingestion providers. Existing
+`@phlo.ingestion(...)` workflows remain supported as a DLT compatibility alias.
 
 ## Prerequisites
 

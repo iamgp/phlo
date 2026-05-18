@@ -150,3 +150,11 @@ class QualityProviderPlugin(Plugin, ABC):
 
         """
         return None
+
+    def build_checks_from_rules(self, rules: list[Any]) -> list[Any] | None:
+        """Translate provider-neutral quality rules into provider-native checks.
+
+        Returning None means this provider does not support neutral rule
+        translation.
+        """
+        return None

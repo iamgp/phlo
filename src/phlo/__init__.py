@@ -109,7 +109,14 @@ _QUALITY_EXPORTS = {
     "QualityCheckContract",
     "dbt_check_name",
 }
-_SUBMODULE_EXPORTS = {"helpers", "ingestion", "metrics", "quality"}
+_QUALITY_RULE_EXPORTS = {
+    "accepted_values",
+    "freshness",
+    "not_null",
+    "range_between",
+    "unique",
+}
+_SUBMODULE_EXPORTS = {"helpers", "ingest", "ingestion", "metrics", "quality"}
 
 __all__ = [
     "__version__",
@@ -117,6 +124,7 @@ __all__ = [
     *_CONTRACT_EXPORTS,
     *_INGESTION_EXPORTS,
     *_QUALITY_EXPORTS,
+    *_QUALITY_RULE_EXPORTS,
 ]
 
 
@@ -149,6 +157,19 @@ def __getattr__(name: str) -> Any:
             {
                 "get_ingestion_assets": get_ingestion_assets,
                 "phlo_ingestion": phlo_ingestion,
+            }
+        )
+        return globals()[name]
+    if name in _QUALITY_RULE_EXPORTS:
+        from phlo.quality_rules import accepted_values, freshness, not_null, range_between, unique
+
+        globals().update(
+            {
+                "accepted_values": accepted_values,
+                "freshness": freshness,
+                "not_null": not_null,
+                "range_between": range_between,
+                "unique": unique,
             }
         )
         return globals()[name]

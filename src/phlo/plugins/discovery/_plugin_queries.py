@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from phlo.logging import get_logger
 from phlo.plugins.base import (
+    IngestionProviderPlugin,
     Plugin,
     QualityCheckPlugin,
     QualityProviderPlugin,
@@ -58,6 +59,24 @@ def get_quality_provider(name: str) -> QualityProviderPlugin | None:
     """Get a quality provider plugin by name."""
     registry = get_global_registry()
     return registry.get_quality_provider(name)
+
+
+def get_ingestion_provider(name: str) -> IngestionProviderPlugin | None:
+    """Get an ingestion provider plugin by name."""
+    registry = get_global_registry()
+    return registry.get_ingestion_provider(name)
+
+
+def list_ingestion_providers() -> list[str]:
+    """List registered ingestion provider names."""
+    registry = get_global_registry()
+    return registry.list_ingestion_providers()
+
+
+def list_quality_providers() -> list[str]:
+    """List registered quality provider names."""
+    registry = get_global_registry()
+    return registry.list_quality_providers()
 
 
 def get_transformation(name: str) -> TransformationPlugin | None:
