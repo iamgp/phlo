@@ -1,5 +1,23 @@
 # Changelog
 
+## [phlo 0.10.0 + 7 packages] - 2026-05-18
+
+### Added
+- phlo: complete Observatory v2 runtime flows (#510)
+- phlo: add provider-neutral decorator APIs (#512)
+- phlo: add flow authoring decorators (#513)
+- phlo-api: complete Observatory v2 runtime flows (#510)
+- phlo-clickhouse: complete Observatory v2 runtime flows (#510)
+- phlo-dlt: add provider-neutral decorator APIs (#512)
+- phlo-observatory: complete Observatory v2 runtime flows (#510)
+- phlo-pandera: add provider-neutral decorator APIs (#512)
+- phlo-rustfs: complete Observatory v2 runtime flows (#510)
+- phlo-sling: add provider-neutral decorator APIs (#512)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (10 commits)
+
 ## [phlo 0.9.0 + 11 packages] - 2026-05-16
 
 ### Added
