@@ -44,6 +44,16 @@ def build_run(fn: Callable[..., Any]) -> RunSpec:
 
 def _call_with_optional_context(fn: Callable[..., Any], context: RuntimeContext) -> Any:
     signature = inspect.signature(fn)
+    unsupported_parameters = [
+        parameter
+        for parameter in signature.parameters.values()
+        if parameter.kind
+        in {
+            inspect.Parameter.KEYWORD_ONLY,
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        }
+    ]
     required_parameters = [
         parameter
         for parameter in signature.parameters.values()
@@ -51,6 +61,11 @@ def _call_with_optional_context(fn: Callable[..., Any], context: RuntimeContext)
         and parameter.kind
         in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
     ]
+    if unsupported_parameters or len(required_parameters) > 1:
+        raise TypeError(
+            f"Decorated function {fn.__qualname__}{signature} must accept either "
+            "no parameters or one context parameter."
+        )
     if required_parameters:
         return fn(context)
     return fn()

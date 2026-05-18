@@ -62,7 +62,11 @@ def _static_sql_text(fn: Callable[..., str]) -> str | None:
         for parameter in signature.parameters.values()
         if parameter.default is inspect.Parameter.empty
         and parameter.kind
-        in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
+        in {
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        }
     ]
     if required_parameters:
         return None

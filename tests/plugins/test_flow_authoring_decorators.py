@@ -81,6 +81,43 @@ def test_transform_sql_defers_context_aware_sql_rendering() -> None:
     assert results[0].metadata["result"] == "select * from bronze.orders where ds = '2026-05-18'"
 
 
+def test_transform_sql_does_not_call_required_keyword_only_functions() -> None:
+    """Required keyword-only SQL parameters should not be treated as static SQL."""
+    import phlo
+
+    transform = importlib.import_module("phlo.transform")
+    transform.clear_transform_assets()
+
+    @phlo.transform.sql(table="silver.orders_daily")
+    def orders_sql(*, ds: str) -> str:
+        return f"select * from bronze.orders where ds = '{ds}'"
+
+    assets = transform.get_transform_assets()
+
+    assert orders_sql(ds="2026-05-18") == "select * from bronze.orders where ds = '2026-05-18'"
+    assert len(assets) == 1
+    assert assets[0].metadata["sql"] is None
+
+
+def test_flow_run_rejects_unsupported_callable_signatures() -> None:
+    """Runtime execution should fail clearly for ambiguous decorator callables."""
+    from phlo._flow_authoring import build_run
+
+    def needs_two_parameters(context: FakeRuntimeContext, extra: str) -> str:
+        return f"{context.partition_key}:{extra}"
+
+    def needs_keyword_only_parameter(*, ds: str) -> str:
+        return ds
+
+    for fn in [needs_two_parameters, needs_keyword_only_parameter]:
+        run = build_run(fn)
+
+        with pytest.raises(
+            TypeError, match="must accept either no parameters or one context parameter"
+        ):
+            list(run.fn(FakeRuntimeContext(partition_key="2026-05-18")))
+
+
 def test_publish_registers_data_product_surface() -> None:
     """Publish should mark curated tables as data-product surfaces."""
     import phlo
