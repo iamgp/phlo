@@ -6,7 +6,7 @@
 
 ## Description
 
-This error occurs when Dagster cannot discover your asset definitions. Phlo uses Python decorators like `@phlo_ingestion` to define assets, and Dagster needs to be able to find and load these definitions.
+This error occurs when Dagster cannot discover your asset definitions. Phlo uses Python decorators like `phlo.ingest.dlt(...)` to define assets, and Dagster needs to be able to find and load these definitions.
 
 ## Common Causes
 
@@ -15,7 +15,7 @@ This error occurs when Dagster cannot discover your asset definitions. Phlo uses
    - `PHLO_WORKFLOWS_PATH` points to the wrong location
 
 2. **Incorrect decorator usage**
-   - Missing `@phlo_ingestion` or `@phlo_quality` decorator
+   - Missing `phlo.ingest.dlt(...)` or `phlo.quality.pandera(...)` decorator
    - Decorator applied to a non-function object
 
 3. **Import errors in asset module**
@@ -71,7 +71,7 @@ Ensure you're using the decorator correctly:
 import phlo
 from workflows.schemas.weather import WeatherObservations
 
-@phlo_ingestion(
+@phlo.ingest.dlt(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -98,14 +98,15 @@ workflows/ingestion/weather/observations.py
 
 ```python
 def weather_observations(partition: str):
-    # Missing @phlo_ingestion decorator
+    # Missing phlo.ingest.dlt(...) decorator
     return fetch_weather_data(partition)
 ```
 
 ### ✅ Correct: Decorator applied
 
 ```python
-@phlo_ingestion(
+import phlo
+@phlo.ingest.dlt(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )

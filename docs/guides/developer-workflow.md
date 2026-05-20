@@ -32,8 +32,8 @@ phlo services start
 
 ### 3. Build workflows
 
-- define ingestion with package-backed decorators such as `phlo_dlt.phlo_ingestion` or `phlo_sling.phlo_sling_replication`
-- define validation with `phlo_pandera.phlo_pandera` or the lazy `phlo.quality` public API when `phlo-pandera` is installed
+- define ingestion with package-backed decorators such as `phlo.ingest.dlt` or `phlo_sling.phlo_sling_replication`
+- define validation with `phlo.quality.pandera` or the lazy `phlo.quality` public API when `phlo-pandera` is installed
 - define transforms with dbt
 - keep schemas under `workflows/schemas/`
 

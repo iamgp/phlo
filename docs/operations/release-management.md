@@ -17,8 +17,8 @@ Phlo has two ReleaseX channels:
 
 | Branch | Channel | Version shape | Purpose |
 |---|---|---:|---|
-| `main` | stable | `0.8.3` | Normal public releases |
-| `beta` | beta | `0.8.3b1` | Prerelease validation, workshops, and release candidates |
+| `main` | stable | `0.10.0` | Normal public releases |
+| `beta` | beta | `0.10.0b1` | Prerelease validation, workshops, and release candidates |
 
 Beta releases sync selected workspace package versions into the root `defaults` and
 `core-services` extras. This matters because `phlo[defaults]` must resolve the
@@ -85,7 +85,7 @@ git push origin beta
 
 2. Let the `Release` workflow run on the push to `beta`.
 3. Review the beta release PR against `beta`.
-4. Confirm the version set uses beta versions, for example `phlo 0.8.3b1`.
+4. Confirm the version set uses beta versions, for example `phlo 0.10.0b1`.
 5. Confirm the root extras point at selected beta package versions.
 6. Merge the beta release PR.
 7. Confirm the beta tag is created and the publish job uploads or skips expected artifacts.
@@ -97,10 +97,10 @@ Prefer exact beta pins over broad prerelease resolution:
 uv venv /tmp/phlo-beta-check
 source /tmp/phlo-beta-check/bin/activate
 uv pip install --prerelease explicit \
-  "phlo[defaults]==0.8.3b1" \
-  "phlo-dagster==0.3.3b1" \
-  "phlo-dlt==0.3.3b1" \
-  "phlo-iceberg==0.3.3b1"
+  "phlo[defaults]==0.10.0b1" \
+  "phlo-dagster==0.4.0b1" \
+  "phlo-dlt==0.5.0b1" \
+  "phlo-iceberg==0.4.0b1"
 phlo --version
 ```
 
@@ -141,7 +141,7 @@ There are two recovery paths:
 For the `Release` workflow, provide the version tag, with or without `v`:
 
 ```text
-v0.8.3
+v0.10.0
 ```
 
 The publish job checks PyPI and removes artifacts that already exist before it calls `uv publish`, so rerunning after a partial publish is expected to be safe.
@@ -166,8 +166,8 @@ If ReleaseX updates the release PR but does not create the tag after merge:
 git fetch origin
 git checkout main
 git pull --ff-only
-git tag -a v0.8.3 -m "v0.8.3"
-git push origin v0.8.3
+git tag -a v0.10.0 -m "v0.10.0"
+git push origin v0.10.0
 ```
 
 4. Watch the `Release` workflow publish job.

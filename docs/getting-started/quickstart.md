@@ -76,15 +76,14 @@ uv pip install -e .
 Open `workflows/ingestion/csv/events.py`. The important part is the Phlo ingestion decorator:
 
 ```python
+import phlo
 from pathlib import Path
 
 import pandas as pd
-
-from phlo_dlt.decorator import phlo_ingestion
 from workflows.schemas.csv import EventsSchema
 
 
-@phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="events",
     unique_key="id",
     validation_schema=EventsSchema,

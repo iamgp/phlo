@@ -6,7 +6,7 @@
 
 ## Description
 
-This error occurs when the `validation_schema` parameter is not provided to the `@phlo_ingestion` or `@phlo_quality` decorator. Phlo requires a Pandera schema to validate data and derive Iceberg table schemas.
+This error occurs when the `validation_schema` parameter is not provided to the `phlo.ingest.dlt(...)` or `phlo.quality.pandera(...)` decorator. Phlo requires a Pandera schema to validate data and derive Iceberg table schemas.
 
 ## Common Causes
 
@@ -31,18 +31,18 @@ This error occurs when the `validation_schema` parameter is not provided to the 
 ### Solution 1: Add the validation_schema parameter
 
 ```python
-from phlo_dlt.decorator import phlo_ingestion
+import phlo
 from workflows.schemas.weather import WeatherObservations
 
 # ❌ Missing validation_schema
-@phlo_ingestion(
+@phlo.ingest.dlt(
     unique_key="observation_id",
 )
 def weather_observations(partition: str):
     pass
 
 # ✅ Schema provided
-@phlo_ingestion(
+@phlo.ingest.dlt(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -93,7 +93,8 @@ from workflows.schemas.weather import WeatherObservations
 ### ❌ Incorrect: No schema
 
 ```python
-@phlo_ingestion(
+import phlo
+@phlo.ingest.dlt(
     unique_key="observation_id",
 )
 def weather_observations(partition: str):
@@ -103,7 +104,8 @@ def weather_observations(partition: str):
 ### ❌ Incorrect: Typo in parameter name
 
 ```python
-@phlo_ingestion(
+import phlo
+@phlo.ingest.dlt(
     unique_key="observation_id",
     schema=WeatherObservations,  # ❌ Wrong parameter name
 )
@@ -114,7 +116,8 @@ def weather_observations(partition: str):
 ### ✅ Correct: Schema provided
 
 ```python
-@phlo_ingestion(
+import phlo
+@phlo.ingest.dlt(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -127,7 +130,7 @@ def weather_observations(partition: str):
 1. **Check decorator parameters**
 
    ```bash
-   grep -n "phlo_ingestion\|phlo_quality" workflows/ingestion/weather/observations.py
+   grep -n "phlo.ingest.dlt\|phlo.quality.pandera" workflows/ingestion/weather/observations.py
    ```
 
 2. **Verify schema import**

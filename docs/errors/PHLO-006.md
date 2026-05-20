@@ -53,6 +53,7 @@ except requests.exceptions.RequestException as e:
 Add retry logic for transient failures:
 
 ```python
+import phlo
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
@@ -73,7 +74,7 @@ def create_session_with_retries():
     return session
 
 # Use in asset
-@phlo_ingestion(...)
+@phlo.ingest.dlt(table_name="weather_observations", unique_key="observation_id", group="weather")
 def weather_observations(partition: str):
     session = create_session_with_retries()
     response = session.get(f"https://api.weather.com/observations/{partition}")
@@ -85,6 +86,7 @@ def weather_observations(partition: str):
 Ensure API credentials are valid:
 
 ```python
+import phlo
 import os
 
 def validate_api_credentials():
@@ -116,7 +118,7 @@ def validate_api_credentials():
             ]
         )
 
-@phlo_ingestion(...)
+@phlo.ingest.dlt(table_name="weather_observations", unique_key="observation_id", group="weather")
 def weather_observations(partition: str):
     validate_api_credentials()
     # ... fetch data
@@ -127,7 +129,8 @@ def weather_observations(partition: str):
 Wrap data fetching in try/except with detailed logging:
 
 ```python
-@phlo_ingestion(...)
+import phlo
+@phlo.ingest.dlt(table_name="weather_observations", unique_key="observation_id", group="weather")
 def weather_observations(partition: str, context):
     try:
         context.log.info(f"Fetching data for partition: {partition}")
@@ -184,7 +187,8 @@ def weather_observations(partition: str, context):
 ### ❌ Incorrect: No error handling
 
 ```python
-@phlo_ingestion(...)
+import phlo
+@phlo.ingest.dlt(table_name="weather_observations", unique_key="observation_id", group="weather")
 def weather_observations(partition: str):
     # ❌ No error handling - will fail silently
     response = requests.get(f"https://api.weather.com/obs/{partition}")
@@ -194,7 +198,8 @@ def weather_observations(partition: str):
 ### ✅ Correct: Comprehensive error handling
 
 ```python
-@phlo_ingestion(...)
+import phlo
+@phlo.ingest.dlt(table_name="weather_observations", unique_key="observation_id", group="weather")
 def weather_observations(partition: str, context):
     try:
         context.log.info(f"Fetching data for {partition}")
@@ -305,6 +310,8 @@ def weather_observations(partition: str, context):
 1. **Implement health checks**
 
    ```python
+   import phlo
+
    def check_api_health():
        try:
            response = requests.get("https://api.example.com/health", timeout=5)
@@ -312,7 +319,7 @@ def weather_observations(partition: str, context):
        except:
            return False
 
-   @phlo_ingestion(...)
+   @phlo.ingest.dlt(table_name="weather_observations", unique_key="observation_id", group="weather")
    def weather_observations(partition: str):
        if not check_api_health():
            raise PhloIngestionError(
@@ -326,8 +333,9 @@ def weather_observations(partition: str, context):
 
    ```python
    from dagster import MetadataValue
+   import phlo
 
-   @phlo_ingestion(...)
+   @phlo.ingest.dlt(table_name="weather_observations", unique_key="observation_id", group="weather")
    def weather_observations(partition: str, context):
        start_time = time.time()
 
@@ -356,11 +364,12 @@ def weather_observations(partition: str, context):
 3. **Use circuit breaker pattern**
 
    ```python
+   import phlo
    from pybreaker import CircuitBreaker
 
    breaker = CircuitBreaker(fail_max=5, timeout_duration=60)
 
-   @phlo_ingestion(...)
+   @phlo.ingest.dlt(table_name="weather_observations", unique_key="observation_id", group="weather")
    def weather_observations(partition: str):
        @breaker
        def fetch():

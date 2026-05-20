@@ -5,7 +5,7 @@
 ## What You'll Learn
 
 - How Pandera schemas define enforceable contracts
-- How `phlo_quality` generates asset checks
+- How `phlo.quality.pandera` generates asset checks
 - When to block downstream runs vs warn
 - How to validate schemas and workflow files from CLI
 
@@ -38,9 +38,10 @@ class RawOrders(PhloSchema):
 ## Add Declarative Quality Checks
 
 ```python
-from phlo.quality import phlo_quality, NullCheck, RangeCheck, FreshnessCheck, CustomSQLCheck
+import phlo
+from phlo.quality import NullCheck, RangeCheck, FreshnessCheck, CustomSQLCheck
 
-@phlo_quality(
+@phlo.quality.pandera(
     table="silver.fct_orders",
     checks=[
         NullCheck(columns=["order_id", "customer_id", "total_amount"]),
@@ -85,9 +86,10 @@ Use this policy in early production:
 Not every check needs zero tolerance. Use `allow_threshold` for soft quality gates:
 
 ```python
-from phlo.quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck, FreshnessCheck
+import phlo
+from phlo.quality import NullCheck, RangeCheck, UniqueCheck, FreshnessCheck
 
-@phlo_quality(
+@phlo.quality.pandera(
     table="bronze.customer_data",
     checks=[
         NullCheck(columns=["phone", "address"], allow_threshold=0.05),

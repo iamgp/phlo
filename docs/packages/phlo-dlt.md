@@ -4,7 +4,7 @@ DLT (Data Load Tool) ingestion engine for Phlo.
 
 ## Overview
 
-`phlo-dlt` provides the `@phlo_ingestion` decorator for defining data ingestion pipelines using DLT. It materializes data into the active `table_store` with schema evolution and full lineage tracking.
+`phlo-dlt` provides the `phlo.ingest.dlt(...)` decorator for defining data ingestion pipelines using DLT. It materializes data into the active `table_store` with schema evolution and full lineage tracking.
 Schema validation is supplied by installed quality-provider capabilities such as `phlo-pandera`;
 `phlo-dlt` does not depend on a specific quality provider.
 
@@ -45,7 +45,7 @@ Note: Additional configuration for table storage comes from the active table_sto
 
 ```mermaid
 flowchart LR
-    ingestion["@phlo_ingestion"]
+    ingestion["phlo.ingest.dlt(...)"]
     emitter[IngestionEventEmitter]
     hookbus[HookBus]
     plugins["Alerting, Metrics, Lineage plugins"]
@@ -58,10 +58,11 @@ flowchart LR
 ### Basic Ingestion
 
 ```python
-from phlo import ingestion
+import phlo
+from phlo.contracts import Consumer, SLA
 from workflows.schemas.events import EventSchema
 
-@ingestion.phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="events",
     unique_key="id",
     validation_schema=EventSchema,
@@ -85,11 +86,19 @@ def api_events(partition_date: str):
     )
 ```
 
-Or import directly from the package:
+The `phlo.ingestion(...)` compatibility alias still exists for older workflows, but
+new code should use the provider-neutral `phlo.ingest.dlt(...)` API.
 
 ```python
-from phlo_dlt import phlo_ingestion
-from phlo.contracts import Consumer, SLA
+import phlo
+
+@phlo.ingest.dlt(
+    table_name="legacy_events",
+    unique_key="id",
+    group="api",
+)
+def legacy_events():
+    ...
 ```
 
 ### Decorator Options
@@ -119,19 +128,28 @@ from phlo.contracts import Consumer, SLA
 ### Merge Strategies
 
 ```python
+import phlo
+
 # Default merge with deduplication
-@phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="events",
     unique_key="id",
+    group="api",
     merge_strategy="merge",
     merge_config={"deduplication_method": "last"}  # or "first", "hash"
 )
+def merge_events():
+    ...
 
 # Append-only (no deduplication)
-@phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="events",
+    unique_key="id",
+    group="api",
     merge_strategy="append"
 )
+def append_events():
+    ...
 ```
 
 When `table_schema` is omitted, the active `table_store` provider must implement
@@ -140,7 +158,10 @@ schema derivation from `validation_schema` (for example Iceberg provider convers
 ### Selecting a Table Store
 
 ```python
-@ingestion.phlo_ingestion(
+import phlo
+from workflows.schemas.events import EventSchema
+
+@phlo.ingest.dlt(
     table_name="events",
     unique_key="id",
     validation_schema=EventSchema,

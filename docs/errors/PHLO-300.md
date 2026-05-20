@@ -6,7 +6,7 @@
 
 ## Description
 
-This error occurs when a DLT (Data Load Tool) pipeline execution fails. Phlo uses DLT via the `@phlo_ingestion` decorator for data ingestion, and this error wraps DLT-specific failures including source errors, destination write failures, and schema evolution conflicts.
+This error occurs when a DLT (Data Load Tool) pipeline execution fails. Phlo uses DLT via the `phlo.ingest.dlt(...)` decorator for data ingestion, and this error wraps DLT-specific failures including source errors, destination write failures, and schema evolution conflicts.
 
 ## Common Causes
 
@@ -99,7 +99,8 @@ WEATHER_API_KEY=your-api-key
 ### ❌ Incorrect: No error context in ingestion
 
 ```python
-@phlo_ingestion(
+import phlo
+@phlo.ingest.dlt(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -111,7 +112,8 @@ def weather_observations(partition: str):
 ### ✅ Correct: Source with error handling
 
 ```python
-@phlo_ingestion(
+import phlo
+@phlo.ingest.dlt(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -197,7 +199,7 @@ def weather_observations(partition: str):
 2. **Use DLT retry configuration**
 
    ```python
-   @phlo_ingestion(
+   @phlo.ingest.dlt(
        unique_key="observation_id",
        validation_schema=WeatherObservations,
    )
@@ -217,7 +219,7 @@ def weather_observations(partition: str):
 
    ```python
    # Prevent unexpected schema evolution
-   @phlo_ingestion(
+   @phlo.ingest.dlt(
        unique_key="observation_id",
        validation_schema=WeatherObservations,  # Schema acts as a contract
    )

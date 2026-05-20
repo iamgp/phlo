@@ -105,7 +105,7 @@ phlo minio               # MinIO client and admin helpers
 phlo postgres            # PostgreSQL shell and maintenance
 phlo trino               # Trino shell and queries
 phlo dbt                 # dbt compile/run/test helpers
-phlo publishing          # dbt publishing layer
+phlo dbt publishing      # dbt publishing layer
 phlo metrics             # Metrics summary (built-in)
 phlo alerts              # Alerting rules
 phlo openmetadata        # OpenMetadata catalog
@@ -507,7 +507,7 @@ phlo services list --json
 
 ```bash
 phlo services list --json
-# Error: Failed to discover services. Verify service plugins are installed and run `phlo plugins list` for diagnostics.
+# Error: Failed to discover services. Verify service plugins are installed and run `phlo plugin list` for diagnostics.
 ```
 
 ### phlo services ports
@@ -854,7 +854,7 @@ phlo plugin install PLUGIN_NAME [OPTIONS]
 phlo plugin install phlo-superset
 
 # Install specific version
-phlo plugin install phlo-superset==0.2.0
+phlo plugin install phlo-superset==0.2.5
 ```
 
 ### phlo plugin info
@@ -2019,7 +2019,7 @@ Hasura GraphQL engine management.
 
 **Installation**: `phlo plugin install phlo-hasura`
 
-### phlo publishing
+### phlo dbt publishing
 
 dbt publishing layer management.
 
