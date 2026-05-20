@@ -223,7 +223,7 @@ table.append(df)  # ✅ Columns match table schema
    ```
 
 2. **Use Phlo decorators**
-   - `@phlo_ingestion` handles schema alignment and writes automatically
+   - `phlo.ingest.dlt(...)` handles schema alignment and writes automatically
    - Validation runs before writes, catching mismatches early
 
 3. **Monitor storage capacity**

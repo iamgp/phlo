@@ -213,8 +213,13 @@ Phlo works with any DLT source. Common patterns:
 
 ```python
 from dlt.sources.rest_api import rest_api
+import phlo
 
-@phlo.ingest.dlt(...)
+@phlo.ingest.dlt(
+    table_name="api_events",
+    unique_key="id",
+    group="api",
+)
 def api_data(partition_date: str):
     return rest_api(
         client={
@@ -244,6 +249,7 @@ def api_data(partition_date: str):
 
 ```python
 import dlt
+import phlo
 
 @dlt.source
 def my_source(start_date: str):
@@ -254,7 +260,11 @@ def my_source(start_date: str):
             yield record
     return events
 
-@phlo.ingest.dlt(...)
+@phlo.ingest.dlt(
+    table_name="custom_events",
+    unique_key="id",
+    group="api",
+)
 def custom_data(partition_date: str):
     return my_source(start_date=partition_date)
 ```
@@ -263,8 +273,13 @@ def custom_data(partition_date: str):
 
 ```python
 from dlt.sources.filesystem import filesystem
+import phlo
 
-@phlo.ingest.dlt(...)
+@phlo.ingest.dlt(
+    table_name="file_events",
+    unique_key="id",
+    group="files",
+)
 def file_data(partition_date: str):
     return filesystem(
         bucket_url=f"s3://bucket/data/{partition_date}",
@@ -276,9 +291,14 @@ def file_data(partition_date: str):
 
 ```python
 import dlt
+import phlo
 from sqlalchemy import create_engine
 
-@phlo.ingest.dlt(...)
+@phlo.ingest.dlt(
+    table_name="sql_events",
+    unique_key="id",
+    group="sql",
+)
 def sql_data(partition_date: str):
     @dlt.resource
     def query():
@@ -298,8 +318,8 @@ def sql_data(partition_date: str):
 @phlo.ingest.dlt(
     table_name="logs",
     unique_key="id",
+    group="observability",
     merge_strategy="append",  # Insert-only
-    ...
 )
 def logs(partition_date: str):
     # Good for: immutable event streams, logs
@@ -312,9 +332,9 @@ def logs(partition_date: str):
 @phlo.ingest.dlt(
     table_name="users",
     unique_key="user_id",
+    group="identity",
     merge_strategy="merge",
     merge_config={"deduplication_method": "last"},  # Keep most recent
-    ...
 )
 def users(partition_date: str):
     # Good for: dimension tables, user profiles
@@ -349,7 +369,14 @@ merge_config={"deduplication_method": "hash"}
 Phlo uses daily partitioning by default:
 
 ```python
-@phlo.ingest.dlt(...)
+import phlo
+from dlt.sources.rest_api import rest_api
+
+@phlo.ingest.dlt(
+    table_name="events",
+    unique_key="id",
+    group="api",
+)
 def my_data(partition_date: str):
     # partition_date is automatically provided by Dagster
     # Format: "YYYY-MM-DD"
@@ -537,7 +564,7 @@ FactEvents = dbt_model_to_pandera(_dbt_model_path, "fct_events")
 - 50% less code to maintain
 - No schema drift between dbt and Pandera
 - dbt data_tests automatically become Pandera Field constraints
-- Works seamlessly with `@phlo_quality` decorator
+- Works seamlessly with `phlo.quality.pandera(...)` decorator
 
 #### Step 1: Define Schema in dbt YAML
 
@@ -626,16 +653,17 @@ FactEvents = dbt_model_to_pandera(
 
 The generated schema automatically inherits from `PhloSchema` and includes all constraints from dbt tests.
 
-#### Step 3: Use with @phlo_quality
+#### Step 3: Use with phlo.quality.pandera(...)
 
 The generated schema works seamlessly with quality checks:
 
 ```python
 # workflows/quality/events.py
-from phlo.quality import phlo_quality, SchemaCheck
+import phlo
+from phlo.quality import SchemaCheck
 from workflows.schemas.events import FactEvents
 
-@phlo_quality(
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[
         SchemaCheck(schema=FactEvents)  # Uses auto-generated schema
@@ -750,7 +778,7 @@ class FactDailyEventMetrics(PhloSchema):
 
 Pandera types automatically convert to Iceberg types:
 
-```python
+```text
 # Pandera → Iceberg mapping:
 str → StringType()
 int → LongType()
@@ -1072,7 +1100,8 @@ ChecksumReconciliationCheck(
 **Multiple tables**:
 
 ```python
-@phlo_quality(
+import phlo
+@phlo.quality.pandera(
     table="bronze.events",
     checks=[
         CustomSQLCheck(
@@ -1094,6 +1123,7 @@ def referential_integrity():
 **Conditional checks**:
 
 ```python
+import phlo
 import pandas as pd
 from datetime import datetime
 from phlo_pandera.checks import QualityCheck, QualityCheckResult
@@ -1116,7 +1146,7 @@ class ConditionalCheck(QualityCheck):
             message=f"Validated {len(df)} rows"
         )
 
-@phlo_quality(
+@phlo.quality.pandera(
     table="bronze.events",
     checks=[ConditionalCheck()]
 )
@@ -1371,6 +1401,7 @@ Create custom Dagster resources:
 ```python
 # workflows/resources/custom.py
 from dagster import ConfigurableResource
+import phlo
 
 class MyAPIResource(ConfigurableResource):
     api_key: str
@@ -1381,7 +1412,11 @@ class MyAPIResource(ConfigurableResource):
         pass
 
 # Usage in asset:
-@phlo.ingest.dlt(...)
+@phlo.ingest.dlt(
+    table_name="resource_events",
+    unique_key="id",
+    group="api",
+)
 def my_data(context, my_api: MyAPIResource):
     data = my_api.fetch_data("/events")
     return data
@@ -1410,7 +1445,16 @@ def file_sensor(context):
 ### Conditional Execution
 
 ```python
-@phlo.ingest.dlt(...)
+from datetime import datetime
+
+import phlo
+from dlt.sources.rest_api import rest_api
+
+@phlo.ingest.dlt(
+    table_name="conditional_events",
+    unique_key="id",
+    group="api",
+)
 def conditional_data(context):
     # Skip on weekends
     if datetime.now().weekday() >= 5:
@@ -1443,7 +1487,12 @@ def my_data(partition_date: str):
 Let Phlo handle retries, but add custom handling where needed:
 
 ```python
+import phlo
+
 @phlo.ingest.dlt(
+    table_name="robust_events",
+    unique_key="id",
+    group="api",
     max_retries=3,
     retry_delay_seconds=30,
     max_runtime_seconds=3600

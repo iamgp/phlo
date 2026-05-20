@@ -231,7 +231,7 @@ class GitHubConnector(SourceConnectorPlugin):
 
 **Inherits:** `Plugin`, `ABC`, `Generic[TQualityCheck]`
 
-Factory for custom data quality checks that integrate with the `@phlo_pandera` decorator.
+Factory for custom data quality checks that integrate with the `phlo.quality.pandera(...)` decorator.
 
 ### Abstract methods
 

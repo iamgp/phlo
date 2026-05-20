@@ -185,7 +185,7 @@ class CsvIngester(BaseIngester):
 ### phlo-dlt
 
 The `phlo-dlt` package provides a DLT-based ingester that wraps DLT pipelines behind
-`BaseIngester`. The `@phlo_ingestion` decorator constructs a `BaseIngester` subclass
+`BaseIngester`. The `phlo.ingest.dlt(...)` decorator constructs a `BaseIngester` subclass
 and wires it to the orchestrator via capability specs.
 
 ### phlo-dbt

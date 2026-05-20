@@ -89,7 +89,8 @@ class WeatherObservations(pa.DataFrameModel):
 Pre-process data to fix known issues:
 
 ```python
-@phlo_ingestion(
+import phlo
+@phlo.ingest.dlt(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -194,7 +195,7 @@ class SensorReadings(pa.DataFrameModel):
 2. **Use `allow_threshold` for gradual enforcement**
 
    ```python
-   @phlo_quality(
+   @phlo.quality.pandera(
        validation_schema=WeatherObservations,
        allow_threshold=0.95,  # Allow up to 5% failures
    )

@@ -4,7 +4,7 @@ Data quality checks and validation for Phlo.
 
 ## Overview
 
-`phlo-pandera` enables defining and executing data quality checks using the `@phlo_pandera` decorator. Checks emit capability specs that adapters translate into orchestrator-native checks.
+`phlo-pandera` enables defining and executing data quality checks using the `phlo.quality.pandera(...)` decorator. Checks emit capability specs that adapters translate into orchestrator-native checks.
 
 ## Installation
 
@@ -34,7 +34,7 @@ phlo plugin install quality
 ### Event Flow
 
 ```
-@phlo_pandera → QualityEventEmitter → quality.result → [Alerting, Metrics, OpenMetadata]
+phlo.quality.pandera(...) → QualityEventEmitter → quality.result → [Alerting, Metrics, OpenMetadata]
 ```
 
 ## Usage
@@ -42,10 +42,11 @@ phlo plugin install quality
 ### Defining Checks
 
 ```python
+import phlo
 from phlo.contracts import Consumer, SLA
-from phlo_pandera import phlo_pandera, NullCheck, UniqueCheck, RangeCheck
+from phlo.quality import NullCheck, UniqueCheck, RangeCheck
 
-@phlo_pandera(
+@phlo.quality.pandera(
     table="bronze.users",
     checks=[
         NullCheck(columns=["id"]),
@@ -114,7 +115,7 @@ checks = checks_from_contract(
 import pandera as pa
 from pandera.typing import Series
 
-from phlo import ingestion
+import phlo
 
 class UserSchema(pa.DataFrameModel):
     id: Series[str] = pa.Field(nullable=False, unique=True)
@@ -126,7 +127,7 @@ class UserSchema(pa.DataFrameModel):
         coerce = True
 
 # Use with ingestion decorator for automatic validation
-@ingestion.phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="users",
     validation_schema=UserSchema,
     # ...
