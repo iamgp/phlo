@@ -16,9 +16,9 @@ transformation, quality, observability, and extension design.
 By the end, you will be able to:
 
 - Design a clean ingestion-to-serving data flow
-- Use `phlo_dlt.decorator.phlo_ingestion` for repeatable loads
+- Use `phlo.ingest.dlt` for repeatable loads
 - Run SQL transformations with dbt in `workflows/transforms/dbt`
-- Validate quality with Pandera and `phlo.quality.phlo_quality`
+- Validate quality with Pandera and `phlo.quality.pandera`
 - Track pipeline health with status, logs, metrics, and lineage
 - Debug incidents using a repeatable response checklist
 - Extend the platform with plugins and Observatory extensions
@@ -48,7 +48,7 @@ Then run the blog commands from your working project directory (for example `/pa
 | --- | --- | --- | --- |
 | 1 | [What Data Engineering Really Is](01-what-is-data-engineering.md) | Core concepts, layers, responsibilities | 18 min |
 | 2 | [Build Your First Phlo Project](02-build-your-first-phlo-project.md) | Project setup, services, first run | 22 min |
-| 3 | [Ingestion Foundations with DLT](03-ingestion-foundations-with-dlt.md) | `phlo_ingestion`, merge strategies, partitions | 24 min |
+| 3 | [Ingestion Foundations with DLT](03-ingestion-foundations-with-dlt.md) | `phlo.ingest.dlt`, merge strategies, partitions | 24 min |
 | 4 | [Iceberg and Nessie for Reliable Tables](04-iceberg-and-nessie-for-reliable-tables.md) | Table format, branching, catalog tooling | 22 min |
 | 5 | [Orchestration with Dagster Assets](05-orchestration-with-dagster-assets.md) | Materialization, backfills, scheduling mindset | 24 min |
 | 6 | [Transformations with dbt](06-transformations-with-dbt.md) | Medallion models, tests, publish configs | 24 min |

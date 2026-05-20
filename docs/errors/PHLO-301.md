@@ -6,7 +6,7 @@
 
 ## Description
 
-This error occurs when a DLT source cannot produce data. The source function — the data-fetching logic inside a `@phlo_ingestion` asset — fails before data reaches the DLT pipeline. This is distinct from [PHLO-300](./PHLO-300.md), which covers pipeline-level failures; PHLO-301 is specific to the data source itself.
+This error occurs when a DLT source cannot produce data. The source function — the data-fetching logic inside a `phlo.ingest.dlt(...)` asset — fails before data reaches the DLT pipeline. This is distinct from [PHLO-300](./PHLO-300.md), which covers pipeline-level failures; PHLO-301 is specific to the data source itself.
 
 ## Common Causes
 
@@ -69,10 +69,11 @@ if not api_key:
 ### Solution 3: Handle rate limiting
 
 ```python
+import phlo
 import time
 import requests
 
-@phlo_ingestion(
+@phlo.ingest.dlt(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -97,7 +98,8 @@ def weather_observations(partition: str):
 ### Solution 4: Validate response format
 
 ```python
-@phlo_ingestion(
+import phlo
+@phlo.ingest.dlt(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -127,7 +129,8 @@ def weather_observations(partition: str):
 ### ❌ Incorrect: No source validation
 
 ```python
-@phlo_ingestion(...)
+import phlo
+@phlo.ingest.dlt(table_name="weather_observations", unique_key="observation_id", group="weather")
 def weather_observations(partition: str):
     return requests.get(f"https://api.weather.com/{partition}").json()
 ```
@@ -135,7 +138,8 @@ def weather_observations(partition: str):
 ### ✅ Correct: Source with validation and error handling
 
 ```python
-@phlo_ingestion(...)
+import phlo
+@phlo.ingest.dlt(table_name="weather_observations", unique_key="observation_id", group="weather")
 def weather_observations(partition: str, context):
     context.log.info(f"Fetching from weather API for {partition}")
 

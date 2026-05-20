@@ -41,7 +41,7 @@ KeyError: 'observation_id'
 
 ```python
 # Check your decorator
-@phlo_ingestion(
+@phlo.ingest.dlt(
     unique_key="id",  # Must match a field in validation_schema
     validation_schema=MySchema,
     ...
@@ -71,7 +71,7 @@ ValueError: Invalid cron expression: 'every hour'
 
 ```python
 # Use standard cron format: minute hour day month weekday
-@phlo_ingestion(
+@phlo.ingest.dlt(
     cron="0 */1 * * *",  # Every hour at minute 0
     # NOT: cron="every hour"
     ...
@@ -139,7 +139,7 @@ ValueError: Missing required schema parameter (`validation_schema` or `table_sch
 
 ```python
 # Add validation_schema (recommended)
-@phlo_ingestion(
+@phlo.ingest.dlt(
     table_name="my_table",
     unique_key="id",
     validation_schema=MySchema,  # Add this
@@ -391,7 +391,8 @@ MySchema.validate(test_data)  # Fails fast if schema is wrong
 
 ```python
 # unique_key must match schema field exactly
-@phlo_ingestion(
+import phlo
+@phlo.ingest.dlt(
     unique_key="id",  # Must match field name below
     validation_schema=MySchema,
 )

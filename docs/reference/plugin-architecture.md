@@ -15,8 +15,8 @@ Provider plugins supply the core primitives that other packages depend on:
 | Plugin Type | Entry Point | Purpose | Package |
 |-------------|-------------|---------|---------|
 | `orchestrators` | `phlo.plugins.orchestrators` | Orchestration runtime (Dagster) | phlo-dagster |
-| `quality_providers` | `phlo.plugins.quality_providers` | Quality primitives (@phlo_quality, checks) | phlo-pandera |
-| `ingestion_providers` | `phlo.plugins.ingestion_providers` | Ingestion primitives (@phlo_ingestion) | phlo-dlt |
+| `quality_providers` | `phlo.plugins.quality_providers` | Quality primitives (phlo.quality.pandera(...), checks) | phlo-pandera |
+| `ingestion_providers` | `phlo.plugins.ingestion_providers` | Ingestion primitives (phlo.ingest.dlt(...)) | phlo-dlt |
 | `transformation_providers` | `phlo.plugins.transformation_providers` | Transformation primitives (dbt assets) | phlo-dbt |
 | `resource_providers` | `phlo.plugins.resources` | Infrastructure resources (DB, storage) | phlo-trino, phlo-postgres, phlo-iceberg, phlo-delta |
 | `asset_providers` | `phlo.plugins.assets` | Asset spec generation | phlo-dbt, phlo-dlt |
@@ -156,11 +156,11 @@ sequenceDiagram
     REG->>IP: DLTIngestionProvider
     REG->>TP: DbtTransformationProvider
 
-    D->>P: import phlo.ingestion
+    D->>P: import phlo
     P->>IP: get_decorator()
-    IP-->>P: @phlo_ingestion
+    IP-->>P: phlo.ingest.dlt(...)
 
-    D->>P: @phlo_ingestion<br/>def load_users(): ...
+    D->>P: phlo.ingest.dlt(...)<br/>def load_users(): ...
     P->>DA: build_definitions()
     DA-->>P: Dagster Assets
 
@@ -186,7 +186,7 @@ class QualityProviderPlugin(Plugin, ABC):
 
     @abstractmethod
     def get_decorator(self) -> Callable:
-        """Returns @phlo_quality or equivalent."""
+        """Returns phlo.quality.pandera(...) or equivalent."""
 
     @abstractmethod
     def get_check_classes(self) -> dict[str, type]:
@@ -207,7 +207,7 @@ from phlo.plugins.discovery import discover_plugins, get_quality_provider
 
 discover_plugins()
 provider = get_quality_provider("pandera")
-phlo_quality = provider.get_decorator()
+pandera = provider.get_decorator()
 ```
 
 ## Related Documentation

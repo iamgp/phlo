@@ -55,7 +55,7 @@ Capability providers are auto-loaded through the plugin system:
 
 - Asset specs from `phlo.plugins.assets` (for example phlo-dlt, phlo-dbt)
 - Resource specs from `phlo.plugins.resources` (for example phlo-iceberg, phlo-trino)
-- Check specs from `@phlo_quality` and other packages
+- Check specs from `phlo.quality.pandera(...)` and other packages
 
 ### Versioned catalogs and WAP
 

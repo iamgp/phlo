@@ -15,6 +15,84 @@ Complete guide to installing and setting up Phlo on your system.
 - **8GB RAM**: Minimum for running all services
 - **20GB disk space**: For Docker volumes and data
 
+## Windows via WSL
+
+Phlo works best on Windows when you run it inside a WSL 2 Linux distribution and keep your project files on the Linux filesystem, for example under `~/projects`, instead of `/mnt/c/...`.
+
+From an elevated PowerShell terminal on Windows:
+
+```powershell
+wsl --install -d Ubuntu-24.04
+wsl --set-default-version 2
+wsl --update
+```
+
+Restart if Windows asks you to, then open Ubuntu and prepare the Linux environment:
+
+```bash
+sudo apt update
+sudo apt install -y build-essential ca-certificates curl git python3 python3-venv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+exec $SHELL
+uv python install 3.12
+```
+
+Install Docker Engine inside Ubuntu/WSL:
+
+```bash
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo service docker start
+```
+
+Allow your WSL user to run Docker without `sudo`, then restart your Ubuntu shell:
+
+```bash
+sudo usermod -aG docker $USER
+exit
+```
+
+Reopen Ubuntu and verify Docker from inside WSL:
+
+```bash
+docker version
+docker compose version
+```
+
+If your organization already standardizes on Docker Desktop, that also works: install Docker Desktop on Windows, enable the WSL 2 backend, enable integration for your Ubuntu distribution, then run the same Phlo commands from inside Ubuntu.
+
+Now create and run Phlo from inside Ubuntu:
+
+```bash
+mkdir -p ~/projects
+cd ~/projects
+uv venv
+source .venv/bin/activate
+uv pip install "phlo[defaults]"
+phlo init my-project --template csv-batch
+cd my-project
+phlo services init
+phlo services start
+phlo services status
+```
+
+Open browser UIs from Windows with the same localhost ports, for example http://localhost:10006 for Dagster.
+
+Troubleshooting tips:
+
+- If Docker commands fail inside Ubuntu, run `sudo service docker start`, then check your user is in the `docker` group with `groups`.
+- If file watching or installs feel slow, move the project from `/mnt/c/...` into the WSL filesystem.
+- If ports are busy on Windows, edit the `env:` ports in `phlo.yaml`, then rerun `phlo services init`.
+
 ## Quick Install
 
 ```bash

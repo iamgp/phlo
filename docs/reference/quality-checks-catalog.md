@@ -1,10 +1,10 @@
 # Quality Checks Catalog
 
-Comprehensive reference for all quality check types available in the `@phlo_quality` framework.
+Comprehensive reference for all quality check types available in the `phlo.quality.pandera(...)` framework.
 
 ## Overview
 
-Phlo's declarative quality framework reduces quality check boilerplate by 70-80% through the `@phlo_quality` decorator and reusable check classes. Instead of writing verbose asset checks with custom SQL and validation logic, you define quality checks declaratively using pre-built check types.
+Phlo's declarative quality framework reduces quality check boilerplate by 70-80% through the `phlo.quality.pandera(...)` decorator and reusable check classes. Instead of writing verbose asset checks with custom SQL and validation logic, you define quality checks declaratively using pre-built check types.
 
 **Key Benefits:**
 
@@ -35,9 +35,10 @@ Phlo's declarative quality framework reduces quality check boilerplate by 70-80%
 ## Basic Example
 
 ```python
-from phlo.quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck
+import phlo
+from phlo.quality import NullCheck, RangeCheck, UniqueCheck
 
-@phlo_quality(
+@phlo.quality.pandera(
     table="silver.events",
     checks=[
         NullCheck(columns=["event_id", "event_type"]),
@@ -81,9 +82,9 @@ Verifies that specified columns contain no null values.
 **Example:**
 
 ```python
-from phlo.quality import NullCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import NullCheck
+@phlo.quality.pandera(
     table="bronze.weather_observations",
     checks=[
         # Strict: no nulls allowed
@@ -134,9 +135,9 @@ Verifies that specified columns have unique value combinations (no duplicates).
 **Example:**
 
 ```python
-from phlo.quality import UniqueCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import UniqueCheck
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[
         # Single column uniqueness
@@ -192,9 +193,9 @@ Verifies that numeric column values fall within a specified range.
 **Example:**
 
 ```python
-from phlo.quality import RangeCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import RangeCheck
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[
         # Both bounds
@@ -255,9 +256,9 @@ Verifies that string column values match a regular expression pattern.
 **Example:**
 
 ```python
-from phlo.quality import PatternCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import PatternCheck
+@phlo.quality.pandera(
     table="raw.user_profile",
     checks=[
         # GitHub username pattern
@@ -331,9 +332,9 @@ Verifies that the table row count meets expectations.
 **Example:**
 
 ```python
-from phlo.quality import CountCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import CountCheck
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[
         # At least 1 row (ensure partition not empty)
@@ -390,9 +391,9 @@ Verifies that data is fresh (not stale) by checking the maximum timestamp.
 **Example:**
 
 ```python
-from phlo.quality import FreshnessCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import FreshnessCheck
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[
         # Data should be less than 24 hours old
@@ -446,10 +447,10 @@ Verifies that a DataFrame matches a Pandera schema with type-safe validation.
 **Example:**
 
 ```python
+import phlo
 import pandera as pa
 from pandera.typing import Series
-from phlo.quality import SchemaCheck, phlo_quality
-
+from phlo.quality import SchemaCheck
 # Define Pandera schema
 class WeatherObservations(pa.DataFrameModel):
     station_id: Series[str] = pa.Field(nullable=False)
@@ -461,7 +462,7 @@ class WeatherObservations(pa.DataFrameModel):
         strict = True
         coerce = True
 
-@phlo_quality(
+@phlo.quality.pandera(
     table="bronze.weather_observations",
     checks=[
         SchemaCheck(schema=WeatherObservations),
@@ -515,9 +516,9 @@ Executes arbitrary SQL to validate data using custom business logic.
 **Example:**
 
 ```python
-from phlo.quality import CustomSQLCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import CustomSQLCheck
+@phlo.quality.pandera(
     table="silver.fct_weather_observations",
     checks=[
         # Cross-column validation
@@ -591,9 +592,9 @@ Compares row counts between source and target tables to detect data loss or dupl
 **Example:**
 
 ```python
-from phlo.quality import ReconciliationCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import ReconciliationCheck
+@phlo.quality.pandera(
     table="gold.fct_github_events",
     checks=[
         # Exact row count match (1:1 transformation)
@@ -675,9 +676,9 @@ Verifies that computed aggregates in a target table match the expected computati
 **Example:**
 
 ```python
-from phlo.quality import AggregateConsistencyCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import AggregateConsistencyCheck
+@phlo.quality.pandera(
     table="gold.fct_daily_github_metrics",
     checks=[
         # Verify total_events matches source count
@@ -758,9 +759,9 @@ Verifies that source and target tables have matching keys to catch missing or ex
 **Example:**
 
 ```python
-from phlo.quality import KeyParityCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import KeyParityCheck
+@phlo.quality.pandera(
     table="gold.dim_customers",
     checks=[
         # Verify all customer IDs present
@@ -835,9 +836,10 @@ Efficiently validates multiple aggregates in a single query to reduce source tab
 **Example:**
 
 ```python
-from phlo.quality import AggregateSpec, MultiAggregateConsistencyCheck, phlo_quality
+import phlo
+from phlo.quality import AggregateSpec, MultiAggregateConsistencyCheck
 
-@phlo_quality(
+@phlo.quality.pandera(
     table="gold.fct_daily_metrics",
     checks=[
         MultiAggregateConsistencyCheck(
@@ -889,7 +891,7 @@ Performs row-level hash comparison between source and target tables to detect da
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `source_table` | `str` | Required | Fully qualified source table name |
-| `target_table` | `str` | Required | Fully qualified target table name (usually same as @phlo_quality table) |
+| `target_table` | `str` | Required | Fully qualified target table name (usually same as phlo.quality.pandera(...) table) |
 | `key_columns` | `list[str]` | Required | Primary key columns for alignment |
 | `columns` | `list[str] \| None` | `None` | Columns to hash (None = all non-key columns) |
 | `partition_column` | `str` | `"_phlo_partition_date"` | Partition filtering column |
@@ -909,9 +911,9 @@ Performs row-level hash comparison between source and target tables to detect da
 **Example:**
 
 ```python
-from phlo.quality import ChecksumReconciliationCheck, phlo_quality
-
-@phlo_quality(
+import phlo
+from phlo.quality import ChecksumReconciliationCheck
+@phlo.quality.pandera(
     table="gold.dim_products",
     checks=[
         # Full row-level comparison
@@ -976,9 +978,9 @@ Sample hash mismatches: ['product-123', 'product-456', ...]
 
 ---
 
-## Decision Guide: @phlo_quality vs dbt tests vs pytest
+## Decision Guide: phlo.quality.pandera(...) vs dbt tests vs pytest
 
-### Use @phlo_quality when:
+### Use phlo.quality.pandera(...) when:
 
 - You're working in Python workflows (Dagster, Airflow, Prefect)
 - You need rich metadata and diagnostics (sample rows, detailed failures)
@@ -1015,8 +1017,8 @@ models:
             - order_id
             - item_id
 
-# Use @phlo_quality for external tables and cross-layer validation
-@phlo_quality(
+# Use phlo.quality.pandera(...) for external tables and cross-layer validation
+@phlo.quality.pandera(
     table="iceberg.gold.fct_orders",
     checks=[
         ReconciliationCheck(
@@ -1043,7 +1045,7 @@ Begin with basic checks and add more as you discover issues:
 
 ```python
 # Week 1: Basic checks
-@phlo_quality(
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[
         NullCheck(columns=["event_id"]),
@@ -1052,7 +1054,7 @@ Begin with basic checks and add more as you discover issues:
 )
 
 # Week 2: Add range validation after investigating failures
-@phlo_quality(
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[
         NullCheck(columns=["event_id", "timestamp"]),
@@ -1084,7 +1086,7 @@ Group related checks together:
 
 ```python
 # Bronze layer: Basic structure
-@phlo_quality(
+@phlo.quality.pandera(
     table="bronze.raw_events",
     checks=[
         CountCheck(min_rows=1),
@@ -1094,7 +1096,7 @@ Group related checks together:
 )
 
 # Silver layer: Business logic
-@phlo_quality(
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[
         UniqueCheck(columns=["event_id"]),
@@ -1105,7 +1107,7 @@ Group related checks together:
 )
 
 # Gold layer: Reconciliation
-@phlo_quality(
+@phlo.quality.pandera(
     table="gold.fct_daily_metrics",
     checks=[
         ReconciliationCheck(source_table="silver.fct_events"),
@@ -1126,14 +1128,14 @@ Not all checks should block downstream assets:
 
 ```python
 # Critical: Block downstream if failed
-@phlo_quality(
+@phlo.quality.pandera(
     table="silver.dim_customers",
     checks=[UniqueCheck(columns=["customer_id"])],
     blocking=True,  # Block downstream
 )
 
 # Non-critical: Warn but don't block
-@phlo_quality(
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[FreshnessCheck(timestamp_column="created_at", max_age_hours=48)],
     blocking=False,  # Warn only
@@ -1146,7 +1148,7 @@ Let phlo automatically scope checks to partitions:
 
 ```python
 # Partition-aware (recommended for incremental tables)
-@phlo_quality(
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[...],
     partition_aware=True,  # Default
@@ -1154,7 +1156,7 @@ Let phlo automatically scope checks to partitions:
 )
 
 # Full table scan (use sparingly)
-@phlo_quality(
+@phlo.quality.pandera(
     table="gold.dim_products",  # Slowly changing dimension
     checks=[...],
     full_table=True,  # Check entire table
@@ -1167,7 +1169,7 @@ Add reconciliation checks at aggregation boundaries:
 
 ```python
 # Ensure gold layer matches silver layer
-@phlo_quality(
+@phlo.quality.pandera(
     table="gold.fct_daily_metrics",
     checks=[
         ReconciliationCheck(source_table="silver.fct_events"),
@@ -1187,7 +1189,8 @@ Add reconciliation checks at aggregation boundaries:
 Use docstrings to explain why checks exist:
 
 ```python
-@phlo_quality(
+import phlo
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[
         RangeCheck(column="event_value", min_value=0, max_value=100),
@@ -1233,9 +1236,10 @@ ChecksumReconciliationCheck(
 Use `SchemaCheck` with other checks for comprehensive validation:
 
 ```python
+import phlo
 from workflows.schemas.events import EventsSchema
 
-@phlo_quality(
+@phlo.quality.pandera(
     table="silver.fct_events",
     checks=[
         SchemaCheck(schema=EventsSchema),  # Type validation

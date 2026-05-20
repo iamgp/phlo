@@ -34,9 +34,10 @@ pip install phlo-core-plugins
 ### Quality Check Usage
 
 ```python
-from phlo.quality import NullCheck, RangeCheck, UniqueCheck, phlo_quality
+import phlo
+from phlo.quality import NullCheck, RangeCheck, UniqueCheck
 
-@phlo_quality(
+@phlo.quality.pandera(
     table="bronze.users",
     checks=[
         NullCheck(columns=["id"]),
@@ -57,18 +58,19 @@ def validate_users():
 ### Source Connector Usage
 
 ```python
-from phlo.ingestion import phlo_ingestion
+import phlo
+from dlt.sources.rest_api import rest_api
 
-@phlo_ingestion(
-    name="api_data",
-    source="rest_api",  # Uses rest_api connector
-    destination="bronze.api_data"
+@phlo.ingest.dlt(
+    table_name="api_data",
+    unique_key="id",
+    group="api",
 )
 def ingest_api():
-    return {
-        "client": {"base_url": "https://api.example.com"},
-        "resources": ["users", "events"]
-    }
+    return rest_api(
+        client={"base_url": "https://api.example.com"},
+        resources=[{"name": "users", "endpoint": {"path": "users"}}],
+    )
 ```
 
 ## Detailed Plugin Reference
