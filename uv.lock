@@ -3042,7 +3042,7 @@ wheels = [
 
 [[package]]
 name = "phlo"
-version = "0.9.0"
+version = "0.10.0"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
@@ -3284,7 +3284,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-api"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "packages/phlo-api" }
 dependencies = [
     { name = "anyio" },
@@ -3324,7 +3324,7 @@ provides-extras = ["dev", "lineage"]
 
 [[package]]
 name = "phlo-clickhouse"
-version = "0.3.1"
+version = "0.4.0"
 source = { editable = "packages/phlo-clickhouse" }
 dependencies = [
     { name = "clickhouse-connect" },
@@ -3528,7 +3528,7 @@ provides-extras = ["dev", "minio"]
 
 [[package]]
 name = "phlo-dlt"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "packages/phlo-dlt" }
 dependencies = [
     { name = "dlt" },
@@ -3830,7 +3830,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-observatory"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "packages/phlo-observatory" }
 dependencies = [
     { name = "phlo" },
@@ -3947,7 +3947,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-pandera"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "packages/phlo-pandera" }
 dependencies = [
     { name = "click" },
@@ -4089,7 +4089,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-rustfs"
-version = "0.2.4"
+version = "0.3.0"
 source = { editable = "packages/phlo-rustfs" }
 dependencies = [
     { name = "phlo" },
@@ -4113,7 +4113,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "phlo-sling"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "packages/phlo-sling" }
 dependencies = [
     { name = "phlo" },
