@@ -1,5 +1,5 @@
 from phlo.governance.catalog import GovernanceCatalog
-from phlo.portal.products import build_access_request, build_data_products
+from phlo.portal.products import DataProduct, build_access_request, build_data_products
 
 
 def test_build_data_products_from_governance_catalog() -> None:
@@ -78,6 +78,25 @@ def test_data_product_access_request_policy_ids_are_isolated_between_serializati
     payload["access_request"]["policy_ids"].append("mutated")
 
     assert product.to_read_model()["access_request"]["policy_ids"] == ["original_policy"]
+
+
+def test_data_product_nested_access_request_values_are_isolated_between_serializations() -> None:
+    product = DataProduct(
+        id="gold.customers",
+        title="Gold customers",
+        owner="crm",
+        description=None,
+        domain=None,
+        classification=None,
+        certification="uncertified",
+        status="healthy",
+        access_request={"dataset_id": "x", "approval": {"steps": ["owner"]}},
+    )
+
+    payload = product.to_read_model()
+    payload["access_request"]["approval"]["steps"].append("security")
+
+    assert product.to_read_model()["access_request"]["approval"]["steps"] == ["owner"]
 
 
 def test_build_access_request_payload() -> None:

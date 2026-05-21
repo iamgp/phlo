@@ -22,10 +22,6 @@ class DataProduct:
     access_request: dict[str, Any] = field(default_factory=dict)
 
     def to_read_model(self) -> dict[str, Any]:
-        access_request = {
-            key: list(value) if isinstance(value, list | tuple) else value
-            for key, value in self.access_request.items()
-        }
         return {
             "id": self.id,
             "title": self.title,
@@ -35,9 +31,17 @@ class DataProduct:
             "classification": self.classification,
             "certification": self.certification,
             "status": self.status,
-            "tags": dict(self.tags),
-            "access_request": access_request,
+            "tags": _copy_json_like(self.tags),
+            "access_request": _copy_json_like(self.access_request),
         }
+
+
+def _copy_json_like(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _copy_json_like(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_copy_json_like(item) for item in value]
+    return value
 
 
 def _product_from_dataset(dataset: GovernedDataset, status: str) -> DataProduct:
