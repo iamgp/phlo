@@ -57,3 +57,24 @@ def test_data_product_serialization_is_browser_safe() -> None:
         "tags": {"certification": "certified", "domain": "finance"},
         "access_request": {"dataset_id": "gold.revenue", "policy_ids": []},
     }
+
+
+def test_data_product_access_request_policy_ids_are_isolated_between_serializations() -> None:
+    catalog = GovernanceCatalog.from_dict(
+        {
+            "version": 1,
+            "datasets": [
+                {
+                    "id": "gold.customers",
+                    "owner": "crm",
+                    "policies": ["original_policy"],
+                }
+            ],
+        }
+    )
+
+    product = build_data_products(catalog=catalog)[0]
+    payload = product.to_read_model()
+    payload["access_request"]["policy_ids"].append("mutated")
+
+    assert product.to_read_model()["access_request"]["policy_ids"] == ["original_policy"]

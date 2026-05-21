@@ -22,6 +22,10 @@ class DataProduct:
     access_request: dict[str, Any] = field(default_factory=dict)
 
     def to_read_model(self) -> dict[str, Any]:
+        access_request = {
+            key: list(value) if isinstance(value, list | tuple) else value
+            for key, value in self.access_request.items()
+        }
         return {
             "id": self.id,
             "title": self.title,
@@ -32,7 +36,7 @@ class DataProduct:
             "certification": self.certification,
             "status": self.status,
             "tags": dict(self.tags),
-            "access_request": dict(self.access_request),
+            "access_request": access_request,
         }
 
 
