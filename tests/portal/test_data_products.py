@@ -1,5 +1,5 @@
 from phlo.governance.catalog import GovernanceCatalog
-from phlo.portal.products import build_data_products
+from phlo.portal.products import build_access_request, build_data_products
 
 
 def test_build_data_products_from_governance_catalog() -> None:
@@ -78,3 +78,18 @@ def test_data_product_access_request_policy_ids_are_isolated_between_serializati
     payload["access_request"]["policy_ids"].append("mutated")
 
     assert product.to_read_model()["access_request"]["policy_ids"] == ["original_policy"]
+
+
+def test_build_access_request_payload() -> None:
+    payload = build_access_request(
+        dataset_id="warehouse.customers",
+        requester="alice@example.com",
+        reason="Quarterly revenue analysis",
+    )
+
+    assert payload == {
+        "dataset_id": "warehouse.customers",
+        "requester": "alice@example.com",
+        "reason": "Quarterly revenue analysis",
+        "status": "pending",
+    }

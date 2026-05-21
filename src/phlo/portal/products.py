@@ -67,3 +67,13 @@ def build_data_products(
         _product_from_dataset(dataset, status_by_id.get(dataset.id, "unknown"))
         for dataset in catalog.datasets.values()
     ]
+
+
+def build_access_request(*, dataset_id: str, requester: str, reason: str) -> dict[str, str]:
+    """Build a browser-safe access request payload for workflow handoff."""
+    return {
+        "dataset_id": dataset_id,
+        "requester": requester,
+        "reason": reason,
+        "status": "pending",
+    }
