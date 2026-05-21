@@ -40,6 +40,39 @@ All Observatory v2 endpoints are rooted at `/api/observatory/v2`. They are group
 
 Route parameters that identify assets, tables, services, branches, and checks are stable resource identifiers, not provider URLs or secret-bearing connection strings.
 
+### Governance Surface Read Model
+
+The governance surface may include a provider-neutral catalog payload:
+
+```json
+{
+  "version": 1,
+  "datasets": [
+    {
+      "id": "warehouse.customers",
+      "owner": "data-platform",
+      "description": "Customer dimension",
+      "classification": "restricted",
+      "tags": {"domain": "crm", "privacy": "restricted"},
+      "columns": [
+        {"name": "email", "classification": "personal", "mask": "email", "tags": {}}
+      ],
+      "row_filters": [
+        {
+          "name": "region_scope",
+          "expression": "region = current_setting('phlo.region')",
+          "applies_to_roles": ["regional_analyst"]
+        }
+      ],
+      "policies": ["allow_analyst_dataset_read"]
+    }
+  ]
+}
+```
+
+This payload is safe for browser rendering. It must not contain raw credentials,
+private URLs, signed URLs, or generated backend grants.
+
 ## UI Contributions
 
 A UI contribution describes how one capability appears in Observatory v2.

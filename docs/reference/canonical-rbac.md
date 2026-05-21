@@ -8,6 +8,24 @@ behavior, or backend support boundaries.
 
 ## Overview
 
+## Governance Catalog Relationship
+
+The governance catalog is the metadata source for dataset ownership,
+classification, governed tags, row-filter intent, column-mask intent, and
+policy references. Canonical RBAC remains the enforcement-source format for
+roles and allow rules.
+
+Use this split:
+
+- governance catalog: describes what a dataset is and how it should be treated
+- canonical RBAC: describes who can perform canonical actions
+- backend compilers: translate canonical RBAC into Trino, PostgreSQL, Hasura,
+  MinIO, and Nessie artifacts
+
+V1 governance catalog entries can reference RBAC `policy_id` values through the
+dataset `policies` list. This keeps the browser and operator views connected to
+the policy files without duplicating allow rules in two places.
+
 The canonical RBAC workflow centers on two files under `.phlo/authorization/`:
 
 - `roles.yaml`: role definitions, inheritance, and subject-to-role assignments
