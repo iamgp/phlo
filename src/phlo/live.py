@@ -59,6 +59,45 @@ def get_live_tables() -> list[LiveTableSpec]:
     return list(_LIVE_TABLES)
 
 
+def plan_live_tables() -> list[dict[str, Any]]:
+    """Return live tables in dependency order and validate source references."""
+    by_name = {spec.name: spec for spec in _LIVE_TABLES}
+    planned: list[LiveTableSpec] = []
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(spec: LiveTableSpec) -> None:
+        if spec.name in visited:
+            return
+        if spec.name in visiting:
+            raise ValueError(f"Live table dependency cycle includes {spec.name}")
+        visiting.add(spec.name)
+        for source in spec.sources:
+            if source in by_name:
+                visit(by_name[source])
+            elif "." in source:
+                raise ValueError(f"{spec.name} depends on unknown live table source {source}")
+        visiting.remove(spec.name)
+        visited.add(spec.name)
+        planned.append(spec)
+
+    for spec in _LIVE_TABLES:
+        visit(spec)
+
+    return [
+        {
+            "name": spec.name,
+            "query": spec.query,
+            "sources": list(spec.sources),
+            "target_lag": spec.target_lag,
+            "mode": spec.mode,
+            "quality": list(spec.quality),
+            "metadata": dict(spec.metadata),
+        }
+        for spec in planned
+    ]
+
+
 def clear_live_tables() -> None:
     """Clear live table declarations for tests and reloads."""
     _LIVE_TABLES.clear()

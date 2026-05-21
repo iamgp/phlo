@@ -1,7 +1,7 @@
 import pytest
 
 import phlo
-from phlo.live import clear_live_tables, get_live_tables
+from phlo.live import clear_live_tables, get_live_tables, plan_live_tables
 
 
 @pytest.fixture(autouse=True)
@@ -41,3 +41,42 @@ def test_live_table_rejects_invalid_mode() -> None:
         assert "Unsupported live table mode: streaming" in str(exc)
     else:
         raise AssertionError("Expected invalid mode to fail")
+
+
+def test_plan_live_tables_orders_dependencies() -> None:
+    clear_live_tables()
+
+    @phlo.live_table(name="bronze.orders", query="select 1", mode="full")
+    def bronze_orders() -> None:
+        return None
+
+    @phlo.live_table(
+        name="silver.orders",
+        query="select * from bronze.orders",
+        sources=["bronze.orders"],
+    )
+    def silver_orders() -> None:
+        return None
+
+    plan = plan_live_tables()
+
+    assert [item["name"] for item in plan] == ["bronze.orders", "silver.orders"]
+
+
+def test_plan_live_tables_rejects_missing_source() -> None:
+    clear_live_tables()
+
+    @phlo.live_table(
+        name="silver.orders",
+        query="select * from bronze.orders",
+        sources=["bronze.orders"],
+    )
+    def silver_orders() -> None:
+        return None
+
+    try:
+        plan_live_tables()
+    except ValueError as exc:
+        assert "silver.orders depends on unknown live table source bronze.orders" in str(exc)
+    else:
+        raise AssertionError("Expected missing source to fail")
