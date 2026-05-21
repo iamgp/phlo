@@ -73,6 +73,34 @@ The governance surface may include a provider-neutral catalog payload:
 This payload is safe for browser rendering. It must not contain raw credentials,
 private URLs, signed URLs, or generated backend grants.
 
+### Data Product Portal Read Model
+
+The portal read model is a browser-safe list of certified or discoverable data
+products:
+
+```json
+[
+  {
+    "id": "warehouse.customers",
+    "title": "warehouse.customers",
+    "owner": "data-platform",
+    "description": "Customer dimension",
+    "domain": "crm",
+    "classification": "restricted",
+    "certification": "certified",
+    "status": "healthy",
+    "tags": {"domain": "crm", "certification": "certified"},
+    "access_request": {
+      "dataset_id": "warehouse.customers",
+      "policy_ids": ["allow_analyst_dataset_read"]
+    }
+  }
+]
+```
+
+Portal payloads must not expose credentials, raw service URLs, signed URLs, or
+backend-native grant statements.
+
 ## UI Contributions
 
 A UI contribution describes how one capability appears in Observatory v2.
