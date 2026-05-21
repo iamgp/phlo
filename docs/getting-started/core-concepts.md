@@ -122,6 +122,7 @@ references, desired target lag, refresh mode, and quality gate names.
 @phlo.live_table(
     name="bronze.orders",
     query="select * from raw.orders",
+    mode="full",
 )
 def bronze_orders():
     pass
