@@ -136,7 +136,8 @@ _FLOW_EXPORTS = {
     "publish",
     "schedule",
 }
-_SUBMODULE_EXPORTS = {"helpers", "ingest", "ingestion", "metrics", "quality", "transform"}
+_LIVE_EXPORTS = {"live_table"}
+_SUBMODULE_EXPORTS = {"helpers", "ingest", "ingestion", "live", "metrics", "quality", "transform"}
 
 __all__ = [
     "__version__",
@@ -146,6 +147,7 @@ __all__ = [
     *_QUALITY_EXPORTS,
     *_QUALITY_RULE_EXPORTS,
     *_FLOW_EXPORTS,
+    *_LIVE_EXPORTS,
 ]
 
 
@@ -238,6 +240,11 @@ def __getattr__(name: str) -> Any:
                 "schedule": schedule,
             }
         )
+        return globals()[name]
+    if name in _LIVE_EXPORTS:
+        from phlo.live import live_table
+
+        globals().update({"live_table": live_table})
         return globals()[name]
     if name in _QUALITY_EXPORTS:
         from phlo.quality import (
