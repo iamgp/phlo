@@ -37,6 +37,10 @@ class AccessPolicySpec:
     policy: str
     metadata: dict[str, Any]
     fn: Callable[..., Any]
+    tags: dict[str, str] | None = None
+    classification: str | None = None
+    row_filter: str | None = None
+    column_masks: dict[str, str] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -231,13 +235,17 @@ def contract(
     return _decorator
 
 
-def access(
+def access_policy(
     *,
     table: str,
     roles: list[str],
     pii_columns: list[str] | None = None,
-    policy: str = "read",
+    policy: str = "mask",
     metadata: dict[str, Any] | None = None,
+    tags: dict[str, str] | None = None,
+    classification: str | None = None,
+    row_filter: str | None = None,
+    column_masks: dict[str, str] | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Declare intended access policy metadata for a table."""
 
@@ -251,11 +259,42 @@ def access(
                 policy=policy,
                 metadata=dict(metadata or {}),
                 fn=fn,
+                tags=dict(tags or {}),
+                classification=classification,
+                row_filter=row_filter,
+                column_masks=dict(column_masks or {}),
             )
         )
         return fn
 
     return _decorator
+
+
+def access(
+    *,
+    table: str,
+    roles: list[str],
+    pii_columns: list[str] | None = None,
+    policy: str = "read",
+    metadata: dict[str, Any] | None = None,
+    tags: dict[str, str] | None = None,
+    classification: str | None = None,
+    row_filter: str | None = None,
+    column_masks: dict[str, str] | None = None,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Declare intended access policy metadata for a table."""
+
+    return access_policy(
+        table=table,
+        roles=roles,
+        pii_columns=pii_columns,
+        policy=policy,
+        metadata=metadata,
+        tags=tags,
+        classification=classification,
+        row_filter=row_filter,
+        column_masks=column_masks,
+    )
 
 
 def schedule(
@@ -349,15 +388,27 @@ def clear_schedules() -> None:
     _SCHEDULES.clear()
 
 
+def clear_flow_declarations() -> None:
+    """Clear all registered flow declarations."""
+    clear_publish_assets()
+    clear_observe_assets()
+    clear_backfill_assets()
+    clear_contract_specs()
+    clear_access_policies()
+    clear_schedules()
+
+
 __all__ = [
     "AccessPolicySpec",
     "ContractSpec",
     "ScheduleSpec",
     "access",
+    "access_policy",
     "backfill",
     "clear_access_policies",
     "clear_backfill_assets",
     "clear_contract_specs",
+    "clear_flow_declarations",
     "clear_observe_assets",
     "clear_publish_assets",
     "clear_schedules",
