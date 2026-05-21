@@ -1,10 +1,17 @@
+import pytest
+
 import phlo
 from phlo.live import clear_live_tables, get_live_tables
 
 
-def test_live_table_decorator_records_managed_table_spec() -> None:
+@pytest.fixture(autouse=True)
+def clean_live_tables() -> None:
+    clear_live_tables()
+    yield
     clear_live_tables()
 
+
+def test_live_table_decorator_records_managed_table_spec() -> None:
     @phlo.live_table(
         name="silver.orders",
         query="select * from bronze.orders",
@@ -28,8 +35,6 @@ def test_live_table_decorator_records_managed_table_spec() -> None:
 
 
 def test_live_table_rejects_invalid_mode() -> None:
-    clear_live_tables()
-
     try:
         phlo.live_table(name="silver.orders", query="select 1", mode="streaming")
     except ValueError as exc:
