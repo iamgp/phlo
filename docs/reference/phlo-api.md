@@ -120,6 +120,28 @@ Observatory v2 endpoints live under `/api/observatory/v2`. They are provider-neu
 
 See [Observatory v2 Contracts](observatory-v2-contracts.md) for the capability contribution model and browser-safety rules.
 
+### Live Table Read Model
+
+The live table read model contains the declaration plan returned by
+`phlo.live.plan_live_tables()`:
+
+```json
+[
+  {
+    "name": "silver.orders",
+    "query": "select * from bronze.orders",
+    "sources": ["bronze.orders"],
+    "target_lag": "15 minutes",
+    "mode": "incremental",
+    "quality": ["not_null:order_id"],
+    "metadata": {}
+  }
+]
+```
+
+The query text is user-authored SQL and must be treated as project metadata, not
+as a browser-executable command.
+
 ## Key Features
 
 ### 1. Read-Only Query Guardrails

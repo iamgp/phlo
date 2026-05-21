@@ -112,6 +112,29 @@ In the default bundled stack, Nessie is the versioned catalog provider for this 
 Profiles without a versioned catalog still work, but they do not get branch/promotion
 semantics.
 
+### Managed Live Tables
+
+`phlo.live_table(...)` declares a managed table that Phlo can refresh from one
+or more upstream sources. V1 records the table name, SQL query, source table
+references, desired target lag, refresh mode, and quality gate names.
+
+```python
+@phlo.live_table(
+    name="silver.orders",
+    query="select * from bronze.orders",
+    sources=["bronze.orders"],
+    target_lag="15 minutes",
+    mode="incremental",
+    quality=["not_null:order_id"],
+)
+def silver_orders():
+    pass
+```
+
+Live table declarations are provider-neutral. Execution providers can compile
+them into Dagster assets, dbt models, Trino SQL jobs, or Iceberg maintenance
+flows.
+
 ### 2. Decorator-Driven Development
 
 Phlo reduces boilerplate through powerful decorators that auto-generate Dagster assets.
