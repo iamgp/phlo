@@ -248,6 +248,16 @@ def test_plugins_module_imports_without_psycopg2(monkeypatch: pytest.MonkeyPatch
     assert plugins.SettingsService.__name__ == "SettingsService"
 
 
+def test_top_level_phlo_exports_access_policy_decorator() -> None:
+    """The public flow access policy decorator should resolve from top-level phlo."""
+    import phlo
+    import phlo.flow
+
+    assert "access_policy" in phlo.__all__
+    assert callable(phlo.access_policy)
+    assert phlo.access_policy is phlo.flow.access_policy
+
+
 def test_settings_service_raises_clear_error_without_psycopg2(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

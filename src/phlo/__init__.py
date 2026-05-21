@@ -118,6 +118,7 @@ _QUALITY_RULE_EXPORTS = {
 }
 _FLOW_EXPORTS = {
     "access",
+    "access_policy",
     "backfill",
     "clear_access_policies",
     "clear_backfill_assets",
@@ -197,6 +198,7 @@ def __getattr__(name: str) -> Any:
     if name in _FLOW_EXPORTS:
         from phlo.flow import (
             access,
+            access_policy,
             backfill,
             clear_access_policies,
             clear_backfill_assets,
@@ -219,6 +221,7 @@ def __getattr__(name: str) -> Any:
         globals().update(
             {
                 "access": access,
+                "access_policy": access_policy,
                 "backfill": backfill,
                 "clear_access_policies": clear_access_policies,
                 "clear_backfill_assets": clear_backfill_assets,
