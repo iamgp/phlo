@@ -128,6 +128,15 @@ The live table read model contains the declaration plan returned by
 ```json
 [
   {
+    "name": "bronze.orders",
+    "query": "select * from raw.orders",
+    "sources": [],
+    "target_lag": null,
+    "mode": "full",
+    "quality": [],
+    "metadata": {}
+  },
+  {
     "name": "silver.orders",
     "query": "select * from bronze.orders",
     "sources": ["bronze.orders"],

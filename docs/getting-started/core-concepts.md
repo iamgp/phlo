@@ -120,6 +120,14 @@ references, desired target lag, refresh mode, and quality gate names.
 
 ```python
 @phlo.live_table(
+    name="bronze.orders",
+    query="select * from raw.orders",
+)
+def bronze_orders():
+    pass
+
+
+@phlo.live_table(
     name="silver.orders",
     query="select * from bronze.orders",
     sources=["bronze.orders"],
@@ -131,9 +139,9 @@ def silver_orders():
     pass
 ```
 
-Live table declarations are provider-neutral. Execution providers can compile
-them into Dagster assets, dbt models, Trino SQL jobs, or Iceberg maintenance
-flows.
+Live table declarations are provider-neutral. These declarations are designed to
+be consumed by future execution providers that can compile them into Dagster
+assets, dbt models, Trino SQL jobs, or Iceberg maintenance flows.
 
 ### 2. Decorator-Driven Development
 
