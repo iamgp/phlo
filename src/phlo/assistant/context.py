@@ -7,13 +7,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 _DSN_RE = re.compile(r"^[a-z][a-z0-9+.-]*://\S+$", re.IGNORECASE)
-_TOKEN_RE = re.compile(r"token=\S+")
+_TOKEN_RE = re.compile(r"(token)=\S+", re.IGNORECASE)
 
 
 def _redact(value: str) -> str:
     if _DSN_RE.fullmatch(value):
         return "<redacted-dsn>"
-    return _TOKEN_RE.sub("token=<redacted>", value)
+    return _TOKEN_RE.sub(r"\1=<redacted>", value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,12 +30,14 @@ class AssistantContextBundle:
         }
 
     def to_prompt(self) -> str:
+        payload = self.to_read_model()
+        facts = payload["facts"]
         lines = [
-            f"Incident: {self.title}",
+            f"Incident: {payload['title']}",
             "Facts:",
-            *(f"- {key}: {self.facts[key]}" for key in sorted(self.facts)),
+            *(f"- {key}: {facts[key]}" for key in sorted(facts)),
             "Suggested actions:",
-            *(f"- {action}" for action in self.suggested_actions),
+            *(f"- {action}" for action in payload["suggested_actions"]),
         ]
         return "\n".join(lines)
 

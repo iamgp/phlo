@@ -20,6 +20,18 @@ def test_build_incident_context_redacts_secret_like_values() -> None:
     assert payload["suggested_actions"] == ["inspect_quality_check", "open_lineage"]
 
 
+def test_read_model_redacts_token_case_insensitively() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={"error": "Token=abc123 failed"},
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"]["error"] == "Token=<redacted> failed"
+
+
 def test_assistant_context_to_prompt_is_deterministic() -> None:
     bundle = AssistantContextBundle(
         title="Quality failure",
@@ -35,3 +47,21 @@ def test_assistant_context_to_prompt_is_deterministic() -> None:
         "Suggested actions:\n"
         "- inspect_quality_check"
     )
+
+
+def test_assistant_context_to_prompt_redacts_secret_like_values() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "error": "TOKEN=abc123",
+            "dsn": "postgresql://user:pass@localhost/db",
+        },
+        suggested_actions=(),
+    )
+
+    prompt = bundle.to_prompt()
+
+    assert "TOKEN=<redacted>" in prompt
+    assert "<redacted-dsn>" in prompt
+    assert "abc123" not in prompt
+    assert "user:pass" not in prompt
