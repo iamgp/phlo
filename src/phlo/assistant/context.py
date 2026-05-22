@@ -50,6 +50,10 @@ class AssistantContextBundle:
             "suggested_actions": [_redact(action) for action in self.suggested_actions],
         }
 
+    def to_mcp_payload(self) -> dict[str, Any]:
+        """Serialize context for MCP tools without granting execution privileges."""
+        return {"kind": "phlo.assistant.context.v1", "payload": self.to_read_model()}
+
     def to_prompt(self) -> str:
         payload = self.to_read_model()
         facts = payload["facts"]

@@ -285,3 +285,42 @@ def test_assistant_context_to_prompt_redacts_secret_like_fact_keys() -> None:
     )
     assert "abc123" not in prompt
     assert "def456" not in prompt
+
+
+def test_assistant_context_serializes_mcp_payload() -> None:
+    bundle = AssistantContextBundle(
+        title="Quality failure",
+        facts={"table": "silver.orders"},
+        suggested_actions=("inspect_quality_check",),
+    )
+
+    assert bundle.to_mcp_payload() == {
+        "kind": "phlo.assistant.context.v1",
+        "payload": {
+            "title": "Quality failure",
+            "facts": {"table": "silver.orders"},
+            "suggested_actions": ["inspect_quality_check"],
+        },
+    }
+
+
+def test_assistant_context_mcp_payload_uses_redacted_read_model() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident token=titleSecret",
+        facts={"dsn": "postgresql://user:pass@localhost/db"},
+        suggested_actions=("notify Bearer actionBearer",),
+    )
+
+    payload = bundle.to_mcp_payload()
+
+    assert payload == {
+        "kind": "phlo.assistant.context.v1",
+        "payload": {
+            "title": "Incident token=<redacted>",
+            "facts": {"dsn": "<redacted-dsn>"},
+            "suggested_actions": ["notify Bearer <redacted>"],
+        },
+    }
+    assert "titleSecret" not in str(payload)
+    assert "user:pass" not in str(payload)
+    assert "actionBearer" not in str(payload)
