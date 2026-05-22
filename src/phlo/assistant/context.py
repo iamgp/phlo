@@ -17,6 +17,10 @@ _KEY_VALUE_SECRET_RE = re.compile(
     r"""\b([\w-]*(?:password|passwd|token|secret|api[_-]?key|credential)[\w-]*)\b\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)""",
     re.IGNORECASE,
 )
+_SECRET_KEY_RE = re.compile(
+    r"^(?:password|passwd|token|access[_-]?token|refresh[_-]?token|secret|api[_-]?key|credential|authorization)$",
+    re.IGNORECASE,
+)
 
 
 def _redact(value: str) -> str:
@@ -26,7 +30,9 @@ def _redact(value: str) -> str:
     return _BEARER_RE.sub(r"\1 <redacted>", value)
 
 
-def _redact_value(value: Any) -> Any:
+def _redact_value(value: Any, *, secret_key: bool = False) -> Any:
+    if secret_key:
+        return "<redacted>"
     if isinstance(value, str):
         return _redact(value)
     if isinstance(value, Mapping):
@@ -42,11 +48,15 @@ def _redact_facts(facts: Mapping[str, Any]) -> dict[str, Any]:
     redacted: dict[str, Any] = {}
     collisions: dict[str, int] = {}
     for key, value in facts.items():
-        redacted_key = _redact(str(key))
+        raw_key = str(key)
+        redacted_key = _redact(raw_key)
         if redacted_key in redacted:
             collisions[redacted_key] = collisions.get(redacted_key, 1) + 1
             redacted_key = f"{redacted_key} ({collisions[redacted_key]})"
-        redacted[redacted_key] = _redact_value(value)
+        redacted[redacted_key] = _redact_value(
+            value,
+            secret_key=_SECRET_KEY_RE.fullmatch(raw_key) is not None,
+        )
     return redacted
 
 

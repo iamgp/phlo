@@ -161,12 +161,41 @@ def test_read_model_preserves_structured_fact_values_and_redacts_nested_strings(
         "checks": ["not_null(order_id)", "token=<redacted>"],
         "metadata": {
             "owner": "analytics",
-            "password": "password=<redacted>",
+            "password": "<redacted>",
             "attempts": [1, 2],
         },
     }
     assert "abc123" not in str(payload)
     assert "hunter2" not in str(payload)
+
+
+def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "metadata": {
+                "password": "hunter2",
+                "api_key": "abc123",
+                "nested": {"refresh_token": "deadbeef"},
+                "owner": "analytics",
+            },
+        },
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"] == {
+        "metadata": {
+            "password": "<redacted>",
+            "api_key": "<redacted>",
+            "nested": {"refresh_token": "<redacted>"},
+            "owner": "analytics",
+        },
+    }
+    assert "hunter2" not in str(payload)
+    assert "abc123" not in str(payload)
+    assert "deadbeef" not in str(payload)
 
 
 def test_assistant_context_to_prompt_is_deterministic() -> None:
@@ -338,6 +367,30 @@ def test_assistant_context_to_prompt_preserves_structured_fact_values() -> None:
         "- failed_rows: 12\n"
         "Suggested actions:"
     )
+    assert "abc123" not in prompt
+
+
+def test_assistant_context_to_prompt_redacts_values_for_nested_secret_like_keys() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "metadata": {
+                "password": "hunter2",
+                "api_key": "abc123",
+            },
+        },
+        suggested_actions=(),
+    )
+
+    prompt = bundle.to_prompt()
+
+    assert prompt == (
+        "Incident: Incident\n"
+        "Facts:\n"
+        "- metadata: {'password': '<redacted>', 'api_key': '<redacted>'}\n"
+        "Suggested actions:"
+    )
+    assert "hunter2" not in prompt
     assert "abc123" not in prompt
 
 
