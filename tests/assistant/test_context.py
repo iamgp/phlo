@@ -123,14 +123,21 @@ def test_read_model_redacts_authorization_bearer_and_quoted_secret_values() -> N
 def test_read_model_redacts_authorization_basic_values() -> None:
     bundle = AssistantContextBundle(
         title="Incident",
-        facts={"authorization_header": "Authorization: Basic dXNlcjpwYXNz"},
+        facts={
+            "authorization_header": "Authorization: Basic dXNlcjpwYXNz",
+            "auth": "Basic YmFyOmJheg==",
+            "error": "upstream returned Basic dXNlcjpwYXNz",
+        },
         suggested_actions=(),
     )
 
     payload = bundle.to_read_model()
 
     assert payload["facts"]["authorization_header"] == "Authorization: Basic <redacted>"
+    assert payload["facts"]["auth"] == "Basic <redacted>"
+    assert payload["facts"]["error"] == "upstream returned Basic <redacted>"
     assert "dXNlcjpwYXNz" not in str(payload)
+    assert "YmFyOmJheg==" not in str(payload)
 
 
 def test_read_model_redacts_embedded_key_material_values() -> None:
@@ -281,6 +288,30 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
     assert "deadbeef" not in str(payload)
 
 
+def test_read_model_preserves_descriptive_secret_metadata_labels() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "metadata": {
+                "token_count": 7,
+                "api_key_label": "Stripe API key",
+                "secret_name": "warehouse credential",
+            },
+        },
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"] == {
+        "metadata": {
+            "token_count": 7,
+            "api_key_label": "Stripe API key",
+            "secret_name": "warehouse credential",
+        },
+    }
+
+
 def test_read_model_serializes_common_metadata_values() -> None:
     bundle = AssistantContextBundle(
         title="Incident",
@@ -429,7 +460,11 @@ def test_assistant_context_to_prompt_redacts_authorization_bearer_and_quoted_sec
 def test_assistant_context_to_prompt_redacts_authorization_basic_values() -> None:
     bundle = AssistantContextBundle(
         title="Incident",
-        facts={"authorization_header": "Authorization: Basic dXNlcjpwYXNz"},
+        facts={
+            "authorization_header": "Authorization: Basic dXNlcjpwYXNz",
+            "auth": "Basic YmFyOmJheg==",
+            "error": "upstream returned Basic dXNlcjpwYXNz",
+        },
         suggested_actions=(),
     )
 
@@ -438,10 +473,13 @@ def test_assistant_context_to_prompt_redacts_authorization_basic_values() -> Non
     assert prompt == (
         "Incident: Incident\n"
         "Facts:\n"
+        "- auth: Basic <redacted>\n"
         "- authorization_header: Authorization: Basic <redacted>\n"
+        "- error: upstream returned Basic <redacted>\n"
         "Suggested actions:"
     )
     assert "dXNlcjpwYXNz" not in prompt
+    assert "YmFyOmJheg==" not in prompt
 
 
 def test_assistant_context_to_prompt_redacts_embedded_key_material_values() -> None:

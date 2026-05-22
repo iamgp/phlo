@@ -14,6 +14,7 @@ _AUTHORIZATION_SCHEME_RE = re.compile(
     re.IGNORECASE,
 )
 _BEARER_RE = re.compile(r"\b(bearer)\b\s+\S+", re.IGNORECASE)
+_BASIC_RE = re.compile(r"\b(basic)\b\s+\S+", re.IGNORECASE)
 _SECRET_NAME_PATTERN = (
     r"[\w-]*(?:password|passwd|token|secret|api[_-]?key|credential|"
     r"private[_-]?key|signing[_-]?key|encryption[_-]?key)[\w-]*"
@@ -28,13 +29,16 @@ def _redact(value: str) -> str:
     value = _DSN_RE.sub("<redacted-dsn>", value)
     value = _KEY_VALUE_SECRET_RE.sub(lambda match: f"{match.group(1)}=<redacted>", value)
     value = _AUTHORIZATION_SCHEME_RE.sub(r"\1\2 <redacted>", value)
-    return _BEARER_RE.sub(r"\1 <redacted>", value)
+    value = _BEARER_RE.sub(r"\1 <redacted>", value)
+    return _BASIC_RE.sub(r"\1 <redacted>", value)
 
 
 def _is_secret_key(key: str) -> bool:
     normalized_key = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", key)
     parts = [part for part in re.split(r"[_-]+", normalized_key.lower()) if part]
     if not parts:
+        return False
+    if parts[-1] in {"count", "label", "name"}:
         return False
     if key.lower() == "authorization":
         return True
