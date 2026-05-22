@@ -206,6 +206,11 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
                 "signing_key_id": "signing-id",
                 "encryption_key_arn": "encryption-arn",
                 "secret_key": "django-secret",
+                "db_password": "db-pass",
+                "stripe_secret_key": "sk_live_123",
+                "aws_secret_access_key": "aws-secret",
+                "github_token_value": "ghp_123",
+                "service_api_key_value": "api-secret",
                 "nested": {"refresh_token": "deadbeef"},
                 "owner": "analytics",
             },
@@ -227,6 +232,11 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
             "signing_key_id": "<redacted>",
             "encryption_key_arn": "<redacted>",
             "secret_key": "<redacted>",
+            "db_password": "<redacted>",
+            "stripe_secret_key": "<redacted>",
+            "aws_secret_access_key": "<redacted>",
+            "github_token_value": "<redacted>",
+            "service_api_key_value": "<redacted>",
             "nested": {"refresh_token": "<redacted>"},
             "owner": "analytics",
         },
@@ -241,6 +251,11 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
     assert "signing-id" not in str(payload)
     assert "encryption-arn" not in str(payload)
     assert "django-secret" not in str(payload)
+    assert "db-pass" not in str(payload)
+    assert "sk_live_123" not in str(payload)
+    assert "aws-secret" not in str(payload)
+    assert "ghp_123" not in str(payload)
+    assert "api-secret" not in str(payload)
     assert "deadbeef" not in str(payload)
 
 

@@ -22,14 +22,6 @@ _KEY_VALUE_SECRET_RE = re.compile(
     rf"""\b({_SECRET_NAME_PATTERN})\b\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)""",
     re.IGNORECASE,
 )
-_SECRET_KEY_RE = re.compile(
-    r"^(?:password|passwd|token|access[_-]?token|refresh[_-]?token|"
-    r"auth[_-]?token|session[_-]?token|client[_-]?secret|secret[_-]?key|"
-    r"secret|api[_-]?key|credential|authorization|"
-    r"private[_-]?key(?:[_-].*)?|signing[_-]?key(?:[_-].*)?|"
-    r"encryption[_-]?key(?:[_-].*)?)$",
-    re.IGNORECASE,
-)
 
 
 def _redact(value: str) -> str:
@@ -37,6 +29,22 @@ def _redact(value: str) -> str:
     value = _KEY_VALUE_SECRET_RE.sub(lambda match: f"{match.group(1)}=<redacted>", value)
     value = _AUTHORIZATION_BEARER_RE.sub(r"\1\2 <redacted>", value)
     return _BEARER_RE.sub(r"\1 <redacted>", value)
+
+
+def _is_secret_key(key: str) -> bool:
+    parts = [part for part in re.split(r"[_-]+", key.lower()) if part]
+    if not parts:
+        return False
+    if key.lower() == "authorization":
+        return True
+    if any(part in {"password", "passwd", "token", "credential"} for part in parts):
+        return True
+    pairs = set(zip(parts, parts[1:], strict=False))
+    if ("api", "key") in pairs or ("client", "secret") in pairs:
+        return True
+    if "secret" in parts and "key" in parts:
+        return True
+    return any((prefix, "key") in pairs for prefix in ("private", "signing", "encryption"))
 
 
 def _redact_value(value: Any, *, secret_key: bool = False) -> Any:
@@ -70,7 +78,7 @@ def _redact_facts(facts: Mapping[str, Any]) -> dict[str, Any]:
             redacted_key = f"{redacted_key} ({collisions[redacted_key]})"
         redacted[redacted_key] = _redact_value(
             value,
-            secret_key=_SECRET_KEY_RE.fullmatch(raw_key) is not None,
+            secret_key=_is_secret_key(raw_key),
         )
     return redacted
 
