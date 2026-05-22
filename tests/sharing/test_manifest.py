@@ -25,6 +25,27 @@ def test_share_manifest_parses_read_only_share() -> None:
     assert manifest.recipients[0].id == "partner-a"
 
 
+def test_share_manifest_serializes_browser_safe_payload() -> None:
+    manifest = ShareManifest.from_dict(
+        {
+            "version": 1,
+            "share_id": "partner-revenue",
+            "title": "Partner Revenue Share",
+            "datasets": [{"id": "gold.revenue", "mode": "read"}],
+            "recipients": [{"id": "partner-a", "type": "partner"}],
+        },
+        catalog=_catalog(),
+    )
+
+    assert manifest.to_read_model() == {
+        "version": 1,
+        "share_id": "partner-revenue",
+        "title": "Partner Revenue Share",
+        "datasets": [{"id": "gold.revenue", "mode": "read"}],
+        "recipients": [{"id": "partner-a", "type": "partner"}],
+    }
+
+
 def test_share_manifest_rejects_write_mode() -> None:
     try:
         ShareManifest.from_dict(
