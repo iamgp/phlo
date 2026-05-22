@@ -25,6 +25,18 @@ def _redact(value: str) -> str:
     return _BEARER_RE.sub(r"\1 <redacted>", value)
 
 
+def _redact_facts(facts: dict[str, str]) -> dict[str, str]:
+    redacted: dict[str, str] = {}
+    collisions: dict[str, int] = {}
+    for key, value in facts.items():
+        redacted_key = _redact(key)
+        if redacted_key in redacted:
+            collisions[redacted_key] = collisions.get(redacted_key, 1) + 1
+            redacted_key = f"{redacted_key} ({collisions[redacted_key]})"
+        redacted[redacted_key] = _redact(value)
+    return redacted
+
+
 @dataclass(frozen=True, slots=True)
 class AssistantContextBundle:
     title: str
@@ -34,7 +46,7 @@ class AssistantContextBundle:
     def to_read_model(self) -> dict[str, Any]:
         return {
             "title": _redact(self.title),
-            "facts": {key: _redact(value) for key, value in self.facts.items()},
+            "facts": _redact_facts(self.facts),
             "suggested_actions": [_redact(action) for action in self.suggested_actions],
         }
 

@@ -115,6 +115,28 @@ def test_read_model_redacts_authorization_bearer_and_quoted_secret_values() -> N
     assert "key with spaces" not in str(payload)
 
 
+def test_read_model_redacts_secret_like_fact_keys_and_preserves_collisions() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "token=abc123": "failed",
+            "token=def456": "retry",
+            "table": "silver.orders",
+        },
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"] == {
+        "token=<redacted>": "failed",
+        "token=<redacted> (2)": "retry",
+        "table": "silver.orders",
+    }
+    assert "abc123" not in str(payload)
+    assert "def456" not in str(payload)
+
+
 def test_assistant_context_to_prompt_is_deterministic() -> None:
     bundle = AssistantContextBundle(
         title="Quality failure",
@@ -238,3 +260,28 @@ def test_assistant_context_to_prompt_redacts_authorization_bearer_and_quoted_sec
     assert "cafebabe" not in prompt
     assert "hunter two" not in prompt
     assert "key with spaces" not in prompt
+
+
+def test_assistant_context_to_prompt_redacts_secret_like_fact_keys() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "token=abc123": "failed",
+            "token=def456": "retry",
+            "table": "silver.orders",
+        },
+        suggested_actions=(),
+    )
+
+    prompt = bundle.to_prompt()
+
+    assert prompt == (
+        "Incident: Incident\n"
+        "Facts:\n"
+        "- table: silver.orders\n"
+        "- token=<redacted>: failed\n"
+        "- token=<redacted> (2): retry\n"
+        "Suggested actions:"
+    )
+    assert "abc123" not in prompt
+    assert "def456" not in prompt
