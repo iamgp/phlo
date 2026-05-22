@@ -6,17 +6,16 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-_DSN_RE = re.compile(r"^[a-z][a-z0-9+.-]*://\S+$", re.IGNORECASE)
+_DSN_RE = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.IGNORECASE)
 _AUTHORIZATION_RE = re.compile(r"\b(authorization|bearer)\b\s+\S+", re.IGNORECASE)
 _KEY_VALUE_SECRET_RE = re.compile(
-    r"\b(password|passwd|token|secret|api_key|apikey|credential)\b\s*[:=]\s*[^\s,;]+",
+    r"\b([\w-]*(?:password|passwd|token|secret|api[_-]?key|credential)[\w-]*)\b\s*[:=]\s*[^\s,;]+",
     re.IGNORECASE,
 )
 
 
 def _redact(value: str) -> str:
-    if _DSN_RE.fullmatch(value):
-        return "<redacted-dsn>"
+    value = _DSN_RE.sub("<redacted-dsn>", value)
     value = _KEY_VALUE_SECRET_RE.sub(lambda match: f"{match.group(1)}=<redacted>", value)
     return _AUTHORIZATION_RE.sub(r"\1 <redacted>", value)
 

@@ -50,6 +50,28 @@ def test_read_model_redacts_password_like_values_and_bearer_tokens() -> None:
     assert "deadbeef" not in str(payload)
 
 
+def test_read_model_redacts_embedded_dsns_and_compound_token_keys() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "connection": "connect failed: postgresql://user:pass@localhost/db timeout",
+            "tokens": "access_token=abc refresh_token=def api-key=ghi",
+        },
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"]["connection"] == "connect failed: <redacted-dsn> timeout"
+    assert payload["facts"]["tokens"] == (
+        "access_token=<redacted> refresh_token=<redacted> api-key=<redacted>"
+    )
+    assert "user:pass" not in str(payload)
+    assert "abc" not in str(payload)
+    assert "def" not in str(payload)
+    assert "ghi" not in str(payload)
+
+
 def test_assistant_context_to_prompt_is_deterministic() -> None:
     bundle = AssistantContextBundle(
         title="Quality failure",
@@ -100,5 +122,24 @@ def test_assistant_context_to_prompt_redacts_password_like_values_and_bearer_tok
         "Facts:\n"
         "- auth: Bearer <redacted>\n"
         "- error: password=<redacted> failed\n"
+        "Suggested actions:"
+    )
+
+
+def test_assistant_context_to_prompt_redacts_embedded_dsns_and_compound_token_keys() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "connection": "connect failed: postgresql://user:pass@localhost/db timeout",
+            "tokens": "access_token=abc refresh_token=def api-key=ghi",
+        },
+        suggested_actions=(),
+    )
+
+    assert bundle.to_prompt() == (
+        "Incident: Incident\n"
+        "Facts:\n"
+        "- connection: connect failed: <redacted-dsn> timeout\n"
+        "- tokens: access_token=<redacted> refresh_token=<redacted> api-key=<redacted>\n"
         "Suggested actions:"
     )
