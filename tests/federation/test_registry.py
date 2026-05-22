@@ -59,6 +59,67 @@ def test_registry_rejects_unknown_connection() -> None:
         raise AssertionError("Expected unknown connection to fail")
 
 
+def test_registry_rejects_duplicate_connection_ids() -> None:
+    try:
+        FederationRegistry.from_dict(
+            {
+                "version": 1,
+                "connections": [
+                    {
+                        "id": "crm-postgres",
+                        "type": "postgres",
+                        "jdbc_url": "jdbc:postgresql://primary.example.com:5432/app",
+                        "secret_ref": "secret/data/crm-primary",
+                    },
+                    {
+                        "id": "crm-postgres",
+                        "type": "postgres",
+                        "jdbc_url": "jdbc:postgresql://replica.example.com:5432/app",
+                        "secret_ref": "secret/data/crm-replica",
+                    },
+                ],
+                "datasets": [],
+            }
+        )
+    except ValueError as exc:
+        assert str(exc) == "Duplicate federation connection id: crm-postgres"
+    else:
+        raise AssertionError("Expected duplicate connection id to fail")
+
+
+def test_registry_rejects_duplicate_dataset_ids() -> None:
+    try:
+        FederationRegistry.from_dict(
+            {
+                "version": 1,
+                "connections": [
+                    {
+                        "id": "crm",
+                        "type": "postgres",
+                        "jdbc_url": "jdbc:postgresql://crm.example.com:5432/app",
+                        "secret_ref": "secret/data/crm",
+                    }
+                ],
+                "datasets": [
+                    {
+                        "id": "crm.public.accounts",
+                        "connection_id": "crm",
+                        "remote_name": "public.accounts",
+                    },
+                    {
+                        "id": "crm.public.accounts",
+                        "connection_id": "crm",
+                        "remote_name": "public.accounts_archive",
+                    },
+                ],
+            }
+        )
+    except ValueError as exc:
+        assert str(exc) == "Duplicate foreign dataset id: crm.public.accounts"
+    else:
+        raise AssertionError("Expected duplicate dataset id to fail")
+
+
 def test_registry_read_model_redacts_connection_details() -> None:
     registry = FederationRegistry.from_dict(
         {

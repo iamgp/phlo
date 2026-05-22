@@ -47,6 +47,8 @@ class FederationRegistry:
         connections: dict[str, ExternalConnection] = {}
         for raw in data.get("connections", []):
             connection_id = str(raw["id"])
+            if connection_id in connections:
+                raise ValueError(f"Duplicate federation connection id: {connection_id}")
             connections[connection_id] = ExternalConnection(
                 id=connection_id,
                 type=str(raw["type"]),
@@ -57,6 +59,8 @@ class FederationRegistry:
         datasets: dict[str, ForeignDataset] = {}
         for raw in data.get("datasets", []):
             dataset_id = str(raw["id"])
+            if dataset_id in datasets:
+                raise ValueError(f"Duplicate foreign dataset id: {dataset_id}")
             connection_id = str(raw["connection_id"])
             if connection_id not in connections:
                 raise ValueError(
