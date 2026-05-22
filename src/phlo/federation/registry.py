@@ -82,6 +82,11 @@ class FederationRegistry:
     def to_read_model(self) -> dict[str, Any]:
         return {
             "version": self.version,
-            "connections": [connection.to_read_model() for connection in self.connections.values()],
-            "datasets": [dataset.to_read_model() for dataset in self.datasets.values()],
+            "connections": [
+                self.connections[connection_id].to_read_model()
+                for connection_id in sorted(self.connections)
+            ],
+            "datasets": [
+                self.datasets[dataset_id].to_read_model() for dataset_id in sorted(self.datasets)
+            ],
         }

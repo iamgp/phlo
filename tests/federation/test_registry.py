@@ -156,3 +156,34 @@ def test_registry_read_model_redacts_connection_details() -> None:
             }
         ],
     }
+
+
+def test_registry_read_model_is_deterministic() -> None:
+    registry = FederationRegistry.from_dict(
+        {
+            "version": 1,
+            "connections": [
+                {
+                    "id": "z",
+                    "type": "postgres",
+                    "jdbc_url": "jdbc:postgresql://z.example.com:5432/app",
+                    "secret_ref": "secret/data/z",
+                },
+                {
+                    "id": "a",
+                    "type": "postgres",
+                    "jdbc_url": "jdbc:postgresql://a.example.com:5432/app",
+                    "secret_ref": "secret/data/a",
+                },
+            ],
+            "datasets": [
+                {"id": "z.remote", "connection_id": "z", "remote_name": "public.z"},
+                {"id": "a.remote", "connection_id": "a", "remote_name": "public.a"},
+            ],
+        }
+    )
+
+    payload = registry.to_read_model()
+
+    assert [connection["id"] for connection in payload["connections"]] == ["a", "z"]
+    assert [dataset["id"] for dataset in payload["datasets"]] == ["a.remote", "z.remote"]
