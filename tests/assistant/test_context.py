@@ -1,3 +1,7 @@
+import json
+from datetime import UTC, datetime
+from decimal import Decimal
+
 from phlo.assistant import AssistantContextBundle, build_incident_context
 
 
@@ -176,6 +180,10 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
             "metadata": {
                 "password": "hunter2",
                 "api_key": "abc123",
+                "client_secret": "s3cr3t",
+                "auth_token": "auth123",
+                "session_token": "session123",
+                "private_key": "private123",
                 "nested": {"refresh_token": "deadbeef"},
                 "owner": "analytics",
             },
@@ -189,13 +197,41 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
         "metadata": {
             "password": "<redacted>",
             "api_key": "<redacted>",
+            "client_secret": "<redacted>",
+            "auth_token": "<redacted>",
+            "session_token": "<redacted>",
+            "private_key": "<redacted>",
             "nested": {"refresh_token": "<redacted>"},
             "owner": "analytics",
         },
     }
     assert "hunter2" not in str(payload)
     assert "abc123" not in str(payload)
+    assert "s3cr3t" not in str(payload)
+    assert "auth123" not in str(payload)
+    assert "session123" not in str(payload)
+    assert "private123" not in str(payload)
     assert "deadbeef" not in str(payload)
+
+
+def test_read_model_serializes_common_metadata_values() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "when": datetime(2026, 5, 22, 9, 30, tzinfo=UTC),
+            "ratio": Decimal("0.25"),
+            "tags": {"bronze", "quality"},
+        },
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"] == {
+        "when": "2026-05-22 09:30:00+00:00",
+        "ratio": "0.25",
+        "tags": ["bronze", "quality"],
+    }
 
 
 def test_assistant_context_to_prompt_is_deterministic() -> None:
@@ -392,6 +428,37 @@ def test_assistant_context_to_prompt_redacts_values_for_nested_secret_like_keys(
     )
     assert "hunter2" not in prompt
     assert "abc123" not in prompt
+
+
+def test_assistant_context_mcp_payload_is_json_serializable() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "when": datetime(2026, 5, 22, 9, 30, tzinfo=UTC),
+            "ratio": Decimal("0.25"),
+            "tags": {"bronze", "quality"},
+            "oauth": {"client_secret": "s3cr3t", "auth_token": "abc123"},
+        },
+        suggested_actions=("inspect_quality_check",),
+    )
+
+    payload = bundle.to_mcp_payload()
+
+    assert json.loads(json.dumps(payload)) == {
+        "kind": "phlo.assistant.context.v1",
+        "payload": {
+            "title": "Incident",
+            "facts": {
+                "when": "2026-05-22 09:30:00+00:00",
+                "ratio": "0.25",
+                "tags": ["bronze", "quality"],
+                "oauth": {"client_secret": "<redacted>", "auth_token": "<redacted>"},
+            },
+            "suggested_actions": ["inspect_quality_check"],
+        },
+    }
+    assert "s3cr3t" not in str(payload)
+    assert "abc123" not in str(payload)
 
 
 def test_assistant_context_serializes_mcp_payload() -> None:

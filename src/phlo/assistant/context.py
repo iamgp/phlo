@@ -18,7 +18,7 @@ _KEY_VALUE_SECRET_RE = re.compile(
     re.IGNORECASE,
 )
 _SECRET_KEY_RE = re.compile(
-    r"^(?:password|passwd|token|access[_-]?token|refresh[_-]?token|secret|api[_-]?key|credential|authorization)$",
+    r"^(?:password|passwd|token|access[_-]?token|refresh[_-]?token|auth[_-]?token|session[_-]?token|client[_-]?secret|secret|api[_-]?key|credential|authorization|private[_-]?key|signing[_-]?key|encryption[_-]?key)$",
     re.IGNORECASE,
 )
 
@@ -41,7 +41,11 @@ def _redact_value(value: Any, *, secret_key: bool = False) -> Any:
         return [_redact_value(item) for item in value]
     if isinstance(value, tuple):
         return [_redact_value(item) for item in value]
-    return value
+    if isinstance(value, set):
+        return sorted((_redact_value(item) for item in value), key=repr)
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    return _redact(str(value))
 
 
 def _redact_facts(facts: Mapping[str, Any]) -> dict[str, Any]:
