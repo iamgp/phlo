@@ -412,6 +412,28 @@ Notes:
 - `PHLO_DEFAULT_REF` is required for ref-dependent endpoints unless the resolved `query_engine` capability exposes `default_ref`.
 - `PHLO_API_DISCOVERY_SCHEMAS` is optional only when table discovery can use request `branch`/`preferred_schema` values or `query_engine` capability metadata such as `discovery_schemas`.
 
+## Federation Registry
+
+Federated access is configured through `.phlo/federation.yaml`:
+
+```yaml
+version: 1
+connections:
+  - id: crm-postgres
+    type: postgres
+    jdbc_url: jdbc:postgresql://crm.internal:5432/app
+    secret_ref: PHLO_CRM_POSTGRES_PASSWORD
+datasets:
+  - id: crm.public.accounts
+    connection_id: crm-postgres
+    remote_name: public.accounts
+    mode: query
+```
+
+Connection credentials are referenced by environment variable name and are not
+returned in Observatory read models. `mode: query` means the dataset remains in
+the source system and is accessed through a federation provider such as Trino.
+
 ### dbt Runtime Configuration
 
 Generated dbt profile settings:
