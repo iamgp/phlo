@@ -72,6 +72,25 @@ def test_read_model_redacts_embedded_dsns_and_compound_token_keys() -> None:
     assert "ghi" not in str(payload)
 
 
+def test_read_model_redacts_title_and_suggested_actions() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident token=titleSecret",
+        facts={},
+        suggested_actions=("rotate password=actionSecret", "notify Bearer actionBearer"),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["title"] == "Incident token=<redacted>"
+    assert payload["suggested_actions"] == [
+        "rotate password=<redacted>",
+        "notify Bearer <redacted>",
+    ]
+    assert "titleSecret" not in str(payload)
+    assert "actionSecret" not in str(payload)
+    assert "actionBearer" not in str(payload)
+
+
 def test_assistant_context_to_prompt_is_deterministic() -> None:
     bundle = AssistantContextBundle(
         title="Quality failure",
@@ -143,3 +162,24 @@ def test_assistant_context_to_prompt_redacts_embedded_dsns_and_compound_token_ke
         "- tokens: access_token=<redacted> refresh_token=<redacted> api-key=<redacted>\n"
         "Suggested actions:"
     )
+
+
+def test_assistant_context_to_prompt_redacts_title_and_suggested_actions() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident token=titleSecret",
+        facts={},
+        suggested_actions=("rotate password=actionSecret", "notify Bearer actionBearer"),
+    )
+
+    prompt = bundle.to_prompt()
+
+    assert prompt == (
+        "Incident: Incident token=<redacted>\n"
+        "Facts:\n"
+        "Suggested actions:\n"
+        "- rotate password=<redacted>\n"
+        "- notify Bearer <redacted>"
+    )
+    assert "titleSecret" not in prompt
+    assert "actionSecret" not in prompt
+    assert "actionBearer" not in prompt

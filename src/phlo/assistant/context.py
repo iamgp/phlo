@@ -28,9 +28,9 @@ class AssistantContextBundle:
 
     def to_read_model(self) -> dict[str, Any]:
         return {
-            "title": self.title,
+            "title": _redact(self.title),
             "facts": {key: _redact(value) for key, value in self.facts.items()},
-            "suggested_actions": list(self.suggested_actions),
+            "suggested_actions": [_redact(action) for action in self.suggested_actions],
         }
 
     def to_prompt(self) -> str:
