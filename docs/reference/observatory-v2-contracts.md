@@ -40,6 +40,30 @@ All Observatory v2 endpoints are rooted at `/api/observatory/v2`. They are group
 
 Route parameters that identify assets, tables, services, branches, and checks are stable resource identifiers, not provider URLs or secret-bearing connection strings.
 
+### Efficiency Surface Read Model
+
+Efficiency reports summarize table maintenance and cost-risk signals:
+
+```json
+{
+  "summary": {"tables_scored": 1, "finding_count": 1},
+  "findings": [
+    {
+      "table": "bronze.events",
+      "code": "small_files",
+      "severity": "warning",
+      "message": "bronze.events average file size is 1.0 MiB across 1200 files",
+      "recommended_action": "compact_files",
+      "metrics": {"average_file_mib": 1.0, "file_count": 1200}
+    }
+  ]
+}
+```
+
+Recommended actions are symbolic operation names. The UI must route any action
+through guarded Observatory v2 action contracts rather than executing provider
+commands directly.
+
 ## UI Contributions
 
 A UI contribution describes how one capability appears in Observatory v2.
