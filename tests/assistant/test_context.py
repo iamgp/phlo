@@ -1,4 +1,5 @@
 import json
+import math
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -459,6 +460,25 @@ def test_assistant_context_mcp_payload_is_json_serializable() -> None:
     }
     assert "s3cr3t" not in str(payload)
     assert "abc123" not in str(payload)
+
+
+def test_assistant_context_mcp_payload_serializes_non_finite_floats_strictly() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={"metric": math.nan, "upper": math.inf, "lower": -math.inf},
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_mcp_payload()
+
+    assert json.loads(json.dumps(payload, allow_nan=False)) == {
+        "kind": "phlo.assistant.context.v1",
+        "payload": {
+            "title": "Incident",
+            "facts": {"metric": "nan", "upper": "inf", "lower": "-inf"},
+            "suggested_actions": [],
+        },
+    }
 
 
 def test_assistant_context_serializes_mcp_payload() -> None:

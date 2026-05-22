@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from math import isfinite
 from typing import Any
 
 _DSN_RE = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.IGNORECASE)
@@ -43,6 +44,8 @@ def _redact_value(value: Any, *, secret_key: bool = False) -> Any:
         return [_redact_value(item) for item in value]
     if isinstance(value, set):
         return sorted((_redact_value(item) for item in value), key=repr)
+    if isinstance(value, float) and not isfinite(value):
+        return str(value)
     if value is None or isinstance(value, (bool, int, float)):
         return value
     return _redact(str(value))
