@@ -15,7 +15,7 @@ _AUTHORIZATION_BEARER_RE = re.compile(
 )
 _BEARER_RE = re.compile(r"\b(bearer)\b\s+\S+", re.IGNORECASE)
 _KEY_VALUE_SECRET_RE = re.compile(
-    r"""\b([\w-]*(?:password|passwd|token|secret|api[_-]?key|credential)[\w-]*)\b\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)""",
+    r"""\b([\w-]*(?:password|passwd|token|secret|api[_-]?key|credential|private[_-]?key|signing[_-]?key|encryption[_-]?key)[\w-]*)\b\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)""",
     re.IGNORECASE,
 )
 _SECRET_KEY_RE = re.compile(

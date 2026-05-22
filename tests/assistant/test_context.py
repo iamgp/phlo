@@ -120,6 +120,23 @@ def test_read_model_redacts_authorization_bearer_and_quoted_secret_values() -> N
     assert "key with spaces" not in str(payload)
 
 
+def test_read_model_redacts_embedded_key_material_values() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={"error": "private_key=PRIVATE signing_key=SIGN encryption_key=ENC"},
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"]["error"] == (
+        "private_key=<redacted> signing_key=<redacted> encryption_key=<redacted>"
+    )
+    assert "PRIVATE" not in str(payload)
+    assert "SIGN" not in str(payload)
+    assert "ENC" not in str(payload)
+
+
 def test_read_model_redacts_secret_like_fact_keys_and_preserves_collisions() -> None:
     bundle = AssistantContextBundle(
         title="Incident",
@@ -358,6 +375,26 @@ def test_assistant_context_to_prompt_redacts_authorization_bearer_and_quoted_sec
     assert "cafebabe" not in prompt
     assert "hunter two" not in prompt
     assert "key with spaces" not in prompt
+
+
+def test_assistant_context_to_prompt_redacts_embedded_key_material_values() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={"error": "private_key=PRIVATE signing_key=SIGN encryption_key=ENC"},
+        suggested_actions=(),
+    )
+
+    prompt = bundle.to_prompt()
+
+    assert prompt == (
+        "Incident: Incident\n"
+        "Facts:\n"
+        "- error: private_key=<redacted> signing_key=<redacted> encryption_key=<redacted>\n"
+        "Suggested actions:"
+    )
+    assert "PRIVATE" not in prompt
+    assert "SIGN" not in prompt
+    assert "ENC" not in prompt
 
 
 def test_assistant_context_to_prompt_redacts_secret_like_fact_keys() -> None:
