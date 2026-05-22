@@ -123,7 +123,8 @@ See [Observatory v2 Contracts](observatory-v2-contracts.md) for the capability c
 ## Assistant Context Payloads
 
 Assistant context payloads are deterministic, sanitized summaries for AI tools.
-They do not execute actions and do not include credentials.
+They do not execute actions, redact supported credential patterns, and should
+not be used for raw secrets.
 
 ```json
 {
