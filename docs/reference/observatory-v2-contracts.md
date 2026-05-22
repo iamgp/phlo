@@ -73,6 +73,24 @@ The governance surface may include a provider-neutral catalog payload:
 This payload is safe for browser rendering. It must not contain raw credentials,
 private URLs, signed URLs, or generated backend grants.
 
+### Sharing Surface Read Model
+
+Sharing manifests describe governed read-only data shares:
+
+```json
+{
+  "version": 1,
+  "share_id": "partner-revenue",
+  "title": "Partner Revenue Share",
+  "datasets": [{"id": "gold.revenue", "mode": "read"}],
+  "recipients": [{"id": "partner-a", "type": "partner"}]
+}
+```
+
+V1 sharing manifests are declarative. Delivery adapters for Delta Sharing,
+Iceberg REST catalogs, signed exports, or partner-specific distribution must
+consume the manifest through explicit provider packages.
+
 ## UI Contributions
 
 A UI contribution describes how one capability appears in Observatory v2.
