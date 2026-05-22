@@ -85,3 +85,41 @@ def test_share_manifest_rejects_unknown_dataset() -> None:
         assert "Share references unknown governed dataset: gold.unknown" in str(exc)
     else:
         raise AssertionError("Expected unknown dataset to fail")
+
+
+def test_share_manifest_rejects_duplicate_dataset_ids() -> None:
+    try:
+        ShareManifest.from_dict(
+            {
+                "share_id": "partner-revenue",
+                "datasets": [
+                    {"id": "gold.revenue"},
+                    {"id": "gold.revenue"},
+                ],
+                "recipients": [{"id": "partner-a", "type": "partner"}],
+            },
+            catalog=_catalog(),
+        )
+    except ValueError as exc:
+        assert "Duplicate shared dataset id: gold.revenue" in str(exc)
+    else:
+        raise AssertionError("Expected duplicate dataset to fail")
+
+
+def test_share_manifest_rejects_duplicate_recipient_ids() -> None:
+    try:
+        ShareManifest.from_dict(
+            {
+                "share_id": "partner-revenue",
+                "datasets": [{"id": "gold.revenue"}],
+                "recipients": [
+                    {"id": "partner-a", "type": "partner"},
+                    {"id": "partner-a", "type": "partner"},
+                ],
+            },
+            catalog=_catalog(),
+        )
+    except ValueError as exc:
+        assert "Duplicate share recipient id: partner-a" in str(exc)
+    else:
+        raise AssertionError("Expected duplicate recipient to fail")
