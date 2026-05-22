@@ -32,6 +32,20 @@ def test_score_table_efficiency_flags_stale_snapshots() -> None:
     assert report[0].recommended_action == "expire_snapshots"
 
 
+def test_score_table_efficiency_allows_missing_latest_run_duration() -> None:
+    report = score_table_efficiency(
+        TableEfficiencyInput(
+            table="bronze.events",
+            file_count=10,
+            total_bytes=10 * 128 * 1024 * 1024,
+            snapshot_count=8,
+            latest_run_seconds=None,
+        )
+    )
+
+    assert report == []
+
+
 def test_efficiency_finding_serializes_for_observatory() -> None:
     report = score_table_efficiency(
         TableEfficiencyInput(

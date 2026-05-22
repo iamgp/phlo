@@ -18,7 +18,7 @@ class TableEfficiencyInput:
     file_count: int
     total_bytes: int
     snapshot_count: int
-    latest_run_seconds: int
+    latest_run_seconds: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +78,10 @@ def score_table_efficiency(table: TableEfficiencyInput) -> list[EfficiencyFindin
             )
         )
 
-    if table.latest_run_seconds >= SLOW_RUN_SECONDS_THRESHOLD:
+    if (
+        table.latest_run_seconds is not None
+        and table.latest_run_seconds >= SLOW_RUN_SECONDS_THRESHOLD
+    ):
         findings.append(
             EfficiencyFinding(
                 table=table.table,
