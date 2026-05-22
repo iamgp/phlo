@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -25,22 +26,34 @@ def _redact(value: str) -> str:
     return _BEARER_RE.sub(r"\1 <redacted>", value)
 
 
-def _redact_facts(facts: dict[str, str]) -> dict[str, str]:
-    redacted: dict[str, str] = {}
+def _redact_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return _redact(value)
+    if isinstance(value, Mapping):
+        return _redact_facts(value)
+    if isinstance(value, list):
+        return [_redact_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_redact_value(item) for item in value]
+    return value
+
+
+def _redact_facts(facts: Mapping[str, Any]) -> dict[str, Any]:
+    redacted: dict[str, Any] = {}
     collisions: dict[str, int] = {}
     for key, value in facts.items():
-        redacted_key = _redact(key)
+        redacted_key = _redact(str(key))
         if redacted_key in redacted:
             collisions[redacted_key] = collisions.get(redacted_key, 1) + 1
             redacted_key = f"{redacted_key} ({collisions[redacted_key]})"
-        redacted[redacted_key] = _redact(value)
+        redacted[redacted_key] = _redact_value(value)
     return redacted
 
 
 @dataclass(frozen=True, slots=True)
 class AssistantContextBundle:
     title: str
-    facts: dict[str, str] = field(default_factory=dict)
+    facts: dict[str, Any] = field(default_factory=dict)
     suggested_actions: tuple[str, ...] = ()
 
     def to_read_model(self) -> dict[str, Any]:
@@ -70,7 +83,7 @@ class AssistantContextBundle:
 def build_incident_context(
     *,
     title: str,
-    facts: dict[str, str],
+    facts: dict[str, Any],
     suggested_actions: list[str] | tuple[str, ...],
 ) -> AssistantContextBundle:
     return AssistantContextBundle(

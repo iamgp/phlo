@@ -137,6 +137,38 @@ def test_read_model_redacts_secret_like_fact_keys_and_preserves_collisions() -> 
     assert "def456" not in str(payload)
 
 
+def test_read_model_preserves_structured_fact_values_and_redacts_nested_strings() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "failed_rows": 12,
+            "has_failures": True,
+            "checks": ["not_null(order_id)", "token=abc123"],
+            "metadata": {
+                "owner": "analytics",
+                "password": "password=hunter2",
+                "attempts": (1, 2),
+            },
+        },
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"] == {
+        "failed_rows": 12,
+        "has_failures": True,
+        "checks": ["not_null(order_id)", "token=<redacted>"],
+        "metadata": {
+            "owner": "analytics",
+            "password": "password=<redacted>",
+            "attempts": [1, 2],
+        },
+    }
+    assert "abc123" not in str(payload)
+    assert "hunter2" not in str(payload)
+
+
 def test_assistant_context_to_prompt_is_deterministic() -> None:
     bundle = AssistantContextBundle(
         title="Quality failure",
@@ -285,6 +317,28 @@ def test_assistant_context_to_prompt_redacts_secret_like_fact_keys() -> None:
     )
     assert "abc123" not in prompt
     assert "def456" not in prompt
+
+
+def test_assistant_context_to_prompt_preserves_structured_fact_values() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "failed_rows": 12,
+            "checks": ["not_null(order_id)", "token=abc123"],
+        },
+        suggested_actions=(),
+    )
+
+    prompt = bundle.to_prompt()
+
+    assert prompt == (
+        "Incident: Incident\n"
+        "Facts:\n"
+        "- checks: ['not_null(order_id)', 'token=<redacted>']\n"
+        "- failed_rows: 12\n"
+        "Suggested actions:"
+    )
+    assert "abc123" not in prompt
 
 
 def test_assistant_context_serializes_mcp_payload() -> None:
