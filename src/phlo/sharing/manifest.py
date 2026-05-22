@@ -13,6 +13,10 @@ class ShareDataset:
     id: str
     mode: str = "read"
 
+    def __post_init__(self) -> None:
+        if self.mode != "read":
+            raise ValueError(f"Shares are read-only in v1: {self.id} requested {self.mode}")
+
     def to_read_model(self) -> dict[str, Any]:
         return {"id": self.id, "mode": self.mode}
 

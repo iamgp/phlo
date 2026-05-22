@@ -1,5 +1,5 @@
 from phlo.governance.catalog import GovernanceCatalog
-from phlo.sharing import ShareManifest
+from phlo.sharing import ShareDataset, ShareManifest
 
 
 def _catalog() -> GovernanceCatalog:
@@ -35,6 +35,15 @@ def test_share_manifest_rejects_write_mode() -> None:
             },
             catalog=_catalog(),
         )
+    except ValueError as exc:
+        assert "Shares are read-only in v1: gold.revenue requested write" in str(exc)
+    else:
+        raise AssertionError("Expected write mode to fail")
+
+
+def test_share_dataset_rejects_write_mode() -> None:
+    try:
+        ShareDataset(id="gold.revenue", mode="write")
     except ValueError as exc:
         assert "Shares are read-only in v1: gold.revenue requested write" in str(exc)
     else:
