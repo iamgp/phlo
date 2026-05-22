@@ -90,3 +90,33 @@ def test_catalog_serializes_browser_safe_governance_view() -> None:
             }
         ],
     }
+
+
+def test_catalog_read_model_is_deterministic() -> None:
+    catalog = GovernanceCatalog.from_dict(
+        {
+            "version": 1,
+            "datasets": [
+                {
+                    "id": "z.table",
+                    "owner": "platform",
+                    "columns": {"z": {}, "a": {}},
+                    "row_filters": [
+                        {"name": "z_filter", "expression": "z = true"},
+                        {"name": "a_filter", "expression": "a = true"},
+                    ],
+                },
+                {"id": "a.table", "owner": "platform"},
+            ],
+        }
+    )
+
+    payload = catalog.to_read_model()
+
+    assert [dataset["id"] for dataset in payload["datasets"]] == ["a.table", "z.table"]
+    z_table = payload["datasets"][1]
+    assert [column["name"] for column in z_table["columns"]] == ["a", "z"]
+    assert [row_filter["name"] for row_filter in z_table["row_filters"]] == [
+        "a_filter",
+        "z_filter",
+    ]

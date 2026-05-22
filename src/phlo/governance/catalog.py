@@ -54,8 +54,11 @@ class GovernedDataset:
             "description": self.description,
             "classification": self.classification,
             "tags": dict(self.tags),
-            "columns": [column.to_read_model() for column in self.columns.values()],
-            "row_filters": [row_filter.to_read_model() for row_filter in self.row_filters],
+            "columns": [self.columns[name].to_read_model() for name in sorted(self.columns)],
+            "row_filters": [
+                row_filter.to_read_model()
+                for row_filter in sorted(self.row_filters, key=lambda item: item.name)
+            ],
             "policies": list(self.policies),
         }
 
@@ -108,5 +111,7 @@ class GovernanceCatalog:
     def to_read_model(self) -> dict[str, Any]:
         return {
             "version": self.version,
-            "datasets": [dataset.to_read_model() for dataset in self.datasets.values()],
+            "datasets": [
+                self.datasets[dataset_id].to_read_model() for dataset_id in sorted(self.datasets)
+            ],
         }
