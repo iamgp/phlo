@@ -35,7 +35,7 @@ All Observatory v2 endpoints are rooted at `/api/observatory/v2`. They are group
 | Data and assets | `assets`, `assets/{asset_id}`, `tables`, `table-preview/{table_id}`, `query`, `saved-queries`, `stage-diff`, `row-journey/{table_id}/{row_id}` | Expose provider-neutral asset, table, query, diff, and row provenance read models. |
 | Quality and logs | `quality`, `quality/{check_id}`, `logs`, `logs/facets` | Support quality triage and evidence inspection. |
 | Branches and changes | `branches`, `branches/{branch_name}`, `branches/actions` | Describe branch state and execute guarded branch operations. |
-| Capability surfaces | `storage`, `observability`, `governance`, `catalog`, `apis`, `bi` | Allow packages to contribute specialized operator surfaces without hardcoding provider APIs in the UI. |
+| Capability surfaces | `storage`, `observability`, `governance`, `catalog`, `sharing`, `apis`, `bi` | Allow packages to contribute specialized operator surfaces without hardcoding provider APIs in the UI. |
 | Extensions and settings | `extensions`, `extensions/{extension_id}`, `settings`, `search`, `actions` | Expose extension inventory, global search, settings state, and generic guarded actions. |
 
 Route parameters that identify assets, tables, services, branches, and checks are stable resource identifiers, not provider URLs or secret-bearing connection strings.
@@ -121,6 +121,7 @@ Prefer existing Observatory v2 surfaces before introducing new ones:
 - `Observability`
 - `Governance`
 - `Catalog`
+- `Sharing`
 - `APIs`
 - `BI`
 - `Services`
