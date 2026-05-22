@@ -14,12 +14,20 @@ _AUTHORIZATION_BEARER_RE = re.compile(
     re.IGNORECASE,
 )
 _BEARER_RE = re.compile(r"\b(bearer)\b\s+\S+", re.IGNORECASE)
+_SECRET_NAME_PATTERN = (
+    r"[\w-]*(?:password|passwd|token|secret|api[_-]?key|credential|"
+    r"private[_-]?key|signing[_-]?key|encryption[_-]?key)[\w-]*"
+)
 _KEY_VALUE_SECRET_RE = re.compile(
-    r"""\b([\w-]*(?:password|passwd|token|secret|api[_-]?key|credential|private[_-]?key|signing[_-]?key|encryption[_-]?key)[\w-]*)\b\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)""",
+    rf"""\b({_SECRET_NAME_PATTERN})\b\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)""",
     re.IGNORECASE,
 )
 _SECRET_KEY_RE = re.compile(
-    r"^(?:password|passwd|token|access[_-]?token|refresh[_-]?token|auth[_-]?token|session[_-]?token|client[_-]?secret|secret|api[_-]?key|credential|authorization|private[_-]?key|signing[_-]?key|encryption[_-]?key)$",
+    r"^(?:password|passwd|token|access[_-]?token|refresh[_-]?token|"
+    r"auth[_-]?token|session[_-]?token|client[_-]?secret|secret[_-]?key|"
+    r"secret|api[_-]?key|credential|authorization|"
+    r"private[_-]?key(?:[_-].*)?|signing[_-]?key(?:[_-].*)?|"
+    r"encryption[_-]?key(?:[_-].*)?)$",
     re.IGNORECASE,
 )
 

@@ -202,6 +202,10 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
                 "auth_token": "auth123",
                 "session_token": "session123",
                 "private_key": "private123",
+                "private_key_pem": "private-pem",
+                "signing_key_id": "signing-id",
+                "encryption_key_arn": "encryption-arn",
+                "secret_key": "django-secret",
                 "nested": {"refresh_token": "deadbeef"},
                 "owner": "analytics",
             },
@@ -219,6 +223,10 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
             "auth_token": "<redacted>",
             "session_token": "<redacted>",
             "private_key": "<redacted>",
+            "private_key_pem": "<redacted>",
+            "signing_key_id": "<redacted>",
+            "encryption_key_arn": "<redacted>",
+            "secret_key": "<redacted>",
             "nested": {"refresh_token": "<redacted>"},
             "owner": "analytics",
         },
@@ -229,6 +237,10 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
     assert "auth123" not in str(payload)
     assert "session123" not in str(payload)
     assert "private123" not in str(payload)
+    assert "private-pem" not in str(payload)
+    assert "signing-id" not in str(payload)
+    assert "encryption-arn" not in str(payload)
+    assert "django-secret" not in str(payload)
     assert "deadbeef" not in str(payload)
 
 
