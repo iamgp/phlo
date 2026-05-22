@@ -91,6 +91,30 @@ def test_read_model_redacts_title_and_suggested_actions() -> None:
     assert "actionBearer" not in str(payload)
 
 
+def test_read_model_redacts_authorization_bearer_and_quoted_secret_values() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "authorization_header": "Authorization Bearer deadbeef",
+            "authorization_colon": "Authorization: Bearer cafebabe",
+            "quoted_secret": 'password="hunter two" failed',
+            "quoted_secret_colon": "api-key: 'key with spaces'",
+        },
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"]["authorization_header"] == "Authorization Bearer <redacted>"
+    assert payload["facts"]["authorization_colon"] == "Authorization: Bearer <redacted>"
+    assert payload["facts"]["quoted_secret"] == "password=<redacted> failed"
+    assert payload["facts"]["quoted_secret_colon"] == "api-key=<redacted>"
+    assert "deadbeef" not in str(payload)
+    assert "cafebabe" not in str(payload)
+    assert "hunter two" not in str(payload)
+    assert "key with spaces" not in str(payload)
+
+
 def test_assistant_context_to_prompt_is_deterministic() -> None:
     bundle = AssistantContextBundle(
         title="Quality failure",
@@ -183,3 +207,34 @@ def test_assistant_context_to_prompt_redacts_title_and_suggested_actions() -> No
     assert "titleSecret" not in prompt
     assert "actionSecret" not in prompt
     assert "actionBearer" not in prompt
+
+
+def test_assistant_context_to_prompt_redacts_authorization_bearer_and_quoted_secret_values() -> (
+    None
+):
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "authorization_header": "Authorization Bearer deadbeef",
+            "authorization_colon": "Authorization: Bearer cafebabe",
+            "quoted_secret": 'password="hunter two" failed',
+            "quoted_secret_colon": "api-key: 'key with spaces'",
+        },
+        suggested_actions=(),
+    )
+
+    prompt = bundle.to_prompt()
+
+    assert prompt == (
+        "Incident: Incident\n"
+        "Facts:\n"
+        "- authorization_colon: Authorization: Bearer <redacted>\n"
+        "- authorization_header: Authorization Bearer <redacted>\n"
+        "- quoted_secret: password=<redacted> failed\n"
+        "- quoted_secret_colon: api-key=<redacted>\n"
+        "Suggested actions:"
+    )
+    assert "deadbeef" not in prompt
+    assert "cafebabe" not in prompt
+    assert "hunter two" not in prompt
+    assert "key with spaces" not in prompt
