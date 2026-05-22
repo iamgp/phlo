@@ -23,6 +23,17 @@ _KEY_VALUE_SECRET_RE = re.compile(
     rf"""\b({_SECRET_NAME_PATTERN})\b\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)""",
     re.IGNORECASE,
 )
+_CAMEL_CASE_BOUNDARY_RE = re.compile(r"([a-z0-9])([A-Z])")
+_KEY_SEPARATOR_RE = re.compile(r"[_-]+")
+_DESCRIPTIVE_SUFFIXES = {"count", "label", "name"}
+_SECRET_PARTS = {"password", "passwd", "token", "credential"}
+_SECRET_PAIRS = {
+    ("api", "key"),
+    ("client", "secret"),
+    ("private", "key"),
+    ("signing", "key"),
+    ("encryption", "key"),
+}
 
 
 def _redact(value: str) -> str:
@@ -39,22 +50,24 @@ def _redact(value: str) -> str:
 
 
 def _is_secret_key(key: str) -> bool:
-    normalized_key = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", key)
-    parts = [part for part in re.split(r"[_-]+", normalized_key.lower()) if part]
+    parts = _key_parts(key)
     if not parts:
         return False
-    if parts[-1] in {"count", "label", "name"}:
+    if parts[-1] in _DESCRIPTIVE_SUFFIXES:
         return False
     if key.lower() == "authorization":
         return True
-    if any(part in {"password", "passwd", "token", "credential"} for part in parts):
+    if any(part in _SECRET_PARTS for part in parts):
         return True
     pairs = set(zip(parts, parts[1:], strict=False))
-    if ("api", "key") in pairs or ("client", "secret") in pairs:
-        return True
     if "secret" in parts and "key" in parts:
         return True
-    return any((prefix, "key") in pairs for prefix in ("private", "signing", "encryption"))
+    return bool(pairs & _SECRET_PAIRS)
+
+
+def _key_parts(key: str) -> list[str]:
+    normalized_key = _CAMEL_CASE_BOUNDARY_RE.sub(r"\1_\2", key)
+    return [part for part in _KEY_SEPARATOR_RE.split(normalized_key.lower()) if part]
 
 
 def _redact_value(value: Any, *, secret_key: bool = False) -> Any:
