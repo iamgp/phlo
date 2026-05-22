@@ -61,16 +61,7 @@ def get_live_tables() -> list[LiveTableSpec]:
 
 def plan_live_tables() -> list[dict[str, Any]]:
     """Return live tables in dependency order and validate source references."""
-    by_name: dict[str, LiveTableSpec] = {}
-    duplicates: set[str] = set()
-    for spec in _LIVE_TABLES:
-        if spec.name in by_name:
-            duplicates.add(spec.name)
-        by_name[spec.name] = spec
-    if duplicates:
-        names = ", ".join(sorted(duplicates))
-        raise ValueError(f"Duplicate live table declarations: {names}")
-
+    by_name = _live_tables_by_name(_LIVE_TABLES)
     planned: list[LiveTableSpec] = []
     visiting: set[str] = set()
     visited: set[str] = set()
@@ -101,7 +92,7 @@ def plan_live_tables() -> list[dict[str, Any]]:
             "target_lag": spec.target_lag,
             "mode": spec.mode,
             "quality": list(spec.quality),
-            "metadata": dict(spec.metadata),
+            "metadata": _copy_json_like(spec.metadata),
         }
         for spec in planned
     ]
@@ -110,3 +101,24 @@ def plan_live_tables() -> list[dict[str, Any]]:
 def clear_live_tables() -> None:
     """Clear live table declarations for tests and reloads."""
     _LIVE_TABLES.clear()
+
+
+def _live_tables_by_name(specs: list[LiveTableSpec]) -> dict[str, LiveTableSpec]:
+    by_name: dict[str, LiveTableSpec] = {}
+    duplicates: set[str] = set()
+    for spec in specs:
+        if spec.name in by_name:
+            duplicates.add(spec.name)
+        by_name[spec.name] = spec
+    if duplicates:
+        names = ", ".join(sorted(duplicates))
+        raise ValueError(f"Duplicate live table declarations: {names}")
+    return by_name
+
+
+def _copy_json_like(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _copy_json_like(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_copy_json_like(item) for item in value]
+    return value

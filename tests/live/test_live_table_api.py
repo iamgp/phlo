@@ -99,3 +99,18 @@ def test_plan_live_tables_rejects_duplicate_names() -> None:
         assert "Duplicate live table declarations: silver.orders" in str(exc)
     else:
         raise AssertionError("Expected duplicate live table names to fail")
+
+
+def test_plan_live_tables_deep_copies_metadata() -> None:
+    @phlo.live_table(
+        name="silver.orders",
+        query="select 1",
+        metadata={"owner": {"teams": ["analytics"]}},
+    )
+    def silver_orders() -> None:
+        return None
+
+    plan = plan_live_tables()
+    plan[0]["metadata"]["owner"]["teams"].append("mutated")
+
+    assert plan_live_tables()[0]["metadata"]["owner"]["teams"] == ["analytics"]
