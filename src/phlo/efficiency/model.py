@@ -37,7 +37,7 @@ class EfficiencyFinding:
             "severity": self.severity,
             "message": self.message,
             "recommended_action": self.recommended_action,
-            "metrics": dict(self.metrics),
+            "metrics": _copy_json_like(self.metrics),
         }
 
 
@@ -109,3 +109,13 @@ def _average_file_mib(table: TableEfficiencyInput) -> float:
     if table.file_count <= 0:
         return 0.0
     return table.total_bytes / table.file_count / BYTES_PER_MIB
+
+
+def _copy_json_like(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _copy_json_like(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_copy_json_like(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_copy_json_like(item) for item in value)
+    return value

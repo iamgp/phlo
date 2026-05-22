@@ -1,4 +1,5 @@
 from phlo.efficiency import (
+    EfficiencyFinding,
     TableEfficiencyInput,
     build_efficiency_report,
     score_table_efficiency,
@@ -69,6 +70,22 @@ def test_efficiency_finding_serializes_for_observatory() -> None:
         "recommended_action": "compact_files",
         "metrics": {"average_file_mib": 1.0, "file_count": 1200},
     }
+
+
+def test_efficiency_finding_serializes_nested_metrics_without_mutable_leaks() -> None:
+    finding = EfficiencyFinding(
+        table="bronze.events",
+        code="partition_skew",
+        severity="warning",
+        message="bronze.events has hot partitions",
+        recommended_action="rebalance_partitions",
+        metrics={"partitions": {"hot": ["2026-05-22"]}},
+    )
+
+    payload = finding.to_read_model()
+    payload["metrics"]["partitions"]["hot"].append("mutated")
+
+    assert finding.to_read_model()["metrics"]["partitions"]["hot"] == ["2026-05-22"]
 
 
 def test_build_efficiency_report_serializes_findings() -> None:
