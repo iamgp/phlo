@@ -61,7 +61,16 @@ def get_live_tables() -> list[LiveTableSpec]:
 
 def plan_live_tables() -> list[dict[str, Any]]:
     """Return live tables in dependency order and validate source references."""
-    by_name = {spec.name: spec for spec in _LIVE_TABLES}
+    by_name: dict[str, LiveTableSpec] = {}
+    duplicates: set[str] = set()
+    for spec in _LIVE_TABLES:
+        if spec.name in by_name:
+            duplicates.add(spec.name)
+        by_name[spec.name] = spec
+    if duplicates:
+        names = ", ".join(sorted(duplicates))
+        raise ValueError(f"Duplicate live table declarations: {names}")
+
     planned: list[LiveTableSpec] = []
     visiting: set[str] = set()
     visited: set[str] = set()

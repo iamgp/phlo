@@ -80,3 +80,22 @@ def test_plan_live_tables_rejects_missing_source() -> None:
         assert "silver.orders depends on unknown live table source bronze.orders" in str(exc)
     else:
         raise AssertionError("Expected missing source to fail")
+
+
+def test_plan_live_tables_rejects_duplicate_names() -> None:
+    @phlo.live_table(name="silver.orders", query="select 1")
+    def silver_orders_v1() -> None:
+        return None
+
+    @phlo.live_table(name="silver.orders", query="select 2")
+    def silver_orders_v2() -> None:
+        return None
+
+    assert [spec.fn for spec in get_live_tables()] == [silver_orders_v1, silver_orders_v2]
+
+    try:
+        plan_live_tables()
+    except ValueError as exc:
+        assert "Duplicate live table declarations: silver.orders" in str(exc)
+    else:
+        raise AssertionError("Expected duplicate live table names to fail")
