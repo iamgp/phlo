@@ -312,6 +312,22 @@ def test_read_model_preserves_descriptive_secret_metadata_labels() -> None:
     }
 
 
+def test_read_model_preserves_embedded_descriptive_metadata_labels() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "summary": 'token_count=7 api_key_label="Stripe API key" secret_name=warehouse',
+        },
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"]["summary"] == (
+        'token_count=7 api_key_label="Stripe API key" secret_name=warehouse'
+    )
+
+
 def test_read_model_serializes_common_metadata_values() -> None:
     bundle = AssistantContextBundle(
         title="Incident",

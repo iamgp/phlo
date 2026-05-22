@@ -27,7 +27,12 @@ _KEY_VALUE_SECRET_RE = re.compile(
 
 def _redact(value: str) -> str:
     value = _DSN_RE.sub("<redacted-dsn>", value)
-    value = _KEY_VALUE_SECRET_RE.sub(lambda match: f"{match.group(1)}=<redacted>", value)
+    value = _KEY_VALUE_SECRET_RE.sub(
+        lambda match: (
+            f"{match.group(1)}=<redacted>" if _is_secret_key(match.group(1)) else match.group(0)
+        ),
+        value,
+    )
     value = _AUTHORIZATION_SCHEME_RE.sub(r"\1\2 <redacted>", value)
     value = _BEARER_RE.sub(r"\1 <redacted>", value)
     return _BASIC_RE.sub(r"\1 <redacted>", value)
