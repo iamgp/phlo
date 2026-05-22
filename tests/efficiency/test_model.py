@@ -1,4 +1,8 @@
-from phlo.efficiency import TableEfficiencyInput, score_table_efficiency
+from phlo.efficiency import (
+    TableEfficiencyInput,
+    build_efficiency_report,
+    score_table_efficiency,
+)
 
 
 def test_score_table_efficiency_flags_small_files() -> None:
@@ -65,3 +69,19 @@ def test_efficiency_finding_serializes_for_observatory() -> None:
         "recommended_action": "compact_files",
         "metrics": {"average_file_mib": 1.0, "file_count": 1200},
     }
+
+
+def test_build_efficiency_report_serializes_findings() -> None:
+    report = build_efficiency_report(
+        [
+            TableEfficiencyInput(
+                table="bronze.events",
+                file_count=1200,
+                total_bytes=1200 * 1024 * 1024,
+                snapshot_count=8,
+            )
+        ]
+    )
+
+    assert report["summary"] == {"tables_scored": 1, "finding_count": 1}
+    assert report["findings"][0]["code"] == "small_files"

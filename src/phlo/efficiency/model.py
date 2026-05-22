@@ -96,6 +96,15 @@ def score_table_efficiency(table: TableEfficiencyInput) -> list[EfficiencyFindin
     return findings
 
 
+def build_efficiency_report(inputs: list[TableEfficiencyInput]) -> dict[str, Any]:
+    """Build an Observatory-safe efficiency report."""
+    findings = [finding for item in inputs for finding in score_table_efficiency(item)]
+    return {
+        "summary": {"tables_scored": len(inputs), "finding_count": len(findings)},
+        "findings": [finding.to_read_model() for finding in findings],
+    }
+
+
 def _average_file_mib(table: TableEfficiencyInput) -> float:
     if table.file_count <= 0:
         return 0.0
