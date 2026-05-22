@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 from phlo.governance.catalog import GovernanceCatalog
 
 
@@ -90,6 +92,63 @@ def test_catalog_serializes_browser_safe_governance_view() -> None:
             }
         ],
     }
+
+
+def test_catalog_normalizes_scalar_string_sequences() -> None:
+    catalog = GovernanceCatalog.from_dict(
+        {
+            "datasets": [
+                {
+                    "id": "warehouse.customers",
+                    "owner": "data-platform",
+                    "row_filters": [
+                        {
+                            "name": "region_scope",
+                            "expression": "region == request.region",
+                            "applies_to_roles": "regional_analyst",
+                        }
+                    ],
+                    "policies": "allow_analyst_dataset_read",
+                }
+            ],
+        }
+    )
+
+    dataset = catalog.dataset("warehouse.customers")
+
+    assert dataset.row_filters[0].applies_to_roles == ("regional_analyst",)
+    assert dataset.policies == ("allow_analyst_dataset_read",)
+
+
+def test_catalog_returns_defensive_immutable_models() -> None:
+    raw_tags = {"privacy": "restricted"}
+    raw_columns = {"email": {"tags": {"pii": "true"}}}
+    catalog = GovernanceCatalog.from_dict(
+        {
+            "datasets": [
+                {
+                    "id": "warehouse.customers",
+                    "owner": "data-platform",
+                    "tags": raw_tags,
+                    "columns": raw_columns,
+                }
+            ],
+        }
+    )
+    raw_tags["privacy"] = "public"
+    raw_columns["email"]["tags"]["pii"] = "false"
+
+    dataset = catalog.dataset("warehouse.customers")
+
+    assert dataset.tags["privacy"] == "restricted"
+    assert dataset.columns["email"].tags["pii"] == "true"
+
+    try:
+        cast(Any, dataset.tags)["privacy"] = "public"
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("Expected dataset tags to be immutable")
 
 
 def test_catalog_read_model_is_deterministic() -> None:

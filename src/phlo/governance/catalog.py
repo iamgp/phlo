@@ -2,8 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Any
+
+
+def _string_tuple(value: Any) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    return tuple(str(item) for item in value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -11,7 +21,10 @@ class GovernedColumn:
     name: str
     classification: str | None = None
     mask: str | None = None
-    tags: dict[str, str] = field(default_factory=dict)
+    tags: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "tags", MappingProxyType(dict(self.tags)))
 
     def to_read_model(self) -> dict[str, Any]:
         return {
@@ -42,10 +55,16 @@ class GovernedDataset:
     owner: str
     description: str | None = None
     classification: str | None = None
-    tags: dict[str, str] = field(default_factory=dict)
-    columns: dict[str, GovernedColumn] = field(default_factory=dict)
+    tags: Mapping[str, str] = field(default_factory=dict)
+    columns: Mapping[str, GovernedColumn] = field(default_factory=dict)
     row_filters: tuple[RowFilter, ...] = ()
     policies: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "tags", MappingProxyType(dict(self.tags)))
+        object.__setattr__(self, "columns", MappingProxyType(dict(self.columns)))
+        object.__setattr__(self, "row_filters", tuple(self.row_filters))
+        object.__setattr__(self, "policies", _string_tuple(self.policies))
 
     def to_read_model(self) -> dict[str, Any]:
         return {
@@ -66,7 +85,10 @@ class GovernedDataset:
 @dataclass(frozen=True, slots=True)
 class GovernanceCatalog:
     version: int
-    datasets: dict[str, GovernedDataset]
+    datasets: Mapping[str, GovernedDataset]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "datasets", MappingProxyType(dict(self.datasets)))
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> GovernanceCatalog:
@@ -89,7 +111,7 @@ class GovernanceCatalog:
                 RowFilter(
                     name=str(row_filter["name"]),
                     expression=str(row_filter["expression"]),
-                    applies_to_roles=tuple(row_filter.get("applies_to_roles", ())),
+                    applies_to_roles=_string_tuple(row_filter.get("applies_to_roles")),
                 )
                 for row_filter in raw.get("row_filters", [])
             )
@@ -101,7 +123,7 @@ class GovernanceCatalog:
                 tags=dict(raw.get("tags", {})),
                 columns=columns,
                 row_filters=row_filters,
-                policies=tuple(raw.get("policies", ())),
+                policies=_string_tuple(raw.get("policies")),
             )
         return cls(version=int(data.get("version", 1)), datasets=datasets)
 

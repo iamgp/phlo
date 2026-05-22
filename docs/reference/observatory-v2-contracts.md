@@ -60,7 +60,7 @@ The governance surface may include a provider-neutral catalog payload:
       "row_filters": [
         {
           "name": "region_scope",
-          "expression": "region = current_setting('phlo.region')",
+          "expression": "region == request.region",
           "applies_to_roles": ["regional_analyst"]
         }
       ],
