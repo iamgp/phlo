@@ -120,6 +120,25 @@ Observatory v2 endpoints live under `/api/observatory/v2`. They are provider-neu
 
 See [Observatory v2 Contracts](observatory-v2-contracts.md) for the capability contribution model and browser-safety rules.
 
+## Assistant Context Payloads
+
+Assistant context payloads are deterministic, sanitized summaries for AI tools.
+They do not execute actions and do not include credentials.
+
+```json
+{
+  "kind": "phlo.assistant.context.v1",
+  "payload": {
+    "title": "Quality failure",
+    "facts": {"table": "silver.orders", "check": "not_null(order_id)"},
+    "suggested_actions": ["inspect_quality_check", "open_lineage"]
+  }
+}
+```
+
+Suggested actions are symbolic names. Tools must route any mutation or provider
+operation through guarded Phlo action contracts.
+
 ## Key Features
 
 ### 1. Read-Only Query Guardrails
