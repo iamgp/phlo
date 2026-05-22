@@ -120,6 +120,19 @@ def test_read_model_redacts_authorization_bearer_and_quoted_secret_values() -> N
     assert "key with spaces" not in str(payload)
 
 
+def test_read_model_redacts_authorization_basic_values() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={"authorization_header": "Authorization: Basic dXNlcjpwYXNz"},
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"]["authorization_header"] == "Authorization: Basic <redacted>"
+    assert "dXNlcjpwYXNz" not in str(payload)
+
+
 def test_read_model_redacts_embedded_key_material_values() -> None:
     bundle = AssistantContextBundle(
         title="Incident",
@@ -211,6 +224,9 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
                 "aws_secret_access_key": "aws-secret",
                 "github_token_value": "ghp_123",
                 "service_api_key_value": "api-secret",
+                "apiKey": "camel-api",
+                "clientSecret": "camel-secret",
+                "accessToken": "camel-token",
                 "nested": {"refresh_token": "deadbeef"},
                 "owner": "analytics",
             },
@@ -237,6 +253,9 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
             "aws_secret_access_key": "<redacted>",
             "github_token_value": "<redacted>",
             "service_api_key_value": "<redacted>",
+            "apiKey": "<redacted>",
+            "clientSecret": "<redacted>",
+            "accessToken": "<redacted>",
             "nested": {"refresh_token": "<redacted>"},
             "owner": "analytics",
         },
@@ -256,6 +275,9 @@ def test_read_model_redacts_values_for_nested_secret_like_keys() -> None:
     assert "aws-secret" not in str(payload)
     assert "ghp_123" not in str(payload)
     assert "api-secret" not in str(payload)
+    assert "camel-api" not in str(payload)
+    assert "camel-secret" not in str(payload)
+    assert "camel-token" not in str(payload)
     assert "deadbeef" not in str(payload)
 
 
@@ -402,6 +424,24 @@ def test_assistant_context_to_prompt_redacts_authorization_bearer_and_quoted_sec
     assert "cafebabe" not in prompt
     assert "hunter two" not in prompt
     assert "key with spaces" not in prompt
+
+
+def test_assistant_context_to_prompt_redacts_authorization_basic_values() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={"authorization_header": "Authorization: Basic dXNlcjpwYXNz"},
+        suggested_actions=(),
+    )
+
+    prompt = bundle.to_prompt()
+
+    assert prompt == (
+        "Incident: Incident\n"
+        "Facts:\n"
+        "- authorization_header: Authorization: Basic <redacted>\n"
+        "Suggested actions:"
+    )
+    assert "dXNlcjpwYXNz" not in prompt
 
 
 def test_assistant_context_to_prompt_redacts_embedded_key_material_values() -> None:
