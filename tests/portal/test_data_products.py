@@ -29,6 +29,22 @@ def test_build_data_products_from_governance_catalog() -> None:
     assert products[0].access_request["policy_ids"] == ["allow_analyst_dataset_read"]
 
 
+def test_build_data_products_returns_deterministic_order() -> None:
+    catalog = GovernanceCatalog.from_dict(
+        {
+            "version": 1,
+            "datasets": [
+                {"id": "z.table", "owner": "platform"},
+                {"id": "a.table", "owner": "platform"},
+            ],
+        }
+    )
+
+    products = build_data_products(catalog=catalog)
+
+    assert [product.id for product in products] == ["a.table", "z.table"]
+
+
 def test_data_product_serialization_is_browser_safe() -> None:
     catalog = GovernanceCatalog.from_dict(
         {

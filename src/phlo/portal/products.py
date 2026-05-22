@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -63,13 +64,13 @@ def _product_from_dataset(dataset: GovernedDataset, status: str) -> DataProduct:
 def build_data_products(
     *,
     catalog: GovernanceCatalog,
-    statuses: dict[str, str] | None = None,
+    statuses: Mapping[str, str] | None = None,
 ) -> list[DataProduct]:
     """Build browser-safe data product cards from governance metadata."""
     status_by_id = statuses or {}
     return [
         _product_from_dataset(dataset, status_by_id.get(dataset.id, "unknown"))
-        for dataset in catalog.datasets.values()
+        for dataset in (catalog.datasets[dataset_id] for dataset_id in sorted(catalog.datasets))
     ]
 
 
