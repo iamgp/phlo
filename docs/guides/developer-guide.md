@@ -928,6 +928,34 @@ def customer_health_access():
     pass
 ```
 
+### Governance Readiness
+
+Phlo's governance surface is derived from the declarations above. There is no
+separate catalog file to maintain: `@phlo.contract` supplies owner, lifecycle,
+consumer, PII, and SLA metadata; `@phlo.publish` marks the table as a published
+data product; `@phlo.access` declares the access policy; and `@phlo.observe`
+adds operational checks.
+
+Use the CLI in CI or pull-request checks before a data product is promoted:
+
+```bash
+phlo governance check --module workflows/customer_health.py
+phlo governance check --json --module workflows/customer_health.py
+```
+
+For runtime publish gates, require governance on the publish helper:
+
+```python
+from phlo.helpers import publish_table
+
+publish_table("gold.customer_health", require_governance=True)
+```
+
+That call fails before publishing if `gold.customer_health` is missing an owner,
+access policy, PII column policy, or production SLA. The table id is the same
+durable table name used in the `table=` argument on `@phlo.contract`,
+`@phlo.publish`, `@phlo.access`, and `@phlo.observe`.
+
 ### Schedules
 
 Use `@phlo.schedule` to declare when a set of static targets should run. The
