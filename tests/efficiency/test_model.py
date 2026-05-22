@@ -79,13 +79,22 @@ def test_efficiency_finding_serializes_nested_metrics_without_mutable_leaks() ->
         severity="warning",
         message="bronze.events has hot partitions",
         recommended_action="rebalance_partitions",
-        metrics={"partitions": {"hot": ["2026-05-22"]}},
+        metrics={
+            "partitions": {"hot": ["2026-05-22"]},
+            "checks": ("small_files", "snapshot_retention"),
+            "tags": {"bronze", "quality"},
+        },
     )
 
     payload = finding.to_read_model()
     payload["metrics"]["partitions"]["hot"].append("mutated")
 
     assert finding.to_read_model()["metrics"]["partitions"]["hot"] == ["2026-05-22"]
+    assert finding.to_read_model()["metrics"]["checks"] == [
+        "small_files",
+        "snapshot_retention",
+    ]
+    assert finding.to_read_model()["metrics"]["tags"] == ["bronze", "quality"]
 
 
 def test_build_efficiency_report_serializes_findings() -> None:

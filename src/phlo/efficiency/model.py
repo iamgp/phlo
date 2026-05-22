@@ -114,8 +114,8 @@ def _average_file_mib(table: TableEfficiencyInput) -> float:
 def _copy_json_like(value: Any) -> Any:
     if isinstance(value, dict):
         return {key: _copy_json_like(item) for key, item in value.items()}
-    if isinstance(value, list):
+    if isinstance(value, list | tuple):
         return [_copy_json_like(item) for item in value]
-    if isinstance(value, tuple):
-        return tuple(_copy_json_like(item) for item in value)
+    if isinstance(value, set):
+        return sorted((_copy_json_like(item) for item in value), key=repr)
     return value
