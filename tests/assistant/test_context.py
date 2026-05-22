@@ -32,6 +32,24 @@ def test_read_model_redacts_token_case_insensitively() -> None:
     assert payload["facts"]["error"] == "Token=<redacted> failed"
 
 
+def test_read_model_redacts_password_like_values_and_bearer_tokens() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "error": "password=hunter2 failed",
+            "auth": "Bearer deadbeef",
+        },
+        suggested_actions=(),
+    )
+
+    payload = bundle.to_read_model()
+
+    assert payload["facts"]["error"] == "password=<redacted> failed"
+    assert payload["facts"]["auth"] == "Bearer <redacted>"
+    assert "hunter2" not in str(payload)
+    assert "deadbeef" not in str(payload)
+
+
 def test_assistant_context_to_prompt_is_deterministic() -> None:
     bundle = AssistantContextBundle(
         title="Quality failure",
@@ -65,3 +83,22 @@ def test_assistant_context_to_prompt_redacts_secret_like_values() -> None:
     assert "<redacted-dsn>" in prompt
     assert "abc123" not in prompt
     assert "user:pass" not in prompt
+
+
+def test_assistant_context_to_prompt_redacts_password_like_values_and_bearer_tokens() -> None:
+    bundle = AssistantContextBundle(
+        title="Incident",
+        facts={
+            "auth": "Bearer deadbeef",
+            "error": "password=hunter2 failed",
+        },
+        suggested_actions=(),
+    )
+
+    assert bundle.to_prompt() == (
+        "Incident: Incident\n"
+        "Facts:\n"
+        "- auth: Bearer <redacted>\n"
+        "- error: password=<redacted> failed\n"
+        "Suggested actions:"
+    )
