@@ -7,6 +7,7 @@ import importlib.util
 import shutil
 import subprocess
 import sys
+from typing import cast
 
 from packaging.version import parse
 from rich.console import Console
@@ -18,65 +19,58 @@ from phlo.cli.commands.plugin.scaffold import create_plugin_package  # noqa: F40
 from phlo.logging import get_logger
 from phlo.plugins import get_plugin_info
 from phlo.plugins.base import PluginMetadata
-from phlo.plugins.discovery import get_global_registry, get_service
+from phlo.plugins.base.service import ServicePlugin
+from phlo.plugins.discovery import get_global_registry
 
 console = Console()
 logger = get_logger(__name__)
 
 PLUGIN_TYPE_MAP = {
-    "sources": "source_connectors",
-    "source": "source_connectors",
-    "quality": "quality_checks",
-    "quality-providers": "quality_providers",
-    "quality-provider": "quality_providers",
-    "quality_providers": "quality_providers",
-    "quality_provider": "quality_providers",
-    "ingestion": "ingestion_providers",
-    "ingestion-providers": "ingestion_providers",
-    "ingestion-provider": "ingestion_providers",
-    "ingestion_providers": "ingestion_providers",
-    "ingestion_provider": "ingestion_providers",
-    "transformation-providers": "transformation_providers",
-    "transformation-provider": "transformation_providers",
-    "transformation_providers": "transformation_providers",
-    "transformation_provider": "transformation_providers",
-    "transforms": "transformations",
-    "transform": "transformations",
-    "services": "services",
-    "service": "services",
-    "cli": "cli_commands",
-    "cli-commands": "cli_commands",
-    "cli-command": "cli_commands",
-    "cli_commands": "cli_commands",
-    "cli_command": "cli_commands",
-    "hooks": "hooks",
-    "hook": "hooks",
-    "assets": "asset_providers",
-    "asset": "asset_providers",
-    "resources": "resource_providers",
-    "resource": "resource_providers",
-    "orchestrators": "orchestrators",
-    "orchestrator": "orchestrators",
-    "catalogs": "catalogs",
-    "catalog": "catalogs",
+    "sources": "source_connector",
+    "source": "source_connector",
+    "quality": "quality_check",
+    "quality-providers": "quality_provider",
+    "quality-provider": "quality_provider",
+    "quality_provider": "quality_provider",
+    "ingestion": "ingestion_provider",
+    "ingestion-providers": "ingestion_provider",
+    "ingestion-provider": "ingestion_provider",
+    "ingestion_provider": "ingestion_provider",
+    "transformation-providers": "transformation_provider",
+    "transformation-provider": "transformation_provider",
+    "transformation_provider": "transformation_provider",
+    "transforms": "transformation",
+    "transform": "transformation",
+    "service": "service",
+    "cli": "cli_command",
+    "cli-commands": "cli_command",
+    "cli-command": "cli_command",
+    "cli_command": "cli_command",
+    "hook": "hook",
+    "assets": "asset_provider",
+    "asset": "asset_provider",
+    "resources": "resource_provider",
+    "resource": "resource_provider",
+    "orchestrator": "orchestrator",
+    "catalog": "catalog",
 }
 
 PLUGIN_TYPE_CHOICES = list(PLUGIN_TYPE_MAP)
 
 INTERNAL_TO_REGISTRY_TYPE = {
-    "source_connectors": "source",
-    "quality_checks": "quality",
-    "quality_providers": "quality_provider",
-    "ingestion_providers": "ingestion_provider",
-    "transformation_providers": "transformation_provider",
-    "transformations": "transform",
-    "services": "service",
-    "cli_commands": "cli",
-    "hooks": "hooks",
-    "asset_providers": "assets",
-    "resource_providers": "resources",
-    "orchestrators": "orchestrators",
-    "catalogs": "catalogs",
+    "source_connector": "source",
+    "quality_check": "quality",
+    "quality_provider": "quality_provider",
+    "ingestion_provider": "ingestion_provider",
+    "transformation_provider": "transformation_provider",
+    "transformation": "transform",
+    "service": "service",
+    "cli_command": "cli",
+    "hook": "hook",
+    "asset_provider": "assets",
+    "resource_provider": "resources",
+    "orchestrator": "orchestrator",
+    "catalog": "catalog",
 }
 
 REGISTRY_TYPE_ALIASES = {
@@ -85,36 +79,28 @@ REGISTRY_TYPE_ALIASES = {
     "quality": "quality",
     "quality-providers": "quality_provider",
     "quality-provider": "quality_provider",
-    "quality_providers": "quality_provider",
     "quality_provider": "quality_provider",
     "ingestion": "ingestion_provider",
     "ingestion-providers": "ingestion_provider",
     "ingestion-provider": "ingestion_provider",
-    "ingestion_providers": "ingestion_provider",
     "ingestion_provider": "ingestion_provider",
     "transformation-providers": "transformation_provider",
     "transformation-provider": "transformation_provider",
-    "transformation_providers": "transformation_provider",
     "transformation_provider": "transformation_provider",
     "transforms": "transform",
     "transform": "transform",
-    "services": "service",
     "service": "service",
     "cli": "cli",
     "cli-commands": "cli",
     "cli-command": "cli",
-    "cli_commands": "cli",
     "cli_command": "cli",
-    "hooks": "hooks",
-    "hook": "hooks",
+    "hook": "hook",
     "assets": "assets",
     "asset": "assets",
     "resources": "resources",
     "resource": "resources",
-    "orchestrators": "orchestrators",
-    "orchestrator": "orchestrators",
-    "catalogs": "catalogs",
-    "catalog": "catalogs",
+    "orchestrator": "orchestrator",
+    "catalog": "catalog",
 }
 
 
@@ -146,13 +132,12 @@ SCAFFOLD_TYPE_MAP = {
     "quality": "quality",
     "transforms": "transform",
     "transform": "transform",
-    "services": "service",
     "service": "service",
-    "hooks": "hook",
-    "catalogs": "catalog",
+    "hook": "hook",
+    "catalog": "catalog",
     "assets": "asset",
     "resources": "resource",
-    "orchestrators": "orchestrator",
+    "orchestrator": "orchestrator",
 }
 
 
@@ -253,9 +238,9 @@ def collect_installed_plugins(plugin_type: str) -> list[dict]:
     for type_key, names in registry.list_all_plugins().items():
         if plugin_type != "all" and PLUGIN_TYPE_MAP.get(plugin_type) != type_key:
             continue
-        if type_key == "services":
+        if type_key == "service":
             for name in names:
-                service = get_service(name)
+                service = cast(ServicePlugin | None, registry.get("service", name))
                 if not service:
                     continue
                 metadata = service.metadata

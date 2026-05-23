@@ -116,8 +116,14 @@ def test_quality_module_populates_exports_on_discovered_provider(
 
     import phlo.plugins.discovery as discovery
 
+    class _Registry:
+        def get(self, plugin_type: str, name: str):
+            assert plugin_type == "quality_provider"
+            assert name == "pandera"
+            return _Provider()
+
     monkeypatch.setattr(discovery, "discover_plugins", lambda: None)
-    monkeypatch.setattr(discovery, "get_quality_provider", lambda _name: _Provider())
+    monkeypatch.setattr(discovery, "get_global_registry", lambda: _Registry())
 
     quality_module = importlib.import_module("phlo.quality")
 
@@ -132,12 +138,14 @@ def test_quality_module_populates_exports_on_discovered_provider(
     assert quality_module.dbt_check_name("dbt", "users") == "dbt_users"
 
 
-def test_plugin_discovery_exports_provider_list_helpers() -> None:
-    """Plugin discovery should expose provider listing helpers for public APIs."""
+def test_plugin_discovery_exports_generic_query_helpers() -> None:
+    """Plugin discovery should expose generic registry query helpers for public APIs."""
     import phlo.plugins.discovery as discovery
 
-    assert callable(discovery.list_ingestion_providers)
-    assert callable(discovery.list_quality_providers)
+    assert callable(discovery.get_plugin)
+    assert callable(discovery.list_plugins)
+    assert "ingestion_provider" in discovery.PLUGIN_FAMILIES
+    assert "quality_provider" in discovery.PLUGIN_FAMILIES
 
 
 def test_plugin_query_helpers_list_registered_provider_names(
@@ -147,27 +155,30 @@ def test_plugin_query_helpers_list_registered_provider_names(
     from phlo.plugins.discovery import _plugin_queries
 
     class _Registry:
-        def list_ingestion_providers(self) -> list[str]:
-            return ["dlt", "sling"]
-
-        def list_quality_providers(self) -> list[str]:
-            return ["pandera"]
+        def list_all_plugins(self) -> dict[str, list[str]]:
+            return {
+                "ingestion_provider": ["dlt", "sling"],
+                "quality_provider": ["pandera"],
+            }
 
     monkeypatch.setattr(_plugin_queries, "get_global_registry", lambda: _Registry())
 
-    assert _plugin_queries.list_ingestion_providers() == ["dlt", "sling"]
-    assert _plugin_queries.list_quality_providers() == ["pandera"]
+    assert _plugin_queries.list_plugins("ingestion_provider") == {
+        "ingestion_provider": ["dlt", "sling"]
+    }
+    assert _plugin_queries.list_plugins("quality_provider") == {"quality_provider": ["pandera"]}
 
 
-def test_plugins_module_reexports_provider_getters() -> None:
-    """phlo.plugins should expose provider getter helpers."""
+def test_plugins_module_reexports_generic_plugin_queries() -> None:
+    """phlo.plugins should expose generic plugin query helpers."""
     import phlo.plugins as plugins
     import phlo.plugins.discovery as discovery
 
-    assert "get_ingestion_provider" in plugins.__all__
-    assert "get_transformation_provider" in plugins.__all__
-    assert plugins.get_ingestion_provider is discovery.get_ingestion_provider
-    assert plugins.get_transformation_provider is discovery.get_transformation_provider
+    assert "get_plugin" in plugins.__all__
+    assert "list_plugins" in plugins.__all__
+    assert "get_ingestion_provider" not in plugins.__all__
+    assert plugins.get_plugin is discovery.get_plugin
+    assert plugins.list_plugins is discovery.list_plugins
 
 
 def test_plugins_module_lazy_discovery_exports_use_importlib(
@@ -187,8 +198,8 @@ def test_plugins_module_lazy_discovery_exports_use_importlib(
     monkeypatch.setattr(plugins.importlib, "import_module", _record_import)
 
     assert plugins.__getattr__("discovery") is discovery
-    assert plugins.get_hook_plugin is discovery.get_hook_plugin
-    assert plugins.get_service is discovery.get_service
+    assert plugins.get_plugin is discovery.get_plugin
+    assert plugins.list_plugins is discovery.list_plugins
     plugin_imports = [name for name in imports if name.startswith("phlo.plugins")]
     assert plugin_imports.count("phlo.plugins.discovery") == 3
     assert "phlo.plugins" not in plugin_imports

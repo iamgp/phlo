@@ -11,6 +11,7 @@ import subprocess
 import sys
 from importlib.metadata import version
 from pathlib import Path
+from typing import cast
 
 import click
 
@@ -22,6 +23,7 @@ from phlo.cli.templates import TemplateRenderContext, get_template
 from phlo.cli.templates import list_templates as get_project_templates
 from phlo.cli.templates.registry import missing_required_packages
 from phlo.logging import get_logger, setup_logging
+from phlo.plugins.base.cli import CliCommandPlugin
 
 logger = get_logger(__name__, service="phlo-cli")
 
@@ -91,14 +93,15 @@ def _load_cli_plugin_commands() -> None:
     from phlo.plugins.discovery import discover_plugins, get_global_registry
 
     logger.debug("cli_plugin_discovery_started")
-    discover_plugins(plugin_type="cli_commands", auto_register=True, failure_level="debug")
+    discover_plugins(plugin_type="cli_command", auto_register=True, failure_level="debug")
     registry = get_global_registry()
     added_count = 0
-    for name in registry.list_cli_command_plugins():
-        plugin = registry.get_cli_command_plugin(name)
+    for name in registry.list("cli_command"):
+        plugin = registry.get("cli_command", name)
         if plugin is None:
             logger.warning("cli_plugin_missing_in_registry", plugin_name=name)
             continue
+        plugin = cast(CliCommandPlugin, plugin)
         for command in plugin.get_cli_commands():
             if command.name is None or command.name in cli.commands:
                 logger.debug("cli_command_skipped", plugin_name=name, command_name=command.name)

@@ -109,7 +109,7 @@ def test_service_discovery_includes_plugins(
 ) -> None:
     """Ensure discovered services include registered service plugins."""
     registry = get_global_registry()
-    registry.register_service(DummyServicePlugin(), replace=True)
+    registry.register("service", DummyServicePlugin(), replace=True)
 
     monkeypatch.setattr(
         "phlo.plugins.discovery._service_loading.discover_plugins",
@@ -131,11 +131,11 @@ def test_service_discovery_raises_for_non_mapping_plugin_service_definitions(
 ) -> None:
     """A plugin returning non-mapping service data raises a contextual manifest error."""
     registry = get_global_registry()
-    registry.register_service(DummyServicePlugin(), replace=True)
-    registry.register_service(NonMappingServicePlugin(), replace=True)
+    registry.register("service", DummyServicePlugin(), replace=True)
+    registry.register("service", NonMappingServicePlugin(), replace=True)
     monkeypatch.setattr(
         "phlo.plugins.discovery.service_manifest.discover_plugins",
-        lambda plugin_type="services", auto_register=True: None,
+        lambda plugin_type="service", auto_register=True: None,
     )
 
     with pytest.raises(ServiceManifestError) as exc:
@@ -159,8 +159,8 @@ def test_service_loading_helper_skips_non_mapping_plugin_service_definitions(
     from phlo.plugins.discovery import _service_loading
 
     registry = get_global_registry()
-    registry.register_service(DummyServicePlugin(), replace=True)
-    registry.register_service(NonMappingServicePlugin(), replace=True)
+    registry.register("service", DummyServicePlugin(), replace=True)
+    registry.register("service", NonMappingServicePlugin(), replace=True)
     events: list[DiscoverySignal] = []
     services: dict[str, ServiceDefinition] = {}
     monkeypatch.setattr(
@@ -196,7 +196,7 @@ def test_service_discovery_refresh_reloads_stale_cache(
     """Verify cached discovery remains stale until explicit refresh."""
     monkeypatch.setattr(
         "phlo.plugins.discovery.service_manifest.discover_plugins",
-        lambda plugin_type="services", auto_register=True: None,
+        lambda plugin_type="service", auto_register=True: None,
     )
     _write_service_yaml(tmp_path, "alpha", "alpha")
 
@@ -345,7 +345,7 @@ def test_service_discovery_clear_cache_and_refresh_alias(
     """Verify cache invalidation API triggers rediscovery."""
     monkeypatch.setattr(
         "phlo.plugins.discovery.service_manifest.discover_plugins",
-        lambda plugin_type="services", auto_register=True: None,
+        lambda plugin_type="service", auto_register=True: None,
     )
     _write_service_yaml(tmp_path, "alpha", "alpha")
 
@@ -371,7 +371,7 @@ def test_service_discovery_emits_cache_refresh_observability_signals(
     """Cache and refresh flows emit structured, queryable discovery signals."""
     monkeypatch.setattr(
         "phlo.plugins.discovery.service_manifest.discover_plugins",
-        lambda plugin_type="services", auto_register=True: None,
+        lambda plugin_type="service", auto_register=True: None,
     )
     _write_service_yaml(tmp_path, "alpha", "alpha")
 
@@ -427,7 +427,7 @@ def test_service_discovery_filters_services_by_profile(
     """Profile lookup returns only matching discovered service definitions."""
     monkeypatch.setattr(
         "phlo.plugins.discovery.service_manifest.discover_plugins",
-        lambda plugin_type="services", auto_register=True: None,
+        lambda plugin_type="service", auto_register=True: None,
     )
     _write_service_yaml(tmp_path, "core", "core-service")
     profile_service = tmp_path / "analytics" / "service.yaml"
@@ -506,7 +506,7 @@ def test_service_discovery_raises_for_non_mapping_directory_service_files(
     """Non-mapping service YAML raises a contextual manifest error."""
     monkeypatch.setattr(
         "phlo.plugins.discovery.service_manifest.discover_plugins",
-        lambda plugin_type="services", auto_register=True: None,
+        lambda plugin_type="service", auto_register=True: None,
     )
     _write_service_yaml(tmp_path, "valid", "valid")
     broken = tmp_path / "broken" / "service.yaml"

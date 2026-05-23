@@ -175,10 +175,10 @@ _MINIMAL_TEST_VALUES: dict[str, str] = {
 def _load_quality_provider() -> Any | None:
     """Load the active quality provider used for generated schemas."""
     try:
-        from phlo.plugins.discovery import discover_plugins, get_quality_provider
+        from phlo.plugins.discovery import discover_plugins, get_global_registry
 
         discover_plugins()
-        provider = get_quality_provider("pandera")
+        provider = get_global_registry().get("quality_provider", "pandera")
         if provider is not None:
             return provider
     except Exception:

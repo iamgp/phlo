@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from phlo.config import get_settings
 from phlo.exceptions import PhloConfigError
 from phlo.logging import get_logger
@@ -17,14 +19,16 @@ def get_active_orchestrator(name: str | None = None) -> OrchestratorAdapterPlugi
     orchestrator_name = (name or settings.phlo_orchestrator or "dagster").strip()
     logger.debug("orchestrator_selection_started", requested_name=orchestrator_name)
 
-    discover_plugins(plugin_type="orchestrators", auto_register=True)
+    discover_plugins(plugin_type="orchestrator", auto_register=True)
     registry = get_global_registry()
-    adapter = registry.get_orchestrator(orchestrator_name)
+    adapter = cast(
+        OrchestratorAdapterPlugin | None, registry.get("orchestrator", orchestrator_name)
+    )
     if adapter is None:
         logger.warning(
             "orchestrator_not_installed",
             requested_name=orchestrator_name,
-            available_orchestrators=registry.list_orchestrators(),
+            available_orchestrators=registry.list("orchestrator"),
         )
         raise PhloConfigError(
             message=f"Orchestrator adapter '{orchestrator_name}' is not installed.",

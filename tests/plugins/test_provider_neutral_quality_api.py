@@ -119,6 +119,19 @@ class _FakeQualityProvider:
         return [f"native:{rule.kind}" for rule in rules]
 
 
+class _FakeQualityRegistry:
+    def __init__(self, providers: dict[str, _FakeQualityProvider]) -> None:
+        self.providers = providers
+
+    def get(self, plugin_type: str, name: str):
+        assert plugin_type == "quality_provider"
+        return self.providers.get(name)
+
+    def list(self, plugin_type: str) -> list[str]:
+        assert plugin_type == "quality_provider"
+        return list(self.providers)
+
+
 def test_quality_provider_returns_named_provider_decorator(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -126,7 +139,11 @@ def test_quality_provider_returns_named_provider_decorator(
     import phlo.plugins.discovery as discovery
 
     monkeypatch.setattr(discovery, "discover_plugins", lambda *args, **kwargs: None)
-    monkeypatch.setattr(discovery, "get_quality_provider", lambda name: _FakeQualityProvider(name))
+    monkeypatch.setattr(
+        discovery,
+        "get_global_registry",
+        lambda: _FakeQualityRegistry({"pandera": _FakeQualityProvider("pandera")}),
+    )
     monkeypatch.delitem(sys.modules, "phlo.quality", raising=False)
 
     quality = importlib.import_module("phlo.quality")
@@ -147,7 +164,11 @@ def test_quality_rules_decorator_translates_rules_with_selected_provider(
     import phlo.plugins.discovery as discovery
 
     monkeypatch.setattr(discovery, "discover_plugins", lambda *args, **kwargs: None)
-    monkeypatch.setattr(discovery, "get_quality_provider", lambda name: _FakeQualityProvider(name))
+    monkeypatch.setattr(
+        discovery,
+        "get_global_registry",
+        lambda: _FakeQualityRegistry({"pandera": _FakeQualityProvider("pandera")}),
+    )
     monkeypatch.delitem(sys.modules, "phlo.quality", raising=False)
 
     quality = importlib.import_module("phlo.quality")
@@ -173,7 +194,11 @@ def test_quality_rules_fails_when_provider_cannot_translate_rules(
             return None
 
     monkeypatch.setattr(discovery, "discover_plugins", lambda *args, **kwargs: None)
-    monkeypatch.setattr(discovery, "get_quality_provider", lambda name: _NoRuleProvider(name))
+    monkeypatch.setattr(
+        discovery,
+        "get_global_registry",
+        lambda: _FakeQualityRegistry({"basic": _NoRuleProvider("basic")}),
+    )
     monkeypatch.delitem(sys.modules, "phlo.quality", raising=False)
 
     quality = importlib.import_module("phlo.quality")

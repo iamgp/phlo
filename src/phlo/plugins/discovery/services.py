@@ -1,11 +1,12 @@
 """Discover and cache service definitions from plugins and optional directories."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
 from phlo.logging import get_logger, log_event
+from phlo.plugins.base.service import ServicePlugin
 from phlo.plugins.discovery._service_cycles import find_cycles as _find_cycles_impl
 from phlo.plugins.discovery._service_definition import ServiceDefinition
 from phlo.plugins.discovery._service_dependency_resolution import resolve_service_dependencies
@@ -37,7 +38,7 @@ def _emit_service_discovery_signal(
     )
 
 
-def discover_plugins(plugin_type: str = "services", auto_register: bool = True):
+def discover_plugins(plugin_type: str = "service", auto_register: bool = True):
     """Compatibility wrapper for tests and service discovery call sites."""
     import phlo.plugins.discovery._service_loading as _service_loading
 
@@ -138,8 +139,8 @@ class ServiceDiscovery:
         The next :meth:`discover` call will perform a full rediscovery.
         """
         registry = get_global_registry()
-        for service_name in list(registry.list_services()):
-            registry.remove_service(service_name)
+        for service_name in list(registry.list("service")):
+            registry.remove("service", service_name)
 
         cached_service_count = len(self._services)
         was_loaded = self._loaded
@@ -163,10 +164,10 @@ class ServiceDiscovery:
 
         loaded_count = 0
         registry = get_global_registry()
-        discover_plugins(plugin_type="services", auto_register=True)
+        discover_plugins(plugin_type="service", auto_register=True)
 
-        for name in registry.list_services():
-            plugin = registry.get_service(name)
+        for name in registry.list("service"):
+            plugin = cast(ServicePlugin | None, registry.get("service", name))
             if not plugin:
                 continue
             if name in self._services:

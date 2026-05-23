@@ -40,10 +40,16 @@ def test_scaffold_schema_base_comes_from_quality_provider(monkeypatch: pytest.Mo
             return ("example_quality.schemas", "ExampleSchema")
 
     monkeypatch.setattr(discovery, "discover_plugins", lambda: None, raising=False)
+
+    class _Registry:
+        def get(self, plugin_type: str, name: str):
+            assert plugin_type == "quality_provider"
+            return FakeQualityProvider() if name == "pandera" else None
+
     monkeypatch.setattr(
         discovery,
-        "get_quality_provider",
-        lambda name: FakeQualityProvider() if name == "pandera" else None,
+        "get_global_registry",
+        lambda: _Registry(),
         raising=False,
     )
 
