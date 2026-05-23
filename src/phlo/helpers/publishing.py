@@ -26,9 +26,13 @@ def publish_table(
     target_table: str | None = None,
     target: Any = None,
     mode: str = "replace",
+    require_governance: bool = False,
     **options: Any,
 ) -> Any:
     """Publish a lakehouse table through a publish target provider."""
+    if require_governance:
+        require_governance_ready(table_name)
+
     provider = target or resolve_publish_target()
     if hasattr(provider, "publish_table"):
         return provider.publish_table(
@@ -40,13 +44,70 @@ def publish_table(
     raise PhloConfigError(message="Publish target provider does not expose publish_table")
 
 
-def publish_many(tables: list[str], *, target: Any = None, mode: str = "replace") -> dict[str, Any]:
+def publish_many(
+    tables: list[str],
+    *,
+    target: Any = None,
+    mode: str = "replace",
+    require_governance: bool = False,
+) -> dict[str, Any]:
     """Publish many tables and collect per-table results."""
     provider = target or resolve_publish_target()
     results: dict[str, Any] = {}
     for table in tables:
-        results[table] = publish_table(table, target=provider, mode=mode)
+        results[table] = publish_table(
+            table,
+            target=provider,
+            mode=mode,
+            require_governance=require_governance,
+        )
     return results
+
+
+def governance_publish_readiness(table_name: str) -> dict[str, Any]:
+    """Return whether a table can be published under declared governance rules."""
+    from phlo.governance import GovernanceWarning, build_governance_surface
+
+    surface = build_governance_surface()
+    table = surface.tables.get(table_name)
+    warnings = [warning for warning in surface.warnings if warning.table == table_name]
+    if table is None:
+        warnings.append(
+            GovernanceWarning(
+                table=table_name,
+                code="missing_governance_declaration",
+                message=(
+                    f"{table_name} has no Phlo governance declaration. Add @phlo.contract, "
+                    "@phlo.publish, and @phlo.access declarations before requiring governance."
+                ),
+            )
+        )
+
+    return {
+        "ready": not warnings,
+        "table": table_name,
+        "governance": table.to_read_model() if table is not None else None,
+        "warning_count": len(warnings),
+        "warnings": [warning.to_read_model() for warning in warnings],
+    }
+
+
+def require_governance_ready(table_name: str) -> dict[str, Any]:
+    """Raise if a table has governance warnings that should block publishing."""
+    report = governance_publish_readiness(table_name)
+    if report["ready"]:
+        return report
+
+    warnings = report["warnings"]
+    warning_codes = ", ".join(str(warning["code"]) for warning in warnings)
+    warning_messages = [str(warning["message"]) for warning in warnings]
+    raise PhloConfigError(
+        message=f"{table_name} is not governance-ready for publishing: {warning_codes}",
+        suggestions=[
+            *warning_messages,
+            "Run `phlo governance check --json` to inspect every declared table.",
+        ],
+    )
 
 
 def create_api_view(name: str, sql: str, *, target: Any = None) -> Any:

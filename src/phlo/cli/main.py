@@ -44,6 +44,7 @@ _INIT_INVOCATION = is_init_command_invocation(sys.argv)
 if not _DOCTOR_INVOCATION:
     from phlo.cli.commands.authz import authz_group
     from phlo.cli.commands.compliance import compliance_group
+    from phlo.cli.commands.governance import governance_group
     from phlo.cli.commands.metrics import metrics_group
     from phlo.cli.commands.migrate import migrate_group
     from phlo.cli.commands.plugin import plugin_group
@@ -83,6 +84,7 @@ if not _DOCTOR_INVOCATION:
     cli.add_command(env)
     cli.add_command(authz_group)
     cli.add_command(compliance_group)
+    cli.add_command(governance_group)
 
 
 def _load_cli_plugin_commands() -> None:
