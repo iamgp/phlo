@@ -1,4 +1,8 @@
-"""Schema registry for tracking schema evolution and detecting breaking changes."""
+"""Schema snapshot registry.
+
+Compatibility checking previously provided by check_compatibility() now lives in
+the schema migration planner rather than this registry module.
+"""
 
 from __future__ import annotations
 

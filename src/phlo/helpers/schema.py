@@ -1,4 +1,4 @@
-"""Normalized schema construction and comparison helpers."""
+"""Normalized schema construction helpers."""
 
 from __future__ import annotations
 

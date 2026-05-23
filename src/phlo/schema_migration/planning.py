@@ -58,7 +58,7 @@ def plan_schema_migration(
     renamed_sources = set(renames)
     renamed_targets = set(renames.values())
 
-    for old_name, new_name in _ordered_renames(renames):
+    for old_name, new_name in sorted(renames.items()):
         changes.append(
             SchemaChange(
                 field_name=old_name,
@@ -224,6 +224,11 @@ def _validate_renames(
     for old_name, new_name in renames.items():
         if not old_name or not new_name:
             raise SchemaMigrationPlanningError("Rename instructions require non-empty field names.")
+        if old_name == new_name:
+            raise SchemaMigrationPlanningError(
+                f"Rename instruction {old_name} -> {new_name} is invalid: "
+                "source and target are identical."
+            )
         if old_name not in current_fields:
             raise SchemaMigrationPlanningError(
                 f"Rename instruction {old_name} -> {new_name} is invalid: "
@@ -242,35 +247,9 @@ def _validate_renames(
             )
         seen_targets[new_name] = old_name
 
-    renamed_sources = set(renames)
     for old_name, new_name in renames.items():
-        if new_name in current_fields and new_name not in renamed_sources:
+        if new_name in current_fields:
             raise SchemaMigrationPlanningError(
                 f"Rename instruction {old_name} -> {new_name} is invalid: "
                 f"target field '{new_name}' already exists in current schema."
             )
-
-
-def _ordered_renames(renames: Mapping[str, str]) -> list[tuple[str, str]]:
-    ordered: list[tuple[str, str]] = []
-    visiting: set[str] = set()
-    visited: set[str] = set()
-
-    def visit(old_name: str) -> None:
-        if old_name in visited:
-            return
-        if old_name in visiting:
-            raise SchemaMigrationPlanningError(
-                "Cyclic rename instructions are not executable without an intermediate field name."
-            )
-        visiting.add(old_name)
-        new_name = renames[old_name]
-        if new_name in renames:
-            visit(new_name)
-        visiting.remove(old_name)
-        visited.add(old_name)
-        ordered.append((old_name, new_name))
-
-    for old_name in sorted(renames):
-        visit(old_name)
-    return ordered

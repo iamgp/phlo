@@ -137,7 +137,7 @@ def test_duplicate_rename_target_raises() -> None:
         )
 
 
-def test_rename_to_existing_current_field_raises_unless_target_is_renamed_away() -> None:
+def test_rename_to_existing_current_field_raises() -> None:
     current = _schema(("old_email", "string", True), ("email", "string", True))
     desired = _schema(("email", "string", True), ("primary_email", "string", True))
 
@@ -149,22 +149,8 @@ def test_rename_to_existing_current_field_raises_unless_target_is_renamed_away()
             instructions=SchemaMigrationInstructions(renames={"old_email": "email"}),
         )
 
-    plan = plan_schema_migration(
-        table_name="raw.customers",
-        current=current,
-        desired=desired,
-        instructions=SchemaMigrationInstructions(
-            renames={"old_email": "email", "email": "primary_email"}
-        ),
-    )
 
-    assert [(change.field_name, change.new_value) for change in plan.changes] == [
-        ("email", "primary_email"),
-        ("old_email", "email"),
-    ]
-
-
-def test_chained_renames_are_ordered_before_dependents() -> None:
+def test_chained_renames_raise() -> None:
     current = _schema(
         ("account_id", "int64", False),
         ("customer_id", "int64", False),
@@ -176,31 +162,39 @@ def test_chained_renames_are_ordered_before_dependents() -> None:
         ("legacy_id", "int64", False),
     )
 
-    plan = plan_schema_migration(
-        table_name="raw.customers",
-        current=current,
-        desired=desired,
-        instructions=SchemaMigrationInstructions(
-            renames={
-                "account_id": "customer_id",
-                "customer_id": "id",
-                "id": "legacy_id",
-            }
-        ),
-    )
-
-    assert [(change.field_name, change.new_value) for change in plan.changes] == [
-        ("id", "legacy_id"),
-        ("customer_id", "id"),
-        ("account_id", "customer_id"),
-    ]
+    with pytest.raises(SchemaMigrationPlanningError, match="already exists in current schema"):
+        plan_schema_migration(
+            table_name="raw.customers",
+            current=current,
+            desired=desired,
+            instructions=SchemaMigrationInstructions(
+                renames={
+                    "account_id": "customer_id",
+                    "customer_id": "id",
+                    "id": "legacy_id",
+                }
+            ),
+        )
 
 
-def test_cyclic_rename_instructions_raise() -> None:
+def test_no_op_rename_instruction_raises() -> None:
+    current = _schema(("id", "string", True))
+    desired = _schema(("id", "string", True))
+
+    with pytest.raises(SchemaMigrationPlanningError, match="source and target are identical"):
+        plan_schema_migration(
+            table_name="raw.customers",
+            current=current,
+            desired=desired,
+            instructions=SchemaMigrationInstructions(renames={"id": "id"}),
+        )
+
+
+def test_cyclic_rename_instructions_raise_as_existing_targets() -> None:
     current = _schema(("a", "string", True), ("b", "string", True))
     desired = _schema(("a", "string", True), ("b", "string", True))
 
-    with pytest.raises(SchemaMigrationPlanningError, match="Cyclic rename"):
+    with pytest.raises(SchemaMigrationPlanningError, match="already exists in current schema"):
         plan_schema_migration(
             table_name="raw.customers",
             current=current,
