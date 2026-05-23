@@ -146,13 +146,10 @@ from phlo.helpers.references import (
     reference_required_field_gaps,
 )
 from phlo.helpers.schema import (
-    assert_schema_compatible,
-    compare_schemas,
     normalized_schema,
     schema_field_map,
     schema_from_arrow,
     schema_from_dataframe,
-    suggest_schema_migration,
 )
 from phlo.helpers.sql import (
     apply_where,
@@ -243,7 +240,6 @@ __all__ = [
     "assert_materialize_result",
     "assert_no_reference_gap",
     "assert_reference_unique",
-    "assert_schema_compatible",
     "assert_valid_transition",
     "audit_event",
     "bitemporal_predicate",
@@ -257,7 +253,6 @@ __all__ = [
     "collect_errors",
     "collect_workflow_evidence",
     "compare_partitions",
-    "compare_schemas",
     "connection_from_url",
     "correction_chain",
     "create_api_view",
@@ -358,7 +353,6 @@ __all__ = [
     "schema_from_dataframe",
     "stage_path_for_run",
     "state_transition_counts",
-    "suggest_schema_migration",
     "supersession_key",
     "table_exists",
     "table_ref_sql",

@@ -11,9 +11,9 @@ from rich.table import Table
 
 from phlo.capabilities.schema import CLASSIFICATION_ORDER
 from phlo.logging import get_logger
+from phlo.schema_migration.planning import plan_schema_migration
 from phlo.schema_registry import (
     SchemaRegistry,
-    check_compatibility,
     deserialize_schema,
     resolve_registry_db_url,
 )
@@ -83,7 +83,7 @@ def check(table: str, fail_on: str) -> None:
 
     current = deserialize_schema(snapshots[0].schema_json)
     previous = deserialize_schema(snapshots[1].schema_json)
-    plan = check_compatibility(previous, current, table_name=table)
+    plan = plan_schema_migration(table_name=table, current=previous, desired=current)
 
     classification_colors = {"safe": "green", "warning": "yellow", "breaking": "red"}
     color = classification_colors.get(plan.classification, "white")

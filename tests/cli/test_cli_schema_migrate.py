@@ -20,6 +20,7 @@ from phlo.capabilities.specs import (
 )
 from phlo.cli.commands import schema_migrate as schema_migrate_commands
 from phlo.cli.main import cli
+from phlo.schema_migration.planning import SchemaMigrationInstructions
 
 
 def test_schema_migrate_history_renders_timestamp_ms(monkeypatch) -> None:
@@ -283,8 +284,245 @@ def test_schema_migrate_scaffold_yaml_reads_contract(monkeypatch) -> None:
         payload = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
         assert payload["table_name"] == "warehouse.customers"
         assert payload["classification"] == "safe"
+        assert payload["renames"] == {}
         assert payload["operations"][0]["change_type"] == "add"
         assert payload["operations"][0]["operation_id"]
+
+
+def test_schema_migrate_plan_passes_yaml_and_cli_renames(monkeypatch) -> None:
+    """Plan reads default migration YAML and additive CLI rename flags."""
+
+    class FakeExtractor:
+        def extract(self, native_schema: object) -> NormalizedSchema:
+            return NormalizedSchema(fields=[FieldSpec(name="email", dtype="string")])
+
+    class FakeMigrator:
+        def diff_schema(
+            self,
+            *,
+            table_name: str,
+            desired: NormalizedSchema,
+            instructions: SchemaMigrationInstructions | None = None,
+        ) -> SchemaMigrationPlan:
+            assert table_name == "warehouse.customers"
+            assert instructions is not None
+            assert instructions.renames == {
+                "customer_email": "email",
+                "surname": "last_name",
+            }
+            return SchemaMigrationPlan(
+                table_name=table_name,
+                changes=[
+                    SchemaChange(
+                        field_name="customer_email",
+                        change_type="rename",
+                        old_value="customer_email",
+                        new_value="email",
+                        classification="safe",
+                    )
+                ],
+                classification="safe",
+            )
+
+    class CustomerSchema:
+        pass
+
+    monkeypatch.setattr(schema_migrate_commands, "_resolve_extractor", lambda: FakeExtractor())
+    monkeypatch.setattr(schema_migrate_commands, "_resolve_migrator", lambda: FakeMigrator())
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "_find_native_schema",
+        lambda table_name, schema_class: CustomerSchema,
+    )
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        migration_path = Path(".phlo/migrations/warehouse__customers.yaml")
+        migration_path.parent.mkdir(parents=True, exist_ok=True)
+        migration_path.write_text(
+            yaml.safe_dump(
+                {
+                    "table_name": "warehouse.customers",
+                    "renames": {"customer_email": "email"},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            cli,
+            [
+                "schema-migrate",
+                "plan",
+                "warehouse.customers",
+                "--rename",
+                "surname=last_name",
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert "rename" in result.output
+
+
+def test_schema_migrate_rename_conflict_tells_user_to_sort_yaml_or_cli(monkeypatch) -> None:
+    """Conflicting YAML/CLI rename instructions fail before planning."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        migration_path = Path(".phlo/migrations/warehouse__customers.yaml")
+        migration_path.parent.mkdir(parents=True, exist_ok=True)
+        migration_path.write_text(
+            yaml.safe_dump(
+                {
+                    "table_name": "warehouse.customers",
+                    "renames": {"customer_email": "email"},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            cli,
+            [
+                "schema-migrate",
+                "diff",
+                "warehouse.customers",
+                "--rename",
+                "customer_email=primary_email",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert "Sort out the YAML or CLI flags" in result.output
+
+
+def test_schema_migrate_apply_refuses_rename_when_migrator_does_not_support_it(
+    monkeypatch,
+) -> None:
+    """Apply stops when the selected migrator cannot execute an explicit rename."""
+
+    class FakeExtractor:
+        def extract(self, native_schema: object) -> NormalizedSchema:
+            return NormalizedSchema(fields=[FieldSpec(name="email", dtype="string")])
+
+    class FakeMigrator:
+        def supported_changes(self) -> set[str]:
+            return {"add", "drop"}
+
+        def diff_schema(
+            self,
+            *,
+            table_name: str,
+            desired: NormalizedSchema,
+            instructions: SchemaMigrationInstructions | None = None,
+        ) -> SchemaMigrationPlan:
+            return SchemaMigrationPlan(
+                table_name=table_name,
+                changes=[
+                    SchemaChange(
+                        field_name="customer_email",
+                        change_type="rename",
+                        old_value="customer_email",
+                        new_value="email",
+                        classification="safe",
+                    )
+                ],
+                classification="safe",
+            )
+
+        def apply_plan(
+            self, *, plan: SchemaMigrationPlan, approved: bool = False
+        ) -> dict[str, object]:
+            raise AssertionError("apply_plan should not run for unsupported rename")
+
+    class CustomerSchema:
+        pass
+
+    monkeypatch.setattr(schema_migrate_commands, "_resolve_extractor", lambda: FakeExtractor())
+    monkeypatch.setattr(schema_migrate_commands, "_resolve_migrator", lambda: FakeMigrator())
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "_find_native_schema",
+        lambda table_name, schema_class: CustomerSchema,
+    )
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli,
+            [
+                "schema-migrate",
+                "apply",
+                "warehouse.customers",
+                "--rename",
+                "customer_email=email",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert "unsupported change type" in result.output
+    assert "rename" in result.output
+
+
+def test_schema_migrate_apply_dry_run_refuses_unsupported_rename(monkeypatch) -> None:
+    """Dry-run still answers whether the selected migrator can apply the plan."""
+
+    class FakeExtractor:
+        def extract(self, native_schema: object) -> NormalizedSchema:
+            return NormalizedSchema(fields=[FieldSpec(name="email", dtype="string")])
+
+    class FakeMigrator:
+        def supported_changes(self) -> set[str]:
+            return {"add", "drop"}
+
+        def diff_schema(
+            self,
+            *,
+            table_name: str,
+            desired: NormalizedSchema,
+            instructions: SchemaMigrationInstructions | None = None,
+        ) -> SchemaMigrationPlan:
+            return SchemaMigrationPlan(
+                table_name=table_name,
+                changes=[
+                    SchemaChange(
+                        field_name="customer_email",
+                        change_type="rename",
+                        old_value="customer_email",
+                        new_value="email",
+                        classification="safe",
+                    )
+                ],
+                classification="safe",
+            )
+
+    class CustomerSchema:
+        pass
+
+    monkeypatch.setattr(schema_migrate_commands, "_resolve_extractor", lambda: FakeExtractor())
+    monkeypatch.setattr(schema_migrate_commands, "_resolve_migrator", lambda: FakeMigrator())
+    monkeypatch.setattr(
+        schema_migrate_commands,
+        "_find_native_schema",
+        lambda table_name, schema_class: CustomerSchema,
+    )
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            cli,
+            [
+                "schema-migrate",
+                "apply",
+                "warehouse.customers",
+                "--rename",
+                "customer_email=email",
+                "--dry-run",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert "unsupported change type" in result.output
+    assert "Dry run" not in result.output
 
 
 def test_schema_migrate_scaffold_yaml_is_deterministic(monkeypatch) -> None:
