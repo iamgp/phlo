@@ -31,7 +31,7 @@ The helper API is a hand-written map of the public helper surface. The generated
 | `phlo.helpers.lineage` | Collect and emit input/output lineage | `LineageCollector`, `lineage_context`, `emit_input_output_lineage`, `row_id_columns` |
 | `phlo.helpers.observability` | Emit metrics, logs, and timing events | `run_timer`, `emit_metric`, `record_rows_processed`, `alert_on_failure` |
 | `phlo.helpers.ingestion` | Flatten records, paginate APIs, and assemble CSV batches | `PaginationState`, `api_paginated_source`, `flatten_json_records`, `records_to_dataframe` |
-| `phlo.helpers.publishing` | Publish lakehouse tables and summarize publish eligibility | `publish_table`, `publish_many`, `create_api_view`, `publish_eligibility_report` |
+| `phlo.helpers.publishing` | Publish lakehouse tables, gate publishes on governance readiness, and summarize publish eligibility | `publish_table`, `publish_many`, `create_api_view`, `governance_publish_readiness`, `require_governance_ready`, `publish_eligibility_report` |
 | `phlo.helpers.governance` | Build policy, masking, and audit descriptors | `classify_columns`, `mask_columns`, `policy_check`, `audit_event` |
 | `phlo.helpers.errors` | Classify and wrap workflow errors | `classify_exception`, `failure_hint`, `with_phlo_errors`, `retry_transient` |
 | `phlo.helpers.testing` | Minimal test context and assertions | `FakeRuntimeContext`, `assert_materialize_result` |

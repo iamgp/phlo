@@ -349,6 +349,16 @@ def clear_schedules() -> None:
     _SCHEDULES.clear()
 
 
+def clear_flow_declarations() -> None:
+    """Clear all flow authoring declarations registered in this process."""
+    clear_publish_assets()
+    clear_observe_assets()
+    clear_backfill_assets()
+    clear_contract_specs()
+    clear_access_policies()
+    clear_schedules()
+
+
 __all__ = [
     "AccessPolicySpec",
     "ContractSpec",
@@ -358,6 +368,7 @@ __all__ = [
     "clear_access_policies",
     "clear_backfill_assets",
     "clear_contract_specs",
+    "clear_flow_declarations",
     "clear_observe_assets",
     "clear_publish_assets",
     "clear_schedules",

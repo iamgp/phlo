@@ -113,9 +113,11 @@ from phlo.helpers.partitions import (
 )
 from phlo.helpers.publishing import (
     create_api_view,
+    governance_publish_readiness,
     publish_eligibility_report,
     publish_many,
     publish_table,
+    require_governance_ready,
     resolve_publish_target,
 )
 from phlo.helpers.quality import (
@@ -282,6 +284,7 @@ __all__ = [
     "file_checksum",
     "flatten_json_records",
     "freshness_rule_from_sla",
+    "governance_publish_readiness",
     "invalid_transitions",
     "invalidated_record_filter",
     "latest_event_per_key",
@@ -341,6 +344,7 @@ __all__ = [
     "resolve_database",
     "resolve_publish_target",
     "resolve_watermark",
+    "require_governance_ready",
     "retry_transient",
     "rolling_partition_range",
     "row_checksum",
