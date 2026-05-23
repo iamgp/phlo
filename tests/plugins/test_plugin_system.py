@@ -12,7 +12,6 @@ from types import SimpleNamespace
 
 import pytest
 
-import phlo.plugins.discovery.plugins as plugins_discovery
 from phlo.plugins import (
     PluginMetadata,
     QualityCheckPlugin,
@@ -20,14 +19,12 @@ from phlo.plugins import (
     SourceConnectorPlugin,
     TransformationPlugin,
     discover_plugins,
+    get_plugin,
     get_plugin_info,
-    get_quality_check,
-    get_service,
-    get_source_connector,
-    get_transformation,
     list_plugins,
     validate_plugins,
 )
+from phlo.plugins.discovery import _plugin_auto_discovery as plugin_auto_discovery
 from phlo.plugins.discovery import get_global_registry
 
 pytestmark = pytest.mark.core_regression
@@ -142,62 +139,62 @@ class TestPluginRegistration:
     def test_register_source_connector(self, clean_registry):
         """Test registering a source connector."""
         plugin = DummySourcePlugin()
-        clean_registry.register_source_connector(plugin)
+        clean_registry.register("source_connector", plugin)
 
-        retrieved = clean_registry.get_source_connector("test_source")
+        retrieved = clean_registry.get("source_connector", "test_source")
         assert retrieved is plugin
 
     def test_register_quality_check(self, clean_registry):
         """Test registering a quality check."""
         plugin = DummyQualityPlugin()
-        clean_registry.register_quality_check(plugin)
+        clean_registry.register("quality_check", plugin)
 
-        retrieved = clean_registry.get_quality_check("test_quality")
+        retrieved = clean_registry.get("quality_check", "test_quality")
         assert retrieved is plugin
 
     def test_register_transformation(self, clean_registry):
         """Test registering a transformation."""
         plugin = DummyTransformPlugin()
-        clean_registry.register_transformation(plugin)
+        clean_registry.register("transformation", plugin)
 
-        retrieved = clean_registry.get_transformation("test_transform")
+        retrieved = clean_registry.get("transformation", "test_transform")
         assert retrieved is plugin
 
     def test_register_service(self, clean_registry):
         """Test registering a service."""
         plugin = DummyServicePlugin()
-        clean_registry.register_service(plugin)
+        clean_registry.register("service", plugin)
 
-        retrieved = clean_registry.get_service("test_service")
+        retrieved = clean_registry.get("service", "test_service")
         assert retrieved is plugin
 
     def test_typed_accessors_match_generic_registry_api(self, clean_registry):
         """Typed registry helpers should stay aligned with generic register/get/list."""
         plugin = DummyServicePlugin()
-        clean_registry.register("services", plugin)
+        clean_registry.register("service", plugin)
 
-        assert clean_registry.get("services", "test_service") is plugin
-        assert clean_registry.get_service("test_service") is plugin
-        assert clean_registry.list("services") == ["test_service"]
-        assert clean_registry.list_services() == ["test_service"]
+        assert clean_registry.get("service", "test_service") is plugin
+        assert clean_registry.get("service", "test_service") is plugin
+        assert clean_registry.list("service") == ["test_service"]
+        assert clean_registry.list("service") == ["test_service"]
 
     def test_duplicate_registration_raises_error(self, clean_registry):
         """Test duplicate registration raises error."""
         plugin = DummySourcePlugin()
-        clean_registry.register_source_connector(plugin)
+        clean_registry.register("source_connector", plugin)
 
         with pytest.raises(ValueError):
-            clean_registry.register_source_connector(plugin)
+            clean_registry.register("source_connector", plugin)
 
     def test_duplicate_registration_with_replace(self, clean_registry):
         """Test duplicate registration with replace=True."""
         plugin1 = DummySourcePlugin()
-        clean_registry.register_source_connector(plugin1)
+        clean_registry.register("source_connector", plugin1)
 
         plugin2 = DummySourcePlugin()
-        clean_registry.register_source_connector(plugin2, replace=True)
+        clean_registry.register("source_connector", plugin2, replace=True)
 
-        retrieved = clean_registry.get_source_connector("test_source")
+        retrieved = clean_registry.get("source_connector", "test_source")
         assert retrieved is plugin2
 
 
@@ -207,9 +204,9 @@ class TestPluginMetadata:
     def test_get_source_metadata(self, clean_registry):
         """Test getting source metadata."""
         plugin = DummySourcePlugin()
-        clean_registry.register_source_connector(plugin)
+        clean_registry.register("source_connector", plugin)
 
-        metadata = clean_registry.get_plugin_metadata("source_connectors", "test_source")
+        metadata = clean_registry.get_plugin_metadata("source_connector", "test_source")
         assert metadata["name"] == "test_source"
         assert metadata["version"] == "1.0.0"
         assert metadata["author"] == "Test"
@@ -217,22 +214,22 @@ class TestPluginMetadata:
     def test_get_quality_metadata(self, clean_registry):
         """Test getting quality metadata."""
         plugin = DummyQualityPlugin()
-        clean_registry.register_quality_check(plugin)
+        clean_registry.register("quality_check", plugin)
 
-        metadata = clean_registry.get_plugin_metadata("quality_checks", "test_quality")
+        metadata = clean_registry.get_plugin_metadata("quality_check", "test_quality")
         assert metadata["name"] == "test_quality"
 
     def test_get_service_metadata(self, clean_registry):
         """Test getting service metadata."""
         plugin = DummyServicePlugin()
-        clean_registry.register_service(plugin)
+        clean_registry.register("service", plugin)
 
-        metadata = clean_registry.get_plugin_metadata("services", "test_service")
+        metadata = clean_registry.get_plugin_metadata("service", "test_service")
         assert metadata["name"] == "test_service"
 
     def test_missing_plugin_returns_none(self, clean_registry):
         """Test getting metadata for non-existent plugin."""
-        metadata = clean_registry.get_plugin_metadata("source_connectors", "nonexistent")
+        metadata = clean_registry.get_plugin_metadata("source_connector", "nonexistent")
         assert metadata is None
 
 
@@ -329,25 +326,25 @@ class TestPluginListing:
 
         plugin2 = AnotherSourcePlugin()
 
-        clean_registry.register_source_connector(plugin1)
-        clean_registry.register_source_connector(plugin2)
+        clean_registry.register("source_connector", plugin1)
+        clean_registry.register("source_connector", plugin2)
 
-        sources = clean_registry.list_source_connectors()
+        sources = clean_registry.list("source_connector")
         assert "test_source" in sources
         assert "test_source2" in sources
 
     def test_list_all_plugins(self, clean_registry):
         """Test listing all plugins."""
-        clean_registry.register_source_connector(DummySourcePlugin())
-        clean_registry.register_quality_check(DummyQualityPlugin())
-        clean_registry.register_transformation(DummyTransformPlugin())
-        clean_registry.register_service(DummyServicePlugin())
+        clean_registry.register("source_connector", DummySourcePlugin())
+        clean_registry.register("quality_check", DummyQualityPlugin())
+        clean_registry.register("transformation", DummyTransformPlugin())
+        clean_registry.register("service", DummyServicePlugin())
 
         all_plugins = clean_registry.list_all_plugins()
-        assert "test_source" in all_plugins["source_connectors"]
-        assert "test_quality" in all_plugins["quality_checks"]
-        assert "test_transform" in all_plugins["transformations"]
-        assert "test_service" in all_plugins["services"]
+        assert "test_source" in all_plugins["source_connector"]
+        assert "test_quality" in all_plugins["quality_check"]
+        assert "test_transform" in all_plugins["transformation"]
+        assert "test_service" in all_plugins["service"]
 
 
 class TestPluginDiscovery:
@@ -358,25 +355,25 @@ class TestPluginDiscovery:
         result = discover_plugins(auto_register=False)
 
         assert isinstance(result, dict)
-        assert "source_connectors" in result
-        assert "quality_checks" in result
-        assert "transformations" in result
-        assert "services" in result
+        assert "source_connector" in result
+        assert "quality_check" in result
+        assert "transformation" in result
+        assert "service" in result
 
     def test_discover_single_type(self):
         """Test discovering single plugin type."""
-        result = discover_plugins(plugin_type="source_connectors", auto_register=False)
+        result = discover_plugins(plugin_type="source_connector", auto_register=False)
 
-        assert "source_connectors" in result
+        assert "source_connector" in result
         # Other types might not be present
-        assert isinstance(result["source_connectors"], list)
+        assert isinstance(result["source_connector"], list)
 
     def test_discover_services_type(self):
         """Test discovering service plugins."""
-        result = discover_plugins(plugin_type="services", auto_register=False)
+        result = discover_plugins(plugin_type="service", auto_register=False)
 
-        assert "services" in result
-        assert isinstance(result["services"], list)
+        assert "service" in result
+        assert isinstance(result["service"], list)
 
     def test_discover_with_validation(self):
         """Test discovery validates plugins."""
@@ -391,10 +388,10 @@ class TestPluginDiscovery:
     @pytest.mark.parametrize(
         ("plugin_type", "expected_names"),
         [
-            ("cli_commands", {"alerts", "minio", "openmetadata", "sling"}),
-            ("services", {"loki", "minio", "openmetadata"}),
-            ("hooks", {"alerting", "openmetadata"}),
-            ("ingestion_providers", {"sling"}),
+            ("cli_command", {"alerts", "minio", "openmetadata", "sling"}),
+            ("service", {"loki", "minio", "openmetadata"}),
+            ("hook", {"alerting", "openmetadata"}),
+            ("ingestion_provider", {"sling"}),
         ],
     )
     def test_workspace_entry_point_plugins_are_discoverable(
@@ -423,7 +420,7 @@ class TestPluginAutoDiscoveryBootstrap:
             "phlo.plugins.discovery._plugin_auto_discovery.get_settings",
             lambda: SimpleNamespace(plugins_auto_discover=True),
         )
-        assert plugins_discovery._should_auto_discover() is True
+        assert plugin_auto_discovery.should_auto_discover() is True
 
     def test_auto_discovery_disabled_from_settings(self, monkeypatch):
         """Disable auto-discovery when config is disabled."""
@@ -432,7 +429,7 @@ class TestPluginAutoDiscoveryBootstrap:
             "phlo.plugins.discovery._plugin_auto_discovery.get_settings",
             lambda: SimpleNamespace(plugins_auto_discover=False),
         )
-        assert plugins_discovery._should_auto_discover() is False
+        assert plugin_auto_discovery.should_auto_discover() is False
 
     def test_env_override_disables_auto_discovery(self, monkeypatch):
         """PHLO_NO_AUTO_DISCOVER overrides enabled settings."""
@@ -441,7 +438,7 @@ class TestPluginAutoDiscoveryBootstrap:
             "phlo.plugins.discovery._plugin_auto_discovery.get_settings",
             lambda: SimpleNamespace(plugins_auto_discover=True),
         )
-        assert plugins_discovery._should_auto_discover() is False
+        assert plugin_auto_discovery.should_auto_discover() is False
 
     def test_env_falsy_value_keeps_auto_discovery_enabled(self, monkeypatch):
         """Falsy env values do not disable auto-discovery."""
@@ -450,7 +447,7 @@ class TestPluginAutoDiscoveryBootstrap:
             "phlo.plugins.discovery._plugin_auto_discovery.get_settings",
             lambda: SimpleNamespace(plugins_auto_discover=True),
         )
-        assert plugins_discovery._should_auto_discover() is True
+        assert plugin_auto_discovery.should_auto_discover() is True
 
 
 class TestPluginIntegration:
@@ -463,31 +460,30 @@ class TestPluginIntegration:
         transform = DummyTransformPlugin()
         service = DummyServicePlugin()
 
-        clean_registry.register_source_connector(source)
-        clean_registry.register_quality_check(quality)
-        clean_registry.register_transformation(transform)
-        clean_registry.register_service(service)
+        clean_registry.register("source_connector", source)
+        clean_registry.register("quality_check", quality)
+        clean_registry.register("transformation", transform)
+        clean_registry.register("service", service)
 
-        # Retrieve using public functions
-        assert get_source_connector("test_source") is source
-        assert get_quality_check("test_quality") is quality
-        assert get_transformation("test_transform") is transform
-        assert get_service("test_service") is service
+        assert get_plugin("source_connector", "test_source") is source
+        assert get_plugin("quality_check", "test_quality") is quality
+        assert get_plugin("transformation", "test_transform") is transform
+        assert get_plugin("service", "test_service") is service
 
     def test_get_plugin_info(self, clean_registry):
         """Test getting plugin information."""
         plugin = DummySourcePlugin()
-        clean_registry.register_source_connector(plugin)
+        clean_registry.register("source_connector", plugin)
 
-        info = get_plugin_info("source_connectors", "test_source")
+        info = get_plugin_info("source_connector", "test_source")
         assert info is not None
         assert info["name"] == "test_source"
         assert info["version"] == "1.0.0"
 
     def test_validate_plugins(self, clean_registry):
         """Test validating all plugins."""
-        clean_registry.register_source_connector(DummySourcePlugin())
-        clean_registry.register_quality_check(DummyQualityPlugin())
+        clean_registry.register("source_connector", DummySourcePlugin())
+        clean_registry.register("quality_check", DummyQualityPlugin())
 
         result = validate_plugins()
 
@@ -499,16 +495,16 @@ class TestPluginIntegration:
     def test_register_get_list_flow(self, clean_registry):
         """Test complete workflow of register, get, and list."""
         plugin = DummySourcePlugin()
-        clean_registry.register_source_connector(plugin)
+        clean_registry.register("source_connector", plugin)
 
         # List
-        plugins = clean_registry.list_source_connectors()
+        plugins = clean_registry.list("source_connector")
         assert "test_source" in plugins
 
         # Get
-        retrieved = clean_registry.get_source_connector("test_source")
+        retrieved = clean_registry.get("source_connector", "test_source")
         assert retrieved is plugin
 
         # Get info
-        info = clean_registry.get_plugin_metadata("source_connectors", "test_source")
+        info = clean_registry.get_plugin_metadata("source_connector", "test_source")
         assert info["name"] == "test_source"

@@ -140,7 +140,7 @@ def _capture_plugin_load_errors(monkeypatch: pytest.MonkeyPatch) -> list[dict[st
         if event == "plugin_load_failed":
             errors.append(kwargs)
 
-    monkeypatch.setattr("phlo.plugins.discovery.plugins.logger.error", _capture)
+    monkeypatch.setattr("phlo.plugins.discovery._plugin_loading.logger.error", _capture)
     return errors
 
 
@@ -150,7 +150,7 @@ def _assert_plugin_load_failed_error(errors: list[dict[str, object]]) -> None:
     assert errors[0] == {
         "plugin_name": "lifecycle_source",
         "entry_point": "tests:lifecycle_source",
-        "plugin_type": "source_connectors",
+        "plugin_type": "source_connector",
         "exc_info": True,
     }
 
@@ -168,7 +168,7 @@ def lifecycle_signals(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]
     ) -> None:
         signals.append({"level": level, "event": event, "fields": fields})
 
-    monkeypatch.setattr("phlo.plugins.discovery.plugins.log_event", _capture_signal)
+    monkeypatch.setattr("phlo.plugins.discovery._plugin_lifecycle.log_event", _capture_signal)
     return signals
 
 
@@ -180,19 +180,19 @@ def test_discover_plugins_emits_lifecycle_success_signals(
     """Lifecycle success signals include initialize and replacement cleanup events."""
     events: list[str] = []
     existing = _LifecycleSourcePlugin(marker="old", events=events)
-    clean_registry.register_source_connector(existing)
+    clean_registry.register("source_connector", existing)
 
     incoming = _LifecycleSourcePlugin(marker="new", events=events)
     _patch_source_entry_points(
         monkeypatch, [_EntryPointStub(name="lifecycle_source", plugin=incoming)]
     )
 
-    discover_plugins(plugin_type="source_connectors", auto_register=True)
+    discover_plugins(plugin_type="source_connector", auto_register=True)
 
     signal_fields = [signal["fields"] for signal in lifecycle_signals]
     assert any(
         fields.get("lifecycle_phase") == "incoming_plugin_initialize"
-        and fields.get("plugin_type") == "source_connectors"
+        and fields.get("plugin_type") == "source_connector"
         for fields in signal_fields
         if fields and isinstance(fields, dict)
     )
@@ -228,7 +228,7 @@ def test_discover_plugins_emits_lifecycle_failure_signals(
         monkeypatch, [_EntryPointStub(name="lifecycle_source", plugin=failing)]
     )
 
-    discover_plugins(plugin_type="source_connectors", auto_register=True)
+    discover_plugins(plugin_type="source_connector", auto_register=True)
 
     initialize_failures = [
         signal
@@ -246,7 +246,7 @@ def test_discover_plugins_emits_lifecycle_failure_signals(
     ]
 
     assert len(initialize_failures) == 1
-    assert initialize_failures[0]["fields"]["plugin_type"] == "source_connectors"
+    assert initialize_failures[0]["fields"]["plugin_type"] == "source_connector"
     assert initialize_failures[0]["fields"]["error_type"] == "RuntimeError"
     assert len(cleanup_failures) == 1
     assert cleanup_failures[0]["fields"]["reason"] == "initialize_failed"
@@ -263,9 +263,9 @@ def test_discover_plugins_calls_initialize_before_registration(
         monkeypatch, [_EntryPointStub(name="lifecycle_source", plugin=plugin)]
     )
 
-    discover_plugins(plugin_type="source_connectors", auto_register=True)
+    discover_plugins(plugin_type="source_connector", auto_register=True)
 
-    assert clean_registry.get_source_connector("lifecycle_source") is plugin
+    assert clean_registry.get("source_connector", "lifecycle_source") is plugin
     assert events == ["initialize:new"]
 
 
@@ -275,24 +275,24 @@ def test_discover_plugins_cleans_existing_plugin_before_replacement_registration
     """Replacement flow cleans existing plugin before new registration."""
     events: list[str] = []
     existing = _LifecycleSourcePlugin(marker="old", events=events)
-    clean_registry.register_source_connector(existing)
+    clean_registry.register("source_connector", existing)
 
     incoming = _LifecycleSourcePlugin(marker="new", events=events)
     _patch_source_entry_points(
         monkeypatch, [_EntryPointStub(name="lifecycle_source", plugin=incoming)]
     )
 
-    register_source_connector = clean_registry.register_source_connector
+    register_plugin = clean_registry.register
 
-    def _track_register(plugin: SourceConnectorPlugin, replace: bool = False) -> None:
+    def _track_register(family: str, plugin: SourceConnectorPlugin, replace: bool = False) -> None:
         events.append(f"register:{plugin.marker}")
-        register_source_connector(plugin, replace=replace)
+        register_plugin(family, plugin, replace=replace)
 
-    monkeypatch.setattr(clean_registry, "register_source_connector", _track_register)
+    monkeypatch.setattr(clean_registry, "register", _track_register)
 
-    discover_plugins(plugin_type="source_connectors", auto_register=True)
+    discover_plugins(plugin_type="source_connector", auto_register=True)
 
-    assert clean_registry.get_source_connector("lifecycle_source") is incoming
+    assert clean_registry.get("source_connector", "lifecycle_source") is incoming
     assert events == ["initialize:new", "cleanup:old", "register:new"]
 
 
@@ -302,7 +302,7 @@ def test_discover_plugins_keeps_existing_plugin_when_cleanup_fails(
     """Cleanup failure during replacement preserves prior registry plugin."""
     events: list[str] = []
     existing = _LifecycleSourcePlugin(marker="old", events=events, fail_cleanup=True)
-    clean_registry.register_source_connector(existing)
+    clean_registry.register("source_connector", existing)
 
     incoming = _LifecycleSourcePlugin(marker="new", events=events)
     _patch_source_entry_points(
@@ -310,10 +310,10 @@ def test_discover_plugins_keeps_existing_plugin_when_cleanup_fails(
     )
     plugin_load_errors = _capture_plugin_load_errors(monkeypatch)
 
-    discovered = discover_plugins(plugin_type="source_connectors", auto_register=True)
+    discovered = discover_plugins(plugin_type="source_connector", auto_register=True)
 
-    assert clean_registry.get_source_connector("lifecycle_source") is existing
-    assert discovered["source_connectors"] == []
+    assert clean_registry.get("source_connector", "lifecycle_source") is existing
+    assert discovered["source_connector"] == []
     assert events == ["initialize:new", "cleanup:old", "cleanup:new"]
     _assert_plugin_load_failed_error(plugin_load_errors)
 
@@ -324,7 +324,7 @@ def test_discover_plugins_keeps_existing_plugin_when_initialize_fails(
     """Initialize failure does not touch existing plugin registration."""
     events: list[str] = []
     existing = _LifecycleSourcePlugin(marker="old", events=events)
-    clean_registry.register_source_connector(existing)
+    clean_registry.register("source_connector", existing)
 
     incoming = _LifecycleSourcePlugin(marker="new", events=events, fail_initialize=True)
     _patch_source_entry_points(
@@ -332,10 +332,10 @@ def test_discover_plugins_keeps_existing_plugin_when_initialize_fails(
     )
     plugin_load_errors = _capture_plugin_load_errors(monkeypatch)
 
-    discovered = discover_plugins(plugin_type="source_connectors", auto_register=True)
+    discovered = discover_plugins(plugin_type="source_connector", auto_register=True)
 
-    assert clean_registry.get_source_connector("lifecycle_source") is existing
-    assert discovered["source_connectors"] == []
+    assert clean_registry.get("source_connector", "lifecycle_source") is existing
+    assert discovered["source_connector"] == []
     assert events == ["initialize:new", "cleanup:new"]
     _assert_plugin_load_failed_error(plugin_load_errors)
 
@@ -346,27 +346,29 @@ def test_discover_plugins_recovers_existing_plugin_on_registration_failure(
     """Registration failure after cleanup re-initializes existing plugin."""
     events: list[str] = []
     existing = _LifecycleSourcePlugin(marker="old", events=events)
-    clean_registry.register_source_connector(existing)
+    clean_registry.register("source_connector", existing)
 
     incoming = _LifecycleSourcePlugin(marker="new", events=events)
     _patch_source_entry_points(
         monkeypatch, [_EntryPointStub(name="lifecycle_source", plugin=incoming)]
     )
 
-    register_source_connector = clean_registry.register_source_connector
+    register_plugin = clean_registry.register
 
-    def _failing_register(plugin: SourceConnectorPlugin, replace: bool = False) -> None:
+    def _failing_register(
+        family: str, plugin: SourceConnectorPlugin, replace: bool = False
+    ) -> None:
         if plugin is incoming:
             raise RuntimeError("simulated registration failure")
-        register_source_connector(plugin, replace=replace)
+        register_plugin(family, plugin, replace=replace)
 
-    monkeypatch.setattr(clean_registry, "register_source_connector", _failing_register)
+    monkeypatch.setattr(clean_registry, "register", _failing_register)
     plugin_load_errors = _capture_plugin_load_errors(monkeypatch)
 
-    discovered = discover_plugins(plugin_type="source_connectors", auto_register=True)
+    discovered = discover_plugins(plugin_type="source_connector", auto_register=True)
 
-    assert clean_registry.get_source_connector("lifecycle_source") is existing
-    assert discovered["source_connectors"] == []
+    assert clean_registry.get("source_connector", "lifecycle_source") is existing
+    assert discovered["source_connector"] == []
     assert events == ["initialize:new", "cleanup:old", "initialize:old", "cleanup:new"]
     _assert_plugin_load_failed_error(plugin_load_errors)
 
@@ -375,7 +377,7 @@ def test_registry_clear_calls_cleanup_during_shutdown(clean_registry) -> None:
     """Registry clear triggers plugin cleanup for registered plugins."""
     events: list[str] = []
     plugin = _LifecycleSourcePlugin(marker="shutdown", events=events)
-    clean_registry.register_source_connector(plugin)
+    clean_registry.register("source_connector", plugin)
 
     clean_registry.clear()
 
@@ -393,8 +395,8 @@ def test_registry_clear_continues_when_cleanup_fails(clean_registry) -> None:
         fail_cleanup=True,
     )
     healthy = _LifecycleSourcePlugin(marker="healthy", events=events, name="healthy_plugin")
-    clean_registry.register_source_connector(failing)
-    clean_registry.register_source_connector(healthy)
+    clean_registry.register("source_connector", failing)
+    clean_registry.register("source_connector", healthy)
 
     clean_registry.clear()
 
@@ -406,8 +408,8 @@ def test_registry_clear_deduplicates_cleanup_for_shared_plugin_instance(clean_re
     """Shared plugin instances are cleaned only once during clear."""
     events: list[str] = []
     plugin = _MultiTypeLifecyclePlugin(events)
-    clean_registry.register_source_connector(plugin)
-    clean_registry.register_quality_check(plugin)
+    clean_registry.register("source_connector", plugin)
+    clean_registry.register("quality_check", plugin)
 
     clean_registry.clear()
     clean_registry.clear()

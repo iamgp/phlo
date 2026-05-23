@@ -146,11 +146,10 @@ class PanderaQualityProvider(QualityProviderPlugin):
         The plugin is typically accessed through the plugin system:
 
         ```python
-        from phlo.plugins import get_plugin_registry
+        from phlo.plugins.discovery import get_global_registry
 
-        registry = get_plugin_registry()
-        quality_plugins = registry.get_quality_providers()
-        pandera_plugin = quality_plugins.get("pandera")
+        registry = get_global_registry()
+        pandera_plugin = registry.get("quality_provider", "pandera")
 
         # Access decorator
         decorator = pandera_plugin.get_decorator()

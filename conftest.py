@@ -47,7 +47,7 @@ def _register_workspace_plugins() -> None:
         return
 
     registry = get_global_registry()
-    registry.register_asset_provider(DltAssetProvider(), replace=True)
+    registry.register("asset_provider", DltAssetProvider(), replace=True)
 
 
 _register_workspace_plugins()

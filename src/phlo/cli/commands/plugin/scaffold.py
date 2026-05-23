@@ -119,19 +119,16 @@ _PLUGIN_TYPE_TEMPLATES = {
 ''',
 }
 
-_README_ACCESSOR_MAP = {
-    "hook": "get_hook_plugin",
-    "source": "get_source_connector",
-    "quality": "get_quality_check",
-    "transform": "get_transformation",
-    "service": "get_service",
-}
-
 _README_INTERNAL_TYPE_MAP = {
-    "catalog": "catalogs",
-    "asset": "asset_providers",
-    "resource": "resource_providers",
-    "orchestrator": "orchestrators",
+    "hook": "hook",
+    "source": "source_connector",
+    "quality": "quality_check",
+    "transform": "transformation",
+    "service": "service",
+    "catalog": "catalog",
+    "asset": "asset_provider",
+    "resource": "resource_provider",
+    "orchestrator": "orchestrator",
 }
 
 
@@ -338,7 +335,7 @@ typeCheckingMode = "standard"
 def _build_readme_content(
     plugin_name: str, plugin_type: str, module_name: str, class_name: str
 ) -> str:
-    accessor = _README_ACCESSOR_MAP.get(plugin_type, "get_plugin")
+    internal_type = _README_INTERNAL_TYPE_MAP.get(plugin_type, plugin_type)
 
     content = f"""# {plugin_name}
 
@@ -353,19 +350,12 @@ pip install -e .
 ## Usage
 
 ```python
-from phlo.plugins import {accessor}
+from phlo.plugins import get_plugin
 from phlo_{module_name} import {class_name}
 
 plugin = {class_name}()
-```
-"""
-    if accessor == "get_plugin":
-        internal_type = _README_INTERNAL_TYPE_MAP.get(plugin_type, plugin_type)
-        content += f"""
-```python
-from phlo.plugins import get_plugin
 
-plugin = get_plugin("{internal_type}", "{plugin_name}")
+registered_plugin = get_plugin("{internal_type}", "{plugin_name}")
 ```
 """
     content += """

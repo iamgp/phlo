@@ -37,14 +37,14 @@ def discover_capabilities() -> None:
     """Discover capability providers and register their specs."""
     logger.info("capability_discovery_started")
     register_default_capability_providers()
-    discover_plugins(plugin_type="asset_providers", auto_register=True)
-    discover_plugins(plugin_type="resource_providers", auto_register=True)
+    discover_plugins(plugin_type="asset_provider", auto_register=True)
+    discover_plugins(plugin_type="resource_provider", auto_register=True)
 
     registry = get_global_registry()
 
     asset_provider_count = 0
-    for name in registry.list_asset_providers():
-        plugin = registry.get_asset_provider(name)
+    for name in registry.list("asset_provider"):
+        plugin = registry.get("asset_provider", name)
         if plugin is None:
             continue
         asset_provider_count += 1
@@ -62,8 +62,8 @@ def discover_capabilities() -> None:
             )
 
     resource_provider_count = 0
-    for name in registry.list_resource_providers():
-        plugin = registry.get_resource_provider(name)
+    for name in registry.list("resource_provider"):
+        plugin = registry.get("resource_provider", name)
         if plugin is None:
             continue
         resource_provider_count += 1

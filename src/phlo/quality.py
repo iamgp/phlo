@@ -70,14 +70,12 @@ from __future__ import annotations
 
 import importlib
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any, cast
 
 from phlo.logging import get_logger
+from phlo.plugins.base.quality_provider import QualityProviderPlugin
 
 logger = get_logger(__name__)
-
-if TYPE_CHECKING:
-    from phlo.plugins.base.quality_provider import QualityProviderPlugin
 
 get_quality_checks: Callable[[], list[Any]] | None
 clear_quality_checks: Callable[[], None] | None
@@ -166,10 +164,13 @@ def _load_quality_provider() -> QualityProviderPlugin | None:
     global dbt_check_name
 
     try:
-        from phlo.plugins.discovery import discover_plugins, get_quality_provider
+        from phlo.plugins.discovery import discover_plugins, get_global_registry
 
         discover_plugins()
-        provider = get_quality_provider("pandera")
+        provider = cast(
+            QualityProviderPlugin | None,
+            get_global_registry().get("quality_provider", "pandera"),
+        )
         if provider is not None:
             provider_module = _provider_api_module(provider)
             phlo_quality = provider.get_decorator()
@@ -324,15 +325,15 @@ def _discover_quality_providers() -> None:
     """Load installed quality providers into the plugin registry."""
     from phlo.plugins.discovery import discover_plugins
 
-    discover_plugins(plugin_type="quality_providers", auto_register=True)
+    discover_plugins(plugin_type="quality_provider", auto_register=True)
 
 
 def providers() -> list[str]:
     """Return installed quality provider names."""
-    from phlo.plugins.discovery import list_quality_providers
+    from phlo.plugins.discovery import get_global_registry
 
     _discover_quality_providers()
-    return list_quality_providers()
+    return get_global_registry().list("quality_provider")
 
 
 def _missing_quality_provider_error(name: str) -> ModuleNotFoundError:
@@ -347,10 +348,13 @@ def _missing_quality_provider_error(name: str) -> ModuleNotFoundError:
 
 def _quality_provider_or_raise(name: str) -> QualityProviderPlugin:
     """Resolve a quality provider plugin or raise a public install error."""
-    from phlo.plugins.discovery import get_quality_provider
+    from phlo.plugins.discovery import get_global_registry
 
     _discover_quality_providers()
-    provider_plugin = get_quality_provider(name)
+    provider_plugin = cast(
+        QualityProviderPlugin | None,
+        get_global_registry().get("quality_provider", name),
+    )
     if provider_plugin is None:
         raise _missing_quality_provider_error(name)
     return provider_plugin

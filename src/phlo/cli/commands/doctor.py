@@ -435,7 +435,7 @@ def _collect_service_plugin_failures() -> list[dict[str, str]]:
 
     failures: list[dict[str, str]] = []
     discover_plugins(
-        plugin_type="services",
+        plugin_type="service",
         auto_register=False,
         failure_level="debug",
         failure_sink=failures,

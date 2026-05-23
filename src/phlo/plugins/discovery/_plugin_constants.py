@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
@@ -23,69 +25,97 @@ NO_AUTO_DISCOVER_ENV = "PHLO_NO_AUTO_DISCOVER"
 TRUTHY_ENV_VALUES = frozenset({"1", "true", "yes", "on"})
 FALSY_ENV_VALUES = frozenset({"0", "false", "no", "off", ""})
 
-# Entry point group names for different plugin types.
+
+@dataclass(frozen=True, slots=True)
+class PluginFamilyDefinition:
+    """Metadata for one canonical plugin family."""
+
+    name: str
+    key_prefix: str
+    label: str
+    entry_point_group: str
+    plugin_type: type[Plugin]
+
+
+PLUGIN_FAMILIES: dict[str, PluginFamilyDefinition] = {
+    "source_connector": PluginFamilyDefinition(
+        "source_connector",
+        "source",
+        "Source connector",
+        "phlo.plugins.sources",
+        SourceConnectorPlugin,
+    ),
+    "quality_check": PluginFamilyDefinition(
+        "quality_check", "quality", "Quality check", "phlo.plugins.quality", QualityCheckPlugin
+    ),
+    "quality_provider": PluginFamilyDefinition(
+        "quality_provider",
+        "quality_provider",
+        "Quality provider",
+        "phlo.plugins.quality_providers",
+        QualityProviderPlugin,
+    ),
+    "ingestion_provider": PluginFamilyDefinition(
+        "ingestion_provider",
+        "ingestion_provider",
+        "Ingestion provider",
+        "phlo.plugins.ingestion_providers",
+        IngestionProviderPlugin,
+    ),
+    "transformation_provider": PluginFamilyDefinition(
+        "transformation_provider",
+        "transformation_provider",
+        "Transformation provider",
+        "phlo.plugins.transformation_providers",
+        TransformationProviderPlugin,
+    ),
+    "transformation": PluginFamilyDefinition(
+        "transformation",
+        "transformation",
+        "Transformation",
+        "phlo.plugins.transforms",
+        TransformationPlugin,
+    ),
+    "service": PluginFamilyDefinition(
+        "service", "service", "Service", "phlo.plugins.services", ServicePlugin
+    ),
+    "cli_command": PluginFamilyDefinition(
+        "cli_command", "cli", "CLI command", "phlo.plugins.cli", CliCommandPlugin
+    ),
+    "hook": PluginFamilyDefinition("hook", "hook", "Hook", "phlo.plugins.hooks", HookPlugin),
+    "catalog": PluginFamilyDefinition(
+        "catalog", "catalog", "Catalog", "phlo.plugins.catalogs", CatalogPlugin
+    ),
+    "asset_provider": PluginFamilyDefinition(
+        "asset_provider", "assets", "Asset provider", "phlo.plugins.assets", AssetProviderPlugin
+    ),
+    "resource_provider": PluginFamilyDefinition(
+        "resource_provider",
+        "resources",
+        "Resource provider",
+        "phlo.plugins.resources",
+        ResourceProviderPlugin,
+    ),
+    "orchestrator": PluginFamilyDefinition(
+        "orchestrator",
+        "orchestrator",
+        "Orchestrator",
+        "phlo.plugins.orchestrators",
+        OrchestratorAdapterPlugin,
+    ),
+}
+
 ENTRY_POINT_GROUPS = {
-    "source_connectors": "phlo.plugins.sources",
-    "quality_checks": "phlo.plugins.quality",
-    "quality_providers": "phlo.plugins.quality_providers",
-    "ingestion_providers": "phlo.plugins.ingestion_providers",
-    "transformation_providers": "phlo.plugins.transformation_providers",
-    "transformations": "phlo.plugins.transforms",
-    "services": "phlo.plugins.services",
-    "cli_commands": "phlo.plugins.cli",
-    "hooks": "phlo.plugins.hooks",
-    "catalogs": "phlo.plugins.catalogs",
-    "asset_providers": "phlo.plugins.assets",
-    "resource_providers": "phlo.plugins.resources",
-    "orchestrators": "phlo.plugins.orchestrators",
+    family: definition.entry_point_group for family, definition in PLUGIN_FAMILIES.items()
+}
+PLUGIN_EXPECTED_TYPES = {
+    family: definition.plugin_type for family, definition in PLUGIN_FAMILIES.items()
 }
 
-# Maps plugin type to registry registration method name.
-PLUGIN_REGISTER_METHODS = {
-    "source_connectors": "register_source_connector",
-    "quality_checks": "register_quality_check",
-    "quality_providers": "register_quality_provider",
-    "ingestion_providers": "register_ingestion_provider",
-    "transformation_providers": "register_transformation_provider",
-    "transformations": "register_transformation",
-    "services": "register_service",
-    "cli_commands": "register_cli_command_plugin",
-    "hooks": "register_hook_plugin",
-    "catalogs": "register_catalog",
-    "asset_providers": "register_asset_provider",
-    "resource_providers": "register_resource_provider",
-    "orchestrators": "register_orchestrator",
-}
 
-# Maps plugin type to registry getter method name.
-PLUGIN_GETTER_METHODS = {
-    "source_connectors": "get_source_connector",
-    "quality_checks": "get_quality_check",
-    "quality_providers": "get_quality_provider",
-    "ingestion_providers": "get_ingestion_provider",
-    "transformation_providers": "get_transformation_provider",
-    "transformations": "get_transformation",
-    "services": "get_service",
-    "cli_commands": "get_cli_command_plugin",
-    "hooks": "get_hook_plugin",
-    "catalogs": "get_catalog",
-    "asset_providers": "get_asset_provider",
-    "resource_providers": "get_resource_provider",
-    "orchestrators": "get_orchestrator",
-}
-
-PLUGIN_EXPECTED_TYPES: dict[str, type[Plugin]] = {
-    "source_connectors": SourceConnectorPlugin,
-    "quality_checks": QualityCheckPlugin,
-    "quality_providers": QualityProviderPlugin,
-    "ingestion_providers": IngestionProviderPlugin,
-    "transformation_providers": TransformationProviderPlugin,
-    "transformations": TransformationPlugin,
-    "services": ServicePlugin,
-    "cli_commands": CliCommandPlugin,
-    "hooks": HookPlugin,
-    "catalogs": CatalogPlugin,
-    "asset_providers": AssetProviderPlugin,
-    "resource_providers": ResourceProviderPlugin,
-    "orchestrators": OrchestratorAdapterPlugin,
-}
+def plugin_family(name: str) -> PluginFamilyDefinition:
+    """Return metadata for a canonical plugin family."""
+    try:
+        return PLUGIN_FAMILIES[name]
+    except KeyError as exc:
+        raise ValueError(f"Unknown plugin family: {name}") from exc

@@ -90,19 +90,19 @@ def test_discover_plugins_uses_failure_level_for_entry_point_errors(
     monkeypatch.setattr(_plugin_loading.logger, "warning", _capture_warning)
 
     discovered = _plugin_loading.discover_plugins(
-        plugin_type="source_connectors",
+        plugin_type="source_connector",
         auto_register=False,
         failure_level="warning",
     )
 
-    assert [plugin.metadata.name for plugin in discovered["source_connectors"]] == ["source_plugin"]
+    assert [plugin.metadata.name for plugin in discovered["source_connector"]] == ["source_plugin"]
     assert warnings == [
         {
             "event": "plugin_load_failed",
             "fields": {
                 "plugin_name": "broken",
                 "entry_point": "tests:broken",
-                "plugin_type": "source_connectors",
+                "plugin_type": "source_connector",
                 "exc_info": True,
             },
         }
@@ -134,12 +134,12 @@ def test_discover_plugins_skips_disallowed_and_invalid_plugins(
     )
 
     discovered = _plugin_loading.discover_plugins(
-        plugin_type="quality_checks",
+        plugin_type="quality_check",
         auto_register=True,
     )
 
-    assert discovered["quality_checks"] == []
-    assert clean_registry.list_quality_checks() == []
+    assert discovered["quality_check"] == []
+    assert clean_registry.list("quality_check") == []
     assert [error["event"] for error in errors] == [
         "plugin_invalid_base_class",
         "plugin_incorrect_type",
