@@ -100,7 +100,7 @@ def test_resolver_loads_plugin_manifest_and_companion_files(
 
     monkeypatch.setattr(
         "phlo.plugins.discovery.service_manifest.discover_plugins",
-        lambda plugin_type="services", auto_register=True: None,
+        lambda plugin_type="service", auto_register=True: None,
     )
     monkeypatch.setattr(
         "phlo.plugins.discovery.service_manifest.get_registered_service_plugins",
@@ -166,7 +166,7 @@ def test_service_discovery_uses_manifest_resolver_for_directory_services(
     )
     monkeypatch.setattr(
         "phlo.plugins.discovery.service_manifest.discover_plugins",
-        lambda plugin_type="services", auto_register=True: None,
+        lambda plugin_type="service", auto_register=True: None,
     )
     service_dir = tmp_path / "services"
     service_dir.mkdir()

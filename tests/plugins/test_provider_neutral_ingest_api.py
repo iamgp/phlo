@@ -30,12 +30,29 @@ class _FakeProvider:
         return lambda: [f"{self.name}_asset"]
 
 
+class _FakeRegistry:
+    def __init__(self, providers: dict[str, _FakeProvider]) -> None:
+        self.providers = providers
+
+    def get(self, plugin_type: str, name: str):
+        assert plugin_type == "ingestion_provider"
+        return self.providers.get(name)
+
+    def list(self, plugin_type: str) -> list[str]:
+        assert plugin_type == "ingestion_provider"
+        return list(self.providers)
+
+
 def test_ingest_provider_returns_named_provider_decorator(monkeypatch: pytest.MonkeyPatch) -> None:
     """phlo.ingest.provider should resolve decorators from installed ingestion providers."""
     import phlo.plugins.discovery as discovery
 
     monkeypatch.setattr(discovery, "discover_plugins", lambda *args, **kwargs: None)
-    monkeypatch.setattr(discovery, "get_ingestion_provider", lambda name: _FakeProvider(name))
+    monkeypatch.setattr(
+        discovery,
+        "get_global_registry",
+        lambda: _FakeRegistry({"sling": _FakeProvider("sling")}),
+    )
     monkeypatch.delitem(sys.modules, "phlo.ingest", raising=False)
 
     ingest = importlib.import_module("phlo.ingest")
@@ -55,8 +72,11 @@ def test_ingest_provider_raises_clear_error_for_missing_provider(
     import phlo.plugins.discovery as discovery
 
     monkeypatch.setattr(discovery, "discover_plugins", lambda *args, **kwargs: None)
-    monkeypatch.setattr(discovery, "get_ingestion_provider", lambda name: None)
-    monkeypatch.setattr(discovery, "list_ingestion_providers", lambda: ["dlt"])
+    monkeypatch.setattr(
+        discovery,
+        "get_global_registry",
+        lambda: _FakeRegistry({"dlt": _FakeProvider("dlt")}),
+    )
     monkeypatch.delitem(sys.modules, "phlo.ingest", raising=False)
 
     ingest = importlib.import_module("phlo.ingest")
@@ -76,12 +96,17 @@ def test_ingest_dlt_and_sling_aliases_resolve_named_providers(
 
     seen: list[str] = []
 
-    def _get_provider(name: str):
-        seen.append(name)
-        return _FakeProvider(name)
+    class _SeenRegistry(_FakeRegistry):
+        def get(self, plugin_type: str, name: str):
+            seen.append(name)
+            return super().get(plugin_type, name)
 
     monkeypatch.setattr(discovery, "discover_plugins", lambda *args, **kwargs: None)
-    monkeypatch.setattr(discovery, "get_ingestion_provider", _get_provider)
+    monkeypatch.setattr(
+        discovery,
+        "get_global_registry",
+        lambda: _SeenRegistry({"dlt": _FakeProvider("dlt"), "sling": _FakeProvider("sling")}),
+    )
     monkeypatch.delitem(sys.modules, "phlo.ingest", raising=False)
 
     ingest = importlib.import_module("phlo.ingest")
@@ -98,8 +123,7 @@ def test_ingest_assets_can_return_all_or_one_provider(monkeypatch: pytest.Monkey
     providers = {"dlt": _FakeProvider("dlt"), "sling": _FakeProvider("sling")}
 
     monkeypatch.setattr(discovery, "discover_plugins", lambda *args, **kwargs: None)
-    monkeypatch.setattr(discovery, "list_ingestion_providers", lambda: ["dlt", "sling"])
-    monkeypatch.setattr(discovery, "get_ingestion_provider", lambda name: providers.get(name))
+    monkeypatch.setattr(discovery, "get_global_registry", lambda: _FakeRegistry(providers))
     monkeypatch.delitem(sys.modules, "phlo.ingest", raising=False)
 
     ingest = importlib.import_module("phlo.ingest")
@@ -120,8 +144,7 @@ def test_ingest_assets_discovers_once_for_all_providers(monkeypatch: pytest.Monk
         discovery_calls += 1
 
     monkeypatch.setattr(discovery, "discover_plugins", _discover_plugins)
-    monkeypatch.setattr(discovery, "list_ingestion_providers", lambda: ["dlt", "sling"])
-    monkeypatch.setattr(discovery, "get_ingestion_provider", lambda name: providers.get(name))
+    monkeypatch.setattr(discovery, "get_global_registry", lambda: _FakeRegistry(providers))
     monkeypatch.delitem(sys.modules, "phlo.ingest", raising=False)
 
     ingest = importlib.import_module("phlo.ingest")

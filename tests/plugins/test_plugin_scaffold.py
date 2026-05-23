@@ -37,7 +37,8 @@ def test_create_plugin_package_writes_service_plugin_project(tmp_path: Path) -> 
     assert 'weather-service = "phlo_weather_service.plugin:WeatherServicePlugin"' in (
         pyproject_content
     )
-    assert "from phlo.plugins import get_service" in readme_content
+    assert "from phlo.plugins import get_plugin" in readme_content
+    assert 'registered_plugin = get_plugin("service", "weather-service")' in readme_content
     assert (plugin_path / "MANIFEST.in").read_text(encoding="utf-8") == (
         "include README.md\nrecursive-include src *.py\n"
     )
@@ -88,7 +89,7 @@ def test_readme_uses_generic_plugin_lookup_for_internal_plugin_types() -> None:
     )
 
     assert "from phlo.plugins import get_plugin" in content
-    assert 'plugin = get_plugin("catalogs", "lakehouse-catalog")' in content
+    assert 'registered_plugin = get_plugin("catalog", "lakehouse-catalog")' in content
 
 
 def test_create_plugin_package_rejects_unknown_plugin_type(tmp_path: Path) -> None:

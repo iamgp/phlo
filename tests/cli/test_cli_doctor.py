@@ -216,7 +216,7 @@ def test_discovery_check_reports_entry_point_failures(monkeypatch) -> None:
             {
                 "plugin_name": "broken",
                 "entry_point": "broken:Plugin",
-                "plugin_type": "services",
+                "plugin_type": "service",
                 "error": "exploded",
                 "error_type": "RuntimeError",
             }

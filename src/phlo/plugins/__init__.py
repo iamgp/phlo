@@ -115,8 +115,8 @@ from phlo.plugins import discover_plugins
 plugins = discover_plugins()
 
 # Use plugin
-from phlo.plugins import get_source_connector
-connector = get_source_connector("my_api")
+from phlo.plugins import get_plugin
+connector = get_plugin("source_connector", "my_api")
 data = connector.fetch_data(config={...})
 ```
 
@@ -155,15 +155,8 @@ if TYPE_CHECKING:
     from phlo.plugins.discovery import (
         PluginRegistry,
         discover_plugins,
-        get_hook_plugin,
-        get_ingestion_provider,
         get_plugin,
         get_plugin_info,
-        get_quality_check,
-        get_service,
-        get_source_connector,
-        get_transformation,
-        get_transformation_provider,
         list_plugins,
         validate_plugins,
     )
@@ -195,14 +188,6 @@ _LAZY_DISCOVERY_EXPORTS = frozenset(
         "discover_plugins",
         "get_plugin",
         "get_plugin_info",
-        "get_quality_check",
-        "get_quality_provider",
-        "get_ingestion_provider",
-        "get_service",
-        "get_hook_plugin",
-        "get_source_connector",
-        "get_transformation",
-        "get_transformation_provider",
         "list_plugins",
         "validate_plugins",
         "PluginRegistry",
@@ -294,14 +279,6 @@ __all__ = [
     "list_plugins",
     "get_plugin",
     "get_plugin_info",
-    "get_source_connector",
-    "get_quality_check",
-    "get_quality_provider",
-    "get_ingestion_provider",
-    "get_transformation",
-    "get_transformation_provider",
-    "get_service",
-    "get_hook_plugin",
     "validate_plugins",
     # Registry
     "PluginRegistry",

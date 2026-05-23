@@ -178,10 +178,10 @@ def setup_registry():
     """
     registry = get_global_registry()
     registry.clear()
-    registry.register_source_connector(DummySource(), replace=True)
-    registry.register_quality_check(DummyQuality(), replace=True)
-    registry.register_transformation(DummyTransform(), replace=True)
-    registry.register_service(DummyService(), replace=True)
+    registry.register("source_connector", DummySource(), replace=True)
+    registry.register("quality_check", DummyQuality(), replace=True)
+    registry.register("transformation", DummyTransform(), replace=True)
+    registry.register("service", DummyService(), replace=True)
     yield registry
     registry.clear()
 
@@ -219,10 +219,10 @@ def test_plugin_list_accepts_singular_type_alias(setup_registry):
 def test_plugin_list_accepts_provider_and_cli_type_aliases(setup_registry):
     """List can filter plugin categories that are shown in all-plugin output."""
     registry = setup_registry
-    registry.register_ingestion_provider(DummyIngestionProvider(), replace=True)
-    registry.register_quality_provider(DummyQualityProvider(), replace=True)
-    registry.register_transformation_provider(DummyTransformationProvider(), replace=True)
-    registry.register_cli_command_plugin(DummyCliCommand(), replace=True)
+    registry.register("ingestion_provider", DummyIngestionProvider(), replace=True)
+    registry.register("quality_provider", DummyQualityProvider(), replace=True)
+    registry.register("transformation_provider", DummyTransformationProvider(), replace=True)
+    registry.register("cli_command", DummyCliCommand(), replace=True)
 
     runner = CliRunner()
 

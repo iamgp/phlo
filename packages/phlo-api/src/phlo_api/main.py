@@ -621,10 +621,10 @@ def get_plugins() -> dict[str, list[str]]:
     except ImportError as exc:
         logger.warning("api_plugins_list_failed", error=str(exc))
         fallback_plugins = {
-            "source_connectors": [],
-            "quality_checks": [],
-            "transformations": [],
-            "services": [],
+            "source_connector": [],
+            "quality_check": [],
+            "transformation": [],
+            "service": [],
         }
         logger.warning(
             "api_plugins_list_fallback",

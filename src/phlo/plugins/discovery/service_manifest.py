@@ -8,10 +8,10 @@ from typing import Any
 
 import yaml
 
+from phlo.plugins.discovery._plugin_loading import discover_plugins
 from phlo.plugins.discovery._service_definition import ServiceDefinition
 from phlo.plugins.discovery._service_dependency_resolution import resolve_service_dependencies
 from phlo.plugins.discovery._service_loading import resolve_plugin_source_path
-from phlo.plugins.discovery.plugins import discover_plugins
 from phlo.plugins.discovery.registry import get_global_registry
 
 
@@ -23,8 +23,8 @@ def get_registered_service_plugins() -> dict[str, Any]:
     registry = get_global_registry()
     return {
         name: plugin
-        for name in registry.list_services()
-        if (plugin := registry.get_service(name)) is not None
+        for name in registry.list("service")
+        if (plugin := registry.get("service", name)) is not None
     }
 
 
@@ -94,7 +94,7 @@ class ServiceManifestResolver:
     services_dir: Path | None = None
 
     def resolve_plugin_manifests(self) -> list[ServiceManifest]:
-        discover_plugins(plugin_type="services", auto_register=True)
+        discover_plugins(plugin_type="service", auto_register=True)
         manifests: list[ServiceManifest] = []
         names: set[str] = set()
         for name, plugin in get_registered_service_plugins().items():

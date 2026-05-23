@@ -27,7 +27,7 @@ def test_get_active_orchestrator_prefers_explicit_name_over_env() -> None:
     """Explicit selector argument should win over PHLO_ORCHESTRATOR."""
     registry = Mock()
     adapter = object()
-    registry.get_orchestrator.return_value = adapter
+    registry.get.return_value = adapter
 
     with (
         patch.dict(os.environ, {"PHLO_ORCHESTRATOR": "env_orchestrator"}, clear=False),
@@ -37,15 +37,15 @@ def test_get_active_orchestrator_prefers_explicit_name_over_env() -> None:
         selected = get_active_orchestrator(" explicit_orchestrator ")
 
     assert selected is adapter
-    discover_plugins_mock.assert_called_once_with(plugin_type="orchestrators", auto_register=True)
-    registry.get_orchestrator.assert_called_once_with("explicit_orchestrator")
+    discover_plugins_mock.assert_called_once_with(plugin_type="orchestrator", auto_register=True)
+    registry.get.assert_called_once_with("orchestrator", "explicit_orchestrator")
 
 
 def test_get_active_orchestrator_uses_phlo_orchestrator_env_when_name_missing() -> None:
     """Selection should use PHLO_ORCHESTRATOR when no explicit name is provided."""
     registry = Mock()
     adapter = object()
-    registry.get_orchestrator.return_value = adapter
+    registry.get.return_value = adapter
 
     with (
         patch.dict(os.environ, {"PHLO_ORCHESTRATOR": " env_orchestrator "}, clear=False),
@@ -55,14 +55,14 @@ def test_get_active_orchestrator_uses_phlo_orchestrator_env_when_name_missing() 
         selected = get_active_orchestrator()
 
     assert selected is adapter
-    registry.get_orchestrator.assert_called_once_with("env_orchestrator")
+    registry.get.assert_called_once_with("orchestrator", "env_orchestrator")
 
 
 def test_get_active_orchestrator_missing_adapter_raises_guided_config_error() -> None:
     """Missing adapter should raise PhloConfigError with actionable suggestions."""
     registry = Mock()
-    registry.get_orchestrator.return_value = None
-    registry.list_orchestrators.return_value = ["dagster"]
+    registry.get.return_value = None
+    registry.list.return_value = ["dagster"]
 
     with (
         patch(
@@ -80,4 +80,4 @@ def test_get_active_orchestrator_missing_adapter_raises_guided_config_error() ->
         "Install a package that provides 'missing_orchestrator'",
         "Set PHLO_ORCHESTRATOR to an installed adapter name",
     ]
-    registry.list_orchestrators.assert_called_once_with()
+    registry.list.assert_called_once_with("orchestrator")

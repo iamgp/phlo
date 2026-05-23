@@ -152,7 +152,7 @@ class TestPluginsEndpoints:
         from phlo_api.main import app
 
         client = TestClient(app)
-        response = client.get("/api/plugins/services")
+        response = client.get("/api/plugins/service")
 
         assert response.status_code == 200
         assert isinstance(response.json(), list)

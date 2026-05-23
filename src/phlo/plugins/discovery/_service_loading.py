@@ -4,19 +4,20 @@ from __future__ import annotations
 
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
 from phlo.logging import get_logger, log_event
+from phlo.plugins.base.service import ServicePlugin
+from phlo.plugins.discovery._plugin_loading import discover_plugins as _discover_plugins
 from phlo.plugins.discovery._service_definition import ServiceDefinition
-from phlo.plugins.discovery.plugins import discover_plugins as _discover_plugins
 from phlo.plugins.discovery.registry import get_global_registry
 
 logger = get_logger(__name__)
 
 
-def discover_plugins(plugin_type: str = "services", auto_register: bool = True):
+def discover_plugins(plugin_type: str = "service", auto_register: bool = True):
     """Compatibility wrapper used by service discovery call sites and tests."""
     return _discover_plugins(plugin_type=plugin_type, auto_register=auto_register)
 
@@ -29,11 +30,11 @@ def is_service_yaml(filename: str) -> bool:
 def load_plugin_services(services: dict[str, ServiceDefinition]) -> int:
     """Load service definitions from installed service plugins."""
     loaded_count = 0
-    discover_plugins(plugin_type="services", auto_register=True)
+    discover_plugins(plugin_type="service", auto_register=True)
     registry = get_global_registry()
 
-    for name in registry.list_services():
-        plugin = registry.get_service(name)
+    for name in registry.list("service"):
+        plugin = cast(ServicePlugin | None, registry.get("service", name))
         if not plugin:
             continue
         if name in services:
