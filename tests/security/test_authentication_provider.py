@@ -11,7 +11,7 @@ import pytest
 
 from phlo.capabilities import (
     RequestContext,
-    clear_capabilities,
+    clear_all_capabilities,
 )
 from phlo.capabilities.authentication import (
     JWTAuthenticationProvider,
@@ -27,10 +27,10 @@ from phlo.infrastructure.config import clear_config_cache
 @pytest.fixture(autouse=True)
 def clear_auth_providers():
     """Clear auth providers before and after each test."""
-    clear_capabilities()
+    clear_all_capabilities()
     clear_config_cache()
     yield
-    clear_capabilities()
+    clear_all_capabilities()
     clear_config_cache()
 
 
@@ -721,10 +721,10 @@ class TestAuthenticationProviderRegistration:
     def test_register_default_providers_explicit_env(self):
         """Test providers are registered when explicitly enabled via env."""
         with patch.dict(os.environ, {"PHLO_AUTH_STATIC_ENABLED": "true"}):
-            clear_capabilities()
+            clear_all_capabilities()
             register_default_capability_providers()
             registry = get_capability_registry()
-            providers = registry.list_authentication_providers()
+            providers = registry.list("authentication_provider")
             assert len(providers) == 1
             assert providers[0].name == "static"
 
@@ -737,10 +737,10 @@ class TestAuthenticationProviderRegistration:
             "PHLO_AUTH_DEV_MODE",
         ]
         with patch.dict(os.environ, dict.fromkeys(env_to_clear, ""), clear=True):
-            clear_capabilities()
+            clear_all_capabilities()
             register_default_capability_providers()
             registry = get_capability_registry()
-            providers = registry.list_authentication_providers()
+            providers = registry.list("authentication_provider")
             assert len(providers) == 0
 
     def test_register_proxy_provider_loads_shared_secret_from_environment(self):
@@ -756,10 +756,10 @@ class TestAuthenticationProviderRegistration:
             },
             clear=True,
         ):
-            clear_capabilities()
+            clear_all_capabilities()
             register_default_capability_providers()
             registry = get_capability_registry()
-            providers = registry.list_authentication_providers()
+            providers = registry.list("authentication_provider")
 
             assert len(providers) == 1
             assert providers[0].name == "proxy"
@@ -792,7 +792,7 @@ authentication:
 
         register_default_capability_providers()
         registry = get_capability_registry()
-        providers = registry.list_authentication_providers()
+        providers = registry.list("authentication_provider")
 
         assert len(providers) == 1
         assert providers[0].name == "proxy"
@@ -819,7 +819,7 @@ authentication:
 
         register_default_capability_providers()
         registry = get_capability_registry()
-        providers = registry.list_authentication_providers()
+        providers = registry.list("authentication_provider")
 
         assert len(providers) == 1
         provider = providers[0].provider
@@ -839,10 +839,10 @@ class TestProviderSelection:
                 "PHLO_AUTH_PROXY_ENABLED": "true",
             },
         ):
-            clear_capabilities()
+            clear_all_capabilities()
             register_default_capability_providers()
             registry = get_capability_registry()
-            providers = registry.list_authentication_providers()
+            providers = registry.list("authentication_provider")
             assert len(providers) == 2
             names = {p.name for p in providers}
             assert "static" in names

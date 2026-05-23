@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from phlo.capabilities import (
     DefaultMaintenanceReadModel,
     DefaultObservabilityBackend,
-    clear_capabilities,
+    clear_all_capabilities,
     get_capability_registry,
 )
 from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
@@ -31,12 +31,12 @@ class _Snapshot:
 
 
 def test_discover_capabilities_registers_core_default_providers() -> None:
-    clear_capabilities()
+    clear_all_capabilities()
     discover_capabilities()
     registry = get_capability_registry()
-    authorization_specs = registry.list_authorization_policy_backends()
-    maintenance_specs = registry.list_maintenance_read_models()
-    observability_specs = registry.list_observability_backends()
+    authorization_specs = registry.list("authorization_policy_backend")
+    maintenance_specs = registry.list("maintenance_read_model")
+    observability_specs = registry.list("observability_backend")
     assert authorization_specs == []
     assert [spec.name for spec in maintenance_specs] == ["default"]
     assert isinstance(maintenance_specs[0].provider, DefaultMaintenanceReadModel)

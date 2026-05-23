@@ -9,7 +9,7 @@ from typing import Any
 
 from phlo.capabilities import (
     RegulatedSurfaceSpec,
-    register_regulated_surface,
+    register_capability,
 )
 from phlo.rbac.models import CanonicalAction
 from phlo.security.adapters import SurfaceOperation
@@ -159,7 +159,7 @@ class PhloAPIRegulatedSurfaceAdapter:
             provider=self,
             metadata={"framework_runtime": "fastapi"},
         )
-        register_regulated_surface(spec)
+        register_capability("regulated_surface", spec)
 
 
 _adapter: PhloAPIRegulatedSurfaceAdapter | None = None

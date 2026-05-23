@@ -50,7 +50,7 @@ def test_execute_v2_action_runs_registered_quality_check() -> None:
             metadata={"rows_checked": 3},
         )
 
-    registry.register_check(AssetCheckSpec(name="not_null", asset_key="orders", fn=check_fn))
+    registry.register("check", AssetCheckSpec(name="not_null", asset_key="orders", fn=check_fn))
 
     result = execute_v2_action(
         V2ActionRequest(action_id="quality:orders:not_null:rerun"),
@@ -78,7 +78,7 @@ def test_execute_v2_action_runs_registered_alert_sink() -> None:
 
     sink = Sink()
     registry = CapabilityRegistry()
-    registry.register_alert_sink(AlertSinkSpec(name="alerts", provider=sink))
+    registry.register("alert_sink", AlertSinkSpec(name="alerts", provider=sink))
 
     result = execute_v2_action(V2ActionRequest(action_id="alert:incident"), registry=registry)
 

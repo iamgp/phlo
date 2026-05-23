@@ -34,7 +34,7 @@ Main Components:
     - :class:`CapabilityRegistry`: Thread-safe capability storage
     - :func:`get_capability_registry`: Access the global registry
     - :func:`resolve_capability`: Resolve a capability to a provider
-    - :func:`register_*`: Functions to register capability implementations
+    - :func:`register_capability`: Register capability implementations
     - :class:`CapabilitySupport`: Declare operational guarantees
     - :class:`RuntimeContext`: Context for capability resolution
 
@@ -43,16 +43,17 @@ Example:
     from phlo.capabilities import (
         get_capability_registry,
         resolve_capability,
-        register_query_engine,
+        register_capability,
         QueryEngineSpec,
     )
     from phlo.capabilities.interfaces import QueryEngine
 
     # Register a query engine
     registry = get_capability_registry()
-    register_query_engine(
-        "trino",
+    register_capability(
+        "query_engine",
         QueryEngineSpec(
+            name="trino",
             provider=MyTrinoEngine(),
             metadata={"default_catalog": "iceberg"}
         )
@@ -117,31 +118,10 @@ from phlo.capabilities.observability import (
 )
 from phlo.capabilities.registry import (
     CapabilityRegistry,
+    clear_all_capabilities,
     clear_capabilities,
     get_capability_registry,
-    list_regulated_surfaces,
-    register_alert_sink,
-    register_api_backend,
-    register_asset,
-    register_authentication_provider,
-    register_authorization_policy_backend,
-    register_catalog,
-    register_catalog_scanner,
-    register_check,
-    register_data_migration_source,
-    register_governance_backend,
-    register_lineage_sink,
-    register_maintenance_read_model,
-    register_metadata_catalog,
-    register_object_store,
-    register_observability_backend,
-    register_publish_target,
-    register_quality_backend,
-    register_query_engine,
-    register_regulated_surface,
-    register_resource,
-    register_schema_migrator,
-    register_table_store,
+    register_capability,
 )
 from phlo.capabilities.runtime import (
     RuntimeContext,
@@ -273,36 +253,15 @@ __all__ = [
     "TableStoreSpec",
     "TableStore",
     "coerce_capability_support",
+    "clear_all_capabilities",
     "clear_capabilities",
     "configured_capability_name",
     "detect_file_conflicts",
     "get_capability_registry",
     "list_capabilities",
-    "list_regulated_surfaces",
     "missing_required_capabilities",
-    "register_alert_sink",
-    "register_api_backend",
-    "register_asset",
-    "register_authorization_policy_backend",
-    "register_authentication_provider",
-    "register_catalog",
-    "register_catalog_scanner",
-    "register_check",
-    "register_data_migration_source",
-    "register_governance_backend",
-    "register_lineage_sink",
-    "register_maintenance_read_model",
-    "register_metadata_catalog",
-    "register_object_store",
-    "register_observability_backend",
-    "register_publish_target",
-    "register_quality_backend",
-    "register_query_engine",
-    "register_regulated_surface",
-    "register_resource",
-    "register_schema_migrator",
+    "register_capability",
     "register_default_capability_providers",
-    "register_table_store",
     "ResolutionResult",
     "render_maintenance_prometheus",
     "resolve_runtime_ref",

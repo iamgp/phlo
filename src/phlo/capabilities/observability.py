@@ -19,8 +19,7 @@ from phlo.capabilities.interfaces import (
 )
 from phlo.capabilities.maintenance import DefaultMaintenanceReadModel
 from phlo.capabilities.registry import (
-    register_maintenance_read_model,
-    register_observability_backend,
+    register_capability,
 )
 from phlo.capabilities.specs import MaintenanceReadModelSpec, ObservabilityBackendSpec
 from phlo.capabilities.support import CapabilitySupport
@@ -228,13 +227,15 @@ class DefaultObservabilityBackend:
 
 def register_default_capability_providers() -> None:
     """Register core-owned default maintenance and observability providers."""
-    register_maintenance_read_model(
+    register_capability(
+        "maintenance_read_model",
         MaintenanceReadModelSpec(
             name="default",
             provider=DefaultMaintenanceReadModel(),
-        )
+        ),
     )
-    register_observability_backend(
+    register_capability(
+        "observability_backend",
         ObservabilityBackendSpec(
             name="default",
             provider=DefaultObservabilityBackend(),
@@ -248,7 +249,7 @@ def register_default_capability_providers() -> None:
                 supports_dashboards=True,
                 supports_alerts=True,
             ),
-        )
+        ),
     )
 
 

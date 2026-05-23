@@ -9,8 +9,8 @@ import pytest
 from phlo.capabilities import (
     ObservabilityBackendSpec,
     TraceSpan,
-    clear_capabilities,
-    register_observability_backend,
+    clear_all_capabilities,
+    register_capability,
 )
 from phlo_api.api import observability
 
@@ -84,9 +84,9 @@ class _MockObservabilityBackend:
 @pytest.fixture(autouse=True)
 def clear_registry():
     """Clear capability registry before and after each test."""
-    clear_capabilities()
+    clear_all_capabilities()
     yield
-    clear_capabilities()
+    clear_all_capabilities()
 
 
 def test_get_health_summary_uses_capability(monkeypatch) -> None:
@@ -193,8 +193,12 @@ def test_resolve_observability_backend_uses_explicit_backend_name(monkeypatch) -
     """Explicit backend parameter should resolve one provider among many."""
     backend = _MockObservabilityBackend()
     monkeypatch.setattr(observability, "discover_capabilities", lambda: None)
-    register_observability_backend(ObservabilityBackendSpec(name="default", provider=object()))
-    register_observability_backend(ObservabilityBackendSpec(name="custom", provider=backend))
+    register_capability(
+        "observability_backend", ObservabilityBackendSpec(name="default", provider=object())
+    )
+    register_capability(
+        "observability_backend", ObservabilityBackendSpec(name="custom", provider=backend)
+    )
 
     resolved = observability._resolve_observability_backend("custom")
 
@@ -206,8 +210,12 @@ def test_resolve_observability_backend_uses_env_default(monkeypatch) -> None:
     backend = _MockObservabilityBackend()
     monkeypatch.setattr(observability, "discover_capabilities", lambda: None)
     monkeypatch.setenv("PHLO_OBSERVABILITY_BACKEND", "custom")
-    register_observability_backend(ObservabilityBackendSpec(name="default", provider=object()))
-    register_observability_backend(ObservabilityBackendSpec(name="custom", provider=backend))
+    register_capability(
+        "observability_backend", ObservabilityBackendSpec(name="default", provider=object())
+    )
+    register_capability(
+        "observability_backend", ObservabilityBackendSpec(name="custom", provider=backend)
+    )
 
     resolved = observability._resolve_observability_backend()
 
@@ -218,8 +226,12 @@ def test_resolve_observability_backend_requires_selection_when_ambiguous(monkeyp
     """Multiple backends without selection should return a deterministic error."""
     monkeypatch.setattr(observability, "discover_capabilities", lambda: None)
     monkeypatch.delenv("PHLO_OBSERVABILITY_BACKEND", raising=False)
-    register_observability_backend(ObservabilityBackendSpec(name="default", provider=object()))
-    register_observability_backend(ObservabilityBackendSpec(name="custom", provider=object()))
+    register_capability(
+        "observability_backend", ObservabilityBackendSpec(name="default", provider=object())
+    )
+    register_capability(
+        "observability_backend", ObservabilityBackendSpec(name="custom", provider=object())
+    )
 
     with pytest.raises(RuntimeError, match="Multiple observability backends are installed"):
         observability._resolve_observability_backend()
