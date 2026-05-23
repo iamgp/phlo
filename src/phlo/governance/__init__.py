@@ -3,12 +3,12 @@
 from phlo.governance.surface import (
     GovernanceSurface,
     GovernanceWarning,
-    GovernedDataset,
+    GovernedTable,
     build_governance_surface,
 )
 
 __all__ = [
-    "GovernedDataset",
+    "GovernedTable",
     "GovernanceSurface",
     "GovernanceWarning",
     "build_governance_surface",

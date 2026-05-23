@@ -27,7 +27,7 @@ def governance_group() -> None:
     help="Import a Python module or .py file that registers Phlo declarations.",
 )
 def check_cmd(output_json: bool, modules: tuple[str, ...]) -> None:
-    """Validate governed datasets for publish and production readiness."""
+    """Validate governed tables for publish and production readiness."""
     _load_modules(modules)
     surface = build_governance_surface()
     payload = surface.to_check_result()
@@ -55,9 +55,9 @@ def export_cmd(output_json: bool, modules: tuple[str, ...]) -> None:
     if output_json:
         click.echo(json.dumps(payload, indent=2, sort_keys=True))
         return
-    for dataset in payload["datasets"]:
+    for table in payload["tables"]:
         click.echo(
-            f"{dataset['id']}: owner={dataset['owner'] or '-'} published={dataset['published']}"
+            f"{table['table']}: owner={table['owner'] or '-'} published={table['published']}"
         )
 
 
@@ -71,10 +71,14 @@ def _echo_check_result(payload: dict[str, Any]) -> None:
         return
     for warning in warnings:
         if isinstance(warning, dict):
-            click.echo(f"- {warning['dataset_id']}: {warning['message']}")
+            click.echo(f"- {warning['table']}: {warning['message']}")
 
 
 def _load_modules(modules: tuple[str, ...]) -> None:
+    if modules:
+        from phlo.flow import clear_flow_declarations
+
+        clear_flow_declarations()
     for module in modules:
         path = Path(module)
         if path.exists() or module.endswith(".py"):

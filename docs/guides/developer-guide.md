@@ -943,7 +943,7 @@ phlo governance check --module workflows/customer_health.py
 phlo governance check --json --module workflows/customer_health.py
 ```
 
-For runtime publish gates, require governance on the publish helper:
+For runtime publishing gates, require governance on the publish helper:
 
 ```python
 from phlo.helpers import publish_table
@@ -952,8 +952,8 @@ publish_table("gold.customer_health", require_governance=True)
 ```
 
 That call fails before publishing if `gold.customer_health` is missing an owner,
-access policy, PII column policy, or production SLA. The table id is the same
-durable table name used in the `table=` argument on `@phlo.contract`,
+access policy, PII column policy, or production SLA. The table name is the same
+durable value used in the `table=` argument on `@phlo.contract`,
 `@phlo.publish`, `@phlo.access`, and `@phlo.observe`.
 
 ### Schedules

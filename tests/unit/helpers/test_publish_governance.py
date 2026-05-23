@@ -44,10 +44,10 @@ def test_governance_publish_readiness_reports_missing_declarations() -> None:
     report = governance_publish_readiness("gold.customer_health")
 
     assert report["ready"] is False
-    assert report["dataset"] is None
+    assert report["governance"] is None
     assert report["warnings"] == [
         {
-            "dataset_id": "gold.customer_health",
+            "table": "gold.customer_health",
             "code": "missing_governance_declaration",
             "message": (
                 "gold.customer_health has no Phlo governance declaration. Add @phlo.contract, "
@@ -65,9 +65,11 @@ def test_publish_table_can_block_when_governance_is_incomplete() -> None:
 
     target = _FakePublishTarget()
 
-    with pytest.raises(PhloConfigError, match="missing_owner, missing_access_policy"):
+    with pytest.raises(PhloConfigError) as exc:
         publish_table("gold.customer_health", target=target, require_governance=True)
 
+    assert "missing_owner" in str(exc.value)
+    assert "missing_access_policy" in str(exc.value)
     assert target.published == []
 
 

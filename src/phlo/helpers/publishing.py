@@ -69,12 +69,12 @@ def governance_publish_readiness(table_name: str) -> dict[str, Any]:
     from phlo.governance import GovernanceWarning, build_governance_surface
 
     surface = build_governance_surface()
-    dataset = surface.datasets.get(table_name)
-    warnings = [warning for warning in surface.warnings if warning.dataset_id == table_name]
-    if dataset is None:
+    table = surface.tables.get(table_name)
+    warnings = [warning for warning in surface.warnings if warning.table == table_name]
+    if table is None:
         warnings.append(
             GovernanceWarning(
-                dataset_id=table_name,
+                table=table_name,
                 code="missing_governance_declaration",
                 message=(
                     f"{table_name} has no Phlo governance declaration. Add @phlo.contract, "
@@ -85,8 +85,8 @@ def governance_publish_readiness(table_name: str) -> dict[str, Any]:
 
     return {
         "ready": not warnings,
-        "dataset_id": table_name,
-        "dataset": dataset.to_read_model() if dataset is not None else None,
+        "table": table_name,
+        "governance": table.to_read_model() if table is not None else None,
         "warning_count": len(warnings),
         "warnings": [warning.to_read_model() for warning in warnings],
     }
@@ -105,7 +105,7 @@ def require_governance_ready(table_name: str) -> dict[str, Any]:
         message=f"{table_name} is not governance-ready for publishing: {warning_codes}",
         suggestions=[
             *warning_messages,
-            "Run `phlo governance check --json` to inspect every declared dataset.",
+            "Run `phlo governance check --json` to inspect every declared table.",
         ],
     )
 

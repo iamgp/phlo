@@ -17,7 +17,7 @@ def _clear_flow_declarations() -> Iterator[None]:
     phlo.clear_flow_declarations()
 
 
-def test_surface_derives_complete_dataset_from_existing_declarations() -> None:
+def test_surface_derives_complete_table_from_existing_declarations() -> None:
     @phlo.contract(
         table="gold.customer_health",
         owner="data-platform",
@@ -54,8 +54,8 @@ def test_surface_derives_complete_dataset_from_existing_declarations() -> None:
     surface = build_governance_surface()
 
     assert surface.warning_count == 0
-    assert surface.dataset("gold.customer_health").to_read_model() == {
-        "id": "gold.customer_health",
+    assert surface.table("gold.customer_health").to_read_model() == {
+        "table": "gold.customer_health",
         "owner": "data-platform",
         "lifecycle": "production",
         "pii": True,
@@ -89,7 +89,7 @@ def test_surface_derives_complete_dataset_from_existing_declarations() -> None:
     }
 
 
-def test_surface_warns_when_published_dataset_is_not_governed() -> None:
+def test_surface_warns_when_published_table_is_not_governed() -> None:
     @phlo.publish(table="gold.customer_health", audience=["sales"])
     def publish_customer_health() -> None:
         return None
@@ -127,15 +127,33 @@ def test_surface_warns_when_pii_contract_has_no_pii_column_policy() -> None:
     assert [warning.code for warning in surface.warnings] == ["missing_pii_column_policy"]
 
 
-def test_surface_warns_for_access_policy_without_dataset_declaration() -> None:
+def test_surface_warns_for_access_policy_without_table_declaration() -> None:
     @phlo.access(table="gold.orphaned", roles=["analyst"])
     def orphaned_access() -> None:
         return None
 
     surface = build_governance_surface()
 
-    assert surface.dataset("gold.orphaned").published is False
-    assert [warning.code for warning in surface.warnings] == ["access_policy_without_dataset"]
+    assert surface.table("gold.orphaned").published is False
+    assert [warning.code for warning in surface.warnings] == ["access_policy_without_table"]
+
+
+def test_surface_merges_multiple_observe_declarations() -> None:
+    @phlo.observe(table="gold.customer_health", freshness_hours=6)
+    def customer_health_freshness() -> None:
+        return None
+
+    @phlo.observe(table="gold.customer_health", row_count_change={"warn": 0.2})
+    def customer_health_volume() -> None:
+        return None
+
+    surface = build_governance_surface()
+
+    assert surface.table("gold.customer_health").observability.to_read_model() == {
+        "freshness_hours": 6,
+        "row_count_change": {"warn": 0.2},
+        "checks": ["freshness_hours", "row_count_change"],
+    }
 
 
 def test_surface_read_model_is_deterministic() -> None:
@@ -149,7 +167,7 @@ def test_surface_read_model_is_deterministic() -> None:
 
     surface = build_governance_surface()
 
-    assert [dataset["id"] for dataset in surface.to_read_model()["datasets"]] == [
+    assert [table["table"] for table in surface.to_read_model()["tables"]] == [
         "a.table",
         "z.table",
     ]

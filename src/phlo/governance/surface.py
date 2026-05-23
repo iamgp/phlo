@@ -17,14 +17,14 @@ from phlo.flow import (
 
 @dataclass(frozen=True, slots=True)
 class GovernanceWarning:
-    dataset_id: str
+    table: str
     code: str
     message: str
     severity: str = "error"
 
     def to_read_model(self) -> dict[str, str]:
         return {
-            "dataset_id": self.dataset_id,
+            "table": self.table,
             "code": self.code,
             "message": self.message,
             "severity": self.severity,
@@ -74,8 +74,8 @@ class GovernanceObservability:
 
 
 @dataclass(frozen=True, slots=True)
-class GovernedDataset:
-    id: str
+class GovernedTable:
+    table: str
     owner: str | None = None
     lifecycle: str | None = None
     pii: bool = False
@@ -89,7 +89,7 @@ class GovernedDataset:
 
     def to_read_model(self) -> dict[str, Any]:
         return {
-            "id": self.id,
+            "table": self.table,
             "owner": self.owner,
             "lifecycle": self.lifecycle,
             "pii": self.pii,
@@ -105,21 +105,19 @@ class GovernedDataset:
 
 @dataclass(frozen=True, slots=True)
 class GovernanceSurface:
-    datasets: dict[str, GovernedDataset]
+    tables: dict[str, GovernedTable]
     warnings: tuple[GovernanceWarning, ...] = ()
 
     @property
     def warning_count(self) -> int:
         return len(self.warnings)
 
-    def dataset(self, dataset_id: str) -> GovernedDataset:
-        return self.datasets[dataset_id]
+    def table(self, table_name: str) -> GovernedTable:
+        return self.tables[table_name]
 
     def to_read_model(self) -> dict[str, Any]:
         return {
-            "datasets": [
-                self.datasets[dataset_id].to_read_model() for dataset_id in sorted(self.datasets)
-            ],
+            "tables": [self.tables[table].to_read_model() for table in sorted(self.tables)],
             "warnings": [warning.to_read_model() for warning in self.warnings],
             "warning_count": self.warning_count,
         }
@@ -133,8 +131,8 @@ class GovernanceSurface:
 
 
 @dataclass(slots=True)
-class _DatasetBuilder:
-    id: str
+class _TableBuilder:
+    table: str
     owner: str | None = None
     lifecycle: str | None = None
     pii: bool = False
@@ -177,19 +175,26 @@ class _DatasetBuilder:
         self.declared = True
         freshness_hours = metadata.get("freshness_hours")
         row_count_change = metadata.get("row_count_change")
+        merged_row_count_change = dict(self.observability.row_count_change)
+        if isinstance(row_count_change, dict):
+            merged_row_count_change.update(row_count_change)
         self.observability = GovernanceObservability(
-            freshness_hours=freshness_hours if isinstance(freshness_hours, int) else None,
-            row_count_change=dict(row_count_change) if isinstance(row_count_change, dict) else {},
-            checks=tuple(checks),
+            freshness_hours=(
+                freshness_hours
+                if isinstance(freshness_hours, int)
+                else self.observability.freshness_hours
+            ),
+            row_count_change=merged_row_count_change,
+            checks=(*self.observability.checks, *checks),
         )
 
     def apply_access(self, spec: AccessPolicySpec) -> None:
         self.access_policies.append(AccessPolicyReadModel.from_spec(spec))
 
-    def build(self, warnings: list[GovernanceWarning]) -> GovernedDataset:
-        own_warnings = tuple(warning for warning in warnings if warning.dataset_id == self.id)
-        return GovernedDataset(
-            id=self.id,
+    def build(self, warnings: list[GovernanceWarning]) -> GovernedTable:
+        own_warnings = tuple(warning for warning in warnings if warning.table == self.table)
+        return GovernedTable(
+            table=self.table,
             owner=self.owner,
             lifecycle=self.lifecycle,
             pii=self.pii,
@@ -204,7 +209,7 @@ class _DatasetBuilder:
 
 
 def build_governance_surface() -> GovernanceSurface:
-    builders: dict[str, _DatasetBuilder] = {}
+    builders: dict[str, _TableBuilder] = {}
 
     for spec in get_contract_specs():
         _builder(builders, spec.table).apply_contract(spec)
@@ -230,30 +235,30 @@ def build_governance_surface() -> GovernanceSurface:
         builder.apply_access(spec)
 
     warnings = _validate_builders(builders, access_only_tables)
-    datasets = {dataset_id: builders[dataset_id].build(warnings) for dataset_id in sorted(builders)}
-    return GovernanceSurface(datasets=datasets, warnings=tuple(warnings))
+    tables = {table: builders[table].build(warnings) for table in sorted(builders)}
+    return GovernanceSurface(tables=tables, warnings=tuple(warnings))
 
 
-def _builder(builders: dict[str, _DatasetBuilder], dataset_id: str) -> _DatasetBuilder:
-    if dataset_id not in builders:
-        builders[dataset_id] = _DatasetBuilder(id=dataset_id)
-    return builders[dataset_id]
+def _builder(builders: dict[str, _TableBuilder], table: str) -> _TableBuilder:
+    if table not in builders:
+        builders[table] = _TableBuilder(table=table)
+    return builders[table]
 
 
 def _validate_builders(
-    builders: dict[str, _DatasetBuilder],
+    builders: dict[str, _TableBuilder],
     access_only_tables: set[str],
 ) -> list[GovernanceWarning]:
     warnings: list[GovernanceWarning] = []
-    for dataset_id in sorted(builders):
-        builder = builders[dataset_id]
-        if dataset_id in access_only_tables:
+    for table in sorted(builders):
+        builder = builders[table]
+        if table in access_only_tables:
             warnings.append(
                 GovernanceWarning(
-                    dataset_id=dataset_id,
-                    code="access_policy_without_dataset",
+                    table=table,
+                    code="access_policy_without_table",
                     message=(
-                        f"{dataset_id} has an access policy but no contract, publish, "
+                        f"{table} has an access policy but no contract, publish, "
                         "or observe declaration."
                     ),
                 )
@@ -261,33 +266,33 @@ def _validate_builders(
         if builder.published and not builder.owner:
             warnings.append(
                 GovernanceWarning(
-                    dataset_id=dataset_id,
+                    table=table,
                     code="missing_owner",
-                    message=f"{dataset_id} is published but has no owner declaration.",
+                    message=f"{table} is published but has no owner declaration.",
                 )
             )
         if builder.published and not builder.access_policies:
             warnings.append(
                 GovernanceWarning(
-                    dataset_id=dataset_id,
+                    table=table,
                     code="missing_access_policy",
-                    message=f"{dataset_id} is published but has no access policy.",
+                    message=f"{table} is published but has no access policy.",
                 )
             )
         if builder.pii and not any(policy.pii_columns for policy in builder.access_policies):
             warnings.append(
                 GovernanceWarning(
-                    dataset_id=dataset_id,
+                    table=table,
                     code="missing_pii_column_policy",
-                    message=f"{dataset_id} declares PII but no access policy names PII columns.",
+                    message=f"{table} declares PII but no access policy names PII columns.",
                 )
             )
         if builder.lifecycle == "production" and not builder.sla:
             warnings.append(
                 GovernanceWarning(
-                    dataset_id=dataset_id,
+                    table=table,
                     code="missing_production_sla",
-                    message=f"{dataset_id} is production but has no SLA declaration.",
+                    message=f"{table} is production but has no SLA declaration.",
                 )
             )
     return warnings

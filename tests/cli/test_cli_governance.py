@@ -72,8 +72,8 @@ def test_governance_export_emits_read_model() -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["datasets"][0]["id"] == "gold.customer_health"
-    assert payload["datasets"][0]["published"] is True
+    assert payload["tables"][0]["table"] == "gold.customer_health"
+    assert payload["tables"][0]["published"] is True
 
 
 def test_governance_check_imports_declaration_module(tmp_path: Path) -> None:
@@ -90,6 +90,36 @@ import phlo
 )
 def customer_health_contract():
     pass
+
+@phlo.publish(table="gold.customer_health", owner="data-platform")
+def publish_customer_health():
+    pass
+
+@phlo.access(table="gold.customer_health", roles=["sales_read"])
+def customer_health_access():
+    pass
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        governance_group,
+        ["check", "--json", "--module", str(workflow_file)],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {"ok": True, "warning_count": 0, "warnings": []}
+
+
+def test_governance_check_with_module_clears_previous_declarations(tmp_path: Path) -> None:
+    @phlo.publish(table="gold.leaked_table")
+    def leaked_publish() -> None:
+        return None
+
+    workflow_file = tmp_path / "customer_health_flow.py"
+    workflow_file.write_text(
+        """
+import phlo
 
 @phlo.publish(table="gold.customer_health", owner="data-platform")
 def publish_customer_health():
