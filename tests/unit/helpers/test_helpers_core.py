@@ -15,7 +15,6 @@ from phlo.helpers import (
     build_backfill_plan,
     classify_columns,
     compare_partitions,
-    compare_schemas,
     connection_from_url,
     expected_partitions,
     flatten_json_records,
@@ -47,6 +46,7 @@ from phlo.helpers import (
     where_and,
 )
 from phlo.helpers.tables import load_table_schema, merge_batch
+from phlo.schema_migration.planning import plan_schema_migration
 
 
 def test_connection_helpers_redact_and_render_profiles() -> None:
@@ -98,7 +98,7 @@ def test_table_and_schema_helpers() -> None:
             FieldSpec("email", "string", nullable=True),
         ]
     )
-    plan = compare_schemas(current, desired, table_name="raw.users")
+    plan = plan_schema_migration(table_name="raw.users", current=current, desired=desired)
     assert plan.classification == "safe"
     assert [change.change_type for change in plan.changes] == ["add"]
 
