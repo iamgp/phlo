@@ -10,7 +10,12 @@ from __future__ import annotations
 import json
 from typing import Any, Callable, List, Optional
 
-from phlo.capabilities import AssetCheckSpec, CheckResult, get_capability_registry, register_check
+from phlo.capabilities import (
+    AssetCheckSpec,
+    CheckResult,
+    get_capability_registry,
+    register_capability,
+)
 from phlo.capabilities.runtime import RuntimeContext
 from phlo.contracts import Consumer, SLA, normalize_consumers, serialize_sla
 
@@ -302,7 +307,7 @@ def phlo_pandera(
                 description=f"Pandera schema contract for {table}",
                 tags=dict(contract_tags),
             )
-            register_check(pandera_spec)
+            register_capability("check", pandera_spec)
 
         if non_schema_checks:
 
@@ -548,7 +553,7 @@ def phlo_pandera(
                 description=description,
                 tags=dict(contract_tags),
             )
-            register_check(quality_spec)
+            register_capability("check", quality_spec)
 
         if schema_checks or non_schema_checks:
             return func
@@ -566,7 +571,7 @@ def get_quality_checks() -> list[AssetCheckSpec]:
 
     """
     registry = get_capability_registry()
-    return registry.list_checks()
+    return registry.list("check")
 
 
 def clear_quality_checks() -> None:
@@ -577,4 +582,4 @@ def clear_quality_checks() -> None:
 
     """
     registry = get_capability_registry()
-    registry.clear_checks()
+    registry.clear("check")

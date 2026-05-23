@@ -2,7 +2,7 @@
 
 import pytest
 
-from phlo.capabilities import list_regulated_surfaces
+from phlo.capabilities import get_capability_registry
 from phlo_dagster.authorization import (
     DagsterRegulatedSurfaceAdapter,
     get_adapter,
@@ -60,7 +60,7 @@ class TestDagsterRegulatedSurfaceAdapter:
 
         adapter.install(runtime)
 
-        registered = list_regulated_surfaces()
+        registered = get_capability_registry().list("regulated_surface")
         dagster_spec = next((s for s in registered if s.name == SURFACE_NAME), None)
         assert dagster_spec is not None
         assert dagster_spec.provider is adapter

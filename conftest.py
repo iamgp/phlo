@@ -89,10 +89,10 @@ def configured_minio_object_store(minio_service, monkeypatch):
     from phlo_minio.plugin import MinioResourceProvider
     from phlo_minio.settings import get_settings as get_minio_settings
 
-    from phlo.capabilities import register_object_store, resolve_capability
+    from phlo.capabilities import register_capability, resolve_capability
 
     get_minio_settings.cache_clear()
-    register_object_store(MinioResourceProvider().get_object_stores()[0])
+    register_capability("object_store", MinioResourceProvider().get_object_stores()[0])
     return resolve_capability("object_store", "minio")
 
 

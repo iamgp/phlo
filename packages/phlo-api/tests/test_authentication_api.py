@@ -5,14 +5,14 @@ from __future__ import annotations
 import pytest
 from pathlib import Path
 
-from phlo.capabilities import AuthenticationProviderSpec, clear_capabilities
-from phlo.capabilities.registry import register_authentication_provider
+from phlo.capabilities import AuthenticationProviderSpec, clear_all_capabilities
+from phlo.capabilities.registry import register_capability
 from phlo.infrastructure.config import clear_config_cache
 from phlo_api.api.authentication import get_authentication_provider
 
 
 def teardown_function() -> None:
-    clear_capabilities()
+    clear_all_capabilities()
     clear_config_cache()
 
 
@@ -26,7 +26,9 @@ class _DummyAuthenticationProvider:
 
 def test_get_authentication_provider_uses_phlo_yaml(monkeypatch, tmp_path: Path) -> None:
     provider = _DummyAuthenticationProvider()
-    register_authentication_provider(AuthenticationProviderSpec(name="proxy", provider=provider))
+    register_capability(
+        "authentication_provider", AuthenticationProviderSpec(name="proxy", provider=provider)
+    )
 
     _write_phlo_config(
         tmp_path,
@@ -45,11 +47,12 @@ authentication:
 def test_env_authentication_provider_overrides_phlo_yaml(monkeypatch, tmp_path: Path) -> None:
     proxy_provider = _DummyAuthenticationProvider()
     static_provider = _DummyAuthenticationProvider()
-    register_authentication_provider(
-        AuthenticationProviderSpec(name="proxy", provider=proxy_provider)
+    register_capability(
+        "authentication_provider", AuthenticationProviderSpec(name="proxy", provider=proxy_provider)
     )
-    register_authentication_provider(
-        AuthenticationProviderSpec(name="static", provider=static_provider)
+    register_capability(
+        "authentication_provider",
+        AuthenticationProviderSpec(name="static", provider=static_provider),
     )
 
     _write_phlo_config(
@@ -70,7 +73,9 @@ def test_empty_env_authentication_provider_falls_back_to_phlo_yaml(
     monkeypatch, tmp_path: Path
 ) -> None:
     provider = _DummyAuthenticationProvider()
-    register_authentication_provider(AuthenticationProviderSpec(name="proxy", provider=provider))
+    register_capability(
+        "authentication_provider", AuthenticationProviderSpec(name="proxy", provider=provider)
+    )
 
     _write_phlo_config(
         tmp_path,

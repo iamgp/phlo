@@ -181,7 +181,7 @@ def _operation(
 def _check_for_action(action_id: str, registry: Any) -> Any | None:
     check_action_id = action_id.removeprefix("quality:")
     try:
-        checks = registry.list_checks()
+        checks = registry.list("check")
     except Exception:
         return None
     for check in checks:

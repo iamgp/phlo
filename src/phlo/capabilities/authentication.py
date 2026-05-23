@@ -22,7 +22,7 @@ from phlo.capabilities.interfaces import (
     LogoutResult,
     RequestContext,
 )
-from phlo.capabilities.registry import register_authentication_provider
+from phlo.capabilities.registry import register_capability
 from phlo.capabilities.specs import AuthenticationProviderSpec
 from phlo.capabilities.support import CapabilitySupport
 from phlo.infrastructure.config import (
@@ -921,7 +921,8 @@ def register_default_capability_providers() -> None:
         selected_provider=selected_provider,
         configured_payload=static_users or dev_mode,
     ):
-        register_authentication_provider(
+        register_capability(
+            "authentication_provider",
             AuthenticationProviderSpec(
                 name="static",
                 provider=StaticAuthenticationProvider(
@@ -939,7 +940,7 @@ def register_default_capability_providers() -> None:
                     supports_permissions=False,
                     supports_attributes=True,
                 ),
-            )
+            ),
         )
 
     proxy_block = _authentication_subconfig("proxy")
@@ -951,7 +952,8 @@ def register_default_capability_providers() -> None:
         selected_provider=selected_provider,
         configured_payload=proxy_config,
     ):
-        register_authentication_provider(
+        register_capability(
+            "authentication_provider",
             AuthenticationProviderSpec(
                 name="proxy",
                 provider=ProxyAuthenticationProvider(**proxy_config),
@@ -965,7 +967,7 @@ def register_default_capability_providers() -> None:
                     supports_permissions=False,
                     supports_attributes=True,
                 ),
-            )
+            ),
         )
 
     service_token_block = _authentication_subconfig("service_token")
@@ -977,7 +979,8 @@ def register_default_capability_providers() -> None:
         selected_provider=selected_provider,
         configured_payload=service_tokens,
     ):
-        register_authentication_provider(
+        register_capability(
+            "authentication_provider",
             AuthenticationProviderSpec(
                 name="service_token",
                 provider=ServiceTokenAuthenticationProvider(
@@ -993,7 +996,7 @@ def register_default_capability_providers() -> None:
                     supports_permissions=False,
                     supports_attributes=True,
                 ),
-            )
+            ),
         )
 
     jwt_block = _authentication_subconfig("jwt")
@@ -1008,7 +1011,8 @@ def register_default_capability_providers() -> None:
         if not jwt_config.get("secret"):
             logger.error("jwt_provider_requires_secret")
         else:
-            register_authentication_provider(
+            register_capability(
+                "authentication_provider",
                 AuthenticationProviderSpec(
                     name="jwt",
                     provider=JWTAuthenticationProvider(
@@ -1028,5 +1032,5 @@ def register_default_capability_providers() -> None:
                         supports_permissions=False,
                         supports_attributes=True,
                     ),
-                )
+                ),
             )

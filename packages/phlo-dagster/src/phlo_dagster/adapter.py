@@ -35,9 +35,9 @@ Example:
         # Build Dagster definitions
         adapter = DagsterOrchestratorAdapter()
         defs = adapter.build_definitions(
-            assets=registry.list_assets(),
-            checks=registry.list_checks(),
-            resources=registry.list_resources(),
+            assets=registry.list("asset"),
+            checks=registry.list("check"),
+            resources=registry.list("resource"),
         )
 
 """

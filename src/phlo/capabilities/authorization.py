@@ -13,7 +13,7 @@ from phlo.capabilities.interfaces import (
     Principal,
     ResourceRef,
 )
-from phlo.capabilities.registry import register_authorization_policy_backend
+from phlo.capabilities.registry import register_capability
 from phlo.capabilities.specs import AuthorizationPolicyBackendSpec
 from phlo.capabilities.support import CapabilitySupport
 from phlo.logging import get_logger
@@ -213,7 +213,8 @@ class DefaultAuthorizationPolicyBackend:
 
 def register_default_capability_providers() -> None:
     """Register the default authorization policy backend provider."""
-    register_authorization_policy_backend(
+    register_capability(
+        "authorization_policy_backend",
         AuthorizationPolicyBackendSpec(
             name="default",
             provider=DefaultAuthorizationPolicyBackend(),
@@ -225,5 +226,5 @@ def register_default_capability_providers() -> None:
                 supports_permissions=True,
                 supports_attributes=False,
             ),
-        )
+        ),
     )

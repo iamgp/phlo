@@ -12,9 +12,9 @@ from phlo.capabilities import (
     SchemaMigrationPlan,
     SchemaMigrationSpec,
     SchemaMigrator,
-    clear_capabilities,
+    clear_all_capabilities,
     get_capability_registry,
-    register_schema_migrator,
+    register_capability,
 )
 from phlo.capabilities.schema import (
     default_classify_change,
@@ -172,16 +172,16 @@ class TestWorstClassification:
 class TestSchemaMigrationRegistry:
     def test_register_and_list(self) -> None:
         spec = SchemaMigrationSpec(name="iceberg", provider=object())
-        register_schema_migrator(spec)
+        register_capability("schema_migrator", spec)
 
         registry = get_capability_registry()
-        migrators = registry.list_schema_migrators()
+        migrators = registry.list("schema_migrator")
         assert any(m.name == "iceberg" for m in migrators)
 
     def test_clear(self) -> None:
-        register_schema_migrator(SchemaMigrationSpec(name="delta", provider=object()))
-        clear_capabilities()
-        assert get_capability_registry().list_schema_migrators() == []
+        register_capability("schema_migrator", SchemaMigrationSpec(name="delta", provider=object()))
+        clear_all_capabilities()
+        assert get_capability_registry().list("schema_migrator") == []
 
 
 # -- Protocol structural checks --

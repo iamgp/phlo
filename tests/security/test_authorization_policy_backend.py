@@ -10,7 +10,7 @@ from phlo.capabilities import (
     ResourceRef,
     get_capability_registry,
     list_capabilities,
-    register_authorization_policy_backend,
+    register_capability,
     resolve_capability,
 )
 from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
@@ -26,15 +26,16 @@ def teardown_function() -> None:
 
 def test_registry_tracks_authorization_policy_backends() -> None:
     backend = DefaultAuthorizationPolicyBackend()
-    register_authorization_policy_backend(
+    register_capability(
+        "authorization_policy_backend",
         AuthorizationPolicyBackendSpec(
             name="default",
             provider=backend,
-        )
+        ),
     )
 
     registry = get_capability_registry()
-    backends = registry.list_authorization_policy_backends()
+    backends = registry.list("authorization_policy_backend")
 
     assert len(backends) == 1
     assert backends[0].name == "default"
@@ -42,11 +43,12 @@ def test_registry_tracks_authorization_policy_backends() -> None:
 
 
 def test_list_authorization_policy_backends() -> None:
-    register_authorization_policy_backend(
+    register_capability(
+        "authorization_policy_backend",
         AuthorizationPolicyBackendSpec(
             name="rbac",
             provider=DefaultAuthorizationPolicyBackend(),
-        )
+        ),
     )
 
     names = list_capabilities("authorization_policy_backend")
@@ -55,11 +57,12 @@ def test_list_authorization_policy_backends() -> None:
 
 def test_resolve_authorization_policy_backend() -> None:
     backend = DefaultAuthorizationPolicyBackend()
-    register_authorization_policy_backend(
+    register_capability(
+        "authorization_policy_backend",
         AuthorizationPolicyBackendSpec(
             name="rbac",
             provider=backend,
-        )
+        ),
     )
 
     resolved = resolve_capability("authorization_policy_backend", "rbac")

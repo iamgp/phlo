@@ -98,7 +98,7 @@ def resolve_source_adapter(source_type: str) -> SourceAdapter | None:
     if adapter is not None:
         return adapter
 
-    for spec in get_capability_registry().list_data_migration_sources():
+    for spec in get_capability_registry().list("data_migration_source"):
         if spec.name != source_type:
             continue
         provider = spec.provider
@@ -110,7 +110,7 @@ def resolve_source_adapter(source_type: str) -> SourceAdapter | None:
 def list_source_adapter_types() -> list[str]:
     """List all known source adapter types."""
     adapter_types = set(_BUILTIN_ADAPTERS.keys())
-    for spec in get_capability_registry().list_data_migration_sources():
+    for spec in get_capability_registry().list("data_migration_source"):
         adapter_types.add(spec.name)
     return sorted(adapter_types)
 

@@ -7,11 +7,11 @@ from types import SimpleNamespace
 
 from fastapi import HTTPException, Request
 
-from phlo.capabilities import AuthorizationPolicyBackendSpec, clear_capabilities
+from phlo.capabilities import AuthorizationPolicyBackendSpec, clear_all_capabilities
 from phlo.capabilities.interfaces import AuthPrincipal, ResourceRef
 from phlo.capabilities.authorization import DefaultAuthorizationPolicyBackend
 from phlo.capabilities.interfaces import Principal
-from phlo.capabilities.registry import register_authorization_policy_backend
+from phlo.capabilities.registry import register_capability
 from phlo.infrastructure.config import clear_config_cache
 from phlo_api.api.authorization import (
     check_admin_read,
@@ -24,7 +24,7 @@ from phlo.security.adapters import EnforcementResult
 
 
 def teardown_function() -> None:
-    clear_capabilities()
+    clear_all_capabilities()
     clear_config_cache()
 
 
@@ -63,7 +63,8 @@ def test_resolve_request_principal_ignores_forwarded_identity_headers() -> None:
 def test_get_authorization_backend_requires_explicit_selection_for_multiple_backends(
     monkeypatch,
 ) -> None:
-    register_authorization_policy_backend(
+    register_capability(
+        "authorization_policy_backend",
         AuthorizationPolicyBackendSpec(
             name="default",
             provider=DefaultAuthorizationPolicyBackend(
@@ -76,9 +77,10 @@ def test_get_authorization_backend_requires_explicit_selection_for_multiple_back
                     }
                 ]
             ),
-        )
+        ),
     )
-    register_authorization_policy_backend(
+    register_capability(
+        "authorization_policy_backend",
         AuthorizationPolicyBackendSpec(
             name="opa",
             provider=DefaultAuthorizationPolicyBackend(
@@ -91,7 +93,7 @@ def test_get_authorization_backend_requires_explicit_selection_for_multiple_back
                     }
                 ]
             ),
-        )
+        ),
     )
 
     monkeypatch.delenv("PHLO_AUTHORIZATION_BACKEND", raising=False)
@@ -115,11 +117,14 @@ def test_get_authorization_backend_resolves_named_backend(monkeypatch) -> None:
             }
         ]
     )
-    register_authorization_policy_backend(
-        AuthorizationPolicyBackendSpec(name="default", provider=DefaultAuthorizationPolicyBackend())
+    register_capability(
+        "authorization_policy_backend",
+        AuthorizationPolicyBackendSpec(
+            name="default", provider=DefaultAuthorizationPolicyBackend()
+        ),
     )
-    register_authorization_policy_backend(
-        AuthorizationPolicyBackendSpec(name="opa", provider=backend)
+    register_capability(
+        "authorization_policy_backend", AuthorizationPolicyBackendSpec(name="opa", provider=backend)
     )
 
     monkeypatch.setenv("PHLO_AUTHORIZATION_BACKEND", "opa")
@@ -365,11 +370,14 @@ def test_get_authorization_backend_uses_service_specific_phlo_yaml(
     monkeypatch, tmp_path: Path
 ) -> None:
     backend = DefaultAuthorizationPolicyBackend()
-    register_authorization_policy_backend(
-        AuthorizationPolicyBackendSpec(name="default", provider=DefaultAuthorizationPolicyBackend())
+    register_capability(
+        "authorization_policy_backend",
+        AuthorizationPolicyBackendSpec(
+            name="default", provider=DefaultAuthorizationPolicyBackend()
+        ),
     )
-    register_authorization_policy_backend(
-        AuthorizationPolicyBackendSpec(name="opa", provider=backend)
+    register_capability(
+        "authorization_policy_backend", AuthorizationPolicyBackendSpec(name="opa", provider=backend)
     )
     _write_phlo_config(
         tmp_path,

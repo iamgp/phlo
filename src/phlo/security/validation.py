@@ -239,9 +239,9 @@ def _check_phlo_api_adapter(runtime: Any) -> ValidationResult:
     Per plan: phlo-api is the only required regulated surface in v1.
     Startup must fail if the adapter is missing, not installed, or inactive.
     """
-    from phlo.capabilities import list_regulated_surfaces
+    from phlo.capabilities import get_capability_registry
 
-    registered = list_regulated_surfaces()
+    registered = get_capability_registry().list("regulated_surface")
     phlo_api_spec = next((s for s in registered if s.name == "phlo-api"), None)
 
     if phlo_api_spec is None:
@@ -277,12 +277,12 @@ def _collect_adapter_taxonomy(runtime: Any) -> tuple[set[str], set[str]]:
     Returns:
         Tuple of (surface_actions, surface_resource_types) from registered adapters.
     """
-    from phlo.capabilities import list_regulated_surfaces
+    from phlo.capabilities import get_capability_registry
 
     surface_actions: set[str] = set()
     surface_resource_types: set[str] = set()
 
-    for spec in list_regulated_surfaces():
+    for spec in get_capability_registry().list("regulated_surface"):
         adapter = spec.provider
         with suppress(Exception):
             ops = adapter.list_operations()
@@ -302,9 +302,9 @@ def _check_registered_surfaces(runtime: Any) -> ValidationResult:
     For surfaces that support the runtime-aware is_active(runtime) protocol,
     passes the runtime so activation can be checked against the real framework.
     """
-    from phlo.capabilities import list_regulated_surfaces
+    from phlo.capabilities import get_capability_registry
 
-    registered = list_regulated_surfaces()
+    registered = get_capability_registry().list("regulated_surface")
     registered_names = {spec.name for spec in registered}
 
     not_yet_integrated: list[str] = []
