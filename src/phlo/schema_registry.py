@@ -1,4 +1,8 @@
-"""Schema registry for tracking schema evolution and detecting breaking changes."""
+"""Schema snapshot registry.
+
+Compatibility checking previously provided by check_compatibility() now lives in
+the schema migration planner rather than this registry module.
+"""
 
 from __future__ import annotations
 
@@ -11,8 +15,7 @@ from pathlib import Path
 import psycopg2
 import ulid
 
-from phlo.capabilities.schema import default_classify_change, worst_classification
-from phlo.capabilities.specs import FieldSpec, NormalizedSchema, SchemaChange, SchemaMigrationPlan
+from phlo.capabilities.specs import FieldSpec, NormalizedSchema
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -22,14 +25,6 @@ _REGISTRY_DB_KEYS = (
     "PHLO_LINEAGE_DB_URL",
     "DAGSTER_PG_DB_CONNECTION_STRING",
 )
-
-_WIDEN_PAIRS = {
-    ("int32", "int64"),
-    ("float32", "float64"),
-    ("int32", "float64"),
-    ("int64", "float64"),
-    ("date", "timestamptz"),
-}
 
 
 def resolve_registry_db_url() -> str | None:
@@ -174,93 +169,6 @@ class SchemaRegistry:
             )
             for r in rows
         ]
-
-
-def check_compatibility(
-    previous: NormalizedSchema,
-    current: NormalizedSchema,
-    table_name: str = "unknown",
-) -> SchemaMigrationPlan:
-    """Compare two schemas and classify changes.
-
-    Breaking: column drops, type narrowings, nullability tightening
-    Safe: adds, widenings, nullability relaxed
-    """
-    prev_fields = {f.name: f for f in previous.fields}
-    curr_fields = {f.name: f for f in current.fields}
-    changes: list[SchemaChange] = []
-
-    for name in prev_fields:
-        if name not in curr_fields:
-            changes.append(
-                SchemaChange(
-                    field_name=name,
-                    change_type="drop",
-                    old_value=prev_fields[name].dtype,
-                    classification=default_classify_change("drop"),
-                )
-            )
-
-    for name in curr_fields:
-        if name not in prev_fields:
-            f = curr_fields[name]
-            classification = default_classify_change(
-                "add", nullable=f.nullable, has_default=f.default is not None
-            )
-            changes.append(
-                SchemaChange(
-                    field_name=name,
-                    change_type="add",
-                    new_value=f.dtype,
-                    classification=classification,
-                )
-            )
-
-    for name in prev_fields:
-        if name not in curr_fields:
-            continue
-        prev_f = prev_fields[name]
-        curr_f = curr_fields[name]
-
-        if prev_f.dtype != curr_f.dtype:
-            if (prev_f.dtype, curr_f.dtype) in _WIDEN_PAIRS:
-                change_type = "widen_type"
-            else:
-                change_type = "narrow_type"
-            changes.append(
-                SchemaChange(
-                    field_name=name,
-                    change_type=change_type,
-                    old_value=prev_f.dtype,
-                    new_value=curr_f.dtype,
-                    classification=default_classify_change(change_type),
-                )
-            )
-
-        if prev_f.nullable != curr_f.nullable:
-            if prev_f.nullable and not curr_f.nullable:
-                null_change_type = "nullability_tightened"
-            else:
-                null_change_type = "nullability_relaxed"
-            changes.append(
-                SchemaChange(
-                    field_name=name,
-                    change_type=null_change_type,
-                    old_value=str(prev_f.nullable),
-                    new_value=str(curr_f.nullable),
-                    classification=default_classify_change(null_change_type),
-                )
-            )
-
-    classifications = [c.classification for c in changes]
-    overall = worst_classification(classifications)
-
-    return SchemaMigrationPlan(
-        table_name=table_name,
-        changes=changes,
-        classification=overall,
-        requires_approval=overall == "breaking",
-    )
 
 
 def deserialize_schema(schema_json: str) -> NormalizedSchema:

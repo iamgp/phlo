@@ -24,6 +24,7 @@ from rich.table import Table
 from phlo.capabilities import (
     FieldSpec,
     NormalizedSchema,
+    SchemaMigrationPlan,
     configured_capability_name,
     get_capability_registry,
     list_capabilities,
@@ -31,6 +32,13 @@ from phlo.capabilities import (
 )
 from phlo.cli.commands import schema_migrate_contracts
 from phlo.logging import get_logger
+from phlo.schema_migration.instructions import (
+    MigrationInstructionError,
+    resolve_migration_instructions,
+)
+from phlo.schema_migration.planning import (
+    SchemaMigrationPlanningError,
+)
 
 console = Console()
 logger = get_logger(__name__)
@@ -188,6 +196,53 @@ def _resolve_desired_schema(table_name: str, schema_class: str | None) -> tuple[
 
     desired = extractor.extract(native_schema)
     return migrator, desired, native_schema
+
+
+def _build_migration_plan(
+    *,
+    table_name: str,
+    schema_class: str | None,
+    migration_file: Path | None,
+    rename: tuple[str, ...],
+) -> tuple[Any, SchemaMigrationPlan]:
+    """Resolve the selected migrator and build a plan from CLI inputs."""
+    try:
+        instructions = resolve_migration_instructions(
+            table_name=table_name,
+            migration_file=migration_file,
+            rename_flags=rename,
+        )
+    except MigrationInstructionError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    migrator, desired, _ = _resolve_desired_schema(table_name, schema_class)
+    try:
+        plan = migrator.diff_schema(
+            table_name=table_name,
+            desired=desired,
+            instructions=instructions,
+        )
+    except SchemaMigrationPlanningError as exc:
+        raise click.ClickException(str(exc)) from exc
+    return migrator, plan
+
+
+def _ensure_plan_supported(migrator: Any, plan: SchemaMigrationPlan) -> None:
+    """Refuse to apply unsupported explicit change types."""
+    if not hasattr(migrator, "supported_changes"):
+        return
+    supported = migrator.supported_changes()
+    unsupported = sorted(
+        {change.change_type for change in plan.changes if change.change_type not in supported}
+    )
+    if not unsupported:
+        return
+    rendered = ", ".join(unsupported)
+    raise click.ClickException(
+        "Schema migration plan contains unsupported change type(s) for the selected "
+        f"schema migrator: {rendered}. Use a provider that supports them, or change the "
+        "migration YAML/CLI flags."
+    )
 
 
 def _select_default_table_store_name() -> str | None:
@@ -411,8 +466,25 @@ def schema_migrate_group() -> None:
 @click.option(
     "--schema-class", default=None, help="Pandera schema class name (auto-detected if omitted)"
 )
+@click.option(
+    "--migration-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=None,
+    help="Migration instruction YAML (default: .phlo/migrations/<table>.yaml)",
+)
+@click.option(
+    "--rename",
+    multiple=True,
+    help="Explicit rename instruction in old_name=new_name form. May be repeated.",
+)
 @click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table")
-def diff(table_name: str, schema_class: str | None, fmt: str) -> None:
+def diff(
+    table_name: str,
+    schema_class: str | None,
+    migration_file: Path | None,
+    rename: tuple[str, ...],
+    fmt: str,
+) -> None:
     """Show pending schema changes between quality schema and storage table.
 
     Examples:
@@ -420,18 +492,22 @@ def diff(table_name: str, schema_class: str | None, fmt: str) -> None:
         phlo schema-migrate diff warehouse.customers --schema-class CustomerSchema
         phlo schema-migrate diff warehouse.customers --format json
     """
-    migrator, desired, _ = _resolve_desired_schema(table_name, schema_class)
-    plan = migrator.diff_schema(table_name=table_name, desired=desired)
+    _, migration_plan = _build_migration_plan(
+        table_name=table_name,
+        schema_class=schema_class,
+        migration_file=migration_file,
+        rename=rename,
+    )
 
     if fmt == "json":
-        click.echo(json.dumps(asdict(plan), indent=2))
+        click.echo(json.dumps(asdict(migration_plan), indent=2))
         return
 
-    if not plan.changes:
+    if not migration_plan.changes:
         console.print(f"[green]No schema changes detected for {table_name}[/green]")
         return
 
-    _render_plan(plan)
+    _render_plan(migration_plan)
 
 
 @schema_migrate_group.command()
@@ -439,15 +515,36 @@ def diff(table_name: str, schema_class: str | None, fmt: str) -> None:
 @click.option(
     "--schema-class", default=None, help="Pandera schema class name (auto-detected if omitted)"
 )
+@click.option(
+    "--migration-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=None,
+    help="Migration instruction YAML (default: .phlo/migrations/<table>.yaml)",
+)
+@click.option(
+    "--rename",
+    multiple=True,
+    help="Explicit rename instruction in old_name=new_name form. May be repeated.",
+)
 @click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table")
-def plan(table_name: str, schema_class: str | None, fmt: str) -> None:
+def plan(
+    table_name: str,
+    schema_class: str | None,
+    migration_file: Path | None,
+    rename: tuple[str, ...],
+    fmt: str,
+) -> None:
     """Generate a migration plan for a table.
 
     Examples:
         phlo schema-migrate plan warehouse.customers
     """
-    migrator, desired, _ = _resolve_desired_schema(table_name, schema_class)
-    migration_plan = migrator.diff_schema(table_name=table_name, desired=desired)
+    _, migration_plan = _build_migration_plan(
+        table_name=table_name,
+        schema_class=schema_class,
+        migration_file=migration_file,
+        rename=rename,
+    )
 
     if fmt == "json":
         click.echo(json.dumps(asdict(migration_plan), indent=2))
@@ -470,9 +567,27 @@ def plan(table_name: str, schema_class: str | None, fmt: str) -> None:
 @click.option(
     "--schema-class", default=None, help="Pandera schema class name (auto-detected if omitted)"
 )
+@click.option(
+    "--migration-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=None,
+    help="Migration instruction YAML (default: .phlo/migrations/<table>.yaml)",
+)
+@click.option(
+    "--rename",
+    multiple=True,
+    help="Explicit rename instruction in old_name=new_name form. May be repeated.",
+)
 @click.option("--yes", is_flag=True, help="Auto-approve breaking changes")
 @click.option("--dry-run", is_flag=True, help="Show what would be applied without executing")
-def apply(table_name: str, schema_class: str | None, yes: bool, dry_run: bool) -> None:
+def apply(
+    table_name: str,
+    schema_class: str | None,
+    migration_file: Path | None,
+    rename: tuple[str, ...],
+    yes: bool,
+    dry_run: bool,
+) -> None:
     """Apply schema migration to a storage table.
 
     Safe changes are applied automatically. Breaking changes require
@@ -483,13 +598,18 @@ def apply(table_name: str, schema_class: str | None, yes: bool, dry_run: bool) -
         phlo schema-migrate apply warehouse.customers --yes
         phlo schema-migrate apply warehouse.customers --dry-run
     """
-    migrator, desired, _ = _resolve_desired_schema(table_name, schema_class)
-    migration_plan = migrator.diff_schema(table_name=table_name, desired=desired)
+    migrator, migration_plan = _build_migration_plan(
+        table_name=table_name,
+        schema_class=schema_class,
+        migration_file=migration_file,
+        rename=rename,
+    )
 
     if not migration_plan.changes:
         console.print(f"[green]No migration needed for {table_name}[/green]")
         return
 
+    _ensure_plan_supported(migrator, migration_plan)
     _render_plan(migration_plan)
 
     if dry_run:

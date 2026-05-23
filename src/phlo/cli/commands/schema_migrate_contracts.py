@@ -11,6 +11,8 @@ from typing import Any
 
 import yaml
 
+from phlo.schema_migration.instructions import default_migration_instruction_path
+
 CONTRACT_VERSION = 1
 MIGRATION_SCAFFOLD_VERSION = 1
 
@@ -28,7 +30,7 @@ def default_contract_path(table_name: str) -> Path:
 
 def default_scaffold_yaml_path(table_name: str) -> Path:
     """Return default scaffold YAML path for a table."""
-    return Path(".phlo/migrations") / f"{table_to_artifact_stem(table_name)}.yaml"
+    return default_migration_instruction_path(table_name)
 
 
 def list_recent_contract_paths(
@@ -122,6 +124,7 @@ def build_scaffold_payload(
         "classification": migration_plan.classification,
         "requires_approval": migration_plan.requires_approval,
         "recommendations": list(migration_plan.recommendations),
+        "renames": {},
         "context": {
             "table_store": contract.get("table_store"),
             "schema_migrator": contract.get("schema_migrator"),
