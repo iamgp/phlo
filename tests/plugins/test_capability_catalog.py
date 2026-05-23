@@ -50,13 +50,13 @@ def test_registry_core_families_keep_existing_interface() -> None:
     check = AssetCheckSpec(asset_key="raw.events", name="freshness", fn=lambda _ctx: None)
     resource = ResourceSpec(name="trino", resource=object())
 
-    registry.register_asset(asset)
-    registry.register_check(check)
-    registry.register_resource(resource)
+    registry.register("asset", asset)
+    registry.register("check", check)
+    registry.register("resource", resource)
 
-    assert registry.list_assets() == [asset]
-    assert registry.list_checks() == [check]
-    assert registry.list_resources() == [resource]
+    assert registry.list("asset") == [asset]
+    assert registry.list("check") == [check]
+    assert registry.list("resource") == [resource]
 
 
 def test_named_family_uses_spec_name() -> None:
@@ -72,8 +72,8 @@ def test_registry_named_provider_families_keep_existing_interface() -> None:
     table_store = TableStoreSpec(name="iceberg", provider=object())
     query_engine = QueryEngineSpec(name="trino", provider=object())
 
-    registry.register_table_store(table_store)
-    registry.register_query_engine(query_engine)
+    registry.register("table_store", table_store)
+    registry.register("query_engine", query_engine)
 
-    assert registry.list_table_stores() == [table_store]
-    assert registry.list_query_engines() == [query_engine]
+    assert registry.list("table_store") == [table_store]
+    assert registry.list("query_engine") == [query_engine]

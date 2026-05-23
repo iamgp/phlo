@@ -57,13 +57,15 @@ def test_resolve_migrator_prefers_matching_table_store_default(monkeypatch) -> N
 
     iceberg_migrator = object()
     delta_migrator = object()
+    migrators = [
+        SchemaMigrationSpec(name="delta", provider=delta_migrator),
+        SchemaMigrationSpec(name="iceberg", provider=iceberg_migrator),
+    ]
 
     class FakeRegistry:
-        def list_schema_migrators(self) -> list[SchemaMigrationSpec]:
-            return [
-                SchemaMigrationSpec(name="delta", provider=delta_migrator),
-                SchemaMigrationSpec(name="iceberg", provider=iceberg_migrator),
-            ]
+        def list(self, family: str) -> list[SchemaMigrationSpec]:
+            assert family == "schema_migrator"
+            return migrators
 
     monkeypatch.setattr(schema_migrate_commands, "get_capability_registry", lambda: FakeRegistry())
     monkeypatch.setattr(
@@ -83,13 +85,15 @@ def test_resolve_migrator_prefers_explicit_schema_migrator_default(monkeypatch) 
 
     iceberg_migrator = object()
     delta_migrator = object()
+    migrators = [
+        SchemaMigrationSpec(name="delta", provider=delta_migrator),
+        SchemaMigrationSpec(name="iceberg", provider=iceberg_migrator),
+    ]
 
     class FakeRegistry:
-        def list_schema_migrators(self) -> list[SchemaMigrationSpec]:
-            return [
-                SchemaMigrationSpec(name="delta", provider=delta_migrator),
-                SchemaMigrationSpec(name="iceberg", provider=iceberg_migrator),
-            ]
+        def list(self, family: str) -> list[SchemaMigrationSpec]:
+            assert family == "schema_migrator"
+            return migrators
 
     monkeypatch.setattr(schema_migrate_commands, "get_capability_registry", lambda: FakeRegistry())
     monkeypatch.setattr(
@@ -108,7 +112,8 @@ def test_resolve_migrator_fails_when_configured_schema_migrator_missing(monkeypa
     """Missing explicit schema_migrator config errors deterministically."""
 
     class FakeRegistry:
-        def list_schema_migrators(self) -> list[SchemaMigrationSpec]:
+        def list(self, family: str) -> list[SchemaMigrationSpec]:
+            assert family == "schema_migrator"
             return [SchemaMigrationSpec(name="iceberg", provider=object())]
 
     monkeypatch.setattr(schema_migrate_commands, "get_capability_registry", lambda: FakeRegistry())
@@ -134,7 +139,8 @@ def test_resolve_migrator_fails_when_multiple_installed_without_selection(monkey
     """Ambiguous schema migrators require config instead of first-provider fallback."""
 
     class FakeRegistry:
-        def list_schema_migrators(self) -> list[SchemaMigrationSpec]:
+        def list(self, family: str) -> list[SchemaMigrationSpec]:
+            assert family == "schema_migrator"
             return [
                 SchemaMigrationSpec(name="delta", provider=object()),
                 SchemaMigrationSpec(name="iceberg", provider=object()),
@@ -165,7 +171,8 @@ def test_resolve_migrator_reports_table_store_mismatch_when_ambiguous(monkeypatc
     """Ambiguous error explains when configured table_store did not match any migrator."""
 
     class FakeRegistry:
-        def list_schema_migrators(self) -> list[SchemaMigrationSpec]:
+        def list(self, family: str) -> list[SchemaMigrationSpec]:
+            assert family == "schema_migrator"
             return [
                 SchemaMigrationSpec(name="delta", provider=object()),
                 SchemaMigrationSpec(name="iceberg", provider=object()),
@@ -501,7 +508,9 @@ def test_collect_quality_checks_parses_contract_tags(monkeypatch) -> None:
     """Quality check payload includes parsed owner/consumers/sla from tags."""
 
     class FakeRegistry:
-        def list_checks(self):
+        def list(self, family: str):
+            assert family == "check"
+
             class Check:
                 asset_key = "dlt_contract_demo"
                 name = "quality_contract_demo"
@@ -528,7 +537,9 @@ def test_collect_contract_metadata_filters_matching_asset(monkeypatch) -> None:
     """Contract metadata should be sourced from the matching asset only."""
 
     class FakeRegistry:
-        def list_assets(self):
+        def list(self, family: str):
+            assert family == "asset"
+
             class OtherAsset:
                 key = "dlt_other"
                 metadata = {
@@ -565,7 +576,9 @@ def test_collect_transform_refs_filters_and_deduplicates(monkeypatch) -> None:
     """Only dbt assets that depend on the target table should be returned."""
 
     class FakeRegistry:
-        def list_assets(self):
+        def list(self, family: str):
+            assert family == "asset"
+
             class MatchingByKey:
                 key = "transform_a"
                 kinds = {"dbt"}
@@ -645,7 +658,8 @@ def test_refresh_contracts_skips_missing_tables_without_warning(monkeypatch) -> 
         metadata = {"table_name": "raw.orders"}
 
     class FakeRegistry:
-        def list_assets(self) -> list[FakeAsset]:
+        def list(self, family: str) -> list[FakeAsset]:
+            assert family == "asset"
             return [FakeAsset()]
 
     logger = FakeLogger()

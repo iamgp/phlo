@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock, patch
 
-from phlo.capabilities import clear_capabilities, resolve_capability
+from phlo.capabilities import clear_all_capabilities, resolve_capability
 from phlo.capabilities.discovery import discover_capabilities
 from phlo.hooks import QualityResultEvent
 from phlo_openmetadata.resource_provider import OpenMetadataResourceProvider
@@ -54,7 +54,7 @@ def test_metadata_catalog_provider_publishes_quality_result():
 
 def test_openmetadata_metadata_catalog_capability_resolves():
     """Capability discovery exposes OpenMetadata as a metadata catalog provider."""
-    clear_capabilities()
+    clear_all_capabilities()
     discover_capabilities()
     resolution = resolve_capability("metadata_catalog", "openmetadata")
 

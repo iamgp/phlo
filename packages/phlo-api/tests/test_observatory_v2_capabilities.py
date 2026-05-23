@@ -14,6 +14,11 @@ from phlo_api.observatory_api.v2_models import (
 
 
 class FakeRegistry:
+    def list(self, family: str):
+        if family == "query_engine":
+            return self.list_query_engines()
+        return []
+
     def list_query_engines(self):
         return [
             SimpleNamespace(
@@ -147,9 +152,10 @@ def test_build_capability_inventory_serializes_registry_without_private_urls() -
 
 
 def test_inventory_includes_ui_contributions() -> None:
-    registry = SimpleNamespace(
-        list_query_engines=lambda: [],
-        list_ui_contributions=lambda: [
+    def list_capabilities(family: str):
+        if family != "ui_contribution":
+            return []
+        return [
             SimpleNamespace(
                 name="trino-data",
                 capability_type="query_engine",
@@ -160,8 +166,9 @@ def test_inventory_includes_ui_contributions() -> None:
                 native_links=[],
                 metadata={"safe": "yes", "url": "http://internal"},
             )
-        ],
-    )
+        ]
+
+    registry = SimpleNamespace(list=list_capabilities)
 
     inventory = build_capability_inventory(registry)
 

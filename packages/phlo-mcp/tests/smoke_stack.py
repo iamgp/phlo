@@ -34,14 +34,14 @@ _SMOKE_ASSET_KEY = "mcp_smoke_asset"
 _SMOKE_ASSET_FILENAME = "mcp_smoke_asset.py"
 _SMOKE_ASSET_SOURCE = '''"""Generated asset used by packages/phlo-mcp/tests/smoke_stack.py."""
 
-from phlo.capabilities import AssetSpec, MaterializeResult, RunSpec, register_asset
+from phlo.capabilities import AssetSpec, MaterializeResult, RunSpec, register_capability
 
 
 def _run(runtime):
     return [MaterializeResult(metadata={"rows": 1})]
 
 
-register_asset(
+register_capability("asset",
     AssetSpec(
         key="mcp_smoke_asset",
         group="smoke",

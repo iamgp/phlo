@@ -305,7 +305,7 @@ class SyncController:
         from phlo.rbac.compiler import get_compiler
 
         registry = get_capability_registry()
-        registered_backends = registry.list_governance_backends()
+        registered_backends = registry.list("governance_backend")
 
         backend_instance = None
         for spec in registered_backends:

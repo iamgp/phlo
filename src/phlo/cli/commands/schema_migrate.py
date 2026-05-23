@@ -43,7 +43,7 @@ def _resolve_migrator() -> Any:
     discover_capabilities()
 
     registry = get_capability_registry()
-    migrators = registry.list_schema_migrators()
+    migrators = registry.list("schema_migrator")
     if not migrators:
         console.print("[red]No schema migrator registered.[/red]")
         console.print(
@@ -207,7 +207,7 @@ def _collect_quality_checks(table_name: str) -> list[dict[str, Any]]:
     short_name = table_name.split(".")[-1]
     target_key = f"dlt_{short_name}"
     checks: list[dict[str, Any]] = []
-    for check in get_capability_registry().list_checks():
+    for check in get_capability_registry().list("check"):
         if check.asset_key != target_key:
             continue
         tags = dict(check.tags)
@@ -245,7 +245,7 @@ def _collect_contract_metadata(table_name: str) -> dict[str, Any]:
     consumers: list[dict[str, Any]] = []
     sla: dict[str, Any] | None = None
 
-    for asset in get_capability_registry().list_assets():
+    for asset in get_capability_registry().list("asset"):
         if asset.key != target_key:
             continue
         if asset.metadata.get("table_name") not in {short_name, table_name}:
@@ -272,7 +272,7 @@ def _collect_transform_refs(table_name: str) -> list[str]:
     short_name = table_name.split(".")[-1]
     target_key = f"dlt_{short_name}"
     refs: list[str] = []
-    for asset in get_capability_registry().list_assets():
+    for asset in get_capability_registry().list("asset"):
         kinds = asset.kinds or set()
         deps = asset.deps or []
         if "dbt" not in kinds:
@@ -347,7 +347,7 @@ def refresh_contracts_for_selection(
     if selection_value.startswith("dlt_"):
         candidate_tables.add(selection_value.removeprefix("dlt_"))
 
-    for asset in registry.list_assets():
+    for asset in registry.list("asset"):
         kinds = asset.kinds or set()
         if "dlt" not in kinds:
             continue

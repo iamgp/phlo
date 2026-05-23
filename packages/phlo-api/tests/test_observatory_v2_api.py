@@ -1322,7 +1322,7 @@ def test_v2_branch_actions_use_registered_catalog_provider(
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     provider = CatalogProvider()
     registry = CapabilityRegistry()
-    registry.register_catalog(CatalogSpec(name="catalog", provider=provider))
+    registry.register("catalog", CatalogSpec(name="catalog", provider=provider))
     monkeypatch.setattr(v2, "_load_capability_registry", lambda: registry)
     v2._clear_read_model_cache()
 

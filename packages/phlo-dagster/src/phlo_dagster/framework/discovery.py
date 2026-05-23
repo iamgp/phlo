@@ -57,7 +57,7 @@ from pathlib import Path
 from typing import Any
 
 from phlo.capabilities.discovery import discover_capabilities
-from phlo.capabilities.registry import clear_capabilities, get_capability_registry
+from phlo.capabilities.registry import clear_all_capabilities, get_capability_registry
 from phlo.exceptions import PhloConfigError
 from phlo.logging import get_logger
 from phlo.orchestrators import get_active_orchestrator
@@ -118,9 +118,9 @@ def discover_user_workflows(
     discover_capabilities()
 
     registry = get_capability_registry()
-    assets = registry.list_assets()
-    checks = registry.list_checks()
-    resources = registry.list_resources()
+    assets = registry.list("asset")
+    checks = registry.list("check")
+    resources = registry.list("resource")
     module_defs = _collect_module_dagster_definitions(imported_modules)
     try:
         adapter = get_active_orchestrator()
@@ -341,7 +341,7 @@ def _ensure_core_resources(definitions: Any) -> Any:
 def _default_trino_resource() -> Any | None:
     # Only auto-wire a trino resource if a provider has already registered one.
     registry = get_capability_registry()
-    for resource in registry.list_resources():
+    for resource in registry.list("resource"):
         if resource.name == "trino":
             return resource.resource
     return None
@@ -362,7 +362,7 @@ def _clear_capability_registries() -> None:
     """
     from phlo.plugins.discovery import discover_plugins, get_global_registry
 
-    clear_capabilities()
+    clear_all_capabilities()
     discover_plugins(plugin_type="asset_providers", auto_register=True)
     registry = get_global_registry()
 

@@ -274,11 +274,11 @@ def _import_project_workflows(project_root: Path) -> None:
 def _load_capability_registry_uncached() -> Any | None:
     """Load the core capability registry if available."""
     try:
-        from phlo.capabilities import clear_capabilities
+        from phlo.capabilities import clear_all_capabilities
         from phlo.capabilities import get_capability_registry
         from phlo.capabilities.discovery import discover_capabilities
 
-        clear_capabilities()
+        clear_all_capabilities()
         _import_project_workflows(_project_root())
         discover_capabilities()
         return get_capability_registry()
@@ -706,11 +706,11 @@ def _load_assets() -> list[V2Asset]:
         return []
 
     checks_by_asset: dict[str, list[str]] = {}
-    for check in registry.list_checks():
+    for check in registry.list("check"):
         checks_by_asset.setdefault(check.asset_key, []).append(check.name)
 
     assets: list[V2Asset] = []
-    for asset in registry.list_assets():
+    for asset in registry.list("asset"):
         assets.append(
             V2Asset(
                 id=asset.key,
@@ -745,7 +745,7 @@ def _load_tables(*, enrich_catalog: bool = True) -> list[V2Table]:
 
     catalog_tables = _catalog_tables() if enrich_catalog else None
     tables: list[V2Table] = []
-    for asset in registry.list_assets():
+    for asset in registry.list("asset"):
         table_name = _table_name_from_asset(asset)
         if not table_name:
             continue
@@ -833,7 +833,7 @@ def _load_quality() -> list[V2QualityCheck]:
         return []
 
     checks: list[V2QualityCheck] = []
-    for check in registry.list_checks():
+    for check in registry.list("check"):
         check_id = f"{check.asset_key}:{check.name}"
         checks.append(
             V2QualityCheck(
@@ -876,7 +876,7 @@ def _load_operations() -> list[V2Operation]:
     if registry is None:
         return sort_operations(operations)
 
-    for spec in registry.list_maintenance_read_models():
+    for spec in registry.list("maintenance_read_model"):
         provider = getattr(spec, "provider", None)
         loader = getattr(provider, "load_maintenance_status", None)
         if not callable(loader):
@@ -1039,7 +1039,7 @@ def _quality_actions(check: V2QualityCheck) -> list[V2Action]:
         try:
             executable = any(
                 f"{item.asset_key}:{item.name}" == check.id and callable(getattr(item, "fn", None))
-                for item in registry.list_checks()
+                for item in registry.list("check")
             )
         except Exception:
             executable = False
@@ -1334,7 +1334,7 @@ def _catalog_branch_provider() -> Any | None:
     if registry is None:
         return None
     try:
-        catalog_specs = registry.list_catalogs()
+        catalog_specs = registry.list("catalog")
     except Exception:
         return None
     for spec in catalog_specs:
@@ -1364,11 +1364,11 @@ def _provider_branch_metadata(branch: Any) -> dict[str, Any]:
             for key in ("hash", "commit_hash", "created_at", "metadata")
             if hasattr(branch, key)
         }
-    metadata = raw.get("metadata") if isinstance(raw.get("metadata"), Mapping) else {}
+    metadata = dict(raw.get("metadata") or {}) if isinstance(raw.get("metadata"), Mapping) else {}
     return _safe_metadata(
         {
             "source": "catalog-provider",
-            **dict(metadata),
+            **metadata,
             "hash": raw.get("hash") or raw.get("commit_hash"),
             "created_at": raw.get("created_at"),
         }

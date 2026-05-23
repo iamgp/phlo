@@ -17,14 +17,7 @@ from phlo.capabilities import (
     get_capability_registry,
     list_capabilities,
     missing_required_capabilities,
-    register_catalog,
-    register_lineage_sink,
-    register_metadata_catalog,
-    register_observability_backend,
-    register_publish_target,
-    register_query_engine,
-    register_schema_migrator,
-    register_table_store,
+    register_capability,
     resolve_capability,
     resolve_runtime_ref,
     routing_from_context,
@@ -44,22 +37,22 @@ def teardown_function() -> None:
 
 
 def test_registry_tracks_new_platform_capability_types() -> None:
-    register_table_store(TableStoreSpec(name="iceberg", provider=object()))
-    register_catalog(CatalogSpec(name="nessie", provider=object()))
-    register_query_engine(QueryEngineSpec(name="trino", provider=object()))
-    register_schema_migrator(SchemaMigrationSpec(name="iceberg", provider=object()))
-    register_publish_target(PublishTargetSpec(name="postgres", provider=object()))
+    register_capability("table_store", TableStoreSpec(name="iceberg", provider=object()))
+    register_capability("catalog", CatalogSpec(name="nessie", provider=object()))
+    register_capability("query_engine", QueryEngineSpec(name="trino", provider=object()))
+    register_capability("schema_migrator", SchemaMigrationSpec(name="iceberg", provider=object()))
+    register_capability("publish_target", PublishTargetSpec(name="postgres", provider=object()))
 
     registry = get_capability_registry()
 
     def names(specs):
         return {spec.name for spec in specs}
 
-    assert "iceberg" in names(registry.list_table_stores())
-    assert "nessie" in names(registry.list_catalogs())
-    assert "trino" in names(registry.list_query_engines())
-    assert "iceberg" in names(registry.list_schema_migrators())
-    assert "postgres" in names(registry.list_publish_targets())
+    assert "iceberg" in names(registry.list("table_store"))
+    assert "nessie" in names(registry.list("catalog"))
+    assert "trino" in names(registry.list("query_engine"))
+    assert "iceberg" in names(registry.list("schema_migrator"))
+    assert "postgres" in names(registry.list("publish_target"))
 
 
 def test_registry_tracks_ui_contributions() -> None:
@@ -70,19 +63,22 @@ def test_registry_tracks_ui_contributions() -> None:
         capability_name="trino",
         surfaces=["data", "observability"],
     )
-    registry.register_ui_contribution(spec)
-    assert registry.list_ui_contributions() == [spec]
+    registry.register("ui_contribution", spec)
+    assert registry.list("ui_contribution") == [spec]
 
 
 def test_resolve_capability_prefers_explicit_name() -> None:
-    register_query_engine(
+    register_capability(
+        "query_engine",
         QueryEngineSpec(
             name="trino",
             provider={"engine": "trino"},
             support=CapabilitySupport(supports_refs=True),
-        )
+        ),
     )
-    register_query_engine(QueryEngineSpec(name="duckdb", provider={"engine": "duckdb"}))
+    register_capability(
+        "query_engine", QueryEngineSpec(name="duckdb", provider={"engine": "duckdb"})
+    )
 
     resolved = resolve_capability("query_engine", "duckdb")
     assert resolved is not None
@@ -92,7 +88,8 @@ def test_resolve_capability_prefers_explicit_name() -> None:
 
 
 def test_resolve_capability_returns_support_metadata() -> None:
-    register_table_store(
+    register_capability(
+        "table_store",
         TableStoreSpec(
             name="iceberg",
             provider=object(),
@@ -101,7 +98,7 @@ def test_resolve_capability_returns_support_metadata() -> None:
                 supports_schema_evolution=True,
                 supports_time_travel=True,
             ),
-        )
+        ),
     )
 
     resolved = resolve_capability("table_store", "iceberg")
@@ -112,7 +109,7 @@ def test_resolve_capability_returns_support_metadata() -> None:
 
 
 def test_missing_required_capabilities_reports_unsatisfied_requirements() -> None:
-    register_catalog(CatalogSpec(name="nessie", provider=object()))
+    register_capability("catalog", CatalogSpec(name="nessie", provider=object()))
 
     plugin = PluginMetadata(
         name="test_plugin",
@@ -124,36 +121,38 @@ def test_missing_required_capabilities_reports_unsatisfied_requirements() -> Non
 
 
 def test_list_capabilities_returns_registered_names() -> None:
-    register_table_store(TableStoreSpec(name="iceberg", provider=object()))
-    register_table_store(TableStoreSpec(name="delta", provider=object()))
+    register_capability("table_store", TableStoreSpec(name="iceberg", provider=object()))
+    register_capability("table_store", TableStoreSpec(name="delta", provider=object()))
 
     assert sorted(list_capabilities("table_store")) == ["delta", "iceberg"]
 
 
 def test_list_capabilities_returns_schema_migrators() -> None:
-    register_schema_migrator(SchemaMigrationSpec(name="iceberg", provider=object()))
+    register_capability("schema_migrator", SchemaMigrationSpec(name="iceberg", provider=object()))
 
     assert list_capabilities("schema_migrator") == ["iceberg"]
 
 
 def test_list_capabilities_returns_publish_targets() -> None:
-    register_publish_target(PublishTargetSpec(name="postgres", provider=object()))
+    register_capability("publish_target", PublishTargetSpec(name="postgres", provider=object()))
 
     assert list_capabilities("publish_target") == ["postgres"]
 
 
 def test_registry_tracks_api_backends() -> None:
-    from phlo.capabilities import register_api_backend
-
-    register_api_backend(ApiBackendSpec(name="hasura", provider=object()))
+    register_capability("api_backend", ApiBackendSpec(name="hasura", provider=object()))
 
     registry = get_capability_registry()
-    assert [spec.name for spec in registry.list_api_backends()] == ["hasura"]
+    assert [spec.name for spec in registry.list("api_backend")] == ["hasura"]
 
 
 def test_resolve_metadata_and_lineage_capabilities() -> None:
-    register_metadata_catalog(MetadataCatalogSpec(name="openmetadata", provider={"catalog": True}))
-    register_lineage_sink(LineageSinkSpec(name="phlo-lineage", provider={"lineage": True}))
+    register_capability(
+        "metadata_catalog", MetadataCatalogSpec(name="openmetadata", provider={"catalog": True})
+    )
+    register_capability(
+        "lineage_sink", LineageSinkSpec(name="phlo-lineage", provider={"lineage": True})
+    )
 
     metadata = resolve_capability("metadata_catalog", "openmetadata")
     lineage = resolve_capability("lineage_sink", "phlo-lineage")
@@ -206,8 +205,10 @@ def test_routing_from_context_reads_canonical_tags() -> None:
 def test_resolve_capability_uses_global_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHLO_DEFAULT_CAPABILITIES", '{"table_store":"delta"}')
     _get_config.cache_clear()
-    register_table_store(TableStoreSpec(name="iceberg", provider={"engine": "iceberg"}))
-    register_table_store(TableStoreSpec(name="delta", provider={"engine": "delta"}))
+    register_capability(
+        "table_store", TableStoreSpec(name="iceberg", provider={"engine": "iceberg"})
+    )
+    register_capability("table_store", TableStoreSpec(name="delta", provider={"engine": "delta"}))
 
     resolved = resolve_capability("table_store")
 
@@ -224,8 +225,10 @@ def test_resolve_capability_uses_phlo_yaml_default(
         "capabilities:\n  defaults:\n    table_store: iceberg\n",
         encoding="utf-8",
     )
-    register_table_store(TableStoreSpec(name="iceberg", provider={"engine": "iceberg"}))
-    register_table_store(TableStoreSpec(name="delta", provider={"engine": "delta"}))
+    register_capability(
+        "table_store", TableStoreSpec(name="iceberg", provider={"engine": "iceberg"})
+    )
+    register_capability("table_store", TableStoreSpec(name="delta", provider={"engine": "delta"}))
 
     resolved = resolve_capability("table_store")
 
@@ -241,8 +244,10 @@ def test_env_default_overrides_phlo_yaml_default(tmp_path, monkeypatch: pytest.M
     )
     monkeypatch.setenv("PHLO_DEFAULT_CAPABILITIES", '{"table_store":"delta"}')
     _get_config.cache_clear()
-    register_table_store(TableStoreSpec(name="iceberg", provider={"engine": "iceberg"}))
-    register_table_store(TableStoreSpec(name="delta", provider={"engine": "delta"}))
+    register_capability(
+        "table_store", TableStoreSpec(name="iceberg", provider={"engine": "iceberg"})
+    )
+    register_capability("table_store", TableStoreSpec(name="delta", provider={"engine": "delta"}))
 
     resolved = resolve_capability("table_store")
 
@@ -251,8 +256,10 @@ def test_env_default_overrides_phlo_yaml_default(tmp_path, monkeypatch: pytest.M
 
 
 def test_resolve_capability_uses_runtime_override_over_global_default() -> None:
-    register_table_store(TableStoreSpec(name="iceberg", provider={"engine": "iceberg"}))
-    register_table_store(TableStoreSpec(name="delta", provider={"engine": "delta"}))
+    register_capability(
+        "table_store", TableStoreSpec(name="iceberg", provider={"engine": "iceberg"})
+    )
+    register_capability("table_store", TableStoreSpec(name="delta", provider={"engine": "delta"}))
 
     runtime = type(
         "StubRuntime",
@@ -352,10 +359,12 @@ def test_resolve_runtime_ref_ignores_ref_for_non_versioned_capability() -> None:
 def test_registry_tracks_observability_backend_capability() -> None:
     """Observability backend capability should be registrable and listable."""
     mock_backend = object()
-    register_observability_backend(ObservabilityBackendSpec(name="default", provider=mock_backend))
+    register_capability(
+        "observability_backend", ObservabilityBackendSpec(name="default", provider=mock_backend)
+    )
 
     registry = get_capability_registry()
-    specs = registry.list_observability_backends()
+    specs = registry.list("observability_backend")
 
     assert len(specs) == 1
     assert specs[0].name == "default"
@@ -365,7 +374,9 @@ def test_registry_tracks_observability_backend_capability() -> None:
 def test_resolve_observability_backend_capability() -> None:
     """Should be able to resolve observability backend capability by name."""
     mock_backend = object()
-    register_observability_backend(ObservabilityBackendSpec(name="default", provider=mock_backend))
+    register_capability(
+        "observability_backend", ObservabilityBackendSpec(name="default", provider=mock_backend)
+    )
 
     resolved = resolve_capability("observability_backend", "default")
 
@@ -377,8 +388,12 @@ def test_resolve_observability_backend_capability() -> None:
 def test_list_observability_backend_capabilities() -> None:
     """list_capabilities should return observability backend names."""
     mock_backend = object()
-    register_observability_backend(ObservabilityBackendSpec(name="default", provider=mock_backend))
-    register_observability_backend(ObservabilityBackendSpec(name="custom", provider=object()))
+    register_capability(
+        "observability_backend", ObservabilityBackendSpec(name="default", provider=mock_backend)
+    )
+    register_capability(
+        "observability_backend", ObservabilityBackendSpec(name="custom", provider=object())
+    )
 
     names = list_capabilities("observability_backend")
 
@@ -388,7 +403,8 @@ def test_list_observability_backend_capabilities() -> None:
 
 def test_observability_support_flags_round_trip() -> None:
     """Observability support flags should survive resolution."""
-    register_observability_backend(
+    register_capability(
+        "observability_backend",
         ObservabilityBackendSpec(
             name="default",
             provider=object(),
@@ -398,7 +414,7 @@ def test_observability_support_flags_round_trip() -> None:
                 supports_dashboards=True,
                 supports_alerts=True,
             ),
-        )
+        ),
     )
 
     resolved = resolve_capability("observability_backend", "default")

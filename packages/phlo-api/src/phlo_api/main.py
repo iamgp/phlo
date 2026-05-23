@@ -311,7 +311,7 @@ def _list_api_backends() -> list[dict[str, Any]]:
 
         discover_capabilities()
         registry = get_capability_registry()
-        specs = registry.list_api_backends()
+        specs = registry.list("api_backend")
     except Exception:
         return []
 
@@ -449,8 +449,8 @@ def _list_contracts() -> list[dict[str, Any]]:
 
         discover_capabilities()
         registry = get_capability_registry()
-        assets = registry.list_assets()
-        checks = registry.list_checks()
+        assets = registry.list("asset")
+        checks = registry.list("check")
     except Exception:
         assets = []
         checks = []

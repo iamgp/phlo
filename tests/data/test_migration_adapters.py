@@ -78,7 +78,8 @@ class TestCsvSourceAdapter:
 
 
 class _FakeRegistry:
-    def list_data_migration_sources(self) -> list:
+    def list(self, family: str):
+        assert family == "data_migration_source"
         return []
 
 

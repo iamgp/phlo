@@ -17,27 +17,6 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-_CAPABILITY_LISTERS = {
-    "table_store": "list_table_stores",
-    "catalog": "list_catalogs",
-    "catalog_scanner": "list_catalog_scanners",
-    "query_engine": "list_query_engines",
-    "object_store": "list_object_stores",
-    "quality_backend": "list_quality_backends",
-    "maintenance_read_model": "list_maintenance_read_models",
-    "metadata_catalog": "list_metadata_catalogs",
-    "lineage_sink": "list_lineage_sinks",
-    "governance_backend": "list_governance_backends",
-    "authorization_policy_backend": "list_authorization_policy_backends",
-    "authentication_provider": "list_authentication_providers",
-    "publish_target": "list_publish_targets",
-    "alert_sink": "list_alert_sinks",
-    "api_backend": "list_api_backends",
-    "secret_backend": "list_secret_backends",
-    "schema_migrator": "list_schema_migrators",
-    "observability_backend": "list_observability_backends",
-}
-
 
 @dataclass(frozen=True)
 class ResolutionResult:
@@ -57,11 +36,7 @@ def list_capabilities(
 ) -> list[str]:
     """List registered capability names for a given capability type."""
     registry = registry or get_capability_registry()
-    list_method = _CAPABILITY_LISTERS.get(capability_type)
-    if not list_method:
-        logger.debug("capability_list_unknown_type", capability_type=capability_type)
-        return []
-    specs = getattr(registry, list_method)()
+    specs = registry.list(capability_type)
     logger.debug(
         "capability_listed",
         capability_type=capability_type,
@@ -83,17 +58,9 @@ def resolve_capability(
     Otherwise return ``None`` so callers can surface deterministic guidance.
     """
     registry = registry or get_capability_registry()
-    list_method = _CAPABILITY_LISTERS.get(capability_type)
-    if not list_method:
-        logger.debug(
-            "capability_resolution_unknown_type",
-            capability_type=capability_type,
-            requested_name=name,
-        )
-        return None
 
     requested_name = name or configured_capability_name(capability_type, runtime=runtime)
-    specs = getattr(registry, list_method)()
+    specs = registry.list(capability_type)
     if requested_name is not None:
         for spec in specs:
             if spec.name == requested_name:

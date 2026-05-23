@@ -16,25 +16,25 @@ from phlo_api.observatory_api.v2_models import (
 )
 from phlo_api.observatory_api.v2_metadata import safe_metadata
 
-CAPABILITY_LISTERS: dict[str, str] = {
-    "query_engine": "list_query_engines",
-    "table_store": "list_table_stores",
-    "catalog": "list_catalogs",
-    "catalog_scanner": "list_catalog_scanners",
-    "object_store": "list_object_stores",
-    "quality_backend": "list_quality_backends",
-    "maintenance_read_model": "list_maintenance_read_models",
-    "metadata_catalog": "list_metadata_catalogs",
-    "lineage_sink": "list_lineage_sinks",
-    "governance_backend": "list_governance_backends",
-    "authorization_policy_backend": "list_authorization_policy_backends",
-    "authentication_provider": "list_authentication_providers",
-    "publish_target": "list_publish_targets",
-    "alert_sink": "list_alert_sinks",
-    "api_backend": "list_api_backends",
-    "observability_backend": "list_observability_backends",
-    "regulated_surface": "list_regulated_surfaces",
-}
+CAPABILITY_FAMILIES = (
+    "query_engine",
+    "table_store",
+    "catalog",
+    "catalog_scanner",
+    "object_store",
+    "quality_backend",
+    "maintenance_read_model",
+    "metadata_catalog",
+    "lineage_sink",
+    "governance_backend",
+    "authorization_policy_backend",
+    "authentication_provider",
+    "publish_target",
+    "alert_sink",
+    "api_backend",
+    "observability_backend",
+    "regulated_surface",
+)
 
 ROUTE_REQUIREMENTS = [
     V2RouteRequirement(
@@ -192,8 +192,8 @@ def build_capability_inventory(registry: Any | None) -> V2CapabilityInventory:
     providers: dict[str, list[V2CapabilityProvider]] = {}
     ui_contributions: list[V2UiContribution] = []
     if registry is not None:
-        for capability_type, method_name in CAPABILITY_LISTERS.items():
-            providers[capability_type] = _providers_for_type(registry, capability_type, method_name)
+        for capability_type in CAPABILITY_FAMILIES:
+            providers[capability_type] = _providers_for_type(registry, capability_type)
         ui_contributions = _ui_contributions(registry)
     return V2CapabilityInventory(
         providers=providers,
@@ -205,13 +205,12 @@ def build_capability_inventory(registry: Any | None) -> V2CapabilityInventory:
 def _providers_for_type(
     registry: Any,
     capability_type: str,
-    method_name: str,
 ) -> list[V2CapabilityProvider]:
-    method = getattr(registry, method_name, None)
+    method = getattr(registry, "list", None)
     if not callable(method):
         return []
     try:
-        specs = method()
+        specs = method(capability_type)
     except Exception:
         return []
     return [_provider_from_spec(capability_type, spec) for spec in specs]
@@ -252,11 +251,11 @@ def _native_links(metadata: Any) -> list[V2ExternalLink]:
 
 
 def _ui_contributions(registry: Any) -> list[V2UiContribution]:
-    method = getattr(registry, "list_ui_contributions", None)
+    method = getattr(registry, "list", None)
     if not callable(method):
         return []
     try:
-        specs = method()
+        specs = method("ui_contribution")
     except Exception:
         return []
     if isinstance(specs, str):

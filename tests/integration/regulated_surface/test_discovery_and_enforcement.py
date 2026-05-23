@@ -19,7 +19,8 @@ import yaml
 
 from phlo.capabilities import (
     RegulatedSurfaceSpec,
-    register_regulated_surface,
+    get_capability_registry,
+    register_capability,
 )
 from phlo.capabilities.interfaces import (
     AuthPrincipal,
@@ -75,11 +76,9 @@ class TestRegulatedSurfaceDiscovery:
             provider=MockRegulatedSurfaceAdapter(),
             metadata={},
         )
-        register_regulated_surface(spec)
+        register_capability("regulated_surface", spec)
 
-        from phlo.capabilities import list_regulated_surfaces
-
-        surfaces = list_regulated_surfaces()
+        surfaces = get_capability_registry().list("regulated_surface")
         assert len(surfaces) >= 1
         assert any(s.name == "test-surface" for s in surfaces)
 
@@ -90,11 +89,9 @@ class TestRegulatedSurfaceDiscovery:
             provider=MockRegulatedSurfaceAdapter(),
             metadata={"test": True},
         )
-        register_regulated_surface(spec)
+        register_capability("regulated_surface", spec)
 
-        from phlo.capabilities import list_regulated_surfaces
-
-        surfaces = list_regulated_surfaces()
+        surfaces = get_capability_registry().list("regulated_surface")
         test_surface = next((s for s in surfaces if s.name == "integration-test-surface"), None)
         assert test_surface is not None
         assert test_surface.metadata.get("test") is True

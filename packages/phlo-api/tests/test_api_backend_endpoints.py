@@ -68,7 +68,8 @@ def test_list_api_backends_marks_failing_provider_unhealthy(monkeypatch) -> None
             self.metadata = {"backend_kind": "test"}
 
     class FakeRegistry:
-        def list_api_backends(self) -> list[FakeSpec]:
+        def list(self, family: str) -> list[FakeSpec]:
+            assert family == "api_backend"
             return [
                 FakeSpec("healthy", HealthyProvider()),
                 FakeSpec("failing", FailingProvider()),
