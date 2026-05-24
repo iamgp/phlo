@@ -171,13 +171,14 @@ function RunLine({
 }) {
   return (
     <button
-      className="phlo-v2-timeline-row"
+      className="phlo-v2-run-row"
       data-active={selected}
+      data-status={run.status}
       onClick={() => onSelect(run.id)}
       type="button"
     >
       <span className="phlo-v2-dot" data-state={stateForStatus(run.status)} />
-      <div>
+      <div className="phlo-v2-run-row-main">
         <div className="phlo-v2-row-title">
           <ListChecks className="size-4" />
           {run.name}

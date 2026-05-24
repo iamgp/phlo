@@ -16,6 +16,8 @@
     linear-gradient(180deg, oklch(0.995 0.003 286 / 0.72), transparent 18rem),
     var(--v2-canvas);
   color: var(--v2-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 html[data-phlo-v2-route='true'][data-phlo-v2-theme='light'],
@@ -174,6 +176,7 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   font-size: clamp(26px, 2.35vw, 38px);
   font-weight: 720;
   line-height: 1.04;
+  text-wrap: balance;
 }
 
 .phlo-v2-subtitle {
@@ -181,6 +184,7 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   max-width: 56rem;
   color: var(--v2-muted);
   font-size: 15px;
+  text-wrap: pretty;
 }
 
 .phlo-v2-grid {
@@ -255,6 +259,7 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
 .phlo-v2-panel-title {
   font-size: 14px;
   font-weight: 650;
+  text-wrap: balance;
 }
 
 .phlo-v2-empty-panel {
@@ -1274,8 +1279,8 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: min(860px, calc(100vw - 40px));
-  min-height: min(620px, calc(100svh - 160px));
+  width: min(680px, calc(100vw - 40px));
+  max-height: min(620px, calc(100svh - 160px));
   margin: 0 auto;
   border: 1px solid var(--v2-sheet-border);
   border-radius: 8px;
@@ -1301,13 +1306,15 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   flex: 1 1 auto;
   gap: 8px;
   min-height: 0;
+  width: 100%;
 }
 
 .phlo-v2-command-list {
   display: block;
   flex: 1 1 auto;
+  width: 100%;
   min-height: 0;
-  max-height: none;
+  max-height: min(460px, calc(100svh - 300px));
   overflow: auto;
   padding: 6px 0;
   scrollbar-gutter: stable;
@@ -1330,11 +1337,15 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   grid-template-columns: 20px minmax(0, 1fr) minmax(76px, auto);
   gap: 10px;
   align-items: center;
+  width: 100%;
   min-height: 38px;
   border-radius: 7px;
   padding: 8px 10px;
   color: var(--v2-text);
   cursor: default;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .phlo-v2-command-item[data-selected='true'] {
@@ -2002,6 +2013,15 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
   color: var(--v2-muted);
   font-size: 12px;
   font-weight: 680;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.phlo-v2-tab-row button:active {
+  transform: scale(0.96);
 }
 
 .phlo-v2-tab-row button:hover,
@@ -2144,6 +2164,15 @@ button.phlo-v2-mini-row {
   color: var(--v2-muted);
   font-size: 12px;
   font-weight: 600;
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease,
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.phlo-v2-data-main-tabs button:active {
+  transform: scale(0.96);
 }
 
 .phlo-v2-data-main-tabs button[data-active='true'] {
@@ -2499,7 +2528,8 @@ button.phlo-v2-mini-row {
   transition:
     background-color 140ms ease,
     color 140ms ease,
-    box-shadow 140ms ease;
+    box-shadow 140ms ease,
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .phlo-v2-nav-links {
@@ -2521,6 +2551,10 @@ button.phlo-v2-mini-row {
 .phlo-v2-nav-link:hover {
   background: var(--v2-tile);
   color: var(--v2-text);
+}
+
+.phlo-v2-nav-link:active {
+  transform: scale(0.96);
 }
 
 .phlo-v2-nav-link:focus-visible,
@@ -2566,11 +2600,16 @@ button.phlo-v2-mini-row {
   transition:
     background-color 140ms ease,
     color 140ms ease,
-    box-shadow 140ms ease;
+    box-shadow 140ms ease,
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .phlo-v2-theme-toggle button:hover {
   color: var(--v2-text);
+}
+
+.phlo-v2-theme-toggle button:active {
+  transform: scale(0.96);
 }
 
 .phlo-v2-theme-toggle button[data-active='true'] {
@@ -2701,10 +2740,19 @@ button.phlo-v2-mini-row {
   font-weight: 650;
   padding: 0 10px;
   text-decoration: none;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .phlo-v2-map-action:hover {
   background: var(--v2-tile);
+}
+
+.phlo-v2-map-action:active {
+  transform: scale(0.96);
 }
 
 .phlo-v2-stage-rail,
@@ -2749,7 +2797,8 @@ button.phlo-v2-mini-row {
   text-decoration: none;
   transition:
     background-color 160ms ease,
-    border-color 160ms ease;
+    border-color 160ms ease,
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .phlo-v2-stage-rail .phlo-v2-stage-card:last-child,
@@ -2767,6 +2816,10 @@ button.phlo-v2-mini-row {
 
 .phlo-v2-stage-card:hover {
   background: var(--v2-tile);
+}
+
+.phlo-v2-stage-card:active {
+  transform: scale(0.96);
 }
 
 .phlo-v2-stage-card[data-state='error'] {
@@ -3156,7 +3209,7 @@ button.phlo-v2-mini-row {
 }
 
 .phlo-v2-runs-shell {
-  grid-template-columns: minmax(0, 1fr) 304px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
 }
 
 .phlo-v2-run-list-surface {
@@ -3181,9 +3234,67 @@ button.phlo-v2-mini-row {
   font-size: 17px;
 }
 
-.phlo-v2-runs-shell .phlo-v2-timeline-row {
-  min-height: 54px;
-  padding: 10px 12px;
+.phlo-v2-run-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) max-content;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  min-height: 64px;
+  border: 0;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  background: transparent;
+  color: var(--v2-text);
+  padding: 11px 14px;
+  text-align: left;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.phlo-v2-run-row:last-child {
+  border-bottom: 0;
+}
+
+.phlo-v2-run-row:hover,
+.phlo-v2-run-row[data-active='true'] {
+  background: var(--v2-tile);
+}
+
+.phlo-v2-run-row > .phlo-v2-dot {
+  align-self: center;
+}
+
+.phlo-v2-run-row-main {
+  min-width: 0;
+}
+
+.phlo-v2-run-row .phlo-v2-row-title {
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.phlo-v2-run-row .phlo-v2-row-title svg {
+  color: var(--v2-muted);
+  flex: 0 0 auto;
+}
+
+.phlo-v2-run-row .phlo-v2-row-meta {
+  margin-top: 0;
+  text-align: left;
+}
+
+.phlo-v2-run-row > .phlo-v2-pill {
+  justify-self: end;
+}
+
+.phlo-v2-run-row[data-status='failed'] > .phlo-v2-pill,
+.phlo-v2-run-row[data-status='cancelled'] > .phlo-v2-pill {
+  color: color-mix(in oklch, var(--v2-red), var(--v2-text) 12%);
+}
+
+.phlo-v2-run-row[data-status='succeeded'] > .phlo-v2-pill {
+  color: color-mix(in oklch, var(--v2-green), var(--v2-text) 20%);
 }
 
 .phlo-v2-runs-shell .phlo-v2-inspector {
