@@ -1768,7 +1768,10 @@ html[data-phlo-v2-route='true'][data-phlo-v2-theme='dark']
 
 .phlo-v2-data-profile {
   display: grid;
-  grid-template-columns: minmax(170px, 0.55fr) minmax(0, 1.45fr) minmax(160px, 0.65fr);
+  grid-template-columns: minmax(170px, 0.55fr) minmax(0, 1.45fr) minmax(
+      160px,
+      0.65fr
+    );
   border-bottom: 1px solid var(--v2-sheet-border);
   background: color-mix(in oklch, var(--v2-tile), transparent 22%);
 }
