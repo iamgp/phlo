@@ -2,6 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+RUN pip install --no-cache-dir uv
+
 # Install the same PyPI package versions that generated this stack. Source
 # checkouts still copy the local phlo_api package below, but PyPI installs only
 # have this package directory as Docker build context.
@@ -13,9 +15,12 @@ RUN set -eux; \
 
 # Copy the API package so `phlo_api.main` is importable.
 COPY . /app/phlo_api
+COPY entrypoint.sh /usr/local/bin/phlo-api-entrypoint.sh
+RUN chmod +x /usr/local/bin/phlo-api-entrypoint.sh
 
 ENV PYTHONPATH=/app
 
 EXPOSE 4000
 
+ENTRYPOINT ["/usr/local/bin/phlo-api-entrypoint.sh"]
 CMD ["python", "-m", "uvicorn", "phlo_api.main:app", "--host", "0.0.0.0", "--port", "4000"]

@@ -53,6 +53,7 @@ include-package-data = true
 phlo_api = [
     "service.yaml",
     "Dockerfile",
+    "entrypoint.sh",
     "observatory_api/**/*.py",
 ]
 

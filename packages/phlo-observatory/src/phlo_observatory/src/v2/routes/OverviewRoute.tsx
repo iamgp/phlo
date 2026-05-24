@@ -2,9 +2,12 @@ import {
   Activity,
   AlertCircle,
   Boxes,
+  Database,
   GitBranch,
+  GitCommitHorizontal,
   ListChecks,
   Server,
+  Workflow,
 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useReducer } from 'react'
@@ -23,8 +26,6 @@ import type {
 } from '@/v2/api/types'
 import {
   getV2AssetRecords,
-  getV2BranchRecords,
-  getV2Capabilities,
   getV2LogRecords,
   getV2OperationRecords,
   getV2Overview,
@@ -32,10 +33,14 @@ import {
   getV2Services,
 } from '@/v2/api/resources'
 import { StatusBadge } from '@/v2/components/StatusBadge'
-import { loadCachedResource } from '@/v2/routes/liveResource'
+import {
+  loadCachedResource,
+  readCachedResource,
+} from '@/v2/routes/liveResource'
 
 const formatter = new Intl.NumberFormat('en')
 const emptyResult = { data: null, error: null }
+const stageTransitions = ['ingest', 'normalize', 'model', 'publish']
 
 type OverviewState = {
   assets: V2ResourceResult<Array<V2Asset>>
@@ -49,18 +54,80 @@ type OverviewState = {
   updatedAt: Date | null
 }
 
+export type OverviewSnapshot = Omit<OverviewState, 'updatedAt'> & {
+  updatedAt: string | null
+}
+
 function overviewReducer(
-  _: OverviewState,
   state: OverviewState,
+  patch: Partial<OverviewState>,
 ): OverviewState {
-  return state
+  return {
+    ...state,
+    ...patch,
+  }
 }
 
-export function OverviewRoute() {
-  return useOverviewRoute()
+export function loadOverviewSnapshot(): OverviewSnapshot {
+  const empty = { data: [], error: null }
+  const pending = { data: null, error: null }
+  const cached =
+    typeof window === 'undefined' ? null : readCachedOverviewSnapshot()
+
+  if (cached) {
+    return {
+      ...cached,
+      updatedAt: new Date().toISOString(),
+    }
+  }
+
+  return {
+    assets: empty,
+    branches: empty,
+    capabilities: null,
+    logs: empty,
+    operations: empty,
+    overview: pending,
+    quality: empty,
+    services: empty,
+    updatedAt: null,
+  }
 }
 
-function useOverviewRoute() {
+export async function loadOverviewSnapshotFromApi(): Promise<OverviewSnapshot> {
+  const empty = { data: [], error: null }
+  const [overview, services, operations, assets, quality, logs] =
+    await Promise.all([
+      getV2Overview(),
+      getV2Services(),
+      getV2OperationRecords(),
+      getV2AssetRecords(),
+      getV2QualityRecords(),
+      getV2LogRecords(),
+    ])
+
+  return {
+    assets,
+    branches: empty,
+    capabilities: null,
+    logs,
+    operations,
+    overview,
+    quality,
+    services,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+export function OverviewRoute({
+  initialSnapshot,
+}: {
+  initialSnapshot?: OverviewSnapshot
+}) {
+  return useOverviewRoute(initialSnapshot)
+}
+
+function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
   const [
     {
       assets,
@@ -75,98 +142,95 @@ function useOverviewRoute() {
     },
     setOverviewState,
   ] = useReducer(overviewReducer, {
-    assets: emptyResult,
-    branches: emptyResult,
-    capabilities: null,
-    logs: emptyResult,
-    operations: emptyResult,
-    overview: emptyResult,
-    quality: emptyResult,
-    services: emptyResult,
-    updatedAt: null,
+    assets: initialSnapshot?.assets ?? emptyResult,
+    branches: initialSnapshot?.branches ?? emptyResult,
+    capabilities: initialSnapshot?.capabilities ?? null,
+    logs: initialSnapshot?.logs ?? emptyResult,
+    operations: initialSnapshot?.operations ?? emptyResult,
+    overview: initialSnapshot?.overview ?? emptyResult,
+    quality: initialSnapshot?.quality ?? emptyResult,
+    services: initialSnapshot?.services ?? emptyResult,
+    updatedAt: initialSnapshot?.updatedAt
+      ? new Date(initialSnapshot.updatedAt)
+      : null,
   })
 
   useEffect(() => {
     let cancelled = false
 
-    async function load(force = false) {
-      const nextCapabilities = await loadCachedResource(
-        'v2:capabilities',
-        getV2Capabilities,
-        {
-          force,
-          staleMs: 120_000,
-        },
-      )
-      const features = nextCapabilities.data?.features
-      const empty = { data: [], error: null }
-      const [
-        nextOverview,
-        nextServices,
-        nextOperations,
-        nextAssets,
-        nextQuality,
-        nextLogs,
-        nextBranches,
-      ] = await Promise.all([
-        loadCachedResource('v2:overview', getV2Overview, {
-          force,
-          staleMs: 30_000,
-        }),
-        loadCachedResource('v2:services', getV2Services, {
-          force,
-          staleMs: 60_000,
-        }),
-        features?.operations === false
-          ? empty
-          : loadCachedResource('v2:operations', getV2OperationRecords, {
-              force,
-              staleMs: 60_000,
-            }),
-        features?.assets === false
-          ? empty
-          : loadCachedResource('v2:assets', getV2AssetRecords, {
-              force,
-              staleMs: 60_000,
-            }),
-        features?.issues === false
-          ? empty
-          : loadCachedResource('v2:quality', getV2QualityRecords, {
-              force,
-              staleMs: 60_000,
-            }),
-        features?.logs === false
-          ? empty
-          : loadCachedResource('v2:logs', getV2LogRecords, {
-              force,
-              staleMs: 30_000,
-            }),
-        features?.branches === false
-          ? empty
-          : loadCachedResource('v2:branches', getV2BranchRecords, {
-              force,
-              staleMs: 60_000,
-            }),
-      ])
-
-      if (!cancelled) {
-        setOverviewState({
-          assets: nextAssets,
-          branches: nextBranches,
-          capabilities: nextCapabilities,
-          logs: nextLogs,
-          operations: nextOperations,
-          overview: nextOverview,
-          quality: nextQuality,
-          services: nextServices,
-          updatedAt: new Date(),
-        })
-      }
+    const cachedSnapshot = readCachedOverviewSnapshot()
+    if (cachedSnapshot) {
+      setOverviewState({
+        ...cachedSnapshot,
+        updatedAt: new Date(),
+      })
     }
 
-    void load(true)
+    function load(force = false) {
+      const empty = { data: [], error: null }
+
+      loadCachedResource('v2:services', getV2Services, {
+        force,
+        staleMs: 60_000,
+      }).then((nextServices) => {
+        if (!cancelled) {
+          setOverviewState({ services: nextServices, updatedAt: new Date() })
+        }
+      })
+
+      loadCachedResource('v2:operations', getV2OperationRecords, {
+        force,
+        staleMs: 60_000,
+      }).then((nextOperations) => {
+        if (!cancelled) {
+          setOverviewState({
+            operations: nextOperations,
+            updatedAt: new Date(),
+          })
+        }
+      })
+
+      loadCachedResource('v2:assets', getV2AssetRecords, {
+        force,
+        staleMs: 60_000,
+      }).then((nextAssets) => {
+        if (!cancelled) {
+          setOverviewState({ assets: nextAssets, updatedAt: new Date() })
+        }
+      })
+
+      loadCachedResource('v2:quality', getV2QualityRecords, {
+        force,
+        staleMs: 60_000,
+      }).then((nextQuality) => {
+        if (!cancelled) {
+          setOverviewState({ quality: nextQuality, updatedAt: new Date() })
+        }
+      })
+
+      loadCachedResource('v2:logs', getV2LogRecords, {
+        force,
+        staleMs: 30_000,
+      }).then((nextLogs) => {
+        if (!cancelled) {
+          setOverviewState({ logs: nextLogs, updatedAt: new Date() })
+        }
+      })
+
+      setOverviewState({ branches: empty, capabilities: null })
+      loadCachedResource('v2:overview', getV2Overview, {
+        force,
+        staleMs: 30_000,
+      }).then((nextOverview) => {
+        if (!cancelled) {
+          setOverviewState({ overview: nextOverview, updatedAt: new Date() })
+        }
+      })
+    }
+
+    load(true)
     const interval = window.setInterval(() => {
-      void load(true)
+      load(true)
     }, 30_000)
 
     return () => {
@@ -196,6 +260,12 @@ function useOverviewRoute() {
   ).length
   const activeBranches = branchRows.filter((branch) => !branch.current).length
   const errorLogs = logRows.filter((log) => log.level === 'error').length
+  const hasLakehouseEvidence =
+    serviceRows.length > 0 ||
+    operationRows.length > 0 ||
+    assetRows.length > 0 ||
+    qualityRows.length > 0 ||
+    logRows.length > 0
   const attentionItems = buildAttentionItems({
     services: serviceRows,
     operations: operationRows,
@@ -203,15 +273,39 @@ function useOverviewRoute() {
     logs: logRows,
     enabled: capabilities?.data?.features,
   })
-  const recentEvidence = logRows.slice(0, 4)
+  const lakehouseStages = useMemo(
+    () => buildLakehouseStages(assetRows, qualityRows),
+    [assetRows, qualityRows],
+  )
+  const eventStory = useMemo(
+    () => buildEventStory(operationRows, logRows),
+    [logRows, operationRows],
+  )
+  const integrationLinks = useMemo(
+    () => buildIntegrationLinks(serviceRows),
+    [serviceRows],
+  )
+  const recentEvidence = logRows.filter((log) => !isNoisyLog(log)).slice(0, 4)
+  const derivedHealth =
+    overview.data?.health ??
+    (hasLakehouseEvidence
+      ? {
+          message:
+            attentionItems.length > 0
+              ? `${attentionItems.length} items need attention`
+              : 'Lakehouse snapshot ready',
+          state:
+            attentionItems.length > 0 ? ('warning' as const) : ('ok' as const),
+        }
+      : null)
   const apiError =
-    overview.error ??
     services.error ??
     operations.error ??
     assets.error ??
     quality.error ??
     logs.error ??
-    branches.error
+    branches.error ??
+    (hasLakehouseEvidence ? null : overview.error)
 
   return (
     <div className="phlo-v2-content">
@@ -225,10 +319,8 @@ function useOverviewRoute() {
           </p>
         </div>
         <StatusBadge
-          label={overview.data?.health.message ?? 'API pending'}
-          state={
-            overview.data?.health.state ?? (apiError ? 'warning' : 'unknown')
-          }
+          label={derivedHealth?.message ?? 'API pending'}
+          state={derivedHealth?.state ?? (apiError ? 'warning' : 'unknown')}
         />
       </header>
 
@@ -261,6 +353,135 @@ function useOverviewRoute() {
         )}
       </section>
 
+      <section className="phlo-v2-lakehouse-map" aria-label="Lakehouse map">
+        <div className="phlo-v2-map-header">
+          <h2>Lakehouse map</h2>
+          <Link className="phlo-v2-map-action" to="/workflows/new">
+            <Workflow className="size-4" />
+            Build workflow
+          </Link>
+        </div>
+        <div className="phlo-v2-flow-stage-map">
+          {lakehouseStages.map((stage, index) => (
+            <Link
+              className="phlo-v2-stage-card"
+              data-state={stage.state}
+              data-transition={stageTransitions[index] ?? ''}
+              key={stage.id}
+              to={stage.href}
+            >
+              <div className="phlo-v2-stage-card-top">
+                <span>{stage.label}</span>
+                <StatusBadge label={stage.state} state={stage.state} />
+              </div>
+              <div className="phlo-v2-stage-body">
+                <div className="phlo-v2-stage-primary">
+                  <strong>{formatter.format(stage.records)}</strong>
+                  <span>records</span>
+                </div>
+                <small>
+                  {stage.assets} assets · {stage.tables} tables ·{' '}
+                  {stage.blocking} checks
+                </small>
+              </div>
+              <div className="phlo-v2-stage-samples">
+                {stage.samples.length > 0 ? (
+                  stage.samples.map((sample) => (
+                    <span key={`${stage.id}:${sample}`}>{sample}</span>
+                  ))
+                ) : (
+                  <span>No assets mapped yet</span>
+                )}
+              </div>
+              <div className="phlo-v2-stage-meter">
+                <span style={{ width: `${stage.weight}%` }} />
+              </div>
+            </Link>
+          ))}
+        </div>
+        <div className="phlo-v2-evidence-grid">
+          <div className="phlo-v2-evidence-panel">
+            <div className="phlo-v2-panel-header">
+              <h2 className="phlo-v2-panel-title">Event story</h2>
+              <span className="phlo-v2-pill">
+                <GitCommitHorizontal className="size-3.5" />
+                {eventStory.events.length || 'Empty'}
+              </span>
+            </div>
+            <div className="phlo-v2-timeline">
+              {eventStory.events.length > 0 ? (
+                eventStory.events.map((event) => (
+                  <Link
+                    className="phlo-v2-timeline-row"
+                    data-state={event.state}
+                    key={event.id}
+                    to={event.href}
+                  >
+                    <span className="phlo-v2-timeline-dot" />
+                    <span>
+                      <strong>{event.label}</strong>
+                      <small>{event.meta}</small>
+                      {event.reason && (
+                        <small className="phlo-v2-timeline-reason">
+                          {event.reason}
+                        </small>
+                      )}
+                    </span>
+                  </Link>
+                ))
+              ) : (
+                <EmptyRow label="No events yet" />
+              )}
+              {eventStory.suppressed > 0 && (
+                <div className="phlo-v2-noise-row">
+                  {eventStory.suppressed} platform-noise events suppressed
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="phlo-v2-evidence-panel">
+            <div className="phlo-v2-panel-header">
+              <h2 className="phlo-v2-panel-title">Native workbenches</h2>
+              <span className="phlo-v2-pill">
+                <Database className="size-3.5" />
+                {integrationLinks.length || 'None'}
+              </span>
+            </div>
+            <div className="phlo-v2-integration-grid">
+              {integrationLinks.length > 0 ? (
+                integrationLinks.map((link) => (
+                  <a
+                    className="phlo-v2-integration-link"
+                    data-state={link.status}
+                    href={link.url}
+                    key={`${link.service}:${link.label}:${link.url}`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    <span className="phlo-v2-integration-mark">
+                      {link.initials}
+                    </span>
+                    <span className="phlo-v2-integration-copy">
+                      <strong>{link.label}</strong>
+                      <span className="phlo-v2-integration-meta">
+                        <span>{link.service}</span>
+                        <span>{link.description}</span>
+                      </span>
+                      <code>{link.host}</code>
+                    </span>
+                    <span className="phlo-v2-integration-status">
+                      {link.status}
+                    </span>
+                  </a>
+                ))
+              ) : (
+                <EmptyRow label="No native links available" />
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="phlo-v2-command">
         <div className="phlo-v2-command-primary">
           <div className="phlo-v2-panel">
@@ -274,7 +495,7 @@ function useOverviewRoute() {
             <div className="phlo-v2-list">
               {attentionItems.length > 0 ? (
                 attentionItems.map((item) => (
-                  <Link className="phlo-v2-row" key={item.id} to={item.href}>
+                  <a className="phlo-v2-row" href={item.href} key={item.id}>
                     <div className="phlo-v2-row-main">
                       <div className="phlo-v2-row-title">
                         <span className="phlo-v2-dot" data-state={item.state} />
@@ -283,7 +504,7 @@ function useOverviewRoute() {
                       <div className="phlo-v2-row-meta">{item.meta}</div>
                     </div>
                     <span className="phlo-v2-pill">{item.kind}</span>
-                  </Link>
+                  </a>
                 ))
               ) : (
                 <EmptyRow label="No active attention items" />
@@ -292,7 +513,8 @@ function useOverviewRoute() {
           </div>
 
           <section className="phlo-v2-diff-metrics">
-            {featureEnabled(capabilities?.data, 'issues') && (
+            {(featureEnabled(capabilities?.data, 'issues') ||
+              qualityRows.length > 0) && (
               <CommandTile
                 href="/quality"
                 icon={<ListChecks className="size-5" />}
@@ -327,7 +549,7 @@ function useOverviewRoute() {
 
         <aside className="phlo-v2-inspector">
           <div className="phlo-v2-inspector-label">Control context</div>
-          <h2>{overview.data?.health.message ?? 'Waiting for API snapshot'}</h2>
+          <h2>{derivedHealth?.message ?? 'Waiting for API snapshot'}</h2>
           <p>
             Last refreshed{' '}
             {updatedAt ? updatedAt.toLocaleTimeString() : 'after first load'}.
@@ -423,6 +645,32 @@ function Fact({ label, value }: { label: string; value: string | number }) {
   )
 }
 
+function readCachedOverviewSnapshot(): Omit<OverviewState, 'updatedAt'> | null {
+  const empty = { data: [], error: null }
+  const snapshot = {
+    assets: readCachedResource<Array<V2Asset>>('v2:assets') ?? empty,
+    branches: empty,
+    capabilities: null,
+    logs: readCachedResource<Array<V2LogEvent>>('v2:logs') ?? empty,
+    operations:
+      readCachedResource<Array<V2Operation>>('v2:operations') ?? empty,
+    overview: readCachedResource<V2Overview>('v2:overview') ?? emptyResult,
+    quality: readCachedResource<Array<V2QualityCheck>>('v2:quality') ?? empty,
+    services: readCachedResource<Array<V2Service>>('v2:services') ?? empty,
+  }
+
+  if (
+    (snapshot.assets.data?.length ?? 0) === 0 &&
+    (snapshot.operations.data?.length ?? 0) === 0 &&
+    (snapshot.services.data?.length ?? 0) === 0 &&
+    !snapshot.overview.data
+  ) {
+    return null
+  }
+
+  return snapshot
+}
+
 function EmptyRow({ label }: { label: string }) {
   return (
     <div className="phlo-v2-row">
@@ -434,6 +682,344 @@ function EmptyRow({ label }: { label: string }) {
       </div>
     </div>
   )
+}
+
+function buildLakehouseStages(
+  assets: Array<V2Asset>,
+  quality: Array<V2QualityCheck>,
+) {
+  const stageOrder = ['source', 'bronze', 'silver', 'gold', 'serving']
+  const stages = new Map(
+    stageOrder.map((stage) => [
+      stage,
+      {
+        id: stage,
+        label: stageLabel(stage),
+        assets: 0,
+        tables: 0,
+        records: 0,
+        blocking: 0,
+        state: 'unknown' as 'ok' | 'warning' | 'error' | 'unknown',
+        href: stage === 'serving' ? '/apis' : '/data',
+        weight: 8,
+        samples: [] as Array<string>,
+      },
+    ]),
+  )
+  const qualityByAsset = new Map<string, Array<V2QualityCheck>>()
+  for (const check of quality) {
+    const checks = qualityByAsset.get(check.asset_id)
+    if (checks) {
+      checks.push(check)
+    } else {
+      qualityByAsset.set(check.asset_id, [check])
+    }
+  }
+
+  for (const asset of assets) {
+    const stageId = inferStage(asset)
+    const stage =
+      stages.get(stageId) ??
+      stages.get(stageId.replace('analytics', 'gold')) ??
+      stages.get('gold')
+    if (!stage) continue
+
+    const records = readNumber(asset.metadata.records)
+    const tables = asset.kinds.some((kind) =>
+      ['table', 'dataset', 'analytics'].includes(kind),
+    )
+      ? 1
+      : 0
+    const checks = qualityByAsset.get(asset.id) ?? []
+    const hasFailingCheck = checks.some((check) => check.status === 'failing')
+    const hasWarningCheck = checks.some((check) => check.status === 'warning')
+    const blockingChecks = checks.filter((check) => check.blocking).length
+    stage.assets += 1
+    stage.tables += tables
+    stage.records += records
+    stage.blocking += blockingChecks
+    if (stage.samples.length < 3) stage.samples.push(asset.name)
+    if (hasFailingCheck) stage.state = 'error'
+    else if (hasWarningCheck && stage.state !== 'error') {
+      stage.state = 'warning'
+    } else if (stage.state === 'unknown') {
+      stage.state = 'ok'
+    }
+  }
+
+  const maxRecords = Math.max(
+    1,
+    ...Array.from(stages.values()).map((stage) => stage.records),
+  )
+  return Array.from(stages.values()).map((stage) => ({
+    ...stage,
+    weight: Math.max(8, Math.round((stage.records / maxRecords) * 100)),
+  }))
+}
+
+function buildEventStory(
+  operations: Array<V2Operation>,
+  logs: Array<V2LogEvent>,
+) {
+  const operationEvents = operations.map((operation) => ({
+    id: `operation:${operation.id}`,
+    href: `/operations?operationId=${encodeURIComponent(operation.id)}`,
+    label: operation.name,
+    meta: [
+      operation.kind,
+      operation.target?.label,
+      operation.completed_at ?? operation.started_at,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    state: operation.health.state,
+    reason:
+      operation.status === 'failed' ? failureReason(operation) : undefined,
+    sort: operation.completed_at ?? operation.started_at ?? '',
+    score: scoreOperation(operation),
+  }))
+  const noisyLogs = logs.filter(isNoisyLog)
+  const logEvents = logs
+    .filter((log) => !isNoisyLog(log))
+    .map((log) => ({
+      id: `log:${log.id}`,
+      href: '/logs',
+      label: log.message,
+      meta: [log.source, log.level, log.timestamp].filter(Boolean).join(' · '),
+      reason: undefined,
+      state:
+        log.level === 'error'
+          ? 'error'
+          : log.level === 'warning'
+            ? 'warning'
+            : 'ok',
+      sort: log.timestamp ?? '',
+      score: scoreLog(log),
+    }))
+  return {
+    events: [...operationEvents, ...logEvents]
+      .sort((left, right) => {
+        if (left.score !== right.score) return right.score - left.score
+        return right.sort.localeCompare(left.sort)
+      })
+      .slice(0, 6),
+    suppressed: noisyLogs.length,
+  }
+}
+
+function scoreOperation(operation: V2Operation): number {
+  let score = 20
+  if (operation.kind.startsWith('pipeline.')) score += 50
+  if (operation.kind.includes('quality')) score += 35
+  if (operation.status === 'failed') score += 45
+  if (operation.status === 'succeeded') score += 10
+  if (
+    operation.target?.kind === 'asset' ||
+    operation.target?.kind === 'table'
+  ) {
+    score += 15
+  }
+  return score
+}
+
+function scoreLog(log: V2LogEvent): number {
+  let score = 5
+  if (log.level === 'error') score += 40
+  if (log.level === 'warning') score += 20
+  if (log.resource?.kind === 'asset' || log.resource?.kind === 'table') {
+    score += 20
+  }
+  if (log.source?.toLowerCase().includes('keystone')) score += 20
+  return score
+}
+
+function isNoisyLog(log: V2LogEvent): boolean {
+  const message = log.message.toLowerCase()
+  return [
+    'unknown_plugin_type',
+    'plugin_registry_fetch_fallback',
+    'observatory_settings_falling_back_to_memory',
+  ].some((needle) => message.includes(needle))
+}
+
+function buildIntegrationLinks(services: Array<V2Service>) {
+  const browserWorkbenches = new Map<
+    string,
+    {
+      label: string
+      path?: string
+      preferredPortLabel?: string
+      requiresRunning?: boolean
+    }
+  >([
+    ['observatory', { label: 'Observatory', requiresRunning: true }],
+    [
+      'hasura',
+      { label: 'Hasura console', path: '/console', requiresRunning: true },
+    ],
+    ['phlo-api', { label: 'API docs', path: '/docs', requiresRunning: true }],
+    ['dagster', { label: 'Dagster UI', requiresRunning: true }],
+    ['grafana', { label: 'Grafana', requiresRunning: true }],
+    ['superset', { label: 'Superset', requiresRunning: true }],
+    [
+      'minio',
+      {
+        label: 'Object browser',
+        preferredPortLabel: ':9001',
+        requiresRunning: true,
+      },
+    ],
+    ['pgweb', { label: 'Postgres browser', requiresRunning: true }],
+    ['openmetadata', { label: 'OpenMetadata', requiresRunning: true }],
+    ['trino', { label: 'Trino UI', requiresRunning: true }],
+  ])
+
+  return services
+    .flatMap((service) => {
+      const workbench = browserWorkbenches.get(service.id)
+      if (!workbench) return []
+      if (workbench.requiresRunning && service.status !== 'running') return []
+      const firstLink = chooseWorkbenchLink(
+        service.links,
+        workbench.preferredPortLabel,
+      )
+      if (!firstLink?.url) return []
+      return [
+        {
+          service: service.name,
+          label: workbench.label,
+          status: service.status,
+          url: withPath(firstLink.url, workbench.path),
+          host: readableHost(firstLink.url),
+          description: describeWorkbench(service.id),
+          initials: serviceInitials(service.name),
+        },
+      ]
+    })
+    .slice(0, 6)
+}
+
+function chooseWorkbenchLink(
+  links: Array<V2Service['links'][number]>,
+  preferredPortLabel?: string,
+) {
+  if (!links.length) return null
+
+  const preferred = preferredPortLabel
+    ? links.find((link) => link.label === preferredPortLabel)
+    : null
+  const projectLink = links.at(-1)
+
+  return preferred ?? projectLink ?? links[0]
+}
+
+function describeWorkbench(serviceId: string): string {
+  const descriptions: Record<string, string> = {
+    dagster: 'Pipeline runs and schedules',
+    grafana: 'Metrics and service dashboards',
+    hasura: 'Metadata graph and API console',
+    minio: 'Lakehouse object storage',
+    observatory: 'Current Phlo control plane',
+    openmetadata: 'Catalog and ownership',
+    'phlo-api': 'Phlo API contract and probes',
+    pgweb: 'Postgres metadata browser',
+    superset: 'Analytics workspace',
+    trino: 'Distributed SQL console',
+  }
+  return descriptions[serviceId] ?? 'Native service workbench'
+}
+
+function readableHost(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return url.replace(/^https?:\/\//, '')
+  }
+}
+
+function serviceInitials(name: string): string {
+  const words = name.replace(/[-_]/g, ' ').trim().split(/\s+/)
+  if (words.length === 0 || !words[0]) return 'PH'
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return words
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
+}
+
+function withPath(url: string, path?: string): string {
+  if (!path) return url
+  try {
+    const parsed = new URL(url)
+    parsed.pathname = path
+    return parsed.toString()
+  } catch {
+    return url
+  }
+}
+
+function failureReason(operation: V2Operation): string | undefined {
+  return (
+    firstTextMetric(operation.metadata, [
+      'exception_message',
+      'failure_reason',
+      'error',
+      'reason',
+      'message',
+    ]) ??
+    operation.health.message ??
+    undefined
+  )
+}
+
+function firstTextMetric(
+  metadata: Record<string, NonNullable<unknown>>,
+  keys: Array<string>,
+): string | undefined {
+  for (const key of keys) {
+    const value = metadata[key]
+    if (typeof value === 'string' && value.trim()) return value
+  }
+  return undefined
+}
+
+function inferStage(asset: V2Asset): string {
+  const raw = [
+    asset.group,
+    asset.id,
+    asset.name,
+    asset.metadata.stage,
+    asset.metadata.namespace,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  if (raw.includes('bronze') || raw.includes('raw')) return 'bronze'
+  if (raw.includes('silver') || raw.includes('clean')) return 'silver'
+  if (
+    raw.includes('gold') ||
+    raw.includes('analytics') ||
+    raw.includes('mart')
+  ) {
+    return 'gold'
+  }
+  if (
+    raw.includes('serving') ||
+    raw.includes('api') ||
+    raw.includes('publish')
+  ) {
+    return 'serving'
+  }
+  return raw.includes('source') || raw.includes('input') ? 'source' : 'gold'
+}
+
+function readNumber(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function stageLabel(stage: string): string {
+  return stage.charAt(0).toUpperCase() + stage.slice(1)
 }
 
 function counterValue(primary?: number, fallback?: number): string {
@@ -486,10 +1072,13 @@ function buildAttentionItems({
           .slice(0, 2)
           .map((operation) => ({
             id: `operation:${operation.id}`,
-            href: '/operations',
+            href: `/operations?operationId=${encodeURIComponent(operation.id)}`,
             kind: 'operation',
             label: operation.name,
-            meta: operation.target?.label ?? operation.kind,
+            meta:
+              failureReason(operation) ??
+              operation.target?.label ??
+              operation.kind,
             state: 'error',
           }))),
     ...(enabled?.logs === false
@@ -512,7 +1101,7 @@ function featureEnabled(
   capabilities: V2Capabilities | null | undefined,
   key: string,
 ): boolean {
-  if (!capabilities) return false
+  if (!capabilities) return true
   return capabilities.features[key] !== false
 }
 

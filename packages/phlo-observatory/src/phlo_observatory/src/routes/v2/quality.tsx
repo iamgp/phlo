@@ -30,10 +30,11 @@ export const Route = createFileRoute('/v2/quality')({
 export function Quality() {
   const result = useLiveResource(getV2QualityRecords, 120_000, 'v2:quality')
   const checks = result.data ?? []
+  const sortedChecks = useMemo(() => [...checks].sort(compareQuality), [checks])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<QualityView>('queue')
   const blocking = checks.filter((check) => check.blocking).length
-  const warnings = checks.filter((check) => check.severity === 'warning').length
+  const warnings = checks.filter((check) => check.status === 'warning').length
   const unknown = checks.filter((check) => check.status === 'unknown').length
   const failing = checks.filter((check) => check.status === 'failing').length
   const observed = checks.length - unknown
@@ -41,13 +42,20 @@ export function Quality() {
     ? Math.round(((observed - failing) / observed) * 100)
     : null
   const selected =
-    checks.find((check) => check.id === selectedId) ?? checks[0] ?? null
+    sortedChecks.find((check) => check.id === selectedId) ??
+    sortedChecks[0] ??
+    null
   const [detail, setDetail] = useState<V2ResourceResult<V2QualityDetail>>({
     data: null,
     error: null,
   })
   const [actionMessage, setActionMessage] = useState<string | null>(null)
-  const graph = useMemo(() => buildQualityGraph(checks), [checks])
+  const graph = useMemo(() => buildQualityGraph(sortedChecks), [sortedChecks])
+
+  useEffect(() => {
+    if (selectedId !== null || sortedChecks.length === 0) return
+    setSelectedId(sortedChecks[0].id)
+  }, [selectedId, sortedChecks])
 
   useEffect(() => {
     if (!selected) return
@@ -129,7 +137,7 @@ export function Quality() {
             </div>
           ) : (
             <div className="phlo-v2-check-list">
-              {checks.map((check) => (
+              {sortedChecks.map((check) => (
                 <CheckRow
                   key={check.id}
                   check={check}
@@ -163,8 +171,15 @@ export function Quality() {
                   value={selected.blocking ? 'yes' : 'no'}
                 />
                 <Fact label="Status" value={qualityStatusLabel(selected)} />
+                <Fact label="Owner" value={readMetadata(selected, 'owner')} />
               </dl>
               <div className="phlo-v2-detail-list">
+                {urgentReason(selected) && (
+                  <div className="phlo-v2-mini-row">
+                    <span>Why it matters</span>
+                    <small>{urgentReason(selected)}</small>
+                  </div>
+                )}
                 <div className="phlo-v2-mini-row">
                   <span>Latest result</span>
                   <small>{qualityResultSummary(selected)}</small>
@@ -296,6 +311,7 @@ function CheckRow({
         </div>
         <div className="phlo-v2-row-meta">{check.asset_id}</div>
       </div>
+      <span className="phlo-v2-pill">{qualityStatusLabel(check)}</span>
       <span className="phlo-v2-pill">
         {check.severity ?? qualityStatusLabel(check)}
       </span>
@@ -345,6 +361,22 @@ function buildQualityGraph(checks: Array<V2QualityCheck>): {
   return { nodes: [...assetNodes, ...checkNodes], edges }
 }
 
+function compareQuality(left: V2QualityCheck, right: V2QualityCheck): number {
+  return qualityUrgency(right) - qualityUrgency(left)
+}
+
+function qualityUrgency(check: V2QualityCheck): number {
+  let score = 0
+  if (check.status === 'failing') score += 100
+  if (check.blocking) score += 30
+  if (check.status === 'warning') score += 20
+  if (check.status === 'unknown') score += 10
+  if (check.severity === 'critical') score += 25
+  if (check.severity === 'high') score += 15
+  if (check.severity === 'medium') score += 5
+  return score
+}
+
 function qualityStatusLabel(check: V2QualityCheck): string {
   if (check.status === 'unknown') return 'not observed'
   return check.status
@@ -364,6 +396,27 @@ function qualityActionsSummary(detail: V2QualityDetail | null): string {
   const enabled = actions.filter((action) => action.enabled)
   if (enabled.length === 0) return 'No guarded quality mutation exposed.'
   return enabled.map((action) => action.label).join(', ')
+}
+
+function urgentReason(check: V2QualityCheck): string | null {
+  const explicit =
+    readMetadata(check, 'last_failure') ??
+    readMetadata(check, 'failure_reason') ??
+    readMetadata(check, 'message')
+  if (explicit !== 'n/a') return explicit
+  if (check.status === 'failing' && check.blocking) {
+    return 'This blocking check is failing and should stop promotion.'
+  }
+  if (check.status === 'warning')
+    return 'This check is warning and needs review.'
+  if (check.status === 'unknown') return 'No recent evidence has been reported.'
+  return null
+}
+
+function readMetadata(check: V2QualityCheck, key: string): string {
+  const value = check.metadata[key]
+  if (value === null || value === undefined || value === '') return 'n/a'
+  return String(value)
 }
 
 function Fact({ label, value }: { label: string; value: string }) {

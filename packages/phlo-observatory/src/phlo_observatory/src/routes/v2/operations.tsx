@@ -8,14 +8,12 @@ import type {
   V2OperationDetail,
   V2ResourceResult,
 } from '@/v2/api/types'
-import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 import {
   getV2OperationDetail,
   getV2OperationRecords,
   runV2Action,
 } from '@/v2/api/resources'
 import { ActionButton } from '@/v2/components/ActionButton'
-import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
 import {
   invalidateCachedResources,
@@ -41,6 +39,11 @@ export function Operations() {
     visibleOperations.find((operation) => operation.id === selectedId) ??
     visibleOperations[0] ??
     null
+  const displayedOperations = visibleOperations.slice(0, 100)
+  const hiddenOperationCount = Math.max(
+    0,
+    visibleOperations.length - displayedOperations.length,
+  )
   const [detail, setDetail] = useState<V2ResourceResult<V2OperationDetail>>({
     data: null,
     error: null,
@@ -52,10 +55,23 @@ export function Operations() {
   const recovered = visibleOperations.filter(
     (operation) => operation.status === 'succeeded',
   ).length
-  const graph = useMemo(
-    () => buildOperationGraph(visibleOperations),
+  const ledger = useMemo(
+    () => buildOperationLedger(visibleOperations),
     [visibleOperations],
   )
+  const selectedFailure = latest ? operationFailure(latest) : null
+  const selectedMetadata = latest ? operationMetadata(latest) : []
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const requested = new URLSearchParams(window.location.search).get(
+      'operationId',
+    )
+    if (!requested || requested === selectedId) return
+    if (visibleOperations.some((operation) => operation.id === requested)) {
+      setSelectedId(requested)
+    }
+  }, [selectedId, visibleOperations])
 
   useEffect(() => {
     if (!latest) {
@@ -86,20 +102,6 @@ export function Operations() {
         <div className="phlo-v2-command-primary">
           {visibleOperations.length > 0 ? (
             <>
-              <div className="phlo-v2-flow-band">
-                <div className="phlo-v2-workspace-toolbar">
-                  <span>Action graph</span>
-                  <span className="phlo-v2-pill">
-                    {graph.edges.length} links
-                  </span>
-                </div>
-                <V2FlowCanvas
-                  edges={graph.edges}
-                  nodes={graph.nodes}
-                  onSelect={setSelectedId}
-                  selectedId={latest?.id}
-                />
-              </div>
               <div className="phlo-v2-command-strip">
                 <Metric
                   icon={<CheckCircle2 className="size-4" />}
@@ -121,8 +123,92 @@ export function Operations() {
                   }
                 />
               </div>
+              {latest && (
+                <div
+                  className="phlo-v2-operation-focus"
+                  data-state={latest.health.state}
+                >
+                  <div className="phlo-v2-workspace-toolbar">
+                    <span>Selected operation evidence</span>
+                    <span className="phlo-v2-pill">{latest.status}</span>
+                  </div>
+                  <div className="phlo-v2-operation-focus-body">
+                    <div className="phlo-v2-operation-focus-main">
+                      <span className="phlo-v2-inspector-label">
+                        {latest.kind}
+                      </span>
+                      <h2>{latest.name}</h2>
+                      <p>{latest.target?.label ?? 'Platform operation'}</p>
+                      {selectedFailure && (
+                        <div className="phlo-v2-failure-callout">
+                          <strong>{selectedFailure.title}</strong>
+                          <span>{selectedFailure.message}</span>
+                        </div>
+                      )}
+                    </div>
+                    <dl className="phlo-v2-operation-evidence-grid">
+                      <Fact label="Operation id" value={latest.id} />
+                      <Fact
+                        label="Experiment"
+                        value={readMetric(latest.metadata, 'experiment_id')}
+                      />
+                      <Fact
+                        label="Plate"
+                        value={readMetric(latest.metadata, 'plate_id')}
+                      />
+                      <Fact
+                        label="Completed"
+                        value={latest.completed_at ?? 'not completed'}
+                      />
+                    </dl>
+                  </div>
+                  {selectedMetadata.length > 0 && (
+                    <div className="phlo-v2-operation-metadata">
+                      {selectedMetadata.map(([key, value]) => (
+                        <span key={key}>
+                          <strong>{humanizeKey(key)}</strong>
+                          {String(value)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="phlo-v2-operation-ledger">
+                <div className="phlo-v2-workspace-toolbar">
+                  <span>Target ledger</span>
+                  <span className="phlo-v2-pill">{ledger.length} targets</span>
+                </div>
+                <div className="phlo-v2-operation-ledger-grid">
+                  {ledger.map((item) => (
+                    <button
+                      className="phlo-v2-operation-ledger-card"
+                      data-state={item.state}
+                      key={item.id}
+                      onClick={() => setSelectedId(item.latest.id)}
+                      type="button"
+                    >
+                      <span>{item.kind}</span>
+                      <strong>{item.label}</strong>
+                      <small>
+                        {item.succeeded} succeeded · {item.failed} failed ·{' '}
+                        {item.lastSeen}
+                      </small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="phlo-v2-workspace-toolbar">
+                <span>Activity stream</span>
+                <span className="phlo-v2-pill">
+                  showing {displayedOperations.length}
+                  {hiddenOperationCount > 0
+                    ? ` of ${visibleOperations.length}`
+                    : ''}
+                </span>
+              </div>
               <div className="phlo-v2-timeline">
-                {visibleOperations.map((operation) => (
+                {displayedOperations.map((operation) => (
                   <OperationLine
                     key={operation.id}
                     onSelect={setSelectedId}
@@ -130,6 +216,12 @@ export function Operations() {
                     selected={operation.id === latest?.id}
                   />
                 ))}
+                {hiddenOperationCount > 0 && (
+                  <div className="phlo-v2-noise-row">
+                    {hiddenOperationCount} older operations kept out of the DOM.
+                    Use target selection to narrow the working set.
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -219,6 +311,14 @@ export function Operations() {
               {actionMessage && (
                 <div className="phlo-v2-panel-footer">{actionMessage}</div>
               )}
+              {selectedFailure && (
+                <div className="phlo-v2-detail-list">
+                  <div className="phlo-v2-mini-row" data-state="error">
+                    <span>{selectedFailure.title}</span>
+                    <small>{selectedFailure.message}</small>
+                  </div>
+                </div>
+              )}
               <div className="phlo-v2-detail-list">
                 <div className="phlo-v2-mini-row">
                   <span>Related</span>
@@ -279,6 +379,7 @@ function OperationLine({
   onSelect: (id: string) => void
   selected: boolean
 }) {
+  const failure = operationFailure(operation)
   return (
     <button
       className="phlo-v2-timeline-row"
@@ -296,6 +397,11 @@ function OperationLine({
           {operation.kind} · {operation.target?.label ?? 'platform'} ·{' '}
           {operation.completed_at ?? 'in progress'}
         </div>
+        {failure && (
+          <div className="phlo-v2-row-meta phlo-v2-row-evidence">
+            {failure.message}
+          </div>
+        )}
       </div>
       <span className="phlo-v2-pill">{operation.status}</span>
     </button>
@@ -319,56 +425,124 @@ function operationTimestamp(operation: V2Operation): string {
   return operation.completed_at ?? operation.started_at ?? operation.id
 }
 
-function buildOperationGraph(operations: Array<V2Operation>): {
-  nodes: Array<V2FlowNode>
-  edges: Array<V2FlowEdge>
-} {
-  const targetById = new Map<string, NonNullable<V2Operation['target']>>()
-  const operationIdByTargetId = new Map<string, string>()
+function buildOperationLedger(operations: Array<V2Operation>) {
+  const groups = new Map<
+    string,
+    {
+      id: string
+      kind: string
+      label: string
+      operations: Array<V2Operation>
+    }
+  >()
+
   for (const operation of operations) {
-    if (operation.target) {
-      const targetId = operation.target.id
-      if (!targetById.has(targetId)) {
-        targetById.set(targetId, operation.target)
-        operationIdByTargetId.set(targetId, operation.id)
+    const target = operation.target
+    const id = target?.id ?? operation.kind
+    const existing = groups.get(id)
+    if (existing) {
+      existing.operations.push(operation)
+      continue
+    }
+    groups.set(id, {
+      id,
+      kind: target?.kind ?? operation.kind,
+      label: target?.label ?? operation.kind,
+      operations: [operation],
+    })
+  }
+
+  return Array.from(groups.values())
+    .map((group) => {
+      const sorted = group.operations
+        .slice()
+        .sort((left, right) =>
+          operationTimestamp(right).localeCompare(operationTimestamp(left)),
+        )
+      const failed = sorted.filter(
+        (operation) => operation.status === 'failed',
+      ).length
+      const succeeded = sorted.filter(
+        (operation) => operation.status === 'succeeded',
+      ).length
+      return {
+        id: group.id,
+        kind: group.kind,
+        label: group.label,
+        latest: sorted[0],
+        failed,
+        succeeded,
+        lastSeen: operationTimestamp(sorted[0]) || 'pending',
+        state: failed > 0 ? 'error' : (sorted[0]?.health.state ?? 'unknown'),
       }
-    }
+    })
+    .slice(0, 8)
+}
+
+function operationFailure(
+  operation: V2Operation,
+): { title: string; message: string } | null {
+  if (operation.status !== 'failed' && operation.health.state !== 'error') {
+    return null
   }
+  const exceptionType = textMetric(operation.metadata, 'exception_type')
+  const message =
+    firstTextMetric(operation.metadata, [
+      'exception_message',
+      'failure_reason',
+      'error',
+      'reason',
+      'message',
+    ]) ??
+    operation.health.message ??
+    'No failure message recorded.'
 
-  const targetNodes = Array.from(targetById.values()).map(
-    (target): V2FlowNode => ({
-      id: `target:${target.id}`,
-      label: target.label,
-      kind: target.kind === 'branch' ? 'branch' : 'service',
-      lane: 'branch',
-      selectId: operationIdByTargetId.get(target.id),
-      subtitle: target.kind,
-    }),
-  )
-
-  const operationNodes = operations.map(
-    (operation): V2FlowNode => ({
-      id: operation.id,
-      label: operation.name,
-      kind: 'operation',
-      lane: 'operation',
-      subtitle: operation.kind,
-      metric: `${operation.status} · ${operation.duration_seconds ?? 'n/a'}s`,
-    }),
-  )
-
-  const edges: Array<V2FlowEdge> = []
-  for (const operation of operations) {
-    if (operation.target) {
-      edges.push({
-        id: `${operation.target.id}->${operation.id}`,
-        source: `target:${operation.target.id}`,
-        target: operation.id,
-      })
-    }
+  return {
+    title: exceptionType ? `${exceptionType} failure` : 'Failure reason',
+    message,
   }
+}
 
-  return { nodes: [...targetNodes, ...operationNodes], edges }
+function operationMetadata(
+  operation: V2Operation,
+): Array<[string, NonNullable<unknown>]> {
+  const keys = [
+    'pipeline_step',
+    'source',
+    'file_count',
+    'package_path',
+    'exception_type',
+    'exception_message',
+  ]
+  return keys
+    .map((key) => [key, operation.metadata[key]] as const)
+    .filter((entry): entry is [string, NonNullable<unknown>] =>
+      Boolean(entry[1]),
+    )
+    .slice(0, 6)
+}
+
+function firstTextMetric(
+  metadata: Record<string, NonNullable<unknown>>,
+  keys: Array<string>,
+): string | null {
+  for (const key of keys) {
+    const value = textMetric(metadata, key)
+    if (value) return value
+  }
+  return null
+}
+
+function textMetric(
+  metadata: Record<string, NonNullable<unknown>>,
+  key: string,
+): string | null {
+  const value = metadata[key]
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function humanizeKey(key: string): string {
+  return key.replaceAll('_', ' ')
 }
 
 function Fact({

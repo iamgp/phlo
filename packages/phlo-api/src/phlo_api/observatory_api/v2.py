@@ -21,6 +21,7 @@ from typing import Any
 
 from fastapi import APIRouter
 from fastapi import HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from phlo_api.observatory_api.v2_actions import execute_v2_action
@@ -123,6 +124,7 @@ _READ_QUERY_RE = re.compile(
 )
 _ENV_DEFAULT_RE = re.compile(r"^\$\{[^}:]+:-(?P<default>[^}]+)\}$")
 _TABLE_LIST_METADATA_PREFIX_DENYLIST = ("phlo/compiled_sql",)
+_TABLE_LIST_METADATA_DENYLIST = {"preview_rows"}
 _FAST_READ_MODEL_TTL_SECONDS = 30
 _EXPENSIVE_READ_MODEL_TTL_SECONDS = 120
 _READ_MODEL_CACHE = ReadModelCache(project_key=lambda: str(_project_root()))
@@ -219,6 +221,15 @@ def _coerce_str(value: Any, default: str = "") -> str:
     return str(value)
 
 
+def _coerce_int(value: Any, default: int = 0) -> int:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _dataclass_dict(value: Any) -> dict[str, Any]:
     if is_dataclass(value):
         return asdict(value)
@@ -241,6 +252,48 @@ def _saved_queries_path() -> Path:
 
 def _branches_path() -> Path:
     return _v2_state_dir() / "branches.json"
+
+
+def _lakehouse_manifest_path() -> Path:
+    return _v2_state_dir() / "lakehouse_manifest.json"
+
+
+def _load_lakehouse_manifest() -> Mapping[str, Any]:
+    path = _lakehouse_manifest_path()
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, Mapping) else {}
+
+
+def _manifest_records(key: str, model: type[BaseModel]) -> list[Any]:
+    payload = _load_lakehouse_manifest()
+    raw_items = payload.get(key)
+    if not isinstance(raw_items, list):
+        return []
+
+    records: list[Any] = []
+    for item in raw_items:
+        if not isinstance(item, Mapping):
+            continue
+        try:
+            records.append(model.model_validate(item))
+        except Exception:
+            continue
+    return records
+
+
+def _merge_by_id(records: Iterable[Any]) -> list[Any]:
+    merged: dict[str, Any] = {}
+    for record in records:
+        record_id = getattr(record, "id", None)
+        if not isinstance(record_id, str) or not record_id:
+            continue
+        merged[record_id] = record
+    return list(merged.values())
 
 
 def _import_project_workflows(project_root: Path) -> None:
@@ -703,13 +756,13 @@ def _runtime_services(services: Sequence[V2Service]) -> list[V2Service]:
 def _load_assets() -> list[V2Asset]:
     registry = _load_capability_registry()
     if registry is None:
-        return []
+        return sorted(_manifest_records("assets", V2Asset), key=lambda item: item.id)
 
     checks_by_asset: dict[str, list[str]] = {}
     for check in registry.list("check"):
         checks_by_asset.setdefault(check.asset_key, []).append(check.name)
 
-    assets: list[V2Asset] = []
+    assets: list[V2Asset] = list(_manifest_records("assets", V2Asset))
     for asset in registry.list("asset"):
         assets.append(
             V2Asset(
@@ -724,7 +777,7 @@ def _load_assets() -> list[V2Asset]:
                 metadata=_safe_metadata(asset.metadata),
             )
         )
-    return sorted(assets, key=lambda item: item.id)
+    return sorted(_merge_by_id(assets), key=lambda item: item.id)
 
 
 def _table_name_from_asset(asset: Any) -> str | None:
@@ -741,10 +794,10 @@ def _table_name_from_asset(asset: Any) -> str | None:
 def _load_tables(*, enrich_catalog: bool = True) -> list[V2Table]:
     registry = _load_capability_registry()
     if registry is None:
-        return []
+        return sorted(_manifest_records("tables", V2Table), key=lambda item: item.id)
 
     catalog_tables = _catalog_tables() if enrich_catalog else None
-    tables: list[V2Table] = []
+    tables: list[V2Table] = list(_manifest_records("tables", V2Table))
     for asset in registry.list("asset"):
         table_name = _table_name_from_asset(asset)
         if not table_name:
@@ -770,7 +823,7 @@ def _load_tables(*, enrich_catalog: bool = True) -> list[V2Table]:
                 metadata=table_metadata,
             )
         )
-    return sorted(tables, key=lambda item: item.id)
+    return sorted(_merge_by_id(tables), key=lambda item: item.id)
 
 
 def _compact_table(table: V2Table) -> V2Table:
@@ -778,7 +831,8 @@ def _compact_table(table: V2Table) -> V2Table:
     metadata = {
         key: value
         for key, value in table.metadata.items()
-        if not any(key.startswith(prefix) for prefix in _TABLE_LIST_METADATA_PREFIX_DENYLIST)
+        if key not in _TABLE_LIST_METADATA_DENYLIST
+        and not any(key.startswith(prefix) for prefix in _TABLE_LIST_METADATA_PREFIX_DENYLIST)
     }
     return table.model_copy(update={"metadata": metadata})
 
@@ -830,9 +884,9 @@ def _catalog_tables() -> set[tuple[str, str]] | None:
 def _load_quality() -> list[V2QualityCheck]:
     registry = _load_capability_registry()
     if registry is None:
-        return []
+        return sorted(_manifest_records("quality", V2QualityCheck), key=lambda item: item.id)
 
-    checks: list[V2QualityCheck] = []
+    checks: list[V2QualityCheck] = list(_manifest_records("quality", V2QualityCheck))
     for check in registry.list("check"):
         check_id = f"{check.asset_key}:{check.name}"
         checks.append(
@@ -847,7 +901,7 @@ def _load_quality() -> list[V2QualityCheck]:
                 metadata=_safe_metadata(check.tags),
             )
         )
-    return sorted(checks, key=lambda item: item.id)
+    return sorted(_merge_by_id(checks), key=lambda item: item.id)
 
 
 def _operation_from_maintenance_status(status: Any) -> V2Operation:
@@ -871,7 +925,10 @@ def _operation_from_maintenance_status(status: Any) -> V2Operation:
 
 
 def _load_operations() -> list[V2Operation]:
-    operations = list(load_operation_journal(_project_root()))
+    operations = [
+        *list(load_operation_journal(_project_root())),
+        *_manifest_records("operations", V2Operation),
+    ]
     registry = _load_capability_registry()
     if registry is None:
         return sort_operations(operations)
@@ -890,9 +947,22 @@ def _load_operations() -> list[V2Operation]:
     return sort_operations(operations)
 
 
+def _load_runs() -> list[V2Run]:
+    manifest_runs = list(_manifest_records("runs", V2Run))
+    provider_runs = load_runs()
+    return sorted(
+        _merge_by_id([*manifest_runs, *provider_runs]),
+        key=lambda item: item.completed_at or item.started_at or item.id,
+        reverse=True,
+    )
+
+
 def _load_logs() -> list[V2LogEvent]:
     project_root = _project_root()
-    events = _load_project_log_events(project_root)
+    events = [
+        *_manifest_records("logs", V2LogEvent),
+        *_load_project_log_events(project_root),
+    ]
     try:
         from phlo.capabilities.telemetry import iter_telemetry_events
     except Exception:
@@ -1141,6 +1211,11 @@ def _sample_value(table: V2Table, column: str, row_index: int) -> Any:
 def _table_rows(
     table: V2Table, columns: list[str], limit: int, offset: int
 ) -> list[dict[str, Any]]:
+    preview_rows = table.metadata.get("preview_rows")
+    if isinstance(preview_rows, list):
+        rows = [dict(row) for row in preview_rows if isinstance(row, Mapping)]
+        return rows[offset : offset + max(0, min(limit, 500))]
+
     row_count_raw = table.metadata.get("records")
     row_count = row_count_raw if isinstance(row_count_raw, int) else 0
     effective_limit = max(0, min(limit, 500))
@@ -1407,6 +1482,9 @@ def _load_branches() -> list[V2Branch]:
     branches_by_id = {
         "main": V2Branch(id="main", name="main", current=True, protected=True),
     }
+    for branch in _manifest_records("branches", V2Branch):
+        if branch.id != "main":
+            branches_by_id[branch.id] = branch
     for branch in _load_provider_branches():
         branches_by_id.setdefault(branch.id, branch)
     path = _branches_path()
@@ -1579,18 +1657,25 @@ def _load_table_preview(table_id: str, limit: int, offset: int) -> V2TablePrevie
         return query_preview
 
     row_count_raw = table.metadata.get("records")
+    preview_rows = table.metadata.get("preview_rows")
     row_count = row_count_raw if isinstance(row_count_raw, int) else None
+    if row_count is None and isinstance(preview_rows, list):
+        row_count = len(preview_rows)
     columns = _table_columns_from_metadata(table)
     column_types = _table_column_types_from_metadata(table, columns)
+    rows = _table_rows(table, columns, limit, max(0, offset))
+    if not columns and rows:
+        columns = [str(key) for key in rows[0]]
+        column_types = ["unknown"] * len(columns)
     return V2TablePreview(
         table=_compact_table(table),
         columns=columns,
         column_types=column_types,
-        rows=[],
+        rows=rows,
         row_count=row_count,
         limit=limit,
         offset=offset,
-        has_more=False,
+        has_more=row_count is not None and max(0, offset) + len(rows) < row_count,
     )
 
 
@@ -1842,11 +1927,35 @@ def _load_branch_detail(branch_name: str) -> V2BranchDetail:
         and operation.target.kind == "branch"
         and operation.target.id == branch.name
     ]
+    compare = {
+        "added": _coerce_int(branch.metadata.get("added", branch.metadata.get("compare_added")), 0),
+        "changed": _coerce_int(
+            branch.metadata.get("changed", branch.metadata.get("compare_changed")),
+            len(tables),
+        ),
+        "removed": _coerce_int(
+            branch.metadata.get("removed", branch.metadata.get("compare_removed")),
+            0,
+        ),
+    }
+    if "ahead" in branch.metadata:
+        compare["ahead"] = _coerce_int(branch.metadata.get("ahead"), 0)
+    if "behind" in branch.metadata:
+        compare["behind"] = _coerce_int(branch.metadata.get("behind"), 0)
+
+    if not commits:
+        table_asset_ids = {table.asset_id for table in tables if table.asset_id}
+        commits = [
+            operation
+            for operation in _load_operations()
+            if operation.target is not None and operation.target.id in table_asset_ids
+        ][:8]
+
     return V2BranchDetail(
         branch=branch,
         contents=contents,
         commits=commits,
-        compare={"added": 0, "changed": len(tables), "removed": 0},
+        compare=compare,
         tables=tables,
     )
 
@@ -1907,9 +2016,11 @@ def _providers_matching(extensions: Sequence[V2Extension], *needles: str) -> lis
 def _load_capabilities() -> V2Capabilities:
     inventory = build_capability_inventory(_load_capability_registry())
     _add_orchestrator_plugin_providers(inventory)
-    _filter_capabilities_to_project_services(inventory, _load_services())
-    _add_runtime_capability_providers(inventory)
+    services = _load_services()
+    _filter_capabilities_to_project_services(inventory, services)
+    _add_runtime_capability_providers(inventory, services)
     pages = _pages_from_inventory(inventory)
+    pages = _apply_manifest_capability_overrides(pages)
     features = {page.id: page.available for page in pages}
     providers = {page.id: page.providers for page in pages if page.providers}
 
@@ -1918,6 +2029,68 @@ def _load_capabilities() -> V2Capabilities:
         features=features,
         providers=providers,
     )
+
+
+def _load_surface_capabilities() -> V2Capabilities:
+    """Build route-gating capabilities without dynamic package discovery."""
+    inventory = build_capability_inventory(None)
+    services = _load_services()
+    _filter_capabilities_to_project_services(inventory, services)
+    _add_runtime_capability_providers(inventory, services)
+    pages = _apply_manifest_capability_overrides(_pages_from_inventory(inventory))
+    features = {page.id: page.available for page in pages}
+    providers = {page.id: page.providers for page in pages if page.providers}
+    return V2Capabilities(pages=pages, features=features, providers=providers)
+
+
+def _apply_manifest_capability_overrides(
+    pages: list[V2CapabilityPage],
+) -> list[V2CapabilityPage]:
+    manifest = _load_lakehouse_manifest()
+    if not manifest:
+        return pages
+
+    route_providers: dict[str, str] = {}
+    if manifest.get("tables"):
+        route_providers["data"] = "lakehouse-manifest"
+        route_providers["assets"] = "lakehouse-manifest"
+    if manifest.get("assets"):
+        route_providers["assets"] = "lakehouse-manifest"
+    if manifest.get("quality"):
+        route_providers["issues"] = "lakehouse-manifest"
+        route_providers["quality"] = "lakehouse-manifest"
+    if manifest.get("branches"):
+        route_providers["branches"] = "lakehouse-manifest"
+    if manifest.get("runs"):
+        route_providers["runs"] = "lakehouse-manifest"
+    if any(
+        str(asset.get("metadata", {}).get("stage", "")).lower() == "serving"
+        or str(asset.get("group", "")).lower() == "serving"
+        for asset in manifest.get("assets", [])
+        if isinstance(asset, Mapping)
+    ):
+        route_providers["apis"] = "lakehouse-manifest"
+
+    overridden: list[V2CapabilityPage] = []
+    for page in pages:
+        provider = route_providers.get(page.id)
+        if provider is None:
+            overridden.append(page)
+            continue
+        providers = [*page.providers]
+        if provider not in providers:
+            providers.append(provider)
+        overridden.append(
+            page.model_copy(
+                update={
+                    "available": True,
+                    "nav": bool(page.metadata.get("nav", page.nav)),
+                    "reason": None,
+                    "providers": providers,
+                }
+            )
+        )
+    return overridden
 
 
 _RUNTIME_SERVICE_CAPABILITIES: dict[str, tuple[str, ...]] = {
@@ -2034,9 +2207,11 @@ def _provider_service_dependencies(
     return _PROVIDER_SERVICE_DEPENDENCIES.get((capability_type, provider.name), ())
 
 
-def _add_runtime_capability_providers(inventory: V2CapabilityInventory) -> None:
+def _add_runtime_capability_providers(
+    inventory: V2CapabilityInventory, services: Sequence[V2Service]
+) -> None:
     """Expose running service-backed capabilities even when provider packages are absent."""
-    runtime_services = [service for service in _load_services() if service.in_stack]
+    runtime_services = [service for service in services if service.in_stack]
     for service in runtime_services:
         for capability_type in _RUNTIME_SERVICE_CAPABILITIES.get(service.id, ()):
             providers = inventory.providers.setdefault(capability_type, [])
@@ -2545,9 +2720,15 @@ def get_v2_overview() -> V2Overview:
 
 
 @router.get("/capabilities", response_model=V2Capabilities)
-def get_v2_capabilities() -> V2Capabilities:
+def get_v2_capabilities() -> JSONResponse:
     """Get the provider-neutral Observatory surface capabilities."""
-    return _load_capabilities()
+    return JSONResponse(content=_load_capabilities().model_dump(mode="json"))
+
+
+@router.get("/surface-capabilities")
+def get_v2_surface_capabilities() -> JSONResponse:
+    """Get Observatory surface capabilities without FastAPI model wrapping."""
+    return JSONResponse(content=_load_surface_capabilities().model_dump(mode="json"))
 
 
 @router.get("/capability-inventory", response_model=V2CapabilityInventory)
@@ -2598,7 +2779,7 @@ def get_v2_runs() -> V2RunList:
     return _cached_read_model(
         "runs",
         _FAST_READ_MODEL_TTL_SECONDS,
-        lambda: V2RunList(items=load_runs()),
+        lambda: V2RunList(items=_load_runs()),
     )
 
 
