@@ -3,6 +3,7 @@ description: Phlo API - Backend service exposing phlo internals to Observatory
 category: api
 default: false
 profile: api
+phlo_dev: true
 
 build:
     context: source

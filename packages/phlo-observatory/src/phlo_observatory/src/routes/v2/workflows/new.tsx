@@ -13,7 +13,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, ReactNode } from 'react'
 
 import type {
+  V2Asset,
+  V2QualityCheck,
   V2ResourceResult,
+  V2Table,
   V2WorkflowApplyAction,
   V2WorkflowGraph,
   V2WorkflowProposal,
@@ -28,6 +31,9 @@ import {
 } from '@/components/ui/popover'
 import {
   createV2WorkflowProposal,
+  getV2AssetRecords,
+  getV2QualityRecords,
+  getV2TableRecords,
   getV2WorkflowWizard,
   runV2WorkflowAction,
 } from '@/v2/api/resources'
@@ -35,10 +41,12 @@ import { V2Page } from '@/v2/components/V2Page'
 import {
   invalidateCachedResource,
   loadCachedResource,
+  useLiveResource,
 } from '@/v2/routes/liveResource'
 
 export const Route = createFileRoute('/v2/workflows/new')({
-  component: WorkflowCanvasBuilder,
+  loader: loadWorkflowBuilderSnapshot,
+  component: V2WorkflowCanvasBuilderRoute,
 })
 
 type WorkflowNodeData = {
@@ -55,6 +63,23 @@ type WorkflowNode = {
 }
 type FormValues = Record<string, Record<string, string>>
 type WizardStep = 'info' | 'graph' | 'proposal'
+type LakehouseTemplate = {
+  id: string
+  label: string
+  summary: string
+  workflowName: string
+  domain: string
+  focusTable: V2Table | null
+  focusAsset: V2Asset | null
+  quality: Array<V2QualityCheck>
+  contributionIds: Array<string>
+}
+export type WorkflowBuilderSnapshot = {
+  assets: V2ResourceResult<Array<V2Asset>>
+  quality: V2ResourceResult<Array<V2QualityCheck>>
+  tables: V2ResourceResult<Array<V2Table>>
+  wizard: V2ResourceResult<V2WorkflowWizardPayload>
+}
 
 const STAGE_LABELS: Record<string, string> = {
   source: 'Source',
@@ -85,25 +110,60 @@ const WORKFLOW_STEPS: Array<{
   },
 ]
 
-export function WorkflowCanvasBuilder() {
-  return useWorkflowCanvasBuilder()
+export async function loadWorkflowBuilderSnapshot(): Promise<WorkflowBuilderSnapshot> {
+  const [tables, assets, quality, wizard] = await Promise.all([
+    getV2TableRecords(),
+    getV2AssetRecords(),
+    getV2QualityRecords(),
+    getV2WorkflowWizard(),
+  ])
+  return { assets, quality, tables, wizard }
 }
 
-function useWorkflowCanvasBuilder() {
+function V2WorkflowCanvasBuilderRoute() {
+  const snapshot = Route.useLoaderData()
+  return <WorkflowCanvasBuilder initialSnapshot={snapshot} />
+}
+
+export function WorkflowCanvasBuilder({
+  initialSnapshot,
+}: {
+  initialSnapshot?: WorkflowBuilderSnapshot
+}) {
+  return useWorkflowCanvasBuilder(initialSnapshot)
+}
+
+function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
+  const tableResult = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
+  const assetResult = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
+  const qualityResult = useLiveResource(
+    getV2QualityRecords,
+    120_000,
+    'v2:quality',
+  )
+  const effectiveTableResult =
+    tableResult.data === null && initialSnapshot?.tables.data
+      ? initialSnapshot.tables
+      : tableResult
+  const effectiveAssetResult =
+    assetResult.data === null && initialSnapshot?.assets.data
+      ? initialSnapshot.assets
+      : assetResult
+  const effectiveQualityResult =
+    qualityResult.data === null && initialSnapshot?.quality.data
+      ? initialSnapshot.quality
+      : qualityResult
   const [wizard, setWizard] = useState<
     V2ResourceResult<V2WorkflowWizardPayload>
-  >({
-    data: null,
-    error: null,
-  })
+  >(initialSnapshot?.wizard ?? { data: null, error: null })
   const [nodes, setNodes] = useState<Array<WorkflowNode>>([])
   const [values, setValues] = useState<FormValues>({})
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [insertIndex, setInsertIndex] = useState<number | null>(null)
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(false)
-  const [workflowName, setWorkflowName] = useState('recipe_catalog')
-  const [domain, setDomain] = useState('recipes')
+  const [workflowName, setWorkflowName] = useState('lakehouse_workflow')
+  const [domain, setDomain] = useState('lakehouse')
   const [activeStep, setActiveStep] = useState<WizardStep>('info')
   const [proposal, setProposal] = useState<
     V2ResourceResult<V2WorkflowProposal>
@@ -136,17 +196,31 @@ function useWorkflowCanvasBuilder() {
       staleMs: 60_000,
     }).then((next) => {
       if (cancelled) return
+      if (!next.data && initialSnapshot?.wizard.data) return
       applyWizardPayload(next)
     })
     return () => {
       cancelled = true
     }
-  }, [applyWizardPayload])
+  }, [applyWizardPayload, initialSnapshot?.wizard.data])
 
   const contributions = wizard.data?.contributions ?? []
   const contributionById = useMemo(
     () => new Map(contributions.map((item) => [item.id, item])),
     [contributions],
+  )
+  const lakehouseTemplates = useMemo(
+    () =>
+      buildLakehouseTemplates(
+        effectiveTableResult.data ?? [],
+        effectiveAssetResult.data ?? [],
+        effectiveQualityResult.data ?? [],
+      ),
+    [
+      effectiveAssetResult.data,
+      effectiveQualityResult.data,
+      effectiveTableResult.data,
+    ],
   )
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null
   const selectedContribution = selectedNode
@@ -173,6 +247,38 @@ function useWorkflowCanvasBuilder() {
     setSelectedNodeId(nodeId)
     setInspectorOpen(true)
     setAddMenuOpen(false)
+  }
+
+  function applyLakehouseTemplate(template: LakehouseTemplate) {
+    const contributionsById = new Map(
+      contributions.map((contribution) => [contribution.id, contribution]),
+    )
+    const templateNodes = template.contributionIds.flatMap((id, index) => {
+      const contribution = contributionsById.get(id)
+      return contribution
+        ? [
+            toCanvasNode(
+              contribution,
+              `template-${index + 1}-${contribution.id}`,
+            ),
+          ]
+        : []
+    })
+    const templateValues = templateNodes.reduce<FormValues>((current, node) => {
+      const contribution = contributionsById.get(node.data.contributionId)
+      current[node.id] = contribution
+        ? defaultsForContribution(contribution, template)
+        : {}
+      return current
+    }, {})
+    setWorkflowName(template.workflowName)
+    setDomain(template.domain)
+    setNodes(templateNodes)
+    setValues(templateValues)
+    setSelectedNodeId(templateNodes[0]?.id ?? null)
+    setInsertIndex(templateNodes.length)
+    setInspectorOpen(Boolean(templateNodes.length))
+    setActiveStep('graph')
   }
 
   function removeNode(nodeId: string) {
@@ -316,6 +422,25 @@ function useWorkflowCanvasBuilder() {
               />
             </label>
           </div>
+          <div className="phlo-workflow-template-grid">
+            {lakehouseTemplates.map((template) => (
+              <button
+                className="phlo-workflow-template-card"
+                key={template.id}
+                onClick={() => applyLakehouseTemplate(template)}
+                type="button"
+              >
+                <span>{template.domain}</span>
+                <strong>{template.label}</strong>
+                <small>{template.summary}</small>
+              </button>
+            ))}
+          </div>
+          {(tableResult.error || assetResult.error || qualityResult.error) && (
+            <div className="phlo-v2-panel-footer">
+              {tableResult.error ?? assetResult.error ?? qualityResult.error}
+            </div>
+          )}
           <div className="phlo-workflow-step-actions">
             <Button
               className="phlo-workflow-action"
@@ -907,13 +1032,20 @@ function starterValues(
   }, {})
 }
 
-function defaultsForContribution(contribution: V2WorkflowWizardContribution) {
+function defaultsForContribution(
+  contribution: V2WorkflowWizardContribution,
+  template?: LakehouseTemplate,
+) {
   return contribution.fields.reduce<Record<string, string>>(
     (current, field) => {
+      const contextualValue = template
+        ? lakehouseFieldValue(contribution.id, field, template)
+        : null
       current[field.name] =
-        field.default === undefined || field.default === null
+        contextualValue ??
+        (field.default === undefined || field.default === null
           ? defaultFieldValue(contribution.id, field)
-          : String(field.default)
+          : String(field.default))
       return current
     },
     {},
@@ -923,7 +1055,12 @@ function defaultsForContribution(contribution: V2WorkflowWizardContribution) {
 function defaultFieldValue(
   contributionId: string,
   field: V2WorkflowWizardField,
+  template?: LakehouseTemplate,
 ) {
+  if (template) {
+    const context = lakehouseFieldValue(contributionId, field, template)
+    if (context !== null) return context
+  }
   if (field.name === 'domain') return 'recipes'
   if (field.name === 'table_name') return 'recipes'
   if (field.name === 'unique_key') return 'id'
@@ -999,4 +1136,356 @@ function defaultFieldValue(
   if (field.name === 'source_relation') return "ref('clean_recipes')"
   if (field.name === 'model_name') return 'recipe_model'
   return ''
+}
+
+function buildLakehouseTemplates(
+  tables: Array<V2Table>,
+  assets: Array<V2Asset>,
+  quality: Array<V2QualityCheck>,
+): Array<LakehouseTemplate> {
+  const focusTable =
+    tables.find(
+      (table) =>
+        (table.namespace ?? '').toLowerCase() === 'gold' &&
+        tableCatalogState(table) === 'queryable',
+    ) ??
+    tables.find((table) => (table.namespace ?? '').toLowerCase() === 'gold') ??
+    tables.find((table) => tableCatalogState(table) === 'queryable') ??
+    tables[0] ??
+    null
+  const focusAsset =
+    assets.find((asset) => asset.id === focusTable?.asset_id) ??
+    assets.find((asset) => inferAssetStage(asset) === 'gold') ??
+    assets[0] ??
+    null
+  const domain = inferDomain(focusTable, focusAsset)
+  const focusChecks = quality.filter(
+    (check) => check.asset_id === focusAsset?.id,
+  )
+  const hasObservedLakehouse = tables.length > 0 || assets.length > 0
+
+  if (!hasObservedLakehouse) {
+    return [
+      {
+        id: 'starter-observe',
+        label: 'Observe current lakehouse',
+        summary: 'Create a source, transform, quality, and catalog workflow.',
+        workflowName: 'lakehouse_observability',
+        domain: 'lakehouse',
+        focusTable: null,
+        focusAsset: null,
+        quality: [],
+        contributionIds: [
+          'dlt.rest-api-source',
+          'dbt.transform',
+          'pandera.quality-checks',
+          'dagster.orchestration',
+          'openmetadata.catalog',
+        ],
+      },
+    ]
+  }
+
+  return [
+    {
+      id: 'govern-gold-table',
+      label: `Govern ${focusTable?.name ?? focusAsset?.name ?? 'gold table'}`,
+      summary: `${focusChecks.length} checks observed; generate tests, orchestration, and catalog metadata.`,
+      workflowName: `${domain}_governed_release`,
+      domain,
+      focusTable,
+      focusAsset,
+      quality: focusChecks,
+      contributionIds: [
+        'sling.replication-source',
+        'dbt.transform',
+        'pandera.quality-checks',
+        'dagster.orchestration',
+        'openmetadata.catalog',
+      ],
+    },
+    {
+      id: 'publish-serving',
+      label: 'Publish serving surface',
+      summary:
+        'Start from the active table and produce catalog/API-facing metadata.',
+      workflowName: `${domain}_serving_catalog`,
+      domain,
+      focusTable,
+      focusAsset,
+      quality: focusChecks,
+      contributionIds: [
+        'sling.replication-source',
+        'dbt.transform',
+        'dagster.orchestration',
+        'openmetadata.catalog',
+      ],
+    },
+    {
+      id: 'new-source-to-quality',
+      label: 'Add source with quality gate',
+      summary:
+        'Use observed field names as defaults for a new ingested source.',
+      workflowName: `${domain}_source_quality`,
+      domain,
+      focusTable,
+      focusAsset,
+      quality: focusChecks,
+      contributionIds: [
+        'dlt.rest-api-source',
+        'dbt.transform',
+        'pandera.quality-checks',
+        'dagster.orchestration',
+      ],
+    },
+  ]
+}
+
+function lakehouseFieldValue(
+  contributionId: string,
+  field: V2WorkflowWizardField,
+  template: LakehouseTemplate,
+): string | null {
+  const table = template.focusTable
+  const asset = template.focusAsset
+  const tableName = table?.name ?? asset?.name ?? template.domain
+  const relation = table?.id ?? `${template.domain}.${tableName}`
+  const idColumns = readStringList(table?.metadata.id_columns)
+  const primaryKey =
+    idColumns[0] ??
+    inferPrimaryKeyFromName(tableName) ??
+    (template.domain === 'keystone' ? 'export_id' : 'id')
+  const sourceRelation = relation.includes('.')
+    ? relation
+    : `${template.domain}.${relation}`
+  const cleanModel = tableName.startsWith('clean_')
+    ? tableName
+    : `clean_${tableName}`
+  const columns = tableColumnProfiles(table)
+  const columnNames = columns.map((column) => column.name)
+  const numericColumnNames = columns
+    .filter((column) =>
+      /int|double|float|decimal|numeric|bigint/i.test(column.type),
+    )
+    .map((column) => column.name)
+  const timestampColumn =
+    columnNames.find((name) =>
+      /updated_at|created_at|timestamp|_at$/i.test(name),
+    ) ??
+    readString(table?.metadata.updated_at) ??
+    null
+  const groupColumn =
+    columnNames.find((name) =>
+      /assay|type|group|category|status/i.test(name),
+    ) ??
+    columnNames.find((name) => name !== primaryKey) ??
+    primaryKey
+  const metricColumn =
+    numericColumnNames.find((name) => !/_id$/i.test(name)) ??
+    numericColumnNames[0] ??
+    null
+
+  if (field.name === 'domain') return template.domain
+  if (field.name === 'source_name') return 'DUCKDB'
+  if (field.name === 'project_name') return template.workflowName
+  if (field.name === 'table_name') return tableName
+  if (field.name === 'target_table') return tableName
+  if (field.name === 'source_table') return tableName
+  if (field.name === 'source_stream') return sourceRelation
+  if (field.name === 'source_relation') return sourceRelation
+  if (field.name === 'staging_source_relation') return sourceRelation
+  if (field.name === 'staging_model_name') return `stg_${tableName}`
+  if (field.name === 'filter_model_name') return `filtered_${tableName}`
+  if (field.name === 'dedupe_model_name') return cleanModel
+  if (field.name === 'test_model_name') return cleanModel
+  if (field.name === 'model_name') {
+    return contributionId === 'dbt.basic-model'
+      ? `stg_${tableName}`
+      : cleanModel
+  }
+  if (field.name === 'unique_key') return primaryKey
+  if (field.name === 'primary_key') return primaryKey
+  if (field.name === 'partition_by') return primaryKey
+  if (field.name === 'order_by') return timestampColumn ?? primaryKey
+  if (field.name === 'update_key') return timestampColumn ?? primaryKey
+  if (field.name === 'fields') {
+    return columns.length
+      ? columns
+          .map((column) => `${column.name}:${dbTypeToFieldType(column.type)}`)
+          .join('\n')
+      : `${primaryKey}:str`
+  }
+  if (field.name === 'renames') return ''
+  if (field.name === 'casts') {
+    return columns
+      .filter((column) => column.type)
+      .slice(0, 8)
+      .map((column) => `${column.name}:${dbTypeToCastType(column.type)}`)
+      .join('\n')
+  }
+  if (field.name === 'where') {
+    return metricColumn ? `${metricColumn} >= 0` : `${primaryKey} is not null`
+  }
+  if (field.name === 'group_by') return groupColumn
+  if (field.name === 'metrics') {
+    return metricColumn
+      ? `${tableName}_rows:count(*)\navg_${metricColumn}:avg(${metricColumn})`
+      : `${tableName}_rows:count(*)`
+  }
+  if (field.name === 'check_name') return `${tableName}_quality`
+  if (field.name === 'not_null_columns') {
+    return [
+      primaryKey,
+      ...requiredColumnsForQuality(template.quality),
+      ...columnNames,
+    ]
+      .filter(Boolean)
+      .slice(0, 6)
+      .join('\n')
+  }
+  if (field.name === 'range_checks')
+    return rangeChecksForDomain(template.domain)
+  if (field.name === 'freshness_column') return timestampColumn ?? ''
+  if (field.name === 'min_rows') {
+    const rows = table?.metadata.rows ?? table?.metadata.records
+    return typeof rows === 'number' && rows > 0
+      ? String(Math.min(rows, 1000))
+      : '1'
+  }
+  if (field.name === 'job_name') return `${template.workflowName}_job`
+  if (field.name === 'asset_group') return asset?.group ?? template.domain
+  if (field.name === 'schema') return table?.namespace ?? template.domain
+  if (field.name === 'owner')
+    return readString(asset?.metadata.owner) ?? 'data-platform'
+  if (field.name === 'tags') {
+    return [
+      `domain.${template.domain}`,
+      table?.namespace ? `stage.${table.namespace}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+  if (field.name === 'description') {
+    return `Catalog metadata for ${tableName}, generated from the observed ${template.domain} lakehouse.`
+  }
+  return null
+}
+
+function tableColumnProfiles(
+  table: V2Table | null,
+): Array<{ name: string; type: string }> {
+  const columns = table?.metadata.columns
+  if (!Array.isArray(columns)) return []
+  return columns.flatMap((column) => {
+    if (
+      typeof column === 'object' &&
+      column !== null &&
+      'name' in column &&
+      typeof column.name === 'string'
+    ) {
+      return [
+        {
+          name: column.name,
+          type:
+            'type' in column && typeof column.type === 'string'
+              ? column.type
+              : 'varchar',
+        },
+      ]
+    }
+    return []
+  })
+}
+
+function dbTypeToFieldType(type: string): string {
+  const lower = type.toLowerCase()
+  if (/int|bigint|smallint/.test(lower)) return 'int'
+  if (/double|float|decimal|numeric|real/.test(lower)) return 'float'
+  if (/bool/.test(lower)) return 'bool'
+  if (/date|time/.test(lower)) return 'datetime'
+  return 'str'
+}
+
+function dbTypeToCastType(type: string): string {
+  const lower = type.toLowerCase()
+  if (/bigint/.test(lower)) return 'bigint'
+  if (/int|smallint/.test(lower)) return 'integer'
+  if (/double|float|decimal|numeric|real/.test(lower)) return 'double'
+  if (/bool/.test(lower)) return 'boolean'
+  if (/timestamp/.test(lower)) return 'timestamp'
+  if (/date/.test(lower)) return 'date'
+  return 'varchar'
+}
+
+function tableCatalogState(table: V2Table): string {
+  const state = String(table.metadata.catalog_state ?? '').toLowerCase()
+  if (state === 'queryable') return 'queryable'
+  if (table.metadata.catalog_present === true) return 'queryable'
+  return 'registered'
+}
+
+function inferDomain(table: V2Table | null, asset: V2Asset | null): string {
+  const raw = [
+    table?.id,
+    table?.name,
+    table?.namespace,
+    asset?.id,
+    asset?.group,
+    asset?.metadata.domain,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  if (raw.includes('keystone')) return 'keystone'
+  const namespace = table?.namespace?.toLowerCase()
+  if (namespace && !['gold', 'silver', 'bronze', 'raw'].includes(namespace)) {
+    return namespace.replace(/[^a-z0-9_]+/g, '_')
+  }
+  return 'lakehouse'
+}
+
+function inferAssetStage(asset: V2Asset): string {
+  const raw = [asset.group, asset.id, asset.name, asset.metadata.stage]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  if (raw.includes('gold') || raw.includes('analytics')) return 'gold'
+  if (raw.includes('silver')) return 'silver'
+  if (raw.includes('bronze') || raw.includes('raw')) return 'bronze'
+  if (raw.includes('serving')) return 'serving'
+  return 'asset'
+}
+
+function inferPrimaryKeyFromName(name: string): string | null {
+  const lower = name.toLowerCase()
+  if (lower.includes('export')) return 'export_id'
+  if (lower.includes('experiment')) return 'experiment_id'
+  if (lower.includes('plate')) return 'plate_id'
+  if (lower.includes('sample')) return 'sample_id'
+  return null
+}
+
+function requiredColumnsForQuality(
+  quality: Array<V2QualityCheck>,
+): Array<string> {
+  return quality.flatMap((check) => readStringList(check.metadata.columns))
+}
+
+function rangeChecksForDomain(domain: string): string {
+  if (domain === 'keystone') {
+    return 'total_records:0:100000000\nfailed_records:0:1000000\nquality_score:0:1'
+  }
+  return 'row_count:1:100000000'
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function readStringList(value: unknown): Array<string> {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string')
+  }
+  if (typeof value === 'string' && value.trim()) return [value]
+  return []
 }

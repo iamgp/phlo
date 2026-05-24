@@ -586,6 +586,130 @@ def test_v2_operations_endpoint_includes_journal_records(
     assert payload["items"][0]["target"]["id"] == "phlo-api"
 
 
+def test_v2_manifest_records_enrich_lakehouse_surfaces(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(v2, "_load_capability_registry", lambda: None)
+    state_dir = tmp_path / ".phlo" / "observatory-v2"
+    state_dir.mkdir(parents=True)
+    (state_dir / "lakehouse_manifest.json").write_text(
+        json.dumps(
+            {
+                "assets": [
+                    {
+                        "id": "gold/keystone_release_metrics",
+                        "name": "gold/keystone_release_metrics",
+                        "group": "gold",
+                        "description": "Release analytics generated from Keystone runs.",
+                        "kinds": ["table", "analytics"],
+                    }
+                ],
+                "tables": [
+                    {
+                        "id": "gold.keystone_release_metrics",
+                        "name": "keystone_release_metrics",
+                        "namespace": "gold",
+                        "asset_id": "gold/keystone_release_metrics",
+                        "format": "duckdb",
+                        "metadata": {
+                            "records": 2,
+                            "columns": [
+                                {"name": "experiment_id", "type": "varchar"},
+                                {"name": "package_size_mb", "type": "double"},
+                            ],
+                            "preview_rows": [
+                                {
+                                    "experiment_id": "EXP-0041",
+                                    "package_size_mb": 2.35,
+                                },
+                                {
+                                    "experiment_id": "EXP-0048",
+                                    "package_size_mb": 3.03,
+                                },
+                            ],
+                        },
+                    }
+                ],
+                "quality": [
+                    {
+                        "id": "gold/keystone_release_metrics:freshness",
+                        "name": "freshness",
+                        "asset_id": "gold/keystone_release_metrics",
+                        "status": "passing",
+                        "blocking": True,
+                    }
+                ],
+                "operations": [
+                    {
+                        "id": "keystone:package:EXP-0041",
+                        "name": "Package EXP-0041",
+                        "kind": "pipeline.package",
+                        "status": "succeeded",
+                        "health": {"state": "ok"},
+                        "target": {
+                            "kind": "asset",
+                            "id": "gold/keystone_release_metrics",
+                            "label": "gold/keystone_release_metrics",
+                        },
+                    }
+                ],
+                "runs": [
+                    {
+                        "id": "keystone-run-0041",
+                        "name": "Keystone export catalog",
+                        "status": "succeeded",
+                        "started_at": "2026-05-17T20:00:25+01:00",
+                        "completed_at": "2026-05-17T20:03:02+01:00",
+                        "duration_seconds": 157,
+                        "assets": [
+                            {
+                                "kind": "asset",
+                                "id": "gold/keystone_release_metrics",
+                                "label": "gold/keystone_release_metrics",
+                            }
+                        ],
+                    }
+                ],
+                "logs": [
+                    {
+                        "id": "keystone-log-1",
+                        "timestamp": "2026-05-17T20:03:02+01:00",
+                        "level": "info",
+                        "message": "Experiment package created",
+                        "source": "keystone_pipeline",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    v2._clear_read_model_cache()
+
+    client = TestClient(app)
+    assets = client.get("/api/observatory/v2/assets").json()["items"]
+    tables = client.get("/api/observatory/v2/tables").json()["items"]
+    quality = client.get("/api/observatory/v2/quality").json()["items"]
+    operations = client.get("/api/observatory/v2/operations").json()["items"]
+    runs = client.get("/api/observatory/v2/runs").json()["items"]
+    logs = client.get("/api/observatory/v2/logs").json()["items"]
+    preview = client.get("/api/observatory/v2/table-preview/gold.keystone_release_metrics").json()
+    capabilities = client.get("/api/observatory/v2/capabilities").json()
+
+    assert assets[0]["id"] == "gold/keystone_release_metrics"
+    assert tables[0]["metadata"]["records"] == 2
+    assert quality[0]["status"] == "passing"
+    assert operations[0]["kind"] == "pipeline.package"
+    assert runs[0]["id"] == "keystone-run-0041"
+    assert logs[0]["source"] == "keystone_pipeline"
+    assert preview["rows"][0]["experiment_id"] == "EXP-0041"
+    assert capabilities["features"]["data"] is True
+    assert capabilities["features"]["assets"] is True
+    assert capabilities["features"]["issues"] is True
+    assert capabilities["features"]["runs"] is True
+
+
 def test_v2_generic_skipped_action_records_operation(
     monkeypatch,
     tmp_path: Path,

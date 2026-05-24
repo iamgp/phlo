@@ -1,15 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { GitBranch, GitCompare, History, Plus, Table2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  Database,
+  GitBranch,
+  GitCompare,
+  History,
+  Plus,
+  Table2,
+} from 'lucide-react'
 import { useEffect, useReducer } from 'react'
+import type { ReactNode } from 'react'
 
 import type {
+  V2Branch,
   V2BranchDetail,
-  V2ResourceItem,
+  V2Operation,
   V2ResourceResult,
+  V2Table,
 } from '@/v2/api/types'
 import {
   getV2BranchDetail,
-  getV2Branches,
+  getV2BranchRecords,
   runV2BranchAction,
 } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
@@ -25,7 +36,7 @@ export const Route = createFileRoute('/v2/branches')({
 type BranchesState = {
   actionMessage: string | null
   activePanel: BranchPanel
-  createdBranches: Array<V2ResourceItem>
+  createdBranches: Array<V2Branch>
   detail: V2ResourceResult<V2BranchDetail>
   selectedId: string | null
 }
@@ -35,7 +46,7 @@ type BranchesAction =
   | { type: 'activePanel'; panel: BranchPanel }
   | { type: 'detail'; detail: V2ResourceResult<V2BranchDetail> }
   | { type: 'select'; selectedId: string | null }
-  | { type: 'branchCreated'; branch: V2ResourceItem; message: string | null }
+  | { type: 'branchCreated'; branch: V2Branch; message: string | null }
 
 function branchesReducer(
   state: BranchesState,
@@ -61,13 +72,13 @@ function branchesReducer(
 }
 
 export function Branches() {
-  const result = useLiveResource(getV2Branches, 60_000, 'v2:branches')
+  const result = useLiveResource(getV2BranchRecords, 60_000, 'v2:branches')
   const [
     { actionMessage, activePanel, createdBranches, detail, selectedId },
     dispatch,
   ] = useReducer(branchesReducer, {
     actionMessage: null,
-    activePanel: 'contents',
+    activePanel: 'compare',
     createdBranches: [],
     detail: {
       data: null,
@@ -75,24 +86,31 @@ export function Branches() {
     },
     selectedId: null,
   })
-  const branches = mergeBranches(result.data ?? [], createdBranches)
+  const branches = mergeBranches(createdBranches, result.data ?? [])
   const selected =
     branches.find((branch) => branch.id === selectedId) ??
-    branches.find((branch) => branch.status === 'current') ??
+    branches.find((branch) => branch.current) ??
     branches[0]
+  const selectedCompare = detail.data?.compare ?? branchCompare(selected)
+  const selectedTableCount =
+    detail.data?.tables.length ?? metadataNumber(selected, 'tables')
+  const selectedEvidenceCount = detail.data?.commits.length ?? 0
 
   useEffect(() => {
-    if (!selected) return
+    const branchId = selected?.id
+    if (!branchId) {
+      dispatch({ type: 'detail', detail: { data: null, error: null } })
+      return
+    }
     let cancelled = false
-    void getV2BranchDetail({ data: { branchName: selected.id } }).then(
-      (next) => {
-        if (!cancelled) dispatch({ type: 'detail', detail: next })
-      },
-    )
+    dispatch({ type: 'detail', detail: { data: null, error: null } })
+    void getV2BranchDetail({ data: { branchName: branchId } }).then((next) => {
+      if (!cancelled) dispatch({ type: 'detail', detail: next })
+    })
     return () => {
       cancelled = true
     }
-  }, [selected])
+  }, [selected?.id])
 
   return (
     <V2Page
@@ -131,12 +149,11 @@ export function Branches() {
                     dispatch({
                       type: 'branchCreated',
                       branch: {
+                        current: false,
                         id: branchName,
-                        kind: 'branch',
                         metadata: { source: 'local' },
                         name: branchName,
-                        status: 'branch',
-                        summary: 'Local Observatory branch state',
+                        protected: false,
                       },
                       message,
                     })
@@ -164,11 +181,16 @@ export function Branches() {
               <div className="phlo-v2-row-main">
                 <div className="phlo-v2-row-title">{branch.name}</div>
                 <div className="phlo-v2-row-meta">
-                  {branch.summary ?? branch.kind}
+                  {branch.current ? 'Current branch' : 'Review branch'}
+                  {branchDelta(branch) && <> · {branchDelta(branch)}</>}
                 </div>
               </div>
               <span className="phlo-v2-pill">
-                {branch.status ?? branch.kind}
+                {branch.current
+                  ? 'current'
+                  : branch.protected
+                    ? 'protected'
+                    : 'branch'}
               </span>
             </button>
           ))}
@@ -177,8 +199,11 @@ export function Branches() {
           <div className="phlo-v2-inspector-label">Change controls</div>
           <h2>{selected?.name ?? 'No branch selected'}</h2>
           <p>
-            Branch state, compare summary, and commit history for the selected
-            catalog branch.
+            {detail.data
+              ? branchNarrative(detail.data)
+              : selected
+                ? branchNarrativeFromBranch(selected)
+                : 'Branch state, compare summary, and commit history for the selected catalog branch.'}
           </p>
           <div className="phlo-v2-action-row">
             <button
@@ -212,19 +237,29 @@ export function Branches() {
               Contents
             </button>
           </div>
-          {detail.data && (
+          {selected && (
             <>
               <dl className="phlo-v2-facts">
-                <dt>Contents</dt>
-                <dd>{detail.data.contents.length}</dd>
-                <dt>Commits</dt>
-                <dd>{detail.data.commits.length}</dd>
+                <dt>Tables</dt>
+                <dd>{selectedTableCount}</dd>
+                <dt>Evidence</dt>
+                <dd>{selectedEvidenceCount}</dd>
                 <dt>Added</dt>
-                <dd>{detail.data.compare.added ?? 0}</dd>
+                <dd>{selectedCompare.added ?? 0}</dd>
                 <dt>Changed</dt>
-                <dd>{detail.data.compare.changed ?? 0}</dd>
+                <dd>{selectedCompare.changed ?? 0}</dd>
+                <dt>Ahead / behind</dt>
+                <dd>
+                  {selectedCompare.ahead ?? 0} / {selectedCompare.behind ?? 0}
+                </dd>
+                <dt>Protected</dt>
+                <dd>{selected.protected ? 'yes' : 'no'}</dd>
               </dl>
-              <BranchPanelView active={activePanel} detail={detail.data} />
+              {detail.data ? (
+                <BranchPanelView active={activePanel} detail={detail.data} />
+              ) : (
+                <BranchPanelFallback active={activePanel} branch={selected} />
+              )}
             </>
           )}
           {detail.error && (
@@ -245,10 +280,10 @@ export function Branches() {
 type BranchPanel = 'contents' | 'compare' | 'history'
 
 function mergeBranches(
-  left: Array<V2ResourceItem>,
-  right: Array<V2ResourceItem>,
-): Array<V2ResourceItem> {
-  const merged = new Map<string, V2ResourceItem>()
+  left: Array<V2Branch>,
+  right: Array<V2Branch>,
+): Array<V2Branch> {
+  const merged = new Map<string, V2Branch>()
   for (const branch of [...left, ...right]) {
     merged.set(branch.id, branch)
   }
@@ -264,13 +299,25 @@ function BranchPanelView({
 }) {
   if (active === 'compare') {
     return (
-      <div className="phlo-v2-detail-list">
-        {(['added', 'changed', 'removed'] as const).map((key) => (
-          <div className="phlo-v2-mini-row" key={key}>
-            <span>{key}</span>
-            <small>{detail.compare[key] ?? 0}</small>
-          </div>
-        ))}
+      <div className="phlo-v2-branch-review">
+        <div className="phlo-v2-command-strip">
+          <BranchMetric
+            icon={<Plus className="size-4" />}
+            label="Added"
+            value={detail.compare.added ?? 0}
+          />
+          <BranchMetric
+            icon={<GitCompare className="size-4" />}
+            label="Changed"
+            value={detail.compare.changed ?? 0}
+          />
+          <BranchMetric
+            icon={<AlertTriangle className="size-4" />}
+            label="Removed"
+            value={detail.compare.removed ?? 0}
+          />
+        </div>
+        <TableEvidence tables={detail.tables} />
       </div>
     )
   }
@@ -279,18 +326,11 @@ function BranchPanelView({
     return (
       <div className="phlo-v2-detail-list">
         {detail.commits.length > 0 ? (
-          detail.commits.slice(0, 8).map((commit) => (
-            <div className="phlo-v2-mini-row" key={commit.id}>
-              <span>{commit.name}</span>
-              <small>
-                {[commit.status, commit.completed_at]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </small>
-            </div>
-          ))
+          detail.commits
+            .slice(0, 8)
+            .map((commit) => <CommitRow commit={commit} key={commit.id} />)
         ) : (
-          <p>No commit history returned yet.</p>
+          <p>No operation evidence returned for this branch yet.</p>
         )}
       </div>
     )
@@ -298,13 +338,172 @@ function BranchPanelView({
 
   return (
     <div className="phlo-v2-detail-list">
-      {detail.contents.slice(0, 8).map((entry) => (
-        <div className="phlo-v2-mini-row" key={entry.id}>
-          <span>{entry.label}</span>
-          <small>{entry.kind}</small>
-        </div>
+      {detail.tables.slice(0, 8).map((table) => (
+        <TableRow key={table.id} table={table} />
       ))}
-      {detail.contents.length === 0 && <p>No branch contents returned yet.</p>}
+      {detail.tables.length === 0 && <p>No branch contents returned yet.</p>}
     </div>
   )
+}
+
+function BranchPanelFallback({
+  active,
+  branch,
+}: {
+  active: BranchPanel
+  branch: V2Branch
+}) {
+  if (active === 'compare') {
+    const compare = branchCompare(branch)
+    return (
+      <div className="phlo-v2-branch-review">
+        <div className="phlo-v2-command-strip">
+          <BranchMetric
+            icon={<Plus className="size-4" />}
+            label="Added"
+            value={compare.added ?? 0}
+          />
+          <BranchMetric
+            icon={<GitCompare className="size-4" />}
+            label="Changed"
+            value={compare.changed ?? 0}
+          />
+          <BranchMetric
+            icon={<AlertTriangle className="size-4" />}
+            label="Removed"
+            value={compare.removed ?? 0}
+          />
+        </div>
+        <p>Loading table-level evidence for this branch.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="phlo-v2-detail-list">
+      <p>Loading branch detail for this panel.</p>
+    </div>
+  )
+}
+
+function BranchMetric({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode
+  label: string
+  value: string | number
+}) {
+  return (
+    <div className="phlo-v2-command-metric">
+      {icon}
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function TableEvidence({ tables }: { tables: Array<V2Table> }) {
+  return (
+    <div className="phlo-v2-detail-list">
+      {tables.slice(0, 6).map((table) => (
+        <TableRow key={table.id} table={table} />
+      ))}
+      {tables.length === 0 && <p>No tables are attached to this branch.</p>}
+    </div>
+  )
+}
+
+function TableRow({ table }: { table: V2Table }) {
+  return (
+    <div className="phlo-v2-mini-row">
+      <span>
+        <Database className="size-3.5" />
+        {table.name}
+      </span>
+      <small>
+        {[table.namespace, table.format, `${tableRecordCount(table)} records`]
+          .filter(Boolean)
+          .join(' · ')}
+      </small>
+    </div>
+  )
+}
+
+function CommitRow({ commit }: { commit: V2Operation }) {
+  return (
+    <div className="phlo-v2-mini-row">
+      <span>{commit.name}</span>
+      <small>
+        {[commit.status, commit.completed_at, operationReason(commit)]
+          .filter(Boolean)
+          .join(' · ')}
+      </small>
+    </div>
+  )
+}
+
+function branchNarrative(detail: V2BranchDetail): string {
+  const changed = detail.compare.changed ?? 0
+  const added = detail.compare.added ?? 0
+  const removed = detail.compare.removed ?? 0
+  const direction =
+    detail.branch.current || detail.branch.protected
+      ? 'Protected baseline'
+      : 'Review candidate'
+  return `${direction}: ${detail.tables.length} tables, ${changed} changed, ${added} added, ${removed} removed.`
+}
+
+function branchNarrativeFromBranch(branch: V2Branch): string {
+  const compare = branchCompare(branch)
+  const direction =
+    branch.current || branch.protected
+      ? 'Protected baseline'
+      : 'Review candidate'
+  return `${direction}: ${metadataNumber(branch, 'tables')} tables, ${compare.changed ?? 0} changed, ${compare.added ?? 0} added, ${compare.removed ?? 0} removed.`
+}
+
+function branchDelta(branch: V2Branch): string | null {
+  const ahead = metadataNumber(branch, 'ahead')
+  const behind = metadataNumber(branch, 'behind')
+  const changed = metadataNumber(branch, 'changed')
+  if (ahead || behind) return `${ahead} ahead / ${behind} behind`
+  if (changed) return `${changed} changed`
+  return null
+}
+
+function branchCompare(branch?: V2Branch): Record<string, number> {
+  if (!branch) return {}
+  return {
+    added: metadataNumber(branch, 'added'),
+    changed: metadataNumber(branch, 'changed'),
+    removed: metadataNumber(branch, 'removed'),
+    ahead: metadataNumber(branch, 'ahead'),
+    behind: metadataNumber(branch, 'behind'),
+  }
+}
+
+function tableRecordCount(table: V2Table): string {
+  const records = table.metadata.records
+  if (typeof records === 'number' || typeof records === 'string') {
+    return String(records)
+  }
+  return 'n/a'
+}
+
+function metadataNumber(item: V2Branch | undefined, key: string): number {
+  if (!item) return 0
+  const value = item.metadata[key]
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10)
+    return Number.isNaN(parsed) ? 0 : parsed
+  }
+  return 0
+}
+
+function operationReason(operation: V2Operation): string | null {
+  const reason = operation.metadata.failure_reason ?? operation.health.message
+  return typeof reason === 'string' && reason ? reason : null
 }

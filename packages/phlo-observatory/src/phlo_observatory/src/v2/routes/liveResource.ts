@@ -15,10 +15,16 @@ type CachedEntry<T> = {
 }
 
 type LiveRefreshMode = 'preserve' | 'reset'
+type PersistedEntry<T> = {
+  expiresAt: number
+  result: V2ResourceResult<T>
+}
 
 const resourceCache = new Map<string, CachedEntry<unknown>>()
 const resourceKeys = new WeakMap<object, string>()
-const cacheVersion = '2026-05-18-observatory-runtime-v4'
+const cacheVersion = '2026-05-18-observatory-runtime-v5'
+const persistentCachePrefix = `phlo-observatory:${cacheVersion}`
+const minPersistentTtlMs = 5 * 60_000
 let nextResourceKey = 0
 
 export function useLiveResource<T>(
@@ -54,7 +60,7 @@ export function useLiveResource<T>(
       }
     }
 
-    void refresh(true, 'reset')
+    void refresh(true)
     const interval = window.setInterval(() => {
       void refresh(true)
     }, intervalMs)
@@ -72,10 +78,20 @@ export function useLiveResource<T>(
   return result
 }
 
-function readCachedResource<T>(key: string): V2ResourceResult<T> | null {
+export function readCachedResource<T>(key: string): V2ResourceResult<T> | null {
   const versionedKey = `${cacheVersion}:${key}`
   const cached = resourceCache.get(versionedKey) as CachedEntry<T> | undefined
-  return cached?.result ?? null
+  if (cached?.result) return cached.result
+
+  const persisted = readPersistentResource<T>(key)
+  if (!persisted) return null
+
+  resourceCache.set(versionedKey, {
+    expiresAt: persisted.expiresAt,
+    promise: null,
+    result: persisted.result,
+  })
+  return persisted.result
 }
 
 export async function loadCachedResource<T>(
@@ -90,7 +106,16 @@ export async function loadCachedResource<T>(
   } = {},
 ): Promise<V2ResourceResult<T>> {
   const versionedKey = `${cacheVersion}:${key}`
-  const cached = resourceCache.get(versionedKey) as CachedEntry<T> | undefined
+  const persisted = readPersistentResource<T>(key)
+  const cached =
+    (resourceCache.get(versionedKey) as CachedEntry<T> | undefined) ??
+    (persisted
+      ? {
+          expiresAt: persisted.expiresAt,
+          promise: null,
+          result: persisted.result,
+        }
+      : undefined)
   const now = Date.now()
 
   if (!force && cached?.result && cached.expiresAt > now) {
@@ -104,11 +129,13 @@ export async function loadCachedResource<T>(
 
     return Promise.resolve(loaded).then((nextResult) => {
       if (isCacheableResult(nextResult)) {
+        const expiresAt = Date.now() + staleMs
         resourceCache.set(versionedKey, {
-          expiresAt: Date.now() + staleMs,
+          expiresAt,
           promise: null,
           result: nextResult,
         })
+        writePersistentResource(key, nextResult, expiresAt, staleMs)
       } else if (cached?.result) {
         resourceCache.set(versionedKey, {
           expiresAt: Date.now(),
@@ -137,7 +164,7 @@ async function browserFallbackResource<T>(
   if (typeof window === 'undefined') return { data: null, error: null }
   const base = browserApiBase()
   const endpoint = fallbackEndpoint(key)
-  if (!base || !endpoint) return { data: null, error: null }
+  if (base === null || !endpoint) return { data: null, error: null }
 
   try {
     const controller = new AbortController()
@@ -167,19 +194,18 @@ async function browserFallbackResource<T>(
 }
 
 function browserApiBase(): string | null {
-  return (
-    window.__PHLO_API_BROWSER_URL__ ||
+  const configured =
+    window.__PHLO_API_BROWSER_URL__ ??
     document.querySelector<HTMLMetaElement>('meta[name="phlo-api-browser-url"]')
-      ?.content ||
-    null
-  )
+      ?.content
+  return configured ?? null
 }
 
 function fallbackEndpoint(key: string): string | null {
   const prefix = '/api/observatory/v2'
   const endpoints: Record<string, string> = {
     'v2:overview': `${prefix}/overview`,
-    'v2:capabilities': `${prefix}/capabilities`,
+    'v2:capabilities': `${prefix}/surface-capabilities`,
     'v2:services': `${prefix}/services`,
     'v2:operations': `${prefix}/operations`,
     'v2:runs': `${prefix}/runs`,
@@ -225,7 +251,9 @@ function normalizeBranchFallback(value: unknown): Record<string, unknown> {
   return {
     id,
     name,
+    current,
     kind: 'branch',
+    protected: branch.protected === true,
     status: current ? 'current' : 'branch',
     summary: current ? 'Current branch' : 'Branch',
     metadata: isRecord(branch.metadata) ? branch.metadata : {},
@@ -242,6 +270,7 @@ function safeString(value: unknown): string | null {
 
 export function invalidateCachedResource(key: string): void {
   resourceCache.delete(`${cacheVersion}:${key}`)
+  removePersistentResource(key)
 }
 
 export function invalidateCachedResources(keys: Array<string>): void {
@@ -279,6 +308,78 @@ function stableResourceKey(load: object): string {
   nextResourceKey += 1
   resourceKeys.set(load, key)
   return key
+}
+
+function persistentStorage(): Storage | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.sessionStorage ?? null
+  } catch {
+    return null
+  }
+}
+
+function persistentKey(key: string): string {
+  return `${persistentCachePrefix}:${key}`
+}
+
+function readPersistentResource<T>(key: string): PersistedEntry<T> | null {
+  const storage = persistentStorage()
+  if (!storage) return null
+
+  try {
+    const raw = storage.getItem(persistentKey(key))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as PersistedEntry<T>
+    if (!parsed || parsed.expiresAt <= Date.now()) {
+      storage.removeItem(persistentKey(key))
+      return null
+    }
+    if (!isCacheableResult(parsed.result)) {
+      storage.removeItem(persistentKey(key))
+      return null
+    }
+    return parsed
+  } catch {
+    storage.removeItem(persistentKey(key))
+    return null
+  }
+}
+
+function writePersistentResource<T>(
+  key: string,
+  result: V2ResourceResult<T>,
+  memoryExpiresAt: number,
+  staleMs: number,
+): void {
+  const storage = persistentStorage()
+  if (!storage) return
+
+  const expiresAt = Math.max(
+    memoryExpiresAt,
+    Date.now() + Math.max(staleMs, minPersistentTtlMs),
+  )
+  try {
+    storage.setItem(
+      persistentKey(key),
+      JSON.stringify({
+        expiresAt,
+        result,
+      } satisfies PersistedEntry<T>),
+    )
+  } catch {
+    removePersistentResource(key)
+  }
+}
+
+function removePersistentResource(key: string): void {
+  const storage = persistentStorage()
+  if (!storage) return
+  try {
+    storage.removeItem(persistentKey(key))
+  } catch {
+    // Ignore storage failures; the in-memory cache has already been cleared.
+  }
 }
 
 export function readMetric(
