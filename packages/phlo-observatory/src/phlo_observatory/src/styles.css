@@ -728,6 +728,54 @@ textarea.phlo-workflow-input {
   font-weight: 720;
 }
 
+.phlo-workflow-template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--v2-sheet-border);
+}
+
+.phlo-workflow-template-card {
+  display: grid;
+  gap: 0.45rem;
+  min-height: 9.25rem;
+  border: 0;
+  border-right: 1px solid var(--v2-sheet-border);
+  background: transparent;
+  color: var(--v2-text);
+  padding: 1rem;
+  text-align: left;
+}
+
+.phlo-workflow-template-card:last-child {
+  border-right: 0;
+}
+
+.phlo-workflow-template-card:hover {
+  background: var(--v2-tile);
+}
+
+.phlo-workflow-template-card span,
+.phlo-workflow-template-card small {
+  overflow: hidden;
+  color: var(--v2-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+.phlo-workflow-template-card span {
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.phlo-workflow-template-card strong {
+  color: var(--v2-text);
+  font-size: 0.98rem;
+  font-weight: 780;
+  line-height: 1.2;
+}
+
 .phlo-workflow-step-actions {
   display: flex;
   justify-content: flex-end;
@@ -1129,8 +1177,18 @@ html[data-phlo-v2-theme='dark'] .phlo-workflow-add-menu-surface {
   }
 
   .phlo-workflow-stepper,
-  .phlo-workflow-info-grid {
+  .phlo-workflow-info-grid,
+  .phlo-workflow-template-grid {
     grid-template-columns: 1fr;
+  }
+
+  .phlo-workflow-template-card {
+    border-right: 0;
+    border-bottom: 1px solid var(--v2-sheet-border);
+  }
+
+  .phlo-workflow-template-card:last-child {
+    border-bottom: 0;
   }
 
   .phlo-workflow-add-menu-list {

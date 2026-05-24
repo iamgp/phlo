@@ -55,17 +55,19 @@ function apiUnavailable<T>(error: unknown): V2ResourceResult<T> {
 
 function browserApiBase(): string | null {
   if (typeof window === 'undefined') return null
-  return (
-    window.__PHLO_API_BROWSER_URL__ ||
+  const configured =
+    window.__PHLO_API_BROWSER_URL__ ??
     document.querySelector<HTMLMetaElement>('meta[name="phlo-api-browser-url"]')
-      ?.content ||
-    null
-  )
+      ?.content
+  if (configured !== undefined) return configured
+  return null
 }
 
 async function browserApiGet<T>(endpoint: string): Promise<T> {
   const base = browserApiBase()
-  if (!base) throw new Error('Browser API fallback is unavailable during SSR')
+  if (base === null) {
+    throw new Error('Browser API fallback is unavailable during SSR')
+  }
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), 8000)
   let response: Response
@@ -93,7 +95,9 @@ async function browserApiPost<T>(
   timeoutMs = 12000,
 ): Promise<T> {
   const base = browserApiBase()
-  if (!base) throw new Error('Browser API fallback is unavailable during SSR')
+  if (base === null) {
+    throw new Error('Browser API fallback is unavailable during SSR')
+  }
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
   let response: Response
@@ -124,7 +128,7 @@ async function browserApiPost<T>(
 }
 
 async function v2ApiGet<T>(endpoint: string): Promise<T> {
-  if (browserApiBase()) return browserApiGet<T>(endpoint)
+  if (browserApiBase() !== null) return browserApiGet<T>(endpoint)
   return apiGet<T>(endpoint, undefined, 8000)
 }
 
@@ -141,7 +145,9 @@ export async function getV2Capabilities(): Promise<
   V2ResourceResult<V2Capabilities>
 > {
   try {
-    const data = await v2ApiGet<V2Capabilities>(`${V2_API_PREFIX}/capabilities`)
+    const data = await v2ApiGet<V2Capabilities>(
+      `${V2_API_PREFIX}/surface-capabilities`,
+    )
     return { data, error: null }
   } catch (error) {
     return apiUnavailable<V2Capabilities>(error)

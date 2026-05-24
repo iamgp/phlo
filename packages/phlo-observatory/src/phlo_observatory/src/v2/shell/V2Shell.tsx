@@ -50,6 +50,12 @@ import { loadCachedResource } from '@/v2/routes/liveResource'
 
 const fallbackPages: Array<V2CapabilityPage> = [
   corePage('overview', 'Overview', '/'),
+  corePage('operations', 'Operations', '/operations'),
+  corePage('data', 'Data', '/data'),
+  corePage('assets', 'Assets', '/assets'),
+  corePage('workflows', 'Workflows', '/workflows/new'),
+  corePage('issues', 'Issues', '/quality'),
+  corePage('branches', 'Changes', '/branches'),
   corePage('logs', 'Logs', '/logs'),
   corePage('services', 'Services', '/services'),
   corePage('settings', 'Settings', '/settings'),

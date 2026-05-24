@@ -15,6 +15,8 @@ import type { ReactNode } from 'react'
 import type {
   V2Asset,
   V2Capabilities,
+  V2Operation,
+  V2QualityCheck,
   V2ResourceResult,
   V2Table,
   V2TablePreview,
@@ -23,6 +25,8 @@ import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 import {
   getV2AssetRecords,
   getV2Capabilities,
+  getV2OperationRecords,
+  getV2QualityRecords,
   getV2SavedQueries,
   getV2TablePreview,
   getV2TableRecords,
@@ -50,9 +54,21 @@ export function Data() {
 function useDataRoute() {
   const result = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
   const assetResult = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
+  const qualityResult = useLiveResource(
+    getV2QualityRecords,
+    120_000,
+    'v2:quality',
+  )
+  const operationResult = useLiveResource(
+    getV2OperationRecords,
+    120_000,
+    'v2:operations',
+  )
   const tables = result.data ?? []
   const hasLoadedTables = result.data !== null
   const assets = assetResult.data ?? []
+  const quality = qualityResult.data ?? []
+  const operations = operationResult.data ?? []
   const sortedTables = useMemo(() => sortTablesForFlow(tables), [tables])
   const [tableQuery, setTableQuery] = useState('')
   const filteredTables = useMemo(
@@ -102,6 +118,20 @@ function useDataRoute() {
     preview.data && selected && preview.data.table.id === selected.id
       ? preview.data
       : null
+  const selectedProfile = useMemo(
+    () =>
+      selected
+        ? buildTableProfile(
+            selected,
+            selectedPreview,
+            sortedTables,
+            assets,
+            quality,
+            operations,
+          )
+        : null,
+    [assets, operations, quality, selected, selectedPreview, sortedTables],
+  )
   const selectedPreviewError = selectedPreview ? preview.error : null
   const selectedRowCount =
     selectedPreview && selected ? selectedPreview.row_count : null
@@ -273,6 +303,9 @@ function useDataRoute() {
               </div>
             )}
           </div>
+          {selected && selectedProfile && (
+            <DataProfileBand profile={selectedProfile} selected={selected} />
+          )}
           <div className="phlo-v2-data-main-tabs" role="tablist">
             {dataMainViews.map((view) => (
               <button
@@ -428,6 +461,12 @@ function useDataRoute() {
           {result.error && (
             <div className="phlo-v2-panel-footer">{result.error}</div>
           )}
+          {qualityResult.error && (
+            <div className="phlo-v2-panel-footer">{qualityResult.error}</div>
+          )}
+          {operationResult.error && (
+            <div className="phlo-v2-panel-footer">{operationResult.error}</div>
+          )}
         </aside>
       </section>
     </V2Page>
@@ -456,6 +495,75 @@ const dataDetailTabs: Array<{
   { id: 'sql', label: 'SQL', icon: <Terminal className="size-3.5" /> },
   { id: 'journey', label: 'Journey', icon: <GitBranch className="size-3.5" /> },
 ]
+
+type TableProfile = {
+  stage: string
+  records: string | number | boolean | null
+  columns: number | null
+  upstream: number
+  downstream: number
+  qualityLabel: string
+  qualityState: 'ok' | 'warning' | 'error' | 'unknown'
+  latestOperation: V2Operation | null
+  businessKeys: Array<string>
+}
+
+function DataProfileBand({
+  profile,
+  selected,
+}: {
+  profile: TableProfile
+  selected: V2Table
+}) {
+  return (
+    <div className="phlo-v2-data-profile" data-state={profile.qualityState}>
+      <div className="phlo-v2-data-profile-stage">
+        <span>Stage</span>
+        <strong>{profile.stage}</strong>
+        <small>{selected.namespace ?? selected.schema_name ?? 'default'}</small>
+      </div>
+      <div className="phlo-v2-data-profile-grid">
+        <ProfileFact label="Records" value={profile.records ?? 'pending'} />
+        <ProfileFact label="Columns" value={profile.columns ?? 'pending'} />
+        <ProfileFact
+          label="Lineage"
+          value={`${profile.upstream} up / ${profile.downstream} down`}
+        />
+        <ProfileFact label="Quality" value={profile.qualityLabel} />
+        <ProfileFact
+          label="Latest event"
+          value={profile.latestOperation?.name ?? 'No operation linked'}
+        />
+      </div>
+      <div className="phlo-v2-data-profile-keys">
+        {profile.businessKeys.length > 0 ? (
+          profile.businessKeys.map((key) => (
+            <span className="phlo-v2-pill" key={key}>
+              {key}
+            </span>
+          ))
+        ) : (
+          <span className="phlo-v2-pill">No key columns detected</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ProfileFact({
+  label,
+  value,
+}: {
+  label: string
+  value: string | number | boolean
+}) {
+  return (
+    <div className="phlo-v2-data-profile-fact">
+      <span>{label}</span>
+      <strong>{String(value)}</strong>
+    </div>
+  )
+}
 
 function DataPreviewTable({
   isLoadingMoreRows,
@@ -843,6 +951,11 @@ function sortTablesForFlow(tables: Array<V2Table>): Array<V2Table> {
 
 function chooseDefaultTable(tables: Array<V2Table>): V2Table | null {
   return (
+    tables.find((table) => tableLane(table) === 'gold') ??
+    tables.find(
+      (table) =>
+        tableCatalogState(table) === 'Queryable' && tableLane(table) === 'gold',
+    ) ??
     tables.find(
       (table) =>
         tableCatalogState(table) === 'Queryable' &&
@@ -913,6 +1026,114 @@ function previewEmptyCopy(table: V2Table): string {
 
 function defaultSqlForTable(table: V2Table): string {
   return `select * from ${table.id} limit ${previewLimit}`
+}
+
+function buildTableProfile(
+  table: V2Table,
+  preview: V2TablePreview | null,
+  tables: Array<V2Table>,
+  assets: Array<V2Asset>,
+  quality: Array<V2QualityCheck>,
+  operations: Array<V2Operation>,
+): TableProfile {
+  const asset = table.asset_id
+    ? assets.find((candidate) => candidate.id === table.asset_id)
+    : null
+  const dependencies = new Set(asset?.dependencies ?? [])
+  const downstream = assets.filter((candidate) =>
+    candidate.dependencies.includes(asset?.id ?? ''),
+  )
+  const checks = quality.filter((check) => check.asset_id === asset?.id)
+  const linkedOperations = operations
+    .filter((operation) => operationMatchesTable(operation, table, asset))
+    .sort((left, right) =>
+      operationTimestamp(right).localeCompare(operationTimestamp(left)),
+    )
+  const qualityState = checks.some((check) => check.status === 'failing')
+    ? 'error'
+    : checks.some((check) => check.status === 'warning' || check.blocking)
+      ? 'warning'
+      : checks.length > 0
+        ? 'ok'
+        : 'unknown'
+
+  return {
+    stage: stageLabelForTable(table, asset),
+    records:
+      preview?.row_count ??
+      readTableRecordCount(table) ??
+      readMetric(asset?.metadata ?? {}, 'records') ??
+      null,
+    columns: preview?.columns.length || readNumber(table.metadata.columns),
+    upstream: dependencies.size,
+    downstream: downstream.length,
+    qualityLabel:
+      checks.length === 0
+        ? 'No checks'
+        : `${checks.filter((check) => check.status === 'passing').length}/${checks.length} passing`,
+    qualityState,
+    latestOperation: linkedOperations[0] ?? null,
+    businessKeys: detectBusinessKeys(preview, table),
+  }
+}
+
+function operationMatchesTable(
+  operation: V2Operation,
+  table: V2Table,
+  asset: V2Asset | null | undefined,
+): boolean {
+  const haystack = [
+    operation.target?.id,
+    operation.target?.label,
+    operation.kind,
+    operation.name,
+    ...Object.values(operation.metadata).map((value) => String(value)),
+  ]
+    .join(' ')
+    .toLowerCase()
+  return [table.id, table.name, table.asset_id, asset?.id, asset?.name]
+    .filter(Boolean)
+    .some((value) => haystack.includes(String(value).toLowerCase()))
+}
+
+function operationTimestamp(operation: V2Operation): string {
+  return operation.completed_at ?? operation.started_at ?? operation.id
+}
+
+function detectBusinessKeys(
+  preview: V2TablePreview | null,
+  table: V2Table,
+): Array<string> {
+  const columns = preview?.columns ?? []
+  const explicit = [
+    'experiment_id',
+    'export_id',
+    'plate_id',
+    'assay_type',
+    'id',
+  ]
+  const matches = explicit.filter((key) =>
+    columns.some((column) => column.toLowerCase() === key),
+  )
+  if (matches.length > 0) return matches.slice(0, 4)
+  const name = table.name.toLowerCase()
+  if (name.includes('release')) return ['release metrics']
+  if (name.includes('sample')) return ['sample keys']
+  return columns
+    .filter((column) => column.toLowerCase().endsWith('_id'))
+    .slice(0, 4)
+}
+
+function stageLabelForTable(table: V2Table, asset: V2Asset | null | undefined) {
+  const stage =
+    readMetric(table.metadata, 'stage') ??
+    readMetric(asset?.metadata ?? {}, 'stage') ??
+    tableLane(table)
+  return String(stage).charAt(0).toUpperCase() + String(stage).slice(1)
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
 function formatCell(value: unknown): string {

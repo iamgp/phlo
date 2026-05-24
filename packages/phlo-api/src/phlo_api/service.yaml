@@ -3,6 +3,7 @@ description: Phlo API - Backend service exposing phlo internals to Observatory
 category: api
 default: false
 profile: api
+phlo_dev: true
 
 build:
     context: source
@@ -21,11 +22,14 @@ compose:
         HOST: 0.0.0.0
         PORT: 4000
         PYTHONUNBUFFERED: "1"
+        PHLO_PROJECT_PATH: /opt/phlo-dev
         CLICKSTACK_QUERY_URL: ${CLICKSTACK_QUERY_URL:-}
         CLICKSTACK_QUERY_USER: ${CLICKSTACK_QUERY_USER:-}
         CLICKSTACK_QUERY_PASSWORD: ${CLICKSTACK_QUERY_PASSWORD:-}
     ports:
         - "${PHLO_API_PORT:-4000}:4000"
+    volumes:
+        - /var/run/docker.sock:/var/run/docker.sock:ro
     healthcheck:
         test:
             [

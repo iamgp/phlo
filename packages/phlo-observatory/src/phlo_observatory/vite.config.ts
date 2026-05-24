@@ -34,7 +34,13 @@ const config = defineConfig({
   },
   plugins: [
     devtools(),
-    nitro(),
+    nitro({
+      routeRules: {
+        '/api/observatory/v2/**': {
+          proxy: `${process.env.PHLO_API_URL ?? 'http://phlo-api:4000'}/api/observatory/v2/**`,
+        },
+      },
+    }),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 import http.client
 import importlib.metadata
 import json
@@ -523,17 +523,56 @@ def service_links_from_definition(service: Any) -> list[V2ExternalLink]:
     for port in ports if isinstance(ports, list) else []:
         if not isinstance(port, str) or ":" not in port:
             continue
-        published = resolve_env_default(port.split(":", 1)[0])
-        target = port.rsplit(":", 1)[-1]
+        published = resolve_env_default(port.rsplit(":", 1)[0])
         if published.isdigit():
             links.append(
                 V2ExternalLink(
-                    label=f":{target}",
+                    label=f":{published}",
                     url=f"http://localhost:{published}",
                     kind="port",
                 )
             )
 
+    return links[:4]
+
+
+def service_links_from_compose(project_root: Path, service_name: str) -> list[V2ExternalLink]:
+    compose_file = project_root / ".phlo" / "docker-compose.yml"
+    try:
+        payload = yaml.safe_load(compose_file.read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        return []
+    services = payload.get("services") if isinstance(payload, Mapping) else {}
+    service = services.get(service_name) if isinstance(services, Mapping) else None
+    if not isinstance(service, Mapping):
+        return []
+    ports = service.get("ports")
+    links: list[V2ExternalLink] = []
+    for port in ports if isinstance(ports, list) else []:
+        if not isinstance(port, str) or ":" not in port:
+            continue
+        published = resolve_env_default(port.rsplit(":", 1)[0])
+        if published.isdigit():
+            links.append(
+                V2ExternalLink(
+                    label=f":{published}",
+                    url=f"http://localhost:{published}",
+                    kind="port",
+                )
+            )
+    return links[:4]
+
+
+def merge_service_links(*groups: Iterable[V2ExternalLink]) -> list[V2ExternalLink]:
+    links: list[V2ExternalLink] = []
+    seen: set[tuple[str, str]] = set()
+    for group in groups:
+        for link in group:
+            key = (link.label, link.url)
+            if key in seen:
+                continue
+            seen.add(key)
+            links.append(link)
     return links[:4]
 
 
@@ -631,7 +670,10 @@ def load_services(
                 backend="docker" if in_stack else "unknown",
                 depends_on=list(service.depends_on or []),
                 impacts=[],
-                links=service_links_from_definition(service),
+                links=merge_service_links(
+                    service_links_from_definition(service),
+                    service_links_from_compose(project_root, service.name),
+                ),
                 metadata=safe_metadata(
                     {
                         "default": bool(service.default),
@@ -662,6 +704,10 @@ def load_services(
                     "runtime_state": status,
                     "in_stack": True,
                     "backend": "docker",
+                    "links": merge_service_links(
+                        service.links,
+                        service_links_from_compose(project_root, service_name),
+                    ),
                 }
             )
         services.append(service)
