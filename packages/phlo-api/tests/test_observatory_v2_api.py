@@ -655,6 +655,23 @@ def test_v2_manifest_records_enrich_lakehouse_surfaces(
                         },
                     }
                 ],
+                "runs": [
+                    {
+                        "id": "keystone-run-0041",
+                        "name": "Keystone export catalog",
+                        "status": "succeeded",
+                        "started_at": "2026-05-17T20:00:25+01:00",
+                        "completed_at": "2026-05-17T20:03:02+01:00",
+                        "duration_seconds": 157,
+                        "assets": [
+                            {
+                                "kind": "asset",
+                                "id": "gold/keystone_release_metrics",
+                                "label": "gold/keystone_release_metrics",
+                            }
+                        ],
+                    }
+                ],
                 "logs": [
                     {
                         "id": "keystone-log-1",
@@ -675,6 +692,7 @@ def test_v2_manifest_records_enrich_lakehouse_surfaces(
     tables = client.get("/api/observatory/v2/tables").json()["items"]
     quality = client.get("/api/observatory/v2/quality").json()["items"]
     operations = client.get("/api/observatory/v2/operations").json()["items"]
+    runs = client.get("/api/observatory/v2/runs").json()["items"]
     logs = client.get("/api/observatory/v2/logs").json()["items"]
     preview = client.get("/api/observatory/v2/table-preview/gold.keystone_release_metrics").json()
     capabilities = client.get("/api/observatory/v2/capabilities").json()
@@ -683,11 +701,13 @@ def test_v2_manifest_records_enrich_lakehouse_surfaces(
     assert tables[0]["metadata"]["records"] == 2
     assert quality[0]["status"] == "passing"
     assert operations[0]["kind"] == "pipeline.package"
+    assert runs[0]["id"] == "keystone-run-0041"
     assert logs[0]["source"] == "keystone_pipeline"
     assert preview["rows"][0]["experiment_id"] == "EXP-0041"
     assert capabilities["features"]["data"] is True
     assert capabilities["features"]["assets"] is True
     assert capabilities["features"]["issues"] is True
+    assert capabilities["features"]["runs"] is True
 
 
 def test_v2_generic_skipped_action_records_operation(

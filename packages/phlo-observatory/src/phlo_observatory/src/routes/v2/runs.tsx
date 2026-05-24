@@ -14,9 +14,16 @@ export const Route = createFileRoute('/v2/runs')({
 
 export function Runs() {
   const result = useLiveResource(getV2RunRecords, 60_000, 'v2:runs')
-  const runs = result.data ?? []
+  const runs = useMemo(
+    () => [...(result.data ?? [])].sort(compareRuns),
+    [result.data],
+  )
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const selected = runs.find((run) => run.id === selectedId) ?? runs[0] ?? null
+  const selected =
+    runs.find((run) => run.id === selectedId) ??
+    runs.find((run) => run.status === 'failed') ??
+    runs[0] ??
+    null
   const counts = useMemo(() => countRuns(runs), [runs])
 
   return (
@@ -87,8 +94,9 @@ export function Runs() {
           {selected ? (
             <>
               <h2>{selected.name}</h2>
-              <p>{selected.status}</p>
+              <p>{runNarrative(selected)}</p>
               <dl className="phlo-v2-facts">
+                <Fact label="Status" value={selected.status} />
                 <Fact label="Started" value={selected.started_at ?? 'n/a'} />
                 <Fact
                   label="Completed"
@@ -107,6 +115,14 @@ export function Runs() {
                 <Fact label="Checks" value={selected.checks.length} />
                 <Fact label="Logs" value={selected.logs.length} />
               </dl>
+              {runFailureReason(selected) && (
+                <div className="phlo-v2-detail-list">
+                  <div className="phlo-v2-mini-row">
+                    <span>Failure reason</span>
+                    <small>{runFailureReason(selected)}</small>
+                  </div>
+                </div>
+              )}
               <RelatedList title="Assets" refs={selected.assets} />
               <RelatedList title="Checks" refs={selected.checks} />
               <RelatedList title="Logs" refs={selected.logs} />
@@ -232,4 +248,33 @@ function stateForStatus(status: V2Run['status']) {
   if (status === 'failed' || status === 'cancelled') return 'error'
   if (status === 'running' || status === 'queued') return 'warning'
   return 'unknown'
+}
+
+function compareRuns(left: V2Run, right: V2Run): number {
+  return runScore(right) - runScore(left)
+}
+
+function runScore(run: V2Run): number {
+  const time = Date.parse(run.completed_at ?? run.started_at ?? '')
+  let score = Number.isNaN(time) ? 0 : time / 1_000_000
+  if (run.status === 'failed') score += 1_000_000
+  if (run.status === 'running') score += 500_000
+  return score
+}
+
+function runNarrative(run: V2Run): string {
+  const assetCount = `${run.assets.length} asset${run.assets.length === 1 ? '' : 's'}`
+  const checkCount = `${run.checks.length} check${run.checks.length === 1 ? '' : 's'}`
+  if (run.status === 'failed') {
+    return `Failed run with ${assetCount}, ${checkCount}, and ${run.logs.length} linked logs.`
+  }
+  if (run.status === 'succeeded') {
+    return `Succeeded run with ${assetCount} and ${checkCount}.`
+  }
+  return `${run.status} run with ${assetCount} and ${checkCount}.`
+}
+
+function runFailureReason(run: V2Run): string | null {
+  const reason = run.metadata.failure_reason ?? run.metadata.error
+  return typeof reason === 'string' && reason ? reason : null
 }

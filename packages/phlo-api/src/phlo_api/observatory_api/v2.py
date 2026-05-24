@@ -221,6 +221,15 @@ def _coerce_str(value: Any, default: str = "") -> str:
     return str(value)
 
 
+def _coerce_int(value: Any, default: int = 0) -> int:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _dataclass_dict(value: Any) -> dict[str, Any]:
     if is_dataclass(value):
         return asdict(value)
@@ -936,6 +945,16 @@ def _load_operations() -> list[V2Operation]:
         for status in getattr(snapshot, "operations", []):
             operations.append(_operation_from_maintenance_status(status))
     return sort_operations(operations)
+
+
+def _load_runs() -> list[V2Run]:
+    manifest_runs = list(_manifest_records("runs", V2Run))
+    provider_runs = load_runs()
+    return sorted(
+        _merge_by_id([*manifest_runs, *provider_runs]),
+        key=lambda item: item.completed_at or item.started_at or item.id,
+        reverse=True,
+    )
 
 
 def _load_logs() -> list[V2LogEvent]:
@@ -1905,11 +1924,35 @@ def _load_branch_detail(branch_name: str) -> V2BranchDetail:
         and operation.target.kind == "branch"
         and operation.target.id == branch.name
     ]
+    compare = {
+        "added": _coerce_int(branch.metadata.get("added", branch.metadata.get("compare_added")), 0),
+        "changed": _coerce_int(
+            branch.metadata.get("changed", branch.metadata.get("compare_changed")),
+            len(tables),
+        ),
+        "removed": _coerce_int(
+            branch.metadata.get("removed", branch.metadata.get("compare_removed")),
+            0,
+        ),
+    }
+    if "ahead" in branch.metadata:
+        compare["ahead"] = _coerce_int(branch.metadata.get("ahead"), 0)
+    if "behind" in branch.metadata:
+        compare["behind"] = _coerce_int(branch.metadata.get("behind"), 0)
+
+    if not commits:
+        table_asset_ids = {table.asset_id for table in tables if table.asset_id}
+        commits = [
+            operation
+            for operation in _load_operations()
+            if operation.target is not None and operation.target.id in table_asset_ids
+        ][:8]
+
     return V2BranchDetail(
         branch=branch,
         contents=contents,
         commits=commits,
-        compare={"added": 0, "changed": len(tables), "removed": 0},
+        compare=compare,
         tables=tables,
     )
 
@@ -2015,6 +2058,8 @@ def _apply_manifest_capability_overrides(
         route_providers["quality"] = "lakehouse-manifest"
     if manifest.get("branches"):
         route_providers["branches"] = "lakehouse-manifest"
+    if manifest.get("runs"):
+        route_providers["runs"] = "lakehouse-manifest"
     if any(
         str(asset.get("metadata", {}).get("stage", "")).lower() == "serving"
         or str(asset.get("group", "")).lower() == "serving"
@@ -2731,7 +2776,7 @@ def get_v2_runs() -> V2RunList:
     return _cached_read_model(
         "runs",
         _FAST_READ_MODEL_TTL_SECONDS,
-        lambda: V2RunList(items=load_runs()),
+        lambda: V2RunList(items=_load_runs()),
     )
 
 

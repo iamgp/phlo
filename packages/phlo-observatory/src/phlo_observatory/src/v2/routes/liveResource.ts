@@ -22,7 +22,7 @@ type PersistedEntry<T> = {
 
 const resourceCache = new Map<string, CachedEntry<unknown>>()
 const resourceKeys = new WeakMap<object, string>()
-const cacheVersion = '2026-05-18-observatory-runtime-v4'
+const cacheVersion = '2026-05-18-observatory-runtime-v5'
 const persistentCachePrefix = `phlo-observatory:${cacheVersion}`
 const minPersistentTtlMs = 5 * 60_000
 let nextResourceKey = 0
@@ -251,7 +251,9 @@ function normalizeBranchFallback(value: unknown): Record<string, unknown> {
   return {
     id,
     name,
+    current,
     kind: 'branch',
+    protected: branch.protected === true,
     status: current ? 'current' : 'branch',
     summary: current ? 'Current branch' : 'Branch',
     metadata: isRecord(branch.metadata) ? branch.metadata : {},
