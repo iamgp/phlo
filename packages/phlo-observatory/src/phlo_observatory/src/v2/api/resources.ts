@@ -326,7 +326,7 @@ export async function getV2TablePreview({
 }): Promise<V2ResourceResult<V2TablePreview>> {
   try {
     const endpoint = `${V2_API_PREFIX}/table-preview/${encodeURIComponent(tableId)}`
-    if (browserApiBase()) {
+    if (browserApiBase() !== null) {
       const searchParams = new URLSearchParams({
         limit: String(limit),
         offset: String(offset),
@@ -349,18 +349,19 @@ export async function runV2Query({
   data: { sql: string; branch?: string; limit?: number; offset?: number }
 }): Promise<V2ResourceResult<V2QueryResult>> {
   try {
-    const data = browserApiBase()
-      ? await browserApiPost<V2QueryResult>(`${V2_API_PREFIX}/query`, {
-          sql,
-          branch,
-          limit,
-          offset,
-        })
-      : await apiPost<V2QueryResult>(
-          `${V2_API_PREFIX}/query`,
-          { sql, branch, limit, offset },
-          12000,
-        )
+    const data =
+      browserApiBase() !== null
+        ? await browserApiPost<V2QueryResult>(`${V2_API_PREFIX}/query`, {
+            sql,
+            branch,
+            limit,
+            offset,
+          })
+        : await apiPost<V2QueryResult>(
+            `${V2_API_PREFIX}/query`,
+            { sql, branch, limit, offset },
+            12000,
+          )
     return { data, error: null }
   } catch (error) {
     return apiUnavailable<V2QueryResult>(error)
@@ -391,18 +392,19 @@ export async function saveV2Query({
   }
 }): Promise<V2ResourceResult<V2SavedQuery>> {
   try {
-    const data = browserApiBase()
-      ? await browserApiPost<V2SavedQuery>(`${V2_API_PREFIX}/saved-queries`, {
-          name,
-          sql,
-          branch,
-          metadata,
-        })
-      : await apiPost<V2SavedQuery>(
-          `${V2_API_PREFIX}/saved-queries`,
-          { name, sql, branch, metadata },
-          8000,
-        )
+    const data =
+      browserApiBase() !== null
+        ? await browserApiPost<V2SavedQuery>(`${V2_API_PREFIX}/saved-queries`, {
+            name,
+            sql,
+            branch,
+            metadata,
+          })
+        : await apiPost<V2SavedQuery>(
+            `${V2_API_PREFIX}/saved-queries`,
+            { name, sql, branch, metadata },
+            8000,
+          )
     return { data, error: null }
   } catch (error) {
     return apiUnavailable<V2SavedQuery>(error)

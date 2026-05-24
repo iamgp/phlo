@@ -15,7 +15,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 
 import type {
   V2CapabilityPage,
@@ -59,6 +59,7 @@ export function V2CommandPalette({
   onClose: () => void
 }) {
   const navigate = useNavigate()
+  const overlayRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<
@@ -81,8 +82,14 @@ export function V2CommandPalette({
   })
 
   useEffect(() => {
+    const previousFocus = document.activeElement
     const timer = window.setTimeout(() => searchInputRef.current?.focus(), 0)
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(timer)
+      if (previousFocus instanceof HTMLElement) {
+        previousFocus.focus()
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -142,6 +149,33 @@ export function V2CommandPalette({
     },
     [closeSearch, navigate],
   )
+
+  const trapFocus = useCallback((event: KeyboardEvent) => {
+    if (event.key !== 'Tab') return
+
+    const focusable = Array.from(
+      overlayRef.current?.querySelectorAll<HTMLElement>(
+        'button, [href], input, [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    ).filter(
+      (element) =>
+        !element.hasAttribute('disabled') &&
+        element.getAttribute('aria-hidden') !== 'true',
+    )
+    if (focusable.length === 0) return
+
+    const first = focusable[0]
+    const last = focusable.at(-1)
+    if (!last) return
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }, [])
 
   const groupedResults = useMemo(() => {
     const groups = new Map<string, Array<V2SearchResult>>()
@@ -247,12 +281,14 @@ export function V2CommandPalette({
       aria-label="Command search"
       aria-modal="true"
       className="phlo-v2-command-overlay"
+      onKeyDown={trapFocus}
+      ref={overlayRef}
       role="dialog"
     >
       <button
         aria-label="Close search"
         className="phlo-v2-command-backdrop"
-        onClick={onClose}
+        onClick={closeSearch}
         type="button"
       />
       <div className="phlo-v2-search-popover">
@@ -269,7 +305,7 @@ export function V2CommandPalette({
               onKeyDown={(event) => {
                 if (event.key === 'Escape') {
                   event.preventDefault()
-                  onClose()
+                  closeSearch()
                 }
               }}
               onValueChange={setQuery}

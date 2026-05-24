@@ -86,7 +86,7 @@ export function Branches() {
     },
     selectedId: null,
   })
-  const branches = mergeBranches(result.data ?? [], createdBranches)
+  const branches = mergeBranches(createdBranches, result.data ?? [])
   const selected =
     branches.find((branch) => branch.id === selectedId) ??
     branches.find((branch) => branch.current) ??
@@ -98,8 +98,12 @@ export function Branches() {
 
   useEffect(() => {
     const branchId = selected?.id
-    if (!branchId) return
+    if (!branchId) {
+      dispatch({ type: 'detail', detail: { data: null, error: null } })
+      return
+    }
     let cancelled = false
+    dispatch({ type: 'detail', detail: { data: null, error: null } })
     void getV2BranchDetail({ data: { branchName: branchId } }).then((next) => {
       if (!cancelled) dispatch({ type: 'detail', detail: next })
     })
@@ -337,7 +341,7 @@ function BranchPanelView({
       {detail.tables.slice(0, 8).map((table) => (
         <TableRow key={table.id} table={table} />
       ))}
-      {detail.contents.length === 0 && <p>No branch contents returned yet.</p>}
+      {detail.tables.length === 0 && <p>No branch contents returned yet.</p>}
     </div>
   )
 }

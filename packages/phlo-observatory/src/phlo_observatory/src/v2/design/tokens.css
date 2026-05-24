@@ -17,7 +17,7 @@
     var(--v2-canvas);
   color: var(--v2-text);
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  text-rendering: optimizelegibility;
 }
 
 html[data-phlo-v2-route='true'][data-phlo-v2-theme='light'],
@@ -2568,6 +2568,7 @@ button.phlo-v2-mini-row {
 .phlo-v2-service-row:focus-visible,
 .phlo-v2-rail-row:focus-visible,
 .phlo-v2-timeline-row:focus-visible,
+.phlo-v2-run-row:focus-visible,
 .phlo-v2-check-row:focus-visible,
 .phlo-v2-extension-row:focus-visible {
   outline: 2px solid oklch(0.55 0.11 245 / 0.38);

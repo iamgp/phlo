@@ -1144,12 +1144,12 @@ function buildLakehouseTemplates(
   quality: Array<V2QualityCheck>,
 ): Array<LakehouseTemplate> {
   const focusTable =
-    tables.find((table) => (table.namespace ?? '').toLowerCase() === 'gold') ??
     tables.find(
       (table) =>
         (table.namespace ?? '').toLowerCase() === 'gold' &&
         tableCatalogState(table) === 'queryable',
     ) ??
+    tables.find((table) => (table.namespace ?? '').toLowerCase() === 'gold') ??
     tables.find((table) => tableCatalogState(table) === 'queryable') ??
     tables[0] ??
     null

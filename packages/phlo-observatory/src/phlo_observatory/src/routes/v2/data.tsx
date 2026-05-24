@@ -950,11 +950,11 @@ function sortTablesForFlow(tables: Array<V2Table>): Array<V2Table> {
 
 function chooseDefaultTable(tables: Array<V2Table>): V2Table | null {
   return (
-    tables.find((table) => tableLane(table) === 'gold') ??
     tables.find(
       (table) =>
         tableCatalogState(table) === 'Queryable' && tableLane(table) === 'gold',
     ) ??
+    tables.find((table) => tableLane(table) === 'gold') ??
     tables.find(
       (table) =>
         tableCatalogState(table) === 'Queryable' &&

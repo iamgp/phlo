@@ -71,6 +71,15 @@ function overviewReducer(
 export function loadOverviewSnapshot(): OverviewSnapshot {
   const empty = { data: [], error: null }
   const pending = { data: null, error: null }
+  const cached =
+    typeof window === 'undefined' ? null : readCachedOverviewSnapshot()
+
+  if (cached) {
+    return {
+      ...cached,
+      updatedAt: new Date().toISOString(),
+    }
+  }
 
   return {
     assets: empty,
@@ -402,11 +411,11 @@ function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
             <div className="phlo-v2-timeline">
               {eventStory.events.length > 0 ? (
                 eventStory.events.map((event) => (
-                  <a
+                  <Link
                     className="phlo-v2-timeline-row"
                     data-state={event.state}
-                    href={event.href}
                     key={event.id}
+                    to={event.href}
                   >
                     <span className="phlo-v2-timeline-dot" />
                     <span>
@@ -418,7 +427,7 @@ function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
                         </small>
                       )}
                     </span>
-                  </a>
+                  </Link>
                 ))
               ) : (
                 <EmptyRow label="No events yet" />
@@ -697,9 +706,15 @@ function buildLakehouseStages(
       },
     ]),
   )
-  const qualityByAsset = new Map(
-    quality.map((check) => [check.asset_id, check]),
-  )
+  const qualityByAsset = new Map<string, Array<V2QualityCheck>>()
+  for (const check of quality) {
+    const checks = qualityByAsset.get(check.asset_id)
+    if (checks) {
+      checks.push(check)
+    } else {
+      qualityByAsset.set(check.asset_id, [check])
+    }
+  }
 
   for (const asset of assets) {
     const stageId = inferStage(asset)
@@ -715,14 +730,17 @@ function buildLakehouseStages(
     )
       ? 1
       : 0
-    const check = qualityByAsset.get(asset.id)
+    const checks = qualityByAsset.get(asset.id) ?? []
+    const hasFailingCheck = checks.some((check) => check.status === 'failing')
+    const hasWarningCheck = checks.some((check) => check.status === 'warning')
+    const blockingChecks = checks.filter((check) => check.blocking).length
     stage.assets += 1
     stage.tables += tables
     stage.records += records
-    if (check?.blocking) stage.blocking += 1
+    stage.blocking += blockingChecks
     if (stage.samples.length < 3) stage.samples.push(asset.name)
-    if (check?.status === 'failing') stage.state = 'error'
-    else if (check?.status === 'warning' && stage.state !== 'error') {
+    if (hasFailingCheck) stage.state = 'error'
+    else if (hasWarningCheck && stage.state !== 'error') {
       stage.state = 'warning'
     } else if (stage.state === 'unknown') {
       stage.state = 'ok'
@@ -892,7 +910,7 @@ function chooseWorkbenchLink(
     : null
   const projectLink = links.at(-1)
 
-  return projectLink ?? preferred ?? links[0]
+  return preferred ?? projectLink ?? links[0]
 }
 
 function describeWorkbench(serviceId: string): string {

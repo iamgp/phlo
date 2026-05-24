@@ -1663,7 +1663,10 @@ def _load_table_preview(table_id: str, limit: int, offset: int) -> V2TablePrevie
         row_count = len(preview_rows)
     columns = _table_columns_from_metadata(table)
     column_types = _table_column_types_from_metadata(table, columns)
-    rows = _table_rows(table, columns, limit, max(0, offset)) if columns else []
+    rows = _table_rows(table, columns, limit, max(0, offset))
+    if not columns and rows:
+        columns = [str(key) for key in rows[0]]
+        column_types = ["unknown"] * len(columns)
     return V2TablePreview(
         table=_compact_table(table),
         columns=columns,
