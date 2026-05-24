@@ -68,7 +68,7 @@ function overviewReducer(
   }
 }
 
-export async function loadOverviewSnapshot(): Promise<OverviewSnapshot> {
+export function loadOverviewSnapshot(): OverviewSnapshot {
   const empty = { data: [], error: null }
   const pending = { data: null, error: null }
 
@@ -157,7 +157,7 @@ function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
       })
     }
 
-    async function load(force = false) {
+    function load(force = false) {
       const empty = { data: [], error: null }
 
       loadCachedResource('v2:services', getV2Services, {
@@ -219,9 +219,9 @@ function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
       })
     }
 
-    void load(true)
+    load(true)
     const interval = window.setInterval(() => {
-      void load(true)
+      load(true)
     }, 30_000)
 
     return () => {

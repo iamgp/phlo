@@ -124,13 +124,12 @@ function useDataRoute() {
         ? buildTableProfile(
             selected,
             selectedPreview,
-            sortedTables,
             assets,
             quality,
             operations,
           )
         : null,
-    [assets, operations, quality, selected, selectedPreview, sortedTables],
+    [assets, operations, quality, selected, selectedPreview],
   )
   const selectedPreviewError = selectedPreview ? preview.error : null
   const selectedRowCount =
@@ -1031,7 +1030,6 @@ function defaultSqlForTable(table: V2Table): string {
 function buildTableProfile(
   table: V2Table,
   preview: V2TablePreview | null,
-  tables: Array<V2Table>,
   assets: Array<V2Asset>,
   quality: Array<V2QualityCheck>,
   operations: Array<V2Operation>,

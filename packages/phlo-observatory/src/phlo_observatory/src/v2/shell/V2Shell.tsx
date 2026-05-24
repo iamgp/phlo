@@ -17,7 +17,7 @@ import {
   Settings,
   Sun,
 } from 'lucide-react'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
