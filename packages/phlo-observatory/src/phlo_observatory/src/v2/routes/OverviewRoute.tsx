@@ -861,11 +861,10 @@ function buildIntegrationLinks(services: Array<V2Service>) {
       const workbench = browserWorkbenches.get(service.id)
       if (!workbench) return []
       if (workbench.requiresRunning && service.status !== 'running') return []
-      const firstLink = workbench.preferredPortLabel
-        ? service.links.find(
-            (link) => link.label === workbench.preferredPortLabel,
-          )
-        : service.links[0]
+      const firstLink = chooseWorkbenchLink(
+        service.links,
+        workbench.preferredPortLabel,
+      )
       if (!firstLink?.url) return []
       return [
         {
@@ -880,6 +879,20 @@ function buildIntegrationLinks(services: Array<V2Service>) {
       ]
     })
     .slice(0, 6)
+}
+
+function chooseWorkbenchLink(
+  links: Array<V2Service['links'][number]>,
+  preferredPortLabel?: string,
+) {
+  if (!links.length) return null
+
+  const preferred = preferredPortLabel
+    ? links.find((link) => link.label === preferredPortLabel)
+    : null
+  const projectLink = links.at(-1)
+
+  return projectLink ?? preferred ?? links[0]
 }
 
 function describeWorkbench(serviceId: string): string {
