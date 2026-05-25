@@ -449,6 +449,40 @@ class TestPluginAutoDiscoveryBootstrap:
         )
         assert plugin_auto_discovery.should_auto_discover() is True
 
+    def test_auto_discovery_warns_on_failures_in_open_mode(self, monkeypatch):
+        """Open-mode auto-discovery keeps the existing warning-only behavior."""
+        calls: list[dict[str, object]] = []
+        warnings: list[str] = []
+
+        def fake_discover_plugins(**kwargs):
+            calls.append(kwargs)
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(plugin_auto_discovery, "_strict_auto_discovery_enabled", lambda: False)
+        monkeypatch.setattr(plugin_auto_discovery, "discover_plugins", fake_discover_plugins)
+        monkeypatch.setattr(
+            plugin_auto_discovery.logger,
+            "warning",
+            lambda event, **kwargs: warnings.append(event),
+        )
+
+        plugin_auto_discovery.auto_discover()
+
+        assert calls == [{"auto_register": True, "strict": False}]
+        assert warnings == ["plugin_auto_discover_failed"]
+
+    def test_auto_discovery_raises_on_failures_in_regulated_mode(self, monkeypatch):
+        """Regulated auto-discovery fails fast instead of hiding missing capabilities."""
+
+        def fake_discover_plugins(**kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(plugin_auto_discovery, "_strict_auto_discovery_enabled", lambda: True)
+        monkeypatch.setattr(plugin_auto_discovery, "discover_plugins", fake_discover_plugins)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            plugin_auto_discovery.auto_discover()
+
 
 class TestPluginIntegration:
     """Integration tests for plugin system."""

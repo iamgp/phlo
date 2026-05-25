@@ -109,6 +109,30 @@ def test_discover_plugins_uses_failure_level_for_entry_point_errors(
     ]
 
 
+def test_discover_plugins_strict_raises_for_entry_point_errors(
+    clean_registry,
+    settings_stub: _SettingsStub,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Strict discovery fails fast when an entry point cannot load."""
+    monkeypatch.setattr(
+        _plugin_loading,
+        "entry_points_for_group",
+        lambda group: [_EntryPointStub("broken", "tests:broken", RuntimeError("boom"))],
+    )
+
+    with pytest.raises(_plugin_loading.PluginDiscoveryError) as exc_info:
+        _plugin_loading.discover_plugins(
+            plugin_type="source_connector",
+            auto_register=False,
+            strict=True,
+        )
+
+    assert exc_info.value.plugin_name == "broken"
+    assert exc_info.value.entry_point == "tests:broken"
+    assert exc_info.value.plugin_type == "source_connector"
+
+
 def test_discover_plugins_skips_disallowed_and_invalid_plugins(
     clean_registry,
     settings_stub: _SettingsStub,
