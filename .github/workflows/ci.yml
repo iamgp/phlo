@@ -338,7 +338,7 @@ jobs:
 
             echo "::group::${package}"
             set +e
-            uv run --locked --package "${package}" --with pytest \
+            uv run --locked --package "${package}" --with-editable ./packages/phlo-testing --with pytest \
               pytest -m "not integration" --tb=short "${test_dir}"
             exit_code=$?
             set -e

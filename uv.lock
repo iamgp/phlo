@@ -4188,6 +4188,8 @@ name = "phlo-testing"
 version = "0.3.0"
 source = { editable = "packages/phlo-testing" }
 dependencies = [
+    { name = "dagster" },
+    { name = "dagster-graphql" },
     { name = "dlt" },
     { name = "duckdb" },
     { name = "pandas" },
@@ -4212,6 +4214,8 @@ trino = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dagster", specifier = ">=1.12.1" },
+    { name = "dagster-graphql", specifier = ">=1.12.1" },
     { name = "dlt", specifier = ">=1.18.2" },
     { name = "duckdb", specifier = ">=0.9.0" },
     { name = "pandas", specifier = ">=2.3.3" },

@@ -20,10 +20,9 @@ os.environ["DAGSTER_DISABLE_TELEMETRY"] = "True"
 os.environ["DO_NOT_TRACK"] = "1"  # General standard
 
 import contextlib
+import importlib.util
 
 import pytest
-
-pytest_plugins = ("phlo_testing.fixtures",)
 
 # Add src to path for imports
 src_path = Path(__file__).parent / "src"
@@ -37,6 +36,22 @@ if packages_dir.exists():
         if str(package_src) not in sys.path:
             sys.path.insert(0, str(package_src))
 
+_PHLO_TESTING_FIXTURE_MODULES = (
+    "dagster",
+    "dagster_graphql",
+    "duckdb",
+    "pandas",
+)
+
+pytest_plugins = (
+    ("phlo_testing.fixtures",)
+    if all(
+        importlib.util.find_spec(module_name) is not None
+        for module_name in _PHLO_TESTING_FIXTURE_MODULES
+    )
+    else ()
+)
+
 
 def _register_workspace_plugins() -> None:
     try:
@@ -47,7 +62,10 @@ def _register_workspace_plugins() -> None:
         return
 
     registry = get_global_registry()
-    registry.register("asset_provider", DltAssetProvider(), replace=True)
+    try:
+        registry.register("asset_provider", DltAssetProvider(), replace=True)
+    except ValueError:
+        return
 
 
 _register_workspace_plugins()
