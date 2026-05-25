@@ -20,7 +20,7 @@ from typing import Any
 from fastapi import APIRouter
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from phlo_api.observatory_api.v2_actions import execute_v2_action
 from phlo_api.observatory_api.v2_cache import ReadModelCache
@@ -129,6 +129,23 @@ from phlo.cli.commands.plugin.install import resolve_install_target
 from phlo.plugins.registry_client import get_registry_data
 
 router = APIRouter(tags=["observatory-v2"])
+
+
+class V2MaterializeAssetRequest(BaseModel):
+    dry_run: bool = True
+    partition_key: str | None = None
+    job_name: str | None = None
+    repository_location_name: str | None = None
+    repository_name: str | None = None
+    run_config: dict[str, Any] | None = None
+    tags: dict[str, str] = Field(default_factory=dict)
+
+
+class V2RetryRunRequest(BaseModel):
+    dry_run: bool = True
+    strategy: str = "FROM_FAILURE"
+    tags: dict[str, str] = Field(default_factory=dict)
+
 
 _READ_QUERY_RE = re.compile(
     r"^\s*select\s+\*\s+from\s+(?P<table>[A-Za-z0-9_.:-]+)(?:\s+limit\s+(?P<limit>\d+))?\s*;?\s*$",
@@ -2501,6 +2518,22 @@ def get_v2_runs() -> V2RunList:
     )
 
 
+@router.get("/runs/{run_id:path}/status")
+async def get_v2_run_status(run_id: str) -> Any:
+    """Get provider-neutral run status from the active orchestrator provider."""
+    from phlo_api.observatory_api.dagster import get_run_status
+
+    return await get_run_status(run_id)
+
+
+@router.post("/runs/{run_id:path}/retry")
+async def post_v2_run_retry(run_id: str, request: V2RetryRunRequest) -> Any:
+    """Validate or request retry for a failed run through the active orchestrator provider."""
+    from phlo_api.observatory_api.dagster import RetryRunRequest, retry_run
+
+    return await retry_run(run_id, RetryRunRequest(**request.model_dump()))
+
+
 @router.get("/storage", response_model=V2SurfaceList)
 def get_v2_storage() -> V2SurfaceList:
     """List provider-neutral storage surfaces."""
@@ -2615,6 +2648,22 @@ def get_v2_asset_neighbors(asset_key: str, direction: str = "both", depth: int =
 def get_v2_asset_impact(asset_key: str, max_depth: int = 99) -> list[V2ImpactedAsset]:
     """Get downstream assets impacted by one asset."""
     return _load_asset_impact(asset_key=asset_key, max_depth=max_depth)
+
+
+@router.get("/assets/{asset_id:path}/materializations")
+async def get_v2_asset_materializations(asset_id: str, limit: int = 10) -> Any:
+    """Get recent materializations for an asset from the active orchestrator provider."""
+    from phlo_api.observatory_api.dagster import get_materialization_history
+
+    return await get_materialization_history(asset_id, limit=limit)
+
+
+@router.post("/assets/{asset_id:path}/materialize")
+async def post_v2_asset_materialize(asset_id: str, request: V2MaterializeAssetRequest) -> Any:
+    """Validate or request asset materialization through the active orchestrator provider."""
+    from phlo_api.observatory_api.dagster import MaterializeAssetRequest, materialize_asset
+
+    return await materialize_asset(asset_id, MaterializeAssetRequest(**request.model_dump()))
 
 
 @router.get("/assets/{asset_id:path}", response_model=V2AssetDetail)

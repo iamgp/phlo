@@ -354,11 +354,13 @@ def test_v2_load_services_uses_project_scoped_container_loader(monkeypatch, tmp_
     )
     monkeypatch.setattr(
         "phlo_api.observatory_api.v2._load_services_impl",
-        lambda project_root, containers: observed.update(
-            loader_project_root=project_root,
-            containers=containers,
-        )
-        or [],
+        lambda project_root, containers: (
+            observed.update(
+                loader_project_root=project_root,
+                containers=containers,
+            )
+            or []
+        ),
     )
 
     assert _load_services() == []
@@ -573,6 +575,86 @@ def test_v2_actions_endpoint_routes_add_service_action(monkeypatch, tmp_path: Pa
     assert payload["action"]["label"] == "Add to stack"
     assert payload["action"]["kind"] == "service.add"
     assert commands == [["phlo", "services", "add", "pgweb"]]
+
+
+def test_v2_asset_operational_routes_use_v2_paths(monkeypatch) -> None:
+    from phlo_api.observatory_api import dagster
+
+    calls: list[tuple[str, str, object]] = []
+
+    async def fake_history(asset_id: str, limit: int = 10, dagster_url: str | None = None):
+        calls.append(("history", asset_id, limit))
+        return [{"run_id": "run-123", "timestamp": "2026-01-01T00:00:00Z"}]
+
+    async def fake_materialize(asset_id: str, payload, dagster_url: str | None = None):
+        calls.append(("materialize", asset_id, payload.partition_key))
+        return {
+            "operation": "materialize_asset",
+            "dry_run": payload.dry_run,
+            "accepted": True,
+            "asset_key_path": asset_id,
+            "partition_key": payload.partition_key,
+            "status": "DRY_RUN",
+            "message": "Materialization request is valid.",
+            "details": {},
+        }
+
+    monkeypatch.setattr(dagster, "get_materialization_history", fake_history)
+    monkeypatch.setattr(dagster, "materialize_asset", fake_materialize)
+
+    client = TestClient(app)
+    history = client.get("/api/observatory/v2/assets/silver/orders/materializations?limit=3")
+    materialize = client.post(
+        "/api/observatory/v2/assets/silver/orders/materialize",
+        json={"dry_run": True, "partition_key": "2026-04-26"},
+    )
+
+    assert history.status_code == 200
+    assert history.json()[0]["run_id"] == "run-123"
+    assert materialize.status_code == 200
+    assert materialize.json()["asset_key_path"] == "silver/orders"
+    assert calls == [
+        ("history", "silver/orders", 3),
+        ("materialize", "silver/orders", "2026-04-26"),
+    ]
+
+
+def test_v2_run_operational_routes_use_v2_paths(monkeypatch) -> None:
+    from phlo_api.observatory_api import dagster
+
+    calls: list[tuple[str, str, object]] = []
+
+    async def fake_status(run_id: str, dagster_url: str | None = None):
+        calls.append(("status", run_id, None))
+        return {"run_id": run_id, "status": "FAILURE"}
+
+    async def fake_retry(run_id: str, payload, dagster_url: str | None = None):
+        calls.append(("retry", run_id, payload.dry_run))
+        return {
+            "operation": "retry_failed_run",
+            "dry_run": payload.dry_run,
+            "accepted": True,
+            "run_id": run_id,
+            "status": "DRY_RUN",
+            "message": "Run retry request is valid.",
+            "details": {"run_status": "FAILURE"},
+        }
+
+    monkeypatch.setattr(dagster, "get_run_status", fake_status)
+    monkeypatch.setattr(dagster, "retry_run", fake_retry)
+
+    client = TestClient(app)
+    status = client.get("/api/observatory/v2/runs/run-123/status")
+    retry = client.post("/api/observatory/v2/runs/run-123/retry", json={"dry_run": False})
+
+    assert status.status_code == 200
+    assert status.json()["status"] == "FAILURE"
+    assert retry.status_code == 200
+    assert retry.json()["run_id"] == "run-123"
+    assert calls == [
+        ("status", "run-123", None),
+        ("retry", "run-123", False),
+    ]
 
 
 def test_v2_available_missing_package_service_add_is_disabled(monkeypatch) -> None:
