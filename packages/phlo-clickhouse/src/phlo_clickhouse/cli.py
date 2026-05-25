@@ -23,6 +23,7 @@ from subprocess import TimeoutExpired
 
 import click
 
+from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.commands.services.utils import (
     require_container_backend as _require_selected_container_backend,
 )
@@ -38,6 +39,7 @@ from phlo.cli.output import (
     missing_query_error,
 )
 from phlo.logging import get_logger
+from phlo_clickhouse.authorization import get_adapter as get_clickhouse_adapter
 
 logger = get_logger(__name__)
 
@@ -173,6 +175,7 @@ def clickhouse_query(
 
     """
     _require_container_backend()
+    enforce_surface_mutation_authorization("clickhouse.query", get_clickhouse_adapter)
     phlo_dir = _ensure_phlo_dir()
     project_name = get_project_name()
     sql = _read_query(query=query, file=query_file)

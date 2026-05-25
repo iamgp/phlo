@@ -13,6 +13,7 @@ from subprocess import TimeoutExpired
 
 import click
 
+from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.commands.services import utils as services_utils
 from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
@@ -25,6 +26,7 @@ from phlo.cli.output import (
     missing_query_error,
 )
 from phlo.logging import get_logger
+from phlo_clickstack.authorization import get_adapter as get_clickstack_adapter
 
 logger = get_logger(__name__)
 
@@ -131,6 +133,7 @@ def clickstack_query(
 
     """
     _require_container_backend()
+    enforce_surface_mutation_authorization("clickstack.query", get_clickstack_adapter)
     phlo_dir = _ensure_phlo_dir()
     project_name = get_project_name()
     sql = _read_query(query=query, file=query_file)

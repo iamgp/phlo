@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from subprocess import CompletedProcess, TimeoutExpired
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 from click.testing import CliRunner
@@ -140,6 +142,28 @@ def test_minio_shell_passthrough_quotes_targets_with_spaces(monkeypatch) -> None
     shell_payload = captured[0][-1]
     assert "mc alias set local http://localhost:9000" in shell_payload
     assert "mc cp 'warehouse with space/' local/bucket/" in shell_payload
+
+
+def test_minio_shell_passthrough_enforces_regulated_authorization(monkeypatch) -> None:
+    adapter = MagicMock()
+    adapter.enforce_mutation.return_value = SimpleNamespace(
+        allowed=False,
+        reason_code="forbidden",
+        explanation="no",
+    )
+
+    monkeypatch.setattr(
+        "phlo.cli.authorization_wrappers.check_cli_surface_active",
+        lambda: True,
+    )
+    monkeypatch.setattr("phlo_minio.cli.get_minio_cli_adapter", lambda: adapter)
+    monkeypatch.setattr("phlo_minio.cli.subprocess.run", MagicMock())
+
+    result = CliRunner().invoke(minio_group, ["cp", "local/a.txt", "local/bucket/a.txt"])
+
+    assert result.exit_code == 1
+    adapter.enforce_mutation.assert_called_once_with("minio", None)
+    assert not result.output
 
 
 def test_minio_ls_timeout(monkeypatch) -> None:

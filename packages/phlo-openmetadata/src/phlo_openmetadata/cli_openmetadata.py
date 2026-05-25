@@ -18,8 +18,10 @@ import sys
 import click
 from rich.console import Console
 
+from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.output import user_error
 from phlo.logging import get_logger
+from phlo_openmetadata.authorization import get_openmetadata_adapter
 from phlo_openmetadata.capabilities import resolve_catalog_scanner
 from phlo_openmetadata.dbt_sync import DbtManifestParser
 from phlo_openmetadata.nessie_sync import sync_nessie_tables_to_openmetadata
@@ -150,6 +152,7 @@ def sync(
         SystemExit: With code 1 if sync fails or OpenMetadata is unreachable.
 
     """
+    enforce_surface_mutation_authorization("openmetadata.sync", get_openmetadata_adapter)
     logger.info(
         "openmetadata_sync_started",
         include_namespaces=list(include_namespace),

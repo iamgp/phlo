@@ -118,6 +118,29 @@ def require_mutation_authorization(
     return decorator
 
 
+def enforce_surface_mutation_authorization(
+    command: str,
+    adapter_getter: Callable[[], Any],
+    resource_id: str | None = None,
+) -> None:
+    """Enforce a package CLI mutation command when regulated mode is active."""
+    if not check_cli_surface_active():
+        return
+
+    adapter = adapter_getter()
+    result = adapter.enforce_mutation(command, resource_id)
+    if result.allowed:
+        return
+
+    logger.warning(
+        "cli_surface_command_authorization_denied",
+        command=command,
+        reason_code=result.reason_code,
+        explanation=result.explanation,
+    )
+    raise SystemExit(1)
+
+
 class MutationContext:
     """Context manager for enforcing mutation authorization around a block."""
 
