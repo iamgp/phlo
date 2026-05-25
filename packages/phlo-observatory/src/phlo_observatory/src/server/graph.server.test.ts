@@ -38,7 +38,7 @@ describe('graph.server api wrappers', () => {
     }
     apiGet.mockResolvedValue(payload)
 
-    const result = await fetchAssetGraphFromApi({})
+    const result = await fetchAssetGraphFromApi()
 
     expect(result).toEqual({
       nodes: [

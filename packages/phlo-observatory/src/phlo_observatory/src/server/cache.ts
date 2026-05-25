@@ -235,7 +235,7 @@ export const cacheKeys = {
   qualityCheckHistory: (assetKey: string, checkName: string, limit: number) =>
     `quality:history:${assetKey}:${checkName}:${limit}`,
 
-  graphFull: (dagsterUrl: string) => `graph:full:${normalizeUrl(dagsterUrl)}`,
+  graphFull: () => 'graph:full',
 
   graphNeighbors: (
     dagsterUrl: string,

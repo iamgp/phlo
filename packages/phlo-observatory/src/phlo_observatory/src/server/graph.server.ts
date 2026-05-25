@@ -107,10 +107,9 @@ function transformImpactedAsset(asset: ApiImpactedAsset): ImpactedAsset {
   }
 }
 
-export async function fetchAssetGraphFromApi(params: {
-  dagsterUrl?: string
-}): Promise<ApiAssetGraph | { error: string }> {
-  void params
+export async function fetchAssetGraphFromApi(): Promise<
+  ApiAssetGraph | { error: string }
+> {
   return apiGet<ApiAssetGraph | { error: string }>(
     '/api/observatory/v2/asset-graph',
   )
@@ -150,12 +149,11 @@ export async function fetchAssetImpactFromApi(params: {
 export const getAssetGraph = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<AssetGraph | { error: string }> => {
+  .handler(async (): Promise<AssetGraph | { error: string }> => {
     try {
-      const dagsterUrl = data.dagsterUrl ?? 'default'
       const result = await withCache(
-        () => fetchAssetGraphFromApi({ dagsterUrl: data.dagsterUrl }),
-        cacheKeys.graphFull(dagsterUrl),
+        () => fetchAssetGraphFromApi(),
+        cacheKeys.graphFull(),
         cacheTTL.graphFull,
       )
       if ('error' in result) return result

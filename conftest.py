@@ -21,8 +21,11 @@ os.environ["DO_NOT_TRACK"] = "1"  # General standard
 
 import contextlib
 import importlib.util
+import logging
 
 import pytest
+
+logger = logging.getLogger(__name__)
 
 # Add src to path for imports
 src_path = Path(__file__).parent / "src"
@@ -64,7 +67,11 @@ def _register_workspace_plugins() -> None:
     registry = get_global_registry()
     try:
         registry.register("asset_provider", DltAssetProvider(), replace=True)
-    except ValueError:
+    except ValueError as exc:
+        logger.debug(
+            "Failed to register DltAssetProvider for workspace tests",
+            exc_info=exc,
+        )
         return
 
 
