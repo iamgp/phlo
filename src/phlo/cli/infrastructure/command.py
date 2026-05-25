@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from subprocess import CompletedProcess
 
+from phlo.exceptions import redact_sensitive_text
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -22,12 +23,14 @@ class CommandError(RuntimeError):
     def __post_init__(self) -> None:
         """Populate RuntimeError args tuple for consistent exception rendering."""
 
+        object.__setattr__(self, "stdout", redact_sensitive_text(self.stdout))
+        object.__setattr__(self, "stderr", redact_sensitive_text(self.stderr))
         object.__setattr__(self, "args", (self.cmd, self.returncode, self.stdout, self.stderr))
 
     def __str__(self) -> str:
         """Render a readable command failure message."""
 
-        cmd = " ".join(self.cmd)
+        cmd = redact_sensitive_text(" ".join(self.cmd))
         stderr = self.stderr.strip()
         if stderr:
             return f"Command failed ({self.returncode}): {cmd}\n{stderr}"
