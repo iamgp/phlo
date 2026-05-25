@@ -21,20 +21,42 @@ export interface IcebergTable {
 }
 
 interface ApiIcebergTable {
-  catalog: string
-  schema_name: string
+  id: string
   name: string
-  full_name: string
-  layer: 'bronze' | 'silver' | 'gold' | 'publish' | 'unknown'
+  namespace?: string
+  schema_name?: string
+  metadata?: Record<string, unknown>
+}
+
+interface ApiTableList {
+  items: Array<ApiIcebergTable>
+}
+
+function layerFromTable(t: ApiIcebergTable): IcebergTable['layer'] {
+  const metadataLayer = t.metadata?.layer
+  const layer =
+    typeof metadataLayer === 'string'
+      ? metadataLayer
+      : (t.schema_name ?? t.namespace ?? '').toLowerCase()
+  if (
+    layer === 'bronze' ||
+    layer === 'silver' ||
+    layer === 'gold' ||
+    layer === 'publish'
+  ) {
+    return layer
+  }
+  return 'unknown'
 }
 
 function transformTable(t: ApiIcebergTable): IcebergTable {
+  const schema = t.schema_name ?? t.namespace ?? ''
   return {
-    catalog: t.catalog,
-    schema: t.schema_name,
+    catalog: DEFAULT_CATALOG,
+    schema,
     name: t.name,
-    fullName: t.full_name,
-    layer: t.layer,
+    fullName: schema ? `${schema}.${t.name}` : t.id,
+    layer: layerFromTable(t),
   }
 }
 
@@ -63,19 +85,19 @@ export const getTables = createServerFn()
 
       return withCache(
         async () => {
-          const result = await apiGet<
-            Array<ApiIcebergTable> | { error: string }
-          >('/api/iceberg/tables', {
-            branch,
-            catalog: effectiveCatalog,
-            preferred_schema: preferredSchema,
-          })
+          void preferredSchema
+          const result = await apiGet<ApiTableList | { error: string }>(
+            '/api/observatory/v2/tables',
+          )
 
           if ('error' in result) {
             return result
           }
 
-          return result.map(transformTable)
+          return result.items.map((table) => ({
+            ...transformTable(table),
+            catalog: effectiveCatalog,
+          }))
         },
         key,
         cacheTTL.tables,

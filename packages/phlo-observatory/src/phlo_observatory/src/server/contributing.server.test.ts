@@ -57,7 +57,7 @@ describe('contributing.server transforms', () => {
     })
   })
 
-  it('fetches contributing query payload from phlo-api', async () => {
+  it('fetches contributing query payload through v2', async () => {
     const payload = {
       query: 'SELECT * FROM foo LIMIT 10',
       upstream: { schema: 'gold', table: 'fct_orders' },
@@ -73,18 +73,21 @@ describe('contributing.server transforms', () => {
     })
 
     expect(result).toEqual(payload)
-    expect(apiPost).toHaveBeenCalledWith('/api/contributing/query', {
-      downstream_asset_key: 'gold.fct_orders',
-      upstream_asset_key: 'silver.stg_orders',
-      row_data: { order_id: 'abc123' },
-      limit: 25,
-      trino_url: 'http://trino:8080',
-      timeout_ms: undefined,
-      catalog: undefined,
-    })
+    expect(apiPost).toHaveBeenCalledWith(
+      '/api/observatory/v2/contributing-rows/query',
+      {
+        downstream_asset_key: 'gold.fct_orders',
+        upstream_asset_key: 'silver.stg_orders',
+        row_data: { order_id: 'abc123' },
+        limit: 25,
+        trino_url: 'http://trino:8080',
+        timeout_ms: undefined,
+        catalog: undefined,
+      },
+    )
   })
 
-  it('fetches contributing page payload from phlo-api', async () => {
+  it('fetches contributing page payload through v2', async () => {
     const payload = {
       mode: 'aggregate' as const,
       page: 2,
@@ -108,15 +111,18 @@ describe('contributing.server transforms', () => {
     })
 
     expect(result).toEqual(payload)
-    expect(apiPost).toHaveBeenCalledWith('/api/contributing/page', {
-      downstream_asset_key: 'gold.fct_orders',
-      upstream_asset_key: 'silver.stg_orders',
-      row_data: { order_id: 'abc123' },
-      page: 2,
-      page_size: 50,
-      trino_url: undefined,
-      timeout_ms: undefined,
-      catalog: 'iceberg',
-    })
+    expect(apiPost).toHaveBeenCalledWith(
+      '/api/observatory/v2/contributing-rows/page',
+      {
+        downstream_asset_key: 'gold.fct_orders',
+        upstream_asset_key: 'silver.stg_orders',
+        row_data: { order_id: 'abc123' },
+        page: 2,
+        page_size: 50,
+        trino_url: undefined,
+        timeout_ms: undefined,
+        catalog: 'iceberg',
+      },
+    )
   })
 })

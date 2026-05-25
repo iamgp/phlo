@@ -24,11 +24,24 @@ export interface NessieConfig {
   defaultBranch?: string
 }
 
-// Python API response types (snake_case)
-interface ApiConnectionStatus {
-  connected: boolean
-  error?: string
-  default_branch?: string
+interface ApiBranch {
+  id: string
+  name: string
+  current?: boolean
+  metadata?: Record<string, unknown>
+}
+
+interface ApiBranchList {
+  items: Array<ApiBranch>
+}
+
+function transformBranch(branch: ApiBranch): Branch {
+  const hash = branch.metadata?.hash
+  return {
+    type: 'BRANCH',
+    name: branch.name,
+    hash: typeof hash === 'string' ? hash : branch.id,
+  }
 }
 
 /**
@@ -41,14 +54,20 @@ export const checkNessieConnection = createServerFn()
     try {
       const key = cacheKeys.nessieConnection(data.nessieUrl ?? 'default')
       const result = await withCache(
-        () => apiGet<ApiConnectionStatus>('/api/nessie/connection'),
+        () =>
+          apiGet<ApiBranchList | { error: string }>(
+            '/api/observatory/v2/branches',
+          ),
         key,
         cacheTTL.nessieConnection,
       )
+      if ('error' in result) {
+        return { connected: false, error: result.error }
+      }
+      const current = result.items.find((branch) => branch.current)
       return {
-        connected: result.connected,
-        error: result.error,
-        defaultBranch: result.default_branch,
+        connected: true,
+        defaultBranch: current?.name ?? result.items[0]?.name,
       }
     } catch (error) {
       return {
@@ -67,11 +86,16 @@ export const getBranches = createServerFn()
   .handler(async ({ data }): Promise<Array<Branch> | { error: string }> => {
     try {
       const key = cacheKeys.nessieBranches(data.nessieUrl ?? 'default')
-      return await withCache(
-        () => apiGet<Array<Branch> | { error: string }>('/api/nessie/branches'),
+      const result = await withCache(
+        () =>
+          apiGet<ApiBranchList | { error: string }>(
+            '/api/observatory/v2/branches',
+          ),
         key,
         cacheTTL.nessieBranches,
       )
+      if ('error' in result) return result
+      return result.items.map(transformBranch)
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }

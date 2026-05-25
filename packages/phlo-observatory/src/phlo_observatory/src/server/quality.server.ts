@@ -16,24 +16,39 @@ export type { QualityCheck } from './quality.types'
 
 // Python API types (snake_case)
 interface ApiQualityCheck {
+  id?: string
   name: string
-  asset_key: Array<string>
+  asset_id: string
   description?: string
-  severity: 'WARN' | 'ERROR'
-  status: 'PASSED' | 'FAILED' | 'IN_PROGRESS' | 'SKIPPED'
-  last_execution_time?: string
-  last_result?: { passed: boolean; metadata?: Record<string, MetadataValue> }
+  severity?: string | null
+  status: 'passing' | 'failing' | 'warning' | 'unknown'
+  metadata?: Record<string, MetadataValue>
+}
+
+interface ApiAssetDetail {
+  quality: Array<ApiQualityCheck>
+}
+
+function transformStatus(
+  status: ApiQualityCheck['status'],
+): QualityCheck['status'] {
+  if (status === 'passing') return 'PASSED'
+  if (status === 'failing' || status === 'warning') return 'FAILED'
+  return 'SKIPPED'
 }
 
 function transformCheck(c: ApiQualityCheck): QualityCheck {
+  const status = transformStatus(c.status)
   return {
     name: c.name,
-    assetKey: c.asset_key,
+    assetKey: c.asset_id.split(/[./]/).filter(Boolean),
     description: c.description,
-    severity: c.severity,
-    status: c.status,
-    lastExecutionTime: c.last_execution_time,
-    lastResult: c.last_result,
+    severity: c.severity === 'WARN' ? 'WARN' : 'ERROR',
+    status,
+    lastResult: {
+      passed: status === 'PASSED',
+      metadata: c.metadata,
+    },
   }
 }
 
@@ -53,14 +68,14 @@ export const getAssetChecks = createServerFn()
         const keyPath = assetKey.join('/')
         const result = await withCache(
           () =>
-            apiGet<Array<ApiQualityCheck> | { error: string }>(
-              `/api/quality/assets/${keyPath}/checks`,
+            apiGet<ApiAssetDetail | { error: string }>(
+              `/api/observatory/v2/assets/${keyPath}`,
             ),
           cacheKeys.qualityAssetChecks(keyPath),
           cacheTTL.qualityAssetChecks,
         )
         if ('error' in result) return result
-        return result.map(transformCheck)
+        return result.quality.map(transformCheck)
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',

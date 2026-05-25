@@ -110,9 +110,10 @@ function transformImpactedAsset(asset: ApiImpactedAsset): ImpactedAsset {
 export async function fetchAssetGraphFromApi(params: {
   dagsterUrl?: string
 }): Promise<ApiAssetGraph | { error: string }> {
-  return apiGet<ApiAssetGraph | { error: string }>('/api/dagster/graph', {
-    dagster_url: params.dagsterUrl,
-  })
+  void params
+  return apiGet<ApiAssetGraph | { error: string }>(
+    '/api/observatory/v2/asset-graph',
+  )
 }
 
 async function fetchAssetNeighborsFromApi(params: {
@@ -122,12 +123,11 @@ async function fetchAssetNeighborsFromApi(params: {
   dagsterUrl?: string
 }): Promise<ApiAssetGraph | { error: string }> {
   return apiGet<ApiAssetGraph | { error: string }>(
-    '/api/dagster/graph/neighbors',
+    '/api/observatory/v2/asset-graph/neighbors',
     {
       asset_key: params.assetKey,
       direction: params.direction,
       depth: params.depth,
-      dagster_url: params.dagsterUrl,
     },
   )
 }
@@ -137,12 +137,12 @@ export async function fetchAssetImpactFromApi(params: {
   maxDepth?: number
   dagsterUrl?: string
 }): Promise<Array<ApiImpactedAsset> | { error: string }> {
+  void params.dagsterUrl
   return apiGet<Array<ApiImpactedAsset> | { error: string }>(
-    '/api/dagster/graph/impact',
+    '/api/observatory/v2/asset-graph/impact',
     {
       asset_key: params.assetKey,
       max_depth: params.maxDepth ?? 99,
-      dagster_url: params.dagsterUrl,
     },
   )
 }
