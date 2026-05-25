@@ -41,6 +41,15 @@ dev = [
     "phlo-testing>=0.1.0",
     "phlo-traefik>=0.1.0",
     "phlo-trino>=0.1.0",
+    "asyncpg>=0.30.0",
+    "dagster>=1.12.1",
+    "dagster-webserver>=1.12.1",
+    "duckdb>=0.9.0",
+    "fastapi>=0.127.0",
+    "libcst>=1.5.0",
+    "pandas>=2.3.3",
+    "pandera>=0.26.1",
+    "psycopg2-binary>=2.9.11",
     "ruff>=0.14.1",
     "ty==0.0.29",
     "testcontainers>=4.13.3",
@@ -63,25 +72,16 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "dagster>=1.12.1",
-    "dagster-webserver>=1.12.1",
     "cachetools>=6.2.1",
     "pyyaml>=6.0.1",
     "pydantic-settings>=2.11.0",
-    "pandas>=2.3.3",
-    "pandera>=0.26.1",
     "requests>=2.32.5",
-    "psycopg2-binary>=2.9.11",
-    "asyncpg>=0.30.0",
     "click>=8.0",
     "rich>=13.0",
-    "duckdb>=0.9.0",
     "python-ulid>=2.0.0",
     "httpx>=0.28.1",
-    "fastapi>=0.127.0",
     "structlog>=25.5.0",
     "jsonschema>=4.23.0",
-    "libcst>=1.5.0",
 ]
 description = "Lakehouse platform"
 name = "phlo"
@@ -96,6 +96,7 @@ version = "0.10.0"
 [project.entry-points."phlo.plugins.transforms"]
 
 [project.optional-dependencies]
+codemods = ["libcst>=1.5.0"]
 core-services = [
     "phlo-dagster>=0.3.2",
     "phlo-postgres>=0.1.0",
@@ -118,6 +119,16 @@ defaults = [
     "phlo-trino>=0.1.0",
 ]
 openmetadata = ["phlo-openmetadata>=0.1.0"]
+runtime = [
+    "asyncpg>=0.30.0",
+    "dagster>=1.12.1",
+    "dagster-webserver>=1.12.1",
+    "duckdb>=0.9.0",
+    "fastapi>=0.127.0",
+    "pandas>=2.3.3",
+    "pandera>=0.26.1",
+    "psycopg2-binary>=2.9.11",
+]
 
 [project.scripts]
 phlo = "phlo.cli.main:cli"

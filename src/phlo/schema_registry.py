@@ -11,8 +11,8 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-import psycopg2
 import ulid
 
 from phlo.capabilities.specs import FieldSpec, NormalizedSchema
@@ -25,6 +25,24 @@ _REGISTRY_DB_KEYS = (
     "PHLO_LINEAGE_DB_URL",
     "DAGSTER_PG_DB_CONNECTION_STRING",
 )
+
+
+def _load_psycopg2() -> Any:
+    try:
+        import psycopg2
+    except ImportError as exc:
+        raise RuntimeError(
+            "SchemaRegistry requires the runtime extra: install phlo[runtime]."
+        ) from exc
+    return psycopg2
+
+
+class _LazyPsycopg2:
+    def __getattr__(self, name: str) -> Any:
+        return getattr(_load_psycopg2(), name)
+
+
+psycopg2 = _LazyPsycopg2()
 
 
 def resolve_registry_db_url() -> str | None:
