@@ -61,7 +61,7 @@ class TestCliPrincipalResolver:
             assert principal.groups == ()
 
     def test_resolve_dev_mode_fallback(self):
-        """PHLO_DEV_MODE creates admin fallback with warning."""
+        """PHLO_DEV_MODE creates admin fallback outside regulated mode."""
         env = {"PHLO_DEV_MODE": "1"}
         with patch.dict(os.environ, env, clear=True):
             resolver = CliPrincipalResolver()
@@ -69,6 +69,16 @@ class TestCliPrincipalResolver:
             assert principal.subject == "local:root"
             assert principal.principal_type == "user"
             assert "admin" in principal.groups
+
+    def test_resolve_dev_mode_does_not_grant_admin_in_regulated_mode(self):
+        """PHLO_DEV_MODE does not create an admin principal in regulated mode."""
+        env = {"PHLO_DEV_MODE": "1", "PHLO_REGULATED": "true"}
+        with patch.dict(os.environ, env, clear=True):
+            resolver = CliPrincipalResolver()
+            principal = resolver.resolve()
+            assert principal.subject == "anonymous"
+            assert principal.principal_type == "user"
+            assert principal.groups == ()
 
     def test_resolve_anonymous_default(self):
         """No env vars creates anonymous principal."""

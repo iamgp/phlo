@@ -7,7 +7,7 @@ through core enforcement.
 Principal resolution strategy:
 - Interactive human: PHLO_AUTH_SUBJECT, PHLO_AUTH_TYPE, PHLO_AUTH_GROUPS env vars
 - CI/automation: PHLO_SERVICE_ACCOUNT env var (service principal)
-- Local dev fallback: PHLO_AUTH_SUBJECT=local:root with warning
+- Open-mode local dev fallback: PHLO_AUTH_SUBJECT=local:root with warning
 
 Mutation commands (require authorization):
 - services init/start/stop/add/remove/reset/exec/restart
@@ -149,7 +149,7 @@ class CliPrincipalResolver:
     Strategy:
     - PHLO_SERVICE_ACCOUNT set -> service principal (CI/automation)
     - PHLO_AUTH_SUBJECT + PHLO_AUTH_TYPE -> human principal
-    - PHLO_AUTH_SUBJECT=local:root -> local dev fallback
+    - PHLO_AUTH_SUBJECT=local:root -> local dev fallback outside regulated mode
     """
 
     @staticmethod
@@ -185,9 +185,22 @@ class CliPrincipalResolver:
 
         local_dev_fallback = os.environ.get("PHLO_DEV_MODE")
         if local_dev_fallback:
+            if _is_regulated_for_principal_resolution():
+                logger.warning(
+                    "cli_authorization_dev_fallback_disabled",
+                    message="PHLO_DEV_MODE cannot grant CLI admin identity in regulated mode.",
+                )
+                return AuthPrincipal(
+                    subject="anonymous",
+                    principal_type="user",
+                    issuer="cli:default",
+                    groups=(),
+                    attributes={"authentication_source": "default"},
+                )
+
             logger.warning(
                 "cli_authorization_dev_fallback",
-                message="Using dev fallback principal. Set PHLO_AUTH_SUBJECT for regulated mode.",
+                message="Using open-mode dev fallback principal. Set PHLO_AUTH_SUBJECT for regulated mode.",
             )
             return AuthPrincipal(
                 subject="local:root",
@@ -204,6 +217,17 @@ class CliPrincipalResolver:
             groups=(),
             attributes={"authentication_source": "default"},
         )
+
+
+def _is_regulated_for_principal_resolution() -> bool:
+    """Return regulated mode for identity fallback decisions, failing closed."""
+    try:
+        from phlo.security.mode import is_regulated
+
+        return is_regulated()
+    except Exception:
+        logger.warning("cli_regulated_mode_detection_failed", exc_info=True)
+        return True
 
 
 class CliSurfaceAdapter:
