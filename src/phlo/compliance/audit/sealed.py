@@ -28,6 +28,10 @@ def _get_hmac_key() -> bytes:
     key = os.environ.get(PHLO_AUDIT_HMAC_KEY_ENV, "")
     if key:
         return key.encode()
+    from phlo.security.mode import is_regulated
+
+    if is_regulated():
+        raise RuntimeError(f"{PHLO_AUDIT_HMAC_KEY_ENV} is required in regulated mode")
     return b"phlo-dev-audit-key"
 
 

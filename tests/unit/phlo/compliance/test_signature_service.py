@@ -90,6 +90,39 @@ class TestSignatureRecord:
         assert record.authentication_assurance == "session"
         assert record.signature_hash != ""
 
+    def test_from_request_requires_explicit_hmac_key_in_regulated_mode(self, monkeypatch) -> None:
+        """Regulated signatures must not fall back to the deterministic dev key."""
+        monkeypatch.setenv("PHLO_REGULATED", "true")
+        monkeypatch.delenv("PHLO_SIGNATURE_HMAC_KEY", raising=False)
+        monkeypatch.delenv("PHLO_AUDIT_HMAC_KEY", raising=False)
+        request = SignatureRequest(
+            signer_subject="alice@example.com",
+            meaning=SignatureMeaning.APPROVED,
+            record_type="dataset",
+            record_id="dataset-123",
+            record_version="abc123",
+        )
+
+        with pytest.raises(RuntimeError, match="PHLO_SIGNATURE_HMAC_KEY or PHLO_AUDIT_HMAC_KEY"):
+            SignatureRecord.from_request(request)
+
+    def test_from_request_can_use_audit_hmac_key_in_regulated_mode(self, monkeypatch) -> None:
+        """Regulated signatures may share configured audit HMAC material."""
+        monkeypatch.setenv("PHLO_REGULATED", "true")
+        monkeypatch.delenv("PHLO_SIGNATURE_HMAC_KEY", raising=False)
+        monkeypatch.setenv("PHLO_AUDIT_HMAC_KEY", "test-audit-key")
+        request = SignatureRequest(
+            signer_subject="alice@example.com",
+            meaning=SignatureMeaning.APPROVED,
+            record_type="dataset",
+            record_id="dataset-123",
+            record_version="abc123",
+        )
+
+        record = SignatureRecord.from_request(request)
+
+        assert record.signature_hash != ""
+
     def test_from_request_with_custom_assurance(self) -> None:
         """SignatureRecord can be created with custom authentication assurance."""
         request = SignatureRequest(

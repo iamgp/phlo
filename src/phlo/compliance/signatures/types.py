@@ -24,6 +24,12 @@ def _get_signature_hmac_key() -> bytes:
     key = os.environ.get(PHLO_SIGNATURE_HMAC_KEY_ENV) or os.environ.get(PHLO_AUDIT_HMAC_KEY_ENV)
     if key:
         return key.encode()
+    from phlo.security.mode import is_regulated
+
+    if is_regulated():
+        raise RuntimeError(
+            f"{PHLO_SIGNATURE_HMAC_KEY_ENV} or {PHLO_AUDIT_HMAC_KEY_ENV} is required in regulated mode"
+        )
     return b"phlo-dev-signature-key"
 
 
