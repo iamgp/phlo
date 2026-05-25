@@ -116,6 +116,7 @@ def cleanup_phlo_containers() -> int:
         capture_output=True,
         text=True,
         timeout=30,
+        check=True,
     )
     container_ids = [line for line in result.stdout.splitlines() if line]
     if not container_ids:
@@ -125,11 +126,13 @@ def cleanup_phlo_containers() -> int:
         ["docker", "stop", *container_ids],
         capture_output=True,
         timeout=60,
+        check=True,
     )
     subprocess.run(
         ["docker", "rm", *container_ids],
         capture_output=True,
         timeout=60,
+        check=True,
     )
     return len(container_ids)
 

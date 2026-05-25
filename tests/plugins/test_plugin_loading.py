@@ -133,6 +133,29 @@ def test_discover_plugins_strict_raises_for_entry_point_errors(
     assert exc_info.value.plugin_type == "source_connector"
 
 
+def test_discover_plugins_strict_raises_for_invalid_plugin_base(
+    clean_registry,
+    settings_stub: _SettingsStub,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Strict discovery also fails fast for invalid loaded plugin objects."""
+    monkeypatch.setattr(
+        _plugin_loading,
+        "entry_points_for_group",
+        lambda group: [_EntryPointStub("plain", "tests:plain", object())],
+    )
+
+    with pytest.raises(_plugin_loading.PluginDiscoveryError) as exc_info:
+        _plugin_loading.discover_plugins(
+            plugin_type="source_connector",
+            auto_register=False,
+            strict=True,
+        )
+
+    assert exc_info.value.plugin_name == "plain"
+    assert exc_info.value.reason == "invalid_base_class"
+
+
 def test_discover_plugins_skips_disallowed_and_invalid_plugins(
     clean_registry,
     settings_stub: _SettingsStub,

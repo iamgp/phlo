@@ -492,6 +492,12 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
     """
     if not dry_run:
         enforce_surface_mutation_authorization("branch.merge", get_nessie_cli_adapter)
+        if not no_delete_source:
+            enforce_surface_mutation_authorization(
+                "branch.delete",
+                get_nessie_cli_adapter,
+                resource_id=source_branch,
+            )
     logger.info(
         "nessie_branch_merge_requested",
         source_branch=source_branch,

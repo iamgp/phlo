@@ -34,6 +34,19 @@ def test_command_error_redacts_sensitive_output() -> None:
     assert "postgres://user:<redacted>@localhost/db" in error.stderr
     assert "secret" not in rendered
     assert "hunter2" not in rendered
+    assert all("secret" not in part for part in error.cmd)
+
+
+def test_command_error_redacts_split_sensitive_command_arguments() -> None:
+    error = CommandError(
+        cmd=("tool", "--token", "ghp_secret", "--name", "public"),
+        returncode=1,
+        stdout="",
+        stderr="",
+    )
+
+    assert error.cmd == ("tool", "--token", "<redacted>", "--name", "public")
+    assert "ghp_secret" not in str(error)
 
 
 def test_run_command_forwards_options(monkeypatch: pytest.MonkeyPatch) -> None:

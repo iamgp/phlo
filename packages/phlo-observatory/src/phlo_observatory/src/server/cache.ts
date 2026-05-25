@@ -174,8 +174,7 @@ function normalizeUrl(url: string): string {
 }
 
 export const cacheKeys = {
-  tables: (catalog: string, branch: string) =>
-    `iceberg:tables:${catalog}:${branch}`,
+  tables: () => 'iceberg:tables',
 
   tableSchema: (catalog: string, schema: string, table: string) =>
     `iceberg:schema:${catalog}:${schema}:${table}`,
@@ -193,11 +192,9 @@ export const cacheKeys = {
   dagsterConnection: (dagsterUrl: string) =>
     `dagster:connection:${normalizeUrl(dagsterUrl)}`,
 
-  nessieConnection: (nessieUrl: string) =>
-    `nessie:connection:${normalizeUrl(nessieUrl)}`,
+  nessieConnection: () => 'nessie:connection',
 
-  nessieBranches: (nessieUrl: string) =>
-    `nessie:branches:${normalizeUrl(nessieUrl)}`,
+  nessieBranches: () => 'nessie:branches',
 
   nessieBranch: (nessieUrl: string, branch: string) =>
     `nessie:branch:${normalizeUrl(nessieUrl)}:${branch}`,
@@ -237,13 +234,8 @@ export const cacheKeys = {
 
   graphFull: () => 'graph:full',
 
-  graphNeighbors: (
-    dagsterUrl: string,
-    assetKey: string,
-    direction: string,
-    depth: number,
-  ) =>
-    `graph:neighbors:${normalizeUrl(dagsterUrl)}:${assetKey}:${direction}:${depth}`,
+  graphNeighbors: (assetKey: string, direction: string, depth: number) =>
+    `graph:neighbors:${assetKey}:${direction}:${depth}`,
 }
 
 export const cacheTTL = {

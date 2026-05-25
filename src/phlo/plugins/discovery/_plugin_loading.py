@@ -15,12 +15,20 @@ logger = get_logger(__name__)
 class PluginDiscoveryError(RuntimeError):
     """Raised when strict plugin discovery cannot load an entry point."""
 
-    def __init__(self, *, plugin_name: str, entry_point: str, plugin_type: str) -> None:
+    def __init__(
+        self,
+        *,
+        plugin_name: str,
+        entry_point: str,
+        plugin_type: str,
+        reason: str = "load_failed",
+    ) -> None:
         self.plugin_name = plugin_name
         self.entry_point = entry_point
         self.plugin_type = plugin_type
+        self.reason = reason
         super().__init__(
-            f"Failed to load plugin {plugin_name!r} from {entry_point!r} "
+            f"Failed to discover plugin {plugin_name!r} from {entry_point!r} "
             f"for plugin type {plugin_type!r}"
         )
 
@@ -96,6 +104,13 @@ def discover_plugins(
                             "plugin_invalid_base_class",
                             plugin_name=entry_point.name,
                         )
+                        if strict:
+                            raise PluginDiscoveryError(
+                                plugin_name=entry_point.name,
+                                entry_point=entry_point.value,
+                                plugin_type=current_type,
+                                reason="invalid_base_class",
+                            )
                         continue
 
                     expected_type = PLUGIN_EXPECTED_TYPES[current_type]
@@ -106,6 +121,13 @@ def discover_plugins(
                             expected_type=expected_type.__name__,
                             actual_type=type(plugin).__name__,
                         )
+                        if strict:
+                            raise PluginDiscoveryError(
+                                plugin_name=entry_point.name,
+                                entry_point=entry_point.value,
+                                plugin_type=current_type,
+                                reason="incorrect_type",
+                            )
                         continue
 
                     if auto_register:
@@ -119,6 +141,8 @@ def discover_plugins(
                         plugin_version=plugin.metadata.version,
                         plugin_type=current_type,
                     )
+                except PluginDiscoveryError:
+                    raise
                 except Exception as exc:
                     log_method = getattr(logger, failure_level, logger.error)
                     log_method(

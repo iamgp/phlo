@@ -38,6 +38,7 @@ from phlo.cli.output import (
     missing_phlo_project_error,
     missing_query_error,
 )
+from phlo.cli.sql import is_mutating_sql
 from phlo.logging import get_logger
 from phlo_clickhouse.authorization import get_adapter as get_clickhouse_adapter
 
@@ -174,11 +175,12 @@ def clickhouse_query(
         $ phlo clickhouse query --file queries/analysis.sql --format CSV
 
     """
+    sql = _read_query(query=query, file=query_file)
+    if is_mutating_sql(sql):
+        enforce_surface_mutation_authorization("clickhouse.query", get_clickhouse_adapter)
     _require_container_backend()
-    enforce_surface_mutation_authorization("clickhouse.query", get_clickhouse_adapter)
     phlo_dir = _ensure_phlo_dir()
     project_name = get_project_name()
-    sql = _read_query(query=query, file=query_file)
 
     cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
     cmd.extend(

@@ -42,6 +42,7 @@ from phlo.cli.output import (
     file_read_error,
 )
 from phlo.cli.output import missing_query_error
+from phlo.cli.sql import is_mutating_sql
 from phlo_trino.authorization import get_trino_cli_adapter
 
 
@@ -123,9 +124,10 @@ def trino_query(
     timeout_seconds: int,
 ) -> None:
     """Execute a SQL query against the running Trino service."""
-    _require_container_backend()
-    enforce_surface_mutation_authorization("trino.query", get_trino_cli_adapter)
     sql = _read_query(query=query, file=query_file)
+    if is_mutating_sql(sql):
+        enforce_surface_mutation_authorization("trino.query", get_trino_cli_adapter)
+    _require_container_backend()
     cmd = _trino_exec_base(tty=False)
     if catalog:
         cmd.extend(["--catalog", catalog])

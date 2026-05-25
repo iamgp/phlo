@@ -6,9 +6,11 @@ import ast
 import tomllib
 from pathlib import Path
 
+from packaging.requirements import Requirement
+
 
 def _dependency_name(spec: str) -> str:
-    return spec.split("[", 1)[0].split("<", 1)[0].split(">", 1)[0].split("=", 1)[0].strip()
+    return Requirement(spec).name
 
 
 def test_root_dependencies_do_not_pull_provider_runtime_stacks() -> None:
@@ -40,7 +42,16 @@ def test_provider_runtime_stacks_are_available_as_extras() -> None:
     runtime = {_dependency_name(spec) for spec in optional["runtime"]}
     codemods = {_dependency_name(spec) for spec in optional["codemods"]}
 
-    assert {"dagster", "dagster-webserver", "fastapi", "pandas", "pandera"} <= runtime
+    assert {
+        "asyncpg",
+        "dagster",
+        "dagster-webserver",
+        "duckdb",
+        "fastapi",
+        "pandas",
+        "pandera",
+        "psycopg2-binary",
+    } <= runtime
     assert {"libcst"} <= codemods
 
 

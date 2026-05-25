@@ -13,7 +13,6 @@ import { BranchSelector } from '@/components/data/BranchSelector'
 import { SavedQueriesPanel } from '@/components/data/SavedQueriesPanel'
 import { TableBrowserVirtualized } from '@/components/data/TableBrowserVirtualized'
 import { getTables } from '@/server/iceberg.server'
-import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 function deferNavigation(runNavigation: () => void) {
   queueMicrotask(runNavigation)
@@ -33,17 +32,8 @@ export const Route = createFileRoute('/data/$branchName')({
 })
 
 async function loadTables(branchName: string) {
-  const branch = decodeURIComponent(branchName)
-  const settings = await getEffectiveObservatorySettings()
-  return getTables({
-    data: {
-      branch,
-      catalog: settings.defaults.catalog,
-      preferredSchema: settings.defaults.schema,
-      trinoUrl: settings.connections.trinoUrl,
-      timeoutMs: settings.query.timeoutMs,
-    },
-  })
+  void decodeURIComponent(branchName)
+  return getTables({ data: {} })
 }
 
 function DataExplorerLayout() {

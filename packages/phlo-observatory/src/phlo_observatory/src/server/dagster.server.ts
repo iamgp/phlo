@@ -24,7 +24,7 @@ interface Asset {
   computeKind?: string
   groupName?: string
   lastMaterialization?: LastMaterialization
-  hasMaterializePermission: boolean
+  hasMaterializePermission?: boolean
 }
 
 interface ColumnLineageDep {
@@ -59,6 +59,11 @@ interface ApiAssetDetails {
 
 function transformAsset(a: ApiAsset): Asset {
   const key = a.id.split(/[./]/).filter(Boolean)
+  const materializePermission = a.metadata?.has_materialize_permission
+  const hasMaterializePermission =
+    typeof materializePermission === 'boolean'
+      ? materializePermission
+      : undefined
   return {
     id: a.id,
     key,
@@ -66,7 +71,7 @@ function transformAsset(a: ApiAsset): Asset {
     description: a.description,
     computeKind: a.kinds?.[0],
     groupName: a.group,
-    hasMaterializePermission: false,
+    hasMaterializePermission,
   }
 }
 

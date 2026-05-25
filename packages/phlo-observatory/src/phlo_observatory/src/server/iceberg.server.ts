@@ -67,40 +67,23 @@ const DEFAULT_CATALOG = 'iceberg'
  */
 export const getTables = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator(
-    (input: {
-      branch?: string
-      catalog?: string
-      preferredSchema?: string
-      trinoUrl?: string
-      timeoutMs?: number
-    }) => input,
-  )
-  .handler(
-    async ({
-      data: { branch = 'main', catalog, preferredSchema },
-    }): Promise<Array<IcebergTable> | { error: string }> => {
-      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-      const key = cacheKeys.tables(effectiveCatalog, branch)
+  .inputValidator((input: Record<string, never> = {}) => input)
+  .handler(async (): Promise<Array<IcebergTable> | { error: string }> => {
+    const key = cacheKeys.tables()
 
-      return withCache(
-        async () => {
-          void preferredSchema
-          const result = await apiGet<ApiTableList | { error: string }>(
-            '/api/observatory/v2/tables',
-          )
+    return withCache(
+      async () => {
+        const result = await apiGet<ApiTableList | { error: string }>(
+          '/api/observatory/v2/tables',
+        )
 
-          if ('error' in result) {
-            return result
-          }
+        if ('error' in result) {
+          return result
+        }
 
-          return result.items.map((table) => ({
-            ...transformTable(table),
-            catalog: effectiveCatalog,
-          }))
-        },
-        key,
-        cacheTTL.tables,
-      )
-    },
-  )
+        return result.items.map(transformTable)
+      },
+      key,
+      cacheTTL.tables,
+    )
+  })

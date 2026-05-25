@@ -24,6 +24,10 @@ _URL_CREDENTIALS_SENSITIVE_PATTERN = re.compile(
     r"\b([a-z][a-z0-9+.-]*://[^:\s/@]+:)[^@\s]+@",
     re.IGNORECASE,
 )
+_URL_TOKEN_USERINFO_SENSITIVE_PATTERN = re.compile(
+    r"\b([a-z][a-z0-9+.-]*://)[^:\s/@]+@",
+    re.IGNORECASE,
+)
 
 
 def redact_sensitive_text(s: str) -> str:
@@ -31,6 +35,7 @@ def redact_sensitive_text(s: str) -> str:
     result = _KEY_MATERIAL_SENSITIVE_PATTERN.sub(r"\1=<redacted>", s)
     result = _CONNECTION_STRING_SENSITIVE_PATTERN.sub(r"\1=<redacted>", result)
     result = _URL_CREDENTIALS_SENSITIVE_PATTERN.sub(r"\1<redacted>@", result)
+    result = _URL_TOKEN_USERINFO_SENSITIVE_PATTERN.sub(r"\1<redacted>@", result)
     result = _KEY_VALUE_SENSITIVE_PATTERN.sub(
         lambda m: f"{m.group(1)}=<redacted>",
         result,

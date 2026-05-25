@@ -7,7 +7,7 @@ through core enforcement.
 Principal resolution strategy:
 - Interactive human: PHLO_AUTH_SUBJECT, PHLO_AUTH_TYPE, PHLO_AUTH_GROUPS env vars
 - CI/automation: PHLO_SERVICE_ACCOUNT env var (service principal)
-- Open-mode local dev fallback: PHLO_AUTH_SUBJECT=local:root with warning
+- Open-mode local dev fallback: PHLO_DEV_MODE grants local:root with warning
 
 Mutation commands (require authorization):
 - services init/start/stop/add/remove/reset/exec/restart

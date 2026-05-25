@@ -619,6 +619,26 @@ def test_v2_asset_operational_routes_use_v2_paths(monkeypatch) -> None:
     ]
 
 
+def test_v2_asset_materializations_clamps_limit(monkeypatch) -> None:
+    from phlo_api.observatory_api import dagster
+
+    calls: list[int] = []
+
+    async def fake_history(asset_id: str, limit: int = 10, dagster_url: str | None = None):
+        calls.append(limit)
+        return []
+
+    monkeypatch.setattr(dagster, "get_materialization_history", fake_history)
+
+    client = TestClient(app)
+    too_low = client.get("/api/observatory/v2/assets/silver/orders/materializations?limit=0")
+    too_high = client.get("/api/observatory/v2/assets/silver/orders/materializations?limit=999")
+
+    assert too_low.status_code == 200
+    assert too_high.status_code == 200
+    assert calls == [1, 200]
+
+
 def test_v2_run_operational_routes_use_v2_paths(monkeypatch) -> None:
     from phlo_api.observatory_api import dagster
 

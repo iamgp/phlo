@@ -2690,6 +2690,7 @@ async def get_v2_asset_materializations(asset_id: str, limit: int = 10) -> Any:
     """Get recent materializations for an asset from the active orchestrator provider."""
     from phlo_api.observatory_api.dagster import get_materialization_history
 
+    limit = max(1, min(limit, 200))
     return await get_materialization_history(asset_id, limit=limit)
 
 

@@ -51,6 +51,36 @@ def test_clickstack_query_runs_clickhouse_client(monkeypatch) -> None:
     assert result.output == '{"1":1}\n'
 
 
+def test_clickstack_query_authorizes_only_mutating_sql(monkeypatch) -> None:
+    calls: list[str] = []
+
+    monkeypatch.setattr("phlo_clickstack.cli._ensure_phlo_dir", lambda: Path("/tmp/project/.phlo"))
+    monkeypatch.setattr(
+        "phlo_clickstack.cli._require_container_backend",
+        lambda: calls.append("backend"),
+    )
+    monkeypatch.setattr("phlo_clickstack.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        "phlo_clickstack.cli.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr(
+        "phlo_clickstack.cli.run_command",
+        lambda cmd, **_kwargs: CompletedProcess(cmd, 0, stdout="ok\n", stderr=""),
+    )
+    monkeypatch.setattr(
+        "phlo_clickstack.cli.enforce_surface_mutation_authorization",
+        lambda *_args, **_kwargs: calls.append("auth"),
+    )
+
+    select_result = CliRunner().invoke(clickstack_group, ["query", "SELECT 1"])
+    insert_result = CliRunner().invoke(clickstack_group, ["query", "INSERT INTO t VALUES (1)"])
+
+    assert select_result.exit_code == 0
+    assert insert_result.exit_code == 0
+    assert calls == ["backend", "auth", "backend"]
+
+
 def test_clickstack_query_uses_selected_container_backend(monkeypatch, tmp_path) -> None:
     phlo_dir = tmp_path / ".phlo"
     phlo_dir.mkdir()

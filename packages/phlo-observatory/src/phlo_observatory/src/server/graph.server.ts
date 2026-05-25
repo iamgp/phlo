@@ -119,7 +119,6 @@ async function fetchAssetNeighborsFromApi(params: {
   assetKey: string
   direction: 'upstream' | 'downstream' | 'both'
   depth: number
-  dagsterUrl?: string
 }): Promise<ApiAssetGraph | { error: string }> {
   return apiGet<ApiAssetGraph | { error: string }>(
     '/api/observatory/v2/asset-graph/neighbors',
@@ -134,9 +133,7 @@ async function fetchAssetNeighborsFromApi(params: {
 export async function fetchAssetImpactFromApi(params: {
   assetKey: string
   maxDepth?: number
-  dagsterUrl?: string
 }): Promise<Array<ApiImpactedAsset> | { error: string }> {
-  void params.dagsterUrl
   return apiGet<Array<ApiImpactedAsset> | { error: string }>(
     '/api/observatory/v2/asset-graph/impact',
     {
@@ -148,7 +145,7 @@ export async function fetchAssetImpactFromApi(params: {
 
 export const getAssetGraph = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .inputValidator((input: Record<string, never> = {}) => input)
   .handler(async (): Promise<AssetGraph | { error: string }> => {
     try {
       const result = await withCache(
@@ -170,26 +167,18 @@ export const getAssetNeighbors = createServerFn()
       assetKey: string
       direction: 'upstream' | 'downstream' | 'both'
       depth: number
-      dagsterUrl?: string
     }) => input,
   )
   .handler(async ({ data }): Promise<AssetGraph | { error: string }> => {
     try {
-      const dagsterUrl = data.dagsterUrl ?? 'default'
       const result = await withCache(
         () =>
           fetchAssetNeighborsFromApi({
             assetKey: data.assetKey,
             direction: data.direction,
             depth: data.depth,
-            dagsterUrl: data.dagsterUrl,
           }),
-        cacheKeys.graphNeighbors(
-          dagsterUrl,
-          data.assetKey,
-          data.direction,
-          data.depth,
-        ),
+        cacheKeys.graphNeighbors(data.assetKey, data.direction, data.depth),
         cacheTTL.graphNeighbors,
       )
       if ('error' in result) return result
@@ -201,17 +190,13 @@ export const getAssetNeighbors = createServerFn()
 
 export const getAssetImpact = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator(
-    (input: { assetKey: string; maxDepth?: number; dagsterUrl?: string }) =>
-      input,
-  )
+  .inputValidator((input: { assetKey: string; maxDepth?: number }) => input)
   .handler(
     async ({ data }): Promise<Array<ImpactedAsset> | { error: string }> => {
       try {
         const result = await fetchAssetImpactFromApi({
           assetKey: data.assetKey,
           maxDepth: data.maxDepth,
-          dagsterUrl: data.dagsterUrl,
         })
         if ('error' in result) return result
         return result.map(transformImpactedAsset)

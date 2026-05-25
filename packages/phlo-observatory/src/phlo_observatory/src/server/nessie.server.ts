@@ -49,16 +49,15 @@ function transformBranch(branch: ApiBranch): Branch {
  */
 export const checkNessieConnection = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator((input: { nessieUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<NessieConfig> => {
+  .inputValidator((input: Record<string, never> = {}) => input)
+  .handler(async (): Promise<NessieConfig> => {
     try {
-      const key = cacheKeys.nessieConnection(data.nessieUrl ?? 'default')
       const result = await withCache(
         () =>
           apiGet<ApiBranchList | { error: string }>(
             '/api/observatory/v2/branches',
           ),
-        key,
+        cacheKeys.nessieConnection(),
         cacheTTL.nessieConnection,
       )
       if ('error' in result) {
@@ -82,16 +81,15 @@ export const checkNessieConnection = createServerFn()
  */
 export const getBranches = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator((input: { nessieUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<Array<Branch> | { error: string }> => {
+  .inputValidator((input: Record<string, never> = {}) => input)
+  .handler(async (): Promise<Array<Branch> | { error: string }> => {
     try {
-      const key = cacheKeys.nessieBranches(data.nessieUrl ?? 'default')
       const result = await withCache(
         () =>
           apiGet<ApiBranchList | { error: string }>(
             '/api/observatory/v2/branches',
           ),
-        key,
+        cacheKeys.nessieBranches(),
         cacheTTL.nessieBranches,
       )
       if ('error' in result) return result

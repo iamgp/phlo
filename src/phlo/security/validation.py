@@ -144,12 +144,8 @@ def _check_compliance_hmac_keys() -> ValidationResult:
     if not signature_key:
         return ValidationResult(
             name="compliance_hmac_keys_configured",
-            passed=True,
-            message=(
-                f"{PHLO_AUDIT_HMAC_KEY_ENV} is configured; signatures will use it because "
-                f"{PHLO_SIGNATURE_HMAC_KEY_ENV} is not set"
-            ),
-            required=False,
+            passed=False,
+            message=(f"{PHLO_SIGNATURE_HMAC_KEY_ENV} is required for regulated signature sealing"),
         )
 
     return ValidationResult(
