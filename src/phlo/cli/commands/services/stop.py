@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import click
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.services.common import (
     load_compose_service_names,
     parse_service_args,
@@ -62,6 +63,7 @@ def _remaining_project_containers(project_name: str, backend_name: str | None) -
     default=None,
     help="Container backend for this command.",
 )
+@require_mutation_authorization("services.stop")
 def stop_cmd(
     volumes: bool,
     stop_native: bool,

@@ -18,6 +18,7 @@ import click
 import phlo.cli._init_discovery_guard  # noqa: F401
 import phlo.cli._warning_filters  # noqa: F401
 from phlo.cli._init_discovery_guard import is_init_command_invocation
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.doctor import doctor_cmd
 from phlo.cli.templates import TemplateRenderContext, get_template
 from phlo.cli.templates import list_templates as get_project_templates
@@ -258,6 +259,7 @@ def _render_next_steps(selected_template) -> list[str]:
 )
 @click.option("--force", is_flag=True, help="Initialize in non-empty directory")
 @click.option("--list-templates", is_flag=True, help="List available project templates and exit.")
+@require_mutation_authorization("init", when=lambda params: not params.get("list_templates"))
 def init(project_name: str | None, template: str, force: bool, list_templates: bool):
     """
     Initialize a new Phlo project.

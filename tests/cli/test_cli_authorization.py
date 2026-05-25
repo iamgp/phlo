@@ -184,6 +184,7 @@ class TestMutationCommandLists:
         all_services = {
             "services.start",
             "services.stop",
+            "services.add",
             "services.remove",
             "services.reset",
             "services.exec",
@@ -226,6 +227,26 @@ class TestMutationCommandLists:
         unclassified = all_authz - classified
         assert unclassified == set(), f"Unclassified authz commands: {unclassified}"
 
+    def test_all_migration_commands_covered(self):
+        """All migration subcommands are classified."""
+        all_migration = {
+            "migrate.decorators_2026_05",
+            "migrate.run",
+            "migrate.validate",
+            "migrate.list",
+            "migrate.status",
+            "schema_migrate.diff",
+            "schema_migrate.plan",
+            "schema_migrate.apply",
+            "schema_migrate.history",
+            "schema_migrate.export_contract",
+            "schema_migrate.scaffold_yaml",
+            "schema_migrate.scaffold_yaml_recent",
+        }
+        classified = READ_COMMANDS | MUTATION_COMMANDS
+        unclassified = all_migration - classified
+        assert unclassified == set(), f"Unclassified migration commands: {unclassified}"
+
 
 class TestResourceActionMapping:
     """Tests for command to resource/action mapping."""
@@ -235,9 +256,12 @@ class TestResourceActionMapping:
         for cmd in [
             "services.start",
             "services.stop",
+            "services.add",
+            "services.init",
             "services.remove",
             "services.reset",
             "services.exec",
+            "services.restart",
         ]:
             assert COMMAND_RESOURCE_MAP[cmd] == "infrastructure"
 
@@ -284,3 +308,84 @@ class TestAuthorizationWrappers:
 
         result = check_cli_surface_active()
         assert isinstance(result, bool)
+
+    def test_require_mutation_authorization_skips_when_surface_inactive(self, monkeypatch):
+        """Decorator is inert outside regulated mode."""
+        from phlo.cli import authorization as authorization_module
+        from phlo.cli import authorization_wrappers
+        from phlo.cli.authorization_wrappers import require_mutation_authorization
+
+        monkeypatch.setattr(authorization_wrappers, "check_cli_surface_active", lambda: False)
+        monkeypatch.setattr(
+            authorization_module,
+            "get_cli_adapter",
+            MagicMock(side_effect=AssertionError("adapter should not be called")),
+        )
+
+        @require_mutation_authorization("services.start")
+        def handler(value: str) -> str:
+            return f"ran:{value}"
+
+        assert handler("postgres") == "ran:postgres"
+
+    def test_require_mutation_authorization_enforces_when_surface_active(self, monkeypatch):
+        """Decorator calls the CLI adapter in regulated mode."""
+        from phlo.cli import authorization as authorization_module
+        from phlo.cli import authorization_wrappers
+        from phlo.cli.authorization_wrappers import require_mutation_authorization
+
+        adapter = MagicMock()
+        adapter.enforce_mutation.return_value = MagicMock(allowed=True)
+        monkeypatch.setattr(authorization_wrappers, "check_cli_surface_active", lambda: True)
+        monkeypatch.setattr(authorization_module, "get_cli_adapter", lambda: adapter)
+
+        @require_mutation_authorization("services.start")
+        def handler() -> str:
+            return "ran"
+
+        assert handler() == "ran"
+        adapter.enforce_mutation.assert_called_once_with("services.start", None)
+
+    def test_require_mutation_authorization_can_skip_read_mode(self, monkeypatch):
+        """Conditional wrappers do not enforce read-only command modes."""
+        from phlo.cli import authorization as authorization_module
+        from phlo.cli import authorization_wrappers
+        from phlo.cli.authorization_wrappers import require_mutation_authorization
+
+        monkeypatch.setattr(authorization_wrappers, "check_cli_surface_active", lambda: True)
+        monkeypatch.setattr(
+            authorization_module,
+            "get_cli_adapter",
+            MagicMock(side_effect=AssertionError("adapter should not be called")),
+        )
+
+        @require_mutation_authorization(
+            "migrate.run",
+            when=lambda params: not params.get("dry_run"),
+        )
+        def handler(*, dry_run: bool) -> str:
+            return "read-only"
+
+        assert handler(dry_run=True) == "read-only"
+
+    def test_require_mutation_authorization_denies_when_adapter_denies(self, monkeypatch):
+        """Authorization denial stops the command before mutation logic runs."""
+        from phlo.cli import authorization as authorization_module
+        from phlo.cli import authorization_wrappers
+        from phlo.cli.authorization_wrappers import require_mutation_authorization
+
+        adapter = MagicMock()
+        adapter.enforce_mutation.return_value = MagicMock(
+            allowed=False,
+            reason_code="forbidden",
+            explanation="not allowed",
+        )
+        monkeypatch.setattr(authorization_wrappers, "check_cli_surface_active", lambda: True)
+        monkeypatch.setattr(authorization_module, "get_cli_adapter", lambda: adapter)
+
+        @require_mutation_authorization("services.start")
+        def handler() -> str:
+            return "should not run"
+
+        with pytest.raises(SystemExit):
+            handler()

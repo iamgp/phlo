@@ -12,6 +12,7 @@ from uuid import uuid4
 import click
 import yaml
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.services.common import (
     load_compose_service_names,
     parse_service_args,
@@ -311,6 +312,7 @@ def _preflight_required_env_vars(
     default=None,
     help="Container backend for this command.",
 )
+@require_mutation_authorization("services.start")
 def start_cmd(
     detach: bool,
     build: bool,

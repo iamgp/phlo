@@ -6,6 +6,7 @@ import sys
 
 import click
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.plugin.utils import collect_installed_plugins, console, run_pip
 from phlo.logging import get_logger
 from phlo.plugins.registry_client import get_plugin as get_registry_plugin
@@ -36,6 +37,7 @@ def resolve_install_target(plugin_name: str) -> tuple[str, str]:
 
 @click.command(name="install")
 @click.argument("plugin_name")
+@require_mutation_authorization("plugin.install")
 def install_cmd(plugin_name: str):
     """Install a plugin from the registry (wraps pip)."""
     try:
