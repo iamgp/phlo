@@ -15,9 +15,7 @@ from phlo_api.observatory_api import v2
 from phlo_api.observatory_api import v2_services
 from phlo_api.observatory_api.v2 import (
     _execute_action,
-    _fallback_services,
     _load_capabilities,
-    _load_docker_service_statuses,
     _load_services,
     _overview_health_from_services,
     _run_read_query,
@@ -43,6 +41,10 @@ from phlo_api.observatory_api.v2_models import (
     V2TablePreview,
 )
 from phlo_api.observatory_api.v2_operation_journal import append_operation
+from phlo_api.observatory_api.v2_services import fallback_services as _fallback_services
+from phlo_api.observatory_api.v2_services import (
+    load_docker_service_statuses as _load_docker_service_statuses,
+)
 
 _PROVIDER_URL_SETTING_NAMES = (
     "dagster_url",
@@ -294,9 +296,15 @@ def test_v2_docker_statuses_fall_back_to_socket_and_scope_project(monkeypatch, t
     ]
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-    monkeypatch.setattr("phlo_api.observatory_api.v2._DOCKER_SOCKET", str(tmp_path / "docker.sock"))
-    monkeypatch.setattr("phlo_api.observatory_api.v2.Path.exists", lambda self: True)
-    monkeypatch.setattr("phlo_api.observatory_api.v2._docker_socket_json", lambda path: payload)
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.v2_services.DOCKER_SOCKET",
+        str(tmp_path / "docker.sock"),
+    )
+    monkeypatch.setattr("phlo_api.observatory_api.v2_services.Path.exists", lambda self: True)
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.v2_services.docker_socket_json",
+        lambda path, socket_path=str(tmp_path / "docker.sock"): payload,
+    )
     monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "phlo")
 
     statuses = _load_docker_service_statuses({"postgres"})
@@ -316,7 +324,10 @@ def test_v2_load_services_includes_runtime_containers_missing_from_discovery(mon
         }
     ]
 
-    monkeypatch.setattr("phlo_api.observatory_api.v2._load_docker_containers", lambda: containers)
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.v2.load_project_docker_containers",
+        lambda _project_root: containers,
+    )
     monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "phlo")
 
     services = _load_services()
@@ -325,6 +336,35 @@ def test_v2_load_services_includes_runtime_containers_missing_from_discovery(mon
     assert postgres.in_stack is True
     assert postgres.backend == "docker"
     assert postgres.status == "running"
+
+
+def test_v2_load_services_uses_project_scoped_container_loader(monkeypatch, tmp_path) -> None:
+    containers = [{"Names": "phlo-postgres-1"}]
+    observed: dict[str, object] = {}
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+
+    def fake_project_containers(project_root: Path) -> list[dict[str, str]]:
+        observed["project_root"] = project_root
+        return containers
+
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.v2.load_project_docker_containers",
+        fake_project_containers,
+    )
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.v2._load_services_impl",
+        lambda project_root, containers: observed.update(
+            loader_project_root=project_root,
+            containers=containers,
+        )
+        or [],
+    )
+
+    assert _load_services() == []
+    assert observed["project_root"] == tmp_path.resolve()
+    assert observed["loader_project_root"] == tmp_path.resolve()
+    assert observed["containers"] is containers
 
 
 def test_v2_load_services_marks_registry_service_runtime_container_in_stack(
@@ -1113,6 +1153,47 @@ def test_v2_asset_detail_endpoint_returns_related_provider_neutral_payload(monke
     _assert_no_provider_url_settings(payload)
 
 
+def test_v2_asset_graph_and_impact_are_first_class(monkeypatch) -> None:
+    monkeypatch.setattr(
+        v2,
+        "_load_assets",
+        lambda: [
+            V2Asset(id="silver.stg_orders", name="stg_orders", group="silver"),
+            V2Asset(
+                id="gold.fct_orders",
+                name="fct_orders",
+                group="gold",
+                dependencies=["silver.stg_orders"],
+            ),
+        ],
+    )
+
+    client = TestClient(app)
+    graph_response = client.get("/api/observatory/v2/asset-graph")
+    impact_response = client.get(
+        "/api/observatory/v2/asset-graph/impact",
+        params={"asset_key": "silver.stg_orders", "max_depth": 2},
+    )
+
+    assert graph_response.status_code == 200
+    graph = graph_response.json()
+    assert [node["key_path"] for node in graph["nodes"]] == [
+        "silver.stg_orders",
+        "gold.fct_orders",
+    ]
+    assert graph["edges"] == [{"source": "silver.stg_orders", "target": "gold.fct_orders"}]
+
+    assert impact_response.status_code == 200
+    assert impact_response.json() == [
+        {
+            "key_path": "gold.fct_orders",
+            "label": "fct_orders",
+            "layer": "gold",
+            "depth": 1,
+        }
+    ]
+
+
 def test_v2_tables_endpoint_returns_provider_neutral_payload() -> None:
     response = TestClient(app).get("/api/observatory/v2/tables")
 
@@ -1129,7 +1210,11 @@ def test_v2_table_preview_endpoint_returns_provider_neutral_payload(monkeypatch)
         id="orders",
         name="orders",
         namespace="raw",
-        metadata={"columns": ["order_id"], "column_types": {"order_id": "integer"}},
+        metadata={
+            "records": 12,
+            "columns": ["order_id"],
+            "column_types": {"order_id": "integer"},
+        },
     )
     monkeypatch.setattr("phlo_api.observatory_api.v2._load_tables", lambda: [table])
     monkeypatch.setattr(
@@ -1137,7 +1222,7 @@ def test_v2_table_preview_endpoint_returns_provider_neutral_payload(monkeypatch)
         lambda *_args, **_kwargs: None,
     )
 
-    response = client.get("/api/observatory/v2/table-preview/orders")
+    response = client.get("/api/observatory/v2/table-preview/orders?limit=5")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1152,6 +1237,9 @@ def test_v2_table_preview_endpoint_returns_provider_neutral_payload(monkeypatch)
         "has_more",
     }
     assert payload["table"]["id"] == table.id
+    assert payload["rows"] == []
+    assert payload["row_count"] == 12
+    assert payload["has_more"] is False
     assert len(payload["column_types"]) == len(payload["columns"])
     _assert_no_provider_url_settings(payload)
 
@@ -1343,6 +1431,82 @@ def test_v2_row_journey_endpoint_returns_provider_neutral_payload(monkeypatch) -
         "diff",
     }
     _assert_no_provider_url_settings(payload)
+
+
+def test_v2_contributing_rows_query_and_page(monkeypatch) -> None:
+    async def fake_execute_trino_query(
+        query: str,
+        catalog: str | None = None,
+        schema: str | None = None,
+        trino_url: str | None = None,
+        timeout_ms: int | None = None,
+    ):
+        del catalog, schema, trino_url, timeout_ms
+        if "information_schema.tables" in query:
+            return {
+                "columns": ["table_schema"],
+                "column_types": ["varchar"],
+                "rows": [{"table_schema": "silver"}],
+            }
+        if "information_schema.columns" in query:
+            return {
+                "columns": ["column_name", "data_type"],
+                "column_types": ["varchar", "varchar"],
+                "rows": [{"column_name": "_phlo_row_id", "data_type": "varchar"}],
+            }
+        return {
+            "columns": ["_phlo_row_id"],
+            "column_types": ["varchar"],
+            "rows": [{"_phlo_row_id": "abc123"}],
+        }
+
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.contributing.execute_trino_query",
+        fake_execute_trino_query,
+    )
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.contributing.resolve_default_catalog",
+        lambda: "iceberg",
+    )
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.contributing.resolve_default_ref",
+        lambda: "main",
+    )
+
+    client = TestClient(app)
+    payload = {
+        "downstream_asset_key": "gold/fct_orders",
+        "upstream_asset_key": "silver/stg_orders",
+        "row_data": {"_phlo_row_id": "abc123"},
+    }
+
+    query_response = client.post(
+        "/api/observatory/v2/contributing-rows/query",
+        json={**payload, "limit": 25},
+    )
+    page_response = client.post(
+        "/api/observatory/v2/contributing-rows/page",
+        json={**payload, "page": 0, "page_size": 25},
+    )
+
+    assert query_response.status_code == 200
+    assert query_response.json() == {
+        "query": 'SELECT * FROM "iceberg"."silver"."stg_orders" WHERE "_phlo_row_id" = \'abc123\' ORDER BY "_phlo_row_id" LIMIT 25',
+        "upstream": {"schema": "silver", "table": "stg_orders"},
+    }
+
+    assert page_response.status_code == 200
+    assert page_response.json() == {
+        "mode": "entity",
+        "page": 0,
+        "page_size": 25,
+        "has_more": False,
+        "query": 'SELECT * FROM "iceberg"."silver"."stg_orders" WHERE "_phlo_row_id" = \'abc123\' ORDER BY "_phlo_row_id" OFFSET 0 LIMIT 26',
+        "upstream": {"schema": "silver", "table": "stg_orders"},
+        "columns": ["_phlo_row_id"],
+        "column_types": ["varchar"],
+        "rows": [{"_phlo_row_id": "abc123"}],
+    }
 
 
 def test_v2_branch_action_contract_skips_until_provider_write_contract_exists(

@@ -8,13 +8,11 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, is_dataclass
 import importlib
 import importlib.util
-import http.client
 import json
 import os
 from pathlib import Path
 import re
 import shutil
-import socket
 import subprocess
 import sys
 from typing import Any
@@ -30,50 +28,66 @@ from phlo_api.observatory_api.v2_capabilities import build_capability_inventory
 from phlo_api.observatory_api.v2_catalog import load_catalog_items
 from phlo_api.observatory_api.v2_governance import load_governance_items
 from phlo_api.observatory_api.v2_models import (
-    HealthState,
-    ServiceStatus,
     V2Action,
     V2ActionRequest,
     V2ActionResult,
     V2Asset,
     V2AssetDetail,
+    V2AssetGraph,
+    V2AssetGraphEdge,
+    V2AssetGraphNode,
+    V2AssetList,
     V2Branch,
     V2BranchDetail,
+    V2BranchList,
     V2Capabilities,
     V2CapabilityInventory,
     V2CapabilityPage,
     V2CapabilityProvider,
+    V2ContributingRowsPageRequest,
+    V2ContributingRowsPageResponse,
+    V2ContributingRowsQueryRequest,
+    V2ContributingRowsQueryResponse,
     V2Extension,
     V2ExtensionDetail,
-    V2ExternalLink,
+    V2ExtensionList,
     V2Health,
     V2LogEvent,
     V2LogFacets,
+    V2LogList,
     V2Operation,
     V2OperationDetail,
+    V2OperationList,
     V2Overview,
     V2PackageInstallRequest,
     V2PackageInstallResult,
     V2QualityCheck,
     V2QualityDetail,
+    V2QualityList,
     V2QueryRequest,
     V2QueryResult,
+    V2ImpactedAsset,
     V2ResourceRef,
     V2RouteRequirement,
     V2RowJourney,
     V2Run,
+    V2RunList,
     V2SavedQuery,
+    V2SavedQueryList,
     V2SavedQueryRequest,
+    V2SearchList,
     V2SearchResult,
     V2Service,
-    V2ServiceConfigEntry,
     V2ServiceDetail,
-    V2ServicePort,
+    V2ServiceList,
     V2Settings,
     V2StageDiff,
+    V2SurfaceList,
     V2SurfaceItem,
     V2Table,
+    V2TableList,
     V2TablePreview,
+    V2UpstreamTableRef,
 )
 from phlo_api.observatory_api.v2_metadata import safe_metadata as _safe_metadata
 from phlo_api.observatory_api.v2_observability import load_observability_items
@@ -94,8 +108,14 @@ from phlo_api.observatory_api.v2_saved_queries import (
     write_saved_queries as _write_saved_queries_impl,
 )
 from phlo_api.observatory_api.v2_search import search_results as _search_results_impl
+from phlo_api.observatory_api.v2_services import load_project_docker_containers
 from phlo_api.observatory_api.v2_services import load_services as _load_services_impl
-from phlo_api.observatory_api.v2_services import project_compose_name as _project_compose_name
+from phlo_api.observatory_api.v2_services import (
+    service_config_from_definition as _service_config_from_definition,
+)
+from phlo_api.observatory_api.v2_services import (
+    service_ports_from_definition as _service_ports_from_definition,
+)
 from phlo_api.observatory_api.v2_storage import load_storage_items
 from phlo_api.observatory_api.v2_workflow_wizard import (
     V2WorkflowActionRequest,
@@ -110,25 +130,15 @@ from phlo.plugins.registry_client import get_registry_data
 
 router = APIRouter(tags=["observatory-v2"])
 
-_DOCKER_SERVICE_STATUS_RANK: dict[ServiceStatus, int] = {
-    "running": 4,
-    "unhealthy": 3,
-    "starting": 2,
-    "stopped": 1,
-    "unknown": 0,
-}
-
 _READ_QUERY_RE = re.compile(
     r"^\s*select\s+\*\s+from\s+(?P<table>[A-Za-z0-9_.:-]+)(?:\s+limit\s+(?P<limit>\d+))?\s*;?\s*$",
     re.IGNORECASE,
 )
-_ENV_DEFAULT_RE = re.compile(r"^\$\{[^}:]+:-(?P<default>[^}]+)\}$")
 _TABLE_LIST_METADATA_PREFIX_DENYLIST = ("phlo/compiled_sql",)
 _TABLE_LIST_METADATA_DENYLIST = {"preview_rows"}
 _FAST_READ_MODEL_TTL_SECONDS = 30
 _EXPENSIVE_READ_MODEL_TTL_SECONDS = 120
 _READ_MODEL_CACHE = ReadModelCache(project_key=lambda: str(_project_root()))
-_DOCKER_SOCKET = "/var/run/docker.sock"
 
 
 def _cached_read_model(name: str, ttl_seconds: float, loader: Any) -> Any:
@@ -137,78 +147,6 @@ def _cached_read_model(name: str, ttl_seconds: float, loader: Any) -> Any:
 
 def _clear_read_model_cache() -> None:
     _READ_MODEL_CACHE.clear()
-
-
-class V2ServiceList(BaseModel):
-    """List envelope for v2 services."""
-
-    items: list[V2Service]
-
-
-class V2OperationList(BaseModel):
-    """List envelope for v2 operations."""
-
-    items: list[V2Operation]
-
-
-class V2RunList(BaseModel):
-    """List envelope for v2 orchestrator runs."""
-
-    items: list[V2Run]
-
-
-class V2AssetList(BaseModel):
-    """List envelope for v2 assets."""
-
-    items: list[V2Asset]
-
-
-class V2TableList(BaseModel):
-    """List envelope for v2 tables."""
-
-    items: list[V2Table]
-
-
-class V2QualityList(BaseModel):
-    """List envelope for v2 quality checks."""
-
-    items: list[V2QualityCheck]
-
-
-class V2LogList(BaseModel):
-    """List envelope for v2 log events."""
-
-    items: list[V2LogEvent]
-
-
-class V2BranchList(BaseModel):
-    """List envelope for v2 branches."""
-
-    items: list[V2Branch]
-
-
-class V2ExtensionList(BaseModel):
-    """List envelope for v2 extensions."""
-
-    items: list[V2Extension]
-
-
-class V2SearchList(BaseModel):
-    """List envelope for v2 search results."""
-
-    items: list[V2SearchResult]
-
-
-class V2SavedQueryList(BaseModel):
-    """List envelope for saved queries."""
-
-    items: list[V2SavedQuery]
-
-
-class V2SurfaceList(BaseModel):
-    """List envelope for top-level v2 surfaces."""
-
-    items: list[V2SurfaceItem]
 
 
 def _not_found(kind: str, resource_id: str) -> HTTPException:
@@ -351,362 +289,11 @@ def _sorted_strings(values: Iterable[Any]) -> list[str]:
     return sorted(str(value) for value in values if value is not None)
 
 
-def _fallback_services() -> list[V2Service]:
-    """Return deterministic service data without package-specific imports."""
-    return [
-        V2Service(
-            id="phlo-api",
-            name="phlo-api",
-            kind="api",
-            status="unknown",
-            health=V2Health(state="unknown", message="Runtime status unavailable"),
-            definition_state="configured",
-            runtime_state="unknown",
-            in_stack=True,
-            backend="native",
-            impacts=["observatory"],
-            metadata={"source": "fallback", "core": True},
-        ),
-        V2Service(
-            id="observatory",
-            name="observatory",
-            kind="ui",
-            status="unknown",
-            health=V2Health(state="unknown", message="Runtime status unavailable"),
-            definition_state="configured",
-            runtime_state="unknown",
-            in_stack=True,
-            backend="native",
-            depends_on=["phlo-api"],
-            metadata={"source": "fallback", "core": True},
-        ),
-    ]
-
-
-def _docker_status_from_container(container: Mapping[str, Any]) -> tuple[ServiceStatus, V2Health]:
-    state = _coerce_str(container.get("State"), "unknown").lower()
-    status_text = _coerce_str(container.get("Status"), "")
-    status_lower = status_text.lower()
-
-    if state == "running" and "(unhealthy)" in status_lower:
-        return "unhealthy", V2Health(state="error", message=status_text)
-    if state == "running" and "starting" in status_lower:
-        return "starting", V2Health(state="warning", message=status_text)
-    if state == "running":
-        health: HealthState = "ok" if "(healthy)" in status_lower else "unknown"
-        return "running", V2Health(state=health, message=status_text or None)
-    if state in {"created", "restarting"}:
-        return "starting", V2Health(state="warning", message=status_text or state)
-    if state == "exited" and "exited (0)" in status_lower:
-        return "stopped", V2Health(state="ok", message=status_text or "Completed")
-    if state in {"exited", "dead", "removing"}:
-        return "stopped", V2Health(state="warning", message=status_text or state)
-    return "unknown", V2Health(state="unknown", message=status_text or None)
-
-
-def _container_labels(container: Mapping[str, Any]) -> dict[str, str]:
-    labels = container.get("Labels")
-    if isinstance(labels, Mapping):
-        return {str(key): str(value) for key, value in labels.items()}
-    if not isinstance(labels, str) or not labels:
-        return {}
-    parsed: dict[str, str] = {}
-    for item in labels.split(","):
-        if "=" not in item:
-            continue
-        key, value = item.split("=", 1)
-        parsed[key] = value
-    return parsed
-
-
-class _UnixSocketHTTPConnection(http.client.HTTPConnection):
-    def __init__(self, socket_path: str):
-        super().__init__("localhost")
-        self.socket_path = socket_path
-
-    def connect(self) -> None:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.connect(self.socket_path)
-        self.sock = sock
-
-
-def _docker_socket_json(path: str) -> Any:
-    connection = _UnixSocketHTTPConnection(_DOCKER_SOCKET)
-    try:
-        connection.request("GET", path)
-        response = connection.getresponse()
-        if response.status >= 400:
-            return None
-        body = response.read().decode()
-        return json.loads(body) if body else None
-    except (OSError, json.JSONDecodeError, http.client.HTTPException):
-        return None
-    finally:
-        connection.close()
-
-
-def _normalize_docker_api_container(container: Mapping[str, Any]) -> dict[str, Any]:
-    names = container.get("Names")
-    if isinstance(names, list) and names:
-        name = str(names[0]).lstrip("/")
-    else:
-        name = _coerce_str(container.get("Names") or container.get("Name"), "").lstrip("/")
-    return {
-        "ID": _coerce_str(container.get("Id") or container.get("ID"), ""),
-        "Names": name,
-        "State": _coerce_str(container.get("State"), ""),
-        "Status": _coerce_str(container.get("Status"), ""),
-        "Labels": container.get("Labels") if isinstance(container.get("Labels"), Mapping) else {},
-    }
-
-
-def _load_docker_containers() -> list[dict[str, Any]]:
-    command = ["docker", "ps", "-a"]
-    compose_project = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get(
-        "COMPOSE_PROJECT_NAME"
-    )
-    if compose_project is None:
-        compose_project = _project_compose_name(_project_root())
-    if compose_project:
-        command.extend(["--filter", f"label=com.docker.compose.project={compose_project}"])
-    else:
-        return []
-    command.extend(["--format", "{{json .}}"])
-    try:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=30,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        result = None
-
-    if result is not None and result.returncode == 0:
-        containers: list[dict[str, Any]] = []
-        for line in result.stdout.splitlines():
-            try:
-                parsed = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(parsed, Mapping):
-                containers.append(dict(parsed))
-        return containers
-
-    if not Path(_DOCKER_SOCKET).exists():
-        return []
-    payload = _docker_socket_json("/containers/json?all=1")
-    if not isinstance(payload, list):
-        return []
-    return [
-        _normalize_docker_api_container(container)
-        for container in payload
-        if isinstance(container, Mapping)
-    ]
-
-
-def _current_compose_project(containers: Sequence[Mapping[str, Any]]) -> str | None:
-    configured = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get("COMPOSE_PROJECT_NAME")
-    if configured:
-        return configured
-    configured_project = _project_compose_name(_project_root())
-    if configured_project:
-        return configured_project
-
-    hostname = os.environ.get("HOSTNAME", "")
-    if not hostname:
-        return None
-
-    for container in containers:
-        container_id = _coerce_str(container.get("ID") or container.get("Id"), "")
-        if container_id and container_id.startswith(hostname):
-            labels = _container_labels(container)
-            project = labels.get("com.docker.compose.project")
-            if project:
-                return project
-
-    inspected = _docker_socket_json(f"/containers/{hostname}/json")
-    if isinstance(inspected, Mapping):
-        config = inspected.get("Config")
-        labels = config.get("Labels") if isinstance(config, Mapping) else None
-        if isinstance(labels, Mapping):
-            project = labels.get("com.docker.compose.project")
-            if project:
-                return str(project)
-    return None
-
-
-def _compose_service_name(container: Mapping[str, Any]) -> str | None:
-    labels = _container_labels(container)
-    service_name = labels.get("com.docker.compose.service")
-    if service_name:
-        return service_name
-    name = _coerce_str(container.get("Names"), "")
-    if name.endswith("-1") and "-" in name:
-        return name.rsplit("-", 2)[-2]
-    return None
-
-
-def _service_name_from_container(name: str, service_ids: set[str]) -> str | None:
-    ordered_service_ids = list(service_ids)
-    ordered_service_ids.sort(key=lambda value: len(value), reverse=True)
-    for service_id in ordered_service_ids:
-        if name == service_id or name.endswith(f"-{service_id}-1"):
-            return service_id
-    return None
-
-
-def _load_docker_service_statuses(
-    service_ids: set[str],
-) -> dict[str, tuple[ServiceStatus, V2Health]]:
-    if not service_ids:
-        return {}
-
-    statuses: dict[str, tuple[ServiceStatus, V2Health]] = {}
-    containers = _load_docker_containers()
-    compose_project = _current_compose_project(containers)
-    if not compose_project:
-        return statuses
-
-    for container in containers:
-        labels = _container_labels(container)
-        if labels.get("com.docker.compose.project") != compose_project:
-            continue
-        name = _coerce_str(container.get("Names"), "")
-        service_id = _compose_service_name(container) or _service_name_from_container(
-            name, service_ids
-        )
-        if service_id not in service_ids:
-            service_id = _service_name_from_container(name, service_ids)
-        if service_id is None:
-            continue
-        status, health = _docker_status_from_container(container)
-        current = statuses.get(service_id)
-        if (
-            current is None
-            or _DOCKER_SERVICE_STATUS_RANK[status] > _DOCKER_SERVICE_STATUS_RANK[current[0]]
-        ):
-            statuses[service_id] = (status, health)
-    return statuses
-
-
-def _runtime_services_from_containers(
-    containers: Sequence[Mapping[str, Any]],
-    known_ids: set[str],
-) -> list[V2Service]:
-    compose_project = _current_compose_project(containers)
-    services: list[V2Service] = []
-    if not compose_project:
-        return services
-
-    for container in containers:
-        labels = _container_labels(container)
-        if labels.get("com.docker.compose.project") != compose_project:
-            continue
-        service_id = _compose_service_name(container)
-        if not service_id or service_id in known_ids:
-            continue
-        status, health = _docker_status_from_container(container)
-        services.append(
-            V2Service(
-                id=service_id,
-                name=service_id,
-                kind=labels.get("phlo.service.category", "service"),
-                status=status,
-                health=health,
-                definition_state="configured",
-                runtime_state=status,
-                in_stack=True,
-                backend="docker",
-                metadata=_safe_metadata({"source": "docker", "compose_project": compose_project}),
-            )
-        )
-        known_ids.add(service_id)
-    return services
-
-
-def _service_links_from_definition(service: Any) -> list[V2ExternalLink]:
-    compose = getattr(service, "compose", {}) if service is not None else {}
-    labels = compose.get("labels") if isinstance(compose, Mapping) else {}
-    ports = compose.get("ports") if isinstance(compose, Mapping) else []
-    links: list[V2ExternalLink] = []
-
-    if isinstance(labels, Mapping):
-        for key, value in labels.items():
-            if str(key).endswith(".rule") and "Host(`" in str(value):
-                host = str(value).split("Host(`", 1)[1].split("`)", 1)[0]
-                if host and "$" not in host:
-                    links.append(V2ExternalLink(label="Open", url=f"http://{host}", kind="app"))
-
-    for port in ports if isinstance(ports, list) else []:
-        if not isinstance(port, str) or ":" not in port:
-            continue
-        published = _resolve_env_default(port.split(":", 1)[0])
-        target = port.rsplit(":", 1)[-1]
-        if published.isdigit():
-            links.append(
-                V2ExternalLink(
-                    label=f":{target}",
-                    url=f"http://localhost:{published}",
-                    kind="port",
-                )
-            )
-
-    return links[:4]
-
-
-def _service_ports_from_definition(service: Any) -> list[V2ServicePort]:
-    compose = getattr(service, "compose", {}) if service is not None else {}
-    ports = compose.get("ports") if isinstance(compose, Mapping) else []
-    exposed: list[V2ServicePort] = []
-    for index, port in enumerate(ports if isinstance(ports, list) else []):
-        if not isinstance(port, str):
-            continue
-        if ":" in port:
-            published, target = port.rsplit(":", 1)
-        else:
-            published, target = None, port
-        exposed.append(
-            V2ServicePort(
-                name=f"port-{index + 1}",
-                published=_resolve_env_default(published) if published else None,
-                target=target,
-            )
-        )
-    return exposed
-
-
-def _resolve_env_default(value: str) -> str:
-    match = _ENV_DEFAULT_RE.match(value)
-    if match is not None:
-        return match.group("default")
-    return value
-
-
-def _service_config_from_definition(service: Any) -> list[V2ServiceConfigEntry]:
-    env_vars = getattr(service, "env_vars", {}) if service is not None else {}
-    if not isinstance(env_vars, Mapping):
-        return []
-
-    entries: list[V2ServiceConfigEntry] = []
-    for name, config in sorted(env_vars.items()):
-        if not isinstance(config, Mapping):
-            continue
-        secret = bool(config.get("secret"))
-        entries.append(
-            V2ServiceConfigEntry(
-                name=str(name),
-                value=None if secret else _coerce_str(config.get("default"), "") or None,
-                description=_coerce_str(config.get("description"), "") or None,
-                secret=secret,
-            )
-        )
-    return entries[:12]
-
-
 def _load_services() -> list[V2Service]:
-    return _load_services_impl(_project_root(), containers=_load_docker_containers())
+    project_root = _project_root()
+    return _load_services_impl(
+        project_root, containers=load_project_docker_containers(project_root)
+    )
 
 
 def _overview_health_from_services(services: Sequence[V2Service]) -> V2Health:
@@ -1184,30 +771,6 @@ def _table_column_types_from_metadata(table: V2Table, columns: list[str]) -> lis
     return [by_name.get(column, "unknown") for column in columns]
 
 
-def _sample_value(table: V2Table, column: str, row_index: int) -> Any:
-    column_l = column.lower()
-    table_prefix = table.name.replace(".", "_").replace("-", "_")
-    if column_l.endswith("_id") or column_l == "id":
-        return f"{column_l.replace('_id', '')}-{row_index + 1:04d}"
-    if "date" in column_l:
-        return f"2026-04-{(row_index % 28) + 1:02d}"
-    if column_l.endswith("_at") or "time" in column_l:
-        return f"2026-04-{(row_index % 28) + 1:02d}T12:{row_index % 60:02d}:00Z"
-    if "amount" in column_l or "revenue" in column_l or "total" in column_l:
-        return round(100 + row_index * 7.35, 2)
-    if "score" in column_l:
-        return max(0, 92 - row_index)
-    if "currency" in column_l:
-        return "USD"
-    if "region" in column_l:
-        return ["us-east", "eu-west", "ap-south"][row_index % 3]
-    if "tier" in column_l:
-        return ["free", "growth", "enterprise"][row_index % 3]
-    if "risk" in column_l:
-        return ["low", "medium", "high"][row_index % 3]
-    return f"{table_prefix}_{column}_{row_index + 1}"
-
-
 def _table_rows(
     table: V2Table, columns: list[str], limit: int, offset: int
 ) -> list[dict[str, Any]]:
@@ -1215,18 +778,7 @@ def _table_rows(
     if isinstance(preview_rows, list):
         rows = [dict(row) for row in preview_rows if isinstance(row, Mapping)]
         return rows[offset : offset + max(0, min(limit, 500))]
-
-    row_count_raw = table.metadata.get("records")
-    row_count = row_count_raw if isinstance(row_count_raw, int) else 0
-    effective_limit = max(0, min(limit, 500))
-    available = max(0, min(effective_limit, row_count - offset if row_count else effective_limit))
-    rows: list[dict[str, Any]] = []
-    for index in range(available):
-        absolute_index = offset + index
-        row = {column: _sample_value(table, column, absolute_index) for column in columns}
-        row.setdefault("_phlo_row_id", f"{table.id}:{absolute_index + 1}")
-        rows.append(row)
-    return rows
+    return []
 
 
 def _run_query_engine(
@@ -1588,6 +1140,109 @@ def _load_asset_detail(asset_id: str) -> V2AssetDetail:
     )
 
 
+def _asset_layer(asset: V2Asset) -> str:
+    group = (asset.group or asset.id.split(".", maxsplit=1)[0]).lower()
+    if group in {"source", "bronze", "silver", "gold", "marts", "publish"}:
+        return group
+    return "unknown"
+
+
+def _asset_graph_from_assets(assets: list[V2Asset]) -> V2AssetGraph:
+    asset_ids = {asset.id for asset in assets}
+    downstream_counts: Counter[str] = Counter()
+    edges: list[V2AssetGraphEdge] = []
+
+    for asset in assets:
+        for dependency in asset.dependencies:
+            if dependency not in asset_ids:
+                continue
+            edges.append(V2AssetGraphEdge(source=dependency, target=asset.id))
+            downstream_counts[dependency] += 1
+
+    nodes = [
+        V2AssetGraphNode(
+            id=asset.id,
+            key=[part for part in re.split(r"[./]", asset.id) if part],
+            key_path=asset.id,
+            label=asset.name or asset.id,
+            description=asset.description,
+            compute_kind=asset.kinds[0] if asset.kinds else None,
+            group_name=asset.group,
+            layer=_asset_layer(asset),
+            upstream_count=len(
+                [dependency for dependency in asset.dependencies if dependency in asset_ids]
+            ),
+            downstream_count=downstream_counts[asset.id],
+        )
+        for asset in assets
+    ]
+    return V2AssetGraph(nodes=nodes, edges=edges)
+
+
+def _load_asset_graph() -> V2AssetGraph:
+    return _asset_graph_from_assets(_load_assets())
+
+
+def _load_asset_neighbors(asset_key: str, direction: str, depth: int) -> V2AssetGraph:
+    graph = _load_asset_graph()
+    max_depth = max(1, min(depth, 10))
+    wanted = {asset_key}
+    frontier = {asset_key}
+
+    for _ in range(max_depth):
+        next_frontier: set[str] = set()
+        for edge in graph.edges:
+            if direction in {"upstream", "both"} and edge.target in frontier:
+                next_frontier.add(edge.source)
+            if direction in {"downstream", "both"} and edge.source in frontier:
+                next_frontier.add(edge.target)
+        next_frontier -= wanted
+        if not next_frontier:
+            break
+        wanted.update(next_frontier)
+        frontier = next_frontier
+
+    return V2AssetGraph(
+        nodes=[node for node in graph.nodes if node.id in wanted],
+        edges=[edge for edge in graph.edges if edge.source in wanted and edge.target in wanted],
+    )
+
+
+def _load_asset_impact(asset_key: str, max_depth: int) -> list[V2ImpactedAsset]:
+    graph = _load_asset_graph()
+    node_by_id = {node.id: node for node in graph.nodes}
+    outgoing: dict[str, list[str]] = {}
+    for edge in graph.edges:
+        outgoing.setdefault(edge.source, []).append(edge.target)
+
+    impacted: list[V2ImpactedAsset] = []
+    seen = {asset_key}
+    queue: list[tuple[str, int]] = [(asset_key, 0)]
+    depth_limit = max(1, min(max_depth, 25))
+
+    while queue:
+        current, depth = queue.pop(0)
+        if depth >= depth_limit:
+            continue
+        for target in outgoing.get(current, []):
+            if target in seen:
+                continue
+            seen.add(target)
+            node = node_by_id.get(target)
+            if node is not None:
+                impacted.append(
+                    V2ImpactedAsset(
+                        key_path=node.key_path,
+                        label=node.label,
+                        layer=node.layer,
+                        depth=depth + 1,
+                    )
+                )
+            queue.append((target, depth + 1))
+
+    return impacted
+
+
 def _load_service_detail(service_id: str) -> V2ServiceDetail:
     services = _load_services()
     service = next((item for item in services if item.id == service_id), None)
@@ -1661,6 +1316,11 @@ def _load_table_preview(table_id: str, limit: int, offset: int) -> V2TablePrevie
     row_count = row_count_raw if isinstance(row_count_raw, int) else None
     if row_count is None and isinstance(preview_rows, list):
         row_count = len(preview_rows)
+    available_preview_count = (
+        len([row for row in preview_rows if isinstance(row, Mapping)])
+        if isinstance(preview_rows, list)
+        else None
+    )
     columns = _table_columns_from_metadata(table)
     column_types = _table_column_types_from_metadata(table, columns)
     rows = _table_rows(table, columns, limit, max(0, offset))
@@ -1675,7 +1335,10 @@ def _load_table_preview(table_id: str, limit: int, offset: int) -> V2TablePrevie
         row_count=row_count,
         limit=limit,
         offset=offset,
-        has_more=row_count is not None and max(0, offset) + len(rows) < row_count,
+        has_more=(
+            available_preview_count is not None
+            and max(0, offset) + len(rows) < available_preview_count
+        ),
     )
 
 
@@ -1721,6 +1384,61 @@ def _run_read_query(request: V2QueryRequest) -> V2QueryResult:
         limit=limit,
         offset=preview.offset,
         warnings=warnings,
+    )
+
+
+async def _contributing_rows_query(
+    request: V2ContributingRowsQueryRequest,
+) -> V2ContributingRowsQueryResponse | dict[str, str]:
+    from phlo_api.observatory_api.contributing import (
+        ContributingRowsQueryRequest,
+        get_contributing_rows_query,
+    )
+
+    result = await get_contributing_rows_query(
+        ContributingRowsQueryRequest.model_validate(request.model_dump())
+    )
+    if isinstance(result, Mapping):
+        error = result.get("error")
+        if isinstance(error, str):
+            return {"error": error}
+    return V2ContributingRowsQueryResponse(
+        query=result.query,
+        upstream=V2UpstreamTableRef(
+            schema_name=result.upstream.schema_name,
+            table=result.upstream.table,
+        ),
+    )
+
+
+async def _contributing_rows_page(
+    request: V2ContributingRowsPageRequest,
+) -> V2ContributingRowsPageResponse | dict[str, str]:
+    from phlo_api.observatory_api.contributing import (
+        ContributingRowsPageRequest,
+        get_contributing_rows_page,
+    )
+
+    result = await get_contributing_rows_page(
+        ContributingRowsPageRequest.model_validate(request.model_dump())
+    )
+    if isinstance(result, Mapping):
+        error = result.get("error")
+        if isinstance(error, str):
+            return {"error": error}
+    return V2ContributingRowsPageResponse(
+        mode=result.mode,
+        page=result.page,
+        page_size=result.page_size,
+        has_more=result.has_more,
+        query=result.query,
+        upstream=V2UpstreamTableRef(
+            schema_name=result.upstream.schema_name,
+            table=result.upstream.table,
+        ),
+        columns=result.columns,
+        column_types=result.column_types,
+        rows=result.rows,
     )
 
 
@@ -2873,6 +2591,32 @@ def get_v2_assets() -> V2AssetList:
     )
 
 
+@router.get("/asset-graph", response_model=V2AssetGraph)
+def get_v2_asset_graph() -> V2AssetGraph:
+    """Get the provider-neutral asset dependency graph."""
+    return _cached_read_model(
+        "asset-graph",
+        _EXPENSIVE_READ_MODEL_TTL_SECONDS,
+        _load_asset_graph,
+    )
+
+
+@router.get("/asset-graph/neighbors", response_model=V2AssetGraph)
+def get_v2_asset_neighbors(asset_key: str, direction: str = "both", depth: int = 1) -> V2AssetGraph:
+    """Get a bounded asset graph around one asset."""
+    if direction not in {"upstream", "downstream", "both"}:
+        raise HTTPException(
+            status_code=400, detail="direction must be upstream, downstream, or both"
+        )
+    return _load_asset_neighbors(asset_key=asset_key, direction=direction, depth=depth)
+
+
+@router.get("/asset-graph/impact", response_model=list[V2ImpactedAsset])
+def get_v2_asset_impact(asset_key: str, max_depth: int = 99) -> list[V2ImpactedAsset]:
+    """Get downstream assets impacted by one asset."""
+    return _load_asset_impact(asset_key=asset_key, max_depth=max_depth)
+
+
 @router.get("/assets/{asset_id:path}", response_model=V2AssetDetail)
 def get_v2_asset_detail(asset_id: str) -> V2AssetDetail:
     """Get provider-neutral Observatory v2 asset detail."""
@@ -2927,6 +2671,28 @@ def post_v2_query(request: V2QueryRequest) -> V2QueryResult:
 def get_v2_row_journey(table_id: str, row_id: str) -> V2RowJourney:
     """Get provider-neutral row journey context."""
     return _load_row_journey(table_id, row_id)
+
+
+@router.post(
+    "/contributing-rows/query",
+    response_model=V2ContributingRowsQueryResponse | dict[str, str],
+)
+async def post_v2_contributing_rows_query(
+    request: V2ContributingRowsQueryRequest,
+) -> V2ContributingRowsQueryResponse | dict[str, str]:
+    """Build a query for rows that contributed to a selected downstream row."""
+    return await _contributing_rows_query(request)
+
+
+@router.post(
+    "/contributing-rows/page",
+    response_model=V2ContributingRowsPageResponse | dict[str, str],
+)
+async def post_v2_contributing_rows_page(
+    request: V2ContributingRowsPageRequest,
+) -> V2ContributingRowsPageResponse | dict[str, str]:
+    """Return a page of rows that contributed to a selected downstream row."""
+    return await _contributing_rows_page(request)
 
 
 @router.get("/quality", response_model=V2QualityList)

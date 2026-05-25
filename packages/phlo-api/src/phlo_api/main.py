@@ -66,16 +66,7 @@ app.add_middleware(
 
 # Auto-discover and register API routers
 _ROUTERS = [
-    ("phlo_api.observatory_api.trino", "/api/trino"),
-    ("phlo_api.observatory_api.contributing", "/api/contributing"),
-    ("phlo_api.observatory_api.iceberg", "/api/iceberg"),
-    ("phlo_api.observatory_api.dagster", "/api/dagster"),
-    ("phlo_api.observatory_api.nessie", "/api/nessie"),
-    ("phlo_api.observatory_api.quality", "/api/quality"),
-    ("phlo_api.observatory_api.loki", "/api/loki"),
-    ("phlo_api.observatory_api.lineage", "/api/lineage"),
     ("phlo_api.api.maintenance", "/api/maintenance"),
-    ("phlo_api.observatory_api.search", "/api/search"),
     ("phlo_api.api.observability", "/api/observability"),
     ("phlo_api.observatory_api.v2", "/api/observatory/v2"),
 ]
@@ -99,17 +90,6 @@ def _register_observatory_routers() -> None:
 
     Import errors are logged as debug messages to allow graceful
     degradation when optional dependencies are not installed.
-
-    Example:
-        On startup, this function attempts to import each module
-        and register its router:
-
-        .. code-block:: python
-
-            # Module: phlo_api.observatory_api.trino
-            # Prefix: /api/trino
-            from phlo_api.observatory_api.trino import router
-            app.include_router(router, prefix="/api/trino")
 
     """
     # Combine routers with prefix and without prefix into single iterable
