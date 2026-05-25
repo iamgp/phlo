@@ -1319,9 +1319,15 @@ def test_v2_table_preview_endpoint_returns_provider_neutral_payload(monkeypatch)
         "has_more",
     }
     assert payload["table"]["id"] == table.id
-    assert payload["rows"] == []
+    assert payload["rows"] == [
+        {"_phlo_row_id": "orders:1", "order_id": "order-0001"},
+        {"_phlo_row_id": "orders:2", "order_id": "order-0002"},
+        {"_phlo_row_id": "orders:3", "order_id": "order-0003"},
+        {"_phlo_row_id": "orders:4", "order_id": "order-0004"},
+        {"_phlo_row_id": "orders:5", "order_id": "order-0005"},
+    ]
     assert payload["row_count"] == 12
-    assert payload["has_more"] is False
+    assert payload["has_more"] is True
     assert len(payload["column_types"]) == len(payload["columns"])
     _assert_no_provider_url_settings(payload)
 

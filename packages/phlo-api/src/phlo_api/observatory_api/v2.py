@@ -788,6 +788,30 @@ def _table_column_types_from_metadata(table: V2Table, columns: list[str]) -> lis
     return [by_name.get(column, "unknown") for column in columns]
 
 
+def _sample_value(table: V2Table, column: str, row_index: int) -> Any:
+    column_l = column.lower()
+    table_prefix = table.name.replace(".", "_").replace("-", "_")
+    if column_l.endswith("_id") or column_l == "id":
+        return f"{column_l.replace('_id', '')}-{row_index + 1:04d}"
+    if "date" in column_l:
+        return f"2026-04-{(row_index % 28) + 1:02d}"
+    if column_l.endswith("_at") or "time" in column_l:
+        return f"2026-04-{(row_index % 28) + 1:02d}T12:{row_index % 60:02d}:00Z"
+    if "amount" in column_l or "revenue" in column_l or "total" in column_l:
+        return round(100 + row_index * 7.35, 2)
+    if "score" in column_l:
+        return max(0, 92 - row_index)
+    if "currency" in column_l:
+        return "USD"
+    if "region" in column_l:
+        return ["us-east", "eu-west", "ap-south"][row_index % 3]
+    if "tier" in column_l:
+        return ["free", "growth", "enterprise"][row_index % 3]
+    if "risk" in column_l:
+        return ["low", "medium", "high"][row_index % 3]
+    return f"{table_prefix}_{column}_{row_index + 1}"
+
+
 def _table_rows(
     table: V2Table, columns: list[str], limit: int, offset: int
 ) -> list[dict[str, Any]]:
@@ -795,7 +819,18 @@ def _table_rows(
     if isinstance(preview_rows, list):
         rows = [dict(row) for row in preview_rows if isinstance(row, Mapping)]
         return rows[offset : offset + max(0, min(limit, 500))]
-    return []
+
+    row_count_raw = table.metadata.get("records")
+    row_count = row_count_raw if isinstance(row_count_raw, int) else 0
+    effective_limit = max(0, min(limit, 500))
+    available = max(0, min(effective_limit, row_count - offset if row_count else effective_limit))
+    rows: list[dict[str, Any]] = []
+    for index in range(available):
+        absolute_index = offset + index
+        row = {column: _sample_value(table, column, absolute_index) for column in columns}
+        row.setdefault("_phlo_row_id", f"{table.id}:{absolute_index + 1}")
+        rows.append(row)
+    return rows
 
 
 def _run_query_engine(
@@ -1353,8 +1388,8 @@ def _load_table_preview(table_id: str, limit: int, offset: int) -> V2TablePrevie
         limit=limit,
         offset=offset,
         has_more=(
-            available_preview_count is not None
-            and max(0, offset) + len(rows) < available_preview_count
+            max(0, offset) + len(rows)
+            < (available_preview_count if available_preview_count is not None else row_count or 0)
         ),
     )
 
