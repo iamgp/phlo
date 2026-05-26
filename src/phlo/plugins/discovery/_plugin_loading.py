@@ -53,6 +53,7 @@ def discover_plugins(
     auto_register: bool = True,
     *,
     failure_level: str = "error",
+    failure_sink: list[dict[str, str]] | None = None,
     strict: bool = False,
 ) -> dict[str, list[Plugin]]:
     """Discover installed Phlo plugins from entry points."""
@@ -144,6 +145,16 @@ def discover_plugins(
                 except PluginDiscoveryError:
                     raise
                 except Exception as exc:
+                    if failure_sink is not None:
+                        failure_sink.append(
+                            {
+                                "plugin_name": entry_point.name,
+                                "entry_point": entry_point.value,
+                                "plugin_type": current_type,
+                                "error": str(exc),
+                                "error_type": type(exc).__name__,
+                            }
+                        )
                     log_method = getattr(logger, failure_level, logger.error)
                     log_method(
                         "plugin_load_failed",

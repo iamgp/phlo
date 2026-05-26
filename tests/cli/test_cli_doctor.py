@@ -83,6 +83,38 @@ def test_doctor_is_registered_on_root_cli(monkeypatch) -> None:
     assert '"doctor.bootstrap"' in result.output
 
 
+def test_doctor_outside_project_points_to_init(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor._run_probe",
+        lambda command: CompletedProcess(command, 0, "ok", ""),
+    )
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.disk_usage", lambda path: (100, 50, 50))
+
+    result = CliRunner().invoke(cli, ["doctor"])
+
+    assert result.exit_code == 0, result.output
+    assert "phlo.yaml not found" in result.output
+    assert "Run this command inside a Phlo project, or create one with phlo init." in result.output
+
+
+def test_doctor_missing_generated_services_points_to_services_init(tmp_path, monkeypatch) -> None:
+    (tmp_path / "phlo.yaml").write_text("name: demo\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor._run_probe",
+        lambda command: CompletedProcess(command, 0, "ok", ""),
+    )
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.disk_usage", lambda path: (100, 50, 50))
+
+    result = CliRunner().invoke(cli, ["doctor"])
+
+    assert "phlo services init" in result.output
+    assert ".phlo/docker-compose.yml is missing" in result.output
+
+
 def test_doctor_invocation_skips_plugin_command_discovery() -> None:
     assert _is_doctor_invocation(["phlo", "doctor", "--json"])
     assert not _is_doctor_invocation(["phlo", "services", "list"])

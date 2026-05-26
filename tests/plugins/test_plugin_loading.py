@@ -109,6 +109,39 @@ def test_discover_plugins_uses_failure_level_for_entry_point_errors(
     ]
 
 
+def test_discover_plugins_can_collect_failure_details(
+    clean_registry,
+    settings_stub: _SettingsStub,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Doctor can collect entry-point load failures without parsing logs."""
+    failures: list[dict[str, str]] = []
+
+    monkeypatch.setattr(
+        _plugin_loading,
+        "entry_points_for_group",
+        lambda group: [_EntryPointStub("broken", "tests:broken", RuntimeError("boom"))],
+    )
+
+    discovered = _plugin_loading.discover_plugins(
+        plugin_type="source_connector",
+        auto_register=False,
+        failure_level="debug",
+        failure_sink=failures,
+    )
+
+    assert discovered["source_connector"] == []
+    assert failures == [
+        {
+            "plugin_name": "broken",
+            "entry_point": "tests:broken",
+            "plugin_type": "source_connector",
+            "error": "boom",
+            "error_type": "RuntimeError",
+        }
+    ]
+
+
 def test_discover_plugins_strict_raises_for_entry_point_errors(
     clean_registry,
     settings_stub: _SettingsStub,

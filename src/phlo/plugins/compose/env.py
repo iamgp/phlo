@@ -49,8 +49,18 @@ def normalize_env_overrides(env_overrides: dict[str, Any]) -> dict[str, str]:
     return normalized
 
 
-def generate_local_secret() -> str:
+def generate_local_secret(var_name: str | None = None) -> str:
     """Generate local secret material for newly rendered `.env.local` files."""
+    if var_name and var_name.upper() in {
+        "MINIO_ROOT_PASSWORD",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_SECRET_KEY",
+        "S3_SECRET_KEY",
+        "S3_SECRET_ACCESS_KEY",
+        "ICEBERG_S3_SECRET_KEY",
+        "DAGSTER_MINIO_SECRET_KEY",
+    }:
+        return secrets.token_hex(20)
     return f"phlo_{secrets.token_urlsafe(32)}"
 
 
@@ -133,7 +143,7 @@ def render_env(
             if is_secret and var_name in existing_values:
                 value = existing_values[var_name]
             elif is_secret and include_secrets and var_name not in overrides:
-                value = generate_local_secret()
+                value = generate_local_secret(var_name)
 
             if description:
                 section_lines.append(f"# {description}")
