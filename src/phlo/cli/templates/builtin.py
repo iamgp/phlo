@@ -65,6 +65,10 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.setuptools.packages.find]
+include = ["workflows*"]
+exclude = ["contracts*", "data*", "plugins*", "tests*"]
 """
 
 
@@ -72,6 +76,93 @@ def _write_pyproject_toml(
     project_dir: Path, project_name: str, required_packages: tuple[str, ...]
 ) -> None:
     _write_text(project_dir / "pyproject.toml", _pyproject_toml(project_name, required_packages))
+
+
+def _write_project_readme(
+    project_dir: Path,
+    project_name: str,
+    *,
+    template_commands: tuple[str, ...] = (),
+) -> None:
+    command_lines = [
+        "- `phlo services init` - Generate local runtime files under `.phlo/`",
+        "- `phlo services start` - Start the local stack",
+        "- `phlo services status` - Check generated service state",
+        "- `phlo doctor` - Diagnose setup and service readiness",
+        "- `phlo test` - Run project tests",
+    ]
+    command_lines.extend(f"- `{command}`" for command in template_commands)
+    rendered_commands = "\n".join(command_lines)
+    template_section = ""
+    if template_commands:
+        rendered_template_commands = "\n".join(f"   {command}" for command in template_commands)
+        template_section = f"""
+5. **Run the starter workflow:**
+   ```bash
+{rendered_template_commands}
+   ```
+
+   For daily partitioned assets, use a completed partition date rather than today's date.
+"""
+
+    _write_text(
+        project_dir / "README.md",
+        f"""# {project_name}
+
+Phlo data workflows for {project_name}.
+
+## Getting Started
+
+1. **Install project dependencies:**
+   ```bash
+   uv pip install -e .
+   ```
+
+2. **Generate local runtime state:**
+   ```bash
+   phlo services init
+   ```
+
+   This creates `.phlo/docker-compose.yml`, `.phlo/.env`, and `.phlo/.env.local`.
+   Keep `.phlo/` out of source control; it is generated runtime state.
+
+3. **Start and inspect the local stack:**
+   ```bash
+   phlo services start
+   phlo services status
+   ```
+
+4. **Verify setup health:**
+   ```bash
+   phlo doctor
+   ```
+
+   Dagster is available at http://localhost:10006 when the default stack is running.
+{template_section}
+## Project Structure
+
+```
+{project_name}/
+├── data/              # Local source data or examples
+├── workflows/         # Workflow definitions
+│   ├── ingestion/     # Data ingestion workflows
+│   ├── schemas/       # Pandera validation schemas
+│   └── transforms/dbt/ # dbt transformation models when enabled
+├── plugins/           # Project-local plugin modules
+├── contracts/         # Contract snapshots and migration inputs
+└── tests/             # Workflow tests
+```
+
+## Commands
+
+{rendered_commands}
+
+## Documentation
+
+- [Phlo Documentation](https://github.com/iamgp/phlo)
+- [Workflow Development Guide](https://github.com/iamgp/phlo/blob/main/docs/guides/workflow-development.md)
+""",
+    )
 
 
 def _write_common_project_files(
@@ -106,55 +197,7 @@ htmlcov/
 .ruff_cache/
 """,
     )
-    _write_text(
-        project_dir / "README.md",
-        f"""# {project_name}
-
-Phlo data workflows for {project_name}.
-
-## Getting Started
-
-1. **Install dependencies:**
-   ```bash
-   pip install -e .
-   ```
-
-2. **Create your first workflow:**
-   ```bash
-   phlo workflow create
-   ```
-
-3. **Start Dagster UI:**
-   ```bash
-   phlo dev
-   ```
-
-4. **Access the UI:**
-   Open http://localhost:3000 in your browser
-
-## Project Structure
-
-```
-{project_name}/
-├── workflows/          # Your workflow definitions
-│   ├── ingestion/     # Data ingestion workflows
-│   ├── schemas/       # Pandera validation schemas
-│   └── transforms/dbt/ # dbt transformation models
-└── tests/            # Workflow tests
-```
-
-## Documentation
-
-- [Phlo Documentation](https://github.com/iamgp/phlo)
-- [Workflow Development Guide](https://github.com/iamgp/phlo/blob/main/docs/guides/workflow-development.md)
-
-## Commands
-
-- `phlo dev` - Start Dagster development server
-- `phlo workflow create` - Scaffold new workflow
-- `phlo test` - Run tests
-""",
-    )
+    _write_project_readme(project_dir, project_name)
 
     from phlo.cli.commands.services.utils import PHLO_CONFIG_TEMPLATE
 
@@ -236,12 +279,17 @@ class CsvBatchTemplate:
         ),
         next_steps=(
             "phlo test",
-            "phlo materialize dlt_events --partition YYYY-MM-DD",
+            "phlo materialize dlt_events --partition 2025-01-15",
         ),
     )
 
     def render(self, context: TemplateRenderContext) -> None:
         MinimalTemplate().render(context)
+        _write_project_readme(
+            context.project_dir,
+            context.project_name,
+            template_commands=("phlo materialize dlt_events --partition 2025-01-15",),
+        )
         _write_pyproject_toml(
             context.project_dir, context.project_name, self.metadata.required_packages
         )
@@ -305,12 +353,17 @@ class ApiIngestionTemplate:
         ),
         next_steps=(
             "phlo test",
-            "phlo materialize dlt_events --partition YYYY-MM-DD",
+            "phlo materialize dlt_events --partition 2025-01-15",
         ),
     )
 
     def render(self, context: TemplateRenderContext) -> None:
         MinimalTemplate().render(context)
+        _write_project_readme(
+            context.project_dir,
+            context.project_name,
+            template_commands=("phlo materialize dlt_events --partition 2025-01-15",),
+        )
         _write_pyproject_toml(
             context.project_dir, context.project_name, self.metadata.required_packages
         )
@@ -362,7 +415,7 @@ class DbtMedallionTemplate:
         description="Bronze/silver/gold dbt project",
         required_packages=("phlo", "phlo-dbt"),
         generated_paths=("workflows/transforms/dbt/models/silver/stg_events.sql",),
-        next_steps=("dbt compile", "phlo services restart dagster"),
+        next_steps=("phlo dbt compile", "phlo services restart --service dagster"),
     )
 
     def render(self, context: TemplateRenderContext) -> None:

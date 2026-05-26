@@ -76,22 +76,27 @@ uv pip install -e .
 Open `workflows/ingestion/csv/events.py`. The important part is the Phlo ingestion decorator:
 
 ```python
-import phlo
 from pathlib import Path
 
+import dlt
 import pandas as pd
+import phlo
+
 from workflows.schemas.csv import EventsSchema
 
 
-@phlo.ingest.dlt(
+@phlo.ingestion(
     table_name="events",
-    unique_key="id",
+    unique_key="event_id",
     validation_schema=EventsSchema,
     group="csv",
     freshness_hours=(1, 24),
 )
-def events(partition_date: str):
-    return pd.read_csv(Path("data/events.csv"))
+def csv_events(partition_date: str) -> object:
+    events = pd.read_csv(Path("data/events.csv"))
+    events["event_id"] = events["id"].astype(str) + "-" + partition_date
+    rows = events.to_dict(orient="records")
+    return dlt.resource(rows, name="events")
 ```
 
 The decorator registers an asset that can be discovered by the orchestrator. The schema in `workflows/schemas/csv.py` defines the validation contract.
@@ -126,8 +131,10 @@ By default, Dagster is available at `http://localhost:10006`.
 Run the generated asset for a specific partition:
 
 ```bash
-phlo materialize dlt_events --partition 2026-05-04
+phlo materialize dlt_events --partition 2025-01-15
 ```
+
+Use a completed daily partition, such as yesterday. Today's partition is still open and is not selectable by the default daily partition definition.
 
 You can also open Dagster and materialize the `dlt_events` asset from the UI.
 
@@ -195,7 +202,7 @@ Restart the orchestration service after adding or renaming workflow files:
 
 ```bash
 phlo services restart --service dagster
-phlo status --assets
+phlo doctor
 ```
 
 ### A command says a service package is missing

@@ -128,9 +128,61 @@ def test_csv_batch_template_prints_metadata_next_steps(tmp_path) -> None:
     assert "workflows/transforms/dbt" not in result.output
     assert "workflows/ingestion/csv/events.py" in result.output
     assert "phlo test" in result.output
-    assert "phlo materialize dlt_events --partition YYYY-MM-DD" in result.output
+    assert "phlo materialize dlt_events --partition 2025-01-15" in result.output
     assert "phlo workflow check" not in result.output
     assert "phlo dev" not in result.output
+
+
+def test_csv_batch_init_prints_complete_onboarding_path(tmp_path) -> None:
+    project_dir = tmp_path / "csv-demo"
+    result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", "csv-batch"])
+
+    assert result.exit_code == 0, result.output
+    assert f"cd {project_dir}" in result.output
+    assert "uv pip install -e ." in result.output
+    assert "phlo services init" in result.output
+    assert "phlo services start" in result.output
+    assert "phlo doctor" in result.output
+    assert "phlo materialize dlt_events --partition 2025-01-15" in result.output
+    assert result.output.index("uv pip install -e .") < result.output.index("phlo services init")
+    assert result.output.index("phlo services init") < result.output.index("phlo services start")
+    assert result.output.index("phlo services start") < result.output.index("phlo doctor")
+
+
+def test_minimal_init_does_not_print_template_materialize_command(tmp_path) -> None:
+    project_dir = tmp_path / "minimal-demo"
+    result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", "minimal"])
+
+    assert result.exit_code == 0, result.output
+    assert "uv pip install -e ." in result.output
+    assert "phlo materialize" not in result.output
+
+
+def test_generated_readme_uses_current_onboarding_commands(tmp_path) -> None:
+    project_dir = tmp_path / "demo"
+    result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", "minimal"])
+
+    assert result.exit_code == 0, result.output
+    readme = (project_dir / "README.md").read_text()
+    assert "uv pip install -e ." in readme
+    assert "phlo services init" in readme
+    assert "phlo services start" in readme
+    assert "phlo services status" in readme
+    assert "phlo doctor" in readme
+    assert "http://localhost:10006" in readme
+    assert "phlo dev" not in readme
+    assert "localhost:3000" not in readme
+    assert "   pip install -e ." not in readme
+
+
+def test_csv_batch_readme_includes_runnable_template_command(tmp_path) -> None:
+    project_dir = tmp_path / "csv-demo"
+    result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", "csv-batch"])
+
+    assert result.exit_code == 0, result.output
+    readme = (project_dir / "README.md").read_text()
+    assert "phlo materialize dlt_events --partition 2025-01-15" in readme
+    assert "use a completed partition date" in readme
 
 
 @pytest.mark.parametrize(
@@ -151,6 +203,17 @@ def test_template_writes_required_packages_to_pyproject(
 
     assert result.exit_code == 0, result.output
     assert _project_dependencies(project_dir) == expected_dependencies
+
+
+def test_template_pyproject_limits_setuptools_package_discovery(tmp_path) -> None:
+    project_dir = tmp_path / "csv-demo"
+    result = CliRunner().invoke(cli, ["init", str(project_dir), "--template", "csv-batch"])
+
+    assert result.exit_code == 0, result.output
+    pyproject = tomllib.loads((project_dir / "pyproject.toml").read_text())
+    find_config = pyproject["tool"]["setuptools"]["packages"]["find"]
+    assert find_config["include"] == ["workflows*"]
+    assert find_config["exclude"] == ["contracts*", "data*", "plugins*", "tests*"]
 
 
 @pytest.mark.parametrize("template_name", ["minimal", "basic"])
