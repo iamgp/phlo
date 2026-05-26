@@ -32,8 +32,7 @@ export const Route = createFileRoute('/data/$branchName')({
 })
 
 async function loadTables(branchName: string) {
-  void decodeURIComponent(branchName)
-  return getTables({ data: {} })
+  return getTables({ data: { branch: decodeURIComponent(branchName) } })
 }
 
 function DataExplorerLayout() {

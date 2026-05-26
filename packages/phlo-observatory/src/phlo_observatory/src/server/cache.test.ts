@@ -144,8 +144,8 @@ describe('MetadataCache', () => {
 
   describe('cacheKeys', () => {
     it('generates consistent table keys', () => {
-      const key = cacheKeys.tables()
-      expect(key).toBe('iceberg:tables')
+      const key = cacheKeys.tables('main')
+      expect(key).toBe('iceberg:tables:main')
     })
 
     it('generates consistent schema keys', () => {

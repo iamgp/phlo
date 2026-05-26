@@ -28,8 +28,8 @@ interface ApiIcebergTable {
   metadata?: Record<string, unknown>
 }
 
-interface ApiTableList {
-  items: Array<ApiIcebergTable>
+interface ApiBranchDetail {
+  tables: Array<ApiIcebergTable>
 }
 
 function layerFromTable(t: ApiIcebergTable): IcebergTable['layer'] {
@@ -67,23 +67,26 @@ const DEFAULT_CATALOG = 'iceberg'
  */
 export const getTables = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator((input: Record<string, never> = {}) => input)
-  .handler(async (): Promise<Array<IcebergTable> | { error: string }> => {
-    const key = cacheKeys.tables()
+  .inputValidator((input: { branch?: string } = {}) => input)
+  .handler(
+    async ({ data }): Promise<Array<IcebergTable> | { error: string }> => {
+      const branch = data.branch ?? 'main'
+      const key = cacheKeys.tables(branch)
 
-    return withCache(
-      async () => {
-        const result = await apiGet<ApiTableList | { error: string }>(
-          '/api/observatory/v2/tables',
-        )
+      return withCache(
+        async () => {
+          const result = await apiGet<ApiBranchDetail | { error: string }>(
+            `/api/observatory/v2/branches/${encodeURIComponent(branch)}`,
+          )
 
-        if ('error' in result) {
-          return result
-        }
+          if ('error' in result) {
+            return result
+          }
 
-        return result.items.map(transformTable)
-      },
-      key,
-      cacheTTL.tables,
-    )
-  })
+          return result.tables.map(transformTable)
+        },
+        key,
+        cacheTTL.tables,
+      )
+    },
+  )

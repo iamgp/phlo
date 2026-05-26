@@ -25,6 +25,7 @@ def test_first_sql_verb_skips_leading_comments(sql: str, verb: str) -> None:
         ("SHOW TABLES", False),
         ("SHOW CREATE TABLE orders", False),
         ("/* load */ INSERT INTO t VALUES (1)", True),
+        ("SELECT 1; INSERT INTO t VALUES (1)", True),
         ("WITH source AS (SELECT 1) INSERT INTO t SELECT * FROM source", True),
         ("SELECT 'DROP TABLE t' AS text_col", False),
         ("DROP TABLE t", True),

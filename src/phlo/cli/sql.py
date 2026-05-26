@@ -128,19 +128,24 @@ def strip_sql_literals_and_comments(sql: str) -> str:
     return "".join(out)
 
 
-def first_sql_verb(sql: str) -> str:
-    """Return the leading SQL verb after whitespace and comments."""
-    stripped = _LEADING_COMMENT_PATTERN.sub("", strip_sql_literals_and_comments(sql))
+def _first_sql_verb_from_cleaned(sql: str) -> str:
+    stripped = _LEADING_COMMENT_PATTERN.sub("", sql)
     match = re.match(r"([A-Za-z_]+)", stripped)
     return match.group(1).upper() if match else ""
 
 
+def first_sql_verb(sql: str) -> str:
+    """Return the leading SQL verb after whitespace and comments."""
+    return _first_sql_verb_from_cleaned(strip_sql_literals_and_comments(sql))
+
+
 def is_mutating_sql(sql: str) -> bool:
     """Return true when a SQL statement is clearly mutating state."""
-    verb = first_sql_verb(sql)
-    if verb in _MUTATING_SQL_VERBS:
-        return True
-    if verb == "WITH":
-        cleaned = strip_sql_literals_and_comments(sql).upper()
-        return _MUTATING_SQL_PATTERN.search(cleaned) is not None
+    cleaned = strip_sql_literals_and_comments(sql)
+    for statement in cleaned.split(";"):
+        verb = _first_sql_verb_from_cleaned(statement)
+        if verb in _MUTATING_SQL_VERBS:
+            return True
+        if verb == "WITH" and _MUTATING_SQL_PATTERN.search(statement.upper()):
+            return True
     return False

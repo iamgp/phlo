@@ -174,7 +174,7 @@ function normalizeUrl(url: string): string {
 }
 
 export const cacheKeys = {
-  tables: () => 'iceberg:tables',
+  tables: (branch: string) => `iceberg:tables:${branch}`,
 
   tableSchema: (catalog: string, schema: string, table: string) =>
     `iceberg:schema:${catalog}:${schema}:${table}`,
