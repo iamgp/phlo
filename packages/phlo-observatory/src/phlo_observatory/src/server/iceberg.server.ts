@@ -70,7 +70,7 @@ export const getTables = createServerFn()
   .inputValidator((input: { branch?: string } = {}) => input)
   .handler(
     async ({ data }): Promise<Array<IcebergTable> | { error: string }> => {
-      const branch = data.branch ?? 'main'
+      const branch = data.branch?.trim() || 'main'
       const key = cacheKeys.tables(branch)
 
       return withCache(
