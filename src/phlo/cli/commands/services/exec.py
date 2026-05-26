@@ -6,6 +6,7 @@ import subprocess
 
 import click
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.services.utils import ensure_phlo_dir, require_container_backend
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
@@ -29,6 +30,7 @@ logger = get_logger(__name__)
     default=None,
     help="Container backend for this command.",
 )
+@require_mutation_authorization("services.exec")
 def exec_cmd(
     service_name: str,
     command: tuple[str, ...],

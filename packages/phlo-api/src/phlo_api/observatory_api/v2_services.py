@@ -328,20 +328,27 @@ def load_docker_containers() -> list[dict[str, Any]]:
     ]
 
 
-def load_project_docker_containers(project_root: Path) -> list[dict[str, Any]]:
+def load_project_docker_containers(project_root: Path | None) -> list[dict[str, Any]]:
     compose_project = project_compose_name(project_root)
     if compose_project:
         containers = docker_ps_containers(f"label=com.docker.compose.project={compose_project}")
         if containers is not None:
             return containers
+        return [
+            container
+            for container in load_docker_containers()
+            if container_labels(container).get("com.docker.compose.project") == compose_project
+        ]
     return []
 
 
-def project_compose_name(project_root: Path) -> str | None:
+def project_compose_name(project_root: Path | None) -> str | None:
     """Resolve the compose project name for a Phlo project root."""
     configured = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get("COMPOSE_PROJECT_NAME")
     if configured:
         return configured
+    if project_root is None:
+        return None
 
     compose_file = project_root / ".phlo" / "docker-compose.yml"
     if not compose_file.exists():

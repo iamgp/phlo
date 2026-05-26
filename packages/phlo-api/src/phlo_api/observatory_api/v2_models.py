@@ -309,6 +309,45 @@ class V2AssetDetail(BaseModel):
     column_lineage: dict[str, list[str]] = Field(default_factory=dict)
 
 
+class V2AssetGraphNode(BaseModel):
+    """Provider-neutral asset graph node."""
+
+    id: str
+    key: list[str] = Field(default_factory=list)
+    key_path: str
+    label: str
+    description: str | None = None
+    compute_kind: str | None = None
+    group_name: str | None = None
+    layer: str = "unknown"
+    last_materialization: str | None = None
+    upstream_count: int = 0
+    downstream_count: int = 0
+
+
+class V2AssetGraphEdge(BaseModel):
+    """Provider-neutral asset graph edge."""
+
+    source: str
+    target: str
+
+
+class V2AssetGraph(BaseModel):
+    """Provider-neutral asset graph."""
+
+    nodes: list[V2AssetGraphNode] = Field(default_factory=list)
+    edges: list[V2AssetGraphEdge] = Field(default_factory=list)
+
+
+class V2ImpactedAsset(BaseModel):
+    """Provider-neutral downstream impact summary."""
+
+    key_path: str
+    label: str
+    layer: str = "unknown"
+    depth: int
+
+
 class V2Table(BaseModel):
     """Provider-neutral table summary."""
 
@@ -404,6 +443,61 @@ class V2RowJourney(BaseModel):
     stages: list[V2ResourceRef] = Field(default_factory=list)
     logs: list["V2LogEvent"] = Field(default_factory=list)
     diff: dict[str, Any] = Field(default_factory=dict)
+
+
+class V2UpstreamTableRef(BaseModel):
+    """Resolved upstream table identifier for row provenance."""
+
+    model_config = {"populate_by_name": True}
+
+    schema_name: str = Field(alias="schema")
+    table: str
+
+
+class V2ContributingRowsQueryRequest(BaseModel):
+    """Request for a contributing-rows query."""
+
+    downstream_asset_key: str
+    upstream_asset_key: str
+    row_data: dict[str, Any]
+    limit: int | None = None
+    trino_url: str | None = None
+    timeout_ms: int | None = None
+    catalog: str | None = None
+
+
+class V2ContributingRowsQueryResponse(BaseModel):
+    """Generated contributing-rows query."""
+
+    query: str
+    upstream: V2UpstreamTableRef
+
+
+class V2ContributingRowsPageRequest(BaseModel):
+    """Request for a page of contributing rows."""
+
+    downstream_asset_key: str
+    upstream_asset_key: str
+    row_data: dict[str, Any]
+    page: int | None = None
+    page_size: int | None = None
+    trino_url: str | None = None
+    timeout_ms: int | None = None
+    catalog: str | None = None
+
+
+class V2ContributingRowsPageResponse(BaseModel):
+    """Page of contributing rows."""
+
+    mode: Literal["entity", "aggregate"]
+    page: int
+    page_size: int
+    has_more: bool
+    query: str
+    upstream: V2UpstreamTableRef
+    columns: list[str] = Field(default_factory=list)
+    column_types: list[str] = Field(default_factory=list)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class V2QualityCheck(BaseModel):
@@ -510,3 +604,75 @@ class V2SearchResult(BaseModel):
     summary: str | None = None
     href: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class V2ServiceList(BaseModel):
+    """List envelope for v2 services."""
+
+    items: list[V2Service]
+
+
+class V2OperationList(BaseModel):
+    """List envelope for v2 operations."""
+
+    items: list[V2Operation]
+
+
+class V2RunList(BaseModel):
+    """List envelope for v2 orchestrator runs."""
+
+    items: list[V2Run]
+
+
+class V2AssetList(BaseModel):
+    """List envelope for v2 assets."""
+
+    items: list[V2Asset]
+
+
+class V2TableList(BaseModel):
+    """List envelope for v2 tables."""
+
+    items: list[V2Table]
+
+
+class V2QualityList(BaseModel):
+    """List envelope for v2 quality checks."""
+
+    items: list[V2QualityCheck]
+
+
+class V2LogList(BaseModel):
+    """List envelope for v2 log events."""
+
+    items: list[V2LogEvent]
+
+
+class V2BranchList(BaseModel):
+    """List envelope for v2 branches."""
+
+    items: list[V2Branch]
+
+
+class V2ExtensionList(BaseModel):
+    """List envelope for v2 extensions."""
+
+    items: list[V2Extension]
+
+
+class V2SearchList(BaseModel):
+    """List envelope for v2 search results."""
+
+    items: list[V2SearchResult]
+
+
+class V2SavedQueryList(BaseModel):
+    """List envelope for saved Observatory queries."""
+
+    items: list[V2SavedQuery]
+
+
+class V2SurfaceList(BaseModel):
+    """List envelope for provider-neutral top-level surfaces."""
+
+    items: list[V2SurfaceItem]

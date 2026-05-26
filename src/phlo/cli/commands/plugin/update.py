@@ -7,6 +7,7 @@ import sys
 
 import click
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.plugin.utils import console, find_available_updates, run_pip
 from phlo.logging import get_logger
 from phlo.plugins.registry_client import list_registry_plugins
@@ -28,6 +29,10 @@ logger = get_logger(__name__)
     is_flag=True,
     default=False,
     help="Show available updates without applying them",
+)
+@require_mutation_authorization(
+    "plugin.update",
+    when=lambda params: not params.get("output_json") and not params.get("dry_run"),
 )
 def update_cmd(output_json: bool, dry_run: bool):
     """Update installed plugins based on registry versions."""

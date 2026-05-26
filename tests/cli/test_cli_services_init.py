@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import cast
 
 import pytest
@@ -221,6 +222,50 @@ def test_generate_env_local_keeps_known_non_secret_values_out_of_local_overrides
     assert "POSTGRES_PASSWORD=secret" in env_local
     assert "CUSTOM_LOCAL=kept" in env_local
     assert "POSTGRES_PORT=15432" not in env_local
+
+
+def test_generate_env_local_generates_new_secret_values() -> None:
+    service = ServiceDefinition(
+        name="postgres",
+        description="postgres",
+        category="core",
+        default=True,
+        env_vars={
+            "POSTGRES_PASSWORD": {
+                "default": "postgres",
+                "description": "Postgres password",
+                "secret": True,
+            },
+        },
+    )
+
+    env_local = generate_env_local([service])
+
+    assert "POSTGRES_PASSWORD=postgres" not in env_local
+    assert re.search(r"POSTGRES_PASSWORD=phlo_[A-Za-z0-9_-]{32,}", env_local)
+
+
+def test_generate_env_local_preserves_existing_secret_values() -> None:
+    service = ServiceDefinition(
+        name="postgres",
+        description="postgres",
+        category="core",
+        default=True,
+        env_vars={
+            "POSTGRES_PASSWORD": {
+                "default": "postgres",
+                "description": "Postgres password",
+                "secret": True,
+            },
+        },
+    )
+
+    env_local = generate_env_local(
+        [service],
+        existing_values={"POSTGRES_PASSWORD": "existing-secret"},
+    )
+
+    assert "POSTGRES_PASSWORD=existing-secret" in env_local
 
 
 def test_compose_generator_resolves_source_path_dev_volumes(tmp_path) -> None:

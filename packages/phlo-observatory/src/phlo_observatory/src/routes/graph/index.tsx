@@ -20,7 +20,6 @@ import { NodeInfoPanel } from '@/components/NodeInfoPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getAssetGraph, getAssetNeighbors } from '@/server/graph.server'
-import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 // Search params for focused view
 const graphSearchSchema = z.object({
@@ -38,20 +37,17 @@ export const Route = createFileRoute('/graph/')({
 })
 
 async function loadGraph(focus?: string, depth?: number) {
-  const settings = await getEffectiveObservatorySettings()
-  const dagsterUrl = settings.connections.dagsterGraphqlUrl
   if (focus) {
     const graph = await getAssetNeighbors({
       data: {
         assetKey: focus,
         direction: 'both',
         depth: depth ?? 2,
-        dagsterUrl,
       },
     })
     return { graph, focusedAsset: focus }
   }
-  const graph = await getAssetGraph({ data: { dagsterUrl } })
+  const graph = await getAssetGraph({ data: {} })
   return { graph, focusedAsset: undefined }
 }
 

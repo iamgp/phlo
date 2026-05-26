@@ -272,13 +272,9 @@ def _check_phlo_api(args: argparse.Namespace) -> None:
     if not isinstance(health, dict) or "overall_status" not in health:
         raise SmokeFailure("phlo-api observability health response was malformed")
 
-    dagster = _get_json(
-        args,
-        f"{args.api_base_url}/api/dagster/connection",
-        params={"dagster_url": args.dagster_url},
-    )
-    if not isinstance(dagster, dict) or dagster.get("connected") is not True:
-        raise SmokeFailure(f"Dagster is not connected through phlo-api: {dagster}")
+    runs = _get_json(args, f"{args.api_base_url}/api/observatory/v2/runs")
+    if not isinstance(runs, dict) or not isinstance(runs.get("items"), list):
+        raise SmokeFailure(f"phlo-api v2 runs response was malformed: {runs}")
 
     filtered_spans = _get_json(
         args,

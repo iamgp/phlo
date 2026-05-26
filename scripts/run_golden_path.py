@@ -109,6 +109,34 @@ def find_available_port(start_port: int, *, max_tries: int = 50) -> int | None:
     return None
 
 
+def cleanup_phlo_containers() -> int:
+    """Stop and remove Docker containers whose names match Phlo."""
+    result = subprocess.run(
+        ["docker", "ps", "-aq", "--filter", "name=phlo"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+    container_ids = [line for line in result.stdout.splitlines() if line]
+    if not container_ids:
+        return 0
+
+    subprocess.run(
+        ["docker", "stop", *container_ids],
+        capture_output=True,
+        timeout=60,
+        check=True,
+    )
+    subprocess.run(
+        ["docker", "rm", *container_ids],
+        capture_output=True,
+        timeout=60,
+        check=True,
+    )
+    return len(container_ids)
+
+
 def preflight_check(*, auto_cleanup: bool = False) -> bool:
     """
     Run preflight checks before starting the golden path test.
@@ -139,24 +167,8 @@ def preflight_check(*, auto_cleanup: bool = False) -> bool:
 
             if auto_cleanup:
                 log_info("Auto-cleanup enabled, stopping containers...")
-                subprocess.run(
-                    ["docker", "ps", "-aq", "--filter", "name=phlo"],
-                    capture_output=True,
-                )
-                # Stop all containers
-                subprocess.run(
-                    "docker ps -aq | xargs -r docker stop",
-                    shell=True,
-                    capture_output=True,
-                    timeout=60,
-                )
-                subprocess.run(
-                    "docker ps -aq | xargs -r docker rm",
-                    shell=True,
-                    capture_output=True,
-                    timeout=60,
-                )
-                log_success("Containers stopped and removed")
+                removed = cleanup_phlo_containers()
+                log_success(f"Stopped and removed {removed} Phlo containers")
             else:
                 log_error("Please stop containers first or use --auto-cleanup")
                 all_ok = False

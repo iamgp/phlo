@@ -24,11 +24,24 @@ export interface NessieConfig {
   defaultBranch?: string
 }
 
-// Python API response types (snake_case)
-interface ApiConnectionStatus {
-  connected: boolean
-  error?: string
-  default_branch?: string
+interface ApiBranch {
+  id: string
+  name: string
+  current?: boolean
+  metadata?: Record<string, unknown>
+}
+
+interface ApiBranchList {
+  items: Array<ApiBranch>
+}
+
+function transformBranch(branch: ApiBranch): Branch {
+  const hash = branch.metadata?.hash
+  return {
+    type: 'BRANCH',
+    name: branch.name,
+    hash: typeof hash === 'string' ? hash : branch.id,
+  }
 }
 
 /**
@@ -36,19 +49,24 @@ interface ApiConnectionStatus {
  */
 export const checkNessieConnection = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator((input: { nessieUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<NessieConfig> => {
+  .inputValidator((input: Record<string, never> = {}) => input)
+  .handler(async (): Promise<NessieConfig> => {
     try {
-      const key = cacheKeys.nessieConnection(data.nessieUrl ?? 'default')
       const result = await withCache(
-        () => apiGet<ApiConnectionStatus>('/api/nessie/connection'),
-        key,
+        () =>
+          apiGet<ApiBranchList | { error: string }>(
+            '/api/observatory/v2/branches',
+          ),
+        cacheKeys.nessieConnection(),
         cacheTTL.nessieConnection,
       )
+      if ('error' in result) {
+        return { connected: false, error: result.error }
+      }
+      const current = result.items.find((branch) => branch.current)
       return {
-        connected: result.connected,
-        error: result.error,
-        defaultBranch: result.default_branch,
+        connected: true,
+        defaultBranch: current?.name ?? result.items[0]?.name,
       }
     } catch (error) {
       return {
@@ -63,15 +81,19 @@ export const checkNessieConnection = createServerFn()
  */
 export const getBranches = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator((input: { nessieUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<Array<Branch> | { error: string }> => {
+  .inputValidator((input: Record<string, never> = {}) => input)
+  .handler(async (): Promise<Array<Branch> | { error: string }> => {
     try {
-      const key = cacheKeys.nessieBranches(data.nessieUrl ?? 'default')
-      return await withCache(
-        () => apiGet<Array<Branch> | { error: string }>('/api/nessie/branches'),
-        key,
+      const result = await withCache(
+        () =>
+          apiGet<ApiBranchList | { error: string }>(
+            '/api/observatory/v2/branches',
+          ),
+        cacheKeys.nessieBranches(),
         cacheTTL.nessieBranches,
       )
+      if ('error' in result) return result
+      return result.items.map(transformBranch)
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }

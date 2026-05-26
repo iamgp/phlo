@@ -25,8 +25,10 @@ import subprocess
 
 import click
 
+from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.output import command_failed_error
 from phlo.logging import get_logger
+from phlo_sling.authorization import get_adapter as get_sling_adapter
 from phlo_sling.connections import apply_sling_connection_env
 from phlo_sling.settings import get_settings
 
@@ -83,6 +85,7 @@ def run_command(
     """
     from sling import Replication, Sling
 
+    enforce_surface_mutation_authorization("sling.run", get_sling_adapter)
     apply_sling_connection_env()
     resolved_mode = mode or get_settings().sling_default_mode
 

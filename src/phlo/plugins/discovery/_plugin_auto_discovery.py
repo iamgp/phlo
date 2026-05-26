@@ -16,11 +16,21 @@ from phlo.plugins.discovery._plugin_loading import discover_plugins
 logger = get_logger(__name__)
 
 
+def _strict_auto_discovery_enabled() -> bool:
+    """Return True when auto-discovery failures must fail startup."""
+    from phlo.security.mode import is_regulated
+
+    return is_regulated()
+
+
 def auto_discover() -> None:
     """Automatically discover and register all plugins."""
+    strict = _strict_auto_discovery_enabled()
     try:
-        discover_plugins(auto_register=True)
+        discover_plugins(auto_register=True, strict=strict)
     except Exception:
+        if strict:
+            raise
         logger.warning("plugin_auto_discover_failed", exc_info=True)
 
 

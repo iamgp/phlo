@@ -30,6 +30,7 @@ extract_openmetadata_token = _mod_any.extract_openmetadata_token
 read_env_file = _mod_any.read_env_file
 upsert_env_file = _mod_any.upsert_env_file
 write_file = _mod_any.write_file
+cleanup_phlo_containers = getattr(_mod_any, "cleanup_phlo_containers", None)
 
 
 class TestForceRemoveDirectory:
@@ -73,6 +74,33 @@ class TestFindAvailablePort:
         """
         monkeypatch.setattr(_mod, "check_port_in_use", lambda _port: True)
         assert find_available_port(9000, max_tries=3) is None
+
+
+class TestCleanupPhloContainers:
+    """Tests for scoped Docker cleanup."""
+
+    def test_stops_and_removes_only_filtered_phlo_containers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Verify cleanup uses filtered IDs rather than shelling over all containers."""
+        calls: list[tuple[list[str] | str, bool]] = []
+
+        def fake_run(cmd: list[str] | str, **kwargs: object) -> object:
+            calls.append((cmd, bool(kwargs.get("shell"))))
+            if cmd == ["docker", "ps", "-aq", "--filter", "name=phlo"]:
+                return type("Result", (), {"stdout": "phlo-1\nphlo-2\n", "returncode": 0})()
+            return type("Result", (), {"stdout": "", "returncode": 0})()
+
+        monkeypatch.setattr(_mod.subprocess, "run", fake_run)
+
+        assert callable(cleanup_phlo_containers)
+        assert cleanup_phlo_containers() == 2
+
+        assert calls == [
+            (["docker", "ps", "-aq", "--filter", "name=phlo"], False),
+            (["docker", "stop", "phlo-1", "phlo-2"], False),
+            (["docker", "rm", "phlo-1", "phlo-2"], False),
+        ]
 
 
 class TestExtractOpenmetadataToken:

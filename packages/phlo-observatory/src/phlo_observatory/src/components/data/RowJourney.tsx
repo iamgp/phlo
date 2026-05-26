@@ -665,7 +665,6 @@ function useRowJourney({
     selectedNode,
   } = state
   const { settings } = useObservatorySettings()
-
   // Load asset neighbors
   useEffect(() => {
     let cancelled = false
@@ -678,7 +677,6 @@ function useRowJourney({
             assetKey,
             direction: 'both',
             depth: 2,
-            dagsterUrl: settings.connections.dagsterGraphqlUrl,
           },
         })
         if (cancelled) return
@@ -699,7 +697,7 @@ function useRowJourney({
     return () => {
       cancelled = true
     }
-  }, [assetKey, settings.connections.dagsterGraphqlUrl])
+  }, [assetKey])
 
   // Load details when node is selected
   useEffect(() => {

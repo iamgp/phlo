@@ -11,7 +11,9 @@ from phlo_mcp.config import McpConfig
 
 
 class PhloApiClient:
-    """Small typed wrapper around phlo-api observability routes."""
+    """Small typed wrapper around phlo-api routes."""
+
+    _V2_PREFIX = "/api/observatory/v2"
 
     def __init__(self, config: McpConfig, *, tracer_name: str = "phlo.mcp") -> None:
         self._config = config
@@ -43,10 +45,10 @@ class PhloApiClient:
         return self._get_json(f"/api/services/{service_name}")
 
     def get_assets(self) -> dict[str, Any] | list[dict[str, Any]]:
-        return self._get_json("/api/dagster/assets")
+        return self._v2_items("/assets")
 
     def get_asset_details(self, asset_key_path: str) -> dict[str, Any] | list[dict[str, Any]]:
-        return self._get_json(f"/api/dagster/assets/{asset_key_path}")
+        return self._get_json(f"{self._V2_PREFIX}/assets/{asset_key_path}")
 
     def get_contracts(self) -> dict[str, Any] | list[dict[str, Any]]:
         return self._get_json("/api/contracts")
@@ -82,7 +84,8 @@ class PhloApiClient:
         limit: int = 10,
     ) -> dict[str, Any] | list[dict[str, Any]]:
         return self._get_json(
-            f"/api/dagster/assets/{asset_key_path}/history", params={"limit": limit}
+            f"{self._V2_PREFIX}/assets/{asset_key_path}/materializations",
+            params={"limit": limit},
         )
 
     def get_run_trace_spans(
@@ -139,7 +142,9 @@ class PhloApiClient:
         payload: dict[str, Any] = {"dry_run": dry_run}
         if partition_key:
             payload["partition_key"] = partition_key
-        return self._post_json(f"/api/dagster/assets/{asset_key_path}/materialize", json=payload)
+        return self._post_json(
+            f"{self._V2_PREFIX}/assets/{asset_key_path}/materialize", json=payload
+        )
 
     def retry_run(
         self,
@@ -147,10 +152,16 @@ class PhloApiClient:
         *,
         dry_run: bool = True,
     ) -> dict[str, Any] | list[dict[str, Any]]:
-        return self._post_json(f"/api/dagster/runs/{run_id}/retry", json={"dry_run": dry_run})
+        return self._post_json(f"{self._V2_PREFIX}/runs/{run_id}/retry", json={"dry_run": dry_run})
 
     def get_run_status(self, run_id: str) -> dict[str, Any] | list[dict[str, Any]]:
-        return self._get_json(f"/api/dagster/runs/{run_id}/status")
+        return self._get_json(f"{self._V2_PREFIX}/runs/{run_id}/status")
+
+    def _v2_items(self, path: str) -> dict[str, Any] | list[dict[str, Any]]:
+        payload = self._get_json(f"{self._V2_PREFIX}{path}")
+        if isinstance(payload, dict) and isinstance(payload.get("items"), list):
+            return payload["items"]
+        return payload
 
     def _get_json(
         self,

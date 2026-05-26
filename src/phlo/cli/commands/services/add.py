@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 import yaml
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.services.common import (
     parse_service_args,
     run_compose,
@@ -128,6 +129,7 @@ def _start_services(
     help="Render explicit service(s) (e.g., --service phlo-api --service observatory)",
 )
 @click.option("--no-start", is_flag=True, help="Don't start newly-added services after rendering")
+@require_mutation_authorization("services.add")
 def add_cmd(
     service_name: str | None,
     profiles: tuple[str, ...],

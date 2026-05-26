@@ -8,8 +8,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-import pandas as pd
-
 from phlo.plugins.base.plugin import Plugin
 
 
@@ -50,7 +48,7 @@ class TransformationPlugin(Plugin, ABC):
     """
 
     @abstractmethod
-    def transform(self, df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
+    def transform(self, df: Any, config: dict[str, Any]) -> Any:
         """Transform a DataFrame.
 
         Args:

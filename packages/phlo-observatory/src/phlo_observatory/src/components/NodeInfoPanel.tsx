@@ -220,15 +220,13 @@ function ImpactAnalysisSection({
     }),
     { impactedAssets: [], error: null, loading: false },
   )
-  const { settings } = useObservatorySettings()
-
   const toggleExpanded = () => {
     const nextExpanded = !isExpanded
     setIsExpanded(nextExpanded)
     if (nextExpanded && impactedAssets.length === 0) {
       setImpactState({ error: null, loading: true })
       void getAssetImpact({
-        data: { assetKey, dagsterUrl: settings.connections.dagsterGraphqlUrl },
+        data: { assetKey },
       })
         .then((result) =>
           setImpactState(

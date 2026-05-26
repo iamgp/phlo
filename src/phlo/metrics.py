@@ -7,11 +7,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
-import psycopg2
-import psycopg2.extras
 import requests
 from cachetools import TTLCache
-from psycopg2 import Error as PsycopgError
 from pydantic import Field
 
 from phlo.capabilities import QueryEngine, resolve_capability
@@ -21,6 +18,25 @@ from phlo.config.network import resolve_host
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _load_psycopg2() -> Any:
+    try:
+        import psycopg2
+        import psycopg2.extras
+    except ImportError as exc:
+        raise MetricsDependencyError(
+            "Postgres metrics require the runtime extra: install phlo[runtime]."
+        ) from exc
+    return psycopg2
+
+
+class _LazyPsycopg2:
+    def __getattr__(self, name: str) -> Any:
+        return getattr(_load_psycopg2(), name)
+
+
+psycopg2 = _LazyPsycopg2()
 
 
 class MetricsBackendSettings(BaseConfig):
@@ -347,7 +363,7 @@ class MetricsCollector:
                 user=self.settings.postgres_user,
                 password=self.settings.postgres_password,
             )
-        except PsycopgError as exc:
+        except Exception as exc:
             raise MetricsDependencyError("Postgres unavailable for asset run lookup") from exc
 
         try:
@@ -389,7 +405,7 @@ class MetricsCollector:
                     (asset_name, f"%{escaped_asset_name}%", f"%{escaped_asset_name}%", limit),
                 )
                 rows = cur.fetchall()
-        except PsycopgError as exc:
+        except Exception as exc:
             raise MetricsDependencyError("Failed querying Dagster run history") from exc
         finally:
             conn.close()
@@ -423,7 +439,7 @@ class MetricsCollector:
                 user=self.settings.postgres_user,
                 password=self.settings.postgres_password,
             )
-        except PsycopgError as exc:
+        except Exception as exc:
             raise MetricsDependencyError("Postgres unavailable for asset table lookup") from exc
 
         try:
@@ -443,7 +459,7 @@ class MetricsCollector:
                     (f"%{escaped_asset_name}%",),
                 )
                 rows = cur.fetchall()
-        except PsycopgError as exc:
+        except Exception as exc:
             raise MetricsDependencyError("Failed querying asset materialization metadata") from exc
         finally:
             conn.close()

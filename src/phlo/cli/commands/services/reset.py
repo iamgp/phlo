@@ -5,6 +5,7 @@ from pathlib import Path
 
 import click
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.services.common import parse_service_args, run_compose
 from phlo.cli.commands.services.utils import ensure_phlo_dir, require_container_backend
 from phlo.cli.infrastructure.compose import compose_base_cmd
@@ -37,6 +38,7 @@ logger = get_logger(__name__)
     default=None,
     help="Container backend for this command.",
 )
+@require_mutation_authorization("services.reset")
 def reset_cmd(service: tuple[str, ...], yes: bool, backend_name: str | None):
     """Reset Phlo infrastructure by stopping services and deleting volumes.
 

@@ -12,6 +12,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.codemods.decorators_2026_05 import migrate_decorators_2026_05_source
 from phlo.migrations import (
     MigrationExecutionError,
@@ -43,6 +44,10 @@ def migrate_group() -> None:
 @click.option("--check", is_flag=True, help="Fail if decorators 2026-05 migrations are needed.")
 @click.option("--write", is_flag=True, help="Rewrite files in place.")
 @click.option("--diff", "show_diff", is_flag=True, help="Print unified diffs for pending changes.")
+@require_mutation_authorization(
+    "migrate.decorators_2026_05",
+    when=lambda params: bool(params.get("write")),
+)
 def decorators_2026_05(path: Path, check: bool, write: bool, show_diff: bool) -> None:
     """Migrate May 2026 decorator APIs."""
     if check and write:
@@ -126,6 +131,7 @@ def validate(spec_file: Path) -> None:
 @click.argument("spec_file", type=click.Path(path_type=Path, dir_okay=False))
 @click.option("--dry-run", is_flag=True, help="Validate and read without writing")
 @click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table")
+@require_mutation_authorization("migrate.run", when=lambda params: not params.get("dry_run"))
 def run(spec_file: Path, dry_run: bool, fmt: str) -> None:
     """Execute a migration spec."""
     try:

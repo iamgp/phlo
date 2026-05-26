@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 
 from phlo.capabilities.discovery import discover_capabilities
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.logging import get_logger
 from phlo.rbac.config import RBACConfigLoader
 from phlo.rbac.sync import SyncController
@@ -152,6 +153,7 @@ def plan(path, backend, environment):
     is_flag=True,
     help="Plan changes without applying them.",
 )
+@require_mutation_authorization("authz.sync", when=lambda params: not params.get("dry_run"))
 def sync(path, backend, environment, dry_run):
     """Synchronize RBAC policies to backend-native enforcement.
 
@@ -290,6 +292,7 @@ def verify(path, backend, environment):
     default="development",
     help="Environment name (development, staging, production).",
 )
+@require_mutation_authorization("authz.revert")
 def revert(path, revert_ids, backend, environment):
     """Revert previously applied policy changes.
 

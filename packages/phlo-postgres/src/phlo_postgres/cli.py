@@ -23,6 +23,7 @@ from subprocess import TimeoutExpired
 
 import click
 
+from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.commands.services.utils import (
     ensure_compose_project,
     require_container_backend as _require_selected_container_backend,
@@ -37,6 +38,7 @@ from phlo.cli.output import (
     file_read_error,
 )
 from phlo.cli.output import missing_query_error
+from phlo_postgres.authorization import get_postgres_cli_adapter
 from phlo_postgres.settings import get_settings
 
 
@@ -190,6 +192,7 @@ def postgres_group(ctx: click.Context, postgres_args: tuple[str, ...]) -> None:
         return
 
     _require_container_backend()
+    enforce_surface_mutation_authorization("postgres", get_postgres_cli_adapter)
     user, database = _postgres_identity(user=None, database=None)
     cmd = _postgres_exec_base(tty=True)
     cmd.extend(["psql", "-U", user, "-d", database])
@@ -237,6 +240,7 @@ def postgres_query(
 
     """
     _require_container_backend()
+    enforce_surface_mutation_authorization("postgres.query", get_postgres_cli_adapter)
     sql = _read_sql(query=query, file=query_file)
     resolved_user, resolved_db = _postgres_identity(user=user, database=database)
     cmd = _postgres_exec_base(tty=False)
@@ -301,6 +305,7 @@ def postgres_dump(
 
     """
     _require_container_backend()
+    enforce_surface_mutation_authorization("postgres.dump", get_postgres_cli_adapter)
     resolved_user, resolved_db = _postgres_identity(user=user, database=database)
     cmd = _postgres_exec_base(tty=False)
     cmd.extend(["pg_dump", "-U", resolved_user, resolved_db])
@@ -376,6 +381,7 @@ def postgres_restore(
 
     """
     _require_container_backend()
+    enforce_surface_mutation_authorization("postgres.restore", get_postgres_cli_adapter)
     resolved_user, resolved_db = _postgres_identity(user=user, database=database)
     cmd = _postgres_exec_base(tty=False)
     cmd.extend(["psql", "-U", resolved_user, "-d", resolved_db, "-v", "ON_ERROR_STOP=1"])
@@ -440,6 +446,7 @@ def postgres_vacuum(
 
     """
     _require_container_backend()
+    enforce_surface_mutation_authorization("postgres.vacuum", get_postgres_cli_adapter)
     resolved_user, resolved_db = _postgres_identity(user=user, database=database)
     cmd = _postgres_exec_base(tty=False)
     cmd.extend(["vacuumdb", "-U", resolved_user])

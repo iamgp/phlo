@@ -7,6 +7,7 @@ from pathlib import Path
 
 import click
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.plugin.utils import (
     SCAFFOLD_TYPE_MAP,
     console,
@@ -45,6 +46,7 @@ logger = get_logger(__name__)
     type=click.Path(),
     help="Path for new plugin package (default: ./phlo-plugin-{name})",
 )
+@require_mutation_authorization("plugin.create")
 def create_cmd(plugin_name: str, plugin_type: str, path: str | None):
     """Create scaffolding for a new plugin.
 

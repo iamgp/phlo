@@ -7,6 +7,8 @@ requires = [
 
 [project]
 dependencies = [
+    "dagster>=1.12.1",
+    "dagster-graphql>=1.12.1",
     "phlo>=0.1.0",
     "phlo-postgres>=0.1.0",
     "duckdb>=0.9.0",
