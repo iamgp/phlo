@@ -363,11 +363,11 @@ def _clear_capability_registries() -> None:
     from phlo.plugins.discovery import discover_plugins, get_global_registry
 
     clear_all_capabilities()
-    discover_plugins(plugin_type="asset_providers", auto_register=True)
+    discover_plugins(plugin_type="asset_provider", auto_register=True)
     registry = get_global_registry()
 
-    for name in registry.list_asset_providers():
-        plugin = registry.get_asset_provider(name)
+    for name in registry.list("asset_provider"):
+        plugin = registry.get("asset_provider", name)
         if plugin is None:
             continue
         clear_fn = getattr(plugin, "clear_registries", None)

@@ -2,6 +2,7 @@
 
 import click
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.services.common import (
     parse_service_args,
     run_compose,
@@ -43,6 +44,7 @@ logger = get_logger(__name__)
     default=None,
     help="Container backend for this command.",
 )
+@require_mutation_authorization("services.restart")
 def restart_cmd(
     build: bool,
     profile: tuple[str, ...],

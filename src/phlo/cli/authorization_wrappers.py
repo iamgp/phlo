@@ -41,6 +41,7 @@ T = TypeVar("T")
 def require_mutation_authorization(
     command: str,
     resource_id: str | Callable[[Any], str] | None = None,
+    when: Callable[[dict[str, Any]], bool] | None = None,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Decorator that enforces authorization on a mutation command.
 
@@ -50,6 +51,8 @@ def require_mutation_authorization(
 
     Args:
         command: Command path (e.g., "services.start")
+        when: Optional predicate over Click callback kwargs. If provided, authorization
+            is enforced only when the predicate returns true.
         resource_id: Optional resource ID extractor. Can be:
             - None: uses command as resource ID
             - str: static resource ID
@@ -69,6 +72,17 @@ def require_mutation_authorization(
     def decorator(fn: Callable[P, T]) -> Callable[P, T]:
         @functools.wraps(fn)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            if not check_cli_surface_active():
+                return fn(*args, **kwargs)
+
+            if when is not None:
+                try:
+                    should_enforce = when(dict(kwargs))
+                except Exception:
+                    should_enforce = True
+                if not should_enforce:
+                    return fn(*args, **kwargs)
+
             from phlo.cli.authorization import get_cli_adapter
 
             resolved_resource_id: str | None = None
@@ -102,6 +116,29 @@ def require_mutation_authorization(
         return wrapper
 
     return decorator
+
+
+def enforce_surface_mutation_authorization(
+    command: str,
+    adapter_getter: Callable[[], Any],
+    resource_id: str | None = None,
+) -> None:
+    """Enforce a package CLI mutation command when regulated mode is active."""
+    if not check_cli_surface_active():
+        return
+
+    adapter = adapter_getter()
+    result = adapter.enforce_mutation(command, resource_id)
+    if result.allowed:
+        return
+
+    logger.warning(
+        "cli_surface_command_authorization_denied",
+        command=command,
+        reason_code=result.reason_code,
+        explanation=result.explanation,
+    )
+    raise SystemExit(1)
 
 
 class MutationContext:

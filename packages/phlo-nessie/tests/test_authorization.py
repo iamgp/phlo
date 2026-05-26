@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from phlo_nessie import cli_branch
 from phlo.cli.authorization import CliPrincipalResolver
 from phlo_nessie.authorization import (
     COMMAND_ACTION_MAP,
@@ -173,3 +175,31 @@ class TestCommandClassification:
         assert COMMAND_ACTION_MAP["branch.merge"] == "catalog.manage"
         assert COMMAND_ACTION_MAP["branch.list"] == "catalog.read"
         assert COMMAND_ACTION_MAP["catalog.tables"] == "catalog.read"
+
+
+def test_branch_merge_authorizes_implicit_source_delete(monkeypatch) -> None:
+    calls: list[tuple[str, str | None]] = []
+
+    class Client:
+        def list_references(self):
+            return [
+                SimpleNamespace(name="feature", hash_="feature-hash"),
+                SimpleNamespace(name="main", hash_="main-hash"),
+            ]
+
+        def merge(self, **_kwargs):
+            return None
+
+        def delete_branch(self, **_kwargs):
+            return None
+
+    monkeypatch.setattr(cli_branch, "get_nessie_client", lambda: Client())
+    monkeypatch.setattr(
+        cli_branch,
+        "enforce_surface_mutation_authorization",
+        lambda command, _adapter_getter, resource_id=None: calls.append((command, resource_id)),
+    )
+
+    cli_branch.merge.callback("feature", "main", False, False)
+
+    assert calls == [("branch.merge", None), ("branch.delete", "feature")]

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from phlo.audit.events import CanonicalAuditEvent
 from phlo.compliance.audit import (
     GENESIS_HASH,
@@ -33,6 +35,37 @@ class TestSealedAuditRecord:
         assert record.event == event
         assert len(record.record_hash) == 64
         assert record.sealed_at is not None
+
+    def test_seal_requires_explicit_hmac_key_in_regulated_mode(self, monkeypatch) -> None:
+        """Regulated audit sealing must not fall back to the deterministic dev key."""
+        monkeypatch.setenv("PHLO_REGULATED", "true")
+        monkeypatch.delenv("PHLO_AUDIT_HMAC_KEY", raising=False)
+        event = CanonicalAuditEvent(
+            event_type="authorization",
+            surface="phlo-api",
+            actor_subject="alice@example.com",
+            action="dataset.read",
+            decision="allow",
+        )
+
+        with pytest.raises(RuntimeError, match="PHLO_AUDIT_HMAC_KEY is required"):
+            SealedAuditRecord.seal(event, sequence_number=1, previous_hash=GENESIS_HASH)
+
+    def test_seal_uses_explicit_hmac_key_in_regulated_mode(self, monkeypatch) -> None:
+        """Regulated audit sealing works when real key material is configured."""
+        monkeypatch.setenv("PHLO_REGULATED", "true")
+        monkeypatch.setenv("PHLO_AUDIT_HMAC_KEY", "test-audit-key")
+        event = CanonicalAuditEvent(
+            event_type="authorization",
+            surface="phlo-api",
+            actor_subject="alice@example.com",
+            action="dataset.read",
+            decision="allow",
+        )
+
+        record = SealedAuditRecord.seal(event, sequence_number=1, previous_hash=GENESIS_HASH)
+
+        assert len(record.record_hash) == 64
 
     def test_seal_different_events_produce_different_hashes(self) -> None:
         """Different events produce different record hashes."""

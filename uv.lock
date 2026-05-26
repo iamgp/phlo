@@ -3045,19 +3045,10 @@ name = "phlo"
 version = "0.10.0"
 source = { editable = "." }
 dependencies = [
-    { name = "asyncpg" },
     { name = "cachetools" },
     { name = "click" },
-    { name = "dagster" },
-    { name = "dagster-webserver" },
-    { name = "duckdb" },
-    { name = "fastapi" },
     { name = "httpx" },
     { name = "jsonschema" },
-    { name = "libcst" },
-    { name = "pandas" },
-    { name = "pandera" },
-    { name = "psycopg2-binary" },
     { name = "pydantic-settings" },
     { name = "python-ulid" },
     { name = "pyyaml" },
@@ -3067,6 +3058,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+codemods = [
+    { name = "libcst" },
+]
 core-services = [
     { name = "phlo-dagster" },
     { name = "phlo-minio" },
@@ -3091,10 +3085,28 @@ defaults = [
 openmetadata = [
     { name = "phlo-openmetadata" },
 ]
+runtime = [
+    { name = "asyncpg" },
+    { name = "dagster" },
+    { name = "dagster-webserver" },
+    { name = "duckdb" },
+    { name = "fastapi" },
+    { name = "pandas" },
+    { name = "pandera" },
+    { name = "psycopg2-binary" },
+]
 
 [package.dev-dependencies]
 dev = [
+    { name = "asyncpg" },
+    { name = "dagster" },
+    { name = "dagster-webserver" },
+    { name = "duckdb" },
+    { name = "fastapi" },
+    { name = "libcst" },
     { name = "minio" },
+    { name = "pandas" },
+    { name = "pandera" },
     { name = "phlo-alerting" },
     { name = "phlo-alloy" },
     { name = "phlo-api" },
@@ -3129,6 +3141,7 @@ dev = [
     { name = "phlo-testing" },
     { name = "phlo-traefik" },
     { name = "phlo-trino" },
+    { name = "psycopg2-binary" },
     { name = "pyiceberg" },
     { name = "pymdx" },
     { name = "pytest" },
@@ -3142,18 +3155,18 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "asyncpg", specifier = ">=0.30.0" },
+    { name = "asyncpg", marker = "extra == 'runtime'", specifier = ">=0.30.0" },
     { name = "cachetools", specifier = ">=6.2.1" },
     { name = "click", specifier = ">=8.0" },
-    { name = "dagster", specifier = ">=1.12.1" },
-    { name = "dagster-webserver", specifier = ">=1.12.1" },
-    { name = "duckdb", specifier = ">=0.9.0" },
-    { name = "fastapi", specifier = ">=0.127.0" },
+    { name = "dagster", marker = "extra == 'runtime'", specifier = ">=1.12.1" },
+    { name = "dagster-webserver", marker = "extra == 'runtime'", specifier = ">=1.12.1" },
+    { name = "duckdb", marker = "extra == 'runtime'", specifier = ">=0.9.0" },
+    { name = "fastapi", marker = "extra == 'runtime'", specifier = ">=0.127.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jsonschema", specifier = ">=4.23.0" },
-    { name = "libcst", specifier = ">=1.5.0" },
-    { name = "pandas", specifier = ">=2.3.3" },
-    { name = "pandera", specifier = ">=0.26.1" },
+    { name = "libcst", marker = "extra == 'codemods'", specifier = ">=1.5.0" },
+    { name = "pandas", marker = "extra == 'runtime'", specifier = ">=2.3.3" },
+    { name = "pandera", marker = "extra == 'runtime'", specifier = ">=0.26.1" },
     { name = "phlo-api", marker = "extra == 'defaults'", editable = "packages/phlo-api" },
     { name = "phlo-core-plugins", marker = "extra == 'defaults'", editable = "packages/phlo-core-plugins" },
     { name = "phlo-dagster", marker = "extra == 'core-services'", editable = "packages/phlo-dagster" },
@@ -3172,7 +3185,7 @@ requires-dist = [
     { name = "phlo-postgres", marker = "extra == 'defaults'", editable = "packages/phlo-postgres" },
     { name = "phlo-trino", marker = "extra == 'core-services'", editable = "packages/phlo-trino" },
     { name = "phlo-trino", marker = "extra == 'defaults'", editable = "packages/phlo-trino" },
-    { name = "psycopg2-binary", specifier = ">=2.9.11" },
+    { name = "psycopg2-binary", marker = "extra == 'runtime'", specifier = ">=2.9.11" },
     { name = "pydantic-settings", specifier = ">=2.11.0" },
     { name = "python-ulid", specifier = ">=2.0.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
@@ -3180,11 +3193,19 @@ requires-dist = [
     { name = "rich", specifier = ">=13.0" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
-provides-extras = ["core-services", "defaults", "openmetadata"]
+provides-extras = ["codemods", "core-services", "defaults", "openmetadata", "runtime"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "asyncpg", specifier = ">=0.30.0" },
+    { name = "dagster", specifier = ">=1.12.1" },
+    { name = "dagster-webserver", specifier = ">=1.12.1" },
+    { name = "duckdb", specifier = ">=0.9.0" },
+    { name = "fastapi", specifier = ">=0.127.0" },
+    { name = "libcst", specifier = ">=1.5.0" },
     { name = "minio", specifier = ">=7.2.20" },
+    { name = "pandas", specifier = ">=2.3.3" },
+    { name = "pandera", specifier = ">=0.26.1" },
     { name = "phlo-alerting", editable = "packages/phlo-alerting" },
     { name = "phlo-alloy", editable = "packages/phlo-alloy" },
     { name = "phlo-api", editable = "packages/phlo-api" },
@@ -3219,6 +3240,7 @@ dev = [
     { name = "phlo-testing", editable = "packages/phlo-testing" },
     { name = "phlo-traefik", editable = "packages/phlo-traefik" },
     { name = "phlo-trino", editable = "packages/phlo-trino" },
+    { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pyiceberg", specifier = ">=0.10.0" },
     { name = "pymdx", specifier = ">=0.1.1" },
     { name = "pytest", specifier = ">=8.4.2" },
@@ -4166,6 +4188,8 @@ name = "phlo-testing"
 version = "0.3.0"
 source = { editable = "packages/phlo-testing" }
 dependencies = [
+    { name = "dagster" },
+    { name = "dagster-graphql" },
     { name = "dlt" },
     { name = "duckdb" },
     { name = "pandas" },
@@ -4190,6 +4214,8 @@ trino = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dagster", specifier = ">=1.12.1" },
+    { name = "dagster-graphql", specifier = ">=1.12.1" },
     { name = "dlt", specifier = ">=1.18.2" },
     { name = "duckdb", specifier = ">=0.9.0" },
     { name = "pandas", specifier = ">=2.3.3" },

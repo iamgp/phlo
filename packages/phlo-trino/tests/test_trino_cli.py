@@ -65,6 +65,47 @@ def test_trino_query_runs_trino_cli(monkeypatch) -> None:
     assert result.output == '[{"_col0":1}]\n'
 
 
+def test_trino_query_authorizes_only_mutating_sql(monkeypatch) -> None:
+    calls: list[str] = []
+
+    monkeypatch.setitem(
+        trino_query.callback.__globals__,
+        "_require_container_backend",
+        lambda: calls.append("backend"),
+    )
+    monkeypatch.setitem(
+        trino_query.callback.__globals__,
+        "_trino_exec_base",
+        lambda *, tty: [
+            "docker",
+            "compose",
+            "-p",
+            "demo",
+            "exec",
+            *([] if tty else ["-T"]),
+            "trino",
+            "trino",
+        ],
+    )
+    monkeypatch.setitem(
+        trino_query.callback.__globals__,
+        "run_command",
+        lambda cmd, **_kwargs: CompletedProcess(cmd, 0, stdout="ok\n", stderr=""),
+    )
+    monkeypatch.setitem(
+        trino_query.callback.__globals__,
+        "enforce_surface_mutation_authorization",
+        lambda *_args, **_kwargs: calls.append("auth"),
+    )
+
+    select_result = CliRunner().invoke(trino_group, ["query", "SELECT 1"])
+    insert_result = CliRunner().invoke(trino_group, ["query", "INSERT INTO t VALUES (1)"])
+
+    assert select_result.exit_code == 0
+    assert insert_result.exit_code == 0
+    assert calls == ["backend", "auth", "backend"]
+
+
 def test_trino_query_uses_selected_backend(monkeypatch, tmp_path) -> None:
     phlo_dir = tmp_path / ".phlo"
     phlo_dir.mkdir()

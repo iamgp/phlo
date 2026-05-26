@@ -21,6 +21,8 @@ from phlo.security.mode import is_regulated
 logger = get_logger(__name__)
 
 REQUIRED_AUTHORIZATION_MODE = "required"
+PHLO_AUDIT_HMAC_KEY_ENV = "PHLO_AUDIT_HMAC_KEY"
+PHLO_SIGNATURE_HMAC_KEY_ENV = "PHLO_SIGNATURE_HMAC_KEY"
 
 
 class RegulatedValidationError(Exception):
@@ -124,6 +126,32 @@ def _check_fail_closed_mode() -> ValidationResult:
         name="fail_closed_mode",
         passed=False,
         message=f"Authorization mode is '{mode or 'optional (default)'}' but regulated mode requires '{REQUIRED_AUTHORIZATION_MODE}'",
+    )
+
+
+def _check_compliance_hmac_keys() -> ValidationResult:
+    """Validate regulated compliance HMAC keys are explicitly configured."""
+    audit_key = os.environ.get(PHLO_AUDIT_HMAC_KEY_ENV, "").strip()
+    signature_key = os.environ.get(PHLO_SIGNATURE_HMAC_KEY_ENV, "").strip()
+
+    if not audit_key:
+        return ValidationResult(
+            name="compliance_hmac_keys_configured",
+            passed=False,
+            message=f"{PHLO_AUDIT_HMAC_KEY_ENV} is required for regulated audit sealing",
+        )
+
+    if not signature_key:
+        return ValidationResult(
+            name="compliance_hmac_keys_configured",
+            passed=False,
+            message=(f"{PHLO_SIGNATURE_HMAC_KEY_ENV} is required for regulated signature sealing"),
+        )
+
+    return ValidationResult(
+        name="compliance_hmac_keys_configured",
+        passed=True,
+        message="Regulated audit and signature HMAC keys are configured",
     )
 
 
@@ -389,6 +417,7 @@ def run_regulated_validation(
     report.add_check(_check_canonical_rbac())
     report.add_check(_check_authorization_backend())
     report.add_check(_check_fail_closed_mode())
+    report.add_check(_check_compliance_hmac_keys())
 
     adapter_actions, adapter_resource_types = _collect_adapter_taxonomy(runtime)
     effective_actions = set(surface_actions) if surface_actions else adapter_actions

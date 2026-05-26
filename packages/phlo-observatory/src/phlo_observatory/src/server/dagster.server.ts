@@ -24,7 +24,7 @@ interface Asset {
   computeKind?: string
   groupName?: string
   lastMaterialization?: LastMaterialization
-  hasMaterializePermission: boolean
+  hasMaterializePermission?: boolean
 }
 
 interface ColumnLineageDep {
@@ -42,62 +42,76 @@ export interface AssetDetails extends Asset {
 
 interface ApiAsset {
   id: string
-  key: Array<string>
-  key_path: string
+  name: string
   description?: string
-  compute_kind?: string
-  group_name?: string
-  last_materialization?: { timestamp: string; run_id: string }
-  has_materialize_permission: boolean
+  group?: string
+  kinds?: Array<string>
+  metadata?: Record<string, unknown>
 }
 
-interface ApiAssetDetails extends ApiAsset {
-  op_names: Array<string>
-  metadata: Array<{ key: string; value: string }>
-  columns?: Array<{ name: string; type: string; description?: string }>
-  column_lineage?: Record<
-    string,
-    Array<{ asset_key: Array<string>; column_name: string }>
-  >
-  partition_definition?: { description: string }
+interface ApiAssetDetails {
+  asset: ApiAsset
+  tables?: Array<{
+    metadata?: Record<string, unknown>
+  }>
+  column_lineage?: Record<string, Array<string>>
 }
 
 function transformAsset(a: ApiAsset): Asset {
+  const key = a.id.split(/[./]/).filter(Boolean)
+  const materializePermission = a.metadata?.has_materialize_permission
+  const hasMaterializePermission =
+    typeof materializePermission === 'boolean'
+      ? materializePermission
+      : undefined
   return {
     id: a.id,
-    key: a.key,
-    keyPath: a.key_path,
+    key,
+    keyPath: a.id,
     description: a.description,
-    computeKind: a.compute_kind,
-    groupName: a.group_name,
-    lastMaterialization: a.last_materialization
-      ? {
-          timestamp: a.last_materialization.timestamp,
-          runId: a.last_materialization.run_id,
-        }
-      : undefined,
-    hasMaterializePermission: a.has_materialize_permission,
+    computeKind: a.kinds?.[0],
+    groupName: a.group,
+    hasMaterializePermission,
   }
 }
 
 function transformAssetDetails(a: ApiAssetDetails): AssetDetails {
+  const columns = a.tables?.flatMap((table) => {
+    const metadataColumns = table.metadata?.columns
+    return Array.isArray(metadataColumns)
+      ? metadataColumns.filter(
+          (
+            column,
+          ): column is { name: string; type: string; description?: string } =>
+            typeof column === 'object' &&
+            column !== null &&
+            'name' in column &&
+            typeof column.name === 'string' &&
+            'type' in column &&
+            typeof column.type === 'string',
+        )
+      : []
+  })
+
   return {
-    ...transformAsset(a),
-    opNames: a.op_names,
-    metadata: a.metadata,
-    columns: a.columns,
+    ...transformAsset(a.asset),
+    opNames: [],
+    metadata: Object.entries(a.asset.metadata ?? {}).map(([key, value]) => ({
+      key,
+      value: String(value),
+    })),
+    columns,
     columnLineage: a.column_lineage
       ? Object.fromEntries(
           Object.entries(a.column_lineage).map(([k, v]) => [
             k,
-            v.map((d) => ({
-              assetKey: d.asset_key,
-              columnName: d.column_name,
+            v.map((columnName) => ({
+              assetKey: a.asset.id.split(/[./]/).filter(Boolean),
+              columnName,
             })),
           ]),
         )
       : undefined,
-    partitionDefinition: a.partition_definition,
   }
 }
 
@@ -116,7 +130,7 @@ export const getAssetDetails = createServerFn()
       try {
         const keyPath = assetKey.join('/')
         const result = await apiGet<ApiAssetDetails | { error: string }>(
-          `/api/dagster/assets/${keyPath}`,
+          `/api/observatory/v2/assets/${keyPath}`,
         )
         if ('error' in result) return result
         return transformAssetDetails(result)

@@ -43,10 +43,16 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
             return _FakeResponse([{"name": "dagster", "profile": "orchestration"}])
         if url.endswith("/api/services/dagster"):
             return _FakeResponse({"name": "dagster", "depends_on": []})
-        if url.endswith("/api/dagster/assets"):
-            return _FakeResponse([{"key_path": "silver/orders"}])
-        if url.endswith("/api/dagster/assets/silver/orders"):
-            return _FakeResponse({"key_path": "silver/orders", "columns": [{"name": "id"}]})
+        if url.endswith("/api/observatory/v2/assets"):
+            return _FakeResponse({"items": [{"id": "silver/orders", "name": "silver/orders"}]})
+        if url.endswith("/api/observatory/v2/assets/silver/orders"):
+            return _FakeResponse(
+                {
+                    "asset": {"id": "silver/orders", "name": "silver/orders"},
+                    "materializations": [{"id": "run-123", "metadata": {"run_id": "run-123"}}],
+                    "column_lineage": {"id": []},
+                }
+            )
         if url.endswith("/api/contracts"):
             return _FakeResponse([{"table": "silver.orders"}])
         if url.endswith("/api/contracts/silver.orders"):
@@ -128,7 +134,7 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
                     }
                 ]
             )
-        if "/api/dagster/assets/" in url and url.endswith("/history"):
+        if "/api/observatory/v2/assets/" in url and url.endswith("/materializations"):
             return _FakeResponse([{"run_id": "run-123", "timestamp": "2026-01-01T00:00:00Z"}])
         if url.endswith("/links/logs"):
             return _FakeResponse({"url": "http://logs.test"})
@@ -143,8 +149,8 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
     assert client.get_plugins()["services"] == ["phlo-api"]
     assert client.get_services()[0]["name"] == "dagster"
     assert client.get_service_info("dagster")["name"] == "dagster"
-    assert client.get_assets()[0]["key_path"] == "silver/orders"
-    assert client.get_asset_details("silver/orders")["columns"][0]["name"] == "id"
+    assert client.get_assets()[0]["id"] == "silver/orders"
+    assert client.get_asset_details("silver/orders")["asset"]["id"] == "silver/orders"
     assert client.get_contracts()[0]["table"] == "silver.orders"
     assert client.get_contract("silver.orders")["table"] == "silver.orders"
     assert client.get_platform_health()["overall_status"] == "healthy"
@@ -245,19 +251,19 @@ def test_api_client_wraps_operational_routes(monkeypatch) -> None:
     assert client.get_run_status("run-123")["status"] == "STARTED"
     assert seen_posts == [
         {
-            "url": "http://example.test/api/dagster/assets/silver/orders/materialize",
+            "url": "http://example.test/api/observatory/v2/assets/silver/orders/materialize",
             "json": {"dry_run": True, "partition_key": "2026-04-26"},
             "headers": {"Authorization": "Bearer secret"},
             "timeout": 30.0,
         },
         {
-            "url": "http://example.test/api/dagster/runs/run-123/retry",
+            "url": "http://example.test/api/observatory/v2/runs/run-123/retry",
             "json": {"dry_run": False},
             "headers": {"Authorization": "Bearer secret"},
             "timeout": 30.0,
         },
     ]
-    assert seen_gets == ["http://example.test/api/dagster/runs/run-123/status"]
+    assert seen_gets == ["http://example.test/api/observatory/v2/runs/run-123/status"]
 
 
 def test_create_server_registers_expected_tools() -> None:

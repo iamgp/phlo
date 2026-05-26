@@ -20,6 +20,7 @@ import {
   matchesComposeProject,
 } from '@/server/docker-labels'
 import { fnLogger } from '@/server/logger.server'
+import { apiPost } from '@/server/phlo-api'
 
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
@@ -37,6 +38,12 @@ let servicesCache: {
 } | null = null
 let composeProjectCache: string | null | undefined
 const servicesLog = fnLogger('services.server')
+type ServiceControlAction = 'start' | 'stop' | 'restart'
+
+type ServiceActionResult = {
+  status: 'succeeded' | 'failed' | 'skipped'
+  message?: string
+}
 
 const serviceMetadata: Record<
   string,
@@ -706,34 +713,6 @@ async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
   }
 }
 
-async function runPhloCommand(args: Array<string>): Promise<void> {
-  const startedAt = performance.now()
-  servicesLog.info({ args }, 'services_native_command_started')
-  const execOptions = phloProjectPath ? { cwd: phloProjectPath } : undefined
-  const [executable, ...baseArgs] = phloCommand.split(' ')
-  try {
-    await execFileAsync(executable, [...baseArgs, ...args], {
-      ...execOptions,
-      timeout: 120000,
-    })
-  } catch (error) {
-    servicesLog.error(
-      {
-        args,
-        err: error,
-        durationMs: Math.round(performance.now() - startedAt),
-      },
-      'services_native_command_failed',
-    )
-    throw error
-  }
-  servicesLog.info(
-    { args, durationMs: Math.round(performance.now() - startedAt) },
-    'services_native_command_completed',
-  )
-  servicesCache = null
-}
-
 /**
  * Parse env files and merge with service defaults
  */
@@ -859,38 +838,74 @@ export const getServices = createServerFn()
     return data
   })
 
-/**
- * Find container ID by service name
- */
-async function findContainerByService(
+export function serviceActionId(
   serviceName: string,
-): Promise<string | null> {
-  try {
-    const composeProject = await getComposeProjectName()
-    const args = [
-      'ps',
-      '-a',
-      '--filter',
-      `label=com.docker.compose.service=${serviceName}`,
-    ]
-    if (composeProject) {
-      args.push(
-        '--filter',
-        `label=com.docker.compose.project=${composeProject}`,
-      )
-    }
-    args.push('--format', '{{.ID}}')
+  action: ServiceControlAction,
+): string {
+  return `${serviceName}:${action}`
+}
 
-    const { stdout } = await execFileAsync('docker', args)
-    const containerId = stdout.trim().split('\n')[0]
-    return containerId || null
-  } catch {
-    return null
+async function runServiceActionViaApi(
+  serviceName: string,
+  action: ServiceControlAction,
+): Promise<{ success: boolean; error?: string }> {
+  const result = await apiPost<ServiceActionResult>(
+    '/api/observatory/v2/actions',
+    { action_id: serviceActionId(serviceName, action) },
+    130000,
+  )
+  if (result.status === 'succeeded') {
+    return { success: true }
+  }
+  return {
+    success: false,
+    error: result.message || `Service ${action} action ${result.status}`,
   }
 }
 
-function canControlNatively(serviceName: string): boolean {
-  return serviceName === 'observatory' || serviceName === 'phlo-api'
+async function controlService(
+  serviceName: string,
+  action: ServiceControlAction,
+): Promise<{ success: boolean; error?: string }> {
+  const startedAt = performance.now()
+  servicesLog.info({ serviceName, action }, 'services_control_started')
+  try {
+    const result = await runServiceActionViaApi(serviceName, action)
+    if (result.success) {
+      servicesCache = null
+      servicesLog.info(
+        {
+          serviceName,
+          action,
+          mode: 'phlo-api',
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+        'services_control_completed',
+      )
+    } else {
+      servicesLog.warn(
+        {
+          serviceName,
+          action,
+          mode: 'phlo-api',
+          error: result.error,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+        'services_control_skipped',
+      )
+    }
+    return result
+  } catch (error) {
+    servicesLog.error(
+      { serviceName, action, mode: 'phlo-api', err: error },
+      'services_control_failed',
+    )
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : `Failed to ${action} service`,
+    }
+  }
 }
 
 /**
@@ -903,64 +918,7 @@ export const startService = createServerFn()
     async ({
       data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
-      const startedAt = performance.now()
-      servicesLog.info(
-        { serviceName, action: 'start' },
-        'services_control_started',
-      )
-      try {
-        const containerId = await findContainerByService(serviceName)
-        if (containerId) {
-          await execAsync(`docker start ${containerId}`, { timeout: 60000 })
-          servicesLog.info(
-            { serviceName, action: 'start', mode: 'docker', containerId },
-            'services_control_path_selected',
-          )
-        } else if (canControlNatively(serviceName)) {
-          await runPhloCommand([
-            'services',
-            'start',
-            '--native',
-            '-d',
-            '--service',
-            serviceName,
-          ])
-          servicesLog.info(
-            { serviceName, action: 'start', mode: 'native' },
-            'services_control_path_selected',
-          )
-        } else {
-          servicesLog.warn(
-            { serviceName, action: 'start' },
-            'services_control_container_not_found',
-          )
-          return {
-            success: false,
-            error: `No container found for service: ${serviceName}`,
-          }
-        }
-
-        servicesCache = null
-        servicesLog.info(
-          {
-            serviceName,
-            action: 'start',
-            durationMs: Math.round(performance.now() - startedAt),
-          },
-          'services_control_completed',
-        )
-        return { success: true }
-      } catch (error) {
-        servicesLog.error(
-          { serviceName, action: 'start', err: error },
-          'services_control_failed',
-        )
-        return {
-          success: false,
-          error:
-            error instanceof Error ? error.message : 'Failed to start service',
-        }
-      }
+      return controlService(serviceName, 'start')
     },
   )
 
@@ -974,63 +932,7 @@ export const stopService = createServerFn()
     async ({
       data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
-      const startedAt = performance.now()
-      servicesLog.info(
-        { serviceName, action: 'stop' },
-        'services_control_started',
-      )
-      try {
-        const containerId = await findContainerByService(serviceName)
-        if (containerId) {
-          await execAsync(`docker stop ${containerId}`, { timeout: 30000 })
-          servicesLog.info(
-            { serviceName, action: 'stop', mode: 'docker', containerId },
-            'services_control_path_selected',
-          )
-        } else if (canControlNatively(serviceName)) {
-          await runPhloCommand([
-            'services',
-            'stop',
-            '--native',
-            '--service',
-            serviceName,
-          ])
-          servicesLog.info(
-            { serviceName, action: 'stop', mode: 'native' },
-            'services_control_path_selected',
-          )
-        } else {
-          servicesLog.warn(
-            { serviceName, action: 'stop' },
-            'services_control_container_not_found',
-          )
-          return {
-            success: false,
-            error: `No container found for service: ${serviceName}`,
-          }
-        }
-
-        servicesCache = null
-        servicesLog.info(
-          {
-            serviceName,
-            action: 'stop',
-            durationMs: Math.round(performance.now() - startedAt),
-          },
-          'services_control_completed',
-        )
-        return { success: true }
-      } catch (error) {
-        servicesLog.error(
-          { serviceName, action: 'stop', err: error },
-          'services_control_failed',
-        )
-        return {
-          success: false,
-          error:
-            error instanceof Error ? error.message : 'Failed to stop service',
-        }
-      }
+      return controlService(serviceName, 'stop')
     },
   )
 
@@ -1044,72 +946,6 @@ export const restartService = createServerFn()
     async ({
       data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
-      const startedAt = performance.now()
-      servicesLog.info(
-        { serviceName, action: 'restart' },
-        'services_control_started',
-      )
-      try {
-        const containerId = await findContainerByService(serviceName)
-        if (containerId) {
-          await execAsync(`docker restart ${containerId}`, { timeout: 60000 })
-          servicesLog.info(
-            { serviceName, action: 'restart', mode: 'docker', containerId },
-            'services_control_path_selected',
-          )
-        } else if (canControlNatively(serviceName)) {
-          await runPhloCommand([
-            'services',
-            'stop',
-            '--native',
-            '--service',
-            serviceName,
-          ])
-          await runPhloCommand([
-            'services',
-            'start',
-            '--native',
-            '-d',
-            '--service',
-            serviceName,
-          ])
-          servicesLog.info(
-            { serviceName, action: 'restart', mode: 'native' },
-            'services_control_path_selected',
-          )
-        } else {
-          servicesLog.warn(
-            { serviceName, action: 'restart' },
-            'services_control_container_not_found',
-          )
-          return {
-            success: false,
-            error: `No container found for service: ${serviceName}`,
-          }
-        }
-
-        servicesCache = null
-        servicesLog.info(
-          {
-            serviceName,
-            action: 'restart',
-            durationMs: Math.round(performance.now() - startedAt),
-          },
-          'services_control_completed',
-        )
-        return { success: true }
-      } catch (error) {
-        servicesLog.error(
-          { serviceName, action: 'restart', err: error },
-          'services_control_failed',
-        )
-        return {
-          success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Failed to restart service',
-        }
-      }
+      return controlService(serviceName, 'restart')
     },
   )

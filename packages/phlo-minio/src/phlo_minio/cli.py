@@ -28,6 +28,7 @@ from subprocess import TimeoutExpired
 
 import click
 
+from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.commands.services.utils import (
     ensure_phlo_dir,
     require_container_backend as _require_selected_container_backend,
@@ -37,6 +38,7 @@ from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.cli.output import command_failed_error
 from phlo.logging import get_logger
+from phlo_minio.authorization import get_minio_cli_adapter
 
 logger = get_logger(__name__)
 
@@ -171,6 +173,7 @@ def minio_group(ctx: click.Context, mc_args: tuple[str, ...]) -> None:
         return
 
     _require_container_backend()
+    enforce_surface_mutation_authorization("minio", get_minio_cli_adapter)
     cmd = _mc_shell_exec_base(tty=True)
     cmd.extend(_mc_with_local_alias(list(mc_args)))
     result = subprocess.run(cmd, check=False)

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   parseContainerStateStatus,
   parseDockerStatusLines,
+  serviceActionId,
   shouldFallbackToCliDiscovery,
 } from '@/server/services.server'
 
@@ -88,6 +89,12 @@ describe('services.server helpers', () => {
       expect(shouldFallbackToCliDiscovery(false, 0)).toBe(true)
       expect(shouldFallbackToCliDiscovery(false, 2)).toBe(false)
       expect(shouldFallbackToCliDiscovery(true, 0)).toBe(false)
+    })
+  })
+
+  describe('serviceActionId', () => {
+    it('matches the phlo-api v2 service action contract', () => {
+      expect(serviceActionId('postgres', 'restart')).toBe('postgres:restart')
     })
   })
 })

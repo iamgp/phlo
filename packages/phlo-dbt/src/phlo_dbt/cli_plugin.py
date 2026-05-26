@@ -26,12 +26,14 @@ from typing import Any
 
 import click
 
+from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.commands.services.utils import ensure_phlo_dir
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.cli.output import user_error
 from phlo.logging import get_logger
 from phlo.plugins.base import CliCommandPlugin, PluginMetadata
+from phlo_dbt.authorization import get_dbt_adapter
 from phlo_dbt.cli_publishing import publishing
 from phlo_dbt.runtime_config import DEFAULT_DBT_TARGET, ensure_dbt_profile
 
@@ -289,6 +291,7 @@ def compile_cmd(target: str, local: bool) -> None:
 )
 def run_cmd(target: str, select_exprs: tuple[str, ...], local: bool) -> None:
     """Run dbt models in the local project."""
+    enforce_surface_mutation_authorization("dbt.run", get_dbt_adapter)
     _run_dbt("run", target, " ".join(select_exprs) or None, local=local)
 
 

@@ -34,8 +34,10 @@ from typing import Any, Iterable
 import click
 import yaml
 
+from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
+from phlo_dbt.authorization import get_dbt_adapter
 from phlo_dbt.settings import get_settings
 
 logger = get_logger(__name__)
@@ -293,6 +295,8 @@ def scaffold_cmd(
 
     Idempotent: re-running preserves existing config and only adds missing tables/dependencies.
     """
+    if not dry_run:
+        enforce_surface_mutation_authorization("dbt.publishing.scaffold", get_dbt_adapter)
     manifest_path = manifest or Path(get_settings().dbt_manifest_path)
     logger.info(
         "dbt_publishing_scaffold_started",

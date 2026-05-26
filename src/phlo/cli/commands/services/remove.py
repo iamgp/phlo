@@ -6,6 +6,7 @@ from subprocess import TimeoutExpired
 import click
 import yaml
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.services.utils import (
     PHLO_CONFIG_FILE,
     _regenerate_compose,
@@ -45,6 +46,7 @@ def _dependent_closure(
 @click.command("remove")
 @click.argument("service_name")
 @click.option("--keep-running", is_flag=True, help="Don't stop the service")
+@require_mutation_authorization("services.remove")
 def remove_cmd(service_name: str, keep_running: bool):
     """Remove a service from the project.
 

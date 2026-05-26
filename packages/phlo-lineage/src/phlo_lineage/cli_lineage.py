@@ -58,7 +58,9 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo_lineage import get_lineage_graph
+from phlo_lineage.authorization import get_lineage_adapter
 
 console = Console()
 
@@ -535,6 +537,7 @@ def import_dbt(manifest: Path) -> None:
         phlo_lineage.dbt_column_lineage for extraction logic.
 
     """
+    enforce_surface_mutation_authorization("lineage.column.import-dbt", get_lineage_adapter)
     from phlo_lineage.dbt_column_lineage import extract_column_lineage
     from phlo_lineage.store import LineageStore, resolve_lineage_db_url_with_postgres_fallback
 

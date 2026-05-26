@@ -6,7 +6,7 @@
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts",
     "lint": "eslint",
     "format": "prettier",
     "check": "prettier --write . && eslint --fix"
@@ -14,7 +14,8 @@
   "knip": {
     "entry": [
       "eslint.config.js",
-      "vite.config.ts"
+      "vite.config.ts",
+      "vitest.config.ts"
     ]
   },
   "dependencies": {

@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 import yaml
 
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.services.planner import build_service_selection_plan
 from phlo.cli.commands.services.utils import (
     PHLO_CONFIG_FILE,
@@ -77,6 +78,7 @@ def _is_uninitialized_phlo_dir(phlo_dir: Path) -> bool:
     multiple=True,
     help="Enable optional profile services (e.g., --profile observability --profile api)",
 )
+@require_mutation_authorization("services.init")
 def init_cmd(
     force: bool,
     project_name: str | None,

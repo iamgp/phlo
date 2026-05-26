@@ -5,9 +5,41 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from subprocess import CompletedProcess
 
+from phlo.exceptions import redact_sensitive_text
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+_SENSITIVE_ARGUMENT_NAMES = frozenset(
+    {
+        "api-key",
+        "apikey",
+        "authorization",
+        "credential",
+        "password",
+        "passwd",
+        "secret",
+        "signing-key",
+        "token",
+    }
+)
+
+
+def _redact_command_args(cmd: tuple[str, ...]) -> tuple[str, ...]:
+    redacted: list[str] = []
+    redact_next = False
+    for part in cmd:
+        if redact_next:
+            redacted.append("<redacted>")
+            redact_next = False
+            continue
+
+        redacted_part = redact_sensitive_text(part)
+        redacted.append(redacted_part)
+        option_name = part.lstrip("-").split("=", 1)[0].lower()
+        if option_name in _SENSITIVE_ARGUMENT_NAMES and "=" not in part:
+            redact_next = True
+    return tuple(redacted)
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,12 +54,16 @@ class CommandError(RuntimeError):
     def __post_init__(self) -> None:
         """Populate RuntimeError args tuple for consistent exception rendering."""
 
+        redacted_cmd = _redact_command_args(self.cmd)
+        object.__setattr__(self, "cmd", redacted_cmd)
+        object.__setattr__(self, "stdout", redact_sensitive_text(self.stdout))
+        object.__setattr__(self, "stderr", redact_sensitive_text(self.stderr))
         object.__setattr__(self, "args", (self.cmd, self.returncode, self.stdout, self.stderr))
 
     def __str__(self) -> str:
         """Render a readable command failure message."""
 
-        cmd = " ".join(self.cmd)
+        cmd = redact_sensitive_text(" ".join(self.cmd))
         stderr = self.stderr.strip()
         if stderr:
             return f"Command failed ({self.returncode}): {cmd}\n{stderr}"

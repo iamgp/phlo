@@ -21,20 +21,42 @@ export interface IcebergTable {
 }
 
 interface ApiIcebergTable {
-  catalog: string
-  schema_name: string
+  id: string
   name: string
-  full_name: string
-  layer: 'bronze' | 'silver' | 'gold' | 'publish' | 'unknown'
+  namespace?: string
+  schema_name?: string
+  metadata?: Record<string, unknown>
+}
+
+interface ApiBranchDetail {
+  tables: Array<ApiIcebergTable>
+}
+
+function layerFromTable(t: ApiIcebergTable): IcebergTable['layer'] {
+  const metadataLayer = t.metadata?.layer
+  const layer =
+    typeof metadataLayer === 'string'
+      ? metadataLayer
+      : (t.schema_name ?? t.namespace ?? '').toLowerCase()
+  if (
+    layer === 'bronze' ||
+    layer === 'silver' ||
+    layer === 'gold' ||
+    layer === 'publish'
+  ) {
+    return layer
+  }
+  return 'unknown'
 }
 
 function transformTable(t: ApiIcebergTable): IcebergTable {
+  const schema = t.schema_name ?? t.namespace ?? ''
   return {
-    catalog: t.catalog,
-    schema: t.schema_name,
+    catalog: DEFAULT_CATALOG,
+    schema,
     name: t.name,
-    fullName: t.full_name,
-    layer: t.layer,
+    fullName: schema ? `${schema}.${t.name}` : t.id,
+    layer: layerFromTable(t),
   }
 }
 
@@ -45,37 +67,23 @@ const DEFAULT_CATALOG = 'iceberg'
  */
 export const getTables = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator(
-    (input: {
-      branch?: string
-      catalog?: string
-      preferredSchema?: string
-      trinoUrl?: string
-      timeoutMs?: number
-    }) => input,
-  )
+  .inputValidator((input: { branch?: string } = {}) => input)
   .handler(
-    async ({
-      data: { branch = 'main', catalog, preferredSchema },
-    }): Promise<Array<IcebergTable> | { error: string }> => {
-      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-      const key = cacheKeys.tables(effectiveCatalog, branch)
+    async ({ data }): Promise<Array<IcebergTable> | { error: string }> => {
+      const branch = data.branch?.trim() || 'main'
+      const key = cacheKeys.tables(branch)
 
       return withCache(
         async () => {
-          const result = await apiGet<
-            Array<ApiIcebergTable> | { error: string }
-          >('/api/iceberg/tables', {
-            branch,
-            catalog: effectiveCatalog,
-            preferred_schema: preferredSchema,
-          })
+          const result = await apiGet<ApiBranchDetail | { error: string }>(
+            `/api/observatory/v2/branches/${encodeURIComponent(branch)}`,
+          )
 
           if ('error' in result) {
             return result
           }
 
-          return result.map(transformTable)
+          return result.tables.map(transformTable)
         },
         key,
         cacheTTL.tables,

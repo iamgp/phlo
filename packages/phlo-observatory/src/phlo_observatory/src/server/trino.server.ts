@@ -9,7 +9,6 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
 import { apiGet, apiPost } from '@/server/phlo-api'
-import { camelizeKeys } from '@/utils/caseTransform'
 
 // Types for Trino responses
 export interface DataRow {
@@ -40,16 +39,88 @@ interface ApiDataPreviewResult {
   column_types: Array<string>
   rows: Array<DataRow>
   total_rows?: number
+  row_count?: number
   has_more: boolean
 }
 
 interface ApiQueryResult extends ApiDataPreviewResult {
   effective_query?: string
+  effective_sql?: string
+}
+
+interface ApiRowJourney {
+  row: DataRow
 }
 
 // Transform functions
 function transformPreviewResult(r: ApiDataPreviewResult): DataPreviewResult {
-  return camelizeKeys<DataPreviewResult>(r)
+  return {
+    columns: r.columns,
+    columnTypes: r.column_types,
+    rows: r.rows,
+    totalRows: r.total_rows ?? r.row_count,
+    hasMore: r.has_more,
+  }
+}
+
+export async function previewDataFromApi(data: {
+  table: string
+  limit?: number
+  offset?: number
+}): Promise<DataPreviewResult | { error: string }> {
+  const result = await apiGet<ApiDataPreviewResult | { error: string }>(
+    `/api/observatory/v2/table-preview/${encodeURIComponent(data.table)}`,
+    { limit: data.limit ?? 100, offset: data.offset ?? 0 },
+  )
+
+  if ('error' in result) return result
+  return transformPreviewResult(result)
+}
+
+export async function executeQueryFromApi(data: {
+  query: string
+  branch?: string
+  defaultLimit?: number
+  offset?: number
+}): Promise<QueryExecutionResult | QueryExecutionError> {
+  const result = await apiPost<
+    ApiQueryResult | QueryExecutionError | { error: string }
+  >('/api/observatory/v2/query', {
+    sql: data.query,
+    branch: data.branch ?? 'main',
+    limit: data.defaultLimit ?? 100,
+    offset: data.offset ?? 0,
+  })
+
+  if ('ok' in result && result.ok === false) return result
+  if ('error' in result) {
+    return { ok: false, error: result.error, kind: 'trino' }
+  }
+
+  return {
+    ...transformPreviewResult(result),
+    effectiveQuery:
+      result.effective_sql ?? result.effective_query ?? data.query,
+  }
+}
+
+export async function getRowByIdFromApi(data: {
+  table: string
+  rowId: string
+}): Promise<DataPreviewResult | { error: string }> {
+  const result = await apiGet<ApiRowJourney | { error: string }>(
+    `/api/observatory/v2/row-journey/${encodeURIComponent(data.table)}/${encodeURIComponent(data.rowId)}`,
+  )
+
+  if ('error' in result) return result
+  const columns = Object.keys(result.row)
+  return {
+    columns,
+    columnTypes: columns.map(() => 'unknown'),
+    rows: [result.row],
+    totalRows: 1,
+    hasMore: false,
+  }
 }
 
 /**
@@ -72,23 +143,10 @@ export const previewData = createServerFn()
   )
   .handler(
     async ({
-      data: {
-        table,
-        branch = 'main',
-        catalog,
-        schema,
-        limit = 100,
-        offset = 0,
-      },
+      data: { table, limit = 100, offset = 0 },
     }): Promise<DataPreviewResult | { error: string }> => {
       try {
-        const result = await apiGet<ApiDataPreviewResult | { error: string }>(
-          `/api/trino/preview/${encodeURIComponent(table)}`,
-          { branch, catalog, schema, limit, offset },
-        )
-
-        if ('error' in result) return result
-        return transformPreviewResult(result)
+        return await previewDataFromApi({ table, limit, offset })
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -118,39 +176,10 @@ export const executeQuery = createServerFn()
   )
   .handler(
     async ({
-      data: {
-        query,
-        branch = 'main',
-        catalog,
-        schema,
-        readOnlyMode = true,
-        defaultLimit = 100,
-        maxLimit = 5000,
-      },
+      data: { query, branch = 'main', defaultLimit = 100 },
     }): Promise<QueryExecutionResult | QueryExecutionError> => {
       try {
-        const result = await apiPost<ApiQueryResult | QueryExecutionError>(
-          '/api/trino/query',
-          {
-            query,
-            branch,
-            catalog,
-            schema,
-            read_only_mode: readOnlyMode,
-            default_limit: defaultLimit,
-            max_limit: maxLimit,
-          },
-        )
-
-        if ('ok' in result && result.ok === false) return result
-        if ('error' in result) {
-          return { ok: false, error: result.error, kind: 'trino' }
-        }
-
-        return {
-          ...transformPreviewResult(result),
-          effectiveQuery: result.effective_query ?? query,
-        }
+        return await executeQueryFromApi({ query, branch, defaultLimit })
       } catch (error) {
         return {
           ok: false,
@@ -178,16 +207,10 @@ export const getRowById = createServerFn()
   )
   .handler(
     async ({
-      data: { table, rowId, catalog, schema },
+      data: { table, rowId },
     }): Promise<DataPreviewResult | { error: string }> => {
       try {
-        const result = await apiGet<ApiDataPreviewResult | { error: string }>(
-          `/api/trino/row/${encodeURIComponent(table)}/${encodeURIComponent(rowId)}`,
-          { catalog, schema },
-        )
-
-        if ('error' in result) return result
-        return transformPreviewResult(result)
+        return await getRowByIdFromApi({ table, rowId })
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',

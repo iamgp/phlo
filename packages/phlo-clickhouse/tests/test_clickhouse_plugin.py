@@ -1,6 +1,7 @@
 """Tests for ClickHouse service plugin."""
 
 from click.testing import CliRunner
+from subprocess import CompletedProcess
 
 from phlo_clickhouse.cli import clickhouse_group
 from phlo_clickhouse.plugin import ClickHouseServicePlugin
@@ -43,3 +44,33 @@ def test_clickhouse_query_rejects_missing_input(monkeypatch):
     assert "Error: no SQL query provided" in result.output
     assert "Provide an inline query argument or pass --file." in result.output
     assert 'Run: phlo clickhouse query "SELECT 1"' in result.output
+
+
+def test_clickhouse_query_authorizes_only_mutating_sql(monkeypatch):
+    calls: list[str] = []
+
+    monkeypatch.setattr("phlo_clickhouse.cli._ensure_phlo_dir", lambda: None)
+    monkeypatch.setattr(
+        "phlo_clickhouse.cli._require_container_backend",
+        lambda: calls.append("backend"),
+    )
+    monkeypatch.setattr("phlo_clickhouse.cli.get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        "phlo_clickhouse.cli.compose_base_cmd",
+        lambda **_kwargs: ["docker", "compose", "-p", "demo"],
+    )
+    monkeypatch.setattr(
+        "phlo_clickhouse.cli.run_command",
+        lambda cmd, **_kwargs: CompletedProcess(cmd, 0, stdout="ok\n", stderr=""),
+    )
+    monkeypatch.setattr(
+        "phlo_clickhouse.cli.enforce_surface_mutation_authorization",
+        lambda *_args, **_kwargs: calls.append("auth"),
+    )
+
+    select_result = CliRunner().invoke(clickhouse_group, ["query", "SELECT 1"])
+    insert_result = CliRunner().invoke(clickhouse_group, ["query", "INSERT INTO t VALUES (1)"])
+
+    assert select_result.exit_code == 0
+    assert insert_result.exit_code == 0
+    assert calls == ["backend", "auth", "backend"]

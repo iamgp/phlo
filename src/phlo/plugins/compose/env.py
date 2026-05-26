@@ -1,5 +1,6 @@
 """Render `.env` and `.env.local` content from discovered service definitions."""
 
+import secrets
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
@@ -46,6 +47,11 @@ def normalize_env_overrides(env_overrides: dict[str, Any]) -> dict[str, str]:
             continue
         normalized[key] = normalize_env_value(value)
     return normalized
+
+
+def generate_local_secret() -> str:
+    """Generate local secret material for newly rendered `.env.local` files."""
+    return f"phlo_{secrets.token_urlsafe(32)}"
 
 
 def render_env(
@@ -126,6 +132,8 @@ def render_env(
 
             if is_secret and var_name in existing_values:
                 value = existing_values[var_name]
+            elif is_secret and include_secrets and var_name not in overrides:
+                value = generate_local_secret()
 
             if description:
                 section_lines.append(f"# {description}")

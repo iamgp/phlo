@@ -6,9 +6,7 @@ import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 export const Route = createFileRoute('/data/$schema/$table')({
   beforeLoad: async ({ params, search }) => {
     const settings = await getEffectiveObservatorySettings()
-    const connection = await checkNessieConnection({
-      data: { nessieUrl: settings.connections.nessieUrl },
-    })
+    const connection = await checkNessieConnection({ data: {} })
     const defaultBranch =
       settings.defaults.branch || connection.defaultBranch || 'main'
     throw redirect({

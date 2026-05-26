@@ -32,8 +32,10 @@ import requests
 from rich.console import Console
 from rich.table import Table
 
+from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.output import service_unavailable_error, user_error
 from phlo.logging import get_logger
+from phlo_nessie.authorization import get_nessie_cli_adapter
 from phlo_nessie.settings import get_settings as get_nessie_settings
 
 console = Console()
@@ -266,6 +268,7 @@ def create(branch_name: str, from_ref: str):
         phlo branch create feature/experiment --from dev
 
     """
+    enforce_surface_mutation_authorization("branch.create", get_nessie_cli_adapter)
     logger.info(
         "nessie_branch_create_requested",
         branch_name=branch_name,
@@ -377,6 +380,7 @@ def delete(branch_name: str, force: bool):
         phlo branch delete feature/failed --force
 
     """
+    enforce_surface_mutation_authorization("branch.delete", get_nessie_cli_adapter)
     logger.info(
         "nessie_branch_delete_requested",
         branch_name=branch_name,
@@ -486,6 +490,14 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
         phlo branch merge dev main --no-delete-source
 
     """
+    if not dry_run:
+        enforce_surface_mutation_authorization("branch.merge", get_nessie_cli_adapter)
+        if not no_delete_source:
+            enforce_surface_mutation_authorization(
+                "branch.delete",
+                get_nessie_cli_adapter,
+                resource_id=source_branch,
+            )
     logger.info(
         "nessie_branch_merge_requested",
         source_branch=source_branch,

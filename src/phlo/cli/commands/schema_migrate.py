@@ -30,6 +30,7 @@ from phlo.capabilities import (
     list_capabilities,
     resolve_capability,
 )
+from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands import schema_migrate_contracts
 from phlo.logging import get_logger
 from phlo.schema_migration.instructions import (
@@ -580,6 +581,10 @@ def plan(
 )
 @click.option("--yes", is_flag=True, help="Auto-approve breaking changes")
 @click.option("--dry-run", is_flag=True, help="Show what would be applied without executing")
+@require_mutation_authorization(
+    "schema_migrate.apply",
+    when=lambda params: not params.get("dry_run"),
+)
 def apply(
     table_name: str,
     schema_class: str | None,
@@ -697,6 +702,7 @@ def history(table_name: str, limit: int, fmt: str) -> None:
     help="Contract output path (default: .phlo/contracts/<table>.json)",
 )
 @click.option("--force", is_flag=True, help="Overwrite existing output file")
+@require_mutation_authorization("schema_migrate.export_contract")
 def export_contract(
     table_name: str,
     schema_class: str | None,
@@ -735,6 +741,7 @@ def export_contract(
     help="YAML output path (default: .phlo/migrations/<table>.yaml)",
 )
 @click.option("--force", is_flag=True, help="Overwrite existing output file")
+@require_mutation_authorization("schema_migrate.scaffold_yaml")
 def scaffold_yaml(
     table_name: str,
     contract_path: Path | None,
@@ -777,6 +784,7 @@ def scaffold_yaml(
     help="Maximum number of contract additions to scaffold",
 )
 @click.option("--force", is_flag=True, help="Overwrite existing output files")
+@require_mutation_authorization("schema_migrate.scaffold_yaml_recent")
 def scaffold_yaml_recent(since_hours: int, limit: int | None, force: bool) -> None:
     """Generate migration scaffold YAML files for recent .phlo/contracts additions."""
     if since_hours < 0:

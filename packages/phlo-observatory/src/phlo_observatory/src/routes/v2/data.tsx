@@ -1062,7 +1062,7 @@ function buildTableProfile(
       readTableRecordCount(table) ??
       readMetric(asset?.metadata ?? {}, 'records') ??
       null,
-    columns: preview?.columns.length || readNumber(table.metadata.columns),
+    columns: preview?.columns.length ?? readNumber(table.metadata.columns),
     upstream: dependencies.size,
     downstream: downstream.length,
     qualityLabel:
