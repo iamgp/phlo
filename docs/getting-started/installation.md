@@ -80,9 +80,11 @@ source .venv/bin/activate
 uv pip install "phlo[defaults]"
 phlo init my-project --template csv-batch
 cd my-project
+uv pip install -e .
 phlo services init
 phlo services start
 phlo services status
+phlo doctor
 ```
 
 Open browser UIs from Windows with the same localhost ports, for example http://localhost:10006 for Dagster.
@@ -97,17 +99,23 @@ Troubleshooting tips:
 
 ```bash
 # Install Phlo with default services
-uv pip install phlo[defaults]
+uv pip install "phlo[defaults]"
 
 # Initialize a new project
-phlo init my-project
+phlo init my-project --template csv-batch
 cd my-project
+
+# Install project-local dependencies
+uv pip install -e .
 
 # Initialize infrastructure (generates .phlo/.env and .phlo/.env.local)
 phlo services init
 
 # Start services
 phlo services start
+
+# Verify setup and recovery guidance
+phlo doctor
 ```
 
 ## Detailed Installation Steps
@@ -117,7 +125,7 @@ phlo services start
 Install Phlo and its default services:
 
 ```bash
-uv pip install phlo[defaults]
+uv pip install "phlo[defaults]"
 ```
 
 The `[defaults]` extra installs these core service packages:
@@ -149,6 +157,7 @@ Create a new Phlo project. Use `minimal` for an empty project or choose a starte
 phlo init --list-templates
 phlo init my-project --template csv-batch
 cd my-project
+uv pip install -e .
 ```
 
 This creates:
@@ -233,6 +242,7 @@ Check service status:
 
 ```bash
 phlo services status
+phlo doctor
 ```
 
 Expected output:

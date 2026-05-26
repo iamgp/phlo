@@ -234,19 +234,36 @@ def _available_service_count() -> int:
 
 def _render_next_steps(selected_template) -> list[str]:
     """Tailor project next steps to the packages installed in this environment."""
-    steps = list(selected_template.metadata.next_steps)
-    if "phlo workflow create" in steps and importlib.util.find_spec("phlo_dlt") is None:
-        steps = [step for step in steps if step != "phlo workflow create"]
-        steps.append('Install workflow plugins: uv pip install "phlo[defaults]"')
+    template_steps = list(selected_template.metadata.next_steps)
+    steps = ["uv pip install -e ."]
 
-    if "phlo services init" in steps and _available_service_count() == 0:
-        insert_at = steps.index("phlo services init")
-        steps = [step for step in steps if step != "phlo services init"]
+    service_count = _available_service_count()
+    template_service_start_steps = [
+        step for step in template_steps if step.startswith("phlo services start")
+    ]
+    if service_count == 0:
         install_step = 'Install service plugins: uv pip install "phlo[defaults]"'
         if install_step not in steps:
-            steps.insert(min(insert_at, len(steps)), install_step)
+            steps.append(install_step)
+    else:
+        steps.append("phlo services init")
+        if template_service_start_steps:
+            steps.extend(template_service_start_steps)
+        else:
+            steps.append("phlo services start")
+        steps.append("phlo doctor")
 
-    return steps
+    for step in template_steps:
+        if step == "phlo services init" or step.startswith("phlo services start"):
+            continue
+        if step == "phlo workflow create" and importlib.util.find_spec("phlo_dlt") is None:
+            install_step = 'Install workflow plugins: uv pip install "phlo[defaults]"'
+            if install_step not in steps:
+                steps.append(install_step)
+            continue
+        steps.append(step)
+
+    return list(dict.fromkeys(steps))
 
 
 @cli.command("init")

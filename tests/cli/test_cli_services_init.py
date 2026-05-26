@@ -245,6 +245,27 @@ def test_generate_env_local_generates_new_secret_values() -> None:
     assert re.search(r"POSTGRES_PASSWORD=phlo_[A-Za-z0-9_-]{32,}", env_local)
 
 
+def test_generate_env_local_uses_s3_safe_minio_root_password() -> None:
+    service = ServiceDefinition(
+        name="minio",
+        description="minio",
+        category="core",
+        default=True,
+        env_vars={
+            "MINIO_ROOT_PASSWORD": {
+                "default": "minio123",
+                "description": "MinIO root password",
+                "secret": True,
+            },
+        },
+    )
+
+    env_local = generate_env_local([service])
+
+    assert "MINIO_ROOT_PASSWORD=minio123" not in env_local
+    assert re.search(r"MINIO_ROOT_PASSWORD=[a-f0-9]{40}\n", env_local)
+
+
 def test_generate_env_local_preserves_existing_secret_values() -> None:
     service = ServiceDefinition(
         name="postgres",

@@ -72,6 +72,28 @@ def test_phlo_dagster_service_definition():
     assert "services" in service_def or "service" in service_def or "name" in service_def
 
 
+def test_dagster_services_propagate_iceberg_s3_credentials():
+    """Dagster containers must pass generated MinIO credentials to Iceberg I/O."""
+    from phlo_dagster.plugin import DagsterDaemonServicePlugin, DagsterServicePlugin
+
+    plugins = [DagsterServicePlugin(), DagsterDaemonServicePlugin()]
+
+    for plugin in plugins:
+        service_def = plugin.service_definition
+        environment = service_def["compose"]["environment"]
+
+        assert (
+            environment["ICEBERG_S3_ACCESS_KEY"]
+            == "${DAGSTER_MINIO_ACCESS_KEY:-${MINIO_ROOT_USER:-minio}}"
+        )
+        assert (
+            environment["ICEBERG_S3_SECRET_KEY"]
+            == "${DAGSTER_MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-minio123}}"
+        )
+        assert environment["ICEBERG_S3_ENDPOINT"] == "http://minio:9000"
+        assert environment["ICEBERG_S3_REGION"] == "us-east-1"
+
+
 def test_dagster_with_phlo_iceberg_resource():
     """Test Dagster integration with IcebergResource."""
     try:
