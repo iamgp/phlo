@@ -1,48 +1,31 @@
-<img src="./.github/readme-header.png" alt="Phlo" width="900">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/phlohouse/phlo/main/.github/readme-header-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/phlohouse/phlo/main/.github/readme-header.png">
+  <img src="https://raw.githubusercontent.com/phlohouse/phlo/main/.github/readme-header.png" alt="Phlo" width="900">
+</picture>
 
-# The Pythonic lakehouse framework.
+# Phlo
 
-Build lakehouse pipelines in Python, without the boilerplate.
+[![PyPI](https://img.shields.io/pypi/v/phlo.svg)](https://pypi.org/project/phlo/)
+[![Python](https://img.shields.io/pypi/pyversions/phlo.svg)](https://pypi.org/project/phlo/)
+[![CI](https://github.com/phlohouse/phlo/actions/workflows/ci.yml/badge.svg)](https://github.com/phlohouse/phlo/actions/workflows/ci.yml)
+[![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#project-status)
+
+**The Pythonic lakehouse framework.** One Python project to define, run, validate, and inspect lakehouse pipelines.
+
+Phlo is the framework and plugin runtime that ties together familiar lakehouse tools — Dagster, dlt, Sling, dbt, Pandera, Iceberg, Delta, Nessie, Trino, MinIO, and more — behind a single CLI and a coherent product surface called **Observatory**.
+
+---
 
 ## Why Phlo
 
-Most lakehouse projects start in Python and quickly spill into YAML, Compose files, orchestration config, catalog setup, quality checks, and a pile of small scripts. Phlo keeps those pieces in one project.
+Most lakehouse projects start in Python and quickly spill into YAML, Compose files, orchestration config, catalog setup, quality checks, and a pile of glue scripts and duplicated config. Phlo keeps those pieces in one project.
 
-Use the CLI to create a project, start the local stack, materialize assets, run checks, and inspect what happened. Add provider packages when you need them: Dagster for orchestration, DLT or Sling for ingestion, dbt for transforms, Iceberg or Delta for tables, Trino for query, and Observatory when you want a UI.
+Use the `phlo` CLI to create a project, start the local stack, materialize assets, run quality checks, follow logs, and inspect what happened. Add provider packages when you need them: Dagster for orchestration, dlt or Sling for ingestion, dbt for transforms, Iceberg or Delta for tables, Trino for query, and Observatory for a UI to inspect assets, tables, lineage, quality, services, and logs.
 
-## What You Get
+## What a Phlo asset looks like
 
-- A project layout for `phlo.yaml`, workflows, schemas, transforms, tests, local runtime state, and project plugins.
-- Starters for CSV ingestion, REST API ingestion, dbt medallion projects, Sling replication, and Observatory demos.
-- Python decorators for registering assets without hand-writing provider boilerplate.
-- Local service commands for generating, starting, checking, logging, and stopping the stack.
-- Packages for Dagster, MinIO, Nessie, Trino, Iceberg, dbt, PostgreSQL, Observatory, and other lakehouse services.
-- Plugin hooks for custom commands, services, assets, resources, catalogs, and Observatory extensions.
-
-## Quick Start
-
-Prerequisites: Python 3.11 or later, `uv`, and Docker/Podman.
-
-```bash
-# Install Phlo with the default local stack packages
-uv pip install "phlo[defaults]"
-
-# Create a project from the CSV batch starter
-phlo init my-lakehouse --template csv-batch
-cd my-lakehouse
-uv pip install -e .
-
-# Generate and start the local service stack
-phlo services init
-phlo services start
-
-# Run the generated asset for a completed daily partition
-phlo materialize dlt_events --partition 2025-01-15
-```
-
-## What It Looks Like
-
-The `csv-batch` starter gives you a DLT-backed asset with a validation schema and a daily partition:
+A Phlo asset is ordinary Python with lakehouse metadata attached:
 
 ```python
 from pathlib import Path
@@ -68,23 +51,70 @@ def csv_events(partition_date: str) -> object:
     return dlt.resource(rows, name="events")
 ```
 
-## Architecture
+This single function registers a partitioned ingestion asset, validates rows with Pandera, materializes through the configured orchestrator, lands the table in your configured storage and catalog, and becomes visible in Observatory and the catalog CLI — no separate orchestration, schema, Compose, or catalog wiring needed.
 
-Phlo's core stays small. Provider packages register services, commands, assets, resources, and catalog adapters through Python entry points. The CLI reads the active project and wires together the packages you installed.
+## Quick Start
 
-| Layer | Packages |
-| --- | --- |
-| Orchestration | `phlo-dagster` |
-| Ingestion | `phlo-dlt`, `phlo-sling` |
-| Quality | `phlo-pandera` |
-| Transforms | `phlo-dbt` |
-| Table formats | `phlo-iceberg`, `phlo-delta`, `phlo-clickhouse` |
-| Storage | `phlo-minio`, `phlo-rustfs` |
-| Catalog | `phlo-nessie`, `phlo-openmetadata` |
-| Query | `phlo-trino` |
-| API and UI | `phlo-api`, `phlo-observatory`, `phlo-mcp`, `phlo-hasura`, `phlo-postgrest`, `phlo-pgweb`, `phlo-superset` |
-| Observability | `phlo-otel`, `phlo-clickstack`, `phlo-grafana`, `phlo-prometheus`, `phlo-loki`, `phlo-alloy`, `phlo-alerting` |
-| Dev and test | `phlo-testing` |
+**Prerequisites**
+
+- Python 3.11 or later
+- [`uv`](https://docs.astral.sh/uv/)
+- Docker with Compose v2, or Podman with a Compose provider
+
+```bash
+# Create an isolated environment for the quickstart
+mkdir phlo-quickstart && cd phlo-quickstart
+uv venv
+source .venv/bin/activate
+
+# Install Phlo with the default local stack providers
+uv pip install "phlo[defaults]"
+
+# Create a project from the CSV batch starter
+phlo init my-lakehouse --template csv-batch
+cd my-lakehouse
+uv pip install -e .
+
+# Generate and start the local lakehouse stack
+phlo services init
+phlo services start
+
+# Check that services are healthy
+phlo services status
+phlo doctor --verbose
+
+# Materialize a completed daily partition
+phlo materialize dlt_events --partition 2025-01-15
+
+# Verify the table landed in the catalog
+phlo catalog tables
+
+# Stop the local stack when finished
+phlo services stop
+```
+
+## Capabilities
+
+- **Project layout** for `phlo.yaml`, workflows, schemas, transforms, tests, local runtime state, and project plugins.
+- **Starters** for CSV ingestion, REST API ingestion, dbt medallion projects, Sling replication, and Observatory demos.
+- **Python decorators** for registering ingestion, quality, and transformation assets without hand-writing provider boilerplate.
+- **Local service commands** for generating, starting, checking, logging, and stopping the stack.
+- **Provider packages** for Dagster, MinIO, Nessie, Trino, Iceberg, dbt, PostgreSQL, Observatory, and the rest of a working lakehouse.
+- **Plugin hooks** for custom commands, services, assets, resources, catalogs, and Observatory extensions.
+
+## How Phlo fits together
+
+Phlo's core stays small. Installed provider packages contribute capabilities through Python entry points; the CLI discovers them in the current project and wires the runtime accordingly.
+
+| Area | Intent | Provider examples |
+| --- | --- | --- |
+| Pipeline authoring | Define ingestion assets, schemas, checks, and transforms | `phlo-dlt`, `phlo-sling`, `phlo-pandera`, `phlo-dbt` |
+| Runtime services | Start the local lakehouse stack without hand-written Compose files | `phlo-dagster`, `phlo-postgres`, `phlo-minio`, `phlo-nessie`, `phlo-trino` |
+| Table & catalog layer | Store, version, and query lakehouse tables | `phlo-iceberg`, `phlo-delta`, `phlo-clickhouse`, `phlo-openmetadata` |
+| Product surfaces | Inspect and control assets, tables, lineage, quality, services, and logs | `phlo-api`, `phlo-observatory`, `phlo-mcp` |
+| Serving & BI | Expose lakehouse data to apps and analysts | `phlo-hasura`, `phlo-postgrest`, `phlo-pgweb`, `phlo-superset` |
+| Observability | Export telemetry, logs, metrics, and alerts | `phlo-otel`, `phlo-prometheus`, `phlo-loki`, `phlo-grafana`, `phlo-alerting` |
+| Development | Test and validate projects and provider integrations | `phlo-testing` |
 
 ## Documentation
 
@@ -96,6 +126,10 @@ Phlo's core stays small. Provider packages register services, commands, assets, 
 - [Plugin Development](docs/guides/plugin-development.md)
 - [Operations Guide](docs/operations/operations-guide.md)
 - [CLI Reference](docs/reference/cli-reference.md)
+
+## Project status
+
+Phlo is **alpha**. The local development workflow is usable and exercised in CI, but APIs, provider contracts, and the on-disk project layout may change before 1.0. Pin exact versions in production.
 
 ## Development
 
@@ -114,3 +148,7 @@ phlo services logs -f
 phlo services stop
 phlo doctor --verbose
 ```
+
+## Contributing
+
+Issues and pull requests are welcome. Run `make check` locally before opening a PR, and please open an issue first for larger changes so the design can be discussed up front.
