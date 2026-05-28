@@ -1,141 +1,154 @@
-<p align="center">
-  <img src="docs/assets/phlo.png" alt="Phlo" width="400">
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/phlohouse/phlo/main/.github/readme-header-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/phlohouse/phlo/main/.github/readme-header.png">
+  <img src="https://raw.githubusercontent.com/phlohouse/phlo/main/.github/readme-header.png" alt="Phlo" width="900">
+</picture>
 
-<p align="center">
-  <strong>Modern data lakehouse platform. Plugin-driven. Storage-agnostic.</strong>
-</p>
+# Phlo
 
-<p align="center">
-  <a href="https://github.com/phlohouse/phlo/actions/workflows/ci.yml"><img src="https://github.com/phlohouse/phlo/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://pypi.org/project/phlo/"><img src="https://img.shields.io/pypi/v/phlo" alt="PyPI"></a>
-  <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+">
-</p>
+[![PyPI](https://img.shields.io/pypi/v/phlo.svg)](https://pypi.org/project/phlo/)
+[![Python](https://img.shields.io/pypi/pyversions/phlo.svg)](https://pypi.org/project/phlo/)
+[![CI](https://github.com/phlohouse/phlo/actions/workflows/ci.yml/badge.svg)](https://github.com/phlohouse/phlo/actions/workflows/ci.yml)
+[![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#project-status)
 
-## Features
+**The Pythonic lakehouse framework.** One Python project to define, run, validate, and inspect lakehouse pipelines.
 
-- **Template-first projects** — `phlo init` creates focused starters for CSV, REST APIs, dbt medallion projects, Sling replication, and observability demos
-- **Decorator-driven ingestion** — `phlo-dlt` and `phlo-sling` register assets without hand-written Dagster boilerplate
-- **Type-safe quality contracts** — `phlo-pandera` schemas validate data before it lands in managed tables
-- **Capability plugins** — packages contribute services, CLI commands, assets, resources, catalogs, hooks, and Observatory surfaces through Python entry points
-- **Storage-agnostic data plane** — Iceberg, Delta, ClickHouse, Trino, MinIO, RustFS, Nessie, and PostgreSQL can be composed as needed
-- **Operator surfaces** — `phlo-api`, Observatory, MCP, PostgREST, Hasura, Superset, pgweb, and observability packages expose runtime state and actions
-- **Local-first operations** — `phlo services` generates and runs the project stack through Docker or Podman
+Phlo is the framework and plugin runtime that ties together familiar lakehouse tools — Dagster, dlt, Sling, dbt, Pandera, Iceberg, Delta, Nessie, Trino, MinIO, and more — behind a single CLI and a coherent product surface called **Observatory**.
 
-## What It Looks Like
+---
+
+## Why Phlo
+
+Most lakehouse projects start in Python and quickly spill into YAML, Compose files, orchestration config, catalog setup, quality checks, and a pile of glue scripts and duplicated config. Phlo keeps those pieces in one project.
+
+Use the `phlo` CLI to create a project, start the local stack, materialize assets, run quality checks, follow logs, and inspect what happened. Add provider packages when you need them: Dagster for orchestration, dlt or Sling for ingestion, dbt for transforms, Iceberg or Delta for tables, Trino for query, and Observatory for a UI to inspect assets, tables, lineage, quality, services, and logs.
+
+## What a Phlo asset looks like
+
+A Phlo asset is ordinary Python with lakehouse metadata attached:
 
 ```python
 from pathlib import Path
 
+import dlt
 import pandas as pd
-import pandera.pandas as pa
-from pandera.typing import Series
-
 import phlo
 
-
-class EventsSchema(pa.DataFrameModel):
-    id: Series[int] = pa.Field(ge=1)
-    name: Series[str]
-    value: Series[int] = pa.Field(ge=0)
-
-    class Config:
-        strict = True
-        coerce = True
+from workflows.schemas.csv import EventsSchema
 
 
-@phlo.ingest.dlt(
+@phlo.ingestion(
     table_name="events",
-    unique_key="id",
+    unique_key="event_id",
     validation_schema=EventsSchema,
-    group="demo",
+    group="csv",
     freshness_hours=(1, 24),
 )
-def events(partition_date: str):
-    return pd.read_csv(Path("data/events.csv"))
+def csv_events(partition_date: str) -> object:
+    events = pd.read_csv(Path("data/events.csv"))
+    events["event_id"] = events["id"].astype(str) + "-" + partition_date
+    rows = events.to_dict(orient="records")
+    return dlt.resource(rows, name="events")
 ```
 
-`phlo.ingest` is the provider-neutral ingestion namespace. Use `phlo.ingest.dlt(...)`
-for Python, REST, and DataFrame sources; `phlo.ingest.sling(...)` for replication;
-or `phlo.ingest.provider("name")` for third-party ingestion providers. Existing
-`@phlo.ingestion(...)` workflows remain supported as a DLT compatibility alias.
-
-## Prerequisites
-
-- [uv](https://github.com/astral-sh/uv) — Python package manager
-- [Docker](https://www.docker.com/) — Container runtime
+This single function registers a partitioned ingestion asset, validates rows with Pandera, materializes through the configured orchestrator, lands the table in your configured storage and catalog, and becomes visible in Observatory and the catalog CLI — no separate orchestration, schema, Compose, or catalog wiring needed.
 
 ## Quick Start
 
+**Prerequisites**
+
+- Python 3.11 or later
+- [`uv`](https://docs.astral.sh/uv/)
+- Docker with Compose v2, or Podman with a Compose provider
+
 ```bash
-# Install with default plugins
-uv pip install phlo[defaults]
+# Create an isolated environment for the quickstart
+mkdir phlo-quickstart && cd phlo-quickstart
+uv venv
+source .venv/bin/activate
 
-# Initialize a runnable local starter
-phlo init my-project --template csv-batch
-cd my-project
+# Install Phlo with the default local stack providers
+uv pip install "phlo[defaults]"
 
-# Generate service configuration, start services, and materialize
+# Create a project from the CSV batch starter
+phlo init my-lakehouse --template csv-batch
+cd my-lakehouse
+uv pip install -e .
+
+# Generate and start the local lakehouse stack
 phlo services init
 phlo services start
-phlo materialize dlt_events --partition 2026-05-04
+
+# Check that services are healthy
+phlo services status
+phlo doctor --verbose
+
+# Materialize a completed daily partition
+phlo materialize dlt_events --partition 2025-01-15
+
+# Verify the table landed in the catalog
+phlo catalog tables
+
+# Stop the local stack when finished
+phlo services stop
 ```
+
+## Capabilities
+
+- **Project layout** for `phlo.yaml`, workflows, schemas, transforms, tests, local runtime state, and project plugins.
+- **Starters** for CSV ingestion, REST API ingestion, dbt medallion projects, Sling replication, and Observatory demos.
+- **Python decorators** for registering ingestion, quality, and transformation assets without hand-writing provider boilerplate.
+- **Local service commands** for generating, starting, checking, logging, and stopping the stack.
+- **Provider packages** for Dagster, MinIO, Nessie, Trino, Iceberg, dbt, PostgreSQL, Observatory, and the rest of a working lakehouse.
+- **Plugin hooks** for custom commands, services, assets, resources, catalogs, and Observatory extensions.
+
+## How Phlo fits together
+
+Phlo's core stays small. Installed provider packages contribute capabilities through Python entry points; the CLI discovers them in the current project and wires the runtime accordingly.
+
+| Area | Intent | Provider examples |
+| --- | --- | --- |
+| Pipeline authoring | Define ingestion assets, schemas, checks, and transforms | `phlo-dlt`, `phlo-sling`, `phlo-pandera`, `phlo-dbt` |
+| Runtime services | Start the local lakehouse stack without hand-written Compose files | `phlo-dagster`, `phlo-postgres`, `phlo-minio`, `phlo-nessie`, `phlo-trino` |
+| Table & catalog layer | Store, version, and query lakehouse tables | `phlo-iceberg`, `phlo-delta`, `phlo-clickhouse`, `phlo-openmetadata` |
+| Product surfaces | Inspect and control assets, tables, lineage, quality, services, and logs | `phlo-api`, `phlo-observatory`, `phlo-mcp` |
+| Serving & BI | Expose lakehouse data to apps and analysts | `phlo-hasura`, `phlo-postgrest`, `phlo-pgweb`, `phlo-superset` |
+| Observability | Export telemetry, logs, metrics, and alerts | `phlo-otel`, `phlo-prometheus`, `phlo-loki`, `phlo-grafana`, `phlo-alerting` |
+| Development | Test and validate projects and provider integrations | `phlo-testing` |
 
 ## Documentation
-
-Full documentation source lives under [docs/index.md](docs/index.md). The published site is generated with `pymdx`, matching the GitHub Pages workflow:
-
-```bash
-pymdx generate src/phlo --docs docs --output docs-site
-pymdx build docs-site
-```
-
-Primary entry points:
 
 - [Installation Guide](docs/getting-started/installation.md)
 - [Quickstart Guide](docs/getting-started/quickstart.md)
 - [Core Concepts](docs/getting-started/core-concepts.md)
-- [Developer Guide](docs/guides/developer-guide.md)
-- [Plugin Development](docs/guides/plugin-development.md)
+- [Choosing Components](docs/guides/choosing-components.md)
 - [Workflow Development](docs/guides/workflow-development.md)
-- [CLI Reference](docs/reference/cli-reference.md)
-- [Configuration Reference](docs/reference/configuration-reference.md)
+- [Plugin Development](docs/guides/plugin-development.md)
 - [Operations Guide](docs/operations/operations-guide.md)
+- [CLI Reference](docs/reference/cli-reference.md)
+
+## Project status
+
+Phlo is **alpha**. The local development workflow is usable and exercised in CI, but APIs, provider contracts, and the on-disk project layout may change before 1.0. Pin exact versions in production.
 
 ## Development
 
 ```bash
-uv pip install -e .    # Install Phlo in dev mode
-make check             # Lint, format, typecheck, and test (parallel)
-
-# Services
-phlo services start    # Start infrastructure
-phlo services stop     # Stop services
-phlo services logs -f  # View logs
-
-# Individual gates
-uv run ruff check .    # Lint
-uv run ruff format .   # Format
-uv run ty check        # Typecheck
-uv run pytest          # Test
+uv pip install -e .
+make check
 ```
 
-## Architecture
+Useful local service commands:
 
-Phlo is a monorepo of composable packages — install only what you need:
+```bash
+phlo services init
+phlo services start
+phlo services status
+phlo services logs -f
+phlo services stop
+phlo doctor --verbose
+```
 
-| Layer             | Packages                                                                                  |
-| ----------------- | ----------------------------------------------------------------------------------------- |
-| **Orchestration** | `phlo-dagster`                                                                            |
-| **Ingestion**     | `phlo-dlt`, `phlo-sling`                                                                  |
-| **Quality**       | `phlo-pandera`                                                                            |
-| **Transforms**    | `phlo-dbt`                                                                                |
-| **Table formats** | `phlo-iceberg`, `phlo-delta`, `phlo-clickhouse`                                           |
-| **Infrastructure**  | `phlo-traefik`, `phlo-postgres`, `phlo-oauth2-proxy`                                    |
-| **Storage**       | `phlo-minio`, `phlo-rustfs`                                                               |
-| **Catalog**       | `phlo-nessie`, `phlo-openmetadata`                                                        |
-| **Query**         | `phlo-trino`                                                                              |
-| **Observability** | `phlo-otel`, `phlo-clickstack`, `phlo-grafana`, `phlo-prometheus`, `phlo-loki`, `phlo-alloy`, `phlo-alerting` |
-| **UI**            | `phlo-observatory`, `phlo-pgweb`, `phlo-superset`                                         |
-| **API**           | `phlo-api`, `phlo-mcp`, `phlo-hasura`, `phlo-postgrest`                                  |
-| **Dev/Test**      | `phlo-testing`                                                                            |
+## Contributing
+
+Issues and pull requests are welcome. Run `make check` locally before opening a PR, and please open an issue first for larger changes so the design can be discussed up front.
