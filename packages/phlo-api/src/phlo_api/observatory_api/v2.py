@@ -98,6 +98,7 @@ from phlo_api.observatory_api.v2_operation_journal import (
     record_action_result,
     sort_operations,
 )
+from phlo_api.observatory_api.orchestrator_operations import resolve_orchestrator_operations
 from phlo_api.observatory_api.v2_products import load_api_items, load_bi_items
 from phlo_api.observatory_api.v2_runs import load_runs
 from phlo_api.observatory_api.v2_saved_queries import (
@@ -2605,21 +2606,19 @@ def get_v2_runs(limit: int = 100, cursor: str | None = None, q: str | None = Non
 @router.get("/runs/{run_id:path}/status")
 async def get_v2_run_status(run_id: str) -> Any:
     """Get provider-neutral run status from the active orchestrator provider."""
-    from phlo_api.observatory_api.dagster import get_run_status
-
-    return await get_run_status(run_id)
+    provider = resolve_orchestrator_operations()
+    return await provider.get_run_status(run_id)
 
 
 @router.post("/runs/{run_id:path}/retry")
 async def post_v2_run_retry(run_id: str, request: V2RetryRunRequest, http_request: Request) -> Any:
     """Validate or request retry for a failed run through the active orchestrator provider."""
-    from phlo_api.observatory_api.dagster import RetryRunRequest, retry_run
-
     auth = require_scope(http_request, "lakehouse:operate")
     enforce_rate_limit(auth["subject"], "retry_failed_run")
+    provider = resolve_orchestrator_operations()
 
     async def execute() -> dict[str, Any]:
-        result = await retry_run(run_id, RetryRunRequest(**request.model_dump()))
+        result = await provider.retry_run(run_id, request.model_dump())
         return _jsonable_result(result)
 
     payload = await replay_or_execute_async(
@@ -2644,11 +2643,10 @@ async def post_v2_run_cancel(
     run_id: str, request: V2CancelRunRequest, http_request: Request
 ) -> Any:
     """Request cancellation for a run through the active orchestrator provider."""
-    from phlo_api.observatory_api.dagster import CancelRunRequest, cancel_run
-
     auth = require_scope(http_request, "lakehouse:operate")
     enforce_rate_limit(auth["subject"], "cancel_run")
-    result = await cancel_run(run_id, CancelRunRequest(**request.model_dump()))
+    provider = resolve_orchestrator_operations()
+    result = await provider.cancel_run(run_id, request.model_dump())
     payload = _jsonable_result(result)
     audit_operation(
         operation="cancel_run",
@@ -2782,10 +2780,9 @@ def get_v2_asset_impact(asset_key: str, max_depth: int = 99) -> list[V2ImpactedA
 @router.get("/assets/{asset_id:path}/materializations")
 async def get_v2_asset_materializations(asset_id: str, limit: int = 10) -> Any:
     """Get recent materializations for an asset from the active orchestrator provider."""
-    from phlo_api.observatory_api.dagster import get_materialization_history
-
     limit = max(1, min(limit, 200))
-    return await get_materialization_history(asset_id, limit=limit)
+    provider = resolve_orchestrator_operations()
+    return await provider.get_materialization_history(asset_id, limit=limit)
 
 
 @router.post("/assets/{asset_id:path}/materialize")
@@ -2793,13 +2790,12 @@ async def post_v2_asset_materialize(
     asset_id: str, request: V2MaterializeAssetRequest, http_request: Request
 ) -> Any:
     """Validate or request asset materialization through the active orchestrator provider."""
-    from phlo_api.observatory_api.dagster import MaterializeAssetRequest, materialize_asset
-
     auth = require_scope(http_request, "lakehouse:operate")
     enforce_rate_limit(auth["subject"], "materialize_asset")
+    provider = resolve_orchestrator_operations()
 
     async def execute() -> dict[str, Any]:
-        result = await materialize_asset(asset_id, MaterializeAssetRequest(**request.model_dump()))
+        result = await provider.materialize_asset(asset_id, request.model_dump())
         return _jsonable_result(result)
 
     payload = await replay_or_execute_async(
@@ -2824,13 +2820,12 @@ async def post_v2_asset_backfill(
     asset_id: str, request: V2BackfillAssetRequest, http_request: Request
 ) -> Any:
     """Validate or request asset partition backfill through the active orchestrator provider."""
-    from phlo_api.observatory_api.dagster import BackfillAssetRequest, backfill_asset
-
     auth = require_scope(http_request, "lakehouse:operate")
     enforce_rate_limit(auth["subject"], "backfill_asset")
+    provider = resolve_orchestrator_operations()
 
     async def execute() -> dict[str, Any]:
-        result = await backfill_asset(asset_id, BackfillAssetRequest(**request.model_dump()))
+        result = await provider.backfill_asset(asset_id, request.model_dump())
         return _jsonable_result(result)
 
     payload = await replay_or_execute_async(
@@ -2853,9 +2848,8 @@ async def post_v2_asset_backfill(
 @router.get("/assets/{asset_id:path}/partitions")
 async def get_v2_asset_partitions(asset_id: str) -> Any:
     """List partitions for an asset from the active orchestrator provider."""
-    from phlo_api.observatory_api.dagster import list_partitions
-
-    return await list_partitions(asset_id)
+    provider = resolve_orchestrator_operations()
+    return await provider.list_partitions(asset_id)
 
 
 @router.get("/assets/{asset_id:path}", response_model=V2AssetDetail)

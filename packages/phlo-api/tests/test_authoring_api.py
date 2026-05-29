@@ -12,10 +12,12 @@ from phlo_api.main import app
 @dataclass(frozen=True)
 class _FakeWorkflowResult:
     workflow_type: str
+    provider: str
     domain: str
     table: str
     files: list[str]
     next_steps: list[str]
+    metadata: dict[str, object] | None = None
 
 
 def test_authoring_routes_create_and_list_templates(monkeypatch, tmp_path) -> None:
@@ -27,16 +29,20 @@ def test_authoring_routes_create_and_list_templates(monkeypatch, tmp_path) -> No
         '{"project-token":{"subject":"agent","scopes":["project:write"]}}',
     )
 
-    def fake_create_workflow(**kwargs):  # noqa: ANN003, ANN202
+    def fake_create_workflow_with_provider(**kwargs):  # noqa: ANN003, ANN202
         return _FakeWorkflowResult(
             workflow_type=kwargs["workflow_type"],
+            provider=kwargs["provider"] or "fake",
             domain=kwargs["domain"],
             table=kwargs["table"],
             files=["workflows/ingestion/demo/orders.py"],
             next_steps=["phlo materialize dlt_orders"],
+            metadata={},
         )
 
-    monkeypatch.setattr(authoring, "_create_workflow", fake_create_workflow)
+    monkeypatch.setattr(
+        authoring, "create_workflow_with_provider", fake_create_workflow_with_provider
+    )
 
     client = TestClient(app)
     headers = {"Authorization": "Bearer project-token"}
@@ -48,6 +54,7 @@ def test_authoring_routes_create_and_list_templates(monkeypatch, tmp_path) -> No
     templates = client.get("/api/authoring/templates")
 
     assert created.status_code == 200
+    assert created.json()["provider"] == "fake"
     assert created.json()["files"] == ["workflows/ingestion/demo/orders.py"]
     assert templates.status_code == 200
     assert any(item["name"] == "csv-batch" for item in templates.json()["items"])
@@ -64,10 +71,12 @@ def test_authoring_create_workflow_returns_conflict_for_existing_files(
         '{"project-token":{"subject":"agent","scopes":["project:write"]}}',
     )
 
-    def fake_create_workflow(**kwargs):  # noqa: ANN003, ANN202
+    def fake_create_workflow_with_provider(**kwargs):  # noqa: ANN003, ANN202
         raise FileExistsError("Files already exist:\n  - workflows/ingestion/demo/orders.py")
 
-    monkeypatch.setattr(authoring, "_create_workflow", fake_create_workflow)
+    monkeypatch.setattr(
+        authoring, "create_workflow_with_provider", fake_create_workflow_with_provider
+    )
 
     response = TestClient(app).post(
         "/api/authoring/workflows",
@@ -83,6 +92,49 @@ def test_authoring_create_workflow_returns_conflict_for_existing_files(
     }
     audit_path = tmp_path / ".phlo" / "audit" / "operations.jsonl"
     assert "workflow_already_exists" in audit_path.read_text(encoding="utf-8")
+
+
+def test_authoring_create_workflow_uses_project_root_and_provider(monkeypatch, tmp_path) -> None:
+    from phlo_api.api import authoring
+
+    service_cwd = tmp_path / "service-cwd"
+    service_cwd.mkdir()
+    monkeypatch.chdir(service_cwd)
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(project_root))
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        '{"project-token":{"subject":"agent","scopes":["project:write"]}}',
+    )
+    captured: dict[str, object] = {}
+
+    def fake_create_workflow_with_provider(**kwargs):  # noqa: ANN003, ANN202
+        captured.update(kwargs)
+        return _FakeWorkflowResult(
+            workflow_type=kwargs["workflow_type"],
+            provider=kwargs["provider"],
+            domain=kwargs["domain"],
+            table=kwargs["table"],
+            files=["workflows/ingestion/demo/orders.py"],
+            next_steps=[],
+            metadata={},
+        )
+
+    monkeypatch.setattr(
+        authoring, "create_workflow_with_provider", fake_create_workflow_with_provider
+    )
+
+    response = TestClient(app).post(
+        "/api/authoring/workflows",
+        json={"provider": "sling", "domain": "demo", "table": "orders", "unique_key": "id"},
+        headers={"Authorization": "Bearer project-token"},
+    )
+
+    assert response.status_code == 200
+    assert captured["project_root"] == project_root
+    assert captured["provider"] == "sling"
+    assert response.json()["provider"] == "sling"
 
 
 def test_authoring_write_routes_require_project_write_scope(monkeypatch, tmp_path) -> None:
@@ -119,6 +171,31 @@ def test_authoring_write_routes_require_project_write_scope(monkeypatch, tmp_pat
     assert allowed.json()["valid"] is True
     audit_path = tmp_path / ".phlo" / "audit" / "operations.jsonl"
     assert "validate_workflow" in audit_path.read_text(encoding="utf-8")
+
+
+def test_authoring_validation_rejects_paths_outside_project(monkeypatch, tmp_path) -> None:
+    from phlo_api.api import authoring
+
+    project_root = tmp_path / "project"
+    outside_file = tmp_path / "outside.py"
+    project_root.mkdir()
+    outside_file.write_text("# not in project\n", encoding="utf-8")
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(project_root))
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        '{"project-token":{"subject":"agent","scopes":["project:write"]}}',
+    )
+    monkeypatch.setattr(authoring, "_validate_workflow_file", lambda path: None)
+
+    response = TestClient(app).post(
+        "/api/authoring/workflows/validate",
+        json={"workflow_path": str(outside_file)},
+        headers={"Authorization": "Bearer project-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["valid"] is False
+    assert "path_outside_project" in response.json()["errors"][0]
 
 
 def test_authoring_doctor_route_returns_json(monkeypatch) -> None:

@@ -322,7 +322,7 @@ async def _check_mcp_stdio(args: argparse.Namespace, repo_root: Path) -> None:
             missing = sorted(expected - names)
             if missing:
                 raise SmokeFailure(f"MCP server is missing expected tools: {missing}")
-            write_tools = {"materialize_asset", "retry_failed_run", "get_dagster_run_status"}
+            write_tools = {"materialize_asset", "retry_failed_run", "get_run_status"}
             registered_write_tools = names & write_tools
             if args.enable_write_tools and args.api_token:
                 missing_write_tools = sorted(write_tools - names)

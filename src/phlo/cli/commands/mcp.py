@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import Any
 
 import click
-from phlo_mcp.config import McpConfig, config_from_env
-from phlo_mcp.server import create_server
 
 from phlo.cli.output import json_envelope
 
@@ -31,6 +29,17 @@ def _config_payload(config: Any) -> dict[str, Any]:
     }
 
 
+def _mcp_runtime() -> tuple[Any, Any, Any]:
+    try:
+        from phlo_mcp.config import McpConfig, config_from_env
+        from phlo_mcp.server import create_server
+    except ImportError as exc:
+        raise click.ClickException(
+            'MCP support is not installed. Install it with: uv pip install "phlo-mcp"'
+        ) from exc
+    return McpConfig, config_from_env, create_server
+
+
 @mcp_group.command("serve")
 @click.option("--transport", type=click.Choice(["stdio", "streamable-http"]))
 @click.option("--api-base-url")
@@ -49,6 +58,7 @@ def serve_cmd(
     streamable_http_path: str | None,
 ) -> None:
     """Serve the Phlo MCP server."""
+    McpConfig, config_from_env, create_server = _mcp_runtime()
     env = config_from_env()
     config = McpConfig(
         api_base_url=(api_base_url or env.api_base_url).rstrip("/"),
@@ -67,6 +77,7 @@ def serve_cmd(
 @click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
 def config_cmd(output_json: bool) -> None:
     """Print resolved MCP configuration with secrets redacted."""
+    _, config_from_env, _ = _mcp_runtime()
     payload = _config_payload(config_from_env())
     if output_json:
         click.echo(json_envelope(data=payload))
@@ -79,6 +90,7 @@ def config_cmd(output_json: bool) -> None:
 @click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
 def tools_cmd(output_json: bool) -> None:
     """List tools registered by the local MCP server."""
+    _, config_from_env, create_server = _mcp_runtime()
     server = create_server(config_from_env())
     payload = [
         {"name": tool.name, "description": tool.description}
@@ -95,6 +107,7 @@ def tools_cmd(output_json: bool) -> None:
 @click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
 def prompts_cmd(output_json: bool) -> None:
     """List prompts registered by the local MCP server."""
+    _, config_from_env, create_server = _mcp_runtime()
     server = create_server(config_from_env())
     payload = [
         {"name": prompt.name, "description": prompt.description}

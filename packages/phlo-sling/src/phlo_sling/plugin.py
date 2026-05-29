@@ -13,6 +13,7 @@ Classes:
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from pathlib import Path
 from typing import Any
 
 from phlo.capabilities import (
@@ -20,7 +21,7 @@ from phlo.capabilities import (
     WorkflowWizardContribution,
     WorkflowWizardField,
 )
-from phlo.capabilities.specs import AssetCheckSpec, AssetSpec
+from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, WorkflowAuthoringSpec
 from phlo.plugins.base import AssetProviderPlugin, IngestionProviderPlugin, PluginMetadata
 
 from phlo_sling.decorator import clear_sling_assets, get_sling_assets
@@ -232,3 +233,138 @@ class SlingIngestionProvider(IngestionProviderPlugin):
 
         """
         return get_sling_assets
+
+    def get_workflow_wizard_contributions(self) -> list[WorkflowWizardContribution]:
+        """Return workflow wizard contributions exposed by Sling."""
+        return get_workflow_wizard_contributions()
+
+    def get_workflow_authoring_providers(self) -> list[WorkflowAuthoringSpec]:
+        """Return workflow authoring capabilities exposed by Sling."""
+        return [
+            WorkflowAuthoringSpec(
+                name="sling",
+                provider=SlingWorkflowAuthoringProvider(),
+                metadata={"contribution_id": "sling.replication-source"},
+            )
+        ]
+
+
+class SlingWorkflowAuthoringProvider:
+    """Create Sling-backed replication workflow files."""
+
+    def create_workflow(self, *, project_root: Path, request: dict[str, Any]) -> dict[str, Any]:
+        values = dict(request.get("values") or {})
+        contribution_id = request.get("contribution_id")
+        if contribution_id not in {None, "", "sling.replication-source"}:
+            raise ValueError(f"Sling cannot author contribution {contribution_id!r}")
+
+        domain = _slug(str(values.get("domain") or request.get("domain") or ""))
+        table = _slug(
+            str(values.get("target_table") or values.get("table") or request.get("table") or "")
+        )
+        source_name = str(values.get("source_name") or "")
+        source_stream = str(values.get("source_stream") or table)
+        primary_key = str(
+            values.get("primary_key") or values.get("unique_key") or request.get("unique_key") or ""
+        )
+        replication_mode = str(values.get("replication_mode") or "incremental")
+        update_key = str(values.get("update_key") or "")
+        cron = str(values.get("schedule") or request.get("cron") or "0 2 * * *")
+
+        if not domain or not table or not source_name or not source_stream or not primary_key:
+            raise ValueError(
+                "Sling workflow creation requires domain, target_table, source_name, source_stream, and primary_key."
+            )
+
+        asset_path = project_root / "workflows" / "ingestion" / domain / f"{table}_sling.py"
+        config_path = project_root / "workflows" / "ingestion" / domain / f"{table}_sling.yml"
+        asset_path.parent.mkdir(parents=True, exist_ok=True)
+        existing = [path for path in (asset_path, config_path) if path.exists()]
+        if existing:
+            raise FileExistsError(
+                "Files already exist:\n" + "\n".join(f"  - {path}" for path in existing)
+            )
+
+        asset_path.write_text(
+            _render_sling_asset(
+                domain, table, primary_key, source_name, source_stream, replication_mode, cron
+            ),
+            encoding="utf-8",
+        )
+        config_path.write_text(
+            _render_sling_config(
+                table, primary_key, source_name, source_stream, replication_mode, update_key
+            ),
+            encoding="utf-8",
+        )
+        files = [
+            str(asset_path.relative_to(project_root)),
+            str(config_path.relative_to(project_root)),
+        ]
+        return {
+            "workflow_type": "ingestion",
+            "provider": "sling",
+            "domain": domain,
+            "table": table,
+            "files": files,
+            "next_steps": [
+                f"Review workflow: {files[0]}",
+                f"Review replication config: {files[1]}",
+                "Restart active services if needed: phlo services restart",
+                f"Materialize: phlo materialize sling_{table}",
+                "Inspect status: phlo status",
+            ],
+        }
+
+
+def _render_sling_asset(
+    domain: str,
+    table: str,
+    primary_key: str,
+    source_name: str,
+    source_stream: str,
+    replication_mode: str,
+    cron: str,
+) -> str:
+    return f'''"""Sling replication asset for {domain}.{table}."""
+
+from phlo_sling import phlo_sling_replication
+
+
+@phlo_sling_replication(
+    stream_name="{source_stream}",
+    table_name="{table}",
+    source_conn="{source_name}",
+    group="{domain}",
+    mode="{replication_mode}",
+    primary_key="{primary_key}",
+    cron="{cron}",
+)
+def {table}_sling():
+    return "{table}_sling.yml"
+'''
+
+
+def _render_sling_config(
+    table: str,
+    primary_key: str,
+    source_name: str,
+    source_stream: str,
+    replication_mode: str,
+    update_key: str,
+) -> str:
+    update_key_line = f'    update_key: "{update_key}"\n' if update_key else ""
+    return f"""source: {source_name}
+streams:
+  {source_stream}:
+    object: {table}
+    mode: {replication_mode}
+    primary_key: "{primary_key}"
+{update_key_line}"""
+
+
+def _slug(value: str) -> str:
+    import re
+
+    slug = re.sub(r"[^a-zA-Z0-9_]+", "_", value.strip().lower()).strip("_")
+    return slug or "workflow"

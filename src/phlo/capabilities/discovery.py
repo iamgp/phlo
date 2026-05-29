@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from phlo.capabilities.observability import register_default_capability_providers
 from phlo.capabilities.registry import (
     iter_provider_capabilities,
@@ -19,48 +21,50 @@ def discover_capabilities() -> None:
     register_default_capability_providers()
     discover_plugins(plugin_type="asset_provider", auto_register=True)
     discover_plugins(plugin_type="resource_provider", auto_register=True)
+    discover_plugins(plugin_type="ingestion_provider", auto_register=True)
+    discover_plugins(plugin_type="orchestrator", auto_register=True)
 
     registry = get_global_registry()
 
-    asset_provider_count = 0
-    for name in registry.list("asset_provider"):
-        plugin = registry.get("asset_provider", name)
-        if plugin is None:
-            continue
-        asset_provider_count += 1
-        try:
-            for family, specs in iter_provider_capabilities(plugin):
-                for spec in specs:
-                    register_capability(family, spec)
-        except Exception as exc:
-            logger.warning(
-                "capability_asset_provider_registration_failed",
-                provider_name=name,
-                error=str(exc),
-                exc_info=True,
-            )
+    provider_counts = {
+        plugin_type: _register_capabilities_for_plugin_type(registry, plugin_type)
+        for plugin_type in (
+            "asset_provider",
+            "resource_provider",
+            "ingestion_provider",
+            "orchestrator",
+        )
+    }
 
-    resource_provider_count = 0
-    for name in registry.list("resource_provider"):
-        plugin = registry.get("resource_provider", name)
+    logger.info(
+        "capability_discovery_completed",
+        asset_provider_count=provider_counts["asset_provider"],
+        resource_provider_count=provider_counts["resource_provider"],
+        ingestion_provider_count=provider_counts["ingestion_provider"],
+        orchestrator_provider_count=provider_counts["orchestrator"],
+    )
+
+
+def _register_capabilities_for_plugin_type(registry: Any, plugin_type: str) -> int:
+    provider_count = 0
+    for name in registry.list(plugin_type):
+        plugin = registry.get(plugin_type, name)
         if plugin is None:
             continue
-        resource_provider_count += 1
+        provider_count += 1
         try:
             for family, specs in iter_provider_capabilities(plugin):
                 for spec in specs:
                     register_capability(family, spec)
         except Exception as exc:
-            missing_optional_config = "must be provided" in str(exc)
+            missing_optional_config = (
+                plugin_type == "resource_provider" and "must be provided" in str(exc)
+            )
             logger.warning(
-                "capability_resource_provider_registration_failed",
+                "capability_provider_registration_failed",
+                plugin_type=plugin_type,
                 provider_name=name,
                 error=str(exc),
                 exc_info=not missing_optional_config,
             )
-
-    logger.info(
-        "capability_discovery_completed",
-        asset_provider_count=asset_provider_count,
-        resource_provider_count=resource_provider_count,
-    )
+    return provider_count

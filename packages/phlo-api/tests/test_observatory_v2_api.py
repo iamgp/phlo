@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import subprocess
+from types import SimpleNamespace
+from typing import Any
 
 from fastapi.testclient import TestClient
 
@@ -56,6 +58,32 @@ _PROVIDER_URL_SETTING_NAMES = (
     "trinourl",
     "nessieurl",
 )
+
+
+class _FakeOrchestratorOperations:
+    def __init__(self, **handlers: Any) -> None:
+        self._handlers = handlers
+
+    async def get_run_status(self, run_id: str) -> Any:
+        return await self._handlers["get_run_status"](run_id)
+
+    async def retry_run(self, run_id: str, request: dict[str, Any]) -> Any:
+        return await self._handlers["retry_run"](run_id, SimpleNamespace(**request))
+
+    async def cancel_run(self, run_id: str, request: dict[str, Any]) -> Any:
+        return await self._handlers["cancel_run"](run_id, SimpleNamespace(**request))
+
+    async def get_materialization_history(self, asset_key_path: str, *, limit: int = 10) -> Any:
+        return await self._handlers["get_materialization_history"](asset_key_path, limit)
+
+    async def materialize_asset(self, asset_key_path: str, request: dict[str, Any]) -> Any:
+        return await self._handlers["materialize_asset"](asset_key_path, SimpleNamespace(**request))
+
+    async def backfill_asset(self, asset_key_path: str, request: dict[str, Any]) -> Any:
+        return await self._handlers["backfill_asset"](asset_key_path, SimpleNamespace(**request))
+
+    async def list_partitions(self, asset_key_path: str) -> Any:
+        return await self._handlers["list_partitions"](asset_key_path)
 
 
 def _assert_no_provider_url_settings(payload: object) -> None:
@@ -579,8 +607,6 @@ def test_v2_actions_endpoint_routes_add_service_action(monkeypatch, tmp_path: Pa
 
 
 def test_v2_asset_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -> None:
-    from phlo_api.observatory_api import dagster
-
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     monkeypatch.setenv(
         "PHLO_API_TOKENS",
@@ -621,10 +647,13 @@ def test_v2_asset_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -
         calls.append(("partitions", asset_id, None))
         return [{"partition_key": "2026-04-26", "status": "UNKNOWN"}]
 
-    monkeypatch.setattr(dagster, "get_materialization_history", fake_history)
-    monkeypatch.setattr(dagster, "materialize_asset", fake_materialize)
-    monkeypatch.setattr(dagster, "backfill_asset", fake_backfill)
-    monkeypatch.setattr(dagster, "list_partitions", fake_partitions)
+    provider = _FakeOrchestratorOperations(
+        get_materialization_history=fake_history,
+        materialize_asset=fake_materialize,
+        backfill_asset=fake_backfill,
+        list_partitions=fake_partitions,
+    )
+    monkeypatch.setattr(v2, "resolve_orchestrator_operations", lambda: provider)
 
     client = TestClient(app)
     headers = {"Authorization": "Bearer operate-token"}
@@ -658,15 +687,14 @@ def test_v2_asset_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -
 
 
 def test_v2_asset_materializations_clamps_limit(monkeypatch) -> None:
-    from phlo_api.observatory_api import dagster
-
     calls: list[int] = []
 
     async def fake_history(asset_id: str, limit: int = 10, dagster_url: str | None = None):
         calls.append(limit)
         return []
 
-    monkeypatch.setattr(dagster, "get_materialization_history", fake_history)
+    provider = _FakeOrchestratorOperations(get_materialization_history=fake_history)
+    monkeypatch.setattr(v2, "resolve_orchestrator_operations", lambda: provider)
 
     client = TestClient(app)
     too_low = client.get("/api/observatory/v2/assets/silver/orders/materializations?limit=0")
@@ -678,8 +706,6 @@ def test_v2_asset_materializations_clamps_limit(monkeypatch) -> None:
 
 
 def test_v2_run_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -> None:
-    from phlo_api.observatory_api import dagster
-
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     monkeypatch.setenv(
         "PHLO_API_TOKENS",
@@ -715,9 +741,12 @@ def test_v2_run_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -> 
             "details": {},
         }
 
-    monkeypatch.setattr(dagster, "get_run_status", fake_status)
-    monkeypatch.setattr(dagster, "retry_run", fake_retry)
-    monkeypatch.setattr(dagster, "cancel_run", fake_cancel)
+    provider = _FakeOrchestratorOperations(
+        get_run_status=fake_status,
+        retry_run=fake_retry,
+        cancel_run=fake_cancel,
+    )
+    monkeypatch.setattr(v2, "resolve_orchestrator_operations", lambda: provider)
 
     client = TestClient(app)
     headers = {"Authorization": "Bearer operate-token"}
@@ -745,8 +774,6 @@ def test_v2_run_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -> 
 def test_v2_operation_routes_enforce_scope_idempotency_audit_and_rate_limit(
     monkeypatch, tmp_path: Path
 ) -> None:
-    from phlo_api.observatory_api import dagster
-
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     monkeypatch.setenv("PHLO_API_RATE_LIMIT_MATERIALIZE", "2")
     monkeypatch.setenv(
@@ -775,7 +802,8 @@ def test_v2_operation_routes_enforce_scope_idempotency_audit_and_rate_limit(
             "details": {},
         }
 
-    monkeypatch.setattr(dagster, "materialize_asset", fake_materialize)
+    provider = _FakeOrchestratorOperations(materialize_asset=fake_materialize)
+    monkeypatch.setattr(v2, "resolve_orchestrator_operations", lambda: provider)
     client = TestClient(app)
 
     missing = client.post(

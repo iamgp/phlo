@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 import re
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
@@ -15,18 +15,19 @@ from phlo.capabilities import (
     WorkflowFilePreview,
     WorkflowProposal,
     WorkflowProposalRequest,
+    WorkflowStageSelection,
     detect_file_conflicts,
     validate_proposal_request,
 )
 
 STAGES = ["source", "transform", "quality", "publish"]
-WORKFLOW_WIZARD_MODULES = (
-    "phlo_dlt.plugin",
-    "phlo_sling.plugin",
-    "phlo_dbt.plugin",
-    "phlo_pandera.plugin",
-    "phlo_dagster.plugin",
-    "phlo_openmetadata.plugin",
+WORKFLOW_WIZARD_PLUGIN_TYPES = (
+    "ingestion_provider",
+    "transformation_provider",
+    "quality_provider",
+    "orchestrator",
+    "resource_provider",
+    "service",
 )
 
 
@@ -88,15 +89,38 @@ class V2WorkflowActionResult(BaseModel):
 def list_workflow_wizard_contributions() -> list[dict[str, Any]]:
     """Return package-provided workflow wizard contributions."""
 
+    from phlo.plugins.discovery import discover_plugins, get_global_registry
+
     contributions: list[dict[str, Any]] = []
-    for module_name in WORKFLOW_WIZARD_MODULES:
+    seen_ids: set[str] = set()
+    registry = get_global_registry()
+    for plugin_type in WORKFLOW_WIZARD_PLUGIN_TYPES:
         try:
-            module = importlib.import_module(module_name)
-            loader = getattr(module, "get_workflow_wizard_contributions", None)
-            if callable(loader):
-                contributions.extend(item.to_browser_dict() for item in loader())
+            discover_plugins(plugin_type=plugin_type, auto_register=True)
         except Exception:
             continue
+        for plugin_name in registry.list(plugin_type):
+            plugin = registry.get(plugin_type, plugin_name)
+            if plugin is None:
+                continue
+            loader = getattr(plugin, "get_workflow_wizard_contributions", None)
+            if not callable(loader):
+                try:
+                    module = importlib.import_module(plugin.__class__.__module__)
+                except Exception:
+                    module = None
+                loader = getattr(module, "get_workflow_wizard_contributions", None)
+            if callable(loader):
+                try:
+                    for item in loader():
+                        contribution = item.to_browser_dict()
+                        contribution_id = str(contribution.get("id") or "")
+                        if contribution_id in seen_ids:
+                            continue
+                        seen_ids.add(contribution_id)
+                        contributions.append(contribution)
+                except Exception:
+                    continue
     return contributions
 
 
@@ -115,13 +139,26 @@ def build_workflow_proposal(
     if not request.graph.nodes:
         raise HTTPException(status_code=422, detail={"graph": ["Add at least one workflow node."]})
 
+    selections: dict[str, dict[str, Any] | list[dict[str, Any] | WorkflowStageSelection]] = {
+        stage: (
+            [dict(item) for item in payload]
+            if isinstance(payload := _selection_payload(selection), list)
+            else dict(payload)
+        )
+        for stage, selection in _selections_from_graph(request.graph).items()
+    }
     contract_request = WorkflowProposalRequest(
         workflow_name=request.workflow_name,
         domain=request.domain,
-        selections={
-            stage: _selection_payload(selection)
-            for stage, selection in _selections_from_graph(request.graph).items()
-        },
+        selections=cast(
+            dict[
+                str,
+                dict[str, Any]
+                | WorkflowStageSelection
+                | list[dict[str, Any] | WorkflowStageSelection],
+            ],
+            selections,
+        ),
     )
     errors = validate_proposal_request(contract_request)
     if errors:
@@ -179,7 +216,7 @@ def _selection_payload(
     selection: V2WorkflowWizardSelection | list[V2WorkflowWizardSelection],
 ) -> dict[str, Any] | list[dict[str, Any]]:
     if isinstance(selection, list):
-        return [_selection_payload(item) for item in selection]
+        return [cast(dict[str, Any], _selection_payload(item)) for item in selection]
     return {
         "contribution_id": selection.contribution_id,
         "values": selection.values,
@@ -243,6 +280,7 @@ def _proposal_from_request(request: WorkflowProposalRequest) -> WorkflowProposal
     planned_assets: list[str] = []
     planned_tables = [table_name]
     planned_models: list[str] = []
+    warnings: list[str] = []
 
     if source.contribution_id == "sling.replication-source":
         source_name = str(source_values.get("source_name") or "POSTGRES")
@@ -281,7 +319,7 @@ def _proposal_from_request(request: WorkflowProposalRequest) -> WorkflowProposal
                 ),
             ]
         )
-    else:
+    elif source.contribution_id == "dlt.rest-api-source":
         api_base_url = str(source_values.get("api_base_url") or "")
         cron = str(source_values.get("cron") or "0 */1 * * *")
         response_path = str(source_values.get("response_path") or "")
@@ -312,6 +350,10 @@ def _proposal_from_request(request: WorkflowProposalRequest) -> WorkflowProposal
                     content=_render_ingestion_test(domain, table_name, unique_key),
                 ),
             ]
+        )
+    else:
+        warnings.append(
+            f"Source contribution {source.contribution_id!r} does not provide proposal rendering."
         )
 
     for transform in request.selections_for("transform"):
@@ -514,6 +556,7 @@ def _proposal_from_request(request: WorkflowProposalRequest) -> WorkflowProposal
         planned_tables=planned_tables,
         planned_models=planned_models,
         files=files,
+        warnings=warnings,
         disabled_stages=disabled_stages,
         actions=[action],
     )
@@ -524,7 +567,7 @@ def _append_dbt_transform_files(
     workflow_name: str,
     table_name: str,
     unique_key: str,
-    fields: list[tuple[str, str]],
+    fields: list[str],
     values: dict[str, Any],
 ) -> list[str]:
     planned_models: list[str] = []

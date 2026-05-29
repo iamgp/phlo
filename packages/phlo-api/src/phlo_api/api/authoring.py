@@ -15,11 +15,11 @@ from phlo_api.pagination import paginate_items
 
 from phlo.cli.commands.doctor import _run_diagnostics_quietly, render_json
 from phlo.cli.commands.workflow import (
-    _create_workflow,
     _validate_schema_file,
     _validate_workflow_file,
 )
 from phlo.cli.templates.registry import list_templates as list_project_templates
+from phlo.workflow_authoring import WorkflowAuthoringError, create_workflow_with_provider
 
 router = APIRouter(tags=["authoring"])
 
@@ -32,6 +32,9 @@ class CreateWorkflowRequest(BaseModel):
     cron: str = "0 */1 * * *"
     api_base_url: str | None = None
     fields: list[str] = Field(default_factory=list)
+    provider: str | None = None
+    contribution_id: str | None = None
+    values: dict[str, Any] = Field(default_factory=dict)
 
 
 class PathValidationRequest(BaseModel):
@@ -47,8 +50,16 @@ def _project_root() -> Path:
 def _resolve_project_path(path: str) -> Path:
     candidate = Path(path)
     if candidate.is_absolute():
-        return candidate
-    return _project_root() / candidate
+        resolved = candidate.resolve()
+    else:
+        resolved = (_project_root() / candidate).resolve()
+    project_root = _project_root()
+    if resolved != project_root and project_root not in resolved.parents:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "path_outside_project", "project_root": str(project_root)},
+        )
+    return resolved
 
 
 @router.post("/workflows")
@@ -57,7 +68,8 @@ def create_workflow(request: CreateWorkflowRequest, http_request: Request) -> di
     auth = require_scope(http_request, "project:write")
     enforce_rate_limit(auth["subject"], "create_workflow")
     try:
-        result = _create_workflow(
+        result = create_workflow_with_provider(
+            project_root=_project_root(),
             workflow_type=request.workflow_type,
             domain=request.domain,
             table=request.table,
@@ -65,6 +77,9 @@ def create_workflow(request: CreateWorkflowRequest, http_request: Request) -> di
             cron=request.cron,
             api_base_url=request.api_base_url,
             fields=request.fields,
+            provider=request.provider,
+            contribution_id=request.contribution_id,
+            values=request.values,
         )
     except FileExistsError as exc:
         payload = {
@@ -81,12 +96,29 @@ def create_workflow(request: CreateWorkflowRequest, http_request: Request) -> di
             result=payload,
         )
         raise HTTPException(status_code=409, detail=payload) from exc
+    except WorkflowAuthoringError as exc:
+        payload = {
+            "error": "workflow_authoring_unavailable",
+            "message": str(exc),
+            "target": f"{request.domain}/{request.table}",
+        }
+        audit_operation(
+            operation="create_workflow",
+            target=f"{request.domain}/{request.table}",
+            dry_run=False,
+            auth=auth,
+            payload=request.model_dump(mode="json"),
+            result=payload,
+        )
+        raise HTTPException(status_code=422, detail=payload) from exc
     payload = {
         "workflow_type": result.workflow_type,
+        "provider": result.provider,
         "domain": result.domain,
         "table": result.table,
         "files": result.files,
         "next_steps": result.next_steps,
+        "metadata": result.metadata,
     }
     audit_operation(
         operation="create_workflow",

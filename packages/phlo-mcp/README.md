@@ -45,7 +45,7 @@ Optional guarded operational tools:
 - `validate_schema`
 - `lint_project`
 - `install_plugin`
-- `get_dagster_run_status`
+- `get_run_status`
 
 Resources:
 
@@ -115,7 +115,7 @@ Required scopes:
 | `materialize_asset`, `retry_failed_run`, `cancel_run`, `backfill_asset` | `lakehouse:operate` |
 | `create_workflow`, `validate_workflow`, `validate_schema`, `lint_project` | `project:write` |
 | `install_plugin` | `admin` |
-| `list_partitions`, `get_dagster_run_status` | `lakehouse:read` |
+| `list_partitions`, `get_run_status` | `lakehouse:read` |
 
 Claude Code example:
 

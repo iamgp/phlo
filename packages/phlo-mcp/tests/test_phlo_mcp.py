@@ -334,7 +334,7 @@ def test_create_server_hides_write_tools_by_default() -> None:
 
     assert "materialize_asset" not in tool_names
     assert "retry_failed_run" not in tool_names
-    assert "get_dagster_run_status" not in tool_names
+    assert "get_run_status" not in tool_names
 
 
 def test_create_server_registers_write_tools_only_with_auth() -> None:
@@ -346,7 +346,7 @@ def test_create_server_registers_write_tools_only_with_auth() -> None:
 
     assert "materialize_asset" not in unauthenticated_tool_names
     assert "retry_failed_run" not in unauthenticated_tool_names
-    assert "get_dagster_run_status" not in unauthenticated_tool_names
+    assert "get_run_status" not in unauthenticated_tool_names
     assert authenticated_tool_names[-10:] == [
         "create_workflow",
         "validate_workflow",
@@ -356,7 +356,7 @@ def test_create_server_registers_write_tools_only_with_auth() -> None:
         "cancel_run",
         "backfill_asset",
         "list_partitions",
-        "get_dagster_run_status",
+        "get_run_status",
         "install_plugin",
     ]
 

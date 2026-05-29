@@ -78,7 +78,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
         mime_type="application/json",
     )
     def runtime_assets() -> dict[str, Any] | list[dict[str, Any]]:
-        """Read Dagster asset metadata."""
+        """Read asset metadata."""
         return client.get_assets()
 
     @mcp.resource(
@@ -114,7 +114,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
         mime_type="application/json",
     )
     def runtime_asset(asset_key_path: str) -> dict[str, Any] | list[dict[str, Any]]:
-        """Read metadata for one Dagster asset."""
+        """Read metadata for one asset."""
         return client.get_asset_details(asset_key_path)
 
     @mcp.resource(
@@ -123,7 +123,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
         mime_type="application/json",
     )
     def runtime_asset_schema(asset_key_path: str) -> dict[str, Any]:
-        """Read schema metadata for one Dagster asset."""
+        """Read schema metadata for one asset."""
         details = client.get_asset_details(asset_key_path)
         if not isinstance(details, dict):
             return {"asset_key_path": asset_key_path, "columns": []}
@@ -214,11 +214,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
             return "project:write"
         if tool_name == "install_plugin":
             return "admin"
-        if (
-            tool_name == "get_dagster_run_status"
-            or tool_name.startswith("get_")
-            or tool_name.startswith("search_")
-        ):
+        if tool_name.startswith("get_") or tool_name.startswith("search_"):
             return "lakehouse:read"
         return None
 
@@ -226,7 +222,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
     def debug_run(run_id: str) -> str:
         """Guide an agent through run failure debugging with Phlo tools."""
         return (
-            f"Debug Phlo run {run_id}. Use get_dagster_run_status, get_run_logs, "
+            f"Debug Phlo run {run_id}. Use get_run_status, get_run_logs, "
             "get_run_trace_spans, and render_run_trace_tree. Identify the failing span or "
             "log line, explain the likely root cause, and propose the smallest safe fix."
         )
@@ -367,7 +363,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
     def get_materialization_history(
         asset_key_path: str, limit: int = 10, cursor: str | None = None
     ) -> dict[str, Any]:
-        """Get recent Dagster materializations for an asset."""
+        """Get recent materializations for an asset."""
         with tracer.start_as_current_span(
             "mcp.request",
             attributes={"mcp.tool.name": "get_materialization_history"},
@@ -376,7 +372,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 "mcp.tool.execute",
                 attributes={"mcp.tool.name": "get_materialization_history"},
             ):
-                with tracer.start_as_current_span("phlo.dagster.materialization_history"):
+                with tracer.start_as_current_span("phlo.orchestrator.materialization_history"):
                     events = client.get_materialization_history(
                         asset_key_path, limit=limit, cursor=cursor
                     )
@@ -838,7 +834,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
             repository_name: str | None = None,
             idempotency_key: str | None = None,
         ) -> dict[str, Any]:
-            """Materialize a Dagster asset through phlo-api when write tools are enabled."""
+            """Materialize an asset through phlo-api when write tools are enabled."""
             with tracer.start_as_current_span(
                 "mcp.request",
                 attributes={"mcp.tool.name": "materialize_asset"},
@@ -847,7 +843,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                     "mcp.tool.execute",
                     attributes={"mcp.tool.name": "materialize_asset"},
                 ):
-                    with tracer.start_as_current_span("phlo.dagster.asset.materialize"):
+                    with tracer.start_as_current_span("phlo.orchestrator.asset.materialize"):
                         target = {"asset_key_path": asset_key_path}
                         if partition_key:
                             target["partition_key"] = partition_key
@@ -871,7 +867,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
             strategy: str = "FROM_FAILURE",
             idempotency_key: str | None = None,
         ) -> dict[str, Any]:
-            """Retry a Dagster run through phlo-api when write tools are enabled."""
+            """Retry a failed orchestrator run through phlo-api when write tools are enabled."""
             with tracer.start_as_current_span(
                 "mcp.request",
                 attributes={"mcp.tool.name": "retry_failed_run"},
@@ -880,7 +876,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                     "mcp.tool.execute",
                     attributes={"mcp.tool.name": "retry_failed_run"},
                 ):
-                    with tracer.start_as_current_span("phlo.dagster.run.retry"):
+                    with tracer.start_as_current_span("phlo.orchestrator.run.retry"):
                         audit_context = _write_audit_context(
                             "retry_failed_run", {"run_id": run_id}, dry_run
                         )
@@ -895,7 +891,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
 
         @mcp.tool()
         def cancel_run(run_id: str, reason: str | None = None) -> dict[str, Any]:
-            """Cancel a Dagster run through phlo-api when write tools are enabled."""
+            """Cancel an orchestrator run through phlo-api when write tools are enabled."""
             with tracer.start_as_current_span(
                 "mcp.request",
                 attributes={"mcp.tool.name": "cancel_run"},
@@ -904,7 +900,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                     "mcp.tool.execute",
                     attributes={"mcp.tool.name": "cancel_run"},
                 ):
-                    with tracer.start_as_current_span("phlo.dagster.run.cancel"):
+                    with tracer.start_as_current_span("phlo.orchestrator.run.cancel"):
                         audit_context = _write_audit_context(
                             "cancel_run", {"run_id": run_id}, False
                         )
@@ -932,7 +928,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                     "mcp.tool.execute",
                     attributes={"mcp.tool.name": "backfill_asset"},
                 ):
-                    with tracer.start_as_current_span("phlo.dagster.asset.backfill"):
+                    with tracer.start_as_current_span("phlo.orchestrator.asset.backfill"):
                         target: dict[str, Any] = {"asset_key_path": asset_key_path}
                         if partitions:
                             target["partitions"] = partitions
@@ -963,7 +959,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                     "mcp.tool.execute",
                     attributes={"mcp.tool.name": "list_partitions"},
                 ):
-                    with tracer.start_as_current_span("phlo.dagster.asset.partitions"):
+                    with tracer.start_as_current_span("phlo.orchestrator.asset.partitions"):
                         payload = client.list_partitions(asset_key_path)
                         return {
                             "api_base_url": client.api_base_url,
@@ -972,17 +968,17 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                         }
 
         @mcp.tool()
-        def get_dagster_run_status(run_id: str) -> dict[str, Any]:
-            """Get Dagster run status through phlo-api for operational follow-up."""
+        def get_run_status(run_id: str) -> dict[str, Any]:
+            """Get orchestrator run status through phlo-api for operational follow-up."""
             with tracer.start_as_current_span(
                 "mcp.request",
-                attributes={"mcp.tool.name": "get_dagster_run_status"},
+                attributes={"mcp.tool.name": "get_run_status"},
             ):
                 with tracer.start_as_current_span(
                     "mcp.tool.execute",
-                    attributes={"mcp.tool.name": "get_dagster_run_status"},
+                    attributes={"mcp.tool.name": "get_run_status"},
                 ):
-                    with tracer.start_as_current_span("phlo.dagster.run.status"):
+                    with tracer.start_as_current_span("phlo.orchestrator.run.status"):
                         payload = client.get_run_status(run_id)
                         return {
                             "api_base_url": client.api_base_url,

@@ -297,6 +297,26 @@ class SchemaMigrationSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class WorkflowAuthoringSpec:
+    """Workflow authoring capability (registered provider)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
+class OrchestratorOperationsSpec:
+    """Orchestrator operation capability (registered provider)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
 class DataMigrationSourceSpec:
     """Data migration source adapter capability (registered provider)."""
 
