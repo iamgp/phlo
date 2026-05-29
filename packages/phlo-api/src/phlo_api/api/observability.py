@@ -43,7 +43,7 @@ Example:
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
@@ -241,9 +241,9 @@ def get_platform_metrics(
 
 @router.get("/alerts", response_model=list[AlertResponse] | dict)
 def get_recent_alerts(
-    limit: int = Query(default=10, le=100),
-    cursor: str | None = Query(default=None),
-    backend: str | None = Query(default=None, description="Observability backend name"),
+    limit: Annotated[int, Query(le=100)] = 10,
+    cursor: Annotated[str | None, Query()] = None,
+    backend: Annotated[str | None, Query(description="Observability backend name")] = None,
 ) -> list[AlertResponse] | dict[str, Any]:
     """Get recent alerts from observability backend.
 
@@ -281,7 +281,7 @@ def get_recent_alerts(
 
 @router.get("/dashboards", response_model=list[DashboardLinkResponse] | dict)
 def get_dashboard_links(
-    backend: str | None = Query(default=None, description="Observability backend name"),
+    backend: Annotated[str | None, Query(description="Observability backend name")] = None,
 ) -> list[DashboardLinkResponse] | dict[str, str]:
     """Get dashboard links from observability backend.
 
@@ -314,7 +314,7 @@ def get_dashboard_links(
 @router.get("/links/logs")
 def get_logs_query_link(
     service: str | None = None,
-    backend: str | None = Query(default=None, description="Observability backend name"),
+    backend: Annotated[str | None, Query(description="Observability backend name")] = None,
 ) -> dict[str, str | None]:
     """Get log query link from observability backend.
 
@@ -341,7 +341,7 @@ def get_logs_query_link(
 @router.get("/links/metrics")
 def get_metrics_query_link(
     metric: str | None = None,
-    backend: str | None = Query(default=None, description="Observability backend name"),
+    backend: Annotated[str | None, Query(description="Observability backend name")] = None,
 ) -> dict[str, str | None]:
     """Get metrics query link from observability backend.
 
@@ -368,9 +368,9 @@ def get_metrics_query_link(
 @router.get("/traces/runs/{run_id}", response_model=list[TraceSpanResponse] | dict)
 def get_run_trace_spans(
     run_id: str,
-    limit: int = Query(default=500, le=5000),
-    cursor: str | None = Query(default=None),
-    backend: str | None = Query(default=None, description="Observability backend name"),
+    limit: Annotated[int, Query(le=5000)] = 500,
+    cursor: Annotated[str | None, Query()] = None,
+    backend: Annotated[str | None, Query(description="Observability backend name")] = None,
 ) -> list[TraceSpanResponse] | dict[str, Any]:
     """Get OTEL spans correlated to a run id from the observability backend."""
     try:
@@ -391,17 +391,17 @@ def get_run_trace_spans(
 
 @router.get("/traces", response_model=list[TraceSpanResponse] | dict)
 def get_trace_spans(
-    run_id: str | None = Query(default=None),
-    asset_key: str | None = Query(default=None),
-    job_name: str | None = Query(default=None),
-    service_name: str | None = Query(default=None),
-    span_name: str | None = Query(default=None),
-    status_code: str | None = Query(default=None),
-    start_time: str | None = Query(default=None),
-    end_time: str | None = Query(default=None),
-    limit: int = Query(default=500, le=5000),
-    cursor: str | None = Query(default=None),
-    backend: str | None = Query(default=None, description="Observability backend name"),
+    run_id: Annotated[str | None, Query()] = None,
+    asset_key: Annotated[str | None, Query()] = None,
+    job_name: Annotated[str | None, Query()] = None,
+    service_name: Annotated[str | None, Query()] = None,
+    span_name: Annotated[str | None, Query()] = None,
+    status_code: Annotated[str | None, Query()] = None,
+    start_time: Annotated[str | None, Query()] = None,
+    end_time: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(le=5000)] = 500,
+    cursor: Annotated[str | None, Query()] = None,
+    backend: Annotated[str | None, Query(description="Observability backend name")] = None,
 ) -> list[TraceSpanResponse] | dict[str, Any]:
     """Get OTEL spans matching bounded observability filters."""
     try:

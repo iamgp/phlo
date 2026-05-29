@@ -29,6 +29,14 @@ WORKFLOW_WIZARD_PLUGIN_TYPES = (
     "resource_provider",
     "service",
 )
+WORKFLOW_WIZARD_FALLBACK_MODULES = (
+    "phlo_dlt.plugin",
+    "phlo_sling.plugin",
+    "phlo_dbt.plugin",
+    "phlo_pandera.plugin",
+    "phlo_openmetadata.plugin",
+    "phlo_dagster.plugin",
+)
 
 
 class V2WorkflowWizardSelection(BaseModel):
@@ -121,6 +129,24 @@ def list_workflow_wizard_contributions() -> list[dict[str, Any]]:
                         contributions.append(contribution)
                 except Exception:
                     continue
+    for module_name in WORKFLOW_WIZARD_FALLBACK_MODULES:
+        try:
+            module = importlib.import_module(module_name)
+        except Exception:
+            continue
+        loader = getattr(module, "get_workflow_wizard_contributions", None)
+        if not callable(loader):
+            continue
+        try:
+            for item in loader():
+                contribution = item.to_browser_dict()
+                contribution_id = str(contribution.get("id") or "")
+                if contribution_id in seen_ids:
+                    continue
+                seen_ids.add(contribution_id)
+                contributions.append(contribution)
+        except Exception:
+            continue
     return contributions
 
 
