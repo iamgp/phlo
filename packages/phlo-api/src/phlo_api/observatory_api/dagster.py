@@ -36,15 +36,12 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-from dagster_graphql.client.query import (
-    LAUNCH_PIPELINE_EXECUTION_MUTATION,
-    LAUNCH_PIPELINE_REEXECUTION_MUTATION,
-)
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from phlo.config.env import project_env_value
 from phlo.config.network import resolve_url
+from phlo.helpers.partitions import partition_range as _partition_range
 from phlo.logging import get_bound_correlation_context, get_logger
 from phlo.security.service_identity import build_service_headers
 from phlo_api.observatory_api.quality import fetch_quality_snapshot
@@ -291,6 +288,45 @@ query Runs($limit: Int!) {
 }
 """
 
+PARTITION_KEYS_QUERY = """
+query PartitionKeys($assetKey: AssetKeyInput!) {
+    assetNodeOrError(assetKey: $assetKey) {
+        __typename
+        ... on AssetNode {
+            partitionKeysByDimension { name partitionKeys }
+        }
+        ... on AssetNotFoundError { message }
+    }
+}
+"""
+
+TERMINATE_RUN_MUTATION = """
+mutation TerminateRun($runId: String!) {
+    terminateRun(runId: $runId) {
+        __typename
+        ... on TerminateRunSuccess {
+            run { runId status }
+        }
+        ... on TerminateRunFailure { message }
+        ... on RunNotFoundError { message }
+        ... on PythonError { message }
+    }
+}
+"""
+
+LAUNCH_PARTITION_BACKFILL_MUTATION = """
+mutation LaunchPartitionBackfill($backfillParams: LaunchBackfillParams!) {
+    launchPartitionBackfill(backfillParams: $backfillParams) {
+        __typename
+        ... on LaunchBackfillSuccess {
+            backfillId
+        }
+        ... on PartitionSetNotFoundError { message }
+        ... on PythonError { message }
+    }
+}
+"""
+
 
 # --- Pydantic Models ---
 
@@ -380,6 +416,7 @@ class MaterializeAssetRequest(BaseModel):
     repository_location_name: str | None = None
     repository_name: str | None = None
     run_config: dict[str, Any] | None = None
+    idempotency_key: str | None = None
     tags: dict[str, str] = Field(default_factory=dict)
 
 
@@ -388,6 +425,26 @@ class RetryRunRequest(BaseModel):
 
     dry_run: bool = True
     strategy: str = "FROM_FAILURE"
+    idempotency_key: str | None = None
+    tags: dict[str, str] = Field(default_factory=dict)
+
+
+class CancelRunRequest(BaseModel):
+    """Request to cancel one Dagster run."""
+
+    reason: str | None = None
+
+
+class BackfillAssetRequest(BaseModel):
+    """Request to launch or plan a partition backfill for one asset."""
+
+    dry_run: bool = True
+    partitions: list[str] = Field(default_factory=list)
+    partition_range: dict[str, str] | None = None
+    partition_set_name: str | None = None
+    repository_location_name: str | None = None
+    repository_name: str | None = None
+    idempotency_key: str | None = None
     tags: dict[str, str] = Field(default_factory=dict)
 
 
@@ -414,6 +471,13 @@ class DagsterRunStatus(BaseModel):
     start_time: float | None = None
     end_time: float | None = None
     tags: dict[str, str] = {}
+
+
+class DagsterPartitionStatus(BaseModel):
+    """Materialization status for one asset partition."""
+
+    partition_key: str
+    status: str = "UNKNOWN"
 
 
 class GraphNode(BaseModel):
@@ -1049,41 +1113,19 @@ async def materialize_asset(
                 details={"op_names": op_names},
             )
 
-        tags = {
-            "phlo/operation": "materialize_asset",
-            "phlo/asset_key": asset_key_path,
-            **payload.tags,
-        }
-        if payload.partition_key:
-            tags.setdefault("dagster/partition", payload.partition_key)
+        from phlo_dagster.operations import launch_materialize
 
-        execution_params: dict[str, Any] = {
-            "selector": {
-                "pipelineName": payload.job_name,
-                "repositoryLocationName": payload.repository_location_name,
-                "repositoryName": payload.repository_name,
-                "assetSelection": [{"path": asset_key_path.split("/")}],
-            },
-            "runConfigData": payload.run_config or {},
-            "mode": "default",
-            "executionMetadata": {"tags": _tags_for_execution(tags)},
-        }
-        result = await graphql_request(
-            resolve_dagster_url(dagster_url),
-            LAUNCH_PIPELINE_EXECUTION_MUTATION,
-            {"executionParams": execution_params},
-            initiator="observatory",
-        )
-        if result.get("errors"):
-            return {"error": result["errors"][0].get("message", "GraphQL error")}
-        launch_result = result.get("data", {}).get("launchPipelineExecution", {})
-        return _launch_operation_response(
-            operation="materialize_asset",
-            dry_run=False,
-            launch_result=launch_result,
+        result = await launch_materialize(
+            dagster_url=resolve_dagster_url(dagster_url),
             asset_key_path=asset_key_path,
+            job_name=payload.job_name,
+            repository_location_name=payload.repository_location_name,
+            repository_name=payload.repository_name,
             partition_key=payload.partition_key,
+            run_config=payload.run_config,
+            tags=payload.tags,
         )
+        return DagsterOperationResponse(**result.to_dict())
 
     return DagsterOperationResponse(
         operation="materialize_asset",
@@ -1099,6 +1141,27 @@ async def materialize_asset(
         ),
         details={"op_names": op_names},
     )
+
+
+@router.get(
+    "/assets/{asset_key_path:path}/partitions",
+    response_model=list[DagsterPartitionStatus] | dict,
+)
+async def list_partitions(
+    asset_key_path: str,
+    dagster_url: str | None = None,
+) -> list[DagsterPartitionStatus] | dict[str, str]:
+    """List partition keys for an asset."""
+    try:
+        from phlo_dagster.operations import list_partitions as list_dagster_partitions
+
+        partitions = await list_dagster_partitions(
+            dagster_url=resolve_dagster_url(dagster_url),
+            asset_key_path=asset_key_path,
+        )
+        return [DagsterPartitionStatus(**partition) for partition in partitions]
+    except Exception as exc:
+        return {"error": str(exc)}
 
 
 @router.get("/assets/{asset_key_path:path}", response_model=AssetDetails | dict)
@@ -1298,34 +1361,15 @@ async def retry_run(
                 details={"run_status": run_status},
             )
 
-        tags = {
-            "phlo/operation": "retry_failed_run",
-            "phlo/parent_run_id": run_id,
-            **payload.tags,
-        }
-        result = await graphql_request(
-            resolve_dagster_url(dagster_url),
-            LAUNCH_PIPELINE_REEXECUTION_MUTATION,
-            {
-                "executionParams": None,
-                "reexecutionParams": {
-                    "parentRunId": run_id,
-                    "strategy": payload.strategy,
-                    "extraTags": _tags_for_execution(tags),
-                    "useParentRunTags": True,
-                },
-            },
-            initiator="observatory",
+        from phlo_dagster.operations import launch_retry
+
+        result = await launch_retry(
+            dagster_url=resolve_dagster_url(dagster_url),
+            run_id=run_id,
+            strategy=payload.strategy,
+            tags=payload.tags,
         )
-        if result.get("errors"):
-            return {"error": result["errors"][0].get("message", "GraphQL error")}
-        launch_result = result.get("data", {}).get("launchPipelineReexecution", {})
-        return _launch_operation_response(
-            operation="retry_failed_run",
-            dry_run=False,
-            launch_result=launch_result,
-            fallback_run_id=run_id,
-        )
+        return DagsterOperationResponse(**result.to_dict())
 
     return DagsterOperationResponse(
         operation="retry_failed_run",
@@ -1340,6 +1384,95 @@ async def retry_run(
         ),
         details={"run_status": run_status},
     )
+
+
+@router.post("/runs/{run_id}/cancel", response_model=DagsterOperationResponse | dict)
+async def cancel_run(
+    run_id: str,
+    payload: CancelRunRequest,
+    dagster_url: str | None = None,
+) -> DagsterOperationResponse | dict[str, str]:
+    """Request cancellation for a Dagster run."""
+    from phlo_dagster.operations import terminate
+
+    result = await terminate(
+        dagster_url=resolve_dagster_url(dagster_url),
+        run_id=run_id,
+        reason=payload.reason,
+    )
+    return DagsterOperationResponse(**result.to_dict())
+
+
+@router.post(
+    "/assets/{asset_key_path:path}/backfill", response_model=DagsterOperationResponse | dict
+)
+async def backfill_asset(
+    asset_key_path: str,
+    payload: BackfillAssetRequest,
+    dagster_url: str | None = None,
+) -> DagsterOperationResponse | dict[str, str]:
+    """Validate or request a partition backfill for one asset."""
+    partition_keys = _backfill_partition_keys(payload)
+    if not partition_keys:
+        return DagsterOperationResponse(
+            operation="backfill_asset",
+            dry_run=payload.dry_run,
+            accepted=False,
+            asset_key_path=asset_key_path,
+            status="MISSING_PARTITIONS",
+            message="Backfill requires explicit partitions or a partition_range with start and end.",
+            details={},
+        )
+
+    if payload.dry_run:
+        return DagsterOperationResponse(
+            operation="backfill_asset",
+            dry_run=True,
+            accepted=True,
+            asset_key_path=asset_key_path,
+            status="DRY_RUN",
+            message="Backfill request is valid.",
+            details={"partitions": partition_keys, "partition_count": len(partition_keys)},
+        )
+
+    if not payload.partition_set_name:
+        return DagsterOperationResponse(
+            operation="backfill_asset",
+            dry_run=False,
+            accepted=False,
+            asset_key_path=asset_key_path,
+            status="MISSING_PARTITION_SET_NAME",
+            message="partition_set_name is required to launch a live Dagster partition backfill.",
+            details={"partitions": partition_keys, "partition_count": len(partition_keys)},
+        )
+
+    from phlo_dagster.operations import launch_backfill
+
+    result = await launch_backfill(
+        dagster_url=resolve_dagster_url(dagster_url),
+        asset_key_path=asset_key_path,
+        partition_set_name=payload.partition_set_name,
+        partition_keys=partition_keys,
+        repository_location_name=payload.repository_location_name,
+        repository_name=payload.repository_name,
+        tags=payload.tags,
+    )
+    return DagsterOperationResponse(**result.to_dict())
+
+
+def _backfill_partition_keys(payload: BackfillAssetRequest) -> list[str]:
+    if payload.partitions:
+        return [str(partition) for partition in payload.partitions]
+    if not payload.partition_range:
+        return []
+    start = payload.partition_range.get("start")
+    end = payload.partition_range.get("end")
+    if not start or not end:
+        return []
+    try:
+        return _partition_range(start, end)
+    except ValueError:
+        return []
 
 
 @router.get("/graph", response_model=AssetGraphPayload | dict)

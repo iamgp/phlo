@@ -17,6 +17,7 @@ uv pip install -e packages/phlo-mcp
 ## Exposed tools
 
 - `get_platform_health`
+- `list_plugins`
 - `get_service_status`
 - `get_recent_alerts`
 - `get_dashboard_links`
@@ -36,6 +37,14 @@ Optional guarded operational tools:
 
 - `materialize_asset`
 - `retry_failed_run`
+- `cancel_run`
+- `backfill_asset`
+- `list_partitions`
+- `create_workflow`
+- `validate_workflow`
+- `validate_schema`
+- `lint_project`
+- `install_plugin`
 - `get_dagster_run_status`
 
 Resources:
@@ -51,6 +60,9 @@ Resources:
 - `phlo://runtime/contracts/{table_name}`
 - `phlo://runtime/dashboards`
 - `phlo://docs/packages/{package_name}`
+- `phlo://docs/cli`
+- `phlo://docs/mcp/tools`
+- `phlo://docs/mcp/prompts`
 
 Run-level and materialization tools rely on the backing `phlo-api` having access
 to Dagster asset history, Loki log queries, and ClickStack OTEL trace storage.
@@ -88,11 +100,22 @@ phlo-mcp \
 ```
 
 Guarded operational tools are disabled by default. To expose asset
-materialization and run retry tools, set `PHLO_MCP_ENABLE_WRITE_TOOLS=true` or
-pass `--enable-write-tools` with an API token. Write tools return structured
-`audit_context` metadata and default to `dry_run=true` where supported. Current
-`phlo-api` operation routes support dry-run validation and run status; live
-Dagster launch and retry are intentionally not implemented yet.
+materialization, retry, cancel, backfill, and authoring tools, set
+`PHLO_MCP_ENABLE_WRITE_TOOLS=true` or pass `--enable-write-tools` with an API
+token. Write tools return structured `audit_context` metadata and default to
+`dry_run=true` where supported. `phlo-api` enforces scopes, idempotency keys,
+rate limits, and API-side audit logging before dispatching live Dagster
+operations through the `phlo-dagster` capability adapter.
+
+Required scopes:
+
+| Tool | Scope |
+|---|---|
+| read/inspect/search/log/trace tools | `lakehouse:read` |
+| `materialize_asset`, `retry_failed_run`, `cancel_run`, `backfill_asset` | `lakehouse:operate` |
+| `create_workflow`, `validate_workflow`, `validate_schema`, `lint_project` | `project:write` |
+| `install_plugin` | `admin` |
+| `list_partitions`, `get_dagster_run_status` | `lakehouse:read` |
 
 Claude Code example:
 

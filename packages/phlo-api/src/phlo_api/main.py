@@ -66,8 +66,10 @@ app.add_middleware(
 
 # Auto-discover and register API routers
 _ROUTERS = [
+    ("phlo_api.api.authoring", "/api/authoring"),
     ("phlo_api.api.maintenance", "/api/maintenance"),
     ("phlo_api.api.observability", "/api/observability"),
+    ("phlo_api.observatory_api.loki", "/api/loki"),
     ("phlo_api.observatory_api.v2", "/api/observatory/v2"),
 ]
 

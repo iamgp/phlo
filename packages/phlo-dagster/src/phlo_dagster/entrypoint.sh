@@ -82,5 +82,12 @@ EOF
 
 touch /tmp/phlo-dagster-ready
 
+# Execute Dagster from the mounted project root when available. User workflows
+# often read local files relative to the project (for example data/*.csv), while
+# DAGSTER_HOME intentionally remains /opt/dagster for instance state.
+if [ -n "$PHLO_PROJECT_PATH" ] && [ -d "$PHLO_PROJECT_PATH" ]; then
+    cd "$PHLO_PROJECT_PATH"
+fi
+
 # Execute the main command
 exec "$@"

@@ -109,6 +109,12 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         help="Call guarded write tools in dry-run mode; requires live phlo-api write endpoints",
     )
     parser.add_argument(
+        "--exercise-live-write-tools",
+        action="store_true",
+        default=_truthy_env("PHLO_MCP_SMOKE_EXERCISE_LIVE_WRITE_TOOLS"),
+        help="Call guarded write tools with dry_run=false against the selected smoke asset",
+    )
+    parser.add_argument(
         "--run-id",
         default=os.environ.get("PHLO_MCP_SMOKE_RUN_ID", _SMOKE_RUN_ID),
         help="Run id to query through the MCP trace-span tool",
@@ -375,20 +381,27 @@ async def _check_mcp_stdio(args: argparse.Namespace, repo_root: Path) -> None:
                 if args.require_materialization and not events:
                     raise SmokeFailure(f"asset {args.asset_key!r} returned no materializations")
 
-                if args.exercise_write_tools:
+                if args.exercise_write_tools or args.exercise_live_write_tools:
                     if not args.enable_write_tools or not args.api_token:
                         raise SmokeFailure(
-                            "--exercise-write-tools requires --enable-write-tools and --api-token"
+                            "write-tool smoke requires --enable-write-tools and --api-token"
                         )
                     materialize = await _call_tool_json(
                         session,
                         "materialize_asset",
-                        {"asset_key_path": args.asset_key, "dry_run": True},
+                        {
+                            "asset_key_path": args.asset_key,
+                            "dry_run": not args.exercise_live_write_tools,
+                            "idempotency_key": "phlo-mcp-smoke-materialize",
+                        },
                     )
                     audit = (
                         materialize.get("audit_context") if isinstance(materialize, dict) else None
                     )
-                    if not isinstance(audit, dict) or audit.get("dry_run") is not True:
+                    if (
+                        not isinstance(audit, dict)
+                        or audit.get("dry_run") is args.exercise_live_write_tools
+                    ):
                         raise SmokeFailure(
                             f"materialize_asset returned unexpected audit context: {materialize}"
                         )

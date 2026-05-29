@@ -577,9 +577,14 @@ def test_v2_actions_endpoint_routes_add_service_action(monkeypatch, tmp_path: Pa
     assert commands == [["phlo", "services", "add", "pgweb"]]
 
 
-def test_v2_asset_operational_routes_use_v2_paths(monkeypatch) -> None:
+def test_v2_asset_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -> None:
     from phlo_api.observatory_api import dagster
 
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        '{"operate-token":{"subject":"agent","scopes":["lakehouse:operate"]}}',
+    )
     calls: list[tuple[str, str, object]] = []
 
     async def fake_history(asset_id: str, limit: int = 10, dagster_url: str | None = None):
@@ -599,23 +604,55 @@ def test_v2_asset_operational_routes_use_v2_paths(monkeypatch) -> None:
             "details": {},
         }
 
+    async def fake_backfill(asset_id: str, payload, dagster_url: str | None = None):
+        calls.append(("backfill", asset_id, payload.partitions))
+        return {
+            "operation": "backfill_asset",
+            "dry_run": payload.dry_run,
+            "accepted": True,
+            "asset_key_path": asset_id,
+            "status": "DRY_RUN",
+            "message": "Backfill request is valid.",
+            "details": {"partitions": payload.partitions},
+        }
+
+    async def fake_partitions(asset_id: str, dagster_url: str | None = None):
+        calls.append(("partitions", asset_id, None))
+        return [{"partition_key": "2026-04-26", "status": "UNKNOWN"}]
+
     monkeypatch.setattr(dagster, "get_materialization_history", fake_history)
     monkeypatch.setattr(dagster, "materialize_asset", fake_materialize)
+    monkeypatch.setattr(dagster, "backfill_asset", fake_backfill)
+    monkeypatch.setattr(dagster, "list_partitions", fake_partitions)
 
     client = TestClient(app)
+    headers = {"Authorization": "Bearer operate-token"}
     history = client.get("/api/observatory/v2/assets/silver/orders/materializations?limit=3")
     materialize = client.post(
         "/api/observatory/v2/assets/silver/orders/materialize",
-        json={"dry_run": True, "partition_key": "2026-04-26"},
+        json={"dry_run": True, "partition": "2026-04-26"},
+        headers=headers,
     )
+    backfill = client.post(
+        "/api/observatory/v2/assets/silver/orders/backfill",
+        json={"dry_run": True, "partitions": ["2026-04-26"]},
+        headers=headers,
+    )
+    partitions = client.get("/api/observatory/v2/assets/silver/orders/partitions")
 
     assert history.status_code == 200
     assert history.json()[0]["run_id"] == "run-123"
     assert materialize.status_code == 200
     assert materialize.json()["asset_key_path"] == "silver/orders"
+    assert backfill.status_code == 200
+    assert backfill.json()["operation"] == "backfill_asset"
+    assert partitions.status_code == 200
+    assert partitions.json()[0]["partition_key"] == "2026-04-26"
     assert calls == [
         ("history", "silver/orders", 3),
         ("materialize", "silver/orders", "2026-04-26"),
+        ("backfill", "silver/orders", ["2026-04-26"]),
+        ("partitions", "silver/orders", None),
     ]
 
 
@@ -639,9 +676,14 @@ def test_v2_asset_materializations_clamps_limit(monkeypatch) -> None:
     assert calls == [1, 200]
 
 
-def test_v2_run_operational_routes_use_v2_paths(monkeypatch) -> None:
+def test_v2_run_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -> None:
     from phlo_api.observatory_api import dagster
 
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        '{"operate-token":{"subject":"agent","scopes":["lakehouse:operate"]}}',
+    )
     calls: list[tuple[str, str, object]] = []
 
     async def fake_status(run_id: str, dagster_url: str | None = None):
@@ -660,21 +702,132 @@ def test_v2_run_operational_routes_use_v2_paths(monkeypatch) -> None:
             "details": {"run_status": "FAILURE"},
         }
 
+    async def fake_cancel(run_id: str, payload, dagster_url: str | None = None):
+        calls.append(("cancel", run_id, payload.reason))
+        return {
+            "operation": "cancel_run",
+            "dry_run": False,
+            "accepted": True,
+            "run_id": run_id,
+            "status": "CANCELING",
+            "message": "Dagster accepted run cancellation.",
+            "details": {},
+        }
+
     monkeypatch.setattr(dagster, "get_run_status", fake_status)
     monkeypatch.setattr(dagster, "retry_run", fake_retry)
+    monkeypatch.setattr(dagster, "cancel_run", fake_cancel)
 
     client = TestClient(app)
+    headers = {"Authorization": "Bearer operate-token"}
     status = client.get("/api/observatory/v2/runs/run-123/status")
-    retry = client.post("/api/observatory/v2/runs/run-123/retry", json={"dry_run": False})
+    retry = client.post(
+        "/api/observatory/v2/runs/run-123/retry", json={"dry_run": False}, headers=headers
+    )
+    cancel = client.post(
+        "/api/observatory/v2/runs/run-123/cancel", json={"reason": "stuck"}, headers=headers
+    )
 
     assert status.status_code == 200
     assert status.json()["status"] == "FAILURE"
     assert retry.status_code == 200
     assert retry.json()["run_id"] == "run-123"
+    assert cancel.status_code == 200
+    assert cancel.json()["status"] == "CANCELING"
     assert calls == [
         ("status", "run-123", None),
         ("retry", "run-123", False),
+        ("cancel", "run-123", "stuck"),
     ]
+
+
+def test_v2_operation_routes_enforce_scope_idempotency_audit_and_rate_limit(
+    monkeypatch, tmp_path: Path
+) -> None:
+    from phlo_api.observatory_api import dagster
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv("PHLO_API_RATE_LIMIT_MATERIALIZE", "2")
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        json.dumps(
+            {
+                "read-token": {"subject": "reader", "scopes": ["lakehouse:read"]},
+                "operate-token": {"subject": "operator-idem", "scopes": ["lakehouse:operate"]},
+                "limited-token": {"subject": "operator-limited", "scopes": ["lakehouse:operate"]},
+            }
+        ),
+    )
+    calls: list[str] = []
+
+    async def fake_materialize(asset_id: str, payload, dagster_url: str | None = None):
+        calls.append(asset_id)
+        return {
+            "operation": "materialize_asset",
+            "dry_run": payload.dry_run,
+            "accepted": True,
+            "run_id": f"run-{len(calls)}",
+            "asset_key_path": asset_id,
+            "partition_key": payload.partition_key,
+            "status": "STARTED",
+            "message": "Dagster accepted materialize_asset.",
+            "details": {},
+        }
+
+    monkeypatch.setattr(dagster, "materialize_asset", fake_materialize)
+    client = TestClient(app)
+
+    missing = client.post(
+        "/api/observatory/v2/assets/silver/orders/materialize",
+        json={"dry_run": False},
+    )
+    forbidden = client.post(
+        "/api/observatory/v2/assets/silver/orders/materialize",
+        json={"dry_run": False},
+        headers={"Authorization": "Bearer read-token"},
+    )
+    first = client.post(
+        "/api/observatory/v2/assets/silver/orders/materialize",
+        json={"dry_run": False, "idempotency_key": "same-key"},
+        headers={"Authorization": "Bearer operate-token"},
+    )
+    replay = client.post(
+        "/api/observatory/v2/assets/silver/orders/materialize",
+        json={"dry_run": False, "idempotency_key": "same-key"},
+        headers={"Authorization": "Bearer operate-token"},
+    )
+    limited_first = client.post(
+        "/api/observatory/v2/assets/silver/orders/materialize",
+        json={"dry_run": True},
+        headers={"Authorization": "Bearer limited-token"},
+    )
+    limited_second = client.post(
+        "/api/observatory/v2/assets/silver/orders/materialize",
+        json={"dry_run": True},
+        headers={"Authorization": "Bearer limited-token"},
+    )
+    limited_third = client.post(
+        "/api/observatory/v2/assets/silver/orders/materialize",
+        json={"dry_run": True},
+        headers={"Authorization": "Bearer limited-token"},
+    )
+
+    assert missing.status_code == 401
+    assert forbidden.status_code == 403
+    assert first.status_code == 200
+    assert replay.status_code == 200
+    assert first.json()["run_id"] == "run-1"
+    assert replay.json()["run_id"] == "run-1"
+    assert limited_first.status_code == 200
+    assert limited_second.status_code == 200
+    assert limited_third.status_code == 429
+    assert calls == ["silver/orders", "silver/orders", "silver/orders"]
+
+    audit_path = tmp_path / ".phlo" / "audit" / "operations.jsonl"
+    assert audit_path.exists()
+    records = [json.loads(line) for line in audit_path.read_text().splitlines()]
+    assert any(record["operation"] == "materialize_asset" for record in records)
+    assert all(record["subject"] != "read-token" for record in records)
 
 
 def test_v2_available_missing_package_service_add_is_disabled(monkeypatch) -> None:
@@ -920,7 +1073,12 @@ def test_v2_service_action_records_subprocess_result(
     assert operations[0]["status"] == "succeeded"
 
 
-def test_v2_package_install_uses_trusted_registry_package(monkeypatch) -> None:
+def test_v2_package_install_uses_trusted_registry_package(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        '{"admin-token":{"subject":"admin","scopes":["admin"]}}',
+    )
     monkeypatch.setattr(
         v2,
         "get_registry_data",
@@ -946,6 +1104,7 @@ def test_v2_package_install_uses_trusted_registry_package(monkeypatch) -> None:
     response = TestClient(app).post(
         "/api/observatory/v2/packages/install",
         json={"package_name": "openmetadata"},
+        headers={"Authorization": "Bearer admin-token"},
     )
 
     assert response.status_code == 200
@@ -955,12 +1114,18 @@ def test_v2_package_install_uses_trusted_registry_package(monkeypatch) -> None:
     assert installed == ["phlo-openmetadata==0.1.0"]
 
 
-def test_v2_package_install_rejects_unknown_package(monkeypatch) -> None:
+def test_v2_package_install_rejects_unknown_package(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        '{"admin-token":{"subject":"admin","scopes":["admin"]}}',
+    )
     monkeypatch.setattr(v2, "get_registry_data", lambda: {"plugins": {}})
 
     response = TestClient(app).post(
         "/api/observatory/v2/packages/install",
         json={"package_name": "not-a-phlo-package"},
+        headers={"Authorization": "Bearer admin-token"},
     )
 
     assert response.status_code == 400

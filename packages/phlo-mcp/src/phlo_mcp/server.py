@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +12,7 @@ from opentelemetry import trace
 
 from phlo_mcp.api_client import PhloApiClient
 from phlo_mcp.config import McpConfig, config_from_env
+from phlo_mcp.models import ToolContract
 from phlo_mcp.run_analysis import (
     render_run_trace_tree as render_log_trace_tree_text,
     render_span_tree,
@@ -149,6 +152,38 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
         """Read package documentation from the local docs tree."""
         return _read_package_doc(package_name)
 
+    @mcp.resource("phlo://docs/mcp/tools", name="mcp_tools", mime_type="application/json")
+    def mcp_tools() -> list[dict[str, Any]]:
+        """List registered MCP tools for self-introspection."""
+        return [
+            ToolContract(
+                name=tool.name,
+                description=tool.description,
+                input_schema=getattr(tool, "parameters", None),
+                output_schema=getattr(tool, "output_schema", None),
+                required_scope=_required_scope_for_tool(tool.name),
+            ).model_dump(mode="json")
+            for tool in mcp._tool_manager.list_tools()
+        ]
+
+    @mcp.resource("phlo://docs/mcp/prompts", name="mcp_prompts", mime_type="application/json")
+    def mcp_prompts() -> list[dict[str, Any]]:
+        """List registered MCP prompts for self-introspection."""
+        return [
+            {"name": prompt.name, "description": prompt.description}
+            for prompt in mcp._prompt_manager.list_prompts()
+        ]
+
+    @mcp.resource("phlo://docs/cli", name="cli_docs", mime_type="text/markdown")
+    def cli_docs() -> str:
+        """Return a lightweight CLI command index."""
+        from phlo.cli.main import cli
+
+        lines = ["# Phlo CLI", ""]
+        for name, command in sorted(cli.commands.items()):
+            lines.append(f"- `phlo {name}` — {command.short_help or command.help or ''}")
+        return "\n".join(lines)
+
     def _write_audit_context(
         operation: str, target: dict[str, Any], dry_run: bool
     ) -> dict[str, Any]:
@@ -159,6 +194,78 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
             "authenticated": bool(resolved.api_token),
             "api_base_url": client.api_base_url,
         }
+
+    def _append_audit_record(audit_context: dict[str, Any]) -> None:
+        audit_dir = Path.cwd() / ".phlo" / "audit"
+        audit_dir.mkdir(parents=True, exist_ok=True)
+        record = {"timestamp": datetime.now(UTC).isoformat(), **audit_context}
+        with (audit_dir / "operations.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, sort_keys=True) + "\n")
+
+    def _required_scope_for_tool(tool_name: str) -> str | None:
+        if tool_name in {
+            "materialize_asset",
+            "retry_failed_run",
+            "cancel_run",
+            "backfill_asset",
+        }:
+            return "lakehouse:operate"
+        if tool_name in {"create_workflow", "validate_workflow", "validate_schema", "lint_project"}:
+            return "project:write"
+        if tool_name == "install_plugin":
+            return "admin"
+        if (
+            tool_name == "get_dagster_run_status"
+            or tool_name.startswith("get_")
+            or tool_name.startswith("search_")
+        ):
+            return "lakehouse:read"
+        return None
+
+    @mcp.prompt(name="phlo.debug_run")
+    def debug_run(run_id: str) -> str:
+        """Guide an agent through run failure debugging with Phlo tools."""
+        return (
+            f"Debug Phlo run {run_id}. Use get_dagster_run_status, get_run_logs, "
+            "get_run_trace_spans, and render_run_trace_tree. Identify the failing span or "
+            "log line, explain the likely root cause, and propose the smallest safe fix."
+        )
+
+    @mcp.prompt(name="phlo.triage_failure")
+    def triage_failure(asset_key: str) -> str:
+        """Guide an agent through asset failure triage."""
+        return (
+            f"Triage the latest failure for Phlo asset {asset_key}. Use "
+            "inspect_materialization, render_materialization_trace_tree, get_run_logs, and "
+            "get_trace_spans. Summarize impact, suspected cause, and remediation steps."
+        )
+
+    @mcp.prompt(name="phlo.audit_asset")
+    def audit_asset(asset_key: str) -> str:
+        """Guide an agent through an asset health audit."""
+        return (
+            f"Audit Phlo asset {asset_key}. Inspect asset metadata, schema, recent "
+            "materializations, traces, logs, and downstream impact. Return risks, evidence, "
+            "and prioritized fixes."
+        )
+
+    @mcp.prompt(name="phlo.plan_backfill")
+    def plan_backfill(asset_key: str, partition_range: str) -> str:
+        """Guide an agent through safe backfill planning."""
+        return (
+            f"Plan a safe backfill for Phlo asset {asset_key} over {partition_range}. Use "
+            "list_partitions and backfill_asset with dry_run=true first. Call out expected "
+            "partitions, caveats, and the exact live command only if the plan is safe."
+        )
+
+    @mcp.prompt(name="phlo.scaffold_workflow")
+    def scaffold_workflow(domain: str, table: str) -> str:
+        """Guide an agent through workflow scaffolding once authoring tools are available."""
+        return (
+            f"Scaffold a Phlo workflow for domain {domain} and table {table}. Prefer MCP "
+            "authoring tools when available; otherwise inspect templates and provide a "
+            "minimal workflow plan with validation and materialization steps."
+        )
 
     @mcp.tool()
     def get_platform_health() -> dict[str, Any]:
@@ -174,6 +281,12 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 with tracer.start_as_current_span("phlo.observability.health"):
                     payload = client.get_platform_health()
                     return {"api_base_url": client.api_base_url, "payload": payload}
+
+    @mcp.tool()
+    def list_plugins() -> dict[str, Any]:
+        """List installed Phlo plugins through phlo-api."""
+        payload = client.get_plugins()
+        return {"api_base_url": client.api_base_url, "payload": payload}
 
     @mcp.tool()
     def get_service_status() -> dict[str, Any]:
@@ -561,13 +674,151 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                         "source": "logs",
                     }
 
+    @mcp.tool()
+    def list_workflows(search: str | None = None, group: str | None = None) -> dict[str, Any]:
+        """List workflows discovered in the Phlo project."""
+        payload = client.list_workflows(search=search, group=group)
+        return {"api_base_url": client.api_base_url, "payload": payload}
+
+    @mcp.tool()
+    def list_templates() -> dict[str, Any]:
+        """List available Phlo project templates."""
+        payload = client.list_templates()
+        return {"api_base_url": client.api_base_url, "payload": payload}
+
+    @mcp.tool()
+    def lint_project() -> dict[str, Any]:
+        """Run lightweight Phlo project lint checks."""
+        payload = client.lint_project()
+        return {"api_base_url": client.api_base_url, "payload": payload}
+
+    @mcp.tool()
+    def run_doctor() -> dict[str, Any]:
+        """Run Phlo doctor through phlo-api and return JSON diagnostics."""
+        payload = client.run_doctor()
+        return {"api_base_url": client.api_base_url, "payload": payload}
+
+    @mcp.tool()
+    def search_assets(query: str, limit: int = 20, cursor: str | None = None) -> dict[str, Any]:
+        """Search Observatory assets."""
+        payload = client.search_assets(query, limit=limit, cursor=cursor)
+        return {"api_base_url": client.api_base_url, "query": query, "payload": payload}
+
+    @mcp.tool()
+    def search_contracts(query: str, limit: int = 20, cursor: str | None = None) -> dict[str, Any]:
+        """Search Phlo contracts."""
+        payload = client.search_contracts(query, limit=limit, cursor=cursor)
+        return {"api_base_url": client.api_base_url, "query": query, "payload": payload}
+
+    @mcp.tool()
+    def search_runs(
+        query: str | None = None, limit: int = 20, cursor: str | None = None
+    ) -> dict[str, Any]:
+        """Search recent orchestrator runs."""
+        payload = client.search_runs(query, limit=limit, cursor=cursor)
+        return {"api_base_url": client.api_base_url, "query": query, "payload": payload}
+
+    @mcp.tool()
+    def search_run_logs(
+        run_id: str,
+        query: str,
+        regex: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        cursor: str | None = None,
+        limit: int = 200,
+    ) -> dict[str, Any]:
+        """Search logs for one run using text and optional regex filters."""
+        payload = client.search_run_logs(
+            run_id,
+            query=query,
+            regex=regex,
+            since=since,
+            until=until,
+            cursor=cursor,
+            limit=limit,
+        )
+        return {"api_base_url": client.api_base_url, "run_id": run_id, "payload": payload}
+
+    @mcp.tool()
+    def follow_run_logs(run_id: str, timeout_seconds: int = 30) -> dict[str, Any]:
+        """Follow run logs through a bounded phlo-api Server-Sent Event stream."""
+        payload = client.follow_run_logs(
+            run_id,
+            timeout_seconds=timeout_seconds,
+            limit=min(max(timeout_seconds * 10, 1), 200),
+        )
+        return {"api_base_url": client.api_base_url, "run_id": run_id, "payload": payload}
+
+    @mcp.tool()
+    def get_quality_results(
+        asset_key: str | None = None, run_id: str | None = None
+    ) -> dict[str, Any]:
+        """Get quality results, optionally filtered by asset or run."""
+        payload = client.get_quality_results(asset_key=asset_key, run_id=run_id)
+        return {"api_base_url": client.api_base_url, "payload": payload}
+
+    @mcp.tool()
+    def get_lineage(asset_key: str, direction: str = "both", depth: int = 1) -> dict[str, Any]:
+        """Get bounded lineage around one asset."""
+        payload = client.get_lineage(asset_key, direction=direction, depth=depth)
+        return {"api_base_url": client.api_base_url, "asset_key": asset_key, "payload": payload}
+
+    @mcp.tool()
+    def diff_schema(
+        asset_key: str, from_run: str | None = None, to_run: str | None = None
+    ) -> dict[str, Any]:
+        """Diff schema snapshots for an asset across two runs."""
+        payload = client.diff_schema(asset_key, from_run=from_run, to_run=to_run)
+        return {"api_base_url": client.api_base_url, "asset_key": asset_key, "payload": payload}
+
     if resolved.enable_write_tools and resolved.api_token:
+
+        @mcp.tool()
+        def create_workflow(
+            domain: str,
+            table: str,
+            unique_key: str,
+            cron: str = "0 */1 * * *",
+            api_base_url: str | None = None,
+            fields: list[str] | None = None,
+        ) -> dict[str, Any]:
+            """Create a workflow scaffold through phlo-api when write tools are enabled."""
+            payload = client.create_workflow(
+                domain=domain,
+                table=table,
+                unique_key=unique_key,
+                cron=cron,
+                api_base_url=api_base_url,
+                fields=fields,
+            )
+            audit_context = _write_audit_context(
+                "create_workflow", {"domain": domain, "table": table}, False
+            )
+            _append_audit_record(audit_context)
+            return {"audit_context": audit_context, "payload": payload}
+
+        @mcp.tool()
+        def validate_workflow(workflow_path: str) -> dict[str, Any]:
+            """Validate a workflow file through phlo-api."""
+            payload = client.validate_workflow(workflow_path)
+            return {"api_base_url": client.api_base_url, "payload": payload}
+
+        @mcp.tool()
+        def validate_schema(schema_path: str) -> dict[str, Any]:
+            """Validate a schema file through phlo-api."""
+            payload = client.validate_schema(schema_path)
+            return {"api_base_url": client.api_base_url, "payload": payload}
 
         @mcp.tool()
         def materialize_asset(
             asset_key_path: str,
             dry_run: bool = True,
             partition_key: str | None = None,
+            job_name: str | None = None,
+            repository_location_name: str | None = None,
+            repository_name: str | None = None,
+            idempotency_key: str | None = None,
         ) -> dict[str, Any]:
             """Materialize a Dagster asset through phlo-api when write tools are enabled."""
             with tracer.start_as_current_span(
@@ -583,15 +834,25 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                         if partition_key:
                             target["partition_key"] = partition_key
                         audit_context = _write_audit_context("materialize_asset", target, dry_run)
+                        _append_audit_record(audit_context)
                         payload = client.materialize_asset(
                             asset_key_path,
                             dry_run=dry_run,
                             partition_key=partition_key,
+                            job_name=job_name,
+                            repository_location_name=repository_location_name,
+                            repository_name=repository_name,
+                            idempotency_key=idempotency_key,
                         )
                         return {"audit_context": audit_context, "payload": payload}
 
         @mcp.tool()
-        def retry_failed_run(run_id: str, dry_run: bool = True) -> dict[str, Any]:
+        def retry_failed_run(
+            run_id: str,
+            dry_run: bool = True,
+            strategy: str = "FROM_FAILURE",
+            idempotency_key: str | None = None,
+        ) -> dict[str, Any]:
             """Retry a Dagster run through phlo-api when write tools are enabled."""
             with tracer.start_as_current_span(
                 "mcp.request",
@@ -605,8 +866,92 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                         audit_context = _write_audit_context(
                             "retry_failed_run", {"run_id": run_id}, dry_run
                         )
-                        payload = client.retry_run(run_id, dry_run=dry_run)
+                        _append_audit_record(audit_context)
+                        payload = client.retry_run(
+                            run_id,
+                            dry_run=dry_run,
+                            strategy=strategy,
+                            idempotency_key=idempotency_key,
+                        )
                         return {"audit_context": audit_context, "payload": payload}
+
+        @mcp.tool()
+        def cancel_run(run_id: str, reason: str | None = None) -> dict[str, Any]:
+            """Cancel a Dagster run through phlo-api when write tools are enabled."""
+            with tracer.start_as_current_span(
+                "mcp.request",
+                attributes={"mcp.tool.name": "cancel_run"},
+            ):
+                with tracer.start_as_current_span(
+                    "mcp.tool.execute",
+                    attributes={"mcp.tool.name": "cancel_run"},
+                ):
+                    with tracer.start_as_current_span("phlo.dagster.run.cancel"):
+                        audit_context = _write_audit_context(
+                            "cancel_run", {"run_id": run_id}, False
+                        )
+                        _append_audit_record(audit_context)
+                        payload = client.cancel_run(run_id, reason=reason)
+                        return {"audit_context": audit_context, "payload": payload}
+
+        @mcp.tool()
+        def backfill_asset(
+            asset_key_path: str,
+            dry_run: bool = True,
+            partitions: list[str] | None = None,
+            partition_range: dict[str, str] | None = None,
+            partition_set_name: str | None = None,
+            repository_location_name: str | None = None,
+            repository_name: str | None = None,
+            idempotency_key: str | None = None,
+        ) -> dict[str, Any]:
+            """Plan or launch an asset partition backfill through phlo-api."""
+            with tracer.start_as_current_span(
+                "mcp.request",
+                attributes={"mcp.tool.name": "backfill_asset"},
+            ):
+                with tracer.start_as_current_span(
+                    "mcp.tool.execute",
+                    attributes={"mcp.tool.name": "backfill_asset"},
+                ):
+                    with tracer.start_as_current_span("phlo.dagster.asset.backfill"):
+                        target: dict[str, Any] = {"asset_key_path": asset_key_path}
+                        if partitions:
+                            target["partitions"] = partitions
+                        if partition_range:
+                            target["partition_range"] = partition_range
+                        audit_context = _write_audit_context("backfill_asset", target, dry_run)
+                        _append_audit_record(audit_context)
+                        payload = client.backfill_asset(
+                            asset_key_path,
+                            dry_run=dry_run,
+                            partitions=partitions,
+                            partition_range=partition_range,
+                            partition_set_name=partition_set_name,
+                            repository_location_name=repository_location_name,
+                            repository_name=repository_name,
+                            idempotency_key=idempotency_key,
+                        )
+                        return {"audit_context": audit_context, "payload": payload}
+
+        @mcp.tool()
+        def list_partitions(asset_key_path: str) -> dict[str, Any]:
+            """List partition keys for an asset through phlo-api."""
+            with tracer.start_as_current_span(
+                "mcp.request",
+                attributes={"mcp.tool.name": "list_partitions"},
+            ):
+                with tracer.start_as_current_span(
+                    "mcp.tool.execute",
+                    attributes={"mcp.tool.name": "list_partitions"},
+                ):
+                    with tracer.start_as_current_span("phlo.dagster.asset.partitions"):
+                        payload = client.list_partitions(asset_key_path)
+                        return {
+                            "api_base_url": client.api_base_url,
+                            "asset_key_path": asset_key_path,
+                            "partitions": payload,
+                        }
 
         @mcp.tool()
         def get_dagster_run_status(run_id: str) -> dict[str, Any]:
@@ -626,5 +971,15 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                             "run_id": run_id,
                             "payload": payload,
                         }
+
+        @mcp.tool()
+        def install_plugin(package_name: str) -> dict[str, Any]:
+            """Install a trusted Phlo plugin package through phlo-api."""
+            audit_context = _write_audit_context(
+                "install_plugin", {"package_name": package_name}, False
+            )
+            _append_audit_record(audit_context)
+            payload = client.install_plugin(package_name)
+            return {"audit_context": audit_context, "payload": payload}
 
     return mcp

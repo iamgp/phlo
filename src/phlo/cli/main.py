@@ -45,9 +45,11 @@ _DOCTOR_INVOCATION = _is_doctor_invocation(sys.argv)
 _INIT_INVOCATION = is_init_command_invocation(sys.argv)
 
 if not _DOCTOR_INVOCATION:
+    from phlo.cli.commands.audit import audit_group
     from phlo.cli.commands.authz import authz_group
     from phlo.cli.commands.compliance import compliance_group
     from phlo.cli.commands.governance import governance_group
+    from phlo.cli.commands.mcp import mcp_group
     from phlo.cli.commands.metrics import metrics_group
     from phlo.cli.commands.migrate import migrate_group
     from phlo.cli.commands.plugin import plugin_group
@@ -62,7 +64,9 @@ if not _DOCTOR_INVOCATION:
 
 @click.group()
 @click.version_option(version=version("phlo"), prog_name="phlo")
-def cli() -> None:
+@click.option("--quiet", is_flag=True, help="Reduce non-essential CLI output.")
+@click.option("--no-color", is_flag=True, help="Disable colorized terminal output.")
+def cli(quiet: bool, no_color: bool) -> None:
     """
     Phlo - Modern Data Lakehouse Framework
 
@@ -70,14 +74,21 @@ def cli() -> None:
 
     Documentation: https://github.com/iamgp/phlo
     """
+    if quiet:
+        os.environ["PHLO_QUIET"] = "1"
+    if no_color:
+        os.environ["NO_COLOR"] = "1"
+        os.environ["CLICOLOR"] = "0"
     setup_logging()
 
 
 cli.add_command(doctor_cmd)
 
 if not _DOCTOR_INVOCATION:
+    cli.add_command(audit_group)
     cli.add_command(services_group)
     cli.add_command(workflow_group)
+    cli.add_command(mcp_group)
     cli.add_command(plugin_group)
     cli.add_command(schema_migrate_group)
     cli.add_command(migrate_group)

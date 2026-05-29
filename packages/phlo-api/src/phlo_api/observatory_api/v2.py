@@ -17,10 +17,10 @@ import subprocess
 import sys
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from phlo_api.observatory_api.v2_actions import execute_v2_action
 from phlo_api.observatory_api.v2_cache import ReadModelCache
@@ -127,23 +127,61 @@ from phlo_api.observatory_api.v2_workflow_wizard import (
 )
 from phlo.cli.commands.plugin.install import resolve_install_target
 from phlo.plugins.registry_client import get_registry_data
+from phlo_api.api.operation_controls import (
+    audit_operation,
+    enforce_rate_limit,
+    replay_or_execute_async,
+    require_scope,
+)
+from phlo_api.pagination import paginate_items
 
 router = APIRouter(tags=["observatory-v2"])
 
 
+def _jsonable_result(result: Any) -> dict[str, Any]:
+    if isinstance(result, BaseModel):
+        return result.model_dump(mode="json")
+    if isinstance(result, dict):
+        return result
+    if hasattr(result, "model_dump"):
+        return result.model_dump(mode="json")
+    return {"result": result}
+
+
 class V2MaterializeAssetRequest(BaseModel):
+    model_config = {"populate_by_name": True}
+
     dry_run: bool = True
-    partition_key: str | None = None
+    partition_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("partition_key", "partition")
+    )
     job_name: str | None = None
     repository_location_name: str | None = None
     repository_name: str | None = None
     run_config: dict[str, Any] | None = None
+    idempotency_key: str | None = None
     tags: dict[str, str] = Field(default_factory=dict)
 
 
 class V2RetryRunRequest(BaseModel):
     dry_run: bool = True
     strategy: str = "FROM_FAILURE"
+    idempotency_key: str | None = None
+    tags: dict[str, str] = Field(default_factory=dict)
+
+
+class V2CancelRunRequest(BaseModel):
+    reason: str | None = None
+
+
+class V2BackfillAssetRequest(BaseModel):
+    dry_run: bool = True
+    partitions: list[str] = Field(default_factory=list)
+    partition_range: dict[str, str] | None = None
+    partition_set_name: str | None = None
+    repository_location_name: str | None = None
+    repository_name: str | None = None
+    idempotency_key: str | None = None
     tags: dict[str, str] = Field(default_factory=dict)
 
 
@@ -2543,14 +2581,19 @@ def get_v2_operation_detail(operation_id: str) -> V2OperationDetail:
     return _load_operation_detail(operation_id)
 
 
-@router.get("/runs", response_model=V2RunList)
-def get_v2_runs() -> V2RunList:
+@router.get("/runs", response_model=V2RunList, response_model_exclude_none=True)
+def get_v2_runs(limit: int = 100, cursor: str | None = None, q: str | None = None) -> V2RunList:
     """List provider-neutral orchestrator runs."""
-    return _cached_read_model(
+    result = _cached_read_model(
         "runs",
         _FAST_READ_MODEL_TTL_SECONDS,
         lambda: V2RunList(items=_load_runs()),
     )
+    items = result.items
+    if q:
+        items = [item for item in items if q.lower() in item.model_dump_json().lower()]
+    page, next_cursor = paginate_items(items, limit=limit, cursor=cursor)
+    return V2RunList(items=page, next_cursor=next_cursor)
 
 
 @router.get("/runs/{run_id:path}/status")
@@ -2562,11 +2605,54 @@ async def get_v2_run_status(run_id: str) -> Any:
 
 
 @router.post("/runs/{run_id:path}/retry")
-async def post_v2_run_retry(run_id: str, request: V2RetryRunRequest) -> Any:
+async def post_v2_run_retry(run_id: str, request: V2RetryRunRequest, http_request: Request) -> Any:
     """Validate or request retry for a failed run through the active orchestrator provider."""
     from phlo_api.observatory_api.dagster import RetryRunRequest, retry_run
 
-    return await retry_run(run_id, RetryRunRequest(**request.model_dump()))
+    auth = require_scope(http_request, "lakehouse:operate")
+    enforce_rate_limit(auth["subject"], "retry_failed_run")
+
+    async def execute() -> dict[str, Any]:
+        result = await retry_run(run_id, RetryRunRequest(**request.model_dump()))
+        return _jsonable_result(result)
+
+    payload = await replay_or_execute_async(
+        idempotency_key=request.idempotency_key,
+        operation="retry_failed_run",
+        target=run_id,
+        execute=execute,
+    )
+    audit_operation(
+        operation="retry_failed_run",
+        target=run_id,
+        dry_run=request.dry_run,
+        auth=auth,
+        payload=request.model_dump(mode="json"),
+        result=payload,
+    )
+    return payload
+
+
+@router.post("/runs/{run_id:path}/cancel")
+async def post_v2_run_cancel(
+    run_id: str, request: V2CancelRunRequest, http_request: Request
+) -> Any:
+    """Request cancellation for a run through the active orchestrator provider."""
+    from phlo_api.observatory_api.dagster import CancelRunRequest, cancel_run
+
+    auth = require_scope(http_request, "lakehouse:operate")
+    enforce_rate_limit(auth["subject"], "cancel_run")
+    result = await cancel_run(run_id, CancelRunRequest(**request.model_dump()))
+    payload = _jsonable_result(result)
+    audit_operation(
+        operation="cancel_run",
+        target=run_id,
+        dry_run=False,
+        auth=auth,
+        payload=request.model_dump(mode="json"),
+        result=payload,
+    )
+    return payload
 
 
 @router.get("/storage", response_model=V2SurfaceList)
@@ -2649,14 +2735,16 @@ def get_v2_bi() -> V2SurfaceList:
     )
 
 
-@router.get("/assets", response_model=V2AssetList)
-def get_v2_assets() -> V2AssetList:
+@router.get("/assets", response_model=V2AssetList, response_model_exclude_none=True)
+def get_v2_assets(limit: int = 100, cursor: str | None = None) -> V2AssetList:
     """List provider-neutral Observatory v2 assets."""
-    return _cached_read_model(
+    result = _cached_read_model(
         "assets",
         _EXPENSIVE_READ_MODEL_TTL_SECONDS,
         lambda: V2AssetList(items=_load_assets()),
     )
+    page, next_cursor = paginate_items(result.items, limit=limit, cursor=cursor)
+    return V2AssetList(items=page, next_cursor=next_cursor)
 
 
 @router.get("/asset-graph", response_model=V2AssetGraph)
@@ -2695,11 +2783,73 @@ async def get_v2_asset_materializations(asset_id: str, limit: int = 10) -> Any:
 
 
 @router.post("/assets/{asset_id:path}/materialize")
-async def post_v2_asset_materialize(asset_id: str, request: V2MaterializeAssetRequest) -> Any:
+async def post_v2_asset_materialize(
+    asset_id: str, request: V2MaterializeAssetRequest, http_request: Request
+) -> Any:
     """Validate or request asset materialization through the active orchestrator provider."""
     from phlo_api.observatory_api.dagster import MaterializeAssetRequest, materialize_asset
 
-    return await materialize_asset(asset_id, MaterializeAssetRequest(**request.model_dump()))
+    auth = require_scope(http_request, "lakehouse:operate")
+    enforce_rate_limit(auth["subject"], "materialize_asset")
+
+    async def execute() -> dict[str, Any]:
+        result = await materialize_asset(asset_id, MaterializeAssetRequest(**request.model_dump()))
+        return _jsonable_result(result)
+
+    payload = await replay_or_execute_async(
+        idempotency_key=request.idempotency_key,
+        operation="materialize_asset",
+        target=asset_id,
+        execute=execute,
+    )
+    audit_operation(
+        operation="materialize_asset",
+        target=asset_id,
+        dry_run=request.dry_run,
+        auth=auth,
+        payload=request.model_dump(mode="json"),
+        result=payload,
+    )
+    return payload
+
+
+@router.post("/assets/{asset_id:path}/backfill")
+async def post_v2_asset_backfill(
+    asset_id: str, request: V2BackfillAssetRequest, http_request: Request
+) -> Any:
+    """Validate or request asset partition backfill through the active orchestrator provider."""
+    from phlo_api.observatory_api.dagster import BackfillAssetRequest, backfill_asset
+
+    auth = require_scope(http_request, "lakehouse:operate")
+    enforce_rate_limit(auth["subject"], "backfill_asset")
+
+    async def execute() -> dict[str, Any]:
+        result = await backfill_asset(asset_id, BackfillAssetRequest(**request.model_dump()))
+        return _jsonable_result(result)
+
+    payload = await replay_or_execute_async(
+        idempotency_key=request.idempotency_key,
+        operation="backfill_asset",
+        target=asset_id,
+        execute=execute,
+    )
+    audit_operation(
+        operation="backfill_asset",
+        target=asset_id,
+        dry_run=request.dry_run,
+        auth=auth,
+        payload=request.model_dump(mode="json"),
+        result=payload,
+    )
+    return payload
+
+
+@router.get("/assets/{asset_id:path}/partitions")
+async def get_v2_asset_partitions(asset_id: str) -> Any:
+    """List partitions for an asset from the active orchestrator provider."""
+    from phlo_api.observatory_api.dagster import list_partitions
+
+    return await list_partitions(asset_id)
 
 
 @router.get("/assets/{asset_id:path}", response_model=V2AssetDetail)
@@ -2908,10 +3058,11 @@ def post_v2_workflow_wizard_action(request: V2WorkflowActionRequest) -> V2Workfl
     return result
 
 
-@router.get("/search", response_model=V2SearchList)
-def get_v2_search(q: str) -> V2SearchList:
+@router.get("/search", response_model=V2SearchList, response_model_exclude_none=True)
+def get_v2_search(q: str, limit: int = 100, cursor: str | None = None) -> V2SearchList:
     """Search provider-neutral Observatory v2 resources."""
-    return V2SearchList(items=_search_results(q))
+    page, next_cursor = paginate_items(_search_results(q), limit=limit, cursor=cursor)
+    return V2SearchList(items=page, next_cursor=next_cursor)
 
 
 @router.post("/actions", response_model=V2ActionResult)
@@ -2935,8 +3086,20 @@ def post_v2_action(request: V2ActionRequest) -> V2ActionResult:
 
 
 @router.post("/packages/install", response_model=V2PackageInstallResult)
-def post_v2_package_install(request: V2PackageInstallRequest) -> V2PackageInstallResult:
+def post_v2_package_install(
+    request: V2PackageInstallRequest, http_request: Request
+) -> V2PackageInstallResult:
     """Install a trusted Phlo Python package into the current environment."""
+    auth = require_scope(http_request, "admin")
+    enforce_rate_limit(auth["subject"], "install_package")
     result = _install_python_package(request)
+    audit_operation(
+        operation="install_package",
+        target=request.package_name,
+        dry_run=False,
+        auth=auth,
+        payload=request.model_dump(mode="json"),
+        result=result.model_dump(mode="json"),
+    )
     _clear_read_model_cache()
     return result

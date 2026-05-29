@@ -2,14 +2,26 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import click
 
-from phlo.cli.output import user_error
+from phlo.cli.output import json_envelope, user_error
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class CreateWorkflowResult:
+    """Result returned by non-interactive workflow creation."""
+
+    workflow_type: str
+    domain: str
+    table: str
+    files: list[str]
+    next_steps: list[str]
 
 
 @click.group(name="workflow")
@@ -35,6 +47,23 @@ def _print_ingestion_next_steps(files: list[str], *, table: str) -> None:
         click.echo("  3. Restart Dagster: phlo services restart --service dagster")
         click.echo(f"  4. Materialize: phlo materialize dlt_{table}")
         click.echo("  5. Inspect status: phlo status")
+
+
+def _ingestion_next_steps(files: list[str], *, table: str) -> list[str]:
+    schema_file = files[0]
+    workflow_file = files[1]
+    test_file = files[2] if len(files) > 2 else None
+    steps = [f"Review schema: {schema_file}", f"Review workflow: {workflow_file}"]
+    if test_file:
+        steps.append(f"Run generated tests: uv run pytest {test_file} -q")
+    steps.extend(
+        [
+            "Restart Dagster: phlo services restart --service dagster",
+            f"Materialize: phlo materialize dlt_{table}",
+            "Inspect status: phlo status",
+        ]
+    )
+    return steps
 
 
 def _infer_schema_path(workflow_path: Path) -> Path | None:
@@ -73,6 +102,39 @@ def _validate_schema_file(path: str) -> None:
         raise
     except Exception as exc:
         raise click.ClickException(f"Schema validation failed for {path}: {exc}") from exc
+
+
+def _create_workflow(
+    *,
+    workflow_type: str = "ingestion",
+    domain: str,
+    table: str,
+    unique_key: str,
+    cron: str,
+    api_base_url: str | None = None,
+    fields: list[str] | None = None,
+) -> CreateWorkflowResult:
+    """Create a workflow scaffold without Click prompts or terminal output."""
+    from phlo_dlt.scaffold import create_ingestion_workflow
+
+    if workflow_type != "ingestion":
+        raise ValueError(f"Unsupported workflow type: {workflow_type}")
+
+    files = create_ingestion_workflow(
+        domain=domain,
+        table_name=table,
+        unique_key=unique_key,
+        cron=cron,
+        api_base_url=api_base_url or None,
+        fields=fields or [],
+    )
+    return CreateWorkflowResult(
+        workflow_type=workflow_type,
+        domain=domain,
+        table=table,
+        files=files,
+        next_steps=_ingestion_next_steps(files, table=table),
+    )
 
 
 @workflow_group.command("create")
@@ -118,8 +180,6 @@ def create_workflow_cmd(
     fields: tuple[str, ...],
 ) -> None:
     """Create a workflow scaffold."""
-    from phlo_dlt.scaffold import create_ingestion_workflow
-
     logger.info(
         "workflow_create_started",
         workflow_type=workflow_type,
@@ -131,9 +191,10 @@ def create_workflow_cmd(
 
     try:
         if workflow_type == "ingestion":
-            files = create_ingestion_workflow(
+            result = _create_workflow(
+                workflow_type=workflow_type,
                 domain=domain,
-                table_name=table,
+                table=table,
                 unique_key=unique_key,
                 cron=cron,
                 api_base_url=api_base_url or None,
@@ -141,16 +202,16 @@ def create_workflow_cmd(
             )
 
             click.echo("Created files:\n")
-            for file_path in files:
+            for file_path in result.files:
                 click.echo(f"  - {file_path}")
 
-            _print_ingestion_next_steps(files, table=table)
+            _print_ingestion_next_steps(result.files, table=table)
             logger.info(
                 "workflow_create_succeeded",
                 workflow_type=workflow_type,
                 domain=domain,
                 table=table,
-                file_count=len(files),
+                file_count=len(result.files),
             )
     except Exception as exc:
         logger.exception(
@@ -172,7 +233,8 @@ def create_workflow_cmd(
 
 @workflow_group.command("check")
 @click.argument("workflow_file", type=click.Path(dir_okay=False))
-def check_workflow_cmd(workflow_file: str) -> None:
+@click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
+def check_workflow_cmd(workflow_file: str, output_json: bool) -> None:
     """Validate a workflow and its inferred schema before materialization."""
     workflow_path = Path(workflow_file)
     if not workflow_path.exists():
@@ -185,8 +247,10 @@ def check_workflow_cmd(workflow_file: str) -> None:
     schema_path = _infer_schema_path(workflow_path)
 
     _validate_workflow_file(str(workflow_path))
-    click.echo(f"Workflow valid: {workflow_path}")
+    if not output_json:
+        click.echo(f"Workflow valid: {workflow_path}")
 
+    schema_validated = False
     if schema_path and schema_path.exists():
         try:
             _validate_schema_file(str(schema_path))
@@ -196,9 +260,22 @@ def check_workflow_cmd(workflow_file: str) -> None:
             raise click.ClickException(
                 f"Schema validation failed for {schema_path}: {exc}"
             ) from exc
-        click.echo(f"Schema valid: {schema_path}")
+        schema_validated = True
+        if not output_json:
+            click.echo(f"Schema valid: {schema_path}")
     elif schema_path:
         raise click.ClickException(f"Inferred schema file not found: {schema_path}")
 
     asset_key = _asset_key_from_workflow_path(workflow_path)
-    click.echo(f"Next: phlo materialize {asset_key}")
+    payload = {
+        "valid": True,
+        "workflow_path": str(workflow_path),
+        "schema_path": str(schema_path) if schema_path else None,
+        "schema_validated": schema_validated,
+        "asset_key": asset_key,
+        "next_command": f"phlo materialize {asset_key}",
+    }
+    if output_json:
+        click.echo(json_envelope(data=payload))
+    else:
+        click.echo(f"Next: phlo materialize {asset_key}")

@@ -2,11 +2,26 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import click
+
+
+def json_envelope(
+    *,
+    data: Any = None,
+    warnings: Sequence[str] | None = None,
+    errors: Sequence[str] | None = None,
+) -> str:
+    """Render the shared agent-friendly JSON envelope."""
+    return json.dumps(
+        {"data": data, "warnings": list(warnings or ()), "errors": list(errors or ())},
+        indent=2,
+        sort_keys=True,
+    )
 
 
 def user_error(

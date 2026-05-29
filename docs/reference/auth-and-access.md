@@ -99,6 +99,32 @@ api:
 Built-in authentication provider names include `static`, `proxy`, and `service_token`.
 Their built-in config blocks live under the same root `authentication` section in `phlo.yaml`.
 
+## Agent and MCP token scopes
+
+Agent-facing `phlo-api` routes require explicit bearer-token scopes. Tokens may
+come from the configured authentication provider, or from the local
+`PHLO_API_TOKENS` JSON object for single-project development and MCP use:
+
+```bash
+export PHLO_API_TOKENS='{
+  "agent-token": {
+    "subject": "agent:amp",
+    "scopes": ["lakehouse:read", "lakehouse:operate", "project:write"]
+  }
+}'
+```
+
+| Scope | Grants | Examples |
+|---|---|---|
+| `lakehouse:read` | Read-only inspection | status, logs, traces, assets, schemas |
+| `lakehouse:operate` | Data-plane mutations | materialize, retry, cancel, backfill |
+| `project:write` | Project filesystem authoring | create workflow, validate workflow/schema, lint project |
+| `admin` | All scoped operations | operator break-glass and local automation |
+
+Mutation routes also enforce per-subject rate limits, write JSONL audit records
+to `.phlo/audit/operations.jsonl`, and honour idempotency keys for repeat-safe
+operation replay.
+
 You can declare these settings in `phlo.yaml` as either:
 
 ```yaml
