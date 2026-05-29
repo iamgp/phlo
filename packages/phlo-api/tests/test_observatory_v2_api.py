@@ -24,6 +24,7 @@ from phlo_api.observatory_api.v2 import (
 from phlo_api.observatory_api.v2_models import (
     V2ActionRequest,
     V2Asset,
+    V2AssetDetail,
     V2Branch,
     V2Capabilities,
     V2CapabilityPage,
@@ -2059,6 +2060,28 @@ def test_v2_search_endpoint_url_encodes_resource_href_segments(monkeypatch) -> N
     assert hrefs["asset"] == "/asset/silver%2Fdemo"
     assert hrefs["table"] == "/table/analytics%2Fdemo"
     assert hrefs["extension"] == "/extension/demo%2Fext"
+
+
+def test_v2_schema_diff_returns_stable_agent_envelope(monkeypatch) -> None:
+    detail = V2AssetDetail(
+        asset=V2Asset(id="raw.orders", name="raw.orders"),
+        tables=[V2Table(id="orders", name="orders", metadata={"columns": ["id", "amount"]})],
+    )
+    monkeypatch.setattr(v2, "_load_asset_detail", lambda asset_key: detail)
+
+    response = TestClient(app).post(
+        "/api/observatory/v2/schemas/diff",
+        json={"asset_key": "raw.orders", "from_run": "run-a", "to_run": "run-b"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["asset_key"] == "raw.orders"
+    assert payload["from_run"] == "run-a"
+    assert payload["to_run"] == "run-b"
+    assert payload["changes"] == []
+    assert payload["snapshot_available"] is False
+    assert payload["current_columns"] == ["id", "amount"]
 
 
 def test_v2_all_endpoints_do_not_leak_provider_url_setting_names() -> None:

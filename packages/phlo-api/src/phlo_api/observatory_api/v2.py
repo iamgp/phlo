@@ -185,6 +185,12 @@ class V2BackfillAssetRequest(BaseModel):
     tags: dict[str, str] = Field(default_factory=dict)
 
 
+class V2SchemaDiffRequest(BaseModel):
+    asset_key: str
+    from_run: str | None = None
+    to_run: str | None = None
+
+
 _READ_QUERY_RE = re.compile(
     r"^\s*select\s+\*\s+from\s+(?P<table>[A-Za-z0-9_.:-]+)(?:\s+limit\s+(?P<limit>\d+))?\s*;?\s*$",
     re.IGNORECASE,
@@ -2894,6 +2900,22 @@ def post_v2_saved_query(request: V2SavedQueryRequest) -> V2SavedQuery:
 def get_v2_stage_diff(source_table_id: str, target_table_id: str) -> V2StageDiff:
     """Get provider-neutral stage diff context."""
     return _load_stage_diff(source_table_id, target_table_id)
+
+
+@router.post("/schemas/diff")
+def post_v2_schema_diff(request: V2SchemaDiffRequest) -> dict[str, Any]:
+    """Return a stable schema-diff envelope for one asset."""
+    detail = _load_asset_detail(request.asset_key)
+    columns = _table_columns_from_metadata(detail.tables[0]) if detail.tables else []
+    return {
+        "asset_key": request.asset_key,
+        "from_run": request.from_run,
+        "to_run": request.to_run,
+        "changes": [],
+        "current_columns": columns,
+        "snapshot_available": False,
+        "message": "No comparable run schema snapshots were found for this asset.",
+    }
 
 
 @router.post("/query", response_model=V2QueryResult)

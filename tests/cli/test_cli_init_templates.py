@@ -1,5 +1,6 @@
 import ast
 import importlib
+import json
 import subprocess
 import sys
 import tomllib
@@ -62,6 +63,27 @@ def test_init_list_templates_outputs_metadata() -> None:
     assert "minimal" in result.output
     assert "basic" in result.output
     assert "dbt-ready Phlo project" in result.output
+
+
+def test_init_list_templates_json_outputs_envelope() -> None:
+    result = CliRunner().invoke(cli, ["init", "--list-templates", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["errors"] == []
+    assert any(item["name"] == "minimal" for item in payload["data"]["items"])
+
+
+def test_init_json_outputs_project_envelope(tmp_path) -> None:
+    project_dir = tmp_path / "demo"
+    result = CliRunner().invoke(cli, ["init", str(project_dir), "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["errors"] == []
+    assert payload["data"]["project_dir"] == str(project_dir)
+    assert payload["data"]["template"] == "minimal"
+    assert (project_dir / "AGENTS.md").exists()
 
 
 def _assert_python_files_parse(project_dir: Path) -> None:

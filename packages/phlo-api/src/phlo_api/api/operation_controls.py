@@ -81,6 +81,8 @@ def audit_operation(
     """Append an API-side mutation audit record."""
     audit_dir = project_root() / ".phlo" / "audit"
     audit_dir.mkdir(parents=True, exist_ok=True)
+    audit_path = audit_dir / "operations.jsonl"
+    _rotate_audit_log(audit_path)
     record = {
         "timestamp": datetime.now(UTC).isoformat(),
         "surface": "phlo-api",
@@ -92,8 +94,23 @@ def audit_operation(
         "payload": payload or {},
         "result": result or {},
     }
-    with (audit_dir / "operations.jsonl").open("a", encoding="utf-8") as handle:
+    with audit_path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, sort_keys=True) + "\n")
+
+
+def _rotate_audit_log(path: Path) -> None:
+    max_bytes = int(os.environ.get("PHLO_API_AUDIT_MAX_BYTES", str(10 * 1024 * 1024)))
+    max_files = int(os.environ.get("PHLO_API_AUDIT_MAX_FILES", "5"))
+    if max_bytes <= 0 or max_files <= 0 or not path.exists() or path.stat().st_size < max_bytes:
+        return
+    oldest = path.with_name(f"{path.name}.{max_files}")
+    if oldest.exists():
+        oldest.unlink()
+    for index in range(max_files - 1, 0, -1):
+        candidate = path.with_name(f"{path.name}.{index}")
+        if candidate.exists():
+            candidate.replace(path.with_name(f"{path.name}.{index + 1}"))
+    path.replace(path.with_name(f"{path.name}.1"))
 
 
 def replay_or_execute(

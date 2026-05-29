@@ -20,6 +20,7 @@ import phlo.cli._warning_filters  # noqa: F401
 from phlo.cli._init_discovery_guard import is_init_command_invocation
 from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.doctor import doctor_cmd
+from phlo.cli.output import json_envelope
 from phlo.cli.templates import TemplateRenderContext, get_template
 from phlo.cli.templates import list_templates as get_project_templates
 from phlo.cli.templates.registry import missing_required_packages
@@ -287,8 +288,15 @@ def _render_next_steps(selected_template) -> list[str]:
 )
 @click.option("--force", is_flag=True, help="Initialize in non-empty directory")
 @click.option("--list-templates", is_flag=True, help="List available project templates and exit.")
+@click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
 @require_mutation_authorization("init", when=lambda params: not params.get("list_templates"))
-def init(project_name: str | None, template: str, force: bool, list_templates: bool):
+def init(
+    project_name: str | None,
+    template: str,
+    force: bool,
+    list_templates: bool,
+    output_json: bool,
+):
     """
     Initialize a new Phlo project.
 
@@ -301,25 +309,41 @@ def init(project_name: str | None, template: str, force: bool, list_templates: b
         phlo init weather-pipeline --template csv-batch
     """
     if list_templates:
+        items = [
+            {
+                "name": item.metadata.name,
+                "description": item.metadata.description,
+                "required_packages": list(item.metadata.required_packages),
+                "generated_paths": list(item.metadata.generated_paths),
+                "next_steps": list(item.metadata.next_steps),
+            }
+            for item in get_project_templates()
+        ]
+        if output_json:
+            click.echo(json_envelope(data={"items": items}))
+            return
         for item in get_project_templates():
             packages = ", ".join(item.metadata.required_packages)
             click.echo(f"{item.metadata.name:<20} {item.metadata.description:<36} {packages}")
         return
 
-    click.echo("Phlo Project Initializer\n")
+    if not output_json:
+        click.echo("Phlo Project Initializer\n")
 
     # Determine project directory and metadata-safe project name
     if project_name is None or project_name == ".":
         project_dir = Path.cwd()
         project_metadata_name = project_dir.name
-        click.echo(f"Initializing in current directory: {project_dir}")
+        if not output_json:
+            click.echo(f"Initializing in current directory: {project_dir}")
     else:
         requested_path = Path(project_name).expanduser()
         project_dir = (
             requested_path if requested_path.is_absolute() else (Path.cwd() / requested_path)
         )
         project_metadata_name = project_dir.name
-        click.echo(f"Creating new project: {project_dir}")
+        if not output_json:
+            click.echo(f"Creating new project: {project_dir}")
 
     # Check if directory exists and is not empty
     if project_dir.exists() and any(project_dir.iterdir()) and not force:
@@ -330,6 +354,21 @@ def init(project_name: str | None, template: str, force: bool, list_templates: b
     # Create project structure
     try:
         selected_template = _create_project_structure(project_dir, project_metadata_name, template)
+        next_steps = _render_next_steps(selected_template)
+
+        if output_json:
+            click.echo(
+                json_envelope(
+                    data={
+                        "project_dir": str(project_dir),
+                        "project_name": project_metadata_name,
+                        "template": selected_template.metadata.name,
+                        "generated_paths": list(selected_template.metadata.generated_paths),
+                        "next_steps": next_steps,
+                    }
+                )
+            )
+            return
 
         click.echo(f"\nSuccessfully initialized Phlo project: {project_dir}\n")
         _display_created_structure(project_dir, selected_template)
@@ -339,7 +378,7 @@ def init(project_name: str | None, template: str, force: bool, list_templates: b
         if project_dir != Path.cwd():
             click.echo(f"  {step_number}. cd {project_dir}")
             step_number += 1
-        for next_step in _render_next_steps(selected_template):
+        for next_step in next_steps:
             click.echo(f"  {step_number}. {next_step}")
             step_number += 1
 

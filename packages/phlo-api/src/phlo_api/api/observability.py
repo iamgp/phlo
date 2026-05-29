@@ -51,6 +51,7 @@ from pydantic import BaseModel, Field
 from phlo.capabilities import TraceSpanFilter, list_capabilities, resolve_capability
 from phlo.capabilities.discovery import discover_capabilities
 from phlo.logging import get_logger
+from phlo_api.pagination import paginate_items
 
 logger = get_logger(__name__)
 
@@ -241,8 +242,9 @@ def get_platform_metrics(
 @router.get("/alerts", response_model=list[AlertResponse] | dict)
 def get_recent_alerts(
     limit: int = Query(default=10, le=100),
+    cursor: str | None = Query(default=None),
     backend: str | None = Query(default=None, description="Observability backend name"),
-) -> list[AlertResponse] | dict[str, str]:
+) -> list[AlertResponse] | dict[str, Any]:
     """Get recent alerts from observability backend.
 
     Args:
@@ -258,8 +260,8 @@ def get_recent_alerts(
     """
     try:
         provider = _resolve_observability_backend(backend)
-        alerts = provider.recent_alerts(limit)
-        return [
+        alerts = provider.recent_alerts(limit + 100)
+        items = [
             AlertResponse(
                 title=alert.title,
                 severity=alert.severity,
@@ -268,6 +270,10 @@ def get_recent_alerts(
             )
             for alert in alerts
         ]
+        if cursor:
+            page, next_cursor = paginate_items(items, limit=limit, cursor=cursor)
+            return {"items": page, "next_cursor": next_cursor}
+        return items[:limit]
     except Exception as exc:
         logger.exception("recent_alerts_load_failed")
         return {"error": str(exc)}
@@ -363,8 +369,9 @@ def get_metrics_query_link(
 def get_run_trace_spans(
     run_id: str,
     limit: int = Query(default=500, le=5000),
+    cursor: str | None = Query(default=None),
     backend: str | None = Query(default=None, description="Observability backend name"),
-) -> list[TraceSpanResponse] | dict[str, str]:
+) -> list[TraceSpanResponse] | dict[str, Any]:
     """Get OTEL spans correlated to a run id from the observability backend."""
     try:
         provider = _resolve_observability_backend(backend)
@@ -372,7 +379,11 @@ def get_run_trace_spans(
             spans = provider.trace_spans(TraceSpanFilter(run_id=run_id, limit=limit))
         else:
             spans = provider.run_trace_spans(run_id, limit=limit)
-        return [TraceSpanResponse(**span.__dict__) for span in spans]
+        items = [TraceSpanResponse(**span.__dict__) for span in spans]
+        if cursor:
+            page, next_cursor = paginate_items(items, limit=limit, cursor=cursor)
+            return {"items": page, "next_cursor": next_cursor}
+        return items[:limit]
     except Exception as exc:
         logger.exception("run_trace_spans_load_failed", run_id=run_id)
         return {"error": str(exc)}
@@ -389,8 +400,9 @@ def get_trace_spans(
     start_time: str | None = Query(default=None),
     end_time: str | None = Query(default=None),
     limit: int = Query(default=500, le=5000),
+    cursor: str | None = Query(default=None),
     backend: str | None = Query(default=None, description="Observability backend name"),
-) -> list[TraceSpanResponse] | dict[str, str]:
+) -> list[TraceSpanResponse] | dict[str, Any]:
     """Get OTEL spans matching bounded observability filters."""
     try:
         provider = _resolve_observability_backend(backend)
@@ -411,7 +423,11 @@ def get_trace_spans(
             spans = provider.run_trace_spans(run_id, limit=limit)
         else:
             spans = []
-        return [TraceSpanResponse(**span.__dict__) for span in spans]
+        items = [TraceSpanResponse(**span.__dict__) for span in spans]
+        if cursor:
+            page, next_cursor = paginate_items(items, limit=limit, cursor=cursor)
+            return {"items": page, "next_cursor": next_cursor}
+        return items[:limit]
     except Exception as exc:
         logger.exception("trace_spans_load_failed")
         return {"error": str(exc)}

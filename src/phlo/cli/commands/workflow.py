@@ -170,6 +170,7 @@ def _create_workflow(
     multiple=True,
     help="Additional schema field (name:type, name:type?, name:type!)",
 )
+@click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
 def create_workflow_cmd(
     workflow_type: str,
     domain: str,
@@ -178,6 +179,7 @@ def create_workflow_cmd(
     cron: str,
     api_base_url: str,
     fields: tuple[str, ...],
+    output_json: bool,
 ) -> None:
     """Create a workflow scaffold."""
     logger.info(
@@ -187,7 +189,8 @@ def create_workflow_cmd(
         table=table,
         field_count=len(fields),
     )
-    click.echo(f"\nCreating {workflow_type} workflow for {domain}.{table}...\n")
+    if not output_json:
+        click.echo(f"\nCreating {workflow_type} workflow for {domain}.{table}...\n")
 
     try:
         if workflow_type == "ingestion":
@@ -201,11 +204,14 @@ def create_workflow_cmd(
                 fields=list(fields),
             )
 
-            click.echo("Created files:\n")
-            for file_path in result.files:
-                click.echo(f"  - {file_path}")
+            if output_json:
+                click.echo(json_envelope(data=result.__dict__))
+            else:
+                click.echo("Created files:\n")
+                for file_path in result.files:
+                    click.echo(f"  - {file_path}")
 
-            _print_ingestion_next_steps(result.files, table=table)
+                _print_ingestion_next_steps(result.files, table=table)
             logger.info(
                 "workflow_create_succeeded",
                 workflow_type=workflow_type,

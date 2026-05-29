@@ -96,9 +96,23 @@ class PhloApiClient:
         return self._get_json("/api/authoring/templates")
 
     def list_workflows(
-        self, *, search: str | None = None, group: str | None = None
+        self,
+        *,
+        search: str | None = None,
+        group: str | None = None,
+        limit: int = 100,
+        cursor: str | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
-        params = {key: value for key, value in {"search": search, "group": group}.items() if value}
+        params = {
+            key: value
+            for key, value in {
+                "search": search,
+                "group": group,
+                "limit": limit,
+                "cursor": cursor,
+            }.items()
+            if value
+        }
         return self._get_json("/api/authoring/workflows", params=params or None)
 
     def lint_project(self) -> dict[str, Any] | list[dict[str, Any]]:
@@ -157,19 +171,21 @@ class PhloApiClient:
     def diff_schema(
         self, asset_key: str, *, from_run: str | None = None, to_run: str | None = None
     ) -> dict[str, Any] | list[dict[str, Any]]:
-        return {
-            "asset_key": asset_key,
-            "from_run": from_run,
-            "to_run": to_run,
-            "changes": [],
-            "message": "Schema diff endpoint is available as a stable MCP envelope; no run schema snapshots were found.",
-        }
+        return self._post_json(
+            f"{self._V2_PREFIX}/schemas/diff",
+            json={"asset_key": asset_key, "from_run": from_run, "to_run": to_run},
+        )
 
     def get_service_status(self) -> list[dict[str, Any]] | dict[str, Any]:
         return self._get_json("/api/observability/services")
 
-    def get_recent_alerts(self, limit: int = 5) -> list[dict[str, Any]] | dict[str, Any]:
-        return self._get_json("/api/observability/alerts", params={"limit": limit})
+    def get_recent_alerts(
+        self, limit: int = 5, cursor: str | None = None
+    ) -> list[dict[str, Any]] | dict[str, Any]:
+        params: dict[str, Any] = {"limit": limit}
+        if cursor is not None:
+            params["cursor"] = cursor
+        return self._get_json("/api/observability/alerts", params=params)
 
     def get_dashboard_links(self) -> list[dict[str, Any]] | dict[str, Any]:
         return self._get_json("/api/observability/dashboards")
@@ -271,10 +287,14 @@ class PhloApiClient:
         asset_key_path: str,
         *,
         limit: int = 10,
+        cursor: str | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit}
+        if cursor:
+            params["cursor"] = cursor
         return self._get_json(
             f"{self._V2_PREFIX}/assets/{asset_key_path}/materializations",
-            params={"limit": limit},
+            params=params,
         )
 
     def get_run_trace_spans(
@@ -282,10 +302,12 @@ class PhloApiClient:
         run_id: str,
         *,
         limit: int = 500,
+        cursor: str | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
-        payload = self._get_json(
-            f"/api/observability/traces/runs/{run_id}", params={"limit": limit}
-        )
+        params: dict[str, Any] = {"limit": limit}
+        if cursor is not None:
+            params["cursor"] = cursor
+        payload = self._get_json(f"/api/observability/traces/runs/{run_id}", params=params)
         if isinstance(payload, dict) and payload.get("error"):
             return []
         return payload
@@ -306,6 +328,7 @@ class PhloApiClient:
         start_time: str | None = None,
         end_time: str | None = None,
         limit: int = 500,
+        cursor: str | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
         params: dict[str, Any] = {"limit": limit}
         for key, value in {
@@ -317,6 +340,7 @@ class PhloApiClient:
             "status_code": status_code,
             "start_time": start_time,
             "end_time": end_time,
+            "cursor": cursor,
         }.items():
             if value:
                 params[key] = value

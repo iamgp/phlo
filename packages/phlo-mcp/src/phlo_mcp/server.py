@@ -304,7 +304,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                     return {"api_base_url": client.api_base_url, "services": services}
 
     @mcp.tool()
-    def get_recent_alerts(limit: int = 5) -> dict[str, Any]:
+    def get_recent_alerts(limit: int = 5, cursor: str | None = None) -> dict[str, Any]:
         """Get recent observability alerts from phlo-api."""
         with tracer.start_as_current_span(
             "mcp.request",
@@ -315,7 +315,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 attributes={"mcp.tool.name": "get_recent_alerts"},
             ):
                 with tracer.start_as_current_span("phlo.observability.alerts"):
-                    alerts = client.get_recent_alerts(limit)
+                    alerts = client.get_recent_alerts(limit, cursor=cursor)
                     return {"api_base_url": client.api_base_url, "alerts": alerts}
 
     @mcp.tool()
@@ -364,7 +364,9 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                     return {"api_base_url": client.api_base_url, "payload": payload}
 
     @mcp.tool()
-    def get_materialization_history(asset_key_path: str, limit: int = 10) -> dict[str, Any]:
+    def get_materialization_history(
+        asset_key_path: str, limit: int = 10, cursor: str | None = None
+    ) -> dict[str, Any]:
         """Get recent Dagster materializations for an asset."""
         with tracer.start_as_current_span(
             "mcp.request",
@@ -375,7 +377,9 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 attributes={"mcp.tool.name": "get_materialization_history"},
             ):
                 with tracer.start_as_current_span("phlo.dagster.materialization_history"):
-                    events = client.get_materialization_history(asset_key_path, limit=limit)
+                    events = client.get_materialization_history(
+                        asset_key_path, limit=limit, cursor=cursor
+                    )
                     return {
                         "api_base_url": client.api_base_url,
                         "asset_key_path": asset_key_path,
@@ -383,7 +387,12 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                     }
 
     @mcp.tool()
-    def get_run_logs(run_id: str, limit: int = 200, level: str | None = None) -> dict[str, Any]:
+    def get_run_logs(
+        run_id: str,
+        limit: int = 200,
+        level: str | None = None,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
         """Get correlated logs for a specific run or materialization."""
         with tracer.start_as_current_span(
             "mcp.request",
@@ -394,7 +403,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 attributes={"mcp.tool.name": "get_run_logs"},
             ):
                 with tracer.start_as_current_span("phlo.loki.run_logs"):
-                    payload = client.get_run_logs(run_id, limit=limit, level=level)
+                    payload = client.get_run_logs(run_id, limit=limit, level=level, cursor=cursor)
                     return {
                         "api_base_url": client.api_base_url,
                         "run_id": run_id,
@@ -402,7 +411,9 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                     }
 
     @mcp.tool()
-    def get_run_trace_spans(run_id: str, limit: int = 500) -> dict[str, Any]:
+    def get_run_trace_spans(
+        run_id: str, limit: int = 500, cursor: str | None = None
+    ) -> dict[str, Any]:
         """Get OTEL spans correlated to a specific run id."""
         with tracer.start_as_current_span(
             "mcp.request",
@@ -413,7 +424,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 attributes={"mcp.tool.name": "get_run_trace_spans"},
             ):
                 with tracer.start_as_current_span("phlo.observability.run_spans"):
-                    payload = client.get_run_trace_spans(run_id, limit=limit)
+                    payload = client.get_run_trace_spans(run_id, limit=limit, cursor=cursor)
                     return {
                         "api_base_url": client.api_base_url,
                         "run_id": run_id,
@@ -431,6 +442,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
         start_time: str | None = None,
         end_time: str | None = None,
         limit: int = 500,
+        cursor: str | None = None,
     ) -> dict[str, Any]:
         """Get OTEL spans filtered by run, asset, job, service, status, name, or time."""
         with tracer.start_as_current_span(
@@ -452,6 +464,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                         start_time=start_time,
                         end_time=end_time,
                         limit=limit,
+                        cursor=cursor,
                     )
                     return {
                         "api_base_url": client.api_base_url,
@@ -675,9 +688,14 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                     }
 
     @mcp.tool()
-    def list_workflows(search: str | None = None, group: str | None = None) -> dict[str, Any]:
+    def list_workflows(
+        search: str | None = None,
+        group: str | None = None,
+        limit: int = 100,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
         """List workflows discovered in the Phlo project."""
-        payload = client.list_workflows(search=search, group=group)
+        payload = client.list_workflows(search=search, group=group, limit=limit, cursor=cursor)
         return {"api_base_url": client.api_base_url, "payload": payload}
 
     @mcp.tool()
