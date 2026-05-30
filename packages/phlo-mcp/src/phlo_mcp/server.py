@@ -135,6 +135,15 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
         }
 
     @mcp.resource(
+        "phlo://runtime/operations/{operation_id}",
+        name="runtime_operation_context",
+        mime_type="application/json",
+    )
+    def runtime_operation_context(operation_id: str) -> dict[str, Any] | list[dict[str, Any]]:
+        """Read stable observability context for one Phlo operation."""
+        return client.get_operation_context(operation_id)
+
+    @mcp.resource(
         "phlo://runtime/contracts/{table_name}",
         name="runtime_contract",
         mime_type="application/json",
@@ -331,6 +340,25 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 with tracer.start_as_current_span("phlo.observability.dashboards"):
                     dashboards = client.get_dashboard_links()
                     return {"api_base_url": client.api_base_url, "dashboards": dashboards}
+
+    @mcp.tool()
+    def get_operation_context(operation_id: str) -> dict[str, Any]:
+        """Get stable operation, trace, log, metric, and incident context."""
+        with tracer.start_as_current_span(
+            "mcp.request",
+            attributes={"mcp.tool.name": "get_operation_context"},
+        ):
+            with tracer.start_as_current_span(
+                "mcp.tool.execute",
+                attributes={"mcp.tool.name": "get_operation_context"},
+            ):
+                with tracer.start_as_current_span("phlo.observability.operation_context"):
+                    payload = client.get_operation_context(operation_id)
+                    return {
+                        "api_base_url": client.api_base_url,
+                        "operation_id": operation_id,
+                        "payload": payload,
+                    }
 
     @mcp.tool()
     def get_logs_query_link(service: str | None = None) -> dict[str, Any]:

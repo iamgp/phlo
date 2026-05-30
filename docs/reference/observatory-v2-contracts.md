@@ -148,6 +148,17 @@ recorded timestamp, and affected file paths. It must not include secrets,
 provider credentials, private connection strings, raw provider URLs, or signed
 URLs.
 
+Journaled operations also include an agent-ready observability contract under
+`metadata.observability_contract`. The v1 schema name is
+`phlo.operation_observability.v1` and carries stable operation, trace, log,
+metric, and incident identifiers. Agents should use those identifiers rather
+than parsing names or provider-specific metadata.
+
+`GET /api/observatory/v2/operations/{operation_id}/agent-context` returns a
+compact incident and operation context for MCP clients. It includes the stable
+identifiers, operation health, related resources, correlated logs, available
+follow-up actions, and the retained history limit for the local journal.
+
 ## Native Links
 
 Native links may eventually point users to provider-native tools when Observatory

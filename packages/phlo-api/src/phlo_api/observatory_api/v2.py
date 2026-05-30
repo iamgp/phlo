@@ -93,6 +93,7 @@ from phlo_api.observatory_api.v2_metadata import safe_metadata as _safe_metadata
 from phlo_api.observatory_api.v2_observability import load_observability_items
 from phlo_api.observatory_api.v2_operation_journal import (
     append_operation,
+    build_operation_observability_context,
     load_operation_journal,
     operation_from_workflow_action,
     record_action_result,
@@ -2581,6 +2582,17 @@ def get_v2_operations() -> V2OperationList:
         _FAST_READ_MODEL_TTL_SECONDS,
         lambda: V2OperationList(items=_load_operations()),
     )
+
+
+@router.get("/operations/{operation_id:path}/agent-context")
+def get_v2_operation_agent_context(operation_id: str) -> dict[str, object]:
+    """Get stable observability context for agents investigating an operation."""
+    detail = _load_operation_detail(operation_id)
+    context = build_operation_observability_context(detail.operation)
+    context["related"] = [item.model_dump(mode="json") for item in detail.related]
+    context["logs"] = [item.model_dump(mode="json") for item in detail.logs]
+    context["actions"] = [item.model_dump(mode="json") for item in detail.actions]
+    return context
 
 
 @router.get("/operations/{operation_id:path}", response_model=V2OperationDetail)

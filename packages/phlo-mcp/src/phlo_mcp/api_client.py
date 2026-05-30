@@ -57,6 +57,9 @@ class PhloApiClient:
     def get_asset_details(self, asset_key_path: str) -> dict[str, Any] | list[dict[str, Any]]:
         return self._get_json(f"{self._V2_PREFIX}/assets/{asset_key_path}")
 
+    def get_operation_context(self, operation_id: str) -> dict[str, Any] | list[dict[str, Any]]:
+        return self._get_json(f"{self._V2_PREFIX}/operations/{operation_id}/agent-context")
+
     def get_contracts(self) -> dict[str, Any] | list[dict[str, Any]]:
         return self._get_json("/api/contracts")
 
