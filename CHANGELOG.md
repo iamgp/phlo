@@ -5,12 +5,6 @@
 ### Added
 - phlo, phlo-api, phlo-dagster, phlo-dlt, phlo-mcp, phlo-sling: complete agent-first CLI and MCP operate loop with scoped mutations, authoring tools, introspection, JSON envelopes, audit logs, pagination, and live Dagster operations.
 
-### Changed
-- phlo, phlo-dagster, phlo-testing: upgrade Dagster runtime dependencies to the 1.13.x line.
-
-### Fixed
-- phlo-dagster: prefer Dagster's run object when resolving runtime run ids to avoid deprecated 1.13 context access.
-
 ## [phlo 0.10.0 + 7 packages] - 2026-05-18
 
 ### Added
