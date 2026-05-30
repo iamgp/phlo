@@ -133,6 +133,21 @@ def test_dagster_runtime_reads_run_tags_when_context_has_no_tags():
     assert runtime.tags == {"dbt_target": "ci"}
 
 
+def test_dagster_runtime_reads_run_id_from_run_object():
+    """DagsterRuntime should use Dagster's run object for the run id."""
+    from phlo_dagster.adapter import DagsterRuntime
+
+    context = SimpleNamespace(
+        run=SimpleNamespace(run_id="run-from-object", tags={}),
+        has_partition_key=False,
+        log=SimpleNamespace(),
+        resources=SimpleNamespace(),
+    )
+
+    runtime = DagsterRuntime(context=cast(AssetExecutionContext, context))
+    assert runtime.run_id == "run-from-object"
+
+
 def test_dagster_runtime_builds_routing_without_recursion():
     """DagsterRuntime.routing should return concrete routing metadata."""
     from phlo_dagster.adapter import DagsterRuntime

@@ -176,6 +176,11 @@ class DagsterRuntime(RuntimeContext):
     @property
     def run_id(self) -> str | None:
         """Return the current Dagster run identifier when available."""
+        run = getattr(self.context, "run", None)
+        run_id = getattr(run, "run_id", None) if run is not None else None
+        if isinstance(run_id, str):
+            return run_id
+
         return self.context.run_id if hasattr(self.context, "run_id") else None
 
     @property
