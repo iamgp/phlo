@@ -95,6 +95,7 @@ from phlo.capabilities.interfaces import (
     LogoutResult,
     MaintenanceReadModel,
     ObservabilityBackend,
+    OrchestratorOperationsProvider,
     Principal,
     QueryEngine,
     RequestContext,
@@ -104,6 +105,7 @@ from phlo.capabilities.interfaces import (
     TableStore,
     TraceSpan,
     TraceSpanFilter,
+    WorkflowAuthoringProvider,
 )
 from phlo.capabilities.maintenance import (
     DefaultMaintenanceReadModel,
@@ -149,6 +151,7 @@ from phlo.capabilities.specs import (
     NormalizedSchema,
     ObjectStoreSpec,
     ObservabilityBackendSpec,
+    OrchestratorOperationsSpec,
     PartitionSpec,
     PublishTargetSpec,
     QualityBackendSpec,
@@ -161,6 +164,7 @@ from phlo.capabilities.specs import (
     SchemaMigrationPlan,
     SchemaMigrationSpec,
     TableStoreSpec,
+    WorkflowAuthoringSpec,
 )
 from phlo.capabilities.support import CapabilitySupport, coerce_capability_support
 from phlo.capabilities.telemetry import TelemetryRecorder, get_telemetry_path, iter_telemetry_events
@@ -221,6 +225,8 @@ __all__ = [
     "ObjectStoreSpec",
     "ObservabilityBackend",
     "ObservabilityBackendSpec",
+    "OrchestratorOperationsProvider",
+    "OrchestratorOperationsSpec",
     "PartitionSpec",
     "Principal",
     "TraceSpan",
@@ -238,6 +244,8 @@ __all__ = [
     "RuntimeContext",
     "RuntimeRouting",
     "WorkflowApplyAction",
+    "WorkflowAuthoringProvider",
+    "WorkflowAuthoringSpec",
     "WorkflowContributionMode",
     "WorkflowFilePreview",
     "WorkflowProposal",

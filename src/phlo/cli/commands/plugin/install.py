@@ -8,6 +8,7 @@ import click
 
 from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.plugin.utils import collect_installed_plugins, console, run_pip
+from phlo.cli.output import json_envelope
 from phlo.logging import get_logger
 from phlo.plugins.registry_client import get_plugin as get_registry_plugin
 
@@ -37,8 +38,9 @@ def resolve_install_target(plugin_name: str) -> tuple[str, str]:
 
 @click.command(name="install")
 @click.argument("plugin_name")
+@click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
 @require_mutation_authorization("plugin.install")
-def install_cmd(plugin_name: str):
+def install_cmd(plugin_name: str, output_json: bool):
     """Install a plugin from the registry (wraps pip)."""
     try:
         name_part = plugin_name.split("==", 1)[0]
@@ -48,7 +50,8 @@ def install_cmd(plugin_name: str):
             plugin_name=plugin_name,
             package_spec=package_spec,
         )
-        console.print(f"Installing {display_name}...")
+        if not output_json:
+            console.print(f"Installing {display_name}...")
         run_pip(["install", package_spec])
         installed = collect_installed_plugins("all")
         maybe_installed = [
@@ -61,14 +64,30 @@ def install_cmd(plugin_name: str):
             plugin_name=plugin_name,
             package_spec=package_spec,
         )
-        console.print(f"[green]✓ Installed {display_name}[/green]")
+        warnings = []
         for plugin in maybe_installed:
             missing_capabilities = plugin.get("missing_capabilities") or []
             if missing_capabilities:
-                console.print(
-                    "[yellow]Installed plugin has unmet capabilities:[/yellow] "
-                    + f"{plugin['name']} -> {', '.join(missing_capabilities)}"
+                warnings.append(
+                    f"Installed plugin has unmet capabilities: {plugin['name']} -> {', '.join(missing_capabilities)}"
                 )
+        if output_json:
+            click.echo(
+                json_envelope(
+                    data={
+                        "plugin_name": plugin_name,
+                        "package_spec": package_spec,
+                        "display_name": display_name,
+                        "installed_plugins": maybe_installed,
+                    },
+                    warnings=warnings,
+                )
+            )
+            return
+
+        console.print(f"[green]✓ Installed {display_name}[/green]")
+        for warning in warnings:
+            console.print(f"[yellow]{warning}[/yellow]")
     except Exception as e:
         logger.exception("plugin_install_failed", plugin_name=plugin_name)
         console.print(f"[red]Error installing plugin: {e}[/red]")

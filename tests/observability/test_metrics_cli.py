@@ -48,3 +48,18 @@ def test_metrics_summary_command(monkeypatch) -> None:
     result = CliRunner().invoke(metrics_group, ["summary"])
     assert result.exit_code == 0
     assert "Platform Metrics Summary" in result.output
+
+
+def test_metrics_summary_json_command(monkeypatch) -> None:
+    class FakeCollector:
+        def collect_summary(self, period_hours: int) -> SummaryMetrics:
+            assert period_hours == 24
+            return SummaryMetrics(total_runs_24h=1)
+
+    monkeypatch.setattr("phlo.cli.commands.metrics.get_metrics_collector", lambda: FakeCollector())
+    result = CliRunner().invoke(metrics_group, ["summary", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["errors"] == []
+    assert payload["data"]["metrics"]["total_runs_24h"] == 1

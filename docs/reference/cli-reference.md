@@ -23,7 +23,12 @@ phlo --version
 ```bash
 phlo --help              # Show help
 phlo --version           # Show version
+phlo --quiet             # Reduce non-essential output
+phlo --no-color          # Disable colorized terminal output
 ```
+
+Agent-facing commands prefer `--json` where available and emit the shared
+`{"data": ..., "warnings": [...], "errors": [...]}` envelope.
 
 ## Command Overview
 
@@ -38,6 +43,8 @@ phlo test                # Run tests
 phlo config              # Configuration management
 phlo env                 # Environment exports
 phlo doctor              # Diagnose local setup and service health
+phlo mcp                 # Serve, install, and inspect the MCP server
+phlo audit               # Inspect local MCP/API mutation audit logs
 ```
 
 **Workflow Commands:**
@@ -1111,6 +1118,7 @@ phlo workflow create [OPTIONS]
 --cron CRON          # Cron schedule expression
 --api-base-url URL   # REST API base URL (optional)
 --field NAME:TYPE    # Additional schema field (repeatable)
+--json               # Emit machine-readable JSON envelope
 ```
 
 **Interactive prompts**:
@@ -2028,6 +2036,33 @@ dbt publishing layer management.
 ### phlo metrics
 
 Metrics summary and export. Built into core Phlo.
+
+```bash
+phlo metrics summary --json
+phlo metrics asset my_asset --json
+phlo metrics export --format json --output metrics.json --json
+```
+
+### phlo mcp
+
+MCP server management and introspection.
+
+```bash
+phlo mcp serve --transport stdio
+phlo mcp install amp --dry-run --json
+phlo mcp tools --json
+phlo mcp prompts --json
+phlo mcp config --json
+```
+
+### phlo audit
+
+Inspect local JSONL audit records written by MCP and API mutation surfaces.
+
+```bash
+phlo audit tail --since 1h --json
+phlo audit query --operation materialize_asset --json
+```
 
 ### phlo alerts
 

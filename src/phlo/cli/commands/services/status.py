@@ -1,5 +1,7 @@
 """Status command for showing service status."""
 
+import json
+
 import click
 
 from phlo.cli.commands.services.common import run_compose
@@ -19,11 +21,13 @@ logger = get_logger(__name__)
     default=None,
     help="Container backend for this command.",
 )
-def status_cmd(backend_name: str | None):
+@click.option("--json", "output_json", is_flag=True, help="Output as JSON")
+def status_cmd(backend_name: str | None, output_json: bool):
     """Show status of Phlo infrastructure services.
 
     Examples:
         phlo services status
+        phlo services status --json
     """
     require_container_backend(backend_name)
     phlo_dir = ensure_compose_project()
@@ -39,7 +43,10 @@ def status_cmd(backend_name: str | None):
         project_name=project_name,
         backend_name=backend_name,
     )
-    cmd.extend(["ps", "--format", "table {{.Service}}\t{{.Status}}\t{{.Ports}}"])
+    if output_json:
+        cmd.extend(["ps", "--format", "json"])
+    else:
+        cmd.extend(["ps", "--format", "table {{.Service}}\t{{.Status}}\t{{.Ports}}"])
 
     result = run_compose(cmd, check=False, capture_output=True)
     if result.returncode != 0:
@@ -49,6 +56,11 @@ def status_cmd(backend_name: str | None):
             returncode=result.returncode,
         )
         raise click.ClickException("No services running or error checking status.")
+    if output_json:
+        click.echo(json.dumps(_parse_compose_json_status(result.stdout or ""), indent=2))
+        logger.info("services_status_succeeded", project_name=project_name, output="json")
+        return
+
     if result.stdout:
         click.echo(result.stdout, nl=False)
     lines = [line for line in (result.stdout or "").splitlines() if line.strip()]
@@ -56,3 +68,32 @@ def status_cmd(backend_name: str | None):
         click.echo("\nNo services are running.")
         click.echo("Run: phlo services start")
     logger.info("services_status_succeeded", project_name=project_name)
+
+
+def _parse_compose_json_status(stdout: str) -> list[dict[str, object]]:
+    """Parse compose ps JSON output across Docker Compose variants."""
+    text = stdout.strip()
+    if not text:
+        return []
+
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        parsed = [json.loads(line) for line in text.splitlines() if line.strip()]
+
+    items = [parsed] if isinstance(parsed, dict) else list(parsed)
+
+    services: list[dict[str, object]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        services.append(
+            {
+                "service": item.get("Service") or item.get("Name") or item.get("service"),
+                "name": item.get("Name") or item.get("Container") or item.get("name"),
+                "state": item.get("State") or item.get("state"),
+                "status": item.get("Status") or item.get("status"),
+                "ports": item.get("Publishers") or item.get("Ports") or item.get("ports") or [],
+            }
+        )
+    return services

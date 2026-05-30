@@ -28,17 +28,21 @@ Example:
 
 from __future__ import annotations
 
+import asyncio
 import json
+import re
 from datetime import datetime, timedelta
 from typing import Any, Literal
 
 import httpx
 from fastapi import APIRouter, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from phlo.config.env import project_env_value
 from phlo.config.network import resolve_url
 from phlo.logging import get_logger
+from phlo_api.pagination import decode_cursor, paginate_items
 
 logger = get_logger(__name__)
 
@@ -98,6 +102,7 @@ class LogQueryResult(BaseModel):
 
     entries: list[LogEntry]
     has_more: bool
+    next_cursor: str | None = None
 
 
 class LokiConnectionStatus(BaseModel):
@@ -364,6 +369,11 @@ async def query_run_logs(
     run_id: str,
     level: LogLevel | None = None,
     limit: int = Query(default=500, le=2000),
+    query: str | None = None,
+    regex: str | None = None,
+    since: str | None = None,
+    until: str | None = None,
+    cursor: str | None = None,
     loki_url: str | None = None,
 ) -> LogQueryResult | dict[str, str]:
     """Query logs for a Dagster run.
@@ -379,17 +389,66 @@ async def query_run_logs(
 
     """
     # Query last 24 hours
-    end = datetime.now()
-    start = end - timedelta(hours=24)
+    end = datetime.fromisoformat(until.replace("Z", "+00:00")) if until else datetime.now()
+    start = (
+        datetime.fromisoformat(since.replace("Z", "+00:00")) if since else end - timedelta(hours=24)
+    )
 
-    return await query_logs(
+    offset = decode_cursor(cursor)
+    query_limit = min(offset + limit, 2000)
+    result = await query_logs(
         start=start.isoformat(),
         end=end.isoformat(),
         run_id=run_id,
         level=level,
-        limit=limit,
+        limit=query_limit,
         loki_url=loki_url,
     )
+    if isinstance(result, dict):
+        return result
+    entries = result.entries
+    if query:
+        entries = [entry for entry in entries if query.lower() in entry.message.lower()]
+    if regex:
+        pattern = re.compile(regex)
+        entries = [entry for entry in entries if pattern.search(entry.message)]
+    page, next_cursor = paginate_items(entries, limit=limit, cursor=cursor)
+    return LogQueryResult(
+        entries=page,
+        has_more=result.has_more or next_cursor is not None,
+        next_cursor=next_cursor,
+    )
+
+
+@router.get("/runs/{run_id}/stream")
+async def stream_run_logs(
+    run_id: str,
+    timeout_seconds: int = Query(default=30, ge=1, le=120),
+    interval_seconds: float = Query(default=2.0, ge=0.25, le=10.0),
+    limit: int = Query(default=200, le=2000),
+    loki_url: str | None = None,
+) -> StreamingResponse:
+    """Stream bounded Server-Sent Events for run logs."""
+
+    async def events():  # noqa: ANN202
+        deadline = datetime.now() + timedelta(seconds=timeout_seconds)
+        seen: set[str] = set()
+        while datetime.now() < deadline:
+            result = await query_run_logs(run_id=run_id, limit=limit, loki_url=loki_url)
+            if isinstance(result, LogQueryResult):
+                for entry in result.entries:
+                    entry_id = f"{entry.timestamp}:{entry.level}:{entry.message}"
+                    if entry_id in seen:
+                        continue
+                    seen.add(entry_id)
+                    yield f"event: log\ndata: {entry.model_dump_json()}\n\n"
+            else:
+                yield f"event: error\ndata: {json.dumps(result)}\n\n"
+                return
+            await asyncio.sleep(interval_seconds)
+        yield f"event: done\ndata: {json.dumps({'run_id': run_id})}\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream")
 
 
 @router.get("/assets/{asset_key:path}", response_model=LogQueryResult | dict)

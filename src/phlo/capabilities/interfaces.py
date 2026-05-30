@@ -210,6 +210,50 @@ class SchemaExtractor(Protocol):
 
 
 @runtime_checkable
+class WorkflowAuthoringProvider(Protocol):
+    """Protocol for providers that can create workflow files in a project."""
+
+    def create_workflow(
+        self, *, project_root: Path, request: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        """Create workflow files for a provider-specific request."""
+        ...
+
+
+@runtime_checkable
+class OrchestratorOperationsProvider(Protocol):
+    """Protocol for providers that expose orchestrator run and asset operations."""
+
+    async def get_run_status(self, run_id: str) -> Any:
+        """Return status for one orchestrator run."""
+        ...
+
+    async def retry_run(self, run_id: str, request: Mapping[str, Any]) -> Any:
+        """Validate or request retry for one orchestrator run."""
+        ...
+
+    async def cancel_run(self, run_id: str, request: Mapping[str, Any]) -> Any:
+        """Request cancellation for one orchestrator run."""
+        ...
+
+    async def get_materialization_history(self, asset_key_path: str, *, limit: int = 10) -> Any:
+        """Return recent materializations for one asset."""
+        ...
+
+    async def materialize_asset(self, asset_key_path: str, request: Mapping[str, Any]) -> Any:
+        """Validate or request materialization for one asset."""
+        ...
+
+    async def backfill_asset(self, asset_key_path: str, request: Mapping[str, Any]) -> Any:
+        """Validate or request partition backfill for one asset."""
+        ...
+
+    async def list_partitions(self, asset_key_path: str) -> Any:
+        """Return partitions for one asset."""
+        ...
+
+
+@runtime_checkable
 class MetadataCatalog(Protocol):
     """Protocol for metadata catalog providers."""
 
