@@ -4,7 +4,6 @@
 
 ### Added
 - phlo, phlo-api, phlo-dagster, phlo-dlt, phlo-mcp, phlo-sling: complete agent-first CLI and MCP operate loop with scoped mutations, authoring tools, introspection, JSON envelopes, audit logs, pagination, and live Dagster operations.
-- phlo-api, phlo-iceberg, phlo-nessie: add Apache Iceberg 1.11 lakehouse compatibility checks for REST catalog routing, Trino catalog properties, and the Observatory compatibility API.
 
 ## [phlo 0.10.0 + 7 packages] - 2026-05-18
 
