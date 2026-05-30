@@ -1,0 +1,101 @@
+"""Tests for the Dagster operation capability adapter."""
+
+from __future__ import annotations
+
+import asyncio
+
+import httpx
+
+from phlo_dagster.operations import launch_materialize, list_partitions, terminate
+
+
+def test_launch_materialize_posts_asset_selection(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    async def fake_post(self, url, json=None, headers=None):  # noqa: ANN001, ANN202, ARG001
+        captured["url"] = url
+        captured["json"] = json
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "data": {
+                    "launchPipelineExecution": {
+                        "__typename": "LaunchRunSuccess",
+                        "run": {"runId": "run-1", "status": "STARTED"},
+                    }
+                }
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    result = asyncio.run(
+        launch_materialize(
+            dagster_url="http://dagster.test/graphql",
+            asset_key_path="silver/orders",
+            job_name="orders_job",
+            partition_key="2026-05-28",
+        )
+    )
+
+    assert result.accepted is True
+    assert result.run_id == "run-1"
+    assert captured["url"] == "http://dagster.test/graphql"
+    variables = captured["json"]["variables"]  # type: ignore[index]
+    selector = variables["executionParams"]["selector"]
+    assert selector["pipelineName"] == "orders_job"
+    assert selector["assetSelection"] == [{"path": ["silver", "orders"]}]
+
+
+def test_terminate_maps_dagster_error(monkeypatch) -> None:
+    async def fake_post(self, url, json=None, headers=None):  # noqa: ANN001, ANN202, ARG001
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "data": {
+                    "terminateRun": {
+                        "__typename": "RunNotFoundError",
+                        "message": "missing run",
+                    }
+                }
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    result = asyncio.run(terminate(dagster_url="http://dagster.test/graphql", run_id="missing"))
+
+    assert result.accepted is False
+    assert result.status == "RunNotFoundError"
+    assert result.message == "missing run"
+
+
+def test_list_partitions_uses_asset_node_partition_dimensions(monkeypatch) -> None:
+    async def fake_post(self, url, json=None, headers=None):  # noqa: ANN001, ANN202, ARG001
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "data": {
+                    "assetNodeOrError": {
+                        "__typename": "AssetNode",
+                        "partitionKeysByDimension": [
+                            {"name": "default", "partitionKeys": ["2025-01-01", "2025-01-02"]}
+                        ],
+                    }
+                }
+            },
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    result = asyncio.run(
+        list_partitions(dagster_url="http://dagster.test/graphql", asset_key_path="dlt_events")
+    )
+
+    assert result == [
+        {"partition_key": "2025-01-01", "status": "UNKNOWN"},
+        {"partition_key": "2025-01-02", "status": "UNKNOWN"},
+    ]

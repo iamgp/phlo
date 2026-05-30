@@ -51,6 +51,8 @@ def test_workflow_create_uses_cron_default_noninteractively(monkeypatch) -> None
             "create",
             "--type",
             "ingestion",
+            "--provider",
+            "dlt",
             "--domain",
             "demo",
             "--table",
@@ -87,6 +89,8 @@ def test_workflow_create_defaults_ingestion_noninteractively(monkeypatch) -> Non
         [
             "workflow",
             "create",
+            "--provider",
+            "dlt",
             "--domain",
             "weather",
             "--table",
@@ -159,6 +163,8 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
             "create",
             "--type",
             "ingestion",
+            "--provider",
+            "dlt",
             "--domain",
             "weather",
             "--table",
@@ -211,6 +217,8 @@ def test_workflow_create_converts_blank_api_base_url_to_none(monkeypatch) -> Non
             "create",
             "--type",
             "ingestion",
+            "--provider",
+            "dlt",
             "--domain",
             "events",
             "--table",
@@ -257,6 +265,8 @@ def test_workflow_create_prints_runnable_next_steps(monkeypatch, tmp_path) -> No
             "create",
             "--type",
             "ingestion",
+            "--provider",
+            "dlt",
             "--domain",
             "weather",
             "--table",
@@ -271,7 +281,7 @@ def test_workflow_create_prints_runnable_next_steps(monkeypatch, tmp_path) -> No
     )
 
     assert result.exit_code == 0
-    assert "phlo services restart --service dagster" in result.output
+    assert "phlo services restart" in result.output
     assert "phlo materialize dlt_observations" in result.output
     assert "Inspect status: phlo status" in result.output
     assert "phlo schema validate workflows/schemas/weather.py" not in result.output
@@ -301,6 +311,8 @@ def test_workflow_create_reports_scaffold_failures(monkeypatch) -> None:
             "create",
             "--type",
             "ingestion",
+            "--provider",
+            "dlt",
             "--domain",
             "weather",
             "--table",
@@ -350,7 +362,7 @@ def test_workflow_check_delegates_to_existing_validators(monkeypatch, tmp_path) 
     assert result.exit_code == 0
     assert ("workflow", str(workflow_file)) in calls
     assert ("schema", str(schema_file)) in calls
-    assert "phlo materialize dlt_observations" in result.output
+    assert "phlo materialize observations" in result.output
 
 
 def test_workflow_check_missing_file_is_actionable(tmp_path, monkeypatch) -> None:

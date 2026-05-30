@@ -13,6 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from phlo.capabilities.maintenance import render_maintenance_prometheus
+from phlo.cli.output import json_envelope
 from phlo.logging import get_logger
 from phlo.metrics import get_metrics_collector
 
@@ -27,10 +28,23 @@ def metrics_group() -> None:
 
 @metrics_group.command(name="summary")
 @click.option("--period", type=str, default="24h", help="Time period to analyze (e.g., 24h, 7d)")
-def metrics_summary(period: str) -> None:
+@click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
+def metrics_summary(period: str, output_json: bool) -> None:
     """Show key metrics overview."""
     collector = get_metrics_collector()
-    metrics = collector.collect_summary(_parse_period(period))
+    period_hours = _parse_period(period)
+    metrics = collector.collect_summary(period_hours)
+    if output_json:
+        click.echo(
+            json_envelope(
+                data={
+                    "period": period,
+                    "period_hours": period_hours,
+                    "metrics": _dataclass_to_dict(metrics),
+                }
+            )
+        )
+        return
     summary_text = f"""
 [bold]Platform Metrics Summary[/bold]
 
@@ -60,10 +74,22 @@ def metrics_summary(period: str) -> None:
 @metrics_group.command(name="asset")
 @click.argument("asset_name")
 @click.option("--runs", type=int, default=10, help="Number of past runs to display")
-def metrics_asset(asset_name: str, runs: int) -> None:
+@click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
+def metrics_asset(asset_name: str, runs: int, output_json: bool) -> None:
     """Show per-asset metrics."""
     collector = get_metrics_collector()
     metrics = collector.collect_asset(asset_name, runs=runs)
+    if output_json:
+        click.echo(
+            json_envelope(
+                data={
+                    "asset_name": asset_name,
+                    "runs": runs,
+                    "metrics": _dataclass_to_dict(metrics),
+                }
+            )
+        )
+        return
 
     table = Table(title=f"Metrics for {asset_name}")
     table.add_column("Metric", style="cyan")
@@ -112,10 +138,12 @@ def metrics_asset(asset_name: str, runs: int) -> None:
 )
 @click.option("--output", type=Path, required=True, help="Output file path")
 @click.option("--period", type=str, default="24h", help="Time period to analyze (e.g., 24h, 7d)")
-def metrics_export(export_format: str, output: Path, period: str) -> None:
+@click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
+def metrics_export(export_format: str, output: Path, period: str, output_json: bool) -> None:
     """Export metrics to JSON, CSV, or Prometheus text."""
     collector = get_metrics_collector()
-    metrics = collector.collect_summary(_parse_period(period))
+    period_hours = _parse_period(period)
+    metrics = collector.collect_summary(period_hours)
     try:
         if export_format == "json":
             _export_json(metrics, output)
@@ -132,6 +160,19 @@ def metrics_export(export_format: str, output: Path, period: str) -> None:
             exc_info=True,
         )
         raise
+    if output_json:
+        click.echo(
+            json_envelope(
+                data={
+                    "format": export_format,
+                    "output": str(output),
+                    "period": period,
+                    "period_hours": period_hours,
+                    "exported": True,
+                }
+            )
+        )
+        return
     console.print(f"[green]✓[/green] Metrics exported to {output}")
 
 

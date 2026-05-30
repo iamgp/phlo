@@ -622,12 +622,14 @@ class V2RunList(BaseModel):
     """List envelope for v2 orchestrator runs."""
 
     items: list[V2Run]
+    next_cursor: str | None = None
 
 
 class V2AssetList(BaseModel):
     """List envelope for v2 assets."""
 
     items: list[V2Asset]
+    next_cursor: str | None = None
 
 
 class V2TableList(BaseModel):
@@ -664,6 +666,7 @@ class V2SearchList(BaseModel):
     """List envelope for v2 search results."""
 
     items: list[V2SearchResult]
+    next_cursor: str | None = None
 
 
 class V2SavedQueryList(BaseModel):

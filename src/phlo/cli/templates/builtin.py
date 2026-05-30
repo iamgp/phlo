@@ -198,6 +198,20 @@ htmlcov/
 """,
     )
     _write_project_readme(project_dir, project_name)
+    _write_text(
+        project_dir / "AGENTS.md",
+        """# Agent Instructions
+
+Prefer Phlo MCP tools over shell commands when available:
+
+- Inspect assets with `runtime_assets`, `runtime_asset`, `inspect_materialization`, and `get_lineage`.
+- Diagnose failures with `phlo.debug_run`, `get_run_logs`, `get_run_trace_spans`, and `render_run_trace_tree`.
+- Validate authoring changes with `validate_workflow`, `validate_schema`, `lint_project`, and `run_doctor`.
+- For mutations, start with dry runs: `materialize_asset(dry_run=true)` and `backfill_asset(dry_run=true)`.
+
+Use `lakehouse:read` for inspection, `lakehouse:operate` for materialize/retry/cancel/backfill, and `project:write` for scaffold or validation tools that touch project files.
+""",
+    )
 
     from phlo.cli.commands.services.utils import PHLO_CONFIG_TEMPLATE
 

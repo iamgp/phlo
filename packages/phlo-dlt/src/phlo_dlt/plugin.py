@@ -41,7 +41,10 @@ Example:
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Callable
 
 from phlo.capabilities import (
@@ -49,7 +52,7 @@ from phlo.capabilities import (
     WorkflowWizardContribution,
     WorkflowWizardField,
 )
-from phlo.capabilities.specs import AssetCheckSpec, AssetSpec
+from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, WorkflowAuthoringSpec
 from phlo.plugins.base import AssetProviderPlugin, IngestionProviderPlugin, PluginMetadata
 
 from phlo_dlt.decorator import clear_ingestion_assets, get_ingestion_assets
@@ -260,3 +263,98 @@ class DLTIngestionProvider(IngestionProviderPlugin):
 
         """
         return get_ingestion_assets
+
+    def get_workflow_wizard_contributions(self) -> list[WorkflowWizardContribution]:
+        """Return workflow wizard contributions exposed by DLT."""
+        return get_workflow_wizard_contributions()
+
+    def get_workflow_authoring_providers(self) -> list[WorkflowAuthoringSpec]:
+        """Return workflow authoring capabilities exposed by DLT."""
+        return [
+            WorkflowAuthoringSpec(
+                name="dlt",
+                provider=DltWorkflowAuthoringProvider(),
+                metadata={"contribution_id": "dlt.rest-api-source"},
+            )
+        ]
+
+
+class DltWorkflowAuthoringProvider:
+    """Create DLT-backed ingestion workflow files."""
+
+    def create_workflow(self, *, project_root: Path, request: dict[str, Any]) -> dict[str, Any]:
+        from phlo_dlt.scaffold import create_ingestion_workflow
+
+        values = dict(request.get("values") or {})
+        workflow_type = str(request.get("workflow_type") or "ingestion")
+        if workflow_type != "ingestion":
+            raise ValueError(f"Unsupported DLT workflow type: {workflow_type}")
+
+        contribution_id = request.get("contribution_id")
+        if contribution_id not in {None, "", "dlt.rest-api-source"}:
+            raise ValueError(f"DLT cannot author contribution {contribution_id!r}")
+
+        domain = str(values.get("domain") or request.get("domain") or "")
+        table = str(values.get("table_name") or values.get("table") or request.get("table") or "")
+        unique_key = str(
+            values.get("unique_key") or values.get("primary_key") or request.get("unique_key") or ""
+        )
+        cron = str(
+            values.get("cron") or values.get("schedule") or request.get("cron") or "0 */1 * * *"
+        )
+        api_base_url = values.get("api_base_url", request.get("api_base_url"))
+        fields = values.get("fields", request.get("fields") or [])
+
+        if not domain or not table or not unique_key:
+            raise ValueError("DLT workflow creation requires domain, table, and unique_key.")
+
+        project_root.mkdir(parents=True, exist_ok=True)
+        with _cwd(project_root):
+            files = create_ingestion_workflow(
+                domain=domain,
+                table_name=table,
+                unique_key=unique_key,
+                cron=cron,
+                api_base_url=str(api_base_url) if api_base_url else None,
+                fields=list(fields or []),
+            )
+
+        return {
+            "workflow_type": workflow_type,
+            "provider": "dlt",
+            "domain": domain,
+            "table": table,
+            "files": files,
+            "next_steps": _ingestion_next_steps(files, table=table),
+        }
+
+
+@contextmanager
+def _cwd(path: Path):
+    previous = Path.cwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(previous)
+
+
+def _ingestion_next_steps(files: list[str], *, table: str) -> list[str]:
+    if len(files) < 2:
+        raise ValueError(
+            "create_ingestion_workflow returned fewer than two files; cannot build next steps"
+        )
+    schema_file = files[0]
+    workflow_file = files[1]
+    test_file = files[2] if len(files) > 2 else None
+    steps = [f"Review schema: {schema_file}", f"Review workflow: {workflow_file}"]
+    if test_file:
+        steps.append(f"Run generated tests: uv run pytest {test_file} -q")
+    steps.extend(
+        [
+            "Restart active services if needed: phlo services restart",
+            f"Materialize: phlo materialize dlt_{table}",
+            "Inspect status: phlo status",
+        ]
+    )
+    return steps

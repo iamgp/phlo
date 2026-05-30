@@ -184,6 +184,9 @@ def test_create_server_registers_resources() -> None:
     )
 
     assert resource_uris == [
+        "phlo://docs/cli",
+        "phlo://docs/mcp/prompts",
+        "phlo://docs/mcp/tools",
         "phlo://runtime/assets",
         "phlo://runtime/config",
         "phlo://runtime/contracts",
@@ -233,7 +236,7 @@ def test_api_client_wraps_operational_routes(monkeypatch) -> None:
 
     def fake_post(url: str, json=None, headers=None, timeout=30.0):  # noqa: ANN001
         seen_posts.append({"url": url, "json": json, "headers": headers or {}, "timeout": timeout})
-        return _FakeResponse({"queued": True, "dry_run": json["dry_run"]})
+        return _FakeResponse({"queued": True, "dry_run": json.get("dry_run")})
 
     def fake_get(url: str, params=None, headers=None, timeout=10.0):  # noqa: ANN001
         seen_gets.append(url)
@@ -243,13 +246,35 @@ def test_api_client_wraps_operational_routes(monkeypatch) -> None:
     monkeypatch.setattr("phlo_mcp.api_client.httpx.get", fake_get)
     client = PhloApiClient(McpConfig(api_base_url="http://example.test", api_token="secret"))
 
+    assert client.create_workflow(
+        domain="sales", table="orders", unique_key="id", provider="sling"
+    ) == {"queued": True, "dry_run": None}
     assert client.materialize_asset("silver/orders", dry_run=True, partition_key="2026-04-26") == {
         "queued": True,
         "dry_run": True,
     }
     assert client.retry_run("run-123", dry_run=False) == {"queued": True, "dry_run": False}
+    assert client.cancel_run("run-123", reason="stuck") == {"queued": True, "dry_run": None}
+    assert client.backfill_asset("silver/orders", dry_run=True, partitions=["2026-04-26"]) == {
+        "queued": True,
+        "dry_run": True,
+    }
     assert client.get_run_status("run-123")["status"] == "STARTED"
+    assert client.list_partitions("silver/orders")["status"] == "STARTED"
     assert seen_posts == [
+        {
+            "url": "http://example.test/api/authoring/workflows",
+            "json": {
+                "domain": "sales",
+                "table": "orders",
+                "unique_key": "id",
+                "cron": "0 */1 * * *",
+                "fields": [],
+                "provider": "sling",
+            },
+            "headers": {"Authorization": "Bearer secret"},
+            "timeout": 30.0,
+        },
         {
             "url": "http://example.test/api/observatory/v2/assets/silver/orders/materialize",
             "json": {"dry_run": True, "partition_key": "2026-04-26"},
@@ -262,8 +287,55 @@ def test_api_client_wraps_operational_routes(monkeypatch) -> None:
             "headers": {"Authorization": "Bearer secret"},
             "timeout": 30.0,
         },
+        {
+            "url": "http://example.test/api/observatory/v2/runs/run-123/cancel",
+            "json": {"reason": "stuck"},
+            "headers": {"Authorization": "Bearer secret"},
+            "timeout": 30.0,
+        },
+        {
+            "url": "http://example.test/api/observatory/v2/assets/silver/orders/backfill",
+            "json": {"dry_run": True, "partitions": ["2026-04-26"]},
+            "headers": {"Authorization": "Bearer secret"},
+            "timeout": 30.0,
+        },
     ]
-    assert seen_gets == ["http://example.test/api/observatory/v2/runs/run-123/status"]
+    assert seen_gets == [
+        "http://example.test/api/observatory/v2/runs/run-123/status",
+        "http://example.test/api/observatory/v2/assets/silver/orders/partitions",
+    ]
+
+
+def test_search_contracts_propagates_api_errors(monkeypatch) -> None:
+    monkeypatch.setattr(PhloApiClient, "get_contracts", lambda self: {"error": "unavailable"})
+    client = PhloApiClient(McpConfig(api_base_url="http://example.test"))
+
+    assert client.search_contracts("orders") == {"error": "unavailable"}
+
+
+def test_follow_run_logs_flushes_final_sse_event(monkeypatch) -> None:
+    class _FakeStream:
+        def __enter__(self):  # noqa: ANN204
+            return self
+
+        def __exit__(self, *args):  # noqa: ANN002
+            return None
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_lines(self):  # noqa: ANN201
+            return iter(["event: log", 'data: {"message":"done"}'])
+
+    monkeypatch.setattr(
+        "phlo_mcp.api_client.httpx.stream",
+        lambda *args, **kwargs: _FakeStream(),  # noqa: ARG005
+    )
+    client = PhloApiClient(McpConfig(api_base_url="http://example.test"))
+
+    assert client.follow_run_logs("run-123")["events"] == [
+        {"event": "log", "data": {"message": "done"}}
+    ]
 
 
 def test_create_server_registers_expected_tools() -> None:
@@ -273,6 +345,7 @@ def test_create_server_registers_expected_tools() -> None:
 
     assert tool_names == [
         "get_platform_health",
+        "list_plugins",
         "get_service_status",
         "get_recent_alerts",
         "get_dashboard_links",
@@ -287,6 +360,18 @@ def test_create_server_registers_expected_tools() -> None:
         "get_asset_materialization_trace",
         "render_materialization_trace_tree",
         "render_run_trace_tree",
+        "list_workflows",
+        "list_templates",
+        "lint_project",
+        "run_doctor",
+        "search_assets",
+        "search_contracts",
+        "search_runs",
+        "search_run_logs",
+        "follow_run_logs",
+        "get_quality_results",
+        "get_lineage",
+        "diff_schema",
     ]
 
 
@@ -297,7 +382,7 @@ def test_create_server_hides_write_tools_by_default() -> None:
 
     assert "materialize_asset" not in tool_names
     assert "retry_failed_run" not in tool_names
-    assert "get_dagster_run_status" not in tool_names
+    assert "get_run_status" not in tool_names
 
 
 def test_create_server_registers_write_tools_only_with_auth() -> None:
@@ -309,26 +394,43 @@ def test_create_server_registers_write_tools_only_with_auth() -> None:
 
     assert "materialize_asset" not in unauthenticated_tool_names
     assert "retry_failed_run" not in unauthenticated_tool_names
-    assert "get_dagster_run_status" not in unauthenticated_tool_names
-    assert authenticated_tool_names[-3:] == [
+    assert "get_run_status" not in unauthenticated_tool_names
+    assert authenticated_tool_names[-10:] == [
+        "create_workflow",
+        "validate_workflow",
+        "validate_schema",
         "materialize_asset",
         "retry_failed_run",
-        "get_dagster_run_status",
+        "cancel_run",
+        "backfill_asset",
+        "list_partitions",
+        "get_run_status",
+        "install_plugin",
     ]
 
 
-def test_write_tool_returns_audit_context_without_token(monkeypatch) -> None:
+def test_write_tool_returns_audit_context_without_token(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
     def fake_materialize_asset(
         self,  # noqa: ANN001
         asset_key_path: str,
         *,
         dry_run: bool = True,
         partition_key: str | None = None,
+        job_name: str | None = None,
+        repository_location_name: str | None = None,
+        repository_name: str | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, object]:
         return {
             "asset_key_path": asset_key_path,
             "dry_run": dry_run,
             "partition_key": partition_key,
+            "job_name": job_name,
+            "repository_location_name": repository_location_name,
+            "repository_name": repository_name,
+            "idempotency_key": idempotency_key,
             "queued": False,
         }
 

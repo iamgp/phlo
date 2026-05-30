@@ -24,6 +24,7 @@ from phlo.capabilities.specs import (
     MetadataCatalogSpec,
     ObjectStoreSpec,
     ObservabilityBackendSpec,
+    OrchestratorOperationsSpec,
     PublishTargetSpec,
     QualityBackendSpec,
     QueryEngineSpec,
@@ -33,6 +34,7 @@ from phlo.capabilities.specs import (
     SecretBackendSpec,
     TableStoreSpec,
     UiContributionSpec,
+    WorkflowAuthoringSpec,
 )
 
 CAPABILITY_FAMILIES: dict[str, CapabilityFamilyDefinition[Any, Any]] = {
@@ -155,6 +157,18 @@ CAPABILITY_FAMILIES: dict[str, CapabilityFamilyDefinition[Any, Any]] = {
         spec_type=SchemaMigrationSpec,
         key=lambda spec: spec.name,
         provider_method="get_schema_migrators",
+    ),
+    "workflow_authoring": CapabilityFamilyDefinition(
+        name="workflow_authoring",
+        spec_type=WorkflowAuthoringSpec,
+        key=lambda spec: spec.name,
+        provider_method="get_workflow_authoring_providers",
+    ),
+    "orchestrator_operations": CapabilityFamilyDefinition(
+        name="orchestrator_operations",
+        spec_type=OrchestratorOperationsSpec,
+        key=lambda spec: spec.name,
+        provider_method="get_orchestrator_operations_providers",
     ),
     "data_migration_source": CapabilityFamilyDefinition(
         name="data_migration_source",

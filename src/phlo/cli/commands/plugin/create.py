@@ -13,6 +13,7 @@ from phlo.cli.commands.plugin.utils import (
     console,
     create_plugin_package,
 )
+from phlo.cli.output import json_envelope
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -46,8 +47,9 @@ logger = get_logger(__name__)
     type=click.Path(),
     help="Path for new plugin package (default: ./phlo-plugin-{name})",
 )
+@click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
 @require_mutation_authorization("plugin.create")
-def create_cmd(plugin_name: str, plugin_type: str, path: str | None):
+def create_cmd(plugin_name: str, plugin_type: str, path: str | None, output_json: bool):
     """Create scaffolding for a new plugin.
 
     Examples:
@@ -89,12 +91,29 @@ def create_cmd(plugin_name: str, plugin_type: str, path: str | None):
             path=str(plugin_path),
         )
 
+        next_steps = [
+            f"cd {path}",
+            f"Edit the plugin in src/phlo_{plugin_name.replace('-', '_')}/",
+            "Run tests: pytest tests/",
+            "Install: pip install -e .",
+        ]
+        if output_json:
+            click.echo(
+                json_envelope(
+                    data={
+                        "plugin_name": plugin_name,
+                        "plugin_type": plugin_type,
+                        "path": str(plugin_path),
+                        "next_steps": next_steps,
+                    }
+                )
+            )
+            return
+
         console.print("\n[green]✓ Plugin created successfully![/green]")
         console.print("\nNext steps:")
-        console.print(f"  1. cd {path}")
-        console.print(f"  2. Edit the plugin in src/phlo_{plugin_name.replace('-', '_')}/")
-        console.print("  3. Run tests: pytest tests/")
-        console.print("  4. Install: pip install -e .")
+        for index, step in enumerate(next_steps, start=1):
+            console.print(f"  {index}. {step}")
 
     except SystemExit:
         raise

@@ -40,7 +40,7 @@ Optional guarded operational tools:
 
 - `materialize_asset`
 - `retry_failed_run`
-- `get_dagster_run_status`
+- `get_run_status`
 
 These tools call `phlo-api` endpoints and return structured JSON results.
 
