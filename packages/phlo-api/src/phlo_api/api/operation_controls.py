@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -173,6 +174,29 @@ async def replay_or_execute_async(
     if not idempotency_key:
         return await execute()
 
+    existing = await asyncio.to_thread(
+        _load_idempotent_response,
+        idempotency_key=idempotency_key,
+        operation=operation,
+        target=target,
+    )
+    if existing is not None:
+        return existing
+
+    response = await execute()
+    await asyncio.to_thread(
+        _store_idempotent_response,
+        idempotency_key=idempotency_key,
+        operation=operation,
+        target=target,
+        response=response,
+    )
+    return response
+
+
+def _load_idempotent_response(
+    *, idempotency_key: str, operation: str, target: str
+) -> dict[str, Any] | None:
     conn = _idempotency_connection()
     try:
         _delete_expired(conn)
@@ -186,8 +210,21 @@ async def replay_or_execute_async(
         ).fetchone()
         if existing:
             return json.loads(existing[0])
+        return None
+    finally:
+        conn.close()
 
-        response = await execute()
+
+def _store_idempotent_response(
+    *,
+    idempotency_key: str,
+    operation: str,
+    target: str,
+    response: dict[str, Any],
+) -> None:
+    conn = _idempotency_connection()
+    try:
+        key_hash = _idempotency_hash(idempotency_key)
         now = datetime.now(UTC)
         expires_at = now + timedelta(hours=_DEFAULT_IDEMPOTENCY_RETENTION_HOURS)
         conn.execute(
@@ -206,7 +243,6 @@ async def replay_or_execute_async(
             ),
         )
         conn.commit()
-        return response
     finally:
         conn.close()
 

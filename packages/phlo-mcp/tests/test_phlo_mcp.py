@@ -246,6 +246,9 @@ def test_api_client_wraps_operational_routes(monkeypatch) -> None:
     monkeypatch.setattr("phlo_mcp.api_client.httpx.get", fake_get)
     client = PhloApiClient(McpConfig(api_base_url="http://example.test", api_token="secret"))
 
+    assert client.create_workflow(
+        domain="sales", table="orders", unique_key="id", provider="sling"
+    ) == {"queued": True, "dry_run": None}
     assert client.materialize_asset("silver/orders", dry_run=True, partition_key="2026-04-26") == {
         "queued": True,
         "dry_run": True,
@@ -259,6 +262,19 @@ def test_api_client_wraps_operational_routes(monkeypatch) -> None:
     assert client.get_run_status("run-123")["status"] == "STARTED"
     assert client.list_partitions("silver/orders")["status"] == "STARTED"
     assert seen_posts == [
+        {
+            "url": "http://example.test/api/authoring/workflows",
+            "json": {
+                "domain": "sales",
+                "table": "orders",
+                "unique_key": "id",
+                "cron": "0 */1 * * *",
+                "fields": [],
+                "provider": "sling",
+            },
+            "headers": {"Authorization": "Bearer secret"},
+            "timeout": 30.0,
+        },
         {
             "url": "http://example.test/api/observatory/v2/assets/silver/orders/materialize",
             "json": {"dry_run": True, "partition_key": "2026-04-26"},
@@ -287,6 +303,38 @@ def test_api_client_wraps_operational_routes(monkeypatch) -> None:
     assert seen_gets == [
         "http://example.test/api/observatory/v2/runs/run-123/status",
         "http://example.test/api/observatory/v2/assets/silver/orders/partitions",
+    ]
+
+
+def test_search_contracts_propagates_api_errors(monkeypatch) -> None:
+    monkeypatch.setattr(PhloApiClient, "get_contracts", lambda self: {"error": "unavailable"})
+    client = PhloApiClient(McpConfig(api_base_url="http://example.test"))
+
+    assert client.search_contracts("orders") == {"error": "unavailable"}
+
+
+def test_follow_run_logs_flushes_final_sse_event(monkeypatch) -> None:
+    class _FakeStream:
+        def __enter__(self):  # noqa: ANN204
+            return self
+
+        def __exit__(self, *args):  # noqa: ANN002
+            return None
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_lines(self):  # noqa: ANN201
+            return iter(["event: log", 'data: {"message":"done"}'])
+
+    monkeypatch.setattr(
+        "phlo_mcp.api_client.httpx.stream",
+        lambda *args, **kwargs: _FakeStream(),  # noqa: ARG005
+    )
+    client = PhloApiClient(McpConfig(api_base_url="http://example.test"))
+
+    assert client.follow_run_logs("run-123")["events"] == [
+        {"event": "log", "data": {"message": "done"}}
     ]
 
 

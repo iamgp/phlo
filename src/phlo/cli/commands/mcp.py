@@ -160,6 +160,8 @@ def _write_client_config(target: Path, snippet: dict[str, Any]) -> None:
             raise click.ClickException(f"Cannot update invalid JSON config: {target}") from exc
         if isinstance(loaded, dict):
             existing = loaded
+        else:
+            raise click.ClickException(f"Cannot update non-object JSON config: {target}")
     servers = existing.setdefault("mcpServers", {})
     if not isinstance(servers, dict):
         raise click.ClickException(f"Cannot update config with non-object mcpServers: {target}")

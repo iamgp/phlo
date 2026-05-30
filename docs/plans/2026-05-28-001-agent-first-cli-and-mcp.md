@@ -250,7 +250,7 @@ diagnostic engine from the Click command into a library function.
 #### 2.6 Verification
 
 ```bash
-uv run pytest packages/phlo-api/tests/test_authoring.py -q
+uv run pytest packages/phlo-api/tests/test_authoring_api.py -q
 uv run pytest packages/phlo-mcp/tests -q
 # Round-trip:
 phlo init demo --template csv-batch
@@ -429,7 +429,7 @@ Add a contract test that asserts every `@mcp.tool` has an `output_schema`.
 #### 4.8 Verification
 
 ```bash
-uv run pytest src/phlo/cli/tests -q
+uv run pytest tests/cli -q
 uv run pytest packages/phlo-api/tests/test_rate_limits.py -q
 phlo mcp install claude-code --dry-run
 phlo mcp tools --json | jq '.[] | .name'
@@ -597,8 +597,9 @@ Status legend: `[ ]` proposed · `[~]` in progress · `[x]` complete · `[-]` dr
 
 - [x] **P1-T02** — Add `POST /api/observatory/v2/assets/{asset_key_path}/materialize`
   to `phlo-api` with dry-run + live paths.
-  - Files: `packages/phlo-api/src/phlo_api/api/operations.py` (new),
-    register in `packages/phlo-api/src/phlo_api/api/__init__.py`
+  - Files: `packages/phlo-api/src/phlo_api/api/operation_controls.py`,
+    `packages/phlo-api/src/phlo_api/observatory_api/orchestrator_operations.py`,
+    registered through `packages/phlo-api/src/phlo_api/api/__init__.py`
   - depends: P1-T01
 
 - [x] **P1-T03** — Add `POST /api/observatory/v2/runs/{run_id}/retry`.

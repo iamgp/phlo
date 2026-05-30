@@ -83,6 +83,7 @@ def test_init_json_outputs_project_envelope(tmp_path) -> None:
     assert payload["errors"] == []
     assert payload["data"]["project_dir"] == str(project_dir)
     assert payload["data"]["template"] == "minimal"
+    assert payload["data"]["next_steps"][0] == f"cd {project_dir}"
     assert (project_dir / "AGENTS.md").exists()
 
 

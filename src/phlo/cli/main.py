@@ -364,7 +364,11 @@ def init(
                         "project_name": project_metadata_name,
                         "template": selected_template.metadata.name,
                         "generated_paths": list(selected_template.metadata.generated_paths),
-                        "next_steps": next_steps,
+                        "next_steps": (
+                            [f"cd {project_dir}", *next_steps]
+                            if project_dir != Path.cwd()
+                            else next_steps
+                        ),
                     }
                 )
             )

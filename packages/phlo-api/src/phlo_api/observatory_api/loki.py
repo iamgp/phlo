@@ -42,7 +42,7 @@ from pydantic import BaseModel
 from phlo.config.env import project_env_value
 from phlo.config.network import resolve_url
 from phlo.logging import get_logger
-from phlo_api.pagination import paginate_items
+from phlo_api.pagination import decode_cursor, paginate_items
 
 logger = get_logger(__name__)
 
@@ -394,12 +394,14 @@ async def query_run_logs(
         datetime.fromisoformat(since.replace("Z", "+00:00")) if since else end - timedelta(hours=24)
     )
 
+    offset = decode_cursor(cursor)
+    query_limit = min(offset + limit, 2000)
     result = await query_logs(
         start=start.isoformat(),
         end=end.isoformat(),
         run_id=run_id,
         level=level,
-        limit=limit,
+        limit=query_limit,
         loki_url=loki_url,
     )
     if isinstance(result, dict):

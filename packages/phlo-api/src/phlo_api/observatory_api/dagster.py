@@ -433,6 +433,7 @@ class CancelRunRequest(BaseModel):
     """Request to cancel one Dagster run."""
 
     reason: str | None = None
+    idempotency_key: str | None = None
 
 
 class BackfillAssetRequest(BaseModel):
@@ -1123,6 +1124,7 @@ async def materialize_asset(
             repository_name=payload.repository_name,
             partition_key=payload.partition_key,
             run_config=payload.run_config,
+            idempotency_key=payload.idempotency_key,
             tags=payload.tags,
         )
         return DagsterOperationResponse(**result.to_dict())
@@ -1367,6 +1369,7 @@ async def retry_run(
             dagster_url=resolve_dagster_url(dagster_url),
             run_id=run_id,
             strategy=payload.strategy,
+            idempotency_key=payload.idempotency_key,
             tags=payload.tags,
         )
         return DagsterOperationResponse(**result.to_dict())
@@ -1399,6 +1402,7 @@ async def cancel_run(
         dagster_url=resolve_dagster_url(dagster_url),
         run_id=run_id,
         reason=payload.reason,
+        idempotency_key=payload.idempotency_key,
     )
     return DagsterOperationResponse(**result.to_dict())
 
@@ -1455,6 +1459,7 @@ async def backfill_asset(
         partition_keys=partition_keys,
         repository_location_name=payload.repository_location_name,
         repository_name=payload.repository_name,
+        idempotency_key=payload.idempotency_key,
         tags=payload.tags,
     )
     return DagsterOperationResponse(**result.to_dict())

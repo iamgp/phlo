@@ -77,6 +77,8 @@ def _parse_since(value: str) -> datetime:
 @click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
 def tail_cmd(limit: int, since: str | None, output_json: bool) -> None:
     """Tail recent audit records."""
+    if limit <= 0:
+        raise click.BadParameter("must be greater than 0", param_hint="--limit")
     records = _read_records(limit=limit, since=since)
     if output_json:
         click.echo(json_envelope(data={"items": records, "since": since}))

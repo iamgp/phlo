@@ -340,6 +340,10 @@ def _cwd(path: Path):
 
 
 def _ingestion_next_steps(files: list[str], *, table: str) -> list[str]:
+    if len(files) < 2:
+        raise ValueError(
+            "create_ingestion_workflow returned fewer than two files; cannot build next steps"
+        )
     schema_file = files[0]
     workflow_file = files[1]
     test_file = files[2] if len(files) > 2 else None

@@ -196,11 +196,14 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
         }
 
     def _append_audit_record(audit_context: dict[str, Any]) -> None:
-        audit_dir = Path.cwd() / ".phlo" / "audit"
-        audit_dir.mkdir(parents=True, exist_ok=True)
-        record = {"timestamp": datetime.now(UTC).isoformat(), **audit_context}
-        with (audit_dir / "operations.jsonl").open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(record, sort_keys=True) + "\n")
+        try:
+            audit_dir = Path.cwd() / ".phlo" / "audit"
+            audit_dir.mkdir(parents=True, exist_ok=True)
+            record = {"timestamp": datetime.now(UTC).isoformat(), **audit_context}
+            with (audit_dir / "operations.jsonl").open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, sort_keys=True) + "\n")
+        except OSError:
+            return
 
     def _required_scope_for_tool(tool_name: str) -> str | None:
         if tool_name in {
@@ -796,6 +799,7 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
             cron: str = "0 */1 * * *",
             api_base_url: str | None = None,
             fields: list[str] | None = None,
+            provider: str | None = None,
         ) -> dict[str, Any]:
             """Create a workflow scaffold through phlo-api when write tools are enabled."""
             payload = client.create_workflow(
@@ -805,10 +809,12 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 cron=cron,
                 api_base_url=api_base_url,
                 fields=fields,
+                provider=provider,
             )
-            audit_context = _write_audit_context(
-                "create_workflow", {"domain": domain, "table": table}, False
-            )
+            target: dict[str, Any] = {"domain": domain, "table": table}
+            if provider:
+                target["provider"] = provider
+            audit_context = _write_audit_context("create_workflow", target, False)
             _append_audit_record(audit_context)
             return {"audit_context": audit_context, "payload": payload}
 
@@ -847,6 +853,14 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                         target = {"asset_key_path": asset_key_path}
                         if partition_key:
                             target["partition_key"] = partition_key
+                        if job_name:
+                            target["job_name"] = job_name
+                        if repository_location_name:
+                            target["repository_location_name"] = repository_location_name
+                        if repository_name:
+                            target["repository_name"] = repository_name
+                        if idempotency_key:
+                            target["idempotency_key"] = idempotency_key
                         audit_context = _write_audit_context("materialize_asset", target, dry_run)
                         _append_audit_record(audit_context)
                         payload = client.materialize_asset(
@@ -878,7 +892,17 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 ):
                     with tracer.start_as_current_span("phlo.orchestrator.run.retry"):
                         audit_context = _write_audit_context(
-                            "retry_failed_run", {"run_id": run_id}, dry_run
+                            "retry_failed_run",
+                            {
+                                key: value
+                                for key, value in {
+                                    "run_id": run_id,
+                                    "strategy": strategy,
+                                    "idempotency_key": idempotency_key,
+                                }.items()
+                                if value
+                            },
+                            dry_run,
                         )
                         _append_audit_record(audit_context)
                         payload = client.retry_run(
@@ -890,7 +914,9 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                         return {"audit_context": audit_context, "payload": payload}
 
         @mcp.tool()
-        def cancel_run(run_id: str, reason: str | None = None) -> dict[str, Any]:
+        def cancel_run(
+            run_id: str, reason: str | None = None, idempotency_key: str | None = None
+        ) -> dict[str, Any]:
             """Cancel an orchestrator run through phlo-api when write tools are enabled."""
             with tracer.start_as_current_span(
                 "mcp.request",
@@ -902,10 +928,22 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 ):
                     with tracer.start_as_current_span("phlo.orchestrator.run.cancel"):
                         audit_context = _write_audit_context(
-                            "cancel_run", {"run_id": run_id}, False
+                            "cancel_run",
+                            {
+                                key: value
+                                for key, value in {
+                                    "run_id": run_id,
+                                    "reason": reason,
+                                    "idempotency_key": idempotency_key,
+                                }.items()
+                                if value
+                            },
+                            False,
                         )
                         _append_audit_record(audit_context)
-                        payload = client.cancel_run(run_id, reason=reason)
+                        payload = client.cancel_run(
+                            run_id, reason=reason, idempotency_key=idempotency_key
+                        )
                         return {"audit_context": audit_context, "payload": payload}
 
         @mcp.tool()
@@ -934,6 +972,14 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                             target["partitions"] = partitions
                         if partition_range:
                             target["partition_range"] = partition_range
+                        if partition_set_name:
+                            target["partition_set_name"] = partition_set_name
+                        if repository_location_name:
+                            target["repository_location_name"] = repository_location_name
+                        if repository_name:
+                            target["repository_name"] = repository_name
+                        if idempotency_key:
+                            target["idempotency_key"] = idempotency_key
                         audit_context = _write_audit_context("backfill_asset", target, dry_run)
                         _append_audit_record(audit_context)
                         payload = client.backfill_asset(

@@ -173,6 +173,7 @@ class V2RetryRunRequest(BaseModel):
 
 class V2CancelRunRequest(BaseModel):
     reason: str | None = None
+    idempotency_key: str | None = None
 
 
 class V2BackfillAssetRequest(BaseModel):
@@ -2646,8 +2647,17 @@ async def post_v2_run_cancel(
     auth = require_scope(http_request, "lakehouse:operate")
     enforce_rate_limit(auth["subject"], "cancel_run")
     provider = resolve_orchestrator_operations()
-    result = await provider.cancel_run(run_id, request.model_dump())
-    payload = _jsonable_result(result)
+
+    async def execute() -> dict[str, Any]:
+        result = await provider.cancel_run(run_id, request.model_dump())
+        return _jsonable_result(result)
+
+    payload = await replay_or_execute_async(
+        idempotency_key=request.idempotency_key,
+        operation="cancel_run",
+        target=run_id,
+        execute=execute,
+    )
     audit_operation(
         operation="cancel_run",
         target=run_id,

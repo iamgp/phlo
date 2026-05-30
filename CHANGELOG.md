@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Added
-- phlo, phlo-api, phlo-dagster, phlo-mcp: complete agent-first CLI and MCP operate loop with scoped mutations, authoring tools, introspection, JSON envelopes, audit logs, pagination, and live Dagster operations.
+- phlo, phlo-api, phlo-dagster, phlo-dlt, phlo-mcp, phlo-sling: complete agent-first CLI and MCP operate loop with scoped mutations, authoring tools, introspection, JSON envelopes, audit logs, pagination, and live Dagster operations.
 
 ## [phlo 0.10.0 + 7 packages] - 2026-05-18
 

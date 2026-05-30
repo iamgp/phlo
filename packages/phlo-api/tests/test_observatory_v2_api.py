@@ -730,7 +730,7 @@ def test_v2_run_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -> 
         }
 
     async def fake_cancel(run_id: str, payload, dagster_url: str | None = None):
-        calls.append(("cancel", run_id, payload.reason))
+        calls.append(("cancel", run_id, payload.reason, payload.idempotency_key))
         return {
             "operation": "cancel_run",
             "dry_run": False,
@@ -755,7 +755,9 @@ def test_v2_run_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -> 
         "/api/observatory/v2/runs/run-123/retry", json={"dry_run": False}, headers=headers
     )
     cancel = client.post(
-        "/api/observatory/v2/runs/run-123/cancel", json={"reason": "stuck"}, headers=headers
+        "/api/observatory/v2/runs/run-123/cancel",
+        json={"reason": "stuck", "idempotency_key": "cancel-key"},
+        headers=headers,
     )
 
     assert status.status_code == 200
@@ -767,7 +769,7 @@ def test_v2_run_operational_routes_use_v2_paths(monkeypatch, tmp_path: Path) -> 
     assert calls == [
         ("status", "run-123", None),
         ("retry", "run-123", False),
-        ("cancel", "run-123", "stuck"),
+        ("cancel", "run-123", "stuck", "cancel-key"),
     ]
 
 

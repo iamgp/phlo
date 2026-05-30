@@ -105,9 +105,12 @@ async def launch_materialize(
     repository_name: str | None = None,
     partition_key: str | None = None,
     run_config: dict[str, Any] | None = None,
+    idempotency_key: str | None = None,
     tags: dict[str, str] | None = None,
 ) -> DagsterOperationResult:
     execution_tags = {"phlo/operation": "materialize_asset", "phlo/asset_key": asset_key_path}
+    if idempotency_key:
+        execution_tags["phlo/idempotency_key"] = idempotency_key
     execution_tags.update(tags or {})
     if partition_key:
         execution_tags.setdefault("dagster/partition", partition_key)
@@ -142,9 +145,12 @@ async def launch_retry(
     dagster_url: str,
     run_id: str,
     strategy: str,
+    idempotency_key: str | None = None,
     tags: dict[str, str] | None = None,
 ) -> DagsterOperationResult:
     execution_tags = {"phlo/operation": "retry_failed_run", "phlo/parent_run_id": run_id}
+    if idempotency_key:
+        execution_tags["phlo/idempotency_key"] = idempotency_key
     execution_tags.update(tags or {})
     result = await _graphql(
         dagster_url,
@@ -172,6 +178,7 @@ async def terminate(
     dagster_url: str,
     run_id: str,
     reason: str | None = None,
+    idempotency_key: str | None = None,
 ) -> DagsterOperationResult:
     result = await _graphql(dagster_url, TERMINATE_RUN_MUTATION, {"runId": run_id})
     payload = result.get("data", {}).get("terminateRun", {})
@@ -185,7 +192,15 @@ async def terminate(
         run_id=str(run.get("runId") or run_id),
         status=str(run.get("status") or typename),
         message="Dagster accepted run cancellation." if accepted else _error_message(payload),
-        details={"typename": typename, "reason": reason},
+        details={
+            key: value
+            for key, value in {
+                "typename": typename,
+                "reason": reason,
+                "idempotency_key": idempotency_key,
+            }.items()
+            if value
+        },
     )
 
 
@@ -197,9 +212,12 @@ async def launch_backfill(
     partition_keys: list[str],
     repository_location_name: str | None = None,
     repository_name: str | None = None,
+    idempotency_key: str | None = None,
     tags: dict[str, str] | None = None,
 ) -> DagsterOperationResult:
     execution_tags = {"phlo/operation": "backfill_asset", "phlo/asset_key": asset_key_path}
+    if idempotency_key:
+        execution_tags["phlo/idempotency_key"] = idempotency_key
     execution_tags.update(tags or {})
     result = await _graphql(
         dagster_url,

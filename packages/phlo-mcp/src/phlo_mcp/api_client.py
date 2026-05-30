@@ -72,6 +72,7 @@ class PhloApiClient:
         cron: str = "0 */1 * * *",
         api_base_url: str | None = None,
         fields: list[str] | None = None,
+        provider: str | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
         payload: dict[str, Any] = {
             "domain": domain,
@@ -82,6 +83,8 @@ class PhloApiClient:
         }
         if api_base_url:
             payload["api_base_url"] = api_base_url
+        if provider:
+            payload["provider"] = provider
         return self._post_json("/api/authoring/workflows", json=payload)
 
     def validate_workflow(self, workflow_path: str) -> dict[str, Any] | list[dict[str, Any]]:
@@ -133,6 +136,8 @@ class PhloApiClient:
         self, query: str, *, limit: int = 20, cursor: str | None = None
     ) -> dict[str, Any] | list[dict[str, Any]]:
         contracts = self.get_contracts()
+        if isinstance(contracts, dict) and "error" in contracts:
+            return contracts
         items = contracts if isinstance(contracts, list) else contracts.get("items", [])
         filtered = [item for item in items if query.lower() in str(item).lower()]
         return {"items": filtered[:limit], "next_cursor": None}
@@ -274,6 +279,13 @@ class PhloApiClient:
                             events.append({"event": event_name, "data": data})
                             data_lines = []
                             event_name = "message"
+                    if data_lines:
+                        raw_data = "\n".join(data_lines)
+                        try:
+                            data = json.loads(raw_data)
+                        except json.JSONDecodeError:
+                            data = raw_data
+                        events.append({"event": event_name, "data": data})
                 return {"run_id": run_id, "events": events}
             except httpx.HTTPError as exc:
                 return {
@@ -405,10 +417,13 @@ class PhloApiClient:
         run_id: str,
         *,
         reason: str | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any] | list[dict[str, Any]]:
         payload: dict[str, Any] = {}
         if reason:
             payload["reason"] = reason
+        if idempotency_key:
+            payload["idempotency_key"] = idempotency_key
         return self._post_json(f"{self._V2_PREFIX}/runs/{run_id}/cancel", json=payload)
 
     def backfill_asset(
