@@ -1,35 +1,13 @@
 from __future__ import annotations
 
-from phlo_nessie.adapters.trino import (
-    APACHE_ICEBERG_COMPATIBILITY_TARGET,
-    validate_trino_iceberg_rest_catalog_properties,
-)
+from phlo_nessie.resource_provider import NessieResourceProvider
 
 
-def test_trino_rest_catalog_properties_are_compatible_with_iceberg_1_11() -> None:
-    props = {
-        "connector.name": "iceberg",
-        "iceberg.catalog.type": "rest",
-        "iceberg.rest-catalog.uri": "http://nessie:19120/iceberg",
-        "iceberg.rest-catalog.warehouse": "warehouse",
-        "iceberg.rest-catalog.prefix": "dev",
-        "fs.native-s3.enabled": "true",
-        "s3.endpoint": "http://minio:9000",
-        "s3.path-style-access": "true",
-        "s3.region": "us-east-1",
-    }
+def test_nessie_catalog_advertises_iceberg_rest_compatibility_as_capability_metadata() -> None:
+    catalog = NessieResourceProvider().get_catalogs()[0]
 
-    result = validate_trino_iceberg_rest_catalog_properties(props)
+    compatibility = catalog.metadata["compatibility"]
 
-    assert APACHE_ICEBERG_COMPATIBILITY_TARGET == "1.11"
-    assert result["compatible"] is True
-    assert result["target"] == "apache-iceberg-1.11"
-    assert result["checks"] == [
-        "iceberg-connector",
-        "rest-catalog-type",
-        "nessie-iceberg-rest-uri",
-        "trino-prefix-property",
-        "warehouse-configured",
-        "native-s3-enabled",
-        "s3-path-style-access",
-    ]
+    assert compatibility["target"] == "apache-iceberg-1.11"
+    assert compatibility["rest_catalog"] == {"nessie_uri_suffix": "/iceberg"}
+    assert compatibility["checks"] == ["nessie-iceberg-rest-uri"]

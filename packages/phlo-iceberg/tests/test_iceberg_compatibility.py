@@ -6,6 +6,7 @@ from phlo_iceberg.compatibility import (
     APACHE_ICEBERG_COMPATIBILITY_TARGET,
     validate_pyiceberg_rest_catalog_config,
 )
+from phlo_iceberg.plugin import IcebergResourceProvider
 
 
 def test_pyiceberg_rest_catalog_config_is_compatible_with_iceberg_1_11() -> None:
@@ -45,3 +46,21 @@ def test_pyiceberg_rest_catalog_config_rejects_trino_prefix_property() -> None:
 
     with pytest.raises(ValueError, match="PyIceberg REST catalog refs must be encoded"):
         validate_pyiceberg_rest_catalog_config(config)
+
+
+def test_iceberg_table_store_advertises_compatibility_as_capability_metadata() -> None:
+    table_store = IcebergResourceProvider().get_table_stores()[0]
+
+    compatibility = table_store.metadata["compatibility"]
+
+    assert compatibility["target"] == "apache-iceberg-1.11"
+    assert compatibility["rest_catalog"] == {
+        "type": "rest",
+        "pyiceberg_ref_strategy": "uri-path",
+    }
+    assert compatibility["checks"] == [
+        "rest-catalog-type",
+        "pyiceberg-ref-in-uri",
+        "warehouse-configured",
+        "s3-path-style-access",
+    ]

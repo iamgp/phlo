@@ -29,6 +29,18 @@ from phlo_trino.governance import TrinoGovernanceBackend
 from phlo_trino.resource import TRINO_QUERY_ENGINE_SUPPORT, TrinoResource
 from phlo_trino.settings import get_settings as get_trino_settings
 
+TRINO_COMPATIBILITY_METADATA = {
+    "target": "apache-iceberg-1.11",
+    "rest_catalog": {"trino_ref_strategy": "rest-catalog-prefix"},
+    "engines": {
+        "trino": {
+            "catalog_type": "rest",
+            "iceberg_table_spec_versions": [1, 2],
+        }
+    },
+    "checks": ["trino-prefix-property", "trino-table-spec-v1-v2"],
+}
+
 
 class TrinoServicePlugin(PackageYamlServicePlugin):
     """Service plugin for Trino."""
@@ -95,6 +107,7 @@ class TrinoResourceProvider(ResourceProviderPlugin):
                     "default_ref": get_trino_settings().trino_default_ref,
                     "service_type": "Trino",
                     "sqlalchemy_uri_template": "trino://{host}:{port}/{default_catalog}",
+                    "compatibility": TRINO_COMPATIBILITY_METADATA,
                 },
                 support=TRINO_QUERY_ENGINE_SUPPORT,
             )

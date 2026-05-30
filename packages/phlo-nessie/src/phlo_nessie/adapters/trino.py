@@ -18,18 +18,8 @@ Classes:
 from __future__ import annotations
 
 import os
-from typing import Any
-from urllib.parse import urlparse
 
 from phlo.plugins.base import CatalogPlugin, PluginMetadata
-
-APACHE_ICEBERG_COMPATIBILITY_TARGET = "1.11"
-COMPATIBILITY_TARGET = f"apache-iceberg-{APACHE_ICEBERG_COMPATIBILITY_TARGET}"
-
-
-def _require(condition: bool, message: str) -> None:
-    if not condition:
-        raise ValueError(message)
 
 
 def _nessie_iceberg_rest_uri() -> str:
@@ -84,46 +74,7 @@ def _base_iceberg_catalog_properties(*, prefix: str | None = None) -> dict[str, 
     }
     if prefix is not None:
         props["iceberg.rest-catalog.prefix"] = prefix
-    validate_trino_iceberg_rest_catalog_properties(props)
     return props
-
-
-def validate_trino_iceberg_rest_catalog_properties(props: dict[str, str]) -> dict[str, Any]:
-    """Validate Trino Iceberg REST catalog properties for Iceberg 1.11 compatibility."""
-    uri = props.get("iceberg.rest-catalog.uri", "")
-    path_parts = [part for part in urlparse(uri).path.split("/") if part]
-
-    _require(props.get("connector.name") == "iceberg", "Trino catalog must use Iceberg connector")
-    _require(props.get("iceberg.catalog.type") == "rest", "Trino Iceberg catalog must use REST")
-    _require("iceberg" in path_parts, "Trino REST catalog URI must target Nessie's /iceberg")
-    _require(
-        bool(props.get("iceberg.rest-catalog.warehouse")),
-        "Trino Iceberg REST catalog must include a warehouse identifier",
-    )
-    _require(
-        props.get("fs.native-s3.enabled") == "true",
-        "Trino Iceberg catalog must enable native S3 file system support",
-    )
-    _require(
-        props.get("s3.path-style-access") == "true",
-        "S3-compatible Iceberg storage requires path-style access",
-    )
-
-    checks = [
-        "iceberg-connector",
-        "rest-catalog-type",
-        "nessie-iceberg-rest-uri",
-    ]
-    if "iceberg.rest-catalog.prefix" in props:
-        checks.append("trino-prefix-property")
-    checks.extend(
-        [
-            "warehouse-configured",
-            "native-s3-enabled",
-            "s3-path-style-access",
-        ]
-    )
-    return {"compatible": True, "target": COMPATIBILITY_TARGET, "checks": checks}
 
 
 class TrinoNessieIcebergCatalogPlugin(CatalogPlugin):
