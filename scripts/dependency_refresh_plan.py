@@ -212,14 +212,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
-    plan = _select_lanes(collect_plan(args.repo_root), args.lane)
+    full_plan = collect_plan(args.repo_root)
+    plan = _select_lanes(full_plan, args.lane)
     if args.format == "json":
         _print_json(plan)
     else:
         _print_markdown(plan)
 
     if args.check:
-        errors = validate_plan(plan)
+        errors = validate_plan(full_plan)
         if errors:
             print("Dependency refresh plan validation failed:", file=sys.stderr)
             for error in errors:
