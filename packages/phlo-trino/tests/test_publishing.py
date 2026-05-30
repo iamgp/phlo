@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 from phlo.hooks.events import LineageEvent, PublishEvent, TelemetryEvent
 import phlo_trino.publishing as publishing
 from phlo_trino.publishing import (
@@ -300,8 +298,18 @@ def test_publish_marts_emits_correlation(monkeypatch) -> None:
         def commit(self) -> None:
             return None
 
+    class _UnpartitionedDagsterContext:
+        asset_key = "publish_orders"
+        run_id = "run-88"
+        job_name = "__ASSET_JOB"
+        has_partition_key = False
+
+        @property
+        def partition_key(self) -> str:
+            raise RuntimeError("Cannot access partition_key for a non-partitioned run")
+
     stats = publishing._publish_marts(
-        context=SimpleNamespace(asset_key="publish_orders", run_id="run-88"),
+        context=_UnpartitionedDagsterContext(),
         trino=_FakeTrino(),
         postgres=_FakePostgres(),
         target_system="postgres",
@@ -324,7 +332,10 @@ def test_publish_marts_emits_correlation(monkeypatch) -> None:
 
     assert publish_event.correlation.run_id == "run-88"
     assert publish_event.correlation.asset_key == "publish_orders"
+    assert publish_event.correlation.partition_key is None
     assert telemetry_event.correlation.run_id == "run-88"
     assert telemetry_event.correlation.asset_key == "publish_orders"
+    assert telemetry_event.correlation.partition_key is None
     assert lineage_event.correlation.run_id == "run-88"
     assert lineage_event.correlation.asset_key == "publish_orders"
+    assert lineage_event.correlation.partition_key is None

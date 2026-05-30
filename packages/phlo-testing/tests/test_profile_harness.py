@@ -111,6 +111,48 @@ def test_bundled_stack_harness_materialize_adds_partition(monkeypatch) -> None:
     }
 
 
+def test_bundled_stack_harness_read_env_merges_local_secrets(monkeypatch, tmp_path) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env").write_text(
+        "POSTGRES_USER=phlo\nPOSTGRES_PASSWORD=phlo\nPOSTGRES_DB=phlo\n",
+        encoding="utf-8",
+    )
+    (phlo_dir / ".env.local").write_text(
+        "POSTGRES_PASSWORD=secret\nMINIO_ROOT_PASSWORD=minio-secret\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "phlo_testing.profile_harness._load_golden_path_module",
+        lambda: type(
+            "StubGoldenPathModule",
+            (),
+            {
+                "read_env_file": staticmethod(
+                    lambda path: dict(
+                        line.split("=", 1)
+                        for line in Path(path).read_text(encoding="utf-8").splitlines()
+                        if line
+                    )
+                )
+            },
+        )(),
+    )
+    harness = BundledStackHarness(
+        project_dir=tmp_path,
+        phlo_source=Path("/tmp/source"),
+        python_executable=Path("/tmp/project/.venv/bin/python"),
+        ports=BundledStackPorts(phlo_api=54000, dagster=3000),
+    )
+
+    env_vars = harness.read_env()
+
+    assert env_vars["POSTGRES_USER"] == "phlo"
+    assert env_vars["POSTGRES_PASSWORD"] == "secret"
+    assert env_vars["MINIO_ROOT_PASSWORD"] == "minio-secret"
+
+
 def test_bundled_stack_harness_cleanup_skips_kept_stack(monkeypatch) -> None:
     stop_calls: list[bool] = []
     removed_paths: list[Path] = []
