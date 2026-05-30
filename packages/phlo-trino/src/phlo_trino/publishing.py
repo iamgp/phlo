@@ -363,18 +363,12 @@ def _publish_marts(
 
 
 def _resolve_partition_key(context: Any) -> str | None:
-    """Resolve a context partition key without probing unpartitioned Dagster runs."""
+    """Resolve a partition key from a neutral runtime context hint."""
     has_partition_key = getattr(context, "has_partition_key", None)
     if has_partition_key is False:
         return None
 
-    try:
-        partition_key = getattr(context, "partition_key", None)
-    except Exception as exc:  # noqa: BLE001 - Dagster raises for unpartitioned runs
-        if "non-partitioned" in str(exc).lower():
-            return None
-        raise
-
+    partition_key = getattr(context, "partition_key", None)
     return partition_key if isinstance(partition_key, str) and partition_key else None
 
 

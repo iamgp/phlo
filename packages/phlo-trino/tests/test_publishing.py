@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from phlo.hooks.events import LineageEvent, PublishEvent, TelemetryEvent
 import phlo_trino.publishing as publishing
 from phlo_trino.publishing import (
@@ -339,3 +341,13 @@ def test_publish_marts_emits_correlation(monkeypatch) -> None:
     assert lineage_event.correlation.run_id == "run-88"
     assert lineage_event.correlation.asset_key == "publish_orders"
     assert lineage_event.correlation.partition_key is None
+
+
+def test_resolve_partition_key_does_not_swallow_runtime_specific_errors() -> None:
+    class _ContextWithProviderError:
+        @property
+        def partition_key(self) -> str:
+            raise RuntimeError("Cannot access partition_key for a non-partitioned run")
+
+    with pytest.raises(RuntimeError, match="Cannot access partition_key"):
+        publishing._resolve_partition_key(_ContextWithProviderError())
