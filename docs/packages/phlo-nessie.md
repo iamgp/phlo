@@ -28,6 +28,20 @@ pip install 'phlo-nessie[trino]'
 
 ## Features
 
+### Apache Iceberg 1.11 Compatibility
+
+`phlo-nessie` validates the Trino REST catalog properties that connect Trino to
+Nessie's Iceberg REST surface for Apache Iceberg 1.11 compatibility:
+
+| Check | Expectation |
+| --- | --- |
+| Connector | `connector.name=iceberg`. |
+| Catalog type | `iceberg.catalog.type=rest`. |
+| REST endpoint | `iceberg.rest-catalog.uri` points at `/iceberg`. |
+| Ref routing | Branch-specific Trino catalogs use `iceberg.rest-catalog.prefix`. |
+| Warehouse | `iceberg.rest-catalog.warehouse` is configured. |
+| S3 compatibility | Native S3 and path-style access are enabled. |
+
 ### Auto-Configuration
 
 | Feature              | How It Works                                               |

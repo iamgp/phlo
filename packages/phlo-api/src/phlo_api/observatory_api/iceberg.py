@@ -145,6 +145,15 @@ class TableMetadata(BaseModel):
     last_modified: str | None = None
 
 
+class IcebergCompatibility(BaseModel):
+    """Compatibility contract for Phlo's Iceberg 1.11 lakehouse surface."""
+
+    target: str
+    rest_catalog: dict[str, str]
+    engines: dict[str, dict[str, Any]]
+    checks: list[str]
+
+
 # --- Layer Inference ---
 
 
@@ -339,6 +348,34 @@ async def fetch_table_schema(
 
 
 # --- API Endpoints ---
+
+
+@router.get("/compatibility", response_model=IcebergCompatibility)
+async def get_compatibility() -> IcebergCompatibility:
+    """Return Phlo's asserted Apache Iceberg compatibility expectations."""
+    return IcebergCompatibility(
+        target="apache-iceberg-1.11",
+        rest_catalog={
+            "type": "rest",
+            "nessie_uri_suffix": "/iceberg",
+            "pyiceberg_ref_strategy": "uri-path",
+            "trino_ref_strategy": "rest-catalog-prefix",
+        },
+        engines={
+            "trino": {
+                "catalog_type": "rest",
+                "iceberg_table_spec_versions": [1, 2],
+            }
+        },
+        checks=[
+            "rest-catalog-type",
+            "nessie-iceberg-rest-uri",
+            "pyiceberg-ref-in-uri",
+            "trino-prefix-property",
+            "trino-table-spec-v1-v2",
+            "s3-path-style-access",
+        ],
+    )
 
 
 @router.get("/tables", response_model=list[IcebergTable] | dict)
