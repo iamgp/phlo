@@ -38,13 +38,13 @@ def test_pyiceberg_rest_catalog_config_is_compatible_with_iceberg_1_11() -> None
 def test_pyiceberg_rest_catalog_config_rejects_trino_prefix_property() -> None:
     config = {
         "type": "rest",
-        "uri": "http://nessie:19120/iceberg",
+        "uri": "http://nessie:19120/iceberg/main",
         "warehouse": "s3://lake/warehouse",
         "prefix": "main",
         "s3.path-style-access": "true",
     }
 
-    with pytest.raises(ValueError, match="PyIceberg REST catalog refs must be encoded"):
+    with pytest.raises(ValueError, match="not prefix properties"):
         validate_pyiceberg_rest_catalog_config(config)
 
 
