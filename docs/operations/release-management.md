@@ -35,6 +35,43 @@ relx validate
 relx status --channel
 ```
 
+### Dependency Refresh Lane
+
+Run dependency refreshes only as an explicit release-maintenance task. They are
+not part of normal pull-request CI.
+
+```bash
+gh workflow run "Dependency Refresh" --ref main -f lane=all
+make dependency-refresh
+make dependency-refresh-check
+```
+
+The refresh lane is intentionally split:
+
+- Patch lane first: `ruff`, `pytest`, and `psycopg2-binary`.
+- Risk-managed lane after patch CI is green: `dbt-core`, `pyarrow`,
+  OpenTelemetry packages, `dagster`, `dagster-webserver`, `rich`, and
+  `clickhouse-connect`.
+
+Prefer one PR for the patch lane and a separate PR for the risk-managed lane.
+For the patch lane, update only the selected low-risk packages and lockfile:
+
+```bash
+uv lock \
+  --upgrade-package ruff \
+  --upgrade-package pytest \
+  --upgrade-package psycopg2-binary
+make dependency-refresh-check
+make check
+```
+
+For the risk-managed lane, use `make dependency-refresh LANE=risk-managed` to
+inspect which manifests reference each package, then group related runtime
+surfaces and run the targeted smoke/regression checks for the affected packages
+before the broad release checks. Renovate mirrors this split with
+`release-safe-python-patches` and `release-risk-managed-python-deps` groups, and
+both groups require Dependency Dashboard approval before Renovate opens PRs.
+
 If local ignored runtime folders exist under `packages/`, use a clean worktree for
 ReleaseX checks. Generated local folders can confuse workspace discovery because
 the real workspace also uses `packages/*`.

@@ -12,9 +12,50 @@
       "groupName": "github-actions"
     },
     {
-      "description": "Group Python dependency updates.",
+      "description": "Group Python dependency updates outside release refresh lanes.",
       "matchManagers": ["pep621", "poetry", "pip_requirements", "pip_setup"],
+      "excludePackageNames": [
+        "ruff",
+        "pytest",
+        "psycopg2-binary",
+        "dbt-core",
+        "pyarrow",
+        "opentelemetry-api",
+        "opentelemetry-sdk",
+        "opentelemetry-exporter-otlp-proto-grpc",
+        "dagster",
+        "dagster-webserver",
+        "rich",
+        "clickhouse-connect"
+      ],
       "groupName": "python-deps"
+    },
+    {
+      "description": "Release refresh lane: patch-only low-risk Python dependency updates.",
+      "matchManagers": ["pep621", "poetry", "pip_requirements", "pip_setup"],
+      "matchPackageNames": ["ruff", "pytest", "psycopg2-binary"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "release-safe-python-patches",
+      "dependencyDashboardApproval": true,
+      "labels": ["dependencies", "release-refresh", "safe-patch"]
+    },
+    {
+      "description": "Release refresh lane: larger runtime/tooling jumps that need explicit release validation.",
+      "matchManagers": ["pep621", "poetry", "pip_requirements", "pip_setup"],
+      "matchPackageNames": [
+        "pyarrow",
+        "dbt-core",
+        "opentelemetry-api",
+        "opentelemetry-sdk",
+        "opentelemetry-exporter-otlp-proto-grpc",
+        "dagster",
+        "dagster-webserver",
+        "rich",
+        "clickhouse-connect"
+      ],
+      "groupName": "release-risk-managed-python-deps",
+      "dependencyDashboardApproval": true,
+      "labels": ["dependencies", "release-refresh", "risk-managed"]
     },
     {
       "description": "Group Observatory (JS/TS) dependencies.",

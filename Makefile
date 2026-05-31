@@ -49,6 +49,7 @@ CHECK_CMD := scripts/run-parallel \
 CORE_REGRESSION_TEST_PATHS ?= tests
 CORE_REGRESSION_PYTEST_ARGS ?= --tb=short
 QUICKSTART_SMOKE_PYTEST_ARGS ?= --tb=short
+LANE ?= all
 
 # Docker Compose profiles
 PROFILE_CORE ?= postgres minio minio-setup dagster-webserver dagster-daemon hub
@@ -68,6 +69,7 @@ PYMDX_DOCS_PORT ?= 3000
 	dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
 	health-observability health-api health-catalog \
 	check lint lint-sql lint-python format-python typecheck-python \
+	dependency-refresh dependency-refresh-check \
 	lint-ts format-ts typecheck-ts test-core-regression test-quickstart-smoke fix-sql \
 	prek-install prek-run prek-validate zizmor actionlint docs-generate docs-dev docs-build docs-serve docs-clean
 
@@ -343,6 +345,12 @@ format-python:
 
 typecheck-python:
 	uv run ty check $(TY_CHECK_SCOPE)
+
+dependency-refresh:
+	python3 scripts/dependency_refresh_plan.py --lane $(LANE)
+
+dependency-refresh-check:
+	python3 scripts/dependency_refresh_plan.py --check
 
 lint-ts:
 	$(NPM_OBSERVATORY) run lint

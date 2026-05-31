@@ -1,0 +1,36 @@
+name: Dependency Refresh
+
+on:
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: Dependency refresh lane to inspect
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - patch
+          - risk-managed
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-refresh:
+    name: dependency refresh / plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Print dependency refresh plan
+        run: make dependency-refresh LANE="${{ inputs.lane }}"
+
+      - name: Validate dependency refresh lanes
+        run: make dependency-refresh-check
