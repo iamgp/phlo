@@ -176,7 +176,7 @@ class DagsterRuntime(RuntimeContext):
     @property
     def run_id(self) -> str | None:
         """Return the current Dagster run identifier when available."""
-        return self.context.run_id if hasattr(self.context, "run_id") else None
+        return self.context.run.run_id
 
     @property
     def partition_key(self) -> str | None:

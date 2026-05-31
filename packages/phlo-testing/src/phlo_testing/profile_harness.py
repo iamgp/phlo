@@ -639,14 +639,19 @@ class BundledStackHarness:
         )
 
     def read_env(self) -> dict[str, str]:
-        """Read environment variables from the project's .phlo/.env file.
+        """Read resolved environment variables from the project's .phlo files.
 
         Returns:
-            Dictionary of environment variables.
+            Dictionary of environment variables with .env.local overriding .env.
 
         """
         utils = _load_golden_path_module()
-        return cast(dict[str, str], utils.read_env_file(self.project_dir / ".phlo" / ".env"))
+        phlo_dir = self.project_dir / ".phlo"
+        env_vars = cast(dict[str, str], utils.read_env_file(phlo_dir / ".env"))
+        local_env_path = phlo_dir / ".env.local"
+        if local_env_path.exists():
+            env_vars.update(cast(dict[str, str], utils.read_env_file(local_env_path)))
+        return env_vars
 
     def default_partition_date(self) -> str:
         """Return a default partition date (yesterday).
