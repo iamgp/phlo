@@ -235,7 +235,7 @@ def _publish_marts(
     correlation = HookCorrelation(
         run_id=getattr(context, "run_id", None),
         asset_key=asset_key,
-        partition_key=getattr(context, "partition_key", None),
+        partition_key=_resolve_partition_key(context),
         job_name=getattr(context, "job_name", None),
     )
     emitter = PublishEventEmitter(
@@ -360,6 +360,16 @@ def _publish_marts(
             payload={"error": str(exc), "elapsed_seconds": elapsed},
         )
         raise
+
+
+def _resolve_partition_key(context: Any) -> str | None:
+    """Resolve a partition key from a neutral runtime context hint."""
+    has_partition_key = getattr(context, "has_partition_key", None)
+    if has_partition_key is False:
+        return None
+
+    partition_key = getattr(context, "partition_key", None)
+    return partition_key if isinstance(partition_key, str) and partition_key else None
 
 
 def _ensure_schema(postgres: Any, schema: str) -> None:
