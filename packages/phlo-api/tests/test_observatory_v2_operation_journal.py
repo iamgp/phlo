@@ -11,6 +11,7 @@ from phlo_api.observatory_api.v2_models import (
 )
 from phlo_api.observatory_api.v2_operation_journal import (
     append_operation,
+    build_operation_observability_context,
     load_operation_journal,
     operation_from_action_result,
     record_action_result,
@@ -104,3 +105,72 @@ def test_record_action_result_returns_result_with_recorded_operation(tmp_path: P
     assert recorded_result.operation.id == "op-recorded"
     assert recorded_result.operation.status == "failed"
     assert load_operation_journal(tmp_path)[0].id == "op-recorded"
+
+
+def test_append_operation_adds_stable_observability_identifiers(tmp_path: Path) -> None:
+    operation = V2Operation(
+        id="workflow:apply:raw-orders",
+        name="Apply workflow proposal",
+        kind="workflow.apply",
+        status="succeeded",
+        health=V2Health(state="ok"),
+        target=V2ResourceRef(kind="workflow", id="raw-orders", label="raw-orders"),
+        metadata={
+            "trace_id": "trace-123",
+            "log_id": "log-456",
+            "metric_id": "metric-789",
+            "incident_id": "incident-001",
+        },
+    )
+
+    recorded = append_operation(
+        tmp_path,
+        operation,
+        record_id="op-recorded",
+        recorded_at="2026-05-16T12:00:00+00:00",
+    )
+
+    assert recorded.metadata["observability_contract"]["operation_id"] == "op-recorded"
+    assert recorded.metadata["observability_contract"]["original_operation_id"] == (
+        "workflow:apply:raw-orders"
+    )
+    assert recorded.metadata["observability_contract"]["trace_ids"] == ["trace-123"]
+    assert recorded.metadata["observability_contract"]["log_ids"] == ["log-456"]
+    assert recorded.metadata["observability_contract"]["metric_ids"] == ["metric-789"]
+    assert recorded.metadata["observability_contract"]["incident_ids"] == ["incident-001"]
+
+
+def test_build_operation_observability_context_is_agent_readable() -> None:
+    operation = V2Operation(
+        id="op-recorded",
+        name="Apply workflow proposal",
+        kind="workflow.apply",
+        status="failed",
+        health=V2Health(state="error", message="Validation failed"),
+        target=V2ResourceRef(kind="workflow", id="raw-orders", label="raw-orders"),
+        metadata={
+            "observability_contract": {
+                "operation_id": "op-recorded",
+                "trace_ids": ["trace-123"],
+                "log_ids": ["log-456"],
+                "metric_ids": ["metric-789"],
+                "incident_ids": ["incident-001"],
+            },
+            "message": "Validation failed",
+        },
+    )
+
+    context = build_operation_observability_context(operation)
+
+    assert context["schema_version"] == "phlo.operation_observability.v1"
+    assert context["operation"]["id"] == "op-recorded"
+    assert context["identifiers"] == {
+        "operation_id": "op-recorded",
+        "trace_ids": ["trace-123"],
+        "log_ids": ["log-456"],
+        "metric_ids": ["metric-789"],
+        "incident_ids": ["incident-001"],
+    }
+    assert context["incident"]["status"] == "open"
+    assert context["incident"]["severity"] == "error"
+    assert context["retention"]["history_limit"] == 200

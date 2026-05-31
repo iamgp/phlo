@@ -21,6 +21,7 @@ uv pip install -e packages/phlo-mcp
 - `get_service_status`
 - `get_recent_alerts`
 - `get_dashboard_links`
+- `get_operation_context`
 - `get_logs_query_link`
 - `get_metrics_query_link`
 - `get_materialization_history`
@@ -58,6 +59,7 @@ Resources:
 - `phlo://runtime/schemas/{asset_key_path}`
 - `phlo://runtime/contracts`
 - `phlo://runtime/contracts/{table_name}`
+- `phlo://runtime/operations/{operation_id}`
 - `phlo://runtime/dashboards`
 - `phlo://docs/packages/{package_name}`
 - `phlo://docs/cli`
@@ -70,6 +72,9 @@ Trace tools can be filtered by run id, asset key, job name, service name, span
 name, status code, and start/end time.
 Resource URIs are read-only and deterministic so MCP clients can attach Phlo
 runtime context without invoking parameterized tools.
+`phlo://runtime/operations/{operation_id}` returns the same v1 operation
+observability contract exposed by `phlo-api`, including stable operation, trace,
+log, metric, and incident identifiers.
 
 When real spans are available, rendered trees include:
 - span kind

@@ -57,6 +57,29 @@ class PhloApiClient:
     def get_asset_details(self, asset_key_path: str) -> dict[str, Any] | list[dict[str, Any]]:
         return self._get_json(f"{self._V2_PREFIX}/assets/{asset_key_path}")
 
+    def list_operations(
+        self,
+        *,
+        status: str | None = None,
+        kind: str | None = None,
+        query: str | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any] | list[dict[str, Any]]:
+        params = {
+            key: value
+            for key, value in {
+                "status": status,
+                "kind": kind,
+                "q": query,
+                "limit": limit,
+            }.items()
+            if value is not None
+        }
+        return self._get_json(f"{self._V2_PREFIX}/operations", params=params)
+
+    def get_operation_context(self, operation_id: str) -> dict[str, Any] | list[dict[str, Any]]:
+        return self._get_json(f"{self._V2_PREFIX}/operations/{operation_id}/agent-context")
+
     def get_contracts(self) -> dict[str, Any] | list[dict[str, Any]]:
         return self._get_json("/api/contracts")
 

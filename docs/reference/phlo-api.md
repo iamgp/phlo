@@ -89,6 +89,7 @@ Observatory v2 endpoints live under `/api/observatory/v2`. They are provider-neu
 | `GET /api/observatory/v2/services/{service_id}` | Service detail |
 | `GET /api/observatory/v2/operations` | Operator workflow and recovery operations |
 | `GET /api/observatory/v2/operations/{operation_id}` | Operation detail |
+| `GET /api/observatory/v2/operations/{operation_id}/agent-context` | Stable operation observability and incident context for agents |
 | `GET /api/observatory/v2/runs` | Runtime run list |
 | `GET /api/observatory/v2/storage` | Storage surface read model |
 | `GET /api/observatory/v2/observability` | Observability surface read model |

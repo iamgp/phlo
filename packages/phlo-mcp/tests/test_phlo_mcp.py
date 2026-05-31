@@ -30,10 +30,12 @@ class _FakeResponse:
 
 def test_api_client_wraps_observability_routes(monkeypatch) -> None:
     seen_urls: list[str] = []
+    seen_params: list[dict[str, object] | None] = []
     seen_headers: list[dict[str, str]] = []
 
     def fake_get(url: str, params=None, headers=None, timeout=10.0):  # noqa: ANN001
         seen_urls.append(url)
+        seen_params.append(params)
         seen_headers.append(headers or {})
         if url.endswith("/api/config"):
             return _FakeResponse({"name": "demo"})
@@ -51,6 +53,24 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
                     "asset": {"id": "silver/orders", "name": "silver/orders"},
                     "materializations": [{"id": "run-123", "metadata": {"run_id": "run-123"}}],
                     "column_lineage": {"id": []},
+                }
+            )
+        if url.endswith("/api/observatory/v2/operations"):
+            assert params == {
+                "status": "failed",
+                "kind": "workflow.apply",
+                "q": "orders",
+                "limit": 2,
+            }
+            return _FakeResponse(
+                {"items": [{"id": "op-123", "kind": "workflow.apply", "status": "failed"}]}
+            )
+        if url.endswith("/api/observatory/v2/operations/op-123/agent-context"):
+            return _FakeResponse(
+                {
+                    "schema_version": "phlo.operation_observability.v1",
+                    "operation": {"id": "op-123", "status": "failed"},
+                    "identifiers": {"operation_id": "op-123", "trace_ids": ["trace-123"]},
                 }
             )
         if url.endswith("/api/contracts"):
@@ -151,6 +171,13 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
     assert client.get_service_info("dagster")["name"] == "dagster"
     assert client.get_assets()[0]["id"] == "silver/orders"
     assert client.get_asset_details("silver/orders")["asset"]["id"] == "silver/orders"
+    assert (
+        client.list_operations(status="failed", kind="workflow.apply", query="orders", limit=2)[
+            "items"
+        ][0]["id"]
+        == "op-123"
+    )
+    assert client.get_operation_context("op-123")["identifiers"]["trace_ids"] == ["trace-123"]
     assert client.get_contracts()[0]["table"] == "silver.orders"
     assert client.get_contract("silver.orders")["table"] == "silver.orders"
     assert client.get_platform_health()["overall_status"] == "healthy"
@@ -172,6 +199,12 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
     assert client.get_logs_query_link()["url"] == "http://logs.test"
     assert client.get_metrics_query_link()["url"] == "http://metrics.test"
     assert "http://example.test/api/observability/health" in seen_urls
+    assert seen_params[seen_urls.index("http://example.test/api/observatory/v2/operations")] == {
+        "status": "failed",
+        "kind": "workflow.apply",
+        "q": "orders",
+        "limit": 2,
+    }
     assert seen_headers[0] == {}
 
 
@@ -198,6 +231,7 @@ def test_create_server_registers_resources() -> None:
         "phlo://docs/packages/{package_name}",
         "phlo://runtime/assets/{asset_key_path}",
         "phlo://runtime/contracts/{table_name}",
+        "phlo://runtime/operations/{operation_id}",
         "phlo://runtime/schemas/{asset_key_path}",
         "phlo://runtime/services/{service_name}",
     ]
@@ -349,6 +383,8 @@ def test_create_server_registers_expected_tools() -> None:
         "get_service_status",
         "get_recent_alerts",
         "get_dashboard_links",
+        "list_operations",
+        "get_operation_context",
         "get_logs_query_link",
         "get_metrics_query_link",
         "get_materialization_history",
