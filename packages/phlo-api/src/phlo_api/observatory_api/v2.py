@@ -17,7 +17,7 @@ import subprocess
 import sys
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import AliasChoices, BaseModel, Field
@@ -93,6 +93,7 @@ from phlo_api.observatory_api.v2_metadata import safe_metadata as _safe_metadata
 from phlo_api.observatory_api.v2_observability import load_observability_items
 from phlo_api.observatory_api.v2_operation_journal import (
     append_operation,
+    build_operation_observability_context,
     load_operation_journal,
     operation_from_workflow_action,
     record_action_result,
@@ -595,6 +596,32 @@ def _load_operations() -> list[V2Operation]:
         for status in getattr(snapshot, "operations", []):
             operations.append(_operation_from_maintenance_status(status))
     return sort_operations(operations)
+
+
+def _filter_operations(
+    operations: list[V2Operation],
+    *,
+    status: str | None = None,
+    kind: str | None = None,
+    q: str | None = None,
+    limit: int | None = None,
+) -> list[V2Operation]:
+    status_filter = status.strip().lower() if status else None
+    kind_filter = kind.strip().lower() if kind else None
+    query = q.strip().lower() if q else None
+
+    filtered: list[V2Operation] = []
+    for operation in operations:
+        if status_filter and operation.status.lower() != status_filter:
+            continue
+        if kind_filter and operation.kind.lower() != kind_filter:
+            continue
+        if query and query not in operation.model_dump_json().lower():
+            continue
+        filtered.append(operation)
+        if limit is not None and len(filtered) >= limit:
+            break
+    return filtered
 
 
 def _load_runs() -> list[V2Run]:
@@ -2574,13 +2601,38 @@ def get_v2_service_detail(service_id: str) -> V2ServiceDetail:
 
 
 @router.get("/operations", response_model=V2OperationList)
-def get_v2_operations() -> V2OperationList:
+def get_v2_operations(
+    status: str | None = None,
+    kind: str | None = None,
+    q: str | None = None,
+    limit: int | None = Query(default=None, ge=1, le=200),
+) -> V2OperationList:
     """List provider-neutral Observatory v2 operations."""
-    return _cached_read_model(
+    result = _cached_read_model(
         "operations",
         _FAST_READ_MODEL_TTL_SECONDS,
         lambda: V2OperationList(items=_load_operations()),
     )
+    return V2OperationList(
+        items=_filter_operations(
+            result.items,
+            status=status,
+            kind=kind,
+            q=q,
+            limit=limit,
+        )
+    )
+
+
+@router.get("/operations/{operation_id:path}/agent-context")
+def get_v2_operation_agent_context(operation_id: str) -> dict[str, object]:
+    """Get stable observability context for agents investigating an operation."""
+    detail = _load_operation_detail(operation_id)
+    context = build_operation_observability_context(detail.operation)
+    context["related"] = [item.model_dump(mode="json") for item in detail.related]
+    context["logs"] = [item.model_dump(mode="json") for item in detail.logs]
+    context["actions"] = [item.model_dump(mode="json") for item in detail.actions]
+    return context
 
 
 @router.get("/operations/{operation_id:path}", response_model=V2OperationDetail)
