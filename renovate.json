@@ -36,6 +36,7 @@
       "matchPackageNames": ["ruff", "pytest", "dbt-core", "psycopg2-binary"],
       "matchUpdateTypes": ["patch"],
       "groupName": "release-safe-python-patches",
+      "dependencyDashboardApproval": true,
       "labels": ["dependencies", "release-refresh", "safe-patch"]
     },
     {

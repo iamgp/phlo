@@ -37,10 +37,11 @@ relx status --channel
 
 ### Dependency Refresh Lane
 
-Run the dependency refresh lane before opening or merging release PRs that should
-pick up third-party maintenance updates.
+Run dependency refreshes only as an explicit release-maintenance task. They are
+not part of normal pull-request CI.
 
 ```bash
+gh workflow run "Dependency Refresh" --ref main -f lane=all
 make dependency-refresh
 make dependency-refresh-check
 ```
@@ -64,11 +65,12 @@ make dependency-refresh-check
 make check
 ```
 
-For the risk-managed lane, use `make dependency-refresh` to inspect which
-manifests reference each package, then group related runtime surfaces and run the
-targeted smoke/regression checks for the affected packages before the broad
-release checks. Renovate mirrors this split with `release-safe-python-patches`
-and `release-risk-managed-python-deps` groups.
+For the risk-managed lane, use `make dependency-refresh LANE=risk-managed` to
+inspect which manifests reference each package, then group related runtime
+surfaces and run the targeted smoke/regression checks for the affected packages
+before the broad release checks. Renovate mirrors this split with
+`release-safe-python-patches` and `release-risk-managed-python-deps` groups, and
+both groups require Dependency Dashboard approval before Renovate opens PRs.
 
 If local ignored runtime folders exist under `packages/`, use a clean worktree for
 ReleaseX checks. Generated local folders can confuse workspace discovery because

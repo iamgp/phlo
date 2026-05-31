@@ -49,6 +49,7 @@ CHECK_CMD := scripts/run-parallel \
 CORE_REGRESSION_TEST_PATHS ?= tests
 CORE_REGRESSION_PYTEST_ARGS ?= --tb=short
 QUICKSTART_SMOKE_PYTEST_ARGS ?= --tb=short
+LANE ?= all
 
 # Docker Compose profiles
 PROFILE_CORE ?= postgres minio minio-setup dagster-webserver dagster-daemon hub
@@ -346,7 +347,7 @@ typecheck-python:
 	uv run ty check $(TY_CHECK_SCOPE)
 
 dependency-refresh:
-	python3 scripts/dependency_refresh_plan.py
+	python3 scripts/dependency_refresh_plan.py --lane $(LANE)
 
 dependency-refresh-check:
 	python3 scripts/dependency_refresh_plan.py --check

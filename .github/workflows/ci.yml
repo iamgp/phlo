@@ -34,9 +34,6 @@ jobs:
       - name: Check package test groups
         run: python3 scripts/check_ci_package_groups.py
 
-      - name: Check dependency refresh lanes
-        run: make dependency-refresh-check
-
       - name: Lint workflows with zizmor
         run: make zizmor
 
