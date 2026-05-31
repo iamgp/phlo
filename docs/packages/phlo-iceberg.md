@@ -28,6 +28,22 @@ phlo plugin install iceberg
 
 ## Features
 
+### Apache Iceberg 1.11 Compatibility
+
+`phlo-iceberg` validates the PyIceberg REST catalog configuration that Phlo
+uses for Apache Iceberg 1.11 lakehouse compatibility:
+
+| Check | Expectation |
+| --- | --- |
+| REST catalog type | PyIceberg catalogs use `type=rest`. |
+| Nessie REST surface | Catalog URIs target Nessie's `/iceberg` endpoint. |
+| Ref routing | PyIceberg refs are encoded in the URI path, e.g. `/iceberg/main`. |
+| Warehouse | A warehouse path is configured. |
+| S3 compatibility | Path-style S3 access is enabled for MinIO/S3-compatible storage. |
+
+The guard intentionally rejects Trino-style prefix properties in PyIceberg
+config. Trino uses `iceberg.rest-catalog.prefix`; PyIceberg uses the URI path.
+
 ### Auto-Configuration
 
 Works out-of-the-box when MinIO and Nessie are running:

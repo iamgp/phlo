@@ -40,6 +40,20 @@ from phlo.plugins.base import PluginMetadata, ResourceProviderPlugin
 from phlo_iceberg.resource import IcebergResource
 from phlo_iceberg.schema_migrator import IcebergSchemaMigrator
 
+ICEBERG_COMPATIBILITY_METADATA = {
+    "target": "apache-iceberg-1.11",
+    "rest_catalog": {
+        "type": "rest",
+        "pyiceberg_ref_strategy": "uri-path",
+    },
+    "checks": [
+        "rest-catalog-type",
+        "pyiceberg-ref-in-uri",
+        "warehouse-configured",
+        "s3-path-style-access",
+    ],
+}
+
 
 class IcebergResourceProvider(ResourceProviderPlugin):
     """Resource provider plugin for Iceberg/Nessie catalog access.
@@ -154,6 +168,7 @@ class IcebergResourceProvider(ResourceProviderPlugin):
             TableStoreSpec(
                 name="iceberg",
                 provider=IcebergResource(),
+                metadata={"compatibility": ICEBERG_COMPATIBILITY_METADATA},
                 support=CapabilitySupport(
                     supports_refs=True,
                     supports_snapshots=True,

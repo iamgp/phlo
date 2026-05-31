@@ -23,6 +23,12 @@ from phlo.plugins.base import PluginMetadata, ResourceProviderPlugin
 from phlo_nessie.catalog_scanner import NessieTableScanner
 from phlo_nessie.resource import NessieResource
 
+NESSIE_COMPATIBILITY_METADATA = {
+    "target": "apache-iceberg-1.11",
+    "rest_catalog": {"nessie_uri_suffix": "/iceberg"},
+    "checks": ["nessie-iceberg-rest-uri"],
+}
+
 
 class NessieResourceProvider(ResourceProviderPlugin):
     """Expose Nessie as a capability-native catalog/versioning provider.
@@ -81,6 +87,7 @@ class NessieResourceProvider(ResourceProviderPlugin):
             CatalogSpec(
                 name="nessie",
                 provider=NessieResource(),
+                metadata={"compatibility": NESSIE_COMPATIBILITY_METADATA},
                 support=support,
             )
         ]
