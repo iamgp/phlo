@@ -30,6 +30,7 @@ Example:
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from typing import Any, Literal
 
 from fastapi import APIRouter, Query
@@ -145,7 +146,82 @@ class TableMetadata(BaseModel):
     last_modified: str | None = None
 
 
+class IcebergCompatibility(BaseModel):
+    """Compatibility contract for Phlo's Iceberg 1.11 lakehouse surface."""
+
+    target: str
+    rest_catalog: dict[str, str]
+    engines: dict[str, dict[str, Any]]
+    checks: list[str]
+
+
 # --- Layer Inference ---
+
+
+def _load_capability_registry() -> Any | None:
+    """Load the capability registry when the core package is available."""
+    try:
+        from phlo.capabilities import get_capability_registry
+    except Exception:  # noqa: BLE001 - optional in stripped API deployments
+        return None
+    return get_capability_registry()
+
+
+def _compatibility_from_capabilities(registry: Any | None) -> IcebergCompatibility:
+    """Build lakehouse compatibility from registered provider capability metadata."""
+    target = "unavailable"
+    rest_catalog: dict[str, str] = {}
+    engines: dict[str, dict[str, Any]] = {}
+    checks: list[str] = []
+
+    if registry is None:
+        return IcebergCompatibility(
+            target=target,
+            rest_catalog=rest_catalog,
+            engines=engines,
+            checks=checks,
+        )
+
+    for family in ("table_store", "catalog", "query_engine"):
+        list_specs = getattr(registry, "list", None)
+        if not callable(list_specs):
+            continue
+        for spec in list_specs(family):
+            metadata = getattr(spec, "metadata", {})
+            if not isinstance(metadata, Mapping):
+                continue
+            compatibility = metadata.get("compatibility")
+            if not isinstance(compatibility, Mapping):
+                continue
+            candidate_target = compatibility.get("target")
+            if isinstance(candidate_target, str) and candidate_target:
+                target = candidate_target
+            compatibility_rest_catalog = compatibility.get("rest_catalog")
+            if isinstance(compatibility_rest_catalog, Mapping):
+                rest_catalog.update(
+                    {
+                        str(key): str(value)
+                        for key, value in compatibility_rest_catalog.items()
+                        if isinstance(key, str) and isinstance(value, str)
+                    }
+                )
+            compatibility_engines = compatibility.get("engines")
+            if isinstance(compatibility_engines, Mapping):
+                for engine_name, engine_metadata in compatibility_engines.items():
+                    if isinstance(engine_name, str) and isinstance(engine_metadata, Mapping):
+                        engines[engine_name] = dict(engine_metadata)
+            compatibility_checks = compatibility.get("checks")
+            if isinstance(compatibility_checks, list):
+                for check in compatibility_checks:
+                    if isinstance(check, str) and check not in checks:
+                        checks.append(check)
+
+    return IcebergCompatibility(
+        target=target,
+        rest_catalog=rest_catalog,
+        engines=engines,
+        checks=checks,
+    )
 
 
 def infer_layer(name: str) -> Layer:
@@ -339,6 +415,12 @@ async def fetch_table_schema(
 
 
 # --- API Endpoints ---
+
+
+@router.get("/compatibility", response_model=IcebergCompatibility)
+async def get_compatibility() -> IcebergCompatibility:
+    """Return lakehouse compatibility expectations from active capabilities."""
+    return _compatibility_from_capabilities(_load_capability_registry())
 
 
 @router.get("/tables", response_model=list[IcebergTable] | dict)

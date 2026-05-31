@@ -407,6 +407,17 @@ class TestTrinoServicePlugin:
             supports_refs=True,
             supports_time_travel=True,
         )
+        assert engines[0].metadata["compatibility"] == {
+            "target": "apache-iceberg-1.11",
+            "rest_catalog": {"trino_ref_strategy": "rest-catalog-prefix"},
+            "engines": {
+                "trino": {
+                    "catalog_type": "rest",
+                    "iceberg_table_spec_versions": [1, 2],
+                }
+            },
+            "checks": ["trino-prefix-property", "trino-table-spec-v1-v2"],
+        }
 
 
 # =============================================================================

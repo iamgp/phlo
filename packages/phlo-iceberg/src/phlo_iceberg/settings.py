@@ -41,6 +41,7 @@ from pydantic import Field
 
 from phlo.config.base import BaseConfig
 from phlo.config.network import resolve_url as _resolve_service_url
+from phlo_iceberg.compatibility import validate_pyiceberg_rest_catalog_config
 
 
 class IcebergSettings(BaseConfig):
@@ -179,7 +180,7 @@ class IcebergSettings(BaseConfig):
         """
         catalog_uri = _resolve_service_url(self.iceberg_catalog_uri, port_env_var="NESSIE_PORT")
         s3_endpoint = _resolve_service_url(self.iceberg_s3_endpoint, port_env_var="MINIO_API_PORT")
-        return {
+        config = {
             "type": "rest",
             "uri": f"{catalog_uri}/{ref}",
             "warehouse": self.get_iceberg_warehouse_for_branch(ref),
@@ -189,6 +190,8 @@ class IcebergSettings(BaseConfig):
             "s3.path-style-access": "true",
             "s3.region": self.iceberg_s3_region,
         }
+        validate_pyiceberg_rest_catalog_config(config)
+        return config
 
 
 @lru_cache(maxsize=1)
