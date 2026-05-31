@@ -226,7 +226,11 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
             return "project:write"
         if tool_name == "install_plugin":
             return "admin"
-        if tool_name.startswith("get_") or tool_name.startswith("search_"):
+        if (
+            tool_name.startswith("get_")
+            or tool_name.startswith("search_")
+            or tool_name == "list_operations"
+        ):
             return "lakehouse:read"
         return None
 
@@ -340,6 +344,40 @@ def create_server(config: McpConfig | None = None) -> FastMCP:
                 with tracer.start_as_current_span("phlo.observability.dashboards"):
                     dashboards = client.get_dashboard_links()
                     return {"api_base_url": client.api_base_url, "dashboards": dashboards}
+
+    @mcp.tool()
+    def list_operations(
+        status: str | None = None,
+        kind: str | None = None,
+        query: str | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """Find recent operations before fetching stable operation context."""
+        with tracer.start_as_current_span(
+            "mcp.request",
+            attributes={"mcp.tool.name": "list_operations"},
+        ):
+            with tracer.start_as_current_span(
+                "mcp.tool.execute",
+                attributes={"mcp.tool.name": "list_operations"},
+            ):
+                with tracer.start_as_current_span("phlo.observability.operations"):
+                    payload = client.list_operations(
+                        status=status,
+                        kind=kind,
+                        query=query,
+                        limit=limit,
+                    )
+                    return {
+                        "api_base_url": client.api_base_url,
+                        "filters": {
+                            "status": status,
+                            "kind": kind,
+                            "query": query,
+                            "limit": limit,
+                        },
+                        "payload": payload,
+                    }
 
     @mcp.tool()
     def get_operation_context(operation_id: str) -> dict[str, Any]:

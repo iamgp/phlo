@@ -1377,6 +1377,47 @@ def test_v2_operations_endpoint_returns_provider_neutral_payload() -> None:
     _assert_no_provider_url_settings(payload)
 
 
+def test_v2_operations_endpoint_filters_before_returning_context_candidates(monkeypatch) -> None:
+    operations = [
+        V2Operation(
+            id="op-orders-failed",
+            name="Apply orders workflow",
+            kind="workflow.apply",
+            status="failed",
+            health=V2Health(state="error", message="Validation failed"),
+            target=V2ResourceRef(kind="workflow", id="orders", label="orders"),
+        ),
+        V2Operation(
+            id="op-customers-failed",
+            name="Apply customers workflow",
+            kind="workflow.apply",
+            status="failed",
+            health=V2Health(state="error", message="Validation failed"),
+            target=V2ResourceRef(kind="workflow", id="customers", label="customers"),
+        ),
+        V2Operation(
+            id="op-orders-restart",
+            name="Restart API",
+            kind="service.restart",
+            status="succeeded",
+            health=V2Health(state="ok"),
+            target=V2ResourceRef(kind="service", id="phlo-api", label="phlo-api"),
+        ),
+    ]
+    monkeypatch.setattr(v2, "_load_operations", lambda: operations)
+    v2._clear_read_model_cache()
+
+    response = TestClient(app).get(
+        "/api/observatory/v2/operations",
+        params={"status": "failed", "kind": "workflow.apply", "q": "orders", "limit": 1},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["id"] for item in payload["items"]] == ["op-orders-failed"]
+    _assert_no_provider_url_settings(payload)
+
+
 def test_v2_operation_detail_endpoint_returns_provider_neutral_payload(monkeypatch) -> None:
     client = TestClient(app)
     operation = V2Operation(
