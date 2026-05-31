@@ -134,17 +134,20 @@ def test_dagster_runtime_reads_run_tags_when_context_has_no_tags():
 
 
 def test_dagster_runtime_reads_run_id_from_run_object():
-    """DagsterRuntime should use Dagster's run object for the run id."""
+    """DagsterRuntime should use Dagster's canonical run object for the run id."""
     from phlo_dagster.adapter import DagsterRuntime
 
-    context = SimpleNamespace(
-        run=SimpleNamespace(run_id="run-from-object", tags={}),
-        has_partition_key=False,
-        log=SimpleNamespace(),
-        resources=SimpleNamespace(),
-    )
+    class _Context:
+        run = SimpleNamespace(run_id="run-from-object", tags={})
+        has_partition_key = False
+        log = SimpleNamespace()
+        resources = SimpleNamespace()
 
-    runtime = DagsterRuntime(context=cast(AssetExecutionContext, context))
+        @property
+        def run_id(self) -> str:
+            raise AssertionError("DagsterRuntime should use context.run.run_id")
+
+    runtime = DagsterRuntime(context=cast(AssetExecutionContext, _Context()))
     assert runtime.run_id == "run-from-object"
 
 
@@ -154,7 +157,7 @@ def test_dagster_runtime_builds_routing_without_recursion():
 
     context = SimpleNamespace(
         tags={"environment": "dev", "phlo/ref": "feature/orders", "feature/wap": "true"},
-        run_id="abc123",
+        run=SimpleNamespace(run_id="abc123"),
         has_partition_key=True,
         partition_key="2025-01-01",
         log=SimpleNamespace(),
