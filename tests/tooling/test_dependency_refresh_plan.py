@@ -59,10 +59,10 @@ version = "14.2.0"
 
     plan = dependency_refresh_plan.collect_plan(root)
 
-    assert [entry.name for entry in plan["patch"]] == ["dbt-core", "pytest", "ruff"]
-    assert [entry.name for entry in plan["risk-managed"]] == ["pyarrow", "rich"]
-    assert plan["patch"][0].locked_version == "1.10.8"
-    assert plan["patch"][0].manifest_files == ["packages/phlo-dbt/pyproject.toml"]
+    assert [entry.name for entry in plan["patch"]] == ["pytest", "ruff"]
+    assert [entry.name for entry in plan["risk-managed"]] == ["dbt-core", "pyarrow", "rich"]
+    assert plan["risk-managed"][0].locked_version == "1.10.8"
+    assert plan["risk-managed"][0].manifest_files == ["packages/phlo-dbt/pyproject.toml"]
 
 
 def test_json_output_is_machine_readable(tmp_path: Path, capsys) -> None:

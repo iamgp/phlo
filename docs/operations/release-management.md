@@ -48,9 +48,10 @@ make dependency-refresh-check
 
 The refresh lane is intentionally split:
 
-- Patch lane first: `ruff`, `pytest`, `dbt-core`, and `psycopg2-binary`.
-- Risk-managed lane after patch CI is green: `pyarrow`, OpenTelemetry packages,
-  `dagster`, `dagster-webserver`, `rich`, and `clickhouse-connect`.
+- Patch lane first: `ruff`, `pytest`, and `psycopg2-binary`.
+- Risk-managed lane after patch CI is green: `dbt-core`, `pyarrow`,
+  OpenTelemetry packages, `dagster`, `dagster-webserver`, `rich`, and
+  `clickhouse-connect`.
 
 Prefer one PR for the patch lane and a separate PR for the risk-managed lane.
 For the patch lane, update only the selected low-risk packages and lockfile:
@@ -59,7 +60,6 @@ For the patch lane, update only the selected low-risk packages and lockfile:
 uv lock \
   --upgrade-package ruff \
   --upgrade-package pytest \
-  --upgrade-package dbt-core \
   --upgrade-package psycopg2-binary
 make dependency-refresh-check
 make check

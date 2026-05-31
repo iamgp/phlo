@@ -17,8 +17,8 @@
       "excludePackageNames": [
         "ruff",
         "pytest",
-        "dbt-core",
         "psycopg2-binary",
+        "dbt-core",
         "pyarrow",
         "opentelemetry-api",
         "opentelemetry-sdk",
@@ -33,7 +33,7 @@
     {
       "description": "Release refresh lane: patch-only low-risk Python dependency updates.",
       "matchManagers": ["pep621", "poetry", "pip_requirements", "pip_setup"],
-      "matchPackageNames": ["ruff", "pytest", "dbt-core", "psycopg2-binary"],
+      "matchPackageNames": ["ruff", "pytest", "psycopg2-binary"],
       "matchUpdateTypes": ["patch"],
       "groupName": "release-safe-python-patches",
       "dependencyDashboardApproval": true,
@@ -44,6 +44,7 @@
       "matchManagers": ["pep621", "poetry", "pip_requirements", "pip_setup"],
       "matchPackageNames": [
         "pyarrow",
+        "dbt-core",
         "opentelemetry-api",
         "opentelemetry-sdk",
         "opentelemetry-exporter-otlp-proto-grpc",

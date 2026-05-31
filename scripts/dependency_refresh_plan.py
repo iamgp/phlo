@@ -14,11 +14,12 @@ from typing import Literal
 
 Lane = Literal["patch", "risk-managed"]
 
-PATCH_REFRESH_PACKAGES = ("dbt-core", "psycopg2-binary", "pytest", "ruff")
+PATCH_REFRESH_PACKAGES = ("psycopg2-binary", "pytest", "ruff")
 RISK_MANAGED_PACKAGES = (
     "clickhouse-connect",
     "dagster",
     "dagster-webserver",
+    "dbt-core",
     "opentelemetry-api",
     "opentelemetry-exporter-otlp",
     "opentelemetry-exporter-otlp-proto-grpc",
