@@ -137,6 +137,7 @@ _FLOW_EXPORTS = {
     "publish",
     "schedule",
 }
+_CONFIG_EXPORTS = {"settings"}
 _REFERENCE_EXPORTS = {"LogicalRelation", "quote_identifier", "ref", "source"}
 _SUBMODULE_EXPORTS = {"helpers", "ingest", "ingestion", "metrics", "quality", "transform"}
 _HELPER_EXPORTS = {"synthetic_key"}
@@ -150,6 +151,7 @@ __all__ = [
     *_QUALITY_EXPORTS,
     *_QUALITY_RULE_EXPORTS,
     *_FLOW_EXPORTS,
+    *_CONFIG_EXPORTS,
     *_REFERENCE_EXPORTS,
 ]
 
@@ -250,6 +252,11 @@ def __getattr__(name: str) -> Any:
                 "schedule": schedule,
             }
         )
+        return globals()[name]
+    if name in _CONFIG_EXPORTS:
+        from phlo.config.workflow import workflow_settings
+
+        globals()["settings"] = workflow_settings
         return globals()[name]
     if name in _REFERENCE_EXPORTS:
         from phlo.references import LogicalRelation, quote_identifier, ref, source
