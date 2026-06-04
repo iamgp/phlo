@@ -63,6 +63,7 @@ from phlo.hooks import (
 )
 from phlo.config.base import BaseConfig
 from phlo.logging import get_logger
+from phlo.references import ref
 from phlo.utils import dedupe_preserve_order
 from phlo_trino._errors import iter_exception_chain
 from pydantic import Field
@@ -443,7 +444,8 @@ def _copy_table(
     batch_size: int,
 ) -> tuple[int, int]:
     """Copy a single Trino table into Postgres and return row/column counts."""
-    columns, source_table_ref = _describe_trino_table(trino, source_table)
+    resolved_source_table = _resolve_source_table_reference(source_table)
+    columns, source_table_ref = _describe_trino_table(trino, resolved_source_table)
     column_defs = [
         sql.SQL("{} {}").format(sql.Identifier(name), sql.SQL(pg_type))
         for name, pg_type, _expr in columns
@@ -486,6 +488,16 @@ def _copy_table(
     postgres.commit()
 
     return row_count, len(columns)
+
+
+def _resolve_source_table_reference(source_table: str) -> str:
+    """Resolve logical publishing table tokens into concrete Trino relations."""
+    if not source_table.startswith("ref:"):
+        return source_table
+    model_name = source_table.removeprefix("ref:").strip()
+    if not model_name:
+        raise ValueError("Publishing table reference 'ref:' must include a dbt model name.")
+    return ref(model_name).render()
 
 
 def _trino_table_ref_candidates(name: str) -> list[str]:

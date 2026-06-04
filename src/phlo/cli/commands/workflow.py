@@ -73,6 +73,7 @@ def _create_workflow(
     api_base_url: str | None = None,
     fields: list[str] | None = None,
     provider: str | None = None,
+    source_kind: str | None = None,
 ) -> WorkflowCreateResult:
     """Create a workflow scaffold through the active workflow authoring provider."""
     return create_workflow_with_provider(
@@ -85,6 +86,7 @@ def _create_workflow(
         api_base_url=api_base_url or None,
         fields=fields or [],
         provider=provider,
+        source_kind=source_kind,
     )
 
 
@@ -122,6 +124,13 @@ def _create_workflow(
     help="Additional schema field (name:type, name:type?, name:type!)",
 )
 @click.option("--provider", help="Workflow authoring provider capability to use.")
+@click.option(
+    "--source-kind",
+    type=click.Choice(["rest-api", "partitioned-sql"]),
+    default="rest-api",
+    show_default=True,
+    help="Source template style for providers that support multiple ingestion patterns.",
+)
 @click.option("--json", "output_json", is_flag=True, help="Emit machine-readable JSON.")
 def create_workflow_cmd(
     workflow_type: str,
@@ -132,6 +141,7 @@ def create_workflow_cmd(
     api_base_url: str,
     fields: tuple[str, ...],
     provider: str | None,
+    source_kind: str,
     output_json: bool,
 ) -> None:
     """Create a workflow scaffold."""
@@ -156,6 +166,7 @@ def create_workflow_cmd(
                 api_base_url=api_base_url or None,
                 fields=list(fields),
                 provider=provider,
+                source_kind=source_kind,
             )
 
             if output_json:

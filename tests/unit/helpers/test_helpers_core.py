@@ -30,6 +30,7 @@ from phlo.helpers import (
     partition_scope,
     partition_where_clause,
     previous_partition,
+    read_dataframe,
     reconcile_counts,
     redacted_url,
     render_partition_predicate,
@@ -85,6 +86,48 @@ def test_sql_helpers_validate_read_only_queries() -> None:
 
     with pytest.raises(PhloConfigError):
         validate_read_only_sql("DROP TABLE raw.events")
+
+
+def test_read_dataframe_delegates_to_query_engine() -> None:
+    class FakeQueryEngine:
+        def read_dataframe(self, query, *, params=None, schema=None, schema_class=None):
+            return {
+                "query": query,
+                "params": params,
+                "schema": schema,
+                "schema_class": schema_class,
+            }
+
+    class Schema:
+        pass
+
+    result = read_dataframe(
+        "SELECT * FROM raw.events WHERE id > ?",
+        params=[10],
+        query_engine=FakeQueryEngine(),
+        schema="raw",
+        schema_class=Schema,
+    )
+
+    assert result == {
+        "query": "SELECT * FROM raw.events WHERE id > ?",
+        "params": [10],
+        "schema": "raw",
+        "schema_class": Schema,
+    }
+
+
+def test_read_dataframe_reports_query_engines_without_dataframe_support() -> None:
+    class RowOnlyQueryEngine:
+        def execute(self, sql):
+            return []
+
+    with pytest.raises(PhloConfigError, match="does not support DataFrame reads"):
+        read_dataframe("SELECT 1", query_engine=RowOnlyQueryEngine())
+
+
+def test_read_dataframe_is_exported_from_top_level_phlo() -> None:
+    assert phlo.read_dataframe is read_dataframe
 
 
 def test_synthetic_key_renders_oracle_sha256_expression() -> None:
