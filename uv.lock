@@ -4260,6 +4260,7 @@ name = "phlo-trino"
 version = "0.3.2"
 source = { editable = "packages/phlo-trino" }
 dependencies = [
+    { name = "pandas" },
     { name = "phlo" },
     { name = "psycopg2-binary" },
     { name = "pyyaml" },
@@ -4280,6 +4281,7 @@ postgres = [
 
 [package.metadata]
 requires-dist = [
+    { name = "pandas", specifier = ">=2.0.0" },
     { name = "phlo", editable = "." },
     { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
     { name = "phlo-postgres", marker = "extra == 'postgres'", editable = "packages/phlo-postgres" },

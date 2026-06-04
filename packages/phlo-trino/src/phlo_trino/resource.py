@@ -27,14 +27,17 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 import time
-from typing import Iterable
+from typing import Any, Iterable
 
+import pandas as pd
 from trino.dbapi import connect
 
 from phlo.capabilities import CapabilitySupport, RuntimeContext, resolve_runtime_ref
 from phlo.logging import get_logger
+from phlo.references import LogicalRelation, quote_identifier
 from phlo_trino._errors import iter_exception_chain
 from phlo_trino.settings import get_settings as get_trino_settings
+from phlo_trino.type_mapping import apply_schema_types
 
 logger = get_logger(__name__)
 
@@ -168,12 +171,14 @@ class TrinoResource:
 
         """
         conn = self.get_connection(schema=schema)
-        cursor = conn.cursor()
+        cursor = None
         try:
+            cursor = conn.cursor()
             yield cursor
         finally:
             try:
-                cursor.close()
+                if cursor is not None:
+                    cursor.close()
             finally:
                 conn.close()
 
@@ -195,6 +200,93 @@ class TrinoResource:
             if cursor.description is None:
                 return []
             return cursor.fetchall()
+
+    def read_dataframe(
+        self,
+        query: str | LogicalRelation,
+        params: Iterable[object] | None = None,
+        *,
+        schema: str | None = None,
+        schema_class: type[Any] | None = None,
+    ) -> pd.DataFrame:
+        """Execute a read query and return results as a pandas DataFrame.
+
+        Args:
+            query: SQL string or logical relation to read with ``SELECT *``.
+            params: Optional positional query parameters.
+            schema: Optional schema name for the connection.
+            schema_class: Optional Pandera-style schema class used for lightweight
+                DataFrame type coercion.
+
+        Returns:
+            Query results as a pandas DataFrame.
+
+        Raises:
+            RuntimeError: If Trino query execution fails, with SQL/relation context.
+
+        """
+        sql = self._read_dataframe_sql(query)
+        params_list = list(params or [])
+        context = _query_context(query, sql)
+        try:
+            with self.cursor(schema=schema) as cursor:
+                cursor.execute(sql, params_list)
+                columns = _columns_from_description(cursor.description)
+                rows = [] if cursor.description is None else cursor.fetchall()
+        except Exception as exc:  # noqa: BLE001 - attach query context for workflow authors
+            raise RuntimeError(f"Trino query failed for {context}: {exc}") from exc
+
+        try:
+            frame = pd.DataFrame(rows, columns=columns)
+            if schema_class is not None:
+                frame = apply_schema_types(frame, schema_class)
+            return frame
+        except Exception as exc:  # noqa: BLE001 - attach query context for workflow authors
+            schema_context = (
+                f" with schema {schema_class.__name__}" if schema_class is not None else ""
+            )
+            raise RuntimeError(
+                f"Trino DataFrame conversion failed for {context}{schema_context}: {exc}"
+            ) from exc
+
+    def read_table(
+        self,
+        table: str | LogicalRelation,
+        *,
+        columns: Iterable[str] | None = None,
+        limit: int | None = None,
+        params: Iterable[object] | None = None,
+        schema: str | None = None,
+        schema_class: type[Any] | None = None,
+    ) -> pd.DataFrame:
+        """Read a table or logical relation into a pandas DataFrame.
+
+        Args:
+            table: Physical table identifier or logical relation.
+            columns: Optional column names to select. Defaults to all columns.
+            limit: Optional row limit.
+            params: Optional positional query parameters.
+            schema: Optional schema name for the connection.
+            schema_class: Optional Pandera-style schema class used for lightweight
+                DataFrame type coercion.
+
+        Returns:
+            Table contents as a pandas DataFrame.
+
+        """
+        selected = _render_columns(columns)
+        relation = _render_table(table)
+        sql = f"SELECT {selected} FROM {relation}"
+        if limit is not None:
+            if limit < 0:
+                raise ValueError("limit must be non-negative")
+            sql = f"{sql} LIMIT {limit}"
+        return self.read_dataframe(sql, params=params, schema=schema, schema_class=schema_class)
+
+    def _read_dataframe_sql(self, query: str | LogicalRelation) -> str:
+        if isinstance(query, LogicalRelation):
+            return f"SELECT * FROM {query.render()}"
+        return query
 
     def wait_ready(
         self,
@@ -311,3 +403,62 @@ def _is_transient_trino_error(exc: Exception) -> bool:
         if "connectionerror" in class_name or "connection" in class_name:
             return True
     return False
+
+
+def _columns_from_description(description: Any) -> list[str] | None:
+    if description is None:
+        return None
+    columns: list[str] = []
+    for column in description:
+        name = getattr(column, "name", None)
+        if name is None:
+            name = column[0]
+        columns.append(str(name))
+    return columns
+
+
+def _render_columns(columns: Iterable[str] | None) -> str:
+    if columns is None:
+        return "*"
+    rendered = list(columns)
+    if not rendered:
+        return "*"
+    return ", ".join("*" if column == "*" else quote_identifier(column) for column in rendered)
+
+
+def _render_table(table: str | LogicalRelation) -> str:
+    if isinstance(table, LogicalRelation):
+        return table.render()
+    return ".".join(quote_identifier(part) for part in table.split("."))
+
+
+def _query_context(query: str | LogicalRelation, sql: str) -> str:
+    if isinstance(query, LogicalRelation):
+        return f"relation {query!r}"
+    return f"SQL {_sanitize_sql_context(sql)!r}"
+
+
+def _sanitize_sql_context(sql: str, *, max_length: int = 300) -> str:
+    sanitized: list[str] = []
+    in_string = False
+    index = 0
+    while index < len(sql):
+        char = sql[index]
+        if in_string:
+            if char == "'":
+                if index + 1 < len(sql) and sql[index + 1] == "'":
+                    index += 2
+                    continue
+                in_string = False
+            index += 1
+            continue
+        if char == "'":
+            sanitized.append("'?'")
+            in_string = True
+        else:
+            sanitized.append(char)
+        index += 1
+    rendered = "".join(sanitized)
+    if len(rendered) > max_length:
+        return f"{rendered[: max_length - 3]}..."
+    return rendered
