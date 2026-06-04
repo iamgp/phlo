@@ -61,6 +61,7 @@ from phlo.capabilities.registry import clear_all_capabilities, get_capability_re
 from phlo.exceptions import PhloConfigError
 from phlo.logging import get_logger
 from phlo.orchestrators import get_active_orchestrator
+from phlo_dagster.framework.asset_diagnostics import merge_definitions_with_duplicate_diagnostics
 
 logger = get_logger(__name__)
 
@@ -241,7 +242,11 @@ def _collect_dagster_extension_definitions() -> Any:
                 exc_info=True,
             )
 
-    return dg.Definitions.merge(*definitions) if definitions else dg.Definitions()
+    return (
+        merge_definitions_with_duplicate_diagnostics(*definitions)
+        if definitions
+        else dg.Definitions()
+    )
 
 
 def _collect_module_dagster_definitions(imported_modules: list[Any]) -> Any | None:
@@ -319,7 +324,7 @@ def _merge_dagster_definitions(*, capability_defs: Any, module_defs: Any | None)
         return capability_defs
     if not isinstance(module_defs, dg.Definitions):
         return capability_defs
-    return dg.Definitions.merge(capability_defs, module_defs)
+    return merge_definitions_with_duplicate_diagnostics(capability_defs, module_defs)
 
 
 def _ensure_core_resources(definitions: Any) -> Any:

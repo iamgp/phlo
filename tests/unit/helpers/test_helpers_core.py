@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+import phlo
 from phlo.capabilities import FieldSpec, NormalizedSchema
 from phlo.contracts import SLA
 from phlo.exceptions import PhloConfigError
@@ -36,6 +37,7 @@ from phlo.helpers import (
     resolve_watermark,
     row_checksum,
     stage_path_for_run,
+    synthetic_key,
     table_exists,
     table_ref_sql,
     table_stats,
@@ -83,6 +85,65 @@ def test_sql_helpers_validate_read_only_queries() -> None:
 
     with pytest.raises(PhloConfigError):
         validate_read_only_sql("DROP TABLE raw.events")
+
+
+def test_synthetic_key_renders_oracle_sha256_expression() -> None:
+    assert synthetic_key(
+        dialect="oracle",
+        namespace="crm.customer",
+        fields=["customer_id", "updated_at"],
+    ) == (
+        "STANDARD_HASH("
+        "'NS:12:crm.customer' || "
+        "(CASE WHEN customer_id IS NULL THEN 'N:' ELSE 'V:' || "
+        "TO_CHAR(LENGTH(CAST(customer_id AS VARCHAR2(4000)))) || ':' || "
+        "CAST(customer_id AS VARCHAR2(4000)) END) || "
+        "(CASE WHEN updated_at IS NULL THEN 'N:' ELSE 'V:' || "
+        "TO_CHAR(LENGTH(CAST(updated_at AS VARCHAR2(4000)))) || ':' || "
+        "CAST(updated_at AS VARCHAR2(4000)) END), "
+        "'SHA256')"
+    )
+
+
+def test_synthetic_key_renders_sqlserver_sha256_expression() -> None:
+    assert synthetic_key(dialect="sqlserver", fields=["customer_id", "updated_at"]) == (
+        "CONVERT(varchar(64), HASHBYTES('SHA2_256', "
+        "CONCAT("
+        "(CASE WHEN customer_id IS NULL THEN 'N:' ELSE CONCAT('V:', "
+        "CAST(LEN(CAST(customer_id AS nvarchar(max))) AS varchar(20)), ':', "
+        "CAST(customer_id AS nvarchar(max))) END), "
+        "(CASE WHEN updated_at IS NULL THEN 'N:' ELSE CONCAT('V:', "
+        "CAST(LEN(CAST(updated_at AS nvarchar(max))) AS varchar(20)), ':', "
+        "CAST(updated_at AS nvarchar(max))) END)"
+        ")), 2)"
+    )
+
+
+def test_synthetic_key_namespace_prefix_is_optional_and_length_prefixed() -> None:
+    assert synthetic_key(dialect="oracle", namespace="src", fields=["id"]).startswith(
+        "STANDARD_HASH('NS:3:src' || "
+    )
+    assert synthetic_key(dialect="oracle", fields=["id"]).startswith(
+        "STANDARD_HASH((CASE WHEN id IS NULL"
+    )
+
+
+def test_synthetic_key_is_exported_from_top_level_phlo() -> None:
+    assert phlo.synthetic_key(dialect="oracle", fields=["id"]) == synthetic_key(
+        dialect="oracle",
+        fields=["id"],
+    )
+
+
+def test_synthetic_key_rejects_empty_fields_invalid_dialects_and_unsafe_identifiers() -> None:
+    with pytest.raises(PhloConfigError, match="fields cannot be empty"):
+        synthetic_key(dialect="oracle", fields=[])
+
+    with pytest.raises(PhloConfigError, match="Unsupported synthetic key SQL dialect"):
+        synthetic_key(dialect="postgres", fields=["id"])
+
+    with pytest.raises(PhloConfigError, match="Unsafe synthetic key field"):
+        synthetic_key(dialect="oracle", fields=["raw.id"])
 
 
 def test_table_and_schema_helpers() -> None:

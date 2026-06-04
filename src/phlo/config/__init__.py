@@ -30,10 +30,12 @@ from phlo.config.base import BaseConfig
 from phlo.config.env import load_project_env, parse_project_env_file, project_env_value
 from phlo.config.network import resolve_host, resolve_url
 from phlo.config.settings import Settings, _get_config, get_settings
+from phlo.config.workflow import WorkflowSettingsError, settings, workflow_settings
 
 __all__ = [
     "BaseConfig",
     "Settings",
+    "WorkflowSettingsError",
     "_get_config",
     "get_settings",
     "load_project_env",
@@ -41,4 +43,6 @@ __all__ = [
     "project_env_value",
     "resolve_host",
     "resolve_url",
+    "settings",
+    "workflow_settings",
 ]

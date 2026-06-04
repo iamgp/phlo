@@ -4,8 +4,10 @@ import os
 from unittest.mock import patch
 
 import pytest
+from pydantic import BaseModel
 
-from phlo.config import Settings, _get_config
+import phlo
+from phlo.config import Settings, _get_config, workflow_settings
 
 pytestmark = pytest.mark.core_regression
 
@@ -45,3 +47,105 @@ class TestConfigUnitTests:
 
             assert config1 is config2
             assert id(config1) == id(config2)
+
+
+class WorkflowSettings(BaseModel):
+    endpoint: str
+    batch_size: int
+    debug: bool = False
+    api_token: str
+
+
+def test_workflow_settings_load_committed_defaults_and_coerces_types(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "phlo.yaml").write_text(
+        """
+settings:
+  endpoint: https://api.example.test
+  batch_size: "250"
+  debug: "true"
+  api_token: committed-placeholder
+"""
+    )
+    monkeypatch.chdir(tmp_path)
+
+    config = workflow_settings(schema=WorkflowSettings)
+
+    assert config.endpoint == "https://api.example.test"
+    assert config.batch_size == 250
+    assert config.debug is True
+    assert config.api_token == "committed-placeholder"
+
+
+def test_workflow_settings_local_env_and_os_override_phlo_yaml(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / ".phlo").mkdir()
+    (tmp_path / ".phlo" / ".env.local").write_text(
+        "API_TOKEN=local-secret\nPHLO_SETTINGS__BATCH_SIZE=500\n"
+    )
+    (tmp_path / "phlo.yaml").write_text(
+        """
+settings:
+  endpoint: https://api.example.test
+  batch_size: 250
+  api_token: committed-placeholder
+"""
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PHLO_SETTINGS__API_TOKEN", "os-secret")
+
+    config = workflow_settings(schema=WorkflowSettings)
+
+    assert config.batch_size == 500
+    assert config.api_token == "os-secret"
+
+
+def test_workflow_settings_reports_missing_required_values(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "phlo.yaml").write_text(
+        """
+settings:
+  batch_size: 250
+  api_token: token
+"""
+    )
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(ValueError, match="workflow settings missing required value.*endpoint"):
+        workflow_settings(schema=WorkflowSettings)
+
+
+def test_workflow_settings_reads_namespace_defaults_and_overrides(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / ".phlo").mkdir()
+    (tmp_path / ".phlo" / ".env.local").write_text("PHLO_SETTINGS__INGEST__API_TOKEN=local\n")
+    (tmp_path / "phlo.yaml").write_text(
+        """
+settings:
+  api_token: shared-token
+  ingest:
+    endpoint: https://ingest.example.test
+    batch_size: "100"
+    debug: false
+workflows:
+  ingest:
+    settings:
+      debug: true
+"""
+    )
+    monkeypatch.chdir(tmp_path)
+
+    config = workflow_settings("ingest", schema=WorkflowSettings)
+
+    assert config.endpoint == "https://ingest.example.test"
+    assert config.batch_size == 100
+    assert config.debug is True
+    assert config.api_token == "local"
+
+
+def test_top_level_settings_export_is_lazy_helper() -> None:
+    assert phlo.settings is workflow_settings
