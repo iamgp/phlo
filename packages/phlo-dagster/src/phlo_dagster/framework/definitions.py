@@ -70,6 +70,7 @@ from phlo_dagster.framework.discovery import (
     _ensure_core_resources,
     discover_user_workflows,
 )
+from phlo_dagster.framework.asset_diagnostics import merge_definitions_with_duplicate_diagnostics
 from phlo_dagster.framework.schema_contracts import maybe_refresh_contracts
 from phlo_dagster.settings import get_settings
 from phlo.logging import get_logger, setup_logging
@@ -265,7 +266,7 @@ def build_definitions(
     if wap_defs is not None:
         definitions_to_merge.append(wap_defs)
 
-    merged = dg.Definitions.merge(*definitions_to_merge)
+    merged = merge_definitions_with_duplicate_diagnostics(*definitions_to_merge)
     merged = _ensure_core_resources(merged)
 
     executor = _default_executor()
