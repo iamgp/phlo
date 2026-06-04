@@ -120,6 +120,7 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
         cron: str,
         api_base_url: str | None,
         fields: list[str] | None,
+        source_kind: str,
     ) -> list[str]:
         """Captures scaffold arguments and returns mocked output paths.
 
@@ -130,6 +131,7 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
             cron: Cron schedule passed from CLI option.
             api_base_url: Optional API base URL from CLI option.
             fields: Optional field spec list from CLI option.
+            source_kind: Source template style from CLI option.
 
         Returns:
             list[str]: Relative paths representing scaffolded files.
@@ -142,6 +144,7 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
                 "cron": cron,
                 "api_base_url": api_base_url,
                 "fields": fields,
+                "source_kind": source_kind,
             }
         )
         return [
@@ -188,8 +191,51 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
         "cron": "0 */1 * * *",
         "api_base_url": "https://api.example.com",
         "fields": ["id:int"],
+        "source_kind": "rest-api",
     }
     assert "Materialize: phlo materialize dlt_observations" in result.output
+
+
+def test_workflow_create_passes_source_kind(monkeypatch) -> None:
+    calls: dict[str, object] = {}
+
+    def fake_create_ingestion_workflow(**kwargs) -> list[str]:
+        calls.update(kwargs)
+        return [
+            "workflows/schemas/warehouse.py",
+            "workflows/ingestion/warehouse/orders.py",
+            "workflows/sql/warehouse/orders.sql",
+            "tests/test_warehouse_orders.py",
+        ]
+
+    monkeypatch.setattr(
+        "phlo_dlt.scaffold.create_ingestion_workflow",
+        fake_create_ingestion_workflow,
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "workflow",
+            "create",
+            "--type",
+            "ingestion",
+            "--provider",
+            "dlt",
+            "--domain",
+            "warehouse",
+            "--table",
+            "orders",
+            "--unique-key",
+            "id",
+            "--source-kind",
+            "partitioned-sql",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls["source_kind"] == "partitioned-sql"
+    assert "workflows/sql/warehouse/orders.sql" in result.output
 
 
 def test_workflow_create_converts_blank_api_base_url_to_none(monkeypatch) -> None:

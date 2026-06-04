@@ -304,6 +304,7 @@ class DltWorkflowAuthoringProvider:
         )
         api_base_url = values.get("api_base_url", request.get("api_base_url"))
         fields = values.get("fields", request.get("fields") or [])
+        source_kind = str(values.get("source_kind") or request.get("source_kind") or "rest-api")
 
         if not domain or not table or not unique_key:
             raise ValueError("DLT workflow creation requires domain, table, and unique_key.")
@@ -317,6 +318,7 @@ class DltWorkflowAuthoringProvider:
                 cron=cron,
                 api_base_url=str(api_base_url) if api_base_url else None,
                 fields=list(fields or []),
+                source_kind=source_kind,
             )
 
         return {

@@ -355,6 +355,151 @@ def _minimal_test_value(type_name: str) -> str:
     return _MINIMAL_TEST_VALUES.get(type_name, '"test-001"')
 
 
+def _render_rest_api_asset_template(
+    *,
+    domain: str,
+    domain_snake: str,
+    table_name: str,
+    table_snake: str,
+    unique_key_normalized: str,
+    cron: str,
+    base_url_literal: str,
+    schema_import_path: str,
+    schema_class: str,
+) -> str:
+    """Render a REST API ingestion asset scaffold."""
+    return f'''"""
+{domain.capitalize()} {table_name} ingestion asset.
+
+Ingests {table_name} from a REST API via `dlt.sources.rest_api`.
+"""
+
+from dlt.sources.rest_api import rest_api
+from phlo_dlt import phlo_ingestion
+
+from {schema_import_path} import {schema_class}
+
+
+@phlo_ingestion(
+    table_name="{table_snake}",
+    unique_key="{unique_key_normalized}",
+    validation_schema={schema_class},
+    group="{domain_snake}",
+    cron="{cron}",
+    freshness_hours=(1, 24),
+)
+def {table_snake}(partition_date: str):
+    start_time = f"{{partition_date}}T00:00:00.000Z"
+    end_time = f"{{partition_date}}T23:59:59.999Z"
+
+    base_url = "{base_url_literal}"
+    if not base_url:
+        raise RuntimeError(
+            "Missing API base URL. Re-run scaffold with --api-base-url or set it in the asset."
+        )
+
+    return rest_api(
+        client={{
+            "base_url": base_url,
+        }},
+        resources=[
+            {{
+                "name": "{table_snake}",
+                "endpoint": {{
+                    "path": "{table_name}",
+                    "params": {{
+                        "start_date": start_time,
+                        "end_date": end_time,
+                    }},
+                }},
+            }}
+        ],
+    )
+'''
+
+
+def _render_partitioned_sql_asset_template(
+    *,
+    domain: str,
+    domain_snake: str,
+    table_name: str,
+    table_snake: str,
+    unique_key_normalized: str,
+    cron: str,
+    schema_import_path: str,
+    schema_class: str,
+) -> str:
+    """Render a partitioned SQL ingestion asset scaffold."""
+    return f'''"""
+{domain.capitalize()} {table_name} ingestion asset.
+
+Ingests {table_name} from SQL using a partition window.
+"""
+
+from datetime import datetime, timedelta, timezone
+
+from phlo_dlt import (
+    PartitionWindow,
+    PartitionedSqlConfig,
+    partitioned_sql_resource,
+    phlo_ingestion,
+)
+
+from {schema_import_path} import {schema_class}
+
+
+def connect_source():
+    raise RuntimeError("Configure the source database connection for {domain_snake}.{table_snake}.")
+
+
+@phlo_ingestion(
+    table_name="{table_snake}",
+    unique_key="{unique_key_normalized}",
+    validation_schema={schema_class},
+    group="{domain_snake}",
+    cron="{cron}",
+    freshness_hours=(1, 24),
+)
+def {table_snake}(partition_date: str):
+    partition_start = datetime.fromisoformat(partition_date).replace(tzinfo=timezone.utc)
+    partition_end = partition_start + timedelta(days=1)
+    window = PartitionWindow(start=partition_start, end=partition_end)
+
+    config = PartitionedSqlConfig(
+        sql_template_path="workflows/sql/{domain_snake}/{table_snake}.sql",
+        row_defaults={{"source_system": "{domain_snake}"}},
+        fetch_size=1000,
+    )
+
+    return partitioned_sql_resource(
+        config,
+        window=window,
+        connect=connect_source,
+        name="{table_snake}",
+        primary_key="{unique_key_normalized}",
+        merge_key="{unique_key_normalized}",
+        write_disposition="merge",
+    )
+'''
+
+
+def _render_partitioned_sql_query_template(
+    *,
+    table_name: str,
+    table_snake: str,
+    unique_key_normalized: str,
+) -> str:
+    """Render an editable SQL template for partitioned ingestion."""
+    return f"""SELECT
+    {unique_key_normalized},
+    *
+FROM source_schema.{table_snake}
+WHERE updated_at >= :partition_start
+  AND updated_at < :partition_end
+-- Source table requested as: {table_name}
+"""
+
+
 def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
     """Parse raw CLI field specifications.
 
@@ -431,6 +576,7 @@ def create_ingestion_workflow(
     cron: str = "0 */1 * * *",
     api_base_url: Optional[str] = None,
     fields: list[str] | None = None,
+    source_kind: str = "rest-api",
 ) -> List[str]:
     """Create ingestion workflow files.
 
@@ -482,6 +628,8 @@ def create_ingestion_workflow(
     """
     domain_snake = _to_snake_case(domain)
     table_snake = _to_snake_case(table_name)
+    if source_kind not in {"rest-api", "partitioned-sql"}:
+        raise ValueError("source_kind must be 'rest-api' or 'partitioned-sql'")
     schema_class = f"Raw{_to_pascal_case(table_snake)}"
     field_specs = parse_field_specs(fields)
 
@@ -489,19 +637,28 @@ def create_ingestion_workflow(
 
     schema_dir = project_root / "workflows" / "schemas"
     asset_dir = project_root / "workflows" / "ingestion" / domain_snake
+    sql_dir = project_root / "workflows" / "sql" / domain_snake
     test_dir = project_root / "tests"
     schema_import_path = f"workflows.schemas.{domain_snake}"
 
     schema_file = schema_dir / f"{domain_snake}.py"
     asset_file = asset_dir / f"{table_snake}.py"
+    sql_file = sql_dir / f"{table_snake}.sql"
     test_file = test_dir / f"test_{domain_snake}_{table_snake}.py"
 
-    existing = [str(f) for f in (asset_file, test_file) if f.exists()]
+    candidate_files = (
+        (asset_file, test_file, sql_file)
+        if source_kind == "partitioned-sql"
+        else (asset_file, test_file)
+    )
+    existing = [str(f) for f in candidate_files if f.exists()]
     if existing:
         raise FileExistsError("Files already exist:\n" + "\n".join(f"  - {f}" for f in existing))
 
     asset_dir.mkdir(parents=True, exist_ok=True)
     test_dir.mkdir(parents=True, exist_ok=True)
+    if source_kind == "partitioned-sql":
+        sql_dir.mkdir(parents=True, exist_ok=True)
 
     domain_init = asset_dir / "__init__.py"
     if not domain_init.exists():
@@ -579,55 +736,36 @@ def create_ingestion_workflow(
 
     _ensure_project_dependencies(project_root, ("phlo-dlt", "phlo-pandera"))
 
-    base_url_literal = api_base_url or ""
-    asset_content = f'''"""
-{domain.capitalize()} {table_name} ingestion asset.
-
-Ingests {table_name} from a REST API via `dlt.sources.rest_api`.
-"""
-
-from dlt.sources.rest_api import rest_api
-from phlo_dlt import phlo_ingestion
-
-from {schema_import_path} import {schema_class}
-
-
-@phlo_ingestion(
-    table_name="{table_snake}",
-    unique_key="{unique_key_normalized}",
-    validation_schema={schema_class},
-    group="{domain_snake}",
-    cron="{cron}",
-    freshness_hours=(1, 24),
-)
-def {table_snake}(partition_date: str):
-    start_time = f"{{partition_date}}T00:00:00.000Z"
-    end_time = f"{{partition_date}}T23:59:59.999Z"
-
-    base_url = "{base_url_literal}"
-    if not base_url:
-        raise RuntimeError(
-            "Missing API base URL. Re-run scaffold with --api-base-url or set it in the asset."
+    if source_kind == "partitioned-sql":
+        asset_content = _render_partitioned_sql_asset_template(
+            domain=domain,
+            domain_snake=domain_snake,
+            table_name=table_name,
+            table_snake=table_snake,
+            unique_key_normalized=unique_key_normalized,
+            cron=cron,
+            schema_import_path=schema_import_path,
+            schema_class=schema_class,
         )
-
-    return rest_api(
-        client={{
-            "base_url": base_url,
-        }},
-        resources=[
-            {{
-                "name": "{table_snake}",
-                "endpoint": {{
-                    "path": "{table_name}",
-                    "params": {{
-                        "start_date": start_time,
-                        "end_date": end_time,
-                    }},
-                }},
-            }}
-        ],
-    )
-'''
+        sql_file.write_text(
+            _render_partitioned_sql_query_template(
+                table_name=table_name,
+                table_snake=table_snake,
+                unique_key_normalized=unique_key_normalized,
+            )
+        )
+    else:
+        asset_content = _render_rest_api_asset_template(
+            domain=domain,
+            domain_snake=domain_snake,
+            table_name=table_name,
+            table_snake=table_snake,
+            unique_key_normalized=unique_key_normalized,
+            cron=cron,
+            base_url_literal=api_base_url or "",
+            schema_import_path=schema_import_path,
+            schema_class=schema_class,
+        )
 
     asset_file.write_text(asset_content)
 
@@ -668,8 +806,11 @@ def test_schema_validates_minimal_row() -> None:
 
     test_file.write_text(test_content)
 
-    return [
+    created_files = [
         str(schema_file.relative_to(project_root)),
         str(asset_file.relative_to(project_root)),
         str(test_file.relative_to(project_root)),
     ]
+    if source_kind == "partitioned-sql":
+        created_files.insert(2, str(sql_file.relative_to(project_root)))
+    return created_files

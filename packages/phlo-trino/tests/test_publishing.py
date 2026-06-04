@@ -343,6 +343,28 @@ def test_publish_marts_emits_correlation(monkeypatch) -> None:
     assert lineage_event.correlation.partition_key is None
 
 
+def test_resolve_source_table_reference_uses_logical_ref(monkeypatch) -> None:
+    class _Relation:
+        def render(self) -> str:
+            return '"iceberg"."marts"."orders"'
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        publishing,
+        "ref",
+        lambda model_name: calls.append(model_name) or _Relation(),
+    )
+
+    assert publishing._resolve_source_table_reference("ref:mrt_orders") == (
+        '"iceberg"."marts"."orders"'
+    )
+    assert calls == ["mrt_orders"]
+
+
+def test_resolve_source_table_reference_preserves_physical_table() -> None:
+    assert publishing._resolve_source_table_reference("marts.orders") == "marts.orders"
+
+
 def test_resolve_partition_key_does_not_swallow_runtime_specific_errors() -> None:
     class _ContextWithProviderError:
         @property

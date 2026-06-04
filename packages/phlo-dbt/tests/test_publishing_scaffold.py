@@ -55,6 +55,21 @@ def test_scaffold_publishing_config_is_idempotent() -> None:
     assert entry["dependencies"] == ["mrt_existing", "mrt_new"]
 
 
+def test_scaffold_publishing_config_can_emit_logical_refs() -> None:
+    updated = scaffold_publishing_config(
+        existing_config={},
+        model_names=["mrt_orders"],
+        source_key="demo",
+        iceberg_schema="marts",
+        group="publishing",
+        asset_name="publish_demo_marts",
+        description="demo",
+        logical_refs=True,
+    )
+
+    assert updated["publishing"]["demo"]["tables"] == {"mrt_orders": "ref:mrt_orders"}
+
+
 def test_scaffold_command_writes_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify scaffold CLI writes filtered publishing config.
 
@@ -94,5 +109,39 @@ def test_scaffold_command_writes_file(tmp_path: Path, monkeypatch: pytest.Monkey
     contents = output_path.read_text()
     assert "publishing:" in contents
     assert "demo:" in contents
-    assert "mrt_a:" in contents
+    assert "mrt_a: ref:mrt_a" in contents
     assert "stg_b" not in contents
+
+
+def test_scaffold_command_can_write_physical_table_mappings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from click.testing import CliRunner
+
+    from phlo_dbt.cli_publishing import publishing
+
+    monkeypatch.chdir(tmp_path)
+
+    manifest_path = tmp_path / "manifest.json"
+    _write_manifest(manifest_path, ["mrt_a"])
+
+    result = CliRunner().invoke(
+        publishing,
+        [
+            "scaffold",
+            "--manifest",
+            str(manifest_path),
+            "--output",
+            "publishing.yaml",
+            "--select",
+            "mrt_*",
+            "--source",
+            "demo",
+            "--physical-tables",
+            "--iceberg-schema",
+            "gold",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "mrt_a: gold.mrt_a" in (tmp_path / "publishing.yaml").read_text()

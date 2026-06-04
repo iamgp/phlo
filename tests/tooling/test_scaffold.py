@@ -174,6 +174,34 @@ def test_scaffold_generates_no_todos_and_is_syntax_valid(
     assert "resources=[" in asset_contents
 
 
+def test_scaffold_can_generate_partitioned_sql_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Generates the asset and editable SQL template for partitioned SQL ingestion."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "workflows" / "schemas").mkdir(parents=True)
+    (tmp_path / "workflows" / "ingestion").mkdir(parents=True)
+
+    created = create_ingestion_workflow(
+        domain="warehouse",
+        table_name="orders",
+        unique_key="order_id",
+        fields=["order_id:int", "updated_at:datetime"],
+        source_kind="partitioned-sql",
+    )
+
+    assert "workflows/sql/warehouse/orders.sql" in created
+    asset_text = (tmp_path / "workflows" / "ingestion" / "warehouse" / "orders.py").read_text()
+    sql_text = (tmp_path / "workflows" / "sql" / "warehouse" / "orders.sql").read_text()
+
+    compile(asset_text, "orders.py", "exec")
+    assert "partitioned_sql_resource(" in asset_text
+    assert "PartitionedSqlConfig(" in asset_text
+    assert 'sql_template_path="workflows/sql/warehouse/orders.sql"' in asset_text
+    assert "WHERE updated_at >= :partition_start" in sql_text
+    assert "AND updated_at < :partition_end" in sql_text
+
+
 def test_scaffold_uses_unique_key_field_type_when_declared(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
