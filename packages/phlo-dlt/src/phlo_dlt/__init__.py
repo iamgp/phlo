@@ -132,4 +132,31 @@ def get_ingestion_assets() -> list[Any]:
     return _get_ingestion_assets()
 
 
-__all__ = ["get_ingestion_assets", "phlo_ingestion"]
+def __getattr__(name: str) -> Any:
+    """Lazily expose partitioned SQL helpers without importing DLT eagerly."""
+    if name in {
+        "PartitionWindow",
+        "PartitionedSqlConfig",
+        "load_sql_template",
+        "normalize_column_name",
+        "partitioned_sql_resource",
+        "partitioned_sql_source",
+        "run_partitioned_sql",
+    }:
+        from phlo_dlt import partitioned_sql
+
+        return getattr(partitioned_sql, name)
+    raise AttributeError(name)
+
+
+__all__ = [
+    "PartitionWindow",
+    "PartitionedSqlConfig",
+    "get_ingestion_assets",
+    "load_sql_template",
+    "normalize_column_name",
+    "partitioned_sql_resource",
+    "partitioned_sql_source",
+    "phlo_ingestion",
+    "run_partitioned_sql",
+]

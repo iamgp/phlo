@@ -101,6 +101,50 @@ def legacy_events():
     ...
 ```
 
+### Partitioned SQL Sources
+
+For warehouse or operational database ingestion, `phlo-dlt` includes a focused
+helper that loads a packaged `.sql` template, binds one partition window, fetches
+rows in batches, normalizes column names, and adds static row defaults.
+
+```python
+import phlo
+from phlo_dlt import PartitionWindow, PartitionedSqlConfig, partitioned_sql_source
+from workflows.schemas.events import EventSchema
+from workflows.sources.postgres import connect_source
+
+sql_config = PartitionedSqlConfig(
+    sql_template_package="workflows.sql",
+    sql_template_name="events.sql",
+    fetch_size=5000,
+    row_defaults={"source_system": "app_postgres"},
+)
+
+@phlo.ingest.dlt(
+    table_name="events",
+    unique_key="event_id",
+    validation_schema=EventSchema,
+    group="app",
+)
+def app_events(partition_date: str):
+    return partitioned_sql_source(
+        sql_config,
+        window=PartitionWindow(
+            partition_key=partition_date,
+            start=partition_date,
+            end=partition_date,
+        ),
+        connect=connect_source,
+        source_name="app_events",
+        resource_name="events",
+        primary_key="event_id",
+        write_disposition="merge",
+    )
+```
+
+The SQL template receives `partition_key`, `partition_start`, and `partition_end`
+as DB-API parameters, plus any static `params` configured on `PartitionedSqlConfig`.
+
 ### Decorator Options
 
 | Option              | Type              | Description                                         |
