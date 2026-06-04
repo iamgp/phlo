@@ -140,7 +140,7 @@ _FLOW_EXPORTS = {
 _CONFIG_EXPORTS = {"settings"}
 _REFERENCE_EXPORTS = {"LogicalRelation", "quote_identifier", "ref", "source"}
 _SUBMODULE_EXPORTS = {"helpers", "ingest", "ingestion", "metrics", "quality", "transform"}
-_HELPER_EXPORTS = {"synthetic_key"}
+_HELPER_EXPORTS = {"read_dataframe", "synthetic_key"}
 
 __all__ = [
     "__version__",
@@ -174,9 +174,9 @@ def __getattr__(name: str) -> Any:
         globals()[name] = module
         return module
     if name in _HELPER_EXPORTS:
-        from phlo.helpers import synthetic_key
+        from phlo.helpers import read_dataframe, synthetic_key
 
-        globals()["synthetic_key"] = synthetic_key
+        globals().update({"read_dataframe": read_dataframe, "synthetic_key": synthetic_key})
         return globals()[name]
     if name in _CONTRACT_EXPORTS:
         from phlo.contracts import SLA, Consumer

@@ -81,6 +81,7 @@ from phlo.helpers.ingestion import (
 from phlo.helpers.io import (
     query_exists,
     query_scalar,
+    read_dataframe,
     read_partition,
     read_table,
     safe_query,
@@ -321,6 +322,7 @@ __all__ = [
     "query_exists",
     "query_scalar",
     "quote_identifier",
+    "read_dataframe",
     "read_partition",
     "read_table",
     "records_to_dataframe",

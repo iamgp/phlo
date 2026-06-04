@@ -40,6 +40,7 @@ def create_workflow_with_provider(
     fields: list[str] | None = None,
     provider: str | None = None,
     contribution_id: str | None = None,
+    source_kind: str | None = None,
     values: Mapping[str, Any] | None = None,
 ) -> WorkflowCreateResult:
     """Create a workflow through the resolved workflow authoring capability."""
@@ -54,6 +55,7 @@ def create_workflow_with_provider(
         "fields": list(fields or []),
         "provider": provider,
         "contribution_id": contribution_id,
+        "source_kind": source_kind,
         "values": dict(values or {}),
     }
     try:

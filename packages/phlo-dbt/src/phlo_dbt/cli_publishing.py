@@ -16,7 +16,7 @@ Example:
     ...     existing_config={},
     ...     model_names=["mrt_orders", "mrt_customers"],
     ...     source_key="analytics",
-    ...     iceberg_schema="marts",
+    ...     physical_schema="marts",
     ...     group="publishing",
     ...     asset_name="publish_analytics_marts",
     ...     description="Published analytics marts"
@@ -165,10 +165,11 @@ def scaffold_publishing_config(
     existing_config: dict[str, Any],
     model_names: list[str],
     source_key: str,
-    iceberg_schema: str,
+    physical_schema: str,
     group: str,
     asset_name: str,
     description: str,
+    logical_refs: bool = False,
 ) -> dict[str, Any]:
     """Merge scaffolded publishing config into an existing mapping.
 
@@ -176,10 +177,12 @@ def scaffold_publishing_config(
         existing_config: Existing publishing configuration.
         model_names: dbt model names to include.
         source_key: Source key under ``publishing``.
-        iceberg_schema: Iceberg schema for table mapping values.
+        physical_schema: Physical source schema for table mapping values.
         group: Dagster group name for generated entry.
         asset_name: Asset name for generated entry.
         description: Human-readable entry description.
+        logical_refs: Store dbt-style logical references instead of physical
+            schema.table strings in the generated table mapping.
 
     Returns:
         Updated publishing configuration mapping.
@@ -210,7 +213,12 @@ def scaffold_publishing_config(
 
     tables: dict[str, str] = {str(k): str(v) for k, v in tables_existing.items()}
     for model_name in model_names:
-        tables.setdefault(model_name, f"{iceberg_schema}.{model_name}")
+        tables.setdefault(
+            model_name,
+            _publishing_table_reference(
+                model_name, physical_schema=physical_schema, logical_refs=logical_refs
+            ),
+        )
     entry["tables"] = tables
 
     deps_existing = entry.get("dependencies", []) or []
@@ -225,6 +233,18 @@ def scaffold_publishing_config(
     publishing[source_key] = entry
     config["publishing"] = publishing
     return config
+
+
+def _publishing_table_reference(
+    model_name: str,
+    *,
+    physical_schema: str,
+    logical_refs: bool,
+) -> str:
+    """Return the generated source reference used in publishing table mappings."""
+    if logical_refs:
+        return f"ref:{model_name}"
+    return f"{physical_schema}.{model_name}"
 
 
 @click.group()
@@ -260,10 +280,22 @@ def publishing():
     help="publishing.<source> key to write under (default: project name)",
 )
 @click.option(
-    "--iceberg-schema",
+    "--physical-schema",
+    "physical_schema",
     default="marts",
     show_default=True,
-    help="Iceberg schema to reference in tables mapping",
+    help="Physical source schema to reference when writing physical table mappings",
+)
+@click.option(
+    "--iceberg-schema",
+    "physical_schema",
+    hidden=True,
+)
+@click.option(
+    "--logical-refs/--physical-tables",
+    default=True,
+    show_default=True,
+    help="Write dbt logical refs in table mappings instead of physical schema.table names.",
 )
 @click.option(
     "--group",
@@ -286,7 +318,8 @@ def scaffold_cmd(
     output: Path,
     select_patterns: tuple[str, ...],
     source_key: str | None,
-    iceberg_schema: str,
+    physical_schema: str,
+    logical_refs: bool,
     group: str,
     asset_name: str | None,
     dry_run: bool,
@@ -339,7 +372,8 @@ def scaffold_cmd(
         existing_config=existing_config,
         model_names=selected_model_names,
         source_key=resolved_source_key,
-        iceberg_schema=iceberg_schema,
+        physical_schema=physical_schema,
+        logical_refs=logical_refs,
         group=group,
         asset_name=resolved_asset_name,
         description=resolved_description,
