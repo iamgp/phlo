@@ -15,6 +15,7 @@ _DANGEROUS_SQL = re.compile(
     re.IGNORECASE,
 )
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_SYNTHETIC_KEY_DIALECTS = {"oracle", "sqlserver"}
 
 
 def quote_identifier(identifier: str, *, quote_char: str = '"') -> str:
@@ -62,6 +63,88 @@ def limit_sql(sql: str, *, limit: int | None) -> str:
     if re.search(r"\blimit\s+\d+\s*$", stripped, flags=re.IGNORECASE):
         return stripped
     return f"{stripped} LIMIT {int(limit)}"
+
+
+def synthetic_key(
+    *,
+    dialect: str,
+    fields: Iterable[str],
+    namespace: str | None = None,
+) -> str:
+    """Render a deterministic SHA-256 synthetic row-key SQL expression.
+
+    The rendered expression is part of Phlo's compatibility contract: for a
+    given supported dialect, namespace, field order, and field values, Phlo will
+    preserve the canonical payload semantics across releases. Each field is
+    tagged as null or value, non-null values are cast with dialect-stable string
+    casts, and values are length-prefixed before hashing so adjacent fields
+    cannot collide by concatenation.
+    """
+    normalized_dialect = dialect.lower()
+    if normalized_dialect not in _SYNTHETIC_KEY_DIALECTS:
+        raise PhloConfigError(
+            message=f"Unsupported synthetic key SQL dialect: {dialect}",
+            suggestions=["Use dialect='oracle' or dialect='sqlserver'."],
+        )
+
+    normalized_fields = tuple(fields)
+    if not normalized_fields:
+        raise PhloConfigError(
+            message="Synthetic key fields cannot be empty",
+            suggestions=["Pass one or more source column names in field order."],
+        )
+    for field in normalized_fields:
+        _validate_synthetic_key_identifier(field, label="field")
+
+    parts: list[str] = []
+    if namespace:
+        parts.append(literal(_length_prefixed_namespace(namespace)))
+    parts.extend(
+        _synthetic_key_field_part(normalized_dialect, field) for field in normalized_fields
+    )
+
+    if normalized_dialect == "oracle":
+        return f"STANDARD_HASH({' || '.join(parts)}, 'SHA256')"
+    payload = f"CONCAT({', '.join(parts)})"
+    return f"CONVERT(varchar(64), HASHBYTES('SHA2_256', {payload}), 2)"
+
+
+def _synthetic_key_field_part(dialect: str, field: str) -> str:
+    value = _synthetic_key_string_cast(dialect, field)
+    length = _synthetic_key_length(dialect, value)
+    if dialect == "oracle":
+        return (
+            f"(CASE WHEN {field} IS NULL THEN 'N:' ELSE 'V:' || "
+            f"TO_CHAR({length}) || ':' || {value} END)"
+        )
+    return (
+        f"(CASE WHEN {field} IS NULL THEN 'N:' ELSE CONCAT('V:', "
+        f"CAST({length} AS varchar(20)), ':', {value}) END)"
+    )
+
+
+def _synthetic_key_string_cast(dialect: str, field: str) -> str:
+    if dialect == "oracle":
+        return f"CAST({field} AS VARCHAR2(4000))"
+    return f"CAST({field} AS nvarchar(max))"
+
+
+def _synthetic_key_length(dialect: str, value: str) -> str:
+    if dialect == "oracle":
+        return f"LENGTH({value})"
+    return f"LEN({value})"
+
+
+def _length_prefixed_namespace(namespace: str) -> str:
+    return f"NS:{len(namespace)}:{namespace}"
+
+
+def _validate_synthetic_key_identifier(identifier: str, *, label: str) -> None:
+    if not _IDENTIFIER.match(identifier):
+        raise PhloConfigError(
+            message=f"Unsafe synthetic key {label}: {identifier}",
+            suggestions=["Use simple unquoted column names such as source_id or customer_id."],
+        )
 
 
 def render_partition_predicate(scope: PartitionScope) -> str | None:
