@@ -10,6 +10,9 @@ from typing import Any
 from phlo.capabilities import AssetSpec, MaterializeResult, RunSpec
 from phlo.capabilities.runtime import RuntimeContext
 from phlo.contracts import SLA, Consumer, normalize_consumers, serialize_consumers, serialize_sla
+from phlo.references import LogicalRelation
+
+AssetDependency = str | LogicalRelation
 
 
 def asset_key(prefix: str, name: str) -> str:
@@ -74,3 +77,13 @@ def _call_with_optional_context(fn: Callable[..., Any], context: RuntimeContext)
 def append_asset(registry: list[AssetSpec], asset: AssetSpec) -> None:
     """Register an asset in a module-local registry."""
     registry.append(asset)
+
+
+def normalize_asset_deps(deps: Iterable[AssetDependency] | None) -> list[str]:
+    """Normalize authored dependency references into stable asset keys."""
+    if deps is None:
+        return []
+    return [
+        dependency.asset_key if isinstance(dependency, LogicalRelation) else dependency
+        for dependency in deps
+    ]

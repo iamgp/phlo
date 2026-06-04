@@ -6,7 +6,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from phlo._flow_authoring import append_asset, asset_key, build_run, contract_metadata
+from phlo._flow_authoring import (
+    AssetDependency,
+    append_asset,
+    asset_key,
+    build_run,
+    contract_metadata,
+    normalize_asset_deps,
+)
 from phlo.capabilities import AssetCheckSpec, AssetSpec
 from phlo.contracts import SLA, Consumer, normalize_consumers, serialize_consumers, serialize_sla
 
@@ -66,7 +73,7 @@ def publish(
     audience: list[str] | None = None,
     owner: str | None = None,
     freshness_hours: int | None = None,
-    depends_on: list[str] | None = None,
+    depends_on: list[AssetDependency] | None = None,
     group: str = "publish",
     consumers: list[Consumer | str] | None = None,
     sla: SLA | None = None,
@@ -89,7 +96,7 @@ def publish(
                     "freshness_hours": freshness_hours,
                     **contract_metadata(owner=owner, consumers=consumers, sla=sla),
                 },
-                deps=list(depends_on or []),
+                deps=normalize_asset_deps(depends_on),
                 run=build_run(fn),
             ),
         )
@@ -103,7 +110,7 @@ def observe(
     table: str,
     freshness_hours: int | None = None,
     row_count_change: dict[str, float] | None = None,
-    depends_on: list[str] | None = None,
+    depends_on: list[AssetDependency] | None = None,
     group: str = "observe",
     description: str | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
@@ -150,7 +157,7 @@ def observe(
                     "freshness_hours": freshness_hours,
                     "row_count_change": dict(row_count_change or {}),
                 },
-                deps=list(depends_on or []),
+                deps=normalize_asset_deps(depends_on),
                 run=build_run(fn),
                 checks=checks,
             ),
@@ -165,7 +172,7 @@ def backfill(
     target: str,
     partitions: dict[str, Any],
     mode: str = "replace-partitions",
-    depends_on: list[str] | None = None,
+    depends_on: list[AssetDependency] | None = None,
     group: str = "backfill",
     owner: str | None = None,
     description: str | None = None,
@@ -187,7 +194,7 @@ def backfill(
                     "mode": mode,
                     "owner": owner,
                 },
-                deps=list(depends_on or []),
+                deps=normalize_asset_deps(depends_on),
                 run=build_run(fn),
             ),
         )
