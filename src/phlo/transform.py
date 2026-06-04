@@ -5,7 +5,14 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 
-from phlo._flow_authoring import append_asset, asset_key, build_run, contract_metadata
+from phlo._flow_authoring import (
+    AssetDependency,
+    append_asset,
+    asset_key,
+    build_run,
+    contract_metadata,
+    normalize_asset_deps,
+)
 from phlo.capabilities import AssetSpec
 from phlo.contracts import SLA, Consumer
 
@@ -15,7 +22,7 @@ _TRANSFORM_ASSETS: list[AssetSpec] = []
 def sql(
     *,
     table: str,
-    depends_on: list[str] | None = None,
+    depends_on: list[AssetDependency] | None = None,
     materialized: str = "table",
     group: str = "transform",
     owner: str | None = None,
@@ -46,7 +53,7 @@ def sql(
                     "materialized": materialized,
                     **contract_metadata(owner=owner, consumers=consumers, sla=sla),
                 },
-                deps=list(depends_on or []),
+                deps=normalize_asset_deps(depends_on),
                 run=build_run(fn),
             ),
         )

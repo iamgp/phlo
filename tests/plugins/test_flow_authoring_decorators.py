@@ -58,6 +58,68 @@ def test_transform_sql_registers_provider_neutral_asset() -> None:
     }
 
 
+def test_transform_sql_accepts_ref_dependencies() -> None:
+    """SQL transform deps should use logical relation asset keys."""
+    import phlo
+
+    transform = importlib.import_module("phlo.transform")
+    transform.clear_transform_assets()
+
+    @phlo.transform.sql(
+        table="gold.orders",
+        depends_on=[phlo.ref("fct_orders", discover=False)],
+    )
+    def orders_sql() -> str:
+        return "select * from {{ ref('fct_orders') }}"
+
+    assets = transform.get_transform_assets()
+
+    assert orders_sql() == "select * from {{ ref('fct_orders') }}"
+    assert assets[0].deps == ["fct_orders"]
+
+
+def test_publish_accepts_source_dependencies() -> None:
+    """Publish deps should use dbt-style source relation asset keys."""
+    import phlo
+
+    phlo.clear_publish_assets()
+
+    @phlo.publish(
+        table="gold.orders",
+        depends_on=[phlo.source("raw", "orders", discover=False)],
+    )
+    def orders_publish() -> str:
+        return "gold.orders"
+
+    assets = phlo.get_publish_assets()
+
+    assert orders_publish() == "gold.orders"
+    assert assets[0].deps == ["raw.orders"]
+
+
+def test_observe_preserves_mixed_string_and_relation_dependencies() -> None:
+    """Existing string dependencies should compose with logical references."""
+    import phlo
+
+    phlo.clear_observe_assets()
+
+    @phlo.observe(
+        table="gold.orders",
+        depends_on=[
+            "legacy.asset",
+            phlo.ref("fct_orders", discover=False),
+            phlo.source("raw", "orders", discover=False),
+        ],
+    )
+    def orders_observe() -> None:
+        return None
+
+    assets = phlo.get_observe_assets()
+
+    assert orders_observe() is None
+    assert assets[0].deps == ["legacy.asset", "fct_orders", "raw.orders"]
+
+
 def test_transform_sql_defers_context_aware_sql_rendering() -> None:
     """Context-aware SQL transforms should not execute during decoration."""
     import phlo
