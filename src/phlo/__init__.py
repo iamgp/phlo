@@ -137,6 +137,7 @@ _FLOW_EXPORTS = {
     "publish",
     "schedule",
 }
+_REFERENCE_EXPORTS = {"LogicalRelation", "quote_identifier", "ref", "source"}
 _SUBMODULE_EXPORTS = {"helpers", "ingest", "ingestion", "metrics", "quality", "transform"}
 
 __all__ = [
@@ -147,6 +148,7 @@ __all__ = [
     *_QUALITY_EXPORTS,
     *_QUALITY_RULE_EXPORTS,
     *_FLOW_EXPORTS,
+    *_REFERENCE_EXPORTS,
 ]
 
 
@@ -239,6 +241,18 @@ def __getattr__(name: str) -> Any:
                 "observe": observe,
                 "publish": publish,
                 "schedule": schedule,
+            }
+        )
+        return globals()[name]
+    if name in _REFERENCE_EXPORTS:
+        from phlo.references import LogicalRelation, quote_identifier, ref, source
+
+        globals().update(
+            {
+                "LogicalRelation": LogicalRelation,
+                "quote_identifier": quote_identifier,
+                "ref": ref,
+                "source": source,
             }
         )
         return globals()[name]
