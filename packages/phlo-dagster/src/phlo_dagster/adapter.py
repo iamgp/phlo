@@ -64,6 +64,7 @@ from phlo.capabilities.specs import (
 )
 from phlo.logging import get_logger
 from phlo.plugins.base import OrchestratorAdapterPlugin, PluginMetadata
+from phlo_dagster.framework.asset_diagnostics import raise_duplicate_asset_specs_if_present
 
 logger = get_logger(__name__)
 
@@ -311,6 +312,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
             check_spec_count=len(checks_list),
             resource_spec_count=len(resources_list),
         )
+        raise_duplicate_asset_specs_if_present(assets_list)
 
         resources_map: dict[str, Any] = {}
         for resource in resources_list:
