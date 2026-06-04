@@ -437,6 +437,7 @@ Ingests {table_name} from SQL using a partition window.
 """
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from phlo_dlt import (
     PartitionWindow,
@@ -466,7 +467,9 @@ def {table_snake}(partition_date: str):
     window = PartitionWindow(start=partition_start, end=partition_end)
 
     config = PartitionedSqlConfig(
-        sql_template_path="workflows/sql/{domain_snake}/{table_snake}.sql",
+        sql_template_path=str(
+            Path(__file__).resolve().parents[2] / "sql" / "{domain_snake}" / "{table_snake}.sql"
+        ),
         row_defaults={{"source_system": "{domain_snake}"}},
         fetch_size=1000,
     )
@@ -812,5 +815,5 @@ def test_schema_validates_minimal_row() -> None:
         str(test_file.relative_to(project_root)),
     ]
     if source_kind == "partitioned-sql":
-        created_files.insert(2, str(sql_file.relative_to(project_root)))
+        created_files.append(str(sql_file.relative_to(project_root)))
     return created_files

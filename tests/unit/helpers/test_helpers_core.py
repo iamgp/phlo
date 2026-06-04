@@ -126,6 +126,10 @@ def test_read_dataframe_reports_query_engines_without_dataframe_support() -> Non
         read_dataframe("SELECT 1", query_engine=RowOnlyQueryEngine())
 
 
+def test_read_dataframe_is_exported_from_top_level_phlo() -> None:
+    assert phlo.read_dataframe is read_dataframe
+
+
 def test_synthetic_key_renders_oracle_sha256_expression() -> None:
     assert synthetic_key(
         dialect="oracle",

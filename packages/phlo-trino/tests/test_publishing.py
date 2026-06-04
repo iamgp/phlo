@@ -365,6 +365,12 @@ def test_resolve_source_table_reference_preserves_physical_table() -> None:
     assert publishing._resolve_source_table_reference("marts.orders") == "marts.orders"
 
 
+@pytest.mark.parametrize("source_table", ["ref:", "ref:   "])
+def test_resolve_source_table_reference_rejects_empty_model_name(source_table: str) -> None:
+    with pytest.raises(ValueError, match="must include a dbt model name"):
+        publishing._resolve_source_table_reference(source_table)
+
+
 def test_resolve_partition_key_does_not_swallow_runtime_specific_errors() -> None:
     class _ContextWithProviderError:
         @property

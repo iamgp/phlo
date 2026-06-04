@@ -190,14 +190,15 @@ def test_scaffold_can_generate_partitioned_sql_source(
         source_kind="partitioned-sql",
     )
 
-    assert "workflows/sql/warehouse/orders.sql" in created
+    assert created[2] == "tests/test_warehouse_orders.py"
+    assert created[-1] == "workflows/sql/warehouse/orders.sql"
     asset_text = (tmp_path / "workflows" / "ingestion" / "warehouse" / "orders.py").read_text()
     sql_text = (tmp_path / "workflows" / "sql" / "warehouse" / "orders.sql").read_text()
 
     compile(asset_text, "orders.py", "exec")
     assert "partitioned_sql_resource(" in asset_text
     assert "PartitionedSqlConfig(" in asset_text
-    assert 'sql_template_path="workflows/sql/warehouse/orders.sql"' in asset_text
+    assert 'Path(__file__).resolve().parents[2] / "sql" / "warehouse" / "orders.sql"' in asset_text
     assert "WHERE updated_at >= :partition_start" in sql_text
     assert "AND updated_at < :partition_end" in sql_text
 
