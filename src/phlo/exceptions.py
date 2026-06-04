@@ -154,17 +154,24 @@ class PhloError(Exception):
 class PhloDiscoveryError(PhloError):
     """Raised when assets cannot be discovered by Dagster."""
 
-    def __init__(self, message: str, suggestions: list[str] | None = None):
+    def __init__(
+        self,
+        message: str,
+        suggestions: list[str] | None = None,
+        cause: Exception | None = None,
+    ):
         """Initialize a discovery error.
 
         Args:
             message: Description of the discovery failure.
             suggestions: Optional remediation suggestions.
+            cause: Optional underlying exception.
         """
         super().__init__(
             message=message,
             code=PhloErrorCode.ASSET_NOT_DISCOVERED,
             suggestions=suggestions,
+            cause=cause,
         )
 
 
