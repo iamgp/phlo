@@ -58,6 +58,7 @@ if not _DOCTOR_INVOCATION:
     from phlo.cli.commands.schema_registry_cli import contracts
     from phlo.cli.commands.services import _register_commands as _register_service_commands
     from phlo.cli.commands.services import services_group
+    from phlo.cli.commands.services.logs import logs_cmd
     from phlo.cli.commands.workflow import workflow_group
     from phlo.cli.config import config
     from phlo.cli.env import env
@@ -87,6 +88,7 @@ cli.add_command(doctor_cmd)
 
 if not _DOCTOR_INVOCATION:
     cli.add_command(audit_group)
+    cli.add_command(logs_cmd)
     cli.add_command(services_group)
     cli.add_command(workflow_group)
     cli.add_command(mcp_group)
