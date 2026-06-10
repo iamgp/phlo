@@ -61,6 +61,7 @@ phlo_trino = [
     "service.yaml",
     "jvm.config",
     "config.properties",
+    "node.properties",
     "catalog/*.properties",
     "observatory_assets/*",
 ]
