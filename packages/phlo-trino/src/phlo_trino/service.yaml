@@ -28,7 +28,7 @@ compose:
     S3_ENDPOINT: http://minio:9000
     S3_PATH_STYLE_ACCESS: "true"
   ports:
-    - "${TRINO_PORT:-8080}:8080"
+    - "${TRINO_PORT:-10005}:8080"
   mem_limit: 3g
   volumes:
     - ./trino:/etc/trino:ro
@@ -44,8 +44,8 @@ env_vars:
     default: "467"
     description: Trino version
   TRINO_PORT:
-    default: 8080
-    description: Trino HTTP port
+    default: 10005
+    description: Trino HTTP host port
   # Authentication
   TRINO_AUTH_TYPE:
     default: ""

@@ -36,6 +36,18 @@ Variables are grouped by category (`core`, `orchestration`, `bi`, `admin`, `api`
 take precedence over package defaults. Existing `.env.local` values are preserved
 on regeneration.
 
+Port variables in `phlo.yaml` are host ports. Generated Compose mappings keep the
+container port explicit on the right-hand side, for example:
+
+```yaml
+ports:
+  - "${DAGSTER_PORT:-10006}:3000"
+```
+
+When `phlo-dagster` is selected, its package-owned default publishes
+`localhost:10006` to container port `3000`. The right-hand side remains the
+service-native container port even when the host port is different.
+
 ### generator.py — compose YAML generation
 
 `ComposeGenerator` builds `docker-compose.yml` from service definitions.
@@ -174,9 +186,10 @@ Generated files in `.phlo/`:
 
 Override precedence (highest to lowest):
 
-1. Existing `.env.local` values (secrets preserved on regeneration)
-2. `phlo.yaml` `env:` section overrides
-3. Package `service.yaml` defaults
+1. Shell environment values passed to Docker Compose or Phlo commands
+2. `.phlo/.env.local` local overrides
+3. `phlo.yaml` `env:` section overrides, materialized into `.phlo/.env`
+4. Package `service.yaml` defaults
 
 ## Native mode
 

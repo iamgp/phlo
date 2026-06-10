@@ -18,7 +18,7 @@ phlo plugin install trino
 
 | Variable        | Default   | Description     |
 | --------------- | --------- | --------------- |
-| `TRINO_PORT`    | `8080`    | Trino HTTP port |
+| `TRINO_PORT`    | `10005`   | Trino HTTP host port |
 | `TRINO_VERSION` | `467`     | Trino version   |
 | `TRINO_HOST`    | `trino`   | Trino hostname  |
 | `TRINO_CATALOG` | `iceberg` | Default catalog |
@@ -75,8 +75,8 @@ phlo trino --catalog iceberg --schema raw
 
 ## Endpoints
 
-- **HTTP API**: `http://localhost:8080`
-- **Trino UI**: `http://localhost:8080/ui`
+- **HTTP API**: `http://localhost:10005`
+- **Trino UI**: `http://localhost:10005/ui`
 
 ## Entry Points
 

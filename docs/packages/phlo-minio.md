@@ -20,8 +20,8 @@ phlo plugin install minio
 | ----------------------- | ---------- | ------------------------ |
 | `MINIO_ROOT_USER`       | `minio`    | Root username            |
 | `MINIO_ROOT_PASSWORD`   | `minio123` | Root password            |
-| `MINIO_API_PORT`        | `10001`    | S3 API port              |
-| `MINIO_CONSOLE_PORT`    | `10002`    | Web console port         |
+| `MINIO_API_PORT`        | `10001`    | S3 API host port in generated projects |
+| `MINIO_CONSOLE_PORT`    | `10002`    | Web console host port in generated projects |
 | `MINIO_SERVER_URL`      | -          | TLS server URL           |
 | `MINIO_OIDC_CONFIG_URL` | -          | OIDC provider config URL |
 | `MINIO_AUTO_ENCRYPTION` | `off`      | Auto-encryption mode     |
@@ -106,7 +106,7 @@ MinIO metrics are automatically scraped by Prometheus:
 compose:
   labels:
     phlo.metrics.enabled: "true"
-    phlo.metrics.port: "minio:10001"
+    phlo.metrics.port: "minio:9000"
     phlo.metrics.path: "/minio/v2/metrics/cluster"
 ```
 

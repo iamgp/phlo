@@ -18,7 +18,7 @@ phlo plugin install dagster
 
 | Variable         | Default     | Description            |
 | ---------------- | ----------- | ---------------------- |
-| `DAGSTER_PORT`   | `3000`      | Dagster webserver port |
+| `DAGSTER_PORT`   | `10006`     | Dagster webserver host port in generated projects |
 | `WORKFLOWS_PATH` | `workflows` | Path to workflow files |
 | `PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS` | `30`   | WAP branch creation sensor interval |
 | `PHLO_WAP_PROMOTION_INTERVAL_SECONDS`       | `60`   | WAP promotion sensor interval       |

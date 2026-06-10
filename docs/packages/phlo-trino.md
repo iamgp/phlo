@@ -18,7 +18,7 @@ phlo plugin install trino
 
 | Variable        | Default    | Description     |
 | --------------- | ---------- | --------------- |
-| `TRINO_PORT`    | `10005`    | Trino HTTP port |
+| `TRINO_PORT`    | `10005`    | Trino HTTP host port in generated projects |
 | `TRINO_VERSION` | `477`      | Trino version   |
 | `TRINO_HOST`    | `trino`    | Trino hostname  |
 | `TRINO_CATALOG` | `iceberg`  | Default catalog |
@@ -126,9 +126,9 @@ results = cursor.fetchall()
 
 | Endpoint     | URL                             |
 | ------------ | ------------------------------- |
-| **HTTP API** | `http://localhost:8080`         |
-| **Web UI**   | `http://localhost:8080/ui`      |
-| **Metrics**  | `http://localhost:8080/v1/info` |
+| **HTTP API** | `http://localhost:10005`         |
+| **Web UI**   | `http://localhost:10005/ui`      |
+| **Metrics**  | `http://localhost:10005/v1/info` |
 
 ## Grafana Integration
 

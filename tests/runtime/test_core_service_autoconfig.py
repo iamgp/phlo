@@ -152,3 +152,26 @@ def test_core_service_required_placeholders_defined_in_env_vars() -> None:
     allowed_extras = {"SUPERSET_ADMIN_PASSWORD"}
     missing = placeholders - available_env - allowed_extras
     assert not missing
+
+
+def test_core_service_host_port_defaults_are_package_owned() -> None:
+    """Verify default-stack host ports live with the package service definitions."""
+    expected = {
+        "postgres": {"POSTGRES_PORT": ("10000", "5432")},
+        "minio": {
+            "MINIO_API_PORT": ("10001", "9000"),
+            "MINIO_CONSOLE_PORT": ("10002", "9001"),
+        },
+        "nessie": {"NESSIE_PORT": ("10003", "19120")},
+        "trino": {"TRINO_PORT": ("10005", "8080")},
+        "dagster": {"DAGSTER_PORT": ("10006", "3000")},
+    }
+
+    for service_name, env_specs in expected.items():
+        definition = CORE_SERVICES[service_name].definition
+        env_vars = definition.get("env_vars", {})
+        ports = definition.get("compose", {}).get("ports", [])
+
+        for env_name, (host_port, container_port) in env_specs.items():
+            assert env_vars[env_name]["default"] == int(host_port)
+            assert f"${{{env_name}:-{host_port}}}:{container_port}" in ports

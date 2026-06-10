@@ -18,7 +18,7 @@ phlo plugin install postgres
 
 | Variable                 | Default  | Description            |
 | ------------------------ | -------- | ---------------------- |
-| `POSTGRES_PORT`          | `5432`   | PostgreSQL port        |
+| `POSTGRES_PORT`          | `10000`  | PostgreSQL host port   |
 | `POSTGRES_USER`          | `phlo`   | Database username      |
 | `POSTGRES_PASSWORD`      | `phlo`   | Database password      |
 | `POSTGRES_DB`            | `phlo`   | Database name          |
@@ -57,7 +57,7 @@ phlo services start --service postgres,postgres-exporter
 
 ## Endpoints
 
-- **PostgreSQL**: `localhost:5432`
+- **PostgreSQL**: `localhost:10000`
 - **Exporter Metrics**: `http://localhost:9187/metrics`
 
 ## Entry Points
