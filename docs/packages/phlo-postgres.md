@@ -21,7 +21,7 @@ phlo plugin install postgres
 
 | Variable                 | Default  | Description            |
 | ------------------------ | -------- | ---------------------- |
-| `POSTGRES_PORT`          | `5432`   | PostgreSQL port        |
+| `POSTGRES_PORT`          | `10000` | PostgreSQL host port   |
 | `POSTGRES_USER`          | `phlo`   | Database username      |
 | `POSTGRES_PASSWORD`      | `phlo`   | Database password      |
 | `POSTGRES_DB`            | `phlo`   | Database name          |
@@ -87,7 +87,7 @@ phlo postgres vacuum --analyze
 from sqlalchemy import create_engine
 
 engine = create_engine(
-    "postgresql://phlo:phlo@localhost:5432/phlo"
+    "postgresql://phlo:phlo@localhost:10000/phlo"
 )
 
 with engine.connect() as conn:
@@ -134,7 +134,7 @@ That means:
 
 | Endpoint             | URL                             |
 | -------------------- | ------------------------------- |
-| **PostgreSQL**       | `localhost:5432`                |
+| **PostgreSQL**       | `localhost:10000`               |
 | **Exporter Metrics** | `http://localhost:9187/metrics` |
 
 ## Grafana Integration

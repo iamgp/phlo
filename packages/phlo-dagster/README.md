@@ -18,7 +18,7 @@ phlo plugin install dagster
 
 | Variable                           | Default     | Description                 |
 | ---------------------------------- | ----------- | --------------------------- |
-| `DAGSTER_PORT`                     | `3000`      | Dagster webserver port      |
+| `DAGSTER_PORT`                     | `10006`     | Dagster webserver host port |
 | `PHLO_FORCE_IN_PROCESS_EXECUTOR`   | `false`     | Force in-process executor   |
 | `PHLO_FORCE_MULTIPROCESS_EXECUTOR` | `false`     | Force multiprocess executor |
 | `WORKFLOWS_PATH`                   | `workflows` | Path to workflow files      |
@@ -63,9 +63,9 @@ phlo services start --dev
 
 ## Endpoints
 
-- **Web UI**: `http://localhost:3000`
-- **GraphQL**: `http://localhost:3000/graphql`
-- **Metrics**: `http://localhost:3000/metrics`
+- **Web UI**: `http://localhost:10006`
+- **GraphQL**: `http://localhost:10006/graphql`
+- **Metrics**: `http://localhost:10006/metrics`
 
 ## Entry Points
 

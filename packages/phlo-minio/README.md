@@ -20,8 +20,8 @@ phlo plugin install minio
 | ----------------------- | ---------- | ------------------------ |
 | `MINIO_ROOT_USER`       | `minio`    | Root username            |
 | `MINIO_ROOT_PASSWORD`   | `minio123` | Root password            |
-| `MINIO_API_PORT`        | `9000`     | S3 API port              |
-| `MINIO_CONSOLE_PORT`    | `9001`     | Web console port         |
+| `MINIO_API_PORT`        | `10001`    | S3 API host port         |
+| `MINIO_CONSOLE_PORT`    | `10002`    | Web console host port    |
 | `MINIO_SERVER_URL`      | -          | TLS server URL           |
 | `MINIO_OIDC_CONFIG_URL` | -          | OIDC provider config URL |
 | `MINIO_AUTO_ENCRYPTION` | `off`      | Auto-encryption mode     |
@@ -66,8 +66,8 @@ Route audit events to a durable backend and correlate them with centralized appl
 
 ## Endpoints
 
-- **S3 API**: `http://localhost:9000`
-- **Console**: `http://localhost:9001`
+- **S3 API**: `http://localhost:10001`
+- **Console**: `http://localhost:10002`
 
 ## Entry Points
 

@@ -21,7 +21,7 @@ pip install 'phlo-nessie[trino]'
 
 | Variable               | Default   | Description                |
 | ---------------------- | --------- | -------------------------- |
-| `NESSIE_PORT`          | `19120`   | Nessie API port            |
+| `NESSIE_PORT`          | `10003`   | Nessie API host port       |
 | `NESSIE_VERSION`       | `0.107.2` | Nessie version             |
 | `NESSIE_OIDC_ENABLED`  | `false`   | Enable OIDC authentication |
 | `NESSIE_AUTHZ_ENABLED` | `false`   | Enable authorization       |
@@ -61,8 +61,8 @@ phlo nessie branch create feature/my-feature
 
 ## Endpoints
 
-- **API**: `http://localhost:19120/api/v1`
-- **Iceberg REST**: `http://localhost:19120/iceberg`
+- **API**: `http://localhost:10003/api/v1`
+- **Iceberg REST**: `http://localhost:10003/iceberg`
 
 ## Entry Points
 

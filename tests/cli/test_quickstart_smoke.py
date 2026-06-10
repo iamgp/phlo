@@ -78,7 +78,10 @@ class _SmokeComposer:
         _services: list[ServiceDefinition],
         env_overrides: dict[str, str] | None = None,
     ) -> str:
-        return "PHLO_ENV=smoke\n"
+        lines = ["PHLO_ENV=smoke"]
+        if env_overrides:
+            lines.extend(f"{key}={value}" for key, value in sorted(env_overrides.items()))
+        return "\n".join(lines) + "\n"
 
     def generate_env_local(
         self,

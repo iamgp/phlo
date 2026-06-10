@@ -24,7 +24,7 @@ compose:
     # SSL/TLS
     POSTGRES_SSL_MODE: ${POSTGRES_SSL_MODE:-prefer}
   ports:
-    - "${POSTGRES_PORT:-5432}:5432"
+    - "${POSTGRES_PORT:-10000}:5432"
   volumes:
     - postgres-data:/var/lib/postgresql/data
   healthcheck:
@@ -45,7 +45,7 @@ env_vars:
     default: phlo
     description: PostgreSQL database name
   POSTGRES_PORT:
-    default: 5432
+    default: 10000
     description: PostgreSQL host port
   # SSL/TLS
   POSTGRES_SSL_MODE:
