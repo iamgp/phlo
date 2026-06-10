@@ -69,9 +69,9 @@ dev:
     environment:
         PYTHONUNBUFFERED: "1"
         PHLO_DEV_MODE: "true"
-        DAGSTER_GRAPHQL_URL: "http://127.0.0.1:${DAGSTER_PORT:-3000}/graphql"
-        NESSIE_URL: "http://127.0.0.1:${NESSIE_PORT:-19120}/api/v2"
-        TRINO_URL: "http://127.0.0.1:${TRINO_PORT:-8080}"
+        DAGSTER_GRAPHQL_URL: "http://127.0.0.1:${DAGSTER_PORT:-10006}/graphql"
+        NESSIE_URL: "http://127.0.0.1:${NESSIE_PORT:-10003}/api/v2"
+        TRINO_URL: "http://127.0.0.1:${TRINO_PORT:-10005}"
         TRINO_USER: ${PHLO_API_TRINO_USER:-phlo-api}
         TRINO_ROLE: ${PHLO_API_TRINO_ROLE:-}
         CLICKSTACK_QUERY_URL: ${CLICKSTACK_QUERY_URL:-}

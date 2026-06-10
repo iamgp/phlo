@@ -234,7 +234,7 @@ PostgreSQL database settings:
 
 ```bash
 # Host and port
-POSTGRES_HOST=postgres
+POSTGRES_HOST=localhost
 POSTGRES_PORT=10000
 
 # Credentials
@@ -246,14 +246,14 @@ POSTGRES_DB=lakehouse
 POSTGRES_MART_SCHEMA=marts
 
 # Lineage tracking database (optional, defaults to Dagster Postgres connection)
-PHLO_LINEAGE_DB_URL=postgresql://lake:phlo@postgres:10000/lakehouse
+PHLO_LINEAGE_DB_URL=postgresql://lake:phlo@localhost:10000/lakehouse
 # Alternative: DAGSTER_PG_DB_CONNECTION_STRING (alias for lineage_db_url)
 ```
 
 **Connection string format**:
 
 ```
-postgresql://lake:phlo@postgres:10000/lakehouse
+postgresql://lake:phlo@localhost:10000/lakehouse
 ```
 
 ### Storage Configuration
@@ -262,7 +262,7 @@ MinIO S3-compatible object storage:
 
 ```bash
 # Host and ports
-MINIO_HOST=minio
+MINIO_HOST=localhost
 MINIO_API_PORT=10001
 MINIO_CONSOLE_PORT=10002
 
@@ -274,7 +274,7 @@ MINIO_ROOT_PASSWORD=minioadmin
 **MinIO endpoint**:
 
 ```
-http://minio:10001
+http://localhost:10001
 ```
 
 **Console UI**: http://localhost:10002
@@ -316,15 +316,15 @@ Nessie Git-like catalog:
 # Version and connectivity
 NESSIE_VERSION=0.107.2
 NESSIE_PORT=10003
-NESSIE_HOST=nessie
+NESSIE_HOST=localhost
 NESSIE_API_VERSION=v1
 ```
 
 **API endpoints**:
 
-- v1 API: `http://nessie:10003/api/v1`
-- v2 API: `http://nessie:10003/api/v2`
-- Iceberg REST: `http://nessie:10003/iceberg`
+- v1 API: `http://localhost:10003/api/v1`
+- v2 API: `http://localhost:10003/api/v2`
+- Iceberg REST: `http://localhost:10003/iceberg`
 
 ### Query Engine Configuration
 
@@ -334,7 +334,7 @@ Trino distributed SQL engine:
 # Version and connectivity
 TRINO_VERSION=477
 TRINO_PORT=10005
-TRINO_HOST=trino
+TRINO_HOST=localhost
 
 # Catalog
 TRINO_CATALOG=iceberg
@@ -343,7 +343,7 @@ TRINO_CATALOG=iceberg
 **Connection string**:
 
 ```
-trino://trino:10005/iceberg_dev
+trino://localhost:10005/iceberg_dev
 ```
 
 ### ClickHouse Configuration
@@ -475,7 +475,7 @@ DELTA_STAGING_PATH=s3://lake/stage
 DELTA_DEFAULT_NAMESPACE=raw
 
 # S3 endpoint
-DELTA_S3_ENDPOINT=http://minio:10001
+DELTA_S3_ENDPOINT=http://localhost:10001
 
 # Allow unsafe rename for S3
 DELTA_S3_ALLOW_UNSAFE_RENAME=true
@@ -870,48 +870,28 @@ infrastructure:
   # Container naming pattern
   container_naming_pattern: "{{project}}-{{service}}-1"
 
-  # Service-specific configuration
+  # Optional runtime service-name metadata for commands that inspect containers
   services:
-    dagster_webserver:
+    dagster:
       container_name: null # Use pattern
-      service_name: dagster-webserver
+      service_name: dagster
       host: localhost
-      internal_host: dagster-webserver
-      port: 10006
+      internal_host: dagster
 
     postgres:
       container_name: null
       service_name: postgres
       host: localhost
       internal_host: postgres
-      port: 10000
-      credentials:
-        user: postgres
-        password: postgres
-        database: cascade
-
-    minio:
-      container_name: null
-      service_name: minio
-      host: localhost
-      internal_host: minio
-      api_port: 10001
-      console_port: 10002
-
-    nessie:
-      container_name: null
-      service_name: nessie
-      host: localhost
-      internal_host: nessie
-      port: 10003
-
-    trino:
-      container_name: null
-      service_name: trino
-      host: localhost
-      internal_host: trino
-      port: 10005
 ```
+
+Service enablement, Compose port replacement, environment, volume, dependency,
+command, and healthcheck overrides live in the top-level `services:` section, not
+under `infrastructure.services`.
+
+Service packages own their default ports. When a package is selected by
+`phlo services init`, its non-secret defaults are materialized into `.phlo/.env`;
+project-specific overrides belong in top-level `env:`.
 
 ### `infrastructure.container_backend`
 

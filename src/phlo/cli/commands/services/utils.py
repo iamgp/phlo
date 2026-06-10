@@ -40,12 +40,6 @@ description: "{description}"
 #       host: custom-host  # Override postgres host
 #   container_naming_pattern: "{{project}}_{{service}}"  # Custom naming
 #
-# Non-secret environment defaults (committed):
-#
-# env:
-#   POSTGRES_PORT: 10000
-#   DAGSTER_PORT: 10006
-#
 # phlo-api authorization policy:
 #
 # api:

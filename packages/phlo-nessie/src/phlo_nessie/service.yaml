@@ -41,7 +41,7 @@ compose:
     # Authorization
     NESSIE_SERVER_AUTHORIZATION_ENABLED: ${NESSIE_AUTHZ_ENABLED:-false}
   ports:
-    - "${NESSIE_PORT:-19120}:19120"
+    - "${NESSIE_PORT:-10003}:19120"
   healthcheck:
     test: ["CMD", "curl", "-f", "http://localhost:19120/api/v1/config"]
     interval: 10s
@@ -54,8 +54,8 @@ env_vars:
     default: "0.107.2"
     description: Nessie version
   NESSIE_PORT:
-    default: 19120
-    description: Nessie API port
+    default: 10003
+    description: Nessie API host port
   # OIDC Authentication
   NESSIE_OIDC_ENABLED:
     default: "false"

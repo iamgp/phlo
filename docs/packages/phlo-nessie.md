@@ -21,7 +21,7 @@ pip install 'phlo-nessie[trino]'
 
 | Variable               | Default   | Description                |
 | ---------------------- | --------- | -------------------------- |
-| `NESSIE_PORT`          | `19120`   | Nessie API port            |
+| `NESSIE_PORT`          | `10003`   | Nessie API host port       |
 | `NESSIE_VERSION`       | `0.107.2` | Nessie version             |
 | `NESSIE_OIDC_ENABLED`  | `false`   | Enable OIDC authentication |
 | `NESSIE_AUTHZ_ENABLED` | `false`   | Enable authorization       |
@@ -128,22 +128,22 @@ nessie.delete_branch("feature/new-data")
 
 | Endpoint         | URL                                |
 | ---------------- | ---------------------------------- |
-| **API v1**       | `http://localhost:19120/api/v1`    |
-| **API v2**       | `http://localhost:19120/api/v2`    |
-| **Iceberg REST** | `http://localhost:19120/iceberg`   |
-| **Metrics**      | `http://localhost:19120/q/metrics` |
+| **API v1**       | `http://localhost:10003/api/v1`    |
+| **API v2**       | `http://localhost:10003/api/v2`    |
+| **Iceberg REST** | `http://localhost:10003/iceberg`   |
+| **Metrics**      | `http://localhost:10003/q/metrics` |
 
 ## API Examples
 
 ```bash
 # Get server config
-curl http://localhost:19120/api/v2/config
+curl http://localhost:10003/api/v2/config
 
 # List branches
-curl http://localhost:19120/api/v2/trees
+curl http://localhost:10003/api/v2/trees
 
 # Get branch details
-curl http://localhost:19120/api/v2/trees/main
+curl http://localhost:10003/api/v2/trees/main
 ```
 
 ## Entry Points

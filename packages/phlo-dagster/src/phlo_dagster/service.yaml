@@ -77,7 +77,7 @@ compose:
       "/opt/dagster/workspace.yaml",
     ]
   ports:
-    - "${DAGSTER_PORT:-3000}:3000"
+    - "${DAGSTER_PORT:-10006}:3000"
   volumes:
     - ./dagster:/opt/dagster
     - ../phlo.yaml:/app/phlo.yaml:ro
@@ -89,8 +89,8 @@ compose:
 
 env_vars:
   DAGSTER_PORT:
-    default: 3000
-    description: Dagster webserver port
+    default: 10006
+    description: Dagster webserver host port
   PHLO_VERSION:
     default: ""
     description: Phlo version to install (empty for latest)
