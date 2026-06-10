@@ -25,8 +25,9 @@ def test_services_logs_accepts_multiple_services_and_log_options(monkeypatch) ->
     )
     monkeypatch.setattr(
         "phlo.cli.commands.services.logs.run_compose",
-        lambda cmd, check=False, capture_output=False: captured.append(cmd)
-        or CompletedProcess(cmd, 0),
+        lambda cmd, check=False, capture_output=False: (
+            captured.append(cmd) or CompletedProcess(cmd, 0)
+        ),
     )
 
     result = CliRunner().invoke(
@@ -83,8 +84,9 @@ def test_services_logs_uses_requested_podman_backend(monkeypatch) -> None:
     monkeypatch.setattr("phlo.cli.commands.services.logs.compose_base_cmd", fake_compose_base_cmd)
     monkeypatch.setattr(
         "phlo.cli.commands.services.logs.run_compose",
-        lambda cmd, check=False, capture_output=False: captured_cmd.extend(cmd)
-        or CompletedProcess(cmd, 0),
+        lambda cmd, check=False, capture_output=False: (
+            captured_cmd.extend(cmd) or CompletedProcess(cmd, 0)
+        ),
     )
 
     result = CliRunner().invoke(logs_cmd, ["--backend", "podman", "postgres"])
@@ -112,8 +114,9 @@ def test_services_logs_accepts_package_selector_alias(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "phlo.cli.commands.services.logs.run_compose",
-        lambda cmd, check=False, capture_output=False: captured.append(cmd)
-        or CompletedProcess(cmd, 0),
+        lambda cmd, check=False, capture_output=False: (
+            captured.append(cmd) or CompletedProcess(cmd, 0)
+        ),
     )
 
     result = CliRunner().invoke(logs_cmd, ["--package", "dagster,trino", "--package", "postgres"])
