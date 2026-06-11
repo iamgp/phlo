@@ -14,7 +14,7 @@ dependencies = [
 description = "Sling replication ingestion provider for Phlo"
 name = "phlo-sling"
 requires-python = ">=3.11"
-version = "0.5.0"
+version = "0.6.0"
 
 [[project.authors]]
 email = "team@phlo.dev"
