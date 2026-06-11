@@ -52,7 +52,7 @@ def _raise_required_dbt_setup_error(
         suggestions=[
             f"Check the dbt project at {dbt_project_path}",
             f"Check generated profiles at {dbt_profiles_path}",
-            f"Ensure dbt can compile a valid manifest at {manifest_path}",
+            f"Ensure dbt can parse or compile a valid manifest at {manifest_path}",
         ],
     )
 

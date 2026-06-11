@@ -203,34 +203,34 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
         profiles_path: Path to the dbt profiles directory.
 
     Returns:
-        ``True`` when a valid manifest is present after checks/compile.
+        ``True`` when a valid manifest is present after checks/parse.
 
     """
     manifest_path = dbt_project_path / "target" / "manifest.json"
     ensure_dbt_profile(profiles_path)
 
-    needs_compile = not manifest_path.exists()
-    if not needs_compile:
+    needs_parse = not manifest_path.exists()
+    if not needs_parse:
         try:
-            needs_compile = _latest_project_mtime(dbt_project_path) > manifest_path.stat().st_mtime
+            needs_parse = _latest_project_mtime(dbt_project_path) > manifest_path.stat().st_mtime
         except OSError:
-            needs_compile = True
+            needs_parse = True
 
-    if not needs_compile:
+    if not needs_parse:
         try:
             manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            needs_compile = True
+            needs_parse = True
         else:
             if not isinstance(manifest_payload, Mapping):
-                needs_compile = True
+                needs_parse = True
 
-    if not needs_compile:
+    if not needs_parse:
         return True
 
     try:
         result = subprocess.run(
-            ["dbt", "compile", "--profiles-dir", str(profiles_path)],
+            ["dbt", "parse", "--profiles-dir", str(profiles_path)],
             cwd=str(dbt_project_path),
             capture_output=True,
             text=True,
