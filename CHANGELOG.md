@@ -1,5 +1,74 @@
 # Changelog
 
+## [phlo 0.11.0 + 12 packages] - 2026-06-11
+
+### Added
+- phlo: derive governance surface from declarations (#522)
+- phlo: deepen observatory lakehouse experience (#527)
+- phlo: decouple agent workflow capabilities (#531)
+- phlo: add Iceberg 1.11 compatibility checks
+- phlo: add agent observability operation context
+- phlo: add logical relation references (#543)
+- phlo: add dialect-aware synthetic key helper (#544)
+- phlo: add typed workflow settings (#546)
+- phlo: add partitioned SQL ingestion helper (#549)
+- phlo: bridge dbt lineage into Python assets (#550)
+- phlo: add Trino DataFrame read helpers (#551)
+- phlo: improve workflow author ergonomics (#552)
+- phlo: make logs command package-selectable (#553)
+- phlo-api: deepen observatory lakehouse experience (#527)
+- phlo-api: decouple agent workflow capabilities (#531)
+- phlo-api: add Iceberg 1.11 compatibility checks
+- phlo-api: add agent observability operation context
+- phlo-dagster: decouple agent workflow capabilities (#531)
+- phlo-dbt: improve workflow author ergonomics (#552)
+- phlo-dlt: decouple agent workflow capabilities (#531)
+- phlo-dlt: add partitioned SQL ingestion helper (#549)
+- phlo-dlt: improve workflow author ergonomics (#552)
+- phlo-iceberg: add Iceberg 1.11 compatibility checks
+- phlo-mcp: decouple agent workflow capabilities (#531)
+- phlo-mcp: add agent observability operation context
+- phlo-nessie: add Iceberg 1.11 compatibility checks
+- phlo-observatory: deepen observatory lakehouse experience (#527)
+- phlo-sling: decouple agent workflow capabilities (#531)
+- phlo-trino: add Iceberg 1.11 compatibility checks
+- phlo-trino: add Trino DataFrame read helpers (#551)
+- phlo-trino: improve workflow author ergonomics (#552)
+
+### Changed
+- phlo: centralize schema migration planning (#524)
+- phlo: centralize plugin lifecycle registry (#526)
+- phlo: centralize capability family registry (#525)
+- phlo-api: centralize plugin lifecycle registry (#526)
+- phlo-api: centralize capability family registry (#525)
+- phlo-dagster: centralize capability family registry (#525)
+- phlo-dlt: centralize plugin lifecycle registry (#526)
+- phlo-iceberg: centralize schema migration planning (#524)
+- phlo-mcp: centralize capability family registry (#525)
+
+### Fixed
+- phlo: harden setup onboarding flow (#529)
+- phlo: diagnose duplicate dagster assets (#545)
+- phlo: include node properties in package data (#554)
+- phlo: align package-owned port defaults (#555)
+- phlo: discover project assets consistently (#556)
+- phlo-api: align package-owned port defaults (#555)
+- phlo-dagster: harden setup onboarding flow (#529)
+- phlo-dagster: diagnose duplicate dagster assets (#545)
+- phlo-dagster: align package-owned port defaults (#555)
+- phlo-dagster: discover project assets consistently (#556)
+- phlo-dbt: discover project assets consistently (#556)
+- phlo-minio: align package-owned port defaults (#555)
+- phlo-nessie: align package-owned port defaults (#555)
+- phlo-observatory: align package-owned port defaults (#555)
+- phlo-postgres: align package-owned port defaults (#555)
+- phlo-trino: include node properties in package data (#554)
+- phlo-trino: align package-owned port defaults (#555)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (74 commits)
+
 ## Unreleased
 
 ### Added
