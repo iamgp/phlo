@@ -39,6 +39,7 @@ from pathlib import Path
 
 import click
 
+from phlo.config.env import load_project_env
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -90,7 +91,11 @@ def dev(host: str, port: int, workflows_path: str) -> None:
         (workflows_dir / "__init__.py").write_text('"""User workflows."""\n')
 
     os.environ["PHLO_WORKFLOWS_PATH"] = workflows_path
+    os.environ["WORKFLOWS_PATH"] = workflows_path
     os.environ.setdefault("PHLO_DAGSTER_DEV", "1")
+    os.environ.setdefault("PHLO_PROJECT_PATH", str(Path.cwd().resolve()))
+    for key, value in load_project_env(include_os=False).items():
+        os.environ.setdefault(key, value)
 
     click.echo(f"Workflows directory: {workflows_path}")
     click.echo(f"Starting server at http://{host}:{port}\n")

@@ -37,6 +37,18 @@ def _resolve_project_path(value: str) -> Path:
     return _project_root() / path
 
 
+def _discover_dbt_project_path(root: Path) -> Path | None:
+    workflows_root = root / "workflows"
+    if not workflows_root.exists():
+        return None
+
+    candidates = sorted(
+        (path.parent for path in workflows_root.rglob("dbt_project.yml")),
+        key=lambda path: (len(path.parts), str(path)),
+    )
+    return candidates[0] if candidates else None
+
+
 class DbtSettings(BaseConfig):
     """dbt project configuration settings.
 
@@ -156,7 +168,10 @@ class DbtSettings(BaseConfig):
             Filesystem path to the dbt project root.
 
         """
-        return _resolve_project_path(self.dbt_project_dir)
+        configured_path = _resolve_project_path(self.dbt_project_dir)
+        if self.dbt_project_dir != "workflows/transforms/dbt" or configured_path.exists():
+            return configured_path
+        return _discover_dbt_project_path(_project_root()) or configured_path
 
     @property
     def dbt_profiles_path(self) -> Path:
@@ -166,6 +181,10 @@ class DbtSettings(BaseConfig):
             Filesystem path to the dbt profiles directory.
 
         """
+        if self.dbt_project_dir == "workflows/transforms/dbt":
+            discovered_project = self.dbt_project_path
+            if discovered_project != _resolve_project_path(self.dbt_project_dir):
+                return discovered_project / "profiles"
         return _resolve_project_path(self.dbt_profiles_dir)
 
 

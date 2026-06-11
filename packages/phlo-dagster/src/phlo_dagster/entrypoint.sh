@@ -67,6 +67,14 @@ if [ "$PHLO_DEV_MODE" = "true" ] && [ -n "$PHLO_DEV_EXTRA_PACKAGES" ]; then
     done
 fi
 
+# Install the mounted user project so workflow imports and project dependencies
+# are available before Dagster loads Definitions.
+if [ -f /app/pyproject.toml ]; then
+    echo "Installing mounted Phlo project..."
+    uv pip install --system -e /app
+    echo "Mounted Phlo project installed"
+fi
+
 # Create sitecustomize.py to suppress Dagster SupersessionWarning at Python startup
 # This runs before any Python script and filters out deprecated CLI warnings
 SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
