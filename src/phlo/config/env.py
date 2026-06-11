@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import yaml
+
 
 def parse_project_env_file(path: Path) -> dict[str, str]:
     """Parse a simple dotenv file into key/value pairs."""
@@ -26,12 +28,36 @@ def parse_project_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+def parse_project_config_env(path: Path) -> dict[str, str]:
+    """Parse top-level ``env:`` values from ``phlo.yaml``."""
+    if not path.exists():
+        return {}
+
+    try:
+        config = yaml.safe_load(path.read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        return {}
+
+    if not isinstance(config, dict):
+        return {}
+
+    values = config.get("env", {})
+    if not isinstance(values, dict):
+        return {}
+
+    return {str(key): str(value) for key, value in values.items() if isinstance(key, str)}
+
+
 def load_project_env(
     project_root: Path | None = None, *, include_os: bool = True
 ) -> dict[str, str]:
-    """Load `.phlo/.env` and `.phlo/.env.local`, with OS env taking precedence."""
+    """Load ``phlo.yaml env:``, `.phlo/.env`, and `.phlo/.env.local`.
+
+    Later sources override earlier sources, with OS env taking final precedence
+    when requested.
+    """
     root = project_root or Path.cwd()
-    env: dict[str, str] = {}
+    env: dict[str, str] = parse_project_config_env(root / "phlo.yaml")
     for path in (root / ".phlo" / ".env", root / ".phlo" / ".env.local"):
         env.update(parse_project_env_file(path))
     if include_os:

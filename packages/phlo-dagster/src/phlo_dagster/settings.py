@@ -44,7 +44,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 
 from phlo.config.base import BaseConfig
 
@@ -55,6 +55,7 @@ class DagsterSettings(BaseConfig):
     dagster_port: int = Field(default=10006, description="Dagster webserver port")
     workflows_path: str = Field(
         default="workflows",
+        validation_alias=AliasChoices("PHLO_WORKFLOWS_PATH", "WORKFLOWS_PATH", "workflows_path"),
         description="Path to user workflows directory (for external projects)",
     )
     phlo_force_in_process_executor: bool = Field(

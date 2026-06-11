@@ -222,9 +222,14 @@ class DbtSpecTranslator:
         )
 
         if is_source:
-            source_name = dbt_resource_props["source_name"]
-            table_name = dbt_resource_props["name"]
-            if source_name == "dagster_assets":
+            source_name = str(dbt_resource_props["source_name"])
+            table_name = str(dbt_resource_props["name"])
+            meta = dbt_resource_props.get("meta")
+            if isinstance(meta, Mapping):
+                explicit_key = meta.get("phlo_asset_key") or meta.get("asset_key")
+                if explicit_key:
+                    return str(explicit_key)
+            if source_name == "dagster_assets" or source_name.startswith("raw_"):
                 return f"dlt_{table_name}"
             return f"{source_name}.{table_name}"
 

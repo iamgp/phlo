@@ -11,7 +11,7 @@ import pytest
 from phlo.hooks.events import TelemetryEvent, TransformEvent
 from phlo.logging import get_logger
 from phlo_dbt.runtime_config import resolve_dbt_target_name
-from phlo_dbt.transformer import DbtTransformer
+from phlo_dbt.transformer import DbtTransformer, ensure_dbt_manifest
 from phlo_dbt.translator import DbtSpecTranslator
 
 
@@ -31,6 +31,29 @@ def test_custom_dbt_translator_asset_key_source_dagster_assets_maps_to_dlt() -> 
         {"resource_type": "source", "source_name": "dagster_assets", "name": "entries"}
     )
     assert asset_key == "dlt_entries"
+
+
+def test_custom_dbt_translator_asset_key_raw_source_maps_to_dlt() -> None:
+    """Verifies raw dbt sources map to corresponding Phlo DLT assets."""
+    translator = DbtSpecTranslator()
+    asset_key = translator.get_asset_key(
+        {"resource_type": "source", "source_name": "raw_lims", "name": "qc_safe_results"}
+    )
+    assert asset_key == "dlt_qc_safe_results"
+
+
+def test_custom_dbt_translator_asset_key_source_meta_override() -> None:
+    """Verifies projects can explicitly map dbt sources to non-default asset keys."""
+    translator = DbtSpecTranslator()
+    asset_key = translator.get_asset_key(
+        {
+            "resource_type": "source",
+            "source_name": "warehouse",
+            "name": "orders",
+            "meta": {"phlo_asset_key": "external_orders"},
+        }
+    )
+    assert asset_key == "external_orders"
 
 
 def test_resolve_dbt_target_name_prefers_canonical_environment() -> None:
@@ -67,6 +90,29 @@ def test_resolve_dbt_target_name_defaults_to_dev() -> None:
     )
 
     assert resolve_dbt_target_name(runtime) == "dev"
+
+
+def test_ensure_dbt_manifest_uses_parse_for_discovery(monkeypatch, tmp_path: Path) -> None:
+    """dbt asset discovery should not require a live query engine connection."""
+    project_dir = tmp_path / "dbt"
+    profiles_dir = project_dir / "profiles"
+    target_dir = project_dir / "target"
+    profiles_dir.mkdir(parents=True)
+    target_dir.mkdir()
+    (project_dir / "dbt_project.yml").write_text("name: demo\n")
+
+    captured: list[list[str]] = []
+
+    def fake_run(cmd: list[str], **_kwargs):
+        captured.append(cmd)
+        (target_dir / "manifest.json").write_text('{"nodes": {}, "sources": {}}')
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("phlo_dbt.transformer.subprocess.run", fake_run)
+    monkeypatch.setattr("phlo_dbt.transformer.ensure_dbt_profile", lambda _profiles_dir: None)
+
+    assert ensure_dbt_manifest(project_dir, profiles_dir) is True
+    assert captured == [["dbt", "parse", "--profiles-dir", str(profiles_dir)]]
 
 
 @pytest.mark.parametrize(

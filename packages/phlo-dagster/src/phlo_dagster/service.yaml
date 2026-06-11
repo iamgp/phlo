@@ -61,7 +61,7 @@ compose:
     POSTGRES_PASSWORD: ${DAGSTER_POSTGRES_PASSWORD:-${POSTGRES_PASSWORD:-phlo}}
     POSTGRES_DB: ${POSTGRES_DB:-phlo}
     WORKFLOWS_PATH: /app/workflows
-    DBT_PROJECT_DIR: /app/workflows/transforms/dbt
+    PHLO_WORKFLOWS_PATH: /app/workflows
     PHLO_PROJECT_PATH: /app
     SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
     PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
@@ -80,12 +80,7 @@ compose:
     - "${DAGSTER_PORT:-10006}:3000"
   volumes:
     - ./dagster:/opt/dagster
-    - ../phlo.yaml:/app/phlo.yaml:ro
-    - ../contracts:/app/contracts
-    - ../data:/app/data
-    - ../plugins:/app/plugins
-    - ../workflows:/app/workflows
-    - ../tests:/app/tests:ro
+    - ../:/app
 
 env_vars:
   DAGSTER_PORT:
