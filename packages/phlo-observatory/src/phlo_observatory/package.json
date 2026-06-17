@@ -24,6 +24,7 @@
     "@primer/primitives": "^11.8.1",
     "@primer/react": "^38.22.0",
     "@tailwindcss/vite": "^4.0.6",
+    "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-router": "^1.132.0",
     "@tanstack/react-start": "^1.132.0",
     "@tanstack/react-table": "^8.21.3",

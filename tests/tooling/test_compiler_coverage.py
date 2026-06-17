@@ -2,25 +2,17 @@
 
 from __future__ import annotations
 
-from phlo.rbac.compiler import COMPILER_REGISTRY
+from phlo.rbac.compiler import COMPILER_REGISTRY, TrinoCompiler
 from phlo.rbac.models import CANONICAL_ACTIONS
 
 EXPECTED_COMPILED_ACTIONS = frozenset(
-    {
-        "dataset.read",
-        "dataset.query",
-        "asset.read",
-        "asset.execute",
-        "service.read",
-        "service.manage",
-        "admin.read",
-        "admin.manage",
-        "object.read",
-        "object.write",
-        "catalog.read",
-        "catalog.manage",
-    }
+    action
+    for cls in COMPILER_REGISTRY.values()
+    for action in CANONICAL_ACTIONS
+    if cls(backend=None).supports_action(action)
 )
+
+EXPECTED_TRINO_ACTIONS = frozenset(TrinoCompiler.ACTION_MAPPING)
 
 
 def test_every_compiled_canonical_action_has_at_least_one_compiler():
@@ -39,6 +31,11 @@ def test_every_compiled_canonical_action_has_at_least_one_compiler():
 def test_expected_compiled_actions_remain_canonical():
     """The compiler-backed action set must stay inside the canonical taxonomy."""
     assert EXPECTED_COMPILED_ACTIONS <= CANONICAL_ACTIONS
+
+
+def test_trino_compiled_actions_stay_explicit():
+    """Trino is currently the only backed compiler."""
+    assert EXPECTED_COMPILED_ACTIONS == EXPECTED_TRINO_ACTIONS
 
 
 def test_compiler_registry_not_empty():
