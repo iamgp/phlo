@@ -23,6 +23,7 @@ TY_CHECK_SCOPE ?= src/phlo \
 	packages/phlo-loki/src \
 	packages/phlo-minio/src \
 	packages/phlo-nessie/src \
+	packages/phlo-oauth2-proxy/src \
 	packages/phlo-observatory-example/src \
 	packages/phlo-observatory/src \
 	packages/phlo-openmetadata/src \
@@ -62,8 +63,8 @@ PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_OBSERVAB
 PYMDX_DOCS_DIR ?= docs-site
 PYMDX_DOCS_PORT ?= 3000
 
-.PHONY: up down stop restart build rebuild pull ps logs exec clean clean-all fresh-start \
-	setup install install-dagster health test \
+.PHONY: up down stop restart build rebuild pull ps logs exec clean \
+	setup install health test \
 	up-core up-query up-bi up-docs up-observability up-api up-catalog up-all \
 	dagster superset hub minio pgweb trino nessie grafana prometheus api hasura openmetadata catalog docs-open \
 	dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
@@ -108,24 +109,13 @@ exec:
 clean:
 	$(COMPOSE) down --volumes --remove-orphans
 
-clean-all:
-	$(COMPOSE) down --volumes --remove-orphans
-	docker system prune -f
-	rm -rf .venv uv.lock
-
-fresh-start: clean-all setup
-	@echo "Clean slate! Ready to start services with 'make up-all' or 'make up-core'"
-
-setup: venv install install-dagster
+setup: venv install
 
 venv:
 	uv venv
 
 install:
-	uv pip install -e src
-
-install-dagster:
-	cd services/dagster && uv sync
+	uv sync
 
 test:
 	uv run pytest

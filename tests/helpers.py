@@ -4,6 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from phlo.plugins import (
+    PluginMetadata,
+    QualityCheckPlugin,
+    ServicePlugin,
+    SourceConnectorPlugin,
+    TransformationPlugin,
+)
 from phlo.plugins.discovery import ServiceDefinition
 
 
@@ -67,6 +74,85 @@ class FakeDiscovery:
 
     def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
         return [svc for svc in self._services.values() if svc.profile == profile]
+
+
+class DummySourcePlugin(SourceConnectorPlugin):
+    """Minimal source connector plugin for registry and CLI tests."""
+
+    def __init__(self, name: str = "dummy_source", description: str = "", author: str = "") -> None:
+        self._metadata = PluginMetadata(
+            name=name, version="1.0.0", description=description, author=author
+        )
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return self._metadata
+
+    def fetch_data(self, config):
+        yield {"id": 1, "value": "test"}
+
+
+class DummyQualityPlugin(QualityCheckPlugin):
+    """Minimal quality check plugin for registry and CLI tests."""
+
+    def __init__(
+        self, name: str = "dummy_quality", description: str = "", author: str = ""
+    ) -> None:
+        self._metadata = PluginMetadata(
+            name=name, version="1.0.0", description=description, author=author
+        )
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return self._metadata
+
+    def create_check(self, **kwargs):
+        return None
+
+
+class DummyTransformPlugin(TransformationPlugin):
+    """Minimal transformation plugin for registry and CLI tests."""
+
+    def __init__(
+        self, name: str = "dummy_transform", description: str = "", author: str = ""
+    ) -> None:
+        self._metadata = PluginMetadata(
+            name=name, version="1.0.0", description=description, author=author
+        )
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return self._metadata
+
+    def transform(self, df, config):
+        return df
+
+
+class DummyServicePlugin(ServicePlugin):
+    """Minimal service plugin for registry, CLI, and discovery tests."""
+
+    def __init__(
+        self,
+        name: str = "dummy_service",
+        description: str = "",
+        author: str = "",
+        service_definition: dict[str, Any] | None = None,
+    ) -> None:
+        self._metadata = PluginMetadata(
+            name=name, version="1.0.0", description=description, author=author
+        )
+        self._service_definition = service_definition or {
+            "category": "core",
+            "compose": {"image": "dummy:latest"},
+        }
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return self._metadata
+
+    @property
+    def service_definition(self) -> dict[str, Any]:
+        return self._service_definition
 
 
 class RecordingBus:

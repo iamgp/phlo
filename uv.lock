@@ -3045,14 +3045,11 @@ name = "phlo"
 version = "0.11.0"
 source = { editable = "." }
 dependencies = [
-    { name = "cachetools" },
     { name = "click" },
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "pydantic-settings" },
-    { name = "python-ulid" },
     { name = "pyyaml" },
-    { name = "requests" },
     { name = "rich" },
     { name = "structlog" },
 ]
@@ -3156,7 +3153,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "asyncpg", marker = "extra == 'runtime'", specifier = ">=0.30.0" },
-    { name = "cachetools", specifier = ">=6.2.1" },
     { name = "click", specifier = ">=8.0" },
     { name = "dagster", marker = "extra == 'runtime'", specifier = ">=1.13,<1.14" },
     { name = "dagster-webserver", marker = "extra == 'runtime'", specifier = ">=1.13,<1.14" },
@@ -3187,9 +3183,7 @@ requires-dist = [
     { name = "phlo-trino", marker = "extra == 'defaults'", editable = "packages/phlo-trino" },
     { name = "psycopg2-binary", marker = "extra == 'runtime'", specifier = ">=2.9.11" },
     { name = "pydantic-settings", specifier = ">=2.11.0" },
-    { name = "python-ulid", specifier = ">=2.0.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "requests", specifier = ">=2.32.5" },
     { name = "rich", specifier = ">=13.0" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
@@ -3286,7 +3280,6 @@ version = "0.2.3"
 source = { editable = "packages/phlo-alloy" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -3299,7 +3292,6 @@ dev = [
 requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -3353,7 +3345,6 @@ dependencies = [
     { name = "pandas" },
     { name = "phlo" },
     { name = "pyarrow" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -3375,7 +3366,6 @@ requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pyarrow", specifier = ">=12.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dbt", "dev"]
@@ -3386,7 +3376,7 @@ version = "0.3.1"
 source = { editable = "packages/phlo-clickstack" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -3399,7 +3389,7 @@ dev = [
 requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -3586,7 +3576,6 @@ version = "0.2.4"
 source = { editable = "packages/phlo-grafana" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -3599,7 +3588,6 @@ dev = [
 requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -3612,6 +3600,7 @@ dependencies = [
     { name = "phlo" },
     { name = "psycopg2-binary" },
     { name = "pyyaml" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -3630,6 +3619,7 @@ requires-dist = [
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev", "postgres"]
@@ -3708,7 +3698,6 @@ version = "0.2.4"
 source = { editable = "packages/phlo-loki" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -3725,7 +3714,6 @@ requires-dist = [
     { name = "phlo", editable = "." },
     { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev", "observatory"]
@@ -3766,7 +3754,6 @@ version = "0.3.4"
 source = { editable = "packages/phlo-minio" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -3779,7 +3766,6 @@ dev = [
 requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -3792,7 +3778,6 @@ dependencies = [
     { name = "marshmallow" },
     { name = "phlo" },
     { name = "pynessie" },
-    { name = "pyyaml" },
     { name = "requests" },
 ]
 
@@ -3820,7 +3805,6 @@ requires-dist = [
     { name = "phlo-trino", marker = "extra == 'trino'", editable = "packages/phlo-trino" },
     { name = "pynessie", specifier = ">=0.67.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
@@ -3832,7 +3816,6 @@ version = "0.2.0"
 source = { editable = "packages/phlo-oauth2-proxy" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -3845,7 +3828,6 @@ dev = [
 requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -3897,7 +3879,7 @@ version = "0.4.0"
 source = { editable = "packages/phlo-openmetadata" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -3934,7 +3916,7 @@ requires-dist = [
     { name = "phlo-postgres", marker = "extra == 'postgres'", editable = "packages/phlo-postgres" },
     { name = "phlo-trino", marker = "extra == 'trino'", editable = "packages/phlo-trino" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dbt", "dev", "lineage", "nessie", "postgres", "quality", "trino"]
@@ -4007,7 +3989,6 @@ version = "0.2.3"
 source = { editable = "packages/phlo-pgweb" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -4020,7 +4001,6 @@ dev = [
 requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -4032,7 +4012,6 @@ source = { editable = "packages/phlo-postgres" }
 dependencies = [
     { name = "phlo" },
     { name = "psycopg2-binary" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -4046,7 +4025,6 @@ requires-dist = [
     { name = "phlo", editable = "." },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -4058,7 +4036,6 @@ source = { editable = "packages/phlo-postgrest" }
 dependencies = [
     { name = "phlo" },
     { name = "psycopg2-binary" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -4080,7 +4057,6 @@ requires-dist = [
     { name = "phlo-postgres", marker = "extra == 'postgres'", editable = "packages/phlo-postgres" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dbt", "dev", "postgres"]
@@ -4091,7 +4067,6 @@ version = "0.2.4"
 source = { editable = "packages/phlo-prometheus" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -4104,7 +4079,6 @@ dev = [
 requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -4115,7 +4089,6 @@ version = "0.3.0"
 source = { editable = "packages/phlo-rustfs" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -4128,7 +4101,6 @@ dev = [
 requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -4165,7 +4137,7 @@ version = "0.2.5"
 source = { editable = "packages/phlo-superset" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -4178,7 +4150,7 @@ dev = [
 requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -4198,6 +4170,7 @@ dependencies = [
     { name = "phlo-postgres" },
     { name = "pyarrow" },
     { name = "pyiceberg" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -4227,6 +4200,7 @@ requires-dist = [
     { name = "pyarrow", specifier = ">=21.0.0" },
     { name = "pyiceberg", specifier = ">=0.10.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev", "dlt", "trino"]
@@ -4237,7 +4211,6 @@ version = "0.2.3"
 source = { editable = "packages/phlo-traefik" }
 dependencies = [
     { name = "phlo" },
-    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -4250,7 +4223,6 @@ dev = [
 requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -4263,7 +4235,6 @@ dependencies = [
     { name = "pandas" },
     { name = "phlo" },
     { name = "psycopg2-binary" },
-    { name = "pyyaml" },
     { name = "trino" },
 ]
 
@@ -4287,7 +4258,6 @@ requires-dist = [
     { name = "phlo-postgres", marker = "extra == 'postgres'", editable = "packages/phlo-postgres" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "trino", specifier = ">=0.336.0" },
 ]

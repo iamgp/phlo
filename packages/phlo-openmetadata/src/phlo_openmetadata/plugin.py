@@ -19,7 +19,7 @@ from phlo.capabilities import (
     WorkflowWizardContribution,
     WorkflowWizardField,
 )
-from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
+from phlo.plugins import service_plugin_class
 
 
 def get_workflow_wizard_contributions() -> list[WorkflowWizardContribution]:
@@ -81,37 +81,11 @@ def get_workflow_wizard_contributions() -> list[WorkflowWizardContribution]:
     ]
 
 
-class OpenMetadataServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for OpenMetadata.
-
-    Integrates OpenMetadata data catalog and governance platform into
-    the Phlo service management system. Provides service definition
-    metadata for container orchestration.
-
-    Attributes:
-        metadata: PluginMetadata containing plugin identification information.
-        service_definition: YAML service configuration for deployment.
-
-    Example:
-        >>> plugin = OpenMetadataServicePlugin()
-        >>> defn = plugin.service_definition
-        >>> defn['services']
-        {...}
-
-    """
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata for OpenMetadata service registration.
-
-        Returns:
-            PluginMetadata: Metadata with name, version, description, and tags.
-
-        """
-        return PluginMetadata(
-            name="openmetadata",
-            version="0.1.0",
-            description="OpenMetadata data catalog and governance",
-            author="Phlo Team",
-            tags=["catalog", "governance", "metadata"],
-        )
+OpenMetadataServicePlugin = service_plugin_class(
+    "OpenMetadataServicePlugin",
+    name="openmetadata",
+    version="0.1.0",
+    description="OpenMetadata data catalog and governance",
+    author="Phlo Team",
+    tags=["catalog", "governance", "metadata"],
+)

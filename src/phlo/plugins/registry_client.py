@@ -9,7 +9,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-import requests
+import httpx
 
 from phlo.config import get_settings
 from phlo.logging import get_logger
@@ -133,7 +133,7 @@ def fetch_registry(force_refresh: bool = False) -> dict[str, Any]:
     source = "local"
     if registry_url:
         try:
-            response = requests.get(registry_url, timeout=settings.plugin_registry_timeout_seconds)
+            response = httpx.get(registry_url, timeout=settings.plugin_registry_timeout_seconds)
             response.raise_for_status()
             registry = response.json()
             _validate_registry(registry)

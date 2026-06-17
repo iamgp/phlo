@@ -25,8 +25,6 @@ from pydantic import AliasChoices, BaseModel, Field
 from phlo_api.observatory_api.v2_actions import execute_v2_action
 from phlo_api.observatory_api.v2_cache import ReadModelCache
 from phlo_api.observatory_api.v2_capabilities import build_capability_inventory
-from phlo_api.observatory_api.v2_catalog import load_catalog_items
-from phlo_api.observatory_api.v2_governance import load_governance_items
 from phlo_api.observatory_api.v2_models import (
     V2Action,
     V2ActionRequest,
@@ -90,7 +88,6 @@ from phlo_api.observatory_api.v2_models import (
     V2UpstreamTableRef,
 )
 from phlo_api.observatory_api.v2_metadata import safe_metadata as _safe_metadata
-from phlo_api.observatory_api.v2_observability import load_observability_items
 from phlo_api.observatory_api.v2_operation_journal import (
     append_operation,
     build_operation_observability_context,
@@ -100,7 +97,6 @@ from phlo_api.observatory_api.v2_operation_journal import (
     sort_operations,
 )
 from phlo_api.observatory_api.orchestrator_operations import resolve_orchestrator_operations
-from phlo_api.observatory_api.v2_products import load_api_items, load_bi_items
 from phlo_api.observatory_api.v2_runs import load_runs
 from phlo_api.observatory_api.v2_saved_queries import (
     dedupe_saved_queries as _dedupe_saved_queries_impl,
@@ -118,7 +114,6 @@ from phlo_api.observatory_api.v2_services import (
 from phlo_api.observatory_api.v2_services import (
     service_ports_from_definition as _service_ports_from_definition,
 )
-from phlo_api.observatory_api.v2_storage import load_storage_items
 from phlo_api.observatory_api.v2_workflow_wizard import (
     V2WorkflowActionRequest,
     V2WorkflowActionResult,
@@ -2725,8 +2720,7 @@ async def post_v2_run_cancel(
 def get_v2_storage() -> V2SurfaceList:
     """List provider-neutral storage surfaces."""
     return V2SurfaceList(
-        items=_surface_items_with_provider_fallback(
-            load_storage_items,
+        items=_surface_items_from_inventory(
             "table_store",
             "object_store",
             kind="storage",
@@ -2738,8 +2732,7 @@ def get_v2_storage() -> V2SurfaceList:
 def get_v2_observability() -> V2SurfaceList:
     """List provider-neutral observability surfaces."""
     return V2SurfaceList(
-        items=_surface_items_with_provider_fallback(
-            load_observability_items,
+        items=_surface_items_from_inventory(
             "observability_backend",
             "alert_sink",
             kind="observability",
@@ -2751,8 +2744,7 @@ def get_v2_observability() -> V2SurfaceList:
 def get_v2_governance() -> V2SurfaceList:
     """List provider-neutral governance surfaces."""
     return V2SurfaceList(
-        items=_surface_items_with_provider_fallback(
-            load_governance_items,
+        items=_surface_items_from_inventory(
             "governance_backend",
             "authorization_policy_backend",
             "authentication_provider",
@@ -2766,8 +2758,7 @@ def get_v2_governance() -> V2SurfaceList:
 def get_v2_catalog() -> V2SurfaceList:
     """List provider-neutral catalog surfaces."""
     return V2SurfaceList(
-        items=_surface_items_with_provider_fallback(
-            load_catalog_items,
+        items=_surface_items_from_inventory(
             "metadata_catalog",
             "catalog_scanner",
             "catalog",
@@ -2780,8 +2771,7 @@ def get_v2_catalog() -> V2SurfaceList:
 def get_v2_apis() -> V2SurfaceList:
     """List provider-neutral API surfaces."""
     return V2SurfaceList(
-        items=_surface_items_with_provider_fallback(
-            load_api_items,
+        items=_surface_items_from_inventory(
             "api_backend",
             kind="api",
         )
@@ -2792,8 +2782,7 @@ def get_v2_apis() -> V2SurfaceList:
 def get_v2_bi() -> V2SurfaceList:
     """List provider-neutral BI surfaces."""
     return V2SurfaceList(
-        items=_surface_items_with_provider_fallback(
-            load_bi_items,
+        items=_surface_items_from_inventory(
             "publish_target",
             "query_engine",
             kind="bi",

@@ -42,115 +42,28 @@ from __future__ import annotations
 from typing import Any
 
 from phlo.capabilities import ObjectStoreSpec, ResourceSpec
-from phlo.plugins import PackageYamlServicePlugin, PluginMetadata, ResourceProviderPlugin
+from phlo.plugins import PluginMetadata, ResourceProviderPlugin, service_plugin_class
 
 
-class MinioServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for deploying MinIO S3-compatible object storage.
-
-    This plugin provides the MinIO service definition for Docker Compose
-    deployment. It implements the ServicePlugin interface to integrate
-    MinIO into Phlo's service management system.
-
-    The MinIO service runs on two ports:
-    - API port (default 10001): S3-compatible API endpoint
-    - Console port (default 10002): Web-based management UI
-
-    Examples:
-        Plugin instantiation:
-            >>> plugin = MinioServicePlugin()
-            >>> print(plugin.metadata.name)
-            'minio'
-
-        Access service definition:
-            >>> plugin = MinioServicePlugin()
-            >>> defn = plugin.service_definition
-            >>> print(defn['services']['minio']['ports'])
-            ['10001:9000', '10002:9001']
-
-        Check metadata:
-            >>> plugin = MinioServicePlugin()
-            >>> plugin.metadata.tags
-            ['core', 'storage', 's3']
-
-    Attributes:
-        metadata: PluginMetadata with name, version, and service info.
-
-    Note:
-        Service definition loaded from service.yaml in package resources.
-        Default credentials: minio / minio123
-
-    """
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return metadata describing the MinIO service plugin.
-
-        Returns:
-            PluginMetadata: Plugin identity and display metadata.
-
-        """
-        return PluginMetadata(
-            name="minio",
-            version="0.1.0",
-            description="S3-compatible object storage for data lake",
-            author="Phlo Team",
-            tags=["core", "storage", "s3"],
-        )
+MinioServicePlugin = service_plugin_class(
+    "MinioServicePlugin",
+    name="minio",
+    version="0.1.0",
+    description="S3-compatible object storage for data lake",
+    author="Phlo Team",
+    tags=["core", "storage", "s3"],
+)
 
 
-class MinioSetupServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for MinIO bucket initialization.
-
-    This plugin provides a one-time setup service that creates default
-    buckets in MinIO during the initial deployment. It runs as a
-    separate container that executes bucket creation commands and exits.
-
-    The setup service:
-    - Creates default buckets (bronze, silver, gold for medallion architecture)
-    - Sets bucket policies and lifecycle rules
-    - Runs once during 'phlo services start' or on demand
-    - Exits cleanly after completion
-
-    Examples:
-        Plugin usage:
-            >>> plugin = MinioSetupServicePlugin()
-            >>> print(plugin.metadata.name)
-            'minio-setup'
-
-        Service definition:
-            >>> plugin = MinioSetupServicePlugin()
-            >>> defn = plugin.service_definition
-            >>> setup_svc = defn['services']['minio-setup']
-            >>> print(setup_svc.get('restart'))
-            'no'
-
-    Attributes:
-        metadata: PluginMetadata with setup service information.
-
-    Note:
-        The setup service has restart policy 'no' to ensure it only
-        runs once per deployment.
-
-    """
-
-    _service_definition_file = "minio-setup.yaml"
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return metadata describing the MinIO setup plugin.
-
-        Returns:
-            PluginMetadata: Plugin identity and display metadata.
-
-        """
-        return PluginMetadata(
-            name="minio-setup",
-            version="0.1.0",
-            description="Initialize MinIO buckets for data lake",
-            author="Phlo Team",
-            tags=["core", "storage", "bootstrap"],
-        )
+MinioSetupServicePlugin = service_plugin_class(
+    "MinioSetupServicePlugin",
+    name="minio-setup",
+    version="0.1.0",
+    description="Initialize MinIO buckets for data lake",
+    author="Phlo Team",
+    tags=["core", "storage", "bootstrap"],
+    service_definition_file="minio-setup.yaml",
+)
 
 
 class MinioObjectStoreProvider:

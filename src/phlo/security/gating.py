@@ -318,25 +318,3 @@ def validate_service_selection(
             result["allowed"].append(service)
 
     return result
-
-
-def block_direct_dagster_access(
-    request_source: str | None = None,
-    regulated: bool | None = None,
-) -> None:
-    """Block direct Dagster access when adapter is not properly installed.
-
-    This function is kept for backward compatibility but is a no-op
-    since dagster-webserver now has a regulated surface adapter (Units 2 and 3 completed).
-    The adapter enforces authorization at the GraphQL operation level.
-    """
-    if regulated is None:
-        regulated = is_regulated()
-
-    if not regulated:
-        return
-
-    logger.debug(
-        "dagster_adapter_installed",
-        message="Dagster regulated surface adapter is installed, direct blocking bypassed",
-    )

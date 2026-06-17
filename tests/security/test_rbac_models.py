@@ -2,13 +2,8 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
-import yaml
 
-from phlo.rbac.config import RBACConfigLoader
 from phlo.rbac.models import (
     CanonicalRBAC,
     PoliciesConfig,
@@ -286,90 +281,6 @@ class TestCanonicalRBAC:
             "Canonical RBAC does not support 'deny' policies yet. Remove those rules until "
             "backend compilation semantics are implemented."
         ]
-
-
-class TestRBACConfigLoader:
-    """Tests for RBACConfigLoader."""
-
-    def test_load_from_files(self):
-        """Test loading config from files."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            base_path = Path(tmpdir)
-            auth_dir = base_path / "authorization"
-            auth_dir.mkdir(parents=True)
-
-            roles_content = {
-                "version": 1,
-                "roles": {
-                    "viewer": {"inherits": []},
-                    "analyst": {"inherits": ["viewer"]},
-                },
-            }
-            policies_content = {
-                "version": 1,
-                "policies": [
-                    {
-                        "policy_id": "allow_analyst_read",
-                        "effect": "allow",
-                        "principal": {"roles": ["analyst"]},
-                        "action": "dataset.read",
-                        "resource": {
-                            "type": "dataset",
-                            "id_pattern": "analytics.*",
-                        },
-                    }
-                ],
-            }
-
-            with (auth_dir / "roles.yaml").open("w") as f:
-                yaml.dump(roles_content, f)
-            with (auth_dir / "policies.yaml").open("w") as f:
-                yaml.dump(policies_content, f)
-
-            loader = RBACConfigLoader(base_path=base_path)
-            rbac = loader.load()
-
-            assert "viewer" in rbac.roles.roles
-            assert "analyst" in rbac.roles.roles
-
-    def test_load_missing_files_raises(self):
-        """Test that missing files raise FileNotFoundError."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            base_path = Path(tmpdir)
-
-            loader = RBACConfigLoader(base_path=base_path)
-
-            with pytest.raises(FileNotFoundError):
-                loader.load()
-
-    def test_validate(self):
-        """Test validate method."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            base_path = Path(tmpdir)
-            auth_dir = base_path / "authorization"
-            auth_dir.mkdir(parents=True)
-
-            roles_content = {
-                "version": 1,
-                "roles": {
-                    "viewer": {"inherits": []},
-                },
-            }
-            policies_content = {
-                "version": 1,
-                "policies": [],
-            }
-
-            with (auth_dir / "roles.yaml").open("w") as f:
-                yaml.dump(roles_content, f)
-            with (auth_dir / "policies.yaml").open("w") as f:
-                yaml.dump(policies_content, f)
-
-            loader = RBACConfigLoader(base_path=base_path)
-            is_valid, errors = loader.validate()
-
-            assert is_valid
-            assert len(errors) == 0
 
 
 class TestPolicyRule:

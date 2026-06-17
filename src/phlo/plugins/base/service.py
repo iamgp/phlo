@@ -5,10 +5,11 @@ This module defines plugin types for Docker-based infrastructure components.
 
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
 from typing import Any
 
-from phlo.plugins.base.plugin import Plugin
+from phlo.plugins.base.plugin import Plugin, PluginMetadata
 
 
 class ServicePlugin(Plugin, ABC):
@@ -86,3 +87,40 @@ class PackageYamlServicePlugin(ServicePlugin, ABC):
         package = self._service_definition_package or self.__class__.__module__.split(".", 1)[0]
         path = resources.files(package).joinpath(self._service_definition_file)
         return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def service_plugin_class(
+    class_name: str,
+    *,
+    name: str,
+    version: str,
+    description: str,
+    author: str = "",
+    tags: list[str] | None = None,
+    service_definition_file: str = "service.yaml",
+    service_definition_package: str | None = None,
+) -> type[PackageYamlServicePlugin]:
+    """Create a YAML-backed service plugin class from static metadata."""
+    frame = inspect.currentframe()
+    caller = frame.f_back if frame is not None else None
+    caller_module = caller.f_globals.get("__name__", __name__) if caller is not None else __name__
+    metadata = PluginMetadata(
+        name=name,
+        version=version,
+        description=description,
+        author=author,
+        tags=tags or [],
+    )
+
+    class DeclarativeYamlServicePlugin(PackageYamlServicePlugin):
+        _service_definition_file = service_definition_file
+        _service_definition_package = service_definition_package or caller_module.split(".", 1)[0]
+
+        @property
+        def metadata(self) -> PluginMetadata:
+            return metadata
+
+    DeclarativeYamlServicePlugin.__name__ = class_name
+    DeclarativeYamlServicePlugin.__qualname__ = class_name
+    DeclarativeYamlServicePlugin.__module__ = caller_module
+    return DeclarativeYamlServicePlugin

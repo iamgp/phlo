@@ -9,7 +9,6 @@ requires = [
 dependencies = [
     "phlo>=0.1.0",
     "psycopg2-binary>=2.9.11",
-    "pyyaml>=6.0.1",
 ]
 description = "postgrest service plugin for Phlo"
 name = "phlo-postgrest"

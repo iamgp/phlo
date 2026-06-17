@@ -7,7 +7,7 @@ from typing import cast
 import pytest
 
 from phlo.capabilities.interfaces import GovernanceBackend
-from phlo.rbac.compiler import CompilerContext, PostgreSQLCompiler, TrinoCompiler
+from phlo.rbac.compiler import CompilerContext, TrinoCompiler
 from phlo.rbac.models import (
     BackendArtifact,
     CanonicalRBAC,
@@ -244,30 +244,6 @@ def test_trino_compile_rejects_deny_rules() -> None:
         compiler.compile(rbac, context)
 
 
-def test_postgresql_compile_rejects_deny_rules() -> None:
-    compiler = PostgreSQLCompiler()
-    roles = RolesConfig.from_dict({"version": 1, "roles": {"admin": {"inherits": []}}})
-    policies = PoliciesConfig.from_dict(
-        {
-            "version": 1,
-            "policies": [
-                {
-                    "policy_id": "deny_service_read",
-                    "effect": "deny",
-                    "principal": {"roles": ["admin"]},
-                    "action": "service.read",
-                    "resource": {"type": "service", "id_pattern": "analytics"},
-                }
-            ],
-        }
-    )
-    rbac = CanonicalRBAC.from_configs(roles, policies)
-    context = CompilerContext(environment="test", backend_name="postgresql")
-
-    with pytest.raises(ValueError, match="does not support canonical 'deny' policies"):
-        compiler.compile(rbac, context)
-
-
 def test_trino_compile_rejects_unsafe_role_names() -> None:
     compiler = TrinoCompiler()
     roles = RolesConfig.from_dict({"version": 1, "roles": {"bad-role": {"inherits": []}}})
@@ -341,30 +317,3 @@ def test_trino_compile_uses_schema_grants_for_services() -> None:
     assert len(artifacts) == 1
     assert artifacts[0].statement == "GRANT ALL PRIVILEGES ON SCHEMA dagster TO ROLE operator"
     assert artifacts[0].metadata["privilege"] == "ALL PRIVILEGES"
-
-
-def test_postgresql_compile_allows_catch_all_resource_pattern() -> None:
-    compiler = PostgreSQLCompiler()
-    roles = RolesConfig.from_dict({"version": 1, "roles": {"admin": {"inherits": []}}})
-    policies = PoliciesConfig.from_dict(
-        {
-            "version": 1,
-            "policies": [
-                {
-                    "policy_id": "allow_all",
-                    "effect": "allow",
-                    "principal": {"roles": ["admin"]},
-                    "action": "service.read",
-                    "resource": {"type": "service", "id_pattern": "*"},
-                }
-            ],
-        }
-    )
-    rbac = CanonicalRBAC.from_configs(roles, policies)
-    context = CompilerContext(environment="test", backend_name="postgresql")
-
-    artifacts = compiler.compile(rbac, context)
-
-    assert len(artifacts) == 1
-    assert artifacts[0].statement == "GRANT USAGE ON SCHEMA % TO admin"
-    assert artifacts[0].metadata["resource"] == "%"

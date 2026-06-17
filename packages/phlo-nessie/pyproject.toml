@@ -11,7 +11,6 @@ dependencies = [
     "pynessie>=0.67.0",
     "marshmallow>=3.18,<4",
     "requests>=2.32.5",
-    "pyyaml>=6.0.1",
 ]
 description = "Nessie service plugin for Phlo"
 name = "phlo-nessie"

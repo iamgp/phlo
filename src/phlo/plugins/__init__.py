@@ -148,6 +148,8 @@ from phlo.plugins.base import (
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
+    cli_command_plugin_class,
+    service_plugin_class,
 )
 from phlo.plugins.hooks import FailurePolicy, HookFilter, HookHandler, HookPlugin, HookProvider
 
@@ -247,7 +249,9 @@ __all__ = [
     "QualityProviderPlugin",
     "ServicePlugin",
     "PackageYamlServicePlugin",
+    "service_plugin_class",
     "TransformationPlugin",
+    "cli_command_plugin_class",
     "AssetProviderPlugin",
     "CatalogPlugin",
     "ResourceProviderPlugin",

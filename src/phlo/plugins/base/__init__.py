@@ -56,7 +56,7 @@ See Also:
 from __future__ import annotations
 
 from phlo.plugins.base.catalog import CatalogPlugin
-from phlo.plugins.base.cli import CliCommandPlugin
+from phlo.plugins.base.cli import CliCommandPlugin, cli_command_plugin_class
 from phlo.plugins.base.governance import GovernancePlugin
 from phlo.plugins.base.ingestion_provider import IngestionProviderPlugin
 from phlo.plugins.base.orchestrator import OrchestratorAdapterPlugin
@@ -64,7 +64,7 @@ from phlo.plugins.base.plugin import Plugin, PluginMetadata
 from phlo.plugins.base.providers import AssetProviderPlugin, ResourceProviderPlugin
 from phlo.plugins.base.quality import QualityCheckPlugin
 from phlo.plugins.base.quality_provider import QualityProviderPlugin
-from phlo.plugins.base.service import PackageYamlServicePlugin, ServicePlugin
+from phlo.plugins.base.service import PackageYamlServicePlugin, ServicePlugin, service_plugin_class
 from phlo.plugins.base.source import SourceConnectorPlugin
 from phlo.plugins.base.transform import TransformationPlugin
 from phlo.plugins.base.transformation_provider import TransformationProviderPlugin
@@ -73,6 +73,7 @@ __all__ = [
     "Plugin",
     "PluginMetadata",
     "CliCommandPlugin",
+    "cli_command_plugin_class",
     "SourceConnectorPlugin",
     "QualityCheckPlugin",
     "QualityProviderPlugin",
@@ -81,6 +82,7 @@ __all__ = [
     "TransformationProviderPlugin",
     "ServicePlugin",
     "PackageYamlServicePlugin",
+    "service_plugin_class",
     "CatalogPlugin",
     "GovernancePlugin",
     "AssetProviderPlugin",

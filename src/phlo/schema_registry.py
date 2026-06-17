@@ -9,11 +9,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
-import ulid
 
 from phlo.capabilities.specs import FieldSpec, NormalizedSchema
 from phlo.logging import get_logger
@@ -129,7 +128,7 @@ class SchemaRegistry:
         """Snapshot a schema. Returns snapshot_id. Dedupes by (table_name, schema_hash)."""
         canonical = _canonical_schema_json(schema)
         schema_hash = _schema_hash(canonical)
-        snapshot_id = str(ulid.ULID())
+        snapshot_id = str(uuid.uuid4())
 
         self._ensure_schema()
         with psycopg2.connect(self.connection_string) as conn:
