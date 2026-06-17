@@ -111,7 +111,7 @@ class TestTrinoCliSurfaceAdapter:
         mock_result = MagicMock()
         mock_result.variant = "allow"
 
-        with patch("phlo_trino.authorization.enforce", return_value=mock_result) as mock_enforce:
+        with patch("phlo.cli.authorization.enforce", return_value=mock_result) as mock_enforce:
             from phlo.capabilities.interfaces import AuthPrincipal
 
             adapter._resolver.resolve = MagicMock(

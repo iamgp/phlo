@@ -2,8 +2,8 @@
 
 import time
 
+import httpx
 import pytest
-import requests
 
 from phlo.plugins import registry_client
 
@@ -121,12 +121,12 @@ def test_fetch_registry_remote_exception_falls_back_to_local(monkeypatch):
         return sample_registry
 
     def fake_get(*_args, **_kwargs):
-        raise requests.exceptions.Timeout("network timeout")
+        raise httpx.TimeoutException("network timeout")
 
     registry_client.clear_registry_cache()
     monkeypatch.setattr(registry_client, "get_settings", lambda: DummySettings())
     monkeypatch.setattr(registry_client, "_load_registry_from_local", fake_load_local)
-    monkeypatch.setattr(registry_client.requests, "get", fake_get)
+    monkeypatch.setattr(registry_client.httpx, "get", fake_get)
 
     registry = registry_client.fetch_registry(force_refresh=True)
 
@@ -208,7 +208,7 @@ def test_fetch_registry_respects_cache_ttl_and_avoids_extra_http(monkeypatch):
     registry_client.clear_registry_cache()
     monkeypatch.setattr(registry_client, "get_settings", lambda: DummySettings())
     monkeypatch.setattr(registry_client.time, "time", lambda: next(timestamps))
-    monkeypatch.setattr(registry_client.requests, "get", fake_get)
+    monkeypatch.setattr(registry_client.httpx, "get", fake_get)
 
     first_fetch = registry_client.fetch_registry()
     second_fetch = registry_client.fetch_registry()

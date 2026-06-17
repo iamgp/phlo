@@ -20,69 +20,28 @@ from __future__ import annotations
 from typing import Any
 
 from phlo.capabilities import ObjectStoreSpec, ResourceSpec
-from phlo.plugins import PackageYamlServicePlugin, PluginMetadata, ResourceProviderPlugin
+from phlo.plugins import PluginMetadata, ResourceProviderPlugin, service_plugin_class
 
 
-class RustfsServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for RustFS.
-
-    Implements the ServicePlugin interface to provide Docker Compose service
-    definitions for running RustFS S3-compatible object storage. This is the
-    main service that runs the RustFS container.
-
-    The service definition includes volume mounts, port mappings, and health
-    checks for the RustFS S3 API and web console.
-    """
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return metadata describing the RustFS service plugin.
-
-        Returns:
-            PluginMetadata containing name, version, description, author,
-            and tags for discovery and categorization.
-
-        """
-        return PluginMetadata(
-            name="rustfs",
-            version="0.1.0",
-            description="S3-compatible object storage for data lake (RustFS)",
-            author="Phlo Team",
-            tags=["core", "storage", "s3"],
-        )
+RustfsServicePlugin = service_plugin_class(
+    "RustfsServicePlugin",
+    name="rustfs",
+    version="0.1.0",
+    description="S3-compatible object storage for data lake (RustFS)",
+    author="Phlo Team",
+    tags=["core", "storage", "s3"],
+)
 
 
-class RustfsSetupServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for RustFS bucket initialization.
-
-    Implements the ServicePlugin interface to provide a Docker Compose service
-    definition for initializing RustFS buckets on startup. This service runs
-    once after the main RustFS container is healthy to create the default
-    buckets required by the data platform.
-
-    Depends on the main rustfs service and uses the MinIO client to create
-    buckets with appropriate access policies.
-    """
-
-    _service_definition_file = "rustfs-setup.yaml"
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return metadata describing the RustFS setup plugin.
-
-        Returns:
-            PluginMetadata containing name, version, description, author,
-            and tags for discovery and categorization. Tagged with "bootstrap"
-            to indicate this is a one-time initialization service.
-
-        """
-        return PluginMetadata(
-            name="rustfs-setup",
-            version="0.1.0",
-            description="Initialize RustFS buckets for data lake",
-            author="Phlo Team",
-            tags=["core", "storage", "bootstrap"],
-        )
+RustfsSetupServicePlugin = service_plugin_class(
+    "RustfsSetupServicePlugin",
+    name="rustfs-setup",
+    version="0.1.0",
+    description="Initialize RustFS buckets for data lake",
+    author="Phlo Team",
+    tags=["core", "storage", "bootstrap"],
+    service_definition_file="rustfs-setup.yaml",
+)
 
 
 class RustfsObjectStoreProvider:

@@ -188,19 +188,6 @@ class GovernanceBackend(Protocol):
 
 
 @runtime_checkable
-class SecretBackend(Protocol):
-    """Protocol for pluggable secret storage providers."""
-
-    def get_secret(self, key: str) -> str | None:
-        """Retrieve a secret value by key."""
-        ...
-
-    def list_secrets(self) -> list[str]:
-        """List available secret keys."""
-        ...
-
-
-@runtime_checkable
 class SchemaExtractor(Protocol):
     """Protocol for extracting a NormalizedSchema from a quality provider's native schema."""
 
@@ -360,19 +347,6 @@ class AlertSink(Protocol):
 
 
 @runtime_checkable
-class ApiBackend(Protocol):
-    """Protocol for swappable API and graph-serving backends."""
-
-    def health_check(self) -> bool:
-        """Check backend connectivity and readiness."""
-        ...
-
-    def describe(self) -> dict[str, Any]:
-        """Return backend metadata and public endpoint information."""
-        ...
-
-
-@runtime_checkable
 class SchemaMigrator(Protocol):
     """Protocol for storage-layer schema migration providers.
 
@@ -513,47 +487,6 @@ class TraceSpanFilter:
     start_time: str | None = None
     end_time: str | None = None
     limit: int = 500
-
-
-@runtime_checkable
-class ObservabilityBackend(Protocol):
-    """Protocol for swappable observability backends (metrics, logs, dashboards)."""
-
-    def health_summary(self) -> PlatformHealthSummary:
-        """Return platform health summary."""
-        ...
-
-    def service_status(self) -> list[ServiceStatus]:
-        """Return service status list."""
-        ...
-
-    def platform_metrics(self, period: str) -> PlatformMetricsSummary:
-        """Return platform metrics for the specified period."""
-        ...
-
-    def recent_alerts(self, limit: int) -> list[AlertSummary]:
-        """Return recent alerts up to the specified limit."""
-        ...
-
-    def dashboard_links(self) -> list[DashboardLink]:
-        """Return available dashboard links."""
-        ...
-
-    def logs_query_link(self, service: str | None = None) -> str | None:
-        """Return a link to query logs, optionally filtered by service."""
-        ...
-
-    def metrics_query_link(self, metric: str | None = None) -> str | None:
-        """Return a link to query metrics, optionally filtered by metric."""
-        ...
-
-    def run_trace_spans(self, run_id: str, limit: int = 500) -> list[TraceSpan]:
-        """Return OTEL spans correlated to a run id when supported."""
-        ...
-
-    def trace_spans(self, filters: TraceSpanFilter) -> list[TraceSpan]:
-        """Return OTEL spans matching a bounded filter set when supported."""
-        ...
 
 
 @dataclass(frozen=True)

@@ -8,7 +8,6 @@ requires = [
 [project]
 dependencies = [
     "phlo>=0.1.0",
-    "pyyaml>=6.0.1",
 ]
 description = "loki service plugin for Phlo"
 name = "phlo-loki"

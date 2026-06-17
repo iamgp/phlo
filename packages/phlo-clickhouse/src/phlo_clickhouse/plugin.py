@@ -22,73 +22,31 @@ from phlo.capabilities import (
     TableStoreSpec,
 )
 from phlo.capabilities.specs import QueryEngineSpec
-from phlo.plugins import PackageYamlServicePlugin, PluginMetadata, ResourceProviderPlugin
+from phlo.plugins import PluginMetadata, ResourceProviderPlugin, service_plugin_class
 from phlo_clickhouse.publish_target import ClickHousePublishTarget
 from phlo_clickhouse.resource import CLICKHOUSE_QUERY_ENGINE_SUPPORT, ClickHouseResource
 from phlo_clickhouse.settings import get_settings as get_clickhouse_settings
 
 
-class ClickHouseServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for ClickHouse database service.
-
-    Manages the ClickHouse database service lifecycle within Phlo's
-    service orchestration framework.
-
-    Example:
-        >>> plugin = ClickHouseServicePlugin()
-        >>> plugin.metadata.name
-        'clickhouse'
-
-    """
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata for service registration.
-
-        Returns:
-            PluginMetadata containing name, version, description,
-            author, and tags for the ClickHouse service.
-
-        """
-        return PluginMetadata(
-            name="clickhouse",
-            version="0.1.0",
-            description="ClickHouse analytical database for data plane",
-            author="Phlo Team",
-            tags=["data", "query", "storage"],
-        )
+ClickHouseServicePlugin = service_plugin_class(
+    "ClickHouseServicePlugin",
+    name="clickhouse",
+    version="0.1.0",
+    description="ClickHouse analytical database for data plane",
+    author="Phlo Team",
+    tags=["data", "query", "storage"],
+)
 
 
-class ClickHouseSetupServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for ClickHouse database initialization.
-
-    Handles the initial setup and database creation for ClickHouse
-    during the Phlo services initialization phase.
-
-    Example:
-        >>> plugin = ClickHouseSetupServicePlugin()
-        >>> plugin.metadata.name
-        'clickhouse-setup'
-
-    """
-
-    _service_definition_file = "clickhouse-setup.yaml"
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata for setup service registration.
-
-        Returns:
-            PluginMetadata for the ClickHouse setup service.
-
-        """
-        return PluginMetadata(
-            name="clickhouse-setup",
-            version="0.1.0",
-            description="Initialize ClickHouse databases for data plane",
-            author="Phlo Team",
-            tags=["data", "bootstrap"],
-        )
+ClickHouseSetupServicePlugin = service_plugin_class(
+    "ClickHouseSetupServicePlugin",
+    name="clickhouse-setup",
+    version="0.1.0",
+    description="Initialize ClickHouse databases for data plane",
+    author="Phlo Team",
+    tags=["data", "bootstrap"],
+    service_definition_file="clickhouse-setup.yaml",
+)
 
 
 class ClickHouseResourceProvider(ResourceProviderPlugin):

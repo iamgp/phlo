@@ -19,7 +19,6 @@ from phlo.security.adapters import (
 from phlo.security.enforcement import EnforcementContext, enforce
 from phlo.security.gating import (
     UnsupportedSurfaceError,
-    block_direct_dagster_access,
     check_service_allowed,
     get_approved_services,
     get_blocked_services,
@@ -49,7 +48,6 @@ __all__ = [
     "SurfaceActivationStatus",
     "SurfaceOperation",
     "UnsupportedSurfaceError",
-    "block_direct_dagster_access",
     "check_service_allowed",
     "enforce",
     "get_approved_services",

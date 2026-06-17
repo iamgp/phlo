@@ -7,13 +7,7 @@ import pytest
 from click.testing import CliRunner
 
 from phlo.cli.commands.plugin import plugin_group
-from phlo.plugins import (
-    PluginMetadata,
-    QualityCheckPlugin,
-    ServicePlugin,
-    SourceConnectorPlugin,
-    TransformationPlugin,
-)
+from phlo.plugins import PluginMetadata
 from phlo.plugins.base import (
     CliCommandPlugin,
     IngestionProviderPlugin,
@@ -22,101 +16,18 @@ from phlo.plugins.base import (
 )
 from phlo.plugins.discovery import get_global_registry
 from phlo.plugins.registry_client import RegistryPlugin
-
-
-class DummySource(SourceConnectorPlugin):
-    """Stub source connector for CLI plugin tests."""
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
-
-        Returns:
-            PluginMetadata: Metadata for the dummy source plugin.
-        """
-        return PluginMetadata(name="dummy_source", version="1.0.0")
-
-    def fetch_data(self, config):
-        """Yield a single dummy record.
-
-        Args:
-            config: Source configuration.
-
-        Yields:
-            dict: Dummy source row.
-        """
-        yield {"id": 1}
-
-
-class DummyQuality(QualityCheckPlugin):
-    """Stub quality plugin for CLI plugin tests."""
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
-
-        Returns:
-            PluginMetadata: Metadata for the dummy quality plugin.
-        """
-        return PluginMetadata(name="dummy_quality", version="1.0.0")
-
-    def create_check(self, **kwargs):
-        """Create a no-op quality check.
-
-        Args:
-            **kwargs: Quality check options.
-
-        Returns:
-            None: No check object for this stub.
-        """
-        return
-
-
-class DummyTransform(TransformationPlugin):
-    """Stub transform plugin for CLI plugin tests."""
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
-
-        Returns:
-            PluginMetadata: Metadata for the dummy transform plugin.
-        """
-        return PluginMetadata(name="dummy_transform", version="1.0.0")
-
-    def transform(self, df, config):
-        """Return input data unchanged.
-
-        Args:
-            df: Input dataframe-like object.
-            config: Transform configuration.
-
-        Returns:
-            Any: Unmodified input dataframe-like object.
-        """
-        return df
-
-
-class DummyService(ServicePlugin):
-    """Stub service plugin for CLI plugin tests."""
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
-
-        Returns:
-            PluginMetadata: Metadata for the dummy service plugin.
-        """
-        return PluginMetadata(name="dummy_service", version="1.0.0")
-
-    @property
-    def service_definition(self) -> dict:
-        """Return a minimal service definition.
-
-        Returns:
-            dict: Service category and compose configuration.
-        """
-        return {"category": "core", "compose": {"image": "dummy:latest"}}
+from tests.helpers import (
+    DummyQualityPlugin as DummyQuality,
+)
+from tests.helpers import (
+    DummyServicePlugin as DummyService,
+)
+from tests.helpers import (
+    DummySourcePlugin as DummySource,
+)
+from tests.helpers import (
+    DummyTransformPlugin as DummyTransform,
+)
 
 
 class DummyIngestionProvider(IngestionProviderPlugin):

@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 
 import click
 
-from phlo.plugins.base.plugin import Plugin
+from phlo.plugins.base.plugin import Plugin, PluginMetadata
 
 
 class CliCommandPlugin(Plugin, ABC):
@@ -26,3 +26,27 @@ class CliCommandPlugin(Plugin, ABC):
     def get_cli_commands(self) -> list[click.Command]:
         """Return Click commands/groups to register on the root CLI."""
         raise NotImplementedError
+
+
+def cli_command_plugin_class(
+    class_name: str,
+    *,
+    name: str,
+    version: str,
+    description: str,
+    commands: list[click.Command],
+) -> type[CliCommandPlugin]:
+    """Create a CLI plugin class from static metadata and Click commands."""
+    metadata = PluginMetadata(name=name, version=version, description=description)
+
+    class DeclarativeCliCommandPlugin(CliCommandPlugin):
+        @property
+        def metadata(self) -> PluginMetadata:
+            return metadata
+
+        def get_cli_commands(self) -> list[click.Command]:
+            return list(commands)
+
+    DeclarativeCliCommandPlugin.__name__ = class_name
+    DeclarativeCliCommandPlugin.__qualname__ = class_name
+    return DeclarativeCliCommandPlugin

@@ -240,6 +240,16 @@ class CliSurfaceAdapter:
     _instance: CliSurfaceAdapter | None = None
     _lock = threading.Lock()
 
+    surface_name_value = SURFACE_NAME
+    framework_type_value = FRAMEWORK_TYPE
+    mutation_commands = MUTATION_COMMANDS
+    read_commands = READ_COMMANDS
+    command_resource_map = COMMAND_RESOURCE_MAP
+    command_action_map = COMMAND_ACTION_MAP
+    default_resource_type = "cli_command"
+    default_action_prefix = "cli"
+    default_resource_prefix = "cli"
+
     def __init__(self) -> None:
         self._resolver = CliPrincipalResolver()
 
@@ -253,17 +263,17 @@ class CliSurfaceAdapter:
 
     @property
     def surface_name(self) -> str:
-        return SURFACE_NAME
+        return self.surface_name_value
 
     @property
     def framework_type(self) -> str:
-        return FRAMEWORK_TYPE
+        return self.framework_type_value
 
     def list_operations(self) -> list[SurfaceOperation]:
         operations: list[SurfaceOperation] = []
-        for command in MUTATION_COMMANDS:
-            resource_type = COMMAND_RESOURCE_MAP.get(command, "cli_command")
-            action = COMMAND_ACTION_MAP.get(command, f"cli.{command}")
+        for command in self.mutation_commands:
+            resource_type = self.command_resource_map.get(command, self.default_resource_type)
+            action = self.command_action_map.get(command, f"{self.default_action_prefix}.{command}")
             operations.append(
                 SurfaceOperation(
                     action=action,
@@ -291,12 +301,12 @@ class CliSurfaceAdapter:
         Returns:
             EnforcementResult: allow, deny, or error
         """
-        if command not in MUTATION_COMMANDS:
+        if command not in self.mutation_commands:
             return EnforcementResult.allow()
 
-        action = COMMAND_ACTION_MAP.get(command, f"cli.{command}")
-        resource_type = COMMAND_RESOURCE_MAP.get(command, "cli_command")
-        resource_id_final = resource_id or f"cli:{command}"
+        action = self.command_action_map.get(command, f"{self.default_action_prefix}.{command}")
+        resource_type = self.command_resource_map.get(command, self.default_resource_type)
+        resource_id_final = resource_id or f"{self.default_resource_prefix}:{command}"
 
         principal = self._resolver.resolve()
 
@@ -309,17 +319,18 @@ class CliSurfaceAdapter:
 
         request_id = os.environ.get("PHLO_REQUEST_ID")
 
-        result = enforce(
+        result = self._enforce(
             principal=principal,
             action=action,
             resource=resource,
             context=None,
             request_id=request_id,
-            surface=SURFACE_NAME,
+            surface=self.surface_name,
         )
 
         logger.debug(
             "cli_mutation_enforcement_result",
+            surface=self.surface_name,
             command=command,
             action=action,
             result=result.variant,
@@ -327,6 +338,9 @@ class CliSurfaceAdapter:
         )
 
         return result
+
+    def _enforce(self, **kwargs: Any) -> EnforcementResult:
+        return enforce(**kwargs)
 
     def check_command_authorization(self, command_path: str) -> EnforcementResult:
         """Check if a command is authorized to run.
@@ -337,14 +351,15 @@ class CliSurfaceAdapter:
         Returns:
             EnforcementResult with decision
         """
-        if command_path in READ_COMMANDS:
+        if command_path in self.read_commands:
             return EnforcementResult.allow()
 
-        if command_path in MUTATION_COMMANDS:
+        if command_path in self.mutation_commands:
             return self.enforce_mutation(command_path)
 
         logger.warning(
             "cli_unknown_command_classification",
+            surface=self.surface_name,
             command=command_path,
         )
         return EnforcementResult.deny(
@@ -356,3 +371,37 @@ class CliSurfaceAdapter:
 def get_cli_adapter() -> CliSurfaceAdapter:
     """Get the singleton CLI surface adapter."""
     return CliSurfaceAdapter.get_instance()
+
+
+def cli_surface_adapter_class(
+    class_name: str,
+    *,
+    surface_name: str,
+    mutation_commands: frozenset[str] = frozenset(),
+    read_commands: frozenset[str] = frozenset(),
+    command_resource_map: dict[str, str] | None = None,
+    command_action_map: dict[str, str] | None = None,
+    default_resource_type: str = "dataset",
+    default_action_prefix: str = "cli",
+    default_resource_prefix: str | None = None,
+) -> type[CliSurfaceAdapter]:
+    """Create a package-specific CLI surface adapter from command tables."""
+    resource_map = command_resource_map or {}
+    action_map = command_action_map or {}
+    resource_prefix = default_resource_prefix or surface_name.removeprefix("phlo-")
+
+    return type(
+        class_name,
+        (CliSurfaceAdapter,),
+        {
+            "surface_name_value": surface_name,
+            "mutation_commands": mutation_commands,
+            "read_commands": read_commands,
+            "command_resource_map": resource_map,
+            "command_action_map": action_map,
+            "default_resource_type": default_resource_type,
+            "default_action_prefix": default_action_prefix,
+            "default_resource_prefix": resource_prefix,
+            "__module__": __name__,
+        },
+    )

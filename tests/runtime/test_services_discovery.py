@@ -9,6 +9,7 @@ from phlo.plugins import PluginMetadata, ServicePlugin
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery, get_global_registry
 from phlo.plugins.discovery._service_discovery import ServiceDiscovery as CompatServiceDiscovery
 from phlo.plugins.discovery.service_manifest import ServiceManifest, ServiceManifestError
+from tests.helpers import DummyServicePlugin as _DummyServicePlugin
 
 pytestmark = pytest.mark.core_regression
 
@@ -36,32 +37,19 @@ def _write_service_yaml(root: Path, folder: str, name: str) -> None:
     )
 
 
-class DummyServicePlugin(ServicePlugin):
-    """Provide a minimal service plugin for discovery tests."""
+class DummyServicePlugin(_DummyServicePlugin):
+    """Canonical valid service plugin fixture for this module."""
 
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
-
-        Returns:
-            PluginMetadata: Static metadata for the dummy plugin.
-        """
-        return PluginMetadata(name="dummy_service", version="1.0.0")
-
-    @property
-    def service_definition(self) -> dict:
-        """Return the service definition used in tests.
-
-        Returns:
-            dict: Service configuration for discovery assertions.
-        """
-        return {
-            "name": "dummy_service",
-            "description": "Dummy service",
-            "category": "core",
-            "default": True,
-            "compose": {"image": "dummy:latest"},
-        }
+    def __init__(self) -> None:
+        super().__init__(
+            service_definition={
+                "name": "dummy_service",
+                "description": "Dummy service",
+                "category": "core",
+                "default": True,
+                "compose": {"image": "dummy:latest"},
+            }
+        )
 
 
 class NonMappingServicePlugin(ServicePlugin):

@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from phlo.capabilities import CapabilitySupport, ResourceSpec
 from phlo.capabilities.specs import GovernanceBackendSpec, QueryEngineSpec
-from phlo.plugins import PackageYamlServicePlugin, PluginMetadata, ResourceProviderPlugin
+from phlo.plugins import PluginMetadata, ResourceProviderPlugin, service_plugin_class
 from phlo_trino.governance import TrinoGovernanceBackend
 from phlo_trino.resource import TRINO_QUERY_ENGINE_SUPPORT, TrinoResource
 from phlo_trino.settings import get_settings as get_trino_settings
@@ -42,24 +42,14 @@ TRINO_COMPATIBILITY_METADATA = {
 }
 
 
-class TrinoServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for Trino."""
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata for Trino service registration.
-
-        Returns:
-            Plugin metadata used by plugin discovery.
-
-        """
-        return PluginMetadata(
-            name="trino",
-            version="0.1.0",
-            description="Distributed SQL query engine",
-            author="Phlo Team",
-            tags=["core", "query"],
-        )
+TrinoServicePlugin = service_plugin_class(
+    "TrinoServicePlugin",
+    name="trino",
+    version="0.1.0",
+    description="Distributed SQL query engine",
+    author="Phlo Team",
+    tags=["core", "query"],
+)
 
 
 class TrinoResourceProvider(ResourceProviderPlugin):

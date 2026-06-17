@@ -82,7 +82,6 @@ from typing import TYPE_CHECKING
 
 from phlo.capabilities.interfaces import (
     AlertSink,
-    ApiBackend,
     AuthenticatedSession,
     AuthenticationProvider,
     AuthorizationDecision,
@@ -94,7 +93,6 @@ from phlo.capabilities.interfaces import (
     DecisionContext,
     LogoutResult,
     MaintenanceReadModel,
-    ObservabilityBackend,
     OrchestratorOperationsProvider,
     Principal,
     QueryEngine,
@@ -187,7 +185,6 @@ if TYPE_CHECKING:
 __all__ = [
     "AlertSink",
     "AlertSinkSpec",
-    "ApiBackend",
     "ApiBackendSpec",
     "AssetCheckSpec",
     "AssetSpec",
@@ -223,7 +220,6 @@ __all__ = [
     "MetadataCatalogSpec",
     "NormalizedSchema",
     "ObjectStoreSpec",
-    "ObservabilityBackend",
     "ObservabilityBackendSpec",
     "OrchestratorOperationsProvider",
     "OrchestratorOperationsSpec",
