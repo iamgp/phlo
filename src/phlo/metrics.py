@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
-import requests
-from cachetools import TTLCache
+import httpx
 from pydantic import Field
 
 from phlo.capabilities import QueryEngine, resolve_capability
@@ -18,6 +18,47 @@ from phlo.config.network import resolve_host
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class _TTLCache(dict[str, Any]):
+    def __init__(self, *, maxsize: int, ttl: float) -> None:
+        super().__init__()
+        self._maxsize = maxsize
+        self._ttl = ttl
+        self._expires_at: dict[str, float] = {}
+
+    def __contains__(self, key: object) -> bool:
+        if not isinstance(key, str):
+            return False
+        return not self._is_expired(key) and super().__contains__(key)
+
+    def __getitem__(self, key: str) -> Any:
+        if self._is_expired(key):
+            raise KeyError(key)
+        return super().__getitem__(key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        if len(self) >= self._maxsize and key not in self:
+            oldest_key = min(self._expires_at, key=self._expires_at.__getitem__)
+            self.pop(oldest_key, None)
+        super().__setitem__(key, value)
+        self._expires_at[key] = time.monotonic() + self._ttl
+
+    def pop(self, key: str, default: Any = None) -> Any:
+        self._expires_at.pop(key, None)
+        return super().pop(key, default)
+
+    def clear(self) -> None:
+        self._expires_at.clear()
+        super().clear()
+
+    def _is_expired(self, key: str) -> bool:
+        expires_at = self._expires_at.get(key)
+        if expires_at is None or expires_at > time.monotonic():
+            return False
+        super().pop(key, None)
+        self._expires_at.pop(key, None)
+        return True
 
 
 def _load_psycopg2() -> Any:
@@ -137,7 +178,7 @@ class MetricsCollector:
 
     def __init__(self) -> None:
         self.settings = MetricsBackendSettings()
-        self._cache = TTLCache(maxsize=100, ttl=30)
+        self._cache = _TTLCache(maxsize=100, ttl=30)
         self._prometheus_url: str | None = None
 
     @property
@@ -156,7 +197,7 @@ class MetricsCollector:
         metrics = SummaryMetrics()
 
         try:
-            metrics = cast(SummaryMetrics, self._collect_from_prometheus(period_hours))
+            metrics = self._collect_from_prometheus(period_hours)
         except Exception:
             logger.warning(
                 "metrics_collect_prometheus_failed", period_hours=period_hours, exc_info=True
@@ -235,7 +276,7 @@ class MetricsCollector:
             return metrics
 
         try:
-            response = requests.get(
+            response = httpx.get(
                 f"{self.prometheus_url}/api/v1/query",
                 params={
                     "query": f'increase(dagster_runs_total{{status="success"}}[{period_hours}h])'
@@ -248,7 +289,7 @@ class MetricsCollector:
                     value = data["data"]["result"][0].get("value", [None, "0"])
                     metrics.successful_runs_24h = int(float(value[1]))
 
-            response = requests.get(
+            response = httpx.get(
                 f"{self.prometheus_url}/api/v1/query",
                 params={
                     "query": f'increase(dagster_runs_total{{status="failure"}}[{period_hours}h])'
@@ -264,7 +305,7 @@ class MetricsCollector:
             metrics.total_runs_24h = metrics.successful_runs_24h + metrics.failed_runs_24h
 
             for percentile in ["0.5", "0.95", "0.99"]:
-                response = requests.get(
+                response = httpx.get(
                     f"{self.prometheus_url}/api/v1/query",
                     params={
                         "query": (
@@ -329,7 +370,7 @@ class MetricsCollector:
         metrics: dict[str, Any] = {}
         try:
             nessie_url = self.settings.nessie_api_uri()
-            response = requests.get(f"{nessie_url}/trees", timeout=5)
+            response = httpx.get(f"{nessie_url}/trees", timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 tables_count = 0
@@ -339,7 +380,7 @@ class MetricsCollector:
                     if not ns_name:
                         continue
                     try:
-                        ns_response = requests.get(
+                        ns_response = httpx.get(
                             f"{nessie_url}/namespaces/{ns_name}/tables",
                             timeout=5,
                         )
@@ -416,6 +457,7 @@ class MetricsCollector:
             if not isinstance(run_id, str) or not run_id:
                 raise MetricsMalformedResponseError("Dagster run row missing string run_id")
             start = self._coerce_datetime(row.get("start_time"), "start_time")
+            assert start is not None
             end = self._coerce_datetime(row.get("end_time"), "end_time", allow_none=True)
             runs.append(
                 RunMetrics(

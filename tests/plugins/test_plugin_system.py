@@ -14,10 +14,7 @@ import pytest
 
 from phlo.plugins import (
     PluginMetadata,
-    QualityCheckPlugin,
-    ServicePlugin,
     SourceConnectorPlugin,
-    TransformationPlugin,
     discover_plugins,
     get_plugin,
     get_plugin_info,
@@ -26,102 +23,55 @@ from phlo.plugins import (
 )
 from phlo.plugins.discovery import _plugin_auto_discovery as plugin_auto_discovery
 from phlo.plugins.discovery import get_global_registry
+from tests.helpers import (
+    DummyQualityPlugin as _DummyQualityPlugin,
+)
+from tests.helpers import (
+    DummyServicePlugin as _DummyServicePlugin,
+)
+from tests.helpers import (
+    DummySourcePlugin as _DummySourcePlugin,
+)
+from tests.helpers import (
+    DummyTransformPlugin as _DummyTransformPlugin,
+)
 
 pytestmark = pytest.mark.core_regression
 
 
-# Test plugins
-class DummySourcePlugin(SourceConnectorPlugin):
-    """Test source connector plugin."""
+class DummySourcePlugin(_DummySourcePlugin):
+    """Canonical source plugin fixture for this module."""
 
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
+    def __init__(self) -> None:
+        super().__init__("test_source", "Test source plugin", author="Test")
 
-        Returns:
-            PluginMetadata: Metadata for the dummy source plugin.
-        """
-        return PluginMetadata(
-            name="test_source",
-            version="1.0.0",
-            description="Test source plugin",
-            author="Test",
+
+class DummyQualityPlugin(_DummyQualityPlugin):
+    """Canonical quality plugin fixture for this module."""
+
+    def __init__(self) -> None:
+        super().__init__("test_quality", "Test quality plugin")
+
+
+class DummyTransformPlugin(_DummyTransformPlugin):
+    """Canonical transform plugin fixture for this module."""
+
+    def __init__(self) -> None:
+        super().__init__("test_transform", "Test transform plugin")
+
+
+class DummyServicePlugin(_DummyServicePlugin):
+    """Canonical service plugin fixture for this module."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "test_service",
+            "Test service plugin",
+            service_definition={
+                "category": "core",
+                "compose": {"image": "test-service:latest"},
+            },
         )
-
-    def fetch_data(self, config):
-        """Fetch test data."""
-        yield {"id": 1, "value": "test"}
-
-
-class DummyQualityPlugin(QualityCheckPlugin):
-    """Test quality check plugin."""
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
-
-        Returns:
-            PluginMetadata: Metadata for the dummy quality plugin.
-        """
-        return PluginMetadata(
-            name="test_quality",
-            version="1.0.0",
-            description="Test quality plugin",
-        )
-
-    def create_check(self, **kwargs):
-        """Create test check."""
-        return
-
-
-class DummyTransformPlugin(TransformationPlugin):
-    """Test transformation plugin."""
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
-
-        Returns:
-            PluginMetadata: Metadata for the dummy transform plugin.
-        """
-        return PluginMetadata(
-            name="test_transform",
-            version="1.0.0",
-            description="Test transform plugin",
-        )
-
-    def transform(self, df, config):
-        """Transform test data."""
-        return df
-
-
-class DummyServicePlugin(ServicePlugin):
-    """Test service plugin."""
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
-
-        Returns:
-            PluginMetadata: Metadata for the dummy service plugin.
-        """
-        return PluginMetadata(
-            name="test_service",
-            version="1.0.0",
-            description="Test service plugin",
-        )
-
-    @property
-    def service_definition(self) -> dict:
-        """Return a minimal service definition for tests.
-
-        Returns:
-            dict: Service category and compose image config.
-        """
-        return {
-            "category": "core",
-            "compose": {"image": "test-service:latest"},
-        }
 
 
 @pytest.fixture

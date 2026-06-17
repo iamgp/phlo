@@ -5,7 +5,6 @@
  * Uses versioned schema for future migration support.
  */
 
-import { ulid } from 'ulid'
 import { z } from 'zod'
 
 // Storage keys
@@ -77,7 +76,7 @@ export function createSavedQuery(input: CreateQueryInput): SavedQuery {
   const now = new Date().toISOString()
   const query: SavedQuery = {
     ...input,
-    id: ulid(),
+    id: crypto.randomUUID(),
     createdAt: now,
     updatedAt: now,
   }

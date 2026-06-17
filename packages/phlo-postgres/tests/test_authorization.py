@@ -111,7 +111,7 @@ class TestPostgresCliSurfaceAdapter:
         mock_result = MagicMock()
         mock_result.variant = "allow"
 
-        with patch("phlo_postgres.authorization.enforce", return_value=mock_result):
+        with patch("phlo.cli.authorization.enforce", return_value=mock_result):
             with patch.object(adapter, "_resolver"):
                 from phlo.capabilities.interfaces import AuthPrincipal
 

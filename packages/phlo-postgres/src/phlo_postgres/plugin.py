@@ -17,125 +17,42 @@ Example:
 from __future__ import annotations
 
 from phlo.capabilities import PublishTargetSpec, ResourceSpec
-from phlo.plugins import PackageYamlServicePlugin, PluginMetadata, ResourceProviderPlugin
+from phlo.plugins import PluginMetadata, ResourceProviderPlugin, service_plugin_class
 
 from phlo_postgres.publish_target import PostgresPublishTarget
 from phlo_postgres.resource import PostgresResource
 
 
-class PostgresServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for managing PostgreSQL as a phlo service.
-
-    This plugin provides the core PostgreSQL database service definition for
-    docker-compose integration. It loads service configuration from package
-    data (service.yaml) and exposes metadata for plugin discovery.
-
-    Example:
-        >>> plugin = PostgresServicePlugin()
-        >>> metadata = plugin.metadata
-        >>> print(f"Service: {metadata.name} v{metadata.version}")
-        Service: postgres v0.1.0
-        >>> definition = plugin.service_definition
-
-    """
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata for the PostgreSQL service.
-
-        Returns:
-            PluginMetadata: Metadata describing the service plugin including
-                name, version, description, author, and tags for categorization.
-
-        Example:
-            >>> plugin = PostgresServicePlugin()
-            >>> meta = plugin.metadata
-            >>> print(meta.name)
-            postgres
-            >>> print(meta.tags)
-            ['core', 'database', 'postgres']
-
-        """
-        return PluginMetadata(
-            name="postgres",
-            version="0.1.0",
-            description="PostgreSQL database for metadata and operational storage",
-            author="Phlo Team",
-            tags=["core", "database", "postgres"],
-        )
+PostgresServicePlugin = service_plugin_class(
+    "PostgresServicePlugin",
+    name="postgres",
+    version="0.1.0",
+    description="PostgreSQL database for metadata and operational storage",
+    author="Phlo Team",
+    tags=["core", "database", "postgres"],
+)
 
 
-class PostgresExporterServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for PostgreSQL Prometheus metrics exporter.
-
-    This plugin provides a Prometheus exporter service that exposes PostgreSQL
-    metrics for monitoring and alerting. It runs as a sidecar service alongside
-    the main PostgreSQL container.
-
-    Example:
-        >>> plugin = PostgresExporterServicePlugin()
-        >>> print(plugin.metadata.name)
-        postgres-exporter
-
-    """
-
-    _service_definition_file = "exporter_service.yaml"
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata for the PostgreSQL exporter service.
-
-        Returns:
-            PluginMetadata: Metadata describing the exporter plugin.
-
-        Example:
-            >>> plugin = PostgresExporterServicePlugin()
-            >>> meta = plugin.metadata
-            >>> print(meta.description)
-            Prometheus exporter for PostgreSQL metrics
-
-        """
-        return PluginMetadata(
-            name="postgres-exporter",
-            version="0.1.0",
-            description="Prometheus exporter for PostgreSQL metrics",
-            author="Phlo Team",
-            tags=["observability", "metrics", "postgres"],
-        )
+PostgresExporterServicePlugin = service_plugin_class(
+    "PostgresExporterServicePlugin",
+    name="postgres-exporter",
+    version="0.1.0",
+    description="Prometheus exporter for PostgreSQL metrics",
+    author="Phlo Team",
+    tags=["observability", "metrics", "postgres"],
+    service_definition_file="exporter_service.yaml",
+)
 
 
-class PostgresVolumeSetupServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for PostgreSQL data volume permission setup.
-
-    This plugin provides an initialization service that ensures proper
-    ownership and permissions on PostgreSQL data volumes before the main
-    database container starts. This is particularly important for bind mounts
-    on systems with strict permission requirements.
-
-    Example:
-        >>> plugin = PostgresVolumeSetupServicePlugin()
-        >>> print(plugin.metadata.name)
-        postgres-volume-setup
-
-    """
-
-    _service_definition_file = "volume_setup.yaml"
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata for the PostgreSQL volume setup service.
-
-        Returns:
-            PluginMetadata: Metadata describing the volume setup plugin.
-
-        """
-        return PluginMetadata(
-            name="postgres-volume-setup",
-            version="0.1.0",
-            description="Initialize PostgreSQL data volume permissions",
-            author="Phlo Team",
-            tags=["core", "database", "postgres"],
-        )
+PostgresVolumeSetupServicePlugin = service_plugin_class(
+    "PostgresVolumeSetupServicePlugin",
+    name="postgres-volume-setup",
+    version="0.1.0",
+    description="Initialize PostgreSQL data volume permissions",
+    author="Phlo Team",
+    tags=["core", "database", "postgres"],
+    service_definition_file="volume_setup.yaml",
+)
 
 
 class PostgresResourceProvider(ResourceProviderPlugin):

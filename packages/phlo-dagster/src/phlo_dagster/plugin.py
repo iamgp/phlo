@@ -43,7 +43,7 @@ from phlo.capabilities import (
     WorkflowWizardContribution,
     WorkflowWizardField,
 )
-from phlo.plugins import PackageYamlServicePlugin, PluginMetadata
+from phlo.plugins import service_plugin_class
 
 
 def get_workflow_wizard_contributions() -> list[WorkflowWizardContribution]:
@@ -94,43 +94,22 @@ def get_workflow_wizard_contributions() -> list[WorkflowWizardContribution]:
     ]
 
 
-class DagsterServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for Dagster."""
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return metadata describing the Dagster service plugin.
-
-        Returns:
-            PluginMetadata: Plugin identity and display metadata.
-
-        """
-        return PluginMetadata(
-            name="dagster",
-            version="0.1.0",
-            description="Data orchestration platform for workflows and pipelines",
-            author="Phlo Team",
-            tags=["orchestration", "core"],
-        )
+DagsterServicePlugin = service_plugin_class(
+    "DagsterServicePlugin",
+    name="dagster",
+    version="0.1.0",
+    description="Data orchestration platform for workflows and pipelines",
+    author="Phlo Team",
+    tags=["orchestration", "core"],
+)
 
 
-class DagsterDaemonServicePlugin(PackageYamlServicePlugin):
-    """Service plugin for Dagster daemon."""
-
-    _service_definition_file = "dagster-daemon.yaml"
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return metadata describing the Dagster daemon plugin.
-
-        Returns:
-            PluginMetadata: Plugin identity and display metadata.
-
-        """
-        return PluginMetadata(
-            name="dagster-daemon",
-            version="0.1.0",
-            description="Dagster daemon for background scheduling and sensors",
-            author="Phlo Team",
-            tags=["orchestration", "core"],
-        )
+DagsterDaemonServicePlugin = service_plugin_class(
+    "DagsterDaemonServicePlugin",
+    name="dagster-daemon",
+    version="0.1.0",
+    description="Dagster daemon for background scheduling and sensors",
+    author="Phlo Team",
+    tags=["orchestration", "core"],
+    service_definition_file="dagster-daemon.yaml",
+)

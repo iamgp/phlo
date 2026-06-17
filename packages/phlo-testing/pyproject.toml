@@ -17,6 +17,7 @@ dependencies = [
     "pandas>=2.3.3",
     "pandera>=0.26.1",
     "dlt>=1.18.2",
+    "requests>=2.32.5",
 ]
 description = "Testing utilities for Phlo"
 name = "phlo-testing"

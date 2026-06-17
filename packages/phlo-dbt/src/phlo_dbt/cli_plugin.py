@@ -32,7 +32,7 @@ from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.cli.output import user_error
 from phlo.logging import get_logger
-from phlo.plugins.base import CliCommandPlugin, PluginMetadata
+from phlo.plugins.base import cli_command_plugin_class
 from phlo_dbt.authorization import get_dbt_adapter
 from phlo_dbt.cli_publishing import publishing
 from phlo_dbt.runtime_config import DEFAULT_DBT_TARGET, ensure_dbt_profile
@@ -309,28 +309,10 @@ def test_cmd(target: str, select_exprs: tuple[str, ...], local: bool) -> None:
 dbt_group.add_command(publishing)
 
 
-class DbtCliPlugin(CliCommandPlugin):
-    """CLI plugin exposing dbt-related commands."""
-
-    @property
-    def metadata(self) -> PluginMetadata:
-        """Return plugin metadata.
-
-        Returns:
-            Metadata describing the dbt CLI plugin.
-
-        """
-        return PluginMetadata(
-            name="dbt",
-            version="0.1.0",
-            description="dbt CLI commands",
-        )
-
-    def get_cli_commands(self) -> list[click.Command]:
-        """Return CLI commands contributed by this plugin.
-
-        Returns:
-            List of click commands to register.
-
-        """
-        return [dbt_group]
+DbtCliPlugin = cli_command_plugin_class(
+    "DbtCliPlugin",
+    name="dbt",
+    version="0.1.0",
+    description="dbt CLI commands",
+    commands=[dbt_group],
+)
