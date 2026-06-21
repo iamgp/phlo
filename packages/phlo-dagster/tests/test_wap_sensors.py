@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 import dagster as dg
@@ -12,6 +13,7 @@ from phlo_dagster.wap_sensors import (
     wap_auto_promotion_sensor,
     wap_branch_creation_sensor,
     wap_branch_cleanup_sensor,
+    write_wap_report,
 )
 
 
@@ -28,6 +30,52 @@ def test_wap_sensors_default_to_running() -> None:
     assert wap_branch_creation_sensor.default_status == dg.DefaultSensorStatus.RUNNING
     assert wap_auto_promotion_sensor.default_status == dg.DefaultSensorStatus.RUNNING
     assert wap_branch_cleanup_sensor.default_status == dg.DefaultSensorStatus.RUNNING
+
+
+def test_write_wap_report_updates_run_json(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+
+    write_wap_report("run-1", status="branch_created", branch="pipeline-run-1")
+    write_wap_report(
+        "run-1",
+        status="promoted",
+        branch="pipeline-run-1",
+        source_hash="source",
+        target_hash_before="before",
+        target_hash_after="after",
+    )
+
+    payload = json.loads((tmp_path / ".phlo" / "wap-reports" / "run-1.json").read_text())
+    assert payload["status"] == "promoted"
+    assert payload["branch"] == "pipeline-run-1"
+    assert payload["target_hash_after"] == "after"
+    assert payload["run_id"] == "run-1"
+    assert payload["created_at"]
+
+
+def test_write_wap_report_keeps_identity_fields_and_ignores_write_failure(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+
+    write_wap_report(
+        "run-1",
+        schema_version="wrong",
+        updated_at="wrong",
+        status="branch_created",
+    )
+
+    payload = json.loads((tmp_path / ".phlo" / "wap-reports" / "run-1.json").read_text())
+    assert payload["run_id"] == "run-1"
+    assert payload["schema_version"] == "phlo.wap_report.v1"
+    assert payload["updated_at"] != "wrong"
+
+    def raise_write_error(*args, **kwargs):
+        raise OSError("disk unavailable")
+
+    monkeypatch.setattr("pathlib.Path.write_text", raise_write_error)
+    write_wap_report("run-2", status="branch_created")
 
 
 # ---------------------------------------------------------------------------

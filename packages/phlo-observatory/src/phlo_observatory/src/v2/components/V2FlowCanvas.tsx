@@ -64,6 +64,7 @@ const laneX: Record<string, number> = {
   marts: 900,
   branch: 0,
   table: 260,
+  publish: 540,
   quality: 540,
   operation: 260,
   service: 0,

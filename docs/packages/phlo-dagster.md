@@ -66,6 +66,9 @@ hard-wiring Dagster to a specific catalog implementation.
 In the bundled stack, Nessie is the versioned catalog provider. In profiles
 without versioning, the same Dagster adapter still works, but WAP branch
 creation/promotion/cleanup is not enabled.
+Set `PHLO_WAP_ENABLED=false` to keep WAP off even when a versioned catalog is
+available. WAP executions write `.phlo/wap-reports/<run_id>.json`, and
+Observatory exposes those reports in the operations and branch history views.
 
 ## Usage
 

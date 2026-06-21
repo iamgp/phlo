@@ -493,6 +493,21 @@ export const getV2BranchDetail = createServerFn()
     },
   )
 
+export async function getV2BranchDetailDirect({
+  branchName,
+}: {
+  branchName: string
+}): Promise<V2ResourceResult<V2BranchDetail>> {
+  try {
+    const data = await browserApiGet<V2BranchDetail>(
+      `${V2_API_PREFIX}/branches/${encodeURIComponent(branchName)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<V2BranchDetail>(error)
+  }
+}
+
 export function getV2Extensions() {
   return getRawCollection<V2Extension>('extensions')
 }
