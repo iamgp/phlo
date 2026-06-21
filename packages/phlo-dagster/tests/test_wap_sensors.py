@@ -12,6 +12,7 @@ from phlo_dagster.wap_sensors import (
     wap_auto_promotion_sensor,
     wap_branch_creation_sensor,
     wap_branch_cleanup_sensor,
+    write_wap_report,
 )
 
 
@@ -28,6 +29,25 @@ def test_wap_sensors_default_to_running() -> None:
     assert wap_branch_creation_sensor.default_status == dg.DefaultSensorStatus.RUNNING
     assert wap_auto_promotion_sensor.default_status == dg.DefaultSensorStatus.RUNNING
     assert wap_branch_cleanup_sensor.default_status == dg.DefaultSensorStatus.RUNNING
+
+
+def test_write_wap_report_updates_run_json(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+
+    write_wap_report("run-1", status="branch_created", branch="pipeline-run-1")
+    write_wap_report(
+        "run-1",
+        status="promoted",
+        branch="pipeline-run-1",
+        source_hash="source",
+        target_hash_before="before",
+        target_hash_after="after",
+    )
+
+    payload = (tmp_path / ".phlo" / "wap-reports" / "run-1.json").read_text()
+    assert '"status": "promoted"' in payload
+    assert '"branch": "pipeline-run-1"' in payload
+    assert '"target_hash_after": "after"' in payload
 
 
 # ---------------------------------------------------------------------------

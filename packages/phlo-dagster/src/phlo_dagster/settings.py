@@ -69,6 +69,10 @@ class DagsterSettings(BaseConfig):
         description="Host platform for executor selection (Darwin/Linux/Windows). "
         "Auto-detected in CLI; set explicitly for daemon/webserver on macOS.",
     )
+    phlo_wap_enabled: bool = Field(
+        default=True,
+        description="Enable Write-Audit-Publish lifecycle sensors when a versioned catalog exists.",
+    )
 
     @model_validator(mode="after")
     def validate_executor_flags(self) -> "DagsterSettings":

@@ -1960,6 +1960,81 @@ def test_v2_branch_action_skip_is_recorded(
     assert operations[0]["metadata"]["action_id"] == "branch:create:experiment"
 
 
+def test_v2_operations_include_wap_reports(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    reports_dir = tmp_path / ".phlo" / "wap-reports"
+    reports_dir.mkdir(parents=True)
+    (reports_dir / "run-1.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "phlo.wap_report.v1",
+                "run_id": "run-1",
+                "status": "promoted",
+                "branch": "pipeline-run-1",
+                "source_hash": "source",
+                "target_branch": "main",
+                "target_hash_before": "before",
+                "target_hash_after": "after",
+                "updated_at": "2026-06-17T10:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    v2._clear_read_model_cache()
+
+    payload = TestClient(app).get("/api/observatory/v2/operations").json()
+
+    wap = next(item for item in payload["items"] if item["id"] == "wap:run-1")
+    assert wap["status"] == "succeeded"
+    assert wap["target"]["id"] == "pipeline-run-1"
+    assert wap["metadata"]["target_hash_after"] == "after"
+
+
+def test_v2_branch_detail_uses_wap_report_tables_when_catalog_tables_missing(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    reports_dir = tmp_path / ".phlo" / "wap-reports"
+    reports_dir.mkdir(parents=True)
+    (reports_dir / "run-1.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run-1",
+                "status": "promoted",
+                "branch": "pipeline-run-1",
+                "tables": [
+                    {
+                        "id": "analytics.orders",
+                        "name": "orders",
+                        "namespace": "analytics",
+                        "format": "iceberg",
+                        "records": 128,
+                    }
+                ],
+                "updated_at": "2026-06-17T10:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.v2._load_branches",
+        lambda: [
+            V2Branch(
+                id="pipeline-run-1",
+                name="pipeline-run-1",
+                metadata={"changed": 1, "tables": 1},
+            )
+        ],
+    )
+    monkeypatch.setattr("phlo_api.observatory_api.v2._load_tables", lambda: [])
+    v2._clear_read_model_cache()
+
+    payload = TestClient(app).get("/api/observatory/v2/branches/pipeline-run-1").json()
+
+    assert payload["tables"][0]["id"] == "analytics.orders"
+    assert payload["contents"][0]["label"] == "orders"
+
+
 def test_v2_branch_actions_use_registered_catalog_provider(
     monkeypatch,
     tmp_path: Path,
