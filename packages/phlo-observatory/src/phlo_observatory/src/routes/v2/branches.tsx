@@ -18,19 +18,19 @@ import type {
   V2ResourceResult,
   V2Table,
 } from '@/v2/api/types'
+import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 import {
   getV2BranchDetailDirect,
   getV2BranchRecords,
   getV2OperationRecords,
   runV2BranchAction,
 } from '@/v2/api/resources'
+import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
 import {
   invalidateCachedResources,
   useLiveResource,
 } from '@/v2/routes/liveResource'
-import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
-import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 
 export const Route = createFileRoute('/v2/branches')({
   component: Branches,

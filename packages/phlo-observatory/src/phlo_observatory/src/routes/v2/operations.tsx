@@ -14,6 +14,7 @@ import type {
   V2OperationDetail,
   V2ResourceResult,
 } from '@/v2/api/types'
+import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 import {
   getV2OperationDetail,
   getV2OperationRecords,
@@ -21,7 +22,6 @@ import {
 } from '@/v2/api/resources'
 import { ActionButton } from '@/v2/components/ActionButton'
 import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
-import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
 import {
   invalidateCachedResources,
