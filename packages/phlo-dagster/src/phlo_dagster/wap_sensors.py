@@ -46,8 +46,10 @@ Example:
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import dagster as dg
@@ -66,6 +68,46 @@ DEFAULT_BRANCH_CREATION_INTERVAL_SECONDS = int(
 )
 DEFAULT_CLEANUP_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_CLEANUP_INTERVAL_SECONDS", "3600"))
 DEFAULT_PROMOTION_INTERVAL_SECONDS = int(os.getenv("PHLO_WAP_PROMOTION_INTERVAL_SECONDS", "60"))
+
+
+def _report_path(run_id: str) -> Path:
+    root = Path(os.getenv("PHLO_PROJECT_PATH", "."))
+    return root / ".phlo" / "wap-reports" / f"{run_id}.json"
+
+
+def _branch_hash(catalog: VersionedCatalog, branch: str) -> str | None:
+    get_branch_hash = getattr(catalog, "get_branch_hash", None)
+    if not callable(get_branch_hash):
+        return None
+    try:
+        value = get_branch_hash(branch)
+    except Exception:
+        logger.warning("wap_report_branch_hash_failed", branch_name=branch, exc_info=True)
+        return None
+    return str(value) if value else None
+
+
+def write_wap_report(run_id: str, **updates: Any) -> None:
+    path = _report_path(run_id)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except (OSError, json.JSONDecodeError):
+        payload = {}
+    now = datetime.now(timezone.utc).isoformat()
+    payload.update(updates)
+    payload.update(
+        {
+            "created_at": payload.get("created_at", now),
+            "schema_version": "phlo.wap_report.v1",
+            "run_id": run_id,
+            "updated_at": now,
+        }
+    )
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    except OSError:
+        logger.warning("wap_report_write_failed", path=str(path), run_id=run_id, exc_info=True)
 
 
 def _load_versioned_catalog() -> VersionedCatalog:
@@ -174,6 +216,12 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
 
         branch_hash = catalog.create_branch(branch_name, from_ref="main")
         if branch_hash is None:
+            write_wap_report(
+                run.run_id,
+                status="branch_creation_failed",
+                branch=branch_name,
+                target_branch="main",
+            )
             logger.warning(
                 "wap_branch_creation_skipped",
                 run_id=run.run_id,
@@ -182,6 +230,14 @@ def wap_branch_creation_sensor(context: dg.SensorEvaluationContext):
             continue
 
         instance.add_run_tags(run.run_id, {WAP_TAG_KEY: branch_name})
+        write_wap_report(
+            run.run_id,
+            status="branch_created",
+            branch=branch_name,
+            branch_hash=str(branch_hash),
+            target_branch="main",
+            target_hash_before=_branch_hash(catalog, "main"),
+        )
         branches_created += 1
         logger.info(
             "wap_branch_created",
@@ -264,6 +320,15 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             continue
 
         if not _all_checks_passed(instance, run.run_id):
+            write_wap_report(
+                run.run_id,
+                status="promotion_blocked",
+                branch=branch_name,
+                source_hash=_branch_hash(catalog, branch_name),
+                target_branch="main",
+                target_hash_before=_branch_hash(catalog, "main"),
+                failure_reason="asset_checks_failed",
+            )
             blocked += 1
             logger.info(
                 "wap_promotion_blocked_quality",
@@ -272,8 +337,19 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             )
             continue
 
+        source_hash = _branch_hash(catalog, branch_name)
+        target_hash_before = _branch_hash(catalog, "main")
         merged = catalog.merge_branch(source=branch_name, target="main")
         if not merged:
+            write_wap_report(
+                run.run_id,
+                status="promotion_failed",
+                branch=branch_name,
+                source_hash=source_hash,
+                target_branch="main",
+                target_hash_before=target_hash_before,
+                failure_reason="merge_branch_returned_false",
+            )
             logger.error(
                 "wap_promotion_merge_failed",
                 run_id=run.run_id,
@@ -281,8 +357,19 @@ def wap_auto_promotion_sensor(context: dg.SensorEvaluationContext):
             )
             continue
 
-        catalog.delete_branch(branch_name)
+        target_hash_after = _branch_hash(catalog, "main")
+        source_deleted = catalog.delete_branch(branch_name)
         instance.add_run_tags(run.run_id, {"phlo/wap_promoted": "true"})
+        write_wap_report(
+            run.run_id,
+            status="promoted",
+            branch=branch_name,
+            source_hash=source_hash,
+            target_branch="main",
+            target_hash_before=target_hash_before,
+            target_hash_after=target_hash_after,
+            source_deleted=source_deleted,
+        )
         promoted += 1
         logger.info(
             "wap_branch_promoted",

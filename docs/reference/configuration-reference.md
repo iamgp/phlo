@@ -507,6 +507,7 @@ BRANCH_CLEANUP_ENABLED=false
 Dagster WAP sensor intervals:
 
 ```bash
+PHLO_WAP_ENABLED=true
 PHLO_WAP_BRANCH_CREATION_INTERVAL_SECONDS=30
 PHLO_WAP_PROMOTION_INTERVAL_SECONDS=60
 PHLO_WAP_CLEANUP_INTERVAL_SECONDS=3600
@@ -514,6 +515,10 @@ PHLO_WAP_CLEANUP_INTERVAL_SECONDS=3600
 
 These settings only matter when the active profile includes a versioned catalog
 capability.
+Set `PHLO_WAP_ENABLED=false` to disable WAP sensors even when Nessie/Iceberg
+branching is available. Each WAP run writes `.phlo/wap-reports/<run_id>.json`
+with the branch, source hash, target hash before/after promotion, and cleanup
+result.
 
 ### Validation Configuration
 

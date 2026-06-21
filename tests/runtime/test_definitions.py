@@ -21,6 +21,7 @@ class _Settings:
     phlo_force_multiprocess_executor: bool = False
     phlo_host_platform: str | None = None
     phlo_orchestrator: str = "dagster"
+    phlo_wap_enabled: bool = True
 
 
 def test_default_executor_honors_platform() -> None:
@@ -133,6 +134,20 @@ def test_wap_sensors_dev_flag_requires_truthy_opt_in(monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("PHLO_WAP_SENSORS_ENABLED", "false")
 
     with patch("phlo_dagster.framework.definitions.resolve_capability") as resolve_capability:
+        from phlo_dagster.framework.definitions import _collect_wap_definitions
+
+        assert _collect_wap_definitions() is None
+        resolve_capability.assert_not_called()
+
+
+def test_wap_sensors_can_be_disabled_in_config() -> None:
+    with (
+        patch(
+            "phlo_dagster.framework.definitions.get_settings",
+            return_value=_Settings(phlo_wap_enabled=False),
+        ),
+        patch("phlo_dagster.framework.definitions.resolve_capability") as resolve_capability,
+    ):
         from phlo_dagster.framework.definitions import _collect_wap_definitions
 
         assert _collect_wap_definitions() is None

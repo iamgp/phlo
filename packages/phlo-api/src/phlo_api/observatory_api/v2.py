@@ -570,9 +570,51 @@ def _operation_from_maintenance_status(status: Any) -> V2Operation:
     )
 
 
+def _load_wap_report_operations() -> list[V2Operation]:
+    reports_dir = _project_root() / ".phlo" / "wap-reports"
+    if not reports_dir.exists():
+        return []
+
+    operations: list[V2Operation] = []
+    for path in reports_dir.glob("*.json"):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, Mapping):
+            continue
+        run_id = _coerce_str(payload.get("run_id"), path.stem)
+        branch = _coerce_str(payload.get("branch"), "unknown")
+        status = _coerce_str(payload.get("status"), "unknown")
+        succeeded = status == "promoted"
+        failed = status.endswith("_failed")
+        operations.append(
+            V2Operation(
+                id=f"wap:{run_id}",
+                name="WAP publish" if succeeded else "WAP lifecycle",
+                kind="wap",
+                status="succeeded" if succeeded else "failed" if failed else "running",
+                health=V2Health(
+                    state="ok" if succeeded else "error" if failed else "warning",
+                    message=status.replace("_", " "),
+                ),
+                target=V2ResourceRef(kind="branch", id=branch, label=branch),
+                started_at=payload.get("created_at")
+                if isinstance(payload.get("created_at"), str)
+                else None,
+                completed_at=payload.get("updated_at")
+                if isinstance(payload.get("updated_at"), str)
+                else None,
+                metadata=_safe_metadata(payload),
+            )
+        )
+    return operations
+
+
 def _load_operations() -> list[V2Operation]:
     operations = [
         *list(load_operation_journal(_project_root())),
+        *_load_wap_report_operations(),
         *_manifest_records("operations", V2Operation),
     ]
     registry = _load_capability_registry()
@@ -1757,6 +1799,8 @@ def _load_branch_detail(branch_name: str) -> V2BranchDetail:
         raise _not_found("branch", branch_name)
 
     tables = [table for table in _load_tables() if table.branch in {None, "", branch.name}]
+    if not tables:
+        tables = _tables_from_branch_operations(branch.name)
     contents = [V2ResourceRef(kind="table", id=table.id, label=table.name) for table in tables]
     commits = [
         operation
@@ -1796,6 +1840,70 @@ def _load_branch_detail(branch_name: str) -> V2BranchDetail:
         compare=compare,
         tables=tables,
     )
+
+
+def _tables_from_branch_operations(branch_name: str) -> list[V2Table]:
+    tables: dict[str, V2Table] = {}
+    for operation in _load_operations():
+        if operation.target is None or operation.target.kind != "branch":
+            continue
+        if operation.target.id != branch_name:
+            continue
+        for table in _tables_from_metadata(operation.metadata, branch_name):
+            tables.setdefault(table.id, table)
+    return sorted(tables.values(), key=lambda item: item.id)
+
+
+def _tables_from_metadata(metadata: Mapping[str, Any], branch_name: str) -> list[V2Table]:
+    raw_tables = metadata.get("tables") or metadata.get("changed_tables")
+    if not isinstance(raw_tables, list):
+        return []
+
+    tables: list[V2Table] = []
+    for item in raw_tables:
+        if isinstance(item, str):
+            table_id = item
+            namespace, _, name = item.rpartition(".")
+            tables.append(
+                V2Table(
+                    id=table_id,
+                    name=name or item,
+                    namespace=namespace or None,
+                    branch=branch_name,
+                    metadata={"source": "wap_report"},
+                )
+            )
+        elif isinstance(item, Mapping):
+            name = _coerce_str(item.get("name") or item.get("id"), "")
+            if not name:
+                continue
+            namespace = _coerce_str(item.get("namespace"), "") or None
+            table_id = _coerce_str(item.get("id"), "") or ".".join(
+                part for part in (namespace, name) if part
+            )
+            tables.append(
+                V2Table(
+                    id=table_id,
+                    name=name,
+                    namespace=namespace,
+                    asset_id=_coerce_str(item.get("asset_id"), "") or None,
+                    format=_coerce_str(item.get("format"), "") or None,
+                    branch=branch_name,
+                    schema_name=_coerce_str(item.get("schema_name"), "") or namespace,
+                    metadata={
+                        **(
+                            _safe_metadata(dict(item["metadata"]))
+                            if isinstance(item.get("metadata"), Mapping)
+                            else {}
+                        ),
+                        **_safe_metadata(
+                            {key: value for key, value in item.items() if key != "metadata"}
+                        ),
+                        "source": "wap_report",
+                    },
+                )
+            )
+    return tables
 
 
 def _search_results(query: str) -> list[V2SearchResult]:
