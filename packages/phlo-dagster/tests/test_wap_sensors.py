@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 import dagster as dg
@@ -44,10 +45,37 @@ def test_write_wap_report_updates_run_json(monkeypatch, tmp_path):
         target_hash_after="after",
     )
 
-    payload = (tmp_path / ".phlo" / "wap-reports" / "run-1.json").read_text()
-    assert '"status": "promoted"' in payload
-    assert '"branch": "pipeline-run-1"' in payload
-    assert '"target_hash_after": "after"' in payload
+    payload = json.loads((tmp_path / ".phlo" / "wap-reports" / "run-1.json").read_text())
+    assert payload["status"] == "promoted"
+    assert payload["branch"] == "pipeline-run-1"
+    assert payload["target_hash_after"] == "after"
+    assert payload["run_id"] == "run-1"
+    assert payload["created_at"]
+
+
+def test_write_wap_report_keeps_identity_fields_and_ignores_write_failure(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+
+    write_wap_report(
+        "run-1",
+        schema_version="wrong",
+        updated_at="wrong",
+        status="branch_created",
+    )
+
+    payload = json.loads((tmp_path / ".phlo" / "wap-reports" / "run-1.json").read_text())
+    assert payload["run_id"] == "run-1"
+    assert payload["schema_version"] == "phlo.wap_report.v1"
+    assert payload["updated_at"] != "wrong"
+
+    def raise_write_error(*args, **kwargs):
+        raise OSError("disk unavailable")
+
+    monkeypatch.setattr("pathlib.Path.write_text", raise_write_error)
+    write_wap_report("run-2", status="branch_created")
 
 
 # ---------------------------------------------------------------------------

@@ -93,16 +93,21 @@ def write_wap_report(run_id: str, **updates: Any) -> None:
         payload = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     except (OSError, json.JSONDecodeError):
         payload = {}
+    now = datetime.now(timezone.utc).isoformat()
+    payload.update(updates)
     payload.update(
         {
+            "created_at": payload.get("created_at", now),
             "schema_version": "phlo.wap_report.v1",
             "run_id": run_id,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-            **updates,
+            "updated_at": now,
         }
     )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    except OSError:
+        logger.warning("wap_report_write_failed", path=str(path), run_id=run_id, exc_info=True)
 
 
 def _load_versioned_catalog() -> VersionedCatalog:
