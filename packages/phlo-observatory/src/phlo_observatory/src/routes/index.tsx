@@ -1,13 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { OverviewRoute, loadOverviewSnapshot } from '@/v2/routes/OverviewRoute'
+import {
+  OverviewRoute,
+  loadOverviewSnapshot,
+} from '@/observatory/routes/OverviewRoute'
 
 export const Route = createFileRoute('/')({
   loader: loadOverviewSnapshot,
-  component: IndexOverviewRoute,
+  component: ObservatoryIndexOverviewRoute,
 })
 
-function IndexOverviewRoute() {
+function ObservatoryIndexOverviewRoute() {
   const snapshot = Route.useLoaderData()
   return <OverviewRoute initialSnapshot={snapshot} />
 }

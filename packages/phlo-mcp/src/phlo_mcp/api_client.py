@@ -15,7 +15,7 @@ from phlo_mcp.errors import map_httpx_error
 class PhloApiClient:
     """Small typed wrapper around phlo-api routes."""
 
-    _V2_PREFIX = "/api/observatory/v2"
+    _OBSERVATORY_PREFIX = "/api/observatory"
 
     def __init__(self, config: McpConfig, *, tracer_name: str = "phlo.mcp") -> None:
         self._config = config
@@ -42,7 +42,7 @@ class PhloApiClient:
 
     def install_plugin(self, package_name: str) -> dict[str, Any] | list[dict[str, Any]]:
         return self._post_json(
-            f"{self._V2_PREFIX}/packages/install", json={"package_name": package_name}
+            f"{self._OBSERVATORY_PREFIX}/packages/install", json={"package_name": package_name}
         )
 
     def get_services(self) -> dict[str, Any] | list[dict[str, Any]]:
@@ -52,10 +52,10 @@ class PhloApiClient:
         return self._get_json(f"/api/services/{service_name}")
 
     def get_assets(self) -> dict[str, Any] | list[dict[str, Any]]:
-        return self._v2_items("/assets")
+        return self._observatory_items("/assets")
 
     def get_asset_details(self, asset_key_path: str) -> dict[str, Any] | list[dict[str, Any]]:
-        return self._get_json(f"{self._V2_PREFIX}/assets/{asset_key_path}")
+        return self._get_json(f"{self._OBSERVATORY_PREFIX}/assets/{asset_key_path}")
 
     def list_operations(
         self,
@@ -75,10 +75,10 @@ class PhloApiClient:
             }.items()
             if value is not None
         }
-        return self._get_json(f"{self._V2_PREFIX}/operations", params=params)
+        return self._get_json(f"{self._OBSERVATORY_PREFIX}/operations", params=params)
 
     def get_operation_context(self, operation_id: str) -> dict[str, Any] | list[dict[str, Any]]:
-        return self._get_json(f"{self._V2_PREFIX}/operations/{operation_id}/agent-context")
+        return self._get_json(f"{self._OBSERVATORY_PREFIX}/operations/{operation_id}/agent-context")
 
     def get_contracts(self) -> dict[str, Any] | list[dict[str, Any]]:
         return self._get_json("/api/contracts")
@@ -153,7 +153,7 @@ class PhloApiClient:
         params: dict[str, Any] = {"q": query, "limit": limit}
         if cursor:
             params["cursor"] = cursor
-        return self._get_json(f"{self._V2_PREFIX}/search", params=params)
+        return self._get_json(f"{self._OBSERVATORY_PREFIX}/search", params=params)
 
     def search_contracts(
         self, query: str, *, limit: int = 20, cursor: str | None = None
@@ -173,12 +173,12 @@ class PhloApiClient:
             params["q"] = query
         if cursor:
             params["cursor"] = cursor
-        return self._get_json(f"{self._V2_PREFIX}/runs", params=params)
+        return self._get_json(f"{self._OBSERVATORY_PREFIX}/runs", params=params)
 
     def get_quality_results(
         self, asset_key: str | None = None, run_id: str | None = None
     ) -> dict[str, Any] | list[dict[str, Any]]:
-        payload = self._get_json(f"{self._V2_PREFIX}/quality")
+        payload = self._get_json(f"{self._OBSERVATORY_PREFIX}/quality")
         if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
             return payload
         items = payload["items"]
@@ -192,7 +192,7 @@ class PhloApiClient:
         self, asset_key: str, *, direction: str = "both", depth: int = 1
     ) -> dict[str, Any] | list[dict[str, Any]]:
         return self._get_json(
-            f"{self._V2_PREFIX}/asset-graph/neighbors",
+            f"{self._OBSERVATORY_PREFIX}/asset-graph/neighbors",
             params={"asset_key": asset_key, "direction": direction, "depth": depth},
         )
 
@@ -200,7 +200,7 @@ class PhloApiClient:
         self, asset_key: str, *, from_run: str | None = None, to_run: str | None = None
     ) -> dict[str, Any] | list[dict[str, Any]]:
         return self._post_json(
-            f"{self._V2_PREFIX}/schemas/diff",
+            f"{self._OBSERVATORY_PREFIX}/schemas/diff",
             json={"asset_key": asset_key, "from_run": from_run, "to_run": to_run},
         )
 
@@ -328,7 +328,7 @@ class PhloApiClient:
         if cursor:
             params["cursor"] = cursor
         return self._get_json(
-            f"{self._V2_PREFIX}/assets/{asset_key_path}/materializations",
+            f"{self._OBSERVATORY_PREFIX}/assets/{asset_key_path}/materializations",
             params=params,
         )
 
@@ -414,7 +414,7 @@ class PhloApiClient:
         if tags:
             payload["tags"] = tags
         return self._post_json(
-            f"{self._V2_PREFIX}/assets/{asset_key_path}/materialize", json=payload
+            f"{self._OBSERVATORY_PREFIX}/assets/{asset_key_path}/materialize", json=payload
         )
 
     def retry_run(
@@ -433,7 +433,7 @@ class PhloApiClient:
             payload["idempotency_key"] = idempotency_key
         if tags:
             payload["tags"] = tags
-        return self._post_json(f"{self._V2_PREFIX}/runs/{run_id}/retry", json=payload)
+        return self._post_json(f"{self._OBSERVATORY_PREFIX}/runs/{run_id}/retry", json=payload)
 
     def cancel_run(
         self,
@@ -447,7 +447,7 @@ class PhloApiClient:
             payload["reason"] = reason
         if idempotency_key:
             payload["idempotency_key"] = idempotency_key
-        return self._post_json(f"{self._V2_PREFIX}/runs/{run_id}/cancel", json=payload)
+        return self._post_json(f"{self._OBSERVATORY_PREFIX}/runs/{run_id}/cancel", json=payload)
 
     def backfill_asset(
         self,
@@ -477,16 +477,18 @@ class PhloApiClient:
             payload["idempotency_key"] = idempotency_key
         if tags:
             payload["tags"] = tags
-        return self._post_json(f"{self._V2_PREFIX}/assets/{asset_key_path}/backfill", json=payload)
+        return self._post_json(
+            f"{self._OBSERVATORY_PREFIX}/assets/{asset_key_path}/backfill", json=payload
+        )
 
     def list_partitions(self, asset_key_path: str) -> dict[str, Any] | list[dict[str, Any]]:
-        return self._get_json(f"{self._V2_PREFIX}/assets/{asset_key_path}/partitions")
+        return self._get_json(f"{self._OBSERVATORY_PREFIX}/assets/{asset_key_path}/partitions")
 
     def get_run_status(self, run_id: str) -> dict[str, Any] | list[dict[str, Any]]:
-        return self._get_json(f"{self._V2_PREFIX}/runs/{run_id}/status")
+        return self._get_json(f"{self._OBSERVATORY_PREFIX}/runs/{run_id}/status")
 
-    def _v2_items(self, path: str) -> dict[str, Any] | list[dict[str, Any]]:
-        payload = self._get_json(f"{self._V2_PREFIX}{path}")
+    def _observatory_items(self, path: str) -> dict[str, Any] | list[dict[str, Any]]:
+        payload = self._get_json(f"{self._OBSERVATORY_PREFIX}{path}")
         if isinstance(payload, dict) and isinstance(payload.get("items"), list):
             return payload["items"]
         return payload

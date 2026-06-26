@@ -26,7 +26,7 @@ export const getObservatorySettings = createServerFn()
   .middleware([authMiddleware])
   .handler(async (): Promise<ObservatorySettingsResponseSerializable> => {
     const response = await apiGet<ObservatorySettingsResponse>(
-      '/api/observatory/settings',
+      '/api/observatory/preferences',
     )
     return response as ObservatorySettingsResponseSerializable
   })
@@ -39,7 +39,7 @@ export const putObservatorySettings = createServerFn()
   .handler(
     async ({ data }): Promise<ObservatorySettingsResponseSerializable> => {
       const response = await apiPut<ObservatorySettingsResponse>(
-        '/api/observatory/settings',
+        '/api/observatory/preferences',
         data,
       )
       return response as ObservatorySettingsResponseSerializable

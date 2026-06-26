@@ -69,7 +69,7 @@ export async function previewDataFromApi(data: {
   offset?: number
 }): Promise<DataPreviewResult | { error: string }> {
   const result = await apiGet<ApiDataPreviewResult | { error: string }>(
-    `/api/observatory/v2/table-preview/${encodeURIComponent(data.table)}`,
+    `/api/observatory/table-preview/${encodeURIComponent(data.table)}`,
     { limit: data.limit ?? 100, offset: data.offset ?? 0 },
   )
 
@@ -85,7 +85,7 @@ export async function executeQueryFromApi(data: {
 }): Promise<QueryExecutionResult | QueryExecutionError> {
   const result = await apiPost<
     ApiQueryResult | QueryExecutionError | { error: string }
-  >('/api/observatory/v2/query', {
+  >('/api/observatory/query', {
     sql: data.query,
     branch: data.branch ?? 'main',
     limit: data.defaultLimit ?? 100,
@@ -109,7 +109,7 @@ export async function getRowByIdFromApi(data: {
   rowId: string
 }): Promise<DataPreviewResult | { error: string }> {
   const result = await apiGet<ApiRowJourney | { error: string }>(
-    `/api/observatory/v2/row-journey/${encodeURIComponent(data.table)}/${encodeURIComponent(data.rowId)}`,
+    `/api/observatory/row-journey/${encodeURIComponent(data.table)}/${encodeURIComponent(data.rowId)}`,
   )
 
   if ('error' in result) return result

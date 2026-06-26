@@ -1,0 +1,143 @@
+"""Tests for extracted Observatory read models."""
+
+from __future__ import annotations
+
+from phlo_api.observatory_api.observatory_cache import ReadModelCache
+from phlo_api.observatory_api.observatory_models import (
+    ObservatoryAsset,
+    ObservatoryHealth,
+    ObservatoryService,
+)
+from phlo_api.observatory_api.observatory_saved_queries import validate_saved_query_sql
+from phlo_api.observatory_api.observatory_search import search_results
+from phlo_api.observatory_api.observatory_services import (
+    DOCKER_PS_TIMEOUT_SECONDS,
+    configured_compose_services,
+    docker_status_from_container,
+    load_docker_containers,
+    load_project_docker_containers,
+    load_docker_service_statuses,
+    service_name_from_container,
+)
+
+
+def test_read_model_cache_returns_cached_value_before_ttl() -> None:
+    cache = ReadModelCache(project_key=lambda: "demo")
+    calls: list[str] = []
+
+    first = cache.cached("services", 30, lambda: calls.append("called") or ["postgres"])
+    second = cache.cached("services", 30, lambda: calls.append("called") or ["trino"])
+
+    assert first == ["postgres"]
+    assert second == ["postgres"]
+    assert calls == ["called"]
+
+
+def test_read_model_cache_clear_removes_values() -> None:
+    cache = ReadModelCache(project_key=lambda: "demo")
+    cache.cached("services", 30, lambda: ["postgres"])
+
+    cache.clear()
+    value = cache.cached("services", 30, lambda: ["trino"])
+
+    assert value == ["trino"]
+
+
+def test_docker_status_from_running_container() -> None:
+    status, health = docker_status_from_container({"State": "running", "Status": "Up 10 seconds"})
+
+    assert status == "running"
+    assert health.state == "unknown"
+
+
+def test_load_docker_containers_allows_multi_stack_local_daemon_latency(monkeypatch) -> None:
+    observed: dict[str, object] = {}
+
+    def fake_run(*args, **kwargs):
+        observed["timeout"] = kwargs.get("timeout")
+
+        class Result:
+            returncode = 0
+            stdout = ""
+
+        return Result()
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    assert load_docker_containers() == []
+    assert observed["timeout"] == DOCKER_PS_TIMEOUT_SECONDS
+    assert DOCKER_PS_TIMEOUT_SECONDS >= 10
+
+
+def test_load_project_docker_containers_skips_global_scan_without_compose_project(
+    monkeypatch, tmp_path
+) -> None:
+    def fail_run(*args, **kwargs):
+        raise AssertionError("global docker scan should not run without a project scope")
+
+    monkeypatch.delenv("PHLO_COMPOSE_PROJECT", raising=False)
+    monkeypatch.delenv("COMPOSE_PROJECT_NAME", raising=False)
+    monkeypatch.setattr("subprocess.run", fail_run)
+
+    assert load_project_docker_containers(tmp_path) == []
+
+
+def test_service_name_from_container_matches_known_service_id() -> None:
+    assert service_name_from_container("demo-postgres-1", {"postgres"}) == "postgres"
+
+
+def test_docker_statuses_require_project_scope(monkeypatch) -> None:
+    containers = [
+        {
+            "Names": "pokehunt-postgres",
+            "State": "running",
+            "Status": "Up 10 seconds",
+            "Labels": "",
+        }
+    ]
+
+    monkeypatch.delenv("PHLO_COMPOSE_PROJECT", raising=False)
+    monkeypatch.delenv("COMPOSE_PROJECT_NAME", raising=False)
+
+    assert load_docker_service_statuses({"postgres"}, containers) == {}
+
+
+def test_configured_compose_services_reads_generated_compose(tmp_path) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text(
+        "services:\n  postgres:\n    image: postgres\n  trino:\n    image: trino\n"
+    )
+
+    assert configured_compose_services(tmp_path) == {"postgres", "trino"}
+
+
+def test_validate_saved_query_sql_accepts_select_star_limit() -> None:
+    assert validate_saved_query_sql("select * from raw.events limit 10") is None
+
+
+def test_validate_saved_query_sql_rejects_delete() -> None:
+    assert (
+        validate_saved_query_sql("delete from raw.events")
+        == "Only simple SELECT preview queries can be saved."
+    )
+
+
+def test_search_results_matches_services_and_assets() -> None:
+    results = search_results(
+        query="post",
+        services=[
+            ObservatoryService(
+                id="postgres",
+                name="Postgres",
+                kind="service",
+                status="running",
+                health=ObservatoryHealth(state="ok"),
+            )
+        ],
+        assets=[ObservatoryAsset(id="raw.events", name="Raw Events", group="raw")],
+        tables=[],
+        operations=[],
+    )
+
+    assert [result.id for result in results] == ["service:postgres"]

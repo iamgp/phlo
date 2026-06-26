@@ -130,7 +130,7 @@ export const getAssetDetails = createServerFn()
       try {
         const keyPath = assetKey.join('/')
         const result = await apiGet<ApiAssetDetails | { error: string }>(
-          `/api/observatory/v2/assets/${keyPath}`,
+          `/api/observatory/assets/${keyPath}`,
         )
         if ('error' in result) return result
         return transformAssetDetails(result)

@@ -74,7 +74,7 @@ describe('contributing.server transforms', () => {
 
     expect(result).toEqual(payload)
     expect(apiPost).toHaveBeenCalledWith(
-      '/api/observatory/v2/contributing-rows/query',
+      '/api/observatory/contributing-rows/query',
       {
         downstream_asset_key: 'gold.fct_orders',
         upstream_asset_key: 'silver.stg_orders',
@@ -112,7 +112,7 @@ describe('contributing.server transforms', () => {
 
     expect(result).toEqual(payload)
     expect(apiPost).toHaveBeenCalledWith(
-      '/api/observatory/v2/contributing-rows/page',
+      '/api/observatory/contributing-rows/page',
       {
         downstream_asset_key: 'gold.fct_orders',
         upstream_asset_key: 'silver.stg_orders',

@@ -55,7 +55,7 @@ export const checkNessieConnection = createServerFn()
       const result = await withCache(
         () =>
           apiGet<ApiBranchList | { error: string }>(
-            '/api/observatory/v2/branches',
+            '/api/observatory/branches',
           ),
         cacheKeys.nessieConnection(),
         cacheTTL.nessieConnection,
@@ -87,7 +87,7 @@ export const getBranches = createServerFn()
       const result = await withCache(
         () =>
           apiGet<ApiBranchList | { error: string }>(
-            '/api/observatory/v2/branches',
+            '/api/observatory/branches',
           ),
         cacheKeys.nessieBranches(),
         cacheTTL.nessieBranches,

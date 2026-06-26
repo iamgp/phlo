@@ -1,4 +1,4 @@
-"""Capability-backed orchestrator operation resolution for Observatory v2."""
+"""Capability-backed orchestrator operation resolution for Observatory."""
 
 from __future__ import annotations
 

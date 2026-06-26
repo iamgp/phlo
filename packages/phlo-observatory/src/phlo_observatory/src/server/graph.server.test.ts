@@ -59,7 +59,7 @@ describe('graph.server api wrappers', () => {
       ],
       edges: [{ source: 'silver.stg_orders', target: 'gold.fct_orders' }],
     })
-    expect(apiGet).toHaveBeenCalledWith('/api/observatory/v2/asset-graph')
+    expect(apiGet).toHaveBeenCalledWith('/api/observatory/asset-graph')
   })
 
   it('fetches impact data from phlo-api', async () => {
@@ -87,12 +87,9 @@ describe('graph.server api wrappers', () => {
         depth: 1,
       },
     ])
-    expect(apiGet).toHaveBeenCalledWith(
-      '/api/observatory/v2/asset-graph/impact',
-      {
-        asset_key: 'silver.stg_orders',
-        max_depth: 2,
-      },
-    )
+    expect(apiGet).toHaveBeenCalledWith('/api/observatory/asset-graph/impact', {
+      asset_key: 'silver.stg_orders',
+      max_depth: 2,
+    })
   })
 })

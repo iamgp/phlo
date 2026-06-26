@@ -4,7 +4,7 @@
 @import '@primer/primitives/dist/css/functional/themes/light.css';
 @import '@primer/primitives/dist/css/functional/themes/dark.css';
 @import '@fontsource-variable/jetbrains-mono';
-@import './v2/design/tokens.css';
+@import './observatory/design/tokens.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -160,17 +160,17 @@ html[data-density='compact'] {
   min-height: 100vh;
 }
 
-.phlo-primer-base .phlo-v2-nav-link,
-.phlo-primer-base .phlo-v2-nav-link:visited {
+.phlo-primer-base .phlo-observatory-nav-link,
+.phlo-primer-base .phlo-observatory-nav-link:visited {
   color: var(--v2-muted);
   text-decoration: none;
 }
 
-.phlo-primer-base .phlo-v2-nav-link:hover {
+.phlo-primer-base .phlo-observatory-nav-link:hover {
   color: var(--v2-text);
 }
 
-.phlo-primer-base .phlo-v2-nav-link[data-active='true'] {
+.phlo-primer-base .phlo-observatory-nav-link[data-active='true'] {
   color: var(--v2-text);
 }
 
@@ -189,14 +189,14 @@ html[data-density='compact'] {
   }
 }
 
-.phlo-v2-form-grid {
+.phlo-observatory-form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.75rem;
   padding: 1rem;
 }
 
-.phlo-v2-field {
+.phlo-observatory-field {
   display: grid;
   gap: 0.35rem;
   color: color-mix(in oklch, var(--foreground), transparent 25%);
@@ -204,7 +204,7 @@ html[data-density='compact'] {
   font-weight: 600;
 }
 
-.phlo-v2-input {
+.phlo-observatory-input {
   min-height: 2.25rem;
   width: 100%;
   border: 1px solid var(--border);
@@ -216,12 +216,12 @@ html[data-density='compact'] {
   padding: 0.5rem 0.65rem;
 }
 
-textarea.phlo-v2-input {
+textarea.phlo-observatory-input {
   min-height: 5.5rem;
   resize: vertical;
 }
 
-.phlo-v2-row-button {
+.phlo-observatory-row-button {
   width: 100%;
   border: 0;
   background: transparent;
@@ -230,11 +230,11 @@ textarea.phlo-v2-input {
   cursor: pointer;
 }
 
-.phlo-v2-row-button[data-selected='true'] {
+.phlo-observatory-row-button[data-selected='true'] {
   background: color-mix(in oklch, var(--primary), transparent 88%);
 }
 
-.phlo-v2-primary-button {
+.phlo-observatory-primary-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -250,12 +250,12 @@ textarea.phlo-v2-input {
   padding: 0.55rem 0.8rem;
 }
 
-.phlo-v2-primary-button:disabled {
+.phlo-observatory-primary-button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
 
-.phlo-v2-code-preview {
+.phlo-observatory-code-preview {
   max-height: 12rem;
   overflow: auto;
   border: 1px solid var(--border);
@@ -603,7 +603,8 @@ textarea.phlo-workflow-input {
   max-width: none;
 }
 
-.phlo-v2-content:has(.phlo-workflow-stepper) .phlo-v2-subtitle {
+.phlo-observatory-content:has(.phlo-workflow-stepper)
+  .phlo-observatory-subtitle {
   max-width: 72rem;
 }
 
@@ -1058,8 +1059,8 @@ textarea.phlo-workflow-input {
   opacity: 1;
 }
 
-html[data-phlo-v2-theme='dark'] .phlo-workflow-add-menu,
-html[data-phlo-v2-theme='dark'] .phlo-workflow-add-menu-surface {
+html[data-phlo-observatory-theme='dark'] .phlo-workflow-add-menu,
+html[data-phlo-observatory-theme='dark'] .phlo-workflow-add-menu-surface {
   --v2-sheet: oklch(0.19 0.016 255);
   --v2-sheet-border: oklch(0.285 0.018 255);
   --v2-tile: oklch(0.23 0.018 255);
