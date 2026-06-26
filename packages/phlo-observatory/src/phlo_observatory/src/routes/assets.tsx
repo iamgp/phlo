@@ -19,7 +19,10 @@ import type {
   ObservatoryTable,
   ObservatoryTablePreview,
 } from '@/observatory/api/types'
-import type { ObservatoryFlowEdge, ObservatoryFlowNode } from '@/observatory/components/ObservatoryFlowCanvas'
+import type {
+  ObservatoryFlowEdge,
+  ObservatoryFlowNode,
+} from '@/observatory/components/ObservatoryFlowCanvas'
 import {
   getObservatoryAssetRecords,
   getObservatoryLogRecords,
@@ -37,14 +40,26 @@ export const Route = createFileRoute('/assets')({
 })
 
 export function Assets() {
-  const result = useLiveResource(getObservatoryAssetRecords, 120_000, 'v2:assets')
-  const tablesResult = useLiveResource(getObservatoryTableRecords, 120_000, 'v2:tables')
+  const result = useLiveResource(
+    getObservatoryAssetRecords,
+    120_000,
+    'v2:assets',
+  )
+  const tablesResult = useLiveResource(
+    getObservatoryTableRecords,
+    120_000,
+    'v2:tables',
+  )
   const qualityResult = useLiveResource(
     getObservatoryQualityRecords,
     120_000,
     'v2:quality',
   )
-  const logsResult = useLiveResource(getObservatoryLogRecords, 120_000, 'v2:logs')
+  const logsResult = useLiveResource(
+    getObservatoryLogRecords,
+    120_000,
+    'v2:logs',
+  )
   const operationsResult = useLiveResource(
     getObservatoryOperationRecords,
     120_000,
@@ -104,16 +119,16 @@ export function Assets() {
     }
 
     let cancelled = false
-    getObservatoryTablePreview({ data: { tableId: primaryTable.id, limit: 5 } }).then(
-      (response) => {
-        if (cancelled) return
-        setPreview({
-          tableId: primaryTable.id,
-          data: response.data,
-          error: response.error,
-        })
-      },
-    )
+    getObservatoryTablePreview({
+      data: { tableId: primaryTable.id, limit: 5 },
+    }).then((response) => {
+      if (cancelled) return
+      setPreview({
+        tableId: primaryTable.id,
+        data: response.data,
+        error: response.error,
+      })
+    })
 
     return () => {
       cancelled = true
@@ -133,7 +148,9 @@ export function Assets() {
       kicker="Assets"
       title="Impact browser"
       description="Find an asset, inspect its blast radius, then follow the table, issue, and activity evidence around it."
-      action={<span className="phlo-observatory-pill">{assets.length} assets</span>}
+      action={
+        <span className="phlo-observatory-pill">{assets.length} assets</span>
+      }
     >
       <section className="phlo-observatory-diff-metrics">
         <Metric
@@ -201,7 +218,9 @@ export function Assets() {
               <Network className="size-4" />
               Neighborhood
             </span>
-            <span className="phlo-observatory-pill">{graph.edges.length} links</span>
+            <span className="phlo-observatory-pill">
+              {graph.edges.length} links
+            </span>
           </div>
           <ObservatoryFlowCanvas
             edges={graph.edges}
@@ -503,7 +522,10 @@ function buildAssetDetail(
   }
 }
 
-function filterAssets(assets: Array<ObservatoryAsset>, query: string): Array<ObservatoryAsset> {
+function filterAssets(
+  assets: Array<ObservatoryAsset>,
+  query: string,
+): Array<ObservatoryAsset> {
   const needle = query.trim().toLowerCase()
   if (!needle) return assets
   return assets.filter((asset) =>
@@ -537,7 +559,9 @@ function chooseDefaultAsset(
   return best
 }
 
-function buildDownstreamCounts(assets: Array<ObservatoryAsset>): Map<string, number> {
+function buildDownstreamCounts(
+  assets: Array<ObservatoryAsset>,
+): Map<string, number> {
   const downstreamCounts = new Map<string, number>()
   assets.forEach((asset) => {
     asset.dependencies.forEach((dependency) => {

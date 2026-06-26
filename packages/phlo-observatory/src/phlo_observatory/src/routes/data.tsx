@@ -21,7 +21,10 @@ import type {
   ObservatoryTable,
   ObservatoryTablePreview,
 } from '@/observatory/api/types'
-import type { ObservatoryFlowEdge, ObservatoryFlowNode } from '@/observatory/components/ObservatoryFlowCanvas'
+import type {
+  ObservatoryFlowEdge,
+  ObservatoryFlowNode,
+} from '@/observatory/components/ObservatoryFlowCanvas'
 import {
   getObservatoryAssetRecords,
   getObservatoryCapabilities,
@@ -52,8 +55,16 @@ export function Data() {
 }
 
 function useDataRoute() {
-  const result = useLiveResource(getObservatoryTableRecords, 120_000, 'v2:tables')
-  const assetResult = useLiveResource(getObservatoryAssetRecords, 120_000, 'v2:assets')
+  const result = useLiveResource(
+    getObservatoryTableRecords,
+    120_000,
+    'v2:tables',
+  )
+  const assetResult = useLiveResource(
+    getObservatoryAssetRecords,
+    120_000,
+    'v2:assets',
+  )
   const qualityResult = useLiveResource(
     getObservatoryQualityRecords,
     120_000,
@@ -102,7 +113,9 @@ function useDataRoute() {
       }>
     >
   >({ data: [], error: null })
-  const [preview, setPreview] = useState<ObservatoryResourceResult<ObservatoryTablePreview>>({
+  const [preview, setPreview] = useState<
+    ObservatoryResourceResult<ObservatoryTablePreview>
+  >({
     data: null,
     error: null,
   })
@@ -135,14 +148,18 @@ function useDataRoute() {
   const selectedRowCount =
     selectedPreview && selected ? selectedPreview.row_count : null
   const applySelectedPreview = useCallback(
-    (nextSql: string, nextPreview: ObservatoryResourceResult<ObservatoryTablePreview>) => {
+    (
+      nextSql: string,
+      nextPreview: ObservatoryResourceResult<ObservatoryTablePreview>,
+    ) => {
       setSql(nextSql)
       setPreview(nextPreview)
     },
     [],
   )
   const applyPreview = useCallback(
-    (nextPreview: ObservatoryResourceResult<ObservatoryTablePreview>) => setPreview(nextPreview),
+    (nextPreview: ObservatoryResourceResult<ObservatoryTablePreview>) =>
+      setPreview(nextPreview),
     [],
   )
 
@@ -231,7 +248,9 @@ function useDataRoute() {
           : 'Browse tables, schemas, preview rows, and row-journey entry points.'
       }
       action={
-        <span className="phlo-observatory-pill">{namespaces.size} namespaces</span>
+        <span className="phlo-observatory-pill">
+          {namespaces.size} namespaces
+        </span>
       }
     >
       <section className="phlo-observatory-browser-shell">
@@ -347,7 +366,9 @@ function useDataRoute() {
         </div>
 
         <aside className="phlo-observatory-inspector">
-          <div className="phlo-observatory-inspector-label">Table inspector</div>
+          <div className="phlo-observatory-inspector-label">
+            Table inspector
+          </div>
           {selected ? (
             <>
               <h2>{selected.name}</h2>
@@ -461,10 +482,14 @@ function useDataRoute() {
             <div className="phlo-observatory-panel-footer">{result.error}</div>
           )}
           {qualityResult.error && (
-            <div className="phlo-observatory-panel-footer">{qualityResult.error}</div>
+            <div className="phlo-observatory-panel-footer">
+              {qualityResult.error}
+            </div>
           )}
           {operationResult.error && (
-            <div className="phlo-observatory-panel-footer">{operationResult.error}</div>
+            <div className="phlo-observatory-panel-footer">
+              {operationResult.error}
+            </div>
           )}
         </aside>
       </section>
@@ -515,7 +540,10 @@ function DataProfileBand({
   selected: ObservatoryTable
 }) {
   return (
-    <div className="phlo-observatory-data-profile" data-state={profile.qualityState}>
+    <div
+      className="phlo-observatory-data-profile"
+      data-state={profile.qualityState}
+    >
       <div className="phlo-observatory-data-profile-stage">
         <span>Stage</span>
         <strong>{profile.stage}</strong>
@@ -596,7 +624,9 @@ function DataPreviewTable({
             <Columns3 className="size-4" />
             {selected.name} schema
           </span>
-          <span className="phlo-observatory-pill">{columns.length} columns</span>
+          <span className="phlo-observatory-pill">
+            {columns.length} columns
+          </span>
         </div>
         <div className="phlo-observatory-schema-grid" role="table">
           <div className="phlo-observatory-schema-head" role="row">
@@ -604,7 +634,11 @@ function DataPreviewTable({
             <span>Type</span>
           </div>
           {columns.map((column, index) => (
-            <div className="phlo-observatory-schema-row" key={column} role="row">
+            <div
+              className="phlo-observatory-schema-row"
+              key={column}
+              role="row"
+            >
               <span>{column}</span>
               <span>{columnTypeFor(preview, column, index)}</span>
             </div>
@@ -815,7 +849,9 @@ function DataDetailPanel({
           </div>
         )}
         {queryResult.error && (
-          <div className="phlo-observatory-panel-footer">{queryResult.error}</div>
+          <div className="phlo-observatory-panel-footer">
+            {queryResult.error}
+          </div>
         )}
       </div>
     )
@@ -849,7 +885,7 @@ function DataDetailPanel({
         {selected.asset_id && (
           <Link
             className="phlo-observatory-mini-row"
-            to="/asset/$assetId"
+            to="/assets/$assetId"
             params={{ assetId: selected.asset_id }}
           >
             <span>Open asset</span>
@@ -937,7 +973,9 @@ function buildTableGraph(
   return { nodes: tableNodes, edges }
 }
 
-function sortTablesForFlow(tables: Array<ObservatoryTable>): Array<ObservatoryTable> {
+function sortTablesForFlow(
+  tables: Array<ObservatoryTable>,
+): Array<ObservatoryTable> {
   return tables.slice().sort((left, right) => {
     const leftLane = tableLane(left)
     const rightLane = tableLane(right)
@@ -948,7 +986,9 @@ function sortTablesForFlow(tables: Array<ObservatoryTable>): Array<ObservatoryTa
   })
 }
 
-function chooseDefaultTable(tables: Array<ObservatoryTable>): ObservatoryTable | null {
+function chooseDefaultTable(
+  tables: Array<ObservatoryTable>,
+): ObservatoryTable | null {
   return (
     tables.find(
       (table) =>
@@ -982,7 +1022,10 @@ function readTableRecordCount(
   )
 }
 
-function filterTables(tables: Array<ObservatoryTable>, query: string): Array<ObservatoryTable> {
+function filterTables(
+  tables: Array<ObservatoryTable>,
+  query: string,
+): Array<ObservatoryTable> {
   const needle = query.trim().toLowerCase()
   if (!needle) return tables
   return tables.filter((table) =>
@@ -1122,7 +1165,10 @@ function detectBusinessKeys(
     .slice(0, 4)
 }
 
-function stageLabelForTable(table: ObservatoryTable, asset: ObservatoryAsset | null | undefined) {
+function stageLabelForTable(
+  table: ObservatoryTable,
+  asset: ObservatoryAsset | null | undefined,
+) {
   const stage =
     readMetric(table.metadata, 'stage') ??
     readMetric(asset?.metadata ?? {}, 'stage') ??

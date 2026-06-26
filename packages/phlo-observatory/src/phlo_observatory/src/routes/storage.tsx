@@ -9,7 +9,11 @@ export const Route = createFileRoute('/storage')({
 })
 
 export function Storage() {
-  const result = useLiveResource(getObservatoryStorageItems, 120_000, 'v2:storage')
+  const result = useLiveResource(
+    getObservatoryStorageItems,
+    120_000,
+    'v2:storage',
+  )
   const items = result.data ?? []
 
   return (

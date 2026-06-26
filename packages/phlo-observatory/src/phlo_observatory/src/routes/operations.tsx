@@ -14,7 +14,10 @@ import type {
   ObservatoryOperationDetail,
   ObservatoryResourceResult,
 } from '@/observatory/api/types'
-import type { ObservatoryFlowEdge, ObservatoryFlowNode } from '@/observatory/components/ObservatoryFlowCanvas'
+import type {
+  ObservatoryFlowEdge,
+  ObservatoryFlowNode,
+} from '@/observatory/components/ObservatoryFlowCanvas'
 import {
   getObservatoryOperationDetail,
   getObservatoryOperationRecords,
@@ -40,7 +43,9 @@ export function Operations() {
     'v2:operations',
   )
   const operations = result.data ?? []
-  const [localOperations, setLocalOperations] = useState<Array<ObservatoryOperation>>([])
+  const [localOperations, setLocalOperations] = useState<
+    Array<ObservatoryOperation>
+  >([])
   const visibleOperations = mergeOperations(localOperations, operations)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const latest =
@@ -52,7 +57,9 @@ export function Operations() {
     0,
     visibleOperations.length - displayedOperations.length,
   )
-  const [detail, setDetail] = useState<ObservatoryResourceResult<ObservatoryOperationDetail>>({
+  const [detail, setDetail] = useState<
+    ObservatoryResourceResult<ObservatoryOperationDetail>
+  >({
     data: null,
     error: null,
   })
@@ -88,11 +95,11 @@ export function Operations() {
       return
     }
     let cancelled = false
-    void getObservatoryOperationDetail({ data: { operationId: latest.id } }).then(
-      (next) => {
-        if (!cancelled) setDetail(next)
-      },
-    )
+    void getObservatoryOperationDetail({
+      data: { operationId: latest.id },
+    }).then((next) => {
+      if (!cancelled) setDetail(next)
+    })
     return () => {
       cancelled = true
     }
@@ -108,7 +115,9 @@ export function Operations() {
           : 'Phlo-owned actions, maintenance status, and service-impacting work.'
       }
       action={
-        <span className="phlo-observatory-pill">{visibleOperations.length} actions</span>
+        <span className="phlo-observatory-pill">
+          {visibleOperations.length} actions
+        </span>
       }
     >
       <section
@@ -151,7 +160,9 @@ export function Operations() {
                 >
                   <div className="phlo-observatory-workspace-toolbar">
                     <span>Selected operation evidence</span>
-                    <span className="phlo-observatory-pill">{latest.status}</span>
+                    <span className="phlo-observatory-pill">
+                      {latest.status}
+                    </span>
                   </div>
                   <div className="phlo-observatory-operation-focus-body">
                     <div className="phlo-observatory-operation-focus-main">
@@ -286,7 +297,9 @@ export function Operations() {
 
         {!selectedIsWap && (
           <aside className="phlo-observatory-inspector">
-            <div className="phlo-observatory-inspector-label">Selected operation</div>
+            <div className="phlo-observatory-inspector-label">
+              Selected operation
+            </div>
             {latest ? (
               <>
                 <h2>{latest.name}</h2>
@@ -341,11 +354,16 @@ export function Operations() {
                   ))}
                 </div>
                 {actionMessage && (
-                  <div className="phlo-observatory-panel-footer">{actionMessage}</div>
+                  <div className="phlo-observatory-panel-footer">
+                    {actionMessage}
+                  </div>
                 )}
                 {selectedFailure && (
                   <div className="phlo-observatory-detail-list">
-                    <div className="phlo-observatory-mini-row" data-state="error">
+                    <div
+                      className="phlo-observatory-mini-row"
+                      data-state="error"
+                    >
                       <span>{selectedFailure.title}</span>
                       <small>{selectedFailure.message}</small>
                     </div>
@@ -375,10 +393,14 @@ export function Operations() {
               </>
             )}
             {detail.error && (
-              <div className="phlo-observatory-panel-footer">{detail.error}</div>
+              <div className="phlo-observatory-panel-footer">
+                {detail.error}
+              </div>
             )}
             {result.error && (
-              <div className="phlo-observatory-panel-footer">{result.error}</div>
+              <div className="phlo-observatory-panel-footer">
+                {result.error}
+              </div>
             )}
           </aside>
         )}
@@ -405,7 +427,9 @@ function WapOperationFocus({ operation }: { operation: ObservatoryOperation }) {
     <div className="phlo-observatory-wap-operation">
       <div className="phlo-observatory-wap-operation-header">
         <div>
-          <span className="phlo-observatory-inspector-label">WAP execution</span>
+          <span className="phlo-observatory-inspector-label">
+            WAP execution
+          </span>
           <strong>Execution report</strong>
           <p>
             {operation.status} · {branch ?? 'branch unknown'} · {tables.length}{' '}
@@ -520,7 +544,10 @@ function OperationLine({
       onClick={() => onSelect(operation.id)}
       type="button"
     >
-      <span className="phlo-observatory-dot" data-state={operation.health.state} />
+      <span
+        className="phlo-observatory-dot"
+        data-state={operation.health.state}
+      />
       <div>
         <div className="phlo-observatory-row-title">
           <RotateCcw className="size-4" />

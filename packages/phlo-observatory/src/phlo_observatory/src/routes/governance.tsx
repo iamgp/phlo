@@ -9,7 +9,11 @@ export const Route = createFileRoute('/governance')({
 })
 
 export function Governance() {
-  const result = useLiveResource(getObservatoryGovernanceItems, 120_000, 'v2:governance')
+  const result = useLiveResource(
+    getObservatoryGovernanceItems,
+    120_000,
+    'v2:governance',
+  )
   const items = result.data ?? []
 
   return (

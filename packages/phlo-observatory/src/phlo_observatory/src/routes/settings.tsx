@@ -14,7 +14,10 @@ import { useEffect, useId, useMemo, useReducer } from 'react'
 import type { Dispatch, ReactNode } from 'react'
 
 import type { ObservatorySettings } from '@/lib/observatorySettings'
-import type { ObservatoryCapabilities, ObservatoryResourceResult } from '@/observatory/api/types'
+import type {
+  ObservatoryCapabilities,
+  ObservatoryResourceResult,
+} from '@/observatory/api/types'
 import { useObservatoryExtensions } from '@/extensions/registry'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import {
@@ -214,7 +217,9 @@ function useSettingsRoute() {
           </div>
         )}
 
-        {error && <div className="phlo-observatory-settings-error">{error}</div>}
+        {error && (
+          <div className="phlo-observatory-settings-error">{error}</div>
+        )}
 
         <SettingsPanel
           description="Defaults used when opening data and catalog views."

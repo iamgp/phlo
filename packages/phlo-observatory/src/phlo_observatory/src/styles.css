@@ -603,7 +603,8 @@ textarea.phlo-workflow-input {
   max-width: none;
 }
 
-.phlo-observatory-content:has(.phlo-workflow-stepper) .phlo-observatory-subtitle {
+.phlo-observatory-content:has(.phlo-workflow-stepper)
+  .phlo-observatory-subtitle {
   max-width: 72rem;
 }
 
