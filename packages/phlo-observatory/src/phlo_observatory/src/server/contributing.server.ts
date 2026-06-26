@@ -86,7 +86,7 @@ export async function fetchContributingRowsQueryFromApi(data: {
   catalog?: string
 }): Promise<ApiContributingRowsQueryResult | { error: string }> {
   return apiPost<ApiContributingRowsQueryResult | { error: string }>(
-    '/api/observatory/v2/contributing-rows/query',
+    '/api/observatory/contributing-rows/query',
     {
       downstream_asset_key: data.downstreamAssetKey,
       upstream_asset_key: data.upstreamAssetKey,
@@ -110,7 +110,7 @@ export async function fetchContributingRowsPageFromApi(data: {
   catalog?: string
 }): Promise<ApiContributingRowsPageResult | { error: string }> {
   return apiPost<ApiContributingRowsPageResult | { error: string }>(
-    '/api/observatory/v2/contributing-rows/page',
+    '/api/observatory/contributing-rows/page',
     {
       downstream_asset_key: data.downstreamAssetKey,
       upstream_asset_key: data.upstreamAssetKey,

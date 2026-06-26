@@ -45,9 +45,9 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
             return _FakeResponse([{"name": "dagster", "profile": "orchestration"}])
         if url.endswith("/api/services/dagster"):
             return _FakeResponse({"name": "dagster", "depends_on": []})
-        if url.endswith("/api/observatory/v2/assets"):
+        if url.endswith("/api/observatory/assets"):
             return _FakeResponse({"items": [{"id": "silver/orders", "name": "silver/orders"}]})
-        if url.endswith("/api/observatory/v2/assets/silver/orders"):
+        if url.endswith("/api/observatory/assets/silver/orders"):
             return _FakeResponse(
                 {
                     "asset": {"id": "silver/orders", "name": "silver/orders"},
@@ -55,7 +55,7 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
                     "column_lineage": {"id": []},
                 }
             )
-        if url.endswith("/api/observatory/v2/operations"):
+        if url.endswith("/api/observatory/operations"):
             assert params == {
                 "status": "failed",
                 "kind": "workflow.apply",
@@ -65,7 +65,7 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
             return _FakeResponse(
                 {"items": [{"id": "op-123", "kind": "workflow.apply", "status": "failed"}]}
             )
-        if url.endswith("/api/observatory/v2/operations/op-123/agent-context"):
+        if url.endswith("/api/observatory/operations/op-123/agent-context"):
             return _FakeResponse(
                 {
                     "schema_version": "phlo.operation_observability.v1",
@@ -154,7 +154,7 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
                     }
                 ]
             )
-        if "/api/observatory/v2/assets/" in url and url.endswith("/materializations"):
+        if "/api/observatory/assets/" in url and url.endswith("/materializations"):
             return _FakeResponse([{"run_id": "run-123", "timestamp": "2026-01-01T00:00:00Z"}])
         if url.endswith("/links/logs"):
             return _FakeResponse({"url": "http://logs.test"})
@@ -199,7 +199,7 @@ def test_api_client_wraps_observability_routes(monkeypatch) -> None:
     assert client.get_logs_query_link()["url"] == "http://logs.test"
     assert client.get_metrics_query_link()["url"] == "http://metrics.test"
     assert "http://example.test/api/observability/health" in seen_urls
-    assert seen_params[seen_urls.index("http://example.test/api/observatory/v2/operations")] == {
+    assert seen_params[seen_urls.index("http://example.test/api/observatory/operations")] == {
         "status": "failed",
         "kind": "workflow.apply",
         "q": "orders",
@@ -310,33 +310,33 @@ def test_api_client_wraps_operational_routes(monkeypatch) -> None:
             "timeout": 30.0,
         },
         {
-            "url": "http://example.test/api/observatory/v2/assets/silver/orders/materialize",
+            "url": "http://example.test/api/observatory/assets/silver/orders/materialize",
             "json": {"dry_run": True, "partition_key": "2026-04-26"},
             "headers": {"Authorization": "Bearer secret"},
             "timeout": 30.0,
         },
         {
-            "url": "http://example.test/api/observatory/v2/runs/run-123/retry",
+            "url": "http://example.test/api/observatory/runs/run-123/retry",
             "json": {"dry_run": False},
             "headers": {"Authorization": "Bearer secret"},
             "timeout": 30.0,
         },
         {
-            "url": "http://example.test/api/observatory/v2/runs/run-123/cancel",
+            "url": "http://example.test/api/observatory/runs/run-123/cancel",
             "json": {"reason": "stuck"},
             "headers": {"Authorization": "Bearer secret"},
             "timeout": 30.0,
         },
         {
-            "url": "http://example.test/api/observatory/v2/assets/silver/orders/backfill",
+            "url": "http://example.test/api/observatory/assets/silver/orders/backfill",
             "json": {"dry_run": True, "partitions": ["2026-04-26"]},
             "headers": {"Authorization": "Bearer secret"},
             "timeout": 30.0,
         },
     ]
     assert seen_gets == [
-        "http://example.test/api/observatory/v2/runs/run-123/status",
-        "http://example.test/api/observatory/v2/assets/silver/orders/partitions",
+        "http://example.test/api/observatory/runs/run-123/status",
+        "http://example.test/api/observatory/assets/silver/orders/partitions",
     ]
 
 

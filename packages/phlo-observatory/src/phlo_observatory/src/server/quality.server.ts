@@ -69,7 +69,7 @@ export const getAssetChecks = createServerFn()
         const result = await withCache(
           () =>
             apiGet<ApiAssetDetail | { error: string }>(
-              `/api/observatory/v2/assets/${keyPath}`,
+              `/api/observatory/assets/${keyPath}`,
             ),
           cacheKeys.qualityAssetChecks(keyPath),
           cacheTTL.qualityAssetChecks,

@@ -111,7 +111,7 @@ export async function fetchAssetGraphFromApi(): Promise<
   ApiAssetGraph | { error: string }
 > {
   return apiGet<ApiAssetGraph | { error: string }>(
-    '/api/observatory/v2/asset-graph',
+    '/api/observatory/asset-graph',
   )
 }
 
@@ -121,7 +121,7 @@ async function fetchAssetNeighborsFromApi(params: {
   depth: number
 }): Promise<ApiAssetGraph | { error: string }> {
   return apiGet<ApiAssetGraph | { error: string }>(
-    '/api/observatory/v2/asset-graph/neighbors',
+    '/api/observatory/asset-graph/neighbors',
     {
       asset_key: params.assetKey,
       direction: params.direction,
@@ -135,7 +135,7 @@ export async function fetchAssetImpactFromApi(params: {
   maxDepth?: number
 }): Promise<Array<ApiImpactedAsset> | { error: string }> {
   return apiGet<Array<ApiImpactedAsset> | { error: string }>(
-    '/api/observatory/v2/asset-graph/impact',
+    '/api/observatory/asset-graph/impact',
     {
       asset_key: params.assetKey,
       max_depth: params.maxDepth ?? 99,

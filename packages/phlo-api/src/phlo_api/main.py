@@ -70,14 +70,10 @@ _ROUTERS = [
     ("phlo_api.api.maintenance", "/api/maintenance"),
     ("phlo_api.api.observability", "/api/observability"),
     ("phlo_api.observatory_api.loki", "/api/loki"),
-    ("phlo_api.observatory_api.v2", "/api/observatory/v2"),
+    ("phlo_api.observatory_api.observatory", "/api/observatory"),
 ]
 
-_OBSERVATORY_ROUTERS_NO_PREFIX = [
-    "extensions",
-    "extension_settings",
-    "settings",
-]
+_OBSERVATORY_ROUTERS_NO_PREFIX: list[str] = []
 
 
 def _register_observatory_routers() -> None:

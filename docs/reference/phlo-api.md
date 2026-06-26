@@ -7,7 +7,7 @@ Observatory backend API for Phlo infrastructure management.
 The `phlo-api` is a FastAPI-based backend service that provides the Observatory UI with access to:
 
 - **Plugin & Service Management**: Discover and manage plugins and services
-- **Observatory v2**: Provider-neutral read models, capability inventory, guarded actions, and UI surface contracts
+- **Observatory**: Provider-neutral read models, capability inventory, guarded actions, and UI surface contracts
 - **Data Querying**: Execute queries against Trino and Iceberg tables
 - **Orchestration**: Interact with Dagster assets and runs
 - **Data Catalog**: Manage Nessie branches and catalog metadata
@@ -47,7 +47,7 @@ The [phlo-api package page](../packages/phlo-api.md) describes installation and 
 This includes detailed documentation for all endpoints:
 
 - Core endpoints (health, config, plugins, services, registry)
-- Observatory v2 read models and actions
+- Observatory read models and actions
 - Trino query engine (connection, preview, profiling, metrics, query execution)
 - Iceberg tables (list, schema, metadata)
 - Dagster assets (health, assets, history)
@@ -76,50 +76,50 @@ This includes detailed documentation for all endpoints:
 | `GET /api/contracts` | Known contract snapshots |
 | `GET /api/contracts/{table_name}` | Contract for one table |
 
-## Observatory v2 Endpoints
+## Observatory Endpoints
 
-Observatory v2 endpoints live under `/api/observatory/v2`. They are provider-neutral contracts: the UI should consume these read models and guarded actions instead of calling provider-specific services directly.
+Observatory endpoints live under `/api/observatory`. They are provider-neutral contracts: the UI should consume these read models and guarded actions instead of calling provider-specific services directly.
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /api/observatory/v2/overview` | Runtime overview summary |
-| `GET /api/observatory/v2/capabilities` | High-level available capabilities |
-| `GET /api/observatory/v2/capability-inventory` | Source of truth for v2 surfaces, read models, actions, and native link declarations |
-| `GET /api/observatory/v2/services` | Service list |
-| `GET /api/observatory/v2/services/{service_id}` | Service detail |
-| `GET /api/observatory/v2/operations` | Operator workflow and recovery operations |
-| `GET /api/observatory/v2/operations/{operation_id}` | Operation detail |
-| `GET /api/observatory/v2/operations/{operation_id}/agent-context` | Stable operation observability and incident context for agents |
-| `GET /api/observatory/v2/runs` | Runtime run list |
-| `GET /api/observatory/v2/storage` | Storage surface read model |
-| `GET /api/observatory/v2/observability` | Observability surface read model |
-| `GET /api/observatory/v2/governance` | Governance surface read model |
-| `GET /api/observatory/v2/catalog` | Catalog surface read model |
-| `GET /api/observatory/v2/apis` | API surface read model |
-| `GET /api/observatory/v2/bi` | BI surface read model |
-| `GET /api/observatory/v2/assets` | Asset list |
-| `GET /api/observatory/v2/assets/{asset_id}` | Asset detail |
-| `GET /api/observatory/v2/tables` | Table list |
-| `GET /api/observatory/v2/table-preview/{table_id}` | Read-only table preview |
-| `GET /api/observatory/v2/saved-queries` | Saved query list |
-| `POST /api/observatory/v2/saved-queries` | Create a saved query |
-| `GET /api/observatory/v2/stage-diff` | Table or branch stage diff |
-| `POST /api/observatory/v2/query` | Guarded read-only query execution |
-| `GET /api/observatory/v2/row-journey/{table_id}/{row_id}` | Row journey/provenance view |
-| `GET /api/observatory/v2/quality` | Quality check list |
-| `GET /api/observatory/v2/quality/{check_id}` | Quality check detail |
-| `GET /api/observatory/v2/logs` | Log list |
-| `GET /api/observatory/v2/logs/facets` | Log filter facets |
-| `GET /api/observatory/v2/branches` | Branch list |
-| `POST /api/observatory/v2/branches/actions` | Guarded branch action execution |
-| `GET /api/observatory/v2/branches/{branch_name}` | Branch detail |
-| `GET /api/observatory/v2/extensions` | Extension list |
-| `GET /api/observatory/v2/extensions/{extension_id}` | Extension detail |
-| `GET /api/observatory/v2/settings` | Settings and capability inventory surface |
-| `GET /api/observatory/v2/search` | Global Observatory search |
-| `POST /api/observatory/v2/actions` | Generic guarded v2 action execution |
+| `GET /api/observatory/overview` | Runtime overview summary |
+| `GET /api/observatory/capabilities` | High-level available capabilities |
+| `GET /api/observatory/capability-inventory` | Source of truth for surfaces, read models, actions, and native link declarations |
+| `GET /api/observatory/services` | Service list |
+| `GET /api/observatory/services/{service_id}` | Service detail |
+| `GET /api/observatory/operations` | Operator workflow and recovery operations |
+| `GET /api/observatory/operations/{operation_id}` | Operation detail |
+| `GET /api/observatory/operations/{operation_id}/agent-context` | Stable operation observability and incident context for agents |
+| `GET /api/observatory/runs` | Runtime run list |
+| `GET /api/observatory/storage` | Storage surface read model |
+| `GET /api/observatory/observability` | Observability surface read model |
+| `GET /api/observatory/governance` | Governance surface read model |
+| `GET /api/observatory/catalog` | Catalog surface read model |
+| `GET /api/observatory/apis` | API surface read model |
+| `GET /api/observatory/bi` | BI surface read model |
+| `GET /api/observatory/assets` | Asset list |
+| `GET /api/observatory/assets/{asset_id}` | Asset detail |
+| `GET /api/observatory/tables` | Table list |
+| `GET /api/observatory/table-preview/{table_id}` | Read-only table preview |
+| `GET /api/observatory/saved-queries` | Saved query list |
+| `POST /api/observatory/saved-queries` | Create a saved query |
+| `GET /api/observatory/stage-diff` | Table or branch stage diff |
+| `POST /api/observatory/query` | Guarded read-only query execution |
+| `GET /api/observatory/row-journey/{table_id}/{row_id}` | Row journey/provenance view |
+| `GET /api/observatory/quality` | Quality check list |
+| `GET /api/observatory/quality/{check_id}` | Quality check detail |
+| `GET /api/observatory/logs` | Log list |
+| `GET /api/observatory/logs/facets` | Log filter facets |
+| `GET /api/observatory/branches` | Branch list |
+| `POST /api/observatory/branches/actions` | Guarded branch action execution |
+| `GET /api/observatory/branches/{branch_name}` | Branch detail |
+| `GET /api/observatory/extensions` | Extension list |
+| `GET /api/observatory/extensions/{extension_id}` | Extension detail |
+| `GET /api/observatory/settings` | Settings and capability inventory surface |
+| `GET /api/observatory/search` | Global Observatory search |
+| `POST /api/observatory/actions` | Generic guarded action execution |
 
-See [Observatory v2 Contracts](observatory-v2-contracts.md) for the capability contribution model and browser-safety rules.
+See [Observatory Contracts](observatory-contracts.md) for the capability contribution model and browser-safety rules.
 
 ## Key Features
 
@@ -227,7 +227,7 @@ phlo-api/
 ├── main.py                      # Core endpoints (config, plugins, services, contracts)
 ├── api/                         # capability APIs such as observability and maintenance
 └── observatory_api/
-    ├── v2.py                    # provider-neutral Observatory v2 contracts
+    ├── observatory.py                    # provider-neutral Observatory contracts
     ├── trino.py                 # Query execution
     ├── iceberg.py               # Table catalog
     ├── dagster.py               # Asset management
@@ -335,5 +335,5 @@ curl http://localhost:3100/ready
 
 - [phlo-api package](../packages/phlo-api.md)
 - [Observatory package](../packages/phlo-observatory.md)
-- [Observatory v2 Contracts](observatory-v2-contracts.md)
+- [Observatory Contracts](observatory-contracts.md)
 - [CLI Reference](cli-reference.md)

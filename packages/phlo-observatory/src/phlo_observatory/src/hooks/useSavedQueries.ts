@@ -18,6 +18,7 @@ let listeners: Array<() => void> = []
 
 // Cache for stable snapshot references
 let cachedQueries: Array<SavedQuery> | null = null
+const emptySavedQueries: Array<SavedQuery> = []
 
 function subscribe(callback: () => void): () => void {
   listeners.push(callback)
@@ -48,7 +49,7 @@ function getQueriesSnapshot(): Array<SavedQuery> {
 }
 
 function getServerSnapshot(): Array<SavedQuery> {
-  return []
+  return emptySavedQueries
 }
 
 /**

@@ -850,7 +850,7 @@ async function runServiceActionViaApi(
   action: ServiceControlAction,
 ): Promise<{ success: boolean; error?: string }> {
   const result = await apiPost<ServiceActionResult>(
-    '/api/observatory/v2/actions',
+    '/api/observatory/actions',
     { action_id: serviceActionId(serviceName, action) },
     130000,
   )

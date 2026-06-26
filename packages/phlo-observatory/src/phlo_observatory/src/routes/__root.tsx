@@ -15,8 +15,8 @@ import { ObservatorySettingsProvider } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/toaster'
-import { V2Shell } from '@/v2/shell/V2Shell'
-import { V2_THEME_STORAGE_KEY } from '@/v2/shell/theme'
+import { ObservatoryShell } from '@/observatory/shell/ObservatoryShell'
+import { OBSERVATORY_THEME_STORAGE_KEY } from '@/observatory/shell/theme'
 
 if (typeof window !== 'undefined') {
   ;(
@@ -54,13 +54,13 @@ export const Route = createRootRoute({
   notFoundComponent: NotFound,
 })
 
-const V2_THEME_BOOTSTRAP = `;(() => {
+const OBSERVATORY_THEME_BOOTSTRAP = `;(() => {
   try {
-    var mode = window.localStorage.getItem('${V2_THEME_STORAGE_KEY}');
+    var mode = window.localStorage.getItem('${OBSERVATORY_THEME_STORAGE_KEY}');
     var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     var dark = mode === 'dark' || (mode !== 'light' && systemDark);
-    document.documentElement.dataset.phloV2Route = 'true';
-    document.documentElement.dataset.phloV2Theme = dark ? 'dark' : 'light';
+    document.documentElement.dataset.phloObservatoryRoute = 'true';
+    document.documentElement.dataset.phloObservatoryTheme = dark ? 'dark' : 'light';
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
   } catch (_) {}
 })();`
@@ -87,7 +87,7 @@ function RootLayout() {
         <meta name="phlo-api-browser-url" content={browserApiUrl} />
         <script
           suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: V2_THEME_BOOTSTRAP }}
+          dangerouslySetInnerHTML={{ __html: OBSERVATORY_THEME_BOOTSTRAP }}
         />
         <script
           suppressHydrationWarning
@@ -95,7 +95,7 @@ function RootLayout() {
         />
         <HeadContent />
       </head>
-      <body className="phlo-v2-document min-h-svh bg-background text-foreground">
+      <body className="phlo-observatory-document min-h-svh bg-background text-foreground">
         <ThemeProvider
           colorMode="auto"
           dayScheme="light"
@@ -106,9 +106,9 @@ function RootLayout() {
             <QueryClientProvider client={queryClient}>
               <ObservatorySettingsProvider>
                 <ObservatoryExtensionProvider>
-                  <V2Shell>
+                  <ObservatoryShell>
                     <Outlet />
-                  </V2Shell>
+                  </ObservatoryShell>
                 </ObservatoryExtensionProvider>
               </ObservatorySettingsProvider>
             </QueryClientProvider>
@@ -123,10 +123,10 @@ function RootLayout() {
 
 function NotFound() {
   return (
-    <div className="phlo-v2-content">
-      <section className="phlo-v2-panel phlo-v2-empty-panel">
-        <h1 className="phlo-v2-title">Page not found</h1>
-        <p className="phlo-v2-subtitle">
+    <div className="phlo-observatory-content">
+      <section className="phlo-observatory-panel phlo-observatory-empty-panel">
+        <h1 className="phlo-observatory-title">Page not found</h1>
+        <p className="phlo-observatory-subtitle">
           This Observatory surface is not available.
         </p>
         <Link to="/" className={cn(buttonVariants({ size: 'sm' }))}>

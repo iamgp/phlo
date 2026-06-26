@@ -163,6 +163,14 @@ export function ObservatoryExtensionProvider({
     }
 
     const loadExtensions = async () => {
+      if (
+        import.meta.env.DEV &&
+        !(window as typeof window & { __PHLO_API_BROWSER_URL__?: string })
+          .__PHLO_API_BROWSER_URL__
+      ) {
+        return
+      }
+
       let entries: Array<ObservatoryExtension>
       try {
         entries = await getObservatoryExtensions()
