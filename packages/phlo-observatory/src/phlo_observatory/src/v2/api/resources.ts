@@ -59,7 +59,7 @@ function browserApiBase(): string | null {
     window.__PHLO_API_BROWSER_URL__ ??
     document.querySelector<HTMLMetaElement>('meta[name="phlo-api-browser-url"]')
       ?.content
-  if (configured !== undefined) return configured
+  if (configured !== undefined) return configured.trim() || null
   return null
 }
 
@@ -128,7 +128,10 @@ async function browserApiPost<T>(
 }
 
 async function v2ApiGet<T>(endpoint: string): Promise<T> {
-  if (browserApiBase() !== null) return browserApiGet<T>(endpoint)
+  if (typeof window !== 'undefined') {
+    if (browserApiBase() !== null) return browserApiGet<T>(endpoint)
+    throw new Error('Browser API base URL is not configured')
+  }
   return apiGet<T>(endpoint, undefined, 8000)
 }
 
@@ -335,6 +338,9 @@ export async function getV2TablePreview({
         `${endpoint}?${searchParams}`,
       )
       return { data, error: null }
+    }
+    if (typeof window !== 'undefined') {
+      throw new Error('Browser API base URL is not configured')
     }
     const data = await apiGet<V2TablePreview>(endpoint, { limit, offset }, 8000)
     return { data, error: null }

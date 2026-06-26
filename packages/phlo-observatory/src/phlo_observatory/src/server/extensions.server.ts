@@ -66,42 +66,50 @@ export type ObservatoryExtension = {
   assetsBaseUrl: string
 }
 
-export const getObservatoryExtensions = createServerFn().handler(
-  async (): Promise<Array<ObservatoryExtension>> => {
-    const response = await apiGet<ObservatoryExtensionResponse>(
-      '/api/observatory/extensions',
-    )
+export async function resolveObservatoryExtensions(
+  fetchExtensions: () => Promise<ObservatoryExtensionResponse> = () =>
+    apiGet<ObservatoryExtensionResponse>('/api/observatory/extensions'),
+): Promise<Array<ObservatoryExtension>> {
+  let response: ObservatoryExtensionResponse
+  try {
+    response = await fetchExtensions()
+  } catch {
+    return []
+  }
 
-    return response.extensions.map((entry) => {
-      const basePath = entry.assets_base_path
-      const assetsBaseUrl = `${PHLO_API_URL}${basePath}`
+  return response.extensions.map((entry) => {
+    const basePath = entry.assets_base_path
+    const assetsBaseUrl = `${PHLO_API_URL}${basePath}`
 
-      const manifest: ObservatoryExtensionManifest = {
-        ...entry.manifest,
-        ui: entry.manifest.ui
-          ? {
-              ...entry.manifest.ui,
-              routes: entry.manifest.ui.routes?.map((route) => ({
-                ...route,
-                module: withAssetUrl(basePath, route.module),
-              })),
-              slots: entry.manifest.ui.slots?.map((slot) => ({
-                ...slot,
-                module: withAssetUrl(basePath, slot.module),
-              })),
-              settings: entry.manifest.ui.settings?.map((setting) => ({
-                ...setting,
-                module: withAssetUrl(basePath, setting.module),
-              })),
-            }
-          : undefined,
-      }
+    const manifest: ObservatoryExtensionManifest = {
+      ...entry.manifest,
+      ui: entry.manifest.ui
+        ? {
+            ...entry.manifest.ui,
+            routes: entry.manifest.ui.routes?.map((route) => ({
+              ...route,
+              module: withAssetUrl(basePath, route.module),
+            })),
+            slots: entry.manifest.ui.slots?.map((slot) => ({
+              ...slot,
+              module: withAssetUrl(basePath, slot.module),
+            })),
+            settings: entry.manifest.ui.settings?.map((setting) => ({
+              ...setting,
+              module: withAssetUrl(basePath, setting.module),
+            })),
+          }
+        : undefined,
+    }
 
-      return {
-        manifest,
-        assetsBasePath: basePath,
-        assetsBaseUrl,
-      }
-    })
-  },
+    return {
+      manifest,
+      assetsBasePath: basePath,
+      assetsBaseUrl,
+    }
+  })
+}
+
+export const getObservatoryExtensions = createServerFn().handler(() =>
+  resolveObservatoryExtensions(),
 )

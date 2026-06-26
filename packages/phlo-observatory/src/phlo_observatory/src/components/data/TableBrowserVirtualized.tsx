@@ -251,7 +251,7 @@ export function TableBrowserVirtualized({
     return (
       <div className="p-4 text-red-400 text-sm">
         <p className="font-medium mb-1">Failed to load tables</p>
-        <p className="text-red-400/70">{error}</p>
+        <p className="text-red-400/70">Lakehouse API is unavailable.</p>
       </div>
     )
   }

@@ -110,11 +110,11 @@ function RowDetailPage() {
         } else {
           dispatch({ type: 'loaded', rowData: result })
         }
-      } catch (err) {
+      } catch {
         if (cancelled) return
         dispatch({
           type: 'error',
-          error: err instanceof Error ? err.message : 'Failed to load row',
+          error: 'Row detail is unavailable.',
         })
       }
     }

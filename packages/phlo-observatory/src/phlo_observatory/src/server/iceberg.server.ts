@@ -75,9 +75,19 @@ export const getTables = createServerFn()
 
       return withCache(
         async () => {
-          const result = await apiGet<ApiBranchDetail | { error: string }>(
-            `/api/observatory/v2/branches/${encodeURIComponent(branch)}`,
-          )
+          let result: ApiBranchDetail | { error: string }
+          try {
+            result = await apiGet<ApiBranchDetail | { error: string }>(
+              `/api/observatory/v2/branches/${encodeURIComponent(branch)}`,
+            )
+          } catch (error) {
+            return {
+              error:
+                error instanceof Error
+                  ? error.message
+                  : 'Lakehouse API is unavailable',
+            }
+          }
 
           if ('error' in result) {
             return result

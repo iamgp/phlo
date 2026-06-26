@@ -23,7 +23,14 @@ export function BranchDetailView({ branchName }: { branchName: string }) {
   })
 
   useEffect(() => {
-    void getV2BranchDetail({ data: { branchName } }).then(setResult)
+    void getV2BranchDetail({ data: { branchName } })
+      .then(setResult)
+      .catch(() =>
+        setResult({
+          data: null,
+          error: 'Branch detail is unavailable.',
+        }),
+      )
   }, [branchName])
 
   const detail = result.data

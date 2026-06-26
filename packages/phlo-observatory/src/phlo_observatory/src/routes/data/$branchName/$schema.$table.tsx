@@ -661,7 +661,9 @@ function PreviewTab({
   return (
     <div className="h-full flex flex-col min-h-0 overflow-hidden">
       {previewError ? (
-        <div className="p-4 text-sm text-destructive">{previewError}</div>
+        <div className="p-4 text-sm text-destructive">
+          Table preview is unavailable.
+        </div>
       ) : null}
       <ObservatoryTable
         columns={preview?.columns ?? []}

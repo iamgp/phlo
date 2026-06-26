@@ -198,7 +198,7 @@ function browserApiBase(): string | null {
     window.__PHLO_API_BROWSER_URL__ ??
     document.querySelector<HTMLMetaElement>('meta[name="phlo-api-browser-url"]')
       ?.content
-  return configured ?? null
+  return configured?.trim() || null
 }
 
 function fallbackEndpoint(key: string): string | null {

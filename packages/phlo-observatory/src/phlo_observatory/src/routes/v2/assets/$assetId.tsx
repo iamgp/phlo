@@ -29,7 +29,14 @@ export function AssetDetailView({ assetId }: { assetId: string }) {
   })
 
   useEffect(() => {
-    void getV2AssetDetail({ data: { assetId } }).then(setResult)
+    void getV2AssetDetail({ data: { assetId } })
+      .then(setResult)
+      .catch(() =>
+        setResult({
+          data: null,
+          error: 'Asset detail is unavailable.',
+        }),
+      )
   }, [assetId])
 
   const detail = result.data

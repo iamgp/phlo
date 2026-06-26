@@ -33,9 +33,14 @@ export function TableDetailView({ tableId }: { tableId: string }) {
   })
 
   useEffect(() => {
-    void getV2TablePreview({ data: { tableId, limit: previewLimit } }).then(
-      setResult,
-    )
+    void getV2TablePreview({ data: { tableId, limit: previewLimit } })
+      .then(setResult)
+      .catch(() =>
+        setResult({
+          data: null,
+          error: 'Table detail is unavailable.',
+        }),
+      )
   }, [tableId])
 
   const preview = result.data
@@ -168,7 +173,9 @@ export function TableDetailView({ tableId }: { tableId: string }) {
         </section>
       ) : (
         <div className="phlo-v2-empty-state">
-          {result.error ?? 'Loading table detail…'}
+          {result.error
+            ? 'Table detail is unavailable.'
+            : 'Loading table detail…'}
         </div>
       )}
     </V2Page>

@@ -23,7 +23,14 @@ export function ExtensionDetailView({ extensionId }: { extensionId: string }) {
   })
 
   useEffect(() => {
-    void getV2ExtensionDetail({ data: { extensionId } }).then(setResult)
+    void getV2ExtensionDetail({ data: { extensionId } })
+      .then(setResult)
+      .catch(() =>
+        setResult({
+          data: null,
+          error: 'Extension detail is unavailable.',
+        }),
+      )
   }, [extensionId])
 
   const detail = result.data

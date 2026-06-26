@@ -336,6 +336,7 @@ function useV2Shell({ children }: { children: ReactNode }) {
 function isActive(pathname: string, href: string): boolean {
   const cleanPathname = cleanPath(pathname)
   const cleanHref = cleanPath(href)
+  if (cleanPathname === '/graph' && cleanHref === '/assets') return true
   if (cleanHref === '/') return cleanPathname === '/'
   return (
     cleanPathname === cleanHref || cleanPathname.startsWith(`${cleanHref}/`)
@@ -391,6 +392,7 @@ function pageForPath(
     '/branches/': 'branches',
     '/extension/': 'extensions',
     '/extensions/': 'extensions',
+    '/graph': 'assets',
   }
   const match = Object.entries(aliases).find(([prefix]) =>
     cleanPathname.startsWith(prefix),
