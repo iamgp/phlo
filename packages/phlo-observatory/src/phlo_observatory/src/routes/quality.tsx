@@ -4,31 +4,38 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
-  V2QualityCheck,
-  V2QualityDetail,
-  V2ResourceResult,
-} from '@/v2/api/types'
-import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
+  ObservatoryQualityCheck,
+  ObservatoryQualityDetail,
+  ObservatoryResourceResult,
+} from '@/observatory/api/types'
+import type {
+  ObservatoryFlowEdge,
+  ObservatoryFlowNode,
+} from '@/observatory/components/ObservatoryFlowCanvas'
 import {
-  getV2QualityDetail,
-  getV2QualityRecords,
-  runV2Action,
-} from '@/v2/api/resources'
-import { ActionButton } from '@/v2/components/ActionButton'
-import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
-import { V2Page } from '@/v2/components/V2Page'
+  getObservatoryQualityDetail,
+  getObservatoryQualityRecords,
+  runObservatoryAction,
+} from '@/observatory/api/resources'
+import { ActionButton } from '@/observatory/components/ActionButton'
+import { ObservatoryFlowCanvas } from '@/observatory/components/ObservatoryFlowCanvas'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import {
   invalidateCachedResources,
   loadCachedResource,
   useLiveResource,
-} from '@/v2/routes/liveResource'
+} from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/quality')({
   component: Quality,
 })
 
 export function Quality() {
-  const result = useLiveResource(getV2QualityRecords, 120_000, 'v2:quality')
+  const result = useLiveResource(
+    getObservatoryQualityRecords,
+    120_000,
+    'v2:quality',
+  )
   const checks = result.data ?? []
   const sortedChecks = useMemo(() => [...checks].sort(compareQuality), [checks])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -45,7 +52,9 @@ export function Quality() {
     sortedChecks.find((check) => check.id === selectedId) ??
     sortedChecks[0] ??
     null
-  const [detail, setDetail] = useState<V2ResourceResult<V2QualityDetail>>({
+  const [detail, setDetail] = useState<
+    ObservatoryResourceResult<ObservatoryQualityDetail>
+  >({
     data: null,
     error: null,
   })
@@ -62,7 +71,7 @@ export function Quality() {
     let cancelled = false
     void loadCachedResource(
       `v2:quality-detail:${selected.id}`,
-      () => getV2QualityDetail({ data: { checkId: selected.id } }),
+      () => getObservatoryQualityDetail({ data: { checkId: selected.id } }),
       { staleMs: 120_000 },
     ).then((next) => {
       if (!cancelled) setDetail(next)
@@ -73,22 +82,24 @@ export function Quality() {
   }, [selected])
 
   return (
-    <V2Page
+    <ObservatoryPage
       kicker="Issues"
       title="Data issues"
       description="Review failing, warning, and not-yet-observed checks as one operational queue."
-      action={<span className="phlo-v2-pill">{checks.length} checks</span>}
+      action={
+        <span className="phlo-observatory-pill">{checks.length} checks</span>
+      }
     >
-      <section className="phlo-v2-quality-shell">
-        <div className="phlo-v2-quality-board">
-          <div className="phlo-v2-quality-score">
+      <section className="phlo-observatory-quality-shell">
+        <div className="phlo-observatory-quality-board">
+          <div className="phlo-observatory-quality-score">
             <strong>{score === null ? '—' : score}</strong>
             <span>Observed health</span>
             <small>
               {observed} observed · {failing} failing · {unknown} pending
             </small>
           </div>
-          <div className="phlo-v2-command-strip">
+          <div className="phlo-observatory-command-strip">
             <Metric
               icon={<Shield className="size-4" />}
               label="Blocking"
@@ -105,7 +116,7 @@ export function Quality() {
               value={unknown}
             />
           </div>
-          <div className="phlo-v2-data-main-tabs" role="tablist">
+          <div className="phlo-observatory-data-main-tabs" role="tablist">
             {qualityViews.map((view) => (
               <button
                 aria-selected={activeView === view.id}
@@ -121,14 +132,14 @@ export function Quality() {
             ))}
           </div>
           {activeView === 'graph' ? (
-            <div className="phlo-v2-flow-band">
-              <div className="phlo-v2-workspace-toolbar">
+            <div className="phlo-observatory-flow-band">
+              <div className="phlo-observatory-workspace-toolbar">
                 <span>Issue graph</span>
-                <span className="phlo-v2-pill">
+                <span className="phlo-observatory-pill">
                   {graph.edges.length} bindings
                 </span>
               </div>
-              <V2FlowCanvas
+              <ObservatoryFlowCanvas
                 edges={graph.edges}
                 nodes={graph.nodes}
                 onSelect={setSelectedId}
@@ -136,7 +147,7 @@ export function Quality() {
               />
             </div>
           ) : (
-            <div className="phlo-v2-check-list">
+            <div className="phlo-observatory-check-list">
               {sortedChecks.map((check) => (
                 <CheckRow
                   key={check.id}
@@ -146,7 +157,7 @@ export function Quality() {
                 />
               ))}
               {checks.length === 0 && (
-                <div className="phlo-v2-empty-state">
+                <div className="phlo-observatory-empty-state">
                   No quality checks registered yet.
                 </div>
               )}
@@ -154,13 +165,13 @@ export function Quality() {
           )}
         </div>
 
-        <aside className="phlo-v2-inspector">
-          <div className="phlo-v2-inspector-label">Triage context</div>
+        <aside className="phlo-observatory-inspector">
+          <div className="phlo-observatory-inspector-label">Triage context</div>
           {selected ? (
             <>
               <h2>{selected.name}</h2>
               <p>{selected.description ?? selected.asset_id}</p>
-              <dl className="phlo-v2-facts">
+              <dl className="phlo-observatory-facts">
                 <Fact label="Asset" value={selected.asset_id} />
                 <Fact
                   label="Severity"
@@ -173,18 +184,18 @@ export function Quality() {
                 <Fact label="Status" value={qualityStatusLabel(selected)} />
                 <Fact label="Owner" value={readMetadata(selected, 'owner')} />
               </dl>
-              <div className="phlo-v2-detail-list">
+              <div className="phlo-observatory-detail-list">
                 {urgentReason(selected) && (
-                  <div className="phlo-v2-mini-row">
+                  <div className="phlo-observatory-mini-row">
                     <span>Why it matters</span>
                     <small>{urgentReason(selected)}</small>
                   </div>
                 )}
-                <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-mini-row">
                   <span>Latest result</span>
                   <small>{qualityResultSummary(selected)}</small>
                 </div>
-                <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-mini-row">
                   <span>Asset detail</span>
                   <small>
                     {detail.data?.asset?.description ??
@@ -192,27 +203,27 @@ export function Quality() {
                       'No linked asset detail returned'}
                   </small>
                 </div>
-                <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-mini-row">
                   <span>History</span>
                   <small>{detail.data?.history.length ?? 0} executions</small>
                 </div>
-                <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-mini-row">
                   <span>Logs</span>
                   <small>{detail.data?.logs.length ?? 0} linked events</small>
                 </div>
-                <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-mini-row">
                   <span>Actions</span>
                   <small>{qualityActionsSummary(detail.data)}</small>
                 </div>
               </div>
               {(detail.data?.actions ?? []).length > 0 && (
-                <div className="phlo-v2-action-row">
+                <div className="phlo-observatory-action-row">
                   {(detail.data?.actions ?? []).map((action) => (
                     <ActionButton
                       action={action}
                       key={action.id}
                       onRun={(actionId) => {
-                        void runV2Action({ data: { actionId } }).then(
+                        void runObservatoryAction({ data: { actionId } }).then(
                           (next) => {
                             invalidateCachedResources([
                               'v2:operations',
@@ -231,21 +242,23 @@ export function Quality() {
                 </div>
               )}
               {actionMessage && (
-                <div className="phlo-v2-panel-footer">{actionMessage}</div>
+                <div className="phlo-observatory-panel-footer">
+                  {actionMessage}
+                </div>
               )}
             </>
           ) : (
             <p>No quality check selected.</p>
           )}
           {detail.error && (
-            <div className="phlo-v2-panel-footer">{detail.error}</div>
+            <div className="phlo-observatory-panel-footer">{detail.error}</div>
           )}
           {result.error && (
-            <div className="phlo-v2-panel-footer">{result.error}</div>
+            <div className="phlo-observatory-panel-footer">{result.error}</div>
           )}
         </aside>
       </section>
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
@@ -259,7 +272,7 @@ function Metric({
   value: string | number
 }) {
   return (
-    <div className="phlo-v2-command-metric">
+    <div className="phlo-observatory-command-metric">
       {icon}
       <span>{label}</span>
       <strong>{value}</strong>
@@ -283,19 +296,19 @@ function CheckRow({
   onSelect,
   selected,
 }: {
-  check: V2QualityCheck
+  check: ObservatoryQualityCheck
   onSelect: (id: string) => void
   selected: boolean
 }) {
   return (
     <button
-      className="phlo-v2-check-row"
+      className="phlo-observatory-check-row"
       data-active={selected}
       onClick={() => onSelect(check.id)}
       type="button"
     >
       <span
-        className="phlo-v2-dot"
+        className="phlo-observatory-dot"
         data-state={
           check.status === 'failing'
             ? 'error'
@@ -305,31 +318,31 @@ function CheckRow({
         }
       />
       <div>
-        <div className="phlo-v2-row-title">
+        <div className="phlo-observatory-row-title">
           <ShieldCheck className="size-4" />
           {check.name}
         </div>
-        <div className="phlo-v2-row-meta">{check.asset_id}</div>
+        <div className="phlo-observatory-row-meta">{check.asset_id}</div>
       </div>
-      <span className="phlo-v2-pill">{qualityStatusLabel(check)}</span>
-      <span className="phlo-v2-pill">
+      <span className="phlo-observatory-pill">{qualityStatusLabel(check)}</span>
+      <span className="phlo-observatory-pill">
         {check.severity ?? qualityStatusLabel(check)}
       </span>
-      <span className="phlo-v2-pill">
+      <span className="phlo-observatory-pill">
         {check.blocking ? 'blocking' : 'advisory'}
       </span>
     </button>
   )
 }
 
-function buildQualityGraph(checks: Array<V2QualityCheck>): {
-  nodes: Array<V2FlowNode>
-  edges: Array<V2FlowEdge>
+function buildQualityGraph(checks: Array<ObservatoryQualityCheck>): {
+  nodes: Array<ObservatoryFlowNode>
+  edges: Array<ObservatoryFlowEdge>
 } {
   const assetNodes = Array.from(
     new Set(checks.map((check) => check.asset_id)),
   ).map(
-    (asset): V2FlowNode => ({
+    (asset): ObservatoryFlowNode => ({
       id: `asset:${asset}`,
       label: asset,
       kind: 'asset',
@@ -340,7 +353,7 @@ function buildQualityGraph(checks: Array<V2QualityCheck>): {
   )
 
   const checkNodes = checks.map(
-    (check): V2FlowNode => ({
+    (check): ObservatoryFlowNode => ({
       id: check.id,
       label: check.name,
       kind: 'quality',
@@ -351,7 +364,7 @@ function buildQualityGraph(checks: Array<V2QualityCheck>): {
   )
 
   const edges = checks.map(
-    (check): V2FlowEdge => ({
+    (check): ObservatoryFlowEdge => ({
       id: `${check.asset_id}->${check.id}`,
       source: `asset:${check.asset_id}`,
       target: check.id,
@@ -361,11 +374,14 @@ function buildQualityGraph(checks: Array<V2QualityCheck>): {
   return { nodes: [...assetNodes, ...checkNodes], edges }
 }
 
-function compareQuality(left: V2QualityCheck, right: V2QualityCheck): number {
+function compareQuality(
+  left: ObservatoryQualityCheck,
+  right: ObservatoryQualityCheck,
+): number {
   return qualityUrgency(right) - qualityUrgency(left)
 }
 
-function qualityUrgency(check: V2QualityCheck): number {
+function qualityUrgency(check: ObservatoryQualityCheck): number {
   let score = 0
   if (check.status === 'failing') score += 100
   if (check.blocking) score += 30
@@ -377,12 +393,12 @@ function qualityUrgency(check: V2QualityCheck): number {
   return score
 }
 
-function qualityStatusLabel(check: V2QualityCheck): string {
+function qualityStatusLabel(check: ObservatoryQualityCheck): string {
   if (check.status === 'unknown') return 'not observed'
   return check.status
 }
 
-function qualityResultSummary(check: V2QualityCheck): string {
+function qualityResultSummary(check: ObservatoryQualityCheck): string {
   if (check.status === 'unknown') {
     return 'No quality result has been recorded for this check yet.'
   }
@@ -391,14 +407,16 @@ function qualityResultSummary(check: V2QualityCheck): string {
   return 'Latest observed run failed.'
 }
 
-function qualityActionsSummary(detail: V2QualityDetail | null): string {
+function qualityActionsSummary(
+  detail: ObservatoryQualityDetail | null,
+): string {
   const actions = detail?.actions ?? []
   const enabled = actions.filter((action) => action.enabled)
   if (enabled.length === 0) return 'No guarded quality mutation exposed.'
   return enabled.map((action) => action.label).join(', ')
 }
 
-function urgentReason(check: V2QualityCheck): string | null {
+function urgentReason(check: ObservatoryQualityCheck): string | null {
   const explicit =
     readMetadata(check, 'last_failure') ??
     readMetadata(check, 'failure_reason') ??
@@ -413,7 +431,7 @@ function urgentReason(check: V2QualityCheck): string | null {
   return null
 }
 
-function readMetadata(check: V2QualityCheck, key: string): string {
+function readMetadata(check: ObservatoryQualityCheck, key: string): string {
   const value = check.metadata[key]
   if (value === null || value === undefined || value === '') return 'n/a'
   return String(value)

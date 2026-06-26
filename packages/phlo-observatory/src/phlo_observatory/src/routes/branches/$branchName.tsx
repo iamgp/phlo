@@ -3,9 +3,12 @@ import { GitBranch, GitCommitHorizontal, Table2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import type { V2BranchDetail, V2ResourceResult } from '@/v2/api/types'
-import { getV2BranchDetail } from '@/v2/api/resources'
-import { V2Page } from '@/v2/components/V2Page'
+import type {
+  ObservatoryBranchDetail,
+  ObservatoryResourceResult,
+} from '@/observatory/api/types'
+import { getObservatoryBranchDetail } from '@/observatory/api/resources'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 
 export const Route = createFileRoute('/branches/$branchName')({
   component: BranchDetailRoute,
@@ -17,13 +20,15 @@ function BranchDetailRoute() {
 }
 
 export function BranchDetailView({ branchName }: { branchName: string }) {
-  const [result, setResult] = useState<V2ResourceResult<V2BranchDetail>>({
+  const [result, setResult] = useState<
+    ObservatoryResourceResult<ObservatoryBranchDetail>
+  >({
     data: null,
     error: null,
   })
 
   useEffect(() => {
-    void getV2BranchDetail({ data: { branchName } })
+    void getObservatoryBranchDetail({ data: { branchName } })
       .then(setResult)
       .catch(() =>
         setResult({
@@ -36,9 +41,9 @@ export function BranchDetailView({ branchName }: { branchName: string }) {
   const detail = result.data
 
   return (
-    <V2Page
+    <ObservatoryPage
       action={
-        <span className="phlo-v2-pill">
+        <span className="phlo-observatory-pill">
           {detail?.branch.current ? 'current' : 'branch'}
         </span>
       }
@@ -47,20 +52,20 @@ export function BranchDetailView({ branchName }: { branchName: string }) {
       title={detail?.branch.name ?? branchName}
     >
       {detail ? (
-        <section className="phlo-v2-surface-grid">
-          <div className="phlo-v2-list-surface">
-            <div className="phlo-v2-browser-toolbar">
+        <section className="phlo-observatory-surface-grid">
+          <div className="phlo-observatory-list-surface">
+            <div className="phlo-observatory-browser-toolbar">
               <span>
                 <Table2 className="size-4" />
                 Contents
               </span>
-              <span className="phlo-v2-pill">
+              <span className="phlo-observatory-pill">
                 {detail.contents.length} entries
               </span>
             </div>
-            <div className="phlo-v2-detail-list phlo-v2-detail-list-padded">
+            <div className="phlo-observatory-detail-list phlo-observatory-detail-list-padded">
               {detail.contents.map((entry) => (
-                <div className="phlo-v2-mini-row" key={entry.id}>
+                <div className="phlo-observatory-mini-row" key={entry.id}>
                   <span>{entry.label}</span>
                   <small>{entry.kind}</small>
                 </div>
@@ -70,11 +75,13 @@ export function BranchDetailView({ branchName }: { branchName: string }) {
               )}
             </div>
           </div>
-          <aside className="phlo-v2-inspector">
-            <div className="phlo-v2-inspector-label">Change impact</div>
+          <aside className="phlo-observatory-inspector">
+            <div className="phlo-observatory-inspector-label">
+              Change impact
+            </div>
             <h2>{detail.branch.name}</h2>
             <p>Branch state and compare summary.</p>
-            <div className="phlo-v2-detail-list">
+            <div className="phlo-observatory-detail-list">
               <Mini
                 icon={<GitBranch className="size-3.5" />}
                 label="Protected"
@@ -98,11 +105,11 @@ export function BranchDetailView({ branchName }: { branchName: string }) {
           </aside>
         </section>
       ) : (
-        <div className="phlo-v2-empty-state">
+        <div className="phlo-observatory-empty-state">
           {result.error ?? 'Loading branch detail…'}
         </div>
       )}
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
@@ -116,7 +123,7 @@ function Mini({
   value: string
 }) {
   return (
-    <div className="phlo-v2-mini-row">
+    <div className="phlo-observatory-mini-row">
       <span>
         {icon}
         {label}

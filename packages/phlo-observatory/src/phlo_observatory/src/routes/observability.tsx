@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { getV2ObservabilityItems } from '@/v2/api/resources'
-import { V2SurfacePage } from '@/v2/components/V2SurfacePage'
-import { useLiveResource } from '@/v2/routes/liveResource'
+import { getObservatoryObservabilityItems } from '@/observatory/api/resources'
+import { ObservatorySurfacePage } from '@/observatory/components/ObservatorySurfacePage'
+import { useLiveResource } from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/observability')({
   component: Observability,
@@ -10,14 +10,14 @@ export const Route = createFileRoute('/observability')({
 
 export function Observability() {
   const result = useLiveResource(
-    getV2ObservabilityItems,
+    getObservatoryObservabilityItems,
     120_000,
     'v2:observability',
   )
   const items = result.data ?? []
 
   return (
-    <V2SurfacePage
+    <ObservatorySurfacePage
       contract="/api/observatory/observability"
       description="Telemetry, alerting, and monitoring signals from the running stack."
       emptyCopy="Telemetry summaries will appear here when an observability package reports them."

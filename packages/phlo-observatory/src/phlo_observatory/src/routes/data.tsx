@@ -13,33 +13,33 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
-  V2Asset,
-  V2Capabilities,
-  V2Operation,
-  V2QualityCheck,
-  V2ResourceResult,
-  V2Table,
-  V2TablePreview,
-} from '@/v2/api/types'
-import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
+  ObservatoryAsset,
+  ObservatoryCapabilities,
+  ObservatoryOperation,
+  ObservatoryQualityCheck,
+  ObservatoryResourceResult,
+  ObservatoryTable,
+  ObservatoryTablePreview,
+} from '@/observatory/api/types'
+import type { ObservatoryFlowEdge, ObservatoryFlowNode } from '@/observatory/components/ObservatoryFlowCanvas'
 import {
-  getV2AssetRecords,
-  getV2Capabilities,
-  getV2OperationRecords,
-  getV2QualityRecords,
-  getV2SavedQueries,
-  getV2TablePreview,
-  getV2TableRecords,
-  runV2Query,
-  saveV2Query,
-} from '@/v2/api/resources'
-import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
-import { V2Page } from '@/v2/components/V2Page'
+  getObservatoryAssetRecords,
+  getObservatoryCapabilities,
+  getObservatoryOperationRecords,
+  getObservatoryQualityRecords,
+  getObservatorySavedQueries,
+  getObservatoryTablePreview,
+  getObservatoryTableRecords,
+  runObservatoryQuery,
+  saveObservatoryQuery,
+} from '@/observatory/api/resources'
+import { ObservatoryFlowCanvas } from '@/observatory/components/ObservatoryFlowCanvas'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import {
   loadCachedResource,
   readMetric,
   useLiveResource,
-} from '@/v2/routes/liveResource'
+} from '@/observatory/routes/liveResource'
 
 const previewLimit = 100
 
@@ -52,15 +52,15 @@ export function Data() {
 }
 
 function useDataRoute() {
-  const result = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
-  const assetResult = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
+  const result = useLiveResource(getObservatoryTableRecords, 120_000, 'v2:tables')
+  const assetResult = useLiveResource(getObservatoryAssetRecords, 120_000, 'v2:assets')
   const qualityResult = useLiveResource(
-    getV2QualityRecords,
+    getObservatoryQualityRecords,
     120_000,
     'v2:quality',
   )
   const operationResult = useLiveResource(
-    getV2OperationRecords,
+    getObservatoryOperationRecords,
     120_000,
     'v2:operations',
   )
@@ -85,7 +85,7 @@ function useDataRoute() {
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
   const [sql, setSql] = useState('')
   const [queryResult, setQueryResult] = useState<
-    V2ResourceResult<{
+    ObservatoryResourceResult<{
       columns: Array<string>
       rows: Array<Record<string, unknown>>
       effective_sql: string
@@ -93,7 +93,7 @@ function useDataRoute() {
     }>
   >({ data: null, error: null })
   const [savedQueries, setSavedQueries] = useState<
-    V2ResourceResult<
+    ObservatoryResourceResult<
       Array<{
         id: string
         name: string
@@ -102,12 +102,12 @@ function useDataRoute() {
       }>
     >
   >({ data: [], error: null })
-  const [preview, setPreview] = useState<V2ResourceResult<V2TablePreview>>({
+  const [preview, setPreview] = useState<ObservatoryResourceResult<ObservatoryTablePreview>>({
     data: null,
     error: null,
   })
   const [capabilities, setCapabilities] =
-    useState<V2ResourceResult<V2Capabilities> | null>(null)
+    useState<ObservatoryResourceResult<ObservatoryCapabilities> | null>(null)
   const [isLoadingMoreRows, setIsLoadingMoreRows] = useState(false)
   const namespaces = new Set(
     tables.map((table) => table.namespace ?? 'default'),
@@ -135,14 +135,14 @@ function useDataRoute() {
   const selectedRowCount =
     selectedPreview && selected ? selectedPreview.row_count : null
   const applySelectedPreview = useCallback(
-    (nextSql: string, nextPreview: V2ResourceResult<V2TablePreview>) => {
+    (nextSql: string, nextPreview: ObservatoryResourceResult<ObservatoryTablePreview>) => {
       setSql(nextSql)
       setPreview(nextPreview)
     },
     [],
   )
   const applyPreview = useCallback(
-    (nextPreview: V2ResourceResult<V2TablePreview>) => setPreview(nextPreview),
+    (nextPreview: ObservatoryResourceResult<ObservatoryTablePreview>) => setPreview(nextPreview),
     [],
   )
 
@@ -156,7 +156,7 @@ function useDataRoute() {
       loadCachedResource(
         key,
         () =>
-          getV2TablePreview({
+          getObservatoryTablePreview({
             data: { tableId: selected.id, limit: previewLimit, offset: 0 },
           }),
         {
@@ -192,7 +192,7 @@ function useDataRoute() {
     void loadCachedResource(
       key,
       () =>
-        getV2TablePreview({
+        getObservatoryTablePreview({
           data: { tableId: selected.id, limit: previewLimit, offset },
         }),
       { staleMs: 120_000 },
@@ -213,16 +213,16 @@ function useDataRoute() {
   }, [isLoadingMoreRows, previewRefreshKey, selected, selectedPreview])
 
   useEffect(() => {
-    void loadCachedResource('v2:saved-queries', getV2SavedQueries, {
+    void loadCachedResource('v2:saved-queries', getObservatorySavedQueries, {
       staleMs: 300_000,
     }).then(setSavedQueries)
-    void loadCachedResource('v2:capabilities', getV2Capabilities, {
+    void loadCachedResource('v2:capabilities', getObservatoryCapabilities, {
       staleMs: 120_000,
     }).then(setCapabilities)
   }, [])
 
   return (
-    <V2Page
+    <ObservatoryPage
       kicker="Data"
       title="Table browser"
       description={
@@ -231,17 +231,17 @@ function useDataRoute() {
           : 'Browse tables, schemas, preview rows, and row-journey entry points.'
       }
       action={
-        <span className="phlo-v2-pill">{namespaces.size} namespaces</span>
+        <span className="phlo-observatory-pill">{namespaces.size} namespaces</span>
       }
     >
-      <section className="phlo-v2-browser-shell">
-        <div className="phlo-v2-table-browser">
-          <div className="phlo-v2-browser-toolbar">
+      <section className="phlo-observatory-browser-shell">
+        <div className="phlo-observatory-table-browser">
+          <div className="phlo-observatory-browser-toolbar">
             <span>
               <Database className="size-4" />
               Table browser
             </span>
-            <label className="phlo-v2-search-field phlo-v2-data-search">
+            <label className="phlo-observatory-search-field phlo-observatory-data-search">
               <Search className="size-4" />
               <input
                 aria-label="Search tables"
@@ -254,16 +254,16 @@ function useDataRoute() {
                 value={tableQuery}
               />
             </label>
-            <span className="phlo-v2-pill">
+            <span className="phlo-observatory-pill">
               {filteredTables.length} / {tables.length} tables
             </span>
           </div>
           <div
-            className="phlo-v2-table-grid"
+            className="phlo-observatory-table-grid"
             data-branches={branchesAvailable}
             role="table"
           >
-            <div className="phlo-v2-table-head" role="row">
+            <div className="phlo-observatory-table-head" role="row">
               <span>Name</span>
               <span>Namespace</span>
               <span>Format</span>
@@ -273,7 +273,7 @@ function useDataRoute() {
             </div>
             {filteredTables.map((table) => (
               <button
-                className="phlo-v2-table-row"
+                className="phlo-observatory-table-row"
                 data-active={table.id === selected?.id}
                 key={table.id}
                 onClick={() => setSelectedId(table.id)}
@@ -293,7 +293,7 @@ function useDataRoute() {
               </button>
             ))}
             {filteredTables.length === 0 && (
-              <div className="phlo-v2-empty-state">
+              <div className="phlo-observatory-empty-state">
                 {!hasLoadedTables
                   ? 'Loading tables…'
                   : tables.length === 0
@@ -305,7 +305,7 @@ function useDataRoute() {
           {selected && selectedProfile && (
             <DataProfileBand profile={selectedProfile} selected={selected} />
           )}
-          <div className="phlo-v2-data-main-tabs" role="tablist">
+          <div className="phlo-observatory-data-main-tabs" role="tablist">
             {dataMainViews.map((view) => (
               <button
                 aria-selected={mainView === view.id}
@@ -321,14 +321,14 @@ function useDataRoute() {
             ))}
           </div>
           {mainView === 'flow' ? (
-            <div className="phlo-v2-flow-band">
-              <div className="phlo-v2-workspace-toolbar">
+            <div className="phlo-observatory-flow-band">
+              <div className="phlo-observatory-workspace-toolbar">
                 <span>Lakehouse table flow</span>
-                <span className="phlo-v2-pill">
+                <span className="phlo-observatory-pill">
                   {graph.edges.length} bindings
                 </span>
               </div>
-              <V2FlowCanvas
+              <ObservatoryFlowCanvas
                 edges={graph.edges}
                 nodes={graph.nodes}
                 onSelect={setSelectedId}
@@ -346,13 +346,13 @@ function useDataRoute() {
           )}
         </div>
 
-        <aside className="phlo-v2-inspector">
-          <div className="phlo-v2-inspector-label">Table inspector</div>
+        <aside className="phlo-observatory-inspector">
+          <div className="phlo-observatory-inspector-label">Table inspector</div>
           {selected ? (
             <>
               <h2>{selected.name}</h2>
               <p>{selected.asset_id ?? 'No asset binding returned.'}</p>
-              <dl className="phlo-v2-facts">
+              <dl className="phlo-observatory-facts">
                 <Fact label="Schema" value={selected.schema_name ?? 'n/a'} />
                 <Fact
                   label="Namespace"
@@ -364,7 +364,7 @@ function useDataRoute() {
                 )}
                 <Fact label="Catalog" value={tableCatalogState(selected)} />
               </dl>
-              <div className="phlo-v2-mini-preview">
+              <div className="phlo-observatory-mini-preview">
                 <div>
                   <Rows3 className="size-4" />
                   {selectedPreview?.row_count ??
@@ -381,7 +381,7 @@ function useDataRoute() {
                 </div>
               </div>
               <div
-                className="phlo-v2-tab-row"
+                className="phlo-observatory-tab-row"
                 role="tablist"
                 aria-label="Table detail"
               >
@@ -413,7 +413,7 @@ function useDataRoute() {
                       ? { branch: selected.branch ?? 'main' }
                       : {}),
                   }
-                  void runV2Query({
+                  void runObservatoryQuery({
                     data: request,
                   }).then(setQueryResult)
                 }}
@@ -427,7 +427,7 @@ function useDataRoute() {
                       ? { branch: selected.branch ?? 'main' }
                       : {}),
                   }
-                  void saveV2Query({
+                  void saveObservatoryQuery({
                     data: request,
                   }).then((next) => {
                     if (next.data) {
@@ -449,7 +449,7 @@ function useDataRoute() {
                 sql={sql}
               />
               {selectedPreviewError && (
-                <div className="phlo-v2-panel-footer">
+                <div className="phlo-observatory-panel-footer">
                   {selectedPreviewError}
                 </div>
               )}
@@ -458,17 +458,17 @@ function useDataRoute() {
             <p>No table selected.</p>
           )}
           {result.error && (
-            <div className="phlo-v2-panel-footer">{result.error}</div>
+            <div className="phlo-observatory-panel-footer">{result.error}</div>
           )}
           {qualityResult.error && (
-            <div className="phlo-v2-panel-footer">{qualityResult.error}</div>
+            <div className="phlo-observatory-panel-footer">{qualityResult.error}</div>
           )}
           {operationResult.error && (
-            <div className="phlo-v2-panel-footer">{operationResult.error}</div>
+            <div className="phlo-observatory-panel-footer">{operationResult.error}</div>
           )}
         </aside>
       </section>
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
@@ -503,7 +503,7 @@ type TableProfile = {
   downstream: number
   qualityLabel: string
   qualityState: 'ok' | 'warning' | 'error' | 'unknown'
-  latestOperation: V2Operation | null
+  latestOperation: ObservatoryOperation | null
   businessKeys: Array<string>
 }
 
@@ -512,16 +512,16 @@ function DataProfileBand({
   selected,
 }: {
   profile: TableProfile
-  selected: V2Table
+  selected: ObservatoryTable
 }) {
   return (
-    <div className="phlo-v2-data-profile" data-state={profile.qualityState}>
-      <div className="phlo-v2-data-profile-stage">
+    <div className="phlo-observatory-data-profile" data-state={profile.qualityState}>
+      <div className="phlo-observatory-data-profile-stage">
         <span>Stage</span>
         <strong>{profile.stage}</strong>
         <small>{selected.namespace ?? selected.schema_name ?? 'default'}</small>
       </div>
-      <div className="phlo-v2-data-profile-grid">
+      <div className="phlo-observatory-data-profile-grid">
         <ProfileFact label="Records" value={profile.records ?? 'pending'} />
         <ProfileFact label="Columns" value={profile.columns ?? 'pending'} />
         <ProfileFact
@@ -534,15 +534,15 @@ function DataProfileBand({
           value={profile.latestOperation?.name ?? 'No operation linked'}
         />
       </div>
-      <div className="phlo-v2-data-profile-keys">
+      <div className="phlo-observatory-data-profile-keys">
         {profile.businessKeys.length > 0 ? (
           profile.businessKeys.map((key) => (
-            <span className="phlo-v2-pill" key={key}>
+            <span className="phlo-observatory-pill" key={key}>
               {key}
             </span>
           ))
         ) : (
-          <span className="phlo-v2-pill">No key columns detected</span>
+          <span className="phlo-observatory-pill">No key columns detected</span>
         )}
       </div>
     </div>
@@ -557,7 +557,7 @@ function ProfileFact({
   value: string | number | boolean
 }) {
   return (
-    <div className="phlo-v2-data-profile-fact">
+    <div className="phlo-observatory-data-profile-fact">
       <span>{label}</span>
       <strong>{String(value)}</strong>
     </div>
@@ -574,15 +574,15 @@ function DataPreviewTable({
   isLoadingMoreRows: boolean
   mode: Exclude<DataMainView, 'flow'>
   onLoadMoreRows: () => void
-  preview: V2TablePreview | null
-  selected: V2Table | null
+  preview: ObservatoryTablePreview | null
+  selected: ObservatoryTable | null
 }) {
   const columns = preview?.columns ?? []
   const rows = preview?.rows ?? []
 
   if (!selected) {
     return (
-      <div className="phlo-v2-data-preview-empty">
+      <div className="phlo-observatory-data-preview-empty">
         Select a table to inspect rows and schema.
       </div>
     )
@@ -590,27 +590,27 @@ function DataPreviewTable({
 
   if (mode === 'schema') {
     return (
-      <div className="phlo-v2-data-preview">
-        <div className="phlo-v2-workspace-toolbar">
+      <div className="phlo-observatory-data-preview">
+        <div className="phlo-observatory-workspace-toolbar">
           <span>
             <Columns3 className="size-4" />
             {selected.name} schema
           </span>
-          <span className="phlo-v2-pill">{columns.length} columns</span>
+          <span className="phlo-observatory-pill">{columns.length} columns</span>
         </div>
-        <div className="phlo-v2-schema-grid" role="table">
-          <div className="phlo-v2-schema-head" role="row">
+        <div className="phlo-observatory-schema-grid" role="table">
+          <div className="phlo-observatory-schema-head" role="row">
             <span>Column</span>
             <span>Type</span>
           </div>
           {columns.map((column, index) => (
-            <div className="phlo-v2-schema-row" key={column} role="row">
+            <div className="phlo-observatory-schema-row" key={column} role="row">
               <span>{column}</span>
               <span>{columnTypeFor(preview, column, index)}</span>
             </div>
           ))}
           {columns.length === 0 && (
-            <div className="phlo-v2-empty-state">
+            <div className="phlo-observatory-empty-state">
               No schema preview returned yet.
             </div>
           )}
@@ -620,20 +620,20 @@ function DataPreviewTable({
   }
 
   return (
-    <div className="phlo-v2-data-preview">
-      <div className="phlo-v2-workspace-toolbar">
+    <div className="phlo-observatory-data-preview">
+      <div className="phlo-observatory-workspace-toolbar">
         <span>
           <Rows3 className="size-4" />
           {selected.name} rows
         </span>
-        <span className="phlo-v2-pill">
+        <span className="phlo-observatory-pill">
           {rows.length} loaded
           {preview?.row_count ? ` · ${preview.row_count} total` : ''}
         </span>
       </div>
       {columns.length > 0 ? (
         <div
-          className="phlo-v2-row-preview-scroll"
+          className="phlo-observatory-row-preview-scroll"
           onScroll={(event) => {
             const target = event.currentTarget
             const remaining =
@@ -641,7 +641,7 @@ function DataPreviewTable({
             if (remaining < 96) onLoadMoreRows()
           }}
         >
-          <table className="phlo-v2-row-preview-table">
+          <table className="phlo-observatory-row-preview-table">
             <thead>
               <tr>
                 {columns.map((column) => (
@@ -661,7 +661,7 @@ function DataPreviewTable({
           </table>
           {(preview?.has_more || isLoadingMoreRows) && (
             <button
-              className="phlo-v2-row-preview-more"
+              className="phlo-observatory-row-preview-more"
               disabled={isLoadingMoreRows}
               onClick={onLoadMoreRows}
               type="button"
@@ -671,7 +671,7 @@ function DataPreviewTable({
           )}
         </div>
       ) : (
-        <div className="phlo-v2-data-preview-empty">
+        <div className="phlo-observatory-data-preview-empty">
           {preview ? previewEmptyCopy(selected) : 'Loading preview rows…'}
         </div>
       )}
@@ -680,9 +680,9 @@ function DataPreviewTable({
 }
 
 function mergeTablePreviews(
-  current: V2TablePreview,
-  next: V2TablePreview,
-): V2TablePreview {
+  current: ObservatoryTablePreview,
+  next: ObservatoryTablePreview,
+): ObservatoryTablePreview {
   return {
     ...next,
     columns: next.columns.length ? next.columns : current.columns,
@@ -695,7 +695,7 @@ function mergeTablePreviews(
 }
 
 function columnTypeFor(
-  preview: V2TablePreview | null,
+  preview: ObservatoryTablePreview | null,
   column: string,
   index: number,
 ): string {
@@ -742,8 +742,8 @@ function DataDetailPanel({
   onRefresh: () => void
   onRunQuery: (sql: string) => void
   onSaveQuery: (sql: string) => void
-  preview: V2TablePreview | null
-  queryResult: V2ResourceResult<{
+  preview: ObservatoryTablePreview | null
+  queryResult: ObservatoryResourceResult<{
     columns: Array<string>
     rows: Array<Record<string, unknown>>
     effective_sql: string
@@ -755,17 +755,17 @@ function DataDetailPanel({
     sql: string
     branch?: string | null
   }>
-  selected: V2Table
+  selected: ObservatoryTable
   showBranch: boolean
   setSql: (value: string) => void
   sql: string
 }) {
   if (active === 'sql') {
     return (
-      <div className="phlo-v2-query-panel">
-        <div className="phlo-v2-workspace-toolbar">
+      <div className="phlo-observatory-query-panel">
+        <div className="phlo-observatory-workspace-toolbar">
           <span>Preview query</span>
-          <span className="phlo-v2-pill">
+          <span className="phlo-observatory-pill">
             {preview?.limit ?? previewLimit} row limit
           </span>
         </div>
@@ -773,7 +773,7 @@ function DataDetailPanel({
           onChange={(event) => setSql(event.target.value)}
           value={sql}
         />
-        <div className="phlo-v2-action-row">
+        <div className="phlo-observatory-action-row">
           <button onClick={() => onRunQuery(sql)} type="button">
             <Play className="size-3.5" />
             Run query
@@ -788,10 +788,10 @@ function DataDetailPanel({
           </button>
         </div>
         {savedQueries.length > 0 && (
-          <div className="phlo-v2-detail-list">
+          <div className="phlo-observatory-detail-list">
             {savedQueries.slice(0, 4).map((query) => (
               <button
-                className="phlo-v2-mini-row"
+                className="phlo-observatory-mini-row"
                 key={query.id}
                 onClick={() => setSql(query.sql)}
                 type="button"
@@ -803,19 +803,19 @@ function DataDetailPanel({
           </div>
         )}
         {queryResult.data && (
-          <div className="phlo-v2-detail-list">
-            <div className="phlo-v2-mini-row">
+          <div className="phlo-observatory-detail-list">
+            <div className="phlo-observatory-mini-row">
               <span>Effective SQL</span>
               <small>{queryResult.data.effective_sql}</small>
             </div>
-            <div className="phlo-v2-mini-row">
+            <div className="phlo-observatory-mini-row">
               <span>Rows</span>
               <small>{queryResult.data.rows.length}</small>
             </div>
           </div>
         )}
         {queryResult.error && (
-          <div className="phlo-v2-panel-footer">{queryResult.error}</div>
+          <div className="phlo-observatory-panel-footer">{queryResult.error}</div>
         )}
       </div>
     )
@@ -823,16 +823,16 @@ function DataDetailPanel({
 
   if (active === 'journey') {
     return (
-      <div className="phlo-v2-detail-list">
-        <div className="phlo-v2-mini-row">
+      <div className="phlo-observatory-detail-list">
+        <div className="phlo-observatory-mini-row">
           <span>Asset binding</span>
           <small>{selected.asset_id ?? 'none'}</small>
         </div>
-        <div className="phlo-v2-mini-row">
+        <div className="phlo-observatory-mini-row">
           <span>Namespace</span>
           <small>{selected.namespace ?? 'default'}</small>
         </div>
-        <div className="phlo-v2-mini-row">
+        <div className="phlo-observatory-mini-row">
           <span>Preview rows</span>
           <small>
             {preview
@@ -841,14 +841,14 @@ function DataDetailPanel({
           </small>
         </div>
         {showBranch && (
-          <div className="phlo-v2-mini-row">
+          <div className="phlo-observatory-mini-row">
             <span>Branch</span>
             <small>{selected.branch ?? 'main'}</small>
           </div>
         )}
         {selected.asset_id && (
           <Link
-            className="phlo-v2-mini-row"
+            className="phlo-observatory-mini-row"
             to="/asset/$assetId"
             params={{ assetId: selected.asset_id }}
           >
@@ -861,10 +861,10 @@ function DataDetailPanel({
   }
 
   return (
-    <div className="phlo-v2-detail-list">
+    <div className="phlo-observatory-detail-list">
       {(preview?.rows ?? []).slice(0, 4).map((row, index) => (
         <div
-          className="phlo-v2-mini-row phlo-v2-mini-row-stack"
+          className="phlo-observatory-mini-row phlo-observatory-mini-row-stack"
           key={String(row._phlo_row_id ?? index)}
         >
           <span>{String(row._phlo_row_id ?? `row-${index + 1}`)}</span>
@@ -879,7 +879,7 @@ function DataDetailPanel({
       ))}
       {(preview?.rows ?? []).length === 0 &&
         (preview?.columns ?? []).slice(0, 6).map((column) => (
-          <div className="phlo-v2-mini-row" key={column}>
+          <div className="phlo-observatory-mini-row" key={column}>
             <span>{column}</span>
             <small>column</small>
           </div>
@@ -892,13 +892,13 @@ function DataDetailPanel({
 }
 
 function buildTableGraph(
-  tables: Array<V2Table>,
-  assets: Array<V2Asset>,
+  tables: Array<ObservatoryTable>,
+  assets: Array<ObservatoryAsset>,
 ): {
-  nodes: Array<V2FlowNode>
-  edges: Array<V2FlowEdge>
+  nodes: Array<ObservatoryFlowNode>
+  edges: Array<ObservatoryFlowEdge>
 } {
-  const tableByAsset = new Map<string, V2Table>()
+  const tableByAsset = new Map<string, ObservatoryTable>()
   for (const table of tables) {
     if (table.asset_id) {
       tableByAsset.set(table.asset_id, table)
@@ -907,7 +907,7 @@ function buildTableGraph(
   const assetById = new Map(assets.map((asset) => [asset.id, asset]))
 
   const tableNodes = sortTablesForFlow(tables).map(
-    (table): V2FlowNode => ({
+    (table): ObservatoryFlowNode => ({
       id: table.id,
       label: table.name,
       kind: 'table',
@@ -917,11 +917,11 @@ function buildTableGraph(
     }),
   )
 
-  const edges = tables.flatMap((table): Array<V2FlowEdge> => {
+  const edges = tables.flatMap((table): Array<ObservatoryFlowEdge> => {
     if (!table.asset_id) return []
     const asset = assetById.get(table.asset_id)
     if (!asset) return []
-    const dependencyEdges: Array<V2FlowEdge> = []
+    const dependencyEdges: Array<ObservatoryFlowEdge> = []
     for (const dependencyId of asset.dependencies) {
       const dependency = tableByAsset.get(dependencyId)
       if (!dependency) continue
@@ -937,7 +937,7 @@ function buildTableGraph(
   return { nodes: tableNodes, edges }
 }
 
-function sortTablesForFlow(tables: Array<V2Table>): Array<V2Table> {
+function sortTablesForFlow(tables: Array<ObservatoryTable>): Array<ObservatoryTable> {
   return tables.slice().sort((left, right) => {
     const leftLane = tableLane(left)
     const rightLane = tableLane(right)
@@ -948,7 +948,7 @@ function sortTablesForFlow(tables: Array<V2Table>): Array<V2Table> {
   })
 }
 
-function chooseDefaultTable(tables: Array<V2Table>): V2Table | null {
+function chooseDefaultTable(tables: Array<ObservatoryTable>): ObservatoryTable | null {
   return (
     tables.find(
       (table) =>
@@ -973,7 +973,7 @@ function chooseDefaultTable(tables: Array<V2Table>): V2Table | null {
 }
 
 function readTableRecordCount(
-  table: V2Table,
+  table: ObservatoryTable,
 ): string | number | boolean | null {
   return (
     readMetric(table.metadata, 'rows') ??
@@ -982,7 +982,7 @@ function readTableRecordCount(
   )
 }
 
-function filterTables(tables: Array<V2Table>, query: string): Array<V2Table> {
+function filterTables(tables: Array<ObservatoryTable>, query: string): Array<ObservatoryTable> {
   const needle = query.trim().toLowerCase()
   if (!needle) return tables
   return tables.filter((table) =>
@@ -1004,7 +1004,7 @@ function isTransientPreviewMiss(error: string | null): boolean {
   return error?.toLowerCase().includes('table not found') ?? false
 }
 
-function tableCatalogState(table: V2Table): string {
+function tableCatalogState(table: ObservatoryTable): string {
   const state = readMetric(table.metadata, 'catalog_state')
   if (state === 'queryable') return 'Queryable'
   if (state === 'model_only') return 'Model only'
@@ -1016,23 +1016,23 @@ function tableCatalogState(table: V2Table): string {
   return 'Catalog'
 }
 
-function previewEmptyCopy(table: V2Table): string {
+function previewEmptyCopy(table: ObservatoryTable): string {
   if (tableCatalogState(table) === 'Model only') {
     return 'This model is registered, but it is not materialized in the active query catalog.'
   }
   return 'Preview rows are unavailable.'
 }
 
-function defaultSqlForTable(table: V2Table): string {
+function defaultSqlForTable(table: ObservatoryTable): string {
   return `select * from ${table.id} limit ${previewLimit}`
 }
 
 function buildTableProfile(
-  table: V2Table,
-  preview: V2TablePreview | null,
-  assets: Array<V2Asset>,
-  quality: Array<V2QualityCheck>,
-  operations: Array<V2Operation>,
+  table: ObservatoryTable,
+  preview: ObservatoryTablePreview | null,
+  assets: Array<ObservatoryAsset>,
+  quality: Array<ObservatoryQualityCheck>,
+  operations: Array<ObservatoryOperation>,
 ): TableProfile {
   const asset = table.asset_id
     ? assets.find((candidate) => candidate.id === table.asset_id)
@@ -1076,9 +1076,9 @@ function buildTableProfile(
 }
 
 function operationMatchesTable(
-  operation: V2Operation,
-  table: V2Table,
-  asset: V2Asset | null | undefined,
+  operation: ObservatoryOperation,
+  table: ObservatoryTable,
+  asset: ObservatoryAsset | null | undefined,
 ): boolean {
   const haystack = [
     operation.target?.id,
@@ -1094,13 +1094,13 @@ function operationMatchesTable(
     .some((value) => haystack.includes(String(value).toLowerCase()))
 }
 
-function operationTimestamp(operation: V2Operation): string {
+function operationTimestamp(operation: ObservatoryOperation): string {
   return operation.completed_at ?? operation.started_at ?? operation.id
 }
 
 function detectBusinessKeys(
-  preview: V2TablePreview | null,
-  table: V2Table,
+  preview: ObservatoryTablePreview | null,
+  table: ObservatoryTable,
 ): Array<string> {
   const columns = preview?.columns ?? []
   const explicit = [
@@ -1122,7 +1122,7 @@ function detectBusinessKeys(
     .slice(0, 4)
 }
 
-function stageLabelForTable(table: V2Table, asset: V2Asset | null | undefined) {
+function stageLabelForTable(table: ObservatoryTable, asset: ObservatoryAsset | null | undefined) {
   const stage =
     readMetric(table.metadata, 'stage') ??
     readMetric(asset?.metadata ?? {}, 'stage') ??
@@ -1151,7 +1151,7 @@ function formatCell(value: unknown): string {
   }
 }
 
-function tableLane(table: V2Table): string {
+function tableLane(table: ObservatoryTable): string {
   const namespace = (table.namespace ?? '').toLowerCase()
   const name = table.name.toLowerCase()
   if (namespace === 'nightscout' || name.startsWith('dlt_')) return 'raw'

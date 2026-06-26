@@ -13,26 +13,26 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
-  V2ResourceResult,
-  V2Service,
-  V2ServiceDetail,
-} from '@/v2/api/types'
+  ObservatoryResourceResult,
+  ObservatoryService,
+  ObservatoryServiceDetail,
+} from '@/observatory/api/types'
 import {
-  getV2ServiceDetail,
-  getV2ServiceDetailDirect,
-  getV2Services,
-  getV2ServicesDirect,
-  installV2Package,
-  installV2PackageDirect,
-  runV2Action,
-  runV2ActionDirect,
-} from '@/v2/api/resources'
-import { V2Page } from '@/v2/components/V2Page'
+  getObservatoryServiceDetail,
+  getObservatoryServiceDetailDirect,
+  getObservatoryServices,
+  getObservatoryServicesDirect,
+  installObservatoryPackage,
+  installObservatoryPackageDirect,
+  runObservatoryAction,
+  runObservatoryActionDirect,
+} from '@/observatory/api/resources'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import {
   invalidateCachedResources,
   loadCachedResource,
   useLiveResource,
-} from '@/v2/routes/liveResource'
+} from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/services')({
   component: Services,
@@ -43,16 +43,16 @@ type ServicePackageGroup = {
   name: string
   kind: string
   packageName: string | null
-  primary: V2Service
-  services: Array<V2Service>
+  primary: ObservatoryService
+  services: Array<ObservatoryService>
   inStack: boolean
   installable: boolean
 }
 
 export function Services() {
-  const result = useLiveResource(getV2Services, 120_000, 'v2:services')
-  const [directResult, setDirectResult] = useState<V2ResourceResult<
-    Array<V2Service>
+  const result = useLiveResource(getObservatoryServices, 120_000, 'v2:services')
+  const [directResult, setDirectResult] = useState<ObservatoryResourceResult<
+    Array<ObservatoryService>
   > | null>(null)
   const services = result.data ?? directResult?.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -83,7 +83,9 @@ export function Services() {
     () => runtimeServiceGroups.flatMap((group) => group.services),
     [runtimeServiceGroups],
   )
-  const [detail, setDetail] = useState<V2ResourceResult<V2ServiceDetail>>({
+  const [detail, setDetail] = useState<
+    ObservatoryResourceResult<ObservatoryServiceDetail>
+  >({
     data: null,
     error: null,
   })
@@ -92,7 +94,7 @@ export function Services() {
   useEffect(() => {
     if (result.data || directResult) return
     let cancelled = false
-    void getV2ServicesDirect().then((next) => {
+    void getObservatoryServicesDirect().then((next) => {
       if (!cancelled) setDirectResult(next)
     })
     return () => {
@@ -126,11 +128,11 @@ export function Services() {
     void loadCachedResource(
       `v2:service-detail:${selectedService.id}`,
       async () => {
-        const directResponse = await getV2ServiceDetailDirect({
+        const directResponse = await getObservatoryServiceDetailDirect({
           serviceId: selectedService.id,
         })
         if (directResponse.data || !directResponse.error) return directResponse
-        const response = await getV2ServiceDetail({
+        const response = await getObservatoryServiceDetail({
           data: { serviceId: selectedService.id },
         }).catch((error: unknown) => ({
           data: null,
@@ -152,19 +154,21 @@ export function Services() {
   }, [selectedService])
 
   return (
-    <V2Page
+    <ObservatoryPage
       kicker="Services"
       title="Runtime services"
       description="Inspect the running stack first; browse optional service definitions when you need to add capability."
-      action={<span className="phlo-v2-pill">{counts.runtime} in stack</span>}
+      action={
+        <span className="phlo-observatory-pill">{counts.runtime} in stack</span>
+      }
     >
-      <section className="phlo-v2-diff-metrics">
+      <section className="phlo-observatory-diff-metrics">
         <Metric label="Running" value={counts.running} />
         <Metric label="Needs Attention" value={counts.attention} />
         <Metric label="Available Definitions" value={counts.available} />
       </section>
-      <section className="phlo-v2-services-workbench">
-        <div className="phlo-v2-service-directory">
+      <section className="phlo-observatory-services-workbench">
+        <div className="phlo-observatory-service-directory">
           <ServiceSection
             countLabel={`${runtimeServiceGroups.length} packages`}
             icon={<Server className="size-4" />}
@@ -173,21 +177,21 @@ export function Services() {
             services={runtimeServiceGroups}
             title="Runtime stack"
           />
-          <section className="phlo-v2-service-section phlo-v2-service-definitions">
-            <div className="phlo-v2-browser-toolbar">
+          <section className="phlo-observatory-service-section phlo-observatory-service-definitions">
+            <div className="phlo-observatory-browser-toolbar">
               <span>
                 <Package className="size-4" />
                 Available definitions
               </span>
-              <span className="phlo-v2-pill">
+              <span className="phlo-observatory-pill">
                 {availableServiceGroups.length} optional
               </span>
             </div>
-            <p className="phlo-v2-section-note">
+            <p className="phlo-observatory-section-note">
               These are service definitions Observatory can describe. They are
               not running in this lakehouse until added to the stack.
             </p>
-            <div className="phlo-v2-service-category-grid">
+            <div className="phlo-observatory-service-category-grid">
               {availableSections.map((section) => (
                 <ServiceSection
                   compact
@@ -203,7 +207,7 @@ export function Services() {
             </div>
           </section>
         </div>
-        <aside className="phlo-v2-service-detail">
+        <aside className="phlo-observatory-service-detail">
           {selected ? (
             <ServiceDetail
               detail={detail.data}
@@ -218,23 +222,25 @@ export function Services() {
                   return
                 }
                 setActionMessage('Running action...')
-                void runV2ActionDirect({ actionId }).then(async (next) => {
-                  if (!next.data && next.error) {
-                    next = await runV2Action({ data: { actionId } }).catch(
-                      (error: unknown) => ({
+                void runObservatoryActionDirect({ actionId }).then(
+                  async (next) => {
+                    if (!next.data && next.error) {
+                      next = await runObservatoryAction({
+                        data: { actionId },
+                      }).catch((error: unknown) => ({
                         data: null,
                         error:
                           error instanceof Error
                             ? error.message
                             : 'Action failed',
-                      }),
+                      }))
+                    }
+                    invalidateCachedResources(['v2:operations', 'v2:services'])
+                    setActionMessage(
+                      next.data?.message ?? next.error ?? 'Action completed',
                     )
-                  }
-                  invalidateCachedResources(['v2:operations', 'v2:services'])
-                  setActionMessage(
-                    next.data?.message ?? next.error ?? 'Action completed',
-                  )
-                })
+                  },
+                )
               }}
               onInstall={(packageName) => {
                 if (
@@ -245,10 +251,10 @@ export function Services() {
                   return
                 }
                 setActionMessage(`Installing ${packageName}...`)
-                void installV2PackageDirect({ packageName }).then(
+                void installObservatoryPackageDirect({ packageName }).then(
                   async (next) => {
                     if (!next.data && next.error) {
-                      next = await installV2Package({
+                      next = await installObservatoryPackage({
                         data: { packageName },
                       }).catch((error: unknown) => ({
                         data: null,
@@ -274,20 +280,22 @@ export function Services() {
             <p>No services returned yet.</p>
           )}
           {actionMessage && (
-            <div className="phlo-v2-panel-footer">{actionMessage}</div>
+            <div className="phlo-observatory-panel-footer">{actionMessage}</div>
           )}
           {detail.error && (
-            <div className="phlo-v2-panel-footer">{detail.error}</div>
+            <div className="phlo-observatory-panel-footer">{detail.error}</div>
           )}
           {services.length === 0 && result.error && (
-            <div className="phlo-v2-panel-footer">{result.error}</div>
+            <div className="phlo-observatory-panel-footer">{result.error}</div>
           )}
           {!result.error && directResult?.error && (
-            <div className="phlo-v2-panel-footer">{directResult.error}</div>
+            <div className="phlo-observatory-panel-footer">
+              {directResult.error}
+            </div>
           )}
         </aside>
       </section>
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
@@ -297,7 +305,7 @@ function ServiceDetail({
   onAction,
   onInstall,
 }: {
-  detail: V2ServiceDetail | null
+  detail: ObservatoryServiceDetail | null
   group: ServicePackageGroup
   onAction: (actionId: string, confirmationMessage?: string) => void
   onInstall: (packageName: string) => void
@@ -323,7 +331,7 @@ function ServiceDetail({
       : null
   return (
     <>
-      <div className="phlo-v2-detail-header">
+      <div className="phlo-observatory-detail-header">
         <span>{group.packageName ?? service.kind}</span>
         <h2>{group.name}</h2>
         <p>
@@ -336,7 +344,7 @@ function ServiceDetail({
                 'Install this package, then add it to this stack.')}
         </p>
       </div>
-      <dl className="phlo-v2-facts">
+      <dl className="phlo-observatory-facts">
         <Fact
           label="Status"
           value={group.inStack ? service.status : 'available'}
@@ -352,13 +360,13 @@ function ServiceDetail({
         />
       </dl>
       {canAddToStack && (
-        <div className="phlo-v2-service-impact">
+        <div className="phlo-observatory-service-impact">
           <span>Stack impact</span>
           <strong>{addImpactMessage}</strong>
         </div>
       )}
       {(actions.length > 0 || canAddToStack || canInstallPackage) && (
-        <div className="phlo-v2-action-row">
+        <div className="phlo-observatory-action-row">
           {canAddToStack && (
             <button
               onClick={() => onAction(addActionId, addConfirmationMessage)}
@@ -388,8 +396,8 @@ function ServiceDetail({
           ))}
         </div>
       )}
-      <div className="phlo-v2-detail-list">
-        <div className="phlo-v2-mini-row">
+      <div className="phlo-observatory-detail-list">
+        <div className="phlo-observatory-mini-row">
           <span>Safe actions</span>
           <small>
             {visibleActions.length || canAddToStack
@@ -400,19 +408,19 @@ function ServiceDetail({
               : 'No actions available'}
           </small>
         </div>
-        <div className="phlo-v2-mini-row">
+        <div className="phlo-observatory-mini-row">
           <span>Dependencies</span>
           <small>
             {detail?.dependencies.map((item) => item.name).join(', ') || 'none'}
           </small>
         </div>
-        <div className="phlo-v2-mini-row">
+        <div className="phlo-observatory-mini-row">
           <span>Dependents</span>
           <small>
             {detail?.dependents.map((item) => item.name).join(', ') || 'none'}
           </small>
         </div>
-        <div className="phlo-v2-mini-row">
+        <div className="phlo-observatory-mini-row">
           <span>Ports</span>
           <small>
             {detail?.ports
@@ -422,19 +430,19 @@ function ServiceDetail({
               .join(', ') || 'none'}
           </small>
         </div>
-        <div className="phlo-v2-mini-row">
+        <div className="phlo-observatory-mini-row">
           <span>Config</span>
           <small>{detail?.config.length ?? 0} entries</small>
         </div>
-        <div className="phlo-v2-mini-row">
+        <div className="phlo-observatory-mini-row">
           <span>Logs</span>
           <small>{detail?.logs.length ?? 0} linked events</small>
         </div>
       </div>
-      <div className="phlo-v2-chip-cloud">
+      <div className="phlo-observatory-chip-cloud">
         {service.links.map((link) => (
           <a
-            className="phlo-v2-chip"
+            className="phlo-observatory-chip"
             href={link.url}
             key={`${link.kind}:${link.label}`}
           >
@@ -443,7 +451,7 @@ function ServiceDetail({
           </a>
         ))}
         {service.links.length === 0 && (
-          <span className="phlo-v2-chip">
+          <span className="phlo-observatory-chip">
             <Server className="size-3" />
             No links exposed
           </span>
@@ -471,25 +479,28 @@ function ServiceSection({
   title: string
 }) {
   return (
-    <section className="phlo-v2-service-section" data-compact={compact}>
-      <div className="phlo-v2-browser-toolbar">
+    <section
+      className="phlo-observatory-service-section"
+      data-compact={compact}
+    >
+      <div className="phlo-observatory-browser-toolbar">
         <span>
           {icon}
           {title}
         </span>
-        <span className="phlo-v2-pill">{countLabel}</span>
+        <span className="phlo-observatory-pill">{countLabel}</span>
       </div>
-      <div className="phlo-v2-service-list">
+      <div className="phlo-observatory-service-list">
         {services.map((service) => (
           <button
-            className="phlo-v2-service-row"
+            className="phlo-observatory-service-row"
             data-active={service.id === selectedId}
             key={service.id}
             onClick={() => onSelect(service.id)}
             type="button"
           >
             <span
-              className="phlo-v2-dot"
+              className="phlo-observatory-dot"
               data-state={serviceDotState(service)}
             />
             <span>{service.name}</span>
@@ -503,7 +514,9 @@ function ServiceSection({
           </button>
         ))}
         {services.length === 0 && (
-          <div className="phlo-v2-empty-state">No services in this group.</div>
+          <div className="phlo-observatory-empty-state">
+            No services in this group.
+          </div>
         )}
       </div>
     </section>
@@ -512,7 +525,7 @@ function ServiceSection({
 
 function addableDependencyNames(
   group: ServicePackageGroup,
-  detail: V2ServiceDetail | null,
+  detail: ObservatoryServiceDetail | null,
 ): Array<string> {
   const dependencyNames = new Set<string>()
   for (const dependency of detail?.dependencies ?? []) {
@@ -532,7 +545,7 @@ function formatHumanList(items: Array<string>): string {
 
 function serviceActionsForDetail(
   group: ServicePackageGroup,
-  detail: V2ServiceDetail | null,
+  detail: ObservatoryServiceDetail | null,
 ) {
   const actions = detail?.actions ?? []
   if (
@@ -581,9 +594,9 @@ function groupServicePackagesByKind(
 }
 
 function groupServicesByPackage(
-  services: Array<V2Service>,
+  services: Array<ObservatoryService>,
 ): Array<ServicePackageGroup> {
-  const groups = new Map<string, Array<V2Service>>()
+  const groups = new Map<string, Array<ObservatoryService>>()
   for (const service of services) {
     const key = servicePackageKey(service)
     groups.set(key, [...(groups.get(key) ?? []), service])
@@ -596,7 +609,7 @@ function groupServicesByPackage(
 
 function servicePackageGroup(
   key: string,
-  services: Array<V2Service>,
+  services: Array<ObservatoryService>,
 ): ServicePackageGroup {
   const primary = primaryServiceForPackage(key, services)
   const packageName = servicePackageName(primary)
@@ -618,8 +631,8 @@ function servicePackageGroup(
 
 function primaryServiceForPackage(
   key: string,
-  services: Array<V2Service>,
-): V2Service {
+  services: Array<ObservatoryService>,
+): ObservatoryService {
   const packageLabel = key.startsWith('package:')
     ? key.slice('package:'.length).replace(/^phlo-/, '')
     : key
@@ -635,20 +648,20 @@ function primaryServiceForPackage(
   )
 }
 
-function servicePackageKey(service: V2Service): string {
+function servicePackageKey(service: ObservatoryService): string {
   const packageName = servicePackageName(service)
   if (packageName) return `package:${packageName}`
   return `service:${service.id}`
 }
 
-function servicePackageName(service: V2Service): string | null {
+function servicePackageName(service: ObservatoryService): string | null {
   return typeof service.metadata.package === 'string'
     ? service.metadata.package
     : null
 }
 
 function serviceDisplayName(
-  service: V2Service,
+  service: ObservatoryService,
   packageName: string | null,
 ): string {
   if (!packageName) return service.name
@@ -659,7 +672,7 @@ function serviceDisplayName(
   return packageLabel
 }
 
-function isRuntimeService(service: V2Service): boolean {
+function isRuntimeService(service: ObservatoryService): boolean {
   if (typeof service.in_stack === 'boolean') return service.in_stack
   return (
     service.status !== 'unknown' ||
@@ -702,7 +715,7 @@ function iconForAction(kind: string) {
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="phlo-v2-diff-metric">
+    <div className="phlo-observatory-diff-metric">
       <Server className="size-5" />
       <div>
         <strong>{value}</strong>

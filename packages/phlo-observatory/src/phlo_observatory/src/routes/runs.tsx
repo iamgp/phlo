@@ -3,17 +3,17 @@ import { AlertCircle, CheckCircle2, Clock3, ListChecks } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import type { V2Run } from '@/v2/api/types'
-import { getV2RunRecords } from '@/v2/api/resources'
-import { V2Page } from '@/v2/components/V2Page'
-import { useLiveResource } from '@/v2/routes/liveResource'
+import type { ObservatoryRun } from '@/observatory/api/types'
+import { getObservatoryRunRecords } from '@/observatory/api/resources'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
+import { useLiveResource } from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/runs')({
   component: Runs,
 })
 
 export function Runs() {
-  const result = useLiveResource(getV2RunRecords, 60_000, 'v2:runs')
+  const result = useLiveResource(getObservatoryRunRecords, 60_000, 'v2:runs')
   const runs = useMemo(
     () => [...(result.data ?? [])].sort(compareRuns),
     [result.data],
@@ -27,15 +27,15 @@ export function Runs() {
   const counts = useMemo(() => countRuns(runs), [runs])
 
   return (
-    <V2Page
+    <ObservatoryPage
       kicker="Runs"
       title="Orchestrator runs"
       description="Pipeline run history with linked assets, checks, logs, and evidence."
-      action={<span className="phlo-v2-pill">{runs.length} runs</span>}
+      action={<span className="phlo-observatory-pill">{runs.length} runs</span>}
     >
-      <section className="phlo-v2-command phlo-v2-runs-shell">
-        <div className="phlo-v2-command-primary phlo-v2-run-list-surface">
-          <div className="phlo-v2-command-strip phlo-v2-run-summary">
+      <section className="phlo-observatory-command phlo-observatory-runs-shell">
+        <div className="phlo-observatory-command-primary phlo-observatory-run-list-surface">
+          <div className="phlo-observatory-command-strip phlo-observatory-run-summary">
             <Metric
               icon={<CheckCircle2 className="size-4" />}
               label="Succeeded"
@@ -53,7 +53,7 @@ export function Runs() {
             />
           </div>
 
-          <div className="phlo-v2-timeline">
+          <div className="phlo-observatory-timeline">
             {runs.map((run) => (
               <RunLine
                 key={run.id}
@@ -63,9 +63,9 @@ export function Runs() {
               />
             ))}
             {runs.length === 0 && (
-              <div className="phlo-v2-operation-empty">
+              <div className="phlo-observatory-operation-empty">
                 <div>
-                  <span className="phlo-v2-inspector-label">
+                  <span className="phlo-observatory-inspector-label">
                     No runs returned
                   </span>
                   <h2>Run history is quiet.</h2>
@@ -74,12 +74,12 @@ export function Runs() {
                     orchestrator reports recent activity.
                   </p>
                 </div>
-                <div className="phlo-v2-detail-list">
-                  <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-detail-list">
+                  <div className="phlo-observatory-mini-row">
                     <span>Contract</span>
                     <small>/api/observatory/runs</small>
                   </div>
-                  <div className="phlo-v2-mini-row">
+                  <div className="phlo-observatory-mini-row">
                     <span>Rows</span>
                     <small>0 returned</small>
                   </div>
@@ -89,13 +89,13 @@ export function Runs() {
           </div>
         </div>
 
-        <aside className="phlo-v2-inspector">
-          <div className="phlo-v2-inspector-label">Selected run</div>
+        <aside className="phlo-observatory-inspector">
+          <div className="phlo-observatory-inspector-label">Selected run</div>
           {selected ? (
             <>
               <h2>{selected.name}</h2>
               <p>{runNarrative(selected)}</p>
-              <dl className="phlo-v2-facts">
+              <dl className="phlo-observatory-facts">
                 <Fact label="Status" value={selected.status} />
                 <Fact label="Started" value={selected.started_at ?? 'n/a'} />
                 <Fact
@@ -116,8 +116,8 @@ export function Runs() {
                 <Fact label="Logs" value={selected.logs.length} />
               </dl>
               {runFailureReason(selected) && (
-                <div className="phlo-v2-detail-list">
-                  <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-detail-list">
+                  <div className="phlo-observatory-mini-row">
                     <span>Failure reason</span>
                     <small>{runFailureReason(selected)}</small>
                   </div>
@@ -134,11 +134,11 @@ export function Runs() {
             </>
           )}
           {result.error && (
-            <div className="phlo-v2-panel-footer">{result.error}</div>
+            <div className="phlo-observatory-panel-footer">{result.error}</div>
           )}
         </aside>
       </section>
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
@@ -152,7 +152,7 @@ function Metric({
   value: string | number
 }) {
   return (
-    <div className="phlo-v2-command-metric">
+    <div className="phlo-observatory-command-metric">
       {icon}
       <span>{label}</span>
       <strong>{value}</strong>
@@ -165,30 +165,33 @@ function RunLine({
   onSelect,
   selected,
 }: {
-  run: V2Run
+  run: ObservatoryRun
   onSelect: (id: string) => void
   selected: boolean
 }) {
   return (
     <button
-      className="phlo-v2-run-row"
+      className="phlo-observatory-run-row"
       data-active={selected}
       data-status={run.status}
       onClick={() => onSelect(run.id)}
       type="button"
     >
-      <span className="phlo-v2-dot" data-state={stateForStatus(run.status)} />
-      <div className="phlo-v2-run-row-main">
-        <div className="phlo-v2-row-title">
+      <span
+        className="phlo-observatory-dot"
+        data-state={stateForStatus(run.status)}
+      />
+      <div className="phlo-observatory-run-row-main">
+        <div className="phlo-observatory-row-title">
           <ListChecks className="size-4" />
           {run.name}
         </div>
-        <div className="phlo-v2-row-meta">
+        <div className="phlo-observatory-row-meta">
           {run.assets.length} assets · {run.checks.length} checks ·{' '}
           {run.completed_at ?? run.started_at ?? 'not timestamped'}
         </div>
       </div>
-      <span className="phlo-v2-pill">{run.status}</span>
+      <span className="phlo-observatory-pill">{run.status}</span>
     </button>
   )
 }
@@ -198,11 +201,11 @@ function RelatedList({
   refs,
 }: {
   title: string
-  refs: V2Run['assets']
+  refs: ObservatoryRun['assets']
 }) {
   return (
-    <div className="phlo-v2-detail-list">
-      <div className="phlo-v2-mini-row">
+    <div className="phlo-observatory-detail-list">
+      <div className="phlo-observatory-mini-row">
         <span>{title}</span>
         <small>
           {refs.length > 0 ? refs.map((ref) => ref.label).join(', ') : 'none'}
@@ -227,7 +230,9 @@ function Fact({
   )
 }
 
-function countRuns(runs: Array<V2Run>): Record<V2Run['status'], number> {
+function countRuns(
+  runs: Array<ObservatoryRun>,
+): Record<ObservatoryRun['status'], number> {
   return runs.reduce(
     (counts, run) => {
       counts[run.status] += 1
@@ -244,18 +249,18 @@ function countRuns(runs: Array<V2Run>): Record<V2Run['status'], number> {
   )
 }
 
-function stateForStatus(status: V2Run['status']) {
+function stateForStatus(status: ObservatoryRun['status']) {
   if (status === 'succeeded') return 'ok'
   if (status === 'failed' || status === 'cancelled') return 'error'
   if (status === 'running' || status === 'queued') return 'warning'
   return 'unknown'
 }
 
-function compareRuns(left: V2Run, right: V2Run): number {
+function compareRuns(left: ObservatoryRun, right: ObservatoryRun): number {
   return runScore(right) - runScore(left)
 }
 
-function runScore(run: V2Run): number {
+function runScore(run: ObservatoryRun): number {
   const time = Date.parse(run.completed_at ?? run.started_at ?? '')
   let score = Number.isNaN(time) ? 0 : time / 1_000_000
   if (run.status === 'failed') score += 1_000_000
@@ -263,7 +268,7 @@ function runScore(run: V2Run): number {
   return score
 }
 
-function runNarrative(run: V2Run): string {
+function runNarrative(run: ObservatoryRun): string {
   const assetCount = `${run.assets.length} asset${run.assets.length === 1 ? '' : 's'}`
   const checkCount = `${run.checks.length} check${run.checks.length === 1 ? '' : 's'}`
   if (run.status === 'failed') {
@@ -275,7 +280,7 @@ function runNarrative(run: V2Run): string {
   return `${run.status} run with ${assetCount} and ${checkCount}.`
 }
 
-function runFailureReason(run: V2Run): string | null {
+function runFailureReason(run: ObservatoryRun): string | null {
   const reason = run.metadata.failure_reason ?? run.metadata.error
   return typeof reason === 'string' && reason ? reason : null
 }

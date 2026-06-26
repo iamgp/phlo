@@ -14,16 +14,16 @@ import { useEffect, useId, useMemo, useReducer } from 'react'
 import type { Dispatch, ReactNode } from 'react'
 
 import type { ObservatorySettings } from '@/lib/observatorySettings'
-import type { V2Capabilities, V2ResourceResult } from '@/v2/api/types'
+import type { ObservatoryCapabilities, ObservatoryResourceResult } from '@/observatory/api/types'
 import { useObservatoryExtensions } from '@/extensions/registry'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import {
   clearCacheEndpoint,
   getCacheStatsEndpoint,
 } from '@/server/cache.server'
-import { getV2Capabilities } from '@/v2/api/resources'
-import { V2Page } from '@/v2/components/V2Page'
-import { loadCachedResource } from '@/v2/routes/liveResource'
+import { getObservatoryCapabilities } from '@/observatory/api/resources'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
+import { loadCachedResource } from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/settings')({
   component: SettingsRoute,
@@ -38,7 +38,7 @@ type CacheStats = {
 }
 
 type SettingsRouteState = {
-  capabilities: V2ResourceResult<V2Capabilities> | null
+  capabilities: ObservatoryResourceResult<ObservatoryCapabilities> | null
   draft: ObservatorySettings
   error: string | null
   stats: CacheStats | null
@@ -56,7 +56,7 @@ type SettingsRouteAction =
   | { type: 'stats'; stats: CacheStats | null }
   | {
       type: 'capabilities'
-      capabilities: V2ResourceResult<V2Capabilities> | null
+      capabilities: ObservatoryResourceResult<ObservatoryCapabilities> | null
     }
 
 function settingsRouteReducer(
@@ -124,7 +124,7 @@ function useSettingsRoute() {
 
   useEffect(() => {
     void fetchStats()
-    void loadCachedResource('v2:capabilities', getV2Capabilities, {
+    void loadCachedResource('v2:capabilities', getObservatoryCapabilities, {
       force: true,
       staleMs: 30_000,
     }).then((nextCapabilities) =>
@@ -164,19 +164,19 @@ function useSettingsRoute() {
   }
 
   return (
-    <V2Page
+    <ObservatoryPage
       kicker="Settings"
       title="Observatory settings"
       description="Edit browser preferences, inspect capabilities, and run local maintenance controls."
       action={
-        <span className="phlo-v2-pill">
+        <span className="phlo-observatory-pill">
           <Settings className="size-3.5" />
           {dirty ? 'unsaved changes' : 'saved'}
         </span>
       }
     >
-      <section className="phlo-v2-settings-workbench">
-        <div className="phlo-v2-settings-toolbar">
+      <section className="phlo-observatory-settings-workbench">
+        <div className="phlo-observatory-settings-toolbar">
           <div>
             <strong>Preferences</strong>
             <span>
@@ -184,7 +184,7 @@ function useSettingsRoute() {
               settings appear when phlo-api exposes a write contract.
             </span>
           </div>
-          <div className="phlo-v2-action-row">
+          <div className="phlo-observatory-action-row">
             <button
               onClick={() => {
                 resetToDefaults()
@@ -209,19 +209,19 @@ function useSettingsRoute() {
         </div>
 
         {!dirty && (
-          <div className="phlo-v2-panel-footer">
+          <div className="phlo-observatory-panel-footer">
             Settings are saved. Change a preference to enable Save.
           </div>
         )}
 
-        {error && <div className="phlo-v2-settings-error">{error}</div>}
+        {error && <div className="phlo-observatory-settings-error">{error}</div>}
 
         <SettingsPanel
           description="Defaults used when opening data and catalog views."
           icon={<SlidersHorizontal className="size-4" />}
           title="Defaults"
         >
-          <div className="phlo-v2-settings-columns">
+          <div className="phlo-observatory-settings-columns">
             {capabilityFeatures.branches && (
               <SettingField label="Branch">
                 <TextInput
@@ -265,7 +265,7 @@ function useSettingsRoute() {
           icon={<Database className="size-4" />}
           title="Query"
         >
-          <div className="phlo-v2-settings-columns">
+          <div className="phlo-observatory-settings-columns">
             <SettingField label="Default LIMIT">
               <NumberInput
                 value={draft.query.defaultLimit}
@@ -318,7 +318,7 @@ function useSettingsRoute() {
           icon={<Gauge className="size-4" />}
           title="Interface"
         >
-          <div className="phlo-v2-settings-columns">
+          <div className="phlo-observatory-settings-columns">
             <SettingField label="Density">
               <SelectInput
                 options={[
@@ -436,9 +436,9 @@ function useSettingsRoute() {
           icon={<Plug className="size-4" />}
           title="Capabilities"
         >
-          <div className="phlo-v2-detail-list">
+          <div className="phlo-observatory-detail-list">
             {(capabilities?.data?.pages ?? []).map((page) => (
-              <div className="phlo-v2-mini-row" key={page.id}>
+              <div className="phlo-observatory-mini-row" key={page.id}>
                 <span>{page.label}</span>
                 <small>
                   {page.available
@@ -450,7 +450,7 @@ function useSettingsRoute() {
               </div>
             ))}
             {capabilities?.error && (
-              <div className="phlo-v2-mini-row">
+              <div className="phlo-observatory-mini-row">
                 <span>Capability discovery</span>
                 <small>{capabilities.error}</small>
               </div>
@@ -463,9 +463,9 @@ function useSettingsRoute() {
           icon={<RefreshCw className="size-4" />}
           title="Advanced"
         >
-          <div className="phlo-v2-cache-header">
+          <div className="phlo-observatory-cache-header">
             <strong>Metadata cache</strong>
-            <div className="phlo-v2-action-row">
+            <div className="phlo-observatory-action-row">
               <button
                 disabled={statsLoading}
                 onClick={() => void fetchStats()}
@@ -483,7 +483,7 @@ function useSettingsRoute() {
               </button>
             </div>
           </div>
-          <div className="phlo-v2-cache-grid">
+          <div className="phlo-observatory-cache-grid">
             <CacheMetric label="Hits" value={stats?.hits ?? 0} />
             <CacheMetric label="Misses" value={stats?.misses ?? 0} />
             <CacheMetric
@@ -494,10 +494,10 @@ function useSettingsRoute() {
           </div>
           {stats?.entriesByPrefix &&
             Object.keys(stats.entriesByPrefix).length > 0 && (
-              <div className="phlo-v2-detail-list">
+              <div className="phlo-observatory-detail-list">
                 {Object.entries(stats.entriesByPrefix).map(
                   ([prefix, count]) => (
-                    <div className="phlo-v2-mini-row" key={prefix}>
+                    <div className="phlo-observatory-mini-row" key={prefix}>
                       <span>{prefix}</span>
                       <small>{count}</small>
                     </div>
@@ -507,7 +507,7 @@ function useSettingsRoute() {
             )}
         </SettingsPanel>
       </section>
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
@@ -523,13 +523,13 @@ function SettingsPanel({
   title: string
 }) {
   return (
-    <section className="phlo-v2-settings-panel">
-      <div className="phlo-v2-callout-title">
+    <section className="phlo-observatory-settings-panel">
+      <div className="phlo-observatory-callout-title">
         {icon}
         {title}
       </div>
       <p>{description}</p>
-      <div className="phlo-v2-settings-panel-body">{children}</div>
+      <div className="phlo-observatory-settings-panel-body">{children}</div>
     </section>
   )
 }
@@ -544,7 +544,7 @@ function SettingField({
   label: string
 }) {
   return (
-    <label className="phlo-v2-settings-field">
+    <label className="phlo-observatory-settings-field">
       <span>{label}</span>
       {children}
       {hint && <small>{hint}</small>}
@@ -633,7 +633,7 @@ function ToggleRow({
 }) {
   const inputId = useId()
   return (
-    <label className="phlo-v2-toggle-row" htmlFor={inputId}>
+    <label className="phlo-observatory-toggle-row" htmlFor={inputId}>
       <input
         id={inputId}
         aria-label={label}
@@ -657,7 +657,7 @@ function CacheMetric({
   value: number | string
 }) {
   return (
-    <div className="phlo-v2-cache-metric">
+    <div className="phlo-observatory-cache-metric">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>

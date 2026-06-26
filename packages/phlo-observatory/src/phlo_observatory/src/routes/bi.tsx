@@ -1,19 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { getV2BiItems } from '@/v2/api/resources'
-import { V2SurfacePage } from '@/v2/components/V2SurfacePage'
-import { useLiveResource } from '@/v2/routes/liveResource'
+import { getObservatoryBiItems } from '@/observatory/api/resources'
+import { ObservatorySurfacePage } from '@/observatory/components/ObservatorySurfacePage'
+import { useLiveResource } from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/bi')({
   component: BI,
 })
 
 export function BI() {
-  const result = useLiveResource(getV2BiItems, 120_000, 'v2:bi')
+  const result = useLiveResource(getObservatoryBiItems, 120_000, 'v2:bi')
   const items = result.data ?? []
 
   return (
-    <V2SurfacePage
+    <ObservatorySurfacePage
       contract="/api/observatory/bi"
       description="Dashboards, reports, and analytics destinations connected to this project."
       emptyCopy="Analytics destinations will appear here when a BI package reports them."

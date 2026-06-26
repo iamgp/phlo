@@ -11,7 +11,7 @@ Example:
 
     .. code-block:: python
 
-        from phlo_api.observatory_api.v2 import router
+        from phlo_api.observatory_api.observatory import router
         app.include_router(router, prefix="/api/observatory")
 
 """

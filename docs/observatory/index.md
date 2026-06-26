@@ -21,7 +21,7 @@ flowchart LR
 ## Current Docs
 
 - [Extensions](extensions.md): how to extend the UI surface
-- [Observatory Contracts](../reference/observatory-v2-contracts.md): provider-neutral surfaces, read models, and guarded actions
+- [Observatory Contracts](../reference/observatory-contracts.md): provider-neutral surfaces, read models, and guarded actions
 
 ## Related Pages
 

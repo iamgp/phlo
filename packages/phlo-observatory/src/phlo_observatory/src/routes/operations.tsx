@@ -10,24 +10,24 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
-  V2Operation,
-  V2OperationDetail,
-  V2ResourceResult,
-} from '@/v2/api/types'
-import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
+  ObservatoryOperation,
+  ObservatoryOperationDetail,
+  ObservatoryResourceResult,
+} from '@/observatory/api/types'
+import type { ObservatoryFlowEdge, ObservatoryFlowNode } from '@/observatory/components/ObservatoryFlowCanvas'
 import {
-  getV2OperationDetail,
-  getV2OperationRecords,
-  runV2Action,
-} from '@/v2/api/resources'
-import { ActionButton } from '@/v2/components/ActionButton'
-import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
-import { V2Page } from '@/v2/components/V2Page'
+  getObservatoryOperationDetail,
+  getObservatoryOperationRecords,
+  runObservatoryAction,
+} from '@/observatory/api/resources'
+import { ActionButton } from '@/observatory/components/ActionButton'
+import { ObservatoryFlowCanvas } from '@/observatory/components/ObservatoryFlowCanvas'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import {
   invalidateCachedResources,
   readMetric,
   useLiveResource,
-} from '@/v2/routes/liveResource'
+} from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/operations')({
   component: Operations,
@@ -35,12 +35,12 @@ export const Route = createFileRoute('/operations')({
 
 export function Operations() {
   const result = useLiveResource(
-    getV2OperationRecords,
+    getObservatoryOperationRecords,
     120_000,
     'v2:operations',
   )
   const operations = result.data ?? []
-  const [localOperations, setLocalOperations] = useState<Array<V2Operation>>([])
+  const [localOperations, setLocalOperations] = useState<Array<ObservatoryOperation>>([])
   const visibleOperations = mergeOperations(localOperations, operations)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const latest =
@@ -52,7 +52,7 @@ export function Operations() {
     0,
     visibleOperations.length - displayedOperations.length,
   )
-  const [detail, setDetail] = useState<V2ResourceResult<V2OperationDetail>>({
+  const [detail, setDetail] = useState<ObservatoryResourceResult<ObservatoryOperationDetail>>({
     data: null,
     error: null,
   })
@@ -88,7 +88,7 @@ export function Operations() {
       return
     }
     let cancelled = false
-    void getV2OperationDetail({ data: { operationId: latest.id } }).then(
+    void getObservatoryOperationDetail({ data: { operationId: latest.id } }).then(
       (next) => {
         if (!cancelled) setDetail(next)
       },
@@ -99,7 +99,7 @@ export function Operations() {
   }, [latest])
 
   return (
-    <V2Page
+    <ObservatoryPage
       kicker="Operations"
       title={selectedIsWap && latest ? latest.name : 'Recovery activity'}
       description={
@@ -108,19 +108,19 @@ export function Operations() {
           : 'Phlo-owned actions, maintenance status, and service-impacting work.'
       }
       action={
-        <span className="phlo-v2-pill">{visibleOperations.length} actions</span>
+        <span className="phlo-observatory-pill">{visibleOperations.length} actions</span>
       }
     >
       <section
-        className={`phlo-v2-command${
-          selectedIsWap ? ' phlo-v2-wap-operation-shell' : ''
+        className={`phlo-observatory-command${
+          selectedIsWap ? ' phlo-observatory-wap-operation-shell' : ''
         }`}
       >
-        <div className="phlo-v2-command-primary">
+        <div className="phlo-observatory-command-primary">
           {visibleOperations.length > 0 ? (
             <>
               {!selectedIsWap && (
-                <div className="phlo-v2-command-strip">
+                <div className="phlo-observatory-command-strip">
                   <Metric
                     icon={<CheckCircle2 className="size-4" />}
                     label="Recovered"
@@ -146,28 +146,28 @@ export function Operations() {
                 <WapOperationFocus operation={latest} />
               ) : latest ? (
                 <div
-                  className="phlo-v2-operation-focus"
+                  className="phlo-observatory-operation-focus"
                   data-state={latest.health.state}
                 >
-                  <div className="phlo-v2-workspace-toolbar">
+                  <div className="phlo-observatory-workspace-toolbar">
                     <span>Selected operation evidence</span>
-                    <span className="phlo-v2-pill">{latest.status}</span>
+                    <span className="phlo-observatory-pill">{latest.status}</span>
                   </div>
-                  <div className="phlo-v2-operation-focus-body">
-                    <div className="phlo-v2-operation-focus-main">
-                      <span className="phlo-v2-inspector-label">
+                  <div className="phlo-observatory-operation-focus-body">
+                    <div className="phlo-observatory-operation-focus-main">
+                      <span className="phlo-observatory-inspector-label">
                         {latest.kind}
                       </span>
                       <h2>{latest.name}</h2>
                       <p>{latest.target?.label ?? 'Platform operation'}</p>
                       {selectedFailure && (
-                        <div className="phlo-v2-failure-callout">
+                        <div className="phlo-observatory-failure-callout">
                           <strong>{selectedFailure.title}</strong>
                           <span>{selectedFailure.message}</span>
                         </div>
                       )}
                     </div>
-                    <dl className="phlo-v2-operation-evidence-grid">
+                    <dl className="phlo-observatory-operation-evidence-grid">
                       <Fact label="Operation id" value={latest.id} />
                       <Fact
                         label="Experiment"
@@ -184,7 +184,7 @@ export function Operations() {
                     </dl>
                   </div>
                   {selectedMetadata.length > 0 && (
-                    <div className="phlo-v2-operation-metadata">
+                    <div className="phlo-observatory-operation-metadata">
                       {selectedMetadata.map(([key, value]) => (
                         <span key={key}>
                           <strong>{humanizeKey(key)}</strong>
@@ -196,17 +196,17 @@ export function Operations() {
                 </div>
               ) : null}
               {!selectedIsWap && (
-                <div className="phlo-v2-operation-ledger">
-                  <div className="phlo-v2-workspace-toolbar">
+                <div className="phlo-observatory-operation-ledger">
+                  <div className="phlo-observatory-workspace-toolbar">
                     <span>Target ledger</span>
-                    <span className="phlo-v2-pill">
+                    <span className="phlo-observatory-pill">
                       {ledger.length} targets
                     </span>
                   </div>
-                  <div className="phlo-v2-operation-ledger-grid">
+                  <div className="phlo-observatory-operation-ledger-grid">
                     {ledger.map((item) => (
                       <button
-                        className="phlo-v2-operation-ledger-card"
+                        className="phlo-observatory-operation-ledger-card"
                         data-state={item.state}
                         key={item.id}
                         onClick={() => setSelectedId(item.latest.id)}
@@ -225,16 +225,16 @@ export function Operations() {
               )}
               {!selectedIsWap && (
                 <>
-                  <div className="phlo-v2-workspace-toolbar">
+                  <div className="phlo-observatory-workspace-toolbar">
                     <span>Activity stream</span>
-                    <span className="phlo-v2-pill">
+                    <span className="phlo-observatory-pill">
                       showing {displayedOperations.length}
                       {hiddenOperationCount > 0
                         ? ` of ${visibleOperations.length}`
                         : ''}
                     </span>
                   </div>
-                  <div className="phlo-v2-timeline">
+                  <div className="phlo-observatory-timeline">
                     {displayedOperations.map((operation) => (
                       <OperationLine
                         key={operation.id}
@@ -244,7 +244,7 @@ export function Operations() {
                       />
                     ))}
                     {hiddenOperationCount > 0 && (
-                      <div className="phlo-v2-noise-row">
+                      <div className="phlo-observatory-noise-row">
                         {hiddenOperationCount} older operations kept out of the
                         DOM. Use target selection to narrow the working set.
                       </div>
@@ -254,9 +254,9 @@ export function Operations() {
               )}
             </>
           ) : (
-            <div className="phlo-v2-operation-empty">
+            <div className="phlo-observatory-operation-empty">
               <div>
-                <span className="phlo-v2-inspector-label">
+                <span className="phlo-observatory-inspector-label">
                   No Phlo operations recorded
                 </span>
                 <h2>Operational history is quiet.</h2>
@@ -266,16 +266,16 @@ export function Operations() {
                   here once phlo-api records them.
                 </p>
               </div>
-              <div className="phlo-v2-detail-list">
-                <div className="phlo-v2-mini-row">
+              <div className="phlo-observatory-detail-list">
+                <div className="phlo-observatory-mini-row">
                   <span>Dagster runs</span>
                   <small>Managed in Dagster</small>
                 </div>
-                <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-mini-row">
                   <span>Phlo operations</span>
                   <small>0 recorded</small>
                 </div>
-                <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-mini-row">
                   <span>Recovery actions</span>
                   <small>No guarded action history yet</small>
                 </div>
@@ -285,13 +285,13 @@ export function Operations() {
         </div>
 
         {!selectedIsWap && (
-          <aside className="phlo-v2-inspector">
-            <div className="phlo-v2-inspector-label">Selected operation</div>
+          <aside className="phlo-observatory-inspector">
+            <div className="phlo-observatory-inspector-label">Selected operation</div>
             {latest ? (
               <>
                 <h2>{latest.name}</h2>
                 <p>{latest.target?.label ?? latest.kind}</p>
-                <dl className="phlo-v2-facts">
+                <dl className="phlo-observatory-facts">
                   <Fact label="Status" value={latest.status} />
                   <Fact
                     label="Namespace"
@@ -314,13 +314,13 @@ export function Operations() {
                     value={formatDateTime(latest.completed_at)}
                   />
                 </dl>
-                <div className="phlo-v2-action-row">
+                <div className="phlo-observatory-action-row">
                   {(detail.data?.actions ?? []).map((action) => (
                     <ActionButton
                       action={action}
                       key={action.id}
                       onRun={(actionId) => {
-                        void runV2Action({ data: { actionId } }).then(
+                        void runObservatoryAction({ data: { actionId } }).then(
                           (next) => {
                             const operation = next.data?.operation
                             if (operation) {
@@ -341,18 +341,18 @@ export function Operations() {
                   ))}
                 </div>
                 {actionMessage && (
-                  <div className="phlo-v2-panel-footer">{actionMessage}</div>
+                  <div className="phlo-observatory-panel-footer">{actionMessage}</div>
                 )}
                 {selectedFailure && (
-                  <div className="phlo-v2-detail-list">
-                    <div className="phlo-v2-mini-row" data-state="error">
+                  <div className="phlo-observatory-detail-list">
+                    <div className="phlo-observatory-mini-row" data-state="error">
                       <span>{selectedFailure.title}</span>
                       <small>{selectedFailure.message}</small>
                     </div>
                   </div>
                 )}
-                <div className="phlo-v2-detail-list">
-                  <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-detail-list">
+                  <div className="phlo-observatory-mini-row">
                     <span>Related</span>
                     <small>
                       {detail.data?.related
@@ -360,7 +360,7 @@ export function Operations() {
                         .join(', ') || 'none'}
                     </small>
                   </div>
-                  <div className="phlo-v2-mini-row">
+                  <div className="phlo-observatory-mini-row">
                     <span>Logs</span>
                     <small>{detail.data?.logs.length ?? 0} linked events</small>
                   </div>
@@ -375,19 +375,19 @@ export function Operations() {
               </>
             )}
             {detail.error && (
-              <div className="phlo-v2-panel-footer">{detail.error}</div>
+              <div className="phlo-observatory-panel-footer">{detail.error}</div>
             )}
             {result.error && (
-              <div className="phlo-v2-panel-footer">{result.error}</div>
+              <div className="phlo-observatory-panel-footer">{result.error}</div>
             )}
           </aside>
         )}
       </section>
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
-function WapOperationFocus({ operation }: { operation: V2Operation }) {
+function WapOperationFocus({ operation }: { operation: ObservatoryOperation }) {
   const metadata = operation.metadata
   const tables = wapTables(operation)
   const flow = wapOperationFlow(operation, tables)
@@ -402,19 +402,19 @@ function WapOperationFocus({ operation }: { operation: V2Operation }) {
   ].filter((field): field is [string, string] => Boolean(field[1]))
 
   return (
-    <div className="phlo-v2-wap-operation">
-      <div className="phlo-v2-wap-operation-header">
+    <div className="phlo-observatory-wap-operation">
+      <div className="phlo-observatory-wap-operation-header">
         <div>
-          <span className="phlo-v2-inspector-label">WAP execution</span>
+          <span className="phlo-observatory-inspector-label">WAP execution</span>
           <strong>Execution report</strong>
           <p>
             {operation.status} · {branch ?? 'branch unknown'} · {tables.length}{' '}
             table{tables.length === 1 ? '' : 's'}
           </p>
         </div>
-        <span className="phlo-v2-pill">{operation.status}</span>
+        <span className="phlo-observatory-pill">{operation.status}</span>
       </div>
-      <dl className="phlo-v2-wap-operation-fields">
+      <dl className="phlo-observatory-wap-operation-fields">
         {fields.map(([label, value]) => (
           <div key={label}>
             <dt>{label}</dt>
@@ -422,8 +422,8 @@ function WapOperationFocus({ operation }: { operation: V2Operation }) {
           </div>
         ))}
       </dl>
-      <div className="phlo-v2-wap-operation-evidence">
-        <div className="phlo-v2-wap-operation-steps">
+      <div className="phlo-observatory-wap-operation-evidence">
+        <div className="phlo-observatory-wap-operation-steps">
           <div>
             <span>Branch</span>
             <strong>{branch ?? 'branch unknown'}</strong>
@@ -448,16 +448,16 @@ function WapOperationFocus({ operation }: { operation: V2Operation }) {
             </small>
           </div>
         </div>
-        <div className="phlo-v2-wap-operation-flow">
-          <V2FlowCanvas edges={flow.edges} nodes={flow.nodes} />
+        <div className="phlo-observatory-wap-operation-flow">
+          <ObservatoryFlowCanvas edges={flow.edges} nodes={flow.nodes} />
         </div>
-        <div className="phlo-v2-wap-operation-tables">
-          <div className="phlo-v2-workspace-toolbar">
+        <div className="phlo-observatory-wap-operation-tables">
+          <div className="phlo-observatory-workspace-toolbar">
             <span>Affected tables</span>
-            <span className="phlo-v2-pill">{tables.length}</span>
+            <span className="phlo-observatory-pill">{tables.length}</span>
           </div>
           {tables.map((table) => (
-            <div className="phlo-v2-mini-row" key={table.id}>
+            <div className="phlo-observatory-mini-row" key={table.id}>
               <span>
                 <Database className="size-3.5" />
                 {table.name}
@@ -495,7 +495,7 @@ function Metric({
   value: string | number
 }) {
   return (
-    <div className="phlo-v2-command-metric">
+    <div className="phlo-observatory-command-metric">
       {icon}
       <span>{label}</span>
       <strong>{value}</strong>
@@ -508,44 +508,44 @@ function OperationLine({
   onSelect,
   selected,
 }: {
-  operation: V2Operation
+  operation: ObservatoryOperation
   onSelect: (id: string) => void
   selected: boolean
 }) {
   const failure = operationFailure(operation)
   return (
     <button
-      className="phlo-v2-timeline-row"
+      className="phlo-observatory-timeline-row"
       data-active={selected}
       onClick={() => onSelect(operation.id)}
       type="button"
     >
-      <span className="phlo-v2-dot" data-state={operation.health.state} />
+      <span className="phlo-observatory-dot" data-state={operation.health.state} />
       <div>
-        <div className="phlo-v2-row-title">
+        <div className="phlo-observatory-row-title">
           <RotateCcw className="size-4" />
           {operation.name}
         </div>
-        <div className="phlo-v2-row-meta">
+        <div className="phlo-observatory-row-meta">
           {operation.kind} · {operation.target?.label ?? 'platform'} ·{' '}
           {formatDateTime(operation.completed_at) ?? 'in progress'}
         </div>
         {failure && (
-          <div className="phlo-v2-row-meta phlo-v2-row-evidence">
+          <div className="phlo-observatory-row-meta phlo-observatory-row-evidence">
             {failure.message}
           </div>
         )}
       </div>
-      <span className="phlo-v2-pill">{operation.status}</span>
+      <span className="phlo-observatory-pill">{operation.status}</span>
     </button>
   )
 }
 
 function mergeOperations(
-  primary: Array<V2Operation>,
-  secondary: Array<V2Operation>,
-): Array<V2Operation> {
-  const merged = new Map<string, V2Operation>()
+  primary: Array<ObservatoryOperation>,
+  secondary: Array<ObservatoryOperation>,
+): Array<ObservatoryOperation> {
+  const merged = new Map<string, ObservatoryOperation>()
   for (const operation of [...primary, ...secondary]) {
     merged.set(operation.id, operation)
   }
@@ -554,11 +554,11 @@ function mergeOperations(
   )
 }
 
-function operationTimestamp(operation: V2Operation): string {
+function operationTimestamp(operation: ObservatoryOperation): string {
   return operation.completed_at ?? operation.started_at ?? operation.id
 }
 
-function wapTables(operation: V2Operation): Array<{
+function wapTables(operation: ObservatoryOperation): Array<{
   id: string
   name: string
   namespace: string | null
@@ -602,9 +602,9 @@ function wapTables(operation: V2Operation): Array<{
 }
 
 function wapOperationFlow(
-  operation: V2Operation,
+  operation: ObservatoryOperation,
   tables: ReturnType<typeof wapTables>,
-): { nodes: Array<V2FlowNode>; edges: Array<V2FlowEdge> } {
+): { nodes: Array<ObservatoryFlowNode>; edges: Array<ObservatoryFlowEdge> } {
   const branch =
     textMetric(operation.metadata, 'branch') ??
     operation.target?.label ??
@@ -612,7 +612,7 @@ function wapOperationFlow(
   const sourceHash = textMetric(operation.metadata, 'source_hash')
   const targetHash = textMetric(operation.metadata, 'target_hash_after')
   const tableNodes = tables.slice(0, 6).map(
-    (table): V2FlowNode => ({
+    (table): ObservatoryFlowNode => ({
       id: `table:${table.id}`,
       kind: 'table',
       label: table.name,
@@ -620,7 +620,7 @@ function wapOperationFlow(
       metric: table.records ? `${table.records} rows` : undefined,
     }),
   )
-  const nodes: Array<V2FlowNode> = [
+  const nodes: Array<ObservatoryFlowNode> = [
     {
       id: 'branch',
       kind: 'branch',
@@ -637,7 +637,7 @@ function wapOperationFlow(
       metric: targetHash ?? undefined,
     },
   ]
-  const edges: Array<V2FlowEdge> =
+  const edges: Array<ObservatoryFlowEdge> =
     tableNodes.length > 0
       ? [
           ...tableNodes.map((table) => ({
@@ -664,14 +664,14 @@ function wapOperationFlow(
   return { edges, nodes }
 }
 
-function buildOperationLedger(operations: Array<V2Operation>) {
+function buildOperationLedger(operations: Array<ObservatoryOperation>) {
   const groups = new Map<
     string,
     {
       id: string
       kind: string
       label: string
-      operations: Array<V2Operation>
+      operations: Array<ObservatoryOperation>
     }
   >()
 
@@ -719,7 +719,7 @@ function buildOperationLedger(operations: Array<V2Operation>) {
 }
 
 function operationFailure(
-  operation: V2Operation,
+  operation: ObservatoryOperation,
 ): { title: string; message: string } | null {
   if (operation.status !== 'failed' && operation.health.state !== 'error') {
     return null
@@ -743,7 +743,7 @@ function operationFailure(
 }
 
 function operationMetadata(
-  operation: V2Operation,
+  operation: ObservatoryOperation,
 ): Array<[string, NonNullable<unknown>]> {
   const keys = [
     'pipeline_step',

@@ -2,17 +2,27 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { AlertCircle, FileText, Radio, Search, Terminal } from 'lucide-react'
 import { useEffect, useMemo, useReducer } from 'react'
 
-import type { V2LogEvent, V2LogFacets, V2ResourceResult } from '@/v2/api/types'
-import { getV2LogFacets, getV2LogRecords } from '@/v2/api/resources'
-import { V2Page } from '@/v2/components/V2Page'
-import { loadCachedResource, useLiveResource } from '@/v2/routes/liveResource'
+import type {
+  ObservatoryLogEvent,
+  ObservatoryLogFacets,
+  ObservatoryResourceResult,
+} from '@/observatory/api/types'
+import {
+  getObservatoryLogFacets,
+  getObservatoryLogRecords,
+} from '@/observatory/api/resources'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
+import {
+  loadCachedResource,
+  useLiveResource,
+} from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/logs')({
   component: Logs,
 })
 
 type LogsState = {
-  facets: V2ResourceResult<V2LogFacets>
+  facets: ObservatoryResourceResult<ObservatoryLogFacets>
   level: string
   query: string
   selectedId: string | null
@@ -20,7 +30,7 @@ type LogsState = {
 }
 
 type LogsAction =
-  | { type: 'facets'; facets: V2ResourceResult<V2LogFacets> }
+  | { type: 'facets'; facets: ObservatoryResourceResult<ObservatoryLogFacets> }
   | { type: 'level'; level: string }
   | { type: 'query'; query: string }
   | { type: 'selected'; selectedId: string | null }
@@ -42,7 +52,7 @@ function logsReducer(state: LogsState, action: LogsAction): LogsState {
 }
 
 export function Logs() {
-  const result = useLiveResource(getV2LogRecords, 120_000, 'v2:logs')
+  const result = useLiveResource(getObservatoryLogRecords, 120_000, 'v2:logs')
   const logs = result.data ?? []
   const [{ facets, level, query, selectedId, source }, dispatch] = useReducer(
     logsReducer,
@@ -76,29 +86,33 @@ export function Logs() {
     filtered.find((log) => log.id === selectedId) ?? filtered[0] ?? null
 
   useEffect(() => {
-    void loadCachedResource('v2:log-facets', getV2LogFacets, {
+    void loadCachedResource('v2:log-facets', getObservatoryLogFacets, {
       staleMs: 120_000,
     }).then((nextFacets) => dispatch({ type: 'facets', facets: nextFacets }))
   }, [])
 
   return (
-    <V2Page
+    <ObservatoryPage
       kicker="Logs"
       title="Evidence console"
       description="Filter recent events, open the full payload, and jump back to the affected resource."
-      action={<span className="phlo-v2-pill">{sources.size} sources</span>}
+      action={
+        <span className="phlo-observatory-pill">{sources.size} sources</span>
+      }
     >
-      <section className="phlo-v2-log-shell">
-        <div className="phlo-v2-log-console">
-          <div className="phlo-v2-console-toolbar phlo-v2-log-toolbar">
-            <span className="phlo-v2-log-toolbar-title">
+      <section className="phlo-observatory-log-shell">
+        <div className="phlo-observatory-log-console">
+          <div className="phlo-observatory-console-toolbar phlo-observatory-log-toolbar">
+            <span className="phlo-observatory-log-toolbar-title">
               <Terminal className="size-4" />
               Event stream
             </span>
-            <span className="phlo-v2-pill">{filtered.length} events</span>
+            <span className="phlo-observatory-pill">
+              {filtered.length} events
+            </span>
           </div>
-          <div className="phlo-v2-filter-row">
-            <label className="phlo-v2-search-field">
+          <div className="phlo-observatory-filter-row">
+            <label className="phlo-observatory-search-field">
               <Search className="size-4" />
               <input
                 aria-label="Search logs"
@@ -136,7 +150,7 @@ export function Logs() {
               ))}
             </select>
           </div>
-          <div className="phlo-v2-console-body">
+          <div className="phlo-observatory-console-body">
             {filtered.map((log) => (
               <LogLine
                 key={log.id}
@@ -148,20 +162,22 @@ export function Logs() {
               />
             ))}
             {filtered.length === 0 && (
-              <div className="phlo-v2-empty-state">
+              <div className="phlo-observatory-empty-state">
                 No log events returned yet.
               </div>
             )}
           </div>
         </div>
 
-        <aside className="phlo-v2-inspector">
-          <div className="phlo-v2-inspector-label">Evidence detail</div>
+        <aside className="phlo-observatory-inspector">
+          <div className="phlo-observatory-inspector-label">
+            Evidence detail
+          </div>
           {selected ? (
             <>
               <h2>{selected.source ?? 'platform'}</h2>
               <p>{selected.message}</p>
-              <dl className="phlo-v2-facts">
+              <dl className="phlo-observatory-facts">
                 <Fact label="Level" value={selected.level} />
                 <Fact
                   label="Resource"
@@ -175,7 +191,7 @@ export function Logs() {
               </dl>
               {selected.resource && routeForResource(selected.resource) && (
                 <Link
-                  className="phlo-v2-linked-resource"
+                  className="phlo-observatory-linked-resource"
                   to={routeForResource(selected.resource)!.to}
                   params={routeForResource(selected.resource)!.params}
                 >
@@ -183,15 +199,15 @@ export function Logs() {
                   Open {selected.resource.kind}
                 </Link>
               )}
-              <div className="phlo-v2-detail-list">
+              <div className="phlo-observatory-detail-list">
                 {Object.entries(selected.metadata).map(([key, value]) => (
-                  <div className="phlo-v2-mini-row" key={key}>
+                  <div className="phlo-observatory-mini-row" key={key}>
                     <span>{key}</span>
                     <small>{formatLogValue(value)}</small>
                   </div>
                 ))}
                 {Object.keys(selected.metadata).length === 0 && (
-                  <div className="phlo-v2-mini-row">
+                  <div className="phlo-observatory-mini-row">
                     <span>Metadata</span>
                     <small>No structured fields returned</small>
                   </div>
@@ -206,8 +222,8 @@ export function Logs() {
               </p>
             </>
           )}
-          <div className="phlo-v2-detail-list">
-            <div className="phlo-v2-mini-row">
+          <div className="phlo-observatory-detail-list">
+            <div className="phlo-observatory-mini-row">
               <span>Facets</span>
               <small>
                 {sources.size} sources · {levels.size} levels ·{' '}
@@ -216,19 +232,19 @@ export function Logs() {
             </div>
           </div>
           {facets.error && (
-            <div className="phlo-v2-panel-footer">{facets.error}</div>
+            <div className="phlo-observatory-panel-footer">{facets.error}</div>
           )}
           {result.error && (
-            <div className="phlo-v2-panel-footer">{result.error}</div>
+            <div className="phlo-observatory-panel-footer">{result.error}</div>
           )}
         </aside>
       </section>
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
 function routeForResource(
-  resource: V2LogEvent['resource'],
+  resource: ObservatoryLogEvent['resource'],
 ):
   | { to: '/assets/$assetId'; params: { assetId: string } }
   | { to: '/data/$tableId'; params: { tableId: string } }
@@ -243,7 +259,7 @@ function routeForResource(
   return null
 }
 
-function matchesLogQuery(log: V2LogEvent, query: string): boolean {
+function matchesLogQuery(log: ObservatoryLogEvent, query: string): boolean {
   const needle = query.trim().toLowerCase()
   if (!needle) return true
   return [
@@ -262,7 +278,7 @@ function LogLine({
   onSelect,
   selected,
 }: {
-  log: V2LogEvent
+  log: ObservatoryLogEvent
   onSelect: (id: string) => void
   selected: boolean
 }) {
@@ -275,18 +291,20 @@ function LogLine({
 
   return (
     <button
-      className="phlo-v2-log-line"
+      className="phlo-observatory-log-line"
       data-active={selected}
       onClick={() => onSelect(log.id)}
       type="button"
     >
-      <span className="phlo-v2-log-time">{log.timestamp ?? '--:--:--'}</span>
-      <span className="phlo-v2-log-level" data-level={log.level}>
+      <span className="phlo-observatory-log-time">
+        {log.timestamp ?? '--:--:--'}
+      </span>
+      <span className="phlo-observatory-log-level" data-level={log.level}>
         <Icon className="size-3.5" />
         {log.level}
       </span>
-      <span className="phlo-v2-log-message">{log.message}</span>
-      <span className="phlo-v2-log-source">
+      <span className="phlo-observatory-log-message">{log.message}</span>
+      <span className="phlo-observatory-log-source">
         {log.source ?? log.resource?.label ?? 'platform'}
       </span>
     </button>

@@ -3,9 +3,12 @@ import { Navigation, Plug, Route as RouteIcon, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import type { V2ExtensionDetail, V2ResourceResult } from '@/v2/api/types'
-import { getV2ExtensionDetail } from '@/v2/api/resources'
-import { V2Page } from '@/v2/components/V2Page'
+import type {
+  ObservatoryExtensionDetail,
+  ObservatoryResourceResult,
+} from '@/observatory/api/types'
+import { getObservatoryExtensionDetail } from '@/observatory/api/resources'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 
 export const Route = createFileRoute('/extensions/$extensionId')({
   component: ExtensionDetailRoute,
@@ -17,13 +20,15 @@ function ExtensionDetailRoute() {
 }
 
 export function ExtensionDetailView({ extensionId }: { extensionId: string }) {
-  const [result, setResult] = useState<V2ResourceResult<V2ExtensionDetail>>({
+  const [result, setResult] = useState<
+    ObservatoryResourceResult<ObservatoryExtensionDetail>
+  >({
     data: null,
     error: null,
   })
 
   useEffect(() => {
-    void getV2ExtensionDetail({ data: { extensionId } })
+    void getObservatoryExtensionDetail({ data: { extensionId } })
       .then(setResult)
       .catch(() =>
         setResult({
@@ -37,9 +42,9 @@ export function ExtensionDetailView({ extensionId }: { extensionId: string }) {
   const extension = detail?.extension
 
   return (
-    <V2Page
+    <ObservatoryPage
       action={
-        <span className="phlo-v2-pill">
+        <span className="phlo-observatory-pill">
           {extension?.enabled ? 'enabled' : 'disabled'}
         </span>
       }
@@ -48,20 +53,20 @@ export function ExtensionDetailView({ extensionId }: { extensionId: string }) {
       title={extension?.name ?? extensionId}
     >
       {detail && extension ? (
-        <section className="phlo-v2-surface-grid">
-          <div className="phlo-v2-list-surface">
-            <div className="phlo-v2-browser-toolbar">
+        <section className="phlo-observatory-surface-grid">
+          <div className="phlo-observatory-list-surface">
+            <div className="phlo-observatory-browser-toolbar">
               <span>
                 <RouteIcon className="size-4" />
                 Routes
               </span>
-              <span className="phlo-v2-pill">
+              <span className="phlo-observatory-pill">
                 {detail.routes.length} routes
               </span>
             </div>
-            <div className="phlo-v2-detail-list phlo-v2-detail-list-padded">
+            <div className="phlo-observatory-detail-list phlo-observatory-detail-list-padded">
               {detail.routes.map((route) => (
-                <div className="phlo-v2-mini-row" key={route}>
+                <div className="phlo-observatory-mini-row" key={route}>
                   <span>{route}</span>
                   <small>route</small>
                 </div>
@@ -69,11 +74,11 @@ export function ExtensionDetailView({ extensionId }: { extensionId: string }) {
               {detail.routes.length === 0 && <p>No routes registered.</p>}
             </div>
           </div>
-          <aside className="phlo-v2-inspector">
-            <div className="phlo-v2-inspector-label">Manifest</div>
+          <aside className="phlo-observatory-inspector">
+            <div className="phlo-observatory-inspector-label">Manifest</div>
             <h2>{extension.name}</h2>
             <p>{extension.version ?? 'No version returned.'}</p>
-            <div className="phlo-v2-detail-list">
+            <div className="phlo-observatory-detail-list">
               <Mini
                 icon={<Plug className="size-3.5" />}
                 label="Plugin"
@@ -93,11 +98,11 @@ export function ExtensionDetailView({ extensionId }: { extensionId: string }) {
           </aside>
         </section>
       ) : (
-        <div className="phlo-v2-empty-state">
+        <div className="phlo-observatory-empty-state">
           {result.error ?? 'Loading extension detail…'}
         </div>
       )}
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
@@ -111,7 +116,7 @@ function Mini({
   value: string
 }) {
   return (
-    <div className="phlo-v2-mini-row">
+    <div className="phlo-observatory-mini-row">
       <span>
         {icon}
         {label}

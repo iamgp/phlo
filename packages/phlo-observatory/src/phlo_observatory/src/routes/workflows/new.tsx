@@ -13,40 +13,40 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, ReactNode } from 'react'
 
 import type {
-  V2Asset,
-  V2QualityCheck,
-  V2ResourceResult,
-  V2Table,
-  V2WorkflowApplyAction,
-  V2WorkflowGraph,
-  V2WorkflowProposal,
-  V2WorkflowWizardContribution,
-  V2WorkflowWizardField,
-  V2WorkflowWizardPayload,
-} from '@/v2/api/types'
+  ObservatoryAsset,
+  ObservatoryQualityCheck,
+  ObservatoryResourceResult,
+  ObservatoryTable,
+  ObservatoryWorkflowApplyAction,
+  ObservatoryWorkflowGraph,
+  ObservatoryWorkflowProposal,
+  ObservatoryWorkflowWizardContribution,
+  ObservatoryWorkflowWizardField,
+  ObservatoryWorkflowWizardPayload,
+} from '@/observatory/api/types'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
 import {
-  createV2WorkflowProposal,
-  getV2AssetRecords,
-  getV2QualityRecords,
-  getV2TableRecords,
-  getV2WorkflowWizard,
-  runV2WorkflowAction,
-} from '@/v2/api/resources'
-import { V2Page } from '@/v2/components/V2Page'
+  createObservatoryWorkflowProposal,
+  getObservatoryAssetRecords,
+  getObservatoryQualityRecords,
+  getObservatoryTableRecords,
+  getObservatoryWorkflowWizard,
+  runObservatoryWorkflowAction,
+} from '@/observatory/api/resources'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import {
   invalidateCachedResource,
   loadCachedResource,
   useLiveResource,
-} from '@/v2/routes/liveResource'
+} from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/workflows/new')({
   loader: loadWorkflowBuilderSnapshot,
-  component: V2WorkflowCanvasBuilderRoute,
+  component: ObservatoryWorkflowCanvasBuilderRoute,
 })
 
 type WorkflowNodeData = {
@@ -69,16 +69,16 @@ type LakehouseTemplate = {
   summary: string
   workflowName: string
   domain: string
-  focusTable: V2Table | null
-  focusAsset: V2Asset | null
-  quality: Array<V2QualityCheck>
+  focusTable: ObservatoryTable | null
+  focusAsset: ObservatoryAsset | null
+  quality: Array<ObservatoryQualityCheck>
   contributionIds: Array<string>
 }
 export type WorkflowBuilderSnapshot = {
-  assets: V2ResourceResult<Array<V2Asset>>
-  quality: V2ResourceResult<Array<V2QualityCheck>>
-  tables: V2ResourceResult<Array<V2Table>>
-  wizard: V2ResourceResult<V2WorkflowWizardPayload>
+  assets: ObservatoryResourceResult<Array<ObservatoryAsset>>
+  quality: ObservatoryResourceResult<Array<ObservatoryQualityCheck>>
+  tables: ObservatoryResourceResult<Array<ObservatoryTable>>
+  wizard: ObservatoryResourceResult<ObservatoryWorkflowWizardPayload>
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -112,15 +112,15 @@ const WORKFLOW_STEPS: Array<{
 
 export async function loadWorkflowBuilderSnapshot(): Promise<WorkflowBuilderSnapshot> {
   const [tables, assets, quality, wizard] = await Promise.all([
-    getV2TableRecords(),
-    getV2AssetRecords(),
-    getV2QualityRecords(),
-    getV2WorkflowWizard(),
+    getObservatoryTableRecords(),
+    getObservatoryAssetRecords(),
+    getObservatoryQualityRecords(),
+    getObservatoryWorkflowWizard(),
   ])
   return { assets, quality, tables, wizard }
 }
 
-function V2WorkflowCanvasBuilderRoute() {
+function ObservatoryWorkflowCanvasBuilderRoute() {
   const snapshot = Route.useLoaderData()
   return <WorkflowCanvasBuilder initialSnapshot={snapshot} />
 }
@@ -134,10 +134,18 @@ export function WorkflowCanvasBuilder({
 }
 
 function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
-  const tableResult = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
-  const assetResult = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
+  const tableResult = useLiveResource(
+    getObservatoryTableRecords,
+    120_000,
+    'v2:tables',
+  )
+  const assetResult = useLiveResource(
+    getObservatoryAssetRecords,
+    120_000,
+    'v2:assets',
+  )
   const qualityResult = useLiveResource(
-    getV2QualityRecords,
+    getObservatoryQualityRecords,
     120_000,
     'v2:quality',
   )
@@ -154,7 +162,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
       ? initialSnapshot.quality
       : qualityResult
   const [wizard, setWizard] = useState<
-    V2ResourceResult<V2WorkflowWizardPayload>
+    ObservatoryResourceResult<ObservatoryWorkflowWizardPayload>
   >(initialSnapshot?.wizard ?? { data: null, error: null })
   const [nodes, setNodes] = useState<Array<WorkflowNode>>([])
   const [values, setValues] = useState<FormValues>({})
@@ -166,7 +174,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
   const [domain, setDomain] = useState('lakehouse')
   const [activeStep, setActiveStep] = useState<WizardStep>('info')
   const [proposal, setProposal] = useState<
-    V2ResourceResult<V2WorkflowProposal>
+    ObservatoryResourceResult<ObservatoryWorkflowProposal>
   >({
     data: null,
     error: null,
@@ -177,7 +185,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
     (step) => step.id === activeStep,
   )
   const applyWizardPayload = useCallback(
-    (next: V2ResourceResult<V2WorkflowWizardPayload>) => {
+    (next: ObservatoryResourceResult<ObservatoryWorkflowWizardPayload>) => {
       setWizard(next)
       const contributions = next.data?.contributions ?? []
       const starterNodes = starterGraph(contributions).nodes
@@ -191,10 +199,14 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
 
   useEffect(() => {
     let cancelled = false
-    void loadCachedResource('v2:workflow-wizard', getV2WorkflowWizard, {
-      force: true,
-      staleMs: 60_000,
-    }).then((next) => {
+    void loadCachedResource(
+      'v2:workflow-wizard',
+      getObservatoryWorkflowWizard,
+      {
+        force: true,
+        staleMs: 60_000,
+      },
+    ).then((next) => {
       if (cancelled) return
       if (!next.data && initialSnapshot?.wizard.data) return
       applyWizardPayload(next)
@@ -227,7 +239,9 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
     ? contributionById.get(selectedNode.data.contributionId)
     : null
 
-  function addContribution(contribution: V2WorkflowWizardContribution) {
+  function addContribution(
+    contribution: ObservatoryWorkflowWizardContribution,
+  ) {
     const nodeId = `${contribution.id}-${crypto.randomUUID()}`
     const node = toCanvasNode(contribution, nodeId)
     setNodes((current) => {
@@ -321,7 +335,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
     }))
   }
 
-  function buildGraph(): V2WorkflowGraph {
+  function buildGraph(): ObservatoryWorkflowGraph {
     return {
       nodes: nodes.map((node) => ({
         id: node.id,
@@ -340,7 +354,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
   function generateProposal() {
     setActionMessage(null)
     setProposalLoading(true)
-    void createV2WorkflowProposal({
+    void createObservatoryWorkflowProposal({
       data: {
         workflow_name: workflowName,
         domain,
@@ -354,9 +368,9 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
       .finally(() => setProposalLoading(false))
   }
 
-  function runAction(action: V2WorkflowApplyAction) {
+  function runAction(action: ObservatoryWorkflowApplyAction) {
     if (!proposal.data || !action.enabled) return
-    void runV2WorkflowAction({
+    void runObservatoryWorkflowAction({
       data: { actionId: action.id, proposal: proposal.data },
     }).then((result) => {
       invalidateCachedResource('v2:operations')
@@ -367,12 +381,14 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
   }
 
   return (
-    <V2Page
+    <ObservatoryPage
       description="Compose package-provided workflow nodes, configure each step, preview generated files, then apply guarded actions."
       kicker="Workflows"
       title="New workflow"
     >
-      {wizard.error && <div className="phlo-v2-callout">{wizard.error}</div>}
+      {wizard.error && (
+        <div className="phlo-observatory-callout">{wizard.error}</div>
+      )}
 
       <nav className="phlo-workflow-stepper" aria-label="Workflow wizard steps">
         {WORKFLOW_STEPS.map((step, index) => (
@@ -396,8 +412,8 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
       </nav>
 
       {activeStep === 'info' && (
-        <section className="phlo-v2-panel phlo-workflow-step-panel">
-          <div className="phlo-v2-panel-header phlo-workflow-card-header">
+        <section className="phlo-observatory-panel phlo-workflow-step-panel">
+          <div className="phlo-observatory-panel-header phlo-workflow-card-header">
             <div>
               <h2>Workflow info</h2>
               <p>Set the workflow identity before arranging package nodes.</p>
@@ -437,7 +453,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
             ))}
           </div>
           {(tableResult.error || assetResult.error || qualityResult.error) && (
-            <div className="phlo-v2-panel-footer">
+            <div className="phlo-observatory-panel-footer">
               {tableResult.error ?? assetResult.error ?? qualityResult.error}
             </div>
           )}
@@ -526,7 +542,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
           />
         </section>
       )}
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
@@ -544,11 +560,13 @@ function PipelineLane({
   onSelectNode,
 }: {
   nodes: Array<WorkflowNode>
-  contributions: Array<V2WorkflowWizardContribution>
+  contributions: Array<ObservatoryWorkflowWizardContribution>
   insertIndex: number
   addMenuOpen: boolean
   selectedNodeId: string | null
-  onAddContribution: (contribution: V2WorkflowWizardContribution) => void
+  onAddContribution: (
+    contribution: ObservatoryWorkflowWizardContribution,
+  ) => void
   onCloseAddMenu: () => void
   onMoveNode: (nodeId: string, direction: -1 | 1) => void
   onRemoveNode: (nodeId: string) => void
@@ -627,10 +645,12 @@ function AddStepMenu({
 }: {
   groupedContributions: Array<{
     stage: 'source' | 'transform' | 'quality' | 'publish'
-    items: Array<V2WorkflowWizardContribution>
+    items: Array<ObservatoryWorkflowWizardContribution>
   }>
   insertIndex: number
-  onAddContribution: (contribution: V2WorkflowWizardContribution) => void
+  onAddContribution: (
+    contribution: ObservatoryWorkflowWizardContribution,
+  ) => void
   onCloseAddMenu: () => void
 }) {
   return (
@@ -792,13 +812,13 @@ function Inspector({
   onChange,
 }: {
   node: WorkflowNode | null
-  contribution: V2WorkflowWizardContribution | null | undefined
+  contribution: ObservatoryWorkflowWizardContribution | null | undefined
   values: Record<string, string>
   onChange: (nodeId: string, field: string, value: string) => void
 }) {
   if (!node || !contribution) {
     return (
-      <div className="phlo-v2-panel phlo-workflow-inspector-card">
+      <div className="phlo-observatory-panel phlo-workflow-inspector-card">
         <div className="phlo-workflow-pane-header">
           <h2>Inspector</h2>
         </div>
@@ -808,13 +828,13 @@ function Inspector({
   }
 
   return (
-    <div className="phlo-v2-panel phlo-workflow-inspector-card">
+    <div className="phlo-observatory-panel phlo-workflow-inspector-card">
       <div className="phlo-workflow-pane-header">
         <div>
           <h2>{contribution.label}</h2>
           <p>{contribution.description}</p>
         </div>
-        <span className="phlo-v2-pill">{contribution.package}</span>
+        <span className="phlo-observatory-pill">{contribution.package}</span>
       </div>
       <div className="phlo-workflow-inspector-fields">
         {contribution.fields.map((field) => (
@@ -838,7 +858,7 @@ function DynamicField({
   onChange,
 }: {
   nodeId: string
-  field: V2WorkflowWizardField
+  field: ObservatoryWorkflowWizardField
   value: string
   onChange: (nodeId: string, field: string, value: string) => void
 }) {
@@ -882,22 +902,22 @@ function ReviewPanel({
   onGenerate,
   onRunAction,
 }: {
-  proposal: V2ResourceResult<V2WorkflowProposal>
+  proposal: ObservatoryResourceResult<ObservatoryWorkflowProposal>
   actionMessage: string | null
   loading: boolean
   onGenerate: () => void
-  onRunAction: (action: V2WorkflowApplyAction) => void
+  onRunAction: (action: ObservatoryWorkflowApplyAction) => void
 }) {
   if (proposal.error) {
     return (
-      <div className="phlo-v2-panel phlo-workflow-review-card">
-        <div className="phlo-v2-panel-header phlo-workflow-review-header">
+      <div className="phlo-observatory-panel phlo-workflow-review-card">
+        <div className="phlo-observatory-panel-header phlo-workflow-review-header">
           <div>
             <h2>Review</h2>
             <p>Proposal generation needs attention.</p>
           </div>
         </div>
-        <div className="phlo-v2-panel-footer">{proposal.error}</div>
+        <div className="phlo-observatory-panel-footer">{proposal.error}</div>
         <Button
           className="phlo-workflow-action phlo-workflow-apply"
           disabled={loading}
@@ -913,8 +933,8 @@ function ReviewPanel({
   }
   if (!proposal.data) {
     return (
-      <div className="phlo-v2-panel phlo-workflow-review-card">
-        <div className="phlo-v2-panel-header phlo-workflow-review-header">
+      <div className="phlo-observatory-panel phlo-workflow-review-card">
+        <div className="phlo-observatory-panel-header phlo-workflow-review-header">
           <div>
             <h2>Review</h2>
             <p>Generated files and guarded actions appear here.</p>
@@ -931,8 +951,8 @@ function ReviewPanel({
   }
 
   return (
-    <div className="phlo-v2-panel phlo-workflow-review-card">
-      <div className="phlo-v2-panel-header phlo-workflow-review-header">
+    <div className="phlo-observatory-panel phlo-workflow-review-card">
+      <div className="phlo-observatory-panel-header phlo-workflow-review-header">
         <div>
           <h2>Review proposal</h2>
           <p>
@@ -940,7 +960,9 @@ function ReviewPanel({
             {proposal.data.planned_models.length} models
           </p>
         </div>
-        <span className="phlo-v2-pill">{proposal.data.files.length} files</span>
+        <span className="phlo-observatory-pill">
+          {proposal.data.files.length} files
+        </span>
       </div>
       <div className="phlo-workflow-file-list">
         {proposal.data.files.map((file) => (
@@ -976,13 +998,15 @@ function ReviewPanel({
         {loading ? 'Refreshing proposal…' : 'Refresh proposal'}
       </Button>
       {actionMessage && (
-        <div className="phlo-v2-panel-footer">{actionMessage}</div>
+        <div className="phlo-observatory-panel-footer">{actionMessage}</div>
       )}
     </div>
   )
 }
 
-function starterGraph(contributions: Array<V2WorkflowWizardContribution>) {
+function starterGraph(
+  contributions: Array<ObservatoryWorkflowWizardContribution>,
+) {
   const ids = [
     'dlt.rest-api-source',
     'dbt.transform',
@@ -1004,7 +1028,7 @@ function starterGraph(contributions: Array<V2WorkflowWizardContribution>) {
 }
 
 function toCanvasNode(
-  contribution: V2WorkflowWizardContribution,
+  contribution: ObservatoryWorkflowWizardContribution,
   id: string,
 ): WorkflowNode {
   return {
@@ -1020,7 +1044,7 @@ function toCanvasNode(
 }
 
 function starterValues(
-  contributions: Array<V2WorkflowWizardContribution>,
+  contributions: Array<ObservatoryWorkflowWizardContribution>,
   nodes: Array<WorkflowNode>,
 ) {
   return nodes.reduce<FormValues>((current, node) => {
@@ -1033,7 +1057,7 @@ function starterValues(
 }
 
 function defaultsForContribution(
-  contribution: V2WorkflowWizardContribution,
+  contribution: ObservatoryWorkflowWizardContribution,
   template?: LakehouseTemplate,
 ) {
   return contribution.fields.reduce<Record<string, string>>(
@@ -1054,7 +1078,7 @@ function defaultsForContribution(
 
 function defaultFieldValue(
   contributionId: string,
-  field: V2WorkflowWizardField,
+  field: ObservatoryWorkflowWizardField,
   template?: LakehouseTemplate,
 ) {
   if (template) {
@@ -1139,9 +1163,9 @@ function defaultFieldValue(
 }
 
 function buildLakehouseTemplates(
-  tables: Array<V2Table>,
-  assets: Array<V2Asset>,
-  quality: Array<V2QualityCheck>,
+  tables: Array<ObservatoryTable>,
+  assets: Array<ObservatoryAsset>,
+  quality: Array<ObservatoryQualityCheck>,
 ): Array<LakehouseTemplate> {
   const focusTable =
     tables.find(
@@ -1243,7 +1267,7 @@ function buildLakehouseTemplates(
 
 function lakehouseFieldValue(
   contributionId: string,
-  field: V2WorkflowWizardField,
+  field: ObservatoryWorkflowWizardField,
   template: LakehouseTemplate,
 ): string | null {
   const table = template.focusTable
@@ -1372,7 +1396,7 @@ function lakehouseFieldValue(
 }
 
 function tableColumnProfiles(
-  table: V2Table | null,
+  table: ObservatoryTable | null,
 ): Array<{ name: string; type: string }> {
   const columns = table?.metadata.columns
   if (!Array.isArray(columns)) return []
@@ -1417,14 +1441,17 @@ function dbTypeToCastType(type: string): string {
   return 'varchar'
 }
 
-function tableCatalogState(table: V2Table): string {
+function tableCatalogState(table: ObservatoryTable): string {
   const state = String(table.metadata.catalog_state ?? '').toLowerCase()
   if (state === 'queryable') return 'queryable'
   if (table.metadata.catalog_present === true) return 'queryable'
   return 'registered'
 }
 
-function inferDomain(table: V2Table | null, asset: V2Asset | null): string {
+function inferDomain(
+  table: ObservatoryTable | null,
+  asset: ObservatoryAsset | null,
+): string {
   const raw = [
     table?.id,
     table?.name,
@@ -1444,7 +1471,7 @@ function inferDomain(table: V2Table | null, asset: V2Asset | null): string {
   return 'lakehouse'
 }
 
-function inferAssetStage(asset: V2Asset): string {
+function inferAssetStage(asset: ObservatoryAsset): string {
   const raw = [asset.group, asset.id, asset.name, asset.metadata.stage]
     .filter(Boolean)
     .join(' ')
@@ -1466,7 +1493,7 @@ function inferPrimaryKeyFromName(name: string): string | null {
 }
 
 function requiredColumnsForQuality(
-  quality: Array<V2QualityCheck>,
+  quality: Array<ObservatoryQualityCheck>,
 ): Array<string> {
   return quality.flatMap((check) => readStringList(check.metadata.columns))
 }

@@ -4,12 +4,15 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
-  V2ResourceResult,
-  V2RowJourney,
-  V2TablePreview,
-} from '@/v2/api/types'
-import { getV2RowJourney, getV2TablePreview } from '@/v2/api/resources'
-import { V2Page } from '@/v2/components/V2Page'
+  ObservatoryResourceResult,
+  ObservatoryRowJourney,
+  ObservatoryTablePreview,
+} from '@/observatory/api/types'
+import {
+  getObservatoryRowJourney,
+  getObservatoryTablePreview,
+} from '@/observatory/api/resources'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 
 const previewLimit = 25
 
@@ -23,17 +26,21 @@ function TableDetailRoute() {
 }
 
 export function TableDetailView({ tableId }: { tableId: string }) {
-  const [result, setResult] = useState<V2ResourceResult<V2TablePreview>>({
+  const [result, setResult] = useState<
+    ObservatoryResourceResult<ObservatoryTablePreview>
+  >({
     data: null,
     error: null,
   })
-  const [journey, setJourney] = useState<V2ResourceResult<V2RowJourney>>({
+  const [journey, setJourney] = useState<
+    ObservatoryResourceResult<ObservatoryRowJourney>
+  >({
     data: null,
     error: null,
   })
 
   useEffect(() => {
-    void getV2TablePreview({ data: { tableId, limit: previewLimit } })
+    void getObservatoryTablePreview({ data: { tableId, limit: previewLimit } })
       .then(setResult)
       .catch(() =>
         setResult({
@@ -47,8 +54,10 @@ export function TableDetailView({ tableId }: { tableId: string }) {
   const table = preview?.table
 
   return (
-    <V2Page
-      action={<span className="phlo-v2-pill">{table?.branch ?? 'main'}</span>}
+    <ObservatoryPage
+      action={
+        <span className="phlo-observatory-pill">{table?.branch ?? 'main'}</span>
+      }
       description="Table detail, preview metadata, and row-journey entry point."
       kicker="Table"
       title={
@@ -58,27 +67,27 @@ export function TableDetailView({ tableId }: { tableId: string }) {
       }
     >
       {preview && table ? (
-        <section className="phlo-v2-surface-grid">
-          <div className="phlo-v2-list-surface">
-            <div className="phlo-v2-browser-toolbar">
+        <section className="phlo-observatory-surface-grid">
+          <div className="phlo-observatory-list-surface">
+            <div className="phlo-observatory-browser-toolbar">
               <span>
                 <Columns3 className="size-4" />
                 Preview rows
               </span>
-              <span className="phlo-v2-pill">
+              <span className="phlo-observatory-pill">
                 {preview.columns.length} columns
               </span>
             </div>
-            <div className="phlo-v2-detail-list phlo-v2-detail-list-padded">
+            <div className="phlo-observatory-detail-list phlo-observatory-detail-list-padded">
               {preview.rows.slice(0, 8).map((row, index) => (
                 <button
-                  className="phlo-v2-mini-row phlo-v2-mini-row-stack"
+                  className="phlo-observatory-mini-row phlo-observatory-mini-row-stack"
                   key={String(row._phlo_row_id ?? index)}
                   onClick={() => {
                     const rowId = String(
                       row._phlo_row_id ?? `${table.id}:${index + 1}`,
                     )
-                    void getV2RowJourney({
+                    void getObservatoryRowJourney({
                       data: { tableId: table.id, rowId },
                     }).then(setJourney)
                   }}
@@ -96,18 +105,18 @@ export function TableDetailView({ tableId }: { tableId: string }) {
               ))}
               {preview.rows.length === 0 &&
                 preview.columns.map((column) => (
-                  <div className="phlo-v2-mini-row" key={column}>
+                  <div className="phlo-observatory-mini-row" key={column}>
                     <span>{column}</span>
                     <small>column</small>
                   </div>
                 ))}
               {journey.data && (
-                <div className="phlo-v2-detail-list">
-                  <div className="phlo-v2-mini-row">
+                <div className="phlo-observatory-detail-list">
+                  <div className="phlo-observatory-mini-row">
                     <span>Selected row journey</span>
                     <small>{journey.data.row_id}</small>
                   </div>
-                  <div className="phlo-v2-mini-row">
+                  <div className="phlo-observatory-mini-row">
                     <span>Upstream</span>
                     <small>
                       {journey.data.upstream
@@ -115,7 +124,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
                         .join(', ') || 'none'}
                     </small>
                   </div>
-                  <div className="phlo-v2-mini-row">
+                  <div className="phlo-observatory-mini-row">
                     <span>Downstream</span>
                     <small>
                       {journey.data.downstream
@@ -126,18 +135,20 @@ export function TableDetailView({ tableId }: { tableId: string }) {
                 </div>
               )}
               {journey.error && (
-                <div className="phlo-v2-panel-footer">{journey.error}</div>
+                <div className="phlo-observatory-panel-footer">
+                  {journey.error}
+                </div>
               )}
               {preview.columns.length === 0 && (
                 <p>No column preview returned yet.</p>
               )}
             </div>
           </div>
-          <aside className="phlo-v2-inspector">
-            <div className="phlo-v2-inspector-label">Preview</div>
+          <aside className="phlo-observatory-inspector">
+            <div className="phlo-observatory-inspector-label">Preview</div>
             <h2>{table.name}</h2>
             <p>{table.asset_id ?? 'No asset binding returned.'}</p>
-            <div className="phlo-v2-detail-list">
+            <div className="phlo-observatory-detail-list">
               <Mini
                 icon={<Rows3 className="size-3.5" />}
                 label="Rows"
@@ -160,7 +171,7 @@ export function TableDetailView({ tableId }: { tableId: string }) {
               <Mini label="Namespace" value={table.namespace ?? 'default'} />
               {table.asset_id && (
                 <Link
-                  className="phlo-v2-mini-row"
+                  className="phlo-observatory-mini-row"
                   to="/asset/$assetId"
                   params={{ assetId: table.asset_id }}
                 >
@@ -172,13 +183,13 @@ export function TableDetailView({ tableId }: { tableId: string }) {
           </aside>
         </section>
       ) : (
-        <div className="phlo-v2-empty-state">
+        <div className="phlo-observatory-empty-state">
           {result.error
             ? 'Table detail is unavailable.'
             : 'Loading table detail…'}
         </div>
       )}
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
@@ -192,7 +203,7 @@ function Mini({
   value: string
 }) {
   return (
-    <div className="phlo-v2-mini-row">
+    <div className="phlo-observatory-mini-row">
       <span>
         {icon}
         {label}

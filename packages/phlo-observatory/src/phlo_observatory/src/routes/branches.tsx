@@ -12,25 +12,28 @@ import { useEffect, useReducer } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
-  V2Branch,
-  V2BranchDetail,
-  V2Operation,
-  V2ResourceResult,
-  V2Table,
-} from '@/v2/api/types'
-import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
+  ObservatoryBranch,
+  ObservatoryBranchDetail,
+  ObservatoryOperation,
+  ObservatoryResourceResult,
+  ObservatoryTable,
+} from '@/observatory/api/types'
+import type {
+  ObservatoryFlowEdge,
+  ObservatoryFlowNode,
+} from '@/observatory/components/ObservatoryFlowCanvas'
 import {
-  getV2BranchDetailDirect,
-  getV2BranchRecords,
-  getV2OperationRecords,
-  runV2BranchAction,
-} from '@/v2/api/resources'
-import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
-import { V2Page } from '@/v2/components/V2Page'
+  getObservatoryBranchDetailDirect,
+  getObservatoryBranchRecords,
+  getObservatoryOperationRecords,
+  runObservatoryBranchAction,
+} from '@/observatory/api/resources'
+import { ObservatoryFlowCanvas } from '@/observatory/components/ObservatoryFlowCanvas'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import {
   invalidateCachedResources,
   useLiveResource,
-} from '@/v2/routes/liveResource'
+} from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/branches')({
   component: Branches,
@@ -39,17 +42,20 @@ export const Route = createFileRoute('/branches')({
 type BranchesState = {
   actionMessage: string | null
   activePanel: BranchPanel
-  createdBranches: Array<V2Branch>
-  detail: V2ResourceResult<V2BranchDetail>
+  createdBranches: Array<ObservatoryBranch>
+  detail: ObservatoryResourceResult<ObservatoryBranchDetail>
   selectedId: string | null
 }
 
 type BranchesAction =
   | { type: 'actionMessage'; message: string | null }
   | { type: 'activePanel'; panel: BranchPanel }
-  | { type: 'detail'; detail: V2ResourceResult<V2BranchDetail> }
+  | {
+      type: 'detail'
+      detail: ObservatoryResourceResult<ObservatoryBranchDetail>
+    }
   | { type: 'select'; selectedId: string | null }
-  | { type: 'branchCreated'; branch: V2Branch; message: string | null }
+  | { type: 'branchCreated'; branch: ObservatoryBranch; message: string | null }
 
 function branchesReducer(
   state: BranchesState,
@@ -75,9 +81,13 @@ function branchesReducer(
 }
 
 export function Branches() {
-  const result = useLiveResource(getV2BranchRecords, 60_000, 'v2:branches')
+  const result = useLiveResource(
+    getObservatoryBranchRecords,
+    60_000,
+    'v2:branches',
+  )
   const operationsResult = useLiveResource(
-    getV2OperationRecords,
+    getObservatoryOperationRecords,
     60_000,
     'v2:operations',
   )
@@ -119,25 +129,31 @@ export function Branches() {
     }
     let cancelled = false
     dispatch({ type: 'detail', detail: { data: null, error: null } })
-    void getV2BranchDetailDirect({ branchName: branchId }).then((next) => {
-      if (!cancelled) dispatch({ type: 'detail', detail: next })
-    })
+    void getObservatoryBranchDetailDirect({ branchName: branchId }).then(
+      (next) => {
+        if (!cancelled) dispatch({ type: 'detail', detail: next })
+      },
+    )
     return () => {
       cancelled = true
     }
   }, [selected?.id])
 
   return (
-    <V2Page
+    <ObservatoryPage
       kicker="Changes"
       title="Catalog changes"
       description="Review branch state, table drift, and guarded change workflows."
-      action={<span className="phlo-v2-pill">{branches.length} branches</span>}
+      action={
+        <span className="phlo-observatory-pill">
+          {branches.length} branches
+        </span>
+      }
     >
-      <section className="phlo-v2-surface-grid phlo-v2-branch-grid">
-        <div className="phlo-v2-branch-main">
-          <div className="phlo-v2-list-surface">
-            <div className="phlo-v2-browser-toolbar">
+      <section className="phlo-observatory-surface-grid phlo-observatory-branch-grid">
+        <div className="phlo-observatory-branch-main">
+          <div className="phlo-observatory-list-surface">
+            <div className="phlo-observatory-browser-toolbar">
               <span>
                 <GitBranch className="size-4" />
                 Branches
@@ -153,7 +169,7 @@ export function Branches() {
                   ) {
                     return
                   }
-                  void runV2BranchAction({
+                  void runObservatoryBranchAction({
                     data: { actionId: `branch:create:${branchName}` },
                   }).then((next) => {
                     invalidateCachedResources(['v2:operations', 'v2:branches'])
@@ -186,7 +202,7 @@ export function Branches() {
             </div>
             {branches.map((branch) => (
               <button
-                className="phlo-v2-row phlo-v2-select-row"
+                className="phlo-observatory-row phlo-observatory-select-row"
                 data-active={branch.id === selected?.id}
                 key={branch.id}
                 onClick={() =>
@@ -194,14 +210,16 @@ export function Branches() {
                 }
                 type="button"
               >
-                <div className="phlo-v2-row-main">
-                  <div className="phlo-v2-row-title">{branch.name}</div>
-                  <div className="phlo-v2-row-meta">
+                <div className="phlo-observatory-row-main">
+                  <div className="phlo-observatory-row-title">
+                    {branch.name}
+                  </div>
+                  <div className="phlo-observatory-row-meta">
                     {branch.current ? 'Current branch' : 'Review branch'}
                     {branchDelta(branch) && <> · {branchDelta(branch)}</>}
                   </div>
                 </div>
-                <span className="phlo-v2-pill">
+                <span className="phlo-observatory-pill">
                   {branch.current
                     ? 'current'
                     : branch.protected
@@ -213,9 +231,11 @@ export function Branches() {
           </div>
           {selected && (
             <>
-              <section className="phlo-v2-branch-summary">
-                <div className="phlo-v2-branch-summary-copy">
-                  <div className="phlo-v2-inspector-label">Selected branch</div>
+              <section className="phlo-observatory-branch-summary">
+                <div className="phlo-observatory-branch-summary-copy">
+                  <div className="phlo-observatory-inspector-label">
+                    Selected branch
+                  </div>
                   <h2>{selected.name}</h2>
                   <p>
                     {detail.data
@@ -223,7 +243,7 @@ export function Branches() {
                       : branchNarrativeFromBranch(selected)}
                   </p>
                 </div>
-                <div className="phlo-v2-action-row">
+                <div className="phlo-observatory-action-row">
                   <button
                     data-active={activePanel === 'compare'}
                     onClick={() =>
@@ -255,7 +275,7 @@ export function Branches() {
                     Contents
                   </button>
                 </div>
-                <dl className="phlo-v2-branch-facts">
+                <dl className="phlo-observatory-branch-facts">
                   <div>
                     <dt>Tables</dt>
                     <dd>{selectedTableCount}</dd>
@@ -302,30 +322,32 @@ export function Branches() {
             </>
           )}
           {detail.error && (
-            <div className="phlo-v2-panel-footer">{detail.error}</div>
+            <div className="phlo-observatory-panel-footer">{detail.error}</div>
           )}
           {actionMessage && (
-            <div className="phlo-v2-panel-footer">{actionMessage}</div>
+            <div className="phlo-observatory-panel-footer">{actionMessage}</div>
           )}
           {result.error && (
-            <div className="phlo-v2-panel-footer">{result.error}</div>
+            <div className="phlo-observatory-panel-footer">{result.error}</div>
           )}
           {operationsResult.error && (
-            <div className="phlo-v2-panel-footer">{operationsResult.error}</div>
+            <div className="phlo-observatory-panel-footer">
+              {operationsResult.error}
+            </div>
           )}
         </div>
       </section>
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
 type BranchPanel = 'contents' | 'compare' | 'history'
 
 function mergeBranches(
-  left: Array<V2Branch>,
-  right: Array<V2Branch>,
-): Array<V2Branch> {
-  const merged = new Map<string, V2Branch>()
+  left: Array<ObservatoryBranch>,
+  right: Array<ObservatoryBranch>,
+): Array<ObservatoryBranch> {
+  const merged = new Map<string, ObservatoryBranch>()
   for (const branch of [...left, ...right]) {
     merged.set(branch.id, branch)
   }
@@ -333,10 +355,10 @@ function mergeBranches(
 }
 
 function mergeOperations(
-  left: Array<V2Operation>,
-  right: Array<V2Operation>,
-): Array<V2Operation> {
-  const merged = new Map<string, V2Operation>()
+  left: Array<ObservatoryOperation>,
+  right: Array<ObservatoryOperation>,
+): Array<ObservatoryOperation> {
+  const merged = new Map<string, ObservatoryOperation>()
   for (const operation of [...left, ...right]) {
     merged.set(operation.id, operation)
   }
@@ -344,9 +366,9 @@ function mergeOperations(
 }
 
 function branchRelatedOperations(
-  branch: V2Branch | undefined,
-  operations: Array<V2Operation>,
-): Array<V2Operation> {
+  branch: ObservatoryBranch | undefined,
+  operations: Array<ObservatoryOperation>,
+): Array<ObservatoryOperation> {
   if (!branch) return []
   return operations.filter((operation) => {
     const metadataBranch = metadataString(operation.metadata, 'branch')
@@ -366,13 +388,13 @@ function BranchPanelView({
   operations,
 }: {
   active: BranchPanel
-  detail: V2BranchDetail
-  operations: Array<V2Operation>
+  detail: ObservatoryBranchDetail
+  operations: Array<ObservatoryOperation>
 }) {
   if (active === 'compare') {
     return (
-      <div className="phlo-v2-branch-review">
-        <div className="phlo-v2-command-strip">
+      <div className="phlo-observatory-branch-review">
+        <div className="phlo-observatory-command-strip">
           <BranchMetric
             icon={<Plus className="size-4" />}
             label="Added"
@@ -401,7 +423,7 @@ function BranchPanelView({
   if (active === 'history') {
     const commits = mergeOperations(operations, detail.commits)
     return (
-      <div className="phlo-v2-detail-list">
+      <div className="phlo-observatory-detail-list">
         {commits.length > 0 ? (
           commits
             .slice(0, 8)
@@ -414,7 +436,7 @@ function BranchPanelView({
   }
 
   return (
-    <div className="phlo-v2-detail-list">
+    <div className="phlo-observatory-detail-list">
       {detail.tables.slice(0, 8).map((table) => (
         <TableRow key={table.id} table={table} />
       ))}
@@ -429,14 +451,14 @@ function BranchPanelFallback({
   operations,
 }: {
   active: BranchPanel
-  branch: V2Branch
-  operations: Array<V2Operation>
+  branch: ObservatoryBranch
+  operations: Array<ObservatoryOperation>
 }) {
   if (active === 'compare') {
     const compare = branchCompare(branch)
     return (
-      <div className="phlo-v2-branch-review">
-        <div className="phlo-v2-command-strip">
+      <div className="phlo-observatory-branch-review">
+        <div className="phlo-observatory-command-strip">
           <BranchMetric
             icon={<Plus className="size-4" />}
             label="Added"
@@ -464,7 +486,7 @@ function BranchPanelFallback({
 
   if (active === 'history' && operations.length > 0) {
     return (
-      <div className="phlo-v2-detail-list">
+      <div className="phlo-observatory-detail-list">
         {operations.slice(0, 8).map((operation) => (
           <CommitRow commit={operation} key={operation.id} />
         ))}
@@ -473,7 +495,7 @@ function BranchPanelFallback({
   }
 
   return (
-    <div className="phlo-v2-detail-list">
+    <div className="phlo-observatory-detail-list">
       <p>
         No branch contents returned by the API yet. WAP evidence is shown above.
       </p>
@@ -481,7 +503,11 @@ function BranchPanelFallback({
   )
 }
 
-function WapReport({ operations }: { operations: Array<V2Operation> }) {
+function WapReport({
+  operations,
+}: {
+  operations: Array<ObservatoryOperation>
+}) {
   const report = operations.find((operation) => operation.kind === 'wap')
   if (!report) return null
   const metadata = report.metadata
@@ -495,8 +521,8 @@ function WapReport({ operations }: { operations: Array<V2Operation> }) {
   ].filter((field): field is [string, string] => Boolean(field[1]))
 
   return (
-    <section className="phlo-v2-wap-report">
-      <div className="phlo-v2-inspector-label">WAP report</div>
+    <section className="phlo-observatory-wap-report">
+      <div className="phlo-observatory-inspector-label">WAP report</div>
       <h3>{report.name}</h3>
       <p>
         {[report.status, formatDateTime(report.completed_at)]
@@ -525,7 +551,7 @@ function BranchMetric({
   value: string | number
 }) {
   return (
-    <div className="phlo-v2-command-metric">
+    <div className="phlo-observatory-command-metric">
       {icon}
       <span>{label}</span>
       <strong>{value}</strong>
@@ -538,17 +564,17 @@ function BranchReviewEvidence({
   operations,
   tables,
 }: {
-  branch: V2Branch
-  operations: Array<V2Operation>
-  tables: Array<V2Table>
+  branch: ObservatoryBranch
+  operations: Array<ObservatoryOperation>
+  tables: Array<ObservatoryTable>
 }) {
   const flow = branchFlow(branch, operations, tables)
   return (
-    <div className="phlo-v2-branch-evidence">
-      <div className="phlo-v2-branch-flow">
-        <V2FlowCanvas edges={flow.edges} nodes={flow.nodes} />
+    <div className="phlo-observatory-branch-evidence">
+      <div className="phlo-observatory-branch-flow">
+        <ObservatoryFlowCanvas edges={flow.edges} nodes={flow.nodes} />
       </div>
-      <div className="phlo-v2-branch-table-list">
+      <div className="phlo-observatory-branch-table-list">
         {tables.length > 0 ? (
           tables
             .slice(0, 8)
@@ -565,15 +591,15 @@ function BranchReviewEvidence({
 }
 
 function branchFlow(
-  branch: V2Branch,
-  operations: Array<V2Operation>,
-  tables: Array<V2Table>,
-): { nodes: Array<V2FlowNode>; edges: Array<V2FlowEdge> } {
+  branch: ObservatoryBranch,
+  operations: Array<ObservatoryOperation>,
+  tables: Array<ObservatoryTable>,
+): { nodes: Array<ObservatoryFlowNode>; edges: Array<ObservatoryFlowEdge> } {
   const report = operations.find((operation) => operation.kind === 'wap')
   const sourceHash = metadataString(report?.metadata ?? {}, 'source_hash')
   const targetHash = metadataString(report?.metadata ?? {}, 'target_hash_after')
   const tableNodes = tables.slice(0, 6).map(
-    (table): V2FlowNode => ({
+    (table): ObservatoryFlowNode => ({
       id: `table:${table.id}`,
       kind: 'table',
       label: table.name,
@@ -585,7 +611,7 @@ function branchFlow(
       subtitle: table.namespace ?? undefined,
     }),
   )
-  const nodes: Array<V2FlowNode> = [
+  const nodes: Array<ObservatoryFlowNode> = [
     {
       id: 'branch',
       kind: 'branch',
@@ -602,7 +628,7 @@ function branchFlow(
       metric: targetHash ?? undefined,
     },
   ]
-  const edges: Array<V2FlowEdge> =
+  const edges: Array<ObservatoryFlowEdge> =
     tableNodes.length > 0
       ? [
           ...tableNodes.map((table) => ({
@@ -629,9 +655,9 @@ function branchFlow(
   return { edges, nodes }
 }
 
-function TableRow({ table }: { table: V2Table }) {
+function TableRow({ table }: { table: ObservatoryTable }) {
   return (
-    <div className="phlo-v2-mini-row">
+    <div className="phlo-observatory-mini-row">
       <span>
         <Database className="size-3.5" />
         {table.name}
@@ -645,7 +671,7 @@ function TableRow({ table }: { table: V2Table }) {
   )
 }
 
-function CommitRow({ commit }: { commit: V2Operation }) {
+function CommitRow({ commit }: { commit: ObservatoryOperation }) {
   const reason = operationReason(commit)
   const sourceHash = metadataString(commit.metadata, 'source_hash')
   const targetHash = metadataString(commit.metadata, 'target_hash_after')
@@ -653,8 +679,8 @@ function CommitRow({ commit }: { commit: V2Operation }) {
     sourceHash && targetHash ? `${sourceHash} -> ${targetHash}` : null
   return (
     <div
-      className={`phlo-v2-mini-row${
-        commit.kind === 'wap' ? ' phlo-v2-wap-history-row' : ''
+      className={`phlo-observatory-mini-row${
+        commit.kind === 'wap' ? ' phlo-observatory-wap-history-row' : ''
       }`}
     >
       <span>{commit.name}</span>
@@ -672,7 +698,7 @@ function CommitRow({ commit }: { commit: V2Operation }) {
   )
 }
 
-function branchNarrative(detail: V2BranchDetail): string {
+function branchNarrative(detail: ObservatoryBranchDetail): string {
   const changed = detail.compare.changed ?? 0
   const added = detail.compare.added ?? 0
   const removed = detail.compare.removed ?? 0
@@ -683,7 +709,7 @@ function branchNarrative(detail: V2BranchDetail): string {
   return `${direction}: ${detail.tables.length} tables, ${changed} changed, ${added} added, ${removed} removed.`
 }
 
-function branchNarrativeFromBranch(branch: V2Branch): string {
+function branchNarrativeFromBranch(branch: ObservatoryBranch): string {
   const compare = branchCompare(branch)
   const direction =
     branch.current || branch.protected
@@ -692,7 +718,7 @@ function branchNarrativeFromBranch(branch: V2Branch): string {
   return `${direction}: ${metadataNumber(branch, 'tables')} tables, ${compare.changed ?? 0} changed, ${compare.added ?? 0} added, ${compare.removed ?? 0} removed.`
 }
 
-function branchDelta(branch: V2Branch): string | null {
+function branchDelta(branch: ObservatoryBranch): string | null {
   const ahead = metadataNumber(branch, 'ahead')
   const behind = metadataNumber(branch, 'behind')
   const changed = metadataNumber(branch, 'changed')
@@ -701,7 +727,7 @@ function branchDelta(branch: V2Branch): string | null {
   return null
 }
 
-function branchCompare(branch?: V2Branch): Record<string, number> {
+function branchCompare(branch?: ObservatoryBranch): Record<string, number> {
   if (!branch) return {}
   return {
     added: metadataNumber(branch, 'added'),
@@ -712,7 +738,7 @@ function branchCompare(branch?: V2Branch): Record<string, number> {
   }
 }
 
-function tableRecordCount(table: V2Table): string {
+function tableRecordCount(table: ObservatoryTable): string {
   const records = table.metadata.records
   if (typeof records === 'number' || typeof records === 'string') {
     return String(records)
@@ -720,7 +746,10 @@ function tableRecordCount(table: V2Table): string {
   return 'n/a'
 }
 
-function metadataNumber(item: V2Branch | undefined, key: string): number {
+function metadataNumber(
+  item: ObservatoryBranch | undefined,
+  key: string,
+): number {
   if (!item) return 0
   const value = item.metadata[key]
   if (typeof value === 'number') return value
@@ -762,7 +791,7 @@ function formatDateTime(value?: string | null): string | null {
   }).format(date)} UTC`
 }
 
-function operationReason(operation: V2Operation): string | null {
+function operationReason(operation: ObservatoryOperation): string | null {
   const reason = operation.metadata.failure_reason ?? operation.health.message
   return typeof reason === 'string' && reason ? reason : null
 }

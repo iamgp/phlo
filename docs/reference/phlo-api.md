@@ -7,7 +7,7 @@ Observatory backend API for Phlo infrastructure management.
 The `phlo-api` is a FastAPI-based backend service that provides the Observatory UI with access to:
 
 - **Plugin & Service Management**: Discover and manage plugins and services
-- **Observatory v2**: Provider-neutral read models, capability inventory, guarded actions, and UI surface contracts
+- **Observatory**: Provider-neutral read models, capability inventory, guarded actions, and UI surface contracts
 - **Data Querying**: Execute queries against Trino and Iceberg tables
 - **Orchestration**: Interact with Dagster assets and runs
 - **Data Catalog**: Manage Nessie branches and catalog metadata
@@ -47,7 +47,7 @@ The [phlo-api package page](../packages/phlo-api.md) describes installation and 
 This includes detailed documentation for all endpoints:
 
 - Core endpoints (health, config, plugins, services, registry)
-- Observatory v2 read models and actions
+- Observatory read models and actions
 - Trino query engine (connection, preview, profiling, metrics, query execution)
 - Iceberg tables (list, schema, metadata)
 - Dagster assets (health, assets, history)
@@ -119,7 +119,7 @@ Observatory endpoints live under `/api/observatory`. They are provider-neutral c
 | `GET /api/observatory/search` | Global Observatory search |
 | `POST /api/observatory/actions` | Generic guarded action execution |
 
-See [Observatory Contracts](observatory-v2-contracts.md) for the capability contribution model and browser-safety rules.
+See [Observatory Contracts](observatory-contracts.md) for the capability contribution model and browser-safety rules.
 
 ## Key Features
 
@@ -227,7 +227,7 @@ phlo-api/
 ├── main.py                      # Core endpoints (config, plugins, services, contracts)
 ├── api/                         # capability APIs such as observability and maintenance
 └── observatory_api/
-    ├── v2.py                    # provider-neutral Observatory v2 contracts
+    ├── observatory.py                    # provider-neutral Observatory contracts
     ├── trino.py                 # Query execution
     ├── iceberg.py               # Table catalog
     ├── dagster.py               # Asset management
@@ -335,5 +335,5 @@ curl http://localhost:3100/ready
 
 - [phlo-api package](../packages/phlo-api.md)
 - [Observatory package](../packages/phlo-observatory.md)
-- [Observatory v2 Contracts](observatory-v2-contracts.md)
+- [Observatory Contracts](observatory-contracts.md)
 - [CLI Reference](cli-reference.md)

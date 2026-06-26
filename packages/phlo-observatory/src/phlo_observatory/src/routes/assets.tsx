@@ -12,41 +12,41 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
-  V2Asset,
-  V2LogEvent,
-  V2Operation,
-  V2QualityCheck,
-  V2Table,
-  V2TablePreview,
-} from '@/v2/api/types'
-import type { V2FlowEdge, V2FlowNode } from '@/v2/components/V2FlowCanvas'
+  ObservatoryAsset,
+  ObservatoryLogEvent,
+  ObservatoryOperation,
+  ObservatoryQualityCheck,
+  ObservatoryTable,
+  ObservatoryTablePreview,
+} from '@/observatory/api/types'
+import type { ObservatoryFlowEdge, ObservatoryFlowNode } from '@/observatory/components/ObservatoryFlowCanvas'
 import {
-  getV2AssetRecords,
-  getV2LogRecords,
-  getV2OperationRecords,
-  getV2QualityRecords,
-  getV2TablePreview,
-  getV2TableRecords,
-} from '@/v2/api/resources'
-import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
-import { V2Page } from '@/v2/components/V2Page'
-import { readMetric, useLiveResource } from '@/v2/routes/liveResource'
+  getObservatoryAssetRecords,
+  getObservatoryLogRecords,
+  getObservatoryOperationRecords,
+  getObservatoryQualityRecords,
+  getObservatoryTablePreview,
+  getObservatoryTableRecords,
+} from '@/observatory/api/resources'
+import { ObservatoryFlowCanvas } from '@/observatory/components/ObservatoryFlowCanvas'
+import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
+import { readMetric, useLiveResource } from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/assets')({
   component: Assets,
 })
 
 export function Assets() {
-  const result = useLiveResource(getV2AssetRecords, 120_000, 'v2:assets')
-  const tablesResult = useLiveResource(getV2TableRecords, 120_000, 'v2:tables')
+  const result = useLiveResource(getObservatoryAssetRecords, 120_000, 'v2:assets')
+  const tablesResult = useLiveResource(getObservatoryTableRecords, 120_000, 'v2:tables')
   const qualityResult = useLiveResource(
-    getV2QualityRecords,
+    getObservatoryQualityRecords,
     120_000,
     'v2:quality',
   )
-  const logsResult = useLiveResource(getV2LogRecords, 120_000, 'v2:logs')
+  const logsResult = useLiveResource(getObservatoryLogRecords, 120_000, 'v2:logs')
   const operationsResult = useLiveResource(
-    getV2OperationRecords,
+    getObservatoryOperationRecords,
     120_000,
     'v2:operations',
   )
@@ -93,7 +93,7 @@ export function Assets() {
   const primaryTable = detail?.tables[0] ?? null
   const [preview, setPreview] = useState<{
     tableId: string | null
-    data: V2TablePreview | null
+    data: ObservatoryTablePreview | null
     error: string | null
   }>({ tableId: null, data: null, error: null })
 
@@ -104,7 +104,7 @@ export function Assets() {
     }
 
     let cancelled = false
-    getV2TablePreview({ data: { tableId: primaryTable.id, limit: 5 } }).then(
+    getObservatoryTablePreview({ data: { tableId: primaryTable.id, limit: 5 } }).then(
       (response) => {
         if (cancelled) return
         setPreview({
@@ -129,13 +129,13 @@ export function Assets() {
     : null
 
   return (
-    <V2Page
+    <ObservatoryPage
       kicker="Assets"
       title="Impact browser"
       description="Find an asset, inspect its blast radius, then follow the table, issue, and activity evidence around it."
-      action={<span className="phlo-v2-pill">{assets.length} assets</span>}
+      action={<span className="phlo-observatory-pill">{assets.length} assets</span>}
     >
-      <section className="phlo-v2-diff-metrics">
+      <section className="phlo-observatory-diff-metrics">
         <Metric
           icon={<Database className="size-5" />}
           label="Registered Assets"
@@ -158,11 +158,11 @@ export function Assets() {
         />
       </section>
 
-      <section className="phlo-v2-assets-workbench">
-        <div className="phlo-v2-asset-index">
-          <div className="phlo-v2-index-toolbar">
+      <section className="phlo-observatory-assets-workbench">
+        <div className="phlo-observatory-asset-index">
+          <div className="phlo-observatory-index-toolbar">
             <h2>Asset Index</h2>
-            <label className="phlo-v2-search-field">
+            <label className="phlo-observatory-search-field">
               <Search className="size-4" />
               <input
                 aria-label="Search assets"
@@ -172,15 +172,15 @@ export function Assets() {
               />
             </label>
           </div>
-          <div className="phlo-v2-asset-table" role="table">
-            <div className="phlo-v2-asset-table-head" role="row">
+          <div className="phlo-observatory-asset-table" role="table">
+            <div className="phlo-observatory-asset-table-head" role="row">
               <span>Name</span>
               <span>Checks</span>
               <span>Impact</span>
             </div>
             {filteredAssets.map((asset) => (
               <button
-                className="phlo-v2-asset-table-row"
+                className="phlo-observatory-asset-table-row"
                 data-active={asset.id === selected?.id}
                 key={asset.id}
                 onClick={() => setSelectedId(asset.id)}
@@ -195,15 +195,15 @@ export function Assets() {
           </div>
         </div>
 
-        <div className="phlo-v2-asset-flow">
-          <div className="phlo-v2-workspace-toolbar">
+        <div className="phlo-observatory-asset-flow">
+          <div className="phlo-observatory-workspace-toolbar">
             <span>
               <Network className="size-4" />
               Neighborhood
             </span>
-            <span className="phlo-v2-pill">{graph.edges.length} links</span>
+            <span className="phlo-observatory-pill">{graph.edges.length} links</span>
           </div>
-          <V2FlowCanvas
+          <ObservatoryFlowCanvas
             edges={graph.edges}
             nodes={graph.nodes}
             onSelect={setSelectedId}
@@ -211,15 +211,15 @@ export function Assets() {
           />
         </div>
 
-        <aside className="phlo-v2-asset-detail">
+        <aside className="phlo-observatory-asset-detail">
           {selected ? (
             <>
-              <div className="phlo-v2-detail-header">
+              <div className="phlo-observatory-detail-header">
                 <span>{selected.group ?? 'asset'}</span>
                 <h2>{selected.name}</h2>
                 <p>{summarizeDescription(selected.description)}</p>
               </div>
-              <dl className="phlo-v2-facts">
+              <dl className="phlo-observatory-facts">
                 <Fact
                   label="Downstream"
                   value={downstreamCounts.get(selected.id) ?? 0}
@@ -253,22 +253,22 @@ export function Assets() {
                   }
                 />
               </dl>
-              <div className="phlo-v2-chip-cloud">
+              <div className="phlo-observatory-chip-cloud">
                 {selected.dependencies.map((dependency) => (
-                  <span className="phlo-v2-chip" key={dependency}>
+                  <span className="phlo-observatory-chip" key={dependency}>
                     <GitBranch className="size-3" />
                     {dependency}
                   </span>
                 ))}
                 {selected.checks.map((check) => (
-                  <span className="phlo-v2-chip" key={check}>
+                  <span className="phlo-observatory-chip" key={check}>
                     <ShieldCheck className="size-3" />
                     {check}
                   </span>
                 ))}
               </div>
               <div
-                className="phlo-v2-tab-row"
+                className="phlo-observatory-tab-row"
                 role="tablist"
                 aria-label="Asset detail"
               >
@@ -299,11 +299,11 @@ export function Assets() {
             <p>No assets registered yet.</p>
           )}
           {result.error && (
-            <div className="phlo-v2-panel-footer">{result.error}</div>
+            <div className="phlo-observatory-panel-footer">{result.error}</div>
           )}
         </aside>
       </section>
-    </V2Page>
+    </ObservatoryPage>
   )
 }
 
@@ -329,12 +329,12 @@ const assetDetailTabs: Array<{
 ]
 
 interface AssetDetailModel {
-  upstream: Array<V2Asset>
-  downstream: Array<V2Asset>
-  tables: Array<V2Table>
-  quality: Array<V2QualityCheck>
-  logs: Array<V2LogEvent>
-  operations: Array<V2Operation>
+  upstream: Array<ObservatoryAsset>
+  downstream: Array<ObservatoryAsset>
+  tables: Array<ObservatoryTable>
+  quality: Array<ObservatoryQualityCheck>
+  logs: Array<ObservatoryLogEvent>
+  operations: Array<ObservatoryOperation>
 }
 
 function AssetDetailPanel({
@@ -345,15 +345,15 @@ function AssetDetailPanel({
 }: {
   active: AssetDetailTab
   detail: AssetDetailModel
-  preview: V2TablePreview | null
-  selected: V2Asset
+  preview: ObservatoryTablePreview | null
+  selected: ObservatoryAsset
 }) {
   if (active === 'tables') {
     return (
-      <div className="phlo-v2-detail-list">
+      <div className="phlo-observatory-detail-list">
         {detail.tables.length ? (
           detail.tables.map((table) => (
-            <div className="phlo-v2-mini-row" key={table.id}>
+            <div className="phlo-observatory-mini-row" key={table.id}>
               <span>
                 {table.namespace
                   ? `${table.namespace}.${table.name}`
@@ -385,10 +385,10 @@ function AssetDetailPanel({
 
   if (active === 'quality') {
     return (
-      <div className="phlo-v2-detail-list">
+      <div className="phlo-observatory-detail-list">
         {detail.quality.length ? (
           detail.quality.map((check) => (
-            <div className="phlo-v2-mini-row" key={check.id}>
+            <div className="phlo-observatory-mini-row" key={check.id}>
               <span>{check.name}</span>
               <small>
                 {[check.status, check.severity].filter(Boolean).join(' · ')}
@@ -416,10 +416,10 @@ function AssetDetailPanel({
       })),
     ]
     return (
-      <div className="phlo-v2-detail-list">
+      <div className="phlo-observatory-detail-list">
         {activity.length ? (
           activity.map((item) => (
-            <div className="phlo-v2-mini-row" key={item.id}>
+            <div className="phlo-observatory-mini-row" key={item.id}>
               <span>{item.label}</span>
               <small>{item.meta}</small>
             </div>
@@ -432,20 +432,20 @@ function AssetDetailPanel({
   }
 
   return (
-    <div className="phlo-v2-detail-list">
-      <div className="phlo-v2-mini-row">
+    <div className="phlo-observatory-detail-list">
+      <div className="phlo-observatory-mini-row">
         <span>Upstream</span>
         <small>
           {detail.upstream.map((asset) => asset.name).join(', ') || 'none'}
         </small>
       </div>
-      <div className="phlo-v2-mini-row">
+      <div className="phlo-observatory-mini-row">
         <span>Downstream</span>
         <small>
           {detail.downstream.map((asset) => asset.name).join(', ') || 'none'}
         </small>
       </div>
-      <div className="phlo-v2-mini-row">
+      <div className="phlo-observatory-mini-row">
         <span>Resources</span>
         <small>{selected.resources.join(', ') || 'none'}</small>
       </div>
@@ -463,7 +463,7 @@ function Metric({
   value: number
 }) {
   return (
-    <div className="phlo-v2-diff-metric">
+    <div className="phlo-observatory-diff-metric">
       {icon}
       <div>
         <strong>{value}</strong>
@@ -474,12 +474,12 @@ function Metric({
 }
 
 function buildAssetDetail(
-  selected: V2Asset,
-  assets: Array<V2Asset>,
-  tables: Array<V2Table>,
-  quality: Array<V2QualityCheck>,
-  logs: Array<V2LogEvent>,
-  operations: Array<V2Operation>,
+  selected: ObservatoryAsset,
+  assets: Array<ObservatoryAsset>,
+  tables: Array<ObservatoryTable>,
+  quality: Array<ObservatoryQualityCheck>,
+  logs: Array<ObservatoryLogEvent>,
+  operations: Array<ObservatoryOperation>,
 ): AssetDetailModel {
   return {
     upstream: assets.filter((asset) =>
@@ -503,7 +503,7 @@ function buildAssetDetail(
   }
 }
 
-function filterAssets(assets: Array<V2Asset>, query: string): Array<V2Asset> {
+function filterAssets(assets: Array<ObservatoryAsset>, query: string): Array<ObservatoryAsset> {
   const needle = query.trim().toLowerCase()
   if (!needle) return assets
   return assets.filter((asset) =>
@@ -520,9 +520,9 @@ function filterAssets(assets: Array<V2Asset>, query: string): Array<V2Asset> {
 }
 
 function chooseDefaultAsset(
-  candidates: Array<V2Asset>,
-  assets: Array<V2Asset>,
-): V2Asset | null {
+  candidates: Array<ObservatoryAsset>,
+  assets: Array<ObservatoryAsset>,
+): ObservatoryAsset | null {
   if (!candidates.length) return null
   const downstreamCounts = buildDownstreamCounts(assets)
   let best = candidates[0]
@@ -537,7 +537,7 @@ function chooseDefaultAsset(
   return best
 }
 
-function buildDownstreamCounts(assets: Array<V2Asset>): Map<string, number> {
+function buildDownstreamCounts(assets: Array<ObservatoryAsset>): Map<string, number> {
   const downstreamCounts = new Map<string, number>()
   assets.forEach((asset) => {
     asset.dependencies.forEach((dependency) => {
@@ -551,7 +551,7 @@ function buildDownstreamCounts(assets: Array<V2Asset>): Map<string, number> {
 }
 
 function assetScore(
-  asset: V2Asset,
+  asset: ObservatoryAsset,
   downstreamCounts: Map<string, number>,
 ): number {
   return (
@@ -562,11 +562,11 @@ function assetScore(
 }
 
 function buildAssetNeighborhood(
-  assets: Array<V2Asset>,
+  assets: Array<ObservatoryAsset>,
   selectedId: string | null,
 ): {
-  nodes: Array<V2FlowNode>
-  edges: Array<V2FlowEdge>
+  nodes: Array<ObservatoryFlowNode>
+  edges: Array<ObservatoryFlowEdge>
 } {
   const assetById = new Map(assets.map((asset) => [asset.id, asset]))
   const selected = selectedId ? assetById.get(selectedId) : assets[0]
@@ -585,7 +585,7 @@ function buildAssetNeighborhood(
 
   const neighborhood = assets.filter((asset) => relatedIds.has(asset.id))
   const nodes = neighborhood.map(
-    (asset): V2FlowNode => ({
+    (asset): ObservatoryFlowNode => ({
       id: asset.id,
       label: asset.name,
       kind: 'asset',
@@ -595,7 +595,7 @@ function buildAssetNeighborhood(
     }),
   )
   const edges = neighborhood.flatMap((asset) => {
-    const assetEdges: Array<V2FlowEdge> = []
+    const assetEdges: Array<ObservatoryFlowEdge> = []
     for (const dependency of asset.dependencies) {
       if (!relatedIds.has(dependency)) continue
       assetEdges.push({
@@ -610,7 +610,7 @@ function buildAssetNeighborhood(
   return { nodes, edges }
 }
 
-function assetLane(asset: V2Asset): string {
+function assetLane(asset: ObservatoryAsset): string {
   const group = (asset.group ?? '').toLowerCase()
   const name = asset.name.toLowerCase()
   if (group === 'nightscout' || name.startsWith('dlt_')) return 'raw'
@@ -647,8 +647,8 @@ function Fact({
 }
 
 function tableStats(
-  table: V2Table,
-  preview: V2TablePreview | null,
+  table: ObservatoryTable,
+  preview: ObservatoryTablePreview | null,
   error: string | null,
 ): {
   records: string | number
