@@ -37,7 +37,7 @@ import type {
 } from './types'
 import { apiGet, apiPost } from '@/server/phlo-api'
 
-const V2_API_PREFIX = '/api/observatory/v2'
+const V2_API_PREFIX = '/api/observatory'
 
 declare global {
   interface Window {

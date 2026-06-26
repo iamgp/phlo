@@ -43,7 +43,7 @@ import {
 
 const previewLimit = 100
 
-export const Route = createFileRoute('/v2/data')({
+export const Route = createFileRoute('/data')({
   component: Data,
 })
 

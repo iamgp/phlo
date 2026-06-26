@@ -15,7 +15,7 @@ from phlo_mcp.errors import map_httpx_error
 class PhloApiClient:
     """Small typed wrapper around phlo-api routes."""
 
-    _V2_PREFIX = "/api/observatory/v2"
+    _V2_PREFIX = "/api/observatory"
 
     def __init__(self, config: McpConfig, *, tracer_name: str = "phlo.mcp") -> None:
         self._config = config

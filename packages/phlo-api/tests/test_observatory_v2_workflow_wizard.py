@@ -22,7 +22,7 @@ def _can_load_workflow_plugin(module_name: str) -> bool:
 
 
 def test_workflow_wizard_lists_package_contributions() -> None:
-    response = client.get("/api/observatory/v2/workflow-wizard")
+    response = client.get("/api/observatory/workflow-wizard")
 
     assert response.status_code == 200
     payload = response.json()
@@ -39,7 +39,7 @@ def test_workflow_wizard_lists_package_contributions() -> None:
 
 def test_workflow_wizard_proposal_requires_graph_nodes() -> None:
     response = client.post(
-        "/api/observatory/v2/workflow-wizard/proposals",
+        "/api/observatory/workflow-wizard/proposals",
         json={
             "workflow_name": "customer_health",
             "domain": "customers",
@@ -57,7 +57,7 @@ def test_workflow_wizard_builds_dlt_dbt_graph_proposal(
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
 
     response = client.post(
-        "/api/observatory/v2/workflow-wizard/proposals",
+        "/api/observatory/workflow-wizard/proposals",
         json={
             "workflow_name": "customer_health",
             "domain": "customers",
@@ -112,7 +112,7 @@ def test_workflow_wizard_builds_composed_transform_graph_proposal(
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
 
     response = client.post(
-        "/api/observatory/v2/workflow-wizard/proposals",
+        "/api/observatory/workflow-wizard/proposals",
         json={
             "workflow_name": "recipe_catalog",
             "domain": "recipes",
@@ -174,7 +174,7 @@ def test_workflow_wizard_builds_quality_and_publish_graph_proposal(
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
 
     response = client.post(
-        "/api/observatory/v2/workflow-wizard/proposals",
+        "/api/observatory/workflow-wizard/proposals",
         json={
             "workflow_name": "recipe_catalog",
             "domain": "recipes",
@@ -259,7 +259,7 @@ def test_workflow_wizard_apply_fails_on_conflict(
     (existing / "orders.py").write_text("# existing\n", encoding="utf-8")
 
     response = client.post(
-        "/api/observatory/v2/workflow-wizard/proposals",
+        "/api/observatory/workflow-wizard/proposals",
         json={
             "workflow_name": "customer_health",
             "domain": "customers",
@@ -284,7 +284,7 @@ def test_workflow_wizard_apply_fails_on_conflict(
 
     assert proposal["actions"][0]["enabled"] is False
     apply_response = client.post(
-        "/api/observatory/v2/workflow-wizard/actions",
+        "/api/observatory/workflow-wizard/actions",
         json={"action_id": proposal["actions"][0]["id"], "proposal": proposal},
     )
 
@@ -299,7 +299,7 @@ def test_workflow_wizard_apply_records_operation(
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     v2._clear_read_model_cache()
     proposal_response = client.post(
-        "/api/observatory/v2/workflow-wizard/proposals",
+        "/api/observatory/workflow-wizard/proposals",
         json={
             "workflow_name": "customer_health",
             "domain": "customers",
@@ -323,12 +323,12 @@ def test_workflow_wizard_apply_records_operation(
     proposal = proposal_response.json()
 
     apply_response = client.post(
-        "/api/observatory/v2/workflow-wizard/actions",
+        "/api/observatory/workflow-wizard/actions",
         json={"action_id": proposal["actions"][0]["id"], "proposal": proposal},
     )
 
     assert apply_response.status_code == 200
-    operations = client.get("/api/observatory/v2/operations").json()["items"]
+    operations = client.get("/api/observatory/operations").json()["items"]
     assert operations[0]["kind"] == "workflow.apply"
     assert operations[0]["status"] == "succeeded"
     assert operations[0]["metadata"]["action_id"] == proposal["actions"][0]["id"]
@@ -345,7 +345,7 @@ def test_workflow_wizard_conflict_records_failed_operation(
     existing.mkdir(parents=True)
     (existing / "orders.py").write_text("# existing\n", encoding="utf-8")
     proposal_response = client.post(
-        "/api/observatory/v2/workflow-wizard/proposals",
+        "/api/observatory/workflow-wizard/proposals",
         json={
             "workflow_name": "customer_health",
             "domain": "customers",
@@ -369,12 +369,12 @@ def test_workflow_wizard_conflict_records_failed_operation(
     proposal = proposal_response.json()
 
     apply_response = client.post(
-        "/api/observatory/v2/workflow-wizard/actions",
+        "/api/observatory/workflow-wizard/actions",
         json={"action_id": proposal["actions"][0]["id"], "proposal": proposal},
     )
 
     assert apply_response.status_code == 409
-    operations = client.get("/api/observatory/v2/operations").json()["items"]
+    operations = client.get("/api/observatory/operations").json()["items"]
     assert operations[0]["kind"] == "workflow.apply"
     assert operations[0]["status"] == "failed"
     assert "File conflicts" in operations[0]["health"]["message"]

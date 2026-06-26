@@ -68,7 +68,9 @@ export type ObservatoryExtension = {
 
 export async function resolveObservatoryExtensions(
   fetchExtensions: () => Promise<ObservatoryExtensionResponse> = () =>
-    apiGet<ObservatoryExtensionResponse>('/api/observatory/extensions'),
+    apiGet<ObservatoryExtensionResponse>(
+      '/api/observatory/extension-manifests',
+    ),
 ): Promise<Array<ObservatoryExtension>> {
   let response: ObservatoryExtensionResponse
   try {

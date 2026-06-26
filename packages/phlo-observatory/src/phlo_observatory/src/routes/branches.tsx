@@ -32,7 +32,7 @@ import {
   useLiveResource,
 } from '@/v2/routes/liveResource'
 
-export const Route = createFileRoute('/v2/branches')({
+export const Route = createFileRoute('/branches')({
   component: Branches,
 })
 

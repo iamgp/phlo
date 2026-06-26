@@ -78,7 +78,7 @@ export const getTables = createServerFn()
           let result: ApiBranchDetail | { error: string }
           try {
             result = await apiGet<ApiBranchDetail | { error: string }>(
-              `/api/observatory/v2/branches/${encodeURIComponent(branch)}`,
+              `/api/observatory/branches/${encodeURIComponent(branch)}`,
             )
           } catch (error) {
             return {

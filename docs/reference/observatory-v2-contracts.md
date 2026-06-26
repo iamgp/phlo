@@ -1,6 +1,6 @@
-# Observatory v2 Contracts
+# Observatory Contracts
 
-Provider-neutral Observatory v2 contracts define how packages expose platform
+Provider-neutral Observatory contracts define how packages expose platform
 capabilities to the Observatory UI without coupling the UI to provider-specific
 APIs, credentials, URLs, or implementation details.
 
@@ -9,10 +9,10 @@ read models, UI surfaces, or guarded actions.
 
 ## Capability Inventory
 
-`GET /api/observatory/v2/capability-inventory`
+`GET /api/observatory/capability-inventory`
 
 Returns the provider-neutral inventory of capabilities available to Observatory
-v2 for the active project and runtime. The inventory is the UI's source of truth
+for the active project and runtime. The inventory is the UI's source of truth
 for deciding which surfaces, read models, actions, and native escape hatches are
 available.
 
@@ -26,7 +26,7 @@ Consumers should treat the endpoint as descriptive, not imperative:
 
 ## Endpoint Families
 
-All Observatory v2 endpoints are rooted at `/api/observatory/v2`. They are grouped by product surface rather than by provider package.
+All Observatory endpoints are rooted at `/api/observatory`. They are grouped by product surface rather than by provider package.
 
 | Family | Endpoints | Contract intent |
 | --- | --- | --- |
@@ -123,8 +123,8 @@ or direct provider API calls to the UI.
 
 Action endpoints:
 
-- `POST /api/observatory/v2/actions` for generic v2 action contracts
-- `POST /api/observatory/v2/branches/actions` for branch-specific guarded actions
+- `POST /api/observatory/actions` for generic v2 action contracts
+- `POST /api/observatory/branches/actions` for branch-specific guarded actions
 
 Both endpoints should return user-visible status and failure reasons that are
 safe to display in browser UI and support bundles.
@@ -133,8 +133,8 @@ safe to display in browser UI and support bundles.
 
 Observatory v2 records guarded action outcomes in the provider-neutral operation
 journal at `.phlo/observatory-v2/operation_journal.json` for the active project.
-The journal is exposed through `GET /api/observatory/v2/operations` and
-`GET /api/observatory/v2/operations/{operation_id}`.
+The journal is exposed through `GET /api/observatory/operations` and
+`GET /api/observatory/operations/{operation_id}`.
 
 Journaled operations use the same `V2Operation` contract as provider-backed
 maintenance read models. Action outcomes may have `succeeded`, `failed`, or
@@ -154,7 +154,7 @@ Journaled operations also include an agent-ready observability contract under
 metric, and incident identifiers. Agents should use those identifiers rather
 than parsing names or provider-specific metadata.
 
-`GET /api/observatory/v2/operations/{operation_id}/agent-context` returns a
+`GET /api/observatory/operations/{operation_id}/agent-context` returns a
 compact incident and operation context for MCP clients. It includes the stable
 identifiers, operation health, related resources, correlated logs, available
 follow-up actions, and the retained history limit for the local journal.

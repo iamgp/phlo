@@ -384,15 +384,10 @@ function pageForPath(
   if (exact) return exact
 
   const aliases: Record<string, string> = {
-    '/table/': 'data',
     '/data/': 'data',
-    '/asset/': 'assets',
     '/assets/': 'assets',
-    '/branch/': 'branches',
     '/branches/': 'branches',
-    '/extension/': 'extensions',
     '/extensions/': 'extensions',
-    '/graph': 'assets',
   }
   const match = Object.entries(aliases).find(([prefix]) =>
     cleanPathname.startsWith(prefix),
@@ -402,8 +397,6 @@ function pageForPath(
 }
 
 function cleanPath(path: string): string {
-  if (path === '/v2') return '/'
-  if (path.startsWith('/v2/')) return path.slice(3) || '/'
   return path
 }
 

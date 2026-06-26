@@ -202,7 +202,7 @@ function browserApiBase(): string | null {
 }
 
 function fallbackEndpoint(key: string): string | null {
-  const prefix = '/api/observatory/v2'
+  const prefix = '/api/observatory'
   const endpoints: Record<string, string> = {
     'v2:overview': `${prefix}/overview`,
     'v2:capabilities': `${prefix}/surface-capabilities`,

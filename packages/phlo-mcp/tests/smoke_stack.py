@@ -278,7 +278,7 @@ def _check_phlo_api(args: argparse.Namespace) -> None:
     if not isinstance(health, dict) or "overall_status" not in health:
         raise SmokeFailure("phlo-api observability health response was malformed")
 
-    runs = _get_json(args, f"{args.api_base_url}/api/observatory/v2/runs")
+    runs = _get_json(args, f"{args.api_base_url}/api/observatory/runs")
     if not isinstance(runs, dict) or not isinstance(runs.get("items"), list):
         raise SmokeFailure(f"phlo-api v2 runs response was malformed: {runs}")
 

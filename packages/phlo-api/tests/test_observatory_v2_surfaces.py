@@ -39,7 +39,7 @@ def test_v2_runs_adapter_normalizes_legacy_dagster_runs(monkeypatch: pytest.Monk
 
 
 def test_v2_runs_endpoint_returns_provider_neutral_shape() -> None:
-    response = TestClient(app).get("/api/observatory/v2/runs")
+    response = TestClient(app).get("/api/observatory/runs")
 
     assert response.status_code == 200
     payload = response.json()
@@ -50,12 +50,12 @@ def test_v2_runs_endpoint_returns_provider_neutral_shape() -> None:
 @pytest.mark.parametrize(
     "path",
     [
-        "/api/observatory/v2/storage",
-        "/api/observatory/v2/observability",
-        "/api/observatory/v2/governance",
-        "/api/observatory/v2/catalog",
-        "/api/observatory/v2/apis",
-        "/api/observatory/v2/bi",
+        "/api/observatory/storage",
+        "/api/observatory/observability",
+        "/api/observatory/governance",
+        "/api/observatory/catalog",
+        "/api/observatory/apis",
+        "/api/observatory/bi",
     ],
 )
 def test_v2_surface_endpoints_return_provider_neutral_shape(path: str) -> None:

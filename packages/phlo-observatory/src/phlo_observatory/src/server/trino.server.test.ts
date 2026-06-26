@@ -40,7 +40,7 @@ describe('trino.server v2 wrappers', () => {
       hasMore: false,
     })
     expect(apiGet).toHaveBeenCalledWith(
-      '/api/observatory/v2/table-preview/gold.fct_orders',
+      '/api/observatory/table-preview/gold.fct_orders',
       { limit: 25, offset: 50 },
     )
   })
@@ -70,7 +70,7 @@ describe('trino.server v2 wrappers', () => {
       hasMore: false,
       effectiveQuery: 'select * from gold.fct_orders limit 10',
     })
-    expect(apiPost).toHaveBeenCalledWith('/api/observatory/v2/query', {
+    expect(apiPost).toHaveBeenCalledWith('/api/observatory/query', {
       sql: 'select * from gold.fct_orders',
       branch: 'main',
       limit: 10,

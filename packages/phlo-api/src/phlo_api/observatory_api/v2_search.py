@@ -55,7 +55,7 @@ def search_results(
                     label=asset.name,
                     kind="asset",
                     summary=asset.description or asset.group,
-                    href=f"/asset/{route_path_segment(asset.id)}",
+                    href=f"/assets/{route_path_segment(asset.id)}",
                 )
             )
 
@@ -70,7 +70,7 @@ def search_results(
                     label=table.namespace + "." + table.name if table.namespace else table.name,
                     kind="table",
                     summary=f"{table.format or 'table'} · {table.branch or 'main'}",
-                    href=f"/table/{route_path_segment(table.id)}",
+                    href=f"/data/{route_path_segment(table.id)}",
                 )
             )
 
@@ -113,7 +113,7 @@ def search_results(
                     label=extension.name,
                     kind="extension",
                     summary=extension.settings_scope or extension.version,
-                    href=f"/extension/{route_path_segment(extension.id)}",
+                    href=f"/extensions/{route_path_segment(extension.id)}",
                 )
             )
 

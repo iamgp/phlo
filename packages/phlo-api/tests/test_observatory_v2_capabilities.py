@@ -122,7 +122,7 @@ def test_v2_capability_inventory_serializes_support_and_requirements() -> None:
             V2RouteRequirement(
                 route_id="data",
                 label="Data",
-                path="/v2/data",
+                path="/data",
                 required_any=["query_engine", "table_store"],
             )
         ],
@@ -161,7 +161,7 @@ def test_inventory_includes_ui_contributions() -> None:
                 capability_type="query_engine",
                 capability_name="trino",
                 surfaces=["data"],
-                read_models={"tables": "/api/observatory/v2/tables"},
+                read_models={"tables": "/api/observatory/tables"},
                 actions=["query.run"],
                 native_links=[],
                 metadata={"safe": "yes", "url": "http://internal"},
@@ -281,14 +281,14 @@ def test_pages_from_inventory_enables_routes_by_required_capabilities() -> None:
             V2RouteRequirement(
                 route_id="data",
                 label="Data",
-                path="/v2/data",
+                path="/data",
                 required_any=["query_engine", "table_store"],
                 reason="Install data provider.",
             ),
             V2RouteRequirement(
                 route_id="storage",
                 label="Storage",
-                path="/v2/storage",
+                path="/storage",
                 required_any=["object_store"],
                 reason="Install storage provider.",
             ),

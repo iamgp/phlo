@@ -55,6 +55,6 @@ See `packages/phlo-observatory-example` for a minimal extension package:
 
 ```bash
 phlo plugin list --type observatory
-curl http://localhost:4000/api/observatory/extensions
+curl http://localhost:4000/api/observatory/extension-manifests
 curl http://localhost:4000/api/observatory/extensions/example/settings
 ```

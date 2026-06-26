@@ -1,4 +1,4 @@
-"""Observatory v2 provider-neutral API resources."""
+"""Provider-neutral Observatory API resources."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ import subprocess
 import sys
 from typing import Any
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Query, Request
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import AliasChoices, BaseModel, Field
@@ -3174,10 +3174,67 @@ def get_v2_extensions() -> V2ExtensionList:
     )
 
 
+@router.get("/extension-manifests")
+def get_v2_extension_manifests() -> dict[str, Any]:
+    """List extension manifests used by the browser extension loader."""
+    from phlo_api.observatory_api.extensions import list_extensions
+
+    return list_extensions()
+
+
+@router.get("/extensions/{name}/assets/{asset_path:path}")
+def get_v2_extension_asset(name: str, asset_path: str, background_tasks: BackgroundTasks) -> Any:
+    """Serve an extension asset from the canonical Observatory API."""
+    from phlo_api.observatory_api.extensions import get_extension_asset
+
+    return get_extension_asset(name, asset_path, background_tasks)
+
+
+@router.get("/extensions/{name}/settings")
+async def get_v2_extension_settings(name: str) -> Any:
+    """Fetch settings for an extension from the canonical Observatory API."""
+    from phlo_api.observatory_api.extension_settings import get_extension_settings
+
+    return await get_extension_settings(name)
+
+
+@router.put("/extensions/{name}/settings")
+async def put_v2_extension_settings(name: str, payload: Any) -> Any:
+    """Persist settings for an extension from the canonical Observatory API."""
+    from phlo_api.observatory_api.extension_settings import (
+        ExtensionSettingsPayload,
+        put_extension_settings,
+    )
+
+    return await put_extension_settings(name, ExtensionSettingsPayload.model_validate(payload))
+
+
 @router.get("/extensions/{extension_id:path}", response_model=V2ExtensionDetail)
 def get_v2_extension_detail(extension_id: str) -> V2ExtensionDetail:
     """Get provider-neutral Observatory v2 extension detail."""
     return _load_extension_detail(extension_id)
+
+
+@router.get("/preferences")
+async def get_v2_preferences(request: Request) -> Any:
+    """Fetch persisted browser preferences from the canonical Observatory API."""
+    from phlo_api.observatory_api.settings import get_observatory_settings
+
+    return await get_observatory_settings(request)
+
+
+@router.put("/preferences")
+async def put_v2_preferences(request: Request, payload: Any) -> Any:
+    """Persist browser preferences from the canonical Observatory API."""
+    from phlo_api.observatory_api.settings import (
+        ObservatorySettingsPayload,
+        put_observatory_settings,
+    )
+
+    return await put_observatory_settings(
+        request,
+        ObservatorySettingsPayload.model_validate(payload),
+    )
 
 
 @router.get("/settings", response_model=V2Settings)

@@ -11,7 +11,7 @@ import { getV2ExtensionDetail, getV2Extensions } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
 import { useLiveResource } from '@/v2/routes/liveResource'
 
-export const Route = createFileRoute('/v2/extensions')({
+export const Route = createFileRoute('/extensions')({
   component: Extensions,
 })
 

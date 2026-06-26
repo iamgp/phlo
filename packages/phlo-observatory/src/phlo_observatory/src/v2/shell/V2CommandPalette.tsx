@@ -555,7 +555,5 @@ function tableFromSearchResult(result: V2SearchResult): V2Table | null {
 }
 
 function cleanPath(path: string): string {
-  if (path === '/v2') return '/'
-  if (path.startsWith('/v2/')) return path.slice(3) || '/'
   return path
 }

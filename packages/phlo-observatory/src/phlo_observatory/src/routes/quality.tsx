@@ -23,7 +23,7 @@ import {
   useLiveResource,
 } from '@/v2/routes/liveResource'
 
-export const Route = createFileRoute('/v2/quality')({
+export const Route = createFileRoute('/quality')({
   component: Quality,
 })
 

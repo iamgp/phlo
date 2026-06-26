@@ -7,7 +7,7 @@ import type { V2ExtensionDetail, V2ResourceResult } from '@/v2/api/types'
 import { getV2ExtensionDetail } from '@/v2/api/resources'
 import { V2Page } from '@/v2/components/V2Page'
 
-export const Route = createFileRoute('/v2/extensions/$extensionId')({
+export const Route = createFileRoute('/extensions/$extensionId')({
   component: ExtensionDetailRoute,
 })
 

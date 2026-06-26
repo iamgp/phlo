@@ -13,7 +13,7 @@ import { V2Page } from '@/v2/components/V2Page'
 
 const previewLimit = 25
 
-export const Route = createFileRoute('/v2/data/$tableId')({
+export const Route = createFileRoute('/data/$tableId')({
   component: TableDetailRoute,
 })
 

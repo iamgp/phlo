@@ -32,7 +32,7 @@ import { V2FlowCanvas } from '@/v2/components/V2FlowCanvas'
 import { V2Page } from '@/v2/components/V2Page'
 import { readMetric, useLiveResource } from '@/v2/routes/liveResource'
 
-export const Route = createFileRoute('/v2/assets')({
+export const Route = createFileRoute('/assets')({
   component: Assets,
 })
 

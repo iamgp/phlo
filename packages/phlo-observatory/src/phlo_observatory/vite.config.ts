@@ -53,8 +53,8 @@ const config = defineConfig({
     devtools(),
     nitro({
       routeRules: {
-        '/api/observatory/v2/**': {
-          proxy: `${process.env.PHLO_API_URL ?? 'http://phlo-api:4000'}/api/observatory/v2/**`,
+        '/api/observatory/**': {
+          proxy: `${process.env.PHLO_API_URL ?? 'http://phlo-api:4000'}/api/observatory/**`,
         },
       },
     }),

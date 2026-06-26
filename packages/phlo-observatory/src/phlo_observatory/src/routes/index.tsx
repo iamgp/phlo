@@ -4,10 +4,10 @@ import { OverviewRoute, loadOverviewSnapshot } from '@/v2/routes/OverviewRoute'
 
 export const Route = createFileRoute('/')({
   loader: loadOverviewSnapshot,
-  component: IndexOverviewRoute,
+  component: V2IndexOverviewRoute,
 })
 
-function IndexOverviewRoute() {
+function V2IndexOverviewRoute() {
   const snapshot = Route.useLoaderData()
   return <OverviewRoute initialSnapshot={snapshot} />
 }
