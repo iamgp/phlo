@@ -7,8 +7,9 @@ Per TEST_STRATEGY.md Level 2 (Functional):
 - Table Operations: Append, merge, maintenance operations
 """
 
-import tempfile
 import socket
+import os
+import tempfile
 from urllib.parse import urlparse
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -369,7 +370,14 @@ def iceberg_catalog(configured_minio_object_store, monkeypatch):
             monkeypatch.setenv("ICEBERG_S3_SECRET_KEY", config["secret_access_key"])
             monkeypatch.setenv("ICEBERG_S3_REGION", config["region"])
         else:
-            endpoint = "http://127.0.0.1:10001"
+            minio_host = os.environ.get("MINIO_HOST", "127.0.0.1")
+            minio_port = os.environ.get("MINIO_API_PORT", "10001")
+            endpoint = f"http://{minio_host}:{minio_port}"
+            monkeypatch.setenv("ICEBERG_S3_ENDPOINT", endpoint)
+            monkeypatch.setenv("ICEBERG_S3_ACCESS_KEY", os.environ.get("MINIO_ROOT_USER", "minio"))
+            monkeypatch.setenv(
+                "ICEBERG_S3_SECRET_KEY", os.environ.get("MINIO_ROOT_PASSWORD", "minio123")
+            )
 
         parsed_endpoint = urlparse(endpoint)
         endpoint_host = parsed_endpoint.hostname or "127.0.0.1"

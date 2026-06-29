@@ -37,7 +37,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
 from phlo.config.network import resolve_url as _resolve_service_url
@@ -89,7 +89,11 @@ class IcebergSettings(BaseConfig):
     """
 
     iceberg_warehouse_path: str = Field(
-        default="s3://lake/warehouse", description="S3 path for Iceberg warehouse"
+        default="s3://lake/warehouse",
+        validation_alias=AliasChoices(
+            "iceberg_warehouse_path", "PHLO_ICEBERG_WAREHOUSE_PATH", "ICEBERG_WAREHOUSE_PATH"
+        ),
+        description="S3 path for Iceberg warehouse",
     )
     iceberg_staging_path: str = Field(
         default="s3://lake/stage", description="S3 path for staging parquet files"
@@ -102,22 +106,43 @@ class IcebergSettings(BaseConfig):
     )
     iceberg_s3_endpoint: str | None = Field(
         default="http://minio:10001",
+        validation_alias=AliasChoices(
+            "iceberg_s3_endpoint", "PHLO_ICEBERG_S3_ENDPOINT", "ICEBERG_S3_ENDPOINT"
+        ),
         description="S3 endpoint URL for Iceberg I/O",
     )
     iceberg_s3_access_key: str = Field(
         default="minio",
+        validation_alias=AliasChoices(
+            "iceberg_s3_access_key",
+            "PHLO_ICEBERG_S3_ACCESS_KEY",
+            "ICEBERG_S3_ACCESS_KEY",
+            "AWS_ACCESS_KEY_ID",
+        ),
         description="S3 access key for Iceberg I/O",
     )
     iceberg_s3_secret_key: str = Field(
         default="minio123",
+        validation_alias=AliasChoices(
+            "iceberg_s3_secret_key",
+            "PHLO_ICEBERG_S3_SECRET_KEY",
+            "ICEBERG_S3_SECRET_KEY",
+            "AWS_SECRET_ACCESS_KEY",
+        ),
         description="S3 secret key for Iceberg I/O",
     )
     iceberg_s3_region: str = Field(
         default="us-east-1",
+        validation_alias=AliasChoices(
+            "iceberg_s3_region", "PHLO_ICEBERG_S3_REGION", "ICEBERG_S3_REGION", "AWS_REGION"
+        ),
         description="S3 region for Iceberg I/O",
     )
     iceberg_catalog_uri: str = Field(
         default="http://nessie:19120/iceberg",
+        validation_alias=AliasChoices(
+            "iceberg_catalog_uri", "PHLO_ICEBERG_CATALOG_URI", "ICEBERG_CATALOG_URI"
+        ),
         description="Iceberg REST catalog endpoint base URI",
     )
 
