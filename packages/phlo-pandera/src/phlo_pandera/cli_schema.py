@@ -254,7 +254,7 @@ def diff(schema_name: str, old: str, format: str):
             sys.exit(1)
 
         schema_cls = schemas[schema_name]
-        new_schema = {name: str(type_) for name, type_ in schema_cls.__annotations__.items()}
+        new_schema = _load_current_schema(schema_cls, schema_name)
         old_schema = _load_old_schema(schema_cls, schema_name, old)
         classification, details = classify_schema_change(old_schema, new_schema)
 
@@ -296,6 +296,23 @@ def diff(schema_name: str, old: str, format: str):
             },
             run="phlo schema diff --help",
         ) from e
+
+
+def _load_current_schema(schema_cls: type, schema_name: str) -> dict[str, str]:
+    """Load the current schema annotations from source when possible."""
+    source_path = getattr(schema_cls, "__phlo_schema_source_path__", None)
+    if source_path is None:
+        source_path = inspect.getsourcefile(schema_cls)
+    if source_path is not None:
+        current_path = Path(source_path)
+        if current_path.exists():
+            return _extract_schema_annotations(
+                current_path.read_text(),
+                schema_name,
+                str(current_path),
+            )
+
+    return {name: str(type_) for name, type_ in schema_cls.__annotations__.items()}
 
 
 @schema.command()

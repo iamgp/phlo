@@ -77,6 +77,30 @@ def test_minio_admin_info_runs_mc(monkeypatch) -> None:
     assert result.output == '{"status":"ok"}\n'
 
 
+def test_minio_ls_rejects_partial_phlo_directory(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".phlo" / "logs").mkdir(parents=True)
+
+    result = CliRunner().invoke(minio_group, ["ls"])
+
+    assert result.exit_code != 0
+    assert "Phlo services have not been initialized" in result.output
+    assert "Missing: .phlo/docker-compose.yml" in result.output
+    assert "Run: phlo services init" in result.output
+
+
+def test_minio_admin_info_rejects_partial_phlo_directory(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".phlo" / "logs").mkdir(parents=True)
+
+    result = CliRunner().invoke(minio_group, ["admin", "info"])
+
+    assert result.exit_code != 0
+    assert "Phlo services have not been initialized" in result.output
+    assert "Missing: .phlo/docker-compose.yml" in result.output
+    assert "Run: phlo services init" in result.output
+
+
 def test_minio_shell_passthrough(monkeypatch) -> None:
     captured: list[list[str]] = []
 

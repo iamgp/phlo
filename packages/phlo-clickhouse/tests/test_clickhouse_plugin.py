@@ -46,6 +46,34 @@ def test_clickhouse_query_rejects_missing_input(monkeypatch):
     assert 'Run: phlo clickhouse query "SELECT 1"' in result.output
 
 
+def test_clickhouse_query_rejects_partial_phlo_directory(monkeypatch, tmp_path):
+    """Logging-created .phlo directories are not initialized service projects."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".phlo" / "logs").mkdir(parents=True)
+    monkeypatch.setattr("phlo_clickhouse.cli._require_container_backend", lambda: None)
+
+    result = CliRunner().invoke(clickhouse_group, ["query", "SELECT 1"])
+
+    assert result.exit_code != 0
+    assert "Phlo services have not been initialized" in result.output
+    assert "Missing: .phlo/docker-compose.yml" in result.output
+    assert "Run: phlo services init" in result.output
+
+
+def test_clickhouse_status_rejects_partial_phlo_directory(monkeypatch, tmp_path):
+    """Status should preflight the local project before running compose."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".phlo" / "logs").mkdir(parents=True)
+    monkeypatch.setattr("phlo_clickhouse.cli._require_container_backend", lambda: None)
+
+    result = CliRunner().invoke(clickhouse_group, ["status"])
+
+    assert result.exit_code != 0
+    assert "Phlo services have not been initialized" in result.output
+    assert "Missing: .phlo/docker-compose.yml" in result.output
+    assert "Run: phlo services init" in result.output
+
+
 def test_clickhouse_query_authorizes_only_mutating_sql(monkeypatch):
     calls: list[str] = []
 

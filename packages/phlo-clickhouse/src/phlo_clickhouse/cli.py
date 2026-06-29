@@ -25,6 +25,7 @@ import click
 
 from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.commands.services.utils import (
+    ensure_compose_project,
     require_container_backend as _require_selected_container_backend,
 )
 from phlo.cli.infrastructure.command import CommandError, run_command
@@ -35,7 +36,6 @@ from phlo.cli.output import (
     empty_file_error,
     exclusive_options_error,
     file_read_error,
-    missing_phlo_project_error,
     missing_query_error,
 )
 from phlo.cli.sql import is_mutating_sql
@@ -102,10 +102,7 @@ def _ensure_phlo_dir() -> Path:
         '.phlo'
 
     """
-    phlo_dir = Path.cwd() / ".phlo"
-    if phlo_dir.exists():
-        return phlo_dir
-    raise missing_phlo_project_error()
+    return ensure_compose_project()
 
 
 def _require_container_backend() -> None:

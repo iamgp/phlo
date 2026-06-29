@@ -30,7 +30,7 @@ import click
 
 from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.commands.services.utils import (
-    ensure_phlo_dir,
+    ensure_compose_project as ensure_phlo_dir,
     require_container_backend as _require_selected_container_backend,
 )
 from phlo.cli.infrastructure.command import CommandError, run_command
