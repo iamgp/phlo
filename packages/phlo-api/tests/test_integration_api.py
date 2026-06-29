@@ -124,6 +124,30 @@ class TestConfigEndpoint:
             data = response.json()
             assert "name" in data
 
+    def test_config_with_malformed_file_returns_clean_error(self, tmp_path):
+        """Malformed phlo.yaml should not leak a server traceback."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        (tmp_path / "phlo.yaml").write_text("name: [bad\n", encoding="utf-8")
+        with patch("phlo_api.main.get_project_path", return_value=tmp_path):
+            response = TestClient(app).get("/api/config")
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "Failed to read phlo.yaml"
+
+    def test_config_with_non_mapping_file_returns_clean_error(self, tmp_path):
+        """Non-object phlo.yaml should not leak a server traceback."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        (tmp_path / "phlo.yaml").write_text("- not\n- a\n- mapping\n", encoding="utf-8")
+        with patch("phlo_api.main.get_project_path", return_value=tmp_path):
+            response = TestClient(app).get("/api/config")
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "phlo.yaml must contain a mapping"
+
 
 # =============================================================================
 # Plugins Endpoints Tests
@@ -167,6 +191,17 @@ class TestPluginsEndpoints:
 
         assert response.status_code == 404
         assert "Unknown plugin type" in response.json()["detail"]
+
+    def test_plugin_info_unknown_type_returns_404(self):
+        """Test unknown plugin type in plugin detail returns 404."""
+        from fastapi.testclient import TestClient
+        from phlo_api.main import app
+
+        client = TestClient(app)
+        response = client.get("/api/plugins/unknown_type_that_does_not_exist/example")
+
+        assert response.status_code == 404
+        assert "Unknown plugin family" in response.json()["detail"]
 
 
 # =============================================================================

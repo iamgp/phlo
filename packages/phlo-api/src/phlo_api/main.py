@@ -201,9 +201,12 @@ def load_phlo_config() -> dict[str, Any]:
     try:
         with open(config_path) as f:
             config = yaml.safe_load(f) or {}
-    except Exception as exc:
+    except (OSError, yaml.YAMLError) as exc:
         logger.error("phlo_config_load_failed", config_path=str(config_path), error=str(exc))
-        raise
+        raise HTTPException(status_code=500, detail="Failed to read phlo.yaml") from exc
+    if not isinstance(config, dict):
+        logger.error("phlo_config_load_failed", config_path=str(config_path), error="not_mapping")
+        raise HTTPException(status_code=500, detail="phlo.yaml must contain a mapping")
 
     logger.info(
         "phlo_config_load_succeeded",
@@ -672,6 +675,11 @@ def get_plugin_info(plugin_type: str, name: str) -> dict[str, Any]:
             "api_plugin_get_failed", plugin_type=plugin_type, plugin_name=name, error=str(e)
         )
         raise HTTPException(status_code=500, detail="Plugin system not available") from e
+    except ValueError as e:
+        logger.warning(
+            "api_plugin_get_failed", plugin_type=plugin_type, plugin_name=name, error=str(e)
+        )
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @app.get("/api/services")

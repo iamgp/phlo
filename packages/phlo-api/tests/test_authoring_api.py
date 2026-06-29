@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -207,3 +208,37 @@ def test_authoring_doctor_route_returns_json(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"checks": [], "summary": {"fail": 0, "ok": 0, "skip": 0, "warn": 0}}
+
+
+def test_authoring_doctor_uses_configured_project_root(monkeypatch, tmp_path) -> None:
+    from phlo.cli.commands.doctor import DiagnosticResult, DiagnosticStatus
+    from phlo_api.api import authoring
+
+    service_cwd = tmp_path / "service-cwd"
+    project_root = tmp_path / "project"
+    service_cwd.mkdir()
+    project_root.mkdir()
+    monkeypatch.chdir(service_cwd)
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(project_root))
+    captured: dict[str, object] = {}
+
+    def fake_run_diagnostics_quietly(verbose=False):  # noqa: ANN001, ANN202
+        captured["cwd"] = Path.cwd()
+        captured["verbose"] = verbose
+        return [
+            DiagnosticResult(
+                "project.config",
+                "Project",
+                DiagnosticStatus.OK,
+                "phlo.yaml parsed",
+            )
+        ]
+
+    monkeypatch.setattr(authoring, "_run_diagnostics_quietly", fake_run_diagnostics_quietly)
+
+    response = TestClient(app).get("/api/authoring/doctor?verbose=true")
+
+    assert response.status_code == 200
+    assert captured == {"cwd": project_root, "verbose": True}
+    assert Path.cwd() == service_cwd
+    assert response.json()["checks"][0]["message"] == "phlo.yaml parsed"

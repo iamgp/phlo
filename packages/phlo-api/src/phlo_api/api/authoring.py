@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +62,16 @@ def _resolve_project_path(path: str) -> Path:
             detail={"error": "path_outside_project", "project_root": str(project_root)},
         )
     return resolved
+
+
+@contextmanager
+def _project_cwd() -> Iterator[None]:
+    previous = Path.cwd()
+    os.chdir(_project_root())
+    try:
+        yield
+    finally:
+        os.chdir(previous)
 
 
 @router.post("/workflows")
@@ -251,4 +263,5 @@ def lint_project(http_request: Request) -> dict[str, Any]:
 @router.get("/doctor")
 def run_doctor(verbose: bool = False) -> dict[str, Any]:
     """Run the same diagnostic engine as `phlo doctor --json`."""
-    return json.loads(render_json(_run_diagnostics_quietly(verbose=verbose)))
+    with _project_cwd():
+        return json.loads(render_json(_run_diagnostics_quietly(verbose=verbose)))

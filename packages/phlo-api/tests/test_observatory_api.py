@@ -2240,6 +2240,20 @@ def test_observatory_extension_detail_endpoint_returns_provider_neutral_payload(
     _assert_no_provider_url_settings(payload)
 
 
+def test_observatory_extension_settings_put_reads_json_body() -> None:
+    response = TestClient(app).put(
+        "/api/observatory/extensions/not-installed/settings",
+        json={"settings": {"theme": "dark"}},
+    )
+    invalid = TestClient(app).put(
+        "/api/observatory/extensions/not-installed/settings",
+        json={"theme": "dark"},
+    )
+
+    assert response.status_code == 404
+    assert invalid.status_code == 422
+
+
 def test_observatory_settings_endpoint_returns_provider_neutral_payload() -> None:
     response = TestClient(app).get("/api/observatory/settings")
 
