@@ -9,6 +9,9 @@ Requires Docker.  Run with:
 
     pytest -m integration packages/phlo-delta/tests/test_integration_delta_trino.py -v
 """
+
+from __future__ import annotations
+
 # ruff: noqa: E402
 
 import os
@@ -16,6 +19,7 @@ from subprocess import CalledProcessError, run
 import time
 from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import pyarrow as pa
@@ -24,7 +28,9 @@ import pytest
 pytestmark = pytest.mark.integration
 
 from phlo_delta.resource import DeltaResource
-from phlo_trino.resource import TrinoResource
+
+if TYPE_CHECKING:
+    from phlo_trino.resource import TrinoResource
 
 COMPOSE_DIR = Path(__file__).parent / "compose"
 
