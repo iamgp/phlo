@@ -55,6 +55,20 @@ def test_migrate_validate_passes_for_dry_run_csv() -> None:
         assert "Migration spec is valid" in result.output
 
 
+def test_migrate_validate_bad_yaml_is_clean_error() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        spec_path = Path("migrations/bad.yaml")
+        spec_path.parent.mkdir(parents=True, exist_ok=True)
+        spec_path.write_text("name: [unterminated\n", encoding="utf-8")
+
+        result = runner.invoke(cli, ["migrate", "validate", str(spec_path)])
+
+        assert result.exit_code == 1
+        assert "Could not parse migration spec YAML" in result.output
+        assert "Traceback" not in result.output
+
+
 def test_migrate_validate_uses_dry_run_override(monkeypatch: pytest.MonkeyPatch) -> None:
     """Validate command always validates as dry-run to avoid table-store requirements."""
 
@@ -235,3 +249,28 @@ def test_migrate_decorators_2026_05_check_passes_when_no_changes_needed() -> Non
 
         assert result.exit_code == 0
         assert "No decorators 2026-05 migrations needed" in result.output
+
+
+def test_migrate_decorators_missing_codemod_dependency_is_clean_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        workflow_path = Path("events.py")
+        workflow_path.write_text(
+            'from phlo_dlt import phlo_ingestion\n\n@phlo_ingestion(table_name="events")\ndef events():\n    pass\n',
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(
+            migrate_commands,
+            "migrate_decorators_2026_05_source",
+            lambda source: (_ for _ in ()).throw(
+                RuntimeError("Decorator codemods require the codemods extra.")
+            ),
+        )
+
+        result = runner.invoke(cli, ["migrate", "decorators-2026-05", str(workflow_path)])
+
+        assert result.exit_code == 1
+        assert "Decorator codemods require the codemods extra." in result.output
+        assert "Traceback" not in result.output

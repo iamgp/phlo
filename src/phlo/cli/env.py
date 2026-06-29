@@ -103,8 +103,7 @@ def _load_project_config() -> dict[str, Any]:
             return yaml.safe_load(f) or {}
     except (OSError, yaml.YAMLError):
         logger.warning("env_export_config_load_failed", path=str(config_path), exc_info=True)
-        click.echo(f"Warning: failed to parse {config_path}, using defaults", err=True)
-        return {}
+        raise click.ClickException(f"Failed to read {config_path}.") from None
 
 
 def _get_env_overrides(config: dict[str, Any]) -> dict[str, Any]:

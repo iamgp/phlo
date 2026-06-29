@@ -53,6 +53,23 @@ def test_schema_migrate_history_renders_timestamp_ms(monkeypatch) -> None:
     assert "123" in result.output
 
 
+def test_schema_migrate_history_backend_failure_is_clean_error(monkeypatch) -> None:
+    class FakeMigrator:
+        def get_schema_history(self, *, table_name: str, limit: int = 10) -> list[dict]:
+            raise RuntimeError("backend unavailable")
+
+    monkeypatch.setattr(schema_migrate_commands, "_resolve_migrator", lambda: FakeMigrator())
+
+    result = CliRunner().invoke(cli, ["schema-migrate", "history", "warehouse.customers"])
+
+    assert result.exit_code == 1
+    assert (
+        "Could not load schema history for warehouse.customers: backend unavailable"
+        in result.output
+    )
+    assert "Traceback" not in result.output
+
+
 def test_resolve_migrator_prefers_matching_table_store_default(monkeypatch) -> None:
     """Schema migrator follows the configured table_store when names align."""
 
@@ -294,6 +311,35 @@ def test_schema_migrate_scaffold_yaml_reads_contract(monkeypatch) -> None:
         assert payload["renames"] == {}
         assert payload["operations"][0]["change_type"] == "add"
         assert payload["operations"][0]["operation_id"]
+
+
+def test_schema_migrate_scaffold_yaml_backend_failure_is_clean_error(monkeypatch) -> None:
+    """Backend failures while scaffolding do not leak tracebacks."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        contract_path = Path(".phlo/contracts/warehouse__customers.json")
+        contract_path.parent.mkdir(parents=True, exist_ok=True)
+        contract_path.write_text(
+            json.dumps(
+                {
+                    "contract_version": 1,
+                    "table_name": "warehouse.customers",
+                    "normalized_schema": {"fields": [], "metadata": {}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(
+            schema_migrate_commands,
+            "_build_scaffold_payload_from_contract",
+            lambda **kwargs: (_ for _ in ()).throw(RuntimeError("backend unavailable")),
+        )
+
+        result = runner.invoke(cli, ["schema-migrate", "scaffold-yaml", "warehouse.customers"])
+
+        assert result.exit_code == 1
+        assert "backend unavailable" in result.output
+        assert "Traceback" not in result.output
 
 
 def test_schema_migrate_plan_passes_yaml_and_cli_renames(monkeypatch) -> None:

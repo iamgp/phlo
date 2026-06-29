@@ -39,6 +39,7 @@ def test_create_plugin_package_writes_service_plugin_project(tmp_path: Path) -> 
     )
     assert "from phlo.plugins import get_plugin" in readme_content
     assert 'registered_plugin = get_plugin("service", "weather-service")' in readme_content
+    assert 'pip install -e ".[dev]"' in readme_content
     assert (plugin_path / "MANIFEST.in").read_text(encoding="utf-8") == (
         "include README.md\nrecursive-include src *.py\n"
     )

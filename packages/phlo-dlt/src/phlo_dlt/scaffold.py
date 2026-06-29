@@ -735,6 +735,7 @@ def create_ingestion_workflow(
             ),
         )
     else:
+        schema_file.parent.mkdir(parents=True, exist_ok=True)
         schema_file.write_text(schema_content)
 
     _ensure_project_dependencies(project_root, ("phlo-dlt", "phlo-pandera"))

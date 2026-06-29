@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
 
+from phlo.cli.output import user_error
 from phlo.config_schema import ApiConfig, InfrastructureConfig, ServiceOverride
 from phlo.infrastructure import clear_config_cache, load_infrastructure_config
 from phlo.logging import get_logger
@@ -21,6 +22,15 @@ from phlo.logging import get_logger
 console = Console()
 error_console = Console(stderr=True)
 logger = get_logger(__name__)
+
+
+def _load_phlo_yaml(config_path: Path) -> dict:
+    try:
+        with config_path.open() as f:
+            return yaml.safe_load(f) or {}
+    except yaml.YAMLError as exc:
+        logger.warning("config_yaml_invalid", path=str(config_path), error=str(exc))
+        raise user_error("invalid phlo.yaml", details={"File": config_path, "Error": exc}) from exc
 
 
 @click.group()
@@ -43,7 +53,12 @@ def show(format: str):
       phlo config show
       phlo config show --format json
     """
-    infra_config = load_infrastructure_config()
+    try:
+        infra_config = load_infrastructure_config()
+    except yaml.YAMLError as exc:
+        config_path = Path.cwd() / "phlo.yaml"
+        logger.warning("config_show_yaml_invalid", path=str(config_path), error=str(exc))
+        raise user_error("invalid phlo.yaml", details={"File": config_path, "Error": exc}) from exc
     logger.info("config_show_succeeded", output_format=format)
 
     if format == "yaml":
@@ -79,8 +94,7 @@ def validate():
 
     console.print(f"Validating: {config_path}\n")
 
-    with config_path.open() as f:
-        project_config = yaml.safe_load(f)
+    project_config = _load_phlo_yaml(config_path)
 
     if not project_config:
         logger.warning("config_validate_empty_file", path=str(config_path))
@@ -178,8 +192,7 @@ def upgrade(force: bool):
         error_console.print("Run [cyan]phlo services init[/cyan] to create a new project")
         sys.exit(1)
 
-    with config_path.open() as f:
-        project_config = yaml.safe_load(f) or {}
+    project_config = _load_phlo_yaml(config_path)
 
     if "infrastructure" in project_config and not force:
         logger.warning(

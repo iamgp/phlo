@@ -405,17 +405,42 @@ def check_project(*, verbose: bool = False) -> list[DiagnosticResult]:
 
     phlo_dir = Path.cwd() / ".phlo"
     compose_file = phlo_dir / "docker-compose.yml"
-    results.append(
-        DiagnosticResult(
-            "project.compose",
-            "Project",
-            DiagnosticStatus.OK if compose_file.exists() else DiagnosticStatus.WARN,
-            ".phlo/docker-compose.yml found"
-            if compose_file.exists()
-            else ".phlo/docker-compose.yml is missing",
-            None if compose_file.exists() else "Run phlo services init.",
+    if not compose_file.exists():
+        results.append(
+            DiagnosticResult(
+                "project.compose",
+                "Project",
+                DiagnosticStatus.WARN,
+                ".phlo/docker-compose.yml is missing",
+                "Run phlo services init.",
+            )
         )
-    )
+    else:
+        try:
+            compose_config = yaml.safe_load(compose_file.read_text()) or {}
+            compose_ok = isinstance(compose_config, dict)
+            results.append(
+                DiagnosticResult(
+                    "project.compose",
+                    "Project",
+                    DiagnosticStatus.OK if compose_ok else DiagnosticStatus.FAIL,
+                    ".phlo/docker-compose.yml parsed"
+                    if compose_ok
+                    else ".phlo/docker-compose.yml must contain a mapping",
+                    None if compose_ok else "Run phlo services init --force.",
+                )
+            )
+        except (OSError, yaml.YAMLError) as exc:
+            results.append(
+                DiagnosticResult(
+                    "project.compose",
+                    "Project",
+                    DiagnosticStatus.FAIL,
+                    ".phlo/docker-compose.yml could not be read or parsed",
+                    "Run phlo services init --force.",
+                    {"error": str(exc)} if verbose else {},
+                )
+            )
     for filename in (".env", ".env.local"):
         path = phlo_dir / filename
         results.append(

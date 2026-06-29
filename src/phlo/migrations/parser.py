@@ -24,7 +24,10 @@ def load_migration_spec(path: Path) -> MigrationSpec:
     if not path.exists():
         raise MigrationSpecError(f"Migration spec file not found: {path}")
 
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise MigrationSpecError(f"Could not parse migration spec YAML: {path}: {exc}") from exc
     if not isinstance(raw, dict):
         raise MigrationSpecError("Migration spec root must be a mapping")
 

@@ -54,11 +54,17 @@ def snapshot(table: str, schema_file: str, run_id: str | None, source: str) -> N
     """Snapshot a schema from a JSON file into the registry."""
     db_url = _require_registry_db_url()
 
-    with Path(schema_file).open() as f:
-        schema = deserialize_schema(f.read())
+    try:
+        with Path(schema_file).open() as f:
+            schema = deserialize_schema(f.read())
+    except Exception as exc:
+        raise click.ClickException(f"Failed to read schema file: {exc}") from exc
 
     registry = SchemaRegistry(db_url)
-    snapshot_id = registry.snapshot_schema(table, schema, run_id=run_id, source=source)
+    try:
+        snapshot_id = registry.snapshot_schema(table, schema, run_id=run_id, source=source)
+    except Exception as exc:
+        raise click.ClickException(f"Failed to snapshot schema: {exc}") from exc
     console.print(f"[green]Snapshot:[/green] {snapshot_id}")
 
 
@@ -75,7 +81,10 @@ def check(table: str, fail_on: str) -> None:
     db_url = _require_registry_db_url()
 
     registry = SchemaRegistry(db_url)
-    snapshots = registry.get_latest_snapshots(table, limit=2)
+    try:
+        snapshots = registry.get_latest_snapshots(table, limit=2)
+    except Exception as exc:
+        raise click.ClickException(f"Failed to check schema compatibility: {exc}") from exc
 
     if len(snapshots) < 2:
         console.print(f"[yellow]Fewer than 2 snapshots for {table}; nothing to compare.[/yellow]")

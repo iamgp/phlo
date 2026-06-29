@@ -115,6 +115,28 @@ def test_doctor_missing_generated_services_points_to_services_init(tmp_path, mon
     assert ".phlo/docker-compose.yml is missing" in result.output
 
 
+def test_doctor_fails_when_generated_compose_is_malformed(tmp_path, monkeypatch) -> None:
+    (tmp_path / "phlo.yaml").write_text("name: demo\n")
+    (tmp_path / ".phlo").mkdir()
+    (tmp_path / ".phlo" / "docker-compose.yml").write_text("services: [unterminated\n")
+    (tmp_path / ".phlo" / ".env").write_text("")
+    (tmp_path / ".phlo" / ".env.local").write_text("")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(
+        "phlo.cli.commands.doctor._run_probe",
+        lambda command: CompletedProcess(command, 0, "ok", ""),
+    )
+    monkeypatch.setattr("phlo.cli.commands.doctor.shutil.disk_usage", lambda path: (100, 50, 50))
+
+    result = CliRunner().invoke(cli, ["doctor", "--json"])
+
+    assert result.exit_code == 1
+    assert '"project.compose"' in result.output
+    assert ".phlo/docker-compose.yml could not be read or parsed" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_doctor_invocation_skips_plugin_command_discovery() -> None:
     assert _is_doctor_invocation(["phlo", "doctor", "--json"])
     assert not _is_doctor_invocation(["phlo", "services", "list"])
