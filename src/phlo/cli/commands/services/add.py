@@ -22,6 +22,7 @@ from phlo.cli.commands.services.utils import (
 )
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.cli.output import user_error
 from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDiscovery
 
@@ -31,11 +32,20 @@ logger = get_logger(__name__)
 def _load_project_config(config_file: Path) -> dict:
     """Load project config, ensuring a mapping root."""
     if config_file.exists():
-        with config_file.open() as handle:
-            config = yaml.safe_load(handle) or {}
+        try:
+            with config_file.open() as handle:
+                config = yaml.safe_load(handle) or {}
+        except yaml.YAMLError as exc:
+            raise user_error(
+                "invalid phlo.yaml",
+                details={"File": config_file, "Error": exc},
+            ) from exc
         if not isinstance(config, dict):
             logger.error("services_add_invalid_config_mapping", config_file=str(config_file))
-            raise click.ClickException("phlo.yaml must contain a mapping.")
+            raise user_error(
+                "invalid phlo.yaml",
+                details={"File": config_file, "Error": "top-level value must be a mapping"},
+            )
         return config
 
     logger.error("services_add_missing_config", config_file=str(config_file))

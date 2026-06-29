@@ -9,7 +9,7 @@ from phlo.cli.commands.services.common import (
     validate_requested_profiles,
 )
 from phlo.cli.commands.services.utils import (
-    ensure_phlo_dir,
+    ensure_compose_project,
     get_profile_service_names,
     require_container_backend,
 )
@@ -67,7 +67,7 @@ def restart_cmd(
         logger.warning("services_restart_dev_mode_not_supported")
         raise click.UsageError("dev mode not implemented for restart")
 
-    phlo_dir = ensure_phlo_dir()
+    phlo_dir = ensure_compose_project()
     project_name = get_project_name()
     profile = validate_requested_profiles(profile)
     logger.info(

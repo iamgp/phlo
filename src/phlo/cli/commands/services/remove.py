@@ -70,8 +70,19 @@ def remove_cmd(service_name: str, keep_running: bool):
 
     # Load project config
     if config_file.exists():
-        with config_file.open() as f:
-            config = yaml.safe_load(f) or {}
+        try:
+            with config_file.open() as f:
+                config = yaml.safe_load(f) or {}
+        except yaml.YAMLError as exc:
+            raise user_error(
+                "invalid phlo.yaml",
+                details={"File": config_file, "Error": exc},
+            ) from exc
+        if not isinstance(config, dict):
+            raise user_error(
+                "invalid phlo.yaml",
+                details={"File": config_file, "Error": "top-level value must be a mapping"},
+            )
     else:
         logger.error("services_remove_missing_config", config_file=str(config_file))
         raise user_error("project configuration not found", missing="phlo.yaml")

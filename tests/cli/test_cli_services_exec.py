@@ -16,7 +16,7 @@ def test_services_exec_runs_command_in_service_container(monkeypatch) -> None:
         "phlo.cli.commands.services.exec.require_container_backend", lambda *_args, **_kwargs: None
     )
     monkeypatch.setattr(
-        "phlo.cli.commands.services.exec.ensure_phlo_dir", lambda: Path("/tmp/.phlo")
+        "phlo.cli.commands.services.exec.ensure_compose_project", lambda: Path("/tmp/.phlo")
     )
     monkeypatch.setattr("phlo.cli.commands.services.exec.get_project_name", lambda: "demo")
     monkeypatch.setattr(
@@ -62,3 +62,15 @@ def test_services_exec_requires_command(monkeypatch) -> None:
 
     assert result.exit_code != 0
     assert "Provide a command after `--`." in result.output
+
+
+def test_services_exec_requires_initialized_services(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.exec.require_container_backend", lambda *_args, **_kwargs: None
+    )
+
+    result = CliRunner().invoke(exec_cmd, ["dagster", "--", "echo", "ok"])
+
+    assert result.exit_code == 1
+    assert "Phlo services have not been initialized" in result.output
+    assert "Run: phlo services init" in result.output

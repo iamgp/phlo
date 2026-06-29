@@ -20,6 +20,7 @@ from phlo.cli.commands.services.utils import (
     resolve_phlo_package_dir,
 )
 from phlo.cli.infrastructure.utils import parse_env_file
+from phlo.cli.output import user_error
 from phlo.plugins.compose import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
@@ -47,6 +48,24 @@ def _is_uninitialized_phlo_dir(phlo_dir: Path) -> bool:
             continue
         return False
     return True
+
+
+def _load_existing_project_config(config_file: Path) -> dict:
+    try:
+        with config_file.open() as f:
+            project_config = yaml.safe_load(f) or {}
+    except yaml.YAMLError as exc:
+        raise user_error(
+            "invalid phlo.yaml",
+            details={"File": config_file, "Error": exc},
+        ) from exc
+
+    if not isinstance(project_config, dict):
+        raise user_error(
+            "invalid phlo.yaml",
+            details={"File": config_file, "Error": "top-level value must be a mapping"},
+        )
+    return project_config
 
 
 @click.command("init")
@@ -211,8 +230,7 @@ def init_cmd(
     # Load existing phlo.yaml config for user overrides
     existing_config = {}
     if config_file.exists():
-        with config_file.open() as f:
-            existing_config = yaml.safe_load(f) or {}
+        existing_config = _load_existing_project_config(config_file)
     user_overrides = existing_config.get("services", {})
     env_overrides = _get_env_overrides(existing_config)
 

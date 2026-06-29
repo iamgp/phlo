@@ -29,7 +29,7 @@ def test_services_stop_uses_podman_backend(monkeypatch, tmp_path) -> None:
         "phlo.cli.commands.services.stop.require_container_backend",
         lambda *_args, **_kwargs: None,
     )
-    monkeypatch.setattr("phlo.cli.commands.services.stop.ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr("phlo.cli.commands.services.stop.ensure_compose_project", lambda: phlo_dir)
     monkeypatch.setattr("phlo.cli.commands.services.stop.get_project_name", lambda: "demo")
     monkeypatch.setattr("phlo.cli.commands.services.stop.run_compose", _fake_run_compose)
     monkeypatch.setattr(
@@ -71,7 +71,7 @@ def test_services_stop_down_includes_optional_profiles(monkeypatch, tmp_path) ->
         "phlo.cli.commands.services.stop.require_container_backend",
         lambda *_args, **_kwargs: None,
     )
-    monkeypatch.setattr("phlo.cli.commands.services.stop.ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr("phlo.cli.commands.services.stop.ensure_compose_project", lambda: phlo_dir)
     monkeypatch.setattr("phlo.cli.commands.services.stop.get_project_name", lambda: "demo")
     monkeypatch.setattr("phlo.cli.commands.services.stop.run_compose", _fake_run_compose)
     monkeypatch.setattr("phlo.cli.commands.services.stop.ServiceDiscovery", FakeDiscovery)
@@ -120,7 +120,7 @@ def test_services_stop_profile_with_volumes_uses_down(monkeypatch, tmp_path) -> 
         "phlo.cli.commands.services.stop.require_container_backend",
         lambda *_args, **_kwargs: None,
     )
-    monkeypatch.setattr("phlo.cli.commands.services.stop.ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr("phlo.cli.commands.services.stop.ensure_compose_project", lambda: phlo_dir)
     monkeypatch.setattr("phlo.cli.commands.services.stop.get_project_name", lambda: "demo")
     monkeypatch.setattr("phlo.cli.commands.services.stop.run_compose", _fake_run_compose)
     monkeypatch.setattr("phlo.cli.commands.services.stop.ServiceDiscovery", FakeDiscovery)
@@ -175,7 +175,7 @@ def test_services_stop_fails_when_containers_remain(monkeypatch, tmp_path) -> No
         "phlo.cli.commands.services.stop.require_container_backend",
         lambda *_args, **_kwargs: None,
     )
-    monkeypatch.setattr("phlo.cli.commands.services.stop.ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr("phlo.cli.commands.services.stop.ensure_compose_project", lambda: phlo_dir)
     monkeypatch.setattr("phlo.cli.commands.services.stop.get_project_name", lambda: "demo")
     monkeypatch.setattr("phlo.cli.commands.services.stop.run_compose", _fake_run_compose)
     monkeypatch.setattr(
@@ -191,3 +191,17 @@ def test_services_stop_fails_when_containers_remain(monkeypatch, tmp_path) -> No
 
     assert result.exit_code != 0
     assert "containers still running" in result.output
+
+
+def test_services_stop_requires_initialized_services(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.stop.require_container_backend",
+        lambda *_args, **_kwargs: None,
+    )
+
+    result = CliRunner().invoke(stop_cmd)
+
+    assert result.exit_code == 1
+    assert "Phlo services have not been initialized" in result.output
+    assert "Run: phlo services init" in result.output

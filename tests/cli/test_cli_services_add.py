@@ -116,3 +116,27 @@ def test_services_add_normalizes_enabled_disabled_lists(
     after_add = yaml.safe_load(config_file.read_text())
     assert after_add["services"]["enabled"] == ["minio", "prometheus"]
     assert after_add["services"]["disabled"] == ["postgres"]
+
+
+def test_services_add_remove_report_malformed_phlo_yaml_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".phlo").mkdir()
+    (tmp_path / "phlo.yaml").write_text("name: [unterminated\n")
+
+    from phlo.cli.commands.services import add as add_module
+    from phlo.cli.commands.services import remove as remove_module
+
+    runner = CliRunner()
+    for command, args in (
+        (add_module.add_cmd, ["prometheus", "--no-start"]),
+        (remove_module.remove_cmd, ["prometheus", "--keep-running"]),
+    ):
+        result = runner.invoke(command, args)
+
+        assert result.exit_code == 1
+        assert "invalid phlo.yaml" in result.output
+        assert "Traceback" not in result.output
+        assert not isinstance(result.exception, yaml.YAMLError)

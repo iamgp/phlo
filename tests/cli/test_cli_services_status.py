@@ -115,6 +115,64 @@ def test_services_status_json(monkeypatch, tmp_path) -> None:
     ]
 
 
+def test_services_status_filters_services(monkeypatch, tmp_path) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_module, "require_container_backend", lambda _backend=None: None)
+    monkeypatch.setattr(status_module, "ensure_compose_project", lambda: phlo_dir)
+    monkeypatch.setattr(status_module, "get_project_name", lambda: "demo")
+
+    captured: dict[str, list[str]] = {}
+
+    def fake_run_compose(cmd, **_kwargs):
+        captured["cmd"] = cmd
+        return CompletedProcess(
+            cmd,
+            0,
+            stdout="SERVICE    STATUS                    PORTS\npostgres   Up 1 second (healthy)    0.0.0.0:5432->5432/tcp\n",
+        )
+
+    monkeypatch.setattr(
+        status_module,
+        "compose_base_cmd",
+        lambda **_kwargs: ["docker-compose", "-p", "demo"],
+    )
+    monkeypatch.setattr(status_module, "run_compose", fake_run_compose)
+
+    result = CliRunner().invoke(status_module.status_cmd, ["--service", "postgres,minio"])
+
+    assert result.exit_code == 0
+    assert captured["cmd"][:4] == ["docker-compose", "-p", "demo", "ps"]
+    assert "postgres" in captured["cmd"]
+    assert "minio" in captured["cmd"]
+
+
+def test_services_status_json_wraps_malformed_compose_output(monkeypatch, tmp_path) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(status_module, "require_container_backend", lambda _backend=None: None)
+    monkeypatch.setattr(status_module, "ensure_compose_project", lambda: phlo_dir)
+    monkeypatch.setattr(status_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        status_module,
+        "compose_base_cmd",
+        lambda **_kwargs: ["docker-compose", "-p", "demo"],
+    )
+    monkeypatch.setattr(
+        status_module,
+        "run_compose",
+        lambda cmd, **_kwargs: CompletedProcess(cmd, 0, stdout="{bad}\n"),
+    )
+
+    result = CliRunner().invoke(status_module.status_cmd, ["--json"])
+
+    assert result.exit_code == 1
+    assert "Could not parse container status output." in result.output
+    assert "Traceback" not in result.output
+
+
 def test_services_status_requires_initialized_project(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(status_module, "require_container_backend", lambda _backend=None: None)
