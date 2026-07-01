@@ -378,6 +378,7 @@ def iceberg_catalog(configured_minio_object_store, monkeypatch):
             monkeypatch.setenv(
                 "ICEBERG_S3_SECRET_KEY", os.environ.get("MINIO_ROOT_PASSWORD", "minio123")
             )
+            monkeypatch.setenv("ICEBERG_S3_REGION", "us-east-1")
 
         parsed_endpoint = urlparse(endpoint)
         endpoint_host = parsed_endpoint.hostname or "127.0.0.1"

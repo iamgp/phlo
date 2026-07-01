@@ -131,7 +131,8 @@ def test_top_level_logs_is_generic_services_command() -> None:
     assert cli.commands["logs"] is logs_cmd
 
 
-def test_services_logs_requires_initialized_services(monkeypatch) -> None:
+def test_services_logs_requires_initialized_services(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
         "phlo.cli.commands.services.logs.require_container_backend",
         lambda *_args, **_kwargs: None,

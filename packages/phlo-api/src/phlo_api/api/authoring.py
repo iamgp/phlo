@@ -7,6 +7,7 @@ import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -24,6 +25,7 @@ from phlo.cli.templates.registry import list_templates as list_project_templates
 from phlo.workflow_authoring import WorkflowAuthoringError, create_workflow_with_provider
 
 router = APIRouter(tags=["authoring"])
+_project_cwd_lock = Lock()
 
 
 class CreateWorkflowRequest(BaseModel):
@@ -66,12 +68,13 @@ def _resolve_project_path(path: str) -> Path:
 
 @contextmanager
 def _project_cwd() -> Iterator[None]:
-    previous = Path.cwd()
-    os.chdir(_project_root())
-    try:
-        yield
-    finally:
-        os.chdir(previous)
+    with _project_cwd_lock:
+        previous = Path.cwd()
+        os.chdir(_project_root())
+        try:
+            yield
+        finally:
+            os.chdir(previous)
 
 
 @router.post("/workflows")

@@ -84,16 +84,15 @@ def _read_query(*, query: str | None, file: Path | None) -> str:
 
 
 def _ensure_phlo_dir() -> Path:
-    """Verify and return the Phlo project directory.
+    """Verify and return the Phlo compose project directory.
 
-    Checks for the presence of a .phlo directory in the current working directory,
-    which indicates a valid Phlo project.
+    Checks that the current project has an initialized .phlo compose setup.
 
     Returns:
         Path to the .phlo directory.
 
     Raises:
-        click.ClickException: If the .phlo directory does not exist.
+        click.ClickException: If the compose project files are missing.
 
     Example:
         >>> # In a directory with .phlo/ subdirectory

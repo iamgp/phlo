@@ -28,7 +28,7 @@ def _load_phlo_yaml(config_path: Path) -> dict:
     try:
         with config_path.open() as f:
             return yaml.safe_load(f) or {}
-    except yaml.YAMLError as exc:
+    except (OSError, yaml.YAMLError) as exc:
         logger.warning("config_yaml_invalid", path=str(config_path), error=str(exc))
         raise user_error("invalid phlo.yaml", details={"File": config_path, "Error": exc}) from exc
 

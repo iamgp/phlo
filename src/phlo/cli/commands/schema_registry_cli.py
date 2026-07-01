@@ -83,16 +83,17 @@ def check(table: str, fail_on: str) -> None:
     registry = SchemaRegistry(db_url)
     try:
         snapshots = registry.get_latest_snapshots(table, limit=2)
+        if len(snapshots) < 2:
+            console.print(
+                f"[yellow]Fewer than 2 snapshots for {table}; nothing to compare.[/yellow]"
+            )
+            return
+
+        current = deserialize_schema(snapshots[0].schema_json)
+        previous = deserialize_schema(snapshots[1].schema_json)
+        plan = plan_schema_migration(table_name=table, current=previous, desired=current)
     except Exception as exc:
         raise click.ClickException(f"Failed to check schema compatibility: {exc}") from exc
-
-    if len(snapshots) < 2:
-        console.print(f"[yellow]Fewer than 2 snapshots for {table}; nothing to compare.[/yellow]")
-        return
-
-    current = deserialize_schema(snapshots[0].schema_json)
-    previous = deserialize_schema(snapshots[1].schema_json)
-    plan = plan_schema_migration(table_name=table, current=previous, desired=current)
 
     classification_colors = {"safe": "green", "warning": "yellow", "breaking": "red"}
     color = classification_colors.get(plan.classification, "white")

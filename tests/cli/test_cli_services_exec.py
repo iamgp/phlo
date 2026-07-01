@@ -64,7 +64,8 @@ def test_services_exec_requires_command(monkeypatch) -> None:
     assert "Provide a command after `--`." in result.output
 
 
-def test_services_exec_requires_initialized_services(monkeypatch) -> None:
+def test_services_exec_requires_initialized_services(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
         "phlo.cli.commands.services.exec.require_container_backend", lambda *_args, **_kwargs: None
     )

@@ -15,7 +15,8 @@ from __future__ import annotations
 # ruff: noqa: E402
 
 import os
-from subprocess import CalledProcessError, run
+from contextlib import suppress
+from subprocess import CalledProcessError, TimeoutExpired, run
 import time
 from collections.abc import Generator
 from pathlib import Path
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
     from phlo_trino.resource import TrinoResource
 
 COMPOSE_DIR = Path(__file__).parent / "compose"
+COMPOSE_TIMEOUT_SECONDS = 300
 
 # Test data -------------------------------------------------------------------
 
@@ -101,6 +103,7 @@ class ComposeStack:
             check=True,
             capture_output=True,
             text=True,
+            timeout=COMPOSE_TIMEOUT_SECONDS,
         )
         return result.stdout.strip()
 
@@ -128,7 +131,9 @@ def stack() -> Generator[ComposeStack]:
     compose = ComposeStack()
     try:
         compose.start()
-    except (CalledProcessError, FileNotFoundError) as exc:
+    except (CalledProcessError, FileNotFoundError, TimeoutExpired) as exc:
+        with suppress(CalledProcessError, FileNotFoundError, TimeoutExpired):
+            compose.stop()
         pytest.skip(f"Docker Compose is not available for this integration test: {exc}")
     try:
         trino_host = _client_host(compose.get_service_host("trino", 8080))
