@@ -37,11 +37,11 @@ const config = defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
-          if (id.includes('@primer/')) return 'vendor-primer'
-          if (id.includes('@xyflow/')) return 'vendor-flow'
-          if (id.includes('@base-ui/')) return 'vendor-base-ui'
           if (id.includes('@tanstack/')) return 'vendor-tanstack'
-          if (id.includes('/react/') || id.includes('/react-dom/')) {
+          if (
+            id.includes('/node_modules/react/') ||
+            id.includes('/node_modules/react-dom/')
+          ) {
             return 'vendor-react'
           }
           return undefined

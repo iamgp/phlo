@@ -125,6 +125,9 @@ def discover_pandera_schemas(
                 try:
                     parts = py_file.relative_to(path.parent).parts[:-1] + (py_file.stem,)
                     module_name = ".".join(parts)
+                    module_parts = module_name.split(".")
+                    for index in range(1, len(module_parts) + 1):
+                        sys.modules.pop(".".join(module_parts[:index]), None)
 
                     try:
                         module = import_module(module_name)

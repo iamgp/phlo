@@ -439,7 +439,7 @@ def trino_service():
     try:
         # Try to connect
         result = resource.execute("SELECT 1")
-        if result == [(1,)]:
+        if result and list(result[0]) == [1]:
             yield resource
         else:
             pytest.skip("Trino returned unexpected result")
@@ -495,7 +495,7 @@ class TestTrinoIntegrationReal:
             cursor.execute("SELECT 1")
             result = cursor.fetchall()
 
-        assert result == [(1,)]
+        assert [list(row) for row in result] == [[1]]
         # Cursor and connection should be closed after context
 
 

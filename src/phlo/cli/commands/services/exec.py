@@ -7,7 +7,7 @@ import subprocess
 import click
 
 from phlo.cli.authorization_wrappers import require_mutation_authorization
-from phlo.cli.commands.services.utils import ensure_phlo_dir, require_container_backend
+from phlo.cli.commands.services.utils import ensure_compose_project, require_container_backend
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
@@ -48,7 +48,7 @@ def exec_cmd(
         raise click.ClickException("Provide a command after `--`.")
 
     require_container_backend(backend_name)
-    phlo_dir = ensure_phlo_dir()
+    phlo_dir = ensure_compose_project()
     project_name = get_project_name()
     logger.info(
         "services_exec_requested",

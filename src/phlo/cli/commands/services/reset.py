@@ -7,10 +7,9 @@ import click
 
 from phlo.cli.authorization_wrappers import require_mutation_authorization
 from phlo.cli.commands.services.common import parse_service_args, run_compose
-from phlo.cli.commands.services.utils import ensure_phlo_dir, require_container_backend
+from phlo.cli.commands.services.utils import ensure_compose_project, require_container_backend
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
-from phlo.cli.output import missing_compose_file_error
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -52,8 +51,7 @@ def reset_cmd(service: tuple[str, ...], yes: bool, backend_name: str | None):
         phlo services reset -y                   # Skip confirmation
     """
     require_container_backend(backend_name)
-    phlo_dir = ensure_phlo_dir()
-    compose_file = phlo_dir / "docker-compose.yml"
+    phlo_dir = ensure_compose_project()
     project_name = get_project_name()
     volumes_dir = phlo_dir / "volumes"
     volumes_dir_resolved = volumes_dir.resolve()
@@ -63,14 +61,6 @@ def reset_cmd(service: tuple[str, ...], yes: bool, backend_name: str | None):
         service_args_count=len(service),
         skip_confirmation=yes,
     )
-
-    if not compose_file.exists():
-        logger.error(
-            "services_reset_missing_compose_file",
-            project_name=project_name,
-            compose_file=str(compose_file),
-        )
-        raise missing_compose_file_error(compose_file.relative_to(Path.cwd()))
 
     # Parse comma-separated services
     services_list = parse_service_args(service)

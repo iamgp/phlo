@@ -73,6 +73,21 @@ def test_scaffold_rejects_nullable_unique_key(
         )
 
 
+def test_scaffold_creates_schema_directory_for_fresh_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    create_ingestion_workflow(
+        domain="qa",
+        table_name="samples",
+        unique_key="id",
+        fields=["id:int", "name:str"],
+    )
+
+    assert (tmp_path / "workflows" / "schemas" / "qa.py").exists()
+
+
 def test_scaffold_schema_rendering_comes_from_quality_provider(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

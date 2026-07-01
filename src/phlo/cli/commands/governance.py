@@ -96,7 +96,10 @@ def _load_module_from_path(path: Path) -> None:
     if spec is None or spec.loader is None:
         raise click.ClickException(f"Could not load governance module: {path}")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        raise click.ClickException(f"Could not load governance module: {path}: {exc}") from exc
 
 
 __all__ = ["governance_group"]

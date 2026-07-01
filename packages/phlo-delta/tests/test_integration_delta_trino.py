@@ -9,13 +9,18 @@ Requires Docker.  Run with:
 
     pytest -m integration packages/phlo-delta/tests/test_integration_delta_trino.py -v
 """
+
+from __future__ import annotations
+
 # ruff: noqa: E402
 
 import os
-from subprocess import CalledProcessError
+from contextlib import suppress
+from subprocess import CalledProcessError, TimeoutExpired, run
 import time
 from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import pyarrow as pa
@@ -23,12 +28,13 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
-pytest.importorskip("testcontainers")
-from testcontainers.compose import DockerCompose
 from phlo_delta.resource import DeltaResource
-from phlo_trino.resource import TrinoResource
+
+if TYPE_CHECKING:
+    from phlo_trino.resource import TrinoResource
 
 COMPOSE_DIR = Path(__file__).parent / "compose"
+COMPOSE_TIMEOUT_SECONDS = 300
 
 # Test data -------------------------------------------------------------------
 
@@ -72,19 +78,65 @@ def _wait_for_url(url: str, *, timeout: int = 120) -> None:
     raise TimeoutError(f"{url} not ready after {timeout}s")
 
 
+def _client_host(host: str) -> str:
+    """Return a host address usable by clients running on the test host."""
+    return "localhost" if host in {"0.0.0.0", "::"} else host
+
+
+class ComposeStack:
+    """Small docker compose wrapper for this integration fixture."""
+
+    def __init__(self) -> None:
+        self.project_name = f"phlo_delta_test_{os.getpid()}"
+
+    def _compose(self, *args: str) -> str:
+        result = run(
+            [
+                "docker",
+                "compose",
+                "-p",
+                self.project_name,
+                "-f",
+                str(COMPOSE_DIR / "docker-compose.yml"),
+                *args,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=COMPOSE_TIMEOUT_SECONDS,
+        )
+        return result.stdout.strip()
+
+    def start(self) -> None:
+        self._compose("up", "-d")
+
+    def stop(self) -> None:
+        self._compose("down", "-v", "--remove-orphans")
+
+    def get_service_host(self, service: str, port: int) -> str:
+        _ = service, port
+        return "localhost"
+
+    def get_service_port(self, service: str, port: int) -> int:
+        output = self._compose("port", service, str(port))
+        return int(output.rsplit(":", 1)[1])
+
+
 # Fixtures --------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def stack() -> Generator[DockerCompose]:
+def stack() -> Generator[ComposeStack]:
     """Boot the MinIO + Trino compose stack (file-based metastore)."""
-    compose = DockerCompose(context=COMPOSE_DIR, wait=False)
+    compose = ComposeStack()
     try:
         compose.start()
-    except (CalledProcessError, FileNotFoundError) as exc:
+    except (CalledProcessError, FileNotFoundError, TimeoutExpired) as exc:
+        with suppress(CalledProcessError, FileNotFoundError, TimeoutExpired):
+            compose.stop()
         pytest.skip(f"Docker Compose is not available for this integration test: {exc}")
     try:
-        trino_host = compose.get_service_host("trino", 8080)
+        trino_host = _client_host(compose.get_service_host("trino", 8080))
         trino_port = compose.get_service_port("trino", 8080)
         _wait_for_url(f"http://{trino_host}:{trino_port}/v1/info", timeout=180)
         yield compose
@@ -93,12 +145,12 @@ def stack() -> Generator[DockerCompose]:
 
 
 @pytest.fixture(scope="module")
-def delta_resource(stack: DockerCompose, monkeypatch_module) -> Generator[DeltaResource]:
+def delta_resource(stack: ComposeStack, monkeypatch_module) -> Generator[DeltaResource]:
     """Return a DeltaResource configured to talk to the compose MinIO."""
     from phlo_delta.resource import DeltaResource
     from phlo_delta.settings import get_settings
 
-    minio_host = stack.get_service_host("minio", 9000)
+    minio_host = _client_host(stack.get_service_host("minio", 9000))
     minio_port = stack.get_service_port("minio", 9000)
     endpoint = f"http://{minio_host}:{minio_port}"
 
@@ -116,11 +168,11 @@ def delta_resource(stack: DockerCompose, monkeypatch_module) -> Generator[DeltaR
 
 
 @pytest.fixture(scope="module")
-def trino(stack: DockerCompose) -> TrinoResource:
+def trino(stack: ComposeStack) -> TrinoResource:
     """Return a TrinoResource pointed at the compose Trino."""
     from phlo_trino.resource import TrinoResource
 
-    trino_host = stack.get_service_host("trino", 8080)
+    trino_host = _client_host(stack.get_service_host("trino", 8080))
     trino_port = stack.get_service_port("trino", 8080)
     return TrinoResource(host=trino_host, port=trino_port, user="test", catalog="delta")
 

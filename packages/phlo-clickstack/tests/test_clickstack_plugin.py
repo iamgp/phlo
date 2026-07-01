@@ -1,5 +1,8 @@
 """Tests for ClickStack service plugin."""
 
+from click.testing import CliRunner
+
+from phlo_clickstack.cli import clickstack_group
 from phlo_clickstack.plugin import ClickStackServicePlugin
 
 
@@ -25,3 +28,17 @@ def test_clickstack_plugin_metadata() -> None:
 
     assert meta.name == "clickstack"
     assert "observability" in meta.tags
+
+
+def test_clickstack_query_rejects_partial_phlo_directory(monkeypatch, tmp_path) -> None:
+    """Logging-created .phlo directories are not initialized service projects."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".phlo" / "logs").mkdir(parents=True)
+    monkeypatch.setattr("phlo_clickstack.cli._require_container_backend", lambda: None)
+
+    result = CliRunner().invoke(clickstack_group, ["query", "SELECT 1"])
+
+    assert result.exit_code != 0
+    assert "Phlo services have not been initialized" in result.output
+    assert "Missing: .phlo/docker-compose.yml" in result.output
+    assert "Run: phlo services init" in result.output

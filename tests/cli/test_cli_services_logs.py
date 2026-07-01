@@ -16,7 +16,7 @@ def test_services_logs_accepts_multiple_services_and_log_options(monkeypatch) ->
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        "phlo.cli.commands.services.logs.ensure_phlo_dir", lambda: Path("/tmp/.phlo")
+        "phlo.cli.commands.services.logs.ensure_compose_project", lambda: Path("/tmp/.phlo")
     )
     monkeypatch.setattr("phlo.cli.commands.services.logs.get_project_name", lambda: "demo")
     monkeypatch.setattr(
@@ -73,7 +73,7 @@ def test_services_logs_uses_requested_podman_backend(monkeypatch) -> None:
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        "phlo.cli.commands.services.logs.ensure_phlo_dir", lambda: Path("/tmp/.phlo")
+        "phlo.cli.commands.services.logs.ensure_compose_project", lambda: Path("/tmp/.phlo")
     )
     monkeypatch.setattr("phlo.cli.commands.services.logs.get_project_name", lambda: "demo")
 
@@ -105,7 +105,7 @@ def test_services_logs_accepts_package_selector_alias(monkeypatch) -> None:
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        "phlo.cli.commands.services.logs.ensure_phlo_dir", lambda: Path("/tmp/.phlo")
+        "phlo.cli.commands.services.logs.ensure_compose_project", lambda: Path("/tmp/.phlo")
     )
     monkeypatch.setattr("phlo.cli.commands.services.logs.get_project_name", lambda: "demo")
     monkeypatch.setattr(
@@ -129,3 +129,17 @@ def test_top_level_logs_is_generic_services_command() -> None:
     from phlo.cli.main import cli
 
     assert cli.commands["logs"] is logs_cmd
+
+
+def test_services_logs_requires_initialized_services(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "phlo.cli.commands.services.logs.require_container_backend",
+        lambda *_args, **_kwargs: None,
+    )
+
+    result = CliRunner().invoke(logs_cmd, ["--tail", "0", "--no-color"])
+
+    assert result.exit_code == 1
+    assert "Phlo services have not been initialized" in result.output
+    assert "Run: phlo services init" in result.output

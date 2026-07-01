@@ -661,7 +661,11 @@ def history(table_name: str, limit: int, fmt: str) -> None:
     """
     migrator = _resolve_migrator()
 
-    entries = migrator.get_schema_history(table_name=table_name, limit=limit)
+    try:
+        entries = migrator.get_schema_history(table_name=table_name, limit=limit)
+    except Exception as exc:
+        console.print(f"[red]Could not load schema history for {table_name}: {exc}[/red]")
+        sys.exit(1)
 
     if fmt == "json":
         click.echo(json.dumps(entries, indent=2, default=str))
@@ -762,7 +766,14 @@ def scaffold_yaml(
             payload=payload,
             force=force,
         )
-    except (FileNotFoundError, ValueError, json.JSONDecodeError, TypeError, FileExistsError) as exc:
+    except (
+        FileNotFoundError,
+        ValueError,
+        json.JSONDecodeError,
+        TypeError,
+        FileExistsError,
+        Exception,
+    ) as exc:
         console.print(f"[red]{exc}[/red]")
         sys.exit(1)
 
@@ -827,6 +838,7 @@ def scaffold_yaml_recent(since_hours: int, limit: int | None, force: bool) -> No
             json.JSONDecodeError,
             TypeError,
             FileExistsError,
+            Exception,
         ) as exc:
             message = f"{contract_path}: {exc}"
             errors.append(message)

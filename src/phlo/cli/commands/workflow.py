@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import click
@@ -46,14 +48,32 @@ def _asset_key_from_workflow_path(workflow_path: Path) -> str:
 
 def _validate_workflow_file(path: str) -> None:
     """Validate a workflow file using the existing Pandera validator."""
-    from phlo_pandera.cli_validate import validate_workflow_file
+    try:
+        from phlo_pandera.cli_validate import validate_workflow_file
+    except ModuleNotFoundError as exc:
+        if exc.name != "phlo_pandera":
+            raise
+        raise user_error(
+            "workflow validation support is not installed",
+            details=["Install the Pandera workflow plugin."],
+            run='uv pip install "phlo-pandera"',
+        ) from exc
 
     validate_workflow_file(Path(path), require_workflow=True)
 
 
 def _validate_schema_file(path: str) -> None:
     """Validate a schema file using the existing schema validator."""
-    from phlo_pandera.cli_schema_utils import validate_schema_file
+    try:
+        from phlo_pandera.cli_schema_utils import validate_schema_file
+    except ModuleNotFoundError as exc:
+        if exc.name != "phlo_pandera":
+            raise
+        raise user_error(
+            "schema validation support is not installed",
+            details=["Install the Pandera workflow plugin."],
+            run='uv pip install "phlo-pandera"',
+        ) from exc
 
     try:
         validate_schema_file(Path(path))
@@ -217,14 +237,23 @@ def check_workflow_cmd(workflow_file: str, output_json: bool) -> None:
 
     schema_path = _infer_schema_path(workflow_path)
 
-    _validate_workflow_file(str(workflow_path))
+    if output_json:
+        with redirect_stdout(io.StringIO()):
+            _validate_workflow_file(str(workflow_path))
+    else:
+        _validate_workflow_file(str(workflow_path))
+
     if not output_json:
         click.echo(f"Workflow valid: {workflow_path}")
 
     schema_validated = False
     if schema_path and schema_path.exists():
         try:
-            _validate_schema_file(str(schema_path))
+            if output_json:
+                with redirect_stdout(io.StringIO()):
+                    _validate_schema_file(str(schema_path))
+            else:
+                _validate_schema_file(str(schema_path))
         except click.ClickException:
             raise
         except Exception as exc:

@@ -25,6 +25,7 @@ import click
 
 from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
 from phlo.cli.commands.services.utils import (
+    ensure_compose_project,
     require_container_backend as _require_selected_container_backend,
 )
 from phlo.cli.infrastructure.command import CommandError, run_command
@@ -35,7 +36,6 @@ from phlo.cli.output import (
     empty_file_error,
     exclusive_options_error,
     file_read_error,
-    missing_phlo_project_error,
     missing_query_error,
 )
 from phlo.cli.sql import is_mutating_sql
@@ -84,16 +84,15 @@ def _read_query(*, query: str | None, file: Path | None) -> str:
 
 
 def _ensure_phlo_dir() -> Path:
-    """Verify and return the Phlo project directory.
+    """Verify and return the Phlo compose project directory.
 
-    Checks for the presence of a .phlo directory in the current working directory,
-    which indicates a valid Phlo project.
+    Checks that the current project has an initialized .phlo compose setup.
 
     Returns:
         Path to the .phlo directory.
 
     Raises:
-        click.ClickException: If the .phlo directory does not exist.
+        click.ClickException: If the compose project files are missing.
 
     Example:
         >>> # In a directory with .phlo/ subdirectory
@@ -102,10 +101,7 @@ def _ensure_phlo_dir() -> Path:
         '.phlo'
 
     """
-    phlo_dir = Path.cwd() / ".phlo"
-    if phlo_dir.exists():
-        return phlo_dir
-    raise missing_phlo_project_error()
+    return ensure_compose_project()
 
 
 def _require_container_backend() -> None:

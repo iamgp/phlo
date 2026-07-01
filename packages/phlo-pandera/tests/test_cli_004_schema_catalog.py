@@ -141,6 +141,52 @@ class RawGlucoseEntries(PhloSchema):
         assert data["old_schema"] == {"_id": "str", "sgv": "int"}
         assert "Added columns: date" in data["details"]
 
+    def test_schema_diff_generated_series_schema_exact_copy_is_safe(self, tmp_path):
+        """Diffs generated Series annotations without runtime string false positives."""
+        workflows = tmp_path / "workflows"
+        schemas_dir = workflows / "schemas"
+        schemas_dir.mkdir(parents=True)
+        (workflows / "__init__.py").write_text("")
+        (schemas_dir / "__init__.py").write_text("")
+        schema_file = schemas_dir / "weather.py"
+        schema_file.write_text(
+            """
+from datetime import datetime
+
+import pandera as pa
+from pandera.typing import Series
+from phlo_pandera.schemas import PhloSchema
+
+
+class RawObservations(PhloSchema):
+    id: Series[int] = pa.Field(description="Unique key", nullable=False)
+    observed_at: Series[datetime] = pa.Field(nullable=True)
+"""
+        )
+        old_schema_file = tmp_path / "weather_previous.py"
+        old_schema_file.write_text(schema_file.read_text())
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "schema",
+                "diff",
+                "RawObservations",
+                "--old",
+                str(old_schema_file),
+                "--format",
+                "json",
+            ],
+            env={"PHLO_SCHEMA_SEARCH_PATHS": str(workflows)},
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["classification"] == "SAFE"
+        assert data["details"] == ["No changes detected"]
+        assert data["old_schema"] == data["new_schema"]
+
     def test_schema_validate(self):
         """Test phlo schema validate command."""
         runner = CliRunner()

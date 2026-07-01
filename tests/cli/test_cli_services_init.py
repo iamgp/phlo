@@ -364,6 +364,22 @@ def test_services_init_excludes_profile_services_by_default(
     assert "prometheus" not in compose
 
 
+def test_services_init_reports_malformed_phlo_yaml_without_traceback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    (tmp_path / "phlo.yaml").write_text("name: [unterminated\n")
+    monkeypatch.chdir(tmp_path)
+
+    from phlo.cli.commands.services import init as init_module
+
+    result = CliRunner().invoke(init_module.init_cmd, ["--force", "--no-dev"])
+
+    assert result.exit_code == 1
+    assert "invalid phlo.yaml" in result.output
+    assert "Traceback" not in result.output
+    assert not isinstance(result.exception, yaml.YAMLError)
+
+
 def test_services_init_allows_logs_only_phlo_dir(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     """A fresh `phlo init` can create .phlo/logs before infrastructure is rendered."""
     postgres = _service("postgres", default=True)

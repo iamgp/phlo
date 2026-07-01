@@ -17,10 +17,10 @@ import subprocess
 import sys
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Body, Query, Request
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, ValidationError
 
 from phlo_api.observatory_api.observatory_actions import execute_observatory_action
 from phlo_api.observatory_api.observatory_cache import ReadModelCache
@@ -3229,14 +3229,18 @@ async def get_observatory_extension_settings(name: str) -> Any:
 
 
 @router.put("/extensions/{name}/settings")
-async def put_observatory_extension_settings(name: str, payload: Any) -> Any:
+async def put_observatory_extension_settings(name: str, payload: Any = Body(...)) -> Any:
     """Persist settings for an extension from the canonical Observatory API."""
     from phlo_api.observatory_api.extension_settings import (
         ExtensionSettingsPayload,
         put_extension_settings,
     )
 
-    return await put_extension_settings(name, ExtensionSettingsPayload.model_validate(payload))
+    try:
+        settings_payload = ExtensionSettingsPayload.model_validate(payload)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
+    return await put_extension_settings(name, settings_payload)
 
 
 @router.get("/extensions/{extension_id:path}", response_model=ObservatoryExtensionDetail)

@@ -56,7 +56,10 @@ def decorators_2026_05(path: Path, check: bool, write: bool, show_diff: bool) ->
     changed: list[tuple[Path, str, str]] = []
     for file_path in _iter_python_files(path):
         source = file_path.read_text(encoding="utf-8")
-        migrated = migrate_decorators_2026_05_source(source)
+        try:
+            migrated = migrate_decorators_2026_05_source(source)
+        except RuntimeError as exc:
+            raise click.ClickException(str(exc)) from exc
         if not migrated.changed:
             continue
         changed.append((file_path, source, migrated.code))

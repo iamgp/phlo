@@ -1,6 +1,6 @@
 services:
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio123
@@ -32,6 +32,7 @@ services:
     ports:
       - "8080"
     volumes:
+      - ./jvm.config:/etc/trino/jvm.config:ro
       - ./delta.properties:/etc/trino/catalog/delta.properties:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]

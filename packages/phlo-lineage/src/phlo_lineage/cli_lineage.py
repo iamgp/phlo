@@ -59,6 +59,7 @@ from rich.table import Table
 from rich.text import Text
 
 from phlo.cli.authorization_wrappers import enforce_surface_mutation_authorization
+from phlo.cli.output import user_error
 from phlo_lineage import get_lineage_graph
 from phlo_lineage.authorization import get_lineage_adapter
 
@@ -603,7 +604,14 @@ def column_upstream(asset: str, column: str | None) -> None:
         return
 
     store = LineageStore(connection_string)
-    results = store.get_upstream_columns(asset, target_column=column)
+    try:
+        results = store.get_upstream_columns(asset, target_column=column)
+    except Exception as exc:
+        raise user_error(
+            "could not query column lineage",
+            details=["Check that the lineage database is running and reachable."],
+            run="phlo services status postgres",
+        ) from exc
 
     if not results:
         console.print("[yellow]⚠[/yellow]  No upstream column lineage found")
@@ -664,7 +672,14 @@ def column_downstream(asset: str, column: str | None) -> None:
         return
 
     store = LineageStore(connection_string)
-    results = store.get_downstream_columns(asset, source_column=column)
+    try:
+        results = store.get_downstream_columns(asset, source_column=column)
+    except Exception as exc:
+        raise user_error(
+            "could not query column lineage",
+            details=["Check that the lineage database is running and reachable."],
+            run="phlo services status postgres",
+        ) from exc
 
     if not results:
         console.print("[yellow]⚠[/yellow]  No downstream column lineage found")

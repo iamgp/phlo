@@ -60,6 +60,21 @@ def test_config_validate_reports_schema_errors(tmp_path, monkeypatch) -> None:
     assert "container_naming_pattern" in result.output
 
 
+def test_config_commands_report_malformed_yaml_without_traceback(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "phlo.yaml").write_text("name: [unterminated\n")
+
+    runner = CliRunner()
+
+    for command in (["show"], ["validate"], ["upgrade"]):
+        result = runner.invoke(config_group, command)
+
+        assert result.exit_code == 1
+        assert "invalid phlo.yaml" in result.output
+        assert "Traceback" not in result.output
+        assert not isinstance(result.exception, yaml.YAMLError)
+
+
 def test_config_upgrade_writes_defaults_and_respects_force(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     config_path = tmp_path / "phlo.yaml"

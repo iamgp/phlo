@@ -15,7 +15,7 @@ from phlo.cli.commands.services.utils import (
     _emit_service_lifecycle_events,
     _load_native_state,
     _stop_native_processes,
-    ensure_phlo_dir,
+    ensure_compose_project,
     get_profile_service_names,
     require_container_backend,
 )
@@ -138,7 +138,7 @@ def stop_cmd(
         return
 
     require_container_backend(backend_name)
-    phlo_dir = ensure_phlo_dir()
+    phlo_dir = ensure_compose_project()
     project_name = get_project_name()
 
     # Parse comma-separated services

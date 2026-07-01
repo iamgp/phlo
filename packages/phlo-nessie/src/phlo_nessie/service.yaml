@@ -26,7 +26,7 @@ compose:
     QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
     nessie.catalog.default-warehouse: warehouse
     nessie.catalog.warehouses.warehouse.location: s3://lake/warehouse
-    nessie.catalog.service.s3.default-options.endpoint: http://minio:9000/
+    nessie.catalog.service.s3.default-options.endpoint: ${ICEBERG_S3_ENDPOINT:-http://minio:9000/}
     nessie.catalog.service.s3.default-options.path-style-access: "true"
     nessie.catalog.service.s3.default-options.region: us-east-1
     nessie.catalog.service.s3.default-options.access-key: urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
@@ -56,6 +56,9 @@ env_vars:
   NESSIE_PORT:
     default: 10003
     description: Nessie API host port
+  ICEBERG_S3_ENDPOINT:
+    default: http://minio:9000/
+    description: S3 endpoint advertised by the Nessie Iceberg REST catalog
   # OIDC Authentication
   NESSIE_OIDC_ENABLED:
     default: "false"

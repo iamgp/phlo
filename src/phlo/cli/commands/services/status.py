@@ -4,7 +4,7 @@ import json
 
 import click
 
-from phlo.cli.commands.services.common import run_compose
+from phlo.cli.commands.services.common import parse_service_args, run_compose
 from phlo.cli.commands.services.utils import ensure_compose_project, require_container_backend
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
@@ -22,7 +22,12 @@ logger = get_logger(__name__)
     help="Container backend for this command.",
 )
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
-def status_cmd(backend_name: str | None, output_json: bool):
+@click.option(
+    "--service",
+    multiple=True,
+    help="Show only specific service(s), e.g. --service postgres,minio or --service postgres.",
+)
+def status_cmd(backend_name: str | None, output_json: bool, service: tuple[str, ...]):
     """Show status of Phlo infrastructure services.
 
     Examples:
@@ -32,10 +37,12 @@ def status_cmd(backend_name: str | None, output_json: bool):
     require_container_backend(backend_name)
     phlo_dir = ensure_compose_project()
     project_name = get_project_name()
+    services_list = parse_service_args(service)
     logger.info(
         "services_status_requested",
         project_name=project_name,
         phlo_dir=str(phlo_dir),
+        service_names=services_list,
     )
 
     cmd = compose_base_cmd(
@@ -44,9 +51,11 @@ def status_cmd(backend_name: str | None, output_json: bool):
         backend_name=backend_name,
     )
     if output_json:
-        cmd.extend(["ps", "--format", "json"])
+        cmd.extend(["ps", *services_list, "--format", "json"])
     else:
-        cmd.extend(["ps", "--format", "table {{.Service}}\t{{.Status}}\t{{.Ports}}"])
+        cmd.extend(
+            ["ps", *services_list, "--format", "table {{.Service}}\t{{.Status}}\t{{.Ports}}"]
+        )
 
     result = run_compose(cmd, check=False, capture_output=True)
     if result.returncode != 0:
@@ -57,7 +66,11 @@ def status_cmd(backend_name: str | None, output_json: bool):
         )
         raise click.ClickException("No services running or error checking status.")
     if output_json:
-        click.echo(json.dumps(_parse_compose_json_status(result.stdout or ""), indent=2))
+        try:
+            services = _parse_compose_json_status(result.stdout or "")
+        except json.JSONDecodeError as exc:
+            raise click.ClickException("Could not parse container status output.") from exc
+        click.echo(json.dumps(services, indent=2))
         logger.info("services_status_succeeded", project_name=project_name, output="json")
         return
 

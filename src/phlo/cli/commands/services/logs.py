@@ -3,7 +3,7 @@
 import click
 
 from phlo.cli.commands.services.common import parse_service_args, run_compose
-from phlo.cli.commands.services.utils import ensure_phlo_dir, require_container_backend
+from phlo.cli.commands.services.utils import ensure_compose_project, require_container_backend
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
@@ -63,7 +63,7 @@ def logs_cmd(
         phlo logs --backend podman --since 10m postgres
     """
     require_container_backend(backend_name)
-    phlo_dir = ensure_phlo_dir()
+    phlo_dir = ensure_compose_project()
     project_name = get_project_name()
     selected_services = parse_service_args((*service_options, *services))
     logger.info(

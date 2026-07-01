@@ -362,6 +362,11 @@ registered_plugin = get_plugin("{internal_type}", "{plugin_name}")
 
 ## Development
 
+Install development dependencies:
+```bash
+pip install -e ".[dev]"
+```
+
 Run tests:
 ```bash
 pytest tests/

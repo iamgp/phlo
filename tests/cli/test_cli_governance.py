@@ -141,6 +141,20 @@ def customer_health_access():
     assert json.loads(result.output) == {"ok": True, "warning_count": 0, "warnings": []}
 
 
+def test_governance_check_bad_module_is_clean_error(tmp_path: Path) -> None:
+    workflow_file = tmp_path / "bad_flow.py"
+    workflow_file.write_text("def broken(:\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        governance_group,
+        ["check", "--json", "--module", str(workflow_file)],
+    )
+
+    assert result.exit_code == 1
+    assert "Could not load governance module" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_governance_group_is_registered_on_root_cli() -> None:
     result = CliRunner().invoke(cli, ["governance", "check", "--json"])
 
