@@ -148,6 +148,40 @@ export interface ObservatoryDataProduct {
   metadata: ObservatoryMetadata
 }
 
+export type ObservatoryControlStatus =
+  'pass' | 'fail' | 'warning' | 'unknown' | 'not_applicable'
+
+export interface ObservatoryControlEvidence {
+  kind: string
+  id: string
+  label: string
+  value?: string | null
+  resource?: ObservatoryResourceRef | null
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryDataProductControl {
+  id: string
+  label: string
+  status: ObservatoryControlStatus
+  message?: string | null
+  evidence: Array<ObservatoryControlEvidence>
+}
+
+export interface ObservatoryGovernanceRow {
+  product: ObservatoryDataProduct
+  owner?: string | null
+  classifications: Array<string>
+  status: ObservatoryControlStatus
+  controls: Array<ObservatoryDataProductControl>
+}
+
+export interface ObservatoryGovernanceMatrix {
+  controls: Array<string>
+  rows: Array<ObservatoryGovernanceRow>
+  status_counts: Record<string, number>
+}
+
 export interface ObservatoryDataProductProfile {
   product: ObservatoryDataProduct
   asset?: ObservatoryAsset | null
@@ -157,6 +191,7 @@ export interface ObservatoryDataProductProfile {
   downstream: Array<ObservatoryResourceRef>
   logs: Array<ObservatoryLogEvent>
   operations: Array<ObservatoryOperation>
+  governance: Array<ObservatoryDataProductControl>
   sections: Record<string, boolean>
 }
 

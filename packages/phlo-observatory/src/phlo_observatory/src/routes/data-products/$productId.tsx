@@ -136,6 +136,18 @@ function ProfileContent({
             <EmptyRow label="No quality checks returned" />
           )}
         </ProfileSection>
+        <ProfileSection title="Governance">
+          {profile.governance.length ? (
+            profile.governance.map((control) => (
+              <div className="phlo-observatory-mini-row" key={control.id}>
+                <span>{control.label}</span>
+                <small>{control.status.replace('_', ' ')}</small>
+              </div>
+            ))
+          ) : (
+            <EmptyRow label="No governance controls returned" />
+          )}
+        </ProfileSection>
         <ProfileSection title="Lineage">
           {[...profile.upstream, ...profile.downstream].length ? (
             <>

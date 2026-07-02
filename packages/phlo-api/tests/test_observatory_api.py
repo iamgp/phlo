@@ -294,6 +294,84 @@ def test_observatory_data_products_endpoint_returns_table_candidates(
     ]
 
 
+def test_observatory_governance_endpoint_returns_data_product_control_matrix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observatory._clear_read_model_cache()
+    monkeypatch.setattr(
+        observatory,
+        "_load_assets",
+        lambda: [
+            ObservatoryAsset(
+                id="gold.orders",
+                name="gold.orders",
+                group="gold",
+                metadata={"owner": "analytics", "classification": "internal"},
+            ),
+            ObservatoryAsset(id="gold.customers", name="gold.customers", group="gold"),
+        ],
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_tables_without_catalog",
+        lambda: [
+            ObservatoryTable(id="orders", name="orders", asset_id="gold.orders"),
+            ObservatoryTable(id="customers", name="customers", asset_id="gold.customers"),
+            ObservatoryTable(id="raw_events", name="raw_events"),
+        ],
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_quality",
+        lambda: [
+            ObservatoryQualityCheck(
+                id="gold.orders:not_null_order_id",
+                name="not_null_order_id",
+                asset_id="gold.orders",
+                status="failing",
+                blocking=True,
+            )
+        ],
+    )
+
+    response = TestClient(app).get("/api/observatory/governance")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["controls"] == ["owner", "classification", "blocking_quality"]
+    order_row = next(row for row in payload["rows"] if row["product"]["id"] == "gold.orders")
+    assert order_row["owner"] == "analytics"
+    assert order_row["classifications"] == ["internal"]
+    assert order_row["status"] == "fail"
+    quality_control = next(
+        control for control in order_row["controls"] if control["id"] == "blocking_quality"
+    )
+    assert quality_control["status"] == "fail"
+    assert quality_control["evidence"][0]["kind"] == "quality_check"
+
+    customer_row = next(row for row in payload["rows"] if row["product"]["id"] == "gold.customers")
+    assert (
+        next(control for control in customer_row["controls"] if control["id"] == "owner")["status"]
+        == "fail"
+    )
+    assert (
+        next(
+            control for control in customer_row["controls"] if control["id"] == "blocking_quality"
+        )["status"]
+        == "unknown"
+    )
+
+    candidate_row = next(
+        row for row in payload["rows"] if row["product"]["id"] == "candidate:raw_events"
+    )
+    assert (
+        next(
+            control for control in candidate_row["controls"] if control["id"] == "blocking_quality"
+        )["status"]
+        == "not_applicable"
+    )
+
+
 def test_observatory_data_product_profile_collects_related_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -359,6 +437,12 @@ def test_observatory_data_product_profile_collects_related_context(
     }
     assert payload["sections"]["overview"] is True
     assert payload["sections"]["quality"] is True
+    assert payload["sections"]["governance"] is True
+    assert [control["id"] for control in payload["governance"]] == [
+        "owner",
+        "classification",
+        "blocking_quality",
+    ]
 
 
 def test_observatory_capability_page_serializes_provider_neutral_shape() -> None:

@@ -47,13 +47,17 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryContributingRowsPageResponse,
     ObservatoryContributingRowsQueryRequest,
     ObservatoryContributingRowsQueryResponse,
+    ObservatoryControlEvidence,
     ObservatoryDataProduct,
+    ObservatoryDataProductControl,
     ObservatoryDataProductList,
     ObservatoryDataProductProfile,
     ObservatoryExtension,
     ObservatoryExtensionDetail,
     ObservatoryExtensionList,
     ObservatoryHealth,
+    ObservatoryGovernanceMatrix,
+    ObservatoryGovernanceRow,
     ObservatoryLogEvent,
     ObservatoryLogFacets,
     ObservatoryLogList,
@@ -678,6 +682,7 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
     product = _data_product_from_asset(asset, tables=tables, quality=quality)
     product_tables = [table for table in tables if table.asset_id == asset.id]
     product_quality = [check for check in quality if check.asset_id == asset.id]
+    governance = _governance_controls_for_product(product, product_quality)
     related_ids = {
         asset.id,
         *[table.id for table in product_tables],
@@ -712,6 +717,7 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
         downstream=downstream,
         logs=logs,
         operations=operations,
+        governance=governance,
         sections={
             "overview": True,
             "contract": bool(product.owner or product.description),
@@ -720,10 +726,163 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
             "access": False,
             "usage": False,
             "pipelines": bool(operations),
-            "governance": bool(product.classifications or product_quality),
+            "governance": bool(governance),
             "publishing": True,
         },
     )
+
+
+def _load_governance_matrix() -> ObservatoryGovernanceMatrix:
+    products = _load_data_products()
+    quality = _load_quality()
+    rows = [
+        _governance_row_for_product(
+            product,
+            [
+                check
+                for check in quality
+                if any(ref.id == check.asset_id for ref in product.source_refs)
+            ],
+        )
+        for product in products
+    ]
+    status_counts = Counter(row.status for row in rows)
+    return ObservatoryGovernanceMatrix(
+        controls=["owner", "classification", "blocking_quality"],
+        rows=rows,
+        status_counts={status: status_counts.get(status, 0) for status in CONTROL_STATUSES},
+    )
+
+
+CONTROL_STATUSES = ("pass", "fail", "warning", "unknown", "not_applicable")
+
+
+def _governance_row_for_product(
+    product: ObservatoryDataProduct,
+    quality: Sequence[ObservatoryQualityCheck],
+) -> ObservatoryGovernanceRow:
+    controls = _governance_controls_for_product(product, quality)
+    return ObservatoryGovernanceRow(
+        product=product,
+        owner=product.owner,
+        classifications=product.classifications,
+        status=_aggregate_control_status(controls),
+        controls=controls,
+    )
+
+
+def _governance_controls_for_product(
+    product: ObservatoryDataProduct,
+    quality: Sequence[ObservatoryQualityCheck],
+) -> list[ObservatoryDataProductControl]:
+    product_ref = ObservatoryResourceRef(kind="data_product", id=product.id, label=product.name)
+    owner_evidence = (
+        [
+            ObservatoryControlEvidence(
+                kind="fact",
+                id=f"{product.id}:owner",
+                label="Owner",
+                value=product.owner,
+                resource=product_ref,
+            )
+        ]
+        if product.owner
+        else []
+    )
+    classification_evidence = [
+        ObservatoryControlEvidence(
+            kind="classification",
+            id=f"{product.id}:classification:{classification}",
+            label="Classification",
+            value=classification,
+            resource=product_ref,
+        )
+        for classification in product.classifications
+    ]
+    blocking_quality = [check for check in quality if check.blocking]
+    quality_evidence = [
+        ObservatoryControlEvidence(
+            kind="quality_check",
+            id=check.id,
+            label=check.name,
+            value=check.status,
+            resource=ObservatoryResourceRef(kind="quality", id=check.id, label=check.name),
+            metadata={"blocking": check.blocking, "severity": check.severity},
+        )
+        for check in blocking_quality
+    ]
+    quality_status = _quality_control_status(product, blocking_quality)
+    return [
+        ObservatoryDataProductControl(
+            id="owner",
+            label="Owner assigned",
+            status="pass" if product.owner else "fail",
+            message="One owner is assigned." if product.owner else "No owner assigned.",
+            evidence=owner_evidence,
+        ),
+        ObservatoryDataProductControl(
+            id="classification",
+            label="Classification declared",
+            status="pass" if classification_evidence else "fail",
+            message=(
+                "Classification evidence is present."
+                if classification_evidence
+                else "No classification evidence returned."
+            ),
+            evidence=classification_evidence,
+        ),
+        ObservatoryDataProductControl(
+            id="blocking_quality",
+            label="Blocking quality clear",
+            status=quality_status,
+            message=_quality_control_message(product, blocking_quality, quality_status),
+            evidence=quality_evidence,
+        ),
+    ]
+
+
+def _quality_control_status(
+    product: ObservatoryDataProduct,
+    quality: Sequence[ObservatoryQualityCheck],
+) -> str:
+    if product.candidate:
+        return "not_applicable"
+    if not quality:
+        return "unknown"
+    statuses = {check.status for check in quality}
+    if "failing" in statuses:
+        return "fail"
+    if "warning" in statuses:
+        return "warning"
+    if "unknown" in statuses:
+        return "unknown"
+    return "pass"
+
+
+def _quality_control_message(
+    product: ObservatoryDataProduct,
+    quality: Sequence[ObservatoryQualityCheck],
+    status: str,
+) -> str:
+    if status == "not_applicable":
+        return "Candidate products are not quality-gated yet."
+    if not quality:
+        return "No blocking quality evidence returned."
+    if status == "fail":
+        return "A blocking quality check is failing."
+    if status == "warning":
+        return "A blocking quality check is warning."
+    if status == "unknown":
+        return "A blocking quality check is unknown."
+    return "Blocking quality checks are clear."
+
+
+def _aggregate_control_status(controls: Sequence[ObservatoryDataProductControl]) -> str:
+    statuses = [control.status for control in controls]
+    for status in ("fail", "warning", "unknown", "not_applicable"):
+        if status in statuses:
+            return status
+    return "pass"
 
 
 def _operation_from_maintenance_status(status: Any) -> ObservatoryOperation:
@@ -2190,6 +2349,7 @@ def _apply_manifest_capability_overrides(
         route_providers["assets"] = "lakehouse-manifest"
     if _load_data_products():
         route_providers["catalog"] = "lakehouse-manifest"
+        route_providers["governance"] = "lakehouse-manifest"
     if manifest.get("quality"):
         route_providers["issues"] = "lakehouse-manifest"
         route_providers["quality"] = "lakehouse-manifest"
@@ -3044,18 +3204,10 @@ def get_observatory_observability() -> ObservatorySurfaceList:
     )
 
 
-@router.get("/governance", response_model=ObservatorySurfaceList)
-def get_observatory_governance() -> ObservatorySurfaceList:
-    """List provider-neutral governance surfaces."""
-    return ObservatorySurfaceList(
-        items=_surface_items_from_inventory(
-            "governance_backend",
-            "authorization_policy_backend",
-            "authentication_provider",
-            "regulated_surface",
-            kind="governance",
-        )
-    )
+@router.get("/governance", response_model=ObservatoryGovernanceMatrix)
+def get_observatory_governance() -> ObservatoryGovernanceMatrix:
+    """Get the Data Product governance control matrix."""
+    return _load_governance_matrix()
 
 
 @router.get("/catalog", response_model=ObservatorySurfaceList)

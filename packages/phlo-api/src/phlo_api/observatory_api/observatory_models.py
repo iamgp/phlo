@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 HealthState = Literal["ok", "warning", "error", "unknown"]
+ControlStatus = Literal["pass", "fail", "warning", "unknown", "not_applicable"]
 ServiceStatus = Literal["running", "stopped", "unhealthy", "starting", "unknown"]
 ServiceDefinitionState = Literal["configured", "available"]
 OperationStatus = Literal["queued", "running", "succeeded", "failed", "skipped", "unknown"]
@@ -326,6 +327,45 @@ class ObservatoryDataProduct(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class ObservatoryControlEvidence(BaseModel):
+    """Evidence supporting one Data Product control."""
+
+    kind: str
+    id: str
+    label: str
+    value: str | None = None
+    resource: ObservatoryResourceRef | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryDataProductControl(BaseModel):
+    """One governance control evaluated against a Data Product."""
+
+    id: str
+    label: str
+    status: ControlStatus
+    message: str | None = None
+    evidence: list[ObservatoryControlEvidence] = Field(default_factory=list)
+
+
+class ObservatoryGovernanceRow(BaseModel):
+    """Control matrix row for one Data Product."""
+
+    product: ObservatoryDataProduct
+    owner: str | None = None
+    classifications: list[str] = Field(default_factory=list)
+    status: ControlStatus = "unknown"
+    controls: list[ObservatoryDataProductControl] = Field(default_factory=list)
+
+
+class ObservatoryGovernanceMatrix(BaseModel):
+    """Governance control matrix over Data Products."""
+
+    controls: list[str] = Field(default_factory=list)
+    rows: list[ObservatoryGovernanceRow] = Field(default_factory=list)
+    status_counts: dict[str, int] = Field(default_factory=dict)
+
+
 class ObservatoryDataProductProfile(BaseModel):
     """Shared cross-feature profile for one Data Product."""
 
@@ -337,6 +377,7 @@ class ObservatoryDataProductProfile(BaseModel):
     downstream: list[ObservatoryResourceRef] = Field(default_factory=list)
     logs: list["ObservatoryLogEvent"] = Field(default_factory=list)
     operations: list["ObservatoryOperation"] = Field(default_factory=list)
+    governance: list[ObservatoryDataProductControl] = Field(default_factory=list)
     sections: dict[str, bool] = Field(default_factory=dict)
 
 

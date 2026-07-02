@@ -11,6 +11,7 @@ import type {
   ObservatoryDataProductProfile,
   ObservatoryExtension,
   ObservatoryExtensionDetail,
+  ObservatoryGovernanceMatrix,
   ObservatoryLogEvent,
   ObservatoryLogFacets,
   ObservatoryMetadata,
@@ -236,6 +237,19 @@ async function getRawCollection<T>(
   }
 }
 
+async function getRawResource<T>(
+  endpoint: string,
+): Promise<ObservatoryResourceResult<T>> {
+  try {
+    const response = await observatoryApiGet<T>(
+      `${Observatory_API_PREFIX}/${endpoint}`,
+    )
+    return { data: response, error: null }
+  } catch (error) {
+    return apiUnavailable<T>(error)
+  }
+}
+
 async function getCollection(
   endpoint: string,
 ): Promise<ObservatoryResourceResult<Array<ObservatoryResourceItem>>> {
@@ -288,7 +302,7 @@ export function getObservatoryObservabilityItems() {
 }
 
 export function getObservatoryGovernanceItems() {
-  return getRawCollection<ObservatorySurfaceItem>('governance')
+  return getRawResource<ObservatoryGovernanceMatrix>('governance')
 }
 
 export function getObservatoryCatalogItems() {

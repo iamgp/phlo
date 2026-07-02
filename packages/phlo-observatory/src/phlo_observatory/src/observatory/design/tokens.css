@@ -1330,6 +1330,61 @@ html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
   text-transform: none;
 }
 
+.phlo-observatory-governance-matrix {
+  display: grid;
+  min-width: 0;
+}
+
+.phlo-observatory-governance-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(3, minmax(120px, 1fr));
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  background: transparent;
+  color: var(--v2-text);
+  padding: 12px;
+  text-align: left;
+}
+
+.phlo-observatory-governance-row[data-selected='true'] {
+  background: var(--v2-surface-strong);
+}
+
+.phlo-observatory-governance-row span {
+  min-width: 0;
+}
+
+.phlo-observatory-governance-row strong,
+.phlo-observatory-governance-row small {
+  display: block;
+}
+
+.phlo-observatory-governance-header {
+  color: var(--v2-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.phlo-observatory-control-cell {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--v2-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.phlo-observatory-control-cell::before {
+  display: none;
+  color: var(--v2-muted);
+  content: attr(data-label);
+  font-weight: 700;
+}
+
 .phlo-observatory-search-popover {
   position: relative;
   z-index: 42;
@@ -4160,6 +4215,23 @@ html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
   .phlo-observatory-search-field {
     width: 100%;
     min-width: 0;
+  }
+
+  .phlo-observatory-governance-header {
+    display: none;
+  }
+
+  .phlo-observatory-governance-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .phlo-observatory-control-cell {
+    display: grid;
+    gap: 4px;
+  }
+
+  .phlo-observatory-control-cell::before {
+    display: block;
   }
 
   .phlo-observatory-map-header {
