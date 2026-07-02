@@ -196,6 +196,8 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
         "observability",
         "governance",
         "catalog",
+        "publishing",
+        "pipelines",
         "apis",
         "bi",
         "extensions",
@@ -243,6 +245,18 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
         "catalog_scanner",
     ]
     assert requirements["catalog"].optional == []
+    assert requirements["publishing"].required_any == [
+        "publish_target",
+        "metadata_catalog",
+        "catalog_scanner",
+    ]
+    assert requirements["publishing"].optional == ["authorization_policy_backend"]
+    assert requirements["pipelines"].required_any == [
+        "orchestrator",
+        "orchestrator_operations",
+        "maintenance_read_model",
+    ]
+    assert requirements["pipelines"].optional == ["quality_backend"]
     assert requirements["apis"].required_any == ["api_backend"]
     assert requirements["apis"].optional == []
     assert requirements["bi"].required_any == ["publish_target"]
