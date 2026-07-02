@@ -4,7 +4,11 @@ export type ObservatoryMetadata = Record<string, NonNullable<unknown>>
 type ObservatoryRecord = Record<string, NonNullable<unknown>>
 
 export type ObservatoryServiceStatus =
-  'running' | 'stopped' | 'unhealthy' | 'starting' | 'unknown'
+  | 'running'
+  | 'stopped'
+  | 'unhealthy'
+  | 'starting'
+  | 'unknown'
 
 interface ObservatoryHealth {
   state: ObservatoryHealthState
@@ -149,7 +153,11 @@ export interface ObservatoryDataProduct {
 }
 
 export type ObservatoryControlStatus =
-  'pass' | 'fail' | 'warning' | 'unknown' | 'not_applicable'
+  | 'pass'
+  | 'fail'
+  | 'warning'
+  | 'unknown'
+  | 'not_applicable'
 
 export interface ObservatoryControlEvidence {
   kind: string
@@ -396,7 +404,12 @@ export interface ObservatoryOperationDetail {
 }
 
 type ObservatoryRunStatus =
-  'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled'
+  | 'unknown'
 
 export interface ObservatoryRun {
   id: string
