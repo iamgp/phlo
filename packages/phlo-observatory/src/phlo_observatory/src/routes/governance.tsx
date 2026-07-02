@@ -1,25 +1,25 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { FileCheck2, ShieldCheck } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import type {
   ObservatoryControlStatus,
+  ObservatoryGovernanceMatrix,
   ObservatoryGovernanceRow,
+  ObservatoryResourceResult,
 } from '@/observatory/api/types'
 import { getObservatoryGovernanceItems } from '@/observatory/api/resources'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
-import { useLiveResource } from '@/observatory/routes/liveResource'
+import { loadCachedResource } from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/governance')({
   component: Governance,
 })
 
 export function Governance() {
-  const result = useLiveResource(
-    getObservatoryGovernanceItems,
-    120_000,
-    'v2:governance-matrix',
-  )
+  const [result, setResult] = useState<
+    ObservatoryResourceResult<ObservatoryGovernanceMatrix>
+  >({ data: null, error: null })
   const matrix = result.data
   const rows = matrix?.rows ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -27,6 +27,23 @@ export function Governance() {
     () => rows.find((row) => row.product.id === selectedId) ?? rows[0] ?? null,
     [rows, selectedId],
   )
+
+  useEffect(() => {
+    let cancelled = false
+    void loadCachedResource(
+      'v2:governance-matrix',
+      getObservatoryGovernanceItems,
+      {
+        force: true,
+        staleMs: 120_000,
+      },
+    ).then((next) => {
+      if (!cancelled) setResult(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <ObservatoryPage
