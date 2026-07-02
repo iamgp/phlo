@@ -71,6 +71,8 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryOverview,
     ObservatoryPackageInstallRequest,
     ObservatoryPackageInstallResult,
+    ObservatoryPublishingAction,
+    ObservatoryPublishingReadiness,
     ObservatoryQualityCheck,
     ObservatoryQualityDetail,
     ObservatoryQualityList,
@@ -689,6 +691,7 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
     product_quality = [check for check in quality if check.asset_id == asset.id]
     governance = _governance_controls_for_product(product, product_quality)
     usage = _load_data_product_usage(product, asset=asset, tables=product_tables)
+    publishing = _publishing_readiness(product, governance, product_quality)
     related_ids = {
         asset.id,
         *[table.id for table in product_tables],
@@ -725,6 +728,7 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
         operations=operations,
         governance=governance,
         usage=usage,
+        publishing=publishing,
         sections={
             "overview": True,
             "contract": bool(product.owner or product.description),
@@ -1067,6 +1071,72 @@ def _metadata_list(metadata: Mapping[str, Any], *keys: str) -> list[Mapping[str,
 
 def _has_usage(usage: ObservatoryDataProductUsage) -> bool:
     return bool(usage.access_activity or usage.dependency_activity or usage.consumer_adoption)
+
+
+def _publishing_readiness(
+    product: ObservatoryDataProduct,
+    governance: Sequence[ObservatoryDataProductControl],
+    quality: Sequence[ObservatoryQualityCheck],
+) -> ObservatoryPublishingReadiness:
+    blockers: list[str] = []
+    warnings: list[str] = []
+    missing_evidence: list[str] = []
+    for control in governance:
+        if control.status == "fail":
+            blockers.append(control.message or control.label)
+        elif control.status == "warning":
+            warnings.append(control.message or control.label)
+        elif control.status == "unknown":
+            missing_evidence.append(control.message or control.label)
+    if not quality:
+        missing_evidence.append("No quality evidence returned.")
+    state: HealthState = "ok"
+    if blockers:
+        state = "error"
+    elif warnings:
+        state = "warning"
+    elif missing_evidence:
+        state = "unknown"
+    is_publishable = state in {"ok", "warning"} and product.publication_state != "published"
+    actions = [
+        ObservatoryPublishingAction(
+            id="publish",
+            label="Publish internally",
+            enabled=is_publishable,
+            reason=None if is_publishable else _publish_disabled_reason(product, blockers),
+            consequences=[
+                "Sets the Data Product publication state to published.",
+                "Makes the product visible as internally published in Observatory.",
+                "Does not create external sharing, marketplace listing, or public access.",
+            ],
+        ),
+        ObservatoryPublishingAction(
+            id="retire",
+            label="Retire",
+            enabled=product.publication_state == "published",
+            reason="Only published Data Products can be retired."
+            if product.publication_state != "published"
+            else None,
+            consequences=["Sets the Data Product publication state to retired."],
+        ),
+    ]
+    return ObservatoryPublishingReadiness(
+        state=state,
+        policy_name=_coerce_str(product.metadata.get("readiness_policy"), "default"),
+        internal_only=True,
+        blockers=_sorted_strings(blockers),
+        warnings=_sorted_strings(warnings),
+        missing_evidence=_sorted_strings(missing_evidence),
+        actions=actions,
+    )
+
+
+def _publish_disabled_reason(product: ObservatoryDataProduct, blockers: Sequence[str]) -> str:
+    if product.publication_state == "published":
+        return "This Data Product is already published."
+    if blockers:
+        return "Readiness policy has blockers."
+    return "Readiness policy needs more evidence."
 
 
 def _operation_from_maintenance_status(status: Any) -> ObservatoryOperation:

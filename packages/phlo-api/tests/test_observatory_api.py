@@ -517,6 +517,11 @@ def test_observatory_data_product_profile_collects_related_context(
     assert payload["sections"]["quality"] is True
     assert payload["sections"]["governance"] is True
     assert payload["sections"]["usage"] is True
+    assert payload["publishing"]["internal_only"] is True
+    assert payload["publishing"]["state"] == "error"
+    assert payload["publishing"]["actions"][0]["id"] == "publish"
+    assert payload["publishing"]["actions"][0]["enabled"] is False
+    assert "external sharing" in payload["publishing"]["actions"][0]["consequences"][2]
     assert [control["id"] for control in payload["governance"]] == [
         "owner",
         "classification",

@@ -423,6 +423,28 @@ class ObservatoryDataProductUsage(BaseModel):
     consumer_adoption: list[ObservatoryConsumerAdoption] = Field(default_factory=list)
 
 
+class ObservatoryPublishingAction(BaseModel):
+    """Display-only publishing action availability."""
+
+    id: str
+    label: str
+    enabled: bool
+    reason: str | None = None
+    consequences: list[str] = Field(default_factory=list)
+
+
+class ObservatoryPublishingReadiness(BaseModel):
+    """Readiness policy evaluation for internal Data Product publishing."""
+
+    state: HealthState = "unknown"
+    policy_name: str = "default"
+    internal_only: bool = True
+    blockers: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    missing_evidence: list[str] = Field(default_factory=list)
+    actions: list[ObservatoryPublishingAction] = Field(default_factory=list)
+
+
 class ObservatoryDataProductProfile(BaseModel):
     """Shared cross-feature profile for one Data Product."""
 
@@ -436,6 +458,9 @@ class ObservatoryDataProductProfile(BaseModel):
     operations: list["ObservatoryOperation"] = Field(default_factory=list)
     governance: list[ObservatoryDataProductControl] = Field(default_factory=list)
     usage: ObservatoryDataProductUsage = Field(default_factory=ObservatoryDataProductUsage)
+    publishing: ObservatoryPublishingReadiness = Field(
+        default_factory=ObservatoryPublishingReadiness
+    )
     sections: dict[str, bool] = Field(default_factory=dict)
 
 

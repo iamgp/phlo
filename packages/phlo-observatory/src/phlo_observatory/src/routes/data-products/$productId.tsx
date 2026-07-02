@@ -151,6 +151,9 @@ function ProfileContent({
         <ProfileSection title="Usage">
           <UsageRows profile={profile} />
         </ProfileSection>
+        <ProfileSection title="Publishing">
+          <PublishingRows profile={profile} />
+        </ProfileSection>
         <ProfileSection title="Lineage">
           {[...profile.upstream, ...profile.downstream].length ? (
             <>
@@ -213,6 +216,49 @@ function ProfileContent({
         </div>
       </aside>
     </section>
+  )
+}
+
+function PublishingRows({
+  profile,
+}: {
+  profile: ObservatoryDataProductProfile
+}) {
+  const publishing = profile.publishing
+  return (
+    <>
+      <div className="phlo-observatory-mini-row">
+        <span>{profile.product.publication_state}</span>
+        <small>
+          {publishing.policy_name} · {publishing.state}
+        </small>
+      </div>
+      {publishing.blockers.map((blocker) => (
+        <div className="phlo-observatory-mini-row" key={`blocker:${blocker}`}>
+          <span>{blocker}</span>
+          <small>blocker</small>
+        </div>
+      ))}
+      {publishing.missing_evidence.map((item) => (
+        <div className="phlo-observatory-mini-row" key={`missing:${item}`}>
+          <span>{item}</span>
+          <small>missing evidence</small>
+        </div>
+      ))}
+      {publishing.actions.map((action) => (
+        <div className="phlo-observatory-mini-row" key={action.id}>
+          <span>{action.label}</span>
+          <small>{action.enabled ? 'available' : action.reason}</small>
+          {action.consequences.map((consequence) => (
+            <p key={consequence}>{consequence}</p>
+          ))}
+        </div>
+      ))}
+      <div className="phlo-observatory-mini-row">
+        <span>Internal only</span>
+        <small>{publishing.internal_only ? 'yes' : 'no'}</small>
+      </div>
+    </>
   )
 }
 

@@ -226,6 +226,24 @@ export interface ObservatoryDataProductUsage {
   consumer_adoption: Array<ObservatoryConsumerAdoption>
 }
 
+export interface ObservatoryPublishingAction {
+  id: string
+  label: string
+  enabled: boolean
+  reason?: string | null
+  consequences: Array<string>
+}
+
+export interface ObservatoryPublishingReadiness {
+  state: ObservatoryHealthState
+  policy_name: string
+  internal_only: boolean
+  blockers: Array<string>
+  warnings: Array<string>
+  missing_evidence: Array<string>
+  actions: Array<ObservatoryPublishingAction>
+}
+
 export interface ObservatoryDataProductProfile {
   product: ObservatoryDataProduct
   asset?: ObservatoryAsset | null
@@ -237,6 +255,7 @@ export interface ObservatoryDataProductProfile {
   operations: Array<ObservatoryOperation>
   governance: Array<ObservatoryDataProductControl>
   usage: ObservatoryDataProductUsage
+  publishing: ObservatoryPublishingReadiness
   sections: Record<string, boolean>
 }
 
