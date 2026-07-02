@@ -148,6 +148,9 @@ function ProfileContent({
             <EmptyRow label="No governance controls returned" />
           )}
         </ProfileSection>
+        <ProfileSection title="Usage">
+          <UsageRows profile={profile} />
+        </ProfileSection>
         <ProfileSection title="Lineage">
           {[...profile.upstream, ...profile.downstream].length ? (
             <>
@@ -210,6 +213,57 @@ function ProfileContent({
         </div>
       </aside>
     </section>
+  )
+}
+
+function UsageRows({ profile }: { profile: ObservatoryDataProductProfile }) {
+  const usage = profile.usage
+  const hasUsage =
+    usage.access_activity.length ||
+    usage.dependency_activity.length ||
+    usage.consumer_adoption.length
+  if (!hasUsage) return <EmptyRow label="No usage read model returned" />
+  return (
+    <>
+      <div className="phlo-observatory-mini-row">
+        <span>Access Activity</span>
+        <small>{usage.access_activity.length}</small>
+      </div>
+      {usage.access_activity.slice(0, 4).map((activity) => (
+        <div className="phlo-observatory-mini-row" key={activity.id}>
+          <span>{activity.action}</span>
+          <small>
+            {activity.actor_label ?? 'access'} · {activity.count}
+          </small>
+        </div>
+      ))}
+      <div className="phlo-observatory-mini-row">
+        <span>Dependency Activity</span>
+        <small>{usage.dependency_activity.length}</small>
+      </div>
+      {usage.dependency_activity.slice(0, 4).map((activity) => (
+        <div className="phlo-observatory-mini-row" key={activity.id}>
+          <span>{activity.source.label}</span>
+          <small>{activity.kind}</small>
+        </div>
+      ))}
+      <div className="phlo-observatory-mini-row">
+        <span>Consumer Adoption</span>
+        <small>{usage.consumer_adoption.length}</small>
+      </div>
+      {usage.consumer_adoption.slice(0, 4).map((consumer) => (
+        <div className="phlo-observatory-mini-row" key={consumer.id}>
+          <span>{consumer.consumer}</span>
+          <small>
+            {consumer.kind} · {consumer.status}
+          </small>
+        </div>
+      ))}
+      <div className="phlo-observatory-mini-row">
+        <span>Telemetry Privacy Policy</span>
+        <small>{usage.privacy_policy.identity_detail.replace('_', ' ')}</small>
+      </div>
+    </>
   )
 }
 

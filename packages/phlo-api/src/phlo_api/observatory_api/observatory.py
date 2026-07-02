@@ -48,10 +48,14 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryContributingRowsQueryRequest,
     ObservatoryContributingRowsQueryResponse,
     ObservatoryControlEvidence,
+    ObservatoryAccessActivity,
+    ObservatoryConsumerAdoption,
     ObservatoryDataProduct,
     ObservatoryDataProductControl,
     ObservatoryDataProductList,
     ObservatoryDataProductProfile,
+    ObservatoryDataProductUsage,
+    ObservatoryDependencyActivity,
     ObservatoryExtension,
     ObservatoryExtensionDetail,
     ObservatoryExtensionList,
@@ -94,6 +98,7 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryTable,
     ObservatoryTableList,
     ObservatoryTablePreview,
+    ObservatoryTelemetryPrivacyPolicy,
     ObservatoryUpstreamTableRef,
 )
 from phlo_api.observatory_api.observatory_metadata import safe_metadata as _safe_metadata
@@ -683,6 +688,7 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
     product_tables = [table for table in tables if table.asset_id == asset.id]
     product_quality = [check for check in quality if check.asset_id == asset.id]
     governance = _governance_controls_for_product(product, product_quality)
+    usage = _load_data_product_usage(product, asset=asset, tables=product_tables)
     related_ids = {
         asset.id,
         *[table.id for table in product_tables],
@@ -718,13 +724,14 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
         logs=logs,
         operations=operations,
         governance=governance,
+        usage=usage,
         sections={
             "overview": True,
             "contract": bool(product.owner or product.description),
             "lineage": bool(upstream or downstream or asset.dependencies),
             "quality": bool(product_quality),
             "access": False,
-            "usage": False,
+            "usage": _has_usage(usage),
             "pipelines": bool(operations),
             "governance": bool(governance),
             "publishing": True,
@@ -883,6 +890,183 @@ def _aggregate_control_status(controls: Sequence[ObservatoryDataProductControl])
         if status in statuses:
             return status
     return "pass"
+
+
+def _load_data_product_usage(
+    product: ObservatoryDataProduct,
+    *,
+    asset: ObservatoryAsset,
+    tables: Sequence[ObservatoryTable],
+) -> ObservatoryDataProductUsage:
+    usage_model = _usage_manifest()
+    policy = _usage_privacy_policy(usage_model.get("privacy_policy"))
+    related_ids = {product.id, asset.id, *[table.id for table in tables]}
+    access = [
+        _access_activity_from_mapping(item, product=product, policy=policy)
+        for item in _usage_items(usage_model, "access_activity", related_ids)
+    ]
+    dependencies = [
+        _dependency_activity_from_mapping(item)
+        for item in _usage_items(usage_model, "dependency_activity", related_ids)
+    ]
+    if not dependencies and asset.dependencies:
+        dependencies = [
+            ObservatoryDependencyActivity(
+                id=f"{dependency}->{asset.id}",
+                source=ObservatoryResourceRef(kind="asset", id=dependency, label=dependency),
+                target=ObservatoryResourceRef(
+                    kind="data_product", id=product.id, label=product.name
+                ),
+                kind="asset_dependency",
+            )
+            for dependency in asset.dependencies
+        ]
+    consumers = [
+        _consumer_adoption_from_mapping(item, product=product)
+        for item in _usage_items(usage_model, "consumer_adoption", related_ids)
+    ]
+    for item in _metadata_list(asset.metadata, "consumers", "consumer_adoption"):
+        consumers.append(_consumer_adoption_from_mapping(item, product=product))
+    return ObservatoryDataProductUsage(
+        privacy_policy=policy,
+        access_activity=access,
+        dependency_activity=dependencies,
+        consumer_adoption=_merge_by_id(consumers),
+    )
+
+
+def _usage_manifest() -> Mapping[str, Any]:
+    manifest = _load_lakehouse_manifest()
+    usage = manifest.get("usage") if isinstance(manifest, Mapping) else None
+    return usage if isinstance(usage, Mapping) else {}
+
+
+def _usage_privacy_policy(raw: Any) -> ObservatoryTelemetryPrivacyPolicy:
+    policy = raw if isinstance(raw, Mapping) else {}
+    identity_detail = _coerce_str(policy.get("identity_detail"), "aggregate")
+    if identity_detail not in {"anonymous", "aggregate", "identity", "audit_only"}:
+        identity_detail = "aggregate"
+    return ObservatoryTelemetryPrivacyPolicy(
+        identity_detail=cast(Any, identity_detail),
+        retention_days=_coerce_int(policy.get("retention_days"), 0) or None,
+        audit_drilldown=bool(policy.get("audit_drilldown")),
+        metadata=_safe_metadata(policy),
+    )
+
+
+def _usage_items(
+    usage_model: Mapping[str, Any],
+    key: str,
+    related_ids: set[str],
+) -> list[Mapping[str, Any]]:
+    raw_items = usage_model.get(key)
+    if not isinstance(raw_items, list):
+        return []
+    items: list[Mapping[str, Any]] = []
+    for item in raw_items:
+        if not isinstance(item, Mapping):
+            continue
+        item_product = _coerce_str(item.get("product_id") or item.get("asset_id"), "")
+        source = item.get("source")
+        target = item.get("target")
+        linked_ids = {item_product}
+        for ref in (source, target):
+            if isinstance(ref, Mapping):
+                linked_ids.add(_coerce_str(ref.get("id"), ""))
+        if linked_ids & related_ids:
+            items.append(item)
+    return items
+
+
+def _access_activity_from_mapping(
+    item: Mapping[str, Any],
+    *,
+    product: ObservatoryDataProduct,
+    policy: ObservatoryTelemetryPrivacyPolicy,
+) -> ObservatoryAccessActivity:
+    actor = _coerce_str(item.get("actor") or item.get("user") or item.get("principal"), "")
+    actor_label = _privacy_shaped_actor(actor, policy)
+    metadata = _safe_metadata(
+        {
+            key: value
+            for key, value in item.items()
+            if key not in {"actor", "user", "principal", "email"}
+        }
+    )
+    if policy.identity_detail == "audit_only":
+        metadata["audit_drilldown"] = policy.audit_drilldown
+    return ObservatoryAccessActivity(
+        id=_coerce_str(item.get("id"), f"{product.id}:access:{len(metadata)}"),
+        action=_coerce_str(item.get("action"), "access"),
+        actor_label=actor_label,
+        actor_kind=_coerce_str(item.get("actor_kind"), "") or None,
+        count=max(1, _coerce_int(item.get("count"), 1)),
+        last_seen_at=_coerce_str(item.get("last_seen_at") or item.get("timestamp"), "") or None,
+        metadata=metadata,
+    )
+
+
+def _privacy_shaped_actor(actor: str, policy: ObservatoryTelemetryPrivacyPolicy) -> str | None:
+    if policy.identity_detail == "identity":
+        return actor or None
+    if policy.identity_detail == "audit_only":
+        return "audit only"
+    if policy.identity_detail == "anonymous":
+        return "anonymous"
+    return "aggregated users"
+
+
+def _dependency_activity_from_mapping(item: Mapping[str, Any]) -> ObservatoryDependencyActivity:
+    return ObservatoryDependencyActivity(
+        id=_coerce_str(item.get("id"), "dependency"),
+        source=_resource_ref_from_mapping(item.get("source"), "asset"),
+        target=_resource_ref_from_mapping(item.get("target"), "data_product"),
+        kind=_coerce_str(item.get("kind"), "dependency"),
+        count=max(1, _coerce_int(item.get("count"), 1)),
+        last_seen_at=_coerce_str(item.get("last_seen_at") or item.get("timestamp"), "") or None,
+        metadata=_safe_metadata(item),
+    )
+
+
+def _consumer_adoption_from_mapping(
+    item: Mapping[str, Any],
+    *,
+    product: ObservatoryDataProduct,
+) -> ObservatoryConsumerAdoption:
+    consumer = _coerce_str(item.get("consumer") or item.get("name") or item.get("id"), "consumer")
+    return ObservatoryConsumerAdoption(
+        id=_coerce_str(item.get("id"), f"{product.id}:consumer:{consumer}"),
+        consumer=consumer,
+        kind=_coerce_str(item.get("kind"), "team"),
+        owner=_coerce_str(item.get("owner"), "") or None,
+        status=_coerce_str(item.get("status"), "declared"),
+        declared_at=_coerce_str(item.get("declared_at"), "") or None,
+        metadata=_safe_metadata(item),
+    )
+
+
+def _resource_ref_from_mapping(raw: Any, default_kind: str) -> ObservatoryResourceRef:
+    if isinstance(raw, Mapping):
+        ref_id = _coerce_str(raw.get("id"), default_kind)
+        return ObservatoryResourceRef(
+            kind=_coerce_str(raw.get("kind"), default_kind),
+            id=ref_id,
+            label=_coerce_str(raw.get("label") or raw.get("name"), ref_id),
+        )
+    ref_id = _coerce_str(raw, default_kind)
+    return ObservatoryResourceRef(kind=default_kind, id=ref_id, label=ref_id)
+
+
+def _metadata_list(metadata: Mapping[str, Any], *keys: str) -> list[Mapping[str, Any]]:
+    for key in keys:
+        raw = metadata.get(key)
+        if isinstance(raw, list):
+            return [item for item in raw if isinstance(item, Mapping)]
+    return []
+
+
+def _has_usage(usage: ObservatoryDataProductUsage) -> bool:
+    return bool(usage.access_activity or usage.dependency_activity or usage.consumer_adoption)
 
 
 def _operation_from_maintenance_status(status: Any) -> ObservatoryOperation:

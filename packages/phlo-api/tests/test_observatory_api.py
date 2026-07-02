@@ -372,6 +372,84 @@ def test_observatory_governance_endpoint_returns_data_product_control_matrix(
     )
 
 
+def test_observatory_data_product_profile_returns_privacy_shaped_usage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observatory._clear_read_model_cache()
+    monkeypatch.setattr(
+        observatory,
+        "_load_lakehouse_manifest",
+        lambda: {
+            "usage": {
+                "privacy_policy": {
+                    "identity_detail": "audit_only",
+                    "retention_days": 30,
+                    "audit_drilldown": True,
+                },
+                "access_activity": [
+                    {
+                        "id": "access-1",
+                        "product_id": "gold.orders",
+                        "actor": "alice@example.com",
+                        "actor_kind": "person",
+                        "action": "query",
+                        "count": 12,
+                        "last_seen_at": "2026-07-01T12:00:00Z",
+                    }
+                ],
+                "dependency_activity": [
+                    {
+                        "id": "dep-1",
+                        "source": {"kind": "pipeline", "id": "orders-refresh"},
+                        "target": {"kind": "data_product", "id": "gold.orders"},
+                        "kind": "pipeline_read",
+                        "count": 3,
+                    }
+                ],
+                "consumer_adoption": [
+                    {
+                        "id": "consumer-1",
+                        "product_id": "gold.orders",
+                        "consumer": "finance",
+                        "kind": "team",
+                        "owner": "morgan",
+                    }
+                ],
+            }
+        },
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_assets",
+        lambda: [
+            ObservatoryAsset(
+                id="gold.orders",
+                name="gold.orders",
+                metadata={"owner": "analytics", "classification": "internal"},
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_tables_without_catalog",
+        lambda: [ObservatoryTable(id="orders", name="orders", asset_id="gold.orders")],
+    )
+    monkeypatch.setattr(observatory, "_load_quality", lambda: [])
+    monkeypatch.setattr(observatory, "_load_logs", lambda: [])
+    monkeypatch.setattr(observatory, "_load_operations", lambda: [])
+
+    response = TestClient(app).get("/api/observatory/data-products/gold.orders")
+
+    assert response.status_code == 200
+    usage = response.json()["usage"]
+    assert usage["privacy_policy"]["identity_detail"] == "audit_only"
+    assert usage["access_activity"][0]["actor_label"] == "audit only"
+    assert "alice@example.com" not in json.dumps(usage)
+    assert usage["access_activity"][0]["metadata"]["audit_drilldown"] is True
+    assert usage["dependency_activity"][0]["source"]["kind"] == "pipeline"
+    assert usage["consumer_adoption"][0]["consumer"] == "finance"
+
+
 def test_observatory_data_product_profile_collects_related_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -438,11 +516,13 @@ def test_observatory_data_product_profile_collects_related_context(
     assert payload["sections"]["overview"] is True
     assert payload["sections"]["quality"] is True
     assert payload["sections"]["governance"] is True
+    assert payload["sections"]["usage"] is True
     assert [control["id"] for control in payload["governance"]] == [
         "owner",
         "classification",
         "blocking_quality",
     ]
+    assert payload["usage"]["dependency_activity"][0]["source"]["id"] == "silver.orders"
 
 
 def test_observatory_capability_page_serializes_provider_neutral_shape() -> None:

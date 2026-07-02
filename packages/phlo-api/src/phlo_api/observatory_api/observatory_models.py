@@ -14,6 +14,7 @@ OperationStatus = Literal["queued", "running", "succeeded", "failed", "skipped",
 RunStatus = Literal["queued", "running", "succeeded", "failed", "cancelled", "unknown"]
 QualityStatus = Literal["passing", "failing", "warning", "unknown"]
 PublicationState = Literal["draft", "published", "retired"]
+TelemetryIdentityDetail = Literal["anonymous", "aggregate", "identity", "audit_only"]
 
 
 class ObservatoryHealth(BaseModel):
@@ -366,6 +367,62 @@ class ObservatoryGovernanceMatrix(BaseModel):
     status_counts: dict[str, int] = Field(default_factory=dict)
 
 
+class ObservatoryTelemetryPrivacyPolicy(BaseModel):
+    """Privacy shaping policy applied to Usage before UI display."""
+
+    identity_detail: TelemetryIdentityDetail = "aggregate"
+    retention_days: int | None = None
+    audit_drilldown: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryAccessActivity(BaseModel):
+    """Privacy-shaped access activity for a Data Product."""
+
+    id: str
+    action: str
+    actor_label: str | None = None
+    actor_kind: str | None = None
+    count: int = 1
+    last_seen_at: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryDependencyActivity(BaseModel):
+    """Observed usage dependency involving a Data Product."""
+
+    id: str
+    source: ObservatoryResourceRef
+    target: ObservatoryResourceRef
+    kind: str = "dependency"
+    count: int = 1
+    last_seen_at: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryConsumerAdoption(BaseModel):
+    """Declared consumer reliance on a Data Product."""
+
+    id: str
+    consumer: str
+    kind: str = "team"
+    owner: str | None = None
+    status: str = "declared"
+    declared_at: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryDataProductUsage(BaseModel):
+    """Usage read model for one Data Product."""
+
+    privacy_policy: ObservatoryTelemetryPrivacyPolicy = Field(
+        default_factory=ObservatoryTelemetryPrivacyPolicy
+    )
+    access_activity: list[ObservatoryAccessActivity] = Field(default_factory=list)
+    dependency_activity: list[ObservatoryDependencyActivity] = Field(default_factory=list)
+    consumer_adoption: list[ObservatoryConsumerAdoption] = Field(default_factory=list)
+
+
 class ObservatoryDataProductProfile(BaseModel):
     """Shared cross-feature profile for one Data Product."""
 
@@ -378,6 +435,7 @@ class ObservatoryDataProductProfile(BaseModel):
     logs: list["ObservatoryLogEvent"] = Field(default_factory=list)
     operations: list["ObservatoryOperation"] = Field(default_factory=list)
     governance: list[ObservatoryDataProductControl] = Field(default_factory=list)
+    usage: ObservatoryDataProductUsage = Field(default_factory=ObservatoryDataProductUsage)
     sections: dict[str, bool] = Field(default_factory=dict)
 
 

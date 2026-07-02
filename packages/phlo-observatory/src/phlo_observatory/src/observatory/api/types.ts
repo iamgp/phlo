@@ -182,6 +182,50 @@ export interface ObservatoryGovernanceMatrix {
   status_counts: Record<string, number>
 }
 
+export interface ObservatoryTelemetryPrivacyPolicy {
+  identity_detail: 'anonymous' | 'aggregate' | 'identity' | 'audit_only'
+  retention_days?: number | null
+  audit_drilldown: boolean
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryAccessActivity {
+  id: string
+  action: string
+  actor_label?: string | null
+  actor_kind?: string | null
+  count: number
+  last_seen_at?: string | null
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryDependencyActivity {
+  id: string
+  source: ObservatoryResourceRef
+  target: ObservatoryResourceRef
+  kind: string
+  count: number
+  last_seen_at?: string | null
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryConsumerAdoption {
+  id: string
+  consumer: string
+  kind: string
+  owner?: string | null
+  status: string
+  declared_at?: string | null
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryDataProductUsage {
+  privacy_policy: ObservatoryTelemetryPrivacyPolicy
+  access_activity: Array<ObservatoryAccessActivity>
+  dependency_activity: Array<ObservatoryDependencyActivity>
+  consumer_adoption: Array<ObservatoryConsumerAdoption>
+}
+
 export interface ObservatoryDataProductProfile {
   product: ObservatoryDataProduct
   asset?: ObservatoryAsset | null
@@ -192,6 +236,7 @@ export interface ObservatoryDataProductProfile {
   logs: Array<ObservatoryLogEvent>
   operations: Array<ObservatoryOperation>
   governance: Array<ObservatoryDataProductControl>
+  usage: ObservatoryDataProductUsage
   sections: Record<string, boolean>
 }
 
