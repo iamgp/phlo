@@ -1,8 +1,8 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { UploadCloud } from 'lucide-react'
 
-import { getObservatoryDataProductRecords } from '@/observatory/api/resources'
 import type { ObservatoryDataProduct } from '@/observatory/api/types'
+import { getObservatoryDataProductRecords } from '@/observatory/api/resources'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import { StatusBadge } from '@/observatory/components/StatusBadge'
 import { useLiveResource } from '@/observatory/routes/liveResource'

@@ -2,11 +2,11 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { FileCheck2, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { getObservatoryGovernanceItems } from '@/observatory/api/resources'
 import type {
   ObservatoryControlStatus,
   ObservatoryGovernanceRow,
 } from '@/observatory/api/types'
+import { getObservatoryGovernanceItems } from '@/observatory/api/resources'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import { useLiveResource } from '@/observatory/routes/liveResource'
 

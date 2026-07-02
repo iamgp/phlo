@@ -10,11 +10,11 @@ import {
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { getObservatoryDataProductProfileDirect } from '@/observatory/api/resources'
 import type {
   ObservatoryDataProductProfile,
   ObservatoryResourceResult,
 } from '@/observatory/api/types'
+import { getObservatoryDataProductProfileDirect } from '@/observatory/api/resources'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import { StatusBadge } from '@/observatory/components/StatusBadge'
 

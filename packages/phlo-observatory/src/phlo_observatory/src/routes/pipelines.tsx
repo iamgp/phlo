@@ -1,8 +1,8 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { Activity, PlayCircle } from 'lucide-react'
 
-import { getObservatoryPipelineRecords } from '@/observatory/api/resources'
 import type { ObservatoryDataProductPipeline } from '@/observatory/api/types'
+import { getObservatoryPipelineRecords } from '@/observatory/api/resources'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import { StatusBadge } from '@/observatory/components/StatusBadge'
 import { useLiveResource } from '@/observatory/routes/liveResource'
