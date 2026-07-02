@@ -20,6 +20,7 @@ describe('observatory data product resources', () => {
           classifications: ['internal'],
           publication_state: 'published',
           readiness_state: 'ok',
+          candidate: false,
           kinds: ['table'],
           source_refs: [],
           metadata: {},

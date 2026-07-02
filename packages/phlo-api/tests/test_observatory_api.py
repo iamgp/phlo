@@ -207,6 +207,7 @@ def test_observatory_resource_models_serialize_provider_neutral_shapes() -> None
 def test_observatory_data_products_endpoint_returns_profile_summaries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    observatory._clear_read_model_cache()
     monkeypatch.setattr(
         observatory,
         "_load_assets",
@@ -259,11 +260,44 @@ def test_observatory_data_products_endpoint_returns_profile_summaries(
     assert payload["items"][0]["classifications"] == ["internal"]
     assert payload["items"][0]["publication_state"] == "published"
     assert payload["items"][0]["readiness_state"] == "ok"
+    assert payload["items"][0]["candidate"] is False
+
+
+def test_observatory_data_products_endpoint_returns_table_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observatory._clear_read_model_cache()
+    monkeypatch.setattr(observatory, "_load_assets", lambda: [])
+    monkeypatch.setattr(
+        observatory,
+        "_load_tables_without_catalog",
+        lambda: [
+            ObservatoryTable(
+                id="raw_orders",
+                name="raw_orders",
+                namespace="raw",
+                format="iceberg",
+            )
+        ],
+    )
+    monkeypatch.setattr(observatory, "_load_quality", lambda: [])
+
+    response = TestClient(app).get("/api/observatory/data-products")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"][0]["id"] == "candidate:raw_orders"
+    assert payload["items"][0]["name"] == "raw_orders"
+    assert payload["items"][0]["candidate"] is True
+    assert payload["items"][0]["source_refs"] == [
+        {"kind": "table", "id": "raw_orders", "label": "raw_orders"}
+    ]
 
 
 def test_observatory_data_product_profile_collects_related_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    observatory._clear_read_model_cache()
     monkeypatch.setattr(
         observatory,
         "_load_assets",

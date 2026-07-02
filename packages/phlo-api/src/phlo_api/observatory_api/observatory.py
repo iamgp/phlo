@@ -619,18 +619,46 @@ def _data_product_from_asset(
         ),
         publication_state=cast(PublicationState, _publication_state(metadata)),
         readiness_state=cast(HealthState, _readiness_state(product_quality)),
+        candidate=False,
         kinds=_sorted_strings([*asset.kinds, "asset"]),
         source_refs=source_refs,
         metadata=_safe_metadata(metadata),
     )
 
 
+def _candidate_data_product_from_table(table: ObservatoryTable) -> ObservatoryDataProduct:
+    metadata = table.metadata if isinstance(table.metadata, Mapping) else {}
+    return ObservatoryDataProduct(
+        id=f"candidate:{table.id}",
+        name=table.name,
+        description=None,
+        owner=None,
+        classifications=_metadata_strings(metadata, "classification", "classifications"),
+        publication_state="draft",
+        readiness_state="unknown",
+        candidate=True,
+        kinds=_sorted_strings([table.format or "table", "table"]),
+        source_refs=[ObservatoryResourceRef(kind="table", id=table.id, label=table.name)],
+        metadata=_safe_metadata(
+            {
+                **metadata,
+                "candidate_reason": "table has no promoted Data Product",
+                "table_id": table.id,
+            }
+        ),
+    )
+
+
 def _load_data_products() -> list[ObservatoryDataProduct]:
     tables = _load_tables_without_catalog()
     quality = _load_quality()
-    products = [
-        _data_product_from_asset(asset, tables=tables, quality=quality) for asset in _load_assets()
-    ]
+    assets = _load_assets()
+    products = [_data_product_from_asset(asset, tables=tables, quality=quality) for asset in assets]
+    products.extend(
+        _candidate_data_product_from_table(table)
+        for table in tables
+        if table.asset_id is None or not any(asset.id == table.asset_id for asset in assets)
+    )
     return sorted(_merge_by_id(products), key=lambda item: item.name.lower())
 
 
@@ -2160,6 +2188,8 @@ def _apply_manifest_capability_overrides(
         route_providers["assets"] = "lakehouse-manifest"
     if manifest.get("assets"):
         route_providers["assets"] = "lakehouse-manifest"
+    if _load_data_products():
+        route_providers["catalog"] = "lakehouse-manifest"
     if manifest.get("quality"):
         route_providers["issues"] = "lakehouse-manifest"
         route_providers["quality"] = "lakehouse-manifest"

@@ -320,6 +320,7 @@ class ObservatoryDataProduct(BaseModel):
     classifications: list[str] = Field(default_factory=list)
     publication_state: PublicationState = "draft"
     readiness_state: HealthState = "unknown"
+    candidate: bool = False
     kinds: list[str] = Field(default_factory=list)
     source_refs: list[ObservatoryResourceRef] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)

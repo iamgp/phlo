@@ -142,6 +142,7 @@ export interface ObservatoryDataProduct {
   classifications: Array<string>
   publication_state: 'draft' | 'published' | 'retired'
   readiness_state: ObservatoryHealthState
+  candidate: boolean
   kinds: Array<string>
   source_refs: Array<ObservatoryResourceRef>
   metadata: ObservatoryMetadata
