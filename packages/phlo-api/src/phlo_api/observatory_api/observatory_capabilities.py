@@ -24,6 +24,8 @@ CAPABILITY_FAMILIES = (
     "object_store",
     "quality_backend",
     "maintenance_read_model",
+    "orchestrator",
+    "orchestrator_operations",
     "metadata_catalog",
     "lineage_sink",
     "governance_backend",
@@ -34,6 +36,7 @@ CAPABILITY_FAMILIES = (
     "api_backend",
     "observability_backend",
     "regulated_surface",
+    "observatory_extension",
 )
 
 ROUTE_REQUIREMENTS = [
@@ -136,7 +139,6 @@ ROUTE_REQUIREMENTS = [
             "authentication_provider",
             "regulated_surface",
         ],
-        nav=False,
         reason="Install a governance or policy provider to inspect regulated surfaces.",
     ),
     ObservatoryRouteRequirement(
@@ -144,8 +146,23 @@ ROUTE_REQUIREMENTS = [
         label="Catalog",
         path="/catalog",
         required_any=["metadata_catalog", "catalog_scanner"],
-        nav=False,
         reason="Install a metadata catalog or scanner to inspect catalog surfaces.",
+    ),
+    ObservatoryRouteRequirement(
+        route_id="publishing",
+        label="Publishing",
+        path="/publishing",
+        required_any=["publish_target", "metadata_catalog", "catalog_scanner"],
+        optional=["authorization_policy_backend"],
+        reason="Install a publish target or Data Product catalog to inspect publishing readiness.",
+    ),
+    ObservatoryRouteRequirement(
+        route_id="pipelines",
+        label="Pipelines",
+        path="/pipelines",
+        required_any=["orchestrator", "orchestrator_operations", "maintenance_read_model"],
+        optional=["quality_backend"],
+        reason="Install an orchestrator or operations provider to inspect Data Product flow.",
     ),
     ObservatoryRouteRequirement(
         route_id="apis",

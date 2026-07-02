@@ -175,7 +175,7 @@ function ProductList({
     <div className="phlo-observatory-list">
       {products.map((product) => (
         <Link
-          className="phlo-observatory-timeline-row"
+          className="phlo-observatory-product-row"
           key={product.id}
           params={{ productId: product.id }}
           to="/data-products/$productId"

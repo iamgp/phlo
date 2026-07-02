@@ -1428,6 +1428,27 @@ def test_observatory_manifest_records_enrich_lakehouse_surfaces(
     assert capabilities["features"]["assets"] is True
     assert capabilities["features"]["issues"] is True
     assert capabilities["features"]["runs"] is True
+    assert capabilities["features"]["catalog"] is True
+    assert capabilities["features"]["governance"] is True
+    assert capabilities["features"]["publishing"] is True
+    assert capabilities["features"]["pipelines"] is True
+    pages = {page["id"]: page for page in capabilities["pages"]}
+    for page_id in ("catalog", "governance", "publishing", "pipelines"):
+        assert pages[page_id]["nav"] is True
+        assert pages[page_id]["metadata"]["domain"] == "data_products"
+        assert pages[page_id]["metadata"]["contribution_policy"] == "shared_surface"
+    assert pages["catalog"]["metadata"]["read_models"] == [
+        "data-products",
+        "data-product-profile",
+    ]
+    assert pages["governance"]["metadata"]["profile_sections"] == ["governance"]
+    assert pages["publishing"]["metadata"]["actions"] == ["publish", "retire"]
+    assert pages["pipelines"]["metadata"]["actions"] == [
+        "retry",
+        "cancel",
+        "materialize",
+        "backfill",
+    ]
 
 
 def test_observatory_generic_skipped_action_records_operation(
@@ -1621,6 +1642,8 @@ def test_observatory_capabilities_endpoint_returns_provider_neutral_payload() ->
         "observability",
         "governance",
         "catalog",
+        "publishing",
+        "pipelines",
         "apis",
         "bi",
         "extensions",
@@ -1634,6 +1657,16 @@ def test_observatory_capabilities_endpoint_returns_provider_neutral_payload() ->
     assert pages["observability"]["nav"] is False
     assert pages["governance"]["nav"] is False
     assert pages["catalog"]["nav"] is False
+    assert pages["publishing"]["nav"] is False
+    assert pages["pipelines"]["nav"] is False
+    assert pages["publishing"]["metadata"]["read_models"] == [
+        "data-products",
+        "data-product-profile",
+    ]
+    assert pages["pipelines"]["metadata"]["read_models"] == [
+        "pipelines",
+        "data-product-profile",
+    ]
     assert pages["apis"]["nav"] is False
     assert pages["bi"]["nav"] is False
     assert pages["extensions"]["nav"] is False

@@ -16,6 +16,7 @@ import {
   Server,
   Settings,
   Sun,
+  UploadCloud,
 } from 'lucide-react'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -35,7 +36,10 @@ import {
 import {
   getObservatoryAssetRecords,
   getObservatoryCapabilities,
+  getObservatoryDataProductRecords,
+  getObservatoryGovernanceItems,
   getObservatoryLogRecords,
+  getObservatoryPipelineRecords,
   getObservatoryQualityRecords,
   getObservatoryRunRecords,
   getObservatoryServices,
@@ -58,6 +62,10 @@ const fallbackPages: Array<ObservatoryCapabilityPage> = [
   corePage('workflows', 'Workflows', '/workflows/new'),
   corePage('issues', 'Issues', '/quality'),
   corePage('branches', 'Changes', '/branches'),
+  corePage('catalog', 'Catalog', '/catalog'),
+  corePage('governance', 'Governance', '/governance'),
+  corePage('publishing', 'Publishing', '/publishing'),
+  corePage('pipelines', 'Pipelines', '/pipelines'),
   corePage('logs', 'Logs', '/logs'),
   corePage('services', 'Services', '/services'),
   corePage('settings', 'Settings', '/settings'),
@@ -73,11 +81,13 @@ const navOrder = [
   'issues',
   'quality',
   'branches',
+  'catalog',
+  'governance',
+  'publishing',
+  'pipelines',
   'storage',
   'observability',
   'logs',
-  'governance',
-  'catalog',
   'apis',
   'bi',
   'extensions',
@@ -104,6 +114,8 @@ const iconByPageId: Record<string, typeof LayoutDashboard> = {
   observability: Activity,
   governance: Settings,
   catalog: Boxes,
+  publishing: UploadCloud,
+  pipelines: Activity,
   apis: Server,
   bi: LayoutDashboard,
   settings: Settings,
@@ -391,6 +403,7 @@ function pageForPath(
 
   const aliases: Record<string, string> = {
     '/data/': 'data',
+    '/data-products/': 'catalog',
     '/assets/': 'assets',
     '/branches/': 'branches',
     '/extensions/': 'extensions',
@@ -434,6 +447,29 @@ function warmRouteResources(capabilities: ObservatoryCapabilities | null) {
   }
   if (features.logs) {
     void loadCachedResource('v2:logs', getObservatoryLogRecords, {
+      staleMs: 120_000,
+    })
+  }
+  if (features.catalog || features.publishing) {
+    void loadCachedResource(
+      'v2:data-products',
+      getObservatoryDataProductRecords,
+      {
+        staleMs: 120_000,
+      },
+    )
+  }
+  if (features.governance) {
+    void loadCachedResource(
+      'v2:governance-matrix',
+      getObservatoryGovernanceItems,
+      {
+        staleMs: 120_000,
+      },
+    )
+  }
+  if (features.pipelines) {
+    void loadCachedResource('v2:pipelines', getObservatoryPipelineRecords, {
       staleMs: 120_000,
     })
   }

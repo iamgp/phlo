@@ -14,6 +14,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as RunsRouteImport } from './routes/runs'
 import { Route as QualityRouteImport } from './routes/quality'
+import { Route as PublishingRouteImport } from './routes/publishing'
 import { Route as PipelinesRouteImport } from './routes/pipelines'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as ObservabilityRouteImport } from './routes/observability'
@@ -57,6 +58,11 @@ const RunsRoute = RunsRouteImport.update({
 const QualityRoute = QualityRouteImport.update({
   id: '/quality',
   path: '/quality',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PublishingRoute = PublishingRouteImport.update({
+  id: '/publishing',
+  path: '/publishing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PipelinesRoute = PipelinesRouteImport.update({
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/observability': typeof ObservabilityRoute
   '/operations': typeof OperationsRoute
   '/pipelines': typeof PipelinesRoute
+  '/publishing': typeof PublishingRoute
   '/quality': typeof QualityRoute
   '/runs': typeof RunsRoute
   '/services': typeof ServicesRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/observability': typeof ObservabilityRoute
   '/operations': typeof OperationsRoute
   '/pipelines': typeof PipelinesRoute
+  '/publishing': typeof PublishingRoute
   '/quality': typeof QualityRoute
   '/runs': typeof RunsRoute
   '/services': typeof ServicesRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/observability': typeof ObservabilityRoute
   '/operations': typeof OperationsRoute
   '/pipelines': typeof PipelinesRoute
+  '/publishing': typeof PublishingRoute
   '/quality': typeof QualityRoute
   '/runs': typeof RunsRoute
   '/services': typeof ServicesRoute
@@ -250,6 +259,7 @@ export interface FileRouteTypes {
     | '/observability'
     | '/operations'
     | '/pipelines'
+    | '/publishing'
     | '/quality'
     | '/runs'
     | '/services'
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
     | '/observability'
     | '/operations'
     | '/pipelines'
+    | '/publishing'
     | '/quality'
     | '/runs'
     | '/services'
@@ -302,6 +313,7 @@ export interface FileRouteTypes {
     | '/observability'
     | '/operations'
     | '/pipelines'
+    | '/publishing'
     | '/quality'
     | '/runs'
     | '/services'
@@ -329,6 +341,7 @@ export interface RootRouteChildren {
   ObservabilityRoute: typeof ObservabilityRoute
   OperationsRoute: typeof OperationsRoute
   PipelinesRoute: typeof PipelinesRoute
+  PublishingRoute: typeof PublishingRoute
   QualityRoute: typeof QualityRoute
   RunsRoute: typeof RunsRoute
   ServicesRoute: typeof ServicesRoute
@@ -373,6 +386,13 @@ declare module '@tanstack/react-router' {
       path: '/quality'
       fullPath: '/quality'
       preLoaderRoute: typeof QualityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/publishing': {
+      id: '/publishing'
+      path: '/publishing'
+      fullPath: '/publishing'
+      preLoaderRoute: typeof PublishingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pipelines': {
@@ -570,6 +590,7 @@ const rootRouteChildren: RootRouteChildren = {
   ObservabilityRoute: ObservabilityRoute,
   OperationsRoute: OperationsRoute,
   PipelinesRoute: PipelinesRoute,
+  PublishingRoute: PublishingRoute,
   QualityRoute: QualityRoute,
   RunsRoute: RunsRoute,
   ServicesRoute: ServicesRoute,

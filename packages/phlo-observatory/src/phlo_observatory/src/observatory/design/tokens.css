@@ -99,9 +99,10 @@ html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
 
 .phlo-observatory-nav-actions {
   display: inline-flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .phlo-observatory-app-layout {
@@ -2898,6 +2899,14 @@ button.phlo-observatory-mini-row {
     display: none;
   }
 
+  .phlo-observatory-search-trigger kbd {
+    display: none;
+  }
+
+  .phlo-observatory-nav-actions {
+    gap: 4px;
+  }
+
   .phlo-observatory-title {
     font-size: clamp(24px, 4vw, 34px);
   }
@@ -3059,7 +3068,7 @@ button.phlo-observatory-mini-row {
 .phlo-observatory-nav-links .phlo-observatory-nav-link {
   height: 28px;
   gap: 5px;
-  padding: 0 8px;
+  padding: 0 6px;
   font-size: 12px;
 }
 
@@ -3724,6 +3733,28 @@ button.phlo-observatory-mini-row {
   padding: 9px 12px;
 }
 
+.phlo-observatory-product-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  gap: 9px;
+  min-height: 54px;
+  padding: 10px 12px;
+  color: var(--v2-text);
+  text-decoration: none;
+}
+
+.phlo-observatory-product-row + .phlo-observatory-product-row {
+  border-top: 1px solid var(--v2-sheet-border);
+}
+
+.phlo-observatory-product-row:hover {
+  background: var(--v2-tile);
+}
+
+.phlo-observatory-product-row > .phlo-observatory-dot {
+  margin-top: 6px;
+}
+
 .phlo-observatory-pipeline-row {
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr) auto;
@@ -3801,6 +3832,15 @@ button.phlo-observatory-mini-row {
 @media (max-width: 760px) {
   .phlo-observatory-pipeline-row {
     grid-template-columns: 12px minmax(0, 1fr);
+  }
+
+  .phlo-observatory-product-row {
+    grid-template-columns: 12px minmax(0, 1fr);
+  }
+
+  .phlo-observatory-product-row > .phlo-observatory-pill {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .phlo-observatory-pipeline-row > .phlo-observatory-pill {

@@ -13,6 +13,7 @@ import {
   Search,
   Server,
   Settings,
+  UploadCloud,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
@@ -50,6 +51,8 @@ const iconByPageId: Record<string, typeof LayoutDashboard> = {
   observability: Activity,
   governance: Settings,
   catalog: Boxes,
+  publishing: UploadCloud,
+  pipelines: Activity,
   apis: Server,
   bi: LayoutDashboard,
   settings: Settings,

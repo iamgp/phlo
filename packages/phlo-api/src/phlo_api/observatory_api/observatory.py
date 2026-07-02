@@ -2705,6 +2705,38 @@ def _load_surface_capabilities() -> ObservatoryCapabilities:
     return ObservatoryCapabilities(pages=pages, features=features, providers=providers)
 
 
+_DATA_PRODUCT_SURFACE_METADATA: dict[str, dict[str, object]] = {
+    "catalog": {
+        "domain": "data_products",
+        "profile_sections": ["overview", "source_objects"],
+        "read_models": ["data-products", "data-product-profile"],
+        "actions": ["open-profile"],
+        "contribution_policy": "shared_surface",
+    },
+    "governance": {
+        "domain": "data_products",
+        "profile_sections": ["governance"],
+        "read_models": ["governance-matrix", "data-product-profile"],
+        "actions": ["review-evidence", "open-profile"],
+        "contribution_policy": "shared_surface",
+    },
+    "publishing": {
+        "domain": "data_products",
+        "profile_sections": ["publishing"],
+        "read_models": ["data-products", "data-product-profile"],
+        "actions": ["publish", "retire"],
+        "contribution_policy": "shared_surface",
+    },
+    "pipelines": {
+        "domain": "data_products",
+        "profile_sections": ["pipelines"],
+        "read_models": ["pipelines", "data-product-profile"],
+        "actions": ["retry", "cancel", "materialize", "backfill"],
+        "contribution_policy": "shared_surface",
+    },
+}
+
+
 def _apply_manifest_capability_overrides(
     pages: list[ObservatoryCapabilityPage],
 ) -> list[ObservatoryCapabilityPage]:
@@ -2721,6 +2753,8 @@ def _apply_manifest_capability_overrides(
     if _load_data_products():
         route_providers["catalog"] = "lakehouse-manifest"
         route_providers["governance"] = "lakehouse-manifest"
+        route_providers["publishing"] = "lakehouse-manifest"
+        route_providers["pipelines"] = "lakehouse-manifest"
     if manifest.get("quality"):
         route_providers["issues"] = "lakehouse-manifest"
         route_providers["quality"] = "lakehouse-manifest"
@@ -2934,6 +2968,7 @@ def _pages_from_inventory(
                     "required_all": list(requirement.required_all),
                     "optional": list(requirement.optional),
                     "nav": requirement.nav,
+                    **_DATA_PRODUCT_SURFACE_METADATA.get(requirement.route_id, {}),
                 },
             )
         )
