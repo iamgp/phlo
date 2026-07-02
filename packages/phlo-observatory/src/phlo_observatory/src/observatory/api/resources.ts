@@ -7,6 +7,8 @@ import type {
   ObservatoryBranch,
   ObservatoryBranchDetail,
   ObservatoryCapabilities,
+  ObservatoryDataProduct,
+  ObservatoryDataProductProfile,
   ObservatoryExtension,
   ObservatoryExtensionDetail,
   ObservatoryLogEvent,
@@ -303,6 +305,44 @@ export function getObservatoryBiItems() {
 
 export function getObservatoryAssetRecords() {
   return getRawCollection<ObservatoryAsset>('assets')
+}
+
+export function getObservatoryDataProductRecords() {
+  return getRawCollection<ObservatoryDataProduct>('data-products')
+}
+
+export const getObservatoryDataProductProfile = createServerFn()
+  .inputValidator((input: { productId: string }) => input)
+  .handler(
+    async ({
+      data: { productId },
+    }): Promise<ObservatoryResourceResult<ObservatoryDataProductProfile>> => {
+      try {
+        const data = await apiGet<ObservatoryDataProductProfile>(
+          `${Observatory_API_PREFIX}/data-products/${encodeURIComponent(productId)}`,
+          undefined,
+          8000,
+        )
+        return { data, error: null }
+      } catch (error) {
+        return apiUnavailable<ObservatoryDataProductProfile>(error)
+      }
+    },
+  )
+
+export async function getObservatoryDataProductProfileDirect({
+  productId,
+}: {
+  productId: string
+}): Promise<ObservatoryResourceResult<ObservatoryDataProductProfile>> {
+  try {
+    const data = await browserApiGet<ObservatoryDataProductProfile>(
+      `${Observatory_API_PREFIX}/data-products/${encodeURIComponent(productId)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryDataProductProfile>(error)
+  }
 }
 
 export const getObservatoryAssetDetail = createServerFn()

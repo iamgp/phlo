@@ -4,11 +4,7 @@ export type ObservatoryMetadata = Record<string, NonNullable<unknown>>
 type ObservatoryRecord = Record<string, NonNullable<unknown>>
 
 export type ObservatoryServiceStatus =
-  | 'running'
-  | 'stopped'
-  | 'unhealthy'
-  | 'starting'
-  | 'unknown'
+  'running' | 'stopped' | 'unhealthy' | 'starting' | 'unknown'
 
 interface ObservatoryHealth {
   state: ObservatoryHealthState
@@ -138,6 +134,31 @@ interface ObservatoryResourceRef {
   label: string
 }
 
+export interface ObservatoryDataProduct {
+  id: string
+  name: string
+  description?: string | null
+  owner?: string | null
+  classifications: Array<string>
+  publication_state: 'draft' | 'published' | 'retired'
+  readiness_state: ObservatoryHealthState
+  kinds: Array<string>
+  source_refs: Array<ObservatoryResourceRef>
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryDataProductProfile {
+  product: ObservatoryDataProduct
+  asset?: ObservatoryAsset | null
+  tables: Array<ObservatoryTable>
+  quality: Array<ObservatoryQualityCheck>
+  upstream: Array<ObservatoryResourceRef>
+  downstream: Array<ObservatoryResourceRef>
+  logs: Array<ObservatoryLogEvent>
+  operations: Array<ObservatoryOperation>
+  sections: Record<string, boolean>
+}
+
 export interface ObservatoryAction {
   id: string
   label: string
@@ -258,12 +279,7 @@ export interface ObservatoryOperationDetail {
 }
 
 type ObservatoryRunStatus =
-  | 'queued'
-  | 'running'
-  | 'succeeded'
-  | 'failed'
-  | 'cancelled'
-  | 'unknown'
+  'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'
 
 export interface ObservatoryRun {
   id: string

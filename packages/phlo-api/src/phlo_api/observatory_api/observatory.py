@@ -15,7 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, BackgroundTasks, Body, Query, Request
 from fastapi import HTTPException
@@ -26,6 +26,7 @@ from phlo_api.observatory_api.observatory_actions import execute_observatory_act
 from phlo_api.observatory_api.observatory_cache import ReadModelCache
 from phlo_api.observatory_api.observatory_capabilities import build_capability_inventory
 from phlo_api.observatory_api.observatory_models import (
+    HealthState,
     ObservatoryAction,
     ObservatoryActionRequest,
     ObservatoryActionResult,
@@ -46,6 +47,9 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryContributingRowsPageResponse,
     ObservatoryContributingRowsQueryRequest,
     ObservatoryContributingRowsQueryResponse,
+    ObservatoryDataProduct,
+    ObservatoryDataProductList,
+    ObservatoryDataProductProfile,
     ObservatoryExtension,
     ObservatoryExtensionDetail,
     ObservatoryExtensionList,
@@ -64,6 +68,7 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryQualityList,
     ObservatoryQueryRequest,
     ObservatoryQueryResult,
+    PublicationState,
     ObservatoryImpactedAsset,
     ObservatoryResourceRef,
     ObservatoryRouteRequirement,
@@ -552,6 +557,145 @@ def _load_quality() -> list[ObservatoryQualityCheck]:
             )
         )
     return sorted(_merge_by_id(checks), key=lambda item: item.id)
+
+
+def _metadata_strings(metadata: Mapping[str, Any], *keys: str) -> list[str]:
+    values: list[str] = []
+    for key in keys:
+        value = metadata.get(key)
+        if isinstance(value, str) and value.strip():
+            values.append(value.strip())
+        elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            values.extend(str(item).strip() for item in value if str(item).strip())
+    return sorted(set(values))
+
+
+def _publication_state(metadata: Mapping[str, Any]) -> str:
+    value = metadata.get("publication_state") or metadata.get("publishing_state")
+    if isinstance(value, str) and value.lower() in {"draft", "published", "retired"}:
+        return value.lower()
+    if metadata.get("published") is True:
+        return "published"
+    return "draft"
+
+
+def _readiness_state(checks: Sequence[ObservatoryQualityCheck]) -> str:
+    if not checks:
+        return "unknown"
+    statuses = {check.status for check in checks}
+    if "failing" in statuses:
+        return "error"
+    if "warning" in statuses or "unknown" in statuses:
+        return "warning"
+    return "ok"
+
+
+def _data_product_from_asset(
+    asset: ObservatoryAsset,
+    *,
+    tables: Sequence[ObservatoryTable],
+    quality: Sequence[ObservatoryQualityCheck],
+) -> ObservatoryDataProduct:
+    metadata = asset.metadata if isinstance(asset.metadata, Mapping) else {}
+    owner = metadata.get("owner") or metadata.get("team") or metadata.get("maintainer")
+    product_tables = [table for table in tables if table.asset_id == asset.id]
+    product_quality = [check for check in quality if check.asset_id == asset.id]
+    source_refs = [ObservatoryResourceRef(kind="asset", id=asset.id, label=asset.name)]
+    source_refs.extend(
+        ObservatoryResourceRef(kind="table", id=table.id, label=table.name)
+        for table in product_tables
+    )
+    return ObservatoryDataProduct(
+        id=asset.id,
+        name=_coerce_str(metadata.get("data_product_name"), asset.name),
+        description=asset.description,
+        owner=_coerce_str(owner, "") or None,
+        classifications=_metadata_strings(
+            metadata,
+            "classification",
+            "classifications",
+            "sensitivity",
+            "tags",
+        ),
+        publication_state=cast(PublicationState, _publication_state(metadata)),
+        readiness_state=cast(HealthState, _readiness_state(product_quality)),
+        kinds=_sorted_strings([*asset.kinds, "asset"]),
+        source_refs=source_refs,
+        metadata=_safe_metadata(metadata),
+    )
+
+
+def _load_data_products() -> list[ObservatoryDataProduct]:
+    tables = _load_tables_without_catalog()
+    quality = _load_quality()
+    products = [
+        _data_product_from_asset(asset, tables=tables, quality=quality) for asset in _load_assets()
+    ]
+    return sorted(_merge_by_id(products), key=lambda item: item.name.lower())
+
+
+def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile:
+    assets = _load_assets()
+    tables = _load_tables_without_catalog()
+    quality = _load_quality()
+    asset = next((item for item in assets if item.id == product_id), None)
+    if asset is None:
+        table = next((item for item in tables if item.id == product_id), None)
+        if table is None or table.asset_id is None:
+            raise _not_found("data product", product_id)
+        asset = next((item for item in assets if item.id == table.asset_id), None)
+    if asset is None:
+        raise _not_found("data product", product_id)
+
+    product = _data_product_from_asset(asset, tables=tables, quality=quality)
+    product_tables = [table for table in tables if table.asset_id == asset.id]
+    product_quality = [check for check in quality if check.asset_id == asset.id]
+    related_ids = {
+        asset.id,
+        *[table.id for table in product_tables],
+        *[check.id for check in product_quality],
+    }
+    upstream = [
+        ObservatoryResourceRef(kind="asset", id=item.id, label=item.name)
+        for item in assets
+        if item.id in set(asset.dependencies)
+    ]
+    downstream = [
+        ObservatoryResourceRef(kind="asset", id=item.id, label=item.name)
+        for item in assets
+        if asset.id in item.dependencies
+    ]
+    logs = [
+        event
+        for event in _load_logs()
+        if event.resource is not None and event.resource.id in related_ids
+    ]
+    operations = [
+        operation
+        for operation in _load_operations()
+        if operation.target is not None and operation.target.id in related_ids
+    ]
+    return ObservatoryDataProductProfile(
+        product=product,
+        asset=asset,
+        tables=product_tables,
+        quality=product_quality,
+        upstream=upstream,
+        downstream=downstream,
+        logs=logs,
+        operations=operations,
+        sections={
+            "overview": True,
+            "contract": bool(product.owner or product.description),
+            "lineage": bool(upstream or downstream or asset.dependencies),
+            "quality": bool(product_quality),
+            "access": False,
+            "usage": False,
+            "pipelines": bool(operations),
+            "governance": bool(product.classifications or product_quality),
+            "publishing": True,
+        },
+    )
 
 
 def _operation_from_maintenance_status(status: Any) -> ObservatoryOperation:
@@ -2930,6 +3074,34 @@ def get_observatory_assets(limit: int = 100, cursor: str | None = None) -> Obser
     )
     page, next_cursor = paginate_items(result.items, limit=limit, cursor=cursor)
     return ObservatoryAssetList(items=page, next_cursor=next_cursor)
+
+
+@router.get(
+    "/data-products",
+    response_model=ObservatoryDataProductList,
+    response_model_exclude_none=True,
+)
+def get_observatory_data_products(
+    limit: int = 100, cursor: str | None = None
+) -> ObservatoryDataProductList:
+    """List provider-neutral Observatory Data Products."""
+    result = _cached_read_model(
+        "data-products",
+        _EXPENSIVE_READ_MODEL_TTL_SECONDS,
+        lambda: ObservatoryDataProductList(items=_load_data_products()),
+    )
+    page, next_cursor = paginate_items(result.items, limit=limit, cursor=cursor)
+    return ObservatoryDataProductList(items=page, next_cursor=next_cursor)
+
+
+@router.get("/data-products/{product_id:path}", response_model=ObservatoryDataProductProfile)
+def get_observatory_data_product_profile(product_id: str) -> ObservatoryDataProductProfile:
+    """Get the shared provider-neutral Data Product Profile."""
+    return _cached_read_model(
+        f"data-product-profile:{product_id}",
+        _EXPENSIVE_READ_MODEL_TTL_SECONDS,
+        lambda: _load_data_product_profile(product_id),
+    )
 
 
 @router.get("/asset-graph", response_model=ObservatoryAssetGraph)

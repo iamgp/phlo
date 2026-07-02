@@ -29,6 +29,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowsNewRouteImport } from './routes/workflows/new'
 import { Route as ExtensionsExtensionIdRouteImport } from './routes/extensions/$extensionId'
 import { Route as DataTableIdRouteImport } from './routes/data/$tableId'
+import { Route as DataProductsProductIdRouteImport } from './routes/data-products/$productId'
 import { Route as BranchesBranchNameRouteImport } from './routes/branches/$branchName'
 import { Route as AssetsAssetIdRouteImport } from './routes/assets/$assetId'
 
@@ -132,6 +133,11 @@ const DataTableIdRoute = DataTableIdRouteImport.update({
   path: '/$tableId',
   getParentRoute: () => DataRoute,
 } as any)
+const DataProductsProductIdRoute = DataProductsProductIdRouteImport.update({
+  id: '/data-products/$productId',
+  path: '/data-products/$productId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BranchesBranchNameRoute = BranchesBranchNameRouteImport.update({
   id: '/$branchName',
   path: '/$branchName',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/storage': typeof StorageRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
+  '/data-products/$productId': typeof DataProductsProductIdRoute
   '/data/$tableId': typeof DataTableIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/storage': typeof StorageRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
+  '/data-products/$productId': typeof DataProductsProductIdRoute
   '/data/$tableId': typeof DataTableIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/storage': typeof StorageRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
+  '/data-products/$productId': typeof DataProductsProductIdRoute
   '/data/$tableId': typeof DataTableIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/storage'
     | '/assets/$assetId'
     | '/branches/$branchName'
+    | '/data-products/$productId'
     | '/data/$tableId'
     | '/extensions/$extensionId'
     | '/workflows/new'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/storage'
     | '/assets/$assetId'
     | '/branches/$branchName'
+    | '/data-products/$productId'
     | '/data/$tableId'
     | '/extensions/$extensionId'
     | '/workflows/new'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/storage'
     | '/assets/$assetId'
     | '/branches/$branchName'
+    | '/data-products/$productId'
     | '/data/$tableId'
     | '/extensions/$extensionId'
     | '/workflows/new'
@@ -309,6 +321,7 @@ export interface RootRouteChildren {
   ServicesRoute: typeof ServicesRoute
   SettingsRoute: typeof SettingsRoute
   StorageRoute: typeof StorageRoute
+  DataProductsProductIdRoute: typeof DataProductsProductIdRoute
   WorkflowsNewRoute: typeof WorkflowsNewRoute
 }
 
@@ -454,6 +467,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DataTableIdRouteImport
       parentRoute: typeof DataRoute
     }
+    '/data-products/$productId': {
+      id: '/data-products/$productId'
+      path: '/data-products/$productId'
+      fullPath: '/data-products/$productId'
+      preLoaderRoute: typeof DataProductsProductIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/branches/$branchName': {
       id: '/branches/$branchName'
       path: '/$branchName'
@@ -534,6 +554,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesRoute: ServicesRoute,
   SettingsRoute: SettingsRoute,
   StorageRoute: StorageRoute,
+  DataProductsProductIdRoute: DataProductsProductIdRoute,
   WorkflowsNewRoute: WorkflowsNewRoute,
 }
 export const routeTree = rootRouteImport

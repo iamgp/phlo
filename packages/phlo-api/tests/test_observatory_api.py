@@ -8,6 +8,7 @@ import subprocess
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
 from phlo.capabilities.registry import CapabilityRegistry
@@ -201,6 +202,129 @@ def test_observatory_resource_models_serialize_provider_neutral_shapes() -> None
     assert payload["branch"]["current"] is True
     assert payload["settings"]["version"] == 2
     _assert_no_provider_url_settings(payload)
+
+
+def test_observatory_data_products_endpoint_returns_profile_summaries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        observatory,
+        "_load_assets",
+        lambda: [
+            ObservatoryAsset(
+                id="gold.orders",
+                name="gold.orders",
+                group="gold",
+                description="Curated orders",
+                kinds=["table"],
+                metadata={
+                    "owner": "analytics",
+                    "classification": "internal",
+                    "published": True,
+                },
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_tables_without_catalog",
+        lambda: [
+            ObservatoryTable(
+                id="orders",
+                name="orders",
+                namespace="gold",
+                asset_id="gold.orders",
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_quality",
+        lambda: [
+            ObservatoryQualityCheck(
+                id="gold.orders:not_null_order_id",
+                name="not_null_order_id",
+                asset_id="gold.orders",
+                status="passing",
+            )
+        ],
+    )
+
+    response = TestClient(app).get("/api/observatory/data-products")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"][0]["id"] == "gold.orders"
+    assert payload["items"][0]["owner"] == "analytics"
+    assert payload["items"][0]["classifications"] == ["internal"]
+    assert payload["items"][0]["publication_state"] == "published"
+    assert payload["items"][0]["readiness_state"] == "ok"
+
+
+def test_observatory_data_product_profile_collects_related_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        observatory,
+        "_load_assets",
+        lambda: [
+            ObservatoryAsset(
+                id="silver.orders",
+                name="silver.orders",
+                group="silver",
+            ),
+            ObservatoryAsset(
+                id="gold.orders",
+                name="gold.orders",
+                group="gold",
+                dependencies=["silver.orders"],
+                metadata={"owner": "analytics"},
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_tables_without_catalog",
+        lambda: [
+            ObservatoryTable(
+                id="orders",
+                name="orders",
+                namespace="gold",
+                asset_id="gold.orders",
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_quality",
+        lambda: [
+            ObservatoryQualityCheck(
+                id="gold.orders:not_null_order_id",
+                name="not_null_order_id",
+                asset_id="gold.orders",
+                status="warning",
+            )
+        ],
+    )
+    monkeypatch.setattr(observatory, "_load_logs", lambda: [])
+    monkeypatch.setattr(observatory, "_load_operations", lambda: [])
+
+    response = TestClient(app).get("/api/observatory/data-products/gold.orders")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["product"]["id"] == "gold.orders"
+    assert payload["product"]["owner"] == "analytics"
+    assert payload["product"]["readiness_state"] == "warning"
+    assert payload["tables"][0]["id"] == "orders"
+    assert payload["quality"][0]["name"] == "not_null_order_id"
+    assert payload["upstream"][0] == {
+        "kind": "asset",
+        "id": "silver.orders",
+        "label": "silver.orders",
+    }
+    assert payload["sections"]["overview"] is True
+    assert payload["sections"]["quality"] is True
 
 
 def test_observatory_capability_page_serializes_provider_neutral_shape() -> None:

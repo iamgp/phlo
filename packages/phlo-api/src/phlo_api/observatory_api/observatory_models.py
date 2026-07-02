@@ -12,6 +12,7 @@ ServiceDefinitionState = Literal["configured", "available"]
 OperationStatus = Literal["queued", "running", "succeeded", "failed", "skipped", "unknown"]
 RunStatus = Literal["queued", "running", "succeeded", "failed", "cancelled", "unknown"]
 QualityStatus = Literal["passing", "failing", "warning", "unknown"]
+PublicationState = Literal["draft", "published", "retired"]
 
 
 class ObservatoryHealth(BaseModel):
@@ -307,6 +308,35 @@ class ObservatoryAssetDetail(BaseModel):
     lineage: list[ObservatoryResourceRef] = Field(default_factory=list)
     materializations: list["ObservatoryOperation"] = Field(default_factory=list)
     column_lineage: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class ObservatoryDataProduct(BaseModel):
+    """Provider-neutral Data Product summary."""
+
+    id: str
+    name: str
+    description: str | None = None
+    owner: str | None = None
+    classifications: list[str] = Field(default_factory=list)
+    publication_state: PublicationState = "draft"
+    readiness_state: HealthState = "unknown"
+    kinds: list[str] = Field(default_factory=list)
+    source_refs: list[ObservatoryResourceRef] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryDataProductProfile(BaseModel):
+    """Shared cross-feature profile for one Data Product."""
+
+    product: ObservatoryDataProduct
+    asset: ObservatoryAsset | None = None
+    tables: list["ObservatoryTable"] = Field(default_factory=list)
+    quality: list["ObservatoryQualityCheck"] = Field(default_factory=list)
+    upstream: list[ObservatoryResourceRef] = Field(default_factory=list)
+    downstream: list[ObservatoryResourceRef] = Field(default_factory=list)
+    logs: list["ObservatoryLogEvent"] = Field(default_factory=list)
+    operations: list["ObservatoryOperation"] = Field(default_factory=list)
+    sections: dict[str, bool] = Field(default_factory=dict)
 
 
 class ObservatoryAssetGraphNode(BaseModel):
@@ -629,6 +659,13 @@ class ObservatoryAssetList(BaseModel):
     """List envelope for v2 assets."""
 
     items: list[ObservatoryAsset]
+    next_cursor: str | None = None
+
+
+class ObservatoryDataProductList(BaseModel):
+    """List envelope for v2 Data Products."""
+
+    items: list[ObservatoryDataProduct]
     next_cursor: str | None = None
 
 
