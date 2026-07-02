@@ -450,6 +450,55 @@ def test_observatory_data_product_profile_returns_privacy_shaped_usage(
     assert usage["consumer_adoption"][0]["consumer"] == "finance"
 
 
+def test_observatory_pipelines_endpoint_returns_flow_and_action_availability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observatory._clear_read_model_cache()
+    monkeypatch.setattr(
+        observatory,
+        "_load_assets",
+        lambda: [ObservatoryAsset(id="gold.orders", name="gold.orders")],
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_tables_without_catalog",
+        lambda: [ObservatoryTable(id="orders", name="orders", asset_id="gold.orders")],
+    )
+    monkeypatch.setattr(observatory, "_load_quality", lambda: [])
+    monkeypatch.setattr(
+        observatory,
+        "_load_operations",
+        lambda: [
+            ObservatoryOperation(
+                id="run-1",
+                name="orders refresh",
+                kind="pipeline",
+                status="failed",
+                health=ObservatoryHealth(state="error"),
+                target=ObservatoryResourceRef(kind="asset", id="gold.orders", label="gold.orders"),
+                completed_at="2026-07-01T12:00:00Z",
+            )
+        ],
+    )
+
+    response = TestClient(app).get("/api/observatory/pipelines")
+
+    assert response.status_code == 200
+    pipeline = response.json()["items"][0]
+    assert pipeline["product"]["id"] == "gold.orders"
+    assert pipeline["last_run"]["id"] == "run-1"
+    assert [stage["id"] for stage in pipeline["stages"]] == [
+        "ingest",
+        "transform",
+        "checks",
+        "publish",
+    ]
+    retry = next(action for action in pipeline["actions"] if action["id"] == "retry")
+    cancel = next(action for action in pipeline["actions"] if action["id"] == "cancel")
+    assert retry["enabled"] is True
+    assert cancel["enabled"] is False
+
+
 def test_observatory_data_product_profile_collects_related_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

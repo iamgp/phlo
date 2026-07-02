@@ -53,6 +53,7 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryDataProduct,
     ObservatoryDataProductControl,
     ObservatoryDataProductList,
+    ObservatoryDataProductPipeline,
     ObservatoryDataProductProfile,
     ObservatoryDataProductUsage,
     ObservatoryDependencyActivity,
@@ -71,6 +72,8 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryOverview,
     ObservatoryPackageInstallRequest,
     ObservatoryPackageInstallResult,
+    ObservatoryPipelineList,
+    ObservatoryPipelineStage,
     ObservatoryPublishingAction,
     ObservatoryPublishingReadiness,
     ObservatoryQualityCheck,
@@ -717,6 +720,7 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
         for operation in _load_operations()
         if operation.target is not None and operation.target.id in related_ids
     ]
+    pipeline = _pipeline_for_product(product, operations=operations, tables=product_tables)
     return ObservatoryDataProductProfile(
         product=product,
         asset=asset,
@@ -729,6 +733,7 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
         governance=governance,
         usage=usage,
         publishing=publishing,
+        pipeline=pipeline,
         sections={
             "overview": True,
             "contract": bool(product.owner or product.description),
@@ -736,7 +741,7 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
             "quality": bool(product_quality),
             "access": False,
             "usage": _has_usage(usage),
-            "pipelines": bool(operations),
+            "pipelines": bool(pipeline.stages or operations),
             "governance": bool(governance),
             "publishing": True,
         },
@@ -1137,6 +1142,118 @@ def _publish_disabled_reason(product: ObservatoryDataProduct, blockers: Sequence
     if blockers:
         return "Readiness policy has blockers."
     return "Readiness policy needs more evidence."
+
+
+def _load_pipelines() -> ObservatoryPipelineList:
+    profiles: list[ObservatoryDataProductPipeline] = []
+    operations = _load_operations()
+    tables = _load_tables_without_catalog()
+    for product in _load_data_products():
+        related_ids = {product.id, *[ref.id for ref in product.source_refs]}
+        product_operations = [
+            operation
+            for operation in operations
+            if operation.target is not None and operation.target.id in related_ids
+        ]
+        product_tables = [
+            table for table in tables if table.id in related_ids or table.asset_id in related_ids
+        ]
+        profiles.append(
+            _pipeline_for_product(product, operations=product_operations, tables=product_tables)
+        )
+    return ObservatoryPipelineList(items=profiles)
+
+
+def _pipeline_for_product(
+    product: ObservatoryDataProduct,
+    *,
+    operations: Sequence[ObservatoryOperation],
+    tables: Sequence[ObservatoryTable],
+) -> ObservatoryDataProductPipeline:
+    last_operation = next(iter(operations), None)
+    freshness_at = (
+        last_operation.completed_at or last_operation.started_at
+        if last_operation is not None
+        else None
+    )
+    freshness_state: HealthState = product.readiness_state
+    stages = [
+        ObservatoryPipelineStage(
+            id="ingest",
+            label="Ingestion",
+            state="ok" if tables else "unknown",
+            resource=ObservatoryResourceRef(kind="table", id=tables[0].id, label=tables[0].name)
+            if tables
+            else None,
+        ),
+        ObservatoryPipelineStage(id="transform", label="Transforms", state=product.readiness_state),
+        ObservatoryPipelineStage(id="checks", label="Checks", state=product.readiness_state),
+        ObservatoryPipelineStage(
+            id="publish",
+            label="Publishing",
+            state="ok" if product.publication_state == "published" else "unknown",
+        ),
+    ]
+    return ObservatoryDataProductPipeline(
+        product=product,
+        freshness_state=freshness_state,
+        freshness_at=freshness_at,
+        last_run=ObservatoryResourceRef(
+            kind="operation",
+            id=last_operation.id,
+            label=last_operation.name,
+        )
+        if last_operation is not None
+        else None,
+        stages=stages,
+        actions=_pipeline_actions(last_operation),
+    )
+
+
+def _pipeline_actions(operation: ObservatoryOperation | None) -> list[ObservatoryAction]:
+    run_id = operation.id if operation is not None else None
+    is_failed = operation is not None and operation.status == "failed"
+    is_running = operation is not None and operation.status == "running"
+    return [
+        ObservatoryAction(
+            id="retry",
+            label="Retry",
+            kind="run.retry",
+            enabled=is_failed,
+            reason=None if is_failed else "Retry is available only for failed runs.",
+            required_capability="orchestrator_operations",
+            expected_evidence=["new run id", "retry request"],
+            background_operation_id=run_id,
+        ),
+        ObservatoryAction(
+            id="cancel",
+            label="Cancel",
+            kind="run.cancel",
+            enabled=is_running,
+            reason=None if is_running else "Cancel is available only for running runs.",
+            required_capability="orchestrator_operations",
+            expected_evidence=["cancellation result"],
+            background_operation_id=run_id,
+        ),
+        ObservatoryAction(
+            id="materialize",
+            label="Materialize",
+            kind="asset.materialize",
+            enabled=False,
+            reason="Materialization requires an orchestrator operation provider.",
+            required_capability="orchestrator_operations",
+            expected_evidence=["materialization run id"],
+        ),
+        ObservatoryAction(
+            id="backfill",
+            label="Backfill",
+            kind="asset.backfill",
+            enabled=False,
+            reason="Backfill requires partition-aware orchestrator support.",
+            required_capability="orchestrator_operations",
+            expected_evidence=["backfill run id"],
+        ),
+    ]
 
 
 def _operation_from_maintenance_status(status: Any) -> ObservatoryOperation:
@@ -3537,6 +3654,16 @@ def get_observatory_data_product_profile(product_id: str) -> ObservatoryDataProd
         f"data-product-profile:{product_id}",
         _EXPENSIVE_READ_MODEL_TTL_SECONDS,
         lambda: _load_data_product_profile(product_id),
+    )
+
+
+@router.get("/pipelines", response_model=ObservatoryPipelineList)
+def get_observatory_pipelines() -> ObservatoryPipelineList:
+    """Get Data Product production-flow summaries."""
+    return _cached_read_model(
+        "pipelines",
+        _EXPENSIVE_READ_MODEL_TTL_SECONDS,
+        _load_pipelines,
     )
 
 

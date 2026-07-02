@@ -154,6 +154,9 @@ function ProfileContent({
         <ProfileSection title="Publishing">
           <PublishingRows profile={profile} />
         </ProfileSection>
+        <ProfileSection title="Pipelines">
+          <PipelineRows profile={profile} />
+        </ProfileSection>
         <ProfileSection title="Lineage">
           {[...profile.upstream, ...profile.downstream].length ? (
             <>
@@ -216,6 +219,28 @@ function ProfileContent({
         </div>
       </aside>
     </section>
+  )
+}
+
+function PipelineRows({ profile }: { profile: ObservatoryDataProductProfile }) {
+  const pipeline = profile.pipeline
+  return (
+    <>
+      <div className="phlo-observatory-mini-row">
+        <span>Freshness</span>
+        <small>{pipeline.freshness_at ?? pipeline.freshness_state}</small>
+      </div>
+      <div className="phlo-observatory-mini-row">
+        <span>Last run</span>
+        <small>{pipeline.last_run?.label ?? 'none'}</small>
+      </div>
+      {pipeline.stages.map((stage) => (
+        <div className="phlo-observatory-mini-row" key={stage.id}>
+          <span>{stage.label}</span>
+          <small>{stage.state}</small>
+        </div>
+      ))}
+    </>
   )
 }
 

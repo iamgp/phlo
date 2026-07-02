@@ -445,6 +445,32 @@ class ObservatoryPublishingReadiness(BaseModel):
     actions: list[ObservatoryPublishingAction] = Field(default_factory=list)
 
 
+class ObservatoryPipelineStage(BaseModel):
+    """One stage in a Data Product production flow."""
+
+    id: str
+    label: str
+    state: HealthState = "unknown"
+    resource: ObservatoryResourceRef | None = None
+
+
+class ObservatoryDataProductPipeline(BaseModel):
+    """Production-flow read model for one Data Product."""
+
+    product: ObservatoryDataProduct | None = None
+    freshness_state: HealthState = "unknown"
+    freshness_at: str | None = None
+    last_run: ObservatoryResourceRef | None = None
+    stages: list[ObservatoryPipelineStage] = Field(default_factory=list)
+    actions: list["ObservatoryAction"] = Field(default_factory=list)
+
+
+class ObservatoryPipelineList(BaseModel):
+    """Production-flow summaries for Data Products."""
+
+    items: list[ObservatoryDataProductPipeline] = Field(default_factory=list)
+
+
 class ObservatoryDataProductProfile(BaseModel):
     """Shared cross-feature profile for one Data Product."""
 
@@ -461,6 +487,7 @@ class ObservatoryDataProductProfile(BaseModel):
     publishing: ObservatoryPublishingReadiness = Field(
         default_factory=ObservatoryPublishingReadiness
     )
+    pipeline: ObservatoryDataProductPipeline = Field(default_factory=ObservatoryDataProductPipeline)
     sections: dict[str, bool] = Field(default_factory=dict)
 
 

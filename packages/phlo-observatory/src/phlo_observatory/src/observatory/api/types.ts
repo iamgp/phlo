@@ -244,6 +244,22 @@ export interface ObservatoryPublishingReadiness {
   actions: Array<ObservatoryPublishingAction>
 }
 
+export interface ObservatoryPipelineStage {
+  id: string
+  label: string
+  state: ObservatoryHealthState
+  resource?: ObservatoryResourceRef | null
+}
+
+export interface ObservatoryDataProductPipeline {
+  product?: ObservatoryDataProduct | null
+  freshness_state: ObservatoryHealthState
+  freshness_at?: string | null
+  last_run?: ObservatoryResourceRef | null
+  stages: Array<ObservatoryPipelineStage>
+  actions: Array<ObservatoryAction>
+}
+
 export interface ObservatoryDataProductProfile {
   product: ObservatoryDataProduct
   asset?: ObservatoryAsset | null
@@ -256,6 +272,7 @@ export interface ObservatoryDataProductProfile {
   governance: Array<ObservatoryDataProductControl>
   usage: ObservatoryDataProductUsage
   publishing: ObservatoryPublishingReadiness
+  pipeline: ObservatoryDataProductPipeline
   sections: Record<string, boolean>
 }
 

@@ -3724,12 +3724,101 @@ button.phlo-observatory-mini-row {
   padding: 9px 12px;
 }
 
+.phlo-observatory-pipeline-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 12px;
+  color: var(--v2-text);
+}
+
+.phlo-observatory-pipeline-row + .phlo-observatory-pipeline-row {
+  border-top: 1px solid var(--v2-sheet-border);
+}
+
+.phlo-observatory-pipeline-row > .phlo-observatory-dot {
+  margin-top: 7px;
+}
+
+.phlo-observatory-pipeline-main {
+  min-width: 0;
+}
+
+.phlo-observatory-pipeline-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 7px;
+}
+
+.phlo-observatory-pipeline-cell {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+  background: var(--v2-sheet);
+}
+
+.phlo-observatory-pipeline-cell + .phlo-observatory-pipeline-cell {
+  border-left: 1px solid var(--v2-sheet-border);
+}
+
+.phlo-observatory-pipeline-cell:nth-child(4n + 1) {
+  border-left: 0;
+}
+
+.phlo-observatory-pipeline-cell:nth-child(n + 5) {
+  border-top: 1px solid var(--v2-sheet-border);
+}
+
+.phlo-observatory-pipeline-cell span {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phlo-observatory-pipeline-cell small {
+  color: var(--v2-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .phlo-observatory-surface-inspector,
 .phlo-observatory-command > .phlo-observatory-inspector {
   border: 1px solid var(--v2-sheet-border);
   border-radius: 7px;
   background: var(--v2-sheet);
   padding: 14px;
+}
+
+@media (max-width: 760px) {
+  .phlo-observatory-pipeline-row {
+    grid-template-columns: 12px minmax(0, 1fr);
+  }
+
+  .phlo-observatory-pipeline-row > .phlo-observatory-pill {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .phlo-observatory-pipeline-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .phlo-observatory-pipeline-cell:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .phlo-observatory-pipeline-cell:nth-child(n + 3) {
+    border-top: 1px solid var(--v2-sheet-border);
+  }
 }
 
 .phlo-observatory-runs-shell {

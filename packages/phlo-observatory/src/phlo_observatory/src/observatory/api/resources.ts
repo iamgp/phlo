@@ -19,6 +19,7 @@ import type {
   ObservatoryOperationDetail,
   ObservatoryOverview,
   ObservatoryPackageInstallResult,
+  ObservatoryDataProductPipeline,
   ObservatoryQualityCheck,
   ObservatoryQualityDetail,
   ObservatoryQueryResult,
@@ -323,6 +324,10 @@ export function getObservatoryAssetRecords() {
 
 export function getObservatoryDataProductRecords() {
   return getRawCollection<ObservatoryDataProduct>('data-products')
+}
+
+export function getObservatoryPipelineRecords() {
+  return getRawCollection<ObservatoryDataProductPipeline>('pipelines')
 }
 
 export const getObservatoryDataProductProfile = createServerFn()

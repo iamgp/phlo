@@ -211,6 +211,7 @@ function fallbackEndpoint(key: string): string | null {
     'v2:services': `${prefix}/services`,
     'v2:operations': `${prefix}/operations`,
     'v2:runs': `${prefix}/runs`,
+    'v2:pipelines': `${prefix}/pipelines`,
     'v2:storage': `${prefix}/storage`,
     'v2:observability': `${prefix}/observability`,
     'v2:governance': `${prefix}/governance`,
