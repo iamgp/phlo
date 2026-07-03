@@ -39,6 +39,15 @@ def test_execute_observatory_action_returns_skipped_for_unimplemented_known_fami
     assert result.action.required_capability == "quality_backend"
 
 
+def test_execute_observatory_action_returns_skipped_for_data_product_workflow() -> None:
+    result = execute_observatory_action(
+        ObservatoryActionRequest(action_id="data-product:gold.orders:publish")
+    )
+    assert result.status == "skipped"
+    assert result.action.kind == "data_product.workflow"
+    assert result.action.required_capability == "metadata_catalog"
+
+
 def test_execute_observatory_action_runs_registered_quality_check() -> None:
     registry = CapabilityRegistry()
     seen_context = {}

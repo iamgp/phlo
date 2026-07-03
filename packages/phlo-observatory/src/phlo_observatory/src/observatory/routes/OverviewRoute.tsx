@@ -33,12 +33,16 @@ import {
   getObservatoryServices,
 } from '@/observatory/api/resources'
 import { StatusBadge } from '@/observatory/components/StatusBadge'
-import {
-  loadCachedResource,
-  readCachedResource,
-} from '@/observatory/routes/liveResource'
+import { loadCachedResource } from '@/observatory/routes/liveResource'
 
 const formatter = new Intl.NumberFormat('en')
+const refreshTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  hour12: false,
+  minute: '2-digit',
+  second: '2-digit',
+  timeZone: 'UTC',
+})
 const emptyResult = { data: null, error: null }
 const stageTransitions = ['ingest', 'normalize', 'model', 'publish']
 
@@ -71,15 +75,6 @@ function overviewReducer(
 export function loadOverviewSnapshot(): OverviewSnapshot {
   const empty = { data: [], error: null }
   const pending = { data: null, error: null }
-  const cached =
-    typeof window === 'undefined' ? null : readCachedOverviewSnapshot()
-
-  if (cached) {
-    return {
-      ...cached,
-      updatedAt: new Date().toISOString(),
-    }
-  }
 
   return {
     assets: empty,
@@ -157,14 +152,6 @@ function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
 
   useEffect(() => {
     let cancelled = false
-
-    const cachedSnapshot = readCachedOverviewSnapshot()
-    if (cachedSnapshot) {
-      setOverviewState({
-        ...cachedSnapshot,
-        updatedAt: new Date(),
-      })
-    }
 
     function load(force = false) {
       const empty = { data: [], error: null }
@@ -383,7 +370,7 @@ function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
                   <span>records</span>
                 </div>
                 <small>
-                  {stage.assets} assets · {stage.tables} tables ·{' '}
+                  {stage.assets} assets · {stage.datasets} datasets ·{' '}
                   {stage.blocking} checks
                 </small>
               </div>
@@ -411,25 +398,33 @@ function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
                 {eventStory.events.length || 'Empty'}
               </span>
             </div>
-            <div className="phlo-observatory-timeline">
+            <div className="phlo-observatory-list">
               {eventStory.events.length > 0 ? (
                 eventStory.events.map((event) => (
                   <Link
-                    className="phlo-observatory-timeline-row"
+                    className="phlo-observatory-row"
                     data-state={event.state}
                     key={event.id}
                     to={event.href}
                   >
-                    <span className="phlo-observatory-timeline-dot" />
-                    <span>
-                      <strong>{event.label}</strong>
-                      <small>{event.meta}</small>
+                    <div className="phlo-observatory-row-main">
+                      <div className="phlo-observatory-row-title">
+                        <span
+                          className="phlo-observatory-dot"
+                          data-state={event.state}
+                        />
+                        <span>{event.label}</span>
+                      </div>
+                      <div className="phlo-observatory-row-meta">
+                        {event.meta}
+                      </div>
                       {event.reason && (
-                        <small className="phlo-observatory-timeline-reason">
+                        <div className="phlo-observatory-row-evidence">
                           {event.reason}
-                        </small>
+                        </div>
                       )}
-                    </span>
+                    </div>
+                    <span className="phlo-observatory-pill">{event.kind}</span>
                   </Link>
                 ))
               ) : (
@@ -568,7 +563,10 @@ function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
           <h2>{derivedHealth?.message ?? 'Waiting for API snapshot'}</h2>
           <p>
             Last refreshed{' '}
-            {updatedAt ? updatedAt.toLocaleTimeString() : 'after first load'}.
+            {updatedAt
+              ? refreshTimeFormatter.format(updatedAt)
+              : 'after first load'}
+            .
           </p>
           <dl className="phlo-observatory-facts">
             <Fact
@@ -663,35 +661,6 @@ function Fact({ label, value }: { label: string; value: string | number }) {
   )
 }
 
-function readCachedOverviewSnapshot(): Omit<OverviewState, 'updatedAt'> | null {
-  const empty = { data: [], error: null }
-  const snapshot = {
-    assets: readCachedResource<Array<ObservatoryAsset>>('v2:assets') ?? empty,
-    branches: empty,
-    capabilities: null,
-    logs: readCachedResource<Array<ObservatoryLogEvent>>('v2:logs') ?? empty,
-    operations:
-      readCachedResource<Array<ObservatoryOperation>>('v2:operations') ?? empty,
-    overview:
-      readCachedResource<ObservatoryOverview>('v2:overview') ?? emptyResult,
-    quality:
-      readCachedResource<Array<ObservatoryQualityCheck>>('v2:quality') ?? empty,
-    services:
-      readCachedResource<Array<ObservatoryService>>('v2:services') ?? empty,
-  }
-
-  if (
-    (snapshot.assets.data?.length ?? 0) === 0 &&
-    (snapshot.operations.data?.length ?? 0) === 0 &&
-    (snapshot.services.data?.length ?? 0) === 0 &&
-    !snapshot.overview.data
-  ) {
-    return null
-  }
-
-  return snapshot
-}
-
 function EmptyRow({ label }: { label: string }) {
   return (
     <div className="phlo-observatory-row">
@@ -717,7 +686,7 @@ function buildLakehouseStages(
         id: stage,
         label: stageLabel(stage),
         assets: 0,
-        tables: 0,
+        datasets: 0,
         records: 0,
         blocking: 0,
         state: 'unknown' as 'ok' | 'warning' | 'error' | 'unknown',
@@ -756,7 +725,7 @@ function buildLakehouseStages(
     const hasWarningCheck = checks.some((check) => check.status === 'warning')
     const blockingChecks = checks.filter((check) => check.blocking).length
     stage.assets += 1
-    stage.tables += tables
+    stage.datasets += tables
     stage.records += records
     stage.blocking += blockingChecks
     if (stage.samples.length < 3) stage.samples.push(asset.name)
@@ -786,6 +755,7 @@ function buildEventStory(
     id: `operation:${operation.id}`,
     href: `/operations?operationId=${encodeURIComponent(operation.id)}`,
     label: operation.name,
+    kind: 'operation',
     meta: [
       operation.kind,
       operation.target?.label,
@@ -799,24 +769,24 @@ function buildEventStory(
     sort: operation.completed_at ?? operation.started_at ?? '',
     score: scoreOperation(operation),
   }))
-  const noisyLogs = logs.filter(isNoisyLog)
-  const logEvents = logs
-    .filter((log) => !isNoisyLog(log))
-    .map((log) => ({
-      id: `log:${log.id}`,
-      href: '/logs',
-      label: log.message,
-      meta: [log.source, log.level, log.timestamp].filter(Boolean).join(' · '),
-      reason: undefined,
-      state:
-        log.level === 'error'
-          ? 'error'
-          : log.level === 'warning'
-            ? 'warning'
-            : 'ok',
-      sort: log.timestamp ?? '',
-      score: scoreLog(log),
-    }))
+  const visibleLogs = logs.filter(isFrontPageLog)
+  const suppressedLogs = logs.filter((log) => !isFrontPageLog(log))
+  const logEvents = logs.filter(isFrontPageLog).map((log) => ({
+    id: `log:${log.id}`,
+    href: '/logs',
+    label: log.message,
+    kind: 'log',
+    meta: [log.source, log.level, log.timestamp].filter(Boolean).join(' · '),
+    reason: undefined,
+    state:
+      log.level === 'error'
+        ? 'error'
+        : log.level === 'warning'
+          ? 'warning'
+          : 'ok',
+    sort: log.timestamp ?? '',
+    score: scoreLog(log),
+  }))
   return {
     events: [...operationEvents, ...logEvents]
       .sort((left, right) => {
@@ -824,13 +794,13 @@ function buildEventStory(
         return right.sort.localeCompare(left.sort)
       })
       .slice(0, 6),
-    suppressed: noisyLogs.length,
+    suppressed: suppressedLogs.length,
   }
 }
 
 function scoreOperation(operation: ObservatoryOperation): number {
   let score = 20
-  if (operation.kind.startsWith('pipeline.')) score += 50
+  if (operation.kind.startsWith('pipeline')) score += 50
   if (operation.kind.includes('quality')) score += 35
   if (operation.status === 'failed') score += 45
   if (operation.status === 'succeeded') score += 10
@@ -847,20 +817,42 @@ function scoreLog(log: ObservatoryLogEvent): number {
   let score = 5
   if (log.level === 'error') score += 40
   if (log.level === 'warning') score += 20
-  if (log.resource?.kind === 'asset' || log.resource?.kind === 'table') {
+  if (
+    log.resource?.kind === 'asset' ||
+    log.resource?.kind === 'data_product' ||
+    log.resource?.kind === 'table'
+  ) {
     score += 20
   }
   if (log.source?.toLowerCase().includes('keystone')) score += 20
   return score
 }
 
+function isFrontPageLog(log: ObservatoryLogEvent): boolean {
+  return !isNoisyLog(log) && Boolean(log.resource)
+}
+
 function isNoisyLog(log: ObservatoryLogEvent): boolean {
   const message = log.message.toLowerCase()
+  const source = log.source?.toLowerCase() ?? ''
+  const event = String(log.metadata?.event ?? '').toLowerCase()
   return [
+    'failed_to_discover_user_workflows',
+    'hasura_using_generated_default_admin_secret',
+    'no heartbeat received',
+    'optional_capability_degraded',
     'unknown_plugin_type',
+    'plugin_load_failed',
     'plugin_registry_fetch_fallback',
     'observatory_settings_falling_back_to_memory',
-  ].some((needle) => message.includes(needle))
+    'using the generated default hasura admin secret',
+    'workflows directory not found',
+  ].some(
+    (needle) =>
+      message.includes(needle) ||
+      source.includes(needle) ||
+      event.includes(needle),
+  )
 }
 
 function buildIntegrationLinks(services: Array<ObservatoryService>) {
@@ -1061,6 +1053,18 @@ function buildAttentionItems({
   logs: Array<ObservatoryLogEvent>
   enabled?: Record<string, boolean>
 }) {
+  const qualityResourceIds = new Set(
+    quality
+      .filter((check) => check.status !== 'passing')
+      .map((check) => check.asset_id),
+  )
+  const failedOperationResourceIds = new Set(
+    operations
+      .filter((operation) => operation.status === 'failed')
+      .map((operation) => operation.target?.id)
+      .filter(Boolean),
+  )
+
   return [
     ...services
       .filter(serviceNeedsAttention)
@@ -1076,7 +1080,7 @@ function buildAttentionItems({
     ...(enabled?.issues === false
       ? []
       : quality
-          .filter((check) => check.blocking || check.status === 'failing')
+          .filter((check) => check.status !== 'passing')
           .slice(0, 3)
           .map((check) => ({
             id: `quality:${check.id}`,
@@ -1105,7 +1109,13 @@ function buildAttentionItems({
     ...(enabled?.logs === false
       ? []
       : logs
-          .filter((log) => log.level === 'error')
+          .filter(
+            (log) =>
+              log.level === 'error' &&
+              isFrontPageLog(log) &&
+              !qualityResourceIds.has(log.resource?.id ?? '') &&
+              !failedOperationResourceIds.has(log.resource?.id ?? ''),
+          )
           .slice(0, 2)
           .map((log) => ({
             id: `log:${log.id}`,

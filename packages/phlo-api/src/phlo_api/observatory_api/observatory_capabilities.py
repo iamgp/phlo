@@ -69,10 +69,10 @@ ROUTE_REQUIREMENTS = [
     ),
     ObservatoryRouteRequirement(
         route_id="issues",
-        label="Issues",
+        label="Quality",
         path="/quality",
         required_any=["quality_backend"],
-        reason="Install a quality provider to triage issues.",
+        reason="Install a quality provider to triage checks.",
     ),
     ObservatoryRouteRequirement(
         route_id="quality",

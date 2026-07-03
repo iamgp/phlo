@@ -14,6 +14,7 @@ import type {
 } from '@/observatory/components/ObservatoryFlowCanvas'
 import {
   getObservatoryQualityDetail,
+  getObservatoryQualityDetailDirect,
   getObservatoryQualityRecords,
   runObservatoryAction,
 } from '@/observatory/api/resources'
@@ -69,11 +70,14 @@ export function Quality() {
   useEffect(() => {
     if (!selected) return
     let cancelled = false
-    void loadCachedResource(
-      `v2:quality-detail:${selected.id}`,
-      () => getObservatoryQualityDetail({ data: { checkId: selected.id } }),
-      { staleMs: 120_000 },
-    ).then((next) => {
+    const loadDetail =
+      typeof window === 'undefined'
+        ? () => getObservatoryQualityDetail({ data: { checkId: selected.id } })
+        : () => getObservatoryQualityDetailDirect({ checkId: selected.id })
+
+    void loadCachedResource(`v2:quality-detail:${selected.id}`, loadDetail, {
+      staleMs: 120_000,
+    }).then((next) => {
       if (!cancelled) setDetail(next)
     })
     return () => {
@@ -83,8 +87,8 @@ export function Quality() {
 
   return (
     <ObservatoryPage
-      kicker="Issues"
-      title="Data issues"
+      kicker="Quality"
+      title="Quality issues"
       description="Review failing, warning, and not-yet-observed checks as one operational queue."
       action={
         <span className="phlo-observatory-pill">{checks.length} checks</span>
@@ -341,35 +345,29 @@ function buildQualityGraph(checks: Array<ObservatoryQualityCheck>): {
 } {
   const assetNodes = Array.from(
     new Set(checks.map((check) => check.asset_id)),
-  ).map(
-    (asset): ObservatoryFlowNode => ({
-      id: `asset:${asset}`,
-      label: asset,
-      kind: 'asset',
-      lane: 'table',
-      selectId: checks.find((check) => check.asset_id === asset)?.id,
-      subtitle: 'protected asset',
-    }),
-  )
+  ).map((asset): ObservatoryFlowNode => ({
+    id: `asset:${asset}`,
+    label: asset,
+    kind: 'asset',
+    lane: 'table',
+    selectId: checks.find((check) => check.asset_id === asset)?.id,
+    subtitle: 'protected asset',
+  }))
 
-  const checkNodes = checks.map(
-    (check): ObservatoryFlowNode => ({
-      id: check.id,
-      label: check.name,
-      kind: 'quality',
-      lane: 'quality',
-      subtitle: check.asset_id,
-      metric: `${check.severity ?? qualityStatusLabel(check)} · ${check.blocking ? 'blocking' : 'advisory'}`,
-    }),
-  )
+  const checkNodes = checks.map((check): ObservatoryFlowNode => ({
+    id: check.id,
+    label: check.name,
+    kind: 'quality',
+    lane: 'quality',
+    subtitle: check.asset_id,
+    metric: `${check.severity ?? qualityStatusLabel(check)} · ${check.blocking ? 'blocking' : 'advisory'}`,
+  }))
 
-  const edges = checks.map(
-    (check): ObservatoryFlowEdge => ({
-      id: `${check.asset_id}->${check.id}`,
-      source: `asset:${check.asset_id}`,
-      target: check.id,
-    }),
-  )
+  const edges = checks.map((check): ObservatoryFlowEdge => ({
+    id: `${check.asset_id}->${check.id}`,
+    source: `asset:${check.asset_id}`,
+    target: check.id,
+  }))
 
   return { nodes: [...assetNodes, ...checkNodes], edges }
 }

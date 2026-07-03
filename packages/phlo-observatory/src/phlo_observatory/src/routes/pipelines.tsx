@@ -22,8 +22,8 @@ export function Pipelines() {
   return (
     <ObservatoryPage
       kicker="Pipelines"
-      title="Production Flow"
-      description="Read-only Data Product flow across ingestion, transforms, checks, publishing, freshness, and runs."
+      title="Product pipelines"
+      description="Product flow, freshness, and guarded actions. Use Runs for history and Operations for recovery."
       action={
         <span className="phlo-observatory-pill">{pipelines.length} flows</span>
       }
@@ -33,7 +33,7 @@ export function Pipelines() {
           <div className="phlo-observatory-browser-toolbar">
             <div className="phlo-observatory-row-title">
               <Activity className="size-4" />
-              Data Product flows
+              Product flows
             </div>
           </div>
           {result.error ? (
@@ -55,9 +55,8 @@ export function Pipelines() {
           <div className="phlo-observatory-inspector-label">Actions</div>
           <h2>Guarded operations</h2>
           <p>
-            Retry, cancel, materialize, and backfill appear only as supported
-            action descriptors. Pipeline definition editing is not available
-            here.
+            Retry, cancel, materialize, and backfill appear when the current run
+            supports them. Run history and recovery logs live in Operations.
           </p>
         </aside>
       </section>
@@ -77,7 +76,7 @@ function PipelineRow({
         className="phlo-observatory-dot"
         data-state={pipeline.freshness_state}
       />
-      <div className="phlo-observatory-pipeline-main">
+      <div className="phlo-observatory-pipeline-product">
         <div className="phlo-observatory-row-title">
           <PlayCircle className="size-4" />
           {product ? (
@@ -92,23 +91,36 @@ function PipelineRow({
           )}
         </div>
         <div className="phlo-observatory-row-meta">
-          {pipeline.last_run?.label ?? 'No run returned'} · freshness{' '}
-          {pipeline.freshness_at ?? pipeline.freshness_state}
+          {pipeline.last_run?.label ?? 'No run returned'}
         </div>
-        <div className="phlo-observatory-pipeline-grid">
-          {pipeline.stages.map((stage) => (
-            <div className="phlo-observatory-pipeline-cell" key={stage.id}>
-              <span>{stage.label}</span>
-              <small>{stage.state}</small>
-            </div>
-          ))}
-          {pipeline.actions.map((action) => (
-            <div className="phlo-observatory-pipeline-cell" key={action.id}>
-              <span>{action.label}</span>
-              <small>{action.enabled ? 'available' : action.reason}</small>
-            </div>
-          ))}
-        </div>
+      </div>
+      <div className="phlo-observatory-pipeline-run">
+        <span>Freshness</span>
+        <small>{pipeline.freshness_at ?? pipeline.freshness_state}</small>
+      </div>
+      <div className="phlo-observatory-pipeline-stages">
+        {pipeline.stages.map((stage) => (
+          <span
+            className="phlo-observatory-pipeline-stage"
+            data-state={stage.state}
+            key={stage.id}
+          >
+            <strong>{stage.label}</strong>
+            <small>{stage.state}</small>
+          </span>
+        ))}
+      </div>
+      <div className="phlo-observatory-pipeline-actions">
+        {pipeline.actions.map((action) => (
+          <span
+            className="phlo-observatory-pipeline-action"
+            data-enabled={action.enabled}
+            key={action.id}
+            title={action.enabled ? undefined : action.reason}
+          >
+            {action.label}
+          </span>
+        ))}
       </div>
       <StatusBadge
         label={pipeline.freshness_state}

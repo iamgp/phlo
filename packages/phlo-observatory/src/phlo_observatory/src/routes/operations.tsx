@@ -20,6 +20,7 @@ import type {
 } from '@/observatory/components/ObservatoryFlowCanvas'
 import {
   getObservatoryOperationDetail,
+  getObservatoryOperationDetailDirect,
   getObservatoryOperationRecords,
   runObservatoryAction,
 } from '@/observatory/api/resources'
@@ -95,9 +96,12 @@ export function Operations() {
       return
     }
     let cancelled = false
-    void getObservatoryOperationDetail({
-      data: { operationId: latest.id },
-    }).then((next) => {
+    const loadDetail =
+      typeof window === 'undefined'
+        ? getObservatoryOperationDetail({ data: { operationId: latest.id } })
+        : getObservatoryOperationDetailDirect({ operationId: latest.id })
+
+    void loadDetail.then((next) => {
       if (!cancelled) setDetail(next)
     })
     return () => {
@@ -638,15 +642,13 @@ function wapOperationFlow(
     'branch'
   const sourceHash = textMetric(operation.metadata, 'source_hash')
   const targetHash = textMetric(operation.metadata, 'target_hash_after')
-  const tableNodes = tables.slice(0, 6).map(
-    (table): ObservatoryFlowNode => ({
-      id: `table:${table.id}`,
-      kind: 'table',
-      label: table.name,
-      lane: 'table',
-      metric: table.records ? `${table.records} rows` : undefined,
-    }),
-  )
+  const tableNodes = tables.slice(0, 6).map((table): ObservatoryFlowNode => ({
+    id: `table:${table.id}`,
+    kind: 'table',
+    label: table.name,
+    lane: 'table',
+    metric: table.records ? `${table.records} rows` : undefined,
+  }))
   const nodes: Array<ObservatoryFlowNode> = [
     {
       id: 'branch',

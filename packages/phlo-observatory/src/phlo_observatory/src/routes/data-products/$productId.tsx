@@ -1,11 +1,14 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import {
   Boxes,
+  CheckCircle2,
   Database,
   GitBranch,
   ListChecks,
   ShieldCheck,
   UserRound,
+  UserPlus,
+  XCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -14,9 +17,14 @@ import type {
   ObservatoryDataProductProfile,
   ObservatoryResourceResult,
 } from '@/observatory/api/types'
-import { getObservatoryDataProductProfileDirect } from '@/observatory/api/resources'
+import {
+  getObservatoryDataProductProfileDirect,
+  runObservatoryActionDirect,
+} from '@/observatory/api/resources'
+import { ActionButton } from '@/observatory/components/ActionButton'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import { StatusBadge } from '@/observatory/components/StatusBadge'
+import { invalidateCachedResources } from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/data-products/$productId')({
   component: DataProductProfileRoute,
@@ -31,6 +39,10 @@ export function DataProductProfile({ productId }: { productId: string }) {
   const [result, setResult] = useState<
     ObservatoryResourceResult<ObservatoryDataProductProfile>
   >({ data: null, error: null })
+
+  function refreshProfile() {
+    void getObservatoryDataProductProfileDirect({ productId }).then(setResult)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -62,7 +74,7 @@ export function DataProductProfile({ productId }: { productId: string }) {
       }
     >
       {profile ? (
-        <ProfileContent profile={profile} />
+        <ProfileContent onRefresh={refreshProfile} profile={profile} />
       ) : (
         <div className="phlo-observatory-empty-state">
           {result.error ?? 'Loading Data Product Profile...'}
@@ -73,44 +85,65 @@ export function DataProductProfile({ productId }: { productId: string }) {
 }
 
 function ProfileContent({
+  onRefresh,
   profile,
 }: {
+  onRefresh: () => void
   profile: ObservatoryDataProductProfile
 }) {
   const { product } = profile
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const onAction = (actionId: string) => {
+    setActionMessage('Requesting workflow action...')
+    void runObservatoryActionDirect({ actionId }).then((next) => {
+      invalidateCachedResources(['v2:data-products', 'v2:operations'])
+      setActionMessage(next.data?.message ?? next.error ?? 'Action requested')
+      onRefresh()
+    })
+  }
+
   return (
     <section className="phlo-observatory-surface-grid">
-      <div className="phlo-observatory-list-surface">
+      <div className="phlo-observatory-list-surface phlo-observatory-product-profile-surface">
         <div className="phlo-observatory-browser-toolbar">
           <span>
             <Boxes className="size-4" />
-            Profile sections
+            Decision summary
           </span>
           <StatusBadge
             label={product.readiness_state}
             state={product.readiness_state}
           />
         </div>
-        <div className="phlo-observatory-diff-metrics">
-          <Metric
+        <ReadinessStrip profile={profile} />
+        <div className="phlo-observatory-product-summary">
+          <SummaryMetric
             icon={<Database className="size-5" />}
             label="Tables"
             value={profile.tables.length}
+            detail={profile.tables[0]?.namespace ?? 'bound sources'}
           />
-          <Metric
+          <SummaryMetric
             icon={<ListChecks className="size-5" />}
             label="Checks"
             value={profile.quality.length}
+            detail={`${product.readiness_state} readiness`}
           />
-          <Metric
+          <SummaryMetric
             icon={<GitBranch className="size-5" />}
             label="Lineage"
             value={profile.upstream.length + profile.downstream.length}
+            detail={`${profile.upstream.length} up · ${profile.downstream.length} down`}
           />
-          <Metric
+          <SummaryMetric
             icon={<ShieldCheck className="size-5" />}
             label="Classifications"
             value={product.classifications.length}
+            detail={
+              product.classifications.length
+                ? product.classifications.join(', ')
+                : 'none declared'
+            }
           />
         </div>
         <ProfileSection title="Source objects">
@@ -136,7 +169,7 @@ function ProfileContent({
             <EmptyRow label="No quality checks returned" />
           )}
         </ProfileSection>
-        <ProfileSection title="Governance">
+        <ProfileSection title="Controls">
           {profile.governance.length ? (
             profile.governance.map((control) => (
               <div className="phlo-observatory-mini-row" key={control.id}>
@@ -151,10 +184,15 @@ function ProfileContent({
         <ProfileSection title="Usage">
           <UsageRows profile={profile} />
         </ProfileSection>
-        <ProfileSection title="Publishing">
-          <PublishingRows profile={profile} />
+        <ProfileSection title="Publication">
+          <PublishingRows onAction={onAction} profile={profile} />
         </ProfileSection>
-        <ProfileSection title="Pipelines">
+        {product.candidate && (
+          <ProfileSection title="Candidate workflow">
+            <CandidateWorkflowRows onAction={onAction} profile={profile} />
+          </ProfileSection>
+        )}
+        <ProfileSection title="Pipeline state">
           <PipelineRows profile={profile} />
         </ProfileSection>
         <ProfileSection title="Lineage">
@@ -180,6 +218,9 @@ function ProfileContent({
             <EmptyRow label="No lineage returned" />
           )}
         </ProfileSection>
+        {actionMessage && (
+          <div className="phlo-observatory-panel-footer">{actionMessage}</div>
+        )}
       </div>
 
       <aside className="phlo-observatory-inspector">
@@ -245,8 +286,10 @@ function PipelineRows({ profile }: { profile: ObservatoryDataProductProfile }) {
 }
 
 function PublishingRows({
+  onAction,
   profile,
 }: {
+  onAction: (actionId: string) => void
   profile: ObservatoryDataProductProfile
 }) {
   const publishing = profile.publishing
@@ -271,14 +314,31 @@ function PublishingRows({
         </div>
       ))}
       {publishing.actions.map((action) => (
-        <div className="phlo-observatory-mini-row" key={action.id}>
+        <div
+          className="phlo-observatory-mini-row"
+          key={action.id}
+          title={action.consequences.join(' ')}
+        >
           <span>{action.label}</span>
-          <small>{action.enabled ? 'available' : action.reason}</small>
-          {action.consequences.map((consequence) => (
-            <p key={consequence}>{consequence}</p>
-          ))}
+          <small>{action.enabled ? 'ready' : action.reason}</small>
         </div>
       ))}
+      <div className="phlo-observatory-action-row">
+        {publishing.actions.map((action) => (
+          <ActionButton
+            action={{
+              ...action,
+              id: `data-product:${profile.product.id}:${action.id}`,
+              kind: `data_product.${action.id}`,
+              requires_confirmation: true,
+              risk_level: action.id === 'retire' ? 'medium' : 'low',
+              expected_evidence: [],
+            }}
+            key={action.id}
+            onRun={onAction}
+          />
+        ))}
+      </div>
       <div className="phlo-observatory-mini-row">
         <span>Internal only</span>
         <small>{publishing.internal_only ? 'yes' : 'no'}</small>
@@ -287,13 +347,58 @@ function PublishingRows({
   )
 }
 
+function CandidateWorkflowRows({
+  onAction,
+  profile,
+}: {
+  onAction: (actionId: string) => void
+  profile: ObservatoryDataProductProfile
+}) {
+  const sourceId = profile.product.source_refs[0]?.id ?? profile.product.id
+  return (
+    <>
+      <div className="phlo-observatory-mini-row">
+        <span>Claim</span>
+        <small>assign one accountable owner before promotion</small>
+      </div>
+      <div className="phlo-observatory-mini-row">
+        <span>Promote</span>
+        <small>turn the candidate into a governed Data Product</small>
+      </div>
+      <div className="phlo-observatory-inline-actions">
+        <button
+          onClick={() => onAction(`candidate:${sourceId}:claim`)}
+          type="button"
+        >
+          <UserPlus className="size-3.5" />
+          Claim
+        </button>
+        <button
+          onClick={() => onAction(`candidate:${sourceId}:promote`)}
+          type="button"
+        >
+          <CheckCircle2 className="size-3.5" />
+          Promote
+        </button>
+        <button
+          onClick={() => onAction(`candidate:${sourceId}:reject`)}
+          type="button"
+        >
+          <XCircle className="size-3.5" />
+          Reject
+        </button>
+      </div>
+    </>
+  )
+}
+
 function UsageRows({ profile }: { profile: ObservatoryDataProductProfile }) {
   const usage = profile.usage
-  const hasUsage =
-    usage.access_activity.length ||
-    usage.dependency_activity.length ||
-    usage.consumer_adoption.length
-  if (!hasUsage) return <EmptyRow label="No usage read model returned" />
+  const gaps = [
+    usage.access_activity.length ? null : 'access activity',
+    usage.dependency_activity.length ? null : 'dependency activity',
+    usage.consumer_adoption.length ? null : 'consumer adoption',
+  ].filter((gap): gap is string => Boolean(gap))
   return (
     <>
       <div className="phlo-observatory-mini-row">
@@ -331,27 +436,93 @@ function UsageRows({ profile }: { profile: ObservatoryDataProductProfile }) {
         </div>
       ))}
       <div className="phlo-observatory-mini-row">
-        <span>Telemetry Privacy Policy</span>
+        <span>Privacy</span>
         <small>{usage.privacy_policy.identity_detail.replace('_', ' ')}</small>
+      </div>
+      <div className="phlo-observatory-mini-row">
+        <span>Telemetry gaps</span>
+        <small>{gaps.length ? gaps.join(', ') : 'none'}</small>
       </div>
     </>
   )
 }
 
-function Metric({
+function ReadinessStrip({
+  profile,
+}: {
+  profile: ObservatoryDataProductProfile
+}) {
+  const { product, publishing } = profile
+  const nextAction =
+    publishing.actions.find((action) => action.enabled) ??
+    publishing.actions[0] ??
+    null
+  return (
+    <div className="phlo-observatory-product-decision-strip">
+      <DecisionFact
+        label="Owner"
+        value={product.owner ?? 'Needs owner'}
+        tone={product.owner ? 'ok' : 'warning'}
+      />
+      <DecisionFact
+        label="Publication"
+        value={product.publication_state}
+        tone={publishing.blockers.length ? 'warning' : 'ok'}
+      />
+      <DecisionFact
+        label="Blockers"
+        value={publishing.blockers.length}
+        tone={publishing.blockers.length ? 'error' : 'ok'}
+      />
+      <DecisionFact
+        label="Next action"
+        value={
+          nextAction?.enabled
+            ? nextAction.label
+            : (nextAction?.reason ?? 'No action available')
+        }
+        tone={nextAction?.enabled ? 'ok' : 'warning'}
+      />
+    </div>
+  )
+}
+
+function DecisionFact({
+  label,
+  tone,
+  value,
+}: {
+  label: string
+  tone: 'ok' | 'warning' | 'error'
+  value: string | number
+}) {
+  return (
+    <div className="phlo-observatory-product-decision-fact" data-state={tone}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function SummaryMetric({
+  detail,
   icon,
   label,
   value,
 }: {
+  detail: string
   icon: ReactNode
   label: string
   value: string | number
 }) {
   return (
-    <div className="phlo-observatory-command-metric">
+    <div className="phlo-observatory-product-summary-item">
       {icon}
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{detail}</small>
+      </div>
     </div>
   )
 }
@@ -364,13 +535,12 @@ function ProfileSection({
   title: string
 }) {
   return (
-    <div className="phlo-observatory-detail-list phlo-observatory-detail-list-padded">
-      <div className="phlo-observatory-mini-row">
-        <span>{title}</span>
-        <small>profile</small>
+    <section className="phlo-observatory-product-profile-section">
+      <div className="phlo-observatory-product-profile-section-title">
+        {title}
       </div>
       {children}
-    </div>
+    </section>
   )
 }
 

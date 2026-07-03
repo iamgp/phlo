@@ -21,6 +21,14 @@ import {
 import { Suspense, lazy, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from '@/components/ui/navigation-menu'
 import type {
   ObservatoryCapabilities,
   ObservatoryCapabilityPage,
@@ -60,7 +68,7 @@ const fallbackPages: Array<ObservatoryCapabilityPage> = [
   corePage('data', 'Data', '/data'),
   corePage('assets', 'Assets', '/assets'),
   corePage('workflows', 'Workflows', '/workflows/new'),
-  corePage('issues', 'Issues', '/quality'),
+  corePage('issues', 'Quality', '/quality'),
   corePage('branches', 'Changes', '/branches'),
   corePage('catalog', 'Catalog', '/catalog'),
   corePage('governance', 'Governance', '/governance'),
@@ -73,27 +81,57 @@ const fallbackPages: Array<ObservatoryCapabilityPage> = [
 
 const navOrder = [
   'overview',
-  'operations',
-  'data',
-  'assets',
-  'workflows',
-  'runs',
-  'issues',
-  'quality',
-  'branches',
   'catalog',
   'governance',
   'publishing',
-  'pipelines',
-  'storage',
-  'observability',
-  'logs',
   'apis',
   'bi',
-  'extensions',
+  'data',
+  'assets',
+  'storage',
+  'branches',
+  'issues',
+  'quality',
+  'pipelines',
+  'runs',
+  'operations',
+  'logs',
+  'workflows',
+  'observability',
   'services',
+  'extensions',
   'settings',
 ]
+
+const navGroupDefinitions = [
+  {
+    label: 'Catalog',
+    ids: ['catalog', 'governance', 'publishing', 'apis', 'bi'],
+  },
+  {
+    label: 'Tables',
+    ids: ['data', 'assets', 'storage', 'branches'],
+  },
+  {
+    label: 'Quality',
+    ids: ['issues', 'quality'],
+  },
+  {
+    label: 'Operations',
+    ids: [
+      'pipelines',
+      'runs',
+      'operations',
+      'logs',
+      'workflows',
+      'observability',
+    ],
+  },
+  {
+    label: 'Platform',
+    ids: ['overview', 'services', 'extensions', 'settings'],
+  },
+] satisfies Array<{ label: string; ids: Array<string> }>
 
 const warmPreviewLimit = 100
 
@@ -119,6 +157,30 @@ const iconByPageId: Record<string, typeof LayoutDashboard> = {
   apis: Server,
   bi: LayoutDashboard,
   settings: Settings,
+}
+
+const navSubtitleByPageId: Record<string, string> = {
+  overview: 'Health, counters, and recent activity.',
+  services: 'Runtime services and stack status.',
+  operations: 'Jobs, actions, and run state.',
+  runs: 'Orchestrator history and outcomes.',
+  data: 'Tables, previews, and query surfaces.',
+  assets: 'Lineage, dependencies, and metadata.',
+  storage: 'Lakehouse storage and branches.',
+  observability: 'Signals from metrics and traces.',
+  logs: 'Platform and resource events.',
+  catalog: 'Promoted products and raw candidates.',
+  governance: 'Owners, classifications, controls.',
+  publishing: 'Internal release readiness.',
+  pipelines: 'Product flow and freshness.',
+  workflows: 'Create and edit Phlo workflows.',
+  issues: 'Checks needing attention.',
+  quality: 'Checks, severity, and evidence.',
+  branches: 'Changes, reviews, and WAP context.',
+  apis: 'Published API surfaces.',
+  bi: 'Reports, dashboards, and consumers.',
+  extensions: 'Installed providers and settings.',
+  settings: 'Project and Observatory preferences.',
 }
 
 const themeModes = [
@@ -149,7 +211,7 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
     useState<ObservatoryResourceResult<ObservatoryCapabilities> | null>(null)
   const resolvedTheme = resolveObservatoryTheme(themeMode, systemPrefersDark)
   const pages = hydrated
-    ? (capabilities?.data?.pages ?? fallbackPages)
+    ? mergeFallbackPages(capabilities?.data?.pages ?? fallbackPages)
     : fallbackPages
   const navItems = pages
     .filter((page) => page.nav && page.available)
@@ -160,7 +222,8 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
     hydrated &&
     capabilities?.data !== null &&
     activePage !== null &&
-    activePage.available === false
+    activePage.available === false &&
+    !isFallbackPage(activePage.id)
 
   useEffect(() => {
     const media = window.matchMedia?.('(prefers-color-scheme: dark)')
@@ -250,38 +313,24 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
           className="phlo-observatory-shell phlo-observatory-nav"
           aria-label="Observatory"
         >
-          <div className="phlo-observatory-brand">
+          <Link
+            aria-label="Home"
+            className="phlo-observatory-brand"
+            title="Home"
+            to="/"
+          >
             <span className="phlo-observatory-mark">P</span>
             <span>Phlo Observatory</span>
-          </div>
+          </Link>
           <div
             className="phlo-observatory-nav-links"
             aria-label="Primary sections"
           >
-            {navItems.map((item) => {
-              const Icon = iconByPageId[item.id] ?? LayoutDashboard
-              return (
-                <Link
-                  aria-current={
-                    hydrated && isActive(pathname, item.path)
-                      ? 'page'
-                      : undefined
-                  }
-                  className="phlo-observatory-nav-link"
-                  data-active={hydrated && isActive(pathname, item.path)}
-                  key={item.id}
-                  title={
-                    hydrated && item.providers.length
-                      ? item.providers.join(', ')
-                      : undefined
-                  }
-                  to={item.path}
-                >
-                  <Icon className="size-3.5" />
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
+            <ObservatoryNavigationMenu
+              hydrated={hydrated}
+              items={navItems}
+              pathname={pathname}
+            />
           </div>
           <div className="phlo-observatory-nav-actions">
             <button
@@ -361,6 +410,96 @@ function isActive(pathname: string, href: string): boolean {
   )
 }
 
+function ObservatoryNavigationMenu({
+  hydrated,
+  items,
+  pathname,
+}: {
+  hydrated: boolean
+  items: Array<ObservatoryCapabilityPage>
+  pathname: string
+}) {
+  const groups = navGroups(items)
+  return (
+    <NavigationMenu align="center" className="phlo-observatory-menu">
+      <NavigationMenuList className="phlo-observatory-menu-list">
+        {groups.map((group) => {
+          const active = group.items.some((item) =>
+            isActive(pathname, item.path),
+          )
+          return (
+            <NavigationMenuItem key={group.label}>
+              <NavigationMenuTrigger
+                className="phlo-observatory-nav-link phlo-observatory-menu-trigger"
+                data-active={hydrated && active}
+              >
+                {group.label}
+              </NavigationMenuTrigger>
+              <NavigationMenuContent>
+                <div className="phlo-observatory-menu-panel">
+                  <ul className="phlo-observatory-menu-grid">
+                    {group.items.map((item) => {
+                      const Icon = iconByPageId[item.id] ?? LayoutDashboard
+                      const activeItem =
+                        hydrated && isActive(pathname, item.path)
+                      return (
+                        <li key={item.id}>
+                          <NavigationMenuLink
+                            render={
+                              <Link
+                                aria-current={activeItem ? 'page' : undefined}
+                                data-active={activeItem}
+                                title={
+                                  hydrated && item.providers.length
+                                    ? item.providers.join(', ')
+                                    : undefined
+                                }
+                                to={item.path}
+                              />
+                            }
+                            className="phlo-observatory-menu-link"
+                          >
+                            <Icon className="size-4" />
+                            <span className="phlo-observatory-menu-copy">
+                              <span>{item.label}</span>
+                              <span className="phlo-observatory-menu-subtitle">
+                                {navSubtitleByPageId[item.id] ??
+                                  'Open this Observatory surface.'}
+                              </span>
+                            </span>
+                          </NavigationMenuLink>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+          )
+        })}
+      </NavigationMenuList>
+    </NavigationMenu>
+  )
+}
+
+function navGroups(items: Array<ObservatoryCapabilityPage>) {
+  const byId = new Map(items.map((item) => [item.id, item]))
+  const used = new Set<string>()
+  const groups = navGroupDefinitions
+    .map((group) => {
+      const groupItems = group.ids.flatMap((id) => {
+        const item = byId.get(id)
+        if (!item) return []
+        used.add(id)
+        return [item]
+      })
+      return { label: group.label, items: groupItems }
+    })
+    .filter((group) => group.items.length > 0)
+  const rest = items.filter((item) => !used.has(item.id))
+  return rest.length ? [...groups, { label: 'More', items: rest }] : groups
+}
+
 function CommandPaletteFallback({ onClose }: { onClose: () => void }) {
   return (
     <div
@@ -391,6 +530,24 @@ function CommandPaletteFallback({ onClose }: { onClose: () => void }) {
 function navRank(pageId: string): number {
   const index = navOrder.indexOf(pageId)
   return index === -1 ? navOrder.length : index
+}
+
+function mergeFallbackPages(
+  pages: Array<ObservatoryCapabilityPage>,
+): Array<ObservatoryCapabilityPage> {
+  const merged = new Map(pages.map((page) => [page.id, page]))
+  for (const fallback of fallbackPages) {
+    const page = merged.get(fallback.id)
+    merged.set(
+      fallback.id,
+      page ? { ...page, available: true, nav: true } : fallback,
+    )
+  }
+  return Array.from(merged.values())
+}
+
+function isFallbackPage(pageId: string): boolean {
+  return fallbackPages.some((page) => page.id === pageId)
 }
 
 function pageForPath(
@@ -544,24 +701,38 @@ function PendingCapabilityPage() {
 }
 
 function UnavailablePage({ page }: { page: ObservatoryCapabilityPage }) {
+  const providers = page.providers.length ? page.providers.join(', ') : 'none'
+
   return (
     <div className="phlo-observatory-content">
       <header className="phlo-observatory-section-header">
         <div>
-          <div className="phlo-observatory-kicker">Capability unavailable</div>
+          <div className="phlo-observatory-kicker">
+            Capability not connected
+          </div>
           <h1 className="phlo-observatory-title">{page.label}</h1>
           <p className="phlo-observatory-subtitle">
             {page.reason ??
-              'This surface is hidden until a provider contributes data for it.'}
+              'This surface appears when a project package contributes data for it.'}
           </p>
         </div>
       </header>
-      <section className="phlo-observatory-panel phlo-observatory-empty-panel">
-        <h2>Nothing to control here yet</h2>
-        <p>
-          Install or enable the matching Phlo package, then Observatory will add
-          this page automatically.
-        </p>
+      <section className="phlo-observatory-panel phlo-observatory-empty-panel phlo-observatory-capability-panel">
+        <div>
+          <h2>{page.label} is not available in this stack</h2>
+          <p>
+            Keep working in the connected Observatory areas, or add the package
+            that provides this read model when the project needs it.
+          </p>
+        </div>
+        <dl className="phlo-observatory-capability-grid">
+          <dt>Status</dt>
+          <dd>not connected</dd>
+          <dt>Providers</dt>
+          <dd>{providers}</dd>
+          <dt>Next step</dt>
+          <dd>enable matching package</dd>
+        </dl>
       </section>
     </div>
   )

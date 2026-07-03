@@ -103,6 +103,22 @@ _ACTION_FAMILIES = (
         risk_level="medium",
         required_capability="api_backend",
     ),
+    _ActionFamily(
+        prefix="data-product:",
+        kind="data_product.workflow",
+        label="Run Data Product workflow",
+        reason="Data Product workflow actions need a catalog write contract.",
+        risk_level="medium",
+        required_capability="metadata_catalog",
+    ),
+    _ActionFamily(
+        prefix="candidate:",
+        kind="data_product.candidate",
+        label="Run candidate workflow",
+        reason="Candidate promotion needs a catalog write contract.",
+        risk_level="medium",
+        required_capability="metadata_catalog",
+    ),
 )
 
 

@@ -29,7 +29,7 @@ export function ObservatorySurfacePage({
       title={title}
       description={description}
       action={
-        <span className="phlo-observatory-pill">{items.length} items</span>
+        <span className="phlo-observatory-pill">{items.length} available</span>
       }
     >
       <section className="phlo-observatory-command phlo-observatory-surface-shell">
@@ -42,14 +42,14 @@ export function ObservatorySurfacePage({
               <div className="phlo-observatory-operation-empty">
                 <div>
                   <span className="phlo-observatory-inspector-label">
-                    Surface unavailable
+                    Unable to load
                   </span>
                   <h2>{title} could not load.</h2>
                   <p>{error}</p>
                 </div>
                 <div className="phlo-observatory-detail-list">
                   <div className="phlo-observatory-mini-row">
-                    <span>Contract</span>
+                    <span>Source</span>
                     <small>{contract}</small>
                   </div>
                   <div className="phlo-observatory-mini-row">
@@ -63,19 +63,19 @@ export function ObservatorySurfacePage({
               <div className="phlo-observatory-operation-empty">
                 <div>
                   <span className="phlo-observatory-inspector-label">
-                    No items returned
+                    Nothing connected
                   </span>
                   <h2>{title} has no items yet.</h2>
                   <p>{emptyCopy}</p>
                 </div>
                 <div className="phlo-observatory-detail-list">
                   <div className="phlo-observatory-mini-row">
-                    <span>Contract</span>
-                    <small>{contract}</small>
+                    <span>Connection</span>
+                    <small>waiting for provider data</small>
                   </div>
                   <div className="phlo-observatory-mini-row">
-                    <span>Rows</span>
-                    <small>0 returned</small>
+                    <span>Available</span>
+                    <small>0</small>
                   </div>
                 </div>
               </div>
@@ -84,15 +84,13 @@ export function ObservatorySurfacePage({
         </div>
 
         <aside className="phlo-observatory-inspector phlo-observatory-surface-inspector">
-          <div className="phlo-observatory-inspector-label">
-            Surface contract
-          </div>
+          <div className="phlo-observatory-inspector-label">Coverage</div>
           <h2>{kicker}</h2>
           <p>{description}</p>
           <dl className="phlo-observatory-facts">
-            <dt>Endpoint</dt>
+            <dt>Source</dt>
             <dd>{contract}</dd>
-            <dt>Items</dt>
+            <dt>Available</dt>
             <dd>{items.length}</dd>
           </dl>
           {error && items.length > 0 && (

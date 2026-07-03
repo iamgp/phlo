@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 from typing import Any, cast
+from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Body, Query, Request
 from fastapi import HTTPException
@@ -202,6 +203,11 @@ class ObservatoryBackfillAssetRequest(BaseModel):
     tags: dict[str, str] = Field(default_factory=dict)
 
 
+class ObservatoryDataProductWorkflowConfig(BaseModel):
+    default_owner: str
+    approval_states: list[str] = Field(default_factory=list)
+
+
 class ObservatorySchemaDiffRequest(BaseModel):
     asset_key: str
     from_run: str | None = None
@@ -214,9 +220,13 @@ _READ_QUERY_RE = re.compile(
 )
 _TABLE_LIST_METADATA_PREFIX_DENYLIST = ("phlo/compiled_sql",)
 _TABLE_LIST_METADATA_DENYLIST = {"preview_rows"}
+_RUNTIME_READ_MODEL_TTL_SECONDS = 5
 _FAST_READ_MODEL_TTL_SECONDS = 30
 _EXPENSIVE_READ_MODEL_TTL_SECONDS = 120
-_READ_MODEL_CACHE = ReadModelCache(project_key=lambda: str(_project_root()))
+_READ_MODEL_CACHE = ReadModelCache(
+    project_key=lambda: str(_project_root()),
+    db_path=lambda: _observatory_state_dir() / "read_models.sqlite",
+)
 
 
 def _cached_read_model(name: str, ttl_seconds: float, loader: Any) -> Any:
@@ -272,6 +282,77 @@ def _branches_path() -> Path:
 
 def _lakehouse_manifest_path() -> Path:
     return _observatory_state_dir() / "lakehouse_manifest.json"
+
+
+def _data_product_workflow_path() -> Path:
+    return _observatory_state_dir() / "data_product_workflow.json"
+
+
+def _load_data_product_workflow_state() -> dict[str, Any]:
+    path = _data_product_workflow_path()
+    if not path.exists():
+        return {"products": {}, "candidates": {}, "config": {}}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"products": {}, "candidates": {}, "config": {}}
+    if not isinstance(payload, dict):
+        return {"products": {}, "candidates": {}, "config": {}}
+    return {
+        "products": payload.get("products") if isinstance(payload.get("products"), dict) else {},
+        "candidates": payload.get("candidates")
+        if isinstance(payload.get("candidates"), dict)
+        else {},
+        "config": payload.get("config") if isinstance(payload.get("config"), dict) else {},
+    }
+
+
+def _write_data_product_workflow_state(state: Mapping[str, Any]) -> None:
+    _data_product_workflow_path().write_text(
+        json.dumps(state, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+
+def _workflow_default_owner() -> str:
+    owner = _data_product_workflow_config().default_owner
+    return owner or os.environ.get("USER") or "local-user"
+
+
+def _data_product_workflow_config() -> ObservatoryDataProductWorkflowConfig:
+    state = _load_data_product_workflow_state()
+    config = state.get("config") if isinstance(state.get("config"), Mapping) else {}
+    owner = config.get("default_owner") if isinstance(config, Mapping) else None
+    approval_states = config.get("approval_states") if isinstance(config, Mapping) else None
+    states = (
+        [str(item).strip() for item in approval_states if str(item).strip()]
+        if isinstance(approval_states, list)
+        else []
+    )
+    if not states:
+        states = ["draft", "review", "approved", "rejected", "retired"]
+    if isinstance(owner, str) and owner.strip():
+        default_owner = owner.strip()
+    else:
+        default_owner = os.environ.get("USER") or "local-user"
+    return ObservatoryDataProductWorkflowConfig(
+        default_owner=default_owner,
+        approval_states=states,
+    )
+
+
+def _workflow_product_overlay(product_id: str) -> Mapping[str, Any]:
+    state = _load_data_product_workflow_state()
+    products = state.get("products") if isinstance(state.get("products"), Mapping) else {}
+    overlay = products.get(product_id)
+    return overlay if isinstance(overlay, Mapping) else {}
+
+
+def _workflow_candidate_overlay(table_id: str) -> Mapping[str, Any]:
+    state = _load_data_product_workflow_state()
+    candidates = state.get("candidates") if isinstance(state.get("candidates"), Mapping) else {}
+    overlay = candidates.get(table_id)
+    return overlay if isinstance(overlay, Mapping) else {}
 
 
 def _load_lakehouse_manifest() -> Mapping[str, Any]:
@@ -409,13 +490,7 @@ def _overview_health_from_services(services: Sequence[ObservatoryService]) -> Ob
 
 
 def _runtime_services(services: Sequence[ObservatoryService]) -> list[ObservatoryService]:
-    return [
-        service
-        for service in services
-        if service.status != "unknown"
-        or service.health.state != "unknown"
-        or service.health.message != "Runtime status unavailable"
-    ]
+    return [service for service in services if service.in_stack]
 
 
 def _load_assets() -> list[ObservatoryAsset]:
@@ -619,6 +694,10 @@ def _data_product_from_asset(
         ObservatoryResourceRef(kind="table", id=table.id, label=table.name)
         for table in product_tables
     )
+    overlay = _workflow_product_overlay(asset.id)
+    metadata = {**metadata, **_safe_metadata(overlay)}
+    owner = overlay.get("owner") or owner
+    publication_state = overlay.get("publication_state") or _publication_state(metadata)
     return ObservatoryDataProduct(
         id=asset.id,
         name=_coerce_str(metadata.get("data_product_name"), asset.name),
@@ -631,7 +710,7 @@ def _data_product_from_asset(
             "sensitivity",
             "tags",
         ),
-        publication_state=cast(PublicationState, _publication_state(metadata)),
+        publication_state=cast(PublicationState, publication_state),
         readiness_state=cast(HealthState, _readiness_state(product_quality)),
         candidate=False,
         kinds=_sorted_strings([*asset.kinds, "asset"]),
@@ -642,22 +721,33 @@ def _data_product_from_asset(
 
 def _candidate_data_product_from_table(table: ObservatoryTable) -> ObservatoryDataProduct:
     metadata = table.metadata if isinstance(table.metadata, Mapping) else {}
+    overlay = _workflow_candidate_overlay(table.id)
+    owner = overlay.get("owner")
+    promoted = overlay.get("state") == "promoted"
+    product_id = _coerce_str(
+        overlay.get("product_id"), table.id if promoted else f"candidate:{table.id}"
+    )
+    metadata = {**metadata, **_safe_metadata(overlay)}
     return ObservatoryDataProduct(
-        id=f"candidate:{table.id}",
+        id=product_id,
         name=table.name,
         description=None,
-        owner=None,
+        owner=_coerce_str(owner, "") or None,
         classifications=_metadata_strings(metadata, "classification", "classifications"),
-        publication_state="draft",
+        publication_state=cast(
+            PublicationState,
+            _coerce_str(overlay.get("publication_state"), "draft"),
+        ),
         readiness_state="unknown",
-        candidate=True,
+        candidate=not promoted,
         kinds=_sorted_strings([table.format or "table", "table"]),
         source_refs=[ObservatoryResourceRef(kind="table", id=table.id, label=table.name)],
         metadata=_safe_metadata(
             {
                 **metadata,
-                "candidate_reason": "table has no promoted Data Product",
+                "candidate_reason": "table has no promoted Data Product" if not promoted else None,
                 "table_id": table.id,
+                "promoted_from_candidate": promoted,
             }
         ),
     )
@@ -671,7 +761,8 @@ def _load_data_products() -> list[ObservatoryDataProduct]:
     products.extend(
         _candidate_data_product_from_table(table)
         for table in tables
-        if table.asset_id is None or not any(asset.id == table.asset_id for asset in assets)
+        if (table.asset_id is None or not any(asset.id == table.asset_id for asset in assets))
+        and _workflow_candidate_overlay(table.id).get("state") != "rejected"
     )
     return sorted(_merge_by_id(products), key=lambda item: item.name.lower())
 
@@ -681,34 +772,58 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
     tables = _load_tables_without_catalog()
     quality = _load_quality()
     asset = next((item for item in assets if item.id == product_id), None)
-    if asset is None:
+    candidate_table: ObservatoryTable | None = None
+    if asset is None and product_id.startswith("candidate:"):
+        candidate_table_id = product_id.removeprefix("candidate:")
+        candidate_table = next((item for item in tables if item.id == candidate_table_id), None)
+        if candidate_table is None:
+            raise _not_found("data product", product_id)
+    if asset is None and candidate_table is None:
+        promoted_table = next(
+            (
+                table
+                for table in tables
+                if table.id == product_id
+                and _workflow_candidate_overlay(table.id).get("state") == "promoted"
+            ),
+            None,
+        )
+        candidate_table = promoted_table
+    if asset is None and candidate_table is None:
         table = next((item for item in tables if item.id == product_id), None)
         if table is None or table.asset_id is None:
             raise _not_found("data product", product_id)
         asset = next((item for item in assets if item.id == table.asset_id), None)
-    if asset is None:
+    if asset is None and candidate_table is None:
         raise _not_found("data product", product_id)
 
-    product = _data_product_from_asset(asset, tables=tables, quality=quality)
-    product_tables = [table for table in tables if table.asset_id == asset.id]
-    product_quality = [check for check in quality if check.asset_id == asset.id]
+    if candidate_table is not None:
+        product = _candidate_data_product_from_table(candidate_table)
+        product_tables = [candidate_table]
+        product_quality = []
+    else:
+        assert asset is not None
+        product = _data_product_from_asset(asset, tables=tables, quality=quality)
+        product_tables = [table for table in tables if table.asset_id == asset.id]
+        product_quality = [check for check in quality if check.asset_id == asset.id]
     governance = _governance_controls_for_product(product, product_quality)
     usage = _load_data_product_usage(product, asset=asset, tables=product_tables)
     publishing = _publishing_readiness(product, governance, product_quality)
     related_ids = {
-        asset.id,
+        product.id,
+        *([asset.id] if asset is not None else []),
         *[table.id for table in product_tables],
         *[check.id for check in product_quality],
     }
     upstream = [
         ObservatoryResourceRef(kind="asset", id=item.id, label=item.name)
         for item in assets
-        if item.id in set(asset.dependencies)
+        if asset is not None and item.id in set(asset.dependencies)
     ]
     downstream = [
         ObservatoryResourceRef(kind="asset", id=item.id, label=item.name)
         for item in assets
-        if asset.id in item.dependencies
+        if asset is not None and asset.id in item.dependencies
     ]
     logs = [
         event
@@ -737,7 +852,7 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
         sections={
             "overview": True,
             "contract": bool(product.owner or product.description),
-            "lineage": bool(upstream or downstream or asset.dependencies),
+            "lineage": bool(upstream or downstream or (asset and asset.dependencies)),
             "quality": bool(product_quality),
             "access": False,
             "usage": _has_usage(usage),
@@ -904,12 +1019,16 @@ def _aggregate_control_status(controls: Sequence[ObservatoryDataProductControl])
 def _load_data_product_usage(
     product: ObservatoryDataProduct,
     *,
-    asset: ObservatoryAsset,
+    asset: ObservatoryAsset | None,
     tables: Sequence[ObservatoryTable],
 ) -> ObservatoryDataProductUsage:
     usage_model = _usage_manifest()
     policy = _usage_privacy_policy(usage_model.get("privacy_policy"))
-    related_ids = {product.id, asset.id, *[table.id for table in tables]}
+    related_ids = {
+        product.id,
+        *([asset.id] if asset is not None else []),
+        *[table.id for table in tables],
+    }
     access = [
         _access_activity_from_mapping(item, product=product, policy=policy)
         for item in _usage_items(usage_model, "access_activity", related_ids)
@@ -918,7 +1037,7 @@ def _load_data_product_usage(
         _dependency_activity_from_mapping(item)
         for item in _usage_items(usage_model, "dependency_activity", related_ids)
     ]
-    if not dependencies and asset.dependencies:
+    if not dependencies and asset is not None and asset.dependencies:
         dependencies = [
             ObservatoryDependencyActivity(
                 id=f"{dependency}->{asset.id}",
@@ -934,8 +1053,9 @@ def _load_data_product_usage(
         _consumer_adoption_from_mapping(item, product=product)
         for item in _usage_items(usage_model, "consumer_adoption", related_ids)
     ]
-    for item in _metadata_list(asset.metadata, "consumers", "consumer_adoption"):
-        consumers.append(_consumer_adoption_from_mapping(item, product=product))
+    if asset is not None:
+        for item in _metadata_list(asset.metadata, "consumers", "consumer_adoption"):
+            consumers.append(_consumer_adoption_from_mapping(item, product=product))
     return ObservatoryDataProductUsage(
         privacy_policy=policy,
         access_activity=access,
@@ -3402,12 +3522,232 @@ def _execute_branch_action(request: ObservatoryActionRequest) -> ObservatoryActi
     )
 
 
+def _execute_data_product_workflow_action(
+    request: ObservatoryActionRequest,
+) -> ObservatoryActionResult | None:
+    if request.action_id.startswith("data-product:"):
+        resource_id, separator, action_name = request.action_id.removeprefix(
+            "data-product:"
+        ).rpartition(":")
+        if not separator or action_name not in {"publish", "retire"}:
+            return None
+        return _execute_product_publication_action(request, resource_id, action_name)
+
+    if request.action_id.startswith("candidate:"):
+        table_id, separator, action_name = request.action_id.removeprefix("candidate:").rpartition(
+            ":"
+        )
+        if not separator or action_name not in {"claim", "promote", "reject"}:
+            return None
+        return _execute_candidate_workflow_action(request, table_id, action_name)
+
+    return None
+
+
+def _execute_product_publication_action(
+    request: ObservatoryActionRequest,
+    product_id: str,
+    action_name: str,
+) -> ObservatoryActionResult:
+    try:
+        profile = _load_data_product_profile(product_id)
+    except HTTPException as exc:
+        return _workflow_action_result(
+            request,
+            label="Update publication",
+            kind="data_product.workflow",
+            status="failed",
+            message=str(exc.detail),
+            target=ObservatoryResourceRef(kind="data_product", id=product_id, label=product_id),
+        )
+
+    action = next(
+        (item for item in profile.publishing.actions if item.id == action_name),
+        None,
+    )
+    if action is None:
+        return _workflow_action_result(
+            request,
+            label="Update publication",
+            kind="data_product.workflow",
+            status="failed",
+            message=f"Unsupported publication action: {action_name}",
+            target=ObservatoryResourceRef(
+                kind="data_product", id=profile.product.id, label=profile.product.name
+            ),
+        )
+    if not action.enabled:
+        return _workflow_action_result(
+            request,
+            label=action.label,
+            kind=f"data_product.{action_name}",
+            status="skipped",
+            message=action.reason or "Publication action is not currently available.",
+            target=ObservatoryResourceRef(
+                kind="data_product", id=profile.product.id, label=profile.product.name
+            ),
+        )
+
+    next_publication_state = "published" if action_name == "publish" else "retired"
+    next_approval_state = "approved" if action_name == "publish" else "retired"
+    state = _load_data_product_workflow_state()
+    products = dict(state.get("products", {}))
+    current = products.get(profile.product.id)
+    current = current if isinstance(current, dict) else {}
+    products[profile.product.id] = {
+        **current,
+        "publication_state": next_publication_state,
+        "approval_state": next_approval_state,
+    }
+    state["products"] = products
+    _write_data_product_workflow_state(state)
+    _record_observatory_telemetry(
+        name=f"observatory.data_product.{action_name}",
+        resource_id=profile.product.id,
+        action_id=request.action_id,
+    )
+    return _workflow_action_result(
+        request,
+        label=action.label,
+        kind=f"data_product.{action_name}",
+        status="succeeded",
+        message=f"{profile.product.name} marked {next_publication_state}.",
+        target=ObservatoryResourceRef(
+            kind="data_product", id=profile.product.id, label=profile.product.name
+        ),
+    )
+
+
+def _execute_candidate_workflow_action(
+    request: ObservatoryActionRequest,
+    table_id: str,
+    action_name: str,
+) -> ObservatoryActionResult:
+    table = next((item for item in _load_tables_without_catalog() if item.id == table_id), None)
+    if table is None:
+        return _workflow_action_result(
+            request,
+            label="Update candidate",
+            kind="data_product.candidate",
+            status="failed",
+            message=f"Candidate source table not found: {table_id}",
+            target=ObservatoryResourceRef(kind="table", id=table_id, label=table_id),
+        )
+
+    state = _load_data_product_workflow_state()
+    candidates = dict(state.get("candidates", {}))
+    current = candidates.get(table.id)
+    current = current if isinstance(current, dict) else {}
+    owner = _coerce_str(current.get("owner"), "") or _workflow_default_owner()
+    next_state = {
+        **current,
+        "owner": owner,
+        "approval_state": "claimed" if action_name == "claim" else "review",
+    }
+    if action_name == "claim":
+        next_state["state"] = "claimed"
+        message = f"{table.name} claimed by {owner}."
+    elif action_name == "promote":
+        next_state.update(
+            {
+                "state": "promoted",
+                "product_id": table.id,
+                "publication_state": "draft",
+                "approval_state": "review",
+            }
+        )
+        message = f"{table.name} promoted to a draft Data Product."
+    else:
+        next_state["state"] = "rejected"
+        next_state["approval_state"] = "rejected"
+        message = f"{table.name} rejected from the candidate queue."
+    candidates[table.id] = next_state
+    state["candidates"] = candidates
+    _write_data_product_workflow_state(state)
+    _record_observatory_telemetry(
+        name=f"observatory.candidate.{action_name}",
+        resource_id=table.id,
+        action_id=request.action_id,
+    )
+    return _workflow_action_result(
+        request,
+        label=action_name.title(),
+        kind=f"data_product.candidate.{action_name}",
+        status="succeeded",
+        message=message,
+        target=ObservatoryResourceRef(kind="table", id=table.id, label=table.name),
+    )
+
+
+def _workflow_action_result(
+    request: ObservatoryActionRequest,
+    *,
+    label: str,
+    kind: str,
+    status: str,
+    message: str,
+    target: ObservatoryResourceRef,
+) -> ObservatoryActionResult:
+    health_state: HealthState = "ok"
+    if status == "failed":
+        health_state = "error"
+    elif status == "skipped":
+        health_state = "warning"
+    action = ObservatoryAction(
+        id=request.action_id,
+        label=label,
+        kind=kind,
+        enabled=status != "skipped",
+        requires_confirmation=True,
+        risk_level="medium"
+        if "retire" in request.action_id or "reject" in request.action_id
+        else "low",
+        expected_evidence=["data_product_workflow_state"],
+    )
+    return ObservatoryActionResult(
+        action=action,
+        status=cast(Any, status),
+        message=message,
+        operation=ObservatoryOperation(
+            id=request.action_id,
+            name=label,
+            kind=kind,
+            status=cast(Any, status),
+            health=ObservatoryHealth(state=health_state, message=message),
+            target=target,
+            metadata={
+                "action_id": request.action_id,
+                "workflow_state_path": str(_data_product_workflow_path()),
+            },
+        ),
+    )
+
+
+def _record_observatory_telemetry(*, name: str, resource_id: str, action_id: str) -> None:
+    try:
+        from phlo.capabilities.telemetry import TelemetryRecorder
+        from phlo.hooks import HookCorrelation, TelemetryEvent
+
+        TelemetryRecorder(_project_root() / ".phlo" / "telemetry" / "events.jsonl").record(
+            TelemetryEvent(
+                event_type="telemetry.log",
+                name=name,
+                level="info",
+                tags={"source": "observatory", "action_id": action_id},
+                correlation=HookCorrelation(request_id=uuid4().hex, asset_key=resource_id),
+                payload={"resource_id": resource_id, "action_id": action_id},
+            )
+        )
+    except Exception:
+        return
+
+
 @router.get("/overview", response_model=ObservatoryOverview)
 def get_observatory_overview() -> ObservatoryOverview:
     """Get the provider-neutral Observatory overview."""
     return _cached_read_model(
         "overview",
-        _FAST_READ_MODEL_TTL_SECONDS,
+        _RUNTIME_READ_MODEL_TTL_SECONDS,
         lambda: ObservatoryOverview(
             health=_overview_health_from_services(_load_services()),
             counters={
@@ -3450,7 +3790,7 @@ def get_observatory_services() -> ObservatoryServiceList:
     """List provider-neutral Observatory services."""
     return _cached_read_model(
         "services",
-        _FAST_READ_MODEL_TTL_SECONDS,
+        _RUNTIME_READ_MODEL_TTL_SECONDS,
         lambda: ObservatoryServiceList(items=_load_services()),
     )
 
@@ -3471,7 +3811,7 @@ def get_observatory_operations(
     """List provider-neutral Observatory operations."""
     result = _cached_read_model(
         "operations",
-        _FAST_READ_MODEL_TTL_SECONDS,
+        _RUNTIME_READ_MODEL_TTL_SECONDS,
         lambda: ObservatoryOperationList(items=_load_operations()),
     )
     return ObservatoryOperationList(
@@ -3690,6 +4030,30 @@ def get_observatory_data_product_profile(product_id: str) -> ObservatoryDataProd
         _EXPENSIVE_READ_MODEL_TTL_SECONDS,
         lambda: _load_data_product_profile(product_id),
     )
+
+
+@router.get("/data-product-workflow/config", response_model=ObservatoryDataProductWorkflowConfig)
+def get_observatory_data_product_workflow_config() -> ObservatoryDataProductWorkflowConfig:
+    """Get configurable Data Product workflow defaults."""
+    return _data_product_workflow_config()
+
+
+@router.put("/data-product-workflow/config", response_model=ObservatoryDataProductWorkflowConfig)
+def put_observatory_data_product_workflow_config(
+    payload: ObservatoryDataProductWorkflowConfig,
+) -> ObservatoryDataProductWorkflowConfig:
+    """Persist configurable Data Product workflow defaults."""
+    approval_states = [state.strip() for state in payload.approval_states if state.strip()]
+    if not approval_states:
+        raise HTTPException(status_code=422, detail="approval_states must not be empty")
+    state = _load_data_product_workflow_state()
+    state["config"] = {
+        "default_owner": payload.default_owner.strip() or _workflow_default_owner(),
+        "approval_states": approval_states,
+    }
+    _write_data_product_workflow_state(state)
+    _clear_read_model_cache()
+    return _data_product_workflow_config()
 
 
 @router.get("/pipelines", response_model=ObservatoryPipelineList)
@@ -3923,7 +4287,9 @@ def get_observatory_quality_detail(check_id: str) -> ObservatoryQualityDetail:
 def get_observatory_logs() -> ObservatoryLogList:
     """List provider-neutral Observatory log events."""
     return _cached_read_model(
-        "logs", _FAST_READ_MODEL_TTL_SECONDS, lambda: ObservatoryLogList(items=_load_logs())
+        "logs",
+        _RUNTIME_READ_MODEL_TTL_SECONDS,
+        lambda: ObservatoryLogList(items=_load_logs()),
     )
 
 
@@ -4117,9 +4483,12 @@ def post_observatory_action(request: ObservatoryActionRequest) -> ObservatoryAct
         and action_name in {"add", "start", "stop", "restart"}
         and any(service.id == resource_id for service in services)
     )
+    workflow_result = _execute_data_product_workflow_action(request)
     result = (
         _execute_action(request)
         if is_service_control_action
+        else workflow_result
+        if workflow_result is not None
         else execute_observatory_action(request, registry=_load_capability_registry())
     )
     recorded = record_action_result(_project_root(), result)

@@ -1,11 +1,22 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { Boxes, Filter, Search } from 'lucide-react'
+import {
+  Boxes,
+  CheckCircle2,
+  Filter,
+  Search,
+  UserPlus,
+  XCircle,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import type { ObservatoryDataProduct } from '@/observatory/api/types'
-import { getObservatoryDataProductRecords } from '@/observatory/api/resources'
+import {
+  getObservatoryDataProductRecords,
+  runObservatoryActionDirect,
+} from '@/observatory/api/resources'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import { StatusBadge } from '@/observatory/components/StatusBadge'
+import { invalidateCachedResources } from '@/observatory/routes/liveResource'
 import { useLiveResource } from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/catalog')({
@@ -24,6 +35,7 @@ export function Catalog() {
   const [classification, setClassification] = useState('all')
   const [publicationState, setPublicationState] = useState('all')
   const [readinessState, setReadinessState] = useState('all')
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
 
   const promoted = products.filter((product) => !product.candidate)
   const candidates = products.filter((product) => product.candidate)
@@ -99,10 +111,7 @@ export function Catalog() {
         <aside className="phlo-observatory-inspector phlo-observatory-surface-inspector">
           <div className="phlo-observatory-inspector-label">Catalog</div>
           <h2>{filtered.length} Data Products</h2>
-          <p>
-            Search stays intentionally small until profiles are rich enough for
-            deeper ranking.
-          </p>
+          <p>Filtered view of promoted products and raw candidates.</p>
           <dl className="phlo-observatory-facts">
             <dt>Promoted</dt>
             <dd>{promoted.length}</dd>
@@ -120,15 +129,26 @@ export function Catalog() {
           <div className="phlo-observatory-detail-list">
             <div className="phlo-observatory-mini-row">
               <span>Candidate Data Products</span>
-              <small>manual promotion required</small>
+              <small>claim, promote, or reject</small>
             </div>
             {candidates.slice(0, 6).map((candidate) => (
-              <div className="phlo-observatory-mini-row" key={candidate.id}>
-                <span>{candidate.name}</span>
-                <small>
-                  {candidate.source_refs.map((ref) => ref.kind).join(', ')}
-                </small>
-              </div>
+              <CandidateRow
+                candidate={candidate}
+                key={candidate.id}
+                onAction={(actionId) => {
+                  setActionMessage('Requesting workflow action...')
+                  void runObservatoryActionDirect({ actionId }).then((next) => {
+                    invalidateCachedResources([
+                      'v2:data-products',
+                      'v2:operations',
+                    ])
+                    window.dispatchEvent(new Event('focus'))
+                    setActionMessage(
+                      next.data?.message ?? next.error ?? 'Action requested',
+                    )
+                  })
+                }}
+              />
             ))}
             {candidates.length === 0 && (
               <div className="phlo-observatory-mini-row">
@@ -137,9 +157,58 @@ export function Catalog() {
               </div>
             )}
           </div>
+          {actionMessage && (
+            <div className="phlo-observatory-panel-footer">{actionMessage}</div>
+          )}
         </aside>
       </section>
     </ObservatoryPage>
+  )
+}
+
+function CandidateRow({
+  candidate,
+  onAction,
+}: {
+  candidate: ObservatoryDataProduct
+  onAction: (actionId: string) => void
+}) {
+  const sourceId = candidate.source_refs[0]?.id ?? candidate.id
+  return (
+    <div className="phlo-observatory-mini-row phlo-observatory-candidate-row">
+      <Link params={{ productId: candidate.id }} to="/data-products/$productId">
+        <span>{candidate.name}</span>
+        <small>
+          {candidate.source_refs.map((ref) => ref.kind).join(', ') || 'source'}
+        </small>
+      </Link>
+      <div className="phlo-observatory-inline-actions">
+        <button
+          onClick={() => onAction(`candidate:${sourceId}:claim`)}
+          title="Assign an owner before promotion"
+          type="button"
+        >
+          <UserPlus className="size-3.5" />
+          Claim
+        </button>
+        <button
+          onClick={() => onAction(`candidate:${sourceId}:promote`)}
+          title="Promote to a governed Data Product"
+          type="button"
+        >
+          <CheckCircle2 className="size-3.5" />
+          Promote
+        </button>
+        <button
+          onClick={() => onAction(`candidate:${sourceId}:reject`)}
+          title="Hide this candidate from the catalog workflow"
+          type="button"
+        >
+          <XCircle className="size-3.5" />
+          Reject
+        </button>
+      </div>
+    </div>
   )
 }
 

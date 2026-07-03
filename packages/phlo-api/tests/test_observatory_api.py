@@ -263,6 +263,33 @@ def test_observatory_data_products_endpoint_returns_profile_summaries(
     assert payload["items"][0]["candidate"] is False
 
 
+def test_observatory_data_products_endpoint_uses_project_read_model_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    observatory._clear_read_model_cache()
+    calls: list[str] = []
+
+    def load_assets() -> list[ObservatoryAsset]:
+        calls.append("assets")
+        return [ObservatoryAsset(id="gold.orders", name="Gold Orders", group="gold")]
+
+    monkeypatch.setattr(observatory, "_load_assets", load_assets)
+    monkeypatch.setattr(observatory, "_load_tables_without_catalog", lambda: [])
+    monkeypatch.setattr(observatory, "_load_quality", lambda: [])
+
+    first = TestClient(app).get("/api/observatory/data-products")
+    observatory._READ_MODEL_CACHE._values.clear()
+    second = TestClient(app).get("/api/observatory/data-products")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert [item["id"] for item in second.json()["items"]] == ["gold.orders"]
+    assert calls == ["assets"]
+    assert (tmp_path / ".phlo" / "observatory" / "read_models.sqlite").exists()
+
+
 def test_observatory_data_products_endpoint_returns_table_candidates(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -292,6 +319,162 @@ def test_observatory_data_products_endpoint_returns_table_candidates(
     assert payload["items"][0]["source_refs"] == [
         {"kind": "table", "id": "raw_orders", "label": "raw_orders"}
     ]
+
+
+def test_observatory_data_product_profile_returns_table_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    observatory._clear_read_model_cache()
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv("USER", "data-team")
+    monkeypatch.setattr(observatory, "_load_assets", lambda: [])
+    monkeypatch.setattr(
+        observatory,
+        "_load_tables_without_catalog",
+        lambda: [
+            ObservatoryTable(
+                id="raw_orders",
+                name="raw_orders",
+                namespace="raw",
+                format="iceberg",
+            )
+        ],
+    )
+    monkeypatch.setattr(observatory, "_load_quality", lambda: [])
+    monkeypatch.setattr(observatory, "_load_logs", lambda: [])
+    monkeypatch.setattr(observatory, "_load_operations", lambda: [])
+
+    response = TestClient(app).get("/api/observatory/data-products/candidate:raw_orders")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["product"]["id"] == "candidate:raw_orders"
+    assert payload["product"]["candidate"] is True
+    assert payload["asset"] is None
+    assert payload["tables"][0]["id"] == "raw_orders"
+    assert payload["governance"][2]["status"] == "not_applicable"
+
+
+def test_observatory_candidate_actions_persist_workflow_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    observatory._clear_read_model_cache()
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv("USER", "data-team")
+    monkeypatch.setattr(observatory, "_load_assets", lambda: [])
+    monkeypatch.setattr(
+        observatory,
+        "_load_tables_without_catalog",
+        lambda: [ObservatoryTable(id="raw_orders", name="raw_orders", namespace="raw")],
+    )
+    monkeypatch.setattr(observatory, "_load_quality", lambda: [])
+    monkeypatch.setattr(observatory, "_load_logs", lambda: [])
+    monkeypatch.setattr(observatory, "_load_operations", lambda: [])
+    client = TestClient(app)
+
+    claim = client.post(
+        "/api/observatory/actions",
+        json={"action_id": "candidate:raw_orders:claim"},
+    )
+    assert claim.status_code == 200
+    assert claim.json()["status"] == "succeeded"
+    candidate = client.get("/api/observatory/data-products/candidate:raw_orders").json()
+    assert candidate["product"]["owner"] == "data-team"
+    assert candidate["product"]["metadata"]["approval_state"] == "claimed"
+
+    promote = client.post(
+        "/api/observatory/actions",
+        json={"action_id": "candidate:raw_orders:promote"},
+    )
+    assert promote.status_code == 200
+    products = client.get("/api/observatory/data-products").json()["items"]
+    assert products[0]["id"] == "raw_orders"
+    assert products[0]["candidate"] is False
+    assert products[0]["owner"] == "data-team"
+    profile = client.get("/api/observatory/data-products/raw_orders").json()
+    assert profile["product"]["metadata"]["promoted_from_candidate"] is True
+    telemetry = tmp_path / ".phlo" / "telemetry" / "events.jsonl"
+    assert "observatory.candidate.promote" in telemetry.read_text(encoding="utf-8")
+
+
+def test_observatory_publication_action_persists_product_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    observatory._clear_read_model_cache()
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(
+        observatory,
+        "_load_assets",
+        lambda: [
+            ObservatoryAsset(
+                id="gold.orders",
+                name="gold.orders",
+                metadata={"owner": "analytics", "classification": "internal"},
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_tables_without_catalog",
+        lambda: [ObservatoryTable(id="orders", name="orders", asset_id="gold.orders")],
+    )
+    monkeypatch.setattr(
+        observatory,
+        "_load_quality",
+        lambda: [
+            ObservatoryQualityCheck(
+                id="gold.orders:not_null_order_id",
+                name="not_null_order_id",
+                asset_id="gold.orders",
+                status="passing",
+                blocking=True,
+            )
+        ],
+    )
+    monkeypatch.setattr(observatory, "_load_logs", lambda: [])
+    monkeypatch.setattr(observatory, "_load_operations", lambda: [])
+    client = TestClient(app)
+
+    result = client.post(
+        "/api/observatory/actions",
+        json={"action_id": "data-product:gold.orders:publish"},
+    )
+
+    assert result.status_code == 200
+    assert result.json()["status"] == "succeeded"
+    profile = client.get("/api/observatory/data-products/gold.orders").json()
+    assert profile["product"]["publication_state"] == "published"
+    assert profile["product"]["metadata"]["approval_state"] == "approved"
+    assert profile["publishing"]["actions"][0]["enabled"] is False
+    telemetry = tmp_path / ".phlo" / "telemetry" / "events.jsonl"
+    assert "observatory.data_product.publish" in telemetry.read_text(encoding="utf-8")
+
+
+def test_observatory_data_product_workflow_config_round_trips(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    observatory._clear_read_model_cache()
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    client = TestClient(app)
+
+    saved = client.put(
+        "/api/observatory/data-product-workflow/config",
+        json={
+            "default_owner": "platform-team",
+            "approval_states": ["draft", "review", "approved"],
+        },
+    )
+
+    assert saved.status_code == 200
+    loaded = client.get("/api/observatory/data-product-workflow/config")
+    assert loaded.json() == {
+        "default_owner": "platform-team",
+        "approval_states": ["draft", "review", "approved"],
+    }
 
 
 def test_observatory_governance_endpoint_returns_data_product_control_matrix(

@@ -37,11 +37,13 @@ export function useLiveResource<T>(
     [cacheKey, load],
   )
   const [result, setResult] = useState<ObservatoryResourceResult<Array<T>>>(
-    () => readCachedResource<Array<T>>(key) ?? { data: null, error: null },
+    () => ({ data: null, error: null }),
   )
 
   useEffect(() => {
     let cancelled = false
+    const cached = readCachedResource<Array<T>>(key)
+    if (cached) setResult(cached)
 
     async function refresh(force = false, mode: LiveRefreshMode = 'preserve') {
       if (force && mode === 'reset' && !cancelled) {
@@ -200,7 +202,7 @@ function browserApiBase(): string | null {
     window.__PHLO_API_BROWSER_URL__ ??
     document.querySelector<HTMLMetaElement>('meta[name="phlo-api-browser-url"]')
       ?.content
-  return configured?.trim() || null
+  return configured?.trim() ?? ''
 }
 
 function fallbackEndpoint(key: string): string | null {

@@ -10,12 +10,13 @@ import {
   Settings,
   SlidersHorizontal,
 } from 'lucide-react'
-import { useEffect, useId, useMemo, useReducer } from 'react'
+import { useEffect, useId, useMemo, useReducer, useState } from 'react'
 import type { Dispatch, ReactNode } from 'react'
 
 import type { ObservatorySettings } from '@/lib/observatorySettings'
 import type {
   ObservatoryCapabilities,
+  ObservatoryDataProductWorkflowConfig,
   ObservatoryResourceResult,
 } from '@/observatory/api/types'
 import { useObservatoryExtensions } from '@/extensions/registry'
@@ -24,7 +25,11 @@ import {
   clearCacheEndpoint,
   getCacheStatsEndpoint,
 } from '@/server/cache.server'
-import { getObservatoryCapabilities } from '@/observatory/api/resources'
+import {
+  getObservatoryCapabilities,
+  getObservatoryDataProductWorkflowConfigDirect,
+  putObservatoryDataProductWorkflowConfigDirect,
+} from '@/observatory/api/resources'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import { loadCachedResource } from '@/observatory/routes/liveResource'
 
@@ -96,6 +101,11 @@ export function SettingsRoute() {
 function useSettingsRoute() {
   const { settings, setSettings, resetToDefaults } = useObservatorySettings()
   const { settingsSections } = useObservatoryExtensions()
+  const [workflowConfig, setWorkflowConfig] =
+    useState<ObservatoryDataProductWorkflowConfig | null>(null)
+  const [workflowDraft, setWorkflowDraft] =
+    useState<ObservatoryDataProductWorkflowConfig | null>(null)
+  const [workflowMessage, setWorkflowMessage] = useState<string | null>(null)
   const [{ capabilities, draft, error, stats, statsLoading }, dispatch] =
     useReducer(settingsRouteReducer, {
       capabilities: null,
@@ -127,6 +137,14 @@ function useSettingsRoute() {
 
   useEffect(() => {
     void fetchStats()
+    void getObservatoryDataProductWorkflowConfigDirect().then((next) => {
+      if (next.data) {
+        setWorkflowConfig(next.data)
+        setWorkflowDraft(next.data)
+      } else if (next.error) {
+        setWorkflowMessage(next.error)
+      }
+    })
     void loadCachedResource('v2:capabilities', getObservatoryCapabilities, {
       force: true,
       staleMs: 30_000,
@@ -164,6 +182,33 @@ function useSettingsRoute() {
       return
     }
     setSettings(draft)
+  }
+
+  function saveWorkflowConfig() {
+    if (!workflowDraft) return
+    const owner = workflowDraft.default_owner.trim()
+    const approvalStates = workflowDraft.approval_states
+      .map((state) => state.trim())
+      .filter(Boolean)
+    if (!owner || approvalStates.length === 0) {
+      setWorkflowMessage('Default owner and approval states are required.')
+      return
+    }
+    setWorkflowMessage('Saving workflow defaults...')
+    void putObservatoryDataProductWorkflowConfigDirect({
+      default_owner: owner,
+      approval_states: approvalStates,
+    }).then((next) => {
+      if (next.data) {
+        setWorkflowConfig(next.data)
+        setWorkflowDraft(next.data)
+        setWorkflowMessage('Workflow defaults saved.')
+      } else {
+        setWorkflowMessage(
+          next.error ?? 'Workflow defaults could not be saved.',
+        )
+      }
+    })
   }
 
   return (
@@ -316,6 +361,66 @@ function useSettingsRoute() {
               }))
             }
           />
+        </SettingsPanel>
+
+        <SettingsPanel
+          description="Project defaults used by candidate and publication workflow actions."
+          icon={<SlidersHorizontal className="size-4" />}
+          title="Data Product workflow"
+        >
+          <div className="phlo-observatory-settings-columns">
+            <SettingField label="Default owner">
+              <TextInput
+                value={workflowDraft?.default_owner ?? ''}
+                onChange={(value) =>
+                  setWorkflowDraft((current) => ({
+                    default_owner: value,
+                    approval_states: current?.approval_states ?? [
+                      'draft',
+                      'review',
+                      'approved',
+                      'rejected',
+                      'retired',
+                    ],
+                  }))
+                }
+              />
+            </SettingField>
+            <SettingField
+              hint="Comma-separated states shown by publication workflows."
+              label="Approval states"
+            >
+              <TextInput
+                value={workflowDraft?.approval_states.join(', ') ?? ''}
+                onChange={(value) =>
+                  setWorkflowDraft((current) => ({
+                    default_owner: current?.default_owner ?? '',
+                    approval_states: value
+                      .split(',')
+                      .map((state) => state.trim()),
+                  }))
+                }
+              />
+            </SettingField>
+          </div>
+          <div className="phlo-observatory-action-row">
+            <button
+              disabled={
+                !workflowDraft ||
+                JSON.stringify(workflowDraft) === JSON.stringify(workflowConfig)
+              }
+              onClick={saveWorkflowConfig}
+              type="button"
+            >
+              <Save className="size-3.5" />
+              Save workflow defaults
+            </button>
+          </div>
+          {workflowMessage && (
+            <div className="phlo-observatory-panel-footer">
+              {workflowMessage}
+            </div>
+          )}
         </SettingsPanel>
 
         <SettingsPanel
