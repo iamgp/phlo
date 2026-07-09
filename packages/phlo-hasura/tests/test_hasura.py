@@ -1,6 +1,7 @@
 """Tests for Hasura metadata and table tracking."""
 
 import json
+import socket
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -252,6 +253,22 @@ class TestHasuraClient:
 
 class TestHasuraTableTracker:
     """Tests for HasuraTableTracker."""
+
+    def test_tracker_resolves_unreachable_postgres_host(self, tmp_path, monkeypatch):
+        phlo_dir = tmp_path / ".phlo"
+        phlo_dir.mkdir()
+        (phlo_dir / ".env.local").write_text("POSTGRES_PORT=15432\n")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("POSTGRES_PORT", raising=False)
+
+        def raise_unresolvable(_host: str) -> str:
+            raise socket.gaierror()
+
+        monkeypatch.setattr("phlo.config.network.socket.gethostbyname", raise_unresolvable)
+
+        tracker = HasuraTableTracker(hasura_client=HasuraClient(admin_secret="test-secret"))
+
+        assert (tracker.db_host, tracker.db_port) == ("localhost", 15432)
 
     @patch("phlo_hasura.track.psycopg2.connect")
     def test_get_tables_in_schema(self, mock_connect):

@@ -1,5 +1,6 @@
 """Tests for OpenMetadata settings."""
 
+import socket
 from unittest.mock import Mock, patch
 
 from phlo_openmetadata.settings import OpenMetadataSettings
@@ -11,6 +12,23 @@ def test_openmetadata_settings_defaults() -> None:
 
     assert settings.openmetadata_username == "admin"
     assert settings.openmetadata_password == "admin"
+
+
+def test_openmetadata_settings_resolves_unreachable_host(tmp_path, monkeypatch) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env.local").write_text("OPENMETADATA_PORT=18585\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("OPENMETADATA_PORT", raising=False)
+
+    def raise_unresolvable(_host: str) -> str:
+        raise socket.gaierror()
+
+    monkeypatch.setattr("phlo.config.network.socket.gethostbyname", raise_unresolvable)
+
+    settings = OpenMetadataSettings()
+
+    assert settings.openmetadata_uri() == "http://localhost:18585/api"
 
 
 def test_openmetadata_database_prefers_explicit_name():

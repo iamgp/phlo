@@ -1,6 +1,7 @@
 """Tests for PostgREST view generation."""
 
 import json
+import socket
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -236,6 +237,22 @@ class TestViewGenerator:
 
 class TestPostgreSQLViewManager:
     """Tests for PostgreSTViewManager."""
+
+    def test_manager_resolves_unreachable_postgres_host(self, tmp_path, monkeypatch):
+        phlo_dir = tmp_path / ".phlo"
+        phlo_dir.mkdir()
+        (phlo_dir / ".env.local").write_text("POSTGRES_PORT=15433\n")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("POSTGRES_PORT", raising=False)
+
+        def raise_unresolvable(_host: str) -> str:
+            raise socket.gaierror()
+
+        monkeypatch.setattr("phlo.config.network.socket.gethostbyname", raise_unresolvable)
+
+        manager = PostgreSTViewManager(password="test-password")
+
+        assert (manager.host, manager.port) == ("localhost", 15433)
 
     @patch("phlo_postgrest.views.psycopg2.connect")
     def test_execute_sql(self, mock_connect):

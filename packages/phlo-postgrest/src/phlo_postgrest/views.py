@@ -32,6 +32,7 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 from phlo.logging import get_logger
 from pydantic import Field
 
@@ -77,6 +78,15 @@ class PostgrestViewsSettings(BaseConfig):
         description="PostgreSQL password (required; set PHLO_POSTGRES_PASSWORD or POSTGRES_PASSWORD env var)",
     )
     postgres_db: str = Field(default="phlo", description="PostgreSQL database name")
+
+    def model_post_init(self, __context: object) -> None:
+        host, port = resolve_host(
+            self.postgres_host,
+            self.postgres_port,
+            port_env_var="POSTGRES_PORT",
+        )
+        object.__setattr__(self, "postgres_host", host)
+        object.__setattr__(self, "postgres_port", port)
 
 
 @dataclass
@@ -574,8 +584,11 @@ class PostgreSTViewManager:
 
         """
         settings = PostgrestViewsSettings()
-        self.host = host or settings.postgres_host
-        self.port = int(port or settings.postgres_port)
+        self.host, self.port = resolve_host(
+            host or settings.postgres_host,
+            int(port or settings.postgres_port),
+            port_env_var="POSTGRES_PORT",
+        )
         self.database = database or settings.postgres_db
         self.user = user or settings.postgres_user
         self.password = password or settings.postgres_password
