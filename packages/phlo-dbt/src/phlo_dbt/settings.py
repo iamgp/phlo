@@ -24,6 +24,7 @@ from pathlib import Path
 from pydantic import Field, computed_field
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 
 
 def _project_root() -> Path:
@@ -140,6 +141,11 @@ class DbtSettings(BaseConfig):
             __context: Pydantic post-init context.
 
         """
+        host, port = resolve_host(
+            self.dbt_query_host, self.dbt_query_port, port_env_var="TRINO_PORT"
+        )
+        object.__setattr__(self, "dbt_query_host", host)
+        object.__setattr__(self, "dbt_query_port", port)
         if not self.dbt_manifest_path:
             object.__setattr__(
                 self, "dbt_manifest_path", f"{self.dbt_project_dir}/target/manifest.json"

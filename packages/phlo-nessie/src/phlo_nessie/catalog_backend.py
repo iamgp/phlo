@@ -20,6 +20,7 @@ import os
 from functools import lru_cache
 from typing import Any
 
+from phlo.config.network import resolve_url
 from phlo.logging import get_logger
 from phlo_nessie.settings import get_settings
 
@@ -49,8 +50,11 @@ def _pyiceberg_catalog_config(ref: str) -> dict[str, Any]:
         "type": "rest",
         "uri": f"{settings.nessie_iceberg_rest_uri()}/{ref}",
         "warehouse": os.environ.get("ICEBERG_WAREHOUSE_PATH", "s3://lake/warehouse"),
-        "s3.endpoint": os.environ.get("ICEBERG_S3_ENDPOINT")
-        or os.environ.get("S3_ENDPOINT", "http://minio:10001"),
+        "s3.endpoint": resolve_url(
+            os.environ.get("ICEBERG_S3_ENDPOINT")
+            or os.environ.get("S3_ENDPOINT", "http://minio:10001"),
+            port_env_var="MINIO_API_PORT",
+        ),
         "s3.access-key-id": os.environ.get("ICEBERG_S3_ACCESS_KEY", "minio"),
         "s3.secret-access-key": os.environ.get("ICEBERG_S3_SECRET_KEY", "minio123"),
         "s3.path-style-access": "true",

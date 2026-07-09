@@ -20,6 +20,7 @@ from functools import lru_cache
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 
 
 class ClickHouseSettings(BaseConfig):
@@ -63,6 +64,15 @@ class ClickHouseSettings(BaseConfig):
     clickhouse_password: str = Field(default="", description="ClickHouse password")
     clickhouse_db: str = Field(default="default", description="Default ClickHouse database")
     clickhouse_secure: bool = Field(default=False, description="Use TLS for ClickHouse connections")
+
+    def model_post_init(self, __context: object) -> None:
+        host, port = resolve_host(
+            self.clickhouse_host,
+            self.clickhouse_http_port,
+            port_env_var="CLICKHOUSE_HTTP_PORT",
+        )
+        object.__setattr__(self, "clickhouse_host", host)
+        object.__setattr__(self, "clickhouse_http_port", port)
 
     def clickhouse_http_endpoint(self) -> str:
         """Return host:port endpoint for ClickHouse HTTP interface.

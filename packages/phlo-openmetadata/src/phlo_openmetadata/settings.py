@@ -18,6 +18,7 @@ from functools import lru_cache
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 from phlo_openmetadata.capabilities import (
     resolve_query_engine_catalog,
     resolve_query_engine_service_type,
@@ -96,6 +97,15 @@ class OpenMetadataSettings(BaseConfig):
     openmetadata_sync_interval_seconds: int = Field(
         default=300, description="Minimum interval between metadata syncs (seconds)"
     )
+
+    def model_post_init(self, __context: object) -> None:
+        host, port = resolve_host(
+            self.openmetadata_host,
+            self.openmetadata_port,
+            port_env_var="OPENMETADATA_PORT",
+        )
+        object.__setattr__(self, "openmetadata_host", host)
+        object.__setattr__(self, "openmetadata_port", port)
 
     def openmetadata_uri(self) -> str:
         """Build the OpenMetadata API base URI.

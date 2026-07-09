@@ -1,3 +1,4 @@
+import socket
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -5,6 +6,27 @@ import pytest
 
 from phlo_nessie import cli_catalog
 from phlo_nessie import catalog_backend
+
+
+def test_pyiceberg_catalog_config_resolves_unreachable_minio_endpoint(
+    tmp_path, monkeypatch
+) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env.local").write_text("MINIO_API_PORT=19001\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("MINIO_API_PORT", raising=False)
+    monkeypatch.delenv("ICEBERG_S3_ENDPOINT", raising=False)
+    monkeypatch.delenv("S3_ENDPOINT", raising=False)
+
+    def raise_unresolvable(_host: str) -> str:
+        raise socket.gaierror()
+
+    monkeypatch.setattr("phlo.config.network.socket.gethostbyname", raise_unresolvable)
+
+    config = catalog_backend._pyiceberg_catalog_config("main")
+
+    assert config["s3.endpoint"] == "http://localhost:19001"
 
 
 def test_get_iceberg_catalog_loads_catalog_backend(monkeypatch) -> None:

@@ -21,14 +21,13 @@ Example:
 
 """
 
-import os
-import socket
 from typing import Any
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 from phlo.config.base import BaseConfig
+from phlo.config.network import resolve_host
 from phlo.logging import get_logger
 from phlo_hasura.client import HasuraClient
 from pydantic import Field
@@ -63,45 +62,14 @@ class HasuraPostgresSettings(BaseConfig):
     postgres_password: str = Field(default="phlo", description="PostgreSQL password")
     postgres_db: str = Field(default="phlo", description="PostgreSQL database name")
 
-
-def _resolve_db_host(host: str, port: int) -> tuple[str, int]:
-    """Resolve database host, falling back to localhost if Docker hostname unreachable.
-
-    When running hooks from the host machine, Docker internal hostnames like 'postgres'
-    won't resolve. In that case, use localhost with the exposed port.
-
-    Args:
-        host: Database host (may be Docker internal hostname like 'postgres').
-        port: Database port (may be internal port).
-
-    Returns:
-        Tuple of (resolved_host, resolved_port) suitable for connection.
-        If Docker hostname fails to resolve, returns ('localhost', POSTGRES_PORT).
-
-    Example:
-        >>> host, port = _resolve_db_host("postgres", 5432)
-        >>> # If running outside Docker:
-        >>> # host = "localhost", port = 5432 (or from POSTGRES_PORT env)
-
-    """
-    # If already localhost, use as-is
-    if host in ("localhost", "127.0.0.1"):
-        return host, port
-
-    # Try to resolve the hostname
-    try:
-        socket.gethostbyname(host)
-        return host, port
-    except socket.gaierror:
-        # Can't resolve - we're likely running on the host, not in Docker
-        # Use localhost with the exposed port from environment
-        exposed_port = int(os.environ.get("POSTGRES_PORT", port))
-        logger.debug(
-            "Cannot resolve '%s', using localhost:%s (running outside Docker)",
-            host,
-            exposed_port,
+    def model_post_init(self, __context: object) -> None:
+        host, port = resolve_host(
+            self.postgres_host,
+            self.postgres_port,
+            port_env_var="POSTGRES_PORT",
         )
-        return "localhost", exposed_port
+        object.__setattr__(self, "postgres_host", host)
+        object.__setattr__(self, "postgres_port", port)
 
 
 class HasuraTableTracker:
@@ -159,11 +127,11 @@ class HasuraTableTracker:
         self.client = hasura_client or HasuraClient()
 
         settings = HasuraPostgresSettings()
-        raw_host = db_host or settings.postgres_host
-        raw_port = db_port or settings.postgres_port
-
-        # Resolve host - handle running outside Docker
-        self.db_host, self.db_port = _resolve_db_host(raw_host, raw_port)
+        self.db_host, self.db_port = resolve_host(
+            db_host or settings.postgres_host,
+            db_port or settings.postgres_port,
+            port_env_var="POSTGRES_PORT",
+        )
         self.db_name = db_name or settings.postgres_db
         self.db_user = db_user or settings.postgres_user
         self.db_password = db_password or settings.postgres_password

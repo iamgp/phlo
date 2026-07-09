@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import socket
 import yaml
 from types import SimpleNamespace
 
@@ -127,6 +128,26 @@ def test_resolve_dbt_runtime_config_uses_project_profile_name(tmp_path, monkeypa
     config = resolve_dbt_runtime_config()
 
     assert config.profile_name == "workshop_transforms"
+
+
+def test_resolve_dbt_runtime_config_resolves_unreachable_trino_host(tmp_path, monkeypatch) -> None:
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env.local").write_text("TRINO_PORT=18080\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("TRINO_PORT", raising=False)
+    runtime_config.get_dbt_settings.cache_clear()
+
+    def raise_unresolvable(_host: str) -> str:
+        raise socket.gaierror()
+
+    monkeypatch.setattr("phlo.config.network.socket.gethostbyname", raise_unresolvable)
+
+    config = resolve_dbt_runtime_config()
+
+    assert config.host == "localhost"
+    assert config.port == 18080
+    runtime_config.get_dbt_settings.cache_clear()
 
 
 def test_resolve_dbt_target_name_defaults_to_canonical_default() -> None:

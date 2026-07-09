@@ -1,6 +1,15 @@
 """Tests for ClickHouse settings."""
 
+import socket
+
+import pytest
+
 from phlo_clickhouse.settings import ClickHouseSettings, get_settings
+
+
+@pytest.fixture(autouse=True)
+def resolvable_hosts(monkeypatch):
+    monkeypatch.setattr("phlo.config.network.socket.gethostbyname", lambda _host: "127.0.0.1")
 
 
 def test_clickhouse_settings_defaults():
@@ -53,6 +62,23 @@ def test_clickhouse_settings_with_overrides():
     assert settings.clickhouse_password == "secret"
     assert settings.clickhouse_db == "mydb"
     assert settings.clickhouse_secure is True
+
+
+def test_clickhouse_settings_resolves_unreachable_host(tmp_path, monkeypatch):
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / ".env.local").write_text("CLICKHOUSE_HTTP_PORT=18123\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CLICKHOUSE_HTTP_PORT", raising=False)
+
+    def raise_unresolvable(_host: str) -> str:
+        raise socket.gaierror()
+
+    monkeypatch.setattr("phlo.config.network.socket.gethostbyname", raise_unresolvable)
+
+    settings = ClickHouseSettings()
+
+    assert settings.clickhouse_http_endpoint() == "localhost:18123"
 
 
 def test_get_settings_returns_cached():
