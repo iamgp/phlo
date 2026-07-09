@@ -43,12 +43,12 @@ def _find_dagster_container(project_name: str) -> str:
     )
 
 
-def _container_project_path(local_project: Path, project_root: Path | None = None) -> Path:
+def _container_path(local_path: Path, project_root: Path | None = None) -> Path:
     project_root = (project_root or Path.cwd()).resolve()
     try:
-        return Path("/app") / local_project.resolve().relative_to(project_root)
+        return Path("/app") / local_path.resolve().relative_to(project_root)
     except ValueError:
-        return local_project
+        return local_path
 
 
 def compile_dbt() -> int:
@@ -92,7 +92,8 @@ def compile_dbt() -> int:
         return 0
 
     ensure_dbt_profile(profiles_dir)
-    container_project = _container_project_path(local_project)
+    container_project = _container_path(local_project)
+    container_profiles = _container_path(profiles_dir)
 
     logger.info(
         "dbt_hook_compile_started",
@@ -116,7 +117,7 @@ def compile_dbt() -> int:
                 container_name,
                 "bash",
                 "-c",
-                f"cd {container_project} && dbt deps --profiles-dir profiles",
+                f"cd {container_project} && dbt deps --profiles-dir {container_profiles}",
             ],
             timeout_seconds=60,
             check=False,
@@ -137,7 +138,7 @@ def compile_dbt() -> int:
                 container_name,
                 "bash",
                 "-c",
-                f"cd {container_project} && dbt compile --profiles-dir profiles",
+                f"cd {container_project} && dbt compile --profiles-dir {container_profiles}",
             ],
             timeout_seconds=120,
             check=False,

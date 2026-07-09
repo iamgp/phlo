@@ -24,7 +24,7 @@ def test_find_dagster_container_uses_core_service_lookup(monkeypatch) -> None:
 
 def test_compile_dbt_uses_discovered_nested_project_path(tmp_path: Path, monkeypatch) -> None:
     dbt_project = tmp_path / "workflows" / "client_exports" / "transforms" / "dbt"
-    profiles_dir = dbt_project / "profiles"
+    profiles_dir = tmp_path / ".phlo" / "dbt-profiles"
     dbt_project.mkdir(parents=True)
     (dbt_project / "dbt_project.yml").write_text("name: client_exports\n")
     monkeypatch.chdir(tmp_path)
@@ -50,5 +50,11 @@ def test_compile_dbt_uses_discovered_nested_project_path(tmp_path: Path, monkeyp
     assert hooks.compile_dbt() == 0
 
     assert ensured_profiles == [profiles_dir]
-    assert commands[0][-1].startswith("cd /app/workflows/client_exports/transforms/dbt &&")
-    assert commands[1][-1].startswith("cd /app/workflows/client_exports/transforms/dbt &&")
+    assert commands[0][-1] == (
+        "cd /app/workflows/client_exports/transforms/dbt "
+        "&& dbt deps --profiles-dir /app/.phlo/dbt-profiles"
+    )
+    assert commands[1][-1] == (
+        "cd /app/workflows/client_exports/transforms/dbt "
+        "&& dbt compile --profiles-dir /app/.phlo/dbt-profiles"
+    )
