@@ -37,6 +37,11 @@ from phlo_dbt.authorization import get_dbt_adapter
 from phlo_dbt.cli_publishing import publishing
 from phlo_dbt.runtime_config import DEFAULT_DBT_TARGET, ensure_dbt_profile
 
+DBT_PROJECT_HELP = (
+    "Create or copy a dbt project under workflows/, for example "
+    "workflows/transforms/dbt or workflows/<name>/transforms/dbt, or set DBT_PROJECT_DIR."
+)
+
 
 def _container_path(path: Path, *, project_root: Path) -> str:
     """Translate a project-local host path into the orchestrator container mount path.
@@ -138,7 +143,7 @@ def _run_dbt_in_container(
         raise user_error(
             "no dbt project found",
             missing=project_dir / "dbt_project.yml",
-            details=["Create or copy a dbt project under workflows/transforms/dbt."],
+            details=[DBT_PROJECT_HELP],
             run="phlo workflow create --help",
         )
 
@@ -219,7 +224,7 @@ def _run_dbt_local(subcommand: str, target: str, select_expr: str | None = None)
         raise user_error(
             "no dbt project found",
             missing=project_dir / "dbt_project.yml",
-            details=["Create or copy a dbt project under workflows/transforms/dbt."],
+            details=[DBT_PROJECT_HELP],
             run="phlo workflow create --help",
         )
 

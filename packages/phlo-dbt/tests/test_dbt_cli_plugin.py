@@ -156,7 +156,7 @@ def test_dbt_run_missing_project_is_actionable(monkeypatch, tmp_path) -> None:
     assert result.exit_code != 0
     assert "Error: no dbt project found" in result.output
     assert f"Missing: {project_dir / 'dbt_project.yml'}" in result.output
-    assert "Create or copy a dbt project under workflows/transforms/dbt." in result.output
+    assert "workflows/<name>/transforms/dbt" in result.output
     assert "Run: phlo workflow create --help" in result.output
 
 
