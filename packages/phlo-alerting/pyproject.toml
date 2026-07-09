@@ -15,7 +15,7 @@ dependencies = [
 description = "Alerting destinations and hooks for Phlo"
 name = "phlo-alerting"
 requires-python = ">=3.11"
-version = "0.3.0"
+version = "0.4.0"
 
 [[project.authors]]
 email = "team@phlo.dev"
