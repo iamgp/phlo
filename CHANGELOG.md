@@ -1,5 +1,15 @@
 # Changelog
 
+## [phlo 0.12.1 + 1 packages] - 2026-07-09
+
+### Fixed
+- phlo: discover nested dbt transform projects (#572)
+- phlo-dbt: discover nested dbt transform projects (#572)
+
+### Contributors
+Thanks to our contributors for this release:
+- @iamgp (2 commits)
+
 ## [phlo 0.12.0 + 33 packages] - 2026-07-09
 
 ### Added
