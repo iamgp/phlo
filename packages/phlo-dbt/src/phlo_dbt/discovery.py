@@ -27,10 +27,8 @@ from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
 
-# Common locations to search for dbt projects
-DEFAULT_SEARCH_PATHS = [
-    "workflows/transforms/dbt",
-]
+DEFAULT_DBT_PROJECT_DIR = Path("workflows/transforms/dbt")
+DEFAULT_SEARCH_PATHS = [str(DEFAULT_DBT_PROJECT_DIR)]
 
 
 def find_dbt_projects(
@@ -68,16 +66,24 @@ def find_dbt_projects(
     else:
         root_dir = Path(root_dir)
 
-    if search_paths is None:
-        search_paths = DEFAULT_SEARCH_PATHS
+    discovered: list[Path] = []
+    seen: set[Path] = set()
 
-    discovered = []
-
-    for search_path in search_paths:
+    for search_path in search_paths or DEFAULT_SEARCH_PATHS:
         candidate = root_dir / search_path / "dbt_project.yml"
-        if candidate.exists():
+        if candidate.exists() and candidate.parent not in seen:
+            seen.add(candidate.parent)
             discovered.append(candidate.parent)
             logger.info("Discovered dbt project: %s", candidate.parent)
+
+    if search_paths is None:
+        workflows_root = root_dir / "workflows"
+        if workflows_root.exists():
+            for candidate in sorted(workflows_root.rglob("dbt_project.yml")):
+                if candidate.parent not in seen:
+                    seen.add(candidate.parent)
+                    discovered.append(candidate.parent)
+                    logger.info("Discovered dbt project: %s", candidate.parent)
 
     return discovered
 
@@ -118,7 +124,7 @@ def get_dbt_project_dir() -> Path:
         return projects[0]
 
     # Fall back to default
-    return Path("workflows/transforms/dbt")
+    return DEFAULT_DBT_PROJECT_DIR
 
 
 if __name__ == "__main__":

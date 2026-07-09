@@ -43,6 +43,14 @@ def _find_dagster_container(project_name: str) -> str:
     )
 
 
+def _container_project_path(local_project: Path, project_root: Path | None = None) -> Path:
+    project_root = (project_root or Path.cwd()).resolve()
+    try:
+        return Path("/app") / local_project.resolve().relative_to(project_root)
+    except ValueError:
+        return local_project
+
+
 def compile_dbt() -> int:
     """Compile dbt models in the Dagster container when a dbt project exists.
 
@@ -73,14 +81,8 @@ def compile_dbt() -> int:
 
     """
     settings = get_settings()
-    dbt_project_dir = Path(settings.dbt_project_dir)
-
-    if dbt_project_dir.is_absolute():
-        local_project = dbt_project_dir
-        if not local_project.exists() and dbt_project_dir.parts[:2] == ("/", "app"):
-            local_project = Path.cwd() / Path(*dbt_project_dir.parts[2:])
-    else:
-        local_project = Path.cwd() / dbt_project_dir
+    local_project = settings.dbt_project_path
+    profiles_dir = settings.dbt_profiles_path
 
     if not (local_project / "dbt_project.yml").exists():
         logger.info(
@@ -89,7 +91,8 @@ def compile_dbt() -> int:
         )
         return 0
 
-    ensure_dbt_profile(local_project / "profiles")
+    ensure_dbt_profile(profiles_dir)
+    container_project = _container_project_path(local_project)
 
     logger.info(
         "dbt_hook_compile_started",
@@ -113,7 +116,7 @@ def compile_dbt() -> int:
                 container_name,
                 "bash",
                 "-c",
-                f"cd {Path('/app') / dbt_project_dir} && dbt deps --profiles-dir profiles",
+                f"cd {container_project} && dbt deps --profiles-dir profiles",
             ],
             timeout_seconds=60,
             check=False,
@@ -134,7 +137,7 @@ def compile_dbt() -> int:
                 container_name,
                 "bash",
                 "-c",
-                f"cd {Path('/app') / dbt_project_dir} && dbt compile --profiles-dir profiles",
+                f"cd {container_project} && dbt compile --profiles-dir profiles",
             ],
             timeout_seconds=120,
             check=False,
