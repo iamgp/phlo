@@ -6,13 +6,11 @@ requires = [
 ]
 
 [project]
-dependencies = [
-    "phlo>=0.1.0",
-]
+dependencies = ["phlo>=0.1.0"]
 description = "prometheus service plugin for Phlo"
 name = "phlo-prometheus"
 requires-python = ">=3.11"
-version = "0.2.4"
+version = "0.3.0"
 
 [[project.authors]]
 email = "team@phlo.dev"
