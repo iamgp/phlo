@@ -94,7 +94,9 @@ Observatory endpoints live under `/api/observatory`. They are provider-neutral c
 | `GET /api/observatory/storage` | Storage surface read model |
 | `GET /api/observatory/observability` | Observability surface read model |
 | `GET /api/observatory/governance` | Governance surface read model |
-| `GET /api/observatory/catalog` | Catalog surface read model |
+| `GET /api/observatory/datasets` | Dataset list |
+| `GET /api/observatory/datasets/{dataset_id}` | Dataset detail |
+| `GET /api/observatory/dataset-workflow/config` | Dataset workflow configuration |
 | `GET /api/observatory/apis` | API surface read model |
 | `GET /api/observatory/bi` | BI surface read model |
 | `GET /api/observatory/assets` | Asset list |

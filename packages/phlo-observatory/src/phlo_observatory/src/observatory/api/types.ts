@@ -128,13 +128,13 @@ export interface ObservatoryWorkflowActionResult {
   files: Array<string>
 }
 
-interface ObservatoryResourceRef {
+export interface ObservatoryResourceRef {
   kind: string
   id: string
   label: string
 }
 
-export interface ObservatoryDataProduct {
+export interface ObservatoryDataset {
   id: string
   name: string
   description?: string | null
@@ -160,7 +160,7 @@ export interface ObservatoryControlEvidence {
   metadata: ObservatoryMetadata
 }
 
-export interface ObservatoryDataProductControl {
+export interface ObservatoryDatasetControl {
   id: string
   label: string
   status: ObservatoryControlStatus
@@ -169,11 +169,11 @@ export interface ObservatoryDataProductControl {
 }
 
 export interface ObservatoryGovernanceRow {
-  product: ObservatoryDataProduct
+  dataset: ObservatoryDataset
   owner?: string | null
   classifications: Array<string>
   status: ObservatoryControlStatus
-  controls: Array<ObservatoryDataProductControl>
+  controls: Array<ObservatoryDatasetControl>
 }
 
 export interface ObservatoryGovernanceMatrix {
@@ -219,14 +219,14 @@ export interface ObservatoryConsumerAdoption {
   metadata: ObservatoryMetadata
 }
 
-export interface ObservatoryDataProductUsage {
+export interface ObservatoryDatasetUsage {
   privacy_policy: ObservatoryTelemetryPrivacyPolicy
   access_activity: Array<ObservatoryAccessActivity>
   dependency_activity: Array<ObservatoryDependencyActivity>
   consumer_adoption: Array<ObservatoryConsumerAdoption>
 }
 
-export interface ObservatoryDataProductWorkflowConfig {
+export interface ObservatoryDatasetWorkflowConfig {
   default_owner: string
   approval_states: Array<string>
 }
@@ -256,8 +256,8 @@ export interface ObservatoryPipelineStage {
   resource?: ObservatoryResourceRef | null
 }
 
-export interface ObservatoryDataProductPipeline {
-  product?: ObservatoryDataProduct | null
+export interface ObservatoryDatasetPipeline {
+  dataset?: ObservatoryDataset | null
   freshness_state: ObservatoryHealthState
   freshness_at?: string | null
   last_run?: ObservatoryResourceRef | null
@@ -265,8 +265,8 @@ export interface ObservatoryDataProductPipeline {
   actions: Array<ObservatoryAction>
 }
 
-export interface ObservatoryDataProductProfile {
-  product: ObservatoryDataProduct
+export interface ObservatoryDatasetProfile {
+  dataset: ObservatoryDataset
   asset?: ObservatoryAsset | null
   tables: Array<ObservatoryTable>
   quality: Array<ObservatoryQualityCheck>
@@ -274,10 +274,10 @@ export interface ObservatoryDataProductProfile {
   downstream: Array<ObservatoryResourceRef>
   logs: Array<ObservatoryLogEvent>
   operations: Array<ObservatoryOperation>
-  governance: Array<ObservatoryDataProductControl>
-  usage: ObservatoryDataProductUsage
+  governance: Array<ObservatoryDatasetControl>
+  usage: ObservatoryDatasetUsage
   publishing: ObservatoryPublishingReadiness
-  pipeline: ObservatoryDataProductPipeline
+  pipeline: ObservatoryDatasetPipeline
   sections: Record<string, boolean>
 }
 
@@ -353,9 +353,21 @@ export interface ObservatoryPackageInstallResult {
   services: Array<string>
 }
 
+export interface ObservatoryOverviewRow {
+  id: string
+  kind: 'service' | 'quality' | 'operation' | 'log'
+  label: string
+  href: string
+  state: ObservatoryHealthState
+  meta?: string | null
+  reason?: string | null
+}
+
 export interface ObservatoryOverview {
   health: ObservatoryHealth
   counters: Record<string, number>
+  attention: Array<ObservatoryOverviewRow>
+  events: Array<ObservatoryOverviewRow>
   recent: Array<ObservatoryResourceRef>
 }
 
@@ -543,6 +555,21 @@ export interface ObservatoryBranchDetail {
   commits: Array<ObservatoryOperation>
   compare: Record<string, number>
   tables: Array<ObservatoryTable>
+}
+
+export interface ObservatoryRuntimeSettings {
+  version: number
+  defaults: Record<string, string>
+  features: Record<string, boolean>
+  storage: Record<string, string>
+  metadata: ObservatoryMetadata & {
+    runtime?: {
+      project_path?: string | null
+      compose_project?: string | null
+      api_source?: string | null
+    }
+    providers?: Record<string, Array<string>>
+  }
 }
 
 export interface ObservatoryExtension {

@@ -15,7 +15,7 @@
 - Basic command line comfort
 - Optional: skim [Architecture Reference](../../reference/architecture.md)
 
-Data engineering is the work of turning messy, changing data into reliable, reusable products.
+Data engineering is the work of turning messy, changing data into reliable, reusable datasets.
 
 If analytics answers "what happened," data engineering ensures those answers are trustworthy and repeatable.
 
@@ -129,13 +129,13 @@ For example, this is not just syntax:
 - `blocking` checks in `phlo.quality.pandera` are a risk decision.
 - `phlo backfill --parallel N` is a source-pressure decision.
 
-When you treat those as product decisions, your data system becomes much easier to operate.
+When you treat those as dataset decisions, your data system becomes much easier to operate.
 
-## Deep Dive: Data Products, Not Data Dumps
+## Deep Dive: Datasets, Not Data Dumps
 
-A healthy data platform does not produce "tables." It produces data products.
+A healthy data platform does not just produce "tables." It produces governed datasets.
 
-A useful data product has:
+A useful dataset has:
 
 - A clear owner
 - A defined refresh cadence
@@ -146,7 +146,7 @@ A useful data product has:
 You can represent that in a tiny spec:
 
 ```yaml
-product: orders_daily
+dataset: orders_daily
 owner: data-platform@company.com
 refresh_slo: "hourly within 10 minutes"
 source_systems:

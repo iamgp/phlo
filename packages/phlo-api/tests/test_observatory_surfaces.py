@@ -54,7 +54,6 @@ def test_observatory_runs_endpoint_returns_provider_neutral_shape() -> None:
     [
         "/api/observatory/storage",
         "/api/observatory/observability",
-        "/api/observatory/catalog",
         "/api/observatory/apis",
         "/api/observatory/bi",
     ],
@@ -66,6 +65,20 @@ def test_observatory_surface_endpoints_return_provider_neutral_shape(path: str) 
     payload = response.json()
     assert set(payload) == {"items"}
     assert isinstance(payload["items"], list)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/observatory/catalog",
+        "/api/observatory/data-products",
+        "/api/observatory/data-products/gold.revenue",
+    ],
+)
+def test_removed_observatory_endpoints_are_hard_404s(path: str) -> None:
+    response = TestClient(app).get(path)
+
+    assert response.status_code == 404
 
 
 def test_observatory_governance_endpoint_returns_matrix_shape() -> None:

@@ -22,7 +22,7 @@ type PersistedEntry<T> = {
 
 const resourceCache = new Map<string, CachedEntry<unknown>>()
 const resourceKeys = new WeakMap<object, string>()
-const cacheVersion = '2026-05-18-observatory-runtime-v5'
+const cacheVersion = '2026-07-10-observatory-runtime-v11'
 const persistentCachePrefix = `phlo-observatory:${cacheVersion}`
 const minPersistentTtlMs = 5 * 60_000
 let nextResourceKey = 0
@@ -64,7 +64,9 @@ export function useLiveResource<T>(
 
     void refresh(true)
     const interval = window.setInterval(() => {
-      void refresh(true)
+      if (document.visibilityState !== 'hidden') {
+        void refresh(true)
+      }
     }, intervalMs)
     window.addEventListener('focus', refreshActiveTab)
     document.addEventListener('visibilitychange', refreshActiveTab)
@@ -77,7 +79,10 @@ export function useLiveResource<T>(
     }
   }, [intervalMs, key, load])
 
-  return result
+  return {
+    ...result,
+    isLoading: result.data === null && !result.error,
+  }
 }
 
 export function readCachedResource<T>(
@@ -141,11 +146,13 @@ export async function loadCachedResource<T>(
         })
         writePersistentResource(key, nextResult, expiresAt, staleMs)
       } else if (cached?.result) {
+        const staleResult = staleResultWithError(cached.result, nextResult)
         resourceCache.set(versionedKey, {
           expiresAt: Date.now(),
           promise: null,
-          result: cached.result,
+          result: staleResult,
         })
+        return staleResult
       } else {
         resourceCache.delete(versionedKey)
       }
@@ -172,7 +179,7 @@ async function browserFallbackResource<T>(
 
   try {
     const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 8000)
+    const timeout = window.setTimeout(() => controller.abort(), 15_000)
     const response = await fetch(`${base}${endpoint}`, {
       signal: controller.signal,
     })
@@ -207,35 +214,57 @@ function browserApiBase(): string | null {
 
 function fallbackEndpoint(key: string): string | null {
   const prefix = '/api/observatory'
+  const tablePreviewEndpoint = tablePreviewFallbackEndpoint(key, prefix)
+  if (tablePreviewEndpoint) return tablePreviewEndpoint
+
   const endpoints: Record<string, string> = {
-    'v2:overview': `${prefix}/overview`,
-    'v2:capabilities': `${prefix}/surface-capabilities`,
-    'v2:services': `${prefix}/services`,
-    'v2:operations': `${prefix}/operations`,
-    'v2:runs': `${prefix}/runs`,
-    'v2:pipelines': `${prefix}/pipelines`,
-    'v2:storage': `${prefix}/storage`,
-    'v2:observability': `${prefix}/observability`,
-    'v2:governance': `${prefix}/governance`,
-    'v2:governance-matrix': `${prefix}/governance`,
-    'v2:catalog': `${prefix}/catalog`,
-    'v2:apis': `${prefix}/apis`,
-    'v2:bi': `${prefix}/bi`,
-    'v2:assets': `${prefix}/assets`,
-    'v2:tables': `${prefix}/tables`,
-    'v2:saved-queries': `${prefix}/saved-queries`,
-    'v2:quality': `${prefix}/quality`,
-    'v2:logs': `${prefix}/logs`,
-    'v2:branches': `${prefix}/branches`,
-    'v2:extensions': `${prefix}/extensions`,
-    'v2:workflow-wizard': `${prefix}/workflow-wizard`,
+    'observatory:overview': `${prefix}/overview`,
+    'observatory:capabilities': `${prefix}/surface-capabilities`,
+    'observatory:services': `${prefix}/services`,
+    'observatory:operations': `${prefix}/operations`,
+    'observatory:runs': `${prefix}/runs`,
+    'observatory:pipelines': `${prefix}/pipelines`,
+    'observatory:storage': `${prefix}/storage`,
+    'observatory:observability': `${prefix}/observability`,
+    'observatory:governance': `${prefix}/governance`,
+    'observatory:governance-matrix': `${prefix}/governance`,
+    'observatory:apis': `${prefix}/apis`,
+    'observatory:bi': `${prefix}/bi`,
+    'observatory:assets': `${prefix}/assets`,
+    'observatory:tables': `${prefix}/tables`,
+    'observatory:saved-queries': `${prefix}/saved-queries`,
+    'observatory:quality': `${prefix}/quality`,
+    'observatory:logs': `${prefix}/logs`,
+    'observatory:branches': `${prefix}/branches`,
+    'observatory:extensions': `${prefix}/extensions`,
+    'observatory:workflow-wizard': `${prefix}/workflow-wizard`,
   }
   return endpoints[key] ?? null
 }
 
+function tablePreviewFallbackEndpoint(
+  key: string,
+  prefix: string,
+): string | null {
+  const tablePreviewPrefix = 'observatory:table-preview:'
+  if (!key.startsWith(tablePreviewPrefix)) return null
+
+  const parts = key.slice(tablePreviewPrefix.length).split(':')
+  if (parts.length < 4) return null
+
+  parts.pop()
+  const offset = parts.pop()
+  const limit = parts.pop()
+  const tableId = parts.join(':')
+  if (!tableId || !limit || !offset) return null
+
+  const searchParams = new URLSearchParams({ limit, offset })
+  return `${prefix}/table-preview/${encodeURIComponent(tableId)}?${searchParams}`
+}
+
 function normalizeFallbackPayload<T>(key: string, payload: unknown): T {
   if (
-    key === 'v2:branches' &&
+    key === 'observatory:branches' &&
     isRecord(payload) &&
     Array.isArray(payload.items)
   ) {
@@ -290,16 +319,27 @@ function isCacheableResult<T>(result: ObservatoryResourceResult<T>): boolean {
   return hasUsefulData(result.data)
 }
 
+function staleResultWithError<T>(
+  cached: ObservatoryResourceResult<T>,
+  failed: ObservatoryResourceResult<T>,
+): ObservatoryResourceResult<T> {
+  if (!hasUsefulData(cached.data)) return failed
+  return {
+    data: cached.data,
+    error: failed.error ?? 'Showing last known lakehouse data.',
+  }
+}
+
 function hasUsefulData(data: unknown): boolean {
   if (data === null || data === undefined) return false
-  if (Array.isArray(data)) return true
+  if (Array.isArray(data)) return data.length > 0
   if (typeof data !== 'object') return true
 
   if ('health' in data && 'counters' in data) {
     return true
   }
 
-  if ('items' in data && Array.isArray(data.items)) return true
+  if ('items' in data && Array.isArray(data.items)) return data.items.length > 0
   if ('pages' in data && Array.isArray(data.pages)) return data.pages.length > 0
   if ('columns' in data && Array.isArray(data.columns)) return true
   if ('rows' in data && Array.isArray(data.rows)) return true

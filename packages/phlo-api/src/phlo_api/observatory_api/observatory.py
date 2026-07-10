@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 from typing import Any, cast
+from urllib.parse import quote
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Body, Query, Request
@@ -51,12 +52,12 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryControlEvidence,
     ObservatoryAccessActivity,
     ObservatoryConsumerAdoption,
-    ObservatoryDataProduct,
-    ObservatoryDataProductControl,
-    ObservatoryDataProductList,
-    ObservatoryDataProductPipeline,
-    ObservatoryDataProductProfile,
-    ObservatoryDataProductUsage,
+    ObservatoryDataset,
+    ObservatoryDatasetControl,
+    ObservatoryDatasetList,
+    ObservatoryDatasetPipeline,
+    ObservatoryDatasetProfile,
+    ObservatoryDatasetUsage,
     ObservatoryDependencyActivity,
     ObservatoryExtension,
     ObservatoryExtensionDetail,
@@ -71,6 +72,7 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryOperationDetail,
     ObservatoryOperationList,
     ObservatoryOverview,
+    ObservatoryOverviewRow,
     ObservatoryPackageInstallRequest,
     ObservatoryPackageInstallResult,
     ObservatoryPipelineList,
@@ -128,6 +130,9 @@ from phlo_api.observatory_api.observatory_saved_queries import (
 from phlo_api.observatory_api.observatory_search import search_results as _search_results_impl
 from phlo_api.observatory_api.observatory_services import load_project_docker_containers
 from phlo_api.observatory_api.observatory_services import load_services as _load_services_impl
+from phlo_api.observatory_api.observatory_services import (
+    runtime_services_from_containers as _runtime_services_from_containers,
+)
 from phlo_api.observatory_api.observatory_services import (
     service_config_from_definition as _service_config_from_definition,
 )
@@ -203,7 +208,7 @@ class ObservatoryBackfillAssetRequest(BaseModel):
     tags: dict[str, str] = Field(default_factory=dict)
 
 
-class ObservatoryDataProductWorkflowConfig(BaseModel):
+class ObservatoryDatasetWorkflowConfig(BaseModel):
     default_owner: str
     approval_states: list[str] = Field(default_factory=list)
 
@@ -220,7 +225,7 @@ _READ_QUERY_RE = re.compile(
 )
 _TABLE_LIST_METADATA_PREFIX_DENYLIST = ("phlo/compiled_sql",)
 _TABLE_LIST_METADATA_DENYLIST = {"preview_rows"}
-_RUNTIME_READ_MODEL_TTL_SECONDS = 5
+_RUNTIME_READ_MODEL_TTL_SECONDS = 30
 _FAST_READ_MODEL_TTL_SECONDS = 30
 _EXPENSIVE_READ_MODEL_TTL_SECONDS = 120
 _READ_MODEL_CACHE = ReadModelCache(
@@ -284,22 +289,22 @@ def _lakehouse_manifest_path() -> Path:
     return _observatory_state_dir() / "lakehouse_manifest.json"
 
 
-def _data_product_workflow_path() -> Path:
-    return _observatory_state_dir() / "data_product_workflow.json"
+def _dataset_workflow_path() -> Path:
+    return _observatory_state_dir() / "dataset_workflow.json"
 
 
-def _load_data_product_workflow_state() -> dict[str, Any]:
-    path = _data_product_workflow_path()
+def _load_dataset_workflow_state() -> dict[str, Any]:
+    path = _dataset_workflow_path()
     if not path.exists():
-        return {"products": {}, "candidates": {}, "config": {}}
+        return {"datasets": {}, "candidates": {}, "config": {}}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return {"products": {}, "candidates": {}, "config": {}}
+        return {"datasets": {}, "candidates": {}, "config": {}}
     if not isinstance(payload, dict):
-        return {"products": {}, "candidates": {}, "config": {}}
+        return {"datasets": {}, "candidates": {}, "config": {}}
     return {
-        "products": payload.get("products") if isinstance(payload.get("products"), dict) else {},
+        "datasets": payload.get("datasets") if isinstance(payload.get("datasets"), dict) else {},
         "candidates": payload.get("candidates")
         if isinstance(payload.get("candidates"), dict)
         else {},
@@ -307,20 +312,20 @@ def _load_data_product_workflow_state() -> dict[str, Any]:
     }
 
 
-def _write_data_product_workflow_state(state: Mapping[str, Any]) -> None:
-    _data_product_workflow_path().write_text(
+def _write_dataset_workflow_state(state: Mapping[str, Any]) -> None:
+    _dataset_workflow_path().write_text(
         json.dumps(state, indent=2, sort_keys=True),
         encoding="utf-8",
     )
 
 
 def _workflow_default_owner() -> str:
-    owner = _data_product_workflow_config().default_owner
+    owner = _dataset_workflow_config().default_owner
     return owner or os.environ.get("USER") or "local-user"
 
 
-def _data_product_workflow_config() -> ObservatoryDataProductWorkflowConfig:
-    state = _load_data_product_workflow_state()
+def _dataset_workflow_config() -> ObservatoryDatasetWorkflowConfig:
+    state = _load_dataset_workflow_state()
     config = state.get("config") if isinstance(state.get("config"), Mapping) else {}
     owner = config.get("default_owner") if isinstance(config, Mapping) else None
     approval_states = config.get("approval_states") if isinstance(config, Mapping) else None
@@ -335,21 +340,21 @@ def _data_product_workflow_config() -> ObservatoryDataProductWorkflowConfig:
         default_owner = owner.strip()
     else:
         default_owner = os.environ.get("USER") or "local-user"
-    return ObservatoryDataProductWorkflowConfig(
+    return ObservatoryDatasetWorkflowConfig(
         default_owner=default_owner,
         approval_states=states,
     )
 
 
-def _workflow_product_overlay(product_id: str) -> Mapping[str, Any]:
-    state = _load_data_product_workflow_state()
-    products = state.get("products") if isinstance(state.get("products"), Mapping) else {}
-    overlay = products.get(product_id)
+def _workflow_dataset_overlay(dataset_id: str) -> Mapping[str, Any]:
+    state = _load_dataset_workflow_state()
+    datasets = state.get("datasets") if isinstance(state.get("datasets"), Mapping) else {}
+    overlay = datasets.get(dataset_id)
     return overlay if isinstance(overlay, Mapping) else {}
 
 
 def _workflow_candidate_overlay(table_id: str) -> Mapping[str, Any]:
-    state = _load_data_product_workflow_state()
+    state = _load_dataset_workflow_state()
     candidates = state.get("candidates") if isinstance(state.get("candidates"), Mapping) else {}
     overlay = candidates.get(table_id)
     return overlay if isinstance(overlay, Mapping) else {}
@@ -376,8 +381,15 @@ def _manifest_records(key: str, model: type[BaseModel]) -> list[Any]:
     for item in raw_items:
         if not isinstance(item, Mapping):
             continue
+        normalized = dict(item)
+        if key in {"operations", "runs", "logs"}:
+            metadata = normalized.get("metadata")
+            normalized["metadata"] = {
+                **(dict(metadata) if isinstance(metadata, Mapping) else {}),
+                "evidence_source": "lakehouse_manifest",
+            }
         try:
-            records.append(model.model_validate(item))
+            records.append(model.model_validate(normalized))
         except Exception:
             continue
     return records
@@ -448,6 +460,83 @@ def _sorted_strings(values: Iterable[Any]) -> list[str]:
     return sorted(str(value) for value in values if value is not None)
 
 
+def _dataset_kinds(values: Iterable[Any]) -> list[str]:
+    return _sorted_strings(values)
+
+
+def _dataset_metadata(value: Mapping[str, Any]) -> dict[str, Any]:
+    return _safe_metadata(value)
+
+
+def _dataset_text(value: str) -> str:
+    return value
+
+
+def _dataset_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return _dataset_text(value)
+    if isinstance(value, list):
+        return [_dataset_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_dataset_value(item) for item in value]
+    if isinstance(value, Mapping):
+        return {
+            _dataset_text(str(key)): _dataset_value(item)
+            for key, item in value.items()
+            if item is not None
+        }
+    return value
+
+
+def _dataset_resource_ref(ref: ObservatoryResourceRef | None) -> ObservatoryResourceRef | None:
+    if ref is None:
+        return None
+    return ObservatoryResourceRef(
+        kind=_dataset_text(ref.kind),
+        id=_dataset_text(ref.id),
+        label=_dataset_text(ref.label),
+    )
+
+
+def _dataset_operation(operation: ObservatoryOperation) -> ObservatoryOperation:
+    return operation.model_copy(
+        update={
+            "name": _dataset_text(operation.name),
+            "kind": _dataset_text(operation.kind),
+            "health": operation.health.model_copy(
+                update={
+                    "message": _dataset_text(operation.health.message)
+                    if operation.health.message
+                    else None
+                }
+            ),
+            "target": _dataset_resource_ref(operation.target),
+            "metadata": _dataset_value(operation.metadata),
+        }
+    )
+
+
+def _dataset_log_event(event: ObservatoryLogEvent) -> ObservatoryLogEvent:
+    return event.model_copy(
+        update={
+            "message": _dataset_text(event.message),
+            "source": _dataset_text(event.source) if event.source else None,
+            "resource": _dataset_resource_ref(event.resource),
+            "metadata": _dataset_value(event.metadata),
+        }
+    )
+
+
+def _dataset_asset(asset: ObservatoryAsset) -> ObservatoryAsset:
+    return asset.model_copy(
+        update={
+            "description": _dataset_text(asset.description) if asset.description else None,
+            "kinds": _dataset_kinds(asset.kinds),
+            "metadata": _dataset_metadata(asset.metadata),
+        }
+    )
+
+
 def _load_services() -> list[ObservatoryService]:
     project_root = _project_root()
     return _load_services_impl(
@@ -461,7 +550,7 @@ def _overview_health_from_services(services: Sequence[ObservatoryService]) -> Ob
 
     runtime_services = _runtime_services(services)
     if not runtime_services:
-        return ObservatoryHealth(state="unknown", message="No runtime containers found")
+        return ObservatoryHealth(state="unknown", message="No runtime services found")
 
     status_counts = Counter(service.status for service in runtime_services)
     attention = sum(
@@ -484,9 +573,298 @@ def _overview_health_from_services(services: Sequence[ObservatoryService]) -> Ob
 
     unknown = status_counts["unknown"]
     if unknown == len(runtime_services):
-        return ObservatoryHealth(state="unknown", message="No runtime containers found")
+        return ObservatoryHealth(state="unknown", message="Runtime service state unavailable")
 
     return ObservatoryHealth(state="unknown", message="Runtime status incomplete")
+
+
+def _overview_row_href(kind: str, resource_id: str) -> str:
+    query_keys = {
+        "service": "serviceId",
+        "quality": "checkId",
+        "operation": "operationId",
+        "log": "logId",
+    }
+    paths = {
+        "service": "/services",
+        "quality": "/quality",
+        "operation": "/operations",
+        "log": "/logs",
+    }
+    query_key = query_keys[kind]
+    return f"{paths[kind]}?{query_key}={quote(resource_id, safe='')}"
+
+
+def _service_needs_attention(service: ObservatoryService) -> bool:
+    if not service.in_stack:
+        return False
+    if service.health.state in {"error", "warning"}:
+        return True
+    if service.status == "unhealthy":
+        return True
+    return service.status == "stopped" and service.health.state != "ok"
+
+
+def _service_action_hint(service: ObservatoryService) -> str:
+    if service.status == "unhealthy":
+        return "Inspect service health and logs."
+    if service.status == "stopped":
+        return "Inspect service state and available recovery actions."
+    if service.health.state == "warning":
+        return "Review degraded service evidence."
+    if service.health.state == "error":
+        return "Open service detail and recovery actions."
+    return "Open service detail."
+
+
+def _quality_attention_reason(check: ObservatoryQualityCheck) -> str:
+    if check.status == "failing" and check.blocking:
+        return "Open triage with impact, run evidence, logs, and next action."
+    if check.status == "warning":
+        return "Open triage and decide whether this blocks release."
+    if check.status == "unknown":
+        return "Open triage and collect fresh quality evidence."
+    return "Open quality evidence."
+
+
+def _failure_reason(operation: ObservatoryOperation) -> str | None:
+    for key in ("failure_reason", "reason", "error", "message"):
+        value = operation.metadata.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return operation.health.message
+
+
+def _is_noisy_log(log: ObservatoryLogEvent) -> bool:
+    message = log.message.lower()
+    source = (log.source or "").lower()
+    event = str(log.metadata.get("event", "")).lower()
+    return any(
+        needle in message or needle in source or needle in event
+        for needle in (
+            "failed_to_discover_user_workflows",
+            "hasura_using_generated_default_admin_secret",
+            "no heartbeat received",
+            "optional_capability_degraded",
+            "unknown_plugin_type",
+            "plugin_load_failed",
+            "plugin_registry_fetch_fallback",
+            "observatory_settings_falling_back_to_memory",
+            "using the generated default hasura admin secret",
+            "workflows directory not found",
+        )
+    )
+
+
+def _is_front_page_log(log: ObservatoryLogEvent) -> bool:
+    return not _is_noisy_log(log) and log.resource is not None
+
+
+def _score_operation(operation: ObservatoryOperation) -> int:
+    score = 20
+    if operation.kind.startswith("pipeline"):
+        score += 50
+    if "quality" in operation.kind:
+        score += 35
+    if operation.status == "failed":
+        score += 45
+    if operation.status == "succeeded":
+        score += 10
+    if operation.target and operation.target.kind in {"asset", "table", "dataset"}:
+        score += 15
+    return score
+
+
+def _score_log(log: ObservatoryLogEvent) -> int:
+    score = 5
+    if log.level == "error":
+        score += 40
+    if log.level == "warning":
+        score += 20
+    if log.resource and log.resource.kind in {"asset", "table", "dataset"}:
+        score += 20
+    if log.source and "keystone" in log.source.lower():
+        score += 20
+    return score
+
+
+def _evidence_source_label(metadata: Mapping[str, Any]) -> str | None:
+    source = metadata.get("evidence_source") or metadata.get("source")
+    if source == "lakehouse_manifest":
+        return "manifest evidence"
+    if isinstance(source, str) and source.strip():
+        return source.strip().replace("_", " ")
+    return None
+
+
+def _log_source_label(log: ObservatoryLogEvent) -> str | None:
+    evidence_source = _evidence_source_label(log.metadata)
+    if evidence_source:
+        return evidence_source
+    if log.source == "observatory-fixture":
+        return "manifest evidence"
+    return log.source
+
+
+def _overview_attention_rows(
+    *,
+    services: Sequence[ObservatoryService],
+    operations: Sequence[ObservatoryOperation],
+    quality: Sequence[ObservatoryQualityCheck],
+    logs: Sequence[ObservatoryLogEvent],
+) -> list[ObservatoryOverviewRow]:
+    quality_resource_ids = {check.asset_id for check in quality if check.status != "passing"}
+    failed_operation_resource_ids = {
+        operation.target.id
+        for operation in operations
+        if operation.status == "failed" and operation.target is not None
+    }
+    rows: list[ObservatoryOverviewRow] = []
+
+    for service in [item for item in services if _service_needs_attention(item)][:3]:
+        rows.append(
+            ObservatoryOverviewRow(
+                id=f"service:{service.id}",
+                kind="service",
+                label=service.name,
+                href=_overview_row_href("service", service.id),
+                state=service.health.state,
+                meta=service.health.message or service.status,
+                reason=_service_action_hint(service),
+            )
+        )
+
+    def quality_score(check: ObservatoryQualityCheck) -> tuple[int, int, str]:
+        state_score = {"failing": 0, "warning": 1, "unknown": 2}.get(check.status, 3)
+        severity_score = {
+            "critical": 0,
+            "high": 1,
+            "medium": 2,
+            "low": 3,
+        }.get((check.severity or "").lower(), 4)
+        return (state_score, severity_score, check.id)
+
+    for check in sorted(
+        [item for item in quality if item.status != "passing"],
+        key=quality_score,
+    )[:3]:
+        rows.append(
+            ObservatoryOverviewRow(
+                id=f"quality:{check.id}",
+                kind="quality",
+                label=check.name,
+                href=_overview_row_href("quality", check.id),
+                state="error" if check.status == "failing" else "warning",
+                meta=f"{check.asset_id} · {check.severity or check.status}",
+                reason=_quality_attention_reason(check),
+            )
+        )
+
+    for operation in [item for item in operations if item.status == "failed"][:2]:
+        rows.append(
+            ObservatoryOverviewRow(
+                id=f"operation:{operation.id}",
+                kind="operation",
+                label=operation.name,
+                href=_overview_row_href("operation", operation.id),
+                state="error",
+                meta=_failure_reason(operation)
+                or (operation.target.label if operation.target else operation.kind),
+                reason=(
+                    f"Open run evidence for {operation.target.label}."
+                    if operation.target
+                    else "Open run evidence and recovery actions."
+                ),
+            )
+        )
+
+    for log in [
+        item
+        for item in logs
+        if item.level == "error"
+        and _is_front_page_log(item)
+        and (item.resource is None or item.resource.id not in quality_resource_ids)
+        and (item.resource is None or item.resource.id not in failed_operation_resource_ids)
+    ][:2]:
+        rows.append(
+            ObservatoryOverviewRow(
+                id=f"log:{log.id}",
+                kind="log",
+                label=log.message,
+                href=_overview_row_href("log", log.id),
+                state="error",
+                meta=" · ".join(item for item in (_log_source_label(log), log.timestamp) if item)
+                or None,
+                reason=(
+                    f"Open evidence for {log.resource.label}."
+                    if log.resource
+                    else "Open log evidence."
+                ),
+            )
+        )
+
+    return rows
+
+
+def _overview_event_rows(
+    operations: Sequence[ObservatoryOperation],
+    logs: Sequence[ObservatoryLogEvent],
+) -> list[ObservatoryOverviewRow]:
+    sortable_rows: list[tuple[int, str, ObservatoryOverviewRow]] = []
+    for operation in operations:
+        sortable_rows.append(
+            (
+                _score_operation(operation),
+                operation.completed_at or operation.started_at or "",
+                ObservatoryOverviewRow(
+                    id=f"operation:{operation.id}",
+                    kind="operation",
+                    label=operation.name,
+                    href=_overview_row_href("operation", operation.id),
+                    state=operation.health.state,
+                    meta=" · ".join(
+                        item
+                        for item in (
+                            operation.kind,
+                            _evidence_source_label(operation.metadata),
+                            operation.target.label if operation.target else None,
+                            operation.completed_at or operation.started_at,
+                        )
+                        if item
+                    )
+                    or None,
+                    reason=(_failure_reason(operation) if operation.status == "failed" else None),
+                ),
+            )
+        )
+
+    for log in [item for item in logs if _is_front_page_log(item)]:
+        sortable_rows.append(
+            (
+                _score_log(log),
+                log.timestamp or "",
+                ObservatoryOverviewRow(
+                    id=f"log:{log.id}",
+                    kind="log",
+                    label=log.message,
+                    href=_overview_row_href("log", log.id),
+                    state=(
+                        "error"
+                        if log.level == "error"
+                        else "warning"
+                        if log.level == "warning"
+                        else "ok"
+                    ),
+                    meta=" · ".join(
+                        item for item in (_log_source_label(log), log.level, log.timestamp) if item
+                    )
+                    or None,
+                ),
+            )
+        )
+
+    sortable_rows.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [row for _, _, row in sortable_rows[:6]]
 
 
 def _runtime_services(services: Sequence[ObservatoryService]) -> list[ObservatoryService]:
@@ -496,7 +874,10 @@ def _runtime_services(services: Sequence[ObservatoryService]) -> list[Observator
 def _load_assets() -> list[ObservatoryAsset]:
     registry = _load_capability_registry()
     if registry is None:
-        return sorted(_manifest_records("assets", ObservatoryAsset), key=lambda item: item.id)
+        return sorted(
+            (_dataset_asset(asset) for asset in _manifest_records("assets", ObservatoryAsset)),
+            key=lambda item: item.id,
+        )
 
     checks_by_asset: dict[str, list[str]] = {}
     for check in registry.list("check"):
@@ -517,7 +898,9 @@ def _load_assets() -> list[ObservatoryAsset]:
                 metadata=_safe_metadata(asset.metadata),
             )
         )
-    return sorted(_merge_by_id(assets), key=lambda item: item.id)
+    return sorted(
+        (_dataset_asset(asset) for asset in _merge_by_id(assets)), key=lambda item: item.id
+    )
 
 
 def _table_name_from_asset(asset: Any) -> str | None:
@@ -534,10 +917,18 @@ def _table_name_from_asset(asset: Any) -> str | None:
 def _load_tables(*, enrich_catalog: bool = True) -> list[ObservatoryTable]:
     registry = _load_capability_registry()
     if registry is None:
-        return sorted(_manifest_records("tables", ObservatoryTable), key=lambda item: item.id)
+        catalog_tables = _catalog_tables() if enrich_catalog else None
+        tables = _enrich_tables_with_catalog(
+            list(_manifest_records("tables", ObservatoryTable)),
+            catalog_tables,
+        )
+        return sorted(tables, key=lambda item: item.id)
 
     catalog_tables = _catalog_tables() if enrich_catalog else None
-    tables: list[ObservatoryTable] = list(_manifest_records("tables", ObservatoryTable))
+    tables: list[ObservatoryTable] = _enrich_tables_with_catalog(
+        list(_manifest_records("tables", ObservatoryTable)),
+        catalog_tables,
+    )
     for asset in registry.list("asset"):
         table_name = _table_name_from_asset(asset)
         if not table_name:
@@ -551,6 +942,8 @@ def _load_tables(*, enrich_catalog: bool = True) -> list[ObservatoryTable]:
             present = (schema_name or namespace_name, str(table_name)) in catalog_tables
             table_metadata["catalog_present"] = present
             table_metadata["catalog_state"] = "queryable" if present else "model_only"
+        else:
+            table_metadata.setdefault("catalog_state", "unknown")
         tables.append(
             ObservatoryTable(
                 id=str(table_name),
@@ -564,6 +957,31 @@ def _load_tables(*, enrich_catalog: bool = True) -> list[ObservatoryTable]:
             )
         )
     return sorted(_merge_by_id(tables), key=lambda item: item.id)
+
+
+def _enrich_tables_with_catalog(
+    tables: list[ObservatoryTable],
+    catalog_tables: set[tuple[str, str]] | None,
+) -> list[ObservatoryTable]:
+    if catalog_tables is None:
+        return [_table_with_unknown_catalog_state(table) for table in tables]
+
+    enriched: list[ObservatoryTable] = []
+    for table in tables:
+        schema = table.schema_name or table.namespace
+        name = table.metadata.get("table_name") or table.metadata.get("table") or table.name
+        present = (str(schema), str(name)) in catalog_tables if schema and name else False
+        metadata = dict(table.metadata)
+        metadata["catalog_present"] = present
+        metadata["catalog_state"] = "queryable" if present else "model_only"
+        enriched.append(table.model_copy(update={"metadata": metadata}))
+    return enriched
+
+
+def _table_with_unknown_catalog_state(table: ObservatoryTable) -> ObservatoryTable:
+    metadata = dict(table.metadata)
+    metadata.setdefault("catalog_state", "unknown")
+    return table.model_copy(update={"metadata": metadata})
 
 
 def _compact_table(table: ObservatoryTable) -> ObservatoryTable:
@@ -602,22 +1020,21 @@ def _catalog_tables() -> set[tuple[str, str]] | None:
     except Exception:
         return None
 
-    schema_result = _run_query_engine(f"SHOW SCHEMAS FROM {catalog}", limit=200)
-    if schema_result is None:
+    tables: set[tuple[str, str]] = set()
+    table_result = _run_query_engine(
+        "select table_schema, table_name "
+        f"from {catalog}.information_schema.tables "
+        "where table_schema <> 'information_schema'",
+        limit=1000,
+    )
+    if table_result is None:
         return None
 
-    tables: set[tuple[str, str]] = set()
-    for row in schema_result["rows"]:
-        schema = row.get("Schema") or row.get("schema")
-        if not isinstance(schema, str) or schema == "information_schema":
-            continue
-        table_result = _run_query_engine(f'SHOW TABLES FROM "{catalog}"."{schema}"', limit=500)
-        if table_result is None:
-            continue
-        for table_row in table_result["rows"]:
-            table_name = table_row.get("Table") or table_row.get("table")
-            if isinstance(table_name, str) and table_name:
-                tables.add((schema, table_name))
+    for row in table_result["rows"]:
+        schema = row.get("table_schema") or row.get("TABLE_SCHEMA")
+        table_name = row.get("table_name") or row.get("TABLE_NAME")
+        if isinstance(schema, str) and isinstance(table_name, str) and table_name:
+            tables.add((schema, table_name))
     return tables
 
 
@@ -679,29 +1096,29 @@ def _readiness_state(checks: Sequence[ObservatoryQualityCheck]) -> str:
     return "ok"
 
 
-def _data_product_from_asset(
+def _dataset_from_asset(
     asset: ObservatoryAsset,
     *,
     tables: Sequence[ObservatoryTable],
     quality: Sequence[ObservatoryQualityCheck],
-) -> ObservatoryDataProduct:
+) -> ObservatoryDataset:
     metadata = asset.metadata if isinstance(asset.metadata, Mapping) else {}
     owner = metadata.get("owner") or metadata.get("team") or metadata.get("maintainer")
-    product_tables = [table for table in tables if table.asset_id == asset.id]
-    product_quality = [check for check in quality if check.asset_id == asset.id]
+    dataset_tables = [table for table in tables if table.asset_id == asset.id]
+    dataset_quality = [check for check in quality if check.asset_id == asset.id]
     source_refs = [ObservatoryResourceRef(kind="asset", id=asset.id, label=asset.name)]
     source_refs.extend(
         ObservatoryResourceRef(kind="table", id=table.id, label=table.name)
-        for table in product_tables
+        for table in dataset_tables
     )
-    overlay = _workflow_product_overlay(asset.id)
-    metadata = {**metadata, **_safe_metadata(overlay)}
+    overlay = _workflow_dataset_overlay(asset.id)
+    metadata = _dataset_metadata({**metadata, **_safe_metadata(overlay)})
     owner = overlay.get("owner") or owner
     publication_state = overlay.get("publication_state") or _publication_state(metadata)
-    return ObservatoryDataProduct(
+    return ObservatoryDataset(
         id=asset.id,
-        name=_coerce_str(metadata.get("data_product_name"), asset.name),
-        description=asset.description,
+        name=_coerce_str(metadata.get("dataset_name"), asset.name),
+        description=_dataset_text(asset.description) if asset.description else None,
         owner=_coerce_str(owner, "") or None,
         classifications=_metadata_strings(
             metadata,
@@ -711,25 +1128,26 @@ def _data_product_from_asset(
             "tags",
         ),
         publication_state=cast(PublicationState, publication_state),
-        readiness_state=cast(HealthState, _readiness_state(product_quality)),
+        readiness_state=cast(HealthState, _readiness_state(dataset_quality)),
         candidate=False,
-        kinds=_sorted_strings([*asset.kinds, "asset"]),
+        kinds=_dataset_kinds([*asset.kinds, "asset"]),
         source_refs=source_refs,
-        metadata=_safe_metadata(metadata),
+        metadata=metadata,
     )
 
 
-def _candidate_data_product_from_table(table: ObservatoryTable) -> ObservatoryDataProduct:
+def _candidate_dataset_from_table(table: ObservatoryTable) -> ObservatoryDataset:
     metadata = table.metadata if isinstance(table.metadata, Mapping) else {}
     overlay = _workflow_candidate_overlay(table.id)
     owner = overlay.get("owner")
     promoted = overlay.get("state") == "promoted"
-    product_id = _coerce_str(
-        overlay.get("product_id"), table.id if promoted else f"candidate:{table.id}"
+    dataset_id = _coerce_str(
+        overlay.get("dataset_id"),
+        table.id if promoted else f"candidate:{table.id}",
     )
-    metadata = {**metadata, **_safe_metadata(overlay)}
-    return ObservatoryDataProduct(
-        id=product_id,
+    metadata = _dataset_metadata({**metadata, **_safe_metadata(overlay)})
+    return ObservatoryDataset(
+        id=dataset_id,
         name=table.name,
         description=None,
         owner=_coerce_str(owner, "") or None,
@@ -740,12 +1158,12 @@ def _candidate_data_product_from_table(table: ObservatoryTable) -> ObservatoryDa
         ),
         readiness_state="unknown",
         candidate=not promoted,
-        kinds=_sorted_strings([table.format or "table", "table"]),
+        kinds=_dataset_kinds([table.format or "table", "table"]),
         source_refs=[ObservatoryResourceRef(kind="table", id=table.id, label=table.name)],
-        metadata=_safe_metadata(
+        metadata=_dataset_metadata(
             {
                 **metadata,
-                "candidate_reason": "table has no promoted Data Product" if not promoted else None,
+                "candidate_reason": "table has no promoted Dataset" if not promoted else None,
                 "table_id": table.id,
                 "promoted_from_candidate": promoted,
             }
@@ -753,67 +1171,86 @@ def _candidate_data_product_from_table(table: ObservatoryTable) -> ObservatoryDa
     )
 
 
-def _load_data_products() -> list[ObservatoryDataProduct]:
+def _load_datasets() -> list[ObservatoryDataset]:
     tables = _load_tables_without_catalog()
     quality = _load_quality()
     assets = _load_assets()
-    products = [_data_product_from_asset(asset, tables=tables, quality=quality) for asset in assets]
-    products.extend(
-        _candidate_data_product_from_table(table)
+    datasets = [_dataset_from_asset(asset, tables=tables, quality=quality) for asset in assets]
+    datasets.extend(
+        _candidate_dataset_from_table(table)
         for table in tables
         if (table.asset_id is None or not any(asset.id == table.asset_id for asset in assets))
         and _workflow_candidate_overlay(table.id).get("state") != "rejected"
     )
-    return sorted(_merge_by_id(products), key=lambda item: item.name.lower())
+    return sorted(_merge_by_id(datasets), key=lambda item: item.name.lower())
 
 
-def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile:
+def _load_dataset_profile(dataset_id: str) -> ObservatoryDatasetProfile:
     assets = _load_assets()
     tables = _load_tables_without_catalog()
     quality = _load_quality()
-    asset = next((item for item in assets if item.id == product_id), None)
+    listed_dataset = next((item for item in _load_datasets() if item.id == dataset_id), None)
+    asset = next((item for item in assets if item.id == dataset_id), None)
     candidate_table: ObservatoryTable | None = None
-    if asset is None and product_id.startswith("candidate:"):
-        candidate_table_id = product_id.removeprefix("candidate:")
+    if listed_dataset is not None and asset is None:
+        source_asset = next(
+            (ref for ref in listed_dataset.source_refs if ref.kind == "asset"),
+            None,
+        )
+        if source_asset is not None:
+            asset = next((item for item in assets if item.id == source_asset.id), None)
+    if asset is None and dataset_id.startswith("candidate:"):
+        candidate_table_id = dataset_id.removeprefix("candidate:")
         candidate_table = next((item for item in tables if item.id == candidate_table_id), None)
         if candidate_table is None:
-            raise _not_found("data product", product_id)
+            raise _not_found("dataset", dataset_id)
     if asset is None and candidate_table is None:
         promoted_table = next(
             (
                 table
                 for table in tables
-                if table.id == product_id
+                if table.id == dataset_id
                 and _workflow_candidate_overlay(table.id).get("state") == "promoted"
             ),
             None,
         )
         candidate_table = promoted_table
     if asset is None and candidate_table is None:
-        table = next((item for item in tables if item.id == product_id), None)
+        table = next((item for item in tables if item.id == dataset_id), None)
         if table is None or table.asset_id is None:
-            raise _not_found("data product", product_id)
-        asset = next((item for item in assets if item.id == table.asset_id), None)
-    if asset is None and candidate_table is None:
-        raise _not_found("data product", product_id)
+            if listed_dataset is None:
+                raise _not_found("dataset", dataset_id)
+        elif asset is None:
+            asset = next((item for item in assets if item.id == table.asset_id), None)
+    if asset is None and candidate_table is None and listed_dataset is None:
+        raise _not_found("dataset", dataset_id)
 
     if candidate_table is not None:
-        product = _candidate_data_product_from_table(candidate_table)
-        product_tables = [candidate_table]
-        product_quality = []
+        dataset = _candidate_dataset_from_table(candidate_table)
+        dataset_tables = [candidate_table]
+        dataset_quality = []
+    elif listed_dataset is not None and asset is None:
+        dataset = listed_dataset
+        source_table_ids = {ref.id for ref in dataset.source_refs if ref.kind == "table"}
+        dataset_tables = [table for table in tables if table.id in source_table_ids]
+        dataset_quality = [
+            check
+            for check in quality
+            if check.asset_id in source_table_ids or check.asset_id == dataset.id
+        ]
     else:
         assert asset is not None
-        product = _data_product_from_asset(asset, tables=tables, quality=quality)
-        product_tables = [table for table in tables if table.asset_id == asset.id]
-        product_quality = [check for check in quality if check.asset_id == asset.id]
-    governance = _governance_controls_for_product(product, product_quality)
-    usage = _load_data_product_usage(product, asset=asset, tables=product_tables)
-    publishing = _publishing_readiness(product, governance, product_quality)
+        dataset = listed_dataset or _dataset_from_asset(asset, tables=tables, quality=quality)
+        dataset_tables = [table for table in tables if table.asset_id == asset.id]
+        dataset_quality = [check for check in quality if check.asset_id == asset.id]
+    governance = _governance_controls_for_dataset(dataset, dataset_quality)
+    usage = _load_dataset_usage(dataset, asset=asset, tables=dataset_tables)
+    publishing = _publishing_readiness(dataset, governance, dataset_quality)
     related_ids = {
-        product.id,
+        dataset.id,
         *([asset.id] if asset is not None else []),
-        *[table.id for table in product_tables],
-        *[check.id for check in product_quality],
+        *[table.id for table in dataset_tables],
+        *[check.id for check in dataset_quality],
     }
     upstream = [
         ObservatoryResourceRef(kind="asset", id=item.id, label=item.name)
@@ -835,12 +1272,12 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
         for operation in _load_operations()
         if operation.target is not None and operation.target.id in related_ids
     ]
-    pipeline = _pipeline_for_product(product, operations=operations, tables=product_tables)
-    return ObservatoryDataProductProfile(
-        product=product,
+    pipeline = _pipeline_for_dataset(dataset, operations=operations, tables=dataset_tables)
+    return ObservatoryDatasetProfile(
+        dataset=dataset,
         asset=asset,
-        tables=product_tables,
-        quality=product_quality,
+        tables=dataset_tables,
+        quality=dataset_quality,
         upstream=upstream,
         downstream=downstream,
         logs=logs,
@@ -851,9 +1288,9 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
         pipeline=pipeline,
         sections={
             "overview": True,
-            "contract": bool(product.owner or product.description),
+            "contract": bool(dataset.owner or dataset.description),
             "lineage": bool(upstream or downstream or (asset and asset.dependencies)),
-            "quality": bool(product_quality),
+            "quality": bool(dataset_quality),
             "access": False,
             "usage": _has_usage(usage),
             "pipelines": bool(pipeline.stages or operations),
@@ -864,18 +1301,18 @@ def _load_data_product_profile(product_id: str) -> ObservatoryDataProductProfile
 
 
 def _load_governance_matrix() -> ObservatoryGovernanceMatrix:
-    products = _load_data_products()
+    datasets = _load_datasets()
     quality = _load_quality()
     rows = [
-        _governance_row_for_product(
-            product,
+        _governance_row_for_dataset(
+            dataset,
             [
                 check
                 for check in quality
-                if any(ref.id == check.asset_id for ref in product.source_refs)
+                if any(ref.id == check.asset_id for ref in dataset.source_refs)
             ],
         )
-        for product in products
+        for dataset in datasets
     ]
     status_counts = Counter(row.status for row in rows)
     return ObservatoryGovernanceMatrix(
@@ -888,47 +1325,47 @@ def _load_governance_matrix() -> ObservatoryGovernanceMatrix:
 CONTROL_STATUSES = ("pass", "fail", "warning", "unknown", "not_applicable")
 
 
-def _governance_row_for_product(
-    product: ObservatoryDataProduct,
+def _governance_row_for_dataset(
+    dataset: ObservatoryDataset,
     quality: Sequence[ObservatoryQualityCheck],
 ) -> ObservatoryGovernanceRow:
-    controls = _governance_controls_for_product(product, quality)
+    controls = _governance_controls_for_dataset(dataset, quality)
     return ObservatoryGovernanceRow(
-        product=product,
-        owner=product.owner,
-        classifications=product.classifications,
+        dataset=dataset,
+        owner=dataset.owner,
+        classifications=dataset.classifications,
         status=_aggregate_control_status(controls),
         controls=controls,
     )
 
 
-def _governance_controls_for_product(
-    product: ObservatoryDataProduct,
+def _governance_controls_for_dataset(
+    dataset: ObservatoryDataset,
     quality: Sequence[ObservatoryQualityCheck],
-) -> list[ObservatoryDataProductControl]:
-    product_ref = ObservatoryResourceRef(kind="data_product", id=product.id, label=product.name)
+) -> list[ObservatoryDatasetControl]:
+    dataset_ref = ObservatoryResourceRef(kind="dataset", id=dataset.id, label=dataset.name)
     owner_evidence = (
         [
             ObservatoryControlEvidence(
                 kind="fact",
-                id=f"{product.id}:owner",
+                id=f"{dataset.id}:owner",
                 label="Owner",
-                value=product.owner,
-                resource=product_ref,
+                value=dataset.owner,
+                resource=dataset_ref,
             )
         ]
-        if product.owner
+        if dataset.owner
         else []
     )
     classification_evidence = [
         ObservatoryControlEvidence(
             kind="classification",
-            id=f"{product.id}:classification:{classification}",
+            id=f"{dataset.id}:classification:{classification}",
             label="Classification",
             value=classification,
-            resource=product_ref,
+            resource=dataset_ref,
         )
-        for classification in product.classifications
+        for classification in dataset.classifications
     ]
     blocking_quality = [check for check in quality if check.blocking]
     quality_evidence = [
@@ -942,41 +1379,41 @@ def _governance_controls_for_product(
         )
         for check in blocking_quality
     ]
-    quality_status = _quality_control_status(product, blocking_quality)
+    quality_status = _quality_control_status(dataset, blocking_quality)
     return [
-        ObservatoryDataProductControl(
+        ObservatoryDatasetControl(
             id="owner",
             label="Owner assigned",
-            status="pass" if product.owner else "fail",
-            message="One owner is assigned." if product.owner else "No owner assigned.",
+            status="pass" if dataset.owner else "fail",
+            message="One owner is assigned." if dataset.owner else "No owner assigned.",
             evidence=owner_evidence,
         ),
-        ObservatoryDataProductControl(
+        ObservatoryDatasetControl(
             id="classification",
             label="Classification declared",
             status="pass" if classification_evidence else "fail",
             message=(
                 "Classification evidence is present."
                 if classification_evidence
-                else "No classification evidence returned."
+                else "Classification evidence is missing."
             ),
             evidence=classification_evidence,
         ),
-        ObservatoryDataProductControl(
+        ObservatoryDatasetControl(
             id="blocking_quality",
             label="Blocking quality clear",
             status=quality_status,
-            message=_quality_control_message(product, blocking_quality, quality_status),
+            message=_quality_control_message(dataset, blocking_quality, quality_status),
             evidence=quality_evidence,
         ),
     ]
 
 
 def _quality_control_status(
-    product: ObservatoryDataProduct,
+    dataset: ObservatoryDataset,
     quality: Sequence[ObservatoryQualityCheck],
 ) -> str:
-    if product.candidate:
+    if dataset.candidate:
         return "not_applicable"
     if not quality:
         return "unknown"
@@ -991,14 +1428,14 @@ def _quality_control_status(
 
 
 def _quality_control_message(
-    product: ObservatoryDataProduct,
+    dataset: ObservatoryDataset,
     quality: Sequence[ObservatoryQualityCheck],
     status: str,
 ) -> str:
     if status == "not_applicable":
-        return "Candidate products are not quality-gated yet."
+        return "Candidate datasets are not quality-gated yet."
     if not quality:
-        return "No blocking quality evidence returned."
+        return "Blocking quality evidence is missing."
     if status == "fail":
         return "A blocking quality check is failing."
     if status == "warning":
@@ -1008,7 +1445,7 @@ def _quality_control_message(
     return "Blocking quality checks are clear."
 
 
-def _aggregate_control_status(controls: Sequence[ObservatoryDataProductControl]) -> str:
+def _aggregate_control_status(controls: Sequence[ObservatoryDatasetControl]) -> str:
     statuses = [control.status for control in controls]
     for status in ("fail", "warning", "unknown", "not_applicable"):
         if status in statuses:
@@ -1016,21 +1453,21 @@ def _aggregate_control_status(controls: Sequence[ObservatoryDataProductControl])
     return "pass"
 
 
-def _load_data_product_usage(
-    product: ObservatoryDataProduct,
+def _load_dataset_usage(
+    dataset: ObservatoryDataset,
     *,
     asset: ObservatoryAsset | None,
     tables: Sequence[ObservatoryTable],
-) -> ObservatoryDataProductUsage:
+) -> ObservatoryDatasetUsage:
     usage_model = _usage_manifest()
     policy = _usage_privacy_policy(usage_model.get("privacy_policy"))
     related_ids = {
-        product.id,
+        dataset.id,
         *([asset.id] if asset is not None else []),
         *[table.id for table in tables],
     }
     access = [
-        _access_activity_from_mapping(item, product=product, policy=policy)
+        _access_activity_from_mapping(item, dataset=dataset, policy=policy)
         for item in _usage_items(usage_model, "access_activity", related_ids)
     ]
     dependencies = [
@@ -1042,21 +1479,19 @@ def _load_data_product_usage(
             ObservatoryDependencyActivity(
                 id=f"{dependency}->{asset.id}",
                 source=ObservatoryResourceRef(kind="asset", id=dependency, label=dependency),
-                target=ObservatoryResourceRef(
-                    kind="data_product", id=product.id, label=product.name
-                ),
+                target=ObservatoryResourceRef(kind="dataset", id=dataset.id, label=dataset.name),
                 kind="asset_dependency",
             )
             for dependency in asset.dependencies
         ]
     consumers = [
-        _consumer_adoption_from_mapping(item, product=product)
+        _consumer_adoption_from_mapping(item, dataset=dataset)
         for item in _usage_items(usage_model, "consumer_adoption", related_ids)
     ]
     if asset is not None:
         for item in _metadata_list(asset.metadata, "consumers", "consumer_adoption"):
-            consumers.append(_consumer_adoption_from_mapping(item, product=product))
-    return ObservatoryDataProductUsage(
+            consumers.append(_consumer_adoption_from_mapping(item, dataset=dataset))
+    return ObservatoryDatasetUsage(
         privacy_policy=policy,
         access_activity=access,
         dependency_activity=dependencies,
@@ -1095,10 +1530,10 @@ def _usage_items(
     for item in raw_items:
         if not isinstance(item, Mapping):
             continue
-        item_product = _coerce_str(item.get("product_id") or item.get("asset_id"), "")
+        item_dataset = _coerce_str(item.get("dataset_id") or item.get("asset_id"), "")
         source = item.get("source")
         target = item.get("target")
-        linked_ids = {item_product}
+        linked_ids = {item_dataset}
         for ref in (source, target):
             if isinstance(ref, Mapping):
                 linked_ids.add(_coerce_str(ref.get("id"), ""))
@@ -1110,7 +1545,7 @@ def _usage_items(
 def _access_activity_from_mapping(
     item: Mapping[str, Any],
     *,
-    product: ObservatoryDataProduct,
+    dataset: ObservatoryDataset,
     policy: ObservatoryTelemetryPrivacyPolicy,
 ) -> ObservatoryAccessActivity:
     actor = _coerce_str(item.get("actor") or item.get("user") or item.get("principal"), "")
@@ -1125,7 +1560,7 @@ def _access_activity_from_mapping(
     if policy.identity_detail == "audit_only":
         metadata["audit_drilldown"] = policy.audit_drilldown
     return ObservatoryAccessActivity(
-        id=_coerce_str(item.get("id"), f"{product.id}:access:{len(metadata)}"),
+        id=_coerce_str(item.get("id"), f"{dataset.id}:access:{len(metadata)}"),
         action=_coerce_str(item.get("action"), "access"),
         actor_label=actor_label,
         actor_kind=_coerce_str(item.get("actor_kind"), "") or None,
@@ -1149,7 +1584,7 @@ def _dependency_activity_from_mapping(item: Mapping[str, Any]) -> ObservatoryDep
     return ObservatoryDependencyActivity(
         id=_coerce_str(item.get("id"), "dependency"),
         source=_resource_ref_from_mapping(item.get("source"), "asset"),
-        target=_resource_ref_from_mapping(item.get("target"), "data_product"),
+        target=_resource_ref_from_mapping(item.get("target"), "dataset"),
         kind=_coerce_str(item.get("kind"), "dependency"),
         count=max(1, _coerce_int(item.get("count"), 1)),
         last_seen_at=_coerce_str(item.get("last_seen_at") or item.get("timestamp"), "") or None,
@@ -1160,11 +1595,11 @@ def _dependency_activity_from_mapping(item: Mapping[str, Any]) -> ObservatoryDep
 def _consumer_adoption_from_mapping(
     item: Mapping[str, Any],
     *,
-    product: ObservatoryDataProduct,
+    dataset: ObservatoryDataset,
 ) -> ObservatoryConsumerAdoption:
     consumer = _coerce_str(item.get("consumer") or item.get("name") or item.get("id"), "consumer")
     return ObservatoryConsumerAdoption(
-        id=_coerce_str(item.get("id"), f"{product.id}:consumer:{consumer}"),
+        id=_coerce_str(item.get("id"), f"{dataset.id}:consumer:{consumer}"),
         consumer=consumer,
         kind=_coerce_str(item.get("kind"), "team"),
         owner=_coerce_str(item.get("owner"), "") or None,
@@ -1194,13 +1629,13 @@ def _metadata_list(metadata: Mapping[str, Any], *keys: str) -> list[Mapping[str,
     return []
 
 
-def _has_usage(usage: ObservatoryDataProductUsage) -> bool:
+def _has_usage(usage: ObservatoryDatasetUsage) -> bool:
     return bool(usage.access_activity or usage.dependency_activity or usage.consumer_adoption)
 
 
 def _publishing_readiness(
-    product: ObservatoryDataProduct,
-    governance: Sequence[ObservatoryDataProductControl],
+    dataset: ObservatoryDataset,
+    governance: Sequence[ObservatoryDatasetControl],
     quality: Sequence[ObservatoryQualityCheck],
 ) -> ObservatoryPublishingReadiness:
     blockers: list[str] = []
@@ -1214,7 +1649,7 @@ def _publishing_readiness(
         elif control.status == "unknown":
             missing_evidence.append(control.message or control.label)
     if not quality:
-        missing_evidence.append("No quality evidence returned.")
+        missing_evidence.append("Quality evidence is missing.")
     state: HealthState = "ok"
     if blockers:
         state = "error"
@@ -1222,32 +1657,32 @@ def _publishing_readiness(
         state = "warning"
     elif missing_evidence:
         state = "unknown"
-    is_publishable = state in {"ok", "warning"} and product.publication_state != "published"
+    is_publishable = state in {"ok", "warning"} and dataset.publication_state != "published"
     actions = [
         ObservatoryPublishingAction(
             id="publish",
             label="Publish internally",
             enabled=is_publishable,
-            reason=None if is_publishable else _publish_disabled_reason(product, blockers),
+            reason=None if is_publishable else _publish_disabled_reason(dataset, blockers),
             consequences=[
-                "Sets the Data Product publication state to published.",
-                "Makes the product visible as internally published in Observatory.",
+                "Sets the Dataset publication state to published.",
+                "Makes the dataset visible as internally published in Observatory.",
                 "Does not create external sharing, marketplace listing, or public access.",
             ],
         ),
         ObservatoryPublishingAction(
             id="retire",
             label="Retire",
-            enabled=product.publication_state == "published",
-            reason="Only published Data Products can be retired."
-            if product.publication_state != "published"
+            enabled=dataset.publication_state == "published",
+            reason="Only published Datasets can be retired."
+            if dataset.publication_state != "published"
             else None,
-            consequences=["Sets the Data Product publication state to retired."],
+            consequences=["Sets the Dataset publication state to retired."],
         ),
     ]
     return ObservatoryPublishingReadiness(
         state=state,
-        policy_name=_coerce_str(product.metadata.get("readiness_policy"), "default"),
+        policy_name=_coerce_str(dataset.metadata.get("readiness_policy"), "default"),
         internal_only=True,
         blockers=_sorted_strings(blockers),
         warnings=_sorted_strings(warnings),
@@ -1256,47 +1691,47 @@ def _publishing_readiness(
     )
 
 
-def _publish_disabled_reason(product: ObservatoryDataProduct, blockers: Sequence[str]) -> str:
-    if product.publication_state == "published":
-        return "This Data Product is already published."
+def _publish_disabled_reason(dataset: ObservatoryDataset, blockers: Sequence[str]) -> str:
+    if dataset.publication_state == "published":
+        return "This Dataset is already published."
     if blockers:
         return "Readiness policy has blockers."
     return "Readiness policy needs more evidence."
 
 
 def _load_pipelines() -> ObservatoryPipelineList:
-    profiles: list[ObservatoryDataProductPipeline] = []
+    profiles: list[ObservatoryDatasetPipeline] = []
     operations = _load_operations()
     tables = _load_tables_without_catalog()
-    for product in _load_data_products():
-        related_ids = {product.id, *[ref.id for ref in product.source_refs]}
-        product_operations = [
+    for dataset in _load_datasets():
+        related_ids = {dataset.id, *[ref.id for ref in dataset.source_refs]}
+        dataset_operations = [
             operation
             for operation in operations
             if operation.target is not None and operation.target.id in related_ids
         ]
-        product_tables = [
+        dataset_tables = [
             table for table in tables if table.id in related_ids or table.asset_id in related_ids
         ]
         profiles.append(
-            _pipeline_for_product(product, operations=product_operations, tables=product_tables)
+            _pipeline_for_dataset(dataset, operations=dataset_operations, tables=dataset_tables)
         )
     return ObservatoryPipelineList(items=profiles)
 
 
-def _pipeline_for_product(
-    product: ObservatoryDataProduct,
+def _pipeline_for_dataset(
+    dataset: ObservatoryDataset,
     *,
     operations: Sequence[ObservatoryOperation],
     tables: Sequence[ObservatoryTable],
-) -> ObservatoryDataProductPipeline:
+) -> ObservatoryDatasetPipeline:
     last_operation = next(iter(operations), None)
     freshness_at = (
         last_operation.completed_at or last_operation.started_at
         if last_operation is not None
         else None
     )
-    freshness_state: HealthState = product.readiness_state
+    freshness_state: HealthState = dataset.readiness_state
     stages = [
         ObservatoryPipelineStage(
             id="ingest",
@@ -1306,16 +1741,16 @@ def _pipeline_for_product(
             if tables
             else None,
         ),
-        ObservatoryPipelineStage(id="transform", label="Transforms", state=product.readiness_state),
-        ObservatoryPipelineStage(id="checks", label="Checks", state=product.readiness_state),
+        ObservatoryPipelineStage(id="transform", label="Transforms", state=dataset.readiness_state),
+        ObservatoryPipelineStage(id="checks", label="Checks", state=dataset.readiness_state),
         ObservatoryPipelineStage(
             id="publish",
             label="Publishing",
-            state="ok" if product.publication_state == "published" else "unknown",
+            state="ok" if dataset.publication_state == "published" else "unknown",
         ),
     ]
-    return ObservatoryDataProductPipeline(
-        product=product,
+    return ObservatoryDatasetPipeline(
+        dataset=dataset,
         freshness_state=freshness_state,
         freshness_at=freshness_at,
         last_run=ObservatoryResourceRef(
@@ -1445,7 +1880,7 @@ def _load_operations() -> list[ObservatoryOperation]:
     ]
     registry = _load_capability_registry()
     if registry is None:
-        return sort_operations(operations)
+        return sort_operations([_dataset_operation(operation) for operation in operations])
 
     for spec in registry.list("maintenance_read_model"):
         provider = getattr(spec, "provider", None)
@@ -1458,7 +1893,7 @@ def _load_operations() -> list[ObservatoryOperation]:
             continue
         for status in getattr(snapshot, "operations", []):
             operations.append(_operation_from_maintenance_status(status))
-    return sort_operations(operations)
+    return sort_operations([_dataset_operation(operation) for operation in operations])
 
 
 def _filter_operations(
@@ -1506,13 +1941,13 @@ def _load_logs() -> list[ObservatoryLogEvent]:
     try:
         from phlo.capabilities.telemetry import iter_telemetry_events
     except Exception:
-        return events
+        return [_dataset_log_event(event) for event in events]
 
     try:
         telemetry_path = project_root / ".phlo" / "telemetry" / "events.jsonl"
         raw_events = list(iter_telemetry_events(telemetry_path))[-50:]
     except Exception:
-        return events
+        return [_dataset_log_event(event) for event in events]
 
     for index, event in enumerate(reversed(raw_events)):
         timestamp = event.get("timestamp")
@@ -1528,7 +1963,7 @@ def _load_logs() -> list[ObservatoryLogEvent]:
                 metadata=_safe_metadata(event),
             )
         )
-    return events[:100]
+    return [_dataset_log_event(event) for event in events[:100]]
 
 
 def _load_project_log_events(project_root: Path) -> list[ObservatoryLogEvent]:
@@ -1761,9 +2196,11 @@ def _table_rows(
         return rows[offset : offset + max(0, min(limit, 500))]
 
     row_count_raw = table.metadata.get("records")
-    row_count = row_count_raw if isinstance(row_count_raw, int) else 0
+    if not isinstance(row_count_raw, int):
+        return []
+    row_count = row_count_raw
     effective_limit = max(0, min(limit, 500))
-    available = max(0, min(effective_limit, row_count - offset if row_count else effective_limit))
+    available = max(0, min(effective_limit, row_count - offset))
     rows: list[dict[str, Any]] = []
     for index in range(available):
         absolute_index = offset + index
@@ -1782,7 +2219,7 @@ def _run_query_engine(
         return None
 
     async def _execute() -> Any:
-        return await execute_trino_query(sql, schema=schema, timeout_ms=12000)
+        return await execute_trino_query(sql, schema=schema, timeout_ms=30000)
 
     try:
         result = asyncio.run(_execute())
@@ -1919,6 +2356,8 @@ def _preview_from_query_engine(
         column_types.extend(["unknown"] * (len(columns) - len(column_types)))
     rows = [dict(row) for row in result["rows"]]
     metadata = dict(table.metadata)
+    metadata["catalog_present"] = True
+    metadata["catalog_state"] = "queryable"
     if row_count is not None:
         metadata["records"] = row_count
     if table.metadata != metadata:
@@ -2802,7 +3241,7 @@ def _load_capabilities() -> ObservatoryCapabilities:
     _filter_capabilities_to_project_services(inventory, services)
     _add_runtime_capability_providers(inventory, services)
     pages = _pages_from_inventory(inventory)
-    pages = _apply_manifest_capability_overrides(pages)
+    pages = _apply_manifest_capability_overrides(pages, inventory=inventory)
     features = {page.id: page.available for page in pages}
     providers = {page.id: page.providers for page in pages if page.providers}
 
@@ -2819,38 +3258,40 @@ def _load_surface_capabilities() -> ObservatoryCapabilities:
     services = _load_services()
     _filter_capabilities_to_project_services(inventory, services)
     _add_runtime_capability_providers(inventory, services)
-    pages = _apply_manifest_capability_overrides(_pages_from_inventory(inventory))
+    pages = _apply_manifest_capability_overrides(
+        _pages_from_inventory(inventory), inventory=inventory
+    )
     features = {page.id: page.available for page in pages}
     providers = {page.id: page.providers for page in pages if page.providers}
     return ObservatoryCapabilities(pages=pages, features=features, providers=providers)
 
 
-_DATA_PRODUCT_SURFACE_METADATA: dict[str, dict[str, object]] = {
-    "catalog": {
-        "domain": "data_products",
+_DATASET_SURFACE_METADATA: dict[str, dict[str, object]] = {
+    "datasets": {
+        "domain": "datasets",
         "profile_sections": ["overview", "source_objects"],
-        "read_models": ["data-products", "data-product-profile"],
+        "read_models": ["datasets", "dataset-profile"],
         "actions": ["open-profile"],
         "contribution_policy": "shared_surface",
     },
     "governance": {
-        "domain": "data_products",
+        "domain": "datasets",
         "profile_sections": ["governance"],
-        "read_models": ["governance-matrix", "data-product-profile"],
+        "read_models": ["governance-matrix", "dataset-profile"],
         "actions": ["review-evidence", "open-profile"],
         "contribution_policy": "shared_surface",
     },
     "publishing": {
-        "domain": "data_products",
+        "domain": "datasets",
         "profile_sections": ["publishing"],
-        "read_models": ["data-products", "data-product-profile"],
+        "read_models": ["datasets", "dataset-profile"],
         "actions": ["publish", "retire"],
         "contribution_policy": "shared_surface",
     },
     "pipelines": {
-        "domain": "data_products",
+        "domain": "datasets",
         "profile_sections": ["pipelines"],
-        "read_models": ["pipelines", "data-product-profile"],
+        "read_models": ["pipelines", "dataset-profile"],
         "actions": ["retry", "cancel", "materialize", "backfill"],
         "contribution_policy": "shared_surface",
     },
@@ -2859,36 +3300,43 @@ _DATA_PRODUCT_SURFACE_METADATA: dict[str, dict[str, object]] = {
 
 def _apply_manifest_capability_overrides(
     pages: list[ObservatoryCapabilityPage],
+    *,
+    inventory: ObservatoryCapabilityInventory,
 ) -> list[ObservatoryCapabilityPage]:
     manifest = _load_lakehouse_manifest()
-    if not manifest:
-        return pages
 
     route_providers: dict[str, str] = {}
-    if manifest.get("tables"):
-        route_providers["data"] = "lakehouse-manifest"
-        route_providers["assets"] = "lakehouse-manifest"
-    if manifest.get("assets"):
-        route_providers["assets"] = "lakehouse-manifest"
-    if _load_data_products():
-        route_providers["catalog"] = "lakehouse-manifest"
+    if manifest and manifest.get("tables"):
+        route_providers["tables"] = "lakehouse-manifest"
+        route_providers["lineage"] = "lakehouse-manifest"
+    if manifest and manifest.get("assets"):
+        route_providers["lineage"] = "lakehouse-manifest"
+    if manifest and _load_datasets():
+        route_providers["datasets"] = "lakehouse-manifest"
         route_providers["governance"] = "lakehouse-manifest"
         route_providers["publishing"] = "lakehouse-manifest"
         route_providers["pipelines"] = "lakehouse-manifest"
-    if manifest.get("quality"):
-        route_providers["issues"] = "lakehouse-manifest"
+    if manifest and manifest.get("quality"):
         route_providers["quality"] = "lakehouse-manifest"
-    if manifest.get("branches"):
+    if manifest and manifest.get("branches"):
         route_providers["branches"] = "lakehouse-manifest"
-    if manifest.get("runs"):
+    if manifest and manifest.get("runs"):
         route_providers["runs"] = "lakehouse-manifest"
-    if any(
+    if manifest and manifest.get("operations"):
+        route_providers["operations"] = "lakehouse-manifest"
+    if manifest and any(
         str(asset.get("metadata", {}).get("stage", "")).lower() == "serving"
         or str(asset.get("group", "")).lower() == "serving"
         for asset in manifest.get("assets", [])
         if isinstance(asset, Mapping)
     ):
         route_providers["apis"] = "lakehouse-manifest"
+    for provider in _raw_provider_names("api_backend"):
+        route_providers.setdefault("apis", provider)
+    for provider in _raw_provider_names("publish_target", "query_engine"):
+        route_providers.setdefault("bi", provider)
+    for provider in _raw_provider_names("observability_backend", "alert_sink"):
+        route_providers.setdefault("observability", provider)
 
     overridden: list[ObservatoryCapabilityPage] = []
     for page in pages:
@@ -2910,6 +3358,12 @@ def _apply_manifest_capability_overrides(
             )
         )
     return overridden
+
+
+def _raw_provider_names(*capability_types: str) -> list[str]:
+    return [
+        item.name for item in _surface_items_from_inventory(*capability_types, kind="capability")
+    ]
 
 
 _RUNTIME_SERVICE_CAPABILITIES: dict[str, tuple[str, ...]] = {
@@ -3088,7 +3542,7 @@ def _pages_from_inventory(
                     "required_all": list(requirement.required_all),
                     "optional": list(requirement.optional),
                     "nav": requirement.nav,
-                    **_DATA_PRODUCT_SURFACE_METADATA.get(requirement.route_id, {}),
+                    **_DATASET_SURFACE_METADATA.get(requirement.route_id, {}),
                 },
             )
         )
@@ -3174,12 +3628,21 @@ def _load_settings() -> ObservatorySettings:
         pass
 
     capabilities = _load_capabilities()
+    project_root = _project_root()
+    compose_project = os.environ.get("PHLO_COMPOSE_PROJECT") or os.environ.get(
+        "COMPOSE_PROJECT_NAME"
+    )
     return ObservatorySettings(
         defaults=defaults,
         features=capabilities.features,
         storage={"settings": "core"},
         metadata={
             "providers": capabilities.providers,
+            "runtime": {
+                "project_path": str(project_root),
+                "compose_project": compose_project or None,
+                "api_source": "phlo-api",
+            },
         },
     )
 
@@ -3522,16 +3985,16 @@ def _execute_branch_action(request: ObservatoryActionRequest) -> ObservatoryActi
     )
 
 
-def _execute_data_product_workflow_action(
+def _execute_dataset_workflow_action(
     request: ObservatoryActionRequest,
 ) -> ObservatoryActionResult | None:
-    if request.action_id.startswith("data-product:"):
-        resource_id, separator, action_name = request.action_id.removeprefix(
-            "data-product:"
-        ).rpartition(":")
+    if request.action_id.startswith("dataset:"):
+        resource_id, separator, action_name = request.action_id.removeprefix("dataset:").rpartition(
+            ":"
+        )
         if not separator or action_name not in {"publish", "retire"}:
             return None
-        return _execute_product_publication_action(request, resource_id, action_name)
+        return _execute_dataset_publication_action(request, resource_id, action_name)
 
     if request.action_id.startswith("candidate:"):
         table_id, separator, action_name = request.action_id.removeprefix("candidate:").rpartition(
@@ -3544,21 +4007,21 @@ def _execute_data_product_workflow_action(
     return None
 
 
-def _execute_product_publication_action(
+def _execute_dataset_publication_action(
     request: ObservatoryActionRequest,
-    product_id: str,
+    dataset_id: str,
     action_name: str,
 ) -> ObservatoryActionResult:
     try:
-        profile = _load_data_product_profile(product_id)
+        profile = _load_dataset_profile(dataset_id)
     except HTTPException as exc:
         return _workflow_action_result(
             request,
             label="Update publication",
-            kind="data_product.workflow",
+            kind="dataset.workflow",
             status="failed",
             message=str(exc.detail),
-            target=ObservatoryResourceRef(kind="data_product", id=product_id, label=product_id),
+            target=ObservatoryResourceRef(kind="dataset", id=dataset_id, label=dataset_id),
         )
 
     action = next(
@@ -3569,51 +4032,51 @@ def _execute_product_publication_action(
         return _workflow_action_result(
             request,
             label="Update publication",
-            kind="data_product.workflow",
+            kind="dataset.workflow",
             status="failed",
             message=f"Unsupported publication action: {action_name}",
             target=ObservatoryResourceRef(
-                kind="data_product", id=profile.product.id, label=profile.product.name
+                kind="dataset", id=profile.dataset.id, label=profile.dataset.name
             ),
         )
     if not action.enabled:
         return _workflow_action_result(
             request,
             label=action.label,
-            kind=f"data_product.{action_name}",
+            kind=f"dataset.{action_name}",
             status="skipped",
             message=action.reason or "Publication action is not currently available.",
             target=ObservatoryResourceRef(
-                kind="data_product", id=profile.product.id, label=profile.product.name
+                kind="dataset", id=profile.dataset.id, label=profile.dataset.name
             ),
         )
 
     next_publication_state = "published" if action_name == "publish" else "retired"
     next_approval_state = "approved" if action_name == "publish" else "retired"
-    state = _load_data_product_workflow_state()
-    products = dict(state.get("products", {}))
-    current = products.get(profile.product.id)
+    state = _load_dataset_workflow_state()
+    datasets = dict(state.get("datasets", {}))
+    current = datasets.get(profile.dataset.id)
     current = current if isinstance(current, dict) else {}
-    products[profile.product.id] = {
+    datasets[profile.dataset.id] = {
         **current,
         "publication_state": next_publication_state,
         "approval_state": next_approval_state,
     }
-    state["products"] = products
-    _write_data_product_workflow_state(state)
+    state["datasets"] = datasets
+    _write_dataset_workflow_state(state)
     _record_observatory_telemetry(
-        name=f"observatory.data_product.{action_name}",
-        resource_id=profile.product.id,
+        name=f"observatory.dataset.{action_name}",
+        resource_id=profile.dataset.id,
         action_id=request.action_id,
     )
     return _workflow_action_result(
         request,
         label=action.label,
-        kind=f"data_product.{action_name}",
+        kind=f"dataset.{action_name}",
         status="succeeded",
-        message=f"{profile.product.name} marked {next_publication_state}.",
+        message=f"{profile.dataset.name} marked {next_publication_state}.",
         target=ObservatoryResourceRef(
-            kind="data_product", id=profile.product.id, label=profile.product.name
+            kind="dataset", id=profile.dataset.id, label=profile.dataset.name
         ),
     )
 
@@ -3628,13 +4091,13 @@ def _execute_candidate_workflow_action(
         return _workflow_action_result(
             request,
             label="Update candidate",
-            kind="data_product.candidate",
+            kind="dataset.candidate",
             status="failed",
             message=f"Candidate source table not found: {table_id}",
             target=ObservatoryResourceRef(kind="table", id=table_id, label=table_id),
         )
 
-    state = _load_data_product_workflow_state()
+    state = _load_dataset_workflow_state()
     candidates = dict(state.get("candidates", {}))
     current = candidates.get(table.id)
     current = current if isinstance(current, dict) else {}
@@ -3651,19 +4114,19 @@ def _execute_candidate_workflow_action(
         next_state.update(
             {
                 "state": "promoted",
-                "product_id": table.id,
+                "dataset_id": table.id,
                 "publication_state": "draft",
                 "approval_state": "review",
             }
         )
-        message = f"{table.name} promoted to a draft Data Product."
+        message = f"{table.name} promoted to a draft Dataset."
     else:
         next_state["state"] = "rejected"
         next_state["approval_state"] = "rejected"
         message = f"{table.name} rejected from the candidate queue."
     candidates[table.id] = next_state
     state["candidates"] = candidates
-    _write_data_product_workflow_state(state)
+    _write_dataset_workflow_state(state)
     _record_observatory_telemetry(
         name=f"observatory.candidate.{action_name}",
         resource_id=table.id,
@@ -3672,7 +4135,7 @@ def _execute_candidate_workflow_action(
     return _workflow_action_result(
         request,
         label=action_name.title(),
-        kind=f"data_product.candidate.{action_name}",
+        kind=f"dataset.candidate.{action_name}",
         status="succeeded",
         message=message,
         target=ObservatoryResourceRef(kind="table", id=table.id, label=table.name),
@@ -3702,7 +4165,7 @@ def _workflow_action_result(
         risk_level="medium"
         if "retire" in request.action_id or "reject" in request.action_id
         else "low",
-        expected_evidence=["data_product_workflow_state"],
+        expected_evidence=["dataset_workflow_state"],
     )
     return ObservatoryActionResult(
         action=action,
@@ -3717,7 +4180,7 @@ def _workflow_action_result(
             target=target,
             metadata={
                 "action_id": request.action_id,
-                "workflow_state_path": str(_data_product_workflow_path()),
+                "workflow_state_path": str(_dataset_workflow_path()),
             },
         ),
     )
@@ -3745,21 +4208,30 @@ def _record_observatory_telemetry(*, name: str, resource_id: str, action_id: str
 @router.get("/overview", response_model=ObservatoryOverview)
 def get_observatory_overview() -> ObservatoryOverview:
     """Get the provider-neutral Observatory overview."""
-    return _cached_read_model(
-        "overview",
-        _RUNTIME_READ_MODEL_TTL_SECONDS,
-        lambda: ObservatoryOverview(
-            health=_overview_health_from_services(_load_services()),
-            counters={
-                "services": len(_runtime_services(_load_services())),
-                "operations": len(_load_operations()),
-                "assets": len(_load_assets()),
-                "tables": len(_load_tables_without_catalog()),
-                "quality": len(_load_quality()),
-                "incidents": 0,
-            },
-            recent=[],
+    project_root = _project_root()
+    containers = load_project_docker_containers(project_root)
+    services = _runtime_services_from_containers(containers, set(), project_root)
+    operations = _load_operations()
+    quality = list(_manifest_records("quality", ObservatoryQualityCheck))
+    logs = _load_logs()
+    return ObservatoryOverview(
+        health=_overview_health_from_services(services),
+        counters={
+            "services": len(services),
+            "operations": len(operations),
+            "assets": len(list(_manifest_records("assets", ObservatoryAsset))),
+            "tables": len(list(_manifest_records("tables", ObservatoryTable))),
+            "quality": len(quality),
+            "incidents": 0,
+        },
+        attention=_overview_attention_rows(
+            services=services,
+            operations=operations,
+            quality=quality,
+            logs=logs,
         ),
+        events=_overview_event_rows(operations, logs),
+        recent=[],
     )
 
 
@@ -3788,11 +4260,7 @@ def get_observatory_capability_inventory() -> ObservatoryCapabilityInventory:
 @router.get("/services", response_model=ObservatoryServiceList)
 def get_observatory_services() -> ObservatoryServiceList:
     """List provider-neutral Observatory services."""
-    return _cached_read_model(
-        "services",
-        _RUNTIME_READ_MODEL_TTL_SECONDS,
-        lambda: ObservatoryServiceList(items=_load_services()),
-    )
+    return ObservatoryServiceList(items=_load_services())
 
 
 @router.get("/services/{service_id:path}", response_model=ObservatoryServiceDetail)
@@ -3952,21 +4420,8 @@ def get_observatory_observability() -> ObservatorySurfaceList:
 
 @router.get("/governance", response_model=ObservatoryGovernanceMatrix)
 def get_observatory_governance() -> ObservatoryGovernanceMatrix:
-    """Get the Data Product governance control matrix."""
+    """Get the Dataset governance control matrix."""
     return _load_governance_matrix()
-
-
-@router.get("/catalog", response_model=ObservatorySurfaceList)
-def get_observatory_catalog() -> ObservatorySurfaceList:
-    """List provider-neutral catalog surfaces."""
-    return ObservatorySurfaceList(
-        items=_surface_items_from_inventory(
-            "metadata_catalog",
-            "catalog_scanner",
-            "catalog",
-            kind="catalog",
-        )
-    )
 
 
 @router.get("/apis", response_model=ObservatorySurfaceList)
@@ -3996,7 +4451,7 @@ def get_observatory_bi() -> ObservatorySurfaceList:
 def get_observatory_assets(limit: int = 100, cursor: str | None = None) -> ObservatoryAssetList:
     """List provider-neutral Observatory assets."""
     result = _cached_read_model(
-        "assets",
+        "assets:dataset-vocabulary",
         _EXPENSIVE_READ_MODEL_TTL_SECONDS,
         lambda: ObservatoryAssetList(items=_load_assets()),
     )
@@ -4005,60 +4460,58 @@ def get_observatory_assets(limit: int = 100, cursor: str | None = None) -> Obser
 
 
 @router.get(
-    "/data-products",
-    response_model=ObservatoryDataProductList,
+    "/datasets",
+    response_model=ObservatoryDatasetList,
     response_model_exclude_none=True,
 )
-def get_observatory_data_products(
-    limit: int = 100, cursor: str | None = None
-) -> ObservatoryDataProductList:
-    """List provider-neutral Observatory Data Products."""
+def get_observatory_datasets(limit: int = 100, cursor: str | None = None) -> ObservatoryDatasetList:
+    """List provider-neutral Observatory Datasets."""
     result = _cached_read_model(
-        "data-products",
+        "datasets",
         _EXPENSIVE_READ_MODEL_TTL_SECONDS,
-        lambda: ObservatoryDataProductList(items=_load_data_products()),
+        lambda: ObservatoryDatasetList(items=_load_datasets()),
     )
     page, next_cursor = paginate_items(result.items, limit=limit, cursor=cursor)
-    return ObservatoryDataProductList(items=page, next_cursor=next_cursor)
+    return ObservatoryDatasetList(items=page, next_cursor=next_cursor)
 
 
-@router.get("/data-products/{product_id:path}", response_model=ObservatoryDataProductProfile)
-def get_observatory_data_product_profile(product_id: str) -> ObservatoryDataProductProfile:
-    """Get the shared provider-neutral Data Product Profile."""
+@router.get("/datasets/{dataset_id:path}", response_model=ObservatoryDatasetProfile)
+def get_observatory_dataset_profile(dataset_id: str) -> ObservatoryDatasetProfile:
+    """Get the shared provider-neutral Dataset Profile."""
     return _cached_read_model(
-        f"data-product-profile:{product_id}",
+        f"dataset-profile:{dataset_id}",
         _EXPENSIVE_READ_MODEL_TTL_SECONDS,
-        lambda: _load_data_product_profile(product_id),
+        lambda: _load_dataset_profile(dataset_id),
     )
 
 
-@router.get("/data-product-workflow/config", response_model=ObservatoryDataProductWorkflowConfig)
-def get_observatory_data_product_workflow_config() -> ObservatoryDataProductWorkflowConfig:
-    """Get configurable Data Product workflow defaults."""
-    return _data_product_workflow_config()
+@router.get("/dataset-workflow/config", response_model=ObservatoryDatasetWorkflowConfig)
+def get_observatory_dataset_workflow_config() -> ObservatoryDatasetWorkflowConfig:
+    """Get configurable Dataset workflow defaults."""
+    return _dataset_workflow_config()
 
 
-@router.put("/data-product-workflow/config", response_model=ObservatoryDataProductWorkflowConfig)
-def put_observatory_data_product_workflow_config(
-    payload: ObservatoryDataProductWorkflowConfig,
-) -> ObservatoryDataProductWorkflowConfig:
-    """Persist configurable Data Product workflow defaults."""
+@router.put("/dataset-workflow/config", response_model=ObservatoryDatasetWorkflowConfig)
+def put_observatory_dataset_workflow_config(
+    payload: ObservatoryDatasetWorkflowConfig,
+) -> ObservatoryDatasetWorkflowConfig:
+    """Persist configurable Dataset workflow defaults."""
     approval_states = [state.strip() for state in payload.approval_states if state.strip()]
     if not approval_states:
         raise HTTPException(status_code=422, detail="approval_states must not be empty")
-    state = _load_data_product_workflow_state()
+    state = _load_dataset_workflow_state()
     state["config"] = {
         "default_owner": payload.default_owner.strip() or _workflow_default_owner(),
         "approval_states": approval_states,
     }
-    _write_data_product_workflow_state(state)
+    _write_dataset_workflow_state(state)
     _clear_read_model_cache()
-    return _data_product_workflow_config()
+    return _dataset_workflow_config()
 
 
 @router.get("/pipelines", response_model=ObservatoryPipelineList)
 def get_observatory_pipelines() -> ObservatoryPipelineList:
-    """Get Data Product production-flow summaries."""
+    """Get Dataset production-flow summaries."""
     return _cached_read_model(
         "pipelines",
         _EXPENSIVE_READ_MODEL_TTL_SECONDS,
@@ -4182,7 +4635,7 @@ def get_observatory_tables() -> ObservatoryTableList:
     """List provider-neutral Observatory tables."""
     return _cached_read_model(
         "tables",
-        _EXPENSIVE_READ_MODEL_TTL_SECONDS,
+        _RUNTIME_READ_MODEL_TTL_SECONDS,
         lambda: ObservatoryTableList(items=_compact_tables(_load_tables())),
     )
 
@@ -4287,7 +4740,7 @@ def get_observatory_quality_detail(check_id: str) -> ObservatoryQualityDetail:
 def get_observatory_logs() -> ObservatoryLogList:
     """List provider-neutral Observatory log events."""
     return _cached_read_model(
-        "logs",
+        "logs:dataset-vocabulary",
         _RUNTIME_READ_MODEL_TTL_SECONDS,
         lambda: ObservatoryLogList(items=_load_logs()),
     )
@@ -4483,7 +4936,7 @@ def post_observatory_action(request: ObservatoryActionRequest) -> ObservatoryAct
         and action_name in {"add", "start", "stop", "restart"}
         and any(service.id == resource_id for service in services)
     )
-    workflow_result = _execute_data_product_workflow_action(request)
+    workflow_result = _execute_dataset_workflow_action(request)
     result = (
         _execute_action(request)
         if is_service_control_action

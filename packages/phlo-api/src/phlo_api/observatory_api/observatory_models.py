@@ -236,11 +236,25 @@ class ObservatoryServiceDetail(BaseModel):
     config: list[ObservatoryServiceConfigEntry] = Field(default_factory=list)
 
 
+class ObservatoryOverviewRow(BaseModel):
+    """One canonical row for Home attention and event surfaces."""
+
+    id: str
+    kind: Literal["service", "quality", "operation", "log"]
+    label: str
+    href: str
+    state: HealthState
+    meta: str | None = None
+    reason: str | None = None
+
+
 class ObservatoryOverview(BaseModel):
     """First slice of the Observatory overview payload."""
 
     health: ObservatoryHealth
     counters: dict[str, int] = Field(default_factory=dict)
+    attention: list[ObservatoryOverviewRow] = Field(default_factory=list)
+    events: list[ObservatoryOverviewRow] = Field(default_factory=list)
     recent: list[ObservatoryResourceRef] = Field(default_factory=list)
 
 
@@ -312,8 +326,8 @@ class ObservatoryAssetDetail(BaseModel):
     column_lineage: dict[str, list[str]] = Field(default_factory=dict)
 
 
-class ObservatoryDataProduct(BaseModel):
-    """Provider-neutral Data Product summary."""
+class ObservatoryDataset(BaseModel):
+    """Provider-neutral Dataset summary."""
 
     id: str
     name: str
@@ -329,7 +343,7 @@ class ObservatoryDataProduct(BaseModel):
 
 
 class ObservatoryControlEvidence(BaseModel):
-    """Evidence supporting one Data Product control."""
+    """Evidence supporting one Dataset control."""
 
     kind: str
     id: str
@@ -339,8 +353,8 @@ class ObservatoryControlEvidence(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class ObservatoryDataProductControl(BaseModel):
-    """One governance control evaluated against a Data Product."""
+class ObservatoryDatasetControl(BaseModel):
+    """One governance control evaluated against a Dataset."""
 
     id: str
     label: str
@@ -350,17 +364,17 @@ class ObservatoryDataProductControl(BaseModel):
 
 
 class ObservatoryGovernanceRow(BaseModel):
-    """Control matrix row for one Data Product."""
+    """Control matrix row for one Dataset."""
 
-    product: ObservatoryDataProduct
+    dataset: ObservatoryDataset
     owner: str | None = None
     classifications: list[str] = Field(default_factory=list)
     status: ControlStatus = "unknown"
-    controls: list[ObservatoryDataProductControl] = Field(default_factory=list)
+    controls: list[ObservatoryDatasetControl] = Field(default_factory=list)
 
 
 class ObservatoryGovernanceMatrix(BaseModel):
-    """Governance control matrix over Data Products."""
+    """Governance control matrix over Datasets."""
 
     controls: list[str] = Field(default_factory=list)
     rows: list[ObservatoryGovernanceRow] = Field(default_factory=list)
@@ -377,7 +391,7 @@ class ObservatoryTelemetryPrivacyPolicy(BaseModel):
 
 
 class ObservatoryAccessActivity(BaseModel):
-    """Privacy-shaped access activity for a Data Product."""
+    """Privacy-shaped access activity for a Dataset."""
 
     id: str
     action: str
@@ -389,7 +403,7 @@ class ObservatoryAccessActivity(BaseModel):
 
 
 class ObservatoryDependencyActivity(BaseModel):
-    """Observed usage dependency involving a Data Product."""
+    """Observed usage dependency involving a Dataset."""
 
     id: str
     source: ObservatoryResourceRef
@@ -401,7 +415,7 @@ class ObservatoryDependencyActivity(BaseModel):
 
 
 class ObservatoryConsumerAdoption(BaseModel):
-    """Declared consumer reliance on a Data Product."""
+    """Declared consumer reliance on a Dataset."""
 
     id: str
     consumer: str
@@ -412,8 +426,8 @@ class ObservatoryConsumerAdoption(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class ObservatoryDataProductUsage(BaseModel):
-    """Usage read model for one Data Product."""
+class ObservatoryDatasetUsage(BaseModel):
+    """Usage read model for one Dataset."""
 
     privacy_policy: ObservatoryTelemetryPrivacyPolicy = Field(
         default_factory=ObservatoryTelemetryPrivacyPolicy
@@ -434,7 +448,7 @@ class ObservatoryPublishingAction(BaseModel):
 
 
 class ObservatoryPublishingReadiness(BaseModel):
-    """Readiness policy evaluation for internal Data Product publishing."""
+    """Readiness policy evaluation for internal Dataset publishing."""
 
     state: HealthState = "unknown"
     policy_name: str = "default"
@@ -446,7 +460,7 @@ class ObservatoryPublishingReadiness(BaseModel):
 
 
 class ObservatoryPipelineStage(BaseModel):
-    """One stage in a Data Product production flow."""
+    """One stage in a Dataset production flow."""
 
     id: str
     label: str
@@ -454,10 +468,10 @@ class ObservatoryPipelineStage(BaseModel):
     resource: ObservatoryResourceRef | None = None
 
 
-class ObservatoryDataProductPipeline(BaseModel):
-    """Production-flow read model for one Data Product."""
+class ObservatoryDatasetPipeline(BaseModel):
+    """Production-flow read model for one Dataset."""
 
-    product: ObservatoryDataProduct | None = None
+    dataset: ObservatoryDataset | None = None
     freshness_state: HealthState = "unknown"
     freshness_at: str | None = None
     last_run: ObservatoryResourceRef | None = None
@@ -466,15 +480,15 @@ class ObservatoryDataProductPipeline(BaseModel):
 
 
 class ObservatoryPipelineList(BaseModel):
-    """Production-flow summaries for Data Products."""
+    """Production-flow summaries for Datasets."""
 
-    items: list[ObservatoryDataProductPipeline] = Field(default_factory=list)
+    items: list[ObservatoryDatasetPipeline] = Field(default_factory=list)
 
 
-class ObservatoryDataProductProfile(BaseModel):
-    """Shared cross-feature profile for one Data Product."""
+class ObservatoryDatasetProfile(BaseModel):
+    """Shared cross-feature profile for one Dataset."""
 
-    product: ObservatoryDataProduct
+    dataset: ObservatoryDataset
     asset: ObservatoryAsset | None = None
     tables: list["ObservatoryTable"] = Field(default_factory=list)
     quality: list["ObservatoryQualityCheck"] = Field(default_factory=list)
@@ -482,12 +496,12 @@ class ObservatoryDataProductProfile(BaseModel):
     downstream: list[ObservatoryResourceRef] = Field(default_factory=list)
     logs: list["ObservatoryLogEvent"] = Field(default_factory=list)
     operations: list["ObservatoryOperation"] = Field(default_factory=list)
-    governance: list[ObservatoryDataProductControl] = Field(default_factory=list)
-    usage: ObservatoryDataProductUsage = Field(default_factory=ObservatoryDataProductUsage)
+    governance: list[ObservatoryDatasetControl] = Field(default_factory=list)
+    usage: ObservatoryDatasetUsage = Field(default_factory=ObservatoryDatasetUsage)
     publishing: ObservatoryPublishingReadiness = Field(
         default_factory=ObservatoryPublishingReadiness
     )
-    pipeline: ObservatoryDataProductPipeline = Field(default_factory=ObservatoryDataProductPipeline)
+    pipeline: ObservatoryDatasetPipeline = Field(default_factory=ObservatoryDatasetPipeline)
     sections: dict[str, bool] = Field(default_factory=dict)
 
 
@@ -814,10 +828,10 @@ class ObservatoryAssetList(BaseModel):
     next_cursor: str | None = None
 
 
-class ObservatoryDataProductList(BaseModel):
-    """List envelope for v2 Data Products."""
+class ObservatoryDatasetList(BaseModel):
+    """List envelope for v2 Datasets."""
 
-    items: list[ObservatoryDataProduct]
+    items: list[ObservatoryDataset]
     next_cursor: str | None = None
 
 

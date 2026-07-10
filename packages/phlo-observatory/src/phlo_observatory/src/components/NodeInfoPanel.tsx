@@ -140,8 +140,8 @@ export function NodeInfoPanel({
       {/* Actions */}
       <div className="p-4 border-t border-border space-y-2">
         <Link
-          to="/assets/$assetId"
-          params={{ assetId: node.keyPath }}
+          to="/lineage"
+          search={{ assetId: node.keyPath }}
           className={cn(
             buttonVariants({ size: 'sm' }),
             'w-full justify-center gap-2',

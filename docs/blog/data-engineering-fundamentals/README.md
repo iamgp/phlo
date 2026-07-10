@@ -8,7 +8,7 @@ transformation, quality, observability, and extension design.
 
 - New data engineers who want practical foundations
 - Analytics engineers moving into platform ownership
-- Backend engineers building reliable data products
+- Backend engineers building reliable datasets
 - Teams standardising on open lakehouse patterns
 
 ## What You Will Build

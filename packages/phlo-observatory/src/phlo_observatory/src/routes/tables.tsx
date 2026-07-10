@@ -15,6 +15,7 @@ import type { ReactNode } from 'react'
 import type {
   ObservatoryAsset,
   ObservatoryCapabilities,
+  ObservatoryDataset,
   ObservatoryOperation,
   ObservatoryQualityCheck,
   ObservatoryResourceResult,
@@ -28,6 +29,7 @@ import type {
 import {
   getObservatoryAssetRecords,
   getObservatoryCapabilities,
+  getObservatoryDatasetRecords,
   getObservatoryOperationRecords,
   getObservatoryQualityRecords,
   getObservatorySavedQueries,
@@ -38,6 +40,7 @@ import {
 } from '@/observatory/api/resources'
 import { ObservatoryFlowCanvas } from '@/observatory/components/ObservatoryFlowCanvas'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
+import { ObservatoryIndexTable } from '@/observatory/components/ObservatoryTable'
 import {
   loadCachedResource,
   readMetric,
@@ -46,41 +49,66 @@ import {
 
 const previewLimit = 100
 
-export const Route = createFileRoute('/data')({
-  component: Data,
+export const Route = createFileRoute('/tables')({
+  component: Tables,
 })
 
-export function Data() {
-  return useDataRoute()
-}
-
-function useDataRoute() {
+export function Tables() {
   const result = useLiveResource(
     getObservatoryTableRecords,
     120_000,
-    'v2:tables',
+    'observatory:tables',
   )
   const assetResult = useLiveResource(
     getObservatoryAssetRecords,
     120_000,
-    'v2:assets',
+    'observatory:assets',
   )
   const qualityResult = useLiveResource(
     getObservatoryQualityRecords,
     120_000,
-    'v2:quality',
+    'observatory:quality',
   )
   const operationResult = useLiveResource(
     getObservatoryOperationRecords,
     120_000,
-    'v2:operations',
+    'observatory:operations',
   )
-  const tables = result.data ?? []
+  const datasetResult = useLiveResource(
+    getObservatoryDatasetRecords,
+    120_000,
+    'observatory:datasets',
+  )
+  const [freshTables, setFreshTables] =
+    useState<Array<ObservatoryTable> | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    async function refreshTables() {
+      const response = await window.fetch('/api/observatory/tables')
+      if (!response.ok) return
+      const payload = (await response.json()) as {
+        items?: Array<ObservatoryTable>
+      }
+      const items = Array.isArray(payload.items) ? payload.items : null
+      if (
+        !cancelled &&
+        items?.some((table) => table.metadata?.catalog_state !== undefined)
+      ) {
+        setFreshTables(items)
+      }
+    }
+    void refreshTables().catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  const tables = freshTables ?? result.data ?? []
   const hasLoadedTables = result.data !== null
   const assets = assetResult.data ?? []
+  const datasets = datasetResult.data ?? []
   const quality = qualityResult.data ?? []
   const operations = operationResult.data ?? []
-  const sortedTables = useMemo(() => sortTablesForFlow(tables), [tables])
+  const sortedTables = useMemo(() => sortTablesForLineage(tables), [tables])
   const [tableQuery, setTableQuery] = useState('')
   const filteredTables = useMemo(
     () => filterTables(sortedTables, tableQuery),
@@ -91,8 +119,19 @@ function useDataRoute() {
     sortedTables.find((table) => table.id === selectedId) ??
     chooseDefaultTable(filteredTables.length ? filteredTables : sortedTables) ??
     null
+  const selectTable = useCallback((tableId: string) => {
+    setSelectedId(tableId)
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('tableId', tableId)
+    window.history.replaceState(
+      null,
+      '',
+      `${url.pathname}?${url.searchParams.toString()}`,
+    )
+  }, [])
   const [activeDetail, setActiveDetail] = useState<DataDetailTab>('sql')
-  const [mainView, setMainView] = useState<DataMainView>('rows')
+  const [mainView, setMainView] = useState<TableMainView>('rows')
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
   const [sql, setSql] = useState('')
   const [queryResult, setQueryResult] = useState<
@@ -144,6 +183,15 @@ function useDataRoute() {
         : null,
     [assets, operations, quality, selected, selectedPreview],
   )
+  const selectedDataset = selected ? datasetForTable(selected, datasets) : null
+  const selectedQuality = selected ? qualityForTable(selected, quality) : []
+  const selectedOperations = selected
+    ? operationsForTable(selected, selectedDataset, operations)
+    : []
+  const tableSummary = useMemo(
+    () => buildTableSummary(tables, datasets, quality, selected),
+    [datasets, quality, selected, tables],
+  )
   const selectedPreviewError = selectedPreview ? preview.error : null
   const selectedRowCount =
     selectedPreview && selected ? selectedPreview.row_count : null
@@ -168,7 +216,8 @@ function useDataRoute() {
     let cancelled = false
     let retryTimer: number | undefined
     setPreview({ data: null, error: null })
-    const key = `v2:table-preview:${selected.id}:${previewLimit}:0:${previewRefreshKey}`
+    setSql(defaultSqlForTable(selected))
+    const key = `observatory:table-preview:${selected.id}:${previewLimit}:0:${previewRefreshKey}`
     const loadPreview = (force = false) =>
       loadCachedResource(
         key,
@@ -182,7 +231,7 @@ function useDataRoute() {
         },
       )
 
-    void loadPreview(previewRefreshKey > 0).then((next) => {
+    void loadPreview(true).then((next) => {
       if (cancelled) return
       applySelectedPreview(defaultSqlForTable(selected), next)
       if (isTransientPreviewMiss(next.error)) {
@@ -205,7 +254,7 @@ function useDataRoute() {
     if (!current?.has_more) return
     const offset = current.rows.length
     setIsLoadingMoreRows(true)
-    const key = `v2:table-preview:${selected.id}:${previewLimit}:${offset}:${previewRefreshKey}`
+    const key = `observatory:table-preview:${selected.id}:${previewLimit}:${offset}:${previewRefreshKey}`
     void loadCachedResource(
       key,
       () =>
@@ -230,22 +279,43 @@ function useDataRoute() {
   }, [isLoadingMoreRows, previewRefreshKey, selected, selectedPreview])
 
   useEffect(() => {
-    void loadCachedResource('v2:saved-queries', getObservatorySavedQueries, {
-      staleMs: 300_000,
-    }).then(setSavedQueries)
-    void loadCachedResource('v2:capabilities', getObservatoryCapabilities, {
-      staleMs: 120_000,
-    }).then(setCapabilities)
+    void loadCachedResource(
+      'observatory:saved-queries',
+      getObservatorySavedQueries,
+      {
+        staleMs: 300_000,
+      },
+    ).then(setSavedQueries)
+    void loadCachedResource(
+      'observatory:capabilities',
+      getObservatoryCapabilities,
+      {
+        staleMs: 120_000,
+      },
+    ).then(setCapabilities)
   }, [])
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const requested = new URLSearchParams(window.location.search).get('tableId')
+    if (!requested || requested === selectedId) return
+    if (sortedTables.some((table) => table.id === requested)) {
+      setSelectedId(requested)
+    }
+  }, [selectedId, sortedTables])
+
+  useEffect(() => {
+    if (selectedId !== null || !selected) return
+    setSelectedId(selected.id)
+  }, [selected, selectedId])
 
   return (
     <ObservatoryPage
-      kicker="Data"
-      title="Table browser"
+      kicker="Tables"
+      title="Table inventory"
       description={
         branchesAvailable
-          ? 'Browse tables, branches, schemas, and row-journey entry points.'
-          : 'Browse tables, schemas, preview rows, and row-journey entry points.'
+          ? 'Inspect physical tables, branches, schemas, Dataset bindings, quality checks, and linked runs.'
+          : 'Inspect physical tables, schemas, Dataset bindings, quality checks, and linked runs.'
       }
       action={
         <span className="phlo-observatory-pill">
@@ -258,7 +328,7 @@ function useDataRoute() {
           <div className="phlo-observatory-browser-toolbar">
             <span>
               <Database className="size-4" />
-              Table browser
+              Inventory
             </span>
             <label className="phlo-observatory-search-field phlo-observatory-data-search">
               <Search className="size-4" />
@@ -277,52 +347,63 @@ function useDataRoute() {
               {filteredTables.length} / {tables.length} tables
             </span>
           </div>
-          <div
-            className="phlo-observatory-table-grid"
-            data-branches={branchesAvailable}
-            role="table"
-          >
-            <div className="phlo-observatory-table-head" role="row">
-              <span>Name</span>
-              <span>Namespace</span>
-              <span>Format</span>
-              {branchesAvailable && <span>Branch</span>}
-              <span>Rows</span>
-              <span>Catalog</span>
-            </div>
-            {filteredTables.map((table) => (
-              <button
-                className="phlo-observatory-table-row"
-                data-active={table.id === selected?.id}
-                key={table.id}
-                onClick={() => setSelectedId(table.id)}
-                role="row"
-                type="button"
-              >
-                <span>{table.name}</span>
-                <span>{table.namespace ?? 'default'}</span>
-                <span>{table.format ?? 'unknown'}</span>
-                {branchesAvailable && <span>{table.branch ?? 'main'}</span>}
-                <span>
-                  {table.id === selected?.id && selectedRowCount !== null
-                    ? selectedRowCount
-                    : (readTableRecordCount(table) ?? '—')}
-                </span>
-                <span>{tableCatalogState(table)}</span>
-              </button>
-            ))}
-            {filteredTables.length === 0 && (
+          <TableInventorySummary summary={tableSummary} />
+          <ObservatoryIndexTable
+            columnTemplate={
+              branchesAvailable
+                ? '1.15fr 0.8fr 1.25fr 0.65fr 0.65fr 0.9fr 0.9fr'
+                : '1.15fr 0.8fr 1.25fr 0.65fr 0.8fr 0.9fr'
+            }
+            columns={[
+              { key: 'name', label: 'Name' },
+              { key: 'namespace', label: 'Namespace' },
+              { key: 'dataset', label: 'Dataset' },
+              { key: 'format', label: 'Format' },
+              ...(branchesAvailable
+                ? [{ key: 'branch', label: 'Branch' }]
+                : []),
+              { key: 'rows', label: 'Rows' },
+              { key: 'queryable', label: 'Queryable state' },
+            ]}
+            empty={
               <div className="phlo-observatory-empty-state">
                 {!hasLoadedTables
-                  ? 'Loading tables…'
+                  ? 'Loading tables...'
                   : tables.length === 0
                     ? 'No tables registered yet.'
                     : 'No tables match this filter.'}
               </div>
-            )}
-          </div>
+            }
+            rows={filteredTables.map((table) => {
+              const rowDataset = datasetForTable(table, datasets)
+              const rowCount =
+                table.id === selected?.id && selectedRowCount !== null
+                  ? selectedRowCount
+                  : (readTableRecordCount(table) ?? '-')
+              return {
+                active: table.id === selected?.id,
+                key: table.id,
+                onSelect: () => selectTable(table.id),
+                cells: [
+                  table.name,
+                  table.namespace ?? 'default',
+                  tableDatasetLabel(rowDataset),
+                  table.format ?? 'unknown',
+                  ...(branchesAvailable ? [table.branch ?? 'main'] : []),
+                  rowCount,
+                  tableCatalogState(table),
+                ],
+              }
+            })}
+          />
           {selected && selectedProfile && (
-            <DataProfileBand profile={selectedProfile} selected={selected} />
+            <TableEvidenceBand
+              dataset={selectedDataset}
+              operations={selectedOperations}
+              profile={selectedProfile}
+              quality={selectedQuality}
+              selected={selected}
+            />
           )}
           <div className="phlo-observatory-data-main-tabs" role="tablist">
             {dataMainViews.map((view) => (
@@ -339,10 +420,10 @@ function useDataRoute() {
               </button>
             ))}
           </div>
-          {mainView === 'flow' ? (
+          {mainView === 'lineage' ? (
             <div className="phlo-observatory-flow-band">
               <div className="phlo-observatory-workspace-toolbar">
-                <span>Lakehouse table flow</span>
+                <span>Table lineage</span>
                 <span className="phlo-observatory-pill">
                   {graph.edges.length} bindings
                 </span>
@@ -350,7 +431,7 @@ function useDataRoute() {
               <ObservatoryFlowCanvas
                 edges={graph.edges}
                 nodes={graph.nodes}
-                onSelect={setSelectedId}
+                onSelect={selectTable}
                 selectedId={selected?.id}
               />
             </div>
@@ -372,9 +453,18 @@ function useDataRoute() {
           {selected ? (
             <>
               <h2>{selected.name}</h2>
-              <p>{selected.asset_id ?? 'No asset binding returned.'}</p>
+              <p>
+                {selectedDataset
+                  ? `Bound to ${selectedDataset.name}.`
+                  : selected.asset_id
+                    ? `Source binding ${selected.asset_id}.`
+                    : 'No Dataset or lineage binding.'}
+              </p>
               <dl className="phlo-observatory-facts">
-                <Fact label="Schema" value={selected.schema_name ?? 'n/a'} />
+                <Fact
+                  label="Schema"
+                  value={selected.schema_name ?? 'not reported'}
+                />
                 <Fact
                   label="Namespace"
                   value={selected.namespace ?? 'default'}
@@ -383,21 +473,24 @@ function useDataRoute() {
                 {branchesAvailable && (
                   <Fact label="Branch" value={selected.branch ?? 'main'} />
                 )}
-                <Fact label="Catalog" value={tableCatalogState(selected)} />
+                <Fact
+                  label="Queryable state"
+                  value={tableCatalogState(selected)}
+                />
               </dl>
               <div className="phlo-observatory-mini-preview">
                 <div>
                   <Rows3 className="size-4" />
                   {selectedPreview?.row_count ??
                     readMetric(selected.metadata, 'records') ??
-                    'Profile pending'}{' '}
+                    'unknown'}{' '}
                   records
                 </div>
                 <div>
                   <Columns3 className="size-4" />
                   {selectedPreview?.columns.length
                     ? selectedPreview.columns.length
-                    : 'Profile pending'}{' '}
+                    : 'unknown'}{' '}
                   columns
                 </div>
               </div>
@@ -420,9 +513,18 @@ function useDataRoute() {
                   </button>
                 ))}
               </div>
+              <TableWorkflowLinks
+                dataset={selectedDataset}
+                operations={selectedOperations}
+                quality={selectedQuality}
+                selected={selected}
+              />
               <DataDetailPanel
                 active={activeDetail}
+                dataset={selectedDataset}
+                operations={selectedOperations}
                 preview={selectedPreview}
+                quality={selectedQuality}
                 queryResult={queryResult}
                 selected={selected}
                 onRefresh={() => setPreviewRefreshKey((key) => key + 1)}
@@ -438,9 +540,7 @@ function useDataRoute() {
                     data: request,
                   }).then(setQueryResult)
                 }}
-                onSaveQuery={(nextSql) => {
-                  const name = window.prompt('Saved query name')
-                  if (!name) return
+                onSaveQuery={(nextSql, name) => {
                   const request = {
                     name,
                     sql: nextSql,
@@ -491,6 +591,11 @@ function useDataRoute() {
               {operationResult.error}
             </div>
           )}
+          {datasetResult.error && (
+            <div className="phlo-observatory-panel-footer">
+              {datasetResult.error}
+            </div>
+          )}
         </aside>
       </section>
     </ObservatoryPage>
@@ -498,16 +603,25 @@ function useDataRoute() {
 }
 
 type DataDetailTab = 'preview' | 'sql' | 'journey'
-type DataMainView = 'rows' | 'schema' | 'flow'
+type TableMainView = 'rows' | 'schema' | 'lineage'
+
+type TableSummary = {
+  total: number
+  queryable: number
+  datasetBound: number
+  qualityLinked: number
+  selectedLabel: string
+  selectedCatalog: string
+}
 
 const dataMainViews: Array<{
-  id: DataMainView
+  id: TableMainView
   label: string
   icon: ReactNode
 }> = [
   { id: 'rows', label: 'Rows', icon: <Rows3 className="size-3.5" /> },
   { id: 'schema', label: 'Schema', icon: <Columns3 className="size-3.5" /> },
-  { id: 'flow', label: 'Flow', icon: <GitBranch className="size-3.5" /> },
+  { id: 'lineage', label: 'Lineage', icon: <GitBranch className="size-3.5" /> },
 ]
 
 const dataDetailTabs: Array<{
@@ -532,35 +646,105 @@ type TableProfile = {
   businessKeys: Array<string>
 }
 
-function DataProfileBand({
+function TableInventorySummary({ summary }: { summary: TableSummary }) {
+  return (
+    <div className="phlo-observatory-table-summary">
+      <SummaryCell
+        label="Queryable"
+        value={`${summary.queryable}/${summary.total}`}
+      />
+      <SummaryCell label="Dataset bindings" value={summary.datasetBound} />
+      <SummaryCell label="Quality linked" value={summary.qualityLinked} />
+      <SummaryCell label="Selected table" value={summary.selectedLabel} />
+      <SummaryCell label="Table state" value={summary.selectedCatalog} />
+    </div>
+  )
+}
+
+function SummaryCell({
+  label,
+  value,
+}: {
+  label: string
+  value: string | number
+}) {
+  return (
+    <div className="phlo-observatory-table-summary-cell">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function TableEvidenceBand({
+  dataset,
+  operations,
   profile,
+  quality,
   selected,
 }: {
+  dataset: ObservatoryDataset | null
+  operations: Array<ObservatoryOperation>
   profile: TableProfile
+  quality: Array<ObservatoryQualityCheck>
   selected: ObservatoryTable
 }) {
+  const failedQuality = quality.filter((check) => check.status === 'failing')
+  const firstQuality = failedQuality[0] ?? quality[0] ?? null
+  const latestOperation = operations[0] ?? profile.latestOperation
+  const qualityValue =
+    quality.length === 0
+      ? 'No checks'
+      : failedQuality.length > 0 && firstQuality
+        ? `${firstQuality.name} failing`
+        : `${quality.length} checks passing`
+
   return (
     <div
       className="phlo-observatory-data-profile"
       data-state={profile.qualityState}
     >
       <div className="phlo-observatory-data-profile-stage">
-        <span>Stage</span>
-        <strong>{profile.stage}</strong>
-        <small>{selected.namespace ?? selected.schema_name ?? 'default'}</small>
+        <span>Selected table</span>
+        <strong>{selected.id}</strong>
+        <small>{profile.stage} layer</small>
       </div>
       <div className="phlo-observatory-data-profile-grid">
-        <ProfileFact label="Records" value={profile.records ?? 'pending'} />
-        <ProfileFact label="Columns" value={profile.columns ?? 'pending'} />
         <ProfileFact
+          href={
+            dataset ? `/datasets/${encodeURIComponent(dataset.id)}` : undefined
+          }
+          label="Dataset"
+          value={dataset ? dataset.name : 'Candidate table'}
+        />
+        <ProfileFact
+          href={
+            firstQuality
+              ? `/quality?checkId=${encodeURIComponent(firstQuality.id)}`
+              : undefined
+          }
+          label="Quality"
+          value={qualityValue}
+        />
+        <ProfileFact
+          href={
+            selected.asset_id
+              ? `/lineage?assetId=${encodeURIComponent(selected.asset_id)}`
+              : undefined
+          }
           label="Lineage"
           value={`${profile.upstream} up / ${profile.downstream} down`}
         />
-        <ProfileFact label="Quality" value={profile.qualityLabel} />
         <ProfileFact
-          label="Latest event"
-          value={profile.latestOperation?.name ?? 'No operation linked'}
+          href={
+            latestOperation
+              ? `/operations?operationId=${encodeURIComponent(latestOperation.id)}`
+              : undefined
+          }
+          label="Operation"
+          value={latestOperation?.name ?? 'No operation linked'}
         />
+        <ProfileFact label="Rows" value={profile.records ?? 'unknown'} />
       </div>
       <div className="phlo-observatory-data-profile-keys">
         {profile.businessKeys.length > 0 ? (
@@ -578,18 +762,30 @@ function DataProfileBand({
 }
 
 function ProfileFact({
+  href,
   label,
   value,
 }: {
+  href?: string
   label: string
   value: string | number | boolean
 }) {
-  return (
-    <div className="phlo-observatory-data-profile-fact">
+  const content = (
+    <>
       <span>{label}</span>
       <strong>{String(value)}</strong>
-    </div>
+    </>
   )
+
+  if (href) {
+    return (
+      <Link className="phlo-observatory-data-profile-fact" to={href}>
+        {content}
+      </Link>
+    )
+  }
+
+  return <div className="phlo-observatory-data-profile-fact">{content}</div>
 }
 
 function DataPreviewTable({
@@ -600,7 +796,7 @@ function DataPreviewTable({
   selected,
 }: {
   isLoadingMoreRows: boolean
-  mode: Exclude<DataMainView, 'flow'>
+  mode: Exclude<TableMainView, 'lineage'>
   onLoadMoreRows: () => void
   preview: ObservatoryTablePreview | null
   selected: ObservatoryTable | null
@@ -645,7 +841,7 @@ function DataPreviewTable({
           ))}
           {columns.length === 0 && (
             <div className="phlo-observatory-empty-state">
-              No schema preview returned yet.
+              No schema preview available yet.
             </div>
           )}
         </div>
@@ -691,6 +887,13 @@ function DataPreviewTable({
                   ))}
                 </tr>
               ))}
+              {rows.length === 0 && (
+                <tr className="phlo-observatory-row-preview-empty-row">
+                  <td colSpan={columns.length}>
+                    No rows matched the active query.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
           {(preview?.has_more || isLoadingMoreRows) && (
@@ -708,6 +911,127 @@ function DataPreviewTable({
         <div className="phlo-observatory-data-preview-empty">
           {preview ? previewEmptyCopy(selected) : 'Loading preview rows…'}
         </div>
+      )}
+    </div>
+  )
+}
+
+function TableWorkflowLinks({
+  dataset,
+  operations,
+  quality,
+  selected,
+}: {
+  dataset: ObservatoryDataset | null
+  operations: Array<ObservatoryOperation>
+  quality: Array<ObservatoryQualityCheck>
+  selected: ObservatoryTable
+}) {
+  return (
+    <div className="phlo-observatory-detail-list phlo-observatory-table-workflow-links">
+      {dataset ? (
+        <Link
+          className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+          params={{ datasetId: dataset.id }}
+          to="/datasets/$datasetId"
+        >
+          <span>
+            <Database className="size-3.5" />
+            Open Dataset
+          </span>
+          <small>
+            {[dataset.name, dataset.publication_state, dataset.readiness_state]
+              .filter(Boolean)
+              .join(' · ')}
+          </small>
+        </Link>
+      ) : (
+        <Link
+          className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+          data-state="unknown"
+          to="/datasets"
+        >
+          <span>
+            <Database className="size-3.5" />
+            Bind to Dataset
+          </span>
+          <small>Open Datasets to claim or promote this table</small>
+        </Link>
+      )}
+      {selected.asset_id ? (
+        <Link
+          className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+          search={{ assetId: selected.asset_id }}
+          to="/lineage"
+        >
+          <span>
+            <GitBranch className="size-3.5" />
+            Open Lineage
+          </span>
+          <small>{selected.asset_id}</small>
+        </Link>
+      ) : (
+        <Link
+          className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+          data-state="unknown"
+          to="/lineage"
+        >
+          <span>
+            <GitBranch className="size-3.5" />
+            Attach lineage evidence
+          </span>
+          <small>Open Lineage to connect upstream and downstream impact</small>
+        </Link>
+      )}
+      {quality.slice(0, 3).map((check) => (
+        <Link
+          className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+          key={check.id}
+          search={{ checkId: check.id }}
+          to="/quality"
+        >
+          <span>{check.name}</span>
+          <small>
+            {[check.status, check.severity].filter(Boolean).join(' · ')}
+          </small>
+        </Link>
+      ))}
+      {quality.length === 0 && (
+        <Link
+          className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+          data-state="unknown"
+          to="/quality"
+        >
+          <span>Add quality coverage</span>
+          <small>
+            Open Quality to add freshness, schema, or reconciliation evidence
+          </small>
+        </Link>
+      )}
+      {operations.slice(0, 2).map((operation) => (
+        <Link
+          className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+          key={operation.id}
+          search={{ operationId: operation.id }}
+          to="/operations"
+        >
+          <span>{operation.name}</span>
+          <small>
+            {[operation.kind, operation.status].filter(Boolean).join(' · ')}
+          </small>
+        </Link>
+      ))}
+      {operations.length === 0 && (
+        <Link
+          className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+          data-state="unknown"
+          to="/operations"
+        >
+          <span>Connect operation evidence</span>
+          <small>
+            Open Operations to link refresh, materialization, or recovery runs
+          </small>
+        </Link>
       )}
     </div>
   )
@@ -761,10 +1085,13 @@ function columnTypeFor(
 
 function DataDetailPanel({
   active,
+  dataset,
   onRefresh,
   onRunQuery,
   onSaveQuery,
+  operations,
   preview,
+  quality,
   queryResult,
   savedQueries,
   selected,
@@ -773,10 +1100,13 @@ function DataDetailPanel({
   sql,
 }: {
   active: DataDetailTab
+  dataset: ObservatoryDataset | null
   onRefresh: () => void
   onRunQuery: (sql: string) => void
-  onSaveQuery: (sql: string) => void
+  onSaveQuery: (sql: string, name: string) => void
+  operations: Array<ObservatoryOperation>
   preview: ObservatoryTablePreview | null
+  quality: Array<ObservatoryQualityCheck>
   queryResult: ObservatoryResourceResult<{
     columns: Array<string>
     rows: Array<Record<string, unknown>>
@@ -794,6 +1124,8 @@ function DataDetailPanel({
   setSql: (value: string) => void
   sql: string
 }) {
+  const [savedQueryName, setSavedQueryName] = useState('')
+
   if (active === 'sql') {
     return (
       <div className="phlo-observatory-query-panel">
@@ -807,6 +1139,14 @@ function DataDetailPanel({
           onChange={(event) => setSql(event.target.value)}
           value={sql}
         />
+        <label className="phlo-observatory-save-query-field">
+          <span>Saved query name</span>
+          <input
+            onChange={(event) => setSavedQueryName(event.target.value)}
+            placeholder="Daily revenue sample"
+            value={savedQueryName}
+          />
+        </label>
         <div className="phlo-observatory-action-row">
           <button onClick={() => onRunQuery(sql)} type="button">
             <Play className="size-3.5" />
@@ -816,7 +1156,14 @@ function DataDetailPanel({
             <Play className="size-3.5" />
             Refresh preview
           </button>
-          <button onClick={() => onSaveQuery(sql)} type="button">
+          <button
+            disabled={!sql.trim() || !savedQueryName.trim()}
+            onClick={() => {
+              onSaveQuery(sql, savedQueryName.trim())
+              setSavedQueryName('')
+            }}
+            type="button"
+          >
             <Save className="size-3.5" />
             Save
           </button>
@@ -858,24 +1205,42 @@ function DataDetailPanel({
   }
 
   if (active === 'journey') {
+    const failingQuality = quality.find((check) => check.status === 'failing')
+    const nextQuality = failingQuality ?? quality[0] ?? null
+    const latestOperation = operations[0] ?? null
+    const owner = dataset?.owner ?? readMetric(selected.metadata, 'owner')
+
     return (
       <div className="phlo-observatory-detail-list">
         <div className="phlo-observatory-mini-row">
-          <span>Asset binding</span>
-          <small>{selected.asset_id ?? 'none'}</small>
+          <span>Owner</span>
+          <small>{owner ?? 'No owner assigned'}</small>
         </div>
         <div className="phlo-observatory-mini-row">
-          <span>Namespace</span>
-          <small>{selected.namespace ?? 'default'}</small>
+          <span>Dataset binding</span>
+          <small>{dataset ? dataset.name : 'Candidate table'}</small>
         </div>
-        <div className="phlo-observatory-mini-row">
-          <span>Preview rows</span>
-          <small>
-            {preview
-              ? `${preview.rows.length} loaded${preview.has_more ? ' · more available' : ''}`
-              : 'Preview not loaded'}
-          </small>
-        </div>
+        {dataset ? (
+          <Link
+            className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+            params={{ datasetId: dataset.id }}
+            to="/datasets/$datasetId"
+          >
+            <span>Open Dataset readiness</span>
+            <small>
+              {[dataset.publication_state, dataset.readiness_state].join(' · ')}
+            </small>
+          </Link>
+        ) : (
+          <Link
+            className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+            data-state="unknown"
+            to="/datasets"
+          >
+            <span>Claim Dataset candidate</span>
+            <small>Promote this table into a governed Dataset workflow</small>
+          </Link>
+        )}
         {showBranch && (
           <div className="phlo-observatory-mini-row">
             <span>Branch</span>
@@ -884,14 +1249,75 @@ function DataDetailPanel({
         )}
         {selected.asset_id && (
           <Link
-            className="phlo-observatory-mini-row"
-            to="/assets/$assetId"
-            params={{ assetId: selected.asset_id }}
+            className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+            search={{ assetId: selected.asset_id }}
+            to="/lineage"
           >
-            <span>Open asset</span>
+            <span>Open dependency map</span>
             <small>{selected.asset_id}</small>
           </Link>
         )}
+        {nextQuality ? (
+          <Link
+            className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+            data-state={
+              nextQuality.status === 'failing' ? 'error' : nextQuality.status
+            }
+            search={{ checkId: nextQuality.id }}
+            to="/quality"
+          >
+            <span>
+              {nextQuality.status === 'failing'
+                ? 'Triage quality failure'
+                : 'Review quality evidence'}
+            </span>
+            <small>
+              {[nextQuality.name, nextQuality.severity]
+                .filter(Boolean)
+                .join(' · ')}
+            </small>
+          </Link>
+        ) : (
+          <Link
+            className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+            data-state="unknown"
+            to="/quality"
+          >
+            <span>Add quality evidence</span>
+            <small>No checks are attached to this table yet</small>
+          </Link>
+        )}
+        {latestOperation ? (
+          <Link
+            className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+            search={{ operationId: latestOperation.id }}
+            to="/operations"
+          >
+            <span>Review latest operation</span>
+            <small>
+              {[latestOperation.name, latestOperation.status]
+                .filter(Boolean)
+                .join(' · ')}
+            </small>
+          </Link>
+        ) : (
+          <Link
+            className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+            data-state="unknown"
+            to="/operations"
+          >
+            <span>Connect refresh evidence</span>
+            <small>No operation is linked to this table yet</small>
+          </Link>
+        )}
+        <div className="phlo-observatory-mini-row">
+          <span>Preview rows</span>
+          <small>
+            {preview
+              ? `${preview.rows.length} loaded${preview.has_more ? ' · more available' : ''}`
+              : 'Preview not loaded'}
+          </small>
+        </div>
       </div>
     )
   }
@@ -921,7 +1347,7 @@ function DataDetailPanel({
           </div>
         ))}
       {preview && preview.columns.length === 0 && (
-        <p>No column preview returned yet.</p>
+        <p>No column preview available yet.</p>
       )}
     </div>
   )
@@ -942,7 +1368,7 @@ function buildTableGraph(
   }
   const assetById = new Map(assets.map((asset) => [asset.id, asset]))
 
-  const tableNodes = sortTablesForFlow(tables).map(
+  const tableNodes = sortTablesForLineage(tables).map(
     (table): ObservatoryFlowNode => ({
       id: table.id,
       label: table.name,
@@ -973,7 +1399,7 @@ function buildTableGraph(
   return { nodes: tableNodes, edges }
 }
 
-function sortTablesForFlow(
+function sortTablesForLineage(
   tables: Array<ObservatoryTable>,
 ): Array<ObservatoryTable> {
   return tables.slice().sort((left, right) => {
@@ -1043,6 +1469,33 @@ function filterTables(
   )
 }
 
+function buildTableSummary(
+  tables: Array<ObservatoryTable>,
+  datasets: Array<ObservatoryDataset>,
+  quality: Array<ObservatoryQualityCheck>,
+  selected: ObservatoryTable | null,
+): TableSummary {
+  return {
+    total: tables.length,
+    queryable: tables.filter(
+      (table) => tableCatalogState(table) === 'Queryable',
+    ).length,
+    datasetBound: tables.filter((table) => datasetForTable(table, datasets))
+      .length,
+    qualityLinked: tables.filter(
+      (table) => qualityForTable(table, quality).length > 0,
+    ).length,
+    selectedLabel: selected?.id ?? 'None selected',
+    selectedCatalog: selected ? tableCatalogState(selected) : 'Unknown',
+  }
+}
+
+function tableDatasetLabel(dataset: ObservatoryDataset | null): string {
+  if (!dataset) return 'Unbound'
+  if (dataset.candidate) return 'Candidate'
+  return dataset.name
+}
+
 function isTransientPreviewMiss(error: string | null): boolean {
   return error?.toLowerCase().includes('table not found') ?? false
 }
@@ -1056,14 +1509,54 @@ function tableCatalogState(table: ObservatoryTable): string {
   if (present === true) return 'Queryable'
   if (present === false) return 'Model only'
 
-  return 'Catalog'
+  return 'Unknown'
 }
 
 function previewEmptyCopy(table: ObservatoryTable): string {
   if (tableCatalogState(table) === 'Model only') {
-    return 'This model is registered, but it is not materialized in the active query catalog.'
+    return 'This model is registered, but it is not materialized as a queryable table.'
   }
   return 'Preview rows are unavailable.'
+}
+
+function datasetForTable(
+  table: ObservatoryTable,
+  datasets: Array<ObservatoryDataset>,
+): ObservatoryDataset | null {
+  return (
+    datasets.find((dataset) =>
+      dataset.source_refs.some(
+        (ref) =>
+          (ref.kind === 'table' && ref.id === table.id) ||
+          (ref.kind === 'asset' && ref.id === table.asset_id),
+      ),
+    ) ?? null
+  )
+}
+
+function qualityForTable(
+  table: ObservatoryTable,
+  quality: Array<ObservatoryQualityCheck>,
+): Array<ObservatoryQualityCheck> {
+  if (!table.asset_id) return []
+  return quality.filter((check) => check.asset_id === table.asset_id)
+}
+
+function operationsForTable(
+  table: ObservatoryTable,
+  dataset: ObservatoryDataset | null,
+  operations: Array<ObservatoryOperation>,
+): Array<ObservatoryOperation> {
+  return operations
+    .filter((operation) => {
+      if (dataset && operation.target?.kind === 'dataset') {
+        return operation.target.id === dataset.id
+      }
+      return operationMatchesTable(operation, table, null)
+    })
+    .sort((left, right) =>
+      operationTimestamp(right).localeCompare(operationTimestamp(left)),
+    )
 }
 
 function defaultSqlForTable(table: ObservatoryTable): string {

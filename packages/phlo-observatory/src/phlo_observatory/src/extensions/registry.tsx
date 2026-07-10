@@ -125,10 +125,73 @@ const bundledExtensionModules = import.meta.glob<ExtensionModule>(
   '/src/extensions/**/*.{ts,tsx,js,jsx}',
 )
 
+function browserApiBase(): string {
+  if (typeof window === 'undefined') return ''
+  return (
+    window.__PHLO_API_BROWSER_URL__ ??
+    document.querySelector<HTMLMetaElement>('meta[name="phlo-api-browser-url"]')
+      ?.content ??
+    ''
+  ).trim()
+}
+
+function withBrowserAssetUrl(baseUrl: string, basePath: string, path: string) {
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  return `${baseUrl}${basePath}${normalized}`
+}
+
+async function loadBrowserExtensions(): Promise<Array<ObservatoryExtension>> {
+  const baseUrl = browserApiBase()
+  if (!baseUrl) return getObservatoryExtensions()
+
+  const response = await fetch(`${baseUrl}/api/observatory/extension-manifests`)
+  if (!response.ok) {
+    throw new Error(
+      `phlo-api extension manifest error: ${response.status} ${response.statusText}`,
+    )
+  }
+  const payload = (await response.json()) as {
+    extensions: Array<{
+      manifest: ObservatoryExtension['manifest']
+      assets_base_path: string
+    }>
+  }
+
+  return payload.extensions.map((entry) => {
+    const basePath = entry.assets_base_path
+    const assetsBaseUrl = `${baseUrl}${basePath}`
+    const manifest = entry.manifest
+    return {
+      manifest: {
+        ...manifest,
+        ui: manifest.ui
+          ? {
+              ...manifest.ui,
+              routes: manifest.ui.routes?.map((route) => ({
+                ...route,
+                module: withBrowserAssetUrl(baseUrl, basePath, route.module),
+              })),
+              slots: manifest.ui.slots?.map((slot) => ({
+                ...slot,
+                module: withBrowserAssetUrl(baseUrl, basePath, slot.module),
+              })),
+              settings: manifest.ui.settings?.map((setting) => ({
+                ...setting,
+                module: withBrowserAssetUrl(baseUrl, basePath, setting.module),
+              })),
+            }
+          : undefined,
+      },
+      assetsBasePath: basePath,
+      assetsBaseUrl,
+    }
+  })
+}
+
 function loadExtensionModule(moduleUrl: string): Promise<ExtensionModule> {
   const loader = bundledExtensionModules[moduleUrl] as
-    | ExtensionModuleLoader
-    | undefined
+    ExtensionModuleLoader | undefined
   if (loader) return loader()
   return Promise.resolve({})
 }
@@ -163,17 +226,13 @@ export function ObservatoryExtensionProvider({
     }
 
     const loadExtensions = async () => {
-      if (
-        import.meta.env.DEV &&
-        !(window as typeof window & { __PHLO_API_BROWSER_URL__?: string })
-          .__PHLO_API_BROWSER_URL__
-      ) {
+      if (import.meta.env.DEV && !browserApiBase()) {
         return
       }
 
       let entries: Array<ObservatoryExtension>
       try {
-        entries = await getObservatoryExtensions()
+        entries = await loadBrowserExtensions()
       } catch (error) {
         console.error(
           'Failed to load Observatory extensions via getObservatoryExtensions',
@@ -213,8 +272,7 @@ export function ObservatoryExtensionProvider({
               try {
                 const module = await loadExtensionModule(route.module)
                 const registerRoutes = module[route.export] as
-                  | RegisterRoutesFn
-                  | undefined
+                  RegisterRoutesFn | undefined
                 if (typeof registerRoutes !== 'function') return
                 const result = registerRoutes({
                   createRoute,
@@ -246,8 +304,7 @@ export function ObservatoryExtensionProvider({
               try {
                 const module = await loadExtensionModule(slot.module)
                 const registerSlotFn = module[slot.export] as
-                  | RegisterSlotFn
-                  | undefined
+                  RegisterSlotFn | undefined
                 if (typeof registerSlotFn !== 'function') return
                 registerSlotFn({ register: registerSlot(slot.slot_id) })
               } catch {
@@ -264,8 +321,7 @@ export function ObservatoryExtensionProvider({
               try {
                 const module = await loadExtensionModule(setting.module)
                 const registerSettingsFn = module[setting.export] as
-                  | RegisterSettingsFn
-                  | undefined
+                  RegisterSettingsFn | undefined
                 if (typeof registerSettingsFn !== 'function') return
                 const scope = extension.manifest.settings?.scope ?? 'extension'
                 const loadSettings = async () => {

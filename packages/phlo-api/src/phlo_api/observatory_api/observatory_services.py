@@ -5,17 +5,19 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 import http.client
 import importlib.metadata
+import importlib.resources
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import socket
 import subprocess
 from typing import Any
 
 import yaml
-from phlo.plugins.registry_client import get_registry_data
 
+from phlo.config.env import load_project_env
 from phlo_api.observatory_api.observatory_metadata import safe_metadata
 from phlo_api.observatory_api.observatory_models import (
     HealthState,
@@ -28,7 +30,13 @@ from phlo_api.observatory_api.observatory_models import (
 )
 
 DOCKER_SOCKET = "/var/run/docker.sock"
-DOCKER_PS_TIMEOUT_SECONDS = 30
+DOCKER_PS_TIMEOUT_SECONDS = 1
+DOCKER_SOCKET_TIMEOUT_SECONDS = 2
+DOCKER_CLI_CANDIDATES = (
+    "docker",
+    "/opt/homebrew/bin/docker",
+    "/usr/local/bin/docker",
+)
 DOCKER_SERVICE_STATUS_RANK: dict[ServiceStatus, int] = {
     "running": 4,
     "unhealthy": 3,
@@ -37,6 +45,13 @@ DOCKER_SERVICE_STATUS_RANK: dict[ServiceStatus, int] = {
     "unknown": 0,
 }
 ENV_DEFAULT_RE = re.compile(r"^\$\{[^}:]+:-(?P<default>[^}]+)\}$")
+ENV_REFERENCE_RE = re.compile(r"^\$\{(?P<name>[^}:]+)(?::-(?P<default>[^}]+))?\}$")
+_DOCKER_CLI_DISABLED = False
+
+
+def get_registry_data() -> dict[str, Any]:
+    """Return local registry data without remote fetches or plugin logging hooks."""
+    return _load_registry_data_quiet()
 
 
 def _registry_package_entries() -> dict[str, dict[str, Any]]:
@@ -63,6 +78,22 @@ def _registry_package_entries() -> dict[str, dict[str, Any]]:
             if key:
                 entries[key] = normalized
     return entries
+
+
+def _load_registry_data_quiet() -> dict[str, Any]:
+    """Load registry data without invoking logging hooks or remote fetches."""
+    try:
+        registry_path = importlib.resources.files("phlo.plugins").joinpath("registry_data.json")
+        return json.loads(registry_path.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        candidate = parent / "registry" / "plugins.json"
+        if candidate.exists():
+            return json.loads(candidate.read_text(encoding="utf-8"))
+    return {}
 
 
 def _registry_service_entries(
@@ -222,6 +253,95 @@ def docker_status_from_container(
     return "unknown", ObservatoryHealth(state="unknown", message=status_text or None)
 
 
+def docker_inspect_container(container_id: str) -> dict[str, Any]:
+    if not container_id:
+        return {}
+    docker_cli = docker_cli_path()
+    if docker_cli is None:
+        return {}
+    command = [docker_cli, "inspect", container_id]
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=DOCKER_PS_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {}
+    if result.returncode != 0:
+        return {}
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return {}
+    if isinstance(payload, list) and payload and isinstance(payload[0], Mapping):
+        return dict(payload[0])
+    return {}
+
+
+def docker_runtime_metadata(container: Mapping[str, Any]) -> dict[str, Any]:
+    inspected = (
+        container
+        if "RestartCount" in container or isinstance(container.get("State"), Mapping)
+        else docker_inspect_container(coerce_str(container.get("ID"), ""))
+    )
+    if not inspected:
+        return {}
+
+    state = inspected.get("State") if isinstance(inspected.get("State"), Mapping) else {}
+    health = (
+        state.get("Health")
+        if isinstance(state, Mapping) and isinstance(state.get("Health"), Mapping)
+        else {}
+    )
+    health_log = health.get("Log") if isinstance(health, Mapping) else None
+    recent_health_exits = (
+        [
+            entry.get("ExitCode")
+            for entry in health_log
+            if isinstance(entry, Mapping) and entry.get("ExitCode") not in {None, 0}
+        ]
+        if isinstance(health_log, list)
+        else []
+    )
+    metadata = {
+        "restart_count": inspected.get("RestartCount"),
+        "started_at": state.get("StartedAt") if isinstance(state, Mapping) else None,
+        "finished_at": state.get("FinishedAt") if isinstance(state, Mapping) else None,
+        "exit_code": state.get("ExitCode") if isinstance(state, Mapping) else None,
+        "oom_killed": state.get("OOMKilled") if isinstance(state, Mapping) else None,
+        "health_status": health.get("Status") if isinstance(health, Mapping) else None,
+        "recent_health_exit_codes": recent_health_exits,
+    }
+    return safe_metadata(
+        {key: value for key, value in metadata.items() if value is not None and value != ""}
+    )
+
+
+def health_with_runtime_evidence(
+    health: ObservatoryHealth,
+    metadata: Mapping[str, Any],
+) -> ObservatoryHealth:
+    restart_count = metadata.get("restart_count")
+    recent_exits = metadata.get("recent_health_exit_codes")
+    exit_code = metadata.get("exit_code")
+    has_recent_137 = exit_code == 137 or (isinstance(recent_exits, list) and 137 in recent_exits)
+    has_restarts = isinstance(restart_count, int) and restart_count > 0
+    if has_recent_137:
+        return ObservatoryHealth(
+            state="warning",
+            message=f"{health.message or 'Running'}; recent container kill detected.",
+        )
+    if has_restarts and health.state == "ok":
+        return ObservatoryHealth(
+            state="warning",
+            message=f"{health.message or 'Running'}; restarted {restart_count} times.",
+        )
+    return health
+
+
 def container_labels(container: Mapping[str, Any]) -> dict[str, str]:
     labels = container.get("Labels")
     if isinstance(labels, Mapping):
@@ -239,13 +359,40 @@ def container_labels(container: Mapping[str, Any]) -> dict[str, str]:
 
 class UnixSocketHTTPConnection(http.client.HTTPConnection):
     def __init__(self, socket_path: str):
-        super().__init__("localhost")
+        super().__init__("localhost", timeout=DOCKER_SOCKET_TIMEOUT_SECONDS)
         self.socket_path = socket_path
 
     def connect(self) -> None:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(DOCKER_SOCKET_TIMEOUT_SECONDS)
         sock.connect(self.socket_path)
         self.sock = sock
+
+
+def docker_socket_candidates() -> list[str]:
+    """Return Docker socket paths that exist on common local runtimes."""
+    candidates: list[str] = []
+    docker_host = os.environ.get("DOCKER_HOST", "")
+    if docker_host.startswith("unix://"):
+        candidates.append(docker_host.removeprefix("unix://"))
+    home = Path.home()
+    candidates.extend(
+        [
+            DOCKER_SOCKET,
+            str(home / ".docker" / "run" / "docker.sock"),
+            str(home / ".colima" / "default" / "docker.sock"),
+            str(home / ".colima" / "docker.sock"),
+        ]
+    )
+    seen: set[str] = set()
+    existing: list[str] = []
+    for item in candidates:
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        if Path(item).exists():
+            existing.append(item)
+    return existing
 
 
 def docker_socket_json(path: str, socket_path: str = DOCKER_SOCKET) -> Any:
@@ -290,8 +437,26 @@ def parse_docker_ps_output(output: str) -> list[dict[str, Any]]:
     return containers
 
 
+def docker_cli_path() -> str | None:
+    for candidate in DOCKER_CLI_CANDIDATES:
+        if candidate == "docker":
+            resolved = shutil.which(candidate)
+            if resolved:
+                return resolved
+            continue
+        if Path(candidate).exists():
+            return candidate
+    return None
+
+
 def docker_ps_containers(*filters: str) -> list[dict[str, Any]] | None:
-    command = ["docker", "ps", "-a"]
+    global _DOCKER_CLI_DISABLED
+    if _DOCKER_CLI_DISABLED:
+        return None
+    docker_cli = docker_cli_path()
+    if docker_cli is None:
+        return None
+    command = [docker_cli, "ps", "-a"]
     for filter_value in filters:
         command.extend(["--filter", filter_value])
     command.extend(["--format", "{{json .}}"])
@@ -303,7 +468,10 @@ def docker_ps_containers(*filters: str) -> list[dict[str, Any]] | None:
             check=False,
             timeout=DOCKER_PS_TIMEOUT_SECONDS,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except OSError:
+        return None
+    except subprocess.TimeoutExpired:
+        _DOCKER_CLI_DISABLED = True
         return None
 
     if result.returncode != 0:
@@ -316,16 +484,15 @@ def load_docker_containers() -> list[dict[str, Any]]:
     if containers is not None:
         return containers
 
-    if not Path(DOCKER_SOCKET).exists():
-        return []
-    payload = docker_socket_json("/containers/json?all=1")
-    if not isinstance(payload, list):
-        return []
-    return [
-        normalize_docker_api_container(container)
-        for container in payload
-        if isinstance(container, Mapping)
-    ]
+    for socket_path in docker_socket_candidates():
+        payload = docker_socket_json("/containers/json?all=1", socket_path=socket_path)
+        if isinstance(payload, list):
+            return [
+                normalize_docker_api_container(container)
+                for container in payload
+                if isinstance(container, Mapping)
+            ]
+    return []
 
 
 def load_project_docker_containers(project_root: Path | None) -> list[dict[str, Any]]:
@@ -469,6 +636,8 @@ def load_docker_service_statuses(
         if service_id is None:
             continue
         status, health = docker_status_from_container(container)
+        runtime_metadata = docker_runtime_metadata(container)
+        health = health_with_runtime_evidence(health, runtime_metadata)
         current = statuses.get(service_id)
         if (
             current is None
@@ -476,6 +645,38 @@ def load_docker_service_statuses(
         ):
             statuses[service_id] = (status, health)
     return statuses
+
+
+def load_docker_service_metadata(
+    service_ids: set[str],
+    containers: Sequence[Mapping[str, Any]] | None = None,
+    project_root: Path | None = None,
+) -> dict[str, dict[str, Any]]:
+    if not service_ids:
+        return {}
+
+    metadata_by_service: dict[str, dict[str, Any]] = {}
+    containers = (
+        containers if containers is not None else load_project_docker_containers(project_root)
+    )
+    compose_project = current_compose_project(containers, project_root)
+    if not compose_project:
+        return metadata_by_service
+
+    for container in containers:
+        labels = container_labels(container)
+        if labels.get("com.docker.compose.project") != compose_project:
+            continue
+        name = coerce_str(container.get("Names"), "")
+        service_id = compose_service_name(container) or service_name_from_container(
+            name, service_ids
+        )
+        if service_id not in service_ids:
+            service_id = service_name_from_container(name, service_ids)
+        if service_id is None:
+            continue
+        metadata_by_service[service_id] = docker_runtime_metadata(container)
+    return metadata_by_service
 
 
 def runtime_services_from_containers(
@@ -496,6 +697,8 @@ def runtime_services_from_containers(
         if not service_id or service_id in known_ids:
             continue
         status, health = docker_status_from_container(container)
+        runtime_metadata = docker_runtime_metadata(container)
+        health = health_with_runtime_evidence(health, runtime_metadata)
         services.append(
             ObservatoryService(
                 id=service_id,
@@ -507,7 +710,13 @@ def runtime_services_from_containers(
                 runtime_state=status,
                 in_stack=True,
                 backend="docker",
-                metadata=safe_metadata({"source": "docker", "compose_project": compose_project}),
+                metadata=safe_metadata(
+                    {
+                        "source": "docker",
+                        "compose_project": compose_project,
+                        **runtime_metadata,
+                    }
+                ),
             )
         )
         known_ids.add(service_id)
@@ -611,10 +820,69 @@ def service_ports_from_definition(service: Any) -> list[ObservatoryServicePort]:
 
 
 def resolve_env_default(value: str) -> str:
-    match = ENV_DEFAULT_RE.match(value)
+    match = ENV_REFERENCE_RE.match(value)
     if match is not None:
-        return match.group("default")
+        env_value = load_project_env().get(match.group("name"))
+        if env_value:
+            return env_value
+        default = match.group("default")
+        if default is not None:
+            return default
     return value
+
+
+def _local_port_status(port: str | int | None) -> tuple[ServiceStatus, ObservatoryHealth] | None:
+    if port is None:
+        return None
+    try:
+        numeric_port = int(port)
+    except (TypeError, ValueError):
+        return None
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.2)
+        result = sock.connect_ex(("127.0.0.1", numeric_port))
+
+    if result == 0:
+        return (
+            "running",
+            ObservatoryHealth(state="ok", message=f"Listening on localhost:{numeric_port}"),
+        )
+    return (
+        "stopped",
+        ObservatoryHealth(state="warning", message=f"Not listening on localhost:{numeric_port}"),
+    )
+
+
+def native_service_override(
+    service_name: str,
+    status: ServiceStatus,
+    health: ObservatoryHealth,
+) -> tuple[ServiceStatus, ObservatoryHealth, str | None]:
+    env = load_project_env()
+    candidates: list[tuple[str, str]] = []
+    if service_name == "phlo-api":
+        candidates.append(("PHLO_API_PORT", env.get("PHLO_API_PORT", "4000")))
+    elif service_name == "observatory":
+        configured = env.get("OBSERVATORY_PORT", "3001")
+        candidates.append(("OBSERVATORY_PORT", configured))
+        if configured != "3000":
+            candidates.append(("OBSERVATORY_DEV_PORT", "3000"))
+
+    first_stopped: tuple[ServiceStatus, ObservatoryHealth, str | None] | None = None
+    for _env_name, port in candidates:
+        local_status = _local_port_status(port)
+        if local_status is None:
+            continue
+        local_runtime_status, local_health = local_status
+        if local_runtime_status == "running":
+            return local_runtime_status, local_health, str(port)
+        if first_stopped is None:
+            first_stopped = (local_runtime_status, local_health, str(port))
+
+    if first_stopped is not None and status == "unknown":
+        return first_stopped
+    return status, health, None
 
 
 def service_config_from_definition(service: Any) -> list[ObservatoryServiceConfigEntry]:
@@ -661,6 +929,11 @@ def load_services(
         containers,
         project_root,
     )
+    runtime_metadata_by_service = load_docker_service_metadata(
+        {service.name for service in discovered} | set(registry_services),
+        containers,
+        project_root,
+    )
     for service in discovered:
         in_stack = service.name in runtime_statuses
         configured = in_stack or service.name in configured_services
@@ -668,6 +941,8 @@ def load_services(
             service.name,
             ("unknown", ObservatoryHealth(state="unknown", message="Runtime status unavailable")),
         )
+        status, health, native_port = native_service_override(service.name, status, health)
+        native_running = native_port is not None and status == "running" and not in_stack
         services.append(
             ObservatoryService(
                 id=service.name,
@@ -677,13 +952,22 @@ def load_services(
                 health=health,
                 definition_state="configured" if configured else "available",
                 runtime_state=status,
-                in_stack=in_stack,
+                in_stack=in_stack or native_running,
                 disabled=bool(getattr(service, "disabled", False)),
                 profile=coerce_str(service.profile, "") or None,
-                backend="docker" if in_stack else "unknown",
+                backend="docker" if in_stack else ("native" if native_running else "unknown"),
                 depends_on=list(service.depends_on or []),
                 impacts=[],
                 links=merge_service_links(
+                    [
+                        ObservatoryExternalLink(
+                            label=f":{native_port}",
+                            url=f"http://localhost:{native_port}",
+                            kind="port",
+                        )
+                    ]
+                    if native_port is not None
+                    else [],
                     service_links_from_definition(service),
                     service_links_from_compose(project_root, service.name),
                 ),
@@ -694,6 +978,7 @@ def load_services(
                         "core": bool(getattr(service, "core", False)),
                         "description": getattr(service, "description", None),
                         **_registry_metadata(service.name, registry_entries),
+                        **runtime_metadata_by_service.get(service.name, {}),
                     }
                 ),
             )
@@ -708,6 +993,8 @@ def load_services(
             service_name,
             ("unknown", ObservatoryHealth(state="unknown", message="Runtime status unavailable")),
         )
+        status, health, native_port = native_service_override(service_name, status, health)
+        native_running = native_port is not None and status == "running"
         if service_name in runtime_statuses:
             service = service.model_copy(
                 update={
@@ -718,6 +1005,34 @@ def load_services(
                     "in_stack": True,
                     "backend": "docker",
                     "links": merge_service_links(
+                        service.links,
+                        service_links_from_compose(project_root, service_name),
+                    ),
+                    "metadata": safe_metadata(
+                        {
+                            **service.metadata,
+                            **runtime_metadata_by_service.get(service_name, {}),
+                        }
+                    ),
+                }
+            )
+        elif native_port is not None:
+            service = service.model_copy(
+                update={
+                    "status": status,
+                    "health": health,
+                    "definition_state": "configured",
+                    "runtime_state": status,
+                    "in_stack": native_running,
+                    "backend": "native" if native_running else service.backend,
+                    "links": merge_service_links(
+                        [
+                            ObservatoryExternalLink(
+                                label=f":{native_port}",
+                                url=f"http://localhost:{native_port}",
+                                kind="port",
+                            )
+                        ],
                         service.links,
                         service_links_from_compose(project_root, service_name),
                     ),

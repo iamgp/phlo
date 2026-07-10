@@ -39,10 +39,9 @@ const iconByPageId: Record<string, typeof LayoutDashboard> = {
   services: Server,
   operations: Activity,
   runs: CirclePlay,
-  data: Database,
-  assets: Boxes,
+  tables: Database,
+  lineage: Boxes,
   workflows: Clipboard,
-  issues: ListChecks,
   quality: ListChecks,
   logs: Logs,
   branches: GitBranch,
@@ -50,7 +49,7 @@ const iconByPageId: Record<string, typeof LayoutDashboard> = {
   storage: Database,
   observability: Activity,
   governance: Settings,
-  catalog: Boxes,
+  datasets: Boxes,
   publishing: UploadCloud,
   pipelines: Activity,
   apis: Server,
@@ -119,10 +118,10 @@ export function ObservatoryCommandPalette({
   useEffect(() => {
     let cancelled = false
     void Promise.all([
-      loadCachedResource('v2:tables', getObservatoryTableRecords, {
+      loadCachedResource('observatory:tables', getObservatoryTableRecords, {
         staleMs: 120_000,
       }),
-      loadCachedResource('v2:services', getObservatoryServices, {
+      loadCachedResource('observatory:services', getObservatoryServices, {
         staleMs: 120_000,
       }),
     ]).then(([tables, services]) => {
@@ -150,9 +149,9 @@ export function ObservatoryCommandPalette({
         return
       }
 
-      const href = value.replace('open:', '')
+      const href = exactInternalHref(value.replace('open:', ''))
       closeSearch()
-      void navigate({ to: href })
+      void navigate({ href })
     },
     [closeSearch, navigate],
   )
@@ -201,10 +200,11 @@ export function ObservatoryCommandPalette({
   }, [results.data])
 
   const tableResults = useMemo(
-    () =>
-      (results.data ?? []).filter(
-        (result) => result.kind === 'table' || result.kind === 'dataset',
-      ),
+    () => (results.data ?? []).filter((result) => result.kind === 'table'),
+    [results.data],
+  )
+  const datasetResults = useMemo(
+    () => (results.data ?? []).filter((result) => result.kind === 'dataset'),
     [results.data],
   )
 
@@ -275,6 +275,7 @@ export function ObservatoryCommandPalette({
   const hasLocalMatches =
     pageMatches.length > 0 ||
     tableMatches.length > 0 ||
+    datasetResults.length > 0 ||
     serviceMatches.length > 0
   const sqlTemplateTargets = tableMatches.length
     ? tableMatches
@@ -316,7 +317,7 @@ export function ObservatoryCommandPalette({
                 }
               }}
               onValueChange={setQuery}
-              placeholder="Search services, assets, tables, checks"
+              placeholder="Search services, lineage, datasets, tables, checks"
               ref={searchInputRef}
               value={query}
             />
@@ -354,20 +355,20 @@ export function ObservatoryCommandPalette({
                 <CommandPrimitive.Item
                   className="phlo-observatory-command-item"
                   onSelect={handleCommandSelect}
-                  value="open:/data"
+                  value="open:/datasets"
                 >
-                  <Database className="size-4" />
-                  <span>Browse tables</span>
-                  <small>Data</small>
+                  <Boxes className="size-4" />
+                  <span>Browse Datasets</span>
+                  <small>Readiness and ownership</small>
                 </CommandPrimitive.Item>
                 <CommandPrimitive.Item
                   className="phlo-observatory-command-item"
                   onSelect={handleCommandSelect}
-                  value="open:/assets"
+                  value="open:/lineage"
                 >
                   <Boxes className="size-4" />
-                  <span>Inspect assets and lineage</span>
-                  <small>Assets</small>
+                  <span>Inspect lineage and impact</span>
+                  <small>Lineage</small>
                 </CommandPrimitive.Item>
                 <CommandPrimitive.Item
                   className="phlo-observatory-command-item"
@@ -391,7 +392,7 @@ export function ObservatoryCommandPalette({
                     className="phlo-observatory-command-item"
                     key={`table:${table.id}`}
                     onSelect={handleCommandSelect}
-                    value={`open:/table/${encodeURIComponent(table.id)}`}
+                    value={`open:/tables?tableId=${encodeURIComponent(table.id)}`}
                   >
                     <Database className="size-4" />
                     <span>{tableLabel(table)}</span>
@@ -402,13 +403,33 @@ export function ObservatoryCommandPalette({
                   <CommandPrimitive.Item
                     className="phlo-observatory-command-item"
                     onSelect={handleCommandSelect}
-                    value="open:/data"
+                    value="open:/tables"
                   >
                     <Database className="size-4" />
                     <span>Open table browser</span>
                     <small>{tableMatches.length} matches</small>
                   </CommandPrimitive.Item>
                 )}
+              </CommandPrimitive.Group>
+            )}
+
+            {query.trim().length >= 2 && datasetResults.length > 0 && (
+              <CommandPrimitive.Group
+                className="phlo-observatory-command-group"
+                heading={`Datasets (${datasetResults.length})`}
+              >
+                {datasetResults.slice(0, commandGroupLimit).map((result) => (
+                  <CommandPrimitive.Item
+                    className="phlo-observatory-command-item"
+                    key={result.id}
+                    onSelect={handleCommandSelect}
+                    value={`open:${datasetHrefFromSearchResult(result)}`}
+                  >
+                    <Boxes className="size-4" />
+                    <span>{result.label}</span>
+                    <small>{result.summary ?? 'Dataset readiness'}</small>
+                  </CommandPrimitive.Item>
+                ))}
               </CommandPrimitive.Group>
             )}
 
@@ -422,7 +443,7 @@ export function ObservatoryCommandPalette({
                     className="phlo-observatory-command-item"
                     key={`service:${service.id}`}
                     onSelect={handleCommandSelect}
-                    value="open:/services"
+                    value={`open:/services?serviceId=${encodeURIComponent(service.id)}`}
                   >
                     <Server className="size-4" />
                     <span>{service.name}</span>
@@ -458,7 +479,7 @@ export function ObservatoryCommandPalette({
                     className="phlo-observatory-command-item"
                     key={result.id}
                     onSelect={handleCommandSelect}
-                    value={`open:${cleanPath(result.href ?? '/')}`}
+                    value={`open:${exactInternalHref(result.href ?? '/')}`}
                   >
                     {iconForSearchKind(result.kind)}
                     <span>{result.label}</span>
@@ -514,7 +535,7 @@ export function ObservatoryCommandPalette({
 
 function commandHeading(kind: string): string {
   const labels: Record<string, string> = {
-    asset: 'Assets',
+    asset: 'Source bindings',
     table: 'Tables',
     service: 'Services',
     log: 'Logs',
@@ -525,7 +546,7 @@ function commandHeading(kind: string): string {
     quality: 'Quality',
     setting: 'Settings',
   }
-  return labels[kind] ?? kind
+  return labels[kind] ?? kind.replace(/[_-]+/g, ' ')
 }
 
 function iconForSearchKind(kind: string): ReactNode {
@@ -547,8 +568,8 @@ function tableLabel(table: ObservatoryTable): string {
 function tableFromSearchResult(
   result: ObservatorySearchResult,
 ): ObservatoryTable | null {
-  if (!['table', 'dataset'].includes(result.kind)) return null
-  const id = result.id.replace(/^table:/, '').replace(/^dataset:/, '')
+  if (result.kind !== 'table') return null
+  const id = result.id.replace(/^table:/, '')
   const labelParts = result.label.split('.')
   const name = labelParts.at(-1) ?? id
   const namespace =
@@ -565,6 +586,14 @@ function tableFromSearchResult(
   }
 }
 
-function cleanPath(path: string): string {
-  return path
+function datasetHrefFromSearchResult(result: ObservatorySearchResult): string {
+  if (result.href) return exactInternalHref(result.href)
+  return `/datasets/${encodeURIComponent(result.id.replace(/^dataset:/, ''))}`
+}
+
+function exactInternalHref(href: string): string {
+  if (typeof window === 'undefined') return href || '/'
+  const url = new URL(href || '/', window.location.origin)
+  if (url.origin !== window.location.origin) return '/'
+  return `${url.pathname}${url.search}${url.hash}`
 }

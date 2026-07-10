@@ -39,12 +39,12 @@ def test_execute_observatory_action_returns_skipped_for_unimplemented_known_fami
     assert result.action.required_capability == "quality_backend"
 
 
-def test_execute_observatory_action_returns_skipped_for_data_product_workflow() -> None:
+def test_execute_observatory_action_returns_skipped_for_dataset_workflow() -> None:
     result = execute_observatory_action(
-        ObservatoryActionRequest(action_id="data-product:gold.orders:publish")
+        ObservatoryActionRequest(action_id="dataset:gold.orders:publish")
     )
     assert result.status == "skipped"
-    assert result.action.kind == "data_product.workflow"
+    assert result.action.kind == "dataset.workflow"
     assert result.action.required_capability == "metadata_catalog"
 
 

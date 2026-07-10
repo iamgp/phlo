@@ -7,10 +7,10 @@ import type {
   ObservatoryBranch,
   ObservatoryBranchDetail,
   ObservatoryCapabilities,
-  ObservatoryDataProduct,
-  ObservatoryDataProductWorkflowConfig,
-  ObservatoryDataProductPipeline,
-  ObservatoryDataProductProfile,
+  ObservatoryDataset,
+  ObservatoryDatasetWorkflowConfig,
+  ObservatoryDatasetPipeline,
+  ObservatoryDatasetProfile,
   ObservatoryExtension,
   ObservatoryExtensionDetail,
   ObservatoryGovernanceMatrix,
@@ -28,6 +28,7 @@ import type {
   ObservatoryResourceResult,
   ObservatoryRowJourney,
   ObservatoryRun,
+  ObservatoryRuntimeSettings,
   ObservatorySavedQuery,
   ObservatorySearchResult,
   ObservatoryService,
@@ -133,7 +134,7 @@ async function browserApiPost<T>(
 
 async function browserApiPut<T>(
   endpoint: string,
-  body: Record<string, unknown>,
+  body: unknown,
   timeoutMs = 12000,
 ): Promise<T> {
   const base = browserApiBase()
@@ -309,6 +310,19 @@ export function getObservatoryOperationRecords() {
   return getRawCollection<ObservatoryOperation>('operations')
 }
 
+export async function getObservatoryOperationRecordsDirect(): Promise<
+  ObservatoryResourceResult<Array<ObservatoryOperation>>
+> {
+  try {
+    const response = await browserApiGet<{
+      items: Array<ObservatoryOperation>
+    }>(`${Observatory_API_PREFIX}/operations`)
+    return { data: response.items, error: null }
+  } catch (error) {
+    return apiUnavailable<Array<ObservatoryOperation>>(error)
+  }
+}
+
 export const getObservatoryOperationDetail = createServerFn()
   .inputValidator((input: { operationId: string }) => input)
   .handler(
@@ -359,10 +373,6 @@ export function getObservatoryGovernanceItems() {
   return getRawResource<ObservatoryGovernanceMatrix>('governance')
 }
 
-export function getObservatoryCatalogItems() {
-  return getRawCollection<ObservatorySurfaceItem>('catalog')
-}
-
 export function getObservatoryApiItems() {
   return getRawCollection<ObservatorySurfaceItem>('apis')
 }
@@ -375,72 +385,72 @@ export function getObservatoryAssetRecords() {
   return getRawCollection<ObservatoryAsset>('assets')
 }
 
-export function getObservatoryDataProductRecords() {
-  return getRawCollection<ObservatoryDataProduct>('data-products')
+export function getObservatoryDatasetRecords() {
+  return getRawCollection<ObservatoryDataset>('datasets')
 }
 
-export async function getObservatoryDataProductWorkflowConfigDirect(): Promise<
-  ObservatoryResourceResult<ObservatoryDataProductWorkflowConfig>
+export async function getObservatoryDatasetWorkflowConfigDirect(): Promise<
+  ObservatoryResourceResult<ObservatoryDatasetWorkflowConfig>
 > {
   try {
-    const data = await browserApiGet<ObservatoryDataProductWorkflowConfig>(
-      `${Observatory_API_PREFIX}/data-product-workflow/config`,
+    const data = await browserApiGet<ObservatoryDatasetWorkflowConfig>(
+      `${Observatory_API_PREFIX}/dataset-workflow/config`,
     )
     return { data, error: null }
   } catch (error) {
-    return apiUnavailable<ObservatoryDataProductWorkflowConfig>(error)
+    return apiUnavailable<ObservatoryDatasetWorkflowConfig>(error)
   }
 }
 
-export async function putObservatoryDataProductWorkflowConfigDirect(
-  config: ObservatoryDataProductWorkflowConfig,
-): Promise<ObservatoryResourceResult<ObservatoryDataProductWorkflowConfig>> {
+export async function putObservatoryDatasetWorkflowConfigDirect(
+  config: ObservatoryDatasetWorkflowConfig,
+): Promise<ObservatoryResourceResult<ObservatoryDatasetWorkflowConfig>> {
   try {
-    const data = await browserApiPut<ObservatoryDataProductWorkflowConfig>(
-      `${Observatory_API_PREFIX}/data-product-workflow/config`,
+    const data = await browserApiPut<ObservatoryDatasetWorkflowConfig>(
+      `${Observatory_API_PREFIX}/dataset-workflow/config`,
       config,
     )
     return { data, error: null }
   } catch (error) {
-    return apiUnavailable<ObservatoryDataProductWorkflowConfig>(error)
+    return apiUnavailable<ObservatoryDatasetWorkflowConfig>(error)
   }
 }
 
 export function getObservatoryPipelineRecords() {
-  return getRawCollection<ObservatoryDataProductPipeline>('pipelines')
+  return getRawCollection<ObservatoryDatasetPipeline>('pipelines')
 }
 
-export const getObservatoryDataProductProfile = createServerFn()
-  .inputValidator((input: { productId: string }) => input)
+export const getObservatoryDatasetProfile = createServerFn()
+  .inputValidator((input: { datasetId: string }) => input)
   .handler(
     async ({
-      data: { productId },
-    }): Promise<ObservatoryResourceResult<ObservatoryDataProductProfile>> => {
+      data: { datasetId },
+    }): Promise<ObservatoryResourceResult<ObservatoryDatasetProfile>> => {
       try {
-        const data = await apiGet<ObservatoryDataProductProfile>(
-          `${Observatory_API_PREFIX}/data-products/${encodeURIComponent(productId)}`,
+        const data = await apiGet<ObservatoryDatasetProfile>(
+          `${Observatory_API_PREFIX}/datasets/${encodeURIComponent(datasetId)}`,
           undefined,
           8000,
         )
         return { data, error: null }
       } catch (error) {
-        return apiUnavailable<ObservatoryDataProductProfile>(error)
+        return apiUnavailable<ObservatoryDatasetProfile>(error)
       }
     },
   )
 
-export async function getObservatoryDataProductProfileDirect({
-  productId,
+export async function getObservatoryDatasetProfileDirect({
+  datasetId,
 }: {
-  productId: string
-}): Promise<ObservatoryResourceResult<ObservatoryDataProductProfile>> {
+  datasetId: string
+}): Promise<ObservatoryResourceResult<ObservatoryDatasetProfile>> {
   try {
-    const data = await browserApiGet<ObservatoryDataProductProfile>(
-      `${Observatory_API_PREFIX}/data-products/${encodeURIComponent(productId)}`,
+    const data = await browserApiGet<ObservatoryDatasetProfile>(
+      `${Observatory_API_PREFIX}/datasets/${encodeURIComponent(datasetId)}`,
     )
     return { data, error: null }
   } catch (error) {
-    return apiUnavailable<ObservatoryDataProductProfile>(error)
+    return apiUnavailable<ObservatoryDatasetProfile>(error)
   }
 }
 
@@ -462,6 +472,21 @@ export const getObservatoryAssetDetail = createServerFn()
       }
     },
   )
+
+export async function getObservatoryAssetDetailDirect({
+  assetId,
+}: {
+  assetId: string
+}): Promise<ObservatoryResourceResult<ObservatoryAssetDetail>> {
+  try {
+    const data = await browserApiGet<ObservatoryAssetDetail>(
+      `${Observatory_API_PREFIX}/assets/${encodeURIComponent(assetId)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryAssetDetail>(error)
+  }
+}
 
 export function getObservatoryTableRecords() {
   return getRawCollection<ObservatoryTable>('tables')
@@ -633,6 +658,10 @@ export function getObservatoryLogRecords() {
   return getRawCollection<ObservatoryLogEvent>('logs')
 }
 
+export function getObservatoryRuntimeSettings() {
+  return getRawResource<ObservatoryRuntimeSettings>('settings')
+}
+
 export async function getObservatoryLogFacets(): Promise<
   ObservatoryResourceResult<ObservatoryLogFacets>
 > {
@@ -690,6 +719,21 @@ export async function getObservatoryBranchDetailDirect({
 
 export function getObservatoryExtensions() {
   return getRawCollection<ObservatoryExtension>('extensions')
+}
+
+export async function getObservatoryExtensionDetailDirect({
+  extensionId,
+}: {
+  extensionId: string
+}): Promise<ObservatoryResourceResult<ObservatoryExtensionDetail>> {
+  try {
+    const data = await browserApiGet<ObservatoryExtensionDetail>(
+      `${Observatory_API_PREFIX}/extensions/${encodeURIComponent(extensionId)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryExtensionDetail>(error)
+  }
 }
 
 export const getObservatoryExtensionDetail = createServerFn()

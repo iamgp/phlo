@@ -23,12 +23,7 @@ import type { Edge, Node, NodeProps, NodeTypes } from '@xyflow/react'
 import type { MouseEvent } from 'react'
 
 type ObservatoryFlowNodeKind =
-  | 'asset'
-  | 'table'
-  | 'quality'
-  | 'operation'
-  | 'branch'
-  | 'service'
+  'asset' | 'table' | 'quality' | 'operation' | 'branch' | 'service'
 
 export interface ObservatoryFlowNode {
   id: string
@@ -160,20 +155,18 @@ export function ObservatoryFlowCanvas({
 
   const initialEdges = useMemo(
     () =>
-      graphEdges.map(
-        (edge): Edge => ({
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          label: edge.label ?? undefined,
-          type: 'smoothstep',
-          style: { stroke: 'var(--v2-sheet-border)', strokeWidth: 2 },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: 'var(--v2-sheet-border)',
-          },
-        }),
-      ),
+      graphEdges.map((edge): Edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        label: edge.label ?? undefined,
+        type: 'smoothstep',
+        style: { stroke: 'var(--v2-sheet-border)', strokeWidth: 2 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: 'var(--v2-sheet-border)',
+        },
+      })),
     [graphEdges],
   )
   const canvasKey = `${selectedId ?? 'none'}:${graphNodes
@@ -237,7 +230,7 @@ function ObservatoryFlowCanvasInstance({
       ) : (
         <div className="phlo-observatory-flow-empty">
           <Database className="size-4" />
-          <span>No graph nodes yet</span>
+          <span>No dependencies yet</span>
         </div>
       )}
     </div>

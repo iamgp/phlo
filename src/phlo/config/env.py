@@ -56,7 +56,7 @@ def load_project_env(
     Later sources override earlier sources, with OS env taking final precedence
     when requested.
     """
-    root = project_root or Path.cwd()
+    root = project_root or Path(os.environ.get("PHLO_PROJECT_PATH", Path.cwd()))
     env: dict[str, str] = parse_project_config_env(root / "phlo.yaml")
     for path in (root / ".phlo" / ".env", root / ".phlo" / ".env.local"):
         env.update(parse_project_env_file(path))

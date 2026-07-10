@@ -55,4 +55,26 @@ describe('liveResource cache invalidation', () => {
     expect(firstCalls).toBe(2)
     expect(secondCalls).toBe(2)
   })
+
+  test('preserves last good data when a forced refresh fails', async () => {
+    const key = 'test:stale-on-error'
+    let calls = 0
+    const load = () => {
+      calls += 1
+      return Promise.resolve(
+        calls === 1
+          ? { data: [{ id: 'gold.revenue' }], error: null }
+          : { data: null, error: 'phlo-api error: 502 Bad Gateway' },
+      )
+    }
+
+    await loadCachedResource(key, load, { staleMs: 60_000 })
+    const refreshed = await loadCachedResource(key, load, {
+      force: true,
+      staleMs: 60_000,
+    })
+
+    expect(refreshed.data).toEqual([{ id: 'gold.revenue' }])
+    expect(refreshed.error).toBe('phlo-api error: 502 Bad Gateway')
+  })
 })

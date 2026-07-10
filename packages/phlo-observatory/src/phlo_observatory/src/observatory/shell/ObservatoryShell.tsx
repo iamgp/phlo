@@ -44,7 +44,7 @@ import {
 import {
   getObservatoryAssetRecords,
   getObservatoryCapabilities,
-  getObservatoryDataProductRecords,
+  getObservatoryDatasetRecords,
   getObservatoryGovernanceItems,
   getObservatoryLogRecords,
   getObservatoryPipelineRecords,
@@ -63,87 +63,116 @@ const ObservatoryCommandPalette = lazy(() =>
 )
 
 const fallbackPages: Array<ObservatoryCapabilityPage> = [
-  corePage('overview', 'Overview', '/'),
+  corePage('overview', 'Home', '/'),
   corePage('operations', 'Operations', '/operations'),
-  corePage('data', 'Data', '/data'),
-  corePage('assets', 'Assets', '/assets'),
-  corePage('workflows', 'Workflows', '/workflows/new'),
-  corePage('issues', 'Quality', '/quality'),
-  corePage('branches', 'Changes', '/branches'),
-  corePage('catalog', 'Catalog', '/catalog'),
+  corePage('tables', 'Tables', '/tables'),
+  corePage('lineage', 'Lineage', '/lineage'),
+  corePage('workflows', 'Workflow Builder', '/workflows/new'),
+  corePage('quality', 'Quality', '/quality'),
+  corePage('runs', 'Runs', '/runs'),
+  corePage('branches', 'Change Review', '/branches'),
+  corePage('datasets', 'Datasets', '/datasets'),
   corePage('governance', 'Governance', '/governance'),
   corePage('publishing', 'Publishing', '/publishing'),
   corePage('pipelines', 'Pipelines', '/pipelines'),
   corePage('logs', 'Logs', '/logs'),
   corePage('services', 'Services', '/services'),
+  corePage('extensions', 'Extensions', '/extensions'),
   corePage('settings', 'Settings', '/settings'),
 ]
 
 const navOrder = [
   'overview',
-  'catalog',
-  'governance',
-  'publishing',
-  'apis',
-  'bi',
-  'data',
-  'assets',
-  'storage',
-  'branches',
-  'issues',
+  'datasets',
+  'tables',
+  'lineage',
   'quality',
   'pipelines',
   'runs',
   'operations',
   'logs',
-  'workflows',
-  'observability',
+  'publishing',
+  'governance',
+  'branches',
   'services',
   'extensions',
   'settings',
+  'workflows',
+  'storage',
+  'observability',
+  'apis',
+  'bi',
 ]
 
 const navGroupDefinitions = [
   {
-    label: 'Catalog',
-    ids: ['catalog', 'governance', 'publishing', 'apis', 'bi'],
+    label: 'Home',
+    ids: ['overview'],
+  },
+  {
+    label: 'Datasets',
+    ids: ['datasets'],
   },
   {
     label: 'Tables',
-    ids: ['data', 'assets', 'storage', 'branches'],
+    ids: ['tables'],
+  },
+  {
+    label: 'Lineage',
+    ids: ['lineage'],
   },
   {
     label: 'Quality',
-    ids: ['issues', 'quality'],
+    ids: ['quality'],
   },
   {
     label: 'Operations',
-    ids: [
-      'pipelines',
-      'runs',
-      'operations',
-      'logs',
-      'workflows',
-      'observability',
-    ],
+    ids: ['pipelines', 'runs', 'operations', 'logs'],
+  },
+  {
+    label: 'Publishing',
+    ids: ['publishing'],
+  },
+  {
+    label: 'Governance',
+    ids: ['governance'],
+  },
+  {
+    label: 'Change Review',
+    ids: ['branches'],
   },
   {
     label: 'Platform',
-    ids: ['overview', 'services', 'extensions', 'settings'],
+    ids: [
+      'services',
+      'extensions',
+      'settings',
+      'workflows',
+      'storage',
+      'observability',
+      'apis',
+      'bi',
+    ],
   },
 ] satisfies Array<{ label: string; ids: Array<string> }>
 
 const warmPreviewLimit = 100
+const platformTrustPageIds = new Set([
+  'extensions',
+  'storage',
+  'observability',
+  'apis',
+  'bi',
+])
 
 const iconByPageId: Record<string, typeof LayoutDashboard> = {
   overview: LayoutDashboard,
   services: Server,
   operations: Activity,
   runs: CirclePlay,
-  data: Database,
-  assets: Boxes,
+  tables: Database,
+  lineage: Boxes,
   workflows: Clipboard,
-  issues: ListChecks,
   quality: ListChecks,
   logs: Logs,
   branches: GitBranch,
@@ -151,7 +180,7 @@ const iconByPageId: Record<string, typeof LayoutDashboard> = {
   storage: Database,
   observability: Activity,
   governance: Settings,
-  catalog: Boxes,
+  datasets: Boxes,
   publishing: UploadCloud,
   pipelines: Activity,
   apis: Server,
@@ -164,19 +193,18 @@ const navSubtitleByPageId: Record<string, string> = {
   services: 'Runtime services and stack status.',
   operations: 'Jobs, actions, and run state.',
   runs: 'Orchestrator history and outcomes.',
-  data: 'Tables, previews, and query surfaces.',
-  assets: 'Lineage, dependencies, and metadata.',
-  storage: 'Lakehouse storage and branches.',
+  tables: 'Tables, previews, and query surfaces.',
+  lineage: 'Lineage, dependencies, and metadata.',
+  storage: 'Lakehouse storage and table providers.',
   observability: 'Signals from metrics and traces.',
   logs: 'Platform and resource events.',
-  catalog: 'Promoted products and raw candidates.',
+  datasets: 'Governed datasets and raw candidates.',
   governance: 'Owners, classifications, controls.',
   publishing: 'Internal release readiness.',
-  pipelines: 'Product flow and freshness.',
-  workflows: 'Create and edit Phlo workflows.',
-  issues: 'Checks needing attention.',
+  pipelines: 'Dataset pipeline freshness.',
+  workflows: 'Create and edit workflow definitions.',
   quality: 'Checks, severity, and evidence.',
-  branches: 'Changes, reviews, and WAP context.',
+  branches: 'Branch state, reviews, and publish context.',
   apis: 'Published API surfaces.',
   bi: 'Reports, dashboards, and consumers.',
   extensions: 'Installed providers and settings.',
@@ -211,13 +239,18 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
     useState<ObservatoryResourceResult<ObservatoryCapabilities> | null>(null)
   const resolvedTheme = resolveObservatoryTheme(themeMode, systemPrefersDark)
   const pages = hydrated
-    ? mergeFallbackPages(capabilities?.data?.pages ?? fallbackPages)
+    ? mergeFallbackPages(capabilities?.data?.pages ?? fallbackPages).map(
+        normalizePlatformTrustPage,
+      )
     : fallbackPages
   const navItems = pages
     .filter((page) => page.nav && page.available)
     .sort((left, right) => navRank(left.id) - navRank(right.id))
   const activePage = pageForPath(pathname, pages)
-  const pagePending = capabilities === null && activePage === null
+  const pagePending =
+    capabilities === null &&
+    activePage === null &&
+    isKnownObservatoryPath(pathname)
   const pageUnavailable =
     hydrated &&
     capabilities?.data !== null &&
@@ -265,7 +298,7 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
     async function load() {
       if (cancelled) return
       const next = await loadCachedResource(
-        'v2:capabilities',
+        'observatory:capabilities',
         getObservatoryCapabilities,
         { force: true, staleMs: 30_000 },
       )
@@ -403,7 +436,6 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
 function isActive(pathname: string, href: string): boolean {
   const cleanPathname = cleanPath(pathname)
   const cleanHref = cleanPath(href)
-  if (cleanPathname === '/graph' && cleanHref === '/assets') return true
   if (cleanHref === '/') return cleanPathname === '/'
   return (
     cleanPathname === cleanHref || cleanPathname.startsWith(`${cleanHref}/`)
@@ -427,6 +459,25 @@ function ObservatoryNavigationMenu({
           const active = group.items.some((item) =>
             isActive(pathname, item.path),
           )
+          if (group.items.length === 1) {
+            const item = group.items[0]
+            return (
+              <NavigationMenuItem key={group.label}>
+                <NavigationMenuLink
+                  render={
+                    <Link
+                      aria-current={hydrated && active ? 'page' : undefined}
+                      data-active={hydrated && active}
+                      to={item.path}
+                    />
+                  }
+                  className="phlo-observatory-nav-link phlo-observatory-menu-trigger"
+                >
+                  {group.label}
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            )
+          }
           return (
             <NavigationMenuItem key={group.label}>
               <NavigationMenuTrigger
@@ -535,19 +586,31 @@ function navRank(pageId: string): number {
 function mergeFallbackPages(
   pages: Array<ObservatoryCapabilityPage>,
 ): Array<ObservatoryCapabilityPage> {
-  const merged = new Map(pages.map((page) => [page.id, page]))
+  const merged = new Map<string, ObservatoryCapabilityPage>()
+  for (const page of pages) {
+    const fallback = fallbackPages.find((item) => item.id === page.id)
+    merged.set(page.id, fallback ? { ...page, nav: fallback.nav } : page)
+  }
   for (const fallback of fallbackPages) {
     const page = merged.get(fallback.id)
-    merged.set(
-      fallback.id,
-      page ? { ...page, available: true, nav: true } : fallback,
-    )
+    if (!page) merged.set(fallback.id, fallback)
   }
   return Array.from(merged.values())
 }
 
 function isFallbackPage(pageId: string): boolean {
   return fallbackPages.some((page) => page.id === pageId)
+}
+
+function normalizePlatformTrustPage(
+  page: ObservatoryCapabilityPage,
+): ObservatoryCapabilityPage {
+  if (!platformTrustPageIds.has(page.id)) return page
+  return {
+    ...page,
+    available: true,
+    nav: true,
+  }
 }
 
 function pageForPath(
@@ -558,18 +621,43 @@ function pageForPath(
   const exact = pages.find((page) => cleanPathname === cleanPath(page.path))
   if (exact) return exact
 
-  const aliases: Record<string, string> = {
-    '/data/': 'data',
-    '/data-products/': 'catalog',
-    '/assets/': 'assets',
-    '/branches/': 'branches',
+  const canonicalChildRouteParents: Record<string, string> = {
+    '/datasets/': 'datasets',
     '/extensions/': 'extensions',
   }
-  const match = Object.entries(aliases).find(([prefix]) =>
+  const match = Object.entries(canonicalChildRouteParents).find(([prefix]) =>
     cleanPathname.startsWith(prefix),
   )
   if (!match) return null
   return pages.find((page) => page.id === match[1]) ?? null
+}
+
+function isKnownObservatoryPath(pathname: string): boolean {
+  const cleanPathname = cleanPath(pathname)
+  if (cleanPathname === '/') return true
+  return [
+    '/apis',
+    '/bi',
+    '/branches',
+    '/datasets',
+    '/extensions',
+    '/governance',
+    '/lineage',
+    '/logs',
+    '/observability',
+    '/operations',
+    '/pipelines',
+    '/publishing',
+    '/quality',
+    '/runs',
+    '/services',
+    '/settings',
+    '/storage',
+    '/tables',
+    '/workflows',
+  ].some(
+    (path) => cleanPathname === path || cleanPathname.startsWith(`${path}/`),
+  )
 }
 
 function cleanPath(path: string): string {
@@ -579,38 +667,42 @@ function cleanPath(path: string): string {
 function warmRouteResources(capabilities: ObservatoryCapabilities | null) {
   if (!capabilities) return
   const features = capabilities.features
-  void loadCachedResource('v2:services', getObservatoryServices, {
+  void loadCachedResource('observatory:services', getObservatoryServices, {
     staleMs: 120_000,
   })
-  if (features.data) {
-    void loadCachedResource('v2:tables', getObservatoryTableRecords, {
+  if (features.tables) {
+    void loadCachedResource('observatory:tables', getObservatoryTableRecords, {
       staleMs: 120_000,
     }).then((result) => warmDefaultTablePreview(result.data ?? []))
   }
-  if (features.assets) {
-    void loadCachedResource('v2:assets', getObservatoryAssetRecords, {
+  if (features.lineage) {
+    void loadCachedResource('observatory:assets', getObservatoryAssetRecords, {
       staleMs: 120_000,
     })
   }
   if (features.runs) {
-    void loadCachedResource('v2:runs', getObservatoryRunRecords, {
+    void loadCachedResource('observatory:runs', getObservatoryRunRecords, {
       staleMs: 120_000,
     })
   }
-  if (features.issues || features.quality) {
-    void loadCachedResource('v2:quality', getObservatoryQualityRecords, {
-      staleMs: 120_000,
-    })
+  if (features.quality) {
+    void loadCachedResource(
+      'observatory:quality',
+      getObservatoryQualityRecords,
+      {
+        staleMs: 120_000,
+      },
+    )
   }
   if (features.logs) {
-    void loadCachedResource('v2:logs', getObservatoryLogRecords, {
+    void loadCachedResource('observatory:logs', getObservatoryLogRecords, {
       staleMs: 120_000,
     })
   }
-  if (features.catalog || features.publishing) {
+  if (features.datasets || features.publishing) {
     void loadCachedResource(
-      'v2:data-products',
-      getObservatoryDataProductRecords,
+      'observatory:datasets',
+      getObservatoryDatasetRecords,
       {
         staleMs: 120_000,
       },
@@ -618,7 +710,7 @@ function warmRouteResources(capabilities: ObservatoryCapabilities | null) {
   }
   if (features.governance) {
     void loadCachedResource(
-      'v2:governance-matrix',
+      'observatory:governance-matrix',
       getObservatoryGovernanceItems,
       {
         staleMs: 120_000,
@@ -626,9 +718,13 @@ function warmRouteResources(capabilities: ObservatoryCapabilities | null) {
     )
   }
   if (features.pipelines) {
-    void loadCachedResource('v2:pipelines', getObservatoryPipelineRecords, {
-      staleMs: 120_000,
-    })
+    void loadCachedResource(
+      'observatory:pipelines',
+      getObservatoryPipelineRecords,
+      {
+        staleMs: 120_000,
+      },
+    )
   }
 }
 
@@ -636,7 +732,7 @@ function warmDefaultTablePreview(tables: Array<ObservatoryTable>) {
   const table = choosePreviewTable(tables)
   if (!table) return
   void loadCachedResource(
-    `v2:table-preview:${table.id}:${warmPreviewLimit}:0:0`,
+    `observatory:table-preview:${table.id}:${warmPreviewLimit}:0:0`,
     () =>
       getObservatoryTablePreview({
         data: { tableId: table.id, limit: warmPreviewLimit, offset: 0 },

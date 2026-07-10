@@ -34,6 +34,7 @@ from phlo_api.observatory_api.observatory_models import (
     ObservatoryExtension,
     ObservatoryExternalLink,
     ObservatoryHealth,
+    ObservatoryLogEvent,
     ObservatoryOperation,
     ObservatoryOverview,
     ObservatoryQualityCheck,
@@ -204,7 +205,7 @@ def test_observatory_resource_models_serialize_provider_neutral_shapes() -> None
     _assert_no_provider_url_settings(payload)
 
 
-def test_observatory_data_products_endpoint_returns_profile_summaries(
+def test_observatory_datasets_endpoint_returns_profile_summaries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     observatory._clear_read_model_cache()
@@ -251,7 +252,7 @@ def test_observatory_data_products_endpoint_returns_profile_summaries(
         ],
     )
 
-    response = TestClient(app).get("/api/observatory/data-products")
+    response = TestClient(app).get("/api/observatory/datasets")
 
     assert response.status_code == 200
     payload = response.json()
@@ -263,7 +264,7 @@ def test_observatory_data_products_endpoint_returns_profile_summaries(
     assert payload["items"][0]["candidate"] is False
 
 
-def test_observatory_data_products_endpoint_uses_project_read_model_cache(
+def test_observatory_datasets_endpoint_uses_project_read_model_cache(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -279,9 +280,9 @@ def test_observatory_data_products_endpoint_uses_project_read_model_cache(
     monkeypatch.setattr(observatory, "_load_tables_without_catalog", lambda: [])
     monkeypatch.setattr(observatory, "_load_quality", lambda: [])
 
-    first = TestClient(app).get("/api/observatory/data-products")
+    first = TestClient(app).get("/api/observatory/datasets")
     observatory._READ_MODEL_CACHE._values.clear()
-    second = TestClient(app).get("/api/observatory/data-products")
+    second = TestClient(app).get("/api/observatory/datasets")
 
     assert first.status_code == 200
     assert second.status_code == 200
@@ -290,7 +291,7 @@ def test_observatory_data_products_endpoint_uses_project_read_model_cache(
     assert (tmp_path / ".phlo" / "observatory" / "read_models.sqlite").exists()
 
 
-def test_observatory_data_products_endpoint_returns_table_candidates(
+def test_observatory_datasets_endpoint_returns_table_candidates(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     observatory._clear_read_model_cache()
@@ -309,7 +310,7 @@ def test_observatory_data_products_endpoint_returns_table_candidates(
     )
     monkeypatch.setattr(observatory, "_load_quality", lambda: [])
 
-    response = TestClient(app).get("/api/observatory/data-products")
+    response = TestClient(app).get("/api/observatory/datasets")
 
     assert response.status_code == 200
     payload = response.json()
@@ -321,7 +322,7 @@ def test_observatory_data_products_endpoint_returns_table_candidates(
     ]
 
 
-def test_observatory_data_product_profile_returns_table_candidate(
+def test_observatory_dataset_profile_returns_table_candidate(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -345,12 +346,12 @@ def test_observatory_data_product_profile_returns_table_candidate(
     monkeypatch.setattr(observatory, "_load_logs", lambda: [])
     monkeypatch.setattr(observatory, "_load_operations", lambda: [])
 
-    response = TestClient(app).get("/api/observatory/data-products/candidate:raw_orders")
+    response = TestClient(app).get("/api/observatory/datasets/candidate:raw_orders")
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["product"]["id"] == "candidate:raw_orders"
-    assert payload["product"]["candidate"] is True
+    assert payload["dataset"]["id"] == "candidate:raw_orders"
+    assert payload["dataset"]["candidate"] is True
     assert payload["asset"] is None
     assert payload["tables"][0]["id"] == "raw_orders"
     assert payload["governance"][2]["status"] == "not_applicable"
@@ -380,26 +381,26 @@ def test_observatory_candidate_actions_persist_workflow_state(
     )
     assert claim.status_code == 200
     assert claim.json()["status"] == "succeeded"
-    candidate = client.get("/api/observatory/data-products/candidate:raw_orders").json()
-    assert candidate["product"]["owner"] == "data-team"
-    assert candidate["product"]["metadata"]["approval_state"] == "claimed"
+    candidate = client.get("/api/observatory/datasets/candidate:raw_orders").json()
+    assert candidate["dataset"]["owner"] == "data-team"
+    assert candidate["dataset"]["metadata"]["approval_state"] == "claimed"
 
     promote = client.post(
         "/api/observatory/actions",
         json={"action_id": "candidate:raw_orders:promote"},
     )
     assert promote.status_code == 200
-    products = client.get("/api/observatory/data-products").json()["items"]
-    assert products[0]["id"] == "raw_orders"
-    assert products[0]["candidate"] is False
-    assert products[0]["owner"] == "data-team"
-    profile = client.get("/api/observatory/data-products/raw_orders").json()
-    assert profile["product"]["metadata"]["promoted_from_candidate"] is True
+    datasets = client.get("/api/observatory/datasets").json()["items"]
+    assert datasets[0]["id"] == "raw_orders"
+    assert datasets[0]["candidate"] is False
+    assert datasets[0]["owner"] == "data-team"
+    profile = client.get("/api/observatory/datasets/raw_orders").json()
+    assert profile["dataset"]["metadata"]["promoted_from_candidate"] is True
     telemetry = tmp_path / ".phlo" / "telemetry" / "events.jsonl"
     assert "observatory.candidate.promote" in telemetry.read_text(encoding="utf-8")
 
 
-def test_observatory_publication_action_persists_product_state(
+def test_observatory_publication_action_persists_dataset_state(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -440,20 +441,20 @@ def test_observatory_publication_action_persists_product_state(
 
     result = client.post(
         "/api/observatory/actions",
-        json={"action_id": "data-product:gold.orders:publish"},
+        json={"action_id": "dataset:gold.orders:publish"},
     )
 
     assert result.status_code == 200
     assert result.json()["status"] == "succeeded"
-    profile = client.get("/api/observatory/data-products/gold.orders").json()
-    assert profile["product"]["publication_state"] == "published"
-    assert profile["product"]["metadata"]["approval_state"] == "approved"
+    profile = client.get("/api/observatory/datasets/gold.orders").json()
+    assert profile["dataset"]["publication_state"] == "published"
+    assert profile["dataset"]["metadata"]["approval_state"] == "approved"
     assert profile["publishing"]["actions"][0]["enabled"] is False
     telemetry = tmp_path / ".phlo" / "telemetry" / "events.jsonl"
-    assert "observatory.data_product.publish" in telemetry.read_text(encoding="utf-8")
+    assert "observatory.dataset.publish" in telemetry.read_text(encoding="utf-8")
 
 
-def test_observatory_data_product_workflow_config_round_trips(
+def test_observatory_dataset_workflow_config_round_trips(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -462,7 +463,7 @@ def test_observatory_data_product_workflow_config_round_trips(
     client = TestClient(app)
 
     saved = client.put(
-        "/api/observatory/data-product-workflow/config",
+        "/api/observatory/dataset-workflow/config",
         json={
             "default_owner": "platform-team",
             "approval_states": ["draft", "review", "approved"],
@@ -470,14 +471,14 @@ def test_observatory_data_product_workflow_config_round_trips(
     )
 
     assert saved.status_code == 200
-    loaded = client.get("/api/observatory/data-product-workflow/config")
+    loaded = client.get("/api/observatory/dataset-workflow/config")
     assert loaded.json() == {
         "default_owner": "platform-team",
         "approval_states": ["draft", "review", "approved"],
     }
 
 
-def test_observatory_governance_endpoint_returns_data_product_control_matrix(
+def test_observatory_governance_endpoint_returns_dataset_control_matrix(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     observatory._clear_read_model_cache()
@@ -522,7 +523,7 @@ def test_observatory_governance_endpoint_returns_data_product_control_matrix(
     assert response.status_code == 200
     payload = response.json()
     assert payload["controls"] == ["owner", "classification", "blocking_quality"]
-    order_row = next(row for row in payload["rows"] if row["product"]["id"] == "gold.orders")
+    order_row = next(row for row in payload["rows"] if row["dataset"]["id"] == "gold.orders")
     assert order_row["owner"] == "analytics"
     assert order_row["classifications"] == ["internal"]
     assert order_row["status"] == "fail"
@@ -532,7 +533,7 @@ def test_observatory_governance_endpoint_returns_data_product_control_matrix(
     assert quality_control["status"] == "fail"
     assert quality_control["evidence"][0]["kind"] == "quality_check"
 
-    customer_row = next(row for row in payload["rows"] if row["product"]["id"] == "gold.customers")
+    customer_row = next(row for row in payload["rows"] if row["dataset"]["id"] == "gold.customers")
     assert (
         next(control for control in customer_row["controls"] if control["id"] == "owner")["status"]
         == "fail"
@@ -545,7 +546,7 @@ def test_observatory_governance_endpoint_returns_data_product_control_matrix(
     )
 
     candidate_row = next(
-        row for row in payload["rows"] if row["product"]["id"] == "candidate:raw_events"
+        row for row in payload["rows"] if row["dataset"]["id"] == "candidate:raw_events"
     )
     assert (
         next(
@@ -555,7 +556,7 @@ def test_observatory_governance_endpoint_returns_data_product_control_matrix(
     )
 
 
-def test_observatory_data_product_profile_returns_privacy_shaped_usage(
+def test_observatory_dataset_profile_returns_privacy_shaped_usage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     observatory._clear_read_model_cache()
@@ -572,7 +573,7 @@ def test_observatory_data_product_profile_returns_privacy_shaped_usage(
                 "access_activity": [
                     {
                         "id": "access-1",
-                        "product_id": "gold.orders",
+                        "dataset_id": "gold.orders",
                         "actor": "alice@example.com",
                         "actor_kind": "person",
                         "action": "query",
@@ -584,7 +585,7 @@ def test_observatory_data_product_profile_returns_privacy_shaped_usage(
                     {
                         "id": "dep-1",
                         "source": {"kind": "pipeline", "id": "orders-refresh"},
-                        "target": {"kind": "data_product", "id": "gold.orders"},
+                        "target": {"kind": "dataset", "id": "gold.orders"},
                         "kind": "pipeline_read",
                         "count": 3,
                     }
@@ -592,7 +593,7 @@ def test_observatory_data_product_profile_returns_privacy_shaped_usage(
                 "consumer_adoption": [
                     {
                         "id": "consumer-1",
-                        "product_id": "gold.orders",
+                        "dataset_id": "gold.orders",
                         "consumer": "finance",
                         "kind": "team",
                         "owner": "morgan",
@@ -621,7 +622,7 @@ def test_observatory_data_product_profile_returns_privacy_shaped_usage(
     monkeypatch.setattr(observatory, "_load_logs", lambda: [])
     monkeypatch.setattr(observatory, "_load_operations", lambda: [])
 
-    response = TestClient(app).get("/api/observatory/data-products/gold.orders")
+    response = TestClient(app).get("/api/observatory/datasets/gold.orders")
 
     assert response.status_code == 200
     usage = response.json()["usage"]
@@ -668,7 +669,7 @@ def test_observatory_pipelines_endpoint_returns_flow_and_action_availability(
 
     assert response.status_code == 200
     pipeline = response.json()["items"][0]
-    assert pipeline["product"]["id"] == "gold.orders"
+    assert pipeline["dataset"]["id"] == "gold.orders"
     assert pipeline["last_run"]["id"] == "run-1"
     assert [stage["id"] for stage in pipeline["stages"]] == [
         "ingest",
@@ -682,7 +683,7 @@ def test_observatory_pipelines_endpoint_returns_flow_and_action_availability(
     assert cancel["enabled"] is False
 
 
-def test_observatory_data_product_profile_collects_related_context(
+def test_observatory_dataset_profile_collects_related_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     observatory._clear_read_model_cache()
@@ -731,13 +732,13 @@ def test_observatory_data_product_profile_collects_related_context(
     monkeypatch.setattr(observatory, "_load_logs", lambda: [])
     monkeypatch.setattr(observatory, "_load_operations", lambda: [])
 
-    response = TestClient(app).get("/api/observatory/data-products/gold.orders")
+    response = TestClient(app).get("/api/observatory/datasets/gold.orders")
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["product"]["id"] == "gold.orders"
-    assert payload["product"]["owner"] == "analytics"
-    assert payload["product"]["readiness_state"] == "warning"
+    assert payload["dataset"]["id"] == "gold.orders"
+    assert payload["dataset"]["owner"] == "analytics"
+    assert payload["dataset"]["readiness_state"] == "warning"
     assert payload["tables"][0]["id"] == "orders"
     assert payload["quality"][0]["name"] == "not_null_order_id"
     assert payload["upstream"][0] == {
@@ -798,8 +799,7 @@ def test_observatory_fallback_services_are_deterministic_and_provider_neutral() 
 
 def test_observatory_docker_statuses_match_services_without_provider_imports(monkeypatch) -> None:
     def fake_run(*args, **kwargs):
-        assert args[0] == [
-            "docker",
+        assert args[0][1:] == [
             "ps",
             "-a",
             "--filter",
@@ -807,6 +807,7 @@ def test_observatory_docker_statuses_match_services_without_provider_imports(mon
             "--format",
             "{{json .}}",
         ]
+        assert args[0][0].endswith("docker")
         return subprocess.CompletedProcess(
             args=args[0],
             returncode=0,
@@ -903,6 +904,42 @@ def test_observatory_docker_statuses_fall_back_to_socket_and_scope_project(
 
     assert statuses["postgres"][0] == "running"
     assert statuses["postgres"][1].state == "ok"
+
+
+def test_observatory_docker_statuses_warn_on_recent_container_kill(monkeypatch) -> None:
+    containers = [
+        {
+            "ID": "trino123",
+            "Names": "phlo-trino-1",
+            "State": "running",
+            "Status": "Up 10 seconds (healthy)",
+            "Labels": "com.docker.compose.project=phlo,com.docker.compose.service=trino",
+        }
+    ]
+
+    monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "phlo")
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.observatory_services.docker_inspect_container",
+        lambda _container_id: {
+            "RestartCount": 3,
+            "State": {
+                "ExitCode": 0,
+                "OOMKilled": False,
+                "StartedAt": "2026-07-04T08:50:43Z",
+                "FinishedAt": "2026-07-04T08:50:42Z",
+                "Health": {
+                    "Status": "healthy",
+                    "Log": [{"ExitCode": 137}],
+                },
+            },
+        },
+    )
+
+    statuses = _load_docker_service_statuses({"trino"}, containers)
+
+    assert statuses["trino"][0] == "running"
+    assert statuses["trino"][1].state == "warning"
+    assert "recent container kill" in (statuses["trino"][1].message or "")
 
 
 def test_observatory_load_services_includes_runtime_containers_missing_from_discovery(
@@ -1084,9 +1121,9 @@ def test_observatory_capabilities_include_running_service_backed_providers(monke
 
     capabilities = _load_capabilities()
 
-    assert capabilities.features["data"] is True
+    assert capabilities.features["tables"] is True
     assert capabilities.features["logs"] is True
-    assert "trino" in capabilities.providers["data"]
+    assert "trino" in capabilities.providers["tables"]
     assert "loki" in capabilities.providers["logs"]
 
 
@@ -1607,22 +1644,26 @@ def test_observatory_manifest_records_enrich_lakehouse_surfaces(
     assert runs[0]["id"] == "keystone-run-0041"
     assert logs[0]["source"] == "keystone_pipeline"
     assert preview["rows"][0]["experiment_id"] == "EXP-0041"
-    assert capabilities["features"]["data"] is True
-    assert capabilities["features"]["assets"] is True
-    assert capabilities["features"]["issues"] is True
+    assert capabilities["features"]["tables"] is True
+    assert capabilities["features"]["lineage"] is True
+    assert "issues" not in capabilities["features"]
+    assert capabilities["features"]["quality"] is True
     assert capabilities["features"]["runs"] is True
-    assert capabilities["features"]["catalog"] is True
+    assert capabilities["features"]["datasets"] is True
     assert capabilities["features"]["governance"] is True
     assert capabilities["features"]["publishing"] is True
     assert capabilities["features"]["pipelines"] is True
     pages = {page["id"]: page for page in capabilities["pages"]}
-    for page_id in ("catalog", "governance", "publishing", "pipelines"):
+    assert "issues" not in pages
+    assert pages["quality"]["available"] is True
+    assert pages["quality"]["nav"] is True
+    for page_id in ("datasets", "governance", "publishing", "pipelines"):
         assert pages[page_id]["nav"] is True
-        assert pages[page_id]["metadata"]["domain"] == "data_products"
+        assert pages[page_id]["metadata"]["domain"] == "datasets"
         assert pages[page_id]["metadata"]["contribution_policy"] == "shared_surface"
-    assert pages["catalog"]["metadata"]["read_models"] == [
-        "data-products",
-        "data-product-profile",
+    assert pages["datasets"]["metadata"]["read_models"] == [
+        "datasets",
+        "dataset-profile",
     ]
     assert pages["governance"]["metadata"]["profile_sections"] == ["governance"]
     assert pages["publishing"]["metadata"]["actions"] == ["publish", "retire"]
@@ -1788,7 +1829,7 @@ def test_observatory_overview_endpoint_returns_provider_neutral_payload() -> Non
 
     assert response.status_code == 200
     payload = response.json()
-    assert set(payload) == {"health", "counters", "recent"}
+    assert set(payload) == {"health", "counters", "attention", "events", "recent"}
     assert {
         "services",
         "operations",
@@ -1798,6 +1839,97 @@ def test_observatory_overview_endpoint_returns_provider_neutral_payload() -> Non
         "incidents",
     } == set(payload["counters"])
     _assert_no_provider_url_settings(payload)
+
+
+def test_observatory_overview_endpoint_returns_canonical_home_rows(monkeypatch) -> None:
+    observatory._clear_read_model_cache()
+    service = ObservatoryService(
+        id="dagster",
+        name="Dagster",
+        kind="orchestrator",
+        status="running",
+        health=ObservatoryHealth(state="ok", message="running"),
+        in_stack=True,
+    )
+    operation = ObservatoryOperation(
+        id="revenue-refresh-20260702",
+        name="Refresh Revenue Draft",
+        kind="pipeline_run",
+        status="failed",
+        health=ObservatoryHealth(state="error", message="Reconciliation check failed."),
+        target=ObservatoryResourceRef(kind="dataset", id="gold.revenue", label="Revenue Draft"),
+        completed_at="2026-07-02T08:29:11Z",
+        metadata={"failure_reason": "Reconciliation check failed."},
+    )
+    quality_checks = [
+        ObservatoryQualityCheck(
+            id="silver.orders:late_arrivals",
+            name="Late arrivals monitored",
+            asset_id="silver.orders",
+            status="warning",
+            severity="medium",
+        ),
+        ObservatoryQualityCheck(
+            id="gold.revenue:reconciliation",
+            name="Revenue reconciles to billing",
+            asset_id="gold.revenue",
+            status="failing",
+            severity="critical",
+        ),
+    ]
+    logs = [
+        ObservatoryLogEvent(
+            id="dataset-log",
+            message="Revenue reconciliation is outside tolerance.",
+            level="error",
+            source="observatory-fixture",
+            resource=ObservatoryResourceRef(
+                kind="dataset", id="gold.revenue", label="Revenue Draft"
+            ),
+        ),
+        ObservatoryLogEvent(
+            id="plugin-noise",
+            message="plugin_load_failed",
+            level="error",
+            source="phlo.plugins.discovery._plugin_loading",
+            resource=ObservatoryResourceRef(kind="service", id="phlo-api", label="Phlo API"),
+        ),
+    ]
+
+    monkeypatch.setattr(observatory, "load_project_docker_containers", lambda _root: [])
+    monkeypatch.setattr(
+        observatory,
+        "_runtime_services_from_containers",
+        lambda _containers, _disabled, _root: [service],
+    )
+    monkeypatch.setattr(observatory, "_load_operations", lambda: [operation])
+    monkeypatch.setattr(observatory, "_load_logs", lambda: logs)
+    monkeypatch.setattr(
+        observatory,
+        "_manifest_records",
+        lambda key, model: quality_checks if key == "quality" else [],
+    )
+
+    response = TestClient(app).get("/api/observatory/overview")
+
+    assert response.status_code == 200
+    payload = response.json()
+    attention = payload["attention"]
+    events = payload["events"]
+
+    assert [
+        (row["kind"], row["href"]) for row in attention if row["kind"] in {"quality", "operation"}
+    ] == [
+        ("quality", "/quality?checkId=gold.revenue%3Areconciliation"),
+        ("quality", "/quality?checkId=silver.orders%3Alate_arrivals"),
+        ("operation", "/operations?operationId=revenue-refresh-20260702"),
+    ]
+    assert not any(row["label"] == "plugin_load_failed" for row in attention)
+    assert ("operation", "/operations?operationId=revenue-refresh-20260702") in [
+        (row["kind"], row["href"]) for row in events
+    ]
+    assert not any(row["label"] == "plugin_load_failed" for row in events)
+    observatory._clear_read_model_cache()
 
 
 def test_observatory_capabilities_endpoint_returns_provider_neutral_payload() -> None:
@@ -1813,9 +1945,8 @@ def test_observatory_capabilities_endpoint_returns_provider_neutral_payload() ->
     assert set(pages) == {
         "overview",
         "workflows",
-        "data",
-        "assets",
-        "issues",
+        "tables",
+        "lineage",
         "quality",
         "logs",
         "branches",
@@ -1824,7 +1955,7 @@ def test_observatory_capabilities_endpoint_returns_provider_neutral_payload() ->
         "storage",
         "observability",
         "governance",
-        "catalog",
+        "datasets",
         "publishing",
         "pipelines",
         "apis",
@@ -1834,21 +1965,20 @@ def test_observatory_capabilities_endpoint_returns_provider_neutral_payload() ->
         "settings",
     }
     assert pages["workflows"]["available"] is True
-    assert pages["data"]["metadata"]["required_any"] == ["query_engine", "table_store"]
-    assert pages["quality"]["nav"] is False
+    assert pages["tables"]["metadata"]["required_any"] == ["query_engine", "table_store"]
+    assert "issues" not in pages
+    assert pages["quality"]["nav"] is pages["quality"]["available"]
     assert pages["storage"]["nav"] is False
     assert pages["observability"]["nav"] is False
-    assert pages["governance"]["nav"] is False
-    assert pages["catalog"]["nav"] is False
-    assert pages["publishing"]["nav"] is False
-    assert pages["pipelines"]["nav"] is False
+    for page_id in ("datasets", "governance", "publishing", "pipelines"):
+        assert pages[page_id]["nav"] is pages[page_id]["available"]
     assert pages["publishing"]["metadata"]["read_models"] == [
-        "data-products",
-        "data-product-profile",
+        "datasets",
+        "dataset-profile",
     ]
     assert pages["pipelines"]["metadata"]["read_models"] == [
         "pipelines",
-        "data-product-profile",
+        "dataset-profile",
     ]
     assert pages["apis"]["nav"] is False
     assert pages["bi"]["nav"] is False
@@ -1863,7 +1993,7 @@ def test_observatory_capabilities_endpoint_reloads_project_capabilities(monkeypa
     def load_capabilities() -> ObservatoryCapabilities:
         nonlocal calls
         calls += 1
-        return ObservatoryCapabilities(features={"data": calls == 2})
+        return ObservatoryCapabilities(features={"tables": calls == 2})
 
     monkeypatch.setattr(observatory, "_load_capabilities", load_capabilities)
 
@@ -1872,8 +2002,39 @@ def test_observatory_capabilities_endpoint_reloads_project_capabilities(monkeypa
 
     assert first.status_code == 200
     assert second.status_code == 200
-    assert first.json()["features"] == {"data": False}
-    assert second.json()["features"] == {"data": True}
+    assert first.json()["features"] == {"tables": False}
+    assert second.json()["features"] == {"tables": True}
+
+
+def test_observatory_capabilities_enable_manifest_backed_operations(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.observatory._load_capability_registry", lambda: None
+    )
+    monkeypatch.setattr("phlo_api.observatory_api.observatory._load_services", lambda: [])
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.observatory._load_lakehouse_manifest",
+        lambda: {
+            "operations": [
+                {
+                    "id": "refresh-orders",
+                    "name": "Refresh Orders",
+                    "kind": "pipeline_run",
+                    "status": "succeeded",
+                }
+            ]
+        },
+    )
+
+    capabilities = _load_capabilities().model_dump()
+    settings = observatory._load_settings().model_dump()
+
+    pages = {page["id"]: page for page in capabilities["pages"]}
+    assert pages["operations"]["available"] is True
+    assert pages["operations"]["nav"] is True
+    assert capabilities["features"]["operations"] is True
+    assert capabilities["providers"]["operations"] == ["lakehouse-manifest"]
+    assert settings["features"]["operations"] is True
+    assert settings["metadata"]["providers"]["operations"] == ["lakehouse-manifest"]
 
 
 def test_observatory_capabilities_gate_provider_pages_when_providers_are_absent(
@@ -1892,12 +2053,12 @@ def test_observatory_capabilities_gate_provider_pages_when_providers_are_absent(
     assert pages["settings"]["available"] is True
     assert pages["branches"]["available"] is False
     assert pages["branches"]["nav"] is False
-    assert pages["issues"]["available"] is False
+    assert "issues" not in pages
     assert pages["quality"]["available"] is False
     assert pages["quality"]["nav"] is False
     assert pages["logs"]["available"] is True
     assert pages["logs"]["nav"] is True
-    assert pages["extensions"]["available"] is False
+    assert pages["extensions"]["available"] is True
     assert pages["extensions"]["nav"] is False
     _assert_no_provider_url_settings(payload)
 
@@ -1929,11 +2090,11 @@ def test_observatory_logs_include_project_phlo_logs(monkeypatch, tmp_path: Path)
     assert payload["items"][0]["level"] == "warning"
 
 
-def test_observatory_overview_health_describes_missing_runtime_containers() -> None:
+def test_observatory_overview_health_describes_unavailable_runtime_state() -> None:
     health = _overview_health_from_services(_fallback_services())
 
     assert health.state == "unknown"
-    assert health.message == "No runtime containers found"
+    assert health.message == "Runtime service state unavailable"
 
 
 def test_observatory_services_endpoint_returns_provider_neutral_payload() -> None:
@@ -2103,6 +2264,38 @@ def test_observatory_assets_endpoint_returns_provider_neutral_payload() -> None:
     assert set(payload) == {"items"}
     assert isinstance(payload["items"], list)
     _assert_no_provider_url_settings(payload)
+
+
+def test_table_catalog_state_is_explicit_when_catalog_read_is_unavailable() -> None:
+    table = ObservatoryTable(id="orders", name="orders", namespace="gold")
+
+    enriched = observatory._enrich_tables_with_catalog([table], None)
+
+    assert enriched[0].metadata["catalog_state"] == "unknown"
+
+
+def test_asset_derived_tables_include_unknown_catalog_state_when_catalog_read_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = SimpleNamespace(
+        list=lambda kind: [
+            SimpleNamespace(
+                key="gold.orders",
+                group="gold",
+                kinds=["table"],
+                metadata={"table": "orders", "schema": "gold", "format": "iceberg"},
+            )
+        ]
+        if kind == "asset"
+        else []
+    )
+    monkeypatch.setattr(observatory, "_load_capability_registry", lambda: registry)
+    monkeypatch.setattr(observatory, "_manifest_records", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(observatory, "_catalog_tables", lambda: None)
+
+    tables = observatory._load_tables()
+
+    assert tables[0].metadata["catalog_state"] == "unknown"
 
 
 def test_observatory_asset_detail_endpoint_returns_related_provider_neutral_payload(
@@ -2846,7 +3039,12 @@ def test_observatory_extension_settings_put_reads_json_body() -> None:
     assert invalid.status_code == 422
 
 
-def test_observatory_settings_endpoint_returns_provider_neutral_payload() -> None:
+def test_observatory_settings_endpoint_returns_provider_neutral_payload(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "observatory-real-stack")
+
     response = TestClient(app).get("/api/observatory/settings")
 
     assert response.status_code == 200
@@ -2854,6 +3052,11 @@ def test_observatory_settings_endpoint_returns_provider_neutral_payload() -> Non
     assert set(payload) == {"version", "defaults", "features", "storage", "metadata"}
     assert payload["version"] == 2
     assert payload["defaults"]["branch"] == "main"
+    assert payload["metadata"]["runtime"] == {
+        "project_path": str(tmp_path.resolve()),
+        "compose_project": "observatory-real-stack",
+        "api_source": "phlo-api",
+    }
     _assert_no_provider_url_settings(payload)
 
 
@@ -2871,11 +3074,17 @@ def test_observatory_search_endpoint_url_encodes_resource_href_segments(monkeypa
     client = TestClient(app)
     asset = ObservatoryAsset(id="silver/demo", name="silver/demo", group="silver", kinds=["table"])
     table = ObservatoryTable(id="analytics/demo", name="demo", namespace="analytics")
+    check = ObservatoryQualityCheck(
+        id="silver/demo:row-count",
+        name="demo row count",
+        asset_id="silver/demo",
+        status="failing",
+    )
     extension = ObservatoryExtension(id="demo/ext", name="Demo Extension", version="0.1.0")
     monkeypatch.setattr("phlo_api.observatory_api.observatory._load_services", lambda: [])
     monkeypatch.setattr("phlo_api.observatory_api.observatory._load_assets", lambda: [asset])
     monkeypatch.setattr("phlo_api.observatory_api.observatory._load_tables", lambda: [table])
-    monkeypatch.setattr("phlo_api.observatory_api.observatory._load_quality", lambda: [])
+    monkeypatch.setattr("phlo_api.observatory_api.observatory._load_quality", lambda: [check])
     monkeypatch.setattr(
         "phlo_api.observatory_api.observatory._load_extensions", lambda: [extension]
     )
@@ -2884,8 +3093,9 @@ def test_observatory_search_endpoint_url_encodes_resource_href_segments(monkeypa
 
     assert response.status_code == 200
     hrefs = {item["kind"]: item["href"] for item in response.json()["items"]}
-    assert hrefs["asset"] == "/assets/silver%2Fdemo"
-    assert hrefs["table"] == "/data/analytics%2Fdemo"
+    assert hrefs["asset"] == "/lineage/silver%2Fdemo"
+    assert hrefs["table"] == "/tables/analytics%2Fdemo"
+    assert hrefs["quality"] == "/quality?checkId=silver%2Fdemo%3Arow-count"
     assert hrefs["extension"] == "/extensions/demo%2Fext"
 
 

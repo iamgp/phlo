@@ -6,12 +6,12 @@ vi.mock('@/server/phlo-api', () => ({
   apiGet,
 }))
 
-describe('observatory data product resources', () => {
+describe('observatory dataset resources', () => {
   beforeEach(() => {
     apiGet.mockReset()
   })
 
-  it('fetches Data Product records from phlo-api', async () => {
+  it('fetches Dataset records from phlo-api', async () => {
     apiGet.mockResolvedValue({
       items: [
         {
@@ -28,8 +28,8 @@ describe('observatory data product resources', () => {
       ],
     })
 
-    const { getObservatoryDataProductRecords } = await import('./resources')
-    const result = await getObservatoryDataProductRecords()
+    const { getObservatoryDatasetRecords } = await import('./resources')
+    const result = await getObservatoryDatasetRecords()
 
     expect(result.error).toBeNull()
     expect(result.data).toEqual([
@@ -39,7 +39,7 @@ describe('observatory data product resources', () => {
       }),
     ])
     expect(apiGet).toHaveBeenCalledWith(
-      '/api/observatory/data-products',
+      '/api/observatory/datasets',
       undefined,
       8000,
     )

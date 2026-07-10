@@ -120,9 +120,9 @@ def test_observatory_capability_inventory_serializes_support_and_requirements() 
         providers={"query_engine": [provider]},
         requirements=[
             ObservatoryRouteRequirement(
-                route_id="data",
-                label="Data",
-                path="/data",
+                route_id="tables",
+                label="Tables",
+                path="/tables",
                 required_any=["query_engine", "table_store"],
             )
         ],
@@ -157,10 +157,10 @@ def test_inventory_includes_ui_contributions() -> None:
             return []
         return [
             SimpleNamespace(
-                name="trino-data",
+                name="trino-tables",
                 capability_type="query_engine",
                 capability_name="trino",
-                surfaces=["data"],
+                surfaces=["tables"],
                 read_models={"tables": "/api/observatory/tables"},
                 actions=["query.run"],
                 native_links=[],
@@ -172,8 +172,8 @@ def test_inventory_includes_ui_contributions() -> None:
 
     inventory = build_capability_inventory(registry)
 
-    assert inventory.ui_contributions[0].name == "trino-data"
-    assert inventory.ui_contributions[0].surfaces == ["data"]
+    assert inventory.ui_contributions[0].name == "trino-tables"
+    assert inventory.ui_contributions[0].surfaces == ["tables"]
     assert "url" not in inventory.ui_contributions[0].metadata
 
 
@@ -183,10 +183,9 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
 
     assert list(requirements) == [
         "overview",
-        "data",
+        "tables",
         "workflows",
-        "assets",
-        "issues",
+        "lineage",
         "quality",
         "logs",
         "branches",
@@ -195,7 +194,7 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
         "storage",
         "observability",
         "governance",
-        "catalog",
+        "datasets",
         "publishing",
         "pipelines",
         "apis",
@@ -204,21 +203,19 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
         "services",
         "settings",
     ]
-    assert requirements["data"].required_any == ["query_engine", "table_store"]
-    assert requirements["data"].optional == []
-    assert requirements["assets"].required_any == [
+    assert requirements["tables"].required_any == ["query_engine", "table_store"]
+    assert requirements["tables"].optional == []
+    assert requirements["lineage"].required_any == [
         "query_engine",
         "table_store",
         "lineage_sink",
     ]
-    assert requirements["assets"].optional == [
+    assert requirements["lineage"].optional == [
         "quality_backend",
         "maintenance_read_model",
     ]
-    assert requirements["issues"].required_any == ["quality_backend"]
-    assert requirements["issues"].nav is True
     assert requirements["quality"].required_any == ["quality_backend"]
-    assert requirements["quality"].nav is False
+    assert requirements["quality"].nav is True
     assert requirements["logs"].required_any == []
     assert requirements["logs"].optional == [
         "observability_backend",
@@ -240,11 +237,11 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
         "regulated_surface",
     ]
     assert requirements["governance"].optional == []
-    assert requirements["catalog"].required_any == [
+    assert requirements["datasets"].required_any == [
         "metadata_catalog",
         "catalog_scanner",
     ]
-    assert requirements["catalog"].optional == []
+    assert requirements["datasets"].optional == []
     assert requirements["publishing"].required_any == [
         "publish_target",
         "metadata_catalog",
@@ -261,7 +258,7 @@ def test_build_capability_inventory_route_requirements_use_emitted_provider_keys
     assert requirements["apis"].optional == []
     assert requirements["bi"].required_any == ["publish_target"]
     assert requirements["bi"].optional == ["query_engine"]
-    assert requirements["extensions"].required_any == ["observatory_extension"]
+    assert requirements["extensions"].required_any == []
     assert requirements["extensions"].nav is False
     assert requirements["overview"].required_any == []
     assert requirements["services"].required_any == []
@@ -293,9 +290,9 @@ def test_pages_from_inventory_enables_routes_by_required_capabilities() -> None:
         },
         requirements=[
             ObservatoryRouteRequirement(
-                route_id="data",
-                label="Data",
-                path="/data",
+                route_id="tables",
+                label="Tables",
+                path="/tables",
                 required_any=["query_engine", "table_store"],
                 reason="Install data provider.",
             ),
@@ -312,7 +309,7 @@ def test_pages_from_inventory_enables_routes_by_required_capabilities() -> None:
     pages = _pages_from_inventory(inventory)
 
     assert {page.id: page.available for page in pages} == {
-        "data": True,
+        "tables": True,
         "storage": False,
     }
     assert pages[0].providers == ["trino"]
