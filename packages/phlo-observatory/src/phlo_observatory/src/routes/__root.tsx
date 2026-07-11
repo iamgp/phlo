@@ -10,6 +10,7 @@ import {
 import * as React from 'react'
 
 import appCss from '../styles.css?url'
+import observatoryLedgerCss from '../observatory/design/ledger.css?url'
 import { ObservatoryExtensionProvider } from '@/extensions/registry'
 import { ObservatorySettingsProvider } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
@@ -46,6 +47,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
+      { rel: 'stylesheet', href: observatoryLedgerCss },
       { rel: 'icon', href: '/favicon.ico' },
     ],
   }),

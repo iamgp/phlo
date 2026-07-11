@@ -1125,7 +1125,10 @@ function stageLabel(stage: string): string {
 }
 
 function counterValue(primary?: number, fallback?: number): string {
-  const value = primary ?? fallback
+  const values = [primary, fallback].filter(
+    (value): value is number => typeof value === 'number',
+  )
+  const value = values.length > 0 ? Math.max(...values) : undefined
   return typeof value === 'number' ? formatter.format(value) : '--'
 }
 

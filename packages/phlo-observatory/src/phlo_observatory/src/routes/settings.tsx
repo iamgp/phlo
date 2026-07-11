@@ -791,9 +791,10 @@ function readProviders(
 }
 
 function labelize(value: string): string {
-  return value
+  const label = value
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  return label.replace(/\bApis\b/g, 'APIs').replace(/\bBi\b/g, 'BI')
 }
 
 function formatSettingsStorage(value: string | undefined): string {

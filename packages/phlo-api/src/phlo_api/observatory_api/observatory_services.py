@@ -30,7 +30,7 @@ from phlo_api.observatory_api.observatory_models import (
 )
 
 DOCKER_SOCKET = "/var/run/docker.sock"
-DOCKER_PS_TIMEOUT_SECONDS = 1
+DOCKER_PS_TIMEOUT_SECONDS = 10
 DOCKER_SOCKET_TIMEOUT_SECONDS = 2
 DOCKER_CLI_CANDIDATES = (
     "docker",

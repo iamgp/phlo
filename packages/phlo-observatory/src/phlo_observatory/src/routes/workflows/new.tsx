@@ -365,6 +365,16 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
         setProposal(next)
         setActiveStep('proposal')
       })
+      .catch((error: unknown) => {
+        setProposal({
+          data: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Workflow proposal generation failed.',
+        })
+        setActiveStep('proposal')
+      })
       .finally(() => setProposalLoading(false))
   }
 
@@ -945,6 +955,18 @@ function ReviewPanel({
           {loading
             ? 'Generating a proposal from the graph…'
             : 'Generate a proposal to preview graph-generated files.'}
+        </div>
+        <div className="phlo-workflow-step-actions">
+          <Button
+            className="phlo-workflow-action"
+            disabled={loading}
+            leadingVisual={FileCodeIcon}
+            onClick={onGenerate}
+            type="button"
+            variant="primary"
+          >
+            {loading ? 'Generating…' : 'Generate proposal'}
+          </Button>
         </div>
       </div>
     )

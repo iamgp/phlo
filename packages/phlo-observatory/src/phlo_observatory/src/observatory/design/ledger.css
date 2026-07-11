@@ -1,0 +1,1111 @@
+/*
+ * Observatory ledger system
+ *
+ * The older stylesheet contains route-specific history. This final layer owns
+ * the shared visual contract: true neutrals, one boundary per surface, flat
+ * inspectors, and selection that does not rely on pale-blue decoration.
+ */
+
+html[data-phlo-observatory-route='true'],
+.phlo-observatory {
+  --v2-font-xs: 12px;
+  --v2-font-sm: 13px;
+  --v2-font-base: 15px;
+  --v2-font-md: 18px;
+  --v2-font-lg: 22px;
+  --v2-font-xl: 30px;
+  --v2-weight-regular: 400;
+  --v2-weight-medium: 500;
+  --v2-weight-strong: 600;
+  --v2-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --v2-canvas: oklch(0.972 0 0);
+  --v2-sheet: oklch(0.995 0 0);
+  --v2-sheet-border: oklch(0.875 0 0);
+  --v2-tile: oklch(0.955 0 0);
+  --v2-tile-strong: oklch(0.925 0 0);
+  --v2-text: oklch(0.19 0 0);
+  --v2-ink: var(--v2-text);
+  --v2-muted: oklch(0.43 0 0);
+  --v2-faint: oklch(0.59 0 0);
+  --v2-blue: oklch(0.5 0.13 255);
+}
+
+.phlo-observatory {
+  font-family: var(--v2-sans);
+  font-size: var(--v2-font-base);
+  line-height: 1.45;
+}
+
+.phlo-observatory strong,
+.phlo-observatory b {
+  font-weight: var(--v2-weight-strong);
+}
+
+/* Casing is authored content, never a presentation effect. */
+.phlo-observatory * {
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.phlo-observatory-title {
+  font-size: clamp(26px, 1.2vw + 12px, 30px);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.phlo-observatory-subtitle {
+  max-width: 72ch;
+  font-size: var(--v2-font-base);
+  line-height: 1.45;
+}
+
+.phlo-observatory dd {
+  font-weight: var(--v2-weight-regular);
+}
+
+.phlo-observatory-kicker,
+.phlo-observatory-inspector-label,
+.phlo-observatory-row-meta,
+.phlo-observatory-row-evidence,
+.phlo-observatory-timeline-row small,
+.phlo-observatory-operation-ledger-card small {
+  font-size: var(--v2-font-sm);
+  font-weight: var(--v2-weight-regular);
+  line-height: 1.4;
+}
+
+.phlo-observatory-panel-title,
+.phlo-observatory-workspace-toolbar > span:first-child,
+.phlo-observatory-row-title,
+.phlo-observatory-timeline-row strong,
+.phlo-observatory-operation-ledger-card strong,
+.phlo-observatory-mini-row span {
+  font-size: var(--v2-font-base);
+  font-weight: var(--v2-weight-strong);
+  line-height: 1.3;
+}
+
+.phlo-observatory-quality-table-head,
+.phlo-observatory-table-head,
+.phlo-observatory-asset-table-head,
+.phlo-observatory-pipeline-head {
+  font-size: var(--v2-font-xs);
+  font-weight: var(--v2-weight-medium);
+  line-height: 1.35;
+}
+
+html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='light'],
+html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='light']
+  body.phlo-observatory-document,
+.phlo-observatory {
+  background: var(--v2-canvas);
+}
+
+html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark'],
+.phlo-observatory[data-theme='dark'],
+html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
+  .phlo-observatory {
+  --v2-canvas: oklch(0.145 0 0);
+  --v2-sheet: oklch(0.185 0 0);
+  --v2-sheet-border: oklch(0.285 0 0);
+  --v2-tile: oklch(0.225 0 0);
+  --v2-tile-strong: oklch(0.275 0 0);
+  --v2-text: oklch(0.92 0 0);
+  --v2-ink: var(--v2-text);
+  --v2-muted: oklch(0.72 0 0);
+  --v2-faint: oklch(0.57 0 0);
+  --v2-blue: oklch(0.72 0.13 255);
+}
+
+html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark'],
+html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
+  body.phlo-observatory-document {
+  background: oklch(0.145 0 0);
+}
+
+.phlo-observatory-nav-bar {
+  background: var(--v2-sheet);
+}
+
+.phlo-observatory-nav {
+  min-height: 60px;
+  gap: 24px;
+  padding-block: 0;
+}
+
+.phlo-observatory-brand {
+  gap: 9px;
+  font-size: 14px;
+  font-weight: var(--v2-weight-strong);
+}
+
+.phlo-observatory-mark {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--v2-text);
+  color: var(--v2-sheet);
+}
+
+.phlo-observatory-nav-links,
+.phlo-observatory-menu-list {
+  gap: 2px;
+}
+
+.phlo-observatory-nav-links .phlo-observatory-nav-link,
+.phlo-observatory-menu-trigger {
+  height: 60px;
+  border-radius: 0;
+  padding: 0 9px;
+  font-size: 13px;
+}
+
+.phlo-observatory-nav-link[data-active='true'],
+.phlo-observatory-menu-trigger[data-active='true'] {
+  background: transparent !important;
+  box-shadow: inset 0 -2px 0 var(--v2-text);
+  color: var(--v2-text);
+  font-weight: var(--v2-weight-strong);
+}
+
+.phlo-observatory-menu-trigger[data-popup-open],
+.phlo-observatory-menu-trigger[data-open='true'] {
+  background: var(--v2-tile) !important;
+}
+
+.phlo-observatory-nav-actions {
+  gap: 8px;
+  border-left: 1px solid var(--v2-sheet-border);
+  padding-left: 14px;
+}
+
+.phlo-observatory-search-trigger {
+  height: 36px;
+  border-radius: 4px;
+  margin-left: 0;
+}
+
+.phlo-observatory-theme-toggle {
+  height: 34px;
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.phlo-observatory-theme-toggle button {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+}
+
+.phlo-observatory-theme-toggle button[data-active='true'] {
+  box-shadow: none;
+}
+
+nav:has(.phlo-observatory-menu-panel) {
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border) !important;
+  border-radius: 8px !important;
+  background: var(--v2-sheet) !important;
+  box-shadow: 0 4px 8px oklch(0.15 0 0 / 0.12) !important;
+}
+
+.phlo-observatory-menu-panel {
+  width: min(440px, calc(100vw - 32px));
+  padding: 0;
+}
+
+.phlo-observatory-menu-grid {
+  gap: 0;
+}
+
+.phlo-observatory-menu-section + .phlo-observatory-menu-section {
+  border-top: 1px solid var(--v2-sheet-border);
+}
+
+.phlo-observatory-menu-section-label {
+  display: block;
+  padding: 7px 12px 6px;
+  background: var(--v2-tile);
+  color: var(--v2-muted);
+  font-size: var(--v2-font-xs);
+  font-weight: var(--v2-weight-medium);
+  line-height: 1.35;
+}
+
+.phlo-observatory-menu-grid > li {
+  border-bottom: 1px solid var(--v2-sheet-border);
+}
+
+.phlo-observatory-menu-grid > li:nth-child(odd) {
+  border-right: 1px solid var(--v2-sheet-border);
+}
+
+.phlo-observatory-menu-grid > li:last-child,
+.phlo-observatory-menu-grid > li:nth-last-child(2):nth-child(odd) {
+  border-bottom: 0;
+}
+
+.phlo-observatory-menu-link {
+  min-height: 56px;
+  border-radius: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.phlo-observatory-menu-link:hover,
+.phlo-observatory-menu-link:focus,
+.phlo-observatory-menu-link[data-active='true'] {
+  background: var(--v2-tile);
+}
+
+.phlo-observatory-menu-subtitle {
+  font-size: var(--v2-font-xs);
+  line-height: 1.35;
+}
+
+.phlo-workflow-field small,
+.phlo-workflow-option > span:last-child,
+.phlo-workflow-file summary em,
+.phlo-workflow-code,
+.phlo-workflow-step-copy em,
+.phlo-workflow-info-grid span,
+.phlo-workflow-template-card span,
+.phlo-workflow-template-card small,
+.phlo-workflow-node-select > span,
+.phlo-workflow-node-footer > em,
+.phlo-workflow-add-menu-header p,
+.phlo-workflow-add-option em,
+.phlo-observatory-code-preview {
+  font-size: var(--v2-font-xs);
+  font-weight: var(--v2-weight-regular);
+  line-height: 1.4;
+}
+
+.phlo-observatory-menu-link[data-active='true'],
+.phlo-observatory-theme-toggle button[data-active='true'] {
+  background: var(--v2-tile);
+  box-shadow: none;
+}
+
+.phlo-observatory-title {
+  font-size: 26px;
+  line-height: 1.12;
+}
+
+.phlo-observatory-subtitle {
+  max-width: 72ch;
+  font-size: var(--v2-font-base);
+  line-height: 1.45;
+}
+
+.phlo-observatory-section-header {
+  margin-bottom: 16px;
+}
+
+/* Selection uses a crisp ink rail; full-row grey fills flatten hierarchy. */
+.phlo-observatory-check-row[data-active='true'],
+.phlo-observatory-table-row[data-active='true'],
+.phlo-observatory-timeline-row[data-active='true'],
+.phlo-observatory-index-table-row[data-active='true'],
+.phlo-observatory-platform-row[data-active='true'],
+.phlo-observatory-service-row[data-active='true'],
+.phlo-observatory-extension-row[data-active='true'],
+.phlo-observatory-rail-row[data-active='true'] {
+  border-color: var(--v2-sheet-border);
+  background: var(--v2-sheet);
+  box-shadow: inset 3px 0 0 var(--v2-text);
+}
+
+.phlo-observatory-flow-node[data-selected='true'],
+.phlo-observatory[data-theme='dark']
+  .phlo-observatory-flow-node[data-selected='true'],
+html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
+  .phlo-observatory
+  .phlo-observatory-flow-node[data-selected='true'] {
+  border-color: var(--v2-faint);
+  background: var(--v2-tile-strong);
+  box-shadow: none;
+}
+
+.phlo-observatory-rail-row[data-active='true'],
+.phlo-observatory[data-theme='dark']
+  .phlo-observatory-rail-row[data-active='true'],
+html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
+  .phlo-observatory
+  .phlo-observatory-rail-row[data-active='true'] {
+  border-color: var(--v2-faint);
+  background: var(--v2-sheet);
+  box-shadow: inset 3px 0 0 var(--v2-text);
+}
+
+.phlo-observatory-flow-canvas,
+.phlo-observatory[data-theme='dark'] .phlo-observatory-flow-canvas,
+html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
+  .phlo-observatory
+  .phlo-observatory-flow-canvas {
+  background: var(--v2-canvas);
+}
+
+/* One outer boundary for primary work surfaces. Children provide dividers. */
+.phlo-observatory-command-primary,
+.phlo-observatory-quality-board,
+.phlo-observatory-table-browser,
+.phlo-observatory-log-console,
+.phlo-observatory-list-surface,
+.phlo-observatory-settings-workbench,
+.phlo-observatory-asset-index,
+.phlo-observatory-asset-flow,
+.phlo-observatory-flow-workspace,
+.phlo-observatory-lakehouse-map {
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 7px;
+  background: var(--v2-sheet);
+  box-shadow: none;
+}
+
+.phlo-observatory-command-primary > .phlo-observatory-panel,
+.phlo-observatory-list-surface > .phlo-observatory-panel,
+.phlo-observatory-settings-workbench > .phlo-observatory-panel {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Inspectors are a pane separated by one ledger line, not another card. */
+.phlo-observatory-inspector,
+.phlo-observatory-surface-inspector,
+.phlo-observatory-command > .phlo-observatory-inspector,
+.phlo-observatory-asset-detail,
+.phlo-observatory-service-detail {
+  border: 0;
+  border-left: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 4px 0 8px 18px;
+}
+
+.phlo-observatory-dataset-inspector-callout {
+  border: 0;
+  border-left: 3px solid var(--v2-sheet-border);
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 0 8px 12px;
+}
+
+.phlo-observatory-dataset-inspector-callout[data-state='error'] {
+  border-left-color: var(--v2-red);
+  background: transparent;
+}
+
+.phlo-observatory-dataset-inspector-callout[data-state='warning'],
+.phlo-observatory-dataset-inspector-callout[data-state='unknown'] {
+  border-left-color: var(--v2-amber);
+  background: transparent;
+}
+
+.phlo-observatory-dataset-inspector-callout[data-state='ok'] {
+  border-left-color: var(--v2-green);
+}
+
+.phlo-observatory-inspector-section-label {
+  margin-top: 14px;
+  color: var(--v2-muted);
+  font-size: var(--v2-font-sm);
+  font-weight: var(--v2-weight-medium);
+  line-height: 1.35;
+}
+
+.phlo-observatory-dataset-head,
+.phlo-observatory-dataset-row {
+  grid-template-columns:
+    14px minmax(190px, 1.25fr) minmax(88px, 0.42fr)
+    minmax(120px, 0.55fr) minmax(220px, 1.1fr) minmax(180px, 0.85fr);
+}
+
+.phlo-observatory-browser-toolbar > span {
+  min-width: 132px;
+  white-space: nowrap;
+}
+
+.phlo-observatory-dataset-row-blocker,
+.phlo-observatory-dataset-row-next {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.35;
+  text-overflow: clip;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.phlo-observatory-dataset-row-blocker {
+  color: var(--v2-text);
+  font-weight: var(--v2-weight-regular);
+}
+
+.phlo-observatory-dataset-row-next {
+  font-weight: var(--v2-weight-regular);
+}
+
+@media (max-width: 760px) {
+  .phlo-observatory-dataset-row {
+    grid-template-columns: 12px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px 12px;
+  }
+
+  .phlo-observatory-dataset-row-main {
+    grid-column: 2 / -1;
+  }
+
+  .phlo-observatory-dataset-row-status,
+  .phlo-observatory-dataset-row-blocker {
+    grid-column: 2;
+  }
+
+  .phlo-observatory-dataset-row-owner,
+  .phlo-observatory-dataset-row-next {
+    grid-column: 3;
+  }
+
+  .phlo-observatory-dataset-row-status::before,
+  .phlo-observatory-dataset-row-owner::before,
+  .phlo-observatory-dataset-row-blocker::before,
+  .phlo-observatory-dataset-row-next::before {
+    display: block;
+    width: 100%;
+    margin-bottom: 3px;
+    color: var(--v2-muted);
+    font-size: var(--v2-font-xs);
+    font-weight: var(--v2-weight-regular);
+    line-height: 1.3;
+  }
+
+  .phlo-observatory-dataset-row-status::before {
+    content: 'Status';
+  }
+
+  .phlo-observatory-dataset-row-owner::before {
+    content: 'Owner';
+  }
+
+  .phlo-observatory-dataset-row-blocker::before {
+    content: 'Blocker';
+  }
+
+  .phlo-observatory-dataset-row-next::before {
+    content: 'Next action';
+  }
+}
+
+.phlo-observatory-quality-triage-summary,
+.phlo-observatory-operation-inspector-summary,
+.phlo-observatory-service-confirm {
+  border: 0;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0 12px;
+}
+
+/* Status is communicated by text and dots; broad tinted fields stay neutral. */
+.phlo-observatory-quality-workbench,
+.phlo-observatory-quality-workbench[data-state],
+.phlo-observatory-dataset-cockpit,
+.phlo-observatory-dataset-cockpit[data-state],
+.phlo-observatory-operation-focus,
+.phlo-observatory-operation-focus[data-state],
+.phlo-observatory-data-profile,
+.phlo-observatory-data-profile[data-state],
+.phlo-observatory-branch-readiness,
+.phlo-observatory-quality-triage-summary[data-state] {
+  background: var(--v2-sheet);
+}
+
+.phlo-observatory-quality-workbench-cell[data-state],
+.phlo-observatory-dataset-cockpit-cell[data-state],
+.phlo-observatory-dataset-decision-fact[data-state],
+.phlo-observatory-dataset-profile-section
+  .phlo-observatory-mini-row[data-state],
+.phlo-observatory-dataset-workflow-list .phlo-observatory-mini-row[data-state] {
+  background: transparent;
+}
+
+/* Summary strips are one connected ledger, not rows of cards. */
+.phlo-observatory-grid,
+.phlo-observatory-diff-metrics,
+.phlo-observatory-command-strip,
+.phlo-observatory-lineage-summary,
+.phlo-observatory-log-summary,
+.phlo-observatory-platform-summary,
+.phlo-observatory-publication-summary,
+.phlo-observatory-governance-summary,
+.phlo-observatory-dataset-summary,
+.phlo-observatory-dataset-decision-strip {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 7px;
+  background: var(--v2-sheet);
+}
+
+.phlo-observatory-tile,
+.phlo-observatory-diff-metric,
+.phlo-observatory-command-metric,
+.phlo-observatory-lineage-summary-cell,
+.phlo-observatory-log-summary-cell,
+.phlo-observatory-platform-summary-cell,
+.phlo-observatory-publication-summary-cell,
+.phlo-observatory-governance-summary-cell,
+.phlo-observatory-dataset-summary-item,
+.phlo-observatory-dataset-decision-fact {
+  border: 0;
+  border-right: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.phlo-observatory-tile:last-child,
+.phlo-observatory-diff-metric:last-child,
+.phlo-observatory-command-metric:last-child,
+.phlo-observatory-lineage-summary-cell:last-child,
+.phlo-observatory-log-summary-cell:last-child,
+.phlo-observatory-platform-summary-cell:last-child,
+.phlo-observatory-publication-summary-cell:last-child,
+.phlo-observatory-governance-summary-cell:last-child,
+.phlo-observatory-dataset-summary-item:last-child,
+.phlo-observatory-dataset-decision-fact:last-child {
+  border-right: 0;
+}
+
+/* Quality summary is part of the board ledger, not a card inside the board. */
+.phlo-observatory-quality-command > .phlo-observatory-command-strip {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+}
+
+/* Register summaries join their list surface instead of floating inside it. */
+.phlo-observatory-command-primary > .phlo-observatory-publication-summary,
+.phlo-observatory-command-primary > .phlo-observatory-governance-summary,
+.phlo-observatory-command-primary > .phlo-observatory-platform-summary {
+  border: 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+}
+
+.phlo-observatory-governance-control-block > .phlo-observatory-mini-row {
+  border-top: 0;
+}
+
+.phlo-observatory-log-console > .phlo-observatory-log-summary,
+.phlo-observatory-quality-readiness-grid,
+.phlo-observatory-inspector .phlo-observatory-query-panel {
+  border-radius: 0;
+}
+
+.phlo-observatory-quality-readiness > .phlo-observatory-quality-readiness-grid {
+  border-radius: 0;
+  background: var(--v2-sheet);
+}
+
+.phlo-observatory-settings-toolbar + .phlo-observatory-panel-footer {
+  border-top: 0;
+}
+
+.phlo-observatory-cache-grid {
+  gap: 0;
+  overflow: hidden;
+  border-top: 1px solid var(--v2-sheet-border);
+  border-bottom: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.phlo-observatory-cache-metric {
+  border: 0;
+  border-right: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+  background: var(--v2-tile);
+}
+
+.phlo-observatory-cache-metric:last-child {
+  border-right: 0;
+}
+
+/* Home is one control ledger: map, stages, and evidence share one boundary. */
+.phlo-observatory-lakehouse-map > .phlo-observatory-map-header,
+.phlo-observatory-lakehouse-map > .phlo-observatory-stage-rail,
+.phlo-observatory-lakehouse-map > .phlo-observatory-flow-stage-map {
+  border: 0;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+}
+
+.phlo-observatory-lakehouse-map
+  > .phlo-observatory-flow-stage-map
+  > .phlo-observatory-stage-card {
+  border-radius: 0;
+}
+
+.phlo-observatory-lakehouse-map > .phlo-observatory-evidence-grid {
+  gap: 0;
+  margin-top: 0;
+}
+
+.phlo-observatory-lakehouse-map
+  > .phlo-observatory-evidence-grid
+  > .phlo-observatory-evidence-panel {
+  border: 0;
+  border-right: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+}
+
+.phlo-observatory-lakehouse-map
+  > .phlo-observatory-evidence-grid
+  > .phlo-observatory-evidence-panel:last-child {
+  border-right: 0;
+}
+
+.phlo-observatory-command-primary > .phlo-observatory-command-strip {
+  border: 0;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+}
+
+.phlo-observatory-failure-callout {
+  border: 0;
+  border-radius: 0;
+}
+
+/* Operation evidence is one split ledger, not two inset cards. */
+.phlo-observatory-operation-focus-body {
+  gap: 0;
+  padding: 0;
+}
+
+.phlo-observatory-operation-focus-main {
+  padding: 16px;
+}
+
+.phlo-observatory-operation-evidence-grid {
+  grid-template-columns: minmax(110px, 0.8fr) minmax(0, 1.2fr);
+  gap: 0;
+  align-content: center;
+  border: 0;
+  border-left: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+  background: var(--v2-sheet);
+  padding: 0;
+}
+
+.phlo-observatory-operation-evidence-grid dt,
+.phlo-observatory-operation-evidence-grid dd {
+  min-width: 0;
+  margin: 0;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  padding: 8px 16px;
+  line-height: 1.4;
+}
+
+.phlo-observatory-operation-evidence-grid dt {
+  color: var(--v2-muted);
+  font-size: var(--v2-font-sm);
+  font-weight: var(--v2-weight-regular);
+}
+
+.phlo-observatory-operation-evidence-grid dd {
+  color: var(--v2-text);
+  font-size: var(--v2-font-base);
+  font-weight: var(--v2-weight-regular);
+  overflow-wrap: anywhere;
+}
+
+.phlo-observatory-operation-evidence-grid dt:last-of-type,
+.phlo-observatory-operation-evidence-grid dd:last-of-type {
+  border-bottom: 0;
+}
+
+.phlo-observatory-operation-ledger-card[data-state] {
+  background: transparent;
+}
+
+.phlo-observatory-operation-ledger-card[data-state]:hover {
+  background: var(--v2-tile);
+}
+
+.phlo-observatory-operation-ledger-grid {
+  border-top: 0;
+}
+
+.phlo-observatory-dataset-queue-metric[data-state],
+.phlo-observatory-governance-summary-cell[data-state],
+.phlo-observatory-publication-summary-cell[data-state],
+.phlo-observatory-stage-card[data-state] {
+  background: transparent;
+}
+
+.phlo-observatory-stage-card[data-state]:hover {
+  background: var(--v2-tile);
+}
+
+.phlo-observatory-pipeline-stages {
+  gap: 3px 0;
+}
+
+.phlo-observatory-pipeline-stage {
+  min-width: 0;
+  max-width: none;
+  border: 0;
+  border-right: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+  background: transparent;
+  padding: 1px 8px;
+}
+
+.phlo-observatory-pipeline-stage:first-child {
+  padding-left: 0;
+}
+
+.phlo-observatory-pipeline-stage:last-child {
+  border-right: 0;
+}
+
+.phlo-observatory-pipeline-recovery-strip {
+  border: 0;
+  border-top: 1px solid var(--v2-sheet-border);
+  border-bottom: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+}
+
+/* Change Review is one workbench. Sections use dividers, not stacked cards. */
+.phlo-observatory-branch-main {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 7px;
+  background: var(--v2-sheet);
+}
+
+.phlo-observatory-branch-main > .phlo-observatory-list-surface,
+.phlo-observatory-branch-main > .phlo-observatory-branch-summary,
+.phlo-observatory-branch-main > .phlo-observatory-branch-readiness,
+.phlo-observatory-branch-main > .phlo-observatory-branch-review,
+.phlo-observatory-branch-main > .phlo-observatory-detail-list {
+  border: 0;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+}
+
+.phlo-observatory-branch-main > :last-child {
+  border-bottom: 0;
+}
+
+.phlo-observatory-branch-summary .phlo-observatory-branch-facts,
+.phlo-observatory-branch-readiness dl,
+.phlo-observatory-branch-review > .phlo-observatory-command-strip {
+  border: 0;
+  border-top: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+}
+
+/* Nested fact grids use tonal grouping and internal separators only. */
+.phlo-observatory-quality-readiness-grid,
+.phlo-observatory-branch-facts,
+.phlo-observatory-operation-evidence-grid,
+.phlo-observatory-cache-grid {
+  border: 0;
+  border-radius: 6px;
+  background: var(--v2-tile);
+}
+
+.phlo-observatory-quality-readiness-grid > div {
+  border-color: var(--v2-sheet-border);
+  background: transparent;
+}
+
+.phlo-observatory-operation-evidence-grid {
+  border: 0;
+  border-left: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+  background: var(--v2-sheet);
+}
+
+/* Dataset profile: one continuous workbench with section dividers. */
+.phlo-observatory-dataset-profile-surface {
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 7px;
+  background: var(--v2-sheet);
+}
+
+.phlo-observatory-dataset-profile-surface > .phlo-observatory-browser-toolbar {
+  border-top: 0;
+}
+
+.phlo-observatory-dataset-cockpit,
+.phlo-observatory-dataset-summary,
+.phlo-observatory-dataset-decision-strip,
+.phlo-observatory-dataset-evidence-workbench,
+.phlo-observatory-dataset-profile-section {
+  border-top: 0;
+  border-radius: 0;
+}
+
+.phlo-observatory-dataset-cockpit-grid,
+.phlo-observatory-dataset-evidence-rail {
+  border-top-color: var(--v2-sheet-border);
+}
+
+.phlo-observatory-dataset-workflow-panel,
+.phlo-observatory-dataset-profile-section {
+  background: var(--v2-sheet);
+}
+
+.phlo-observatory-dataset-workflow-panel > header,
+.phlo-observatory-dataset-profile-section-title,
+.phlo-observatory-publication-head,
+.phlo-observatory-governance-header,
+.phlo-observatory-quality-table-head,
+.phlo-observatory-table-head,
+.phlo-observatory-asset-table-head,
+.phlo-observatory-platform-head {
+  background: var(--v2-tile);
+}
+
+/* Extension entries and workflow panels join the shared component vocabulary. */
+.phlo-observatory-extension-row {
+  border: 0;
+  border-bottom: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.phlo-observatory-extension-row:last-child {
+  border-bottom: 0;
+}
+
+.phlo-workflow-step-panel,
+.phlo-workflow-inspector-card,
+.phlo-workflow-review-card {
+  border-color: var(--v2-sheet-border);
+  border-radius: 7px;
+  background: var(--v2-sheet);
+  box-shadow: none;
+}
+
+.phlo-workflow-stepper {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--v2-sheet-border);
+  border-radius: 7px;
+  background: var(--v2-sheet);
+}
+
+.phlo-workflow-step {
+  min-height: 4.25rem;
+  border: 0;
+  border-right: 1px solid var(--v2-sheet-border);
+  border-radius: 0;
+}
+
+.phlo-workflow-step:last-child {
+  border-right: 0;
+}
+
+.phlo-workflow-step[data-active='true'] {
+  background: var(--v2-tile) !important;
+}
+
+.phlo-workflow-step[data-active='true'] .phlo-workflow-step-index {
+  border-color: var(--v2-text);
+  background: var(--v2-text);
+  color: var(--v2-sheet);
+}
+
+.phlo-workflow-card-header h2,
+.phlo-workflow-review-header h2,
+.phlo-workflow-template-card strong {
+  font-weight: var(--v2-weight-strong);
+}
+
+.phlo-workflow-info-grid span,
+.phlo-workflow-template-card span {
+  font-weight: var(--v2-weight-medium);
+}
+
+.phlo-workflow-step[data-complete='true'] .phlo-workflow-step-index {
+  border-color: var(--v2-faint);
+  color: var(--v2-muted);
+}
+
+.phlo-workflow-secondary-action {
+  border: 1px solid var(--v2-sheet-border) !important;
+  background: var(--v2-tile) !important;
+  color: var(--v2-text) !important;
+}
+
+.phlo-workflow-inspector-card .phlo-observatory-panel,
+.phlo-workflow-review-card .phlo-observatory-panel {
+  border: 0;
+  border-radius: 0;
+}
+
+/* Keep status color small and semantic. */
+.phlo-observatory-pill,
+.phlo-observatory-status-badge {
+  background: var(--v2-sheet);
+}
+
+.phlo-observatory
+  a:not(.phlo-observatory-nav-link):not(.phlo-observatory-menu-link) {
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .phlo-observatory-assets-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .phlo-observatory-quality-command > .phlo-observatory-command-strip {
+    border-top: 1px solid var(--v2-sheet-border);
+    border-left: 0;
+  }
+
+  .phlo-observatory-inspector,
+  .phlo-observatory-surface-inspector,
+  .phlo-observatory-command > .phlo-observatory-inspector,
+  .phlo-observatory-asset-detail,
+  .phlo-observatory-service-detail {
+    border-top: 1px solid var(--v2-sheet-border);
+    border-left: 0;
+    padding: 16px 0 0;
+  }
+
+  .phlo-observatory-operation-evidence-grid {
+    border-top: 1px solid var(--v2-sheet-border);
+    border-left: 0;
+  }
+
+  .phlo-observatory-grid,
+  .phlo-observatory-diff-metrics,
+  .phlo-observatory-command-strip,
+  .phlo-observatory-lineage-summary,
+  .phlo-observatory-log-summary,
+  .phlo-observatory-platform-summary,
+  .phlo-observatory-publication-summary,
+  .phlo-observatory-governance-summary,
+  .phlo-observatory-dataset-summary,
+  .phlo-observatory-dataset-decision-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .phlo-observatory-tile,
+  .phlo-observatory-diff-metric,
+  .phlo-observatory-command-metric,
+  .phlo-observatory-lineage-summary-cell,
+  .phlo-observatory-log-summary-cell,
+  .phlo-observatory-platform-summary-cell,
+  .phlo-observatory-publication-summary-cell,
+  .phlo-observatory-governance-summary-cell,
+  .phlo-observatory-dataset-summary-item,
+  .phlo-observatory-dataset-decision-fact {
+    border-right: 0;
+    border-bottom: 1px solid var(--v2-sheet-border);
+  }
+
+  .phlo-observatory-tile:last-child,
+  .phlo-observatory-diff-metric:last-child,
+  .phlo-observatory-command-metric:last-child,
+  .phlo-observatory-lineage-summary-cell:last-child,
+  .phlo-observatory-log-summary-cell:last-child,
+  .phlo-observatory-platform-summary-cell:last-child,
+  .phlo-observatory-publication-summary-cell:last-child,
+  .phlo-observatory-governance-summary-cell:last-child,
+  .phlo-observatory-dataset-summary-item:last-child,
+  .phlo-observatory-dataset-decision-fact:last-child {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 1120px) {
+  .phlo-observatory-nav {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 4px 12px;
+  }
+
+  .phlo-observatory-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .phlo-observatory-nav-actions {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .phlo-observatory-nav-links {
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+  }
+
+  .phlo-observatory-nav-links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .phlo-observatory-nav-links .phlo-observatory-nav-link,
+  .phlo-observatory-menu-trigger {
+    height: 36px;
+  }
+}
+
+@media (max-width: 640px) {
+  .phlo-observatory-nav-links .phlo-observatory-nav-link,
+  .phlo-observatory-menu-trigger {
+    height: 44px;
+    font-size: 14px;
+  }
+
+  .phlo-observatory-menu-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .phlo-observatory-menu-grid > li,
+  .phlo-observatory-menu-grid > li:nth-child(odd),
+  .phlo-observatory-menu-grid > li:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--v2-sheet-border);
+  }
+
+  .phlo-observatory-menu-grid > li:last-child {
+    border-bottom: 0;
+  }
+
+  .phlo-observatory-lakehouse-map > .phlo-observatory-flow-stage-map {
+    grid-template-columns: repeat(5, minmax(180px, 1fr));
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phlo-observatory *,
+  .phlo-observatory *::before,
+  .phlo-observatory *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

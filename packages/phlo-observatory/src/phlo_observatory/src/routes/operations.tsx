@@ -249,7 +249,7 @@ export function Operations() {
                   <div className="phlo-observatory-operation-focus-body">
                     <div className="phlo-observatory-operation-focus-main">
                       <span className="phlo-observatory-inspector-label">
-                        {latest.kind}
+                        {humanizeLabel(latest.kind)}
                       </span>
                       <h2>{latest.name}</h2>
                       <p>{latest.target?.label ?? 'Platform operation'}</p>
@@ -299,7 +299,7 @@ export function Operations() {
                         onClick={() => selectOperation(item.latest.id)}
                         type="button"
                       >
-                        <span>{item.kind}</span>
+                        <span>{humanizeLabel(item.kind)}</span>
                         <strong>{item.label}</strong>
                         <small>{operationLedgerSummary(item)}</small>
                       </button>
@@ -376,7 +376,7 @@ export function Operations() {
             {latest ? (
               <>
                 <h2>{latest.name}</h2>
-                <p>{latest.target?.label ?? latest.kind}</p>
+                <p>{latest.target?.label ?? humanizeLabel(latest.kind)}</p>
                 <dl className="phlo-observatory-facts">
                   {operationInspectorFacts(latest).map((fact) => (
                     <Fact
@@ -696,7 +696,8 @@ function OperationLine({
           {operation.name}
         </div>
         <div className="phlo-observatory-row-meta">
-          {operation.kind} · {operation.target?.label ?? 'platform'} ·{' '}
+          {humanizeLabel(operation.kind)} ·{' '}
+          {operation.target?.label ?? 'platform'} ·{' '}
           {formatDateTime(operation.completed_at) ?? 'in progress'}
         </div>
         {failure && (
@@ -979,7 +980,7 @@ function operationInspectorFacts(
 ): Array<{ label: string; value: string | number | boolean | null }> {
   return [
     { label: 'Status', value: operation.status },
-    { label: 'Kind', value: operation.kind },
+    { label: 'Kind', value: humanizeLabel(operation.kind) },
     { label: 'Started', value: formatDateTime(operation.started_at) },
     { label: 'Completed', value: formatDateTime(operation.completed_at) },
     {
@@ -1036,7 +1037,7 @@ function operationPageDescription(operation: ObservatoryOperation): string {
   const target =
     operation.target?.label ?? operation.target?.id ?? 'environment'
   const state = operation.health.message ?? operation.status
-  return `${operation.kind} for ${target}: ${state}`
+  return `${humanizeLabel(operation.kind)} for ${target}: ${state}`
 }
 
 function operationMetadata(
@@ -1125,6 +1126,27 @@ function shortDate(value: string): string {
 
 function humanizeKey(key: string): string {
   return key.replaceAll('_', ' ')
+}
+
+function humanizeLabel(value: string): string {
+  const acronyms: Record<string, string> = {
+    api: 'API',
+    bi: 'BI',
+    id: 'ID',
+    sql: 'SQL',
+    ui: 'UI',
+    wap: 'WAP',
+  }
+  const words = humanizeKey(value).split(' ')
+  return words
+    .map((word, index) => {
+      const acronym = acronyms[word.toLowerCase()]
+      if (acronym) return acronym
+      return index === 0
+        ? `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+        : word.toLowerCase()
+    })
+    .join(' ')
 }
 
 function Fact({

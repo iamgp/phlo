@@ -58,7 +58,8 @@ export function Logs() {
     120_000,
     'observatory:logs',
   )
-  const logs = result.data ?? []
+  const rawLogs = result.data ?? []
+  const logs = useMemo(() => collapseRepeatedLogs(rawLogs), [rawLogs])
   const isLoading = result.isLoading
   const [{ facets, level, query, selectedId, source }, dispatch] = useReducer(
     logsReducer,
@@ -74,10 +75,8 @@ export function Logs() {
       source: 'all',
     }),
   )
-  const sources = new Set(
-    facets.data?.sources ?? logs.map((log) => log.source ?? 'platform'),
-  )
-  const levels = new Set(facets.data?.levels ?? logs.map((log) => log.level))
+  const sources = new Set(logs.map((log) => log.source ?? 'platform'))
+  const levels = new Set(logs.map((log) => log.level))
   const filtered = useMemo(
     () =>
       logs.filter(
@@ -157,7 +156,9 @@ export function Logs() {
             <span className="phlo-observatory-pill">
               {isLoading
                 ? 'Loading'
-                : `${filtered.length} / ${logs.length} events`}
+                : rawLogs.length === logs.length
+                  ? `${filtered.length} / ${logs.length} events`
+                  : `${filtered.length} / ${logs.length} groups · ${rawLogs.length} events`}
             </span>
           </div>
           <div className="phlo-observatory-filter-row">
@@ -364,6 +365,49 @@ function summarizeLogs(logs: Array<ObservatoryLogEvent>): {
   }
 }
 
+/**
+ * Provider discovery can emit the same warning on every capability probe.
+ * Keep the newest event addressable while retaining the occurrence count as
+ * structured evidence, so operational events are not buried by probe noise.
+ */
+function collapseRepeatedLogs(
+  logs: Array<ObservatoryLogEvent>,
+): Array<ObservatoryLogEvent> {
+  const groups = new Map<
+    string,
+    { event: ObservatoryLogEvent; occurrences: number }
+  >()
+
+  for (const log of logs) {
+    const key = [
+      log.level,
+      log.source ?? 'platform',
+      log.message,
+      log.resource?.kind ?? '',
+      log.resource?.id ?? '',
+    ].join('\u0000')
+    const existing = groups.get(key)
+    if (existing) {
+      existing.occurrences += 1
+      continue
+    }
+    groups.set(key, { event: log, occurrences: 1 })
+  }
+
+  return Array.from(groups.values()).map(({ event, occurrences }) =>
+    occurrences === 1
+      ? event
+      : {
+          ...event,
+          metadata: {
+            ...event.metadata,
+            occurrences,
+            grouping: 'Repeated events collapsed; newest event shown.',
+          },
+        },
+  )
+}
+
 function LogSummaryCell({
   label,
   value,
@@ -433,6 +477,7 @@ function LogLine({
 
 function displayLogSource(source?: string | null): string | null {
   if (!source) return source ?? null
+  if (source === 'observatory-fixture') return 'Lakehouse manifest'
   return source.replace(/\bassets\b/gi, 'resources')
 }
 

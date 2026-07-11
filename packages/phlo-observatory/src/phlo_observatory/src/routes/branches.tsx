@@ -899,7 +899,7 @@ function BranchInspector({
       </dl>
       <div className="phlo-observatory-detail-list">
         <div className="phlo-observatory-mini-row">
-          <span>Provider state</span>
+          <span>Branch runtime</span>
           <small>{providerState}</small>
         </div>
         {report ? (

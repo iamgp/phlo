@@ -64,7 +64,7 @@ const ObservatoryCommandPalette = lazy(() =>
 
 const fallbackPages: Array<ObservatoryCapabilityPage> = [
   corePage('overview', 'Home', '/'),
-  corePage('operations', 'Operations', '/operations'),
+  corePage('operations', 'Recovery', '/operations'),
   corePage('tables', 'Tables', '/tables'),
   corePage('lineage', 'Lineage', '/lineage'),
   corePage('workflows', 'Workflow Builder', '/workflows/new'),
@@ -87,74 +87,64 @@ const navOrder = [
   'tables',
   'lineage',
   'quality',
+  'governance',
   'pipelines',
   'runs',
   'operations',
   'logs',
   'publishing',
-  'governance',
   'branches',
-  'services',
-  'extensions',
-  'settings',
   'workflows',
+  'services',
   'storage',
   'observability',
   'apis',
   'bi',
+  'extensions',
+  'settings',
 ]
 
 const navGroupDefinitions = [
   {
     label: 'Home',
-    ids: ['overview'],
+    sections: [{ ids: ['overview'] }],
   },
   {
-    label: 'Datasets',
-    ids: ['datasets'],
+    label: 'Data',
+    sections: [
+      { label: 'Catalog', ids: ['datasets', 'tables', 'lineage'] },
+      { label: 'Controls', ids: ['governance'] },
+    ],
   },
   {
-    label: 'Tables',
-    ids: ['tables'],
+    label: 'Investigate',
+    sections: [
+      { label: 'Triage', ids: ['quality', 'operations'] },
+      { label: 'Evidence', ids: ['runs', 'pipelines', 'logs'] },
+    ],
   },
   {
-    label: 'Lineage',
-    ids: ['lineage'],
-  },
-  {
-    label: 'Quality',
-    ids: ['quality'],
-  },
-  {
-    label: 'Operations',
-    ids: ['pipelines', 'runs', 'operations', 'logs'],
-  },
-  {
-    label: 'Publishing',
-    ids: ['publishing'],
-  },
-  {
-    label: 'Governance',
-    ids: ['governance'],
-  },
-  {
-    label: 'Change Review',
-    ids: ['branches'],
+    label: 'Deliver',
+    sections: [
+      { label: 'Release', ids: ['publishing', 'branches'] },
+      { label: 'Automation', ids: ['workflows'] },
+    ],
   },
   {
     label: 'Platform',
-    ids: [
-      'services',
-      'extensions',
-      'settings',
-      'workflows',
-      'storage',
-      'observability',
-      'apis',
-      'bi',
+    sections: [
+      {
+        label: 'Runtime',
+        ids: ['services', 'storage', 'observability'],
+      },
+      { label: 'Interfaces', ids: ['apis', 'bi'] },
+      { label: 'Configuration', ids: ['extensions', 'settings'] },
     ],
   },
-] satisfies Array<{ label: string; ids: Array<string> }>
+] satisfies Array<{
+  label: string
+  sections: Array<{ label?: string; ids: Array<string> }>
+}>
 
 const warmPreviewLimit = 100
 const platformTrustPageIds = new Set([
@@ -191,7 +181,7 @@ const iconByPageId: Record<string, typeof LayoutDashboard> = {
 const navSubtitleByPageId: Record<string, string> = {
   overview: 'Health, counters, and recent activity.',
   services: 'Runtime services and stack status.',
-  operations: 'Jobs, actions, and run state.',
+  operations: 'Failed work, recovery evidence, and next actions.',
   runs: 'Orchestrator history and outcomes.',
   tables: 'Tables, previews, and query surfaces.',
   lineage: 'Lineage, dependencies, and metadata.',
@@ -452,8 +442,15 @@ function ObservatoryNavigationMenu({
   pathname: string
 }) {
   const groups = navGroups(items)
+  const [openGroup, setOpenGroup] = useState<string | null>(null)
   return (
-    <NavigationMenu align="center" className="phlo-observatory-menu">
+    <NavigationMenu
+      align="center"
+      aria-label="Observatory sections"
+      className="phlo-observatory-menu"
+      onValueChange={setOpenGroup}
+      value={openGroup}
+    >
       <NavigationMenuList className="phlo-observatory-menu-list">
         {groups.map((group) => {
           const active = group.items.some((item) =>
@@ -462,8 +459,9 @@ function ObservatoryNavigationMenu({
           if (group.items.length === 1) {
             const item = group.items[0]
             return (
-              <NavigationMenuItem key={group.label}>
+              <NavigationMenuItem key={group.label} value={group.label}>
                 <NavigationMenuLink
+                  onClick={() => setOpenGroup(null)}
                   render={
                     <Link
                       aria-current={hydrated && active ? 'page' : undefined}
@@ -479,7 +477,7 @@ function ObservatoryNavigationMenu({
             )
           }
           return (
-            <NavigationMenuItem key={group.label}>
+            <NavigationMenuItem key={group.label} value={group.label}>
               <NavigationMenuTrigger
                 className="phlo-observatory-nav-link phlo-observatory-menu-trigger"
                 data-active={hydrated && active}
@@ -488,41 +486,56 @@ function ObservatoryNavigationMenu({
               </NavigationMenuTrigger>
               <NavigationMenuContent>
                 <div className="phlo-observatory-menu-panel">
-                  <ul className="phlo-observatory-menu-grid">
-                    {group.items.map((item) => {
-                      const Icon = iconByPageId[item.id] ?? LayoutDashboard
-                      const activeItem =
-                        hydrated && isActive(pathname, item.path)
-                      return (
-                        <li key={item.id}>
-                          <NavigationMenuLink
-                            render={
-                              <Link
-                                aria-current={activeItem ? 'page' : undefined}
-                                data-active={activeItem}
-                                title={
-                                  hydrated && item.providers.length
-                                    ? item.providers.join(', ')
-                                    : undefined
+                  {group.sections.map((section) => (
+                    <div
+                      className="phlo-observatory-menu-section"
+                      key={section.label ?? group.label}
+                    >
+                      {section.label && (
+                        <span className="phlo-observatory-menu-section-label">
+                          {section.label}
+                        </span>
+                      )}
+                      <ul className="phlo-observatory-menu-grid">
+                        {section.items.map((item) => {
+                          const Icon = iconByPageId[item.id] ?? LayoutDashboard
+                          const activeItem =
+                            hydrated && isActive(pathname, item.path)
+                          return (
+                            <li key={item.id}>
+                              <NavigationMenuLink
+                                onClick={() => setOpenGroup(null)}
+                                render={
+                                  <Link
+                                    aria-current={
+                                      activeItem ? 'page' : undefined
+                                    }
+                                    data-active={activeItem}
+                                    title={
+                                      hydrated && item.providers.length
+                                        ? item.providers.join(', ')
+                                        : undefined
+                                    }
+                                    to={item.path}
+                                  />
                                 }
-                                to={item.path}
-                              />
-                            }
-                            className="phlo-observatory-menu-link"
-                          >
-                            <Icon className="size-4" />
-                            <span className="phlo-observatory-menu-copy">
-                              <span>{item.label}</span>
-                              <span className="phlo-observatory-menu-subtitle">
-                                {navSubtitleByPageId[item.id] ??
-                                  'Open this Observatory surface.'}
-                              </span>
-                            </span>
-                          </NavigationMenuLink>
-                        </li>
-                      )
-                    })}
-                  </ul>
+                                className="phlo-observatory-menu-link"
+                              >
+                                <Icon className="size-4" />
+                                <span className="phlo-observatory-menu-copy">
+                                  <span>{item.label}</span>
+                                  <span className="phlo-observatory-menu-subtitle">
+                                    {navSubtitleByPageId[item.id] ??
+                                      'Open this Observatory surface.'}
+                                  </span>
+                                </span>
+                              </NavigationMenuLink>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
               </NavigationMenuContent>
             </NavigationMenuItem>
@@ -538,17 +551,35 @@ function navGroups(items: Array<ObservatoryCapabilityPage>) {
   const used = new Set<string>()
   const groups = navGroupDefinitions
     .map((group) => {
-      const groupItems = group.ids.flatMap((id) => {
-        const item = byId.get(id)
-        if (!item) return []
-        used.add(id)
-        return [item]
-      })
-      return { label: group.label, items: groupItems }
+      const sections = group.sections
+        .map((section) => ({
+          label: 'label' in section ? section.label : undefined,
+          items: section.ids.flatMap((id) => {
+            const item = byId.get(id)
+            if (!item) return []
+            used.add(id)
+            return [item]
+          }),
+        }))
+        .filter((section) => section.items.length > 0)
+      return {
+        label: group.label,
+        sections,
+        items: sections.flatMap((section) => section.items),
+      }
     })
     .filter((group) => group.items.length > 0)
   const rest = items.filter((item) => !used.has(item.id))
-  return rest.length ? [...groups, { label: 'More', items: rest }] : groups
+  return rest.length
+    ? [
+        ...groups,
+        {
+          label: 'More',
+          sections: [{ label: undefined, items: rest }],
+          items: rest,
+        },
+      ]
+    : groups
 }
 
 function CommandPaletteFallback({ onClose }: { onClose: () => void }) {

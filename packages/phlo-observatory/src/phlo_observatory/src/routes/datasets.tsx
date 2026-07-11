@@ -211,6 +211,9 @@ export function Datasets() {
                 <Boxes className="size-4" />
                 Open Dataset profile
               </Link>
+              <div className="phlo-observatory-inspector-section-label">
+                Supporting evidence
+              </div>
               <DatasetEvidenceLinks dataset={selectedDataset} compact />
             </>
           )}
@@ -378,7 +381,6 @@ function DatasetList({
         <span>Owner</span>
         <span>Blocker</span>
         <span>Next action</span>
-        <span>Evidence</span>
       </div>
       {datasets.map((dataset) => (
         <article className="phlo-observatory-dataset-row" key={dataset.id}>
@@ -424,7 +426,6 @@ function DatasetList({
           <span className="phlo-observatory-dataset-row-next">
             {datasetNextAction(dataset)}
           </span>
-          <DatasetEvidenceLinks dataset={dataset} />
         </article>
       ))}
     </div>
@@ -447,14 +448,16 @@ function DatasetEvidenceLinks({
       className="phlo-observatory-dataset-evidence-links"
       data-compact={compact}
     >
-      <Link
-        params={{ datasetId: dataset.id }}
-        title="Open quality, operations, lineage, publishing, and governance evidence"
-        to="/datasets/$datasetId"
-      >
-        <ListChecks className="size-3.5" />
-        Profile
-      </Link>
+      {!compact && (
+        <Link
+          params={{ datasetId: dataset.id }}
+          title="Open quality, operations, lineage, publishing, and governance evidence"
+          to="/datasets/$datasetId"
+        >
+          <ListChecks className="size-3.5" />
+          Profile
+        </Link>
+      )}
       <Link to={lineageTarget} title="Open linked lineage">
         <GitBranch className="size-3.5" />
         Lineage

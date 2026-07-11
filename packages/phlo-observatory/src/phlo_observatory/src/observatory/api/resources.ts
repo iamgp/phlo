@@ -8,9 +8,9 @@ import type {
   ObservatoryBranchDetail,
   ObservatoryCapabilities,
   ObservatoryDataset,
-  ObservatoryDatasetWorkflowConfig,
   ObservatoryDatasetPipeline,
   ObservatoryDatasetProfile,
+  ObservatoryDatasetWorkflowConfig,
   ObservatoryExtension,
   ObservatoryExtensionDetail,
   ObservatoryGovernanceMatrix,
@@ -96,7 +96,7 @@ async function browserApiGet<T>(endpoint: string): Promise<T> {
 
 async function browserApiPost<T>(
   endpoint: string,
-  body: Record<string, unknown>,
+  body: unknown,
   timeoutMs = 12000,
 ): Promise<T> {
   const base = browserApiBase()
@@ -876,46 +876,54 @@ export async function getObservatoryWorkflowWizard(): Promise<
   }
 }
 
-export const createObservatoryWorkflowProposal = createServerFn()
-  .inputValidator((input: ObservatoryWorkflowProposalRequest) => input)
-  .handler(
-    async ({
-      data,
-    }): Promise<ObservatoryResourceResult<ObservatoryWorkflowProposal>> => {
-      try {
-        const proposal = await apiPost<ObservatoryWorkflowProposal>(
-          `${Observatory_API_PREFIX}/workflow-wizard/proposals`,
-          data,
-          12000,
-        )
-        return { data: proposal, error: null }
-      } catch (error) {
-        return apiUnavailable<ObservatoryWorkflowProposal>(error)
-      }
-    },
-  )
+export async function createObservatoryWorkflowProposal({
+  data,
+}: {
+  data: ObservatoryWorkflowProposalRequest
+}): Promise<ObservatoryResourceResult<ObservatoryWorkflowProposal>> {
+  try {
+    const proposal =
+      browserApiBase() !== null
+        ? await browserApiPost<ObservatoryWorkflowProposal>(
+            `${Observatory_API_PREFIX}/workflow-wizard/proposals`,
+            data,
+            12000,
+          )
+        : await apiPost<ObservatoryWorkflowProposal>(
+            `${Observatory_API_PREFIX}/workflow-wizard/proposals`,
+            data,
+            12000,
+          )
+    return { data: proposal, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryWorkflowProposal>(error)
+  }
+}
 
-export const runObservatoryWorkflowAction = createServerFn()
-  .inputValidator(
-    (input: { actionId: string; proposal: ObservatoryWorkflowProposal }) =>
-      input,
-  )
-  .handler(
-    async ({
-      data: { actionId, proposal },
-    }): Promise<ObservatoryResourceResult<ObservatoryWorkflowActionResult>> => {
-      try {
-        const result = await apiPost<ObservatoryWorkflowActionResult>(
-          `${Observatory_API_PREFIX}/workflow-wizard/actions`,
-          { action_id: actionId, proposal },
-          12000,
-        )
-        return { data: result, error: null }
-      } catch (error) {
-        return apiUnavailable<ObservatoryWorkflowActionResult>(error)
-      }
-    },
-  )
+export async function runObservatoryWorkflowAction({
+  data: { actionId, proposal },
+}: {
+  data: { actionId: string; proposal: ObservatoryWorkflowProposal }
+}): Promise<ObservatoryResourceResult<ObservatoryWorkflowActionResult>> {
+  try {
+    const body = { action_id: actionId, proposal }
+    const result =
+      browserApiBase() !== null
+        ? await browserApiPost<ObservatoryWorkflowActionResult>(
+            `${Observatory_API_PREFIX}/workflow-wizard/actions`,
+            body,
+            12000,
+          )
+        : await apiPost<ObservatoryWorkflowActionResult>(
+            `${Observatory_API_PREFIX}/workflow-wizard/actions`,
+            body,
+            12000,
+          )
+    return { data: result, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryWorkflowActionResult>(error)
+  }
+}
 
 function normalizeItem(
   endpoint: string,
