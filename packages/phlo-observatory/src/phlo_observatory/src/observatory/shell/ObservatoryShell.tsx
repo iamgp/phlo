@@ -5,10 +5,14 @@ import {
   CirclePlay,
   Clipboard,
   Database,
+  FileClock,
+  FolderKanban,
   GitBranch,
+  Import,
   LayoutDashboard,
   ListChecks,
   Logs,
+  Menu,
   Monitor,
   Moon,
   Plug,
@@ -17,18 +21,11 @@ import {
   Settings,
   Sun,
   UploadCloud,
+  X,
 } from 'lucide-react'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from '@/components/ui/navigation-menu'
 import type {
   ObservatoryCapabilities,
   ObservatoryCapabilityPage,
@@ -37,10 +34,17 @@ import type {
 } from '@/observatory/api/types'
 import type { ObservatoryThemeMode } from '@/observatory/shell/theme'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   OBSERVATORY_THEME_STORAGE_KEY,
   readObservatoryThemeMode,
   resolveObservatoryTheme,
 } from '@/observatory/shell/theme'
+import { recordRecentVisit } from '@/observatory/shell/localActivity'
 import {
   getObservatoryAssetRecords,
   getObservatoryCapabilities,
@@ -64,6 +68,11 @@ const ObservatoryCommandPalette = lazy(() =>
 
 const fallbackPages: Array<ObservatoryCapabilityPage> = [
   corePage('overview', 'Home', '/'),
+  corePage('workspace', 'Workspace', '/workspace'),
+  corePage('recents', 'Recents', '/recents'),
+  corePage('queries', 'Queries', '/queries'),
+  corePage('query-history', 'Query History', '/query-history'),
+  corePage('ingestion', 'Ingestion', '/ingestion'),
   corePage('operations', 'Recovery', '/operations'),
   corePage('tables', 'Tables', '/tables'),
   corePage('lineage', 'Lineage', '/lineage'),
@@ -83,9 +92,13 @@ const fallbackPages: Array<ObservatoryCapabilityPage> = [
 
 const navOrder = [
   'overview',
+  'workspace',
+  'recents',
   'datasets',
   'tables',
   'lineage',
+  'queries',
+  'query-history',
   'quality',
   'governance',
   'pipelines',
@@ -95,6 +108,7 @@ const navOrder = [
   'publishing',
   'branches',
   'workflows',
+  'ingestion',
   'services',
   'storage',
   'observability',
@@ -107,12 +121,15 @@ const navOrder = [
 const navGroupDefinitions = [
   {
     label: 'Home',
-    sections: [{ ids: ['overview'] }],
+    sections: [{ ids: ['overview', 'workspace', 'recents'] }],
   },
   {
     label: 'Data',
     sections: [
-      { label: 'Catalog', ids: ['datasets', 'tables', 'lineage'] },
+      {
+        label: 'Catalog',
+        ids: ['datasets', 'tables', 'lineage', 'queries', 'query-history'],
+      },
       { label: 'Controls', ids: ['governance'] },
     ],
   },
@@ -127,7 +144,7 @@ const navGroupDefinitions = [
     label: 'Deliver',
     sections: [
       { label: 'Release', ids: ['publishing', 'branches'] },
-      { label: 'Automation', ids: ['workflows'] },
+      { label: 'Automation', ids: ['ingestion', 'workflows'] },
     ],
   },
   {
@@ -157,6 +174,11 @@ const platformTrustPageIds = new Set([
 
 const iconByPageId: Record<string, typeof LayoutDashboard> = {
   overview: LayoutDashboard,
+  workspace: FolderKanban,
+  recents: FileClock,
+  queries: Database,
+  'query-history': FileClock,
+  ingestion: Import,
   services: Server,
   operations: Activity,
   runs: CirclePlay,
@@ -180,6 +202,11 @@ const iconByPageId: Record<string, typeof LayoutDashboard> = {
 
 const navSubtitleByPageId: Record<string, string> = {
   overview: 'Health, counters, and recent activity.',
+  workspace: 'Authored resources and project objects.',
+  recents: 'Recently visited Observatory resources.',
+  queries: 'Saved SQL and read-only query workspace.',
+  'query-history': 'Browser-local query execution evidence.',
+  ingestion: 'Source onboarding, freshness, and next actions.',
   services: 'Runtime services and stack status.',
   operations: 'Failed work, recovery evidence, and next actions.',
   runs: 'Orchestrator history and outcomes.',
@@ -220,6 +247,7 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
     select: (state) => state.location.pathname,
   })
   const [searchOpen, setSearchOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [{ hydrated, systemPrefersDark, themeMode }, setThemeState] = useState({
     hydrated: false,
     systemPrefersDark: false,
@@ -284,6 +312,11 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
   }, [resolvedTheme])
 
   useEffect(() => {
+    if (!hydrated || !activePage) return
+    recordRecentVisit(pathname, activePage.label)
+  }, [activePage, hydrated, pathname])
+
+  useEffect(() => {
     let cancelled = false
     async function load() {
       if (cancelled) return
@@ -317,12 +350,19 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
       if (event.key === 'Escape' && searchOpen) {
         event.preventDefault()
         setSearchOpen(false)
+        return
+      }
+      if (event.key === 'Escape' && mobileNavOpen) {
+        event.preventDefault()
+        setMobileNavOpen(false)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [searchOpen])
+  }, [mobileNavOpen, searchOpen])
+
+  useEffect(() => setMobileNavOpen(false), [pathname])
 
   return (
     <main
@@ -335,6 +375,11 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
         <nav
           className="phlo-observatory-shell phlo-observatory-nav"
           aria-label="Observatory"
+          style={{
+            marginInline: 'auto',
+            paddingInline: 16,
+            width: 'min(1760px, calc(100vw - clamp(24px, 4vw, 72px)))',
+          }}
         >
           <Link
             aria-label="Home"
@@ -345,18 +390,29 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
             <span className="phlo-observatory-mark">P</span>
             <span>Phlo Observatory</span>
           </Link>
+          <div className="phlo-observatory-nav-spacer" />
           <div
-            className="phlo-observatory-nav-links"
-            aria-label="Primary sections"
+            className="phlo-observatory-nav-actions"
+            style={{ borderLeft: 0, paddingLeft: 0 }}
           >
-            <ObservatoryNavigationMenu
-              hydrated={hydrated}
-              items={navItems}
-              pathname={pathname}
-            />
-          </div>
-          <div className="phlo-observatory-nav-actions">
             <button
+              aria-expanded={mobileNavOpen}
+              aria-label={
+                mobileNavOpen ? 'Close navigation' : 'Open navigation'
+              }
+              className="phlo-observatory-mobile-nav-trigger"
+              onClick={() => setMobileNavOpen((open) => !open)}
+              type="button"
+            >
+              {mobileNavOpen ? (
+                <X className="size-4" />
+              ) : (
+                <Menu className="size-4" />
+              )}
+              <span>Menu</span>
+            </button>
+            <button
+              aria-label="Search Observatory"
               aria-expanded={searchOpen}
               aria-haspopup="dialog"
               className="phlo-observatory-nav-link phlo-observatory-search-trigger"
@@ -408,6 +464,13 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
           </Suspense>
         )}
         <div className="phlo-observatory-app-layout">
+          <ObservatorySidebar
+            hydrated={hydrated}
+            items={navItems}
+            mobileOpen={mobileNavOpen}
+            onNavigate={() => setMobileNavOpen(false)}
+            pathname={pathname}
+          />
           <section className="phlo-observatory-sheet">
             {pagePending ? (
               <PendingCapabilityPage />
@@ -432,117 +495,73 @@ function isActive(pathname: string, href: string): boolean {
   )
 }
 
-function ObservatoryNavigationMenu({
+function ObservatorySidebar({
   hydrated,
   items,
+  mobileOpen,
+  onNavigate,
   pathname,
 }: {
   hydrated: boolean
   items: Array<ObservatoryCapabilityPage>
+  mobileOpen: boolean
+  onNavigate: () => void
   pathname: string
 }) {
   const groups = navGroups(items)
-  const [openGroup, setOpenGroup] = useState<string | null>(null)
   return (
-    <NavigationMenu
-      align="center"
-      aria-label="Observatory sections"
-      className="phlo-observatory-menu"
-      onValueChange={setOpenGroup}
-      value={openGroup}
-    >
-      <NavigationMenuList className="phlo-observatory-menu-list">
-        {groups.map((group) => {
-          const active = group.items.some((item) =>
-            isActive(pathname, item.path),
-          )
-          if (group.items.length === 1) {
-            const item = group.items[0]
-            return (
-              <NavigationMenuItem key={group.label} value={group.label}>
-                <NavigationMenuLink
-                  onClick={() => setOpenGroup(null)}
-                  render={
-                    <Link
-                      aria-current={hydrated && active ? 'page' : undefined}
-                      data-active={hydrated && active}
-                      to={item.path}
-                    />
-                  }
-                  className="phlo-observatory-nav-link phlo-observatory-menu-trigger"
-                >
+    <aside className="phlo-observatory-sidebar" data-mobile-open={mobileOpen}>
+      <TooltipProvider>
+        <nav aria-label="Observatory sections">
+          {groups.map((group) => (
+            <div className="phlo-observatory-sidebar-group" key={group.label}>
+              {group.label !== 'Home' && (
+                <div className="phlo-observatory-sidebar-label">
                   {group.label}
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            )
-          }
-          return (
-            <NavigationMenuItem key={group.label} value={group.label}>
-              <NavigationMenuTrigger
-                className="phlo-observatory-nav-link phlo-observatory-menu-trigger"
-                data-active={hydrated && active}
-              >
-                {group.label}
-              </NavigationMenuTrigger>
-              <NavigationMenuContent>
-                <div className="phlo-observatory-menu-panel">
-                  {group.sections.map((section) => (
-                    <div
-                      className="phlo-observatory-menu-section"
-                      key={section.label ?? group.label}
-                    >
-                      {section.label && (
-                        <span className="phlo-observatory-menu-section-label">
-                          {section.label}
-                        </span>
-                      )}
-                      <ul className="phlo-observatory-menu-grid">
-                        {section.items.map((item) => {
-                          const Icon = iconByPageId[item.id] ?? LayoutDashboard
-                          const activeItem =
-                            hydrated && isActive(pathname, item.path)
-                          return (
-                            <li key={item.id}>
-                              <NavigationMenuLink
-                                onClick={() => setOpenGroup(null)}
-                                render={
-                                  <Link
-                                    aria-current={
-                                      activeItem ? 'page' : undefined
-                                    }
-                                    data-active={activeItem}
-                                    title={
-                                      hydrated && item.providers.length
-                                        ? item.providers.join(', ')
-                                        : undefined
-                                    }
-                                    to={item.path}
-                                  />
-                                }
-                                className="phlo-observatory-menu-link"
-                              >
-                                <Icon className="size-4" />
-                                <span className="phlo-observatory-menu-copy">
-                                  <span>{item.label}</span>
-                                  <span className="phlo-observatory-menu-subtitle">
-                                    {navSubtitleByPageId[item.id] ??
-                                      'Open this Observatory surface.'}
-                                  </span>
-                                </span>
-                              </NavigationMenuLink>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    </div>
-                  ))}
                 </div>
-              </NavigationMenuContent>
-            </NavigationMenuItem>
-          )
-        })}
-      </NavigationMenuList>
-    </NavigationMenu>
+              )}
+              {group.sections.map((section) => (
+                <div
+                  className="phlo-observatory-sidebar-section"
+                  key={section.label ?? group.label}
+                >
+                  {section.items.map((item) => {
+                    const Icon = iconByPageId[item.id] ?? LayoutDashboard
+                    const activeItem = hydrated && isActive(pathname, item.path)
+                    const description =
+                      navSubtitleByPageId[item.id] ??
+                      'Open this Observatory surface.'
+                    return (
+                      <Tooltip key={item.id}>
+                        <TooltipTrigger
+                          render={
+                            <Link
+                              aria-current={activeItem ? 'page' : undefined}
+                              aria-label={item.label}
+                              className="phlo-observatory-sidebar-link"
+                              data-active={activeItem}
+                              onClick={onNavigate}
+                              to={item.path}
+                            />
+                          }
+                        >
+                          <Icon className="size-4" />
+                          <span>{item.label}</span>
+                        </TooltipTrigger>
+                        <TooltipContent className="phlo-observatory-nav-tooltip">
+                          <strong>{item.label}</strong>
+                          <span>{description}</span>
+                        </TooltipContent>
+                      </Tooltip>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          ))}
+        </nav>
+      </TooltipProvider>
+    </aside>
   )
 }
 

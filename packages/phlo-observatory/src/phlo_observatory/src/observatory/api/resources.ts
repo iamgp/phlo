@@ -772,6 +772,21 @@ export const searchObservatory = createServerFn()
     },
   )
 
+export async function searchObservatoryDirect({
+  query,
+}: {
+  query: string
+}): Promise<ObservatoryResourceResult<Array<ObservatorySearchResult>>> {
+  try {
+    const response = await browserApiGet<{
+      items: Array<ObservatorySearchResult>
+    }>(`${Observatory_API_PREFIX}/search?q=${encodeURIComponent(query)}`)
+    return { data: response.items, error: null }
+  } catch (error) {
+    return apiUnavailable<Array<ObservatorySearchResult>>(error)
+  }
+}
+
 export const runObservatoryAction = createServerFn()
   .inputValidator((input: { actionId: string }) => input)
   .handler(

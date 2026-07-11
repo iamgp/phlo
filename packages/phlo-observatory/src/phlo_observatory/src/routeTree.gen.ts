@@ -9,11 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as TablesRouteImport } from './routes/tables'
 import { Route as StorageRouteImport } from './routes/storage'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ServicesRouteImport } from './routes/services'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as RunsRouteImport } from './routes/runs'
+import { Route as RecentsRouteImport } from './routes/recents'
+import { Route as QueryHistoryRouteImport } from './routes/query-history'
+import { Route as QueriesRouteImport } from './routes/queries'
 import { Route as QualityRouteImport } from './routes/quality'
 import { Route as PublishingRouteImport } from './routes/publishing'
 import { Route as PipelinesRouteImport } from './routes/pipelines'
@@ -21,6 +26,7 @@ import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as ObservabilityRouteImport } from './routes/observability'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as LineageRouteImport } from './routes/lineage'
+import { Route as IngestionRouteImport } from './routes/ingestion'
 import { Route as GovernanceRouteImport } from './routes/governance'
 import { Route as ExtensionsRouteImport } from './routes/extensions'
 import { Route as DatasetsRouteImport } from './routes/datasets'
@@ -33,6 +39,11 @@ import { Route as WorkflowsNewRouteImport } from './routes/workflows/new'
 import { Route as ExtensionsExtensionIdRouteImport } from './routes/extensions/$extensionId'
 import { Route as DatasetsDatasetIdRouteImport } from './routes/datasets.$datasetId'
 
+const WorkspaceRoute = WorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TablesRoute = TablesRouteImport.update({
   id: '/tables',
   path: '/tables',
@@ -53,9 +64,29 @@ const ServicesRoute = ServicesRouteImport.update({
   path: '/services',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RunsRoute = RunsRouteImport.update({
   id: '/runs',
   path: '/runs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecentsRoute = RecentsRouteImport.update({
+  id: '/recents',
+  path: '/recents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QueryHistoryRoute = QueryHistoryRouteImport.update({
+  id: '/query-history',
+  path: '/query-history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QueriesRoute = QueriesRouteImport.update({
+  id: '/queries',
+  path: '/queries',
   getParentRoute: () => rootRouteImport,
 } as any)
 const QualityRoute = QualityRouteImport.update({
@@ -91,6 +122,11 @@ const LogsRoute = LogsRouteImport.update({
 const LineageRoute = LineageRouteImport.update({
   id: '/lineage',
   path: '/lineage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IngestionRoute = IngestionRouteImport.update({
+  id: '/ingestion',
+  path: '/ingestion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GovernanceRoute = GovernanceRouteImport.update({
@@ -158,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/datasets': typeof DatasetsRouteWithChildren
   '/extensions': typeof ExtensionsRouteWithChildren
   '/governance': typeof GovernanceRoute
+  '/ingestion': typeof IngestionRoute
   '/lineage': typeof LineageRoute
   '/logs': typeof LogsRoute
   '/observability': typeof ObservabilityRoute
@@ -165,11 +202,16 @@ export interface FileRoutesByFullPath {
   '/pipelines': typeof PipelinesRoute
   '/publishing': typeof PublishingRoute
   '/quality': typeof QualityRoute
+  '/queries': typeof QueriesRoute
+  '/query-history': typeof QueryHistoryRoute
+  '/recents': typeof RecentsRoute
   '/runs': typeof RunsRoute
+  '/search': typeof SearchRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
   '/storage': typeof StorageRoute
   '/tables': typeof TablesRoute
+  '/workspace': typeof WorkspaceRoute
   '/datasets/$datasetId': typeof DatasetsDatasetIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
@@ -183,6 +225,7 @@ export interface FileRoutesByTo {
   '/datasets': typeof DatasetsRouteWithChildren
   '/extensions': typeof ExtensionsRouteWithChildren
   '/governance': typeof GovernanceRoute
+  '/ingestion': typeof IngestionRoute
   '/lineage': typeof LineageRoute
   '/logs': typeof LogsRoute
   '/observability': typeof ObservabilityRoute
@@ -190,11 +233,16 @@ export interface FileRoutesByTo {
   '/pipelines': typeof PipelinesRoute
   '/publishing': typeof PublishingRoute
   '/quality': typeof QualityRoute
+  '/queries': typeof QueriesRoute
+  '/query-history': typeof QueryHistoryRoute
+  '/recents': typeof RecentsRoute
   '/runs': typeof RunsRoute
+  '/search': typeof SearchRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
   '/storage': typeof StorageRoute
   '/tables': typeof TablesRoute
+  '/workspace': typeof WorkspaceRoute
   '/datasets/$datasetId': typeof DatasetsDatasetIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
@@ -209,6 +257,7 @@ export interface FileRoutesById {
   '/datasets': typeof DatasetsRouteWithChildren
   '/extensions': typeof ExtensionsRouteWithChildren
   '/governance': typeof GovernanceRoute
+  '/ingestion': typeof IngestionRoute
   '/lineage': typeof LineageRoute
   '/logs': typeof LogsRoute
   '/observability': typeof ObservabilityRoute
@@ -216,11 +265,16 @@ export interface FileRoutesById {
   '/pipelines': typeof PipelinesRoute
   '/publishing': typeof PublishingRoute
   '/quality': typeof QualityRoute
+  '/queries': typeof QueriesRoute
+  '/query-history': typeof QueryHistoryRoute
+  '/recents': typeof RecentsRoute
   '/runs': typeof RunsRoute
+  '/search': typeof SearchRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
   '/storage': typeof StorageRoute
   '/tables': typeof TablesRoute
+  '/workspace': typeof WorkspaceRoute
   '/datasets/$datasetId': typeof DatasetsDatasetIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
@@ -236,6 +290,7 @@ export interface FileRouteTypes {
     | '/datasets'
     | '/extensions'
     | '/governance'
+    | '/ingestion'
     | '/lineage'
     | '/logs'
     | '/observability'
@@ -243,11 +298,16 @@ export interface FileRouteTypes {
     | '/pipelines'
     | '/publishing'
     | '/quality'
+    | '/queries'
+    | '/query-history'
+    | '/recents'
     | '/runs'
+    | '/search'
     | '/services'
     | '/settings'
     | '/storage'
     | '/tables'
+    | '/workspace'
     | '/datasets/$datasetId'
     | '/extensions/$extensionId'
     | '/workflows/new'
@@ -261,6 +321,7 @@ export interface FileRouteTypes {
     | '/datasets'
     | '/extensions'
     | '/governance'
+    | '/ingestion'
     | '/lineage'
     | '/logs'
     | '/observability'
@@ -268,11 +329,16 @@ export interface FileRouteTypes {
     | '/pipelines'
     | '/publishing'
     | '/quality'
+    | '/queries'
+    | '/query-history'
+    | '/recents'
     | '/runs'
+    | '/search'
     | '/services'
     | '/settings'
     | '/storage'
     | '/tables'
+    | '/workspace'
     | '/datasets/$datasetId'
     | '/extensions/$extensionId'
     | '/workflows/new'
@@ -286,6 +352,7 @@ export interface FileRouteTypes {
     | '/datasets'
     | '/extensions'
     | '/governance'
+    | '/ingestion'
     | '/lineage'
     | '/logs'
     | '/observability'
@@ -293,11 +360,16 @@ export interface FileRouteTypes {
     | '/pipelines'
     | '/publishing'
     | '/quality'
+    | '/queries'
+    | '/query-history'
+    | '/recents'
     | '/runs'
+    | '/search'
     | '/services'
     | '/settings'
     | '/storage'
     | '/tables'
+    | '/workspace'
     | '/datasets/$datasetId'
     | '/extensions/$extensionId'
     | '/workflows/new'
@@ -312,6 +384,7 @@ export interface RootRouteChildren {
   DatasetsRoute: typeof DatasetsRouteWithChildren
   ExtensionsRoute: typeof ExtensionsRouteWithChildren
   GovernanceRoute: typeof GovernanceRoute
+  IngestionRoute: typeof IngestionRoute
   LineageRoute: typeof LineageRoute
   LogsRoute: typeof LogsRoute
   ObservabilityRoute: typeof ObservabilityRoute
@@ -319,16 +392,28 @@ export interface RootRouteChildren {
   PipelinesRoute: typeof PipelinesRoute
   PublishingRoute: typeof PublishingRoute
   QualityRoute: typeof QualityRoute
+  QueriesRoute: typeof QueriesRoute
+  QueryHistoryRoute: typeof QueryHistoryRoute
+  RecentsRoute: typeof RecentsRoute
   RunsRoute: typeof RunsRoute
+  SearchRoute: typeof SearchRoute
   ServicesRoute: typeof ServicesRoute
   SettingsRoute: typeof SettingsRoute
   StorageRoute: typeof StorageRoute
   TablesRoute: typeof TablesRoute
+  WorkspaceRoute: typeof WorkspaceRoute
   WorkflowsNewRoute: typeof WorkflowsNewRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workspace': {
+      id: '/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof WorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tables': {
       id: '/tables'
       path: '/tables'
@@ -357,11 +442,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/runs': {
       id: '/runs'
       path: '/runs'
       fullPath: '/runs'
       preLoaderRoute: typeof RunsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recents': {
+      id: '/recents'
+      path: '/recents'
+      fullPath: '/recents'
+      preLoaderRoute: typeof RecentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/query-history': {
+      id: '/query-history'
+      path: '/query-history'
+      fullPath: '/query-history'
+      preLoaderRoute: typeof QueryHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/queries': {
+      id: '/queries'
+      path: '/queries'
+      fullPath: '/queries'
+      preLoaderRoute: typeof QueriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/quality': {
@@ -411,6 +524,13 @@ declare module '@tanstack/react-router' {
       path: '/lineage'
       fullPath: '/lineage'
       preLoaderRoute: typeof LineageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ingestion': {
+      id: '/ingestion'
+      path: '/ingestion'
+      fullPath: '/ingestion'
+      preLoaderRoute: typeof IngestionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/governance': {
@@ -526,6 +646,7 @@ const rootRouteChildren: RootRouteChildren = {
   DatasetsRoute: DatasetsRouteWithChildren,
   ExtensionsRoute: ExtensionsRouteWithChildren,
   GovernanceRoute: GovernanceRoute,
+  IngestionRoute: IngestionRoute,
   LineageRoute: LineageRoute,
   LogsRoute: LogsRoute,
   ObservabilityRoute: ObservabilityRoute,
@@ -533,11 +654,16 @@ const rootRouteChildren: RootRouteChildren = {
   PipelinesRoute: PipelinesRoute,
   PublishingRoute: PublishingRoute,
   QualityRoute: QualityRoute,
+  QueriesRoute: QueriesRoute,
+  QueryHistoryRoute: QueryHistoryRoute,
+  RecentsRoute: RecentsRoute,
   RunsRoute: RunsRoute,
+  SearchRoute: SearchRoute,
   ServicesRoute: ServicesRoute,
   SettingsRoute: SettingsRoute,
   StorageRoute: StorageRoute,
   TablesRoute: TablesRoute,
+  WorkspaceRoute: WorkspaceRoute,
   WorkflowsNewRoute: WorkflowsNewRoute,
 }
 export const routeTree = rootRouteImport

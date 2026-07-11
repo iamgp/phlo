@@ -29,6 +29,7 @@ import {
   getObservatoryServices,
   getObservatoryTableRecords,
   searchObservatory,
+  searchObservatoryDirect,
 } from '@/observatory/api/resources'
 import { loadCachedResource } from '@/observatory/routes/liveResource'
 
@@ -105,7 +106,11 @@ export function ObservatoryCommandPalette({
     }
     let cancelled = false
     const timer = window.setTimeout(() => {
-      void searchObservatory({ data: { query } }).then((next) => {
+      const request =
+        typeof window === 'undefined'
+          ? searchObservatory({ data: { query } })
+          : searchObservatoryDirect({ query })
+      void request.then((next) => {
         if (!cancelled) setResults(next)
       })
     }, 180)
@@ -520,6 +525,22 @@ export function ObservatoryCommandPalette({
               <div className="phlo-observatory-command-empty">
                 {results.error}
               </div>
+            )}
+            {query.trim().length >= 2 && (
+              <CommandPrimitive.Group
+                className="phlo-observatory-command-group phlo-observatory-command-search-all"
+                heading="Search"
+              >
+                <CommandPrimitive.Item
+                  className="phlo-observatory-command-item"
+                  onSelect={handleCommandSelect}
+                  value={`open:/search?q=${encodeURIComponent(query.trim())}`}
+                >
+                  <Search className="size-4" />
+                  <span>View all results</span>
+                  <small>Filter by type and owner</small>
+                </CommandPrimitive.Item>
+              </CommandPrimitive.Group>
             )}
           </CommandPrimitive.List>
           <div className="phlo-observatory-command-footer">

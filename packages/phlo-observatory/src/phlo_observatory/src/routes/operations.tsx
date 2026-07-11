@@ -280,6 +280,7 @@ export function Operations() {
                       ))}
                     </div>
                   )}
+                  <InvestigationPath detail={detail.data} operation={latest} />
                 </div>
               ) : null}
               {!selectedIsWap && (
@@ -471,6 +472,54 @@ export function Operations() {
         )}
       </section>
     </ObservatoryPage>
+  )
+}
+
+function InvestigationPath({
+  detail,
+  operation,
+}: {
+  detail: ObservatoryOperationDetail | null
+  operation: ObservatoryOperation
+}) {
+  const firstLog = detail?.logs[0]
+  const targetHref = operation.target ? resourceHref(operation.target) : null
+  return (
+    <nav
+      aria-label="Failure investigation"
+      className="phlo-observatory-investigation-path"
+    >
+      <span className="phlo-observatory-investigation-step" data-current="true">
+        <small>1 · Failure</small>
+        <strong>{operation.name}</strong>
+      </span>
+      <Link search={{ runId: operation.id }} to="/runs">
+        <small>2 · Run</small>
+        <strong>Execution evidence</strong>
+      </Link>
+      {firstLog ? (
+        <Link search={{ logId: firstLog.id }} to="/logs">
+          <small>3 · Logs</small>
+          <strong>{firstLog.level} evidence</strong>
+        </Link>
+      ) : (
+        <Link to="/logs">
+          <small>3 · Logs</small>
+          <strong>Event evidence</strong>
+        </Link>
+      )}
+      {targetHref ? (
+        <Link to={targetHref}>
+          <small>4 · Target</small>
+          <strong>{operation.target?.label}</strong>
+        </Link>
+      ) : (
+        <span className="phlo-observatory-investigation-step">
+          <small>4 · Target</small>
+          <strong>Platform</strong>
+        </span>
+      )}
+    </nav>
   )
 }
 

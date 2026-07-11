@@ -454,7 +454,9 @@ function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
               <h2 className="phlo-observatory-panel-title">Event story</h2>
               <span className="phlo-observatory-pill">
                 <GitCommitHorizontal className="size-3.5" />
-                {eventRows.length || 'Empty'}
+                {eventRows.length > 0
+                  ? `${eventRows.length} relevant`
+                  : 'Empty'}
               </span>
             </div>
             <div className="phlo-observatory-list">
@@ -488,12 +490,6 @@ function useOverviewRoute(initialSnapshot?: OverviewSnapshot) {
                 ))
               ) : (
                 <EmptyRow label="No events yet" />
-              )}
-              {fallbackEventStory.suppressed > 0 && (
-                <div className="phlo-observatory-noise-row">
-                  {fallbackEventStory.suppressed} platform-noise events
-                  suppressed
-                </div>
               )}
             </div>
           </div>
@@ -845,7 +841,6 @@ export function buildEventStory(
     sort: operation.completed_at ?? operation.started_at ?? '',
     score: scoreOperation(operation),
   }))
-  const suppressedLogs = logs.filter((log) => !isFrontPageLog(log))
   const logEvents = logs.filter(isFrontPageLog).map((log) => ({
     id: `log:${log.id}`,
     href: `/logs?logId=${encodeURIComponent(log.id)}`,
@@ -880,7 +875,6 @@ export function buildEventStory(
         return right.sort.localeCompare(left.sort)
       })
       .slice(0, 6),
-    suppressed: suppressedLogs.length,
   }
 }
 

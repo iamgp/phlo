@@ -142,7 +142,7 @@ describe('Overview control-room rows', () => {
     ).toBe(false)
   })
 
-  it('keeps the event story focused on actionable rows and suppresses noisy logs', () => {
+  it('keeps the event story focused on relevant operational evidence', () => {
     const story = buildEventStory(
       [operation()],
       [
@@ -160,7 +160,6 @@ describe('Overview control-room rows', () => {
       ],
     )
 
-    expect(story.suppressed).toBe(1)
     expect(
       story.events.map((event) => [event.kind, event.href]),
     ).toContainEqual([
@@ -170,5 +169,8 @@ describe('Overview control-room rows', () => {
     expect(
       story.events.map((event) => [event.kind, event.href]),
     ).toContainEqual(['log', '/logs?logId=actionable-log'])
+    expect(story.events.map((event) => event.id)).not.toContain(
+      'log:plugin-noise',
+    )
   })
 })
