@@ -2,12 +2,12 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { Clock3, ExternalLink } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import type { ObservatoryRecentVisit } from '@/observatory/shell/localActivity'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import {
   localActivityEvent,
   readRecentVisits,
 } from '@/observatory/shell/localActivity'
-import type { ObservatoryRecentVisit } from '@/observatory/shell/localActivity'
 
 export const Route = createFileRoute('/recents')({ component: Recents })
 

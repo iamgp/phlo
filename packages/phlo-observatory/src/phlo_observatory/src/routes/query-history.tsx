@@ -2,12 +2,12 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { Clock3, Database, Play } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+import type { ObservatoryQueryExecution } from '@/observatory/shell/localActivity'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import {
   localActivityEvent,
   readQueryHistory,
 } from '@/observatory/shell/localActivity'
-import type { ObservatoryQueryExecution } from '@/observatory/shell/localActivity'
 
 export const Route = createFileRoute('/query-history')({
   component: QueryHistory,

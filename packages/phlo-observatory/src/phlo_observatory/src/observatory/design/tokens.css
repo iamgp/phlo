@@ -2278,12 +2278,20 @@ a.phlo-observatory-lineage-summary-cell:hover {
 }
 
 .phlo-observatory-branch-readiness[data-state='warning'] {
-  border-color: color-mix(in oklch, var(--v2-amber) 28%, var(--v2-sheet-border));
+  border-color: color-mix(
+    in oklch,
+    var(--v2-amber) 28%,
+    var(--v2-sheet-border)
+  );
   background: color-mix(in oklch, var(--v2-amber) 6%, var(--v2-sheet));
 }
 
 .phlo-observatory-branch-readiness[data-state='ok'] {
-  border-color: color-mix(in oklch, var(--v2-green) 20%, var(--v2-sheet-border));
+  border-color: color-mix(
+    in oklch,
+    var(--v2-green) 20%,
+    var(--v2-sheet-border)
+  );
 }
 
 .phlo-observatory-branch-readiness h3 {
@@ -2866,10 +2874,9 @@ a.phlo-observatory-lineage-summary-cell:hover {
 
 .phlo-observatory-check-row {
   display: grid;
-  grid-template-columns: auto minmax(190px, 1.25fr) minmax(150px, 0.8fr) minmax(
-      130px,
-      0.65fr
-    ) minmax(170px, 0.9fr);
+  grid-template-columns:
+    auto minmax(190px, 1.25fr) minmax(150px, 0.8fr) minmax(130px, 0.65fr)
+    minmax(170px, 0.9fr);
   gap: 10px;
   align-items: center;
   min-height: 48px;
@@ -2886,10 +2893,9 @@ a.phlo-observatory-lineage-summary-cell:hover {
 
 .phlo-observatory-quality-table-head {
   display: grid;
-  grid-template-columns: auto minmax(190px, 1.25fr) minmax(150px, 0.8fr) minmax(
-      130px,
-      0.65fr
-    ) minmax(170px, 0.9fr);
+  grid-template-columns:
+    auto minmax(190px, 1.25fr) minmax(150px, 0.8fr) minmax(130px, 0.65fr)
+    minmax(170px, 0.9fr);
   gap: 12px;
   align-items: center;
   min-height: 30px;
@@ -6024,7 +6030,8 @@ button.phlo-observatory-mini-row {
   border-bottom: 1px solid var(--v2-sheet-border);
 }
 
-.phlo-observatory-governance-control-block > .phlo-observatory-mini-row:last-child {
+.phlo-observatory-governance-control-block
+  > .phlo-observatory-mini-row:last-child {
   border-bottom: 0;
 }
 
@@ -6209,7 +6216,8 @@ button.phlo-observatory-mini-row {
   color: color-mix(in oklch, var(--v2-green), var(--v2-text) 20%);
 }
 
-.phlo-observatory-run-row > span:not(.phlo-observatory-dot):not(.phlo-observatory-pill) {
+.phlo-observatory-run-row
+  > span:not(.phlo-observatory-dot):not(.phlo-observatory-pill) {
   overflow: hidden;
   color: var(--v2-muted);
   font-size: var(--v2-font-sm);
@@ -6762,7 +6770,8 @@ html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
 .phlo-observatory[data-theme='dark'] .phlo-observatory-nav-link:hover,
 .phlo-observatory[data-theme='dark']
   .phlo-observatory-nav-link[data-active='true'],
-.phlo-observatory[data-theme='dark'] .phlo-observatory-menu-link[data-active='true'],
+.phlo-observatory[data-theme='dark']
+  .phlo-observatory-menu-link[data-active='true'],
 html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
   .phlo-observatory
   .phlo-observatory-nav-link:hover,

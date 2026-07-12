@@ -16,8 +16,10 @@ import {
 import { ActionButton } from '@/observatory/components/ActionButton'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import { StatusBadge } from '@/observatory/components/StatusBadge'
-import { invalidateCachedResources } from '@/observatory/routes/liveResource'
-import { useLiveResource } from '@/observatory/routes/liveResource'
+import {
+  invalidateCachedResources,
+  useLiveResource,
+} from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/publishing')({
   component: Publishing,

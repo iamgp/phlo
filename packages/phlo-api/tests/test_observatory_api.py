@@ -2278,16 +2278,18 @@ def test_asset_derived_tables_include_unknown_catalog_state_when_catalog_read_fa
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     registry = SimpleNamespace(
-        list=lambda kind: [
-            SimpleNamespace(
-                key="gold.orders",
-                group="gold",
-                kinds=["table"],
-                metadata={"table": "orders", "schema": "gold", "format": "iceberg"},
-            )
-        ]
-        if kind == "asset"
-        else []
+        list=lambda kind: (
+            [
+                SimpleNamespace(
+                    key="gold.orders",
+                    group="gold",
+                    kinds=["table"],
+                    metadata={"table": "orders", "schema": "gold", "format": "iceberg"},
+                )
+            ]
+            if kind == "asset"
+            else []
+        )
     )
     monkeypatch.setattr(observatory, "_load_capability_registry", lambda: registry)
     monkeypatch.setattr(observatory, "_manifest_records", lambda *_args, **_kwargs: [])

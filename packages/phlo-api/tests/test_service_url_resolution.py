@@ -93,11 +93,13 @@ def test_native_service_override_uses_running_local_port(monkeypatch) -> None:
     monkeypatch.setattr(
         "phlo_api.observatory_api.observatory_services._local_port_status",
         lambda port: (
-            "running",
-            ObservatoryHealth(state="ok", message=f"Listening on localhost:{port}"),
-        )
-        if port == "4000"
-        else None,
+            (
+                "running",
+                ObservatoryHealth(state="ok", message=f"Listening on localhost:{port}"),
+            )
+            if port == "4000"
+            else None
+        ),
     )
 
     status, health, port = native_service_override(

@@ -10,8 +10,8 @@ import {
   Filter,
   GitBranch,
   ListChecks,
-  ShieldCheck,
   Search,
+  ShieldCheck,
   UploadCloud,
   UserPlus,
   XCircle,
@@ -26,8 +26,10 @@ import {
 } from '@/observatory/api/resources'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import { StatusBadge } from '@/observatory/components/StatusBadge'
-import { invalidateCachedResources } from '@/observatory/routes/liveResource'
-import { useLiveResource } from '@/observatory/routes/liveResource'
+import {
+  invalidateCachedResources,
+  useLiveResource,
+} from '@/observatory/routes/liveResource'
 
 export const Route = createFileRoute('/datasets')({
   component: Datasets,

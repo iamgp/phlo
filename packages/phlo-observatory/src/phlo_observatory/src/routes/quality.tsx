@@ -25,11 +25,11 @@ import type {
   ObservatoryFlowNode,
 } from '@/observatory/components/ObservatoryFlowCanvas'
 import {
+  getObservatoryDatasetProfileDirect,
+  getObservatoryDatasetRecords,
   getObservatoryQualityDetail,
   getObservatoryQualityDetailDirect,
   getObservatoryQualityRecords,
-  getObservatoryDatasetRecords,
-  getObservatoryDatasetProfileDirect,
   runObservatoryAction,
 } from '@/observatory/api/resources'
 import { ActionButton } from '@/observatory/components/ActionButton'

@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
+import {
+  buildAttentionItems,
+  buildEventStory,
+  isBlockingQualityIssue,
+} from './OverviewRoute'
 import type {
   ObservatoryLogEvent,
   ObservatoryOperation,
   ObservatoryQualityCheck,
   ObservatoryService,
 } from '@/observatory/api/types'
-
-import {
-  buildAttentionItems,
-  buildEventStory,
-  isBlockingQualityIssue,
-} from './OverviewRoute'
 
 function service(
   overrides: Partial<ObservatoryService> = {},
