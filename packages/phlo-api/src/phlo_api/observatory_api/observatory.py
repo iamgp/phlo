@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass
 import importlib
 import importlib.util
@@ -15,9 +16,15 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 from typing import Any, cast
 from urllib.parse import quote
 from uuid import uuid4
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - POSIX is used in production
+    fcntl = None  # type: ignore[assignment]
 
 from fastapi import APIRouter, BackgroundTasks, Body, Query, Request
 from fastapi import HTTPException
@@ -293,6 +300,24 @@ def _dataset_workflow_path() -> Path:
     return _observatory_state_dir() / "dataset_workflow.json"
 
 
+_DATASET_WORKFLOW_LOCK = threading.RLock()
+
+
+@contextmanager
+def _dataset_workflow_write_lock():
+    """Serialize workflow state updates across threads and POSIX workers."""
+    lock_path = _dataset_workflow_path().with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _DATASET_WORKFLOW_LOCK, lock_path.open("a+") as lock_file:
+        if fcntl is not None:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
 def _load_dataset_workflow_state() -> dict[str, Any]:
     path = _dataset_workflow_path()
     if not path.exists():
@@ -313,10 +338,13 @@ def _load_dataset_workflow_state() -> dict[str, Any]:
 
 
 def _write_dataset_workflow_state(state: Mapping[str, Any]) -> None:
-    _dataset_workflow_path().write_text(
+    path = _dataset_workflow_path()
+    temporary_path = path.with_suffix(".tmp")
+    temporary_path.write_text(
         json.dumps(state, indent=2, sort_keys=True),
         encoding="utf-8",
     )
+    temporary_path.replace(path)
 
 
 def _workflow_default_owner() -> str:
@@ -1550,10 +1578,24 @@ def _access_activity_from_mapping(
 ) -> ObservatoryAccessActivity:
     actor = _coerce_str(item.get("actor") or item.get("user") or item.get("principal"), "")
     actor_label = _privacy_shaped_actor(actor, policy)
+    aggregate_metadata_keys = {
+        "bytes",
+        "client",
+        "duration_ms",
+        "query_type",
+        "rows",
+        "status",
+        "warehouse",
+    }
+    metadata_source = (
+        item
+        if policy.identity_detail == "identity"
+        else {key: item[key] for key in aggregate_metadata_keys if key in item}
+    )
     metadata = _safe_metadata(
         {
             key: value
-            for key, value in item.items()
+            for key, value in metadata_source.items()
             if key not in {"actor", "user", "principal", "email"}
         }
     )
@@ -3311,7 +3353,7 @@ def _apply_manifest_capability_overrides(
         route_providers["lineage"] = "lakehouse-manifest"
     if manifest and manifest.get("assets"):
         route_providers["lineage"] = "lakehouse-manifest"
-    if manifest and _load_datasets():
+    if manifest and (manifest.get("assets") or manifest.get("tables")):
         route_providers["datasets"] = "lakehouse-manifest"
         route_providers["governance"] = "lakehouse-manifest"
         route_providers["publishing"] = "lakehouse-manifest"
@@ -4053,17 +4095,18 @@ def _execute_dataset_publication_action(
 
     next_publication_state = "published" if action_name == "publish" else "retired"
     next_approval_state = "approved" if action_name == "publish" else "retired"
-    state = _load_dataset_workflow_state()
-    datasets = dict(state.get("datasets", {}))
-    current = datasets.get(profile.dataset.id)
-    current = current if isinstance(current, dict) else {}
-    datasets[profile.dataset.id] = {
-        **current,
-        "publication_state": next_publication_state,
-        "approval_state": next_approval_state,
-    }
-    state["datasets"] = datasets
-    _write_dataset_workflow_state(state)
+    with _dataset_workflow_write_lock():
+        state = _load_dataset_workflow_state()
+        datasets = dict(state.get("datasets", {}))
+        current = datasets.get(profile.dataset.id)
+        current = current if isinstance(current, dict) else {}
+        datasets[profile.dataset.id] = {
+            **current,
+            "publication_state": next_publication_state,
+            "approval_state": next_approval_state,
+        }
+        state["datasets"] = datasets
+        _write_dataset_workflow_state(state)
     _record_observatory_telemetry(
         name=f"observatory.dataset.{action_name}",
         resource_id=profile.dataset.id,
@@ -4097,36 +4140,37 @@ def _execute_candidate_workflow_action(
             target=ObservatoryResourceRef(kind="table", id=table_id, label=table_id),
         )
 
-    state = _load_dataset_workflow_state()
-    candidates = dict(state.get("candidates", {}))
-    current = candidates.get(table.id)
-    current = current if isinstance(current, dict) else {}
-    owner = _coerce_str(current.get("owner"), "") or _workflow_default_owner()
-    next_state = {
-        **current,
-        "owner": owner,
-        "approval_state": "claimed" if action_name == "claim" else "review",
-    }
-    if action_name == "claim":
-        next_state["state"] = "claimed"
-        message = f"{table.name} claimed by {owner}."
-    elif action_name == "promote":
-        next_state.update(
-            {
-                "state": "promoted",
-                "dataset_id": table.id,
-                "publication_state": "draft",
-                "approval_state": "review",
-            }
-        )
-        message = f"{table.name} promoted to a draft Dataset."
-    else:
-        next_state["state"] = "rejected"
-        next_state["approval_state"] = "rejected"
-        message = f"{table.name} rejected from the candidate queue."
-    candidates[table.id] = next_state
-    state["candidates"] = candidates
-    _write_dataset_workflow_state(state)
+    with _dataset_workflow_write_lock():
+        state = _load_dataset_workflow_state()
+        candidates = dict(state.get("candidates", {}))
+        current = candidates.get(table.id)
+        current = current if isinstance(current, dict) else {}
+        owner = _coerce_str(current.get("owner"), "") or _workflow_default_owner()
+        next_state = {
+            **current,
+            "owner": owner,
+            "approval_state": "claimed" if action_name == "claim" else "review",
+        }
+        if action_name == "claim":
+            next_state["state"] = "claimed"
+            message = f"{table.name} claimed by {owner}."
+        elif action_name == "promote":
+            next_state.update(
+                {
+                    "state": "promoted",
+                    "dataset_id": table.id,
+                    "publication_state": "draft",
+                    "approval_state": "review",
+                }
+            )
+            message = f"{table.name} promoted to a draft Dataset."
+        else:
+            next_state["state"] = "rejected"
+            next_state["approval_state"] = "rejected"
+            message = f"{table.name} rejected from the candidate queue."
+        candidates[table.id] = next_state
+        state["candidates"] = candidates
+        _write_dataset_workflow_state(state)
     _record_observatory_telemetry(
         name=f"observatory.candidate.{action_name}",
         resource_id=table.id,
@@ -4499,12 +4543,13 @@ def put_observatory_dataset_workflow_config(
     approval_states = [state.strip() for state in payload.approval_states if state.strip()]
     if not approval_states:
         raise HTTPException(status_code=422, detail="approval_states must not be empty")
-    state = _load_dataset_workflow_state()
-    state["config"] = {
-        "default_owner": payload.default_owner.strip() or _workflow_default_owner(),
-        "approval_states": approval_states,
-    }
-    _write_dataset_workflow_state(state)
+    with _dataset_workflow_write_lock():
+        state = _load_dataset_workflow_state()
+        state["config"] = {
+            "default_owner": payload.default_owner.strip() or _workflow_default_owner(),
+            "approval_states": approval_states,
+        }
+        _write_dataset_workflow_state(state)
     _clear_read_model_cache()
     return _dataset_workflow_config()
 

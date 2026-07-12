@@ -94,6 +94,16 @@ def test_externalize_trino_uri_uses_client_facing_base_url() -> None:
     )
 
 
+def test_externalize_trino_uri_preserves_client_facing_base_path() -> None:
+    assert (
+        trino._externalize_trino_uri(
+            "http://trino:8080/v1/statement/queued/query/token/1",
+            "https://proxy.example.com/trino",
+        )
+        == "https://proxy.example.com/trino/v1/statement/queued/query/token/1"
+    )
+
+
 @pytest.mark.anyio
 async def test_check_connection_returns_structured_error_when_url_unconfigured(monkeypatch) -> None:
     """Connection health should report config failures without raising."""

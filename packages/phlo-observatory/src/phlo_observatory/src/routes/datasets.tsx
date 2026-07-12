@@ -70,7 +70,7 @@ export function Datasets() {
       ),
     [classification, datasets, owner, publicationState, query, readinessState],
   )
-  const selectedDataset = filtered[0] ?? datasets[0] ?? null
+  const selectedDataset = filtered[0] ?? null
   const needsOwner = datasets.filter((dataset) => !dataset.owner).length
   const needsClassification = datasets.filter(
     (dataset) => dataset.classifications.length === 0,

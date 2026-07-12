@@ -121,11 +121,16 @@ export function Operations() {
 
   useEffect(() => {
     let cancelled = false
-    void getObservatoryOperationRecordsDirect().then((next) => {
-      if (!cancelled) setDirectResult(next)
-    })
+    const refresh = () => {
+      void getObservatoryOperationRecordsDirect().then((next) => {
+        if (!cancelled) setDirectResult(next)
+      })
+    }
+    refresh()
+    const interval = window.setInterval(refresh, 30_000)
     return () => {
       cancelled = true
+      window.clearInterval(interval)
     }
   }, [])
 

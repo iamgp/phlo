@@ -55,7 +55,7 @@ def search_results(
                     label=asset.name,
                     kind="asset",
                     summary=asset.description or asset.group,
-                    href=f"/lineage/{route_path_segment(asset.id)}",
+                    href=f"/lineage?assetId={route_path_segment(asset.id)}",
                 )
             )
 
@@ -70,7 +70,7 @@ def search_results(
                     label=table.namespace + "." + table.name if table.namespace else table.name,
                     kind="table",
                     summary=f"{table.format or 'table'} · {table.branch or 'main'}",
-                    href=f"/tables/{route_path_segment(table.id)}",
+                    href=f"/tables?tableId={route_path_segment(table.id)}",
                 )
             )
 
@@ -85,7 +85,7 @@ def search_results(
                     label=operation.name,
                     kind="operation",
                     summary=f"{operation.kind} · {operation.status}",
-                    href=f"/operations/{route_path_segment(operation.id)}",
+                    href=f"/operations?operationId={route_path_segment(operation.id)}",
                 )
             )
 

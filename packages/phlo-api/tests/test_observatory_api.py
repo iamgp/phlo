@@ -576,6 +576,7 @@ def test_observatory_dataset_profile_returns_privacy_shaped_usage(
                         "dataset_id": "gold.orders",
                         "actor": "alice@example.com",
                         "actor_kind": "person",
+                        "requester_id": "employee-123",
                         "action": "query",
                         "count": 12,
                         "last_seen_at": "2026-07-01T12:00:00Z",
@@ -629,6 +630,7 @@ def test_observatory_dataset_profile_returns_privacy_shaped_usage(
     assert usage["privacy_policy"]["identity_detail"] == "audit_only"
     assert usage["access_activity"][0]["actor_label"] == "audit only"
     assert "alice@example.com" not in json.dumps(usage)
+    assert "employee-123" not in json.dumps(usage)
     assert usage["access_activity"][0]["metadata"]["audit_drilldown"] is True
     assert usage["dependency_activity"][0]["source"]["kind"] == "pipeline"
     assert usage["consumer_adoption"][0]["consumer"] == "finance"
@@ -3095,8 +3097,8 @@ def test_observatory_search_endpoint_url_encodes_resource_href_segments(monkeypa
 
     assert response.status_code == 200
     hrefs = {item["kind"]: item["href"] for item in response.json()["items"]}
-    assert hrefs["asset"] == "/lineage/silver%2Fdemo"
-    assert hrefs["table"] == "/tables/analytics%2Fdemo"
+    assert hrefs["asset"] == "/lineage?assetId=silver%2Fdemo"
+    assert hrefs["table"] == "/tables?tableId=analytics%2Fdemo"
     assert hrefs["quality"] == "/quality?checkId=silver%2Fdemo%3Arow-count"
     assert hrefs["extension"] == "/extensions/demo%2Fext"
 

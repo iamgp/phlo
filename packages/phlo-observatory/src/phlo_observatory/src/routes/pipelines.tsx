@@ -130,9 +130,9 @@ export function Pipelines() {
                 <span>Next action</span>
                 <span>Run evidence</span>
               </div>
-              {sortedPipelines.map((pipeline) => (
+              {sortedPipelines.map((pipeline, index) => (
                 <PipelineRow
-                  key={pipeline.dataset?.id ?? pipeline.freshness_at}
+                  key={pipelineKey(pipeline) || `pipeline-${index}`}
                   onSelect={() => selectPipeline(pipelineKey(pipeline))}
                   pipeline={pipeline}
                   selected={pipelineKey(pipeline) === pipelineKey(selected)}
@@ -479,11 +479,11 @@ function pipelineScore(pipeline: ObservatoryDatasetPipeline): number {
     ok: 100,
   }
   const time = Date.parse(pipeline.freshness_at ?? '')
-  return (
-    (freshnessRank[pipeline.freshness_state] ?? 0) +
-    pipeline.actions.filter((action) => action.enabled).length * 20 +
-    (Number.isNaN(time) ? 0 : time / 1_000_000_000)
-  )
+  const stateScore =
+    (freshnessRank[pipeline.freshness_state] ?? 0) * 1_000_000_000
+  const actionScore =
+    pipeline.actions.filter((action) => action.enabled).length * 1_000_000
+  return stateScore + actionScore + (Number.isNaN(time) ? 0 : time / 1_000)
 }
 
 function EmptyFlow({

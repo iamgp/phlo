@@ -77,11 +77,13 @@ def _externalize_trino_uri(uri: str, base_url: str) -> str:
     parsed_base = urlsplit(base_url)
     if not parsed_uri.scheme or not parsed_uri.netloc:
         return uri
+    base_path = parsed_base.path.rstrip("/")
+    uri_path = parsed_uri.path if parsed_uri.path.startswith("/") else f"/{parsed_uri.path}"
     return urlunsplit(
         (
             parsed_base.scheme or parsed_uri.scheme,
             parsed_base.netloc or parsed_uri.netloc,
-            parsed_uri.path,
+            f"{base_path}{uri_path}",
             parsed_uri.query,
             parsed_uri.fragment,
         )

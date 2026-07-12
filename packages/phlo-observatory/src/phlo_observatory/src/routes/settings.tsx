@@ -803,7 +803,7 @@ function formatSettingsStorage(value: string | undefined): string {
   return labelize(value)
 }
 
-const browserCacheVersion = '2026-07-07-observatory-runtime-v10'
+const browserCacheVersion = '2026-07-10-observatory-runtime-v11'
 const browserCachePrefix = `phlo-observatory:${browserCacheVersion}:`
 const browserResourceKeys = [
   'observatory:apis',

@@ -9,18 +9,24 @@ html[data-phlo-observatory-route='true'],
   --v2-weight-regular: 400;
   --v2-weight-medium: 600;
   --v2-weight-strong: 700;
+  --v2-bg: oklch(0.965 0.002 286);
   --v2-canvas: oklch(0.965 0.002 286);
   --v2-sheet: oklch(0.998 0.002 286);
   --v2-sheet-border: oklch(0.9 0.004 286);
+  --v2-border-strong: oklch(0.82 0.006 286);
   --v2-tile: oklch(0.955 0.003 286);
   --v2-tile-strong: oklch(0.925 0.004 286);
   --v2-text: oklch(0.22 0.006 286);
+  --v2-ink: var(--v2-text);
+  --v2-ink-50: oklch(0.49 0.007 286);
   --v2-muted: oklch(0.49 0.007 286);
   --v2-faint: oklch(0.64 0.007 286);
   --v2-green: oklch(0.58 0.15 151);
   --v2-amber: oklch(0.72 0.13 78);
   --v2-red: oklch(0.59 0.19 28);
   --v2-blue: oklch(0.55 0.11 245);
+  --v2-leading-tight: 1.2;
+  --v2-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 }
 
 .phlo-observatory {
@@ -6745,13 +6751,16 @@ html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark'],
 .phlo-observatory[data-theme='dark'],
 html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark']
   .phlo-observatory {
+  --v2-bg: oklch(0.145 0.014 255);
   --v2-canvas: oklch(0.145 0.014 255);
   --v2-sheet: oklch(0.19 0.016 255);
   --v2-sheet-border: oklch(0.285 0.018 255);
+  --v2-border-strong: oklch(0.38 0.02 255);
   --v2-tile: oklch(0.23 0.018 255);
   --v2-tile-strong: oklch(0.275 0.022 255);
   --v2-text: oklch(0.92 0.012 255);
   --v2-ink: var(--v2-text);
+  --v2-ink-50: oklch(0.72 0.018 255);
   --v2-muted: oklch(0.72 0.018 255);
   --v2-faint: oklch(0.58 0.018 255);
   --v2-green: oklch(0.72 0.16 148);

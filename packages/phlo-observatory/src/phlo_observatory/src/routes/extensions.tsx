@@ -27,10 +27,6 @@ export const Route = createFileRoute('/extensions')({
 
 export function Extensions() {
   const matches = useMatches()
-  if (matches.some((match) => match.routeId === '/extensions/$extensionId')) {
-    return <Outlet />
-  }
-
   const result = useLiveResource(getObservatoryExtensions)
   const extensions = result.data ?? []
   const isLoading = result.isLoading
@@ -93,6 +89,10 @@ export function Extensions() {
     if (selectedId !== null || !selected) return
     setSelectedId(selected.id)
   }, [selected, selectedId])
+
+  if (matches.some((match) => match.routeId === '/extensions/$extensionId')) {
+    return <Outlet />
+  }
 
   return (
     <ObservatoryPage

@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from contextlib import closing
+import json
 from pathlib import Path
-import pickle
 import sqlite3
 import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
+
+from pydantic import BaseModel
 
 
 @dataclass(slots=True)
@@ -52,7 +55,7 @@ class ReadModelCache:
             path = self._db_path()
             if path is None or not path.exists():
                 return
-            with sqlite3.connect(path) as connection:
+            with closing(sqlite3.connect(path)) as connection, connection:
                 connection.execute("delete from read_models")
 
     def _db_path(self) -> Path | None:
@@ -83,7 +86,7 @@ class ReadModelCache:
         connection = self._connect()
         if connection is None:
             return None
-        with connection:
+        with closing(connection), connection:
             row = connection.execute(
                 "select expires_at, payload from read_models where project_key = ? and name = ?",
                 (project, name),
@@ -98,8 +101,8 @@ class ReadModelCache:
                 )
                 return None
             try:
-                return expires_at, pickle.loads(row[1])
-            except Exception:
+                return expires_at, _deserialize_value(row[1])
+            except (TypeError, ValueError, json.JSONDecodeError):
                 connection.execute(
                     "delete from read_models where project_key = ? and name = ?",
                     (project, name),
@@ -110,12 +113,11 @@ class ReadModelCache:
         connection = self._connect()
         if connection is None:
             return
-        # ponytail: local cache only; switch to typed JSON rows if this leaves one machine.
         try:
-            payload = pickle.dumps(value, protocol=pickle.HIGHEST_PROTOCOL)
-        except Exception:
+            payload = _serialize_value(value)
+        except (TypeError, ValueError):
             return
-        with connection:
+        with closing(connection), connection:
             connection.execute(
                 """
                 insert into read_models(project_key, name, expires_at, payload)
@@ -125,3 +127,27 @@ class ReadModelCache:
                 """,
                 (project, name, expires_at, payload),
             )
+
+
+def _serialize_value(value: Any) -> str:
+    if isinstance(value, BaseModel):
+        value = {
+            "__pydantic_model__": value.__class__.__name__,
+            "data": value.model_dump(mode="json"),
+        }
+    return json.dumps(value, allow_nan=False, separators=(",", ":"))
+
+
+def _deserialize_value(payload: str | bytes) -> Any:
+    value = json.loads(payload)
+    if not isinstance(value, dict) or set(value) != {"__pydantic_model__", "data"}:
+        return value
+    model_name = value["__pydantic_model__"]
+    if not isinstance(model_name, str):
+        raise ValueError("Invalid cached Pydantic model name")
+    from phlo_api.observatory_api import observatory_models
+
+    model = getattr(observatory_models, model_name, None)
+    if not isinstance(model, type) or not issubclass(model, BaseModel):
+        raise ValueError("Cached Pydantic model is not allow-listed")
+    return model.model_validate(value["data"])
