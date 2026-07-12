@@ -313,18 +313,20 @@ export function GraphCanvas({
   }, [graphNodes, focusedAsset, onAssetSelect])
 
   const initialEdges = useMemo(() => {
-    return graphEdges.map((edge, i): Edge => ({
-      id: `edge-${i}`,
-      source: edge.source,
-      target: edge.target,
-      type: 'smoothstep',
-      animated: false,
-      style: { stroke: 'var(--border)', strokeWidth: 2 },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: 'var(--border)',
-      },
-    }))
+    return graphEdges.map(
+      (edge, i): Edge => ({
+        id: `edge-${i}`,
+        source: edge.source,
+        target: edge.target,
+        type: 'smoothstep',
+        animated: false,
+        style: { stroke: 'var(--border)', strokeWidth: 2 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: 'var(--border)',
+        },
+      }),
+    )
   }, [graphEdges])
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
