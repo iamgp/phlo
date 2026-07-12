@@ -1,6 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { Database, History, Play, Plus, Save, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type {
   ObservatoryQueryResult,
@@ -46,6 +46,7 @@ export function Queries() {
     'Select a table or enter a read-only query.',
   )
   const [running, setRunning] = useState(false)
+  const hasAppliedSuggestedSql = useRef(false)
   const suggestedSql = useMemo(() => {
     const table = tables.data?.[0]
     return table ? `SELECT * FROM ${table.id} LIMIT 100` : ''
@@ -58,15 +59,17 @@ export function Queries() {
     )
   }, [])
   useEffect(() => {
-    if (!sql && suggestedSql) {
-      setWorkspace((current) => ({
-        ...current,
-        tabs: current.tabs.map((tab) =>
-          tab.id === current.activeId ? { ...tab, sql: suggestedSql } : tab,
-        ),
-      }))
-    }
-  }, [sql, suggestedSql])
+    if (!suggestedSql || hasAppliedSuggestedSql.current) return
+    hasAppliedSuggestedSql.current = true
+    setWorkspace((current) => ({
+      ...current,
+      tabs: current.tabs.map((tab) =>
+        tab.id === current.activeId && !tab.sql
+          ? { ...tab, sql: suggestedSql }
+          : tab,
+      ),
+    }))
+  }, [suggestedSql])
 
   useEffect(() => writeQueryWorkspace(workspace), [workspace])
 
@@ -249,13 +252,13 @@ export function Queries() {
               SQL editor
             </span>
             <span className="phlo-observatory-pill">Read only</span>
-            <a
+            <Link
               className="phlo-observatory-query-history-link"
-              href="/query-history"
+              to="/query-history"
             >
               <History className="size-3.5" />
               History
-            </a>
+            </Link>
           </div>
           <textarea
             aria-label="SQL query"

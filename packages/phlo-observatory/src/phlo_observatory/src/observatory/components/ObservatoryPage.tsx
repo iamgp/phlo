@@ -38,7 +38,7 @@ export function ObservatoryPage({
             ) : (
               <span>{kicker}</span>
             )}
-            <ChevronRight className="size-3" />
+            <ChevronRight aria-hidden="true" className="size-3" />
             <span aria-current="page">{title}</span>
           </nav>
           <h1 className="phlo-observatory-title">{title}</h1>

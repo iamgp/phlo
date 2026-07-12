@@ -265,6 +265,7 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
     .filter((page) => page.nav && page.available)
     .sort((left, right) => navRank(left.id) - navRank(right.id))
   const activePage = pageForPath(pathname, pages)
+  const activePageLabel = activePage?.label
   const pagePending =
     capabilities === null &&
     activePage === null &&
@@ -312,9 +313,9 @@ function useObservatoryShell({ children }: { children: ReactNode }) {
   }, [resolvedTheme])
 
   useEffect(() => {
-    if (!hydrated || !activePage) return
-    recordRecentVisit(pathname, activePage.label)
-  }, [activePage, hydrated, pathname])
+    if (!hydrated || !activePageLabel) return
+    recordRecentVisit(pathname, activePageLabel)
+  }, [activePageLabel, hydrated, pathname])
 
   useEffect(() => {
     let cancelled = false
