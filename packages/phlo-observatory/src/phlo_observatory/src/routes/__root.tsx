@@ -10,6 +10,7 @@ import {
 import * as React from 'react'
 
 import appCss from '../styles.css?url'
+import observatoryLedgerCss from '../observatory/design/ledger.css?url'
 import { ObservatoryExtensionProvider } from '@/extensions/registry'
 import { ObservatorySettingsProvider } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
@@ -17,6 +18,8 @@ import { buttonVariants } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/toaster'
 import { ObservatoryShell } from '@/observatory/shell/ObservatoryShell'
 import { OBSERVATORY_THEME_STORAGE_KEY } from '@/observatory/shell/theme'
+
+const observatoryLedgerHref = `${observatoryLedgerCss}?v=20260711-nav-alignment`
 
 if (typeof window !== 'undefined') {
   ;(
@@ -46,6 +49,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
+      { rel: 'stylesheet', href: observatoryLedgerHref },
       { rel: 'icon', href: '/favicon.ico' },
     ],
   }),

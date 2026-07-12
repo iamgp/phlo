@@ -237,7 +237,7 @@ function ObservatoryFlowCanvasInstance({
       ) : (
         <div className="phlo-observatory-flow-empty">
           <Database className="size-4" />
-          <span>No graph nodes yet</span>
+          <span>No dependencies yet</span>
         </div>
       )}
     </div>

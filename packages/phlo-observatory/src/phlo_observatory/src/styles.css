@@ -24,6 +24,7 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.58 0.22 27);
+  --destructive-foreground: oklch(0.99 0.02 95);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -51,6 +52,36 @@ html[data-density='compact'] {
   --table-head-height: 2rem;
   --table-cell-px: 0.375rem;
   --table-cell-py: 0.25rem;
+}
+
+html[data-phlo-observatory-route='true'][data-phlo-observatory-theme='dark'] {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.19 0 0);
+  --popover-foreground: oklch(0.92 0 0);
+  --primary: oklch(0.77 0.16 70);
+  --primary-foreground: oklch(0.28 0.07 46);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.24 0 0);
+  --muted-foreground: oklch(0.72 0 0);
+  --accent: oklch(0.29 0 0);
+  --accent-foreground: oklch(0.92 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.3 0 0);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.58 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.77 0.16 70);
+  --sidebar-primary-foreground: oklch(0.28 0.07 46);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
 .dark {
@@ -200,7 +231,7 @@ html[data-density='compact'] {
   display: grid;
   gap: 0.35rem;
   color: color-mix(in oklch, var(--foreground), transparent 25%);
-  font-size: 0.82rem;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -262,7 +293,7 @@ textarea.phlo-observatory-input {
   border-radius: 0.5rem;
   background: color-mix(in oklch, var(--muted), transparent 40%);
   color: var(--foreground);
-  font-size: 0.72rem;
+  font-size: 11px;
   line-height: 1.45;
   margin: 0.5rem 0 0;
   padding: 0.7rem;
@@ -286,14 +317,14 @@ textarea.phlo-observatory-input {
 .phlo-workflow-metric span {
   display: block;
   color: var(--v2-muted);
-  font-size: 0.76rem;
-  font-weight: 650;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .phlo-workflow-metric strong {
   display: block;
   color: var(--v2-text);
-  font-size: 1.45rem;
+  font-size: 28px;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
   margin-top: 0.2rem;
@@ -332,8 +363,8 @@ textarea.phlo-observatory-input {
 .phlo-workflow-card-header h2,
 .phlo-workflow-review-header h2 {
   color: var(--v2-text);
-  font-size: 0.96rem;
-  font-weight: 760;
+  font-size: 15px;
+  font-weight: 700;
   line-height: 1.2;
   margin: 0;
 }
@@ -341,7 +372,7 @@ textarea.phlo-observatory-input {
 .phlo-workflow-card-header p,
 .phlo-workflow-review-header p {
   color: var(--v2-muted);
-  font-size: 0.78rem;
+  font-size: 12px;
   line-height: 1.45;
   margin: 0.25rem 0 0;
   max-width: 46rem;
@@ -368,7 +399,7 @@ textarea.phlo-observatory-input {
 .phlo-workflow-field span {
   color: var(--v2-text);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .phlo-workflow-field small {
@@ -389,7 +420,7 @@ textarea.phlo-observatory-input {
   color: var(--v2-text);
   font: inherit;
   font-size: 12px;
-  font-weight: 560;
+  font-weight: 600;
   height: 34px;
   padding: 0 10px;
   transition:
@@ -449,13 +480,13 @@ textarea.phlo-workflow-input {
 .phlo-workflow-option strong {
   color: var(--v2-text);
   display: block;
-  font-size: 0.86rem;
-  font-weight: 760;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .phlo-workflow-option p {
   color: var(--v2-muted);
-  font-size: 0.78rem;
+  font-size: 12px;
   line-height: 1.4;
   margin: 0.2rem 0 0;
 }
@@ -464,8 +495,8 @@ textarea.phlo-workflow-input {
   border: 1px solid var(--v2-sheet-border);
   border-radius: 999px;
   color: var(--v2-muted);
-  font-size: 0.72rem;
-  font-weight: 720;
+  font-size: 11px;
+  font-weight: 700;
   padding: 0.18rem 0.45rem;
 }
 
@@ -482,14 +513,14 @@ textarea.phlo-workflow-input {
 .phlo-workflow-empty-stage,
 .phlo-workflow-empty-review {
   color: var(--v2-muted);
-  font-size: 0.84rem;
+  font-size: 13px;
   line-height: 1.45;
   padding: 1rem;
 }
 
 .phlo-workflow-empty-stage div {
   color: var(--v2-text);
-  font-weight: 720;
+  font-weight: 700;
 }
 
 .phlo-workflow-empty-stage p {
@@ -538,8 +569,8 @@ textarea.phlo-workflow-input {
 .phlo-workflow-file summary span {
   color: var(--v2-text);
   font-family: var(--font-mono);
-  font-size: 0.76rem;
-  font-weight: 720;
+  font-size: 12px;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -547,9 +578,9 @@ textarea.phlo-workflow-input {
 
 .phlo-workflow-file summary em {
   color: var(--v2-muted);
-  font-size: 0.68rem;
+  font-size: 11px;
   font-style: normal;
-  font-weight: 720;
+  font-weight: 700;
 }
 
 .phlo-workflow-file pre {
@@ -558,7 +589,7 @@ textarea.phlo-workflow-input {
   border-top: 1px solid var(--v2-sheet-border);
   background: color-mix(in oklch, var(--v2-tile), var(--background) 22%);
   color: var(--v2-text);
-  font-size: 0.72rem;
+  font-size: 11px;
   line-height: 1.5;
   margin: 0;
   padding: 0.85rem 1rem;
@@ -673,8 +704,8 @@ textarea.phlo-workflow-input {
   border: 1px solid var(--v2-sheet-border);
   background: var(--v2-tile);
   color: var(--v2-text);
-  font-size: 0.78rem;
-  font-weight: 650;
+  font-size: 12px;
+  font-weight: 600;
   transition:
     background 150ms ease,
     border-color 150ms ease,
@@ -701,13 +732,13 @@ textarea.phlo-workflow-input {
 
 .phlo-workflow-step-copy strong {
   color: var(--v2-text);
-  font-size: 0.86rem;
-  font-weight: 780;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .phlo-workflow-step-copy em {
   color: var(--v2-muted);
-  font-size: 0.73rem;
+  font-size: 11px;
   font-style: normal;
 }
 
@@ -725,8 +756,8 @@ textarea.phlo-workflow-input {
 
 .phlo-workflow-info-grid span {
   color: var(--v2-muted);
-  font-size: 0.72rem;
-  font-weight: 720;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .phlo-workflow-template-grid {
@@ -760,20 +791,20 @@ textarea.phlo-workflow-input {
 .phlo-workflow-template-card small {
   overflow: hidden;
   color: var(--v2-muted);
-  font-size: 0.72rem;
+  font-size: 11px;
   line-height: 1.35;
   text-overflow: ellipsis;
 }
 
 .phlo-workflow-template-card span {
-  font-weight: 720;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
 .phlo-workflow-template-card strong {
   color: var(--v2-text);
-  font-size: 0.98rem;
-  font-weight: 780;
+  font-size: 15px;
+  font-weight: 700;
   line-height: 1.2;
 }
 
@@ -795,14 +826,14 @@ textarea.phlo-workflow-input {
 
 .phlo-workflow-pane-header h2 {
   color: var(--v2-text);
-  font-size: 0.96rem;
-  font-weight: 780;
+  font-size: 15px;
+  font-weight: 700;
   margin: 0;
 }
 
 .phlo-workflow-pane-header p {
   color: var(--v2-muted);
-  font-size: 0.78rem;
+  font-size: 12px;
   line-height: 1.4;
   margin: 0.2rem 0 0;
 }
@@ -911,8 +942,8 @@ textarea.phlo-workflow-input {
   background: var(--v2-sheet);
   color: var(--v2-muted);
   font-style: normal;
-  font-size: 1.25rem;
-  font-weight: 760;
+  font-size: 20px;
+  font-weight: 700;
   line-height: 1;
   transform: translateY(-1px);
 }
@@ -973,9 +1004,9 @@ textarea.phlo-workflow-input {
 .phlo-workflow-node-footer > em {
   color: var(--v2-muted);
   display: block;
-  font-size: 0.68rem;
+  font-size: 11px;
   font-style: normal;
-  font-weight: 760;
+  font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -983,8 +1014,8 @@ textarea.phlo-workflow-input {
 .phlo-workflow-node-select > strong {
   display: block;
   color: var(--v2-text);
-  font-size: 0.95rem;
-  font-weight: 780;
+  font-size: 15px;
+  font-weight: 700;
   margin-top: 0.25rem;
 }
 
@@ -994,7 +1025,7 @@ textarea.phlo-workflow-input {
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: 0.76rem;
+  font-size: 12px;
   line-height: 1.35;
   margin: 0.3rem 0 0.45rem;
 }
@@ -1085,14 +1116,14 @@ html[data-phlo-observatory-theme='dark'] .phlo-workflow-add-menu-surface {
 .phlo-workflow-add-menu-header h2,
 .phlo-workflow-add-menu-list h3 {
   color: var(--v2-text);
-  font-size: 0.9rem;
-  font-weight: 780;
+  font-size: 13px;
+  font-weight: 700;
   margin: 0;
 }
 
 .phlo-workflow-add-menu-header p {
   color: var(--v2-muted);
-  font-size: 0.74rem;
+  font-size: 11px;
   margin: 0.2rem 0 0;
 }
 
@@ -1136,13 +1167,13 @@ html[data-phlo-observatory-theme='dark'] .phlo-workflow-add-menu-surface {
 
 .phlo-workflow-add-option strong {
   color: var(--v2-text);
-  font-size: 0.78rem;
-  font-weight: 760;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .phlo-workflow-add-option em {
   color: var(--v2-muted);
-  font-size: 0.68rem;
+  font-size: 11px;
   font-style: normal;
   margin-top: 0.15rem;
 }

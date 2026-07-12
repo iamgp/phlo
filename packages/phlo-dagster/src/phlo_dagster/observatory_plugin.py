@@ -1,16 +1,16 @@
-"""Observatory extension for Dagster assets UI.
+"""Observatory extension for Dagster lineage UI.
 
 This module provides an ObservatoryExtensionPlugin that exposes Dagster
 asset information to Phlo's Observatory web UI. It registers the extension
 with the Observatory plugin system and provides static assets for the
-Dagster assets view.
+Dagster lineage view.
 
 Observatory Integration:
     The DagsterObservatoryExtension implements the ObservatoryExtensionPlugin
     interface to contribute:
     - Extension metadata (name, version, compatibility)
     - Navigation items for the Observatory UI
-    - Static assets (HTML, JS, CSS) for the assets view
+    - Static assets (HTML, JS, CSS) for the lineage view
 
 Extension Points:
     - metadata: Plugin identity for discovery
@@ -22,8 +22,7 @@ UI Assets:
     served through the Observatory's static file handling.
 
 Navigation:
-    The extension adds an "Assets" navigation item linking to /assets view
-    that renders the Dagster assets UI.
+    The extension adds a "Lineage" navigation item linking to /lineage.
 
 Example:
     Extension registration via entry_points::
@@ -49,7 +48,7 @@ from phlo.plugins.observatory import (
 
 
 class DagsterObservatoryExtension(ObservatoryExtensionPlugin):
-    """Observatory extension metadata for Dagster assets UI."""
+    """Observatory extension metadata for Dagster lineage UI."""
 
     @property
     def metadata(self) -> PluginMetadata:
@@ -62,7 +61,7 @@ class DagsterObservatoryExtension(ObservatoryExtensionPlugin):
         return PluginMetadata(
             name="dagster",
             version="0.1.0",
-            description="Observatory UI extension for Dagster assets",
+            description="Observatory UI extension for Dagster lineage",
         )
 
     @property
@@ -70,7 +69,7 @@ class DagsterObservatoryExtension(ObservatoryExtensionPlugin):
         """Return extension manifest for Observatory navigation and compatibility.
 
         Returns:
-            Extension manifest for the Dagster assets UI.
+            Extension manifest for the Dagster lineage UI.
 
         """
         return ObservatoryExtensionManifest(
@@ -78,7 +77,7 @@ class DagsterObservatoryExtension(ObservatoryExtensionPlugin):
             version="0.1.0",
             compat=ObservatoryExtensionCompatibility(observatory_min="0.1.0"),
             ui=ObservatoryExtensionUI(
-                nav=[ObservatoryExtensionNavItem(title="Assets", to="/assets")]
+                nav=[ObservatoryExtensionNavItem(title="Lineage", to="/lineage")]
             ),
         )
 

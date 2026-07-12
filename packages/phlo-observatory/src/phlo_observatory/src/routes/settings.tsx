@@ -10,33 +10,40 @@ import {
   Settings,
   SlidersHorizontal,
 } from 'lucide-react'
-import { useEffect, useId, useMemo, useReducer } from 'react'
+import { useEffect, useId, useMemo, useReducer, useState } from 'react'
 import type { Dispatch, ReactNode } from 'react'
 
 import type { ObservatorySettings } from '@/lib/observatorySettings'
 import type {
   ObservatoryCapabilities,
+  ObservatoryDatasetWorkflowConfig,
   ObservatoryResourceResult,
+  ObservatoryRuntimeSettings,
 } from '@/observatory/api/types'
 import { useObservatoryExtensions } from '@/extensions/registry'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import {
-  clearCacheEndpoint,
-  getCacheStatsEndpoint,
-} from '@/server/cache.server'
-import { getObservatoryCapabilities } from '@/observatory/api/resources'
+  getObservatoryCapabilities,
+  getObservatoryDatasetWorkflowConfigDirect,
+  getObservatoryRuntimeSettings,
+  putObservatoryDatasetWorkflowConfigDirect,
+} from '@/observatory/api/resources'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
-import { loadCachedResource } from '@/observatory/routes/liveResource'
+import {
+  invalidateCachedResources,
+  loadCachedResource,
+} from '@/observatory/routes/liveResource'
+import { labelValue } from '@/observatory/platformMetadata'
 
 export const Route = createFileRoute('/settings')({
   component: SettingsRoute,
 })
 
 type CacheStats = {
-  hits: number
-  misses: number
+  hits: number | null
+  misses: number | null
   entries: number
-  hitRate: number
+  hitRate: number | null
   entriesByPrefix: Record<string, number>
 }
 
@@ -96,6 +103,13 @@ export function SettingsRoute() {
 function useSettingsRoute() {
   const { settings, setSettings, resetToDefaults } = useObservatorySettings()
   const { settingsSections } = useObservatoryExtensions()
+  const [workflowConfig, setWorkflowConfig] =
+    useState<ObservatoryDatasetWorkflowConfig | null>(null)
+  const [workflowDraft, setWorkflowDraft] =
+    useState<ObservatoryDatasetWorkflowConfig | null>(null)
+  const [workflowMessage, setWorkflowMessage] = useState<string | null>(null)
+  const [runtimeSettings, setRuntimeSettings] =
+    useState<ObservatoryResourceResult<ObservatoryRuntimeSettings> | null>(null)
   const [{ capabilities, draft, error, stats, statsLoading }, dispatch] =
     useReducer(settingsRouteReducer, {
       capabilities: null,
@@ -127,18 +141,38 @@ function useSettingsRoute() {
 
   useEffect(() => {
     void fetchStats()
-    void loadCachedResource('v2:capabilities', getObservatoryCapabilities, {
-      force: true,
-      staleMs: 30_000,
-    }).then((nextCapabilities) =>
+    void getObservatoryDatasetWorkflowConfigDirect().then((next) => {
+      if (next.data) {
+        setWorkflowConfig(next.data)
+        setWorkflowDraft(next.data)
+      } else if (next.error) {
+        setWorkflowMessage(next.error)
+      }
+    })
+    void loadCachedResource(
+      'observatory:capabilities',
+      getObservatoryCapabilities,
+      {
+        force: true,
+        staleMs: 30_000,
+      },
+    ).then((nextCapabilities) =>
       dispatch({ type: 'capabilities', capabilities: nextCapabilities }),
     )
+    void loadCachedResource(
+      'observatory:runtime-settings',
+      getObservatoryRuntimeSettings,
+      {
+        force: true,
+        staleMs: 30_000,
+      },
+    ).then(setRuntimeSettings)
   }, [])
 
   async function fetchStats() {
     dispatch({ type: 'statsLoading', loading: true })
     try {
-      dispatch({ type: 'stats', stats: await getCacheStatsEndpoint() })
+      dispatch({ type: 'stats', stats: readBrowserCacheStats() })
     } catch {
       dispatch({ type: 'stats', stats: null })
     } finally {
@@ -149,7 +183,7 @@ function useSettingsRoute() {
   async function clearCache() {
     dispatch({ type: 'statsLoading', loading: true })
     try {
-      await clearCacheEndpoint()
+      clearBrowserCache()
       await fetchStats()
     } catch {
       dispatch({ type: 'statsLoading', loading: false })
@@ -166,11 +200,38 @@ function useSettingsRoute() {
     setSettings(draft)
   }
 
+  function saveWorkflowConfig() {
+    if (!workflowDraft) return
+    const owner = workflowDraft.default_owner.trim()
+    const approvalStates = workflowDraft.approval_states
+      .map((state) => state.trim())
+      .filter(Boolean)
+    if (!owner || approvalStates.length === 0) {
+      setWorkflowMessage('Default owner and approval states are required.')
+      return
+    }
+    setWorkflowMessage('Saving workflow defaults...')
+    void putObservatoryDatasetWorkflowConfigDirect({
+      default_owner: owner,
+      approval_states: approvalStates,
+    }).then((next) => {
+      if (next.data) {
+        setWorkflowConfig(next.data)
+        setWorkflowDraft(next.data)
+        setWorkflowMessage('Workflow defaults saved.')
+      } else {
+        setWorkflowMessage(
+          next.error ?? 'Workflow defaults could not be saved.',
+        )
+      }
+    })
+  }
+
   return (
     <ObservatoryPage
       kicker="Settings"
-      title="Observatory settings"
-      description="Edit browser preferences, inspect capabilities, and run local maintenance controls."
+      title="Platform settings"
+      description="Runtime mode, provider coverage, cache state, workflow defaults, and local UI preferences."
       action={
         <span className="phlo-observatory-pill">
           <Settings className="size-3.5" />
@@ -181,10 +242,10 @@ function useSettingsRoute() {
       <section className="phlo-observatory-settings-workbench">
         <div className="phlo-observatory-settings-toolbar">
           <div>
-            <strong>Preferences</strong>
+            <strong>Platform trust and preferences</strong>
             <span>
-              Preferences are saved for this browser. Project and provider
-              settings appear when phlo-api exposes a write contract.
+              Runtime truth comes from phlo-api. Browser preferences only affect
+              this local Observatory session.
             </span>
           </div>
           <div className="phlo-observatory-action-row">
@@ -222,7 +283,19 @@ function useSettingsRoute() {
         )}
 
         <SettingsPanel
-          description="Defaults used when opening data and catalog views."
+          description="Live phlo-api contract for enabled surfaces, providers, defaults, and local cache state."
+          icon={<Plug className="size-4" />}
+          title="Runtime truth"
+        >
+          <RuntimeTruth
+            runtimeSettings={runtimeSettings}
+            stats={stats}
+            statsLoading={statsLoading}
+          />
+        </SettingsPanel>
+
+        <SettingsPanel
+          description="Defaults used when opening table, query, and preview views."
           icon={<SlidersHorizontal className="size-4" />}
           title="Defaults"
         >
@@ -240,7 +313,7 @@ function useSettingsRoute() {
                 />
               </SettingField>
             )}
-            <SettingField label="Catalog">
+            <SettingField label="Query default">
               <TextInput
                 value={draft.defaults.catalog}
                 onChange={(value) =>
@@ -316,6 +389,66 @@ function useSettingsRoute() {
               }))
             }
           />
+        </SettingsPanel>
+
+        <SettingsPanel
+          description="Project defaults used by candidate and publication workflow actions."
+          icon={<SlidersHorizontal className="size-4" />}
+          title="Dataset workflow"
+        >
+          <div className="phlo-observatory-settings-columns">
+            <SettingField label="Default owner">
+              <TextInput
+                value={workflowDraft?.default_owner ?? ''}
+                onChange={(value) =>
+                  setWorkflowDraft((current) => ({
+                    default_owner: value,
+                    approval_states: current?.approval_states ?? [
+                      'draft',
+                      'review',
+                      'approved',
+                      'rejected',
+                      'retired',
+                    ],
+                  }))
+                }
+              />
+            </SettingField>
+            <SettingField
+              hint="Comma-separated states shown by publication workflows."
+              label="Approval states"
+            >
+              <TextInput
+                value={workflowDraft?.approval_states.join(', ') ?? ''}
+                onChange={(value) =>
+                  setWorkflowDraft((current) => ({
+                    default_owner: current?.default_owner ?? '',
+                    approval_states: value
+                      .split(',')
+                      .map((state) => state.trim()),
+                  }))
+                }
+              />
+            </SettingField>
+          </div>
+          <div className="phlo-observatory-action-row">
+            <button
+              disabled={
+                !workflowDraft ||
+                JSON.stringify(workflowDraft) === JSON.stringify(workflowConfig)
+              }
+              onClick={saveWorkflowConfig}
+              type="button"
+            >
+              <Save className="size-3.5" />
+              Save workflow defaults
+            </button>
+          </div>
+          {workflowMessage && (
+            <div className="phlo-observatory-panel-footer">
+              {workflowMessage}
+            </div>
+          )}
         </SettingsPanel>
 
         <SettingsPanel
@@ -448,7 +581,7 @@ function useSettingsRoute() {
                 <small>
                   {page.available
                     ? page.providers.length
-                      ? page.providers.join(', ')
+                      ? page.providers.map(labelValue).join(', ')
                       : 'core'
                     : (page.reason ?? 'No provider installed')}
                 </small>
@@ -489,11 +622,23 @@ function useSettingsRoute() {
             </div>
           </div>
           <div className="phlo-observatory-cache-grid">
-            <CacheMetric label="Hits" value={stats?.hits ?? 0} />
-            <CacheMetric label="Misses" value={stats?.misses ?? 0} />
+            <CacheMetric
+              label="Hits"
+              value={stats?.hits === null ? 'not tracked' : (stats?.hits ?? 0)}
+            />
+            <CacheMetric
+              label="Misses"
+              value={
+                stats?.misses === null ? 'not tracked' : (stats?.misses ?? 0)
+              }
+            />
             <CacheMetric
               label="Hit rate"
-              value={`${((stats?.hitRate ?? 0) * 100).toFixed(1)}%`}
+              value={
+                stats?.hitRate === null || stats?.hitRate === undefined
+                  ? 'not tracked'
+                  : `${(stats.hitRate * 100).toFixed(1)}%`
+              }
             />
             <CacheMetric label="Entries" value={stats?.entries ?? 0} />
           </div>
@@ -514,6 +659,245 @@ function useSettingsRoute() {
       </section>
     </ObservatoryPage>
   )
+}
+
+function RuntimeTruth({
+  runtimeSettings,
+  stats,
+  statsLoading,
+}: {
+  runtimeSettings: ObservatoryResourceResult<ObservatoryRuntimeSettings> | null
+  stats: CacheStats | null
+  statsLoading: boolean
+}) {
+  const settings = runtimeSettings?.data
+  const features = settings?.features ?? {}
+  const enabled = Object.entries(features).filter(([, value]) => value)
+  const disabled = Object.entries(features).filter(([, value]) => !value)
+  const providers = readProviders(settings)
+  const defaults = settings?.defaults ?? {}
+  const runtime = settings?.metadata.runtime
+
+  return (
+    <div className="phlo-observatory-runtime-truth">
+      <div className="phlo-observatory-cache-grid">
+        <CacheMetric
+          label="API contract"
+          value={runtimeSettingsLabel(runtimeSettings)}
+        />
+        <CacheMetric label="Enabled surfaces" value={enabled.length} />
+        <CacheMetric label="Disabled surfaces" value={disabled.length} />
+        <CacheMetric
+          label="Cache entries"
+          value={statsLoading && !stats ? 'checking' : (stats?.entries ?? 0)}
+        />
+      </div>
+      <div className="phlo-observatory-runtime-columns">
+        <div className="phlo-observatory-detail-list">
+          <div className="phlo-observatory-mini-row">
+            <span>Defaults</span>
+            <small>
+              {Object.entries(defaults)
+                .map(
+                  ([key, value]) =>
+                    `${labelize(key)}: ${
+                      typeof value === 'string' ? labelValue(value) : value
+                    }`,
+                )
+                .join(' · ') || 'No workflow defaults configured'}
+            </small>
+          </div>
+          <div className="phlo-observatory-mini-row">
+            <span>Runtime context</span>
+            <small>
+              {settings
+                ? formatSettingsStorage(settings.storage.settings)
+                : runtimeSettings?.error
+                  ? 'runtime settings unavailable'
+                  : 'loading runtime settings'}
+            </small>
+          </div>
+          <div className="phlo-observatory-mini-row">
+            <span>Project path</span>
+            <small>{runtime?.project_path || 'not reported'}</small>
+          </div>
+          <div className="phlo-observatory-mini-row">
+            <span>Compose project</span>
+            <small>{runtime?.compose_project || 'not configured'}</small>
+          </div>
+          <div className="phlo-observatory-mini-row">
+            <span>API mode</span>
+            <small>{runtime?.api_source || 'not reported'}</small>
+          </div>
+          <div className="phlo-observatory-mini-row">
+            <span>Disabled surfaces</span>
+            <small>
+              {disabled.map(([feature]) => labelize(feature)).join(', ') ||
+                'none'}
+            </small>
+          </div>
+          {runtimeSettings?.error && (
+            <div className="phlo-observatory-mini-row">
+              <span>Runtime settings error</span>
+              <small>{runtimeSettings.error}</small>
+            </div>
+          )}
+        </div>
+        <div className="phlo-observatory-detail-list">
+          {providers.slice(0, 8).map(([surface, surfaceProviders]) => (
+            <div className="phlo-observatory-mini-row" key={surface}>
+              <span>{labelize(surface)}</span>
+              <small>
+                {surfaceProviders.map(labelValue).join(', ') || 'No provider'}
+              </small>
+            </div>
+          ))}
+          {providers.length === 0 && (
+            <div className="phlo-observatory-mini-row">
+              <span>Provider coverage</span>
+              <small>No provider metadata available yet.</small>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function runtimeSettingsLabel(
+  runtimeSettings: ObservatoryResourceResult<ObservatoryRuntimeSettings> | null,
+): string {
+  if (runtimeSettings?.data) return `v${runtimeSettings.data.version}`
+  if (runtimeSettings?.error) return 'unavailable'
+  return 'checking'
+}
+
+function readProviders(
+  settings: ObservatoryRuntimeSettings | null | undefined,
+): Array<[string, Array<string>]> {
+  const providers = settings?.metadata.providers
+  if (!providers || typeof providers !== 'object') return []
+  return Object.entries(providers)
+    .map(
+      ([surface, value]) =>
+        [
+          surface,
+          Array.isArray(value)
+            ? value.filter((item): item is string => typeof item === 'string')
+            : [],
+        ] as [string, Array<string>],
+    )
+    .sort(([left], [right]) => left.localeCompare(right))
+}
+
+function labelize(value: string): string {
+  const label = value
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  return label.replace(/\bApis\b/g, 'APIs').replace(/\bBi\b/g, 'BI')
+}
+
+function formatSettingsStorage(value: string | undefined): string {
+  if (value === 'core') return 'phlo-api core settings'
+  if (!value) return 'not reported'
+  return labelize(value)
+}
+
+const browserCacheVersion = '2026-07-10-observatory-runtime-v11'
+const browserCachePrefix = `phlo-observatory:${browserCacheVersion}:`
+const browserResourceKeys = [
+  'observatory:apis',
+  'observatory:bi',
+  'observatory:branches',
+  'observatory:capabilities',
+  'observatory:datasets',
+  'observatory:extensions',
+  'observatory:governance',
+  'observatory:governance-matrix',
+  'observatory:logs',
+  'observatory:observability',
+  'observatory:operations',
+  'observatory:overview',
+  'observatory:pipelines',
+  'observatory:quality',
+  'observatory:runs',
+  'observatory:runtime-settings',
+  'observatory:services',
+  'observatory:storage',
+  'observatory:tables',
+  'observatory:workflow-wizard',
+]
+
+function readBrowserCacheStats(): CacheStats {
+  const storage = browserSessionStorage()
+  if (!storage) {
+    return {
+      entries: 0,
+      entriesByPrefix: {},
+      hitRate: null,
+      hits: null,
+      misses: null,
+    }
+  }
+
+  const entriesByPrefix: Record<string, number> = {}
+  let entries = 0
+  const expiredKeys: Array<string> = []
+  for (let index = 0; index < storage.length; index += 1) {
+    const storageKey = storage.key(index)
+    if (!storageKey?.startsWith(browserCachePrefix)) continue
+    if (isExpiredBrowserCacheEntry(storage.getItem(storageKey))) {
+      expiredKeys.push(storageKey)
+      continue
+    }
+    entries += 1
+    const resourceKey = storageKey.slice(browserCachePrefix.length)
+    const prefix = resourceKey.split(':').slice(0, 2).join(':') || resourceKey
+    entriesByPrefix[prefix] = (entriesByPrefix[prefix] ?? 0) + 1
+  }
+
+  for (const key of expiredKeys) storage.removeItem(key)
+
+  return {
+    entries,
+    entriesByPrefix,
+    hitRate: null,
+    hits: null,
+    misses: null,
+  }
+}
+
+function clearBrowserCache(): void {
+  invalidateCachedResources(browserResourceKeys)
+  const storage = browserSessionStorage()
+  if (!storage) return
+  const keys: Array<string> = []
+  for (let index = 0; index < storage.length; index += 1) {
+    const storageKey = storage.key(index)
+    if (storageKey?.startsWith(browserCachePrefix)) keys.push(storageKey)
+  }
+  for (const key of keys) storage.removeItem(key)
+}
+
+function browserSessionStorage(): Storage | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.sessionStorage
+  } catch {
+    return null
+  }
+}
+
+function isExpiredBrowserCacheEntry(raw: string | null): boolean {
+  if (!raw) return true
+  try {
+    const parsed = JSON.parse(raw) as { expiresAt?: unknown }
+    return (
+      typeof parsed.expiresAt !== 'number' || parsed.expiresAt <= Date.now()
+    )
+  } catch {
+    return true
+  }
 }
 
 function SettingsPanel({

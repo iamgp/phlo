@@ -7,8 +7,13 @@ import type {
   ObservatoryBranch,
   ObservatoryBranchDetail,
   ObservatoryCapabilities,
+  ObservatoryDataset,
+  ObservatoryDatasetPipeline,
+  ObservatoryDatasetProfile,
+  ObservatoryDatasetWorkflowConfig,
   ObservatoryExtension,
   ObservatoryExtensionDetail,
+  ObservatoryGovernanceMatrix,
   ObservatoryLogEvent,
   ObservatoryLogFacets,
   ObservatoryMetadata,
@@ -23,6 +28,7 @@ import type {
   ObservatoryResourceResult,
   ObservatoryRowJourney,
   ObservatoryRun,
+  ObservatoryRuntimeSettings,
   ObservatorySavedQuery,
   ObservatorySearchResult,
   ObservatoryService,
@@ -59,8 +65,7 @@ function browserApiBase(): string | null {
     window.__PHLO_API_BROWSER_URL__ ??
     document.querySelector<HTMLMetaElement>('meta[name="phlo-api-browser-url"]')
       ?.content
-  if (configured !== undefined) return configured.trim() || null
-  return null
+  return configured?.trim() ?? ''
 }
 
 async function browserApiGet<T>(endpoint: string): Promise<T> {
@@ -91,7 +96,7 @@ async function browserApiGet<T>(endpoint: string): Promise<T> {
 
 async function browserApiPost<T>(
   endpoint: string,
-  body: Record<string, unknown>,
+  body: unknown,
   timeoutMs = 12000,
 ): Promise<T> {
   const base = browserApiBase()
@@ -106,6 +111,44 @@ async function browserApiPost<T>(
       body: JSON.stringify(body),
       headers: { 'content-type': 'application/json' },
       method: 'POST',
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('phlo-api request timed out')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const detail =
+      payload && typeof payload === 'object' && 'detail' in payload
+        ? String(payload.detail)
+        : `${response.status} ${response.statusText}`
+    throw new Error(`phlo-api error: ${detail}`)
+  }
+  return response.json()
+}
+
+async function browserApiPut<T>(
+  endpoint: string,
+  body: unknown,
+  timeoutMs = 12000,
+): Promise<T> {
+  const base = browserApiBase()
+  if (base === null) {
+    throw new Error('Browser API fallback is unavailable during SSR')
+  }
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
+  let response: Response
+  try {
+    response = await fetch(`${base}${endpoint}`, {
+      body: JSON.stringify(body),
+      headers: { 'content-type': 'application/json' },
+      method: 'PUT',
       signal: controller.signal,
     })
   } catch (error) {
@@ -234,6 +277,19 @@ async function getRawCollection<T>(
   }
 }
 
+async function getRawResource<T>(
+  endpoint: string,
+): Promise<ObservatoryResourceResult<T>> {
+  try {
+    const response = await observatoryApiGet<T>(
+      `${Observatory_API_PREFIX}/${endpoint}`,
+    )
+    return { data: response, error: null }
+  } catch (error) {
+    return apiUnavailable<T>(error)
+  }
+}
+
 async function getCollection(
   endpoint: string,
 ): Promise<ObservatoryResourceResult<Array<ObservatoryResourceItem>>> {
@@ -252,6 +308,19 @@ async function getCollection(
 
 export function getObservatoryOperationRecords() {
   return getRawCollection<ObservatoryOperation>('operations')
+}
+
+export async function getObservatoryOperationRecordsDirect(): Promise<
+  ObservatoryResourceResult<Array<ObservatoryOperation>>
+> {
+  try {
+    const response = await browserApiGet<{
+      items: Array<ObservatoryOperation>
+    }>(`${Observatory_API_PREFIX}/operations`)
+    return { data: response.items, error: null }
+  } catch (error) {
+    return apiUnavailable<Array<ObservatoryOperation>>(error)
+  }
 }
 
 export const getObservatoryOperationDetail = createServerFn()
@@ -273,6 +342,21 @@ export const getObservatoryOperationDetail = createServerFn()
     },
   )
 
+export async function getObservatoryOperationDetailDirect({
+  operationId,
+}: {
+  operationId: string
+}): Promise<ObservatoryResourceResult<ObservatoryOperationDetail>> {
+  try {
+    const data = await browserApiGet<ObservatoryOperationDetail>(
+      `${Observatory_API_PREFIX}/operations/${encodeURIComponent(operationId)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryOperationDetail>(error)
+  }
+}
+
 export function getObservatoryRunRecords() {
   return getRawCollection<ObservatoryRun>('runs')
 }
@@ -286,11 +370,7 @@ export function getObservatoryObservabilityItems() {
 }
 
 export function getObservatoryGovernanceItems() {
-  return getRawCollection<ObservatorySurfaceItem>('governance')
-}
-
-export function getObservatoryCatalogItems() {
-  return getRawCollection<ObservatorySurfaceItem>('catalog')
+  return getRawResource<ObservatoryGovernanceMatrix>('governance')
 }
 
 export function getObservatoryApiItems() {
@@ -303,6 +383,75 @@ export function getObservatoryBiItems() {
 
 export function getObservatoryAssetRecords() {
   return getRawCollection<ObservatoryAsset>('assets')
+}
+
+export function getObservatoryDatasetRecords() {
+  return getRawCollection<ObservatoryDataset>('datasets')
+}
+
+export async function getObservatoryDatasetWorkflowConfigDirect(): Promise<
+  ObservatoryResourceResult<ObservatoryDatasetWorkflowConfig>
+> {
+  try {
+    const data = await browserApiGet<ObservatoryDatasetWorkflowConfig>(
+      `${Observatory_API_PREFIX}/dataset-workflow/config`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryDatasetWorkflowConfig>(error)
+  }
+}
+
+export async function putObservatoryDatasetWorkflowConfigDirect(
+  config: ObservatoryDatasetWorkflowConfig,
+): Promise<ObservatoryResourceResult<ObservatoryDatasetWorkflowConfig>> {
+  try {
+    const data = await browserApiPut<ObservatoryDatasetWorkflowConfig>(
+      `${Observatory_API_PREFIX}/dataset-workflow/config`,
+      config,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryDatasetWorkflowConfig>(error)
+  }
+}
+
+export function getObservatoryPipelineRecords() {
+  return getRawCollection<ObservatoryDatasetPipeline>('pipelines')
+}
+
+export const getObservatoryDatasetProfile = createServerFn()
+  .inputValidator((input: { datasetId: string }) => input)
+  .handler(
+    async ({
+      data: { datasetId },
+    }): Promise<ObservatoryResourceResult<ObservatoryDatasetProfile>> => {
+      try {
+        const data = await apiGet<ObservatoryDatasetProfile>(
+          `${Observatory_API_PREFIX}/datasets/${encodeURIComponent(datasetId)}`,
+          undefined,
+          8000,
+        )
+        return { data, error: null }
+      } catch (error) {
+        return apiUnavailable<ObservatoryDatasetProfile>(error)
+      }
+    },
+  )
+
+export async function getObservatoryDatasetProfileDirect({
+  datasetId,
+}: {
+  datasetId: string
+}): Promise<ObservatoryResourceResult<ObservatoryDatasetProfile>> {
+  try {
+    const data = await browserApiGet<ObservatoryDatasetProfile>(
+      `${Observatory_API_PREFIX}/datasets/${encodeURIComponent(datasetId)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryDatasetProfile>(error)
+  }
 }
 
 export const getObservatoryAssetDetail = createServerFn()
@@ -323,6 +472,21 @@ export const getObservatoryAssetDetail = createServerFn()
       }
     },
   )
+
+export async function getObservatoryAssetDetailDirect({
+  assetId,
+}: {
+  assetId: string
+}): Promise<ObservatoryResourceResult<ObservatoryAssetDetail>> {
+  try {
+    const data = await browserApiGet<ObservatoryAssetDetail>(
+      `${Observatory_API_PREFIX}/assets/${encodeURIComponent(assetId)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryAssetDetail>(error)
+  }
+}
 
 export function getObservatoryTableRecords() {
   return getRawCollection<ObservatoryTable>('tables')
@@ -475,8 +639,27 @@ export const getObservatoryQualityDetail = createServerFn()
     },
   )
 
+export async function getObservatoryQualityDetailDirect({
+  checkId,
+}: {
+  checkId: string
+}): Promise<ObservatoryResourceResult<ObservatoryQualityDetail>> {
+  try {
+    const data = await browserApiGet<ObservatoryQualityDetail>(
+      `${Observatory_API_PREFIX}/quality/${encodeURIComponent(checkId)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryQualityDetail>(error)
+  }
+}
+
 export function getObservatoryLogRecords() {
   return getRawCollection<ObservatoryLogEvent>('logs')
+}
+
+export function getObservatoryRuntimeSettings() {
+  return getRawResource<ObservatoryRuntimeSettings>('settings')
 }
 
 export async function getObservatoryLogFacets(): Promise<
@@ -538,6 +721,21 @@ export function getObservatoryExtensions() {
   return getRawCollection<ObservatoryExtension>('extensions')
 }
 
+export async function getObservatoryExtensionDetailDirect({
+  extensionId,
+}: {
+  extensionId: string
+}): Promise<ObservatoryResourceResult<ObservatoryExtensionDetail>> {
+  try {
+    const data = await browserApiGet<ObservatoryExtensionDetail>(
+      `${Observatory_API_PREFIX}/extensions/${encodeURIComponent(extensionId)}`,
+    )
+    return { data, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryExtensionDetail>(error)
+  }
+}
+
 export const getObservatoryExtensionDetail = createServerFn()
   .inputValidator((input: { extensionId: string }) => input)
   .handler(
@@ -573,6 +771,21 @@ export const searchObservatory = createServerFn()
       }
     },
   )
+
+export async function searchObservatoryDirect({
+  query,
+}: {
+  query: string
+}): Promise<ObservatoryResourceResult<Array<ObservatorySearchResult>>> {
+  try {
+    const response = await browserApiGet<{
+      items: Array<ObservatorySearchResult>
+    }>(`${Observatory_API_PREFIX}/search?q=${encodeURIComponent(query)}`)
+    return { data: response.items, error: null }
+  } catch (error) {
+    return apiUnavailable<Array<ObservatorySearchResult>>(error)
+  }
+}
 
 export const runObservatoryAction = createServerFn()
   .inputValidator((input: { actionId: string }) => input)
@@ -678,46 +891,54 @@ export async function getObservatoryWorkflowWizard(): Promise<
   }
 }
 
-export const createObservatoryWorkflowProposal = createServerFn()
-  .inputValidator((input: ObservatoryWorkflowProposalRequest) => input)
-  .handler(
-    async ({
-      data,
-    }): Promise<ObservatoryResourceResult<ObservatoryWorkflowProposal>> => {
-      try {
-        const proposal = await apiPost<ObservatoryWorkflowProposal>(
-          `${Observatory_API_PREFIX}/workflow-wizard/proposals`,
-          data,
-          12000,
-        )
-        return { data: proposal, error: null }
-      } catch (error) {
-        return apiUnavailable<ObservatoryWorkflowProposal>(error)
-      }
-    },
-  )
+export async function createObservatoryWorkflowProposal({
+  data,
+}: {
+  data: ObservatoryWorkflowProposalRequest
+}): Promise<ObservatoryResourceResult<ObservatoryWorkflowProposal>> {
+  try {
+    const proposal =
+      browserApiBase() !== null
+        ? await browserApiPost<ObservatoryWorkflowProposal>(
+            `${Observatory_API_PREFIX}/workflow-wizard/proposals`,
+            data,
+            12000,
+          )
+        : await apiPost<ObservatoryWorkflowProposal>(
+            `${Observatory_API_PREFIX}/workflow-wizard/proposals`,
+            data,
+            12000,
+          )
+    return { data: proposal, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryWorkflowProposal>(error)
+  }
+}
 
-export const runObservatoryWorkflowAction = createServerFn()
-  .inputValidator(
-    (input: { actionId: string; proposal: ObservatoryWorkflowProposal }) =>
-      input,
-  )
-  .handler(
-    async ({
-      data: { actionId, proposal },
-    }): Promise<ObservatoryResourceResult<ObservatoryWorkflowActionResult>> => {
-      try {
-        const result = await apiPost<ObservatoryWorkflowActionResult>(
-          `${Observatory_API_PREFIX}/workflow-wizard/actions`,
-          { action_id: actionId, proposal },
-          12000,
-        )
-        return { data: result, error: null }
-      } catch (error) {
-        return apiUnavailable<ObservatoryWorkflowActionResult>(error)
-      }
-    },
-  )
+export async function runObservatoryWorkflowAction({
+  data: { actionId, proposal },
+}: {
+  data: { actionId: string; proposal: ObservatoryWorkflowProposal }
+}): Promise<ObservatoryResourceResult<ObservatoryWorkflowActionResult>> {
+  try {
+    const body = { action_id: actionId, proposal }
+    const result =
+      browserApiBase() !== null
+        ? await browserApiPost<ObservatoryWorkflowActionResult>(
+            `${Observatory_API_PREFIX}/workflow-wizard/actions`,
+            body,
+            12000,
+          )
+        : await apiPost<ObservatoryWorkflowActionResult>(
+            `${Observatory_API_PREFIX}/workflow-wizard/actions`,
+            body,
+            12000,
+          )
+    return { data: result, error: null }
+  } catch (error) {
+    return apiUnavailable<ObservatoryWorkflowActionResult>(error)
+  }
+}
 
 function normalizeItem(
   endpoint: string,

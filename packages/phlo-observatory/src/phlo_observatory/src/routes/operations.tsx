@@ -1,17 +1,20 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import {
   CheckCircle2,
   Clock3,
   Database,
+  FileText,
   RotateCcw,
   ShieldAlert,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
   ObservatoryOperation,
   ObservatoryOperationDetail,
+  ObservatoryQualityCheck,
+  ObservatoryResourceRef,
   ObservatoryResourceResult,
 } from '@/observatory/api/types'
 import type {
@@ -20,7 +23,10 @@ import type {
 } from '@/observatory/components/ObservatoryFlowCanvas'
 import {
   getObservatoryOperationDetail,
+  getObservatoryOperationDetailDirect,
   getObservatoryOperationRecords,
+  getObservatoryOperationRecordsDirect,
+  getObservatoryQualityRecords,
   runObservatoryAction,
 } from '@/observatory/api/resources'
 import { ActionButton } from '@/observatory/components/ActionButton'
@@ -40,17 +46,35 @@ export function Operations() {
   const result = useLiveResource(
     getObservatoryOperationRecords,
     120_000,
-    'v2:operations',
+    'observatory:operations',
+  )
+  const qualityResult = useLiveResource(
+    getObservatoryQualityRecords,
+    120_000,
+    'observatory:quality',
   )
   const operations = result.data ?? []
+  const [directResult, setDirectResult] = useState<ObservatoryResourceResult<
+    Array<ObservatoryOperation>
+  > | null>(null)
+  const directOperations = directResult?.data ?? []
+  const isLoading =
+    result.isLoading ||
+    (operations.length === 0 && directResult === null && !result.error)
+  const qualityChecks = qualityResult.data ?? []
   const [localOperations, setLocalOperations] = useState<
     Array<ObservatoryOperation>
   >([])
-  const visibleOperations = mergeOperations(localOperations, operations)
+  const apiOperations =
+    directOperations.length > 0 || operations.length === 0
+      ? directOperations
+      : operations
+  const visibleOperations = mergeOperations(localOperations, apiOperations)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const defaultOperation = chooseDefaultOperation(visibleOperations)
   const latest =
     visibleOperations.find((operation) => operation.id === selectedId) ??
-    visibleOperations[0] ??
+    defaultOperation ??
     null
   const displayedOperations = visibleOperations.slice(0, 100)
   const hiddenOperationCount = Math.max(
@@ -76,7 +100,39 @@ export function Operations() {
   )
   const selectedFailure = latest ? operationFailure(latest) : null
   const selectedMetadata = latest ? operationMetadata(latest) : []
+  const selectedQuality = latest
+    ? qualityChecks.filter(
+        (check) =>
+          check.asset_id === latest.target?.id && check.status !== 'passing',
+      )
+    : []
   const selectedIsWap = latest?.kind === 'wap'
+  const selectOperation = useCallback((operationId: string) => {
+    setSelectedId(operationId)
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('operationId', operationId)
+    window.history.replaceState(
+      null,
+      '',
+      `${url.pathname}?${url.searchParams.toString()}`,
+    )
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const refresh = () => {
+      void getObservatoryOperationRecordsDirect().then((next) => {
+        if (!cancelled) setDirectResult(next)
+      })
+    }
+    refresh()
+    const interval = window.setInterval(refresh, 30_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -90,14 +146,30 @@ export function Operations() {
   }, [selectedId, visibleOperations])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (selectedId !== null || visibleOperations.length === 0) return
+    const requested = new URLSearchParams(window.location.search).get(
+      'operationId',
+    )
+    const initial =
+      visibleOperations.find((operation) => operation.id === requested) ??
+      chooseDefaultOperation(visibleOperations)
+    if (!initial) return
+    selectOperation(initial.id)
+  }, [selectOperation, selectedId, visibleOperations])
+
+  useEffect(() => {
     if (!latest) {
       setDetail({ data: null, error: null })
       return
     }
     let cancelled = false
-    void getObservatoryOperationDetail({
-      data: { operationId: latest.id },
-    }).then((next) => {
+    const loadDetail =
+      typeof window === 'undefined'
+        ? getObservatoryOperationDetail({ data: { operationId: latest.id } })
+        : getObservatoryOperationDetailDirect({ operationId: latest.id })
+
+    void loadDetail.then((next) => {
       if (!cancelled) setDetail(next)
     })
     return () => {
@@ -108,15 +180,17 @@ export function Operations() {
   return (
     <ObservatoryPage
       kicker="Operations"
-      title={selectedIsWap && latest ? latest.name : 'Recovery activity'}
+      title={latest ? latest.name : 'Recovery activity'}
       description={
         selectedIsWap && latest
-          ? 'WAP branch publish evidence, affected tables, and target hash movement.'
-          : 'Phlo-owned actions, maintenance status, and service-impacting work.'
+          ? 'Branch publish evidence, affected tables, and target hash movement.'
+          : latest
+            ? operationPageDescription(latest)
+            : 'Recovery operations, affected scope, evidence, and supported next steps.'
       }
       action={
         <span className="phlo-observatory-pill">
-          {visibleOperations.length} actions
+          {isLoading ? 'Loading' : `${visibleOperations.length} operations`}
         </span>
       }
     >
@@ -126,19 +200,32 @@ export function Operations() {
         }`}
       >
         <div className="phlo-observatory-command-primary">
-          {visibleOperations.length > 0 ? (
+          {isLoading ? (
+            <div className="phlo-observatory-operation-empty">
+              <div>
+                <span className="phlo-observatory-inspector-label">
+                  Operations
+                </span>
+                <h2>Loading operations</h2>
+                <p>
+                  Reading live recovery, service, and maintenance operation
+                  evidence.
+                </p>
+              </div>
+            </div>
+          ) : visibleOperations.length > 0 ? (
             <>
               {!selectedIsWap && (
                 <div className="phlo-observatory-command-strip">
                   <Metric
                     icon={<CheckCircle2 className="size-4" />}
                     label="Recovered"
-                    value={recovered}
+                    value={isLoading ? 'Loading' : recovered}
                   />
                   <Metric
                     icon={<ShieldAlert className="size-4" />}
                     label="Failed"
-                    value={failed}
+                    value={isLoading ? 'Loading' : failed}
                   />
                   <Metric
                     icon={<Clock3 className="size-4" />}
@@ -146,7 +233,7 @@ export function Operations() {
                     value={
                       latest?.duration_seconds
                         ? `${latest.duration_seconds}s`
-                        : 'n/a'
+                        : 'not reported'
                     }
                   />
                 </div>
@@ -167,7 +254,7 @@ export function Operations() {
                   <div className="phlo-observatory-operation-focus-body">
                     <div className="phlo-observatory-operation-focus-main">
                       <span className="phlo-observatory-inspector-label">
-                        {latest.kind}
+                        {humanizeLabel(latest.kind)}
                       </span>
                       <h2>{latest.name}</h2>
                       <p>{latest.target?.label ?? 'Platform operation'}</p>
@@ -179,19 +266,13 @@ export function Operations() {
                       )}
                     </div>
                     <dl className="phlo-observatory-operation-evidence-grid">
-                      <Fact label="Operation id" value={latest.id} />
-                      <Fact
-                        label="Experiment"
-                        value={readMetric(latest.metadata, 'experiment_id')}
-                      />
-                      <Fact
-                        label="Plate"
-                        value={readMetric(latest.metadata, 'plate_id')}
-                      />
-                      <Fact
-                        label="Completed"
-                        value={formatDateTime(latest.completed_at)}
-                      />
+                      {operationEvidenceFacts(latest).map((fact) => (
+                        <Fact
+                          key={fact.label}
+                          label={fact.label}
+                          value={fact.value}
+                        />
+                      ))}
                     </dl>
                   </div>
                   {selectedMetadata.length > 0 && (
@@ -204,6 +285,7 @@ export function Operations() {
                       ))}
                     </div>
                   )}
+                  <InvestigationPath detail={detail.data} operation={latest} />
                 </div>
               ) : null}
               {!selectedIsWap && (
@@ -220,15 +302,12 @@ export function Operations() {
                         className="phlo-observatory-operation-ledger-card"
                         data-state={item.state}
                         key={item.id}
-                        onClick={() => setSelectedId(item.latest.id)}
+                        onClick={() => selectOperation(item.latest.id)}
                         type="button"
                       >
-                        <span>{item.kind}</span>
+                        <span>{humanizeLabel(item.kind)}</span>
                         <strong>{item.label}</strong>
-                        <small>
-                          {item.succeeded} succeeded · {item.failed} failed ·{' '}
-                          {item.lastSeen}
-                        </small>
+                        <small>{operationLedgerSummary(item)}</small>
                       </button>
                     ))}
                   </div>
@@ -249,7 +328,7 @@ export function Operations() {
                     {displayedOperations.map((operation) => (
                       <OperationLine
                         key={operation.id}
-                        onSelect={setSelectedId}
+                        onSelect={selectOperation}
                         operation={operation}
                         selected={operation.id === latest?.id}
                       />
@@ -272,9 +351,9 @@ export function Operations() {
                 </span>
                 <h2>Operational history is quiet.</h2>
                 <p>
-                  Dagster owns asset materialization runs. Observatory will show
-                  Phlo recovery, branch, service, and maintenance operations
-                  here once phlo-api records them.
+                  Dagster owns orchestration and materialization runs.
+                  Observatory will show Phlo recovery, branch, service, and
+                  maintenance operations here once phlo-api records them.
                 </p>
               </div>
               <div className="phlo-observatory-detail-list">
@@ -303,30 +382,22 @@ export function Operations() {
             {latest ? (
               <>
                 <h2>{latest.name}</h2>
-                <p>{latest.target?.label ?? latest.kind}</p>
+                <p>{latest.target?.label ?? humanizeLabel(latest.kind)}</p>
                 <dl className="phlo-observatory-facts">
-                  <Fact label="Status" value={latest.status} />
-                  <Fact
-                    label="Namespace"
-                    value={readMetric(latest.metadata, 'namespace')}
-                  />
-                  <Fact
-                    label="Tables"
-                    value={readMetric(latest.metadata, 'tables_processed')}
-                  />
-                  <Fact
-                    label="Records"
-                    value={readMetric(latest.metadata, 'total_records')}
-                  />
-                  <Fact
-                    label="Size"
-                    value={`${readMetric(latest.metadata, 'total_size_mb') ?? 0} MB`}
-                  />
-                  <Fact
-                    label="Completed"
-                    value={formatDateTime(latest.completed_at)}
-                  />
+                  {operationInspectorFacts(latest).map((fact) => (
+                    <Fact
+                      key={fact.label}
+                      label={fact.label}
+                      value={fact.value}
+                    />
+                  ))}
                 </dl>
+                <OperationRecoveryPanel
+                  detail={detail.data}
+                  failure={selectedFailure}
+                  operation={latest}
+                  quality={selectedQuality}
+                />
                 <div className="phlo-observatory-action-row">
                   {(detail.data?.actions ?? []).map((action) => (
                     <ActionButton
@@ -340,8 +411,11 @@ export function Operations() {
                               setLocalOperations((current) =>
                                 mergeOperations([operation], current),
                               )
+                              selectOperation(operation.id)
                             }
-                            invalidateCachedResources(['v2:operations'])
+                            invalidateCachedResources([
+                              'observatory:operations',
+                            ])
                             setActionMessage(
                               next.data?.message ??
                                 next.error ??
@@ -369,26 +443,18 @@ export function Operations() {
                     </div>
                   </div>
                 )}
-                <div className="phlo-observatory-detail-list">
-                  <div className="phlo-observatory-mini-row">
-                    <span>Related</span>
-                    <small>
-                      {detail.data?.related
-                        .map((item) => item.label)
-                        .join(', ') || 'none'}
-                    </small>
-                  </div>
-                  <div className="phlo-observatory-mini-row">
-                    <span>Logs</span>
-                    <small>{detail.data?.logs.length ?? 0} linked events</small>
-                  </div>
-                </div>
               </>
             ) : (
               <>
-                <h2>No operation selected</h2>
+                <h2>
+                  {isLoading
+                    ? 'Loading operation detail'
+                    : 'No operation selected'}
+                </h2>
                 <p>
-                  There are no Phlo operation records for this lakehouse yet.
+                  {isLoading
+                    ? 'Reading live operation records and recovery evidence.'
+                    : 'There are no operation records for this environment yet.'}
                 </p>
               </>
             )}
@@ -402,10 +468,140 @@ export function Operations() {
                 {result.error}
               </div>
             )}
+            {!result.error && directResult?.error && (
+              <div className="phlo-observatory-panel-footer">
+                {directResult.error}
+              </div>
+            )}
           </aside>
         )}
       </section>
     </ObservatoryPage>
+  )
+}
+
+function InvestigationPath({
+  detail,
+  operation,
+}: {
+  detail: ObservatoryOperationDetail | null
+  operation: ObservatoryOperation
+}) {
+  const firstLog = detail?.logs[0]
+  const targetHref = operation.target ? resourceHref(operation.target) : null
+  return (
+    <nav
+      aria-label="Failure investigation"
+      className="phlo-observatory-investigation-path"
+    >
+      <span className="phlo-observatory-investigation-step" data-current="true">
+        <small>1 · Failure</small>
+        <strong>{operation.name}</strong>
+      </span>
+      <Link search={{ runId: operation.id }} to="/runs">
+        <small>2 · Run</small>
+        <strong>Execution evidence</strong>
+      </Link>
+      {firstLog ? (
+        <Link search={{ logId: firstLog.id }} to="/logs">
+          <small>3 · Logs</small>
+          <strong>{firstLog.level} evidence</strong>
+        </Link>
+      ) : (
+        <Link to="/logs">
+          <small>3 · Logs</small>
+          <strong>Event evidence</strong>
+        </Link>
+      )}
+      {targetHref ? (
+        <Link to={targetHref}>
+          <small>4 · Target</small>
+          <strong>{operation.target?.label}</strong>
+        </Link>
+      ) : (
+        <span className="phlo-observatory-investigation-step">
+          <small>4 · Target</small>
+          <strong>Platform</strong>
+        </span>
+      )}
+    </nav>
+  )
+}
+
+function OperationRecoveryPanel({
+  detail,
+  failure,
+  operation,
+  quality,
+}: {
+  detail: ObservatoryOperationDetail | null
+  failure: ReturnType<typeof operationFailure>
+  operation: ObservatoryOperation
+  quality: Array<ObservatoryQualityCheck>
+}) {
+  const related = detail?.related ?? []
+  const logs = detail?.logs ?? []
+  const enabledAction = (detail?.actions ?? []).find((action) => action.enabled)
+  return (
+    <div className="phlo-observatory-operation-recovery">
+      <div className="phlo-observatory-operation-recovery-card">
+        <span>Next action</span>
+        <strong>{operationNextAction(operation, enabledAction?.label)}</strong>
+        <small>
+          {operationNextActionReason(operation, failure, enabledAction?.reason)}
+        </small>
+      </div>
+      {quality.length > 0 && (
+        <div className="phlo-observatory-operation-recovery-card">
+          <span>Quality triage</span>
+          {quality.slice(0, 3).map((check) => (
+            <Link key={check.id} search={{ checkId: check.id }} to="/quality">
+              {check.name}
+            </Link>
+          ))}
+          <small>
+            {quality.length} active check{quality.length === 1 ? '' : 's'} for{' '}
+            {operation.target?.label ?? operation.target?.id ?? 'this target'}.
+          </small>
+        </div>
+      )}
+      <div className="phlo-observatory-operation-recovery-card">
+        <span>Related resource</span>
+        {(related.length > 0
+          ? related
+          : operation.target
+            ? [operation.target]
+            : []
+        )
+          .slice(0, 3)
+          .map((resource) => (
+            <Link
+              to={resourceHref(resource)}
+              key={`${resource.kind}:${resource.id}`}
+            >
+              {resource.label}
+            </Link>
+          ))}
+        {related.length === 0 && !operation.target && (
+          <strong>No related resource</strong>
+        )}
+        <small>Open the affected Dataset, table, or lineage evidence.</small>
+      </div>
+      <div className="phlo-observatory-operation-recovery-card">
+        <span>Linked logs</span>
+        {logs.slice(0, 3).map((log) => (
+          <Link key={log.id} search={{ logId: log.id }} to="/logs">
+            <FileText className="size-3.5" />
+            {log.message}
+          </Link>
+        ))}
+        {logs.length === 0 && <strong>No linked logs</strong>}
+        <small>
+          {logs.length} event{logs.length === 1 ? '' : 's'} attached to this
+          operation.
+        </small>
+      </div>
+    </div>
   )
 }
 
@@ -428,7 +624,7 @@ function WapOperationFocus({ operation }: { operation: ObservatoryOperation }) {
       <div className="phlo-observatory-wap-operation-header">
         <div>
           <span className="phlo-observatory-inspector-label">
-            WAP execution
+            Branch publish execution
           </span>
           <strong>Execution report</strong>
           <p>
@@ -457,7 +653,7 @@ function WapOperationFocus({ operation }: { operation: ObservatoryOperation }) {
           </div>
           <div>
             <span>Table</span>
-            <strong>{tables[0]?.name ?? 'table refs missing'}</strong>
+            <strong>{tables[0]?.name ?? 'table evidence missing'}</strong>
             <small>
               {tables[0]?.records
                 ? `${tables[0].records} rows`
@@ -499,7 +695,7 @@ function WapOperationFocus({ operation }: { operation: ObservatoryOperation }) {
           ))}
           {tables.length === 0 && (
             <p>
-              Report has no table refs. Branch and hash evidence are still
+              Report has no table evidence. Branch and hash evidence are still
               shown.
             </p>
           )}
@@ -554,7 +750,8 @@ function OperationLine({
           {operation.name}
         </div>
         <div className="phlo-observatory-row-meta">
-          {operation.kind} · {operation.target?.label ?? 'platform'} ·{' '}
+          {humanizeLabel(operation.kind)} ·{' '}
+          {operation.target?.label ?? 'platform'} ·{' '}
           {formatDateTime(operation.completed_at) ?? 'in progress'}
         </div>
         {failure && (
@@ -583,6 +780,17 @@ function mergeOperations(
 
 function operationTimestamp(operation: ObservatoryOperation): string {
   return operation.completed_at ?? operation.started_at ?? operation.id
+}
+
+function chooseDefaultOperation(
+  operations: Array<ObservatoryOperation>,
+): ObservatoryOperation | null {
+  return (
+    operations.find((operation) => operation.status === 'failed') ??
+    operations.find((operation) => operation.status === 'running') ??
+    operations[0] ??
+    null
+  )
 }
 
 function wapTables(operation: ObservatoryOperation): Array<{
@@ -728,6 +936,9 @@ function buildOperationLedger(operations: Array<ObservatoryOperation>) {
       const failed = sorted.filter(
         (operation) => operation.status === 'failed',
       ).length
+      const running = sorted.filter(
+        (operation) => operation.status === 'running',
+      ).length
       const succeeded = sorted.filter(
         (operation) => operation.status === 'succeeded',
       ).length
@@ -737,12 +948,121 @@ function buildOperationLedger(operations: Array<ObservatoryOperation>) {
         label: group.label,
         latest: sorted[0],
         failed,
+        running,
         succeeded,
-        lastSeen: operationTimestamp(sorted[0]) || 'pending',
+        lastSeen: operationTimestamp(sorted[0]) || null,
         state: failed > 0 ? 'error' : (sorted[0]?.health.state ?? 'unknown'),
       }
     })
     .slice(0, 8)
+}
+
+function operationLedgerSummary(item: {
+  failed: number
+  lastSeen: string | null
+  running: number
+  succeeded: number
+}): string {
+  const states = [
+    item.failed > 0 ? `${item.failed} failed` : null,
+    item.running > 0 ? `${item.running} running` : null,
+    item.succeeded > 0 ? `${item.succeeded} recovered` : null,
+  ].filter(Boolean)
+  const seen = item.lastSeen ? shortDate(item.lastSeen) : null
+  return [...states, seen].filter(Boolean).join(' · ')
+}
+
+function operationNextAction(
+  operation: ObservatoryOperation,
+  enabledLabel?: string,
+): string {
+  if (enabledLabel) return enabledLabel
+  if (operation.status === 'failed') {
+    return operation.target ? 'Inspect failed Dataset' : 'Inspect failed run'
+  }
+  if (operation.status === 'running') return 'Monitor run'
+  return 'Review evidence'
+}
+
+function operationNextActionReason(
+  operation: ObservatoryOperation,
+  failure: ReturnType<typeof operationFailure>,
+  enabledReason?: string | null,
+): string {
+  if (enabledReason) return enabledReason
+  if (operation.status === 'failed') {
+    const target = operation.target?.label ?? operation.target?.id
+    if (target) {
+      return failure?.message
+        ? `${failure.message} Start with ${target}, then resolve linked quality and log evidence.`
+        : `Start with ${target}, then resolve linked quality and log evidence.`
+    }
+    return failure?.message ?? 'Open the failed run evidence and linked logs.'
+  }
+  if (operation.status === 'succeeded') {
+    return operation.health.message ?? 'No recovery action is needed.'
+  }
+  return (
+    operation.health.message ?? 'Review the linked evidence before retrying.'
+  )
+}
+
+function operationEvidenceFacts(
+  operation: ObservatoryOperation,
+): Array<{ label: string; value: string | number | boolean | null }> {
+  return [
+    { label: 'Operation id', value: operation.id },
+    { label: 'Status', value: operation.status },
+    { label: 'Started', value: formatDateTime(operation.started_at) },
+    { label: 'Completed', value: formatDateTime(operation.completed_at) },
+    {
+      label: 'Duration',
+      value: operation.duration_seconds
+        ? `${operation.duration_seconds}s`
+        : operation.status === 'running'
+          ? 'running'
+          : null,
+    },
+    {
+      label: 'Experiment',
+      value: readMetric(operation.metadata, 'experiment_id'),
+    },
+    { label: 'Plate', value: readMetric(operation.metadata, 'plate_id') },
+  ].filter((fact) => fact.value !== null)
+}
+
+function operationInspectorFacts(
+  operation: ObservatoryOperation,
+): Array<{ label: string; value: string | number | boolean | null }> {
+  return [
+    { label: 'Status', value: operation.status },
+    { label: 'Kind', value: humanizeLabel(operation.kind) },
+    { label: 'Started', value: formatDateTime(operation.started_at) },
+    { label: 'Completed', value: formatDateTime(operation.completed_at) },
+    {
+      label: 'Duration',
+      value: operation.duration_seconds
+        ? `${operation.duration_seconds}s`
+        : operation.status === 'running'
+          ? 'running'
+          : null,
+    },
+    { label: 'Namespace', value: readMetric(operation.metadata, 'namespace') },
+    {
+      label: 'Tables',
+      value: readMetric(operation.metadata, 'tables_processed'),
+    },
+    {
+      label: 'Records',
+      value: readMetric(operation.metadata, 'total_records'),
+    },
+    {
+      label: 'Size',
+      value: readMetric(operation.metadata, 'total_size_mb')
+        ? `${readMetric(operation.metadata, 'total_size_mb')} MB`
+        : null,
+    },
+  ].filter((fact) => fact.value !== null)
 }
 
 function operationFailure(
@@ -769,6 +1089,13 @@ function operationFailure(
   }
 }
 
+function operationPageDescription(operation: ObservatoryOperation): string {
+  const target =
+    operation.target?.label ?? operation.target?.id ?? 'environment'
+  const state = operation.health.message ?? operation.status
+  return `${humanizeLabel(operation.kind)} for ${target}: ${state}`
+}
+
 function operationMetadata(
   operation: ObservatoryOperation,
 ): Array<[string, NonNullable<unknown>]> {
@@ -786,6 +1113,25 @@ function operationMetadata(
       Boolean(entry[1]),
     )
     .slice(0, 6)
+}
+
+function resourceHref(resource: ObservatoryResourceRef): string {
+  if (resource.kind === 'dataset') {
+    return `/datasets/${encodeURIComponent(resource.id)}`
+  }
+  if (resource.kind === 'table') {
+    return `/tables?tableId=${encodeURIComponent(resource.id)}`
+  }
+  if (resource.kind === 'asset') {
+    return `/lineage?assetId=${encodeURIComponent(resource.id)}`
+  }
+  if (resource.kind === 'quality') {
+    return `/quality?checkId=${encodeURIComponent(resource.id)}`
+  }
+  if (resource.kind === 'operation') {
+    return `/operations?operationId=${encodeURIComponent(resource.id)}`
+  }
+  return '/lineage'
 }
 
 function firstTextMetric(
@@ -824,8 +1170,39 @@ function formatDateTime(value?: string | null): string | null {
   }).format(date)} UTC`
 }
 
+function shortDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
+}
+
 function humanizeKey(key: string): string {
   return key.replaceAll('_', ' ')
+}
+
+function humanizeLabel(value: string): string {
+  const acronyms: Record<string, string> = {
+    api: 'API',
+    bi: 'BI',
+    id: 'ID',
+    sql: 'SQL',
+    ui: 'UI',
+    wap: 'WAP',
+  }
+  const words = humanizeKey(value).split(' ')
+  return words
+    .map((word, index) => {
+      const acronym = acronyms[word.toLowerCase()]
+      if (acronym) return acronym
+      return index === 0
+        ? `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+        : word.toLowerCase()
+    })
+    .join(' ')
 }
 
 function Fact({
@@ -838,7 +1215,7 @@ function Fact({
   return (
     <>
       <dt>{label}</dt>
-      <dd>{value === null ? 'n/a' : String(value)}</dd>
+      <dd>{value === null || value === '' ? 'not reported' : String(value)}</dd>
     </>
   )
 }

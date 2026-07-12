@@ -17,7 +17,7 @@
 
 ## Asset-Centric Orchestration Mindset
 
-In Phlo, you run data products as assets, not ad-hoc scripts.
+In Phlo, you run datasets as assets, not ad-hoc scripts.
 
 That gives:
 

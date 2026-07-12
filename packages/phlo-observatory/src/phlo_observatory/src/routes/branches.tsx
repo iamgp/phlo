@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import {
   AlertTriangle,
   Database,
@@ -8,27 +8,24 @@ import {
   Plus,
   Table2,
 } from 'lucide-react'
-import { useEffect, useReducer } from 'react'
+import { useCallback, useEffect, useReducer, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
   ObservatoryBranch,
   ObservatoryBranchDetail,
   ObservatoryOperation,
+  ObservatoryQualityCheck,
   ObservatoryResourceResult,
   ObservatoryTable,
 } from '@/observatory/api/types'
-import type {
-  ObservatoryFlowEdge,
-  ObservatoryFlowNode,
-} from '@/observatory/components/ObservatoryFlowCanvas'
 import {
   getObservatoryBranchDetailDirect,
   getObservatoryBranchRecords,
   getObservatoryOperationRecords,
+  getObservatoryQualityRecords,
   runObservatoryBranchAction,
 } from '@/observatory/api/resources'
-import { ObservatoryFlowCanvas } from '@/observatory/components/ObservatoryFlowCanvas'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
 import {
   invalidateCachedResources,
@@ -84,12 +81,17 @@ export function Branches() {
   const result = useLiveResource(
     getObservatoryBranchRecords,
     60_000,
-    'v2:branches',
+    'observatory:branches',
   )
   const operationsResult = useLiveResource(
     getObservatoryOperationRecords,
     60_000,
-    'v2:operations',
+    'observatory:operations',
+  )
+  const qualityResult = useLiveResource(
+    getObservatoryQualityRecords,
+    60_000,
+    'observatory:quality',
   )
   const [
     { actionMessage, activePanel, createdBranches, detail, selectedId },
@@ -104,6 +106,11 @@ export function Branches() {
     },
     selectedId: null,
   })
+  const [branchDraftOpen, setBranchDraftOpen] = useState(false)
+  const [branchDraftName, setBranchDraftName] = useState('')
+  const [isCreatingBranch, setIsCreatingBranch] = useState(false)
+  const isLoading =
+    result.isLoading || operationsResult.isLoading || qualityResult.isLoading
   const branches = mergeBranches(createdBranches, result.data ?? [])
   const selected =
     branches.find((branch) => branch.id === selectedId) ??
@@ -120,6 +127,69 @@ export function Branches() {
     branchOperations,
     detail.data?.commits ?? [],
   ).length
+  const selectedTables = detail.data?.tables ?? []
+  const selectedQuality = qualityForTables(
+    selectedTables,
+    qualityResult.data ?? [],
+  )
+  const activeBlockingQuality = blockingQualityChecks(selectedQuality).length
+  const providerState = isLoading
+    ? 'Reading branch state from the live lakehouse.'
+    : branches.length === 1 && selected?.current
+      ? 'Only the protected baseline is available.'
+      : `${branches.length} ${pluralize(branches.length, 'branch', 'branches')} available.`
+  const createBranch = useCallback(() => {
+    const branchName = branchDraftName.trim()
+    if (!branchName || isCreatingBranch) return
+    setIsCreatingBranch(true)
+    void runObservatoryBranchAction({
+      data: { actionId: `branch:create:${branchName}` },
+    })
+      .then((next) => {
+        invalidateCachedResources([
+          'observatory:operations',
+          'observatory:branches',
+        ])
+        const message =
+          next.data?.message ?? next.error ?? 'Branch action completed'
+        if (next.data?.status === 'succeeded') {
+          const url = new URL(window.location.href)
+          url.searchParams.set('branchId', branchName)
+          window.history.replaceState(
+            null,
+            '',
+            `${url.pathname}?${url.searchParams.toString()}`,
+          )
+          dispatch({
+            type: 'branchCreated',
+            branch: {
+              current: false,
+              id: branchName,
+              metadata: { source: 'local' },
+              name: branchName,
+              protected: false,
+            },
+            message,
+          })
+          setBranchDraftName('')
+          setBranchDraftOpen(false)
+        } else {
+          dispatch({ type: 'actionMessage', message })
+        }
+      })
+      .finally(() => setIsCreatingBranch(false))
+  }, [branchDraftName, isCreatingBranch])
+  const selectBranch = useCallback((branchId: string) => {
+    dispatch({ type: 'select', selectedId: branchId })
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('branchId', branchId)
+    window.history.replaceState(
+      null,
+      '',
+      `${url.pathname}?${url.searchParams.toString()}`,
+    )
+  }, [])
 
   useEffect(() => {
     const branchId = selected?.id
@@ -139,14 +209,27 @@ export function Branches() {
     }
   }, [selected?.id])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const requested = new URLSearchParams(window.location.search).get(
+      'branchId',
+    )
+    if (!requested || requested === selectedId) return
+    if (branches.some((branch) => branch.id === requested)) {
+      dispatch({ type: 'select', selectedId: requested })
+    }
+  }, [branches, selectedId])
+
   return (
     <ObservatoryPage
-      kicker="Changes"
-      title="Catalog changes"
-      description="Review branch state, table drift, and guarded change workflows."
+      kicker="Review"
+      title="Change review"
+      description="Review branch state, table drift, quality impact, and guarded change workflows."
       action={
         <span className="phlo-observatory-pill">
-          {branches.length} branches
+          {isLoading
+            ? 'Loading'
+            : `${branches.length} ${pluralize(branches.length, 'branch', 'branches')}`}
         </span>
       }
     >
@@ -156,58 +239,63 @@ export function Branches() {
             <div className="phlo-observatory-browser-toolbar">
               <span>
                 <GitBranch className="size-4" />
-                Branches
+                Change reviews
               </span>
               <button
-                onClick={() => {
-                  const branchName = window.prompt('New branch name')
-                  if (!branchName) return
-                  if (
-                    !window.confirm(
-                      `Create branch ${branchName}? This writes Observatory branch state through phlo-api.`,
-                    )
-                  ) {
-                    return
-                  }
-                  void runObservatoryBranchAction({
-                    data: { actionId: `branch:create:${branchName}` },
-                  }).then((next) => {
-                    invalidateCachedResources(['v2:operations', 'v2:branches'])
-                    const message =
-                      next.data?.message ??
-                      next.error ??
-                      'Branch action completed'
-                    if (next.data?.status === 'succeeded') {
-                      dispatch({
-                        type: 'branchCreated',
-                        branch: {
-                          current: false,
-                          id: branchName,
-                          metadata: { source: 'local' },
-                          name: branchName,
-                          protected: false,
-                        },
-                        message,
-                      })
-                    } else {
-                      dispatch({ type: 'actionMessage', message })
-                    }
-                  })
-                }}
+                aria-expanded={branchDraftOpen}
+                onClick={() => setBranchDraftOpen((open) => !open)}
                 type="button"
               >
                 <Plus className="size-3.5" />
                 Branch
               </button>
             </div>
+            {branchDraftOpen && (
+              <form
+                className="phlo-observatory-branch-create-panel"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  createBranch()
+                }}
+              >
+                <label>
+                  <span>Branch name</span>
+                  <input
+                    autoFocus
+                    onChange={(event) => setBranchDraftName(event.target.value)}
+                    placeholder="review/revenue-fix"
+                    value={branchDraftName}
+                  />
+                </label>
+                <p>
+                  Creates review branch state through phlo-api, then opens the
+                  new branch evidence.
+                </p>
+                <div className="phlo-observatory-inline-actions">
+                  <button
+                    disabled={!branchDraftName.trim() || isCreatingBranch}
+                    type="submit"
+                  >
+                    {isCreatingBranch ? 'Creating' : 'Create branch'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setBranchDraftName('')
+                      setBranchDraftOpen(false)
+                    }}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
             {branches.map((branch) => (
               <button
                 className="phlo-observatory-row phlo-observatory-select-row"
                 data-active={branch.id === selected?.id}
                 key={branch.id}
-                onClick={() =>
-                  dispatch({ type: 'select', selectedId: branch.id })
-                }
+                onClick={() => selectBranch(branch.id)}
                 type="button"
               >
                 <div className="phlo-observatory-row-main">
@@ -242,6 +330,7 @@ export function Branches() {
                       ? branchNarrative(detail.data)
                       : branchNarrativeFromBranch(selected)}
                   </p>
+                  <p>{providerState}</p>
                 </div>
                 <div className="phlo-observatory-action-row">
                   <button
@@ -285,6 +374,10 @@ export function Branches() {
                     <dd>{selectedEvidenceCount}</dd>
                   </div>
                   <div>
+                    <dt>Blocking quality</dt>
+                    <dd>{activeBlockingQuality}</dd>
+                  </div>
+                  <div>
                     <dt>Added</dt>
                     <dd>{selectedCompare.added ?? 0}</dd>
                   </div>
@@ -299,18 +392,26 @@ export function Branches() {
                       {selectedCompare.behind ?? 0}
                     </dd>
                   </div>
-                  <div>
-                    <dt>Protected</dt>
-                    <dd>{selected.protected ? 'yes' : 'no'}</dd>
-                  </div>
                 </dl>
               </section>
-              <WapReport operations={branchOperations} />
+              <BranchReadiness
+                branch={selected}
+                operations={mergeOperations(
+                  branchOperations,
+                  detail.data?.commits ?? [],
+                )}
+                quality={selectedQuality}
+                tables={selectedTables}
+              />
               {detail.data ? (
                 <BranchPanelView
                   active={activePanel}
                   detail={detail.data}
-                  operations={branchOperations}
+                  operations={mergeOperations(
+                    branchOperations,
+                    detail.data.commits,
+                  )}
+                  quality={selectedQuality}
                 />
               ) : (
                 <BranchPanelFallback
@@ -335,7 +436,24 @@ export function Branches() {
               {operationsResult.error}
             </div>
           )}
+          {qualityResult.error && (
+            <div className="phlo-observatory-panel-footer">
+              {qualityResult.error}
+            </div>
+          )}
         </div>
+        <BranchInspector
+          branch={selected}
+          detail={detail.data}
+          isLoading={isLoading}
+          operations={mergeOperations(
+            branchOperations,
+            detail.data?.commits ?? [],
+          )}
+          providerState={providerState}
+          quality={selectedQuality}
+          tables={selectedTables}
+        />
       </section>
     </ObservatoryPage>
   )
@@ -382,14 +500,131 @@ function branchRelatedOperations(
   })
 }
 
+function qualityForTables(
+  tables: Array<ObservatoryTable>,
+  quality: Array<ObservatoryQualityCheck>,
+): Array<ObservatoryQualityCheck> {
+  const assetIds = new Set(
+    tables
+      .flatMap((table) => [table.asset_id, table.id])
+      .filter((id): id is string => Boolean(id)),
+  )
+  return quality.filter((check) => assetIds.has(check.asset_id))
+}
+
+function BranchReadiness({
+  branch,
+  operations,
+  quality,
+  tables,
+}: {
+  branch: ObservatoryBranch
+  operations: Array<ObservatoryOperation>
+  quality: Array<ObservatoryQualityCheck>
+  tables: Array<ObservatoryTable>
+}) {
+  const failing = blockingQualityChecks(quality)
+  const warnings = quality.filter((check) => check.status === 'warning')
+  const failedOperation = operations.find(
+    (operation) => operation.status === 'failed',
+  )
+  const runningOperation = operations.find(
+    (operation) => operation.status === 'running',
+  )
+  const firstTable = tables[0]
+  const primaryQuality = failing[0] ?? warnings[0] ?? quality[0]
+  const lineageAssetId =
+    primaryQuality?.asset_id ??
+    tables.find((table) => table.asset_id)?.asset_id ??
+    firstTable?.id
+  const state =
+    failing.length > 0
+      ? 'error'
+      : warnings.length > 0
+        ? 'warning'
+        : branch.current
+          ? 'ok'
+          : 'unknown'
+  const next =
+    failing.length > 0
+      ? 'Resolve blocking checks before approving change.'
+      : failedOperation
+        ? 'Recover failed operation evidence before approving change.'
+        : runningOperation
+          ? 'Wait for the running operation to complete before approving change.'
+          : branch.current
+            ? 'Create a review branch to evaluate proposed lakehouse changes.'
+            : 'Review changed tables, impact, and approvals before publishing.'
+
+  return (
+    <section className="phlo-observatory-branch-readiness" data-state={state}>
+      <div>
+        <div className="phlo-observatory-inspector-label">Review state</div>
+        <h3>{branch.current ? 'Protected baseline' : 'Review candidate'}</h3>
+        <p>{next}</p>
+      </div>
+      <div className="phlo-observatory-branch-readiness-links">
+        <Link
+          search={primaryQuality ? { checkId: primaryQuality.id } : undefined}
+          to="/quality"
+        >
+          Quality
+        </Link>
+        <Link
+          search={lineageAssetId ? { assetId: lineageAssetId } : undefined}
+          to="/lineage"
+        >
+          Lineage
+        </Link>
+        <Link
+          search={
+            (failedOperation ?? runningOperation)
+              ? { operationId: (failedOperation ?? runningOperation)?.id }
+              : undefined
+          }
+          to="/operations"
+        >
+          Operations
+        </Link>
+      </div>
+      <dl>
+        <div>
+          <dt>Tables in scope</dt>
+          <dd>{tables.length}</dd>
+        </div>
+        <div>
+          <dt>Quality checks</dt>
+          <dd>{quality.length}</dd>
+        </div>
+        <div>
+          <dt>Failing</dt>
+          <dd>{failing.length}</dd>
+        </div>
+        <div>
+          <dt>Operation state</dt>
+          <dd>
+            {failedOperation
+              ? 'failed'
+              : runningOperation
+                ? 'running'
+                : 'clear'}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  )
+}
+
 function BranchPanelView({
   active,
   detail,
   operations,
+  quality,
 }: {
   active: BranchPanel
   detail: ObservatoryBranchDetail
   operations: Array<ObservatoryOperation>
+  quality: Array<ObservatoryQualityCheck>
 }) {
   if (active === 'compare') {
     return (
@@ -414,6 +649,7 @@ function BranchPanelView({
         <BranchReviewEvidence
           branch={detail.branch}
           operations={operations}
+          quality={quality}
           tables={detail.tables}
         />
       </div>
@@ -429,7 +665,7 @@ function BranchPanelView({
             .slice(0, 8)
             .map((commit) => <CommitRow commit={commit} key={commit.id} />)
         ) : (
-          <p>No operation evidence returned for this branch yet.</p>
+          <p>No operation evidence is linked to this branch yet.</p>
         )}
       </div>
     )
@@ -440,7 +676,7 @@ function BranchPanelView({
       {detail.tables.slice(0, 8).map((table) => (
         <TableRow key={table.id} table={table} />
       ))}
-      {detail.tables.length === 0 && <p>No branch contents returned yet.</p>}
+      {detail.tables.length === 0 && <p>No branch contents yet.</p>}
     </div>
   )
 }
@@ -478,6 +714,7 @@ function BranchPanelFallback({
         <BranchReviewEvidence
           branch={branch}
           operations={operations}
+          quality={[]}
           tables={[]}
         />
       </div>
@@ -497,47 +734,10 @@ function BranchPanelFallback({
   return (
     <div className="phlo-observatory-detail-list">
       <p>
-        No branch contents returned by the API yet. WAP evidence is shown above.
+        No branch contents are available yet. Branch operation evidence is shown
+        above.
       </p>
     </div>
-  )
-}
-
-function WapReport({
-  operations,
-}: {
-  operations: Array<ObservatoryOperation>
-}) {
-  const report = operations.find((operation) => operation.kind === 'wap')
-  if (!report) return null
-  const metadata = report.metadata
-  const fields = [
-    ['Run', metadataString(metadata, 'run_id') ?? report.id],
-    ['Branch', metadataString(metadata, 'branch') ?? report.target?.id],
-    ['Source hash', metadataString(metadata, 'source_hash')],
-    ['Target before', metadataString(metadata, 'target_hash_before')],
-    ['Target after', metadataString(metadata, 'target_hash_after')],
-    ['WAP branch deleted', metadataBoolean(metadata, 'source_deleted')],
-  ].filter((field): field is [string, string] => Boolean(field[1]))
-
-  return (
-    <section className="phlo-observatory-wap-report">
-      <div className="phlo-observatory-inspector-label">WAP report</div>
-      <h3>{report.name}</h3>
-      <p>
-        {[report.status, formatDateTime(report.completed_at)]
-          .filter(Boolean)
-          .join(' · ')}
-      </p>
-      <dl>
-        {fields.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
   )
 }
 
@@ -562,102 +762,205 @@ function BranchMetric({
 function BranchReviewEvidence({
   branch,
   operations,
+  quality,
   tables,
 }: {
   branch: ObservatoryBranch
   operations: Array<ObservatoryOperation>
+  quality: Array<ObservatoryQualityCheck>
   tables: Array<ObservatoryTable>
 }) {
-  const flow = branchFlow(branch, operations, tables)
+  const report = operations.find((operation) => operation.kind === 'wap')
+  const relatedOperations = report
+    ? [report]
+    : operations.filter((operation) =>
+        ['failed', 'running', 'succeeded'].includes(operation.status),
+      )
   return (
     <div className="phlo-observatory-branch-evidence">
-      <div className="phlo-observatory-branch-flow">
-        <ObservatoryFlowCanvas edges={flow.edges} nodes={flow.nodes} />
-      </div>
       <div className="phlo-observatory-branch-table-list">
+        <div className="phlo-observatory-inspector-label">Tables in scope</div>
         {tables.length > 0 ? (
           tables
             .slice(0, 8)
             .map((table) => <TableRow key={table.id} table={table} />)
         ) : (
           <p>
-            WAP reported a changed table count, but the report did not include
-            table refs.
+            Branch evidence reported a changed table count, but the report did
+            not include table evidence.
           </p>
         )}
+      </div>
+      <div className="phlo-observatory-branch-table-list">
+        {quality.length > 0 && (
+          <div className="phlo-observatory-branch-impact-list">
+            <strong>Quality impact</strong>
+            {quality.slice(0, 4).map((check) => (
+              <Link
+                className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+                key={check.id}
+                to="/quality"
+                search={{ checkId: check.id }}
+              >
+                <span>{check.name}</span>
+                <small>
+                  {[qualityDatasetLabel(check), check.status, check.severity]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </small>
+              </Link>
+            ))}
+          </div>
+        )}
+        {quality.length === 0 && (
+          <p>No quality checks are attached to the current branch contents.</p>
+        )}
+        <div className="phlo-observatory-branch-impact-list">
+          <strong>Operation evidence</strong>
+          {relatedOperations.length > 0 ? (
+            relatedOperations
+              .slice(0, 3)
+              .map((operation) => (
+                <CommitRow commit={operation} key={operation.id} />
+              ))
+          ) : (
+            <p>No branch operation evidence is linked to {branch.name}.</p>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-function branchFlow(
-  branch: ObservatoryBranch,
-  operations: Array<ObservatoryOperation>,
-  tables: Array<ObservatoryTable>,
-): { nodes: Array<ObservatoryFlowNode>; edges: Array<ObservatoryFlowEdge> } {
+function BranchInspector({
+  branch,
+  detail,
+  isLoading,
+  operations,
+  providerState,
+  quality,
+  tables,
+}: {
+  branch: ObservatoryBranch | undefined
+  detail: ObservatoryBranchDetail | null
+  isLoading: boolean
+  operations: Array<ObservatoryOperation>
+  providerState: string
+  quality: Array<ObservatoryQualityCheck>
+  tables: Array<ObservatoryTable>
+}) {
+  if (!branch) {
+    return (
+      <aside className="phlo-observatory-inspector phlo-observatory-surface-inspector">
+        <div className="phlo-observatory-inspector-label">Review evidence</div>
+        <h2>{isLoading ? 'Loading branch evidence' : 'No branch selected'}</h2>
+        <p>
+          {isLoading
+            ? 'Reading branch state from the live lakehouse.'
+            : 'Branch state appears once the live lakehouse API returns a branch.'}
+        </p>
+      </aside>
+    )
+  }
+  const compare = detail?.compare ?? branchCompare(branch)
   const report = operations.find((operation) => operation.kind === 'wap')
-  const sourceHash = metadataString(report?.metadata ?? {}, 'source_hash')
-  const targetHash = metadataString(report?.metadata ?? {}, 'target_hash_after')
-  const tableNodes = tables.slice(0, 6).map(
-    (table): ObservatoryFlowNode => ({
-      id: `table:${table.id}`,
-      kind: 'table',
-      label: table.name,
-      lane: 'table',
-      metric:
-        tableRecordCount(table) === 'n/a'
-          ? undefined
-          : `${tableRecordCount(table)} rows`,
-      subtitle: table.namespace ?? undefined,
-    }),
+  const failing = blockingQualityChecks(quality)
+  const failed = operations.filter((operation) => operation.status === 'failed')
+  const running = operations.filter(
+    (operation) => operation.status === 'running',
   )
-  const nodes: Array<ObservatoryFlowNode> = [
-    {
-      id: 'branch',
-      kind: 'branch',
-      label: branch.name,
-      lane: 'branch',
-      metric: sourceHash ?? undefined,
-    },
-    ...tableNodes,
-    {
-      id: 'publish',
-      kind: 'operation',
-      label: report?.name ?? 'WAP publish',
-      lane: 'publish',
-      metric: targetHash ?? undefined,
-    },
-  ]
-  const edges: Array<ObservatoryFlowEdge> =
-    tableNodes.length > 0
-      ? [
-          ...tableNodes.map((table) => ({
-            id: `branch:${table.id}`,
-            source: 'branch',
-            target: table.id,
-            label: 'writes',
-          })),
-          ...tableNodes.map((table) => ({
-            id: `${table.id}:publish`,
-            source: table.id,
-            target: 'publish',
-            label: 'promotes',
-          })),
-        ]
-      : [
-          {
-            id: 'branch:publish',
-            source: 'branch',
-            target: 'publish',
-            label: 'promotes',
-          },
-        ]
-  return { edges, nodes }
+  const approvalState = branchApprovalState(branch, failing, failed, running)
+  return (
+    <aside className="phlo-observatory-inspector phlo-observatory-surface-inspector">
+      <div className="phlo-observatory-inspector-label">Review evidence</div>
+      <h2>{branch.name}</h2>
+      <p>
+        {branch.current || branch.protected
+          ? 'Protected baseline branch.'
+          : 'Review branch awaiting approval.'}
+      </p>
+      <dl className="phlo-observatory-facts">
+        <dt>State</dt>
+        <dd>
+          {branch.protected
+            ? 'protected'
+            : branch.current
+              ? 'current'
+              : 'review'}
+        </dd>
+        <dt>Tables</dt>
+        <dd>{tables.length || metadataNumber(branch, 'tables')}</dd>
+        <dt>Changed</dt>
+        <dd>{compare.changed ?? 0}</dd>
+        <dt>Blocking quality</dt>
+        <dd>{failing.length}</dd>
+        <dt>Approval</dt>
+        <dd>{approvalState}</dd>
+      </dl>
+      <div className="phlo-observatory-detail-list">
+        <div className="phlo-observatory-mini-row">
+          <span>Branch runtime</span>
+          <small>{providerState}</small>
+        </div>
+        {report ? (
+          <CommitRow commit={report} />
+        ) : operations.length > 0 ? (
+          <div className="phlo-observatory-mini-row">
+            <span>Branch operation evidence</span>
+            <small>
+              {[
+                failed.length > 0 ? `${failed.length} failed` : null,
+                running.length > 0 ? `${running.length} running` : null,
+                operations.length > 0 ? `${operations.length} total` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </small>
+          </div>
+        ) : (
+          <div className="phlo-observatory-mini-row">
+            <span>Branch operation</span>
+            <small>No operation evidence linked</small>
+          </div>
+        )}
+        {failed.slice(0, 2).map((operation) => (
+          <Link
+            className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+            key={operation.id}
+            search={{ operationId: operation.id }}
+            to="/operations"
+          >
+            <span>{operation.name}</span>
+            <small>{operation.health.message ?? operation.status}</small>
+          </Link>
+        ))}
+        {failing.slice(0, 3).map((check) => (
+          <Link
+            className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+            key={check.id}
+            search={{ checkId: check.id }}
+            to="/quality"
+          >
+            <span>{check.name}</span>
+            <small>
+              {[qualityDatasetLabel(check), check.severity]
+                .filter(Boolean)
+                .join(' · ')}
+            </small>
+          </Link>
+        ))}
+      </div>
+    </aside>
+  )
 }
 
 function TableRow({ table }: { table: ObservatoryTable }) {
   return (
-    <div className="phlo-observatory-mini-row">
+    <Link
+      className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+      search={{ tableId: table.id }}
+      to="/tables"
+    >
       <span>
         <Database className="size-3.5" />
         {table.name}
@@ -667,7 +970,7 @@ function TableRow({ table }: { table: ObservatoryTable }) {
           .filter(Boolean)
           .join(' · ')}
       </small>
-    </div>
+    </Link>
   )
 }
 
@@ -678,10 +981,12 @@ function CommitRow({ commit }: { commit: ObservatoryOperation }) {
   const hashMovement =
     sourceHash && targetHash ? `${sourceHash} -> ${targetHash}` : null
   return (
-    <div
+    <Link
       className={`phlo-observatory-mini-row${
         commit.kind === 'wap' ? ' phlo-observatory-wap-history-row' : ''
-      }`}
+      } phlo-observatory-linked-mini-row`}
+      to="/operations"
+      search={{ operationId: commit.id }}
     >
       <span>{commit.name}</span>
       <small>
@@ -694,7 +999,7 @@ function CommitRow({ commit }: { commit: ObservatoryOperation }) {
           .filter(Boolean)
           .join(' · ')}
       </small>
-    </div>
+    </Link>
   )
 }
 
@@ -727,6 +1032,35 @@ function branchDelta(branch: ObservatoryBranch): string | null {
   return null
 }
 
+function branchApprovalState(
+  branch: ObservatoryBranch,
+  failing: Array<ObservatoryQualityCheck>,
+  failed: Array<ObservatoryOperation>,
+  running: Array<ObservatoryOperation>,
+): string {
+  const explicit = branch.metadata.approval_state
+  if (typeof explicit === 'string' && explicit.trim()) return explicit
+  if (branch.current || branch.protected) return 'baseline'
+  if (failing.length > 0 || failed.length > 0) return 'blocked'
+  if (running.length > 0) return 'waiting'
+  return 'ready for review'
+}
+
+function blockingQualityChecks(
+  quality: Array<ObservatoryQualityCheck>,
+): Array<ObservatoryQualityCheck> {
+  return quality.filter((check) => check.blocking && check.status !== 'passing')
+}
+
+function qualityDatasetLabel(check: ObservatoryQualityCheck): string {
+  return (
+    metadataString(check.metadata, 'dataset') ??
+    metadataString(check.metadata, 'dataset_name') ??
+    metadataString(check.metadata, 'dataset_id') ??
+    `Dataset ${check.asset_id}`
+  )
+}
+
 function branchCompare(branch?: ObservatoryBranch): Record<string, number> {
   if (!branch) return {}
   return {
@@ -743,7 +1077,7 @@ function tableRecordCount(table: ObservatoryTable): string {
   if (typeof records === 'number' || typeof records === 'string') {
     return String(records)
   }
-  return 'n/a'
+  return 'not reported'
 }
 
 function metadataNumber(
@@ -770,16 +1104,6 @@ function metadataString(
   return null
 }
 
-function metadataBoolean(
-  metadata: Record<string, unknown>,
-  key: string,
-): string | null {
-  const value = metadata[key]
-  if (typeof value === 'boolean') return value ? 'yes' : 'no'
-  if (typeof value === 'string' && value.length > 0) return value
-  return null
-}
-
 function formatDateTime(value?: string | null): string | null {
   if (!value) return null
   const date = new Date(value)
@@ -794,4 +1118,8 @@ function formatDateTime(value?: string | null): string | null {
 function operationReason(operation: ObservatoryOperation): string | null {
   const reason = operation.metadata.failure_reason ?? operation.health.message
   return typeof reason === 'string' && reason ? reason : null
+}
+
+function pluralize(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural
 }

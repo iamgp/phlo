@@ -895,8 +895,7 @@ def orders_q1_backfill():
 ### Governance Contracts
 
 Use `@phlo.contract` when the ownership, consumer, SLA, PII, or lifecycle
-metadata belongs to the data product rather than one ingestion or quality
-adapter.
+metadata belongs to the dataset rather than one ingestion or quality adapter.
 
 ```python
 @phlo.contract(
@@ -933,10 +932,10 @@ def customer_health_access():
 Phlo's governance surface is derived from the declarations above. There is no
 separate catalog file to maintain: `@phlo.contract` supplies owner, lifecycle,
 consumer, PII, and SLA metadata; `@phlo.publish` marks the table as a published
-data product; `@phlo.access` declares the access policy; and `@phlo.observe`
-adds operational checks.
+dataset; `@phlo.access` declares the access policy; and `@phlo.observe` adds
+operational checks.
 
-Use the CLI in CI or pull-request checks before a data product is promoted:
+Use the CLI in CI or pull-request checks before a dataset is promoted:
 
 ```bash
 phlo governance check --module workflows/customer_health.py

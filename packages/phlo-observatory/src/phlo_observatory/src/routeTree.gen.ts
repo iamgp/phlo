@@ -9,29 +9,46 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkspaceRouteImport } from './routes/workspace'
+import { Route as TablesRouteImport } from './routes/tables'
 import { Route as StorageRouteImport } from './routes/storage'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ServicesRouteImport } from './routes/services'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as RunsRouteImport } from './routes/runs'
+import { Route as RecentsRouteImport } from './routes/recents'
+import { Route as QueryHistoryRouteImport } from './routes/query-history'
+import { Route as QueriesRouteImport } from './routes/queries'
 import { Route as QualityRouteImport } from './routes/quality'
+import { Route as PublishingRouteImport } from './routes/publishing'
+import { Route as PipelinesRouteImport } from './routes/pipelines'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as ObservabilityRouteImport } from './routes/observability'
 import { Route as LogsRouteImport } from './routes/logs'
+import { Route as LineageRouteImport } from './routes/lineage'
+import { Route as IngestionRouteImport } from './routes/ingestion'
 import { Route as GovernanceRouteImport } from './routes/governance'
 import { Route as ExtensionsRouteImport } from './routes/extensions'
-import { Route as DataRouteImport } from './routes/data'
-import { Route as CatalogRouteImport } from './routes/catalog'
+import { Route as DatasetsRouteImport } from './routes/datasets'
 import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as BiRouteImport } from './routes/bi'
-import { Route as AssetsRouteImport } from './routes/assets'
 import { Route as ApisRouteImport } from './routes/apis'
+import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkflowsNewRouteImport } from './routes/workflows/new'
 import { Route as ExtensionsExtensionIdRouteImport } from './routes/extensions/$extensionId'
-import { Route as DataTableIdRouteImport } from './routes/data/$tableId'
-import { Route as BranchesBranchNameRouteImport } from './routes/branches/$branchName'
-import { Route as AssetsAssetIdRouteImport } from './routes/assets/$assetId'
+import { Route as DatasetsDatasetIdRouteImport } from './routes/datasets.$datasetId'
 
+const WorkspaceRoute = WorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TablesRoute = TablesRouteImport.update({
+  id: '/tables',
+  path: '/tables',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StorageRoute = StorageRouteImport.update({
   id: '/storage',
   path: '/storage',
@@ -47,14 +64,44 @@ const ServicesRoute = ServicesRouteImport.update({
   path: '/services',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RunsRoute = RunsRouteImport.update({
   id: '/runs',
   path: '/runs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecentsRoute = RecentsRouteImport.update({
+  id: '/recents',
+  path: '/recents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QueryHistoryRoute = QueryHistoryRouteImport.update({
+  id: '/query-history',
+  path: '/query-history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QueriesRoute = QueriesRouteImport.update({
+  id: '/queries',
+  path: '/queries',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QualityRoute = QualityRouteImport.update({
   id: '/quality',
   path: '/quality',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PublishingRoute = PublishingRouteImport.update({
+  id: '/publishing',
+  path: '/publishing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelinesRoute = PipelinesRouteImport.update({
+  id: '/pipelines',
+  path: '/pipelines',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OperationsRoute = OperationsRouteImport.update({
@@ -72,6 +119,16 @@ const LogsRoute = LogsRouteImport.update({
   path: '/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LineageRoute = LineageRouteImport.update({
+  id: '/lineage',
+  path: '/lineage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IngestionRoute = IngestionRouteImport.update({
+  id: '/ingestion',
+  path: '/ingestion',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GovernanceRoute = GovernanceRouteImport.update({
   id: '/governance',
   path: '/governance',
@@ -82,14 +139,9 @@ const ExtensionsRoute = ExtensionsRouteImport.update({
   path: '/extensions',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DataRoute = DataRouteImport.update({
-  id: '/data',
-  path: '/data',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CatalogRoute = CatalogRouteImport.update({
-  id: '/catalog',
-  path: '/catalog',
+const DatasetsRoute = DatasetsRouteImport.update({
+  id: '/datasets',
+  path: '/datasets',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BranchesRoute = BranchesRouteImport.update({
@@ -102,14 +154,14 @@ const BiRoute = BiRouteImport.update({
   path: '/bi',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AssetsRoute = AssetsRouteImport.update({
-  id: '/assets',
-  path: '/assets',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApisRoute = ApisRouteImport.update({
   id: '/apis',
   path: '/apis',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -127,92 +179,103 @@ const ExtensionsExtensionIdRoute = ExtensionsExtensionIdRouteImport.update({
   path: '/$extensionId',
   getParentRoute: () => ExtensionsRoute,
 } as any)
-const DataTableIdRoute = DataTableIdRouteImport.update({
-  id: '/$tableId',
-  path: '/$tableId',
-  getParentRoute: () => DataRoute,
-} as any)
-const BranchesBranchNameRoute = BranchesBranchNameRouteImport.update({
-  id: '/$branchName',
-  path: '/$branchName',
-  getParentRoute: () => BranchesRoute,
-} as any)
-const AssetsAssetIdRoute = AssetsAssetIdRouteImport.update({
-  id: '/$assetId',
-  path: '/$assetId',
-  getParentRoute: () => AssetsRoute,
+const DatasetsDatasetIdRoute = DatasetsDatasetIdRouteImport.update({
+  id: '/$datasetId',
+  path: '/$datasetId',
+  getParentRoute: () => DatasetsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/apis': typeof ApisRoute
-  '/assets': typeof AssetsRouteWithChildren
   '/bi': typeof BiRoute
-  '/branches': typeof BranchesRouteWithChildren
-  '/catalog': typeof CatalogRoute
-  '/data': typeof DataRouteWithChildren
+  '/branches': typeof BranchesRoute
+  '/datasets': typeof DatasetsRouteWithChildren
   '/extensions': typeof ExtensionsRouteWithChildren
   '/governance': typeof GovernanceRoute
+  '/ingestion': typeof IngestionRoute
+  '/lineage': typeof LineageRoute
   '/logs': typeof LogsRoute
   '/observability': typeof ObservabilityRoute
   '/operations': typeof OperationsRoute
+  '/pipelines': typeof PipelinesRoute
+  '/publishing': typeof PublishingRoute
   '/quality': typeof QualityRoute
+  '/queries': typeof QueriesRoute
+  '/query-history': typeof QueryHistoryRoute
+  '/recents': typeof RecentsRoute
   '/runs': typeof RunsRoute
+  '/search': typeof SearchRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
   '/storage': typeof StorageRoute
-  '/assets/$assetId': typeof AssetsAssetIdRoute
-  '/branches/$branchName': typeof BranchesBranchNameRoute
-  '/data/$tableId': typeof DataTableIdRoute
+  '/tables': typeof TablesRoute
+  '/workspace': typeof WorkspaceRoute
+  '/datasets/$datasetId': typeof DatasetsDatasetIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/apis': typeof ApisRoute
-  '/assets': typeof AssetsRouteWithChildren
   '/bi': typeof BiRoute
-  '/branches': typeof BranchesRouteWithChildren
-  '/catalog': typeof CatalogRoute
-  '/data': typeof DataRouteWithChildren
+  '/branches': typeof BranchesRoute
+  '/datasets': typeof DatasetsRouteWithChildren
   '/extensions': typeof ExtensionsRouteWithChildren
   '/governance': typeof GovernanceRoute
+  '/ingestion': typeof IngestionRoute
+  '/lineage': typeof LineageRoute
   '/logs': typeof LogsRoute
   '/observability': typeof ObservabilityRoute
   '/operations': typeof OperationsRoute
+  '/pipelines': typeof PipelinesRoute
+  '/publishing': typeof PublishingRoute
   '/quality': typeof QualityRoute
+  '/queries': typeof QueriesRoute
+  '/query-history': typeof QueryHistoryRoute
+  '/recents': typeof RecentsRoute
   '/runs': typeof RunsRoute
+  '/search': typeof SearchRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
   '/storage': typeof StorageRoute
-  '/assets/$assetId': typeof AssetsAssetIdRoute
-  '/branches/$branchName': typeof BranchesBranchNameRoute
-  '/data/$tableId': typeof DataTableIdRoute
+  '/tables': typeof TablesRoute
+  '/workspace': typeof WorkspaceRoute
+  '/datasets/$datasetId': typeof DatasetsDatasetIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/apis': typeof ApisRoute
-  '/assets': typeof AssetsRouteWithChildren
   '/bi': typeof BiRoute
-  '/branches': typeof BranchesRouteWithChildren
-  '/catalog': typeof CatalogRoute
-  '/data': typeof DataRouteWithChildren
+  '/branches': typeof BranchesRoute
+  '/datasets': typeof DatasetsRouteWithChildren
   '/extensions': typeof ExtensionsRouteWithChildren
   '/governance': typeof GovernanceRoute
+  '/ingestion': typeof IngestionRoute
+  '/lineage': typeof LineageRoute
   '/logs': typeof LogsRoute
   '/observability': typeof ObservabilityRoute
   '/operations': typeof OperationsRoute
+  '/pipelines': typeof PipelinesRoute
+  '/publishing': typeof PublishingRoute
   '/quality': typeof QualityRoute
+  '/queries': typeof QueriesRoute
+  '/query-history': typeof QueryHistoryRoute
+  '/recents': typeof RecentsRoute
   '/runs': typeof RunsRoute
+  '/search': typeof SearchRoute
   '/services': typeof ServicesRoute
   '/settings': typeof SettingsRoute
   '/storage': typeof StorageRoute
-  '/assets/$assetId': typeof AssetsAssetIdRoute
-  '/branches/$branchName': typeof BranchesBranchNameRoute
-  '/data/$tableId': typeof DataTableIdRoute
+  '/tables': typeof TablesRoute
+  '/workspace': typeof WorkspaceRoute
+  '/datasets/$datasetId': typeof DatasetsDatasetIdRoute
   '/extensions/$extensionId': typeof ExtensionsExtensionIdRoute
   '/workflows/new': typeof WorkflowsNewRoute
 }
@@ -220,100 +283,144 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$'
     | '/apis'
-    | '/assets'
     | '/bi'
     | '/branches'
-    | '/catalog'
-    | '/data'
+    | '/datasets'
     | '/extensions'
     | '/governance'
+    | '/ingestion'
+    | '/lineage'
     | '/logs'
     | '/observability'
     | '/operations'
+    | '/pipelines'
+    | '/publishing'
     | '/quality'
+    | '/queries'
+    | '/query-history'
+    | '/recents'
     | '/runs'
+    | '/search'
     | '/services'
     | '/settings'
     | '/storage'
-    | '/assets/$assetId'
-    | '/branches/$branchName'
-    | '/data/$tableId'
+    | '/tables'
+    | '/workspace'
+    | '/datasets/$datasetId'
     | '/extensions/$extensionId'
     | '/workflows/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$'
     | '/apis'
-    | '/assets'
     | '/bi'
     | '/branches'
-    | '/catalog'
-    | '/data'
+    | '/datasets'
     | '/extensions'
     | '/governance'
+    | '/ingestion'
+    | '/lineage'
     | '/logs'
     | '/observability'
     | '/operations'
+    | '/pipelines'
+    | '/publishing'
     | '/quality'
+    | '/queries'
+    | '/query-history'
+    | '/recents'
     | '/runs'
+    | '/search'
     | '/services'
     | '/settings'
     | '/storage'
-    | '/assets/$assetId'
-    | '/branches/$branchName'
-    | '/data/$tableId'
+    | '/tables'
+    | '/workspace'
+    | '/datasets/$datasetId'
     | '/extensions/$extensionId'
     | '/workflows/new'
   id:
     | '__root__'
     | '/'
+    | '/$'
     | '/apis'
-    | '/assets'
     | '/bi'
     | '/branches'
-    | '/catalog'
-    | '/data'
+    | '/datasets'
     | '/extensions'
     | '/governance'
+    | '/ingestion'
+    | '/lineage'
     | '/logs'
     | '/observability'
     | '/operations'
+    | '/pipelines'
+    | '/publishing'
     | '/quality'
+    | '/queries'
+    | '/query-history'
+    | '/recents'
     | '/runs'
+    | '/search'
     | '/services'
     | '/settings'
     | '/storage'
-    | '/assets/$assetId'
-    | '/branches/$branchName'
-    | '/data/$tableId'
+    | '/tables'
+    | '/workspace'
+    | '/datasets/$datasetId'
     | '/extensions/$extensionId'
     | '/workflows/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SplatRoute: typeof SplatRoute
   ApisRoute: typeof ApisRoute
-  AssetsRoute: typeof AssetsRouteWithChildren
   BiRoute: typeof BiRoute
-  BranchesRoute: typeof BranchesRouteWithChildren
-  CatalogRoute: typeof CatalogRoute
-  DataRoute: typeof DataRouteWithChildren
+  BranchesRoute: typeof BranchesRoute
+  DatasetsRoute: typeof DatasetsRouteWithChildren
   ExtensionsRoute: typeof ExtensionsRouteWithChildren
   GovernanceRoute: typeof GovernanceRoute
+  IngestionRoute: typeof IngestionRoute
+  LineageRoute: typeof LineageRoute
   LogsRoute: typeof LogsRoute
   ObservabilityRoute: typeof ObservabilityRoute
   OperationsRoute: typeof OperationsRoute
+  PipelinesRoute: typeof PipelinesRoute
+  PublishingRoute: typeof PublishingRoute
   QualityRoute: typeof QualityRoute
+  QueriesRoute: typeof QueriesRoute
+  QueryHistoryRoute: typeof QueryHistoryRoute
+  RecentsRoute: typeof RecentsRoute
   RunsRoute: typeof RunsRoute
+  SearchRoute: typeof SearchRoute
   ServicesRoute: typeof ServicesRoute
   SettingsRoute: typeof SettingsRoute
   StorageRoute: typeof StorageRoute
+  TablesRoute: typeof TablesRoute
+  WorkspaceRoute: typeof WorkspaceRoute
   WorkflowsNewRoute: typeof WorkflowsNewRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workspace': {
+      id: '/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof WorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tables': {
+      id: '/tables'
+      path: '/tables'
+      fullPath: '/tables'
+      preLoaderRoute: typeof TablesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/storage': {
       id: '/storage'
       path: '/storage'
@@ -335,6 +442,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/runs': {
       id: '/runs'
       path: '/runs'
@@ -342,11 +456,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RunsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recents': {
+      id: '/recents'
+      path: '/recents'
+      fullPath: '/recents'
+      preLoaderRoute: typeof RecentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/query-history': {
+      id: '/query-history'
+      path: '/query-history'
+      fullPath: '/query-history'
+      preLoaderRoute: typeof QueryHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/queries': {
+      id: '/queries'
+      path: '/queries'
+      fullPath: '/queries'
+      preLoaderRoute: typeof QueriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/quality': {
       id: '/quality'
       path: '/quality'
       fullPath: '/quality'
       preLoaderRoute: typeof QualityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/publishing': {
+      id: '/publishing'
+      path: '/publishing'
+      fullPath: '/publishing'
+      preLoaderRoute: typeof PublishingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipelines': {
+      id: '/pipelines'
+      path: '/pipelines'
+      fullPath: '/pipelines'
+      preLoaderRoute: typeof PipelinesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/operations': {
@@ -370,6 +519,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LogsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lineage': {
+      id: '/lineage'
+      path: '/lineage'
+      fullPath: '/lineage'
+      preLoaderRoute: typeof LineageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ingestion': {
+      id: '/ingestion'
+      path: '/ingestion'
+      fullPath: '/ingestion'
+      preLoaderRoute: typeof IngestionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/governance': {
       id: '/governance'
       path: '/governance'
@@ -384,18 +547,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExtensionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/data': {
-      id: '/data'
-      path: '/data'
-      fullPath: '/data'
-      preLoaderRoute: typeof DataRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/catalog': {
-      id: '/catalog'
-      path: '/catalog'
-      fullPath: '/catalog'
-      preLoaderRoute: typeof CatalogRouteImport
+    '/datasets': {
+      id: '/datasets'
+      path: '/datasets'
+      fullPath: '/datasets'
+      preLoaderRoute: typeof DatasetsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/branches': {
@@ -412,18 +568,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BiRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/assets': {
-      id: '/assets'
-      path: '/assets'
-      fullPath: '/assets'
-      preLoaderRoute: typeof AssetsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/apis': {
       id: '/apis'
       path: '/apis'
       fullPath: '/apis'
       preLoaderRoute: typeof ApisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -447,62 +603,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExtensionsExtensionIdRouteImport
       parentRoute: typeof ExtensionsRoute
     }
-    '/data/$tableId': {
-      id: '/data/$tableId'
-      path: '/$tableId'
-      fullPath: '/data/$tableId'
-      preLoaderRoute: typeof DataTableIdRouteImport
-      parentRoute: typeof DataRoute
-    }
-    '/branches/$branchName': {
-      id: '/branches/$branchName'
-      path: '/$branchName'
-      fullPath: '/branches/$branchName'
-      preLoaderRoute: typeof BranchesBranchNameRouteImport
-      parentRoute: typeof BranchesRoute
-    }
-    '/assets/$assetId': {
-      id: '/assets/$assetId'
-      path: '/$assetId'
-      fullPath: '/assets/$assetId'
-      preLoaderRoute: typeof AssetsAssetIdRouteImport
-      parentRoute: typeof AssetsRoute
+    '/datasets/$datasetId': {
+      id: '/datasets/$datasetId'
+      path: '/$datasetId'
+      fullPath: '/datasets/$datasetId'
+      preLoaderRoute: typeof DatasetsDatasetIdRouteImport
+      parentRoute: typeof DatasetsRoute
     }
   }
 }
 
-interface AssetsRouteChildren {
-  AssetsAssetIdRoute: typeof AssetsAssetIdRoute
+interface DatasetsRouteChildren {
+  DatasetsDatasetIdRoute: typeof DatasetsDatasetIdRoute
 }
 
-const AssetsRouteChildren: AssetsRouteChildren = {
-  AssetsAssetIdRoute: AssetsAssetIdRoute,
+const DatasetsRouteChildren: DatasetsRouteChildren = {
+  DatasetsDatasetIdRoute: DatasetsDatasetIdRoute,
 }
 
-const AssetsRouteWithChildren =
-  AssetsRoute._addFileChildren(AssetsRouteChildren)
-
-interface BranchesRouteChildren {
-  BranchesBranchNameRoute: typeof BranchesBranchNameRoute
-}
-
-const BranchesRouteChildren: BranchesRouteChildren = {
-  BranchesBranchNameRoute: BranchesBranchNameRoute,
-}
-
-const BranchesRouteWithChildren = BranchesRoute._addFileChildren(
-  BranchesRouteChildren,
+const DatasetsRouteWithChildren = DatasetsRoute._addFileChildren(
+  DatasetsRouteChildren,
 )
-
-interface DataRouteChildren {
-  DataTableIdRoute: typeof DataTableIdRoute
-}
-
-const DataRouteChildren: DataRouteChildren = {
-  DataTableIdRoute: DataTableIdRoute,
-}
-
-const DataRouteWithChildren = DataRoute._addFileChildren(DataRouteChildren)
 
 interface ExtensionsRouteChildren {
   ExtensionsExtensionIdRoute: typeof ExtensionsExtensionIdRoute
@@ -518,22 +639,31 @@ const ExtensionsRouteWithChildren = ExtensionsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SplatRoute: SplatRoute,
   ApisRoute: ApisRoute,
-  AssetsRoute: AssetsRouteWithChildren,
   BiRoute: BiRoute,
-  BranchesRoute: BranchesRouteWithChildren,
-  CatalogRoute: CatalogRoute,
-  DataRoute: DataRouteWithChildren,
+  BranchesRoute: BranchesRoute,
+  DatasetsRoute: DatasetsRouteWithChildren,
   ExtensionsRoute: ExtensionsRouteWithChildren,
   GovernanceRoute: GovernanceRoute,
+  IngestionRoute: IngestionRoute,
+  LineageRoute: LineageRoute,
   LogsRoute: LogsRoute,
   ObservabilityRoute: ObservabilityRoute,
   OperationsRoute: OperationsRoute,
+  PipelinesRoute: PipelinesRoute,
+  PublishingRoute: PublishingRoute,
   QualityRoute: QualityRoute,
+  QueriesRoute: QueriesRoute,
+  QueryHistoryRoute: QueryHistoryRoute,
+  RecentsRoute: RecentsRoute,
   RunsRoute: RunsRoute,
+  SearchRoute: SearchRoute,
   ServicesRoute: ServicesRoute,
   SettingsRoute: SettingsRoute,
   StorageRoute: StorageRoute,
+  TablesRoute: TablesRoute,
+  WorkspaceRoute: WorkspaceRoute,
   WorkflowsNewRoute: WorkflowsNewRoute,
 }
 export const routeTree = rootRouteImport

@@ -15,6 +15,7 @@ const devAllowedHosts = (process.env.DEV_ALLOWED_HOSTS ?? devHost)
     const trimmed = host.trim()
     return trimmed ? [trimmed] : []
   })
+const phloApiUrl = process.env.PHLO_API_URL ?? 'http://localhost:4000'
 
 const config = defineConfig({
   server: {
@@ -54,7 +55,7 @@ const config = defineConfig({
     nitro({
       routeRules: {
         '/api/observatory/**': {
-          proxy: `${process.env.PHLO_API_URL ?? 'http://phlo-api:4000'}/api/observatory/**`,
+          proxy: `${phloApiUrl}/api/observatory/**`,
         },
       },
     }),

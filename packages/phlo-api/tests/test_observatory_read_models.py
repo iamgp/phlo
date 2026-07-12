@@ -43,6 +43,53 @@ def test_read_model_cache_clear_removes_values() -> None:
     assert value == ["trino"]
 
 
+def test_read_model_cache_reuses_sqlite_value(tmp_path) -> None:
+    db_path = tmp_path / "read_models.sqlite"
+    calls: list[str] = []
+    first_cache = ReadModelCache(project_key=lambda: "demo", db_path=lambda: db_path)
+
+    first = first_cache.cached("services", 30, lambda: calls.append("first") or ["postgres"])
+    second_cache = ReadModelCache(project_key=lambda: "demo", db_path=lambda: db_path)
+    second = second_cache.cached("services", 30, lambda: calls.append("second") or ["trino"])
+
+    assert first == ["postgres"]
+    assert second == ["postgres"]
+    assert calls == ["first"]
+
+
+def test_read_model_cache_clear_removes_sqlite_values(tmp_path) -> None:
+    db_path = tmp_path / "read_models.sqlite"
+    cache = ReadModelCache(project_key=lambda: "demo", db_path=lambda: db_path)
+    cache.cached("services", 30, lambda: ["postgres"])
+
+    cache.clear()
+    value = ReadModelCache(project_key=lambda: "demo", db_path=lambda: db_path).cached(
+        "services", 30, lambda: ["trino"]
+    )
+
+    assert value == ["trino"]
+
+
+def test_read_model_cache_skips_unpersistable_values(tmp_path) -> None:
+    db_path = tmp_path / "read_models.sqlite"
+    cache = ReadModelCache(project_key=lambda: "demo", db_path=lambda: db_path)
+    calls: list[str] = []
+    value = cache.cached(
+        "locked",
+        30,
+        lambda: calls.append("first") or {"lock": __import__("threading").Lock()},
+    )
+
+    assert "lock" in value
+    assert calls == ["first"]
+    assert (
+        ReadModelCache(project_key=lambda: "demo", db_path=lambda: db_path).cached(
+            "locked", 30, lambda: calls.append("second") or "fallback"
+        )
+        == "fallback"
+    )
+
+
 def test_docker_status_from_running_container() -> None:
     status, health = docker_status_from_container({"State": "running", "Status": "Up 10 seconds"})
 

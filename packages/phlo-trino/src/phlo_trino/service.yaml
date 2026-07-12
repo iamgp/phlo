@@ -29,7 +29,7 @@ compose:
     S3_PATH_STYLE_ACCESS: "true"
   ports:
     - "${TRINO_PORT:-10005}:8080"
-  mem_limit: 3g
+  mem_limit: 2g
   volumes:
     - ./trino:/etc/trino:ro
   healthcheck:

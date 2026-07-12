@@ -2,14 +2,14 @@ import { createFileRoute } from '@tanstack/react-router'
 import {
   Download,
   ExternalLink,
-  Layers3,
   Package,
   Play,
+  Radio,
   RotateCcw,
   Server,
   Square,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
@@ -38,61 +38,117 @@ export const Route = createFileRoute('/services')({
   component: Services,
 })
 
-type ServicePackageGroup = {
-  id: string
-  name: string
-  kind: string
-  packageName: string | null
-  primary: ObservatoryService
-  services: Array<ObservatoryService>
-  inStack: boolean
-  installable: boolean
+type ServiceSummary = {
+  running: number
+  stackEntries: number
+  setupJobs: number
+  attention: number
+  definitions: number
 }
 
+type ServiceView = 'active' | 'definitions' | 'all'
+type PendingServiceAction =
+  | {
+      type: 'action'
+      id: string
+      message: string
+    }
+  | {
+      type: 'install'
+      packageName: string
+      message: string
+    }
+
 export function Services() {
-  const result = useLiveResource(getObservatoryServices, 120_000, 'v2:services')
+  const result = useLiveResource(
+    getObservatoryServices,
+    120_000,
+    'observatory:services',
+  )
   const [directResult, setDirectResult] = useState<ObservatoryResourceResult<
     Array<ObservatoryService>
   > | null>(null)
-  const services = result.data ?? directResult?.data ?? []
+  const apiServices = result.data ?? []
+  const directServices = directResult?.data ?? []
+  const isLoading =
+    result.isLoading ||
+    (apiServices.length === 0 && directResult === null && !result.error)
+  const services =
+    directServices.length > 0 || apiServices.length === 0
+      ? directServices
+      : apiServices
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const serviceGroups = useMemo(
-    () => groupServicesByPackage(services),
-    [services],
-  )
-  const runtimeServiceGroups = useMemo(
-    () => serviceGroups.filter((group) => group.inStack),
-    [serviceGroups],
-  )
-  const availableServiceGroups = useMemo(
-    () => serviceGroups.filter((group) => !group.inStack),
-    [serviceGroups],
-  )
-  const availableSections = useMemo(
-    () => groupServicePackagesByKind(availableServiceGroups),
-    [availableServiceGroups],
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [pendingAction, setPendingAction] =
+    useState<PendingServiceAction | null>(null)
+  const [view, setView] = useState<ServiceView>('active')
+  const rows = useMemo(() => sortServices(services), [services])
+  const visibleRows = useMemo(
+    () => rows.filter((service) => serviceVisibleInView(service, view)),
+    [rows, view],
   )
   const selected =
-    serviceGroups.find((group) => group.id === selectedId) ??
-    runtimeServiceGroups.find((group) => group.primary.status === 'running') ??
-    runtimeServiceGroups[0] ??
-    serviceGroups[0] ??
+    rows.find((service) => service.id === selectedId) ??
+    rows.find((service) => service.in_stack && service.status === 'running') ??
+    rows[0] ??
     null
-  const selectedService = selected?.primary ?? null
-  const runtimeServices = useMemo(
-    () => runtimeServiceGroups.flatMap((group) => group.services),
-    [runtimeServiceGroups],
-  )
+  const summary = useMemo(() => summarizeServices(services), [services])
   const [detail, setDetail] = useState<
     ObservatoryResourceResult<ObservatoryServiceDetail>
   >({
     data: null,
     error: null,
   })
-  const [actionMessage, setActionMessage] = useState<string | null>(null)
+
+  const selectService = useCallback((serviceId: string) => {
+    setSelectedId(serviceId)
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('serviceId', serviceId)
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+  }, [])
+
+  const runServiceAction = useCallback((actionId: string) => {
+    setActionMessage('Running action...')
+    void runObservatoryActionDirect({ actionId }).then(async (next) => {
+      if (!next.data && next.error) {
+        next = await runObservatoryAction({
+          data: { actionId },
+        }).catch((error: unknown) => ({
+          data: null,
+          error: error instanceof Error ? error.message : 'Action failed',
+        }))
+      }
+      invalidateCachedResources([
+        'observatory:operations',
+        'observatory:services',
+      ])
+      setActionMessage(next.data?.message ?? next.error ?? 'Action completed')
+    })
+  }, [])
+
+  const installPackage = useCallback((packageName: string) => {
+    setActionMessage(`Installing ${packageName}...`)
+    void installObservatoryPackageDirect({ packageName }).then(async (next) => {
+      if (!next.data && next.error) {
+        next = await installObservatoryPackage({
+          data: { packageName },
+        }).catch((error: unknown) => ({
+          data: null,
+          error: error instanceof Error ? error.message : 'Install failed',
+        }))
+      }
+      invalidateCachedResources([
+        'observatory:capabilities',
+        'observatory:operations',
+        'observatory:services',
+      ])
+      setActionMessage(next.data?.message ?? next.error ?? 'Install completed')
+    })
+  }, [])
 
   useEffect(() => {
-    if (result.data || directResult) return
+    if (directResult || (result.data && result.data.length > 0)) return
     let cancelled = false
     void getObservatoryServicesDirect().then((next) => {
       if (!cancelled) setDirectResult(next)
@@ -101,39 +157,53 @@ export function Services() {
       cancelled = true
     }
   }, [directResult, result.data])
-  const counts = useMemo(
-    () => ({
-      running: runtimeServices.filter((service) => service.status === 'running')
-        .length,
-      attention: runtimeServices.filter(
-        (service) =>
-          service.status === 'unhealthy' ||
-          service.health.state === 'warning' ||
-          service.health.state === 'error' ||
-          (service.status === 'stopped' && service.health.state !== 'ok'),
-      ).length,
-      runtime: runtimeServiceGroups.length,
-      available: availableServiceGroups.length,
-    }),
-    [
-      availableServiceGroups.length,
-      runtimeServiceGroups.length,
-      runtimeServices,
-    ],
-  )
 
   useEffect(() => {
-    if (!selectedService) return
+    if (typeof window === 'undefined') return
+    const requested = new URLSearchParams(window.location.search).get(
+      'serviceId',
+    )
+    if (!requested || requested === selectedId) return
+
+    const requestedService = rows.find((service) => service.id === requested)
+    if (requestedService && serviceVisibleInView(requestedService, view)) {
+      setSelectedId(requested)
+      return
+    }
+
+    const fallback = visibleRows[0]?.id
+    if (!fallback || fallback === selectedId) return
+    setSelectedId(fallback)
+    const url = new URL(window.location.href)
+    url.searchParams.set('serviceId', fallback)
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+  }, [rows, selectedId, view, visibleRows])
+
+  useEffect(() => {
+    if (visibleRows.length === 0) return
+    if (selected && visibleRows.some((service) => service.id === selected.id)) {
+      return
+    }
+    const fallback = visibleRows[0].id
+    setSelectedId(fallback)
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('serviceId', fallback)
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+  }, [selected, visibleRows])
+
+  useEffect(() => {
+    if (!selected) return
     let cancelled = false
     void loadCachedResource(
-      `v2:service-detail:${selectedService.id}`,
+      `observatory:service-detail:${selected.id}`,
       async () => {
         const directResponse = await getObservatoryServiceDetailDirect({
-          serviceId: selectedService.id,
+          serviceId: selected.id,
         })
         if (directResponse.data || !directResponse.error) return directResponse
         const response = await getObservatoryServiceDetail({
-          data: { serviceId: selectedService.id },
+          data: { serviceId: selected.id },
         }).catch((error: unknown) => ({
           data: null,
           error:
@@ -151,133 +221,170 @@ export function Services() {
     return () => {
       cancelled = true
     }
-  }, [selectedService])
+  }, [selected])
 
   return (
     <ObservatoryPage
       kicker="Services"
       title="Runtime services"
-      description="Inspect the running stack first; browse optional service definitions when you need to add capability."
+      description="Active Docker services first, with optional service definitions separated from runtime health."
       action={
-        <span className="phlo-observatory-pill">{counts.runtime} in stack</span>
+        <span className="phlo-observatory-pill">
+          {isLoading ? 'Loading' : `${summary.running} running`}
+        </span>
       }
     >
-      <section className="phlo-observatory-diff-metrics">
-        <Metric label="Running" value={counts.running} />
-        <Metric label="Needs Attention" value={counts.attention} />
-        <Metric label="Available Definitions" value={counts.available} />
-      </section>
-      <section className="phlo-observatory-services-workbench">
-        <div className="phlo-observatory-service-directory">
-          <ServiceSection
-            countLabel={`${runtimeServiceGroups.length} packages`}
-            icon={<Server className="size-4" />}
-            onSelect={setSelectedId}
-            selectedId={selected?.id}
-            services={runtimeServiceGroups}
-            title="Runtime stack"
-          />
-          <section className="phlo-observatory-service-section phlo-observatory-service-definitions">
-            <div className="phlo-observatory-browser-toolbar">
-              <span>
-                <Package className="size-4" />
-                Available definitions
-              </span>
-              <span className="phlo-observatory-pill">
-                {availableServiceGroups.length} optional
-              </span>
-            </div>
-            <p className="phlo-observatory-section-note">
-              These are service definitions Observatory can describe. They are
-              not running in this lakehouse until added to the stack.
-            </p>
-            <div className="phlo-observatory-service-category-grid">
-              {availableSections.map((section) => (
-                <ServiceSection
-                  compact
-                  countLabel={`${section.services.length}`}
-                  icon={<Layers3 className="size-4" />}
-                  key={section.kind}
-                  onSelect={setSelectedId}
-                  selectedId={selected?.id}
-                  services={section.services}
-                  title={labelize(section.kind)}
-                />
-              ))}
-            </div>
-          </section>
-        </div>
-        <aside className="phlo-observatory-service-detail">
-          {selected ? (
-            <ServiceDetail
-              detail={detail.data}
-              group={selected}
-              onAction={(actionId, confirmationMessage) => {
-                if (
-                  !window.confirm(
-                    confirmationMessage ??
-                      `Run ${actionId}? This will call phlo-api to change a local service.`,
-                  )
-                ) {
-                  return
-                }
-                setActionMessage('Running action...')
-                void runObservatoryActionDirect({ actionId }).then(
-                  async (next) => {
-                    if (!next.data && next.error) {
-                      next = await runObservatoryAction({
-                        data: { actionId },
-                      }).catch((error: unknown) => ({
-                        data: null,
-                        error:
-                          error instanceof Error
-                            ? error.message
-                            : 'Action failed',
-                      }))
-                    }
-                    invalidateCachedResources(['v2:operations', 'v2:services'])
-                    setActionMessage(
-                      next.data?.message ?? next.error ?? 'Action completed',
-                    )
-                  },
-                )
-              }}
-              onInstall={(packageName) => {
-                if (
-                  !window.confirm(
-                    `Install ${packageName}? This will modify the Python environment used by phlo-api.`,
-                  )
-                ) {
-                  return
-                }
-                setActionMessage(`Installing ${packageName}...`)
-                void installObservatoryPackageDirect({ packageName }).then(
-                  async (next) => {
-                    if (!next.data && next.error) {
-                      next = await installObservatoryPackage({
-                        data: { packageName },
-                      }).catch((error: unknown) => ({
-                        data: null,
-                        error:
-                          error instanceof Error
-                            ? error.message
-                            : 'Install failed',
-                      }))
-                    }
-                    invalidateCachedResources([
-                      'v2:capabilities',
-                      'v2:operations',
-                      'v2:services',
-                    ])
-                    setActionMessage(
-                      next.data?.message ?? next.error ?? 'Install completed',
-                    )
-                  },
-                )
-              }}
+      <section className="phlo-observatory-command phlo-observatory-surface-shell phlo-observatory-services-shell">
+        <div className="phlo-observatory-command-primary phlo-observatory-surface-list">
+          <div className="phlo-observatory-platform-summary">
+            <PlatformMetric
+              icon={<Radio className="size-4" />}
+              label="Running"
+              value={isLoading ? 'Loading' : summary.running}
             />
+            <PlatformMetric
+              icon={<Server className="size-4" />}
+              label="Stack entries"
+              value={isLoading ? 'Loading' : summary.stackEntries}
+            />
+            <PlatformMetric
+              icon={<Play className="size-4" />}
+              label="Setup complete"
+              value={isLoading ? 'Loading' : summary.setupJobs}
+            />
+            <PlatformMetric
+              icon={<Package className="size-4" />}
+              label="Definitions"
+              value={isLoading ? 'Loading' : summary.definitions}
+            />
+          </div>
+          <div className="phlo-observatory-browser-toolbar">
+            <span>
+              <Server className="size-4" />
+              {serviceViewTitle(view)}
+            </span>
+            <div
+              className="phlo-observatory-service-view-toggle"
+              role="group"
+              aria-label="Service view"
+            >
+              <button
+                data-active={view === 'active'}
+                onClick={() => setView('active')}
+                type="button"
+              >
+                Active stack
+              </button>
+              <button
+                data-active={view === 'definitions'}
+                onClick={() => setView('definitions')}
+                type="button"
+              >
+                Definitions
+              </button>
+              <button
+                data-active={view === 'all'}
+                onClick={() => setView('all')}
+                type="button"
+              >
+                All
+              </button>
+            </div>
+          </div>
+          <div
+            className="phlo-observatory-platform-table phlo-observatory-services-table"
+            role="table"
+          >
+            <div className="phlo-observatory-platform-head" role="row">
+              <span>Service</span>
+              <span>Package</span>
+              <span>Stack</span>
+              <span>Health</span>
+              <span>Role</span>
+              <span>Links</span>
+            </div>
+            {visibleRows.map((service) => (
+              <ServiceRow
+                key={service.id}
+                onSelect={() => selectService(service.id)}
+                selected={service.id === selected?.id}
+                service={service}
+              />
+            ))}
+            {isLoading ? (
+              <div className="phlo-observatory-run-provider-empty">
+                <div>
+                  <span className="phlo-observatory-inspector-label">
+                    Service inventory
+                  </span>
+                  <h2>Loading services</h2>
+                  <p>Reading live Docker services and runtime definitions.</p>
+                </div>
+              </div>
+            ) : (
+              visibleRows.length === 0 && (
+                <div className="phlo-observatory-run-provider-empty">
+                  <div>
+                    <span className="phlo-observatory-inspector-label">
+                      Service inventory
+                    </span>
+                    <h2>No services configured</h2>
+                    <p>The active stack has no service records to inspect.</p>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+
+        <aside className="phlo-observatory-inspector phlo-observatory-surface-inspector">
+          <div className="phlo-observatory-inspector-label">Service detail</div>
+          {selected ? (
+            <>
+              <ServiceDetail
+                detail={detail.data}
+                onAction={(actionId, confirmationMessage) => {
+                  setPendingAction({
+                    type: 'action',
+                    id: actionId,
+                    message:
+                      confirmationMessage ??
+                      `Run ${actionId}. This calls phlo-api to change a local service.`,
+                  })
+                }}
+                onInstall={(packageName) => {
+                  setPendingAction({
+                    type: 'install',
+                    packageName,
+                    message: `Install ${packageName}. This modifies the Python environment used by phlo-api.`,
+                  })
+                }}
+                service={selected}
+              />
+              {pendingAction && (
+                <ServiceActionConfirm
+                  action={pendingAction}
+                  onCancel={() => setPendingAction(null)}
+                  onConfirm={() => {
+                    const action = pendingAction
+                    setPendingAction(null)
+                    if (action.type === 'action') runServiceAction(action.id)
+                    else installPackage(action.packageName)
+                  }}
+                />
+              )}
+            </>
           ) : (
-            <p>No services returned yet.</p>
+            <>
+              <h2>
+                {isLoading ? 'Loading service detail' : 'No service selected'}
+              </h2>
+              <p>
+                {isLoading
+                  ? 'Reading live runtime state and actions.'
+                  : 'Select a service to inspect runtime state and actions.'}
+              </p>
+            </>
           )}
           {actionMessage && (
             <div className="phlo-observatory-panel-footer">{actionMessage}</div>
@@ -285,7 +392,7 @@ export function Services() {
           {detail.error && (
             <div className="phlo-observatory-panel-footer">{detail.error}</div>
           )}
-          {services.length === 0 && result.error && (
+          {result.error && (
             <div className="phlo-observatory-panel-footer">{result.error}</div>
           )}
           {!result.error && directResult?.error && (
@@ -299,85 +406,130 @@ export function Services() {
   )
 }
 
+function ServiceRow({
+  onSelect,
+  selected,
+  service,
+}: {
+  onSelect: () => void
+  selected: boolean
+  service: ObservatoryService
+}) {
+  return (
+    <button
+      className="phlo-observatory-platform-row phlo-observatory-service-inventory-row"
+      data-active={selected}
+      data-state={serviceState(service)}
+      onClick={onSelect}
+      role="row"
+      type="button"
+    >
+      <span>
+        <i
+          className="phlo-observatory-dot"
+          data-state={serviceDotState(service)}
+        />
+        {service.name}
+      </span>
+      <span>{servicePackageName(service) ?? 'native'}</span>
+      <span>{stackLabel(service)}</span>
+      <span>{serviceHealthLabel(service)}</span>
+      <span>{service.kind}</span>
+      <span>
+        {service.links.length
+          ? service.links.map((link) => link.label).join(', ')
+          : 'none'}
+      </span>
+    </button>
+  )
+}
+
+function ServiceActionConfirm({
+  action,
+  onCancel,
+  onConfirm,
+}: {
+  action: PendingServiceAction
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="phlo-observatory-service-confirm">
+      <div>
+        <span className="phlo-observatory-inspector-label">
+          Confirm service change
+        </span>
+        <p>{action.message}</p>
+      </div>
+      <div className="phlo-observatory-inline-actions">
+        <button onClick={onConfirm} type="button">
+          {action.type === 'install' ? 'Install package' : 'Run action'}
+        </button>
+        <button onClick={onCancel} type="button">
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ServiceDetail({
   detail,
-  group,
   onAction,
   onInstall,
+  service,
 }: {
   detail: ObservatoryServiceDetail | null
-  group: ServicePackageGroup
   onAction: (actionId: string, confirmationMessage?: string) => void
   onInstall: (packageName: string) => void
+  service: ObservatoryService
 }) {
-  const { primary: service } = group
-  const actions = serviceActionsForDetail(group, detail)
-  const addActionId = `${service.id}:add`
+  const actions = serviceActionsForDetail(service, detail)
+  const packageName = servicePackageName(service)
   const packageInstalled = service.metadata.package_installed !== false
-  const canAddToStack = !group.inStack && packageInstalled
-  const canInstallPackage = !packageInstalled && Boolean(group.packageName)
+  const canAddToStack = !service.in_stack && packageInstalled
+  const canInstallPackage = !packageInstalled && Boolean(packageName)
+  const addActionId = `${service.id}:add`
   const visibleActions = canAddToStack
     ? actions.filter((action) => action.id !== addActionId)
     : actions
-  const servicesAddedWithPrimary = addableDependencyNames(group, detail)
-  const addImpactMessage =
-    servicesAddedWithPrimary.length > 0
-      ? `Adding ${group.name} will also add ${formatHumanList(servicesAddedWithPrimary)}.`
-      : `Adding ${group.name} will only add ${group.name}.`
-  const addConfirmationMessage = `${addImpactMessage}\n\nContinue?`
-  const description =
-    typeof service.metadata.description === 'string'
-      ? service.metadata.description
-      : null
+  const dependencies =
+    detail?.dependencies.map((item) => item.name).join(', ') || 'none'
+  const dependents =
+    detail?.dependents.map((item) => item.name).join(', ') || 'none'
+  const ports =
+    detail?.ports
+      .map((port) => [port.published, port.target].filter(Boolean).join(' -> '))
+      .join(', ') || 'none'
+
   return (
     <>
-      <div className="phlo-observatory-detail-header">
-        <span>{group.packageName ?? service.kind}</span>
-        <h2>{group.name}</h2>
-        <p>
-          {group.inStack
-            ? (service.health.message ?? 'No runtime health message returned.')
-            : packageInstalled
-              ? (description ??
-                'This service package is installed and ready to add to this stack.')
-              : (description ??
-                'Install this package, then add it to this stack.')}
-        </p>
-      </div>
+      <h2>{service.name}</h2>
+      <p>{serviceDescription(service)}</p>
       <dl className="phlo-observatory-facts">
-        <Fact
-          label="Status"
-          value={group.inStack ? service.status : 'available'}
-        />
-        <Fact
-          label="Health"
-          value={group.inStack ? service.health.state : 'n/a'}
-        />
-        <Fact label="Package" value={group.packageName ?? 'unknown'} />
-        <Fact
-          label="Included services"
-          value={group.services.map((item) => item.name).join(', ') || 'none'}
-        />
+        <Fact label="Stack" value={stackLabel(service)} />
+        <Fact label="Status" value={service.status} />
+        <Fact label="Runtime" value={serviceHealthLabel(service)} />
+        <Fact label="Package" value={packageName ?? 'native'} />
       </dl>
-      {canAddToStack && (
-        <div className="phlo-observatory-service-impact">
-          <span>Stack impact</span>
-          <strong>{addImpactMessage}</strong>
-        </div>
-      )}
-      {(actions.length > 0 || canAddToStack || canInstallPackage) && (
+      {(visibleActions.length > 0 || canAddToStack || canInstallPackage) && (
         <div className="phlo-observatory-action-row">
           {canAddToStack && (
             <button
-              onClick={() => onAction(addActionId, addConfirmationMessage)}
+              onClick={() =>
+                onAction(
+                  addActionId,
+                  `Add ${service.name} to this stack?\n\nThis will update the local service configuration.`,
+                )
+              }
               type="button"
             >
               <Play className="size-3.5" />
               Add to stack
             </button>
           )}
-          {canInstallPackage && group.packageName && (
-            <button onClick={() => onInstall(group.packageName!)} type="button">
+          {canInstallPackage && packageName && (
+            <button onClick={() => onInstall(packageName)} type="button">
               <Download className="size-3.5" />
               Install package
             </button>
@@ -397,38 +549,24 @@ function ServiceDetail({
         </div>
       )}
       <div className="phlo-observatory-detail-list">
-        <div className="phlo-observatory-mini-row">
-          <span>Safe actions</span>
-          <small>
-            {visibleActions.length || canAddToStack
-              ? `${
-                  visibleActions.filter((action) => action.enabled).length +
-                  (canAddToStack ? 1 : 0)
-                } enabled`
-              : 'No actions available'}
-          </small>
+        <div
+          className="phlo-observatory-mini-row"
+          data-state={serviceState(service)}
+        >
+          <span>Runtime evidence</span>
+          <small>{serviceRuntimeEvidence(service)}</small>
         </div>
         <div className="phlo-observatory-mini-row">
           <span>Dependencies</span>
-          <small>
-            {detail?.dependencies.map((item) => item.name).join(', ') || 'none'}
-          </small>
+          <small>{dependencies}</small>
         </div>
         <div className="phlo-observatory-mini-row">
           <span>Dependents</span>
-          <small>
-            {detail?.dependents.map((item) => item.name).join(', ') || 'none'}
-          </small>
+          <small>{dependents}</small>
         </div>
         <div className="phlo-observatory-mini-row">
           <span>Ports</span>
-          <small>
-            {detail?.ports
-              .map((port) =>
-                [port.published, port.target].filter(Boolean).join(' -> '),
-              )
-              .join(', ') || 'none'}
-          </small>
+          <small>{ports}</small>
         </div>
         <div className="phlo-observatory-mini-row">
           <span>Config</span>
@@ -461,197 +599,110 @@ function ServiceDetail({
   )
 }
 
-function ServiceSection({
-  compact = false,
-  countLabel,
+function PlatformMetric({
   icon,
-  onSelect,
-  selectedId,
-  services,
-  title,
+  label,
+  value,
 }: {
-  compact?: boolean
-  countLabel: string
   icon: ReactNode
-  onSelect: (id: string) => void
-  selectedId?: string | null
-  services: Array<ServicePackageGroup>
-  title: string
+  label: string
+  value: string | number
 }) {
   return (
-    <section
-      className="phlo-observatory-service-section"
-      data-compact={compact}
-    >
-      <div className="phlo-observatory-browser-toolbar">
-        <span>
-          {icon}
-          {title}
-        </span>
-        <span className="phlo-observatory-pill">{countLabel}</span>
-      </div>
-      <div className="phlo-observatory-service-list">
-        {services.map((service) => (
-          <button
-            className="phlo-observatory-service-row"
-            data-active={service.id === selectedId}
-            key={service.id}
-            onClick={() => onSelect(service.id)}
-            type="button"
-          >
-            <span
-              className="phlo-observatory-dot"
-              data-state={serviceDotState(service)}
-            />
-            <span>{service.name}</span>
-            <small>
-              {service.packageName ?? service.kind}
-              {service.services.length > 1
-                ? ` · ${service.services.length} services`
-                : ''}
-            </small>
-            <strong>{serviceStatusLabel(service)}</strong>
-          </button>
-        ))}
-        {services.length === 0 && (
-          <div className="phlo-observatory-empty-state">
-            No services in this group.
-          </div>
-        )}
-      </div>
-    </section>
+    <div className="phlo-observatory-platform-summary-cell">
+      <span>
+        {icon}
+        {label}
+      </span>
+      <strong>{value}</strong>
+    </div>
   )
 }
 
-function addableDependencyNames(
-  group: ServicePackageGroup,
-  detail: ObservatoryServiceDetail | null,
-): Array<string> {
-  const dependencyNames = new Set<string>()
-  for (const dependency of detail?.dependencies ?? []) {
-    if (dependency.in_stack || dependency.id === group.primary.id) continue
-    dependencyNames.add(dependency.name)
-  }
-  return Array.from(dependencyNames).sort((left, right) =>
-    left.localeCompare(right),
-  )
-}
-
-function formatHumanList(items: Array<string>): string {
-  if (items.length <= 1) return items[0] ?? ''
-  if (items.length === 2) return `${items[0]} and ${items[1]}`
-  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`
-}
-
-function serviceActionsForDetail(
-  group: ServicePackageGroup,
-  detail: ObservatoryServiceDetail | null,
-) {
-  const actions = detail?.actions ?? []
-  if (
-    group.inStack ||
-    actions.some((action) => action.id === `${group.primary.id}:add`)
-  ) {
-    return actions
-  }
-  const packageInstalled = group.primary.metadata.package_installed !== false
-  return [
-    ...actions,
-    {
-      id: `${group.primary.id}:add`,
-      label: 'Add to stack',
-      kind: 'service.add',
-      enabled: packageInstalled,
-      requires_confirmation: true,
-      reason: packageInstalled
-        ? null
-        : `Install ${group.packageName ?? group.primary.name} before adding it to the stack.`,
-      risk_level: 'low' as const,
-      required_capability: null,
-      required_service: null,
-      required_permission: null,
-      equivalent_cli_command: `phlo services add ${group.primary.id}`,
-      expected_evidence: [],
-      background_operation_id: null,
-    },
-  ]
-}
-
-function groupServicePackagesByKind(
-  services: Array<ServicePackageGroup>,
-): Array<{
-  kind: string
-  services: Array<ServicePackageGroup>
-}> {
-  const groups = new Map<string, Array<ServicePackageGroup>>()
-  for (const service of services) {
-    const kind = service.kind || 'other'
-    groups.set(kind, [...(groups.get(kind) ?? []), service])
-  }
-  return Array.from(groups.entries())
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([kind, kindServices]) => ({ kind, services: kindServices }))
-}
-
-function groupServicesByPackage(
+function summarizeServices(
   services: Array<ObservatoryService>,
-): Array<ServicePackageGroup> {
-  const groups = new Map<string, Array<ObservatoryService>>()
-  for (const service of services) {
-    const key = servicePackageKey(service)
-    groups.set(key, [...(groups.get(key) ?? []), service])
-  }
-
-  return Array.from(groups.entries())
-    .map(([key, groupServices]) => servicePackageGroup(key, groupServices))
-    .sort((left, right) => left.name.localeCompare(right.name))
-}
-
-function servicePackageGroup(
-  key: string,
-  services: Array<ObservatoryService>,
-): ServicePackageGroup {
-  const primary = primaryServiceForPackage(key, services)
-  const packageName = servicePackageName(primary)
+): ServiceSummary {
+  const stackEntries = services.filter((service) => service.in_stack)
   return {
-    id: key,
-    name: serviceDisplayName(primary, packageName),
-    kind: primary.kind || 'service',
-    packageName,
-    primary,
-    services: services
-      .slice()
-      .sort((left, right) => left.name.localeCompare(right.name)),
-    inStack: services.some((service) => isRuntimeService(service)),
-    installable: services.some(
-      (service) => service.metadata.installable === true,
-    ),
+    running: stackEntries.filter((service) => service.status === 'running')
+      .length,
+    stackEntries: stackEntries.length,
+    setupJobs: stackEntries.filter(isCompletedSetup).length,
+    attention: stackEntries.filter(needsAttention).length,
+    definitions: services.filter((service) => !service.in_stack).length,
   }
 }
 
-function primaryServiceForPackage(
-  key: string,
+function sortServices(
   services: Array<ObservatoryService>,
-): ObservatoryService {
-  const packageLabel = key.startsWith('package:')
-    ? key.slice('package:'.length).replace(/^phlo-/, '')
-    : key
+): Array<ObservatoryService> {
+  return services.slice().sort((left, right) => {
+    const leftRank = serviceSortRank(left)
+    const rightRank = serviceSortRank(right)
+    if (leftRank !== rightRank) return leftRank - rightRank
+    return left.name.localeCompare(right.name)
+  })
+}
+
+function serviceSortRank(service: ObservatoryService): number {
+  if (service.in_stack && service.status === 'running') return 0
+  if (isCompletedSetup(service)) return 1
+  if (service.in_stack) return 2
+  if (service.metadata.installable === true) return 4
+  return 3
+}
+
+function isCompletedSetup(service: ObservatoryService): boolean {
   return (
-    services.find((service) => service.name === packageLabel) ??
-    services.find((service) => service.id === packageLabel) ??
-    services.find(
-      (service) => service.metadata.registry_name === packageLabel,
-    ) ??
-    services
-      .slice()
-      .sort((left, right) => left.name.length - right.name.length)[0]
+    service.in_stack === true &&
+    service.status === 'stopped' &&
+    service.health.state === 'ok'
   )
 }
 
-function servicePackageKey(service: ObservatoryService): string {
-  const packageName = servicePackageName(service)
-  if (packageName) return `package:${packageName}`
-  return `service:${service.id}`
+function needsAttention(service: ObservatoryService): boolean {
+  if (service.status === 'unhealthy') return true
+  if (service.health.state === 'warning' || service.health.state === 'error')
+    return true
+  return (
+    service.in_stack === true &&
+    service.status === 'stopped' &&
+    !isCompletedSetup(service)
+  )
+}
+
+function stackLabel(service: ObservatoryService): string {
+  if (isCompletedSetup(service)) return 'setup complete'
+  if (service.in_stack) return 'in stack'
+  if (service.metadata.installable === true) return 'not installed'
+  return 'definition only'
+}
+
+function serviceVisibleInView(
+  service: ObservatoryService,
+  view: ServiceView,
+): boolean {
+  if (view === 'active') return service.in_stack === true
+  if (view === 'definitions') return service.in_stack !== true
+  return true
+}
+
+function serviceViewTitle(view: ServiceView): string {
+  if (view === 'active') return 'Active stack'
+  if (view === 'definitions') return 'Optional definitions'
+  return 'Service inventory'
+}
+
+function serviceState(service: ObservatoryService): string {
+  if (needsAttention(service)) return 'error'
+  if (isCompletedSetup(service)) return 'ok'
+  if (service.in_stack) return service.status
+  return 'unknown'
+}
+
+function serviceDotState(service: ObservatoryService): string {
+  if (service.in_stack && service.status === 'running') return 'ok'
+  return serviceState(service)
 }
 
 function servicePackageName(service: ObservatoryService): string | null {
@@ -660,69 +711,76 @@ function servicePackageName(service: ObservatoryService): string | null {
     : null
 }
 
-function serviceDisplayName(
+function serviceDescription(service: ObservatoryService): string {
+  if (service.in_stack) {
+    return (
+      service.health.message ??
+      'Runtime evidence is available for this service.'
+    )
+  }
+  if (
+    typeof service.metadata.description === 'string' &&
+    service.metadata.description
+  ) {
+    return service.metadata.description
+  }
+  return 'Optional service definition available to this lakehouse.'
+}
+
+function serviceHealthLabel(service: ObservatoryService): string {
+  if (!service.in_stack) {
+    return service.metadata.installable === true
+      ? 'package available'
+      : 'not in active stack'
+  }
+  return service.health.message ?? service.health.state
+}
+
+function serviceRuntimeEvidence(service: ObservatoryService): string {
+  if (!service.in_stack) {
+    return 'Definition is available, but this service is not part of the active Docker stack.'
+  }
+  return service.health.message ?? 'No runtime message available.'
+}
+
+function serviceActionsForDetail(
   service: ObservatoryService,
-  packageName: string | null,
-): string {
-  if (!packageName) return service.name
-  const packageLabel = packageName.replace(/^phlo-/, '')
-  if (service.name === packageLabel || service.id === packageLabel) {
-    return service.name
+  detail: ObservatoryServiceDetail | null,
+) {
+  const actions = detail?.actions ?? []
+  if (
+    service.in_stack ||
+    actions.some((action) => action.id === `${service.id}:add`)
+  ) {
+    return actions
   }
-  return packageLabel
-}
-
-function isRuntimeService(service: ObservatoryService): boolean {
-  if (typeof service.in_stack === 'boolean') return service.in_stack
-  return (
-    service.status !== 'unknown' ||
-    service.health.state !== 'unknown' ||
-    service.health.message !== 'Runtime status unavailable'
-  )
-}
-
-function serviceStatusLabel(service: ServicePackageGroup): string {
-  if (!service.inStack) {
-    return service.installable ? 'not installed' : 'available'
-  }
-  const primary = service.primary
-  if (primary.status === 'stopped' && primary.health.state === 'ok') {
-    return 'completed'
-  }
-  return primary.status
-}
-
-function serviceDotState(service: ServicePackageGroup): string {
-  if (!service.inStack) return service.installable ? 'unknown' : 'stopped'
-  const primary = service.primary
-  if (primary.status === 'stopped' && primary.health.state === 'ok') {
-    return 'ok'
-  }
-  return primary.status
-}
-
-function labelize(value: string): string {
-  return value
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase())
+  const packageInstalled = service.metadata.package_installed !== false
+  return [
+    ...actions,
+    {
+      id: `${service.id}:add`,
+      label: 'Add to stack',
+      kind: 'service.add',
+      enabled: packageInstalled,
+      requires_confirmation: true,
+      reason: packageInstalled
+        ? null
+        : `Install ${servicePackageName(service) ?? service.name} before adding it to the stack.`,
+      risk_level: 'low' as const,
+      required_capability: null,
+      required_service: null,
+      required_permission: null,
+      equivalent_cli_command: `phlo services add ${service.id}`,
+      expected_evidence: [],
+      background_operation_id: null,
+    },
+  ]
 }
 
 function iconForAction(kind: string) {
   if (kind.endsWith('stop')) return <Square className="size-3.5" />
   if (kind.endsWith('restart')) return <RotateCcw className="size-3.5" />
   return <Play className="size-3.5" />
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="phlo-observatory-diff-metric">
-      <Server className="size-5" />
-      <div>
-        <strong>{value}</strong>
-        <span>{label}</span>
-      </div>
-    </div>
-  )
 }
 
 function Fact({ label, value }: { label: string; value: string }) {

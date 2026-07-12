@@ -1,6 +1,6 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle, FileText, Radio, Search, Terminal } from 'lucide-react'
-import { useEffect, useMemo, useReducer } from 'react'
+import { useCallback, useEffect, useMemo, useReducer } from 'react'
 
 import type {
   ObservatoryLogEvent,
@@ -12,6 +12,7 @@ import {
   getObservatoryLogRecords,
 } from '@/observatory/api/resources'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
+import { platformMetadataRows } from '@/observatory/platformMetadata'
 import {
   loadCachedResource,
   useLiveResource,
@@ -52,8 +53,14 @@ function logsReducer(state: LogsState, action: LogsAction): LogsState {
 }
 
 export function Logs() {
-  const result = useLiveResource(getObservatoryLogRecords, 120_000, 'v2:logs')
-  const logs = result.data ?? []
+  const result = useLiveResource(
+    getObservatoryLogRecords,
+    120_000,
+    'observatory:logs',
+  )
+  const rawLogs = result.data ?? []
+  const logs = useMemo(() => collapseRepeatedLogs(rawLogs), [rawLogs])
+  const isLoading = result.isLoading
   const [{ facets, level, query, selectedId, source }, dispatch] = useReducer(
     logsReducer,
     {
@@ -68,10 +75,8 @@ export function Logs() {
       source: 'all',
     }),
   )
-  const sources = new Set(
-    facets.data?.sources ?? logs.map((log) => log.source ?? 'platform'),
-  )
-  const levels = new Set(facets.data?.levels ?? logs.map((log) => log.level))
+  const sources = new Set(logs.map((log) => log.source ?? 'platform'))
+  const levels = new Set(logs.map((log) => log.level))
   const filtered = useMemo(
     () =>
       logs.filter(
@@ -84,31 +89,76 @@ export function Logs() {
   )
   const selected =
     filtered.find((log) => log.id === selectedId) ?? filtered[0] ?? null
+  const summary = useMemo(() => summarizeLogs(logs), [logs])
+  const selectLog = useCallback((nextSelectedId: string) => {
+    dispatch({ type: 'selected', selectedId: nextSelectedId })
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('logId', nextSelectedId)
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+  }, [])
 
   useEffect(() => {
-    void loadCachedResource('v2:log-facets', getObservatoryLogFacets, {
+    void loadCachedResource('observatory:log-facets', getObservatoryLogFacets, {
       staleMs: 120_000,
     }).then((nextFacets) => dispatch({ type: 'facets', facets: nextFacets }))
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const requested = new URLSearchParams(window.location.search).get('logId')
+    if (!requested || requested === selectedId) return
+    if (logs.some((log) => log.id === requested)) {
+      dispatch({ type: 'selected', selectedId: requested })
+    }
+  }, [logs, selectedId])
 
   return (
     <ObservatoryPage
       kicker="Logs"
       title="Evidence console"
-      description="Filter recent events, open the full payload, and jump back to the affected resource."
+      description="Triage platform events, inspect structured payloads, and jump back to the affected target."
       action={
-        <span className="phlo-observatory-pill">{sources.size} sources</span>
+        <span className="phlo-observatory-pill">
+          {isLoading ? 'Loading' : `${sources.size} sources`}
+        </span>
       }
     >
       <section className="phlo-observatory-log-shell">
         <div className="phlo-observatory-log-console">
+          <div className="phlo-observatory-log-summary">
+            <LogSummaryCell
+              label="Errors"
+              value={isLoading ? 'Loading' : summary.error}
+            />
+            <LogSummaryCell
+              label="Warnings"
+              value={isLoading ? 'Loading' : summary.warning}
+            />
+            <LogSummaryCell
+              label="Info"
+              value={isLoading ? 'Loading' : summary.info}
+            />
+            <LogSummaryCell
+              label="Sources"
+              value={isLoading ? 'Loading' : summary.sources}
+            />
+            <LogSummaryCell
+              label="Linked targets"
+              value={isLoading ? 'Loading' : summary.resources}
+            />
+          </div>
           <div className="phlo-observatory-console-toolbar phlo-observatory-log-toolbar">
             <span className="phlo-observatory-log-toolbar-title">
               <Terminal className="size-4" />
-              Event stream
+              Event evidence
             </span>
             <span className="phlo-observatory-pill">
-              {filtered.length} events
+              {isLoading
+                ? 'Loading'
+                : rawLogs.length === logs.length
+                  ? `${filtered.length} / ${logs.length} events`
+                  : `${filtered.length} / ${logs.length} groups · ${rawLogs.length} events`}
             </span>
           </div>
           <div className="phlo-observatory-filter-row">
@@ -132,7 +182,7 @@ export function Logs() {
               <option value="all">All sources</option>
               {Array.from(sources).map((entry) => (
                 <option key={entry} value={entry}>
-                  {entry}
+                  {displayLogSource(entry)}
                 </option>
               ))}
             </select>
@@ -151,20 +201,30 @@ export function Logs() {
             </select>
           </div>
           <div className="phlo-observatory-console-body">
+            <div className="phlo-observatory-log-head" role="row">
+              <span>Time</span>
+              <span>Level</span>
+              <span>Message</span>
+              <span>Source</span>
+            </div>
             {filtered.map((log) => (
               <LogLine
                 key={log.id}
                 log={log}
-                onSelect={(nextSelectedId) =>
-                  dispatch({ type: 'selected', selectedId: nextSelectedId })
-                }
+                onSelect={selectLog}
                 selected={log.id === selected?.id}
               />
             ))}
-            {filtered.length === 0 && (
+            {isLoading ? (
               <div className="phlo-observatory-empty-state">
-                No log events returned yet.
+                Reading live platform event evidence.
               </div>
+            ) : (
+              filtered.length === 0 && (
+                <div className="phlo-observatory-empty-state">
+                  No log events match the current filters.
+                </div>
+              )
             )}
           </div>
         </div>
@@ -175,50 +235,58 @@ export function Logs() {
           </div>
           {selected ? (
             <>
-              <h2>{selected.source ?? 'platform'}</h2>
+              <h2>{displayLogSource(selected.source)}</h2>
               <p>{selected.message}</p>
               <dl className="phlo-observatory-facts">
                 <Fact label="Level" value={selected.level} />
                 <Fact
-                  label="Resource"
+                  label="Target"
                   value={selected.resource?.label ?? 'platform'}
                 />
-                <Fact label="Kind" value={selected.resource?.kind ?? 'event'} />
+                <Fact
+                  label="Scope"
+                  value={
+                    selected.resource
+                      ? resourceLabel(selected.resource.kind)
+                      : 'event'
+                  }
+                />
                 <Fact
                   label="Timestamp"
                   value={selected.timestamp ?? 'not timestamped'}
                 />
               </dl>
-              {selected.resource && routeForResource(selected.resource) && (
-                <Link
+              {selected.resource && routeHrefForResource(selected.resource) && (
+                <a
                   className="phlo-observatory-linked-resource"
-                  to={routeForResource(selected.resource)!.to}
-                  params={routeForResource(selected.resource)!.params}
+                  href={routeHrefForResource(selected.resource)!}
                 >
                   <FileText className="size-3.5" />
-                  Open {selected.resource.kind}
-                </Link>
+                  {resourceActionLabel(selected.resource.kind)}
+                </a>
               )}
               <div className="phlo-observatory-detail-list">
-                {Object.entries(selected.metadata).map(([key, value]) => (
-                  <div className="phlo-observatory-mini-row" key={key}>
-                    <span>{key}</span>
-                    <small>{formatLogValue(value)}</small>
+                {platformMetadataRows(selected.metadata).map((row) => (
+                  <div className="phlo-observatory-mini-row" key={row.label}>
+                    <span>{row.label}</span>
+                    <small>{row.value}</small>
                   </div>
                 ))}
-                {Object.keys(selected.metadata).length === 0 && (
+                {platformMetadataRows(selected.metadata).length === 0 && (
                   <div className="phlo-observatory-mini-row">
                     <span>Metadata</span>
-                    <small>No structured fields returned</small>
+                    <small>No structured fields</small>
                   </div>
                 )}
               </div>
             </>
           ) : (
             <>
-              <h2>No events</h2>
+              <h2>{isLoading ? 'Loading evidence' : 'No events'}</h2>
               <p>
-                Logs will appear here as Phlo and stack services emit events.
+                {isLoading
+                  ? 'Reading live platform events and structured log fields.'
+                  : 'Logs will appear here as Phlo and stack services emit events.'}
               </p>
             </>
           )}
@@ -227,7 +295,7 @@ export function Logs() {
               <span>Facets</span>
               <small>
                 {sources.size} sources · {levels.size} levels ·{' '}
-                {facets.data?.resources.length ?? 0} resources
+                {facets.data?.resources.length ?? 0} targets
               </small>
             </div>
           </div>
@@ -243,20 +311,116 @@ export function Logs() {
   )
 }
 
-function routeForResource(
+function routeHrefForResource(
   resource: ObservatoryLogEvent['resource'],
-):
-  | { to: '/assets/$assetId'; params: { assetId: string } }
-  | { to: '/data/$tableId'; params: { tableId: string } }
-  | null {
+): string | null {
   if (!resource) return null
+  if (resource.kind === 'dataset') {
+    return `/datasets/${encodeURIComponent(resource.id)}`
+  }
   if (resource.kind === 'asset') {
-    return { to: '/assets/$assetId', params: { assetId: resource.id } }
+    return `/lineage?assetId=${encodeURIComponent(resource.id)}`
   }
   if (resource.kind === 'table') {
-    return { to: '/data/$tableId', params: { tableId: resource.id } }
+    return `/tables?tableId=${encodeURIComponent(resource.id)}`
   }
   return null
+}
+
+function resourceLabel(kind: string): string {
+  if (kind === 'asset') return 'lineage'
+  return kind
+}
+
+function resourceActionLabel(kind: string): string {
+  if (kind === 'asset') return 'Open lineage'
+  return `Open ${resourceLabel(kind)}`
+}
+
+function summarizeLogs(logs: Array<ObservatoryLogEvent>): {
+  error: number
+  warning: number
+  info: number
+  sources: number
+  resources: number
+} {
+  const sources = new Set<string>()
+  const resources = new Set<string>()
+  let error = 0
+  let warning = 0
+  let info = 0
+  for (const log of logs) {
+    sources.add(log.source ?? 'platform')
+    if (log.resource) resources.add(`${log.resource.kind}:${log.resource.id}`)
+    if (log.level === 'error') error += 1
+    else if (log.level === 'warning') warning += 1
+    else if (log.level === 'info') info += 1
+  }
+  return {
+    error,
+    warning,
+    info,
+    sources: sources.size,
+    resources: resources.size,
+  }
+}
+
+/**
+ * Provider discovery can emit the same warning on every capability probe.
+ * Keep the newest event addressable while retaining the occurrence count as
+ * structured evidence, so operational events are not buried by probe noise.
+ */
+function collapseRepeatedLogs(
+  logs: Array<ObservatoryLogEvent>,
+): Array<ObservatoryLogEvent> {
+  const groups = new Map<
+    string,
+    { event: ObservatoryLogEvent; occurrences: number }
+  >()
+
+  for (const log of logs) {
+    const key = [
+      log.level,
+      log.source ?? 'platform',
+      log.message,
+      log.resource?.kind ?? '',
+      log.resource?.id ?? '',
+    ].join('\u0000')
+    const existing = groups.get(key)
+    if (existing) {
+      existing.occurrences += 1
+      continue
+    }
+    groups.set(key, { event: log, occurrences: 1 })
+  }
+
+  return Array.from(groups.values()).map(({ event, occurrences }) =>
+    occurrences === 1
+      ? event
+      : {
+          ...event,
+          metadata: {
+            ...event.metadata,
+            occurrences,
+            grouping: 'Repeated events collapsed; newest event shown.',
+          },
+        },
+  )
+}
+
+function LogSummaryCell({
+  label,
+  value,
+}: {
+  label: string
+  value: string | number
+}) {
+  return (
+    <div className="phlo-observatory-log-summary-cell">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
 }
 
 function matchesLogQuery(log: ObservatoryLogEvent, query: string): boolean {
@@ -305,19 +469,16 @@ function LogLine({
       </span>
       <span className="phlo-observatory-log-message">{log.message}</span>
       <span className="phlo-observatory-log-source">
-        {log.source ?? log.resource?.label ?? 'platform'}
+        {displayLogSource(log.source) ?? log.resource?.label ?? 'platform'}
       </span>
     </button>
   )
 }
 
-function formatLogValue(value: unknown): string {
-  if (value === null || value === undefined) return 'unset'
-  if (typeof value === 'string') return value
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value)
-  }
-  return JSON.stringify(value)
+function displayLogSource(source?: string | null): string | null {
+  if (!source) return source ?? null
+  if (source === 'observatory-fixture') return 'Lakehouse manifest'
+  return source.replace(/\bassets\b/gi, 'resources')
 }
 
 function Fact({ label, value }: { label: string; value: string }) {

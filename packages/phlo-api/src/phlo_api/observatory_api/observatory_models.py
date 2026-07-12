@@ -7,11 +7,14 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 HealthState = Literal["ok", "warning", "error", "unknown"]
+ControlStatus = Literal["pass", "fail", "warning", "unknown", "not_applicable"]
 ServiceStatus = Literal["running", "stopped", "unhealthy", "starting", "unknown"]
 ServiceDefinitionState = Literal["configured", "available"]
 OperationStatus = Literal["queued", "running", "succeeded", "failed", "skipped", "unknown"]
 RunStatus = Literal["queued", "running", "succeeded", "failed", "cancelled", "unknown"]
 QualityStatus = Literal["passing", "failing", "warning", "unknown"]
+PublicationState = Literal["draft", "published", "retired"]
+TelemetryIdentityDetail = Literal["anonymous", "aggregate", "identity", "audit_only"]
 
 
 class ObservatoryHealth(BaseModel):
@@ -233,11 +236,25 @@ class ObservatoryServiceDetail(BaseModel):
     config: list[ObservatoryServiceConfigEntry] = Field(default_factory=list)
 
 
+class ObservatoryOverviewRow(BaseModel):
+    """One canonical row for Home attention and event surfaces."""
+
+    id: str
+    kind: Literal["service", "quality", "operation", "log"]
+    label: str
+    href: str
+    state: HealthState
+    meta: str | None = None
+    reason: str | None = None
+
+
 class ObservatoryOverview(BaseModel):
     """First slice of the Observatory overview payload."""
 
     health: ObservatoryHealth
     counters: dict[str, int] = Field(default_factory=dict)
+    attention: list[ObservatoryOverviewRow] = Field(default_factory=list)
+    events: list[ObservatoryOverviewRow] = Field(default_factory=list)
     recent: list[ObservatoryResourceRef] = Field(default_factory=list)
 
 
@@ -307,6 +324,185 @@ class ObservatoryAssetDetail(BaseModel):
     lineage: list[ObservatoryResourceRef] = Field(default_factory=list)
     materializations: list["ObservatoryOperation"] = Field(default_factory=list)
     column_lineage: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class ObservatoryDataset(BaseModel):
+    """Provider-neutral Dataset summary."""
+
+    id: str
+    name: str
+    description: str | None = None
+    owner: str | None = None
+    classifications: list[str] = Field(default_factory=list)
+    publication_state: PublicationState = "draft"
+    readiness_state: HealthState = "unknown"
+    candidate: bool = False
+    kinds: list[str] = Field(default_factory=list)
+    source_refs: list[ObservatoryResourceRef] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryControlEvidence(BaseModel):
+    """Evidence supporting one Dataset control."""
+
+    kind: str
+    id: str
+    label: str
+    value: str | None = None
+    resource: ObservatoryResourceRef | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryDatasetControl(BaseModel):
+    """One governance control evaluated against a Dataset."""
+
+    id: str
+    label: str
+    status: ControlStatus
+    message: str | None = None
+    evidence: list[ObservatoryControlEvidence] = Field(default_factory=list)
+
+
+class ObservatoryGovernanceRow(BaseModel):
+    """Control matrix row for one Dataset."""
+
+    dataset: ObservatoryDataset
+    owner: str | None = None
+    classifications: list[str] = Field(default_factory=list)
+    status: ControlStatus = "unknown"
+    controls: list[ObservatoryDatasetControl] = Field(default_factory=list)
+
+
+class ObservatoryGovernanceMatrix(BaseModel):
+    """Governance control matrix over Datasets."""
+
+    controls: list[str] = Field(default_factory=list)
+    rows: list[ObservatoryGovernanceRow] = Field(default_factory=list)
+    status_counts: dict[str, int] = Field(default_factory=dict)
+
+
+class ObservatoryTelemetryPrivacyPolicy(BaseModel):
+    """Privacy shaping policy applied to Usage before UI display."""
+
+    identity_detail: TelemetryIdentityDetail = "aggregate"
+    retention_days: int | None = None
+    audit_drilldown: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryAccessActivity(BaseModel):
+    """Privacy-shaped access activity for a Dataset."""
+
+    id: str
+    action: str
+    actor_label: str | None = None
+    actor_kind: str | None = None
+    count: int = 1
+    last_seen_at: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryDependencyActivity(BaseModel):
+    """Observed usage dependency involving a Dataset."""
+
+    id: str
+    source: ObservatoryResourceRef
+    target: ObservatoryResourceRef
+    kind: str = "dependency"
+    count: int = 1
+    last_seen_at: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryConsumerAdoption(BaseModel):
+    """Declared consumer reliance on a Dataset."""
+
+    id: str
+    consumer: str
+    kind: str = "team"
+    owner: str | None = None
+    status: str = "declared"
+    declared_at: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ObservatoryDatasetUsage(BaseModel):
+    """Usage read model for one Dataset."""
+
+    privacy_policy: ObservatoryTelemetryPrivacyPolicy = Field(
+        default_factory=ObservatoryTelemetryPrivacyPolicy
+    )
+    access_activity: list[ObservatoryAccessActivity] = Field(default_factory=list)
+    dependency_activity: list[ObservatoryDependencyActivity] = Field(default_factory=list)
+    consumer_adoption: list[ObservatoryConsumerAdoption] = Field(default_factory=list)
+
+
+class ObservatoryPublishingAction(BaseModel):
+    """Display-only publishing action availability."""
+
+    id: str
+    label: str
+    enabled: bool
+    reason: str | None = None
+    consequences: list[str] = Field(default_factory=list)
+
+
+class ObservatoryPublishingReadiness(BaseModel):
+    """Readiness policy evaluation for internal Dataset publishing."""
+
+    state: HealthState = "unknown"
+    policy_name: str = "default"
+    internal_only: bool = True
+    blockers: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    missing_evidence: list[str] = Field(default_factory=list)
+    actions: list[ObservatoryPublishingAction] = Field(default_factory=list)
+
+
+class ObservatoryPipelineStage(BaseModel):
+    """One stage in a Dataset production flow."""
+
+    id: str
+    label: str
+    state: HealthState = "unknown"
+    resource: ObservatoryResourceRef | None = None
+
+
+class ObservatoryDatasetPipeline(BaseModel):
+    """Production-flow read model for one Dataset."""
+
+    dataset: ObservatoryDataset | None = None
+    freshness_state: HealthState = "unknown"
+    freshness_at: str | None = None
+    last_run: ObservatoryResourceRef | None = None
+    stages: list[ObservatoryPipelineStage] = Field(default_factory=list)
+    actions: list["ObservatoryAction"] = Field(default_factory=list)
+
+
+class ObservatoryPipelineList(BaseModel):
+    """Production-flow summaries for Datasets."""
+
+    items: list[ObservatoryDatasetPipeline] = Field(default_factory=list)
+
+
+class ObservatoryDatasetProfile(BaseModel):
+    """Shared cross-feature profile for one Dataset."""
+
+    dataset: ObservatoryDataset
+    asset: ObservatoryAsset | None = None
+    tables: list["ObservatoryTable"] = Field(default_factory=list)
+    quality: list["ObservatoryQualityCheck"] = Field(default_factory=list)
+    upstream: list[ObservatoryResourceRef] = Field(default_factory=list)
+    downstream: list[ObservatoryResourceRef] = Field(default_factory=list)
+    logs: list["ObservatoryLogEvent"] = Field(default_factory=list)
+    operations: list["ObservatoryOperation"] = Field(default_factory=list)
+    governance: list[ObservatoryDatasetControl] = Field(default_factory=list)
+    usage: ObservatoryDatasetUsage = Field(default_factory=ObservatoryDatasetUsage)
+    publishing: ObservatoryPublishingReadiness = Field(
+        default_factory=ObservatoryPublishingReadiness
+    )
+    pipeline: ObservatoryDatasetPipeline = Field(default_factory=ObservatoryDatasetPipeline)
+    sections: dict[str, bool] = Field(default_factory=dict)
 
 
 class ObservatoryAssetGraphNode(BaseModel):
@@ -629,6 +825,13 @@ class ObservatoryAssetList(BaseModel):
     """List envelope for v2 assets."""
 
     items: list[ObservatoryAsset]
+    next_cursor: str | None = None
+
+
+class ObservatoryDatasetList(BaseModel):
+    """List envelope for v2 Datasets."""
+
+    items: list[ObservatoryDataset]
     next_cursor: str | None = None
 
 

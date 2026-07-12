@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import {
   Activity,
   Database,
@@ -8,7 +8,7 @@ import {
   ShieldCheck,
   Table2,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type {
@@ -33,70 +33,100 @@ import {
 } from '@/observatory/api/resources'
 import { ObservatoryFlowCanvas } from '@/observatory/components/ObservatoryFlowCanvas'
 import { ObservatoryPage } from '@/observatory/components/ObservatoryPage'
+import { ObservatoryIndexTable } from '@/observatory/components/ObservatoryTable'
 import { readMetric, useLiveResource } from '@/observatory/routes/liveResource'
 
-export const Route = createFileRoute('/assets')({
-  component: Assets,
+export const Route = createFileRoute('/lineage')({
+  component: Lineage,
 })
 
-export function Assets() {
+export function Lineage() {
+  return <LineageIndex />
+}
+
+function LineageIndex() {
   const result = useLiveResource(
     getObservatoryAssetRecords,
     120_000,
-    'v2:assets',
+    'observatory:assets',
   )
   const tablesResult = useLiveResource(
     getObservatoryTableRecords,
     120_000,
-    'v2:tables',
+    'observatory:tables',
   )
   const qualityResult = useLiveResource(
     getObservatoryQualityRecords,
     120_000,
-    'v2:quality',
+    'observatory:quality',
   )
   const logsResult = useLiveResource(
     getObservatoryLogRecords,
     120_000,
-    'v2:logs',
+    'observatory:logs',
   )
   const operationsResult = useLiveResource(
     getObservatoryOperationRecords,
     120_000,
-    'v2:operations',
+    'observatory:operations',
   )
   const assets = result.data ?? []
   const tables = tablesResult.data ?? []
   const quality = qualityResult.data ?? []
   const logs = logsResult.data ?? []
   const operations = operationsResult.data ?? []
+  const isLoading =
+    result.isLoading ||
+    tablesResult.isLoading ||
+    qualityResult.isLoading ||
+    logsResult.isLoading ||
+    operationsResult.isLoading
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeDetail, setActiveDetail] = useState<AssetDetailTab>('overview')
   const [query, setQuery] = useState('')
+  const selectAsset = useCallback((assetId: string) => {
+    setSelectedId(assetId)
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('assetId', assetId)
+    window.history.replaceState(
+      null,
+      '',
+      `${url.pathname}?${url.searchParams.toString()}`,
+    )
+  }, [])
   const downstreamCounts = useMemo(
     () => buildDownstreamCounts(assets),
     [assets],
   )
+  const qualityCounts = useMemo(() => buildQualityCounts(quality), [quality])
   const filteredAssets = useMemo(
     () =>
       filterAssets(assets, query).sort(
         (left, right) =>
-          assetScore(right, downstreamCounts) -
-          assetScore(left, downstreamCounts),
+          assetScore(right, downstreamCounts, qualityCounts) -
+          assetScore(left, downstreamCounts, qualityCounts),
       ),
-    [assets, downstreamCounts, query],
+    [assets, downstreamCounts, qualityCounts, query],
   )
   const selected =
     assets.find((asset) => asset.id === selectedId) ??
-    chooseDefaultAsset(filteredAssets.length ? filteredAssets : assets, assets)
+    chooseDefaultAsset(
+      filteredAssets.length ? filteredAssets : assets,
+      assets,
+      quality,
+    )
   const graph = useMemo(
-    () => buildAssetNeighborhood(assets, selected?.id ?? null),
-    [assets, selected?.id],
+    () =>
+      buildAssetNeighborhood(
+        assets,
+        selected?.id ?? null,
+        qualityCounts,
+        downstreamCounts,
+      ),
+    [assets, downstreamCounts, qualityCounts, selected?.id],
   )
-  const qualityChecks = assets.reduce(
-    (sum, asset) => sum + asset.checks.length,
-    0,
-  )
+  const qualityChecks = quality.length
   const dependencies = assets.reduce(
     (sum, asset) => sum + asset.dependencies.length,
     0,
@@ -142,74 +172,137 @@ export function Assets() {
   const selectedTableStats = primaryTable
     ? tableStats(primaryTable, selectedPreview, selectedPreviewError)
     : null
+  const impact = selected && detail ? buildLineageImpact(detail) : null
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const requested = new URLSearchParams(window.location.search).get('assetId')
+    if (!requested || requested === selectedId) return
+    if (assets.some((asset) => asset.id === requested)) {
+      setSelectedId(requested)
+    }
+  }, [assets, selectedId])
+
+  useEffect(() => {
+    if (selectedId !== null || !selected) return
+    setSelectedId(selected.id)
+  }, [selected, selectedId])
 
   return (
     <ObservatoryPage
-      kicker="Assets"
-      title="Impact browser"
-      description="Find an asset, inspect its blast radius, then follow the table, issue, and activity evidence around it."
+      kicker="Impact"
+      title="Lineage"
+      description="Trace Dataset dependencies, downstream blast radius, quality evidence, tables, and operational activity."
       action={
-        <span className="phlo-observatory-pill">{assets.length} assets</span>
+        <span className="phlo-observatory-pill">
+          {isLoading ? 'Loading' : `${assets.length} mapped dependencies`}
+        </span>
       }
     >
-      <section className="phlo-observatory-diff-metrics">
-        <Metric
-          icon={<Database className="size-5" />}
-          label="Registered Assets"
-          value={assets.length}
+      <section className="phlo-observatory-lineage-summary">
+        <LineageSummaryCell
+          icon={<Database className="size-4" />}
+          label="Selected dependency"
+          value={
+            isLoading ? 'Loading' : (selected?.name ?? 'No dependency selected')
+          }
+          detail={
+            isLoading
+              ? 'Reading live lineage graph'
+              : (selected?.id ?? `${assets.length} mapped dependencies`)
+          }
         />
-        <Metric
-          icon={<Network className="size-5" />}
+        <LineageSummaryCell
+          icon={<GitBranch className="size-4" />}
           label="Dependencies"
-          value={dependencies}
+          value={
+            isLoading
+              ? 'Loading'
+              : impact
+                ? `${impact.upstream} up / ${impact.downstream} down`
+                : dependencies
+          }
+          detail={
+            isLoading ? 'Reading dependencies' : `${dependencies} total links`
+          }
         />
-        <Metric
-          icon={<ShieldCheck className="size-5" />}
-          label="Quality Checks"
-          value={qualityChecks}
+        <LineageSummaryCell
+          href={impact?.qualityHref}
+          icon={<ShieldCheck className="size-4" />}
+          label="Quality"
+          value={
+            isLoading
+              ? 'Loading'
+              : (impact?.qualityLabel ?? `${qualityChecks} checks`)
+          }
+          detail="Open triage evidence"
         />
-        <Metric
-          icon={<GitBranch className="size-5" />}
-          label="Groups"
-          value={groups}
+        <LineageSummaryCell
+          href={impact?.tableHref}
+          icon={<Table2 className="size-4" />}
+          label="Bound table"
+          value={
+            isLoading ? 'Loading' : (primaryTable?.id ?? 'No table linked')
+          }
+          detail={
+            isLoading
+              ? 'Reading tables'
+              : (selectedTableStats?.format ?? `${groups} groups`)
+          }
+        />
+        <LineageSummaryCell
+          href={impact?.operationHref}
+          icon={<Activity className="size-4" />}
+          label="Activity"
+          value={
+            isLoading
+              ? 'Loading'
+              : (impact?.activityLabel ?? 'No linked activity')
+          }
+          detail="Open run or log evidence"
         />
       </section>
 
       <section className="phlo-observatory-assets-workbench">
         <div className="phlo-observatory-asset-index">
           <div className="phlo-observatory-index-toolbar">
-            <h2>Asset Index</h2>
+            <h2>Lineage index</h2>
             <label className="phlo-observatory-search-field">
               <Search className="size-4" />
               <input
-                aria-label="Search assets"
+                aria-label="Search lineage"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search assets, groups, checks"
+                placeholder="Search Datasets, tables, groups, checks"
                 value={query}
               />
             </label>
           </div>
-          <div className="phlo-observatory-asset-table" role="table">
-            <div className="phlo-observatory-asset-table-head" role="row">
-              <span>Name</span>
-              <span>Checks</span>
-              <span>Impact</span>
-            </div>
-            {filteredAssets.map((asset) => (
-              <button
-                className="phlo-observatory-asset-table-row"
-                data-active={asset.id === selected?.id}
-                key={asset.id}
-                onClick={() => setSelectedId(asset.id)}
-                role="row"
-                type="button"
-              >
-                <span>{asset.name}</span>
-                <span>{asset.checks.length}</span>
-                <span>{downstreamCounts.get(asset.id) ?? 0}</span>
-              </button>
-            ))}
-          </div>
+          <ObservatoryIndexTable
+            columnTemplate="minmax(150px, 1fr) minmax(72px, 0.42fr) 58px"
+            columns={[
+              { key: 'name', label: 'Name' },
+              { key: 'quality', label: 'Quality' },
+              { key: 'impact', label: 'Impact' },
+            ]}
+            empty={
+              <div className="phlo-observatory-empty-state">
+                {isLoading
+                  ? 'Reading live dependency and impact evidence.'
+                  : 'No dependencies match the current search.'}
+              </div>
+            }
+            rows={filteredAssets.map((asset) => ({
+              active: asset.id === selected?.id,
+              key: asset.id,
+              onSelect: () => selectAsset(asset.id),
+              cells: [
+                asset.name,
+                qualityLabelForAsset(asset, quality),
+                downstreamCounts.get(asset.id) ?? 0,
+              ],
+            }))}
+            variant="compact"
+          />
         </div>
 
         <div className="phlo-observatory-asset-flow">
@@ -219,22 +312,31 @@ export function Assets() {
               Neighborhood
             </span>
             <span className="phlo-observatory-pill">
-              {graph.edges.length} links
+              {isLoading ? 'Loading' : `${graph.edges.length} links`}
             </span>
           </div>
-          <ObservatoryFlowCanvas
-            edges={graph.edges}
-            nodes={graph.nodes}
-            onSelect={setSelectedId}
-            selectedId={selected?.id}
-          />
+          {isLoading ? (
+            <div className="phlo-observatory-flow-canvas">
+              <div className="phlo-observatory-flow-empty">
+                <Database className="size-4" />
+                <span>Reading live lineage graph</span>
+              </div>
+            </div>
+          ) : (
+            <ObservatoryFlowCanvas
+              edges={graph.edges}
+              nodes={graph.nodes}
+              onSelect={selectAsset}
+              selectedId={selected?.id}
+            />
+          )}
         </div>
 
         <aside className="phlo-observatory-asset-detail">
           {selected ? (
             <>
               <div className="phlo-observatory-detail-header">
-                <span>{selected.group ?? 'asset'}</span>
+                <span>{selected.group ?? 'Dependency map'}</span>
                 <h2>{selected.name}</h2>
                 <p>{summarizeDescription(selected.description)}</p>
               </div>
@@ -242,6 +344,10 @@ export function Assets() {
                 <Fact
                   label="Downstream"
                   value={downstreamCounts.get(selected.id) ?? 0}
+                />
+                <Fact
+                  label="Owner"
+                  value={readMetric(selected.metadata, 'owner')}
                 />
                 <Fact
                   label="Records"
@@ -274,22 +380,29 @@ export function Assets() {
               </dl>
               <div className="phlo-observatory-chip-cloud">
                 {selected.dependencies.map((dependency) => (
-                  <span className="phlo-observatory-chip" key={dependency}>
-                    <GitBranch className="size-3" />
-                    {dependency}
-                  </span>
+                  <DependencyChip
+                    assets={assets}
+                    dependency={dependency}
+                    key={dependency}
+                    onSelect={selectAsset}
+                  />
                 ))}
                 {selected.checks.map((check) => (
-                  <span className="phlo-observatory-chip" key={check}>
+                  <Link
+                    className="phlo-observatory-chip"
+                    key={check}
+                    search={{ checkId: check }}
+                    to="/quality"
+                  >
                     <ShieldCheck className="size-3" />
                     {check}
-                  </span>
+                  </Link>
                 ))}
               </div>
               <div
                 className="phlo-observatory-tab-row"
                 role="tablist"
-                aria-label="Asset detail"
+                aria-label="Dependency detail"
               >
                 {assetDetailTabs.map((tab) => (
                   <button
@@ -315,7 +428,11 @@ export function Assets() {
               )}
             </>
           ) : (
-            <p>No assets registered yet.</p>
+            <p>
+              {isLoading
+                ? 'Loading dependency detail and evidence.'
+                : 'No dependency evidence is available yet.'}
+            </p>
           )}
           {result.error && (
             <div className="phlo-observatory-panel-footer">{result.error}</div>
@@ -372,7 +489,12 @@ function AssetDetailPanel({
       <div className="phlo-observatory-detail-list">
         {detail.tables.length ? (
           detail.tables.map((table) => (
-            <div className="phlo-observatory-mini-row" key={table.id}>
+            <Link
+              className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+              key={table.id}
+              search={{ tableId: table.id }}
+              to="/tables"
+            >
               <span>
                 {table.namespace
                   ? `${table.namespace}.${table.name}`
@@ -391,12 +513,12 @@ function AssetDetailPanel({
                       .filter(Boolean)
                       .join(' · ')
                   : [table.format, table.branch].filter(Boolean).join(' · ') ||
-                    'table'}
+                    'bound table'}
               </small>
-            </div>
+            </Link>
           ))
         ) : (
-          <p>No tables linked to this asset yet.</p>
+          <p>No bound tables linked to this dependency yet.</p>
         )}
       </div>
     )
@@ -407,15 +529,23 @@ function AssetDetailPanel({
       <div className="phlo-observatory-detail-list">
         {detail.quality.length ? (
           detail.quality.map((check) => (
-            <div className="phlo-observatory-mini-row" key={check.id}>
-              <span>{check.name}</span>
+            <Link
+              className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+              key={check.id}
+              search={{ checkId: check.id }}
+              to="/quality"
+            >
+              <span>
+                <ShieldCheck className="size-3.5" />
+                {check.name}
+              </span>
               <small>
                 {[check.status, check.severity].filter(Boolean).join(' · ')}
               </small>
-            </div>
+            </Link>
           ))
         ) : (
-          <p>No quality checks linked to this asset yet.</p>
+          <p>No quality checks linked to this Dataset yet.</p>
         )}
       </div>
     )
@@ -427,24 +557,30 @@ function AssetDetailPanel({
         id: `operation:${operation.id}`,
         label: operation.name,
         meta: [operation.kind, operation.status].filter(Boolean).join(' · '),
+        href: `/operations?operationId=${encodeURIComponent(operation.id)}`,
       })),
       ...detail.logs.map((log) => ({
         id: `log:${log.id}`,
         label: log.message,
         meta: [log.level, log.source].filter(Boolean).join(' · '),
+        href: `/logs?logId=${encodeURIComponent(log.id)}`,
       })),
     ]
     return (
       <div className="phlo-observatory-detail-list">
         {activity.length ? (
           activity.map((item) => (
-            <div className="phlo-observatory-mini-row" key={item.id}>
+            <Link
+              className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+              key={item.id}
+              to={item.href}
+            >
               <span>{item.label}</span>
               <small>{item.meta}</small>
-            </div>
+            </Link>
           ))
         ) : (
-          <p>No activity linked to this asset yet.</p>
+          <p>No run or log evidence linked to this Dataset yet.</p>
         )}
       </div>
     )
@@ -452,6 +588,18 @@ function AssetDetailPanel({
 
   return (
     <div className="phlo-observatory-detail-list">
+      {datasetHrefForAsset(selected) && (
+        <Link
+          className="phlo-observatory-mini-row phlo-observatory-linked-mini-row"
+          to={datasetHrefForAsset(selected) ?? '/datasets'}
+        >
+          <span>
+            <Database className="size-3.5" />
+            Open Dataset
+          </span>
+          <small>{datasetLabelForAsset(selected)}</small>
+        </Link>
+      )}
       <div className="phlo-observatory-mini-row">
         <span>Upstream</span>
         <small>
@@ -465,31 +613,108 @@ function AssetDetailPanel({
         </small>
       </div>
       <div className="phlo-observatory-mini-row">
-        <span>Resources</span>
+        <span>External refs</span>
         <small>{selected.resources.join(', ') || 'none'}</small>
       </div>
     </div>
   )
 }
 
-function Metric({
+function datasetHrefForAsset(asset: ObservatoryAsset): string | null {
+  const candidate = asset.metadata.dataset_id
+  if (typeof candidate === 'string' && candidate.trim()) {
+    return `/datasets/${encodeURIComponent(candidate)}`
+  }
+  const datasetName = asset.metadata.dataset_name
+  if (typeof datasetName === 'string' && datasetName.trim()) {
+    return `/datasets/${encodeURIComponent(asset.id)}`
+  }
+  const publicationState = asset.metadata.publication_state
+  if (typeof publicationState === 'string' && publicationState.trim()) {
+    return `/datasets/${encodeURIComponent(asset.id)}`
+  }
+  return null
+}
+
+function datasetLabelForAsset(asset: ObservatoryAsset): string {
+  const label = asset.metadata.dataset_name
+  return typeof label === 'string' && label.trim() ? label : asset.id
+}
+
+function DependencyChip({
+  assets,
+  dependency,
+  onSelect,
+}: {
+  assets: Array<ObservatoryAsset>
+  dependency: string
+  onSelect: (assetId: string) => void
+}) {
+  const exists = assets.some((asset) => asset.id === dependency)
+  const content = (
+    <>
+      <GitBranch className="size-3" />
+      {dependency}
+    </>
+  )
+  if (!exists) {
+    return <span className="phlo-observatory-chip">{content}</span>
+  }
+  return (
+    <button
+      className="phlo-observatory-chip"
+      onClick={() => onSelect(dependency)}
+      type="button"
+    >
+      {content}
+    </button>
+  )
+}
+
+function LineageSummaryCell({
+  detail,
+  href,
   icon,
   label,
   value,
 }: {
+  detail: string
+  href?: string | null
   icon: ReactNode
   label: string
-  value: number
+  value: string | number
 }) {
-  return (
-    <div className="phlo-observatory-diff-metric">
-      {icon}
-      <div>
-        <strong>{value}</strong>
-        <span>{label}</span>
-      </div>
-    </div>
+  const content = (
+    <>
+      <span>
+        {icon}
+        {label}
+      </span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </>
   )
+
+  if (href) {
+    return (
+      <Link className="phlo-observatory-lineage-summary-cell" to={href}>
+        {content}
+      </Link>
+    )
+  }
+
+  return <div className="phlo-observatory-lineage-summary-cell">{content}</div>
+}
+
+function qualityLabelForAsset(
+  asset: ObservatoryAsset,
+  quality: Array<ObservatoryQualityCheck>,
+): string {
+  const checks = quality.filter((check) => check.asset_id === asset.id)
+  const failing = checks.filter((check) => check.status === 'failing').length
+  if (failing > 0) return `${failing} failing`
+  if (checks.length > 0) return String(checks.length)
+  return String(asset.checks.length)
 }
 
 function buildAssetDetail(
@@ -517,8 +742,45 @@ function buildAssetDetail(
       (operation) =>
         operation.target?.id === selected.id &&
         (operation.target.kind === 'asset' ||
-          operation.target.kind === 'table'),
+          operation.target.kind === 'table' ||
+          operation.target.kind === 'dataset'),
     ),
+  }
+}
+
+function buildLineageImpact(detail: AssetDetailModel): {
+  upstream: number
+  downstream: number
+  qualityHref: string | null
+  qualityLabel: string
+  tableHref: string | null
+  operationHref: string | null
+  activityLabel: string
+} {
+  const failing = detail.quality.filter((check) => check.status === 'failing')
+  const firstQuality = failing[0] ?? detail.quality[0] ?? null
+  const firstTable = detail.tables[0] ?? null
+  const firstOperation = detail.operations[0] ?? null
+  const firstLog = detail.logs[0] ?? null
+  return {
+    upstream: detail.upstream.length,
+    downstream: detail.downstream.length,
+    qualityHref: firstQuality
+      ? `/quality?checkId=${encodeURIComponent(firstQuality.id)}`
+      : null,
+    qualityLabel:
+      detail.quality.length === 0
+        ? 'No checks'
+        : `${failing.length} failing / ${detail.quality.length} checks`,
+    tableHref: firstTable
+      ? `/tables?tableId=${encodeURIComponent(firstTable.id)}`
+      : null,
+    operationHref: firstOperation
+      ? `/operations?operationId=${encodeURIComponent(firstOperation.id)}`
+      : firstLog
+        ? `/logs?logId=${encodeURIComponent(firstLog.id)}`
+        : null,
+    activityLabel: firstOperation?.name ?? firstLog?.message ?? 'No activity',
   }
 }
 
@@ -544,13 +806,15 @@ function filterAssets(
 function chooseDefaultAsset(
   candidates: Array<ObservatoryAsset>,
   assets: Array<ObservatoryAsset>,
+  quality: Array<ObservatoryQualityCheck> = [],
 ): ObservatoryAsset | null {
   if (!candidates.length) return null
   const downstreamCounts = buildDownstreamCounts(assets)
+  const qualityCounts = buildQualityCounts(quality)
   let best = candidates[0]
-  let bestScore = assetScore(best, downstreamCounts)
+  let bestScore = assetScore(best, downstreamCounts, qualityCounts)
   for (const candidate of candidates.slice(1)) {
-    const score = assetScore(candidate, downstreamCounts)
+    const score = assetScore(candidate, downstreamCounts, qualityCounts)
     if (score > bestScore) {
       best = candidate
       bestScore = score
@@ -577,17 +841,33 @@ function buildDownstreamCounts(
 function assetScore(
   asset: ObservatoryAsset,
   downstreamCounts: Map<string, number>,
+  qualityCounts: Map<string, number>,
 ): number {
   return (
     asset.dependencies.length * 2 +
     (downstreamCounts.get(asset.id) ?? 0) * 3 +
-    asset.checks.length
+    (qualityCounts.get(asset.id) ?? asset.checks.length)
   )
+}
+
+function buildQualityCounts(
+  quality: Array<ObservatoryQualityCheck>,
+): Map<string, number> {
+  const qualityCounts = new Map<string, number>()
+  quality.forEach((check) => {
+    qualityCounts.set(
+      check.asset_id,
+      (qualityCounts.get(check.asset_id) ?? 0) + 1,
+    )
+  })
+  return qualityCounts
 }
 
 function buildAssetNeighborhood(
   assets: Array<ObservatoryAsset>,
   selectedId: string | null,
+  qualityCounts: Map<string, number>,
+  downstreamCounts: Map<string, number>,
 ): {
   nodes: Array<ObservatoryFlowNode>
   edges: Array<ObservatoryFlowEdge>
@@ -615,7 +895,7 @@ function buildAssetNeighborhood(
       kind: 'asset',
       lane: assetLane(asset),
       subtitle: asset.description,
-      metric: `${asset.checks.length} checks`,
+      metric: `${qualityCounts.get(asset.id) ?? asset.checks.length} checks · ${downstreamCounts.get(asset.id) ?? 0} down`,
     }),
   )
   const edges = neighborhood.flatMap((asset) => {
@@ -646,7 +926,7 @@ function assetLane(asset: ObservatoryAsset): string {
 }
 
 function summarizeDescription(description?: string | null): string {
-  if (!description) return 'No description returned.'
+  if (!description) return 'No description available.'
   const compact = description.replace(/\s+/g, ' ').trim()
   return compact.length > 220 ? `${compact.slice(0, 217)}...` : compact
 }
@@ -663,7 +943,7 @@ function Fact({
       <dt>{label}</dt>
       <dd>
         {value === null || value === undefined || value === ''
-          ? 'pending'
+          ? 'unknown'
           : String(value)}
       </dd>
     </>
@@ -684,11 +964,11 @@ function tableStats(
     preview?.row_count ??
     readMetric(table.metadata, 'records') ??
     readMetric(table.metadata, 'row_count') ??
-    (error ? 'unavailable' : 'profiling')
+    (error ? 'unavailable' : 'unknown')
   const columns =
     preview?.columns.length ??
     readMetric(table.metadata, 'columns') ??
-    (error ? 'unavailable' : 'profiling')
+    (error ? 'unavailable' : 'unknown')
 
   return {
     records,

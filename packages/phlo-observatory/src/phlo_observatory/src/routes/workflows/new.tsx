@@ -101,7 +101,7 @@ const WORKFLOW_STEPS: Array<{
   {
     id: 'graph',
     label: 'Build graph',
-    description: 'Pipeline nodes',
+    description: 'Pipeline steps',
   },
   {
     id: 'proposal',
@@ -137,17 +137,17 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
   const tableResult = useLiveResource(
     getObservatoryTableRecords,
     120_000,
-    'v2:tables',
+    'observatory:tables',
   )
   const assetResult = useLiveResource(
     getObservatoryAssetRecords,
     120_000,
-    'v2:assets',
+    'observatory:assets',
   )
   const qualityResult = useLiveResource(
     getObservatoryQualityRecords,
     120_000,
-    'v2:quality',
+    'observatory:quality',
   )
   const effectiveTableResult =
     tableResult.data === null && initialSnapshot?.tables.data
@@ -200,7 +200,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
   useEffect(() => {
     let cancelled = false
     void loadCachedResource(
-      'v2:workflow-wizard',
+      'observatory:workflow-wizard',
       getObservatoryWorkflowWizard,
       {
         force: true,
@@ -365,6 +365,16 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
         setProposal(next)
         setActiveStep('proposal')
       })
+      .catch((error: unknown) => {
+        setProposal({
+          data: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Workflow proposal generation failed.',
+        })
+        setActiveStep('proposal')
+      })
       .finally(() => setProposalLoading(false))
   }
 
@@ -373,7 +383,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
     void runObservatoryWorkflowAction({
       data: { actionId: action.id, proposal: proposal.data },
     }).then((result) => {
-      invalidateCachedResource('v2:operations')
+      invalidateCachedResource('observatory:operations')
       setActionMessage(
         result.data?.message ?? result.error ?? 'Action finished',
       )
@@ -382,7 +392,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
 
   return (
     <ObservatoryPage
-      description="Compose package-provided workflow nodes, configure each step, preview generated files, then apply guarded actions."
+      description="Compose package-provided workflow steps, configure each stage, preview generated files, then apply guarded actions."
       kicker="Workflows"
       title="New workflow"
     >
@@ -416,7 +426,7 @@ function useWorkflowCanvasBuilder(initialSnapshot?: WorkflowBuilderSnapshot) {
           <div className="phlo-observatory-panel-header phlo-workflow-card-header">
             <div>
               <h2>Workflow info</h2>
-              <p>Set the workflow identity before arranging package nodes.</p>
+              <p>Set the workflow identity before arranging package steps.</p>
             </div>
             <WandSparkles className="size-4" aria-hidden />
           </div>
@@ -946,6 +956,18 @@ function ReviewPanel({
             ? 'Generating a proposal from the graph…'
             : 'Generate a proposal to preview graph-generated files.'}
         </div>
+        <div className="phlo-workflow-step-actions">
+          <Button
+            className="phlo-workflow-action"
+            disabled={loading}
+            leadingVisual={FileCodeIcon}
+            onClick={onGenerate}
+            type="button"
+            variant="primary"
+          >
+            {loading ? 'Generating…' : 'Generate proposal'}
+          </Button>
+        </div>
       </div>
     )
   }
@@ -956,8 +978,11 @@ function ReviewPanel({
         <div>
           <h2>Review proposal</h2>
           <p>
-            {proposal.data.planned_assets.length} asset,{' '}
-            {proposal.data.planned_models.length} models
+            {proposal.data.planned_assets.length} lineage{' '}
+            {proposal.data.planned_assets.length === 1
+              ? 'resource'
+              : 'resources'}
+            , {proposal.data.planned_models.length} models
           </p>
         </div>
         <span className="phlo-observatory-pill">
@@ -1156,7 +1181,7 @@ function defaultFieldValue(
   if (field.name === 'owner') return 'data-platform'
   if (field.name === 'tags') return 'domain.recipes\nsource.dummyjson'
   if (field.name === 'description')
-    return 'Catalog metadata for the recipe workflow generated from DummyJSON recipes.'
+    return 'Dataset metadata for the recipe workflow generated from DummyJSON recipes.'
   if (field.name === 'source_relation') return "ref('clean_recipes')"
   if (field.name === 'model_name') return 'recipe_model'
   return ''
@@ -1193,7 +1218,8 @@ function buildLakehouseTemplates(
       {
         id: 'starter-observe',
         label: 'Observe current lakehouse',
-        summary: 'Create a source, transform, quality, and catalog workflow.',
+        summary:
+          'Create a source, transform, quality, and Dataset readiness workflow.',
         workflowName: 'lakehouse_observability',
         domain: 'lakehouse',
         focusTable: null,
@@ -1214,7 +1240,7 @@ function buildLakehouseTemplates(
     {
       id: 'govern-gold-table',
       label: `Govern ${focusTable?.name ?? focusAsset?.name ?? 'gold table'}`,
-      summary: `${focusChecks.length} checks observed; generate tests, orchestration, and catalog metadata.`,
+      summary: `${focusChecks.length} checks observed; generate tests, orchestration, and Dataset metadata.`,
       workflowName: `${domain}_governed_release`,
       domain,
       focusTable,
@@ -1232,8 +1258,8 @@ function buildLakehouseTemplates(
       id: 'publish-serving',
       label: 'Publish serving surface',
       summary:
-        'Start from the active table and produce catalog/API-facing metadata.',
-      workflowName: `${domain}_serving_catalog`,
+        'Start from the active table and produce Dataset/API-facing metadata.',
+      workflowName: `${domain}_serving_dataset`,
       domain,
       focusTable,
       focusAsset,
@@ -1390,7 +1416,7 @@ function lakehouseFieldValue(
       .join('\n')
   }
   if (field.name === 'description') {
-    return `Catalog metadata for ${tableName}, generated from the observed ${template.domain} lakehouse.`
+    return `Dataset metadata for ${tableName}, generated from the observed ${template.domain} lakehouse.`
   }
   return null
 }
@@ -1480,7 +1506,7 @@ function inferAssetStage(asset: ObservatoryAsset): string {
   if (raw.includes('silver')) return 'silver'
   if (raw.includes('bronze') || raw.includes('raw')) return 'bronze'
   if (raw.includes('serving')) return 'serving'
-  return 'asset'
+  return 'lineage'
 }
 
 function inferPrimaryKeyFromName(name: string): string | null {

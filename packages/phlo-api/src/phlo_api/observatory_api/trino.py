@@ -38,6 +38,7 @@ import os
 import re
 from time import monotonic
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from fastapi import APIRouter, Query, Request
@@ -68,6 +69,25 @@ _DISCOVERY_SCHEMAS_ENV = "PHLO_API_DISCOVERY_SCHEMAS"
 _SAFE_ROW_ID_RE = re.compile(r"^[a-zA-Z0-9_.\-:]+$")
 _TRINO_USER_ENV = "TRINO_USER"
 _TRINO_ROLE_ENV = "TRINO_ROLE"
+
+
+def _externalize_trino_uri(uri: str, base_url: str) -> str:
+    """Rewrite Trino response URIs through the configured client-facing base URL."""
+    parsed_uri = urlsplit(uri)
+    parsed_base = urlsplit(base_url)
+    if not parsed_uri.scheme or not parsed_uri.netloc:
+        return uri
+    base_path = parsed_base.path.rstrip("/")
+    uri_path = parsed_uri.path if parsed_uri.path.startswith("/") else f"/{parsed_uri.path}"
+    return urlunsplit(
+        (
+            parsed_base.scheme or parsed_uri.scheme,
+            parsed_base.netloc or parsed_uri.netloc,
+            f"{base_path}{uri_path}",
+            parsed_uri.query,
+            parsed_uri.fragment,
+        )
+    )
 
 
 def _build_trino_headers(
@@ -396,7 +416,7 @@ async def execute_trino_query(
                 await asyncio.sleep(0.1)
 
                 poll_response = await client.get(
-                    result["nextUri"],
+                    _externalize_trino_uri(str(result["nextUri"]), url),
                     headers=_build_trino_headers(include_catalog_context=False),
                     timeout=remaining,
                 )

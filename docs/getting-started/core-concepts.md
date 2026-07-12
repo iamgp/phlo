@@ -476,7 +476,7 @@ df = trino.execute(
 
 ### 8. Asset-Based Orchestration
 
-Dagster assets represent data products:
+Dagster assets represent datasets and their dependencies:
 
 ```python
 @asset(

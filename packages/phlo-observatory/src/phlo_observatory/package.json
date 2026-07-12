@@ -7,6 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint",
     "format": "prettier",
     "check": "prettier --write . && eslint --fix"

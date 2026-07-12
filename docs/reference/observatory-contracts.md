@@ -26,38 +26,44 @@ Consumers should treat the endpoint as descriptive, not imperative:
 
 ## Endpoint Families
 
-All Observatory endpoints are rooted at `/api/observatory`. They are grouped by product surface rather than by provider package.
+All Observatory endpoints are rooted at `/api/observatory`. They are grouped by user workflow rather than by provider package.
 
 ## Canonical Surfaces
 
-These are the canonical browser routes and API roots after the legacy route cleanup.
+These are the canonical browser routes and API roots. Removed Observatory routes
+and API families are hard 404s. They are not redirected, retained, or served as
+aliases.
 
 | Surface | Browser route | API family | Status |
 | --- | --- | --- | --- |
 | Overview | `/` | `/api/observatory/overview`, `/api/observatory/capability-inventory` | canonical |
 | Operations | `/operations` | `/api/observatory/operations`, `/api/observatory/actions` | canonical |
-| Data | `/data`, `/data/{table_id}` | `/api/observatory/tables`, `/api/observatory/table-preview/{table_id}`, `/api/observatory/query` | canonical |
-| Assets | `/assets`, `/assets/{asset_id}` | `/api/observatory/assets`, `/api/observatory/assets/{asset_id}` | canonical |
-| Workflows | `/workflows/new` | `/api/observatory/workflow-wizard` | canonical |
+| Datasets | `/datasets`, `/datasets/{dataset_id}` | `/api/observatory/datasets`, `/api/observatory/datasets/{dataset_id}` | canonical |
+| Tables | `/tables`, `/tables/{table_id}` | `/api/observatory/tables`, `/api/observatory/table-preview/{table_id}`, `/api/observatory/query` | canonical |
+| Lineage | `/lineage`, `/lineage/{asset_id}` | `/api/observatory/assets`, `/api/observatory/assets/{asset_id}`, `/api/observatory/asset-graph` | canonical |
+| Workflow Builder | `/workflows/new` | `/api/observatory/workflow-wizard` | canonical |
 | Quality | `/quality` | `/api/observatory/quality` | canonical |
-| Branches and changes | `/branches`, `/branches/{branch_name}` | `/api/observatory/branches`, `/api/observatory/branches/actions` | canonical |
+| Change Review | `/branches`, `/branches/{branch_name}` | `/api/observatory/branches`, `/api/observatory/branches/actions` | canonical |
 | Logs | `/logs` | `/api/observatory/logs`, `/api/observatory/logs/facets` | canonical |
 | Services | `/services` | `/api/observatory/services` | canonical |
 | Settings | `/settings` | `/api/observatory/settings`, `/api/observatory/preferences` | canonical |
-| Capability surfaces | `/storage`, `/observability`, `/governance`, `/catalog`, `/apis`, `/bi` | matching `/api/observatory/{surface}` families | canonical |
+| Capability surfaces | `/storage`, `/observability`, `/governance`, `/publishing`, `/apis`, `/bi` | matching `/api/observatory/{surface}` families | canonical |
 | Extensions | `/extensions`, `/extensions/{extension_id}` | `/api/observatory/extensions`, `/api/observatory/extension-manifests` | canonical |
 | MCP run log streaming | none | `/api/loki` | intentional exception until MCP has an Observatory streaming contract |
 
-Removed browser aliases include `/v2/*`, `/asset/*`, `/branch/*`, `/extension/*`, `/table/*`, `/graph`, and `/hub/*`. New links should not target them.
+Removed legacy browser surfaces and API families are hard 404s. Observatory
+does not keep compatibility aliases for the old catalog, data, asset, branch,
+extension, table, graph, hub, or pre-Dataset naming surfaces.
 
 | Family | Endpoints | Contract intent |
 | --- | --- | --- |
 | Runtime overview | `overview`, `capabilities`, `capability-inventory` | Tell the browser what the active project can show and do. |
 | Services and operations | `services`, `services/{service_id}`, `operations`, `operations/{operation_id}`, `runs` | Expose runtime health, service details, operator workflows, and run state. |
-| Data and assets | `assets`, `assets/{asset_id}`, `tables`, `table-preview/{table_id}`, `query`, `saved-queries`, `stage-diff`, `row-journey/{table_id}/{row_id}` | Expose provider-neutral asset, table, query, diff, and row provenance read models. |
+| Datasets | `datasets`, `datasets/{dataset_id}`, `dataset-workflow/config`, `publishing`, `governance`, `pipelines` | Expose governed/publishable datasets, readiness, ownership, publication, and pipeline read models. |
+| Tables and lineage | `assets`, `assets/{asset_id}`, `asset-graph`, `tables`, `table-preview/{table_id}`, `query`, `saved-queries`, `stage-diff`, `row-journey/{table_id}/{row_id}` | Expose provider-neutral asset, table, query, diff, lineage, and row provenance read models. |
 | Quality and logs | `quality`, `quality/{check_id}`, `logs`, `logs/facets` | Support quality triage and evidence inspection. |
-| Branches and changes | `branches`, `branches/{branch_name}`, `branches/actions` | Describe branch state and execute guarded branch operations. |
-| Capability surfaces | `storage`, `observability`, `governance`, `catalog`, `apis`, `bi` | Allow packages to contribute specialized operator surfaces without hardcoding provider APIs in the UI. |
+| Change review | `branches`, `branches/{branch_name}`, `branches/actions` | Describe branch state and execute guarded branch operations. |
+| Capability surfaces | `storage`, `observability`, `apis`, `bi` | Allow packages to contribute specialized operator surfaces without hardcoding provider APIs in the UI. |
 | Extensions and settings | `extensions`, `extensions/{extension_id}`, `settings`, `search`, `actions` | Expose extension inventory, global search, settings state, and generic guarded actions. |
 
 Route parameters that identify assets, tables, services, branches, and checks are stable resource identifiers, not provider URLs or secret-bearing connection strings.
@@ -71,7 +77,7 @@ Required and supported fields:
 | Field | Description |
 | --- | --- |
 | `name` | Stable contribution name shown in diagnostics and inventory output. |
-| `capability_type` | Capability category, such as data, assets, quality, storage, governance, or services. |
+| `capability_type` | Capability category, such as tables, lineage, quality, storage, governance, or services. |
 | `capability_name` | Stable capability identifier within the capability type. |
 | `surfaces` | Observatory surfaces where the contribution may appear. |
 | `read_models` | Provider-neutral read contracts that the UI may query for this contribution. |
@@ -83,26 +89,27 @@ Required and supported fields:
 
 Prefer existing Observatory surfaces before introducing new ones:
 
-- `Data`
-- `Assets`
+- `Datasets`
+- `Tables`
+- `Lineage`
 - `Runs`
 - `Quality`
-- `Changes`
+- `Change Review`
 - `Storage`
 - `Observability`
 - `Governance`
-- `Catalog`
+- `Publishing`
 - `APIs`
 - `BI`
 - `Services`
 - `Settings`
 
 New surfaces should be reserved for capabilities that do not fit the existing
-navigation model. A provider-specific product area is not, by itself, a reason
+navigation model. A provider-specific surface is not, by itself, a reason
 to add a surface.
 
-Surface visibility should be capability-driven. For example, a Branches/Changes
-view should only appear when a branching or catalog provider contributes the
+Surface visibility should be capability-driven. For example, Change Review
+should only appear when a branching or catalog provider contributes the
 corresponding read models and actions. Do not promote a route into primary
 navigation just because an endpoint exists.
 

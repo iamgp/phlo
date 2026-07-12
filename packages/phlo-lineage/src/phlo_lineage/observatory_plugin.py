@@ -18,7 +18,7 @@ Asset Structure:
         phlo_lineage/observatory_assets/
 
 Example:
-    Once loaded, users can navigate to /graph in Observatory to view:
+    Once loaded, users can navigate to /lineage in Observatory to view:
     - Interactive lineage graph visualization
     - Asset dependency relationships
     - Column-level lineage details
@@ -97,7 +97,7 @@ class LineageObservatoryExtension(ObservatoryExtensionPlugin):
                     - name: "lineage" (must match metadata.name)
                     - version: "0.1.0"
                     - compat.observatory_min: "0.1.0" (minimum Observatory version)
-                    - ui.nav: [NavItem(title="Lineage Graph", to="/graph")]
+                    - ui.nav: [NavItem(title="Lineage", to="/lineage")]
 
                 Compatibility:
                     The extension requires Observatory core version >= 0.1.0.
@@ -119,7 +119,7 @@ class LineageObservatoryExtension(ObservatoryExtensionPlugin):
             version="0.1.0",
             compat=ObservatoryExtensionCompatibility(observatory_min="0.1.0"),
             ui=ObservatoryExtensionUI(
-                nav=[ObservatoryExtensionNavItem(title="Lineage Graph", to="/graph")]
+                nav=[ObservatoryExtensionNavItem(title="Lineage", to="/lineage")]
             ),
         )
 

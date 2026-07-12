@@ -2,11 +2,11 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import {
   OverviewRoute,
-  loadOverviewSnapshot,
+  loadOverviewSnapshotFromApi,
 } from '@/observatory/routes/OverviewRoute'
 
 export const Route = createFileRoute('/')({
-  loader: loadOverviewSnapshot,
+  loader: loadOverviewSnapshotFromApi,
   component: ObservatoryIndexOverviewRoute,
 })
 

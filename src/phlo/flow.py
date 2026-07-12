@@ -79,7 +79,7 @@ def publish(
     sla: SLA | None = None,
     description: str | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """Mark a curated table as a publishable data-product surface."""
+    """Mark a curated table as a publishable Dataset surface."""
 
     def _decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         append_asset(
@@ -88,7 +88,7 @@ def publish(
                 key=asset_key("publish", table),
                 group=group,
                 description=description or fn.__doc__,
-                kinds={"publish", "data_product"},
+                kinds={"publish", "dataset"},
                 tags={"provider": "core", "asset_type": "publish"},
                 metadata={
                     "table": table,

@@ -180,8 +180,8 @@ def test_flow_run_rejects_unsupported_callable_signatures() -> None:
             list(run.fn(FakeRuntimeContext(partition_key="2026-05-18")))
 
 
-def test_publish_registers_data_product_surface() -> None:
-    """Publish should mark curated tables as data-product surfaces."""
+def test_publish_registers_dataset_surface() -> None:
+    """Publish should mark curated tables as Dataset surfaces."""
     import phlo
 
     phlo.clear_publish_assets()
@@ -202,7 +202,7 @@ def test_publish_registers_data_product_surface() -> None:
     assert len(assets) == 1
     assert assets[0].key == "publish_gold_customer_health"
     assert assets[0].deps == ["silver.customers"]
-    assert assets[0].kinds == {"publish", "data_product"}
+    assert assets[0].kinds == {"publish", "dataset"}
     assert assets[0].tags["asset_type"] == "publish"
     assert assets[0].metadata["table"] == "gold.customer_health"
     assert assets[0].metadata["audience"] == ["cs", "sales"]

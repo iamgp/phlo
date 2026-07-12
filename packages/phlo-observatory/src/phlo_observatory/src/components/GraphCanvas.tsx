@@ -5,7 +5,7 @@
  * Displays nodes colored by data layer and edges showing dependencies.
  */
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 
 import { useNavigate } from '@tanstack/react-router'
 import {
@@ -329,8 +329,16 @@ export function GraphCanvas({
     )
   }, [graphEdges])
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes)
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges)
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+
+  useEffect(() => {
+    setNodes(initialNodes)
+  }, [initialNodes, setNodes])
+
+  useEffect(() => {
+    setEdges(initialEdges)
+  }, [initialEdges, setEdges])
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
@@ -341,7 +349,7 @@ export function GraphCanvas({
 
   const handleNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      navigate({ to: '/assets/$assetId', params: { assetId: node.id } })
+      navigate({ to: '/lineage', search: { assetId: node.id } })
     },
     [navigate],
   )

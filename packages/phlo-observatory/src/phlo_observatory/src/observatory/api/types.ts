@@ -132,10 +132,161 @@ export interface ObservatoryWorkflowActionResult {
   files: Array<string>
 }
 
-interface ObservatoryResourceRef {
+export interface ObservatoryResourceRef {
   kind: string
   id: string
   label: string
+}
+
+export interface ObservatoryDataset {
+  id: string
+  name: string
+  description?: string | null
+  owner?: string | null
+  classifications: Array<string>
+  publication_state: 'draft' | 'published' | 'retired'
+  readiness_state: ObservatoryHealthState
+  candidate: boolean
+  kinds: Array<string>
+  source_refs: Array<ObservatoryResourceRef>
+  metadata: ObservatoryMetadata
+}
+
+export type ObservatoryControlStatus =
+  | 'pass'
+  | 'fail'
+  | 'warning'
+  | 'unknown'
+  | 'not_applicable'
+
+export interface ObservatoryControlEvidence {
+  kind: string
+  id: string
+  label: string
+  value?: string | null
+  resource?: ObservatoryResourceRef | null
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryDatasetControl {
+  id: string
+  label: string
+  status: ObservatoryControlStatus
+  message?: string | null
+  evidence: Array<ObservatoryControlEvidence>
+}
+
+export interface ObservatoryGovernanceRow {
+  dataset: ObservatoryDataset
+  owner?: string | null
+  classifications: Array<string>
+  status: ObservatoryControlStatus
+  controls: Array<ObservatoryDatasetControl>
+}
+
+export interface ObservatoryGovernanceMatrix {
+  controls: Array<string>
+  rows: Array<ObservatoryGovernanceRow>
+  status_counts: Record<string, number>
+}
+
+export interface ObservatoryTelemetryPrivacyPolicy {
+  identity_detail: 'anonymous' | 'aggregate' | 'identity' | 'audit_only'
+  retention_days?: number | null
+  audit_drilldown: boolean
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryAccessActivity {
+  id: string
+  action: string
+  actor_label?: string | null
+  actor_kind?: string | null
+  count: number
+  last_seen_at?: string | null
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryDependencyActivity {
+  id: string
+  source: ObservatoryResourceRef
+  target: ObservatoryResourceRef
+  kind: string
+  count: number
+  last_seen_at?: string | null
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryConsumerAdoption {
+  id: string
+  consumer: string
+  kind: string
+  owner?: string | null
+  status: string
+  declared_at?: string | null
+  metadata: ObservatoryMetadata
+}
+
+export interface ObservatoryDatasetUsage {
+  privacy_policy: ObservatoryTelemetryPrivacyPolicy
+  access_activity: Array<ObservatoryAccessActivity>
+  dependency_activity: Array<ObservatoryDependencyActivity>
+  consumer_adoption: Array<ObservatoryConsumerAdoption>
+}
+
+export interface ObservatoryDatasetWorkflowConfig {
+  default_owner: string
+  approval_states: Array<string>
+}
+
+export interface ObservatoryPublishingAction {
+  id: string
+  label: string
+  enabled: boolean
+  reason?: string | null
+  consequences: Array<string>
+}
+
+export interface ObservatoryPublishingReadiness {
+  state: ObservatoryHealthState
+  policy_name: string
+  internal_only: boolean
+  blockers: Array<string>
+  warnings: Array<string>
+  missing_evidence: Array<string>
+  actions: Array<ObservatoryPublishingAction>
+}
+
+export interface ObservatoryPipelineStage {
+  id: string
+  label: string
+  state: ObservatoryHealthState
+  resource?: ObservatoryResourceRef | null
+}
+
+export interface ObservatoryDatasetPipeline {
+  dataset?: ObservatoryDataset | null
+  freshness_state: ObservatoryHealthState
+  freshness_at?: string | null
+  last_run?: ObservatoryResourceRef | null
+  stages: Array<ObservatoryPipelineStage>
+  actions: Array<ObservatoryAction>
+}
+
+export interface ObservatoryDatasetProfile {
+  dataset: ObservatoryDataset
+  asset?: ObservatoryAsset | null
+  tables: Array<ObservatoryTable>
+  quality: Array<ObservatoryQualityCheck>
+  upstream: Array<ObservatoryResourceRef>
+  downstream: Array<ObservatoryResourceRef>
+  logs: Array<ObservatoryLogEvent>
+  operations: Array<ObservatoryOperation>
+  governance: Array<ObservatoryDatasetControl>
+  usage: ObservatoryDatasetUsage
+  publishing: ObservatoryPublishingReadiness
+  pipeline: ObservatoryDatasetPipeline
+  sections: Record<string, boolean>
 }
 
 export interface ObservatoryAction {
@@ -210,9 +361,21 @@ export interface ObservatoryPackageInstallResult {
   services: Array<string>
 }
 
+export interface ObservatoryOverviewRow {
+  id: string
+  kind: 'service' | 'quality' | 'operation' | 'log'
+  label: string
+  href: string
+  state: ObservatoryHealthState
+  meta?: string | null
+  reason?: string | null
+}
+
 export interface ObservatoryOverview {
   health: ObservatoryHealth
   counters: Record<string, number>
+  attention: Array<ObservatoryOverviewRow>
+  events: Array<ObservatoryOverviewRow>
   recent: Array<ObservatoryResourceRef>
 }
 
@@ -405,6 +568,21 @@ export interface ObservatoryBranchDetail {
   commits: Array<ObservatoryOperation>
   compare: Record<string, number>
   tables: Array<ObservatoryTable>
+}
+
+export interface ObservatoryRuntimeSettings {
+  version: number
+  defaults: Record<string, string>
+  features: Record<string, boolean>
+  storage: Record<string, string>
+  metadata: ObservatoryMetadata & {
+    runtime?: {
+      project_path?: string | null
+      compose_project?: string | null
+      api_source?: string | null
+    }
+    providers?: Record<string, Array<string>>
+  }
 }
 
 export interface ObservatoryExtension {

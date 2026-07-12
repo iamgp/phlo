@@ -103,6 +103,22 @@ _ACTION_FAMILIES = (
         risk_level="medium",
         required_capability="api_backend",
     ),
+    _ActionFamily(
+        prefix="dataset:",
+        kind="dataset.workflow",
+        label="Run Dataset workflow",
+        reason="Dataset workflow actions need a catalog write contract.",
+        risk_level="medium",
+        required_capability="metadata_catalog",
+    ),
+    _ActionFamily(
+        prefix="candidate:",
+        kind="dataset.candidate",
+        label="Run candidate workflow",
+        reason="Candidate promotion needs a catalog write contract.",
+        risk_level="medium",
+        required_capability="metadata_catalog",
+    ),
 )
 
 
