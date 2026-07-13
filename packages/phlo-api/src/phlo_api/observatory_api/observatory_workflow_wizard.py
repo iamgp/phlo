@@ -38,6 +38,7 @@ STAGES = ["source", "transform", "quality", "publish"]
 _ALLOWED_PROJECT_ROOTS = ("workflows", "tests")
 _WORKFLOW_ALLOWED_EXTENSIONS = {".json", ".py", ".sql", ".toml", ".yaml", ".yml"}
 _PROPOSAL_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
+_STATE_DIRECTORY_FLAGS = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
 WORKFLOW_WIZARD_PLUGIN_TYPES = (
     "ingestion_provider",
     "transformation_provider",
@@ -223,43 +224,51 @@ def build_workflow_proposal(
     return _issue_workflow_proposal(project_root, proposal)
 
 
-def _proposal_state_dir(project_root: Path) -> Path:
-    project_root = project_root.resolve()
-    phlo_dir = project_root / ".phlo"
-    wizard_dir = phlo_dir / "workflow-wizard"
-    for directory in (phlo_dir, wizard_dir):
-        try:
-            metadata = os.lstat(directory)
-        except FileNotFoundError:
-            directory.mkdir()
-            metadata = os.lstat(directory)
-        if not stat.S_ISDIR(metadata.st_mode):
-            raise HTTPException(status_code=503, detail="Workflow state directory is not safe.")
-    return wizard_dir
-
-
-def _proposal_storage_dir(project_root: Path, name: str) -> Path:
-    directory = _proposal_state_dir(project_root) / name
+def _open_directory_at(parent_fd: int, name: str, *, create: bool) -> int:
     try:
-        metadata = os.lstat(directory)
+        return os.open(name, _STATE_DIRECTORY_FLAGS, dir_fd=parent_fd)
     except FileNotFoundError:
-        directory.mkdir()
-        metadata = os.lstat(directory)
-    if not stat.S_ISDIR(metadata.st_mode):
-        raise HTTPException(status_code=503, detail="Workflow state directory is not safe.")
-    return directory
+        if not create:
+            raise
+        try:
+            os.mkdir(name, mode=0o700, dir_fd=parent_fd)
+        except FileExistsError:
+            pass
+        return os.open(name, _STATE_DIRECTORY_FLAGS, dir_fd=parent_fd)
 
 
-def _proposal_path(project_root: Path, proposal_id: str) -> Path:
-    if not _PROPOSAL_ID_PATTERN.fullmatch(proposal_id):
-        raise HTTPException(status_code=400, detail="Invalid workflow proposal id.")
-    return _proposal_storage_dir(project_root, "proposals") / f"{proposal_id}.json"
+def _open_workflow_state_fd(project_root: Path) -> int:
+    root_fd = -1
+    phlo_fd = -1
+    try:
+        root_fd = os.open(project_root.resolve(), _STATE_DIRECTORY_FLAGS)
+        phlo_fd = _open_directory_at(root_fd, ".phlo", create=True)
+        return _open_directory_at(phlo_fd, "workflow-wizard", create=True)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=503, detail="Workflow state directory is not safe."
+        ) from exc
+    finally:
+        if phlo_fd >= 0:
+            os.close(phlo_fd)
+        if root_fd >= 0:
+            os.close(root_fd)
 
 
-def _applied_proposal_path(project_root: Path, proposal_id: str) -> Path:
-    if not _PROPOSAL_ID_PATTERN.fullmatch(proposal_id):
-        raise HTTPException(status_code=400, detail="Invalid workflow proposal id.")
-    return _proposal_storage_dir(project_root, "applied") / f"{proposal_id}.json"
+def _open_state_storage_fd(project_root: Path, name: str, *, create: bool) -> int:
+    state_fd = -1
+    try:
+        state_fd = _open_workflow_state_fd(project_root)
+        return _open_directory_at(state_fd, name, create=create)
+    except FileNotFoundError:
+        raise
+    except OSError as exc:
+        raise HTTPException(
+            status_code=503, detail="Workflow state directory is not safe."
+        ) from exc
+    finally:
+        if state_fd >= 0:
+            os.close(state_fd)
 
 
 def _canonical_json(payload: dict[str, Any]) -> bytes:
@@ -277,41 +286,40 @@ def _workflow_integrity_key(project_root: Path) -> bytes:
     if configured:
         return configured.encode("utf-8")
 
-    key_path = _proposal_state_dir(project_root) / "integrity.key"
-    key_path.parent.mkdir(parents=True, exist_ok=True)
+    state_fd = _open_workflow_state_fd(project_root)
+    descriptor = -1
     try:
-        existing = os.lstat(key_path)
-    except FileNotFoundError:
-        existing = None
-    if existing is not None and not stat.S_ISREG(existing.st_mode):
-        raise HTTPException(status_code=503, detail="Workflow integrity key is not a regular file.")
-    if existing is None:
         try:
             descriptor = os.open(
-                key_path,
-                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                "integrity.key",
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
                 0o600,
+                dir_fd=state_fd,
             )
+        except FileExistsError:
+            pass
+        else:
             try:
                 with os.fdopen(descriptor, "wb") as handle:
+                    descriptor = -1
                     handle.write(secrets.token_bytes(32))
                     handle.flush()
                     os.fsync(handle.fileno())
             except BaseException:
                 with contextlib.suppress(OSError):
-                    key_path.unlink()
+                    os.unlink("integrity.key", dir_fd=state_fd)
                 raise
-        except FileExistsError:
-            pass
 
-    read_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-    try:
-        descriptor = os.open(key_path, read_flags)
-    except OSError as exc:
-        raise HTTPException(
-            status_code=503, detail="Workflow integrity key cannot be read safely."
-        ) from exc
-    try:
+        try:
+            descriptor = os.open(
+                "integrity.key",
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=state_fd,
+            )
+        except OSError as exc:
+            raise HTTPException(
+                status_code=503, detail="Workflow integrity key cannot be read safely."
+            ) from exc
         if not stat.S_ISREG(os.fstat(descriptor).st_mode):
             raise HTTPException(
                 status_code=503, detail="Workflow integrity key is not a regular file."
@@ -322,7 +330,9 @@ def _workflow_integrity_key(project_root: Path) -> bytes:
             raise HTTPException(status_code=503, detail="Workflow integrity key is empty.")
         return key
     finally:
-        os.close(descriptor)
+        if descriptor >= 0:
+            os.close(descriptor)
+        os.close(state_fd)
 
 
 def _proposal_signature(project_root: Path, proposal_id: str, digest: str) -> str:
@@ -330,18 +340,59 @@ def _proposal_signature(project_root: Path, proposal_id: str, digest: str) -> st
     return hmac.new(_workflow_integrity_key(project_root), message, hashlib.sha256).hexdigest()
 
 
-def _write_json_atomically(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+def _read_state_json(project_root: Path, storage_name: str, filename: str) -> dict[str, Any]:
+    storage_fd = _open_state_storage_fd(project_root, storage_name, create=False)
+    descriptor = -1
     try:
-        temporary.write_text(
-            json.dumps(payload, sort_keys=True, ensure_ascii=False),
-            encoding="utf-8",
+        descriptor = os.open(
+            filename,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+            dir_fd=storage_fd,
         )
-        os.replace(temporary, path)
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise OSError("state record is not a regular file")
+        with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
+            descriptor = -1
+            payload = json.load(handle)
+        if not isinstance(payload, dict):
+            raise TypeError("state record is not an object")
+        return payload
     finally:
-        if temporary.exists():
-            temporary.unlink()
+        if descriptor >= 0:
+            os.close(descriptor)
+        os.close(storage_fd)
+
+
+def _write_state_json(
+    project_root: Path, storage_name: str, filename: str, payload: dict[str, Any]
+) -> None:
+    storage_fd = _open_state_storage_fd(project_root, storage_name, create=True)
+    temporary_name = f".{filename}.{secrets.token_hex(8)}.tmp"
+    temporary_fd = -1
+    try:
+        temporary_fd = os.open(
+            temporary_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+            dir_fd=storage_fd,
+        )
+        with os.fdopen(temporary_fd, "w", encoding="utf-8") as handle:
+            temporary_fd = -1
+            handle.write(json.dumps(payload, sort_keys=True, ensure_ascii=False))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(
+            temporary_name,
+            filename,
+            src_dir_fd=storage_fd,
+            dst_dir_fd=storage_fd,
+        )
+    finally:
+        if temporary_fd >= 0:
+            os.close(temporary_fd)
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(temporary_name, dir_fd=storage_fd)
+        os.close(storage_fd)
 
 
 def _issue_workflow_proposal(project_root: Path, proposal: WorkflowProposal) -> dict[str, Any]:
@@ -355,8 +406,10 @@ def _issue_workflow_proposal(project_root: Path, proposal: WorkflowProposal) -> 
         digest=digest,
         signature=signature,
     )
-    _write_json_atomically(
-        _proposal_path(project_root, proposal_id),
+    _write_state_json(
+        project_root,
+        "proposals",
+        f"{proposal_id}.json",
         record.model_dump(mode="json"),
     )
     return {
@@ -434,10 +487,9 @@ def apply_workflow_action(
     if not action.enabled:
         raise HTTPException(status_code=409, detail=action.reason or "Workflow action is disabled.")
 
-    applied_path = _applied_proposal_path(project_root, proposal_id)
     with _workflow_apply_lock(project_root):
         targets = _validated_workflow_targets(project_root, proposal)
-        applied = _load_applied_record(applied_path)
+        applied = _load_applied_record(project_root, proposal_id)
         if applied is not None:
             if (
                 applied.get("action_id") != action.id
@@ -479,7 +531,7 @@ def apply_workflow_action(
                 "status": "applying",
                 "written_files": [],
             }
-            _write_json_atomically(applied_path, applied)
+            _write_state_json(project_root, "applied", f"{proposal_id}.json", applied)
 
         written_files = list(applied.get("written_files") or [])
         for preview, target in targets:
@@ -496,7 +548,7 @@ def apply_workflow_action(
             if preview.path not in written_files:
                 written_files.append(preview.path)
             applied["written_files"] = written_files
-            _write_json_atomically(applied_path, applied)
+            _write_state_json(project_root, "applied", f"{proposal_id}.json", applied)
 
         result = ObservatoryWorkflowActionResult(
             action_id=action.id,
@@ -504,8 +556,10 @@ def apply_workflow_action(
             message=f"Created {len(written_files)} workflow file{'' if len(written_files) == 1 else 's'}.",
             files=written_files,
         )
-        _write_json_atomically(
-            applied_path,
+        _write_state_json(
+            project_root,
+            "applied",
+            f"{proposal_id}.json",
             {
                 **applied,
                 "status": "succeeded",
@@ -518,16 +572,21 @@ def apply_workflow_action(
 def _load_verified_workflow_proposal(
     project_root: Path, proposal_id: str
 ) -> tuple[WorkflowProposal, str]:
-    path = _proposal_path(project_root, proposal_id)
+    if not _PROPOSAL_ID_PATTERN.fullmatch(proposal_id):
+        raise HTTPException(status_code=400, detail="Invalid workflow proposal id.")
     try:
         record = _StoredWorkflowProposal.model_validate(
-            json.loads(path.read_text(encoding="utf-8"))
+            _read_state_json(project_root, "proposals", f"{proposal_id}.json")
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Workflow proposal not found.") from exc
     except (OSError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=409, detail="Workflow proposal is invalid.") from exc
 
+    if record.proposal_id != proposal_id:
+        raise HTTPException(
+            status_code=409, detail="Workflow proposal integrity verification failed."
+        )
     expected_signature = _proposal_signature(project_root, record.proposal_id, record.digest)
     if not hmac.compare_digest(record.signature, expected_signature):
         raise HTTPException(
@@ -540,36 +599,37 @@ def _load_verified_workflow_proposal(
     return _proposal_from_payload(record.proposal), record.digest
 
 
-def _load_applied_record(path: Path) -> dict[str, Any] | None:
-    if not path.exists():
-        return None
+def _load_applied_record(project_root: Path, proposal_id: str) -> dict[str, Any] | None:
     try:
-        record = json.loads(path.read_text(encoding="utf-8"))
+        record = _read_state_json(project_root, "applied", f"{proposal_id}.json")
+    except FileNotFoundError:
+        return None
     except (OSError, TypeError, ValueError) as exc:
         raise HTTPException(
             status_code=409,
             detail="Workflow proposal application record is invalid.",
         ) from exc
-    if not isinstance(record, dict):
-        raise HTTPException(
-            status_code=409, detail="Workflow proposal application record is invalid."
-        )
     return record
 
 
 @contextmanager
 def _workflow_apply_lock(project_root: Path):
-    lock_path = _proposal_state_dir(project_root) / "apply.lock"
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    state_fd = _open_workflow_state_fd(project_root)
+    descriptor = -1
     try:
         descriptor = os.open(
-            lock_path,
+            "apply.lock",
             os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0),
             0o600,
+            dir_fd=state_fd,
         )
     except OSError as exc:
+        os.close(state_fd)
         raise HTTPException(status_code=503, detail="Workflow apply lock is not safe.") from exc
     try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise HTTPException(status_code=503, detail="Workflow apply lock is not safe.")
+        os.fchmod(descriptor, 0o600)
         handle = os.fdopen(descriptor, "a+", encoding="utf-8")
         descriptor = -1
         with handle:
@@ -583,6 +643,7 @@ def _workflow_apply_lock(project_root: Path):
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+        os.close(state_fd)
 
 
 def _file_matches(path: Path, content: str) -> bool:

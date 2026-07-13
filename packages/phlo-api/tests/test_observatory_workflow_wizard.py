@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
 
@@ -672,21 +673,26 @@ def test_workflow_wizard_apply_retries_after_completion_record_failure(
         action_id=proposal["actions"][0]["id"],
         proposal_id=proposal["proposal_id"],
     )
-    original_write = wizard._write_json_atomically
+    original_write = wizard._write_state_json
     failed = False
 
-    def fail_completion(path: Path, payload: dict[str, object]) -> None:
+    def fail_completion(
+        project_root: Path,
+        storage_name: str,
+        filename: str,
+        payload: dict[str, object],
+    ) -> None:
         nonlocal failed
-        if path.parent.name == "applied" and payload.get("status") == "succeeded" and not failed:
+        if storage_name == "applied" and payload.get("status") == "succeeded" and not failed:
             failed = True
             raise OSError("simulated completion-record failure")
-        original_write(path, payload)
+        original_write(project_root, storage_name, filename, payload)
 
-    monkeypatch.setattr(wizard, "_write_json_atomically", fail_completion)
+    monkeypatch.setattr(wizard, "_write_state_json", fail_completion)
     with pytest.raises(OSError):
         wizard.apply_workflow_action(tmp_path, request)
 
-    monkeypatch.setattr(wizard, "_write_json_atomically", original_write)
+    monkeypatch.setattr(wizard, "_write_state_json", original_write)
     result = wizard.apply_workflow_action(tmp_path, request)
 
     assert result.status == "succeeded"
@@ -714,9 +720,86 @@ def test_workflow_wizard_state_directory_rejects_symlink(tmp_path: Path) -> None
     (phlo_dir / "workflow-wizard").symlink_to(outside, target_is_directory=True)
 
     with pytest.raises(HTTPException) as error:
-        wizard._proposal_state_dir(tmp_path)
+        wizard._open_workflow_state_fd(tmp_path)
 
     assert error.value.status_code == 503
+
+
+def test_workflow_wizard_state_writes_remain_anchored_after_directory_swap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def swap_storage(
+        project_root: Path,
+        storage_name: str,
+        outside: Path,
+        original_open: Callable[..., int],
+    ) -> int:
+        fd = original_open(project_root, storage_name, create=True)
+        storage = project_root / ".phlo" / "workflow-wizard" / storage_name
+        backup = storage.with_name(f"{storage_name}-safe")
+        storage.rename(backup)
+        storage.symlink_to(outside, target_is_directory=True)
+        return fd
+
+    proposal_root = tmp_path / "issuance"
+    proposal_root.mkdir()
+    proposal_outside = tmp_path / "proposal-outside"
+    proposal_outside.mkdir()
+    original_open = wizard._open_state_storage_fd
+
+    def swap_proposals(project_root: Path, storage_name: str, *, create: bool) -> int:
+        if storage_name == "proposals":
+            return swap_storage(project_root, storage_name, proposal_outside, original_open)
+        return original_open(project_root, storage_name, create=create)
+
+    monkeypatch.setattr(wizard, "_open_state_storage_fd", swap_proposals)
+    proposal = wizard.build_workflow_proposal(
+        proposal_root,
+        wizard.ObservatoryWorkflowProposalRequest(
+            workflow_name="customer_health",
+            domain="customers",
+            graph=wizard.ObservatoryWorkflowGraph(
+                nodes=[
+                    wizard.ObservatoryWorkflowGraphNode(
+                        id="source",
+                        contribution_id="dlt.rest-api-source",
+                        stage="source",
+                        values={"table_name": "orders"},
+                    )
+                ]
+            ),
+        ),
+    )
+    proposal_files = list(
+        (proposal_root / ".phlo" / "workflow-wizard" / "proposals-safe").glob("*.json")
+    )
+    assert proposal_files
+    assert not list(proposal_outside.iterdir())
+    assert proposal["proposal_id"] in proposal_files[0].name
+
+    applied_root = tmp_path / "applied-record"
+    applied_dir = applied_root / ".phlo" / "workflow-wizard" / "applied"
+    applied_dir.mkdir(parents=True)
+    applied_outside = tmp_path / "applied-outside"
+    applied_outside.mkdir()
+    swapped = False
+
+    def swap_applied(project_root: Path, storage_name: str, *, create: bool) -> int:
+        nonlocal swapped
+        fd = original_open(project_root, storage_name, create=create)
+        if storage_name == "applied" and not swapped:
+            swapped = True
+            storage = project_root / ".phlo" / "workflow-wizard" / storage_name
+            backup = storage.with_name("applied-safe")
+            storage.rename(backup)
+            storage.symlink_to(applied_outside, target_is_directory=True)
+        return fd
+
+    monkeypatch.setattr(wizard, "_open_state_storage_fd", swap_applied)
+    wizard._write_state_json(applied_root, "applied", "claim.json", {"status": "applying"})
+
+    assert (applied_root / ".phlo" / "workflow-wizard" / "applied-safe" / "claim.json").exists()
+    assert not list(applied_outside.iterdir())
 
 
 def test_workflow_wizard_escapes_caller_values_in_generated_python(tmp_path: Path) -> None:
