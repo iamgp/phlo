@@ -50,7 +50,13 @@ from typing import Any
 
 import dagster as dg
 
-from phlo.capabilities import MaintenanceExecutor, QueryEngine, resolve_capability
+from phlo.capabilities import (
+    MaintenanceExecutor,
+    MaintenanceOperationResult,
+    MaintenanceOperationState,
+    QueryEngine,
+    resolve_capability,
+)
 from phlo.logging import get_logger
 
 from phlo_dagster.iceberg_maintenance_utils import list_tables
@@ -196,7 +202,9 @@ def optimize_table_files(
     config: OptimizeConfig,
 ) -> dict[str, Any]:
     """Run the shared Iceberg compaction operation for selected tables."""
-    executor = _load_optimize_maintenance_executor().for_ref(config.ref)
+    executor = (
+        _load_optimize_maintenance_executor().for_ref(config.ref) if not config.dry_run else None
+    )
     from phlo_iceberg import IcebergResource
 
     iceberg = IcebergResource(ref=config.ref)
@@ -237,21 +245,23 @@ def optimize_table_files(
             context.log.warning(error_msg)
             errors.append(error_msg)
             results.append(
-                {
-                    "operation": "compact",
-                    "table_name": table_name,
-                    "ref": config.ref,
-                    "dry_run": config.dry_run,
-                    "status": "failed",
-                    "accepted": False,
-                    "executed": False,
-                    "failure": {
+                MaintenanceOperationResult(
+                    operation="compact",
+                    table_name=table_name,
+                    ref=config.ref,
+                    dry_run=config.dry_run,
+                    status=MaintenanceOperationState.FAILED,
+                    accepted=False,
+                    executed=False,
+                    failure={
                         "code": "invalid_request",
                         "type": type(e).__name__,
                         "message": str(e),
                         "retryable": False,
                     },
-                }
+                    operation_id=f"{context.run_id}:{table_name}",
+                    retry_safe=False,
+                ).to_dict()
             )
 
     summary = finish_maintenance_op(

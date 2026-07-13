@@ -119,6 +119,7 @@ def test_execute_failure_is_outcome_unknown_and_not_retry_safe(monkeypatch) -> N
     assert result["failure"]["code"] == "maintenance_outcome_unknown"
     assert result["failure"]["outcome"] == "unknown"
     assert result["failure"]["phase"] == "submission"
+    assert result["failure"]["retryable"] is False
     assert result["executed"] is True
     assert result["retry_safe"] is False
 
@@ -145,9 +146,55 @@ def test_preflight_failure_is_not_reported_as_executed(monkeypatch) -> None:
 
     assert result["failure"]["code"] == "maintenance_preflight_failed"
     assert result["failure"]["outcome"] == "not_submitted"
+    assert result["failure"]["retryable"] is True
     assert result["accepted"] is False
     assert result["executed"] is False
     assert result["retry_safe"] is True
+
+
+def test_generic_provider_failure_is_outcome_unknown_and_not_retryable(monkeypatch) -> None:
+    resource = _resource(
+        monkeypatch,
+        [
+            (41, {"file_count": 4, "snapshot_count": 2}),
+            (41, {"file_count": 4, "snapshot_count": 2}),
+        ],
+    )
+    executor = MagicMock()
+    executor.compact_iceberg_table.side_effect = RuntimeError("connection reset")
+
+    result = resource.compact(
+        table_name="raw.events",
+        expected_snapshot_id=41,
+        executor=executor,
+    )
+
+    assert result["failure"]["code"] == "maintenance_outcome_unknown"
+    assert result["failure"]["retryable"] is False
+    assert result["retry_safe"] is False
+
+
+def test_post_execution_metadata_failure_is_outcome_unknown_and_not_retryable(monkeypatch) -> None:
+    resource = IcebergResource(ref="main")
+    metadata = MagicMock(
+        side_effect=[
+            (41, {"file_count": 4, "snapshot_count": 2}),
+            (41, {"file_count": 4, "snapshot_count": 2}),
+            RuntimeError("connection reset"),
+        ]
+    )
+    monkeypatch.setattr(resource, "_compaction_metadata", metadata)
+    executor = MagicMock()
+
+    result = resource.compact(
+        table_name="raw.events",
+        expected_snapshot_id=41,
+        executor=executor,
+    )
+
+    assert result["failure"]["code"] == "maintenance_outcome_unknown"
+    assert result["failure"]["retryable"] is False
+    assert result["retry_safe"] is False
 
 
 def test_compaction_metadata_uses_one_loaded_table_for_snapshot_and_stats(monkeypatch) -> None:

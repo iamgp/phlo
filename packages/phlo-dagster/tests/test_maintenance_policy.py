@@ -202,3 +202,96 @@ def test_load_optimize_query_engine_uses_capability(monkeypatch) -> None:
     )
 
     assert maintenance_sensor._load_optimize_query_engine() is engine
+
+
+def test_optimize_table_files_dry_run_does_not_require_executor(monkeypatch) -> None:
+    """Dry runs must reach Iceberg planning without resolving Trino."""
+    from phlo_dagster import maintenance_sensor
+
+    context = MagicMock()
+    context.run_id = "run-91"
+    result = {
+        "operation": "compact",
+        "table_name": "raw.events",
+        "ref": "main",
+        "dry_run": True,
+        "status": "planned",
+    }
+    compact = MagicMock(return_value=result)
+    monkeypatch.setattr(
+        maintenance_sensor,
+        "_load_optimize_maintenance_executor",
+        MagicMock(side_effect=AssertionError("dry-run must not resolve an executor")),
+    )
+    monkeypatch.setattr("phlo_iceberg.IcebergResource.compact", compact)
+    monkeypatch.setattr(
+        maintenance_sensor,
+        "start_maintenance_op",
+        MagicMock(return_value={"started_at": 0}),
+    )
+    monkeypatch.setattr(
+        maintenance_sensor,
+        "finish_maintenance_op",
+        MagicMock(return_value={"status": "planned"}),
+    )
+
+    output = maintenance_sensor.optimize_table_files.compute_fn.decorated_fn(
+        context,
+        maintenance_sensor.OptimizeConfig(table_names=["raw.events"], dry_run=True),
+    )
+
+    compact.assert_called_once_with(
+        table_name="raw.events",
+        dry_run=True,
+        operation_id="run-91:raw.events",
+        executor=None,
+    )
+    assert output["results"] == [result]
+
+
+def test_optimize_table_files_fallback_uses_operation_result_schema(monkeypatch) -> None:
+    """Rejected tables retain the stable operation result contract."""
+    from phlo.capabilities import MaintenanceOperationResult, MaintenanceOperationState
+    from phlo_dagster import maintenance_sensor
+
+    context = MagicMock()
+    context.run_id = "run-91"
+    monkeypatch.setattr(
+        maintenance_sensor,
+        "_load_optimize_maintenance_executor",
+        MagicMock(side_effect=AssertionError("dry-run must not resolve an executor")),
+    )
+    monkeypatch.setattr(
+        maintenance_sensor,
+        "start_maintenance_op",
+        MagicMock(return_value={"started_at": 0}),
+    )
+    monkeypatch.setattr(
+        maintenance_sensor,
+        "finish_maintenance_op",
+        MagicMock(return_value={"status": "failed"}),
+    )
+
+    output = maintenance_sensor.optimize_table_files.compute_fn.decorated_fn(
+        context,
+        maintenance_sensor.OptimizeConfig(table_names=["raw.events;DROP"], dry_run=True),
+    )
+
+    result = output["results"][0]
+    assert set(result) == set(
+        MaintenanceOperationResult(
+            operation="compact",
+            table_name="raw.events;DROP",
+            ref="main",
+            dry_run=True,
+            status=MaintenanceOperationState.FAILED,
+            accepted=False,
+            executed=False,
+        ).to_dict()
+    )
+    assert result["operation_id"] == "run-91:raw.events;DROP"
+    assert result["planned"] == {}
+    assert result["affected"] == {}
+    assert result["evidence"] == {}
+    assert result["retry_safe"] is False
+    assert result["failure"]["code"] == "invalid_request"

@@ -97,14 +97,20 @@ def _validate_compaction_table_name(table_name: str) -> str:
     return ".".join(f'"{part}"' for part in parts)
 
 
-def _compaction_failure(exc: Exception, *, code: str) -> dict[str, object]:
+def _compaction_failure(
+    exc: Exception,
+    *,
+    code: str,
+    retryable: bool | None = None,
+) -> dict[str, object]:
     """Normalize provider failures without losing retry guidance."""
     message = str(exc).strip() or type(exc).__name__
     lowered = message.lower()
-    retryable = any(
-        marker in lowered
-        for marker in ("timeout", "temporarily unavailable", "connection", "concurrent")
-    )
+    if retryable is None:
+        retryable = any(
+            marker in lowered
+            for marker in ("timeout", "temporarily unavailable", "connection", "concurrent")
+        )
     return {
         "code": code,
         "type": type(exc).__name__,
@@ -750,6 +756,7 @@ class IcebergResource:
                     if exc.phase is MaintenanceExecutionPhase.PREFLIGHT
                     else "maintenance_outcome_unknown"
                 ),
+                retryable=(None if exc.phase is MaintenanceExecutionPhase.PREFLIGHT else False),
             )
             failure.update(
                 phase=exc.phase.value,
@@ -785,7 +792,11 @@ class IcebergResource:
                 executed=True,
                 before_snapshot_id=current_snapshot_id,
                 planned=plan,
-                failure=_compaction_failure(exc, code="maintenance_outcome_unknown"),
+                failure=_compaction_failure(
+                    exc,
+                    code="maintenance_outcome_unknown",
+                    retryable=False,
+                ),
                 operation_id=operation_id,
                 retry_safe=False,
             ).to_dict()
@@ -803,7 +814,11 @@ class IcebergResource:
                 executed=True,
                 before_snapshot_id=current_snapshot_id,
                 planned=plan,
-                failure=_compaction_failure(exc, code="maintenance_outcome_unknown"),
+                failure=_compaction_failure(
+                    exc,
+                    code="maintenance_outcome_unknown",
+                    retryable=False,
+                ),
                 operation_id=operation_id,
                 retry_safe=False,
             ).to_dict()
