@@ -222,15 +222,15 @@ class TrinoResource:
                 return []
             return cursor.fetchall()
 
-    def compact_iceberg_table(
+    def compact_table(
         self,
         *,
         table_name: str,
         ref: str,
-        expected_snapshot_id: int | None = None,
+        expected_revision: str | int | None = None,
         operation_id: str | None = None,
     ) -> dict[str, object]:
-        """Execute Iceberg compaction against this resource's selected ref.
+        """Execute table compaction against this resource's selected ref.
 
         The requested ref is checked against the connection catalog before any
         SQL is sent, so a caller cannot accidentally compact the default branch
@@ -260,10 +260,10 @@ class TrinoResource:
         except Exception as exc:  # noqa: BLE001 - no mutation was submitted
             raise MaintenanceExecutionError(MaintenanceExecutionPhase.PREFLIGHT, exc) from exc
         current_snapshot_id = int(snapshot_rows[0][0]) if snapshot_rows else None
-        if expected_snapshot_id != current_snapshot_id:
+        if expected_revision != current_snapshot_id:
             raise MaintenancePreconditionError(
                 "Iceberg snapshot changed before compaction: "
-                f"expected {expected_snapshot_id!r}, current {current_snapshot_id!r}"
+                f"expected {expected_revision!r}, current {current_snapshot_id!r}"
             )
         sql = f"ALTER TABLE {'.'.join(quote_identifier(part) for part in parts)} EXECUTE optimize"
         logger.info(

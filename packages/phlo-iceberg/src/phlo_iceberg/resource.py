@@ -585,6 +585,7 @@ class IcebergResource:
         table_name: str,
         override_ref: str | None = None,
         dry_run: bool = False,
+        expected_revision: str | int | None = None,
         expected_snapshot_id: int | str | None = None,
         operation_id: str | None = None,
         executor: MaintenanceExecutor | None = None,
@@ -603,8 +604,10 @@ class IcebergResource:
             table_name: Fully qualified table name (``namespace.table``).
             override_ref: Optional branch or tag to use instead of ``self.ref``.
             dry_run: Inspect the table and plan the operation without invoking Trino.
+            expected_revision: Provider-neutral revision token observed by the caller.
             expected_snapshot_id: Snapshot observed by the caller. When omitted,
-                execute mode captures and rechecks the current snapshot itself.
+                execute mode captures and rechecks the current snapshot itself. This
+                provider-specific alias is retained for compatibility.
             operation_id: Optional caller-supplied correlation token. The current
                 contract is at-least-once and does not provide durable deduplication.
             executor: Provider-neutral maintenance executor, such as the Trino
@@ -669,9 +672,16 @@ class IcebergResource:
                 retry_safe=True,
             ).to_dict()
 
-        expected = (
-            int(expected_snapshot_id) if expected_snapshot_id is not None else before_snapshot_id
+        if (
+            expected_revision is not None
+            and expected_snapshot_id is not None
+            and int(expected_revision) != int(expected_snapshot_id)
+        ):
+            raise ValueError("expected_revision and expected_snapshot_id must match")
+        expected_token = (
+            expected_revision if expected_revision is not None else expected_snapshot_id
         )
+        expected = int(expected_token) if expected_token is not None else before_snapshot_id
         if before_snapshot_id != expected:
             return _blocked_compaction_result(
                 table_name=table_name,
@@ -725,10 +735,10 @@ class IcebergResource:
 
         provider_result: dict[str, object] = {}
         try:
-            raw_provider_result = executor.compact_iceberg_table(
+            raw_provider_result = executor.compact_table(
                 table_name=table_name,
                 ref=branch,
-                expected_snapshot_id=expected,
+                expected_revision=expected,
                 operation_id=operation_id,
             )
             if isinstance(raw_provider_result, dict):

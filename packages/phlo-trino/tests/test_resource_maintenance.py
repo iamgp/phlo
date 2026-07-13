@@ -19,10 +19,10 @@ def _resource(ref: str = "main") -> tuple[TrinoResource, MagicMock]:
 def test_compaction_checks_snapshot_and_executes_on_selected_ref() -> None:
     resource, execute = _resource(ref="dev")
 
-    result = resource.compact_iceberg_table(
+    result = resource.compact_table(
         table_name="raw.events",
         ref="dev",
-        expected_snapshot_id=41,
+        expected_revision=41,
         operation_id="run-41",
     )
 
@@ -41,10 +41,10 @@ def test_compaction_blocks_stale_snapshot_before_optimize() -> None:
     resource, execute = _resource(ref="main")
 
     with pytest.raises(ValueError, match="snapshot changed"):
-        resource.compact_iceberg_table(
+        resource.compact_table(
             table_name="raw.events",
             ref="main",
-            expected_snapshot_id=40,
+            expected_revision=40,
         )
 
     assert execute.call_count == 1
@@ -56,10 +56,10 @@ def test_compaction_preflight_failure_is_not_submitted() -> None:
     execute.side_effect = RuntimeError("connection refused")
 
     with pytest.raises(MaintenanceExecutionError) as raised:
-        resource.compact_iceberg_table(
+        resource.compact_table(
             table_name="raw.events",
             ref="main",
-            expected_snapshot_id=41,
+            expected_revision=41,
         )
 
     assert raised.value.phase is MaintenanceExecutionPhase.PREFLIGHT
@@ -71,10 +71,10 @@ def test_compaction_submission_failure_is_outcome_unknown() -> None:
     execute.side_effect = [[(41,)], RuntimeError("connection reset")]
 
     with pytest.raises(MaintenanceExecutionError) as raised:
-        resource.compact_iceberg_table(
+        resource.compact_table(
             table_name="raw.events",
             ref="main",
-            expected_snapshot_id=41,
+            expected_revision=41,
         )
 
     assert raised.value.phase is MaintenanceExecutionPhase.SUBMISSION
@@ -85,10 +85,10 @@ def test_compaction_rejects_unsafe_identifier() -> None:
     resource = TrinoResource(ref="main")
 
     with pytest.raises(ValueError, match="namespace.table"):
-        resource.compact_iceberg_table(
+        resource.compact_table(
             table_name='raw.events; DROP TABLE "other"',
             ref="main",
-            expected_snapshot_id=41,
+            expected_revision=41,
         )
 
 
@@ -96,10 +96,10 @@ def test_compaction_rejects_ref_mismatch() -> None:
     resource = TrinoResource(ref="main")
 
     with pytest.raises(ValueError, match="configured for ref"):
-        resource.compact_iceberg_table(
+        resource.compact_table(
             table_name="raw.events",
             ref="dev",
-            expected_snapshot_id=41,
+            expected_revision=41,
         )
 
 

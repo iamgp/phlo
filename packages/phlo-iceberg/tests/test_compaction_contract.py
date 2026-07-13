@@ -6,7 +6,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from phlo.capabilities import MaintenanceExecutionError, MaintenanceExecutionPhase
+from phlo.capabilities import (
+    MaintenanceExecutionError,
+    MaintenanceExecutionPhase,
+    MaintenanceTableStore,
+)
 import phlo_iceberg.resource as resource_module
 from phlo_iceberg.resource import IcebergResource
 
@@ -30,6 +34,10 @@ def test_dry_run_reports_plan_without_executor(monkeypatch) -> None:
     assert result["retry_safe"] is True
 
 
+def test_iceberg_resource_satisfies_neutral_maintenance_table_store_contract() -> None:
+    assert isinstance(IcebergResource(ref="main"), MaintenanceTableStore)
+
+
 def test_execute_passes_snapshot_and_operation_identity_to_executor(monkeypatch) -> None:
     resource = _resource(
         monkeypatch,
@@ -40,7 +48,7 @@ def test_execute_passes_snapshot_and_operation_identity_to_executor(monkeypatch)
         ],
     )
     executor = MagicMock()
-    executor.compact_iceberg_table.return_value = {
+    executor.compact_table.return_value = {
         "catalog": "iceberg",
         "ref": "main",
         "sql": 'ALTER TABLE "raw"."events" EXECUTE optimize',
@@ -53,10 +61,10 @@ def test_execute_passes_snapshot_and_operation_identity_to_executor(monkeypatch)
         executor=executor,
     )
 
-    executor.compact_iceberg_table.assert_called_once_with(
+    executor.compact_table.assert_called_once_with(
         table_name="raw.events",
         ref="main",
-        expected_snapshot_id=41,
+        expected_revision=41,
         operation_id="run-41",
     )
     assert result["status"] == "succeeded"
@@ -93,7 +101,7 @@ def test_execute_honors_override_ref(monkeypatch) -> None:
     )
 
     assert result["ref"] == "dev"
-    assert executor.compact_iceberg_table.call_args.kwargs["ref"] == "dev"
+    assert executor.compact_table.call_args.kwargs["ref"] == "dev"
 
 
 def test_execute_failure_is_outcome_unknown_and_not_retry_safe(monkeypatch) -> None:
@@ -105,7 +113,7 @@ def test_execute_failure_is_outcome_unknown_and_not_retry_safe(monkeypatch) -> N
         ],
     )
     executor = MagicMock()
-    executor.compact_iceberg_table.side_effect = MaintenanceExecutionError(
+    executor.compact_table.side_effect = MaintenanceExecutionError(
         MaintenanceExecutionPhase.SUBMISSION,
         RuntimeError("connection reset"),
     )
@@ -137,7 +145,7 @@ def test_preflight_failure_is_not_reported_as_executed(monkeypatch) -> None:
         ],
     )
     executor = MagicMock()
-    executor.compact_iceberg_table.side_effect = MaintenanceExecutionError(
+    executor.compact_table.side_effect = MaintenanceExecutionError(
         MaintenanceExecutionPhase.PREFLIGHT,
         RuntimeError("connection refused"),
     )
@@ -165,7 +173,7 @@ def test_generic_provider_failure_is_outcome_unknown_and_not_retryable(monkeypat
         ],
     )
     executor = MagicMock()
-    executor.compact_iceberg_table.side_effect = RuntimeError("connection reset")
+    executor.compact_table.side_effect = RuntimeError("connection reset")
 
     result = cast(
         dict[str, Any],

@@ -52,6 +52,7 @@ import dagster as dg
 
 from phlo.capabilities import (
     MaintenanceExecutor,
+    MaintenanceTableStore,
     MaintenanceOperationResult,
     MaintenanceOperationState,
     QueryEngine,
@@ -196,18 +197,32 @@ def _load_optimize_maintenance_executor() -> MaintenanceExecutor:
     return executor
 
 
+def _load_optimize_table_store() -> MaintenanceTableStore:
+    """Resolve the provider-neutral table store used for compaction."""
+    resolution = resolve_capability("table_store", "iceberg")
+    if resolution is None:
+        raise RuntimeError(
+            "Compaction requires a table_store:iceberg capability. "
+            "Install or configure a provider exposing the maintenance table-store contract."
+        )
+    table_store = resolution.provider
+    if not isinstance(table_store, MaintenanceTableStore):
+        raise RuntimeError(
+            "Resolved table_store:iceberg does not implement the maintenance table-store contract"
+        )
+    return table_store
+
+
 @dg.op
 def optimize_table_files(
     context: dg.OpExecutionContext,
     config: OptimizeConfig,
 ) -> dict[str, Any]:
     """Run the shared Iceberg compaction operation for selected tables."""
+    table_store = _load_optimize_table_store()
     executor = (
         _load_optimize_maintenance_executor().for_ref(config.ref) if not config.dry_run else None
     )
-    from phlo_iceberg import IcebergResource
-
-    iceberg = IcebergResource(ref=config.ref)
     results: list[dict[str, Any]] = []
     errors: list[str] = []
     maintenance_config = MaintenanceConfig(
@@ -225,8 +240,9 @@ def optimize_table_files(
     for table_name in config.table_names:
         try:
             _validate_table_name(table_name)
-            result = iceberg.compact(
+            result = table_store.compact(
                 table_name=table_name,
+                override_ref=config.ref,
                 dry_run=config.dry_run,
                 operation_id=f"{context.run_id}:{table_name}",
                 executor=executor,

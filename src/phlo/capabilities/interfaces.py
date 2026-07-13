@@ -283,15 +283,33 @@ class MaintenanceExecutor(Protocol):
         """Return an executor whose backend connection targets ``ref``."""
         ...
 
-    def compact_iceberg_table(
+    def compact_table(
         self,
         *,
         table_name: str,
         ref: str,
-        expected_snapshot_id: int | None = None,
+        expected_revision: str | int | None = None,
         operation_id: str | None = None,
     ) -> Any:
-        """Compact one Iceberg table on the explicitly selected ref."""
+        """Compact one table on the explicitly selected ref."""
+        ...
+
+
+@runtime_checkable
+class MaintenanceTableStore(Protocol):
+    """Provider-neutral table-store contract for planned compaction."""
+
+    def compact(
+        self,
+        *,
+        table_name: str,
+        override_ref: str | None = None,
+        dry_run: bool = False,
+        expected_revision: str | int | None = None,
+        operation_id: str | None = None,
+        executor: MaintenanceExecutor | None = None,
+    ) -> dict[str, Any]:
+        """Plan or execute compaction for one table."""
         ...
 
 
