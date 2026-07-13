@@ -60,6 +60,7 @@ def test_cached_config_isolated_between_project_roots(tmp_path, monkeypatch, sel
 
     _get_config.cache_clear()
     monkeypatch.delenv("PHLO_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("PHLO_PROJECT_PATH", raising=False)
 
     if selection == "cwd":
         monkeypatch.chdir(project_a)

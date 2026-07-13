@@ -226,13 +226,16 @@ class IcebergSettings(BaseConfig):
 
 @project_root_cached
 def get_settings(project_root: Path) -> IcebergSettings:
-    """Get cached Iceberg settings instance.
+    """Get cached Iceberg settings for the selected project root.
 
-    Uses LRU cache to avoid repeatedly loading and parsing configuration.
-    The cache has size 1, meaning only one settings instance is kept.
+    Settings are cached per resolved project root, with up to 16 entries,
+    to avoid repeatedly loading and parsing configuration.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
-        IcebergSettings: Cached Iceberg settings instance with all
+        IcebergSettings: Cached settings with all
             configuration values resolved from environment and files.
 
     Example:
@@ -245,8 +248,8 @@ def get_settings(project_root: Path) -> IcebergSettings:
             print(f"Default namespace: {settings.iceberg_default_namespace}")
 
     Note:
-        Settings are cached. To force reload after configuration changes,
-        restart the Python process or clear the cache with::
+        Settings are cached per project root. To force a reload after
+        configuration changes, clear the cache with::
 
             get_settings.cache_clear()
 

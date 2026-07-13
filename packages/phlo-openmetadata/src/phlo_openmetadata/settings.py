@@ -154,10 +154,13 @@ class OpenMetadataSettings(BaseConfig):
 
 @project_root_cached
 def get_settings(project_root: Path) -> OpenMetadataSettings:
-    """Get cached OpenMetadata settings.
+    """Get cached OpenMetadata settings for the selected project root.
 
-    Returns a cached instance to avoid repeated configuration loading.
-    The cache is limited to 1 entry as settings are typically global.
+    Settings are cached per resolved project root, with up to 16 entries,
+    to avoid repeated configuration loading while isolating project state.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         OpenMetadataSettings: Cached OpenMetadata settings instance.

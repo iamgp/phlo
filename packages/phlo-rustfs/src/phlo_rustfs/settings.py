@@ -89,14 +89,16 @@ class RustfsSettings(BaseConfig):
 
 @project_root_cached
 def get_settings(project_root: Path) -> RustfsSettings:
-    """Return cached RustFS settings.
+    """Return cached RustFS settings for the selected project root.
 
-    Factory function returning a singleton RustfsSettings instance.
-    Uses functools.lru_cache to ensure only one instance is created
-    per process, improving performance and consistency.
+    Settings are cached per resolved project root, with up to 16 entries,
+    improving performance while keeping project configuration isolated.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
-        Cached RustfsSettings instance.
+        Cached RustfsSettings instance for the selected root.
 
     Example:
         >>> settings = get_settings()

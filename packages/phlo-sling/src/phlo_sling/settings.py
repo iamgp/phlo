@@ -79,11 +79,15 @@ class SlingSettings(BaseConfig):
 
 @project_root_cached
 def get_settings(project_root: Path) -> SlingSettings:
-    """Return cached Sling settings instance.
+    """Return cached Sling settings for the selected project root.
 
-    Returns a singleton instance of SlingSettings using LRU caching to
-    avoid repeated configuration loading. The settings are loaded from
-    environment variables and configuration files on first access.
+    Settings are cached per resolved project root, with up to 16 entries,
+    avoiding repeated configuration loading while isolating project state.
+    Settings are loaded from environment variables and configuration files
+    on first access for each root.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         Cached SlingSettings instance with loaded configuration values.

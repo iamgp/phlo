@@ -15,7 +15,7 @@ Priority Order for lineage_db_url:
 
 Usage:
     Settings are accessed via the cached get_settings() function, which returns
-    a singleton instance parsed from the environment.
+    a project-root-scoped instance parsed from the environment.
 
 Example:
     >>> from phlo_lineage.settings import get_settings, LineageSettings
@@ -96,19 +96,21 @@ class LineageSettings(BaseConfig):
 
 @project_root_cached
 def get_settings(project_root: Path) -> LineageSettings:
-    """Get cached LineageSettings instance.
+    """Get cached LineageSettings for the selected project root.
 
-    This function returns a singleton LineageSettings instance that is
-    cached after first access using functools.lru_cache. This ensures
-    consistent settings across the application while avoiding repeated
-    environment variable parsing.
+    Settings are cached after first access per resolved project root, with
+    up to 16 entries, avoiding repeated environment variable parsing while
+    keeping project configuration isolated.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         LineageSettings instance loaded from environment variables.
 
     Caching:
-        Settings are cached with maxsize=1, meaning only one instance is
-        stored. The cache is process-local and thread-safe.
+        Settings are cached with up to 16 resolved project roots. The cache
+        is process-local and thread-safe.
 
         To reload settings (e.g., after environment changes):
         >>> get_settings.cache_clear()
@@ -124,15 +126,15 @@ def get_settings(project_root: Path) -> LineageSettings:
         ...     print("No lineage database URL found")
 
     Thread Safety:
-        lru_cache provides thread-safe caching. The LineageSettings
-        instance itself is immutable after creation (frozen dataclass).
+        The project-root cache provides thread-safe caching. The
+        LineageSettings instance itself is immutable after creation.
 
     Performance:
         First call: Parses environment variables (~0.1-1ms)
-        Subsequent calls: Returns cached instance (O(1))
+        Subsequent calls for the same root: Returns cached instance (O(1))
 
     See Also:
-        functools.lru_cache for caching behavior details.
+        phlo.config.cache.project_root_cached for caching behavior details.
 
     """
     return LineageSettings()

@@ -80,14 +80,16 @@ class DltSettings(BaseConfig):
 
 @project_root_cached
 def get_settings(project_root: Path) -> DltSettings:
-    """Return cached DLT settings instance.
+    """Return cached DLT settings for the selected project root.
 
-    Factory function that returns a singleton DltSettings instance.
-    Uses functools.lru_cache to ensure only one settings object is created
-    per process, improving performance and ensuring consistency.
+    Settings are cached per resolved project root, with up to 16 entries,
+    improving performance while keeping project configuration isolated.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
-        DltSettings: The cached settings instance.
+        DltSettings: The cached settings instance for the selected root.
 
     Example:
         ```python
@@ -96,7 +98,7 @@ def get_settings(project_root: Path) -> DltSettings:
         # First call creates the instance
         settings = get_settings()
 
-        # Subsequent calls return the same instance
+        # Subsequent calls for the same root return the same instance
         settings2 = get_settings()
         assert settings is settings2  # True
         ```

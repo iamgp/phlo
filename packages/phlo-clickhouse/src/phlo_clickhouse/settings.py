@@ -106,10 +106,13 @@ class ClickHouseSettings(BaseConfig):
 
 @project_root_cached
 def get_settings(project_root: Path) -> ClickHouseSettings:
-    """Return cached ClickHouse settings instance.
+    """Return cached ClickHouse settings for the selected project root.
 
-    Uses functools.lru_cache to ensure settings are loaded only once
+    Settings are cached per resolved project root, with up to 16 entries,
     and reused across the application lifecycle.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         ClickHouseSettings instance with loaded configuration.
@@ -118,7 +121,7 @@ def get_settings(project_root: Path) -> ClickHouseSettings:
         >>> settings = get_settings()
         >>> settings.clickhouse_host
         'clickhouse'
-        >>> # Subsequent calls return the same cached instance
+        >>> # Subsequent calls for the same root return the same cached instance
         >>> get_settings() is settings
         True
 

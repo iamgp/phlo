@@ -37,10 +37,13 @@ class ObservatorySettings(BaseConfig):
 
 @project_root_cached
 def get_settings(project_root: Path) -> ObservatorySettings:
-    """Return cached Observatory settings instance.
+    """Return cached Observatory settings for the selected project root.
 
     Settings are parsed from environment variables using PHLO_OBSERVATORY_*
-    prefixes and cached for the lifetime of the process.
+    prefixes and cached per resolved project root, with up to 16 entries.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         ObservatorySettings: Parsed and validated Observatory settings.

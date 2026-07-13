@@ -141,18 +141,19 @@ class MinioSettings(BaseConfig):
 
 @project_root_cached
 def get_settings(project_root: Path) -> MinioSettings:
-    """Return a cached MinIO settings instance.
+    """Return cached MinIO settings for the selected project root.
 
-    Creates and caches a single MinioSettings instance to avoid
-    repeated environment resolution and configuration loading.
-    The cache ensures consistent settings across the application
-    lifecycle.
+    Settings are cached per resolved project root, with up to 16 entries,
+    avoiding repeated environment resolution and configuration loading.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         MinioSettings: Cached settings instance.
 
     Examples:
-        Singleton pattern:
+        Same-root cache reuse:
             >>> settings1 = get_settings()
             >>> settings2 = get_settings()
             >>> settings1 is settings2  # Same instance
@@ -174,8 +175,8 @@ def get_settings(project_root: Path) -> MinioSettings:
             ... }
 
     Warning:
-        Settings are cached for the process lifetime. To refresh
-        settings, restart the application process.
+        Settings are cached per project root. To refresh settings after
+        configuration changes, call ``get_settings.cache_clear()``.
 
     """
     return MinioSettings()
