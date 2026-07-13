@@ -112,6 +112,7 @@ export interface ObservatoryWorkflowApplyAction {
 }
 
 export interface ObservatoryWorkflowProposal {
+  proposal_id: string
   workflow_name: string
   domain: string
   selected_contributions: Array<string>

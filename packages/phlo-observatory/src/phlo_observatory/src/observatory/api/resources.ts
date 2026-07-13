@@ -921,7 +921,7 @@ export async function runObservatoryWorkflowAction({
   data: { actionId: string; proposal: ObservatoryWorkflowProposal }
 }): Promise<ObservatoryResourceResult<ObservatoryWorkflowActionResult>> {
   try {
-    const body = { action_id: actionId, proposal }
+    const body = { action_id: actionId, proposal_id: proposal.proposal_id }
     const result =
       browserApiBase() !== null
         ? await browserApiPost<ObservatoryWorkflowActionResult>(

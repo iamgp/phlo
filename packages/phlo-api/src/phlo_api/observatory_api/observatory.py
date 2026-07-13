@@ -4921,20 +4921,27 @@ def get_observatory_workflow_wizard() -> dict[str, Any]:
 @router.post("/workflow-wizard/proposals")
 def post_observatory_workflow_wizard_proposal(
     request: ObservatoryWorkflowProposalRequest,
+    http_request: Request,
 ) -> dict[str, Any]:
-    """Build a side-effect-free workflow proposal."""
+    """Build and persist a server-owned workflow proposal."""
 
-    return build_workflow_proposal(_project_root(), request)
+    auth = require_scope(http_request, "project:write")
+    enforce_rate_limit(auth["subject"], "workflow_wizard_proposal")
+    return build_workflow_proposal(_project_root(), request, auth["subject"])
 
 
 @router.post("/workflow-wizard/actions", response_model=ObservatoryWorkflowActionResult)
 def post_observatory_workflow_wizard_action(
     request: ObservatoryWorkflowActionRequest,
+    http_request: Request,
 ) -> ObservatoryWorkflowActionResult:
     """Run a guarded workflow wizard apply action."""
 
+    auth = require_scope(http_request, "project:write")
+    enforce_rate_limit(auth["subject"], "workflow_wizard_apply")
+
     try:
-        result = apply_workflow_action(_project_root(), request)
+        result = apply_workflow_action(_project_root(), request, auth["subject"])
     except HTTPException as exc:
         message = str(exc.detail)
         append_operation(
