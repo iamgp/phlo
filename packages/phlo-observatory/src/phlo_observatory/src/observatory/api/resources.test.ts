@@ -99,7 +99,7 @@ describe('observatory dataset resources', () => {
     expect(result).toEqual({ data: actionResult, error: null })
     expect(apiPost).toHaveBeenCalledWith(
       '/api/observatory/workflow-wizard/actions',
-      { action_id: 'apply', proposal },
+      { action_id: 'apply', proposal_id: proposal.proposal_id },
       12000,
     )
   })
@@ -118,7 +118,10 @@ describe('observatory dataset resources', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.example.test/api/observatory/workflow-wizard/actions',
       expect.objectContaining({
-        body: JSON.stringify({ action_id: 'apply', proposal }),
+        body: JSON.stringify({
+          action_id: 'apply',
+          proposal_id: proposal.proposal_id,
+        }),
         method: 'POST',
       }),
     )
@@ -146,6 +149,7 @@ function workflowProposal() {
     selected_contributions: [],
     warnings: [],
     workflow_name: 'Revenue refresh',
+    proposal_id: 'proposal_1234567890',
   }
 }
 

@@ -2,8 +2,16 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib
+import hashlib
+import hmac
+import json
+import os
 import re
+import secrets
+import stat
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -20,7 +28,16 @@ from phlo.capabilities import (
     validate_proposal_request,
 )
 
+_fcntl: Any = None
+try:
+    import fcntl as _fcntl
+except ImportError:  # pragma: no cover - POSIX is used in production
+    pass
+
 STAGES = ["source", "transform", "quality", "publish"]
+_ALLOWED_PROJECT_ROOTS = ("workflows", "tests")
+_WORKFLOW_ALLOWED_EXTENSIONS = {".json", ".py", ".sql", ".toml", ".yaml", ".yml"}
+_PROPOSAL_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 WORKFLOW_WIZARD_PLUGIN_TYPES = (
     "ingestion_provider",
     "transformation_provider",
@@ -82,7 +99,16 @@ class ObservatoryWorkflowActionRequest(BaseModel):
     """Request body for guarded workflow wizard apply actions."""
 
     action_id: str
+    proposal_id: str
+
+
+class _StoredWorkflowProposal(BaseModel):
+    """Server-owned workflow proposal record."""
+
+    proposal_id: str
     proposal: dict[str, Any]
+    digest: str
+    signature: str
 
 
 class ObservatoryWorkflowActionResult(BaseModel):
@@ -160,7 +186,7 @@ def build_workflow_proposal(
     project_root: Path,
     request: ObservatoryWorkflowProposalRequest,
 ) -> dict[str, Any]:
-    """Build a side-effect-free workflow proposal for the browser."""
+    """Build and persist a server-owned workflow proposal for the browser."""
 
     if not request.graph.nodes:
         raise HTTPException(status_code=422, detail={"graph": ["Add at least one workflow node."]})
@@ -194,7 +220,149 @@ def build_workflow_proposal(
     conflicts = detect_file_conflicts(project_root, proposal)
     if conflicts:
         proposal = _with_conflict_action_disabled(proposal, conflicts)
-    return proposal.to_browser_dict()
+    return _issue_workflow_proposal(project_root, proposal)
+
+
+def _proposal_state_dir(project_root: Path) -> Path:
+    project_root = project_root.resolve()
+    phlo_dir = project_root / ".phlo"
+    wizard_dir = phlo_dir / "workflow-wizard"
+    for directory in (phlo_dir, wizard_dir):
+        try:
+            metadata = os.lstat(directory)
+        except FileNotFoundError:
+            directory.mkdir()
+            metadata = os.lstat(directory)
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise HTTPException(status_code=503, detail="Workflow state directory is not safe.")
+    return wizard_dir
+
+
+def _proposal_storage_dir(project_root: Path, name: str) -> Path:
+    directory = _proposal_state_dir(project_root) / name
+    try:
+        metadata = os.lstat(directory)
+    except FileNotFoundError:
+        directory.mkdir()
+        metadata = os.lstat(directory)
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise HTTPException(status_code=503, detail="Workflow state directory is not safe.")
+    return directory
+
+
+def _proposal_path(project_root: Path, proposal_id: str) -> Path:
+    if not _PROPOSAL_ID_PATTERN.fullmatch(proposal_id):
+        raise HTTPException(status_code=400, detail="Invalid workflow proposal id.")
+    return _proposal_storage_dir(project_root, "proposals") / f"{proposal_id}.json"
+
+
+def _applied_proposal_path(project_root: Path, proposal_id: str) -> Path:
+    if not _PROPOSAL_ID_PATTERN.fullmatch(proposal_id):
+        raise HTTPException(status_code=400, detail="Invalid workflow proposal id.")
+    return _proposal_storage_dir(project_root, "applied") / f"{proposal_id}.json"
+
+
+def _canonical_json(payload: dict[str, Any]) -> bytes:
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+        "utf-8"
+    )
+
+
+def _proposal_digest(proposal: dict[str, Any]) -> str:
+    return hashlib.sha256(_canonical_json(proposal)).hexdigest()
+
+
+def _workflow_integrity_key(project_root: Path) -> bytes:
+    configured = os.environ.get("PHLO_WORKFLOW_WIZARD_SECRET")
+    if configured:
+        return configured.encode("utf-8")
+
+    key_path = _proposal_state_dir(project_root) / "integrity.key"
+    key_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        existing = os.lstat(key_path)
+    except FileNotFoundError:
+        existing = None
+    if existing is not None and not stat.S_ISREG(existing.st_mode):
+        raise HTTPException(status_code=503, detail="Workflow integrity key is not a regular file.")
+    if existing is None:
+        try:
+            descriptor = os.open(
+                key_path,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+            try:
+                with os.fdopen(descriptor, "wb") as handle:
+                    handle.write(secrets.token_bytes(32))
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            except BaseException:
+                with contextlib.suppress(OSError):
+                    key_path.unlink()
+                raise
+        except FileExistsError:
+            pass
+
+    read_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(key_path, read_flags)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=503, detail="Workflow integrity key cannot be read safely."
+        ) from exc
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise HTTPException(
+                status_code=503, detail="Workflow integrity key is not a regular file."
+            )
+        os.fchmod(descriptor, 0o600)
+        key = os.read(descriptor, 4096)
+        if not key:
+            raise HTTPException(status_code=503, detail="Workflow integrity key is empty.")
+        return key
+    finally:
+        os.close(descriptor)
+
+
+def _proposal_signature(project_root: Path, proposal_id: str, digest: str) -> str:
+    message = f"{proposal_id}:{digest}".encode("utf-8")
+    return hmac.new(_workflow_integrity_key(project_root), message, hashlib.sha256).hexdigest()
+
+
+def _write_json_atomically(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    try:
+        temporary.write_text(
+            json.dumps(payload, sort_keys=True, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        os.replace(temporary, path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def _issue_workflow_proposal(project_root: Path, proposal: WorkflowProposal) -> dict[str, Any]:
+    proposal_id = secrets.token_urlsafe(24)
+    proposal_payload = proposal.to_browser_dict()
+    digest = _proposal_digest(proposal_payload)
+    signature = _proposal_signature(project_root, proposal_id, digest)
+    record = _StoredWorkflowProposal(
+        proposal_id=proposal_id,
+        proposal=proposal_payload,
+        digest=digest,
+        signature=signature,
+    )
+    _write_json_atomically(
+        _proposal_path(project_root, proposal_id),
+        record.model_dump(mode="json"),
+    )
+    return {
+        **proposal_payload,
+        "proposal_id": proposal_id,
+    }
 
 
 def _selections_from_graph(
@@ -254,36 +422,282 @@ def _selection_payload(
 def apply_workflow_action(
     project_root: Path, request: ObservatoryWorkflowActionRequest
 ) -> ObservatoryWorkflowActionResult:
-    """Apply a guarded workflow wizard action by writing proposed files."""
+    """Apply a server-issued workflow action within the project workflow root."""
 
-    proposal = _proposal_from_payload(request.proposal)
+    proposal_id = request.proposal_id
+    proposal, proposal_digest = _load_verified_workflow_proposal(project_root, proposal_id)
     action = next((item for item in proposal.actions if item.id == request.action_id), None)
     if action is None:
         raise HTTPException(
             status_code=404, detail=f"Workflow action not found: {request.action_id}"
         )
+    if not action.enabled:
+        raise HTTPException(status_code=409, detail=action.reason or "Workflow action is disabled.")
 
-    conflicts = detect_file_conflicts(project_root, proposal)
-    if conflicts and action.conflict_policy == "fail-on-conflict":
-        raise HTTPException(status_code=409, detail=f"File conflicts: {', '.join(conflicts)}")
+    applied_path = _applied_proposal_path(project_root, proposal_id)
+    with _workflow_apply_lock(project_root):
+        targets = _validated_workflow_targets(project_root, proposal)
+        applied = _load_applied_record(applied_path)
+        if applied is not None:
+            if (
+                applied.get("action_id") != action.id
+                or applied.get("proposal_digest") != proposal_digest
+            ):
+                raise HTTPException(status_code=409, detail="Workflow proposal replay conflicts.")
+            if applied.get("status") == "succeeded":
+                if not all(_file_matches(target, preview.content) for preview, target in targets):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Applied workflow files changed after completion.",
+                    )
+                try:
+                    return ObservatoryWorkflowActionResult.model_validate(applied["result"])
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Workflow proposal application record is invalid.",
+                    ) from exc
+            if applied.get("status") != "applying":
+                raise HTTPException(
+                    status_code=409,
+                    detail="Workflow proposal application record is invalid.",
+                )
+        else:
+            conflicts = [
+                preview.path
+                for preview, target in targets
+                if preview.mode == "create" and target.exists()
+            ]
+            if conflicts and action.conflict_policy == "fail-on-conflict":
+                raise HTTPException(
+                    status_code=409, detail=f"File conflicts: {', '.join(conflicts)}"
+                )
+            applied = {
+                "action_id": action.id,
+                "proposal_digest": proposal_digest,
+                "proposal_id": proposal_id,
+                "status": "applying",
+                "written_files": [],
+            }
+            _write_json_atomically(applied_path, applied)
 
-    written: list[str] = []
-    for preview in proposal.files:
-        target = project_root / preview.path
-        if target.exists() and action.conflict_policy == "skip-if-exists":
-            continue
-        if target.exists() and action.conflict_policy == "fail-on-conflict":
-            raise HTTPException(status_code=409, detail=f"File conflicts: {preview.path}")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(preview.content, encoding="utf-8")
-        written.append(preview.path)
+        written_files = list(applied.get("written_files") or [])
+        for preview, target in targets:
+            if target.exists():
+                if _file_matches(target, preview.content):
+                    if preview.path not in written_files:
+                        written_files.append(preview.path)
+                    continue
+                if action.conflict_policy == "skip-if-exists":
+                    continue
+                raise HTTPException(status_code=409, detail=f"File conflicts: {preview.path}")
 
-    return ObservatoryWorkflowActionResult(
-        action_id=action.id,
-        status="succeeded",
-        message=f"Created {len(written)} workflow file{'s' if len(written) != 1 else ''}.",
-        files=written,
+            _write_text_atomically(project_root, preview.path, preview.content)
+            if preview.path not in written_files:
+                written_files.append(preview.path)
+            applied["written_files"] = written_files
+            _write_json_atomically(applied_path, applied)
+
+        result = ObservatoryWorkflowActionResult(
+            action_id=action.id,
+            status="succeeded",
+            message=f"Created {len(written_files)} workflow file{'' if len(written_files) == 1 else 's'}.",
+            files=written_files,
+        )
+        _write_json_atomically(
+            applied_path,
+            {
+                **applied,
+                "status": "succeeded",
+                "result": result.model_dump(mode="json"),
+            },
+        )
+        return result
+
+
+def _load_verified_workflow_proposal(
+    project_root: Path, proposal_id: str
+) -> tuple[WorkflowProposal, str]:
+    path = _proposal_path(project_root, proposal_id)
+    try:
+        record = _StoredWorkflowProposal.model_validate(
+            json.loads(path.read_text(encoding="utf-8"))
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Workflow proposal not found.") from exc
+    except (OSError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail="Workflow proposal is invalid.") from exc
+
+    expected_signature = _proposal_signature(project_root, record.proposal_id, record.digest)
+    if not hmac.compare_digest(record.signature, expected_signature):
+        raise HTTPException(
+            status_code=409, detail="Workflow proposal integrity verification failed."
+        )
+    if not hmac.compare_digest(record.digest, _proposal_digest(record.proposal)):
+        raise HTTPException(
+            status_code=409, detail="Workflow proposal integrity verification failed."
+        )
+    return _proposal_from_payload(record.proposal), record.digest
+
+
+def _load_applied_record(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="Workflow proposal application record is invalid.",
+        ) from exc
+    if not isinstance(record, dict):
+        raise HTTPException(
+            status_code=409, detail="Workflow proposal application record is invalid."
+        )
+    return record
+
+
+@contextmanager
+def _workflow_apply_lock(project_root: Path):
+    lock_path = _proposal_state_dir(project_root) / "apply.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        descriptor = os.open(
+            lock_path,
+            os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
+    except OSError as exc:
+        raise HTTPException(status_code=503, detail="Workflow apply lock is not safe.") from exc
+    try:
+        handle = os.fdopen(descriptor, "a+", encoding="utf-8")
+        descriptor = -1
+        with handle:
+            if _fcntl is not None:
+                _fcntl.flock(handle.fileno(), _fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                if _fcntl is not None:
+                    _fcntl.flock(handle.fileno(), _fcntl.LOCK_UN)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _file_matches(path: Path, content: str) -> bool:
+    try:
+        return path.is_file() and path.read_text(encoding="utf-8") == content
+    except (OSError, UnicodeError):
+        return False
+
+
+def _write_text_atomically(project_root: Path, relative_path: str, content: str) -> None:
+    parts = Path(relative_path).parts
+    if not parts:
+        raise HTTPException(status_code=400, detail="Invalid workflow file path.")
+    directory_fd = os.open(
+        project_root,
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
     )
+    try:
+        for component in parts[:-1]:
+            try:
+                next_fd = os.open(
+                    component,
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+                    dir_fd=directory_fd,
+                )
+            except FileNotFoundError:
+                os.mkdir(component, mode=0o755, dir_fd=directory_fd)
+                next_fd = os.open(
+                    component,
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+                    dir_fd=directory_fd,
+                )
+            os.close(directory_fd)
+            directory_fd = next_fd
+
+        filename = parts[-1]
+        temporary_name = f".{filename}.{secrets.token_hex(8)}.tmp"
+        temporary_fd = os.open(
+            temporary_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+            dir_fd=directory_fd,
+        )
+        try:
+            with os.fdopen(temporary_fd, "w", encoding="utf-8") as handle:
+                handle.write(content)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(
+                temporary_name,
+                filename,
+                src_dir_fd=directory_fd,
+                dst_dir_fd=directory_fd,
+            )
+        except BaseException:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(temporary_name, dir_fd=directory_fd)
+            raise
+    finally:
+        os.close(directory_fd)
+
+
+def _validated_workflow_targets(
+    project_root: Path, proposal: WorkflowProposal
+) -> list[tuple[WorkflowFilePreview, Path]]:
+    project_root = project_root.resolve()
+    allowed_roots = []
+    for root_name in _ALLOWED_PROJECT_ROOTS:
+        root = project_root / root_name
+        if root.is_symlink() or (root.exists() and not root.is_dir()):
+            raise HTTPException(
+                status_code=400, detail="Workflow root is not a safe project directory."
+            )
+        allowed_roots.append(root.resolve(strict=False))
+
+    targets: list[tuple[WorkflowFilePreview, Path]] = []
+    for preview in proposal.files:
+        try:
+            relative_path = Path(preview.path)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Invalid workflow file path.") from exc
+        if (
+            relative_path.is_absolute()
+            or relative_path.anchor
+            or ".." in relative_path.parts
+            or relative_path.suffix.lower() not in _WORKFLOW_ALLOWED_EXTENSIONS
+        ):
+            raise HTTPException(
+                status_code=400, detail=f"Unsafe workflow file path: {preview.path}"
+            )
+
+        target = (project_root / relative_path).resolve(strict=False)
+        if not any(_is_contained(target, root) for root in allowed_roots):
+            raise HTTPException(
+                status_code=400, detail=f"Unsafe workflow file path: {preview.path}"
+            )
+
+        current = project_root
+        for component in relative_path.parts:
+            current /= component
+            if current.is_symlink():
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Symlinked workflow path is not allowed: {preview.path}",
+                )
+        targets.append((preview, target))
+    return targets
+
+
+def _is_contained(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
 
 
 def _proposal_from_request(request: WorkflowProposalRequest) -> WorkflowProposal:
@@ -718,7 +1132,7 @@ def _with_conflict_action_disabled(
         target_files=proposal.actions[0].target_files,
         conflict_policy=proposal.actions[0].conflict_policy,
         enabled=False,
-        reason=f"Resolve file conflicts before applying: {', '.join(conflicts)}",
+        reason=f"File conflicts: {', '.join(conflicts)}",
         expected_evidence=proposal.actions[0].expected_evidence,
     )
     return WorkflowProposal(
@@ -776,6 +1190,31 @@ def _slug(value: str) -> str:
     return slugged or "workflow"
 
 
+def _python_string(value: Any) -> str:
+    """Render caller-provided text as a Python string literal."""
+
+    return repr(str(value))
+
+
+def _integer_literal(value: Any, default: int) -> str:
+    try:
+        return str(int(str(value).strip()))
+    except (TypeError, ValueError):
+        return str(default)
+
+
+def _number_literal(value: Any, default: float) -> str:
+    try:
+        number = float(str(value).strip())
+    except (TypeError, ValueError):
+        number = default
+    return repr(number)
+
+
+def _safe_doc(value: Any) -> str:
+    return str(value).replace('"""', "'''")
+
+
 def _class_name(table_name: str) -> str:
     return "Raw" + "".join(part.capitalize() for part in table_name.split("_"))
 
@@ -820,7 +1259,9 @@ def _render_dlt_asset(
     auth: str,
 ) -> str:
     class_name = _class_name(table_name)
-    response_path_line = f', "data_selector": "{response_path}"' if response_path else ""
+    response_path_line = (
+        f', "data_selector": {_python_string(response_path)}' if response_path else ""
+    )
     pagination_line = ""
     if pagination == "offset-limit":
         pagination_line = ', "paginator": {"type": "offset", "limit": 100}'
@@ -834,7 +1275,7 @@ def _render_dlt_asset(
     else:
         auth_lines = "\n    headers = {}"
     phlo_dlt_import = "from phlo_dlt import phlo_ingestion"
-    return f'''"""Generated DLT ingestion asset for {domain}.{table_name}."""
+    return f'''"""Generated DLT ingestion asset for {_safe_doc(domain)}.{_safe_doc(table_name)}."""
 
 from dlt.sources.rest_api import rest_api
 {phlo_dlt_import}
@@ -847,11 +1288,11 @@ from workflows.schemas.{domain} import {class_name}
     unique_key="{unique_key}",
     validation_schema={class_name},
     group="{domain}",
-    cron="{cron}",
+    cron={_python_string(cron)},
     freshness_hours=(1, 24),
 )
 def {table_name}(partition_date: str):
-    base_url = "{api_base_url}"
+    base_url = {_python_string(api_base_url)}
     if not base_url:
         raise RuntimeError("Missing API base URL. Configure base_url before materializing.")
 {auth_lines}
@@ -887,20 +1328,20 @@ def _render_sling_asset(
 ) -> str:
     resolved_update_key = update_key or primary_key
     phlo_sling_import = "from phlo_sling import phlo_sling_replication"
-    return f'''"""Generated Sling replication asset for {domain}.{table_name}."""
+    return f'''"""Generated Sling replication asset for {_safe_doc(domain)}.{_safe_doc(table_name)}."""
 
 {phlo_sling_import}
 
 
 @phlo_sling_replication(
-    stream_name="{source_stream}",
-    table_name="{table_name}",
-    source_conn="{source_name}",
+    stream_name={_python_string(source_stream)},
+    table_name={_python_string(table_name)},
+    source_conn={_python_string(source_name)},
     group="{domain}",
-    mode="{replication_mode}",
-    primary_key="{primary_key}",
-    update_key="{resolved_update_key}",
-    cron="{cron}",
+    mode={_python_string(replication_mode)},
+    primary_key={_python_string(primary_key)},
+    update_key={_python_string(resolved_update_key)},
+    cron={_python_string(cron)},
     freshness_hours=(4, 24),
 )
 def replicate_{table_name}(context):
@@ -948,9 +1389,9 @@ def _render_pandera_quality(
     min_rows = str(values.get("min_rows") or "1").strip() or "1"
 
     check_lines = [
-        f'        UniqueCheck(columns=["{unique_key}"]),',
+        f"        UniqueCheck(columns=[{_python_string(unique_key)}]),",
         f"        NullCheck(columns={null_columns!r}),",
-        f"        CountCheck(min_rows={min_rows}),",
+        f"        CountCheck(min_rows={_integer_literal(min_rows, 1)}),",
     ]
     for item in range_checks:
         column, _, bounds = item.partition(":")
@@ -958,14 +1399,15 @@ def _render_pandera_quality(
         if column.strip() and minimum.strip() and maximum.strip():
             check_lines.append(
                 "        "
-                f'RangeCheck(column="{_slug(column)}", min_value={minimum.strip()}, '
-                f"max_value={maximum.strip()}),"
+                f"RangeCheck(column={_python_string(_slug(column))}, "
+                f"min_value={_number_literal(minimum, 0)}, "
+                f"max_value={_number_literal(maximum, 0)}),"
             )
     if freshness_column:
         check_lines.append(
             "        "
-            f'FreshnessCheck(timestamp_column="{_slug(freshness_column)}", '
-            f"max_age_hours={freshness_hours}),"
+            f"FreshnessCheck(timestamp_column={_python_string(_slug(freshness_column))}, "
+            f"max_age_hours={_number_literal(freshness_hours, 24)}),"
         )
     checks = "\n".join(check_lines)
     phlo_pandera_import = """from phlo_pandera import (
@@ -976,13 +1418,13 @@ def _render_pandera_quality(
     UniqueCheck,
     phlo_pandera,
 )"""
-    return f'''"""Generated Pandera quality checks for {target_table}."""
+    return f'''"""Generated Pandera quality checks for {_safe_doc(target_table)}."""
 
 {phlo_pandera_import}
 
 
 @phlo_pandera(
-    table="{target_table}",
+    table={_python_string(target_table)},
     group="{domain}",
     checks=[
 {checks}
@@ -1005,8 +1447,8 @@ def _render_dagster_orchestration(
     asset_group = _slug(str(values.get("asset_group") or domain))
     schedule = str(values.get("schedule") or "0 2 * * *")
     include_sensor = str(values.get("include_sensor") or "no") == "yes"
-    asset_list = ", ".join(f'"{item}"' for item in planned_assets)
-    model_list = ", ".join(f'"{item}"' for item in planned_models)
+    asset_list = ", ".join(_python_string(item) for item in planned_assets)
+    model_list = ", ".join(_python_string(item) for item in planned_models)
     sensor = ""
     sensor_names = ""
     if include_sensor:
@@ -1017,14 +1459,14 @@ def {_slug(workflow_name)}_external_sensor(context):
     return dg.SkipReason("Connect this sensor to an external event source.")
 """
         sensor_names = f", sensors=[{_slug(workflow_name)}_external_sensor]"
-    return f'''"""Generated Dagster orchestration scaffold for {workflow_name}."""
+    return f'''"""Generated Dagster orchestration scaffold for {_safe_doc(workflow_name)}."""
 
 import dagster as dg
 
 WORKFLOW_ASSETS = [{asset_list}]
 WORKFLOW_MODELS = [{model_list}]
-ASSET_GROUP = "{asset_group}"
-TARGET_TABLE = "{table_name}"
+ASSET_GROUP = {_python_string(asset_group)}
+TARGET_TABLE = {_python_string(table_name)}
 
 {job_name} = dg.define_asset_job(
     name="{job_name}",
@@ -1033,7 +1475,7 @@ TARGET_TABLE = "{table_name}"
 
 {_slug(workflow_name)}_schedule = dg.ScheduleDefinition(
     job={job_name},
-    cron_schedule="{schedule}",
+    cron_schedule={_python_string(schedule)},
 )
 {sensor}
 
