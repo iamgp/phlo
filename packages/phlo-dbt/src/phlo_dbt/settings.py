@@ -17,13 +17,13 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
 import os
 from pathlib import Path
 
 from pydantic import Field, computed_field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_host
 
 
@@ -194,12 +194,7 @@ class DbtSettings(BaseConfig):
         return _resolve_project_path(self.dbt_profiles_dir)
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> DbtSettings:
-    """Return cached dbt settings.
-
-    Returns:
-        Singleton dbt settings instance.
-
-    """
+@project_root_cached
+def get_settings(project_root: Path) -> DbtSettings:
+    """Return cached dbt settings for the selected project root."""
     return DbtSettings()

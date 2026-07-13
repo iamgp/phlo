@@ -21,9 +21,9 @@ def test_superset_plugin_metadata():
     assert "bi" in meta.tags
 
 
-def test_superset_settings_defaults():
+def test_superset_settings_defaults(tmp_path):
     """Verify Superset settings defaults match expected local development values."""
-    settings = SupersetSettings()
+    settings = SupersetSettings(_project_root=tmp_path)
 
     assert settings.superset_port == 10007
     assert settings.superset_admin_user == "admin"

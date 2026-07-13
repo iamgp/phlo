@@ -22,12 +22,13 @@ Examples:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_host
 
 
@@ -138,20 +139,21 @@ class MinioSettings(BaseConfig):
         return f"{self.minio_host}:{self.minio_api_port}"
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> MinioSettings:
-    """Return a cached MinIO settings instance.
+@project_root_cached
+def get_settings(project_root: Path) -> MinioSettings:
+    """Return cached MinIO settings for the selected project root.
 
-    Creates and caches a single MinioSettings instance to avoid
-    repeated environment resolution and configuration loading.
-    The cache ensures consistent settings across the application
-    lifecycle.
+    Settings are cached per resolved project root, with up to 16 entries,
+    avoiding repeated environment resolution and configuration loading.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         MinioSettings: Cached settings instance.
 
     Examples:
-        Singleton pattern:
+        Same-root cache reuse:
             >>> settings1 = get_settings()
             >>> settings2 = get_settings()
             >>> settings1 is settings2  # Same instance
@@ -173,8 +175,8 @@ def get_settings() -> MinioSettings:
             ... }
 
     Warning:
-        Settings are cached for the process lifetime. To refresh
-        settings, restart the application process.
+        Settings are cached per project root. To refresh settings after
+        configuration changes, call ``get_settings.cache_clear()``.
 
     """
     return MinioSettings()

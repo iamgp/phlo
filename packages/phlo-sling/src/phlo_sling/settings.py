@@ -14,11 +14,12 @@ Functions:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 
 
 class SlingSettings(BaseConfig):
@@ -76,13 +77,17 @@ class SlingSettings(BaseConfig):
     )
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> SlingSettings:
-    """Return cached Sling settings instance.
+@project_root_cached
+def get_settings(project_root: Path) -> SlingSettings:
+    """Return cached Sling settings for the selected project root.
 
-    Returns a singleton instance of SlingSettings using LRU caching to
-    avoid repeated configuration loading. The settings are loaded from
-    environment variables and configuration files on first access.
+    Settings are cached per resolved project root, with up to 16 entries,
+    avoiding repeated configuration loading while isolating project state.
+    Settings are loaded from environment variables and configuration files
+    on first access for each root.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         Cached SlingSettings instance with loaded configuration values.

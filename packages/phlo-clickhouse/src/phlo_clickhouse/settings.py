@@ -15,11 +15,12 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_host
 
 
@@ -103,12 +104,15 @@ class ClickHouseSettings(BaseConfig):
         return f"{self.clickhouse_host}:{self.clickhouse_native_port}"
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> ClickHouseSettings:
-    """Return cached ClickHouse settings instance.
+@project_root_cached
+def get_settings(project_root: Path) -> ClickHouseSettings:
+    """Return cached ClickHouse settings for the selected project root.
 
-    Uses functools.lru_cache to ensure settings are loaded only once
+    Settings are cached per resolved project root, with up to 16 entries,
     and reused across the application lifecycle.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         ClickHouseSettings instance with loaded configuration.
@@ -117,7 +121,7 @@ def get_settings() -> ClickHouseSettings:
         >>> settings = get_settings()
         >>> settings.clickhouse_host
         'clickhouse'
-        >>> # Subsequent calls return the same cached instance
+        >>> # Subsequent calls for the same root return the same cached instance
         >>> get_settings() is settings
         True
 

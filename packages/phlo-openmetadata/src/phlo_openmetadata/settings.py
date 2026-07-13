@@ -13,11 +13,12 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_host
 from phlo_openmetadata.capabilities import (
     resolve_query_engine_catalog,
@@ -151,12 +152,15 @@ class OpenMetadataSettings(BaseConfig):
         return resolve_query_engine_service_type(self.openmetadata_query_engine)
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> OpenMetadataSettings:
-    """Get cached OpenMetadata settings.
+@project_root_cached
+def get_settings(project_root: Path) -> OpenMetadataSettings:
+    """Get cached OpenMetadata settings for the selected project root.
 
-    Returns a cached instance to avoid repeated configuration loading.
-    The cache is limited to 1 entry as settings are typically global.
+    Settings are cached per resolved project root, with up to 16 entries,
+    to avoid repeated configuration loading while isolating project state.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         OpenMetadataSettings: Cached OpenMetadata settings instance.

@@ -8,11 +8,12 @@ All settings can be customized through environment variables or by creating
 a `.phlo/.env` file in your project root.
 """
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 
 
 class Settings(BaseConfig):
@@ -138,13 +139,16 @@ class Settings(BaseConfig):
     )
 
 
-@lru_cache
-def _get_config() -> Settings:
-    """Get cached config instance.
+@project_root_cached
+def _get_config(project_root: Path) -> Settings:
+    """Get cached config for the selected project root.
 
-    Uses lru_cache to ensure config is loaded once and reused across
-    the application lifecycle. This provides efficient access to settings
-    without repeated file I/O or parsing.
+    Configuration is cached per resolved project root, with up to 16 entries,
+    and reused across the application lifecycle. This avoids repeated file
+    I/O and parsing while keeping project configuration isolated.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         Settings: Validated Settings instance with all configuration values.
@@ -156,12 +160,17 @@ def _get_config() -> Settings:
     return Settings()
 
 
-def get_settings() -> Settings:
+def get_settings(project_root: Path | str | None = None) -> Settings:
     """Get application settings.
 
     This is the recommended way to access configuration in application code.
-    It returns a cached Settings instance and supports future dependency
-    injection patterns for testing.
+    It returns a cached Settings instance for the selected project root and
+    supports future dependency injection patterns for testing.
+
+    Args:
+        project_root: Optional project root to select configuration for. When
+            omitted, the active project root context, ``PHLO_PROJECT_PATH``,
+            or current working directory is used.
 
     Returns:
         Settings: Validated Settings instance with all configuration values.
@@ -177,4 +186,4 @@ def get_settings() -> Settings:
         ```
 
     """
-    return _get_config()
+    return _get_config(project_root)

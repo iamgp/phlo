@@ -15,13 +15,14 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_host
 
 
@@ -123,25 +124,27 @@ class PostgresSettings(BaseConfig):
         return f"postgresql://{user}:{password}@{self.postgres_host}:{self.postgres_port}{db_part}"
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> PostgresSettings:
-    """Return cached PostgreSQL settings instance.
+@project_root_cached
+def get_settings(project_root: Path) -> PostgresSettings:
+    """Return cached PostgreSQL settings for the selected project root.
 
-    Provides a singleton-style access to PostgreSQL settings with LRU caching
-    to avoid repeated parsing of environment variables and configuration files.
+    Settings are cached per resolved project root, with up to 16 entries,
+    to avoid repeated parsing while isolating project configuration.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         PostgresSettings: Cached settings instance.
 
     Note:
-        The cache size of 1 ensures the same settings object is returned
-        throughout the process lifetime. Settings are loaded once on first
-        call and reused thereafter.
+        Calls for the same project root return the same settings object.
+        Call ``get_settings.cache_clear()`` after changing configuration.
 
     Example:
         >>> settings1 = get_settings()
         >>> settings2 = get_settings()
-        >>> settings1 is settings2  # Same cached instance
+        >>> settings1 is settings2  # Same cached instance for this root
         True
         >>>
         >>> # Access connection parameters

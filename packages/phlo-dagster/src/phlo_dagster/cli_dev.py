@@ -90,12 +90,14 @@ def dev(host: str, port: int, workflows_path: str) -> None:
         workflows_dir.mkdir(parents=True, exist_ok=True)
         (workflows_dir / "__init__.py").write_text('"""User workflows."""\n')
 
-    os.environ["PHLO_WORKFLOWS_PATH"] = workflows_path
-    os.environ["WORKFLOWS_PATH"] = workflows_path
-    os.environ.setdefault("PHLO_DAGSTER_DEV", "1")
-    os.environ.setdefault("PHLO_PROJECT_PATH", str(Path.cwd().resolve()))
-    for key, value in load_project_env(include_os=False).items():
-        os.environ.setdefault(key, value)
+    project_root = Path.cwd().resolve()
+    child_env = os.environ.copy()
+    for key, value in load_project_env(project_root, include_os=False).items():
+        child_env.setdefault(key, value)
+    child_env["PHLO_WORKFLOWS_PATH"] = workflows_path
+    child_env["WORKFLOWS_PATH"] = workflows_path
+    child_env.setdefault("PHLO_DAGSTER_DEV", "1")
+    child_env["PHLO_PROJECT_PATH"] = str(project_root)
 
     click.echo(f"Workflows directory: {workflows_path}")
     click.echo(f"Starting server at http://{host}:{port}\n")
@@ -118,7 +120,7 @@ def dev(host: str, port: int, workflows_path: str) -> None:
     )
 
     try:
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True, env=child_env)
         logger.info("dagster_dev_process_exited_cleanly")
     except KeyboardInterrupt:
         logger.info("dagster_dev_process_interrupted")

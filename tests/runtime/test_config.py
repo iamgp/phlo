@@ -7,7 +7,7 @@ import pytest
 from pydantic import BaseModel
 
 import phlo
-from phlo.config import Settings, _get_config, workflow_settings
+from phlo.config import Settings, _get_config, get_settings, workflow_settings
 
 pytestmark = pytest.mark.core_regression
 
@@ -47,6 +47,37 @@ class TestConfigUnitTests:
 
             assert config1 is config2
             assert id(config1) == id(config2)
+
+
+@pytest.mark.parametrize("selection", ["cwd", "env"])
+def test_cached_config_isolated_between_project_roots(tmp_path, monkeypatch, selection) -> None:
+    """Configuration caches must distinguish projects selected by cwd or env."""
+    project_a = tmp_path / "project-a"
+    project_b = tmp_path / "project-b"
+    for project, level in ((project_a, "INFO"), (project_b, "DEBUG")):
+        (project / ".phlo").mkdir(parents=True)
+        (project / ".phlo" / ".env.local").write_text(f"PHLO_LOG_LEVEL={level}\n")
+
+    _get_config.cache_clear()
+    monkeypatch.delenv("PHLO_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("PHLO_PROJECT_PATH", raising=False)
+
+    if selection == "cwd":
+        monkeypatch.chdir(project_a)
+        first = get_settings()
+        monkeypatch.chdir(project_b)
+        second = get_settings()
+    else:
+        monkeypatch.setenv("PHLO_PROJECT_PATH", str(project_a))
+        first = get_settings()
+        monkeypatch.setenv("PHLO_PROJECT_PATH", str(project_b))
+        second = get_settings()
+
+    assert first.phlo_log_level == "INFO"
+    assert second.phlo_log_level == "DEBUG"
+    assert first is not second
+    assert get_settings(project_root=project_a) is first
+    assert get_settings(project_root=project_b) is second
 
 
 class WorkflowSettings(BaseModel):

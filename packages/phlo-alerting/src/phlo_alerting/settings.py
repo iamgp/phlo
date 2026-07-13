@@ -5,8 +5,8 @@ using Pydantic models. It supports configuration via environment variables
 with automatic type validation and default values.
 
 All configuration values are read from environment variables with the
-"PHLO_ALERT_" prefix. The get_settings() function provides a cached
-singleton instance for efficient repeated access.
+"PHLO_ALERT_" prefix. The get_settings() function provides cached
+per-project-root settings for efficient repeated access.
 
 Examples:
     Retrieving settings:
@@ -33,11 +33,12 @@ Environment Variables:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 
 
 class AlertingSettings(BaseConfig):
@@ -84,13 +85,15 @@ class AlertingSettings(BaseConfig):
     )
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> AlertingSettings:
-    """Return cached alerting settings instance.
+@project_root_cached
+def get_settings(project_root: Path) -> AlertingSettings:
+    """Return cached alerting settings for the selected project root.
 
-    Provides a singleton AlertingSettings instance with caching for
-    efficient repeated access. The instance is created once and reused
-    across the application lifecycle.
+    Settings are cached per resolved project root, with up to 16 entries,
+    and reused across the application lifecycle.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
         AlertingSettings instance with loaded configuration.
@@ -98,7 +101,7 @@ def get_settings() -> AlertingSettings:
     Examples:
         >>> settings1 = get_settings()
         >>> settings2 = get_settings()
-        >>> settings1 is settings2
+        >>> settings1 is settings2  # For the same project root
         True
 
     """

@@ -13,12 +13,13 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_url
 
 
@@ -122,15 +123,18 @@ class DeltaSettings(BaseConfig):
         return opts
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> DeltaSettings:
-    """Get cached Delta Lake settings.
+@project_root_cached
+def get_settings(project_root: Path) -> DeltaSettings:
+    """Get cached Delta Lake settings for the selected project root.
 
-    Returns a singleton instance of DeltaSettings, cached for performance.
-    The cached instance ensures consistent configuration across the application.
+    Settings are cached per resolved project root, with up to 16 entries,
+    and reused across the application lifecycle.
+
+    Args:
+        project_root: Resolved project root used for cache selection.
 
     Returns:
-        DeltaSettings: Cached Delta Lake settings instance.
+        DeltaSettings: Cached settings for the selected project root.
 
     Example:
         settings = get_settings()

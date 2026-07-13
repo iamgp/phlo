@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from jsonschema import ValidationError, validate
 from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -184,8 +185,8 @@ class InMemorySettingsService:
         return record
 
 
-@lru_cache(maxsize=1)
-def get_settings_service() -> SettingsService | InMemorySettingsService:
+@project_root_cached
+def get_settings_service(project_root: Path) -> SettingsService | InMemorySettingsService:
     """Build and cache the settings service instance."""
     config = ObservatorySettingsStorageConfig()
     if config.observatory_settings_db_url:
@@ -198,7 +199,7 @@ def get_settings_service() -> SettingsService | InMemorySettingsService:
         logger.warning("observatory_settings_falling_back_to_memory")
         return InMemorySettingsService()
 
-    postgres_settings = get_postgres_settings()
+    postgres_settings = get_postgres_settings(project_root)
     db_url = postgres_settings.get_postgres_connection_string()
     psycopg2 = _get_psycopg2()
     try:
