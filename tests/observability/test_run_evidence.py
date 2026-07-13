@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime
+from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -29,6 +35,7 @@ from phlo.run_evidence import (
     EvidenceCompleteness,
     IdempotencyConflict,
     PipelineRun,
+    PostgresRunEvidenceStore,
     RunArtifact,
     RunCatalogChange,
     RunEvent,
@@ -99,6 +106,366 @@ def test_event_payload_conflict_rolls_back_and_preserves_original() -> None:
         store.append_event(replace(event, payload={"value": 2}))
 
     assert store.list_events("project", "run")[0]["payload"] == '{"value":1}'
+
+
+@pytest.mark.parametrize(
+    ("object_name", "boundary"),
+    [
+        (object_name, boundary)
+        for object_name in ("run", "stage", "quality_result", "lineage_edge")
+        for boundary in ("project", "run")
+    ],
+)
+def test_append_event_rejects_cross_boundary_optional_objects_before_mutation(
+    object_name: str,
+    boundary: str,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    event = _event(payload={"value": 1})
+    objects = {
+        "run": PipelineRun(project_id="project", run_id="run"),
+        "stage": RunStage(project_id="project", run_id="run", stage_id="stage"),
+        "quality_result": RunQualityResult(
+            project_id="project", run_id="run", quality_result_id="quality", check_id="check"
+        ),
+        "lineage_edge": RunLineageEdge(
+            project_id="project", run_id="run", lineage_edge_id="lineage", source="a", target="b"
+        ),
+    }
+    replacement = "other-project" if boundary == "project" else "other-run"
+    value = objects[object_name]
+    invalid = (
+        replace(value, project_id=replacement)
+        if boundary == "project"
+        else replace(value, run_id=replacement)
+    )
+    kwargs = (
+        {"lineage_edges": (invalid,)} if object_name == "lineage_edge" else {object_name: invalid}
+    )
+
+    with pytest.raises(ValueError, match="project/run boundaries"):
+        store.append_event(event, **kwargs)
+
+    assert store.get_run("project", "run") is None
+    assert store.count_events("project", "run") == 0
+
+
+@pytest.mark.parametrize("object_name", ["run", "stage", "quality_result"])
+def test_append_event_rejects_cross_attempt_optional_objects_before_mutation(
+    object_name: str,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    event = replace(_event(payload={"value": 1}), attempt=1)
+    objects = {
+        "run": PipelineRun(project_id="project", run_id="run", attempt=1),
+        "stage": RunStage(project_id="project", run_id="run", stage_id="stage", attempt=1),
+        "quality_result": RunQualityResult(
+            project_id="project",
+            run_id="run",
+            quality_result_id="quality",
+            check_id="check",
+            attempt=1,
+        ),
+    }
+    invalid = replace(objects[object_name], attempt=2)
+
+    with pytest.raises(ValueError, match="attempt boundaries"):
+        store.append_event(event, **{object_name: invalid})
+
+    assert store.get_run("project", "run") is None
+    assert store.count_events("project", "run") == 0
+
+
+def test_append_event_preflights_the_entire_bundle_before_valid_prefix_mutation() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    event = _event(payload={"value": 1})
+    run = PipelineRun(project_id="project", run_id="run")
+    stage = RunStage(project_id="project", run_id="run", stage_id="stage")
+    quality = RunQualityResult(
+        project_id="project", run_id="run", quality_result_id="quality", check_id="check"
+    )
+    valid_edge = RunLineageEdge(
+        project_id="project", run_id="run", lineage_edge_id="valid", source="a", target="b"
+    )
+    invalid_edge = replace(valid_edge, project_id="other-project", lineage_edge_id="invalid")
+
+    with pytest.raises(ValueError, match="project/run boundaries"):
+        store.append_event(
+            event,
+            run=run,
+            stage=stage,
+            quality_result=quality,
+            lineage_edges=(valid_edge, invalid_edge),
+        )
+
+    with store._transaction() as (_, cursor):
+        for table in (
+            "pipeline_run",
+            "run_event",
+            "run_stage",
+            "run_quality_result",
+            "run_lineage_edge",
+        ):
+            cursor.execute(f"SELECT COUNT(*) FROM {table}")
+            assert cursor.fetchone()[0] == 0, table
+
+
+@pytest.mark.parametrize("conflict", ["event_stage", "event_quality", "stage_quality"])
+def test_append_event_rejects_conflicting_stage_identities_before_mutation(
+    conflict: str,
+) -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    event = replace(_event(payload={"value": 1}), stage_id="event-stage")
+    stage = RunStage(project_id="project", run_id="run", stage_id="provided-stage")
+    quality = RunQualityResult(
+        project_id="project",
+        run_id="run",
+        quality_result_id="quality",
+        check_id="check",
+        stage_id="quality-stage",
+    )
+    if conflict == "event_stage":
+        quality = replace(quality, stage_id=None)
+    elif conflict == "event_quality":
+        stage = None
+    else:
+        event = replace(event, stage_id=None)
+
+    with pytest.raises(ValueError, match="conflicting stage identities"):
+        store.append_event(event, stage=stage, quality_result=quality)
+
+    assert store.get_run("project", "run") is None
+    assert store.count_events("project", "run") == 0
+
+
+def test_append_event_rejects_existing_stage_from_another_attempt_before_mutation() -> None:
+    store = _store_with_run()
+    store.append_stage(RunStage(project_id="project", run_id="run", stage_id="stage", attempt=1))
+    event = replace(_event(payload={"value": 1}), stage_id="stage", attempt=2)
+    quality = RunQualityResult(
+        project_id="project",
+        run_id="run",
+        quality_result_id="quality-attempt-2",
+        check_id="check",
+        stage_id="stage",
+        attempt=2,
+    )
+
+    with pytest.raises(ValueError, match="stage .* has attempt 1, expected 2"):
+        store.append_event(
+            event,
+            run=PipelineRun(project_id="project", run_id="run", attempt=2),
+            quality_result=quality,
+        )
+
+    assert store.count_events("project", "run") == 0
+    with store._transaction() as (_, cursor):
+        cursor.execute(
+            "SELECT attempt FROM run_stage WHERE project_id = ? AND run_id = ? AND stage_id = ?",
+            ("project", "run", "stage"),
+        )
+        assert cursor.fetchone()[0] == 1
+
+
+def test_append_stage_rejects_existing_event_from_another_attempt() -> None:
+    store = _store_with_run()
+    store.append_event(replace(_event(payload={"value": 1}), stage_id="stage", attempt=1))
+
+    with pytest.raises(ValueError, match="conflicts with run_event attempt 1"):
+        store.append_stage(
+            RunStage(project_id="project", run_id="run", stage_id="stage", attempt=2)
+        )
+
+    with store._transaction() as (_, cursor):
+        cursor.execute(
+            "SELECT COUNT(*) FROM run_stage WHERE project_id = ? AND run_id = ? AND stage_id = ?",
+            ("project", "run", "stage"),
+        )
+        assert cursor.fetchone()[0] == 0
+
+
+def test_event_before_stage_same_attempt_remains_allowed() -> None:
+    store = _store_with_run()
+    store.append_event(replace(_event(payload={"value": 1}), stage_id="stage", attempt=1))
+
+    store.append_stage(RunStage(project_id="project", run_id="run", stage_id="stage", attempt=1))
+
+    with store._transaction() as (_, cursor):
+        cursor.execute(
+            "SELECT attempt FROM run_stage WHERE project_id = ? AND run_id = ? AND stage_id = ?",
+            ("project", "run", "stage"),
+        )
+        assert cursor.fetchone()[0] == 1
+
+
+def test_append_quality_rejects_existing_stage_from_another_attempt() -> None:
+    store = _store_with_run()
+    store.append_stage(RunStage(project_id="project", run_id="run", stage_id="stage", attempt=1))
+
+    with pytest.raises(ValueError, match="has attempt 1, expected 2"):
+        store.append_quality_result(
+            RunQualityResult(
+                project_id="project",
+                run_id="run",
+                quality_result_id="quality-attempt-2",
+                check_id="check",
+                stage_id="stage",
+                attempt=2,
+            )
+        )
+
+    with store._transaction() as (_, cursor):
+        cursor.execute(
+            "SELECT COUNT(*) FROM run_quality_result WHERE project_id = ? AND run_id = ?",
+            ("project", "run"),
+        )
+        assert cursor.fetchone()[0] == 0
+
+
+def test_changed_run_upsert_advances_updated_at() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    initial = PipelineRun(project_id="project", run_id="run", trigger="initial")
+    store.append_pipeline_run(initial)
+    before = store.get_run("project", "run")
+    time.sleep(1.1)
+
+    store.append_pipeline_run(replace(initial, status="failed", trigger="changed"))
+    after = store.get_run("project", "run")
+
+    assert before is not None and after is not None
+    assert after["status"] == "failed"
+    assert after["updated_at"] != before["updated_at"]
+
+
+def _assert_concurrent_duplicate_replay(
+    store_factory: object,
+    *,
+    project_id: str,
+    run_id: str,
+) -> None:
+    event = RunEvent(
+        project_id=project_id,
+        run_id=run_id,
+        event_id="concurrent-event",
+        event_type="run.start",
+        producer="test",
+        payload={"same": True},
+        observed_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    running = PipelineRun(
+        project_id=project_id,
+        run_id=run_id,
+        status="running",
+        trigger="running-owner",
+        started_at=event.observed_at,
+    )
+    failed = replace(running, status="failed", trigger="losing-replay")
+    start = threading.Barrier(2)
+
+    def append(run: PipelineRun) -> bool:
+        store = store_factory()
+        start.wait()
+        return store.append_event(event, run=run)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(append, (running, failed)))
+
+    assert sorted(results) == [False, True]
+    winner = running if results[0] else failed
+    store = store_factory()
+    final_run = store.get_run(project_id, run_id)
+    assert final_run is not None
+    assert final_run["status"] == winner.status
+    assert final_run["trigger"] == winner.trigger
+    assert store.count_events(project_id, run_id) == 1
+
+
+def test_concurrent_duplicate_replay_does_not_apply_loser_run_metadata(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "concurrent-run-evidence.sqlite"
+
+    def factory() -> SQLiteRunEvidenceStore:
+        return SQLiteRunEvidenceStore(database)
+
+    store = factory()
+    store._ensure_schema()
+    _assert_concurrent_duplicate_replay(
+        factory,
+        project_id="project",
+        run_id="concurrent-run",
+    )
+
+
+def test_postgres_concurrent_duplicate_replay_does_not_apply_loser_run_metadata() -> None:
+    dsn = os.environ.get("PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN")
+    if not dsn:
+        pytest.skip("set PHLO_RUN_EVIDENCE_TEST_POSTGRES_DSN for the live PostgreSQL race test")
+
+    project_id = f"concurrent-project-{uuid4().hex}"
+    run_id = f"concurrent-run-{uuid4().hex}"
+    store = PostgresRunEvidenceStore(dsn)
+    store._ensure_schema()
+
+    entered = threading.Event()
+    release = threading.Event()
+
+    class GatedStore(PostgresRunEvidenceStore):
+        def _upsert_run(self, cursor: object, run: PipelineRun) -> None:
+            super()._upsert_run(cursor, run)
+            if run.status == "running":
+                entered.set()
+                if not release.wait(10):
+                    raise TimeoutError("timed out waiting to release the owning event write")
+
+    def factory() -> GatedStore:
+        return GatedStore(dsn)
+
+    event = RunEvent(
+        project_id=project_id,
+        run_id=run_id,
+        event_id="concurrent-event",
+        event_type="run.start",
+        producer="test",
+        payload={"same": True},
+        observed_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    running = PipelineRun(
+        project_id=project_id,
+        run_id=run_id,
+        status="running",
+        trigger="running-owner",
+        started_at=event.observed_at,
+    )
+    failed = replace(running, status="failed", trigger="losing-replay")
+
+    def append(run: PipelineRun) -> bool:
+        return factory().append_event(event, run=run)
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            owner = executor.submit(append, running)
+            assert entered.wait(10), "owner did not reach the post-event parent update"
+            loser = executor.submit(append, failed)
+            release.set()
+            results = [owner.result(), loser.result()]
+
+        assert results == [True, False]
+        final_run = store.get_run(project_id, run_id)
+        assert final_run is not None
+        assert final_run["status"] == "running"
+        assert final_run["trigger"] == "running-owner"
+        assert store.count_events(project_id, run_id) == 1
+    finally:
+        with store._transaction() as (_, cursor):
+            cursor.execute(
+                "DELETE FROM phlo.run_event WHERE project_id = %s AND run_id = %s",
+                (project_id, run_id),
+            )
+            cursor.execute(
+                "DELETE FROM phlo.pipeline_run WHERE project_id = %s AND run_id = %s",
+                (project_id, run_id),
+            )
 
 
 def test_event_and_derived_rows_share_one_transaction(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -479,7 +846,16 @@ def test_sqlite_migration_is_versioned_and_idempotent() -> None:
     store._initialize_schema()
     with store._transaction() as (_, cursor):
         cursor.execute("SELECT version FROM run_evidence_schema_version")
-        assert [row[0] for row in cursor.fetchall()] == [RUN_EVIDENCE_SCHEMA_VERSION]
+        assert [row[0] for row in cursor.fetchall()] == [1, RUN_EVIDENCE_SCHEMA_VERSION]
+        for table in (
+            "run_event",
+            "run_resource",
+            "run_catalog_change",
+            "run_quality_result",
+            "run_artifact",
+        ):
+            cursor.execute(f"SELECT attempt FROM {table}")
+            assert cursor.description[0][0] == "attempt"
 
 
 def test_core_sink_records_all_correlated_lifecycle_families() -> None:
@@ -621,6 +997,32 @@ def test_retry_attempts_get_distinct_stage_evidence() -> None:
             ("project", "run"),
         )
         assert [row[0] for row in cursor.fetchall()] == [1, 2]
+
+
+def test_retry_attempt_propagates_to_hook_event_stage_and_quality_rows() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    provider = CoreRunEvidenceHookProvider(store)
+    provider._handle_event(
+        QualityResultEvent(
+            event_type="quality.result",
+            asset_key="model",
+            check_name="valid",
+            passed=True,
+            correlation=HookCorrelation(project_id="project", run_id="run", attempt=2),
+        )
+    )
+
+    with store._transaction() as (_, cursor):
+        for table, identifier in (
+            ("run_event", "event_id"),
+            ("run_stage", "stage_id"),
+            ("run_quality_result", "quality_result_id"),
+        ):
+            cursor.execute(
+                f"SELECT attempt FROM {table} WHERE project_id = ? AND run_id = ?",
+                ("project", "run"),
+            )
+            assert [row[0] for row in cursor.fetchall()] == [2], (table, identifier)
 
 
 def test_normalized_resource_payload_is_redacted() -> None:

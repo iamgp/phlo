@@ -28,6 +28,9 @@ from phlo.run_evidence.store import (
 )
 
 _LIFECYCLE_EVENT_TYPES = {
+    "run.start",
+    "run.end",
+    "run.heartbeat",
     "ingestion.start",
     "ingestion.end",
     "transform.start",
@@ -101,6 +104,7 @@ class CoreRunEvidenceHookProvider:
                 observed_at=event.timestamp,
                 payload=_event_payload(event),
                 stage_id=stage.stage_id if stage else None,
+                attempt=event.correlation.attempt,
             ),
             run=run,
             stage=stage,
@@ -195,6 +199,7 @@ def _quality_for_event(
         evaluated_count=_as_int(metadata.get("evaluated_count", metadata.get("total_rows"))),
         failed_count=_as_int(metadata.get("failed_count", metadata.get("failed_rows"))),
         metadata=metadata,
+        attempt=event.correlation.attempt,
     )
 
 
@@ -238,6 +243,8 @@ def _stage_type(event: HookEvent) -> str | None:
 
 
 def _run_status(event: HookEvent) -> str:
+    if event.event_type not in {"run.end", "run.terminal"}:
+        return "running"
     status = getattr(event, "status", None)
     if status in {"success", "failed", "error", "cancelled", "canceled", "skipped"}:
         return str(status)

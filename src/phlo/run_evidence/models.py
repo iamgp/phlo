@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-RUN_EVIDENCE_SCHEMA_VERSION = 1
+RUN_EVIDENCE_SCHEMA_VERSION = 2
 
 
 def _now() -> datetime:
@@ -41,7 +41,7 @@ class PipelineRun:
     attempt: int = 1
     trace_id: str | None = None
     status: str = "running"
-    started_at: datetime = field(default_factory=_now)
+    started_at: datetime | None = field(default_factory=_now)
     finished_at: datetime | None = None
     failure_summary: str | None = None
     evidence_completeness: EvidenceCompleteness = EvidenceCompleteness.INCOMPLETE
@@ -61,6 +61,7 @@ class RunEvent:
     schema_version: str = "1.0"
     observed_at: datetime = field(default_factory=_now)
     sequence: int | None = None
+    attempt: int = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +104,7 @@ class RunResource:
     staged_objects: list[str] = field(default_factory=list)
     snapshot_before: str | None = None
     snapshot_after: str | None = None
+    attempt: int = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +139,7 @@ class RunQualityResult:
     failed_count: int | None = None
     failure_artifact_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    attempt: int = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +160,7 @@ class RunCatalogChange:
     snapshot_before: str | None = None
     snapshot_after: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    attempt: int = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,3 +178,4 @@ class RunArtifact:
     expires_at: datetime | None = None
     legal_hold: bool = False
     status: EvidenceCompleteness = EvidenceCompleteness.COMPLETE
+    attempt: int = 1

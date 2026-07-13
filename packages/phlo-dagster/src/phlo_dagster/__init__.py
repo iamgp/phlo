@@ -50,6 +50,7 @@ from phlo_dagster.daemon_identity import (
     create_daemon_principal,
 )
 from phlo_dagster.plugin import DagsterServicePlugin
+from phlo_dagster.run_evidence import DagsterRunEvidenceSource
 from phlo_dagster.settings import DagsterSettings, get_settings
 
 __all__ = [
@@ -60,6 +61,7 @@ __all__ = [
     "get_settings",
     "get_adapter",
     "DagsterGraphQLAuthorizationMiddleware",
+    "DagsterRunEvidenceSource",
     "PhloQueuedRunCoordinator",
     "authorize_daemon_run",
     "create_daemon_principal",
