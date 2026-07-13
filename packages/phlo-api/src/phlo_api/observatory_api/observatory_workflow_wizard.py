@@ -37,6 +37,7 @@ except ImportError:  # pragma: no cover - POSIX is used in production
 STAGES = ["source", "transform", "quality", "publish"]
 _ALLOWED_PROJECT_ROOTS = ("workflows", "tests")
 _WORKFLOW_ALLOWED_EXTENSIONS = {".json", ".py", ".sql", ".toml", ".yaml", ".yml"}
+_WORKFLOW_FILE_MODE = 0o644
 _PROPOSAL_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 _STATE_DIRECTORY_FLAGS = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
 WORKFLOW_WIZARD_PLUGIN_TYPES = (
@@ -746,6 +747,8 @@ def _write_text_atomically_at(directory_fd: int, filename: str, content: str) ->
             temporary_fd = -1
             handle.write(content)
             handle.flush()
+            os.fsync(handle.fileno())
+            os.fchmod(handle.fileno(), _WORKFLOW_FILE_MODE)
             os.fsync(handle.fileno())
         os.link(
             temporary_name,

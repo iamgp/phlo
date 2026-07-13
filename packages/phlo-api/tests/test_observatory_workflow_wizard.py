@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
@@ -394,6 +395,9 @@ def test_workflow_wizard_apply_records_operation(
     assert operations[0]["status"] == "succeeded"
     assert operations[0]["metadata"]["action_id"] == proposal["actions"][0]["id"]
     assert "workflows/ingestion/customers/orders.py" in operations[0]["metadata"]["files"]
+    assert (
+        stat.S_IMODE((tmp_path / "workflows/ingestion/customers/orders.py").stat().st_mode) == 0o644
+    )
 
 
 def test_workflow_wizard_conflict_records_failed_operation(
