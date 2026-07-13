@@ -74,7 +74,7 @@ class TestResourcesUnitTests:
         )
         assert support.supports_snapshots is True
         assert support.supports_vacuum is True
-        assert support.supports_compaction is False
+        assert support.supports_compaction is True
 
     @patch("phlo_trino.resource.connect")
     @patch("phlo_trino.resource.config")
