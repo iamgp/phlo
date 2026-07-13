@@ -23,7 +23,11 @@ Example:
 from __future__ import annotations
 
 from phlo.capabilities import CapabilitySupport, ResourceSpec
-from phlo.capabilities.specs import GovernanceBackendSpec, QueryEngineSpec
+from phlo.capabilities.specs import (
+    GovernanceBackendSpec,
+    MaintenanceExecutorSpec,
+    QueryEngineSpec,
+)
 from phlo.plugins import PluginMetadata, ResourceProviderPlugin, service_plugin_class
 from phlo_trino.governance import TrinoGovernanceBackend
 from phlo_trino.resource import TRINO_QUERY_ENGINE_SUPPORT, TrinoResource
@@ -98,6 +102,21 @@ class TrinoResourceProvider(ResourceProviderPlugin):
                     "service_type": "Trino",
                     "sqlalchemy_uri_template": "trino://{host}:{port}/{default_catalog}",
                     "compatibility": TRINO_COMPATIBILITY_METADATA,
+                },
+                support=TRINO_QUERY_ENGINE_SUPPORT,
+            )
+        ]
+
+    def get_maintenance_executors(self) -> list[MaintenanceExecutorSpec]:
+        """Return the ref-aware Trino maintenance executor."""
+        return [
+            MaintenanceExecutorSpec(
+                name="trino",
+                provider=TrinoResource(),
+                metadata={
+                    "service_type": "Trino",
+                    "default_catalog": get_trino_settings().trino_catalog,
+                    "default_ref": get_trino_settings().trino_default_ref,
                 },
                 support=TRINO_QUERY_ENGINE_SUPPORT,
             )

@@ -276,6 +276,26 @@ class QueryEngine(Protocol):
 
 
 @runtime_checkable
+class MaintenanceExecutor(Protocol):
+    """Provider-neutral executor for scoped table maintenance operations."""
+
+    def for_ref(self, ref: str) -> MaintenanceExecutor:
+        """Return an executor whose backend connection targets ``ref``."""
+        ...
+
+    def compact_iceberg_table(
+        self,
+        *,
+        table_name: str,
+        ref: str,
+        expected_snapshot_id: int | None = None,
+        operation_id: str | None = None,
+    ) -> Any:
+        """Compact one Iceberg table on the explicitly selected ref."""
+        ...
+
+
+@runtime_checkable
 class LineageSink(Protocol):
     """Protocol for lineage backends and queryable lineage stores."""
 

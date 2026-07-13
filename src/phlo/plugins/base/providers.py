@@ -20,6 +20,7 @@ from phlo.capabilities.specs import (
     DataMigrationSourceSpec,
     GovernanceBackendSpec,
     LineageSinkSpec,
+    MaintenanceExecutorSpec,
     MaintenanceReadModelSpec,
     MetadataCatalogSpec,
     ObjectStoreSpec,
@@ -105,6 +106,10 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_query_engines(self) -> Iterable[QueryEngineSpec]:
         """Return query engine capability specs exposed by this plugin."""
+        return []
+
+    def get_maintenance_executors(self) -> Iterable[MaintenanceExecutorSpec]:
+        """Return ref-aware maintenance executor specs exposed by this plugin."""
         return []
 
     def get_object_stores(self) -> Iterable[ObjectStoreSpec]:

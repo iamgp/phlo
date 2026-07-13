@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,77 @@ from phlo.logging import get_logger
 
 MAINTENANCE_COMPLETE_EVENT = "iceberg.maintenance.complete"
 logger = get_logger(__name__)
+
+
+class MaintenanceOperationState(StrEnum):
+    """Stable lifecycle states shared by maintenance providers."""
+
+    PLANNED = "planned"
+    SUCCEEDED = "succeeded"
+    NOOP = "noop"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+
+
+class MaintenancePreconditionError(ValueError):
+    """Raised when a maintenance request cannot safely reach the provider."""
+
+
+class MaintenanceExecutionPhase(StrEnum):
+    """Provider execution phases used to classify transport failures."""
+
+    PREFLIGHT = "preflight"
+    SUBMISSION = "submission"
+
+
+class MaintenanceExecutionError(RuntimeError):
+    """Raised when a provider can identify the failed execution phase."""
+
+    def __init__(self, phase: MaintenanceExecutionPhase, cause: Exception) -> None:
+        self.phase = phase
+        self.cause = cause
+        super().__init__(str(cause) or type(cause).__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class MaintenanceOperationResult:
+    """Provider-neutral evidence for one maintenance operation."""
+
+    operation: str
+    table_name: str
+    ref: str
+    dry_run: bool
+    status: MaintenanceOperationState
+    accepted: bool
+    executed: bool
+    before_snapshot_id: int | None = None
+    after_snapshot_id: int | None = None
+    planned: dict[str, Any] = field(default_factory=dict)
+    affected: dict[str, Any] = field(default_factory=dict)
+    evidence: dict[str, Any] = field(default_factory=dict)
+    failure: dict[str, Any] | None = None
+    operation_id: str | None = None
+    retry_safe: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the stable operation contract for APIs and orchestrators."""
+        return {
+            "operation": self.operation,
+            "table_name": self.table_name,
+            "ref": self.ref,
+            "dry_run": self.dry_run,
+            "status": self.status.value,
+            "accepted": self.accepted,
+            "executed": self.executed,
+            "before_snapshot_id": self.before_snapshot_id,
+            "after_snapshot_id": self.after_snapshot_id,
+            "planned": self.planned,
+            "affected": self.affected,
+            "evidence": self.evidence,
+            "failure": self.failure,
+            "operation_id": self.operation_id,
+            "retry_safe": self.retry_safe,
+        }
 
 
 @dataclass(frozen=True)

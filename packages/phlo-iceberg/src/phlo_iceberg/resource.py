@@ -48,6 +48,7 @@ Example:
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+import re
 from typing import Any
 
 from pandera.pandas import DataFrameModel
@@ -55,6 +56,14 @@ from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 
+from phlo.capabilities import (
+    MaintenanceExecutionError,
+    MaintenanceExecutionPhase,
+    MaintenanceOperationResult,
+    MaintenanceOperationState,
+    MaintenancePreconditionError,
+)
+from phlo.capabilities.interfaces import MaintenanceExecutor
 from phlo.capabilities.interfaces import TableStoreSupport
 from phlo.logging import get_logger
 from phlo_iceberg.catalog import get_catalog
@@ -64,6 +73,7 @@ from phlo_iceberg.tables import (
     delete_rows_from_table,
     ensure_table,
     expire_snapshots,
+    get_table_stats,
     list_table_snapshots,
     merge_to_table,
     overwrite_table,
@@ -72,6 +82,69 @@ from phlo_iceberg.tables import (
 )
 
 logger = get_logger(__name__)
+
+_COMPACTION_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _validate_compaction_table_name(table_name: str) -> str:
+    """Validate and quote the namespace.table relation used by Trino."""
+    parts = table_name.split(".")
+    if len(parts) != 2 or any(not _COMPACTION_IDENTIFIER.fullmatch(part) for part in parts):
+        raise ValueError(
+            "Compaction table_name must be a namespace.table identifier containing only "
+            "letters, numbers, and underscores."
+        )
+    return ".".join(f'"{part}"' for part in parts)
+
+
+def _compaction_failure(exc: Exception, *, code: str) -> dict[str, object]:
+    """Normalize provider failures without losing retry guidance."""
+    message = str(exc).strip() or type(exc).__name__
+    lowered = message.lower()
+    retryable = any(
+        marker in lowered
+        for marker in ("timeout", "temporarily unavailable", "connection", "concurrent")
+    )
+    return {
+        "code": code,
+        "type": type(exc).__name__,
+        "message": message,
+        "retryable": retryable,
+    }
+
+
+def _blocked_compaction_result(
+    *,
+    table_name: str,
+    ref: str,
+    operation_id: str | None,
+    before_snapshot_id: int | None,
+    plan: dict[str, object],
+    code: str,
+    message: str,
+    details: dict[str, object],
+) -> dict[str, object]:
+    return MaintenanceOperationResult(
+        operation="compact",
+        table_name=table_name,
+        ref=ref,
+        dry_run=False,
+        status=MaintenanceOperationState.BLOCKED,
+        accepted=False,
+        executed=False,
+        before_snapshot_id=before_snapshot_id,
+        planned=plan,
+        evidence={
+            "before": {
+                "snapshot_id": before_snapshot_id,
+                "file_count": plan.get("file_count", 0),
+                "snapshot_count": plan.get("snapshot_count", 0),
+            }
+        },
+        failure={"code": code, "type": "PreconditionError", "message": message, **details},
+        operation_id=operation_id,
+        retry_safe=True,
+    ).to_dict()
 
 
 @dataclass
@@ -115,7 +188,7 @@ class IcebergResource:
             supports_refs=True,
             partition_transforms=frozenset({"identity", "day", "hour", "month", "year"}),
             supports_snapshots=True,
-            supports_compaction=False,
+            supports_compaction=True,
             supports_vacuum=True,
         )
 
@@ -500,25 +573,294 @@ class IcebergResource:
         )
         return result
 
-    def compact(self, *, table_name: str, override_ref: str | None = None) -> dict[str, object]:
-        """Compact small files in a table.
+    def compact(
+        self,
+        *,
+        table_name: str,
+        override_ref: str | None = None,
+        dry_run: bool = False,
+        expected_snapshot_id: int | str | None = None,
+        operation_id: str | None = None,
+        executor: MaintenanceExecutor | None = None,
+    ) -> dict[str, object]:
+        """Compact small files through the configured Trino Iceberg catalog.
 
-        Warning:
-            Not supported by PyIceberg directly. Use Trino ``OPTIMIZE`` command
-            instead for file compaction.
+        A dry run reads Iceberg metadata and returns the snapshot token required
+        for an execute call. Execute mode takes an optimistic snapshot
+        precondition. The executor owns the provider boundary and must target
+        the requested ref. Execution is at-least-once: successful, no-op, and
+        precondition outcomes are retry-safe, while a provider error after
+        submission is reported as outcome-unknown and must be reconciled before
+        retrying.
 
         Args:
             table_name: Fully qualified table name (``namespace.table``).
             override_ref: Optional branch or tag to use instead of ``self.ref``.
+            dry_run: Inspect the table and plan the operation without invoking Trino.
+            expected_snapshot_id: Snapshot observed by the caller. When omitted,
+                execute mode captures and rechecks the current snapshot itself.
+            operation_id: Optional caller-supplied correlation token. The current
+                contract is at-least-once and does not provide durable deduplication.
+            executor: Provider-neutral maintenance executor, such as the Trino
+                capability provider. It is not invoked during a dry run.
+
+        Returns:
+            A provider-neutral operation result with plan, execution, and failure
+            evidence.
 
         Raises:
-            NotImplementedError: Always raised. Use Trino for compaction.
-
-        See Also:
-            Trino Iceberg connector: https://trino.io/docs/current/connector/iceberg.html
+            ValueError: If the table identifier is invalid.
 
         """
-        raise NotImplementedError("Compaction requires Spark or Trino; use Trino OPTIMIZE instead")
+        branch = override_ref or self.ref
+        quoted_table_name = _validate_compaction_table_name(table_name)
+
+        try:
+            before_snapshot_id, before_stats = self._compaction_metadata(table_name, branch)
+        except Exception as exc:  # noqa: BLE001 - return structured operation evidence
+            return MaintenanceOperationResult(
+                operation="compact",
+                table_name=table_name,
+                ref=branch,
+                dry_run=dry_run,
+                status=MaintenanceOperationState.FAILED,
+                accepted=False,
+                executed=False,
+                failure=_compaction_failure(exc, code="table_metadata_unavailable"),
+                operation_id=operation_id,
+                retry_safe=True,
+            ).to_dict()
+
+        plan = {
+            "table_name": table_name,
+            "sql": f"ALTER TABLE {quoted_table_name} EXECUTE optimize",
+            "file_count": before_stats.get("file_count", 0),
+            "snapshot_count": before_stats.get("snapshot_count", 0),
+            "total_size_mb": before_stats.get("total_size_mb", 0.0),
+            "concurrency_precondition": before_snapshot_id,
+            "snapshot_guard": "provider_preflight_plus_iceberg_commit_conflict",
+            "trino_boundary": "not_invoked" if dry_run else "pending",
+        }
+        if dry_run:
+            return MaintenanceOperationResult(
+                operation="compact",
+                table_name=table_name,
+                ref=branch,
+                dry_run=True,
+                status=MaintenanceOperationState.PLANNED,
+                accepted=True,
+                executed=False,
+                before_snapshot_id=before_snapshot_id,
+                planned=plan,
+                evidence={
+                    "before": {
+                        "snapshot_id": before_snapshot_id,
+                        "file_count": before_stats.get("file_count", 0),
+                        "snapshot_count": before_stats.get("snapshot_count", 0),
+                    }
+                },
+                operation_id=operation_id,
+                retry_safe=True,
+            ).to_dict()
+
+        expected = (
+            int(expected_snapshot_id) if expected_snapshot_id is not None else before_snapshot_id
+        )
+        if before_snapshot_id != expected:
+            return _blocked_compaction_result(
+                table_name=table_name,
+                ref=branch,
+                operation_id=operation_id,
+                before_snapshot_id=before_snapshot_id,
+                plan=plan,
+                code="concurrent_change_detected",
+                message="The table changed after the compaction plan; obtain a fresh dry-run.",
+                details={
+                    "expected_snapshot_id": expected,
+                    "current_snapshot_id": before_snapshot_id,
+                },
+            )
+
+        current_snapshot_id, current_stats = self._compaction_metadata(table_name, branch)
+        if current_snapshot_id != expected:
+            return _blocked_compaction_result(
+                table_name=table_name,
+                ref=branch,
+                operation_id=operation_id,
+                before_snapshot_id=current_snapshot_id,
+                plan=plan,
+                code="concurrent_change_detected",
+                message="The table changed before executor execution; obtain a fresh dry-run.",
+                details={
+                    "expected_snapshot_id": expected,
+                    "current_snapshot_id": current_snapshot_id,
+                },
+            )
+        if executor is None:
+            return MaintenanceOperationResult(
+                operation="compact",
+                table_name=table_name,
+                ref=branch,
+                dry_run=False,
+                status=MaintenanceOperationState.FAILED,
+                accepted=False,
+                executed=False,
+                before_snapshot_id=current_snapshot_id,
+                planned=plan,
+                failure={
+                    "code": "maintenance_executor_required",
+                    "type": "ConfigurationError",
+                    "message": "Execute mode requires a ref-aware maintenance executor.",
+                    "retryable": False,
+                },
+                operation_id=operation_id,
+                retry_safe=True,
+            ).to_dict()
+
+        provider_result: dict[str, object] = {}
+        try:
+            raw_provider_result = executor.compact_iceberg_table(
+                table_name=table_name,
+                ref=branch,
+                expected_snapshot_id=expected,
+                operation_id=operation_id,
+            )
+            if isinstance(raw_provider_result, dict):
+                provider_result = raw_provider_result
+        except MaintenancePreconditionError as exc:
+            return MaintenanceOperationResult(
+                operation="compact",
+                table_name=table_name,
+                ref=branch,
+                dry_run=False,
+                status=MaintenanceOperationState.BLOCKED,
+                accepted=False,
+                executed=False,
+                before_snapshot_id=current_snapshot_id,
+                planned=plan,
+                failure=_compaction_failure(exc, code="provider_precondition_failed"),
+                operation_id=operation_id,
+                retry_safe=True,
+            ).to_dict()
+        except MaintenanceExecutionError as exc:
+            failure = _compaction_failure(
+                exc.cause,
+                code=(
+                    "maintenance_preflight_failed"
+                    if exc.phase is MaintenanceExecutionPhase.PREFLIGHT
+                    else "maintenance_outcome_unknown"
+                ),
+            )
+            failure.update(
+                phase=exc.phase.value,
+                outcome=(
+                    "not_submitted"
+                    if exc.phase is MaintenanceExecutionPhase.PREFLIGHT
+                    else "unknown"
+                ),
+            )
+            preflight_failed = exc.phase is MaintenanceExecutionPhase.PREFLIGHT
+            return MaintenanceOperationResult(
+                operation="compact",
+                table_name=table_name,
+                ref=branch,
+                dry_run=False,
+                status=MaintenanceOperationState.FAILED,
+                accepted=not preflight_failed,
+                executed=not preflight_failed,
+                before_snapshot_id=current_snapshot_id,
+                planned=plan,
+                failure=failure,
+                operation_id=operation_id,
+                retry_safe=preflight_failed,
+            ).to_dict()
+        except Exception as exc:  # noqa: BLE001 - provider may have committed before the error surfaced
+            return MaintenanceOperationResult(
+                operation="compact",
+                table_name=table_name,
+                ref=branch,
+                dry_run=False,
+                status=MaintenanceOperationState.FAILED,
+                accepted=True,
+                executed=True,
+                before_snapshot_id=current_snapshot_id,
+                planned=plan,
+                failure=_compaction_failure(exc, code="maintenance_outcome_unknown"),
+                operation_id=operation_id,
+                retry_safe=False,
+            ).to_dict()
+
+        try:
+            after_snapshot_id, after_stats = self._compaction_metadata(table_name, branch)
+        except Exception as exc:  # noqa: BLE001 - the commit may have succeeded
+            return MaintenanceOperationResult(
+                operation="compact",
+                table_name=table_name,
+                ref=branch,
+                dry_run=False,
+                status=MaintenanceOperationState.FAILED,
+                accepted=True,
+                executed=True,
+                before_snapshot_id=current_snapshot_id,
+                planned=plan,
+                failure=_compaction_failure(exc, code="maintenance_outcome_unknown"),
+                operation_id=operation_id,
+                retry_safe=False,
+            ).to_dict()
+
+        changed = after_snapshot_id != current_snapshot_id
+        return MaintenanceOperationResult(
+            operation="compact",
+            table_name=table_name,
+            ref=branch,
+            dry_run=False,
+            status=(
+                MaintenanceOperationState.SUCCEEDED if changed else MaintenanceOperationState.NOOP
+            ),
+            accepted=True,
+            executed=True,
+            before_snapshot_id=current_snapshot_id,
+            after_snapshot_id=after_snapshot_id,
+            planned={**plan, "trino_boundary": "executed"},
+            affected={
+                "snapshot_changed": changed,
+                "file_count_before": current_stats.get("file_count", 0),
+                "file_count_after": after_stats.get("file_count", 0),
+                "total_size_mb_before": current_stats.get("total_size_mb", 0.0),
+                "total_size_mb_after": after_stats.get("total_size_mb", 0.0),
+            },
+            evidence={
+                "provider": {
+                    "catalog": provider_result.get("catalog"),
+                    "ref": provider_result.get("ref", branch),
+                    "sql": provider_result.get("sql"),
+                },
+                "before": {
+                    "snapshot_id": current_snapshot_id,
+                    "snapshot_count": current_stats.get("snapshot_count", 0),
+                    "file_count": current_stats.get("file_count", 0),
+                },
+                "after": {
+                    "snapshot_id": after_snapshot_id,
+                    "snapshot_count": after_stats.get("snapshot_count", 0),
+                    "file_count": after_stats.get("file_count", 0),
+                },
+            },
+            operation_id=operation_id,
+            retry_safe=True,
+        ).to_dict()
+
+    def _compaction_metadata(self, table_name: str, ref: str) -> tuple[int | None, dict[str, Any]]:
+        """Load the current Iceberg snapshot and file statistics for preconditions."""
+        table = self.get_catalog(override_ref=ref).load_table(table_name)
+        snapshot = table.current_snapshot()
+        snapshot_id = int(snapshot.snapshot_id) if snapshot is not None else None
+        stats = get_table_stats(table_name=table_name, ref=ref, table=table)
+        if stats.get("current_snapshot_id") != snapshot_id:
+            raise MaintenancePreconditionError(
+                "Iceberg metadata returned inconsistent snapshot evidence"
+            )
+        return snapshot_id, stats
 
     def list_snapshots(self, *, table_name: str, limit: int = 10) -> list[dict]:
         """List recent table snapshots.

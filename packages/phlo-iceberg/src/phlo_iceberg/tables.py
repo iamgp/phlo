@@ -1024,15 +1024,16 @@ def remove_orphan_files(
     }
 
 
-def get_table_stats(table_name: str, ref: str = "main") -> dict:
+def get_table_stats(table_name: str, ref: str = "main", *, table: Table | None = None) -> dict:
     """Get statistics about an Iceberg table.
 
     Returns:
         Dict with snapshot_count, file_count, total_size_bytes, etc.
 
     """
-    catalog = get_catalog(ref=ref)
-    table = catalog.load_table(table_name)
+    if table is None:
+        catalog = get_catalog(ref=ref)
+        table = catalog.load_table(table_name)
 
     snapshots = list(table.snapshots())
     snapshot_count = len(snapshots)
@@ -1052,6 +1053,9 @@ def get_table_stats(table_name: str, ref: str = "main") -> dict:
     return {
         "table_name": table_name,
         "snapshot_count": snapshot_count,
+        "current_snapshot_id": (
+            int(current_snapshot.snapshot_id) if current_snapshot is not None else None
+        ),
         "file_count": file_count,
         "total_size_bytes": total_size_bytes,
         "total_size_mb": round(total_size_bytes / (1024 * 1024), 2),
