@@ -107,6 +107,7 @@ class _StoredWorkflowProposal(BaseModel):
     """Server-owned workflow proposal record."""
 
     proposal_id: str
+    issuer_subject: str
     proposal: dict[str, Any]
     digest: str
     signature: str
@@ -186,6 +187,7 @@ def build_workflow_wizard_payload() -> dict[str, Any]:
 def build_workflow_proposal(
     project_root: Path,
     request: ObservatoryWorkflowProposalRequest,
+    issuer_subject: str,
 ) -> dict[str, Any]:
     """Build and persist a server-owned workflow proposal for the browser."""
 
@@ -221,7 +223,7 @@ def build_workflow_proposal(
     conflicts = detect_file_conflicts(project_root, proposal)
     if conflicts:
         proposal = _with_conflict_action_disabled(proposal, conflicts)
-    return _issue_workflow_proposal(project_root, proposal)
+    return _issue_workflow_proposal(project_root, proposal, issuer_subject)
 
 
 def _open_directory_at(parent_fd: int, name: str, *, create: bool) -> int:
@@ -335,8 +337,10 @@ def _workflow_integrity_key(project_root: Path) -> bytes:
         os.close(state_fd)
 
 
-def _proposal_signature(project_root: Path, proposal_id: str, digest: str) -> str:
-    message = f"{proposal_id}:{digest}".encode("utf-8")
+def _proposal_signature(
+    project_root: Path, proposal_id: str, issuer_subject: str, digest: str
+) -> str:
+    message = f"{proposal_id}:{issuer_subject}:{digest}".encode("utf-8")
     return hmac.new(_workflow_integrity_key(project_root), message, hashlib.sha256).hexdigest()
 
 
@@ -395,13 +399,16 @@ def _write_state_json(
         os.close(storage_fd)
 
 
-def _issue_workflow_proposal(project_root: Path, proposal: WorkflowProposal) -> dict[str, Any]:
+def _issue_workflow_proposal(
+    project_root: Path, proposal: WorkflowProposal, issuer_subject: str
+) -> dict[str, Any]:
     proposal_id = secrets.token_urlsafe(24)
     proposal_payload = proposal.to_browser_dict()
     digest = _proposal_digest(proposal_payload)
-    signature = _proposal_signature(project_root, proposal_id, digest)
+    signature = _proposal_signature(project_root, proposal_id, issuer_subject, digest)
     record = _StoredWorkflowProposal(
         proposal_id=proposal_id,
+        issuer_subject=issuer_subject,
         proposal=proposal_payload,
         digest=digest,
         signature=signature,
@@ -473,12 +480,14 @@ def _selection_payload(
 
 
 def apply_workflow_action(
-    project_root: Path, request: ObservatoryWorkflowActionRequest
+    project_root: Path, request: ObservatoryWorkflowActionRequest, issuer_subject: str
 ) -> ObservatoryWorkflowActionResult:
     """Apply a server-issued workflow action within the project workflow root."""
 
     proposal_id = request.proposal_id
-    proposal, proposal_digest = _load_verified_workflow_proposal(project_root, proposal_id)
+    proposal, proposal_digest = _load_verified_workflow_proposal(
+        project_root, proposal_id, issuer_subject
+    )
     action = next((item for item in proposal.actions if item.id == request.action_id), None)
     if action is None:
         raise HTTPException(
@@ -497,10 +506,12 @@ def apply_workflow_action(
             ):
                 raise HTTPException(status_code=409, detail="Workflow proposal replay conflicts.")
             if applied.get("status") == "succeeded":
-                if not all(_file_matches(target, preview.content) for preview, target in targets):
-                    raise HTTPException(
-                        status_code=409,
-                        detail="Applied workflow files changed after completion.",
+                for preview, _ in targets:
+                    _apply_workflow_file(
+                        project_root,
+                        preview,
+                        conflict_policy="fail-on-conflict",
+                        verify_only=True,
                     )
                 try:
                     return ObservatoryWorkflowActionResult.model_validate(applied["result"])
@@ -517,8 +528,9 @@ def apply_workflow_action(
         else:
             conflicts = [
                 preview.path
-                for preview, target in targets
-                if preview.mode == "create" and target.exists()
+                for preview, _ in targets
+                if preview.mode == "create"
+                and _workflow_file_state(project_root, preview) != "missing"
             ]
             if conflicts and action.conflict_policy == "fail-on-conflict":
                 raise HTTPException(
@@ -534,18 +546,15 @@ def apply_workflow_action(
             _write_state_json(project_root, "applied", f"{proposal_id}.json", applied)
 
         written_files = list(applied.get("written_files") or [])
-        for preview, target in targets:
-            if target.exists():
-                if _file_matches(target, preview.content):
-                    if preview.path not in written_files:
-                        written_files.append(preview.path)
-                    continue
-                if action.conflict_policy == "skip-if-exists":
-                    continue
-                raise HTTPException(status_code=409, detail=f"File conflicts: {preview.path}")
-
-            _write_text_atomically(project_root, preview.path, preview.content)
-            if preview.path not in written_files:
+        for preview, _ in targets:
+            outcome = _apply_workflow_file(
+                project_root,
+                preview,
+                conflict_policy=cast(
+                    Literal["fail-on-conflict", "skip-if-exists"], action.conflict_policy
+                ),
+            )
+            if outcome != "skipped" and preview.path not in written_files:
                 written_files.append(preview.path)
             applied["written_files"] = written_files
             _write_state_json(project_root, "applied", f"{proposal_id}.json", applied)
@@ -570,7 +579,7 @@ def apply_workflow_action(
 
 
 def _load_verified_workflow_proposal(
-    project_root: Path, proposal_id: str
+    project_root: Path, proposal_id: str, issuer_subject: str
 ) -> tuple[WorkflowProposal, str]:
     if not _PROPOSAL_ID_PATTERN.fullmatch(proposal_id):
         raise HTTPException(status_code=400, detail="Invalid workflow proposal id.")
@@ -587,11 +596,15 @@ def _load_verified_workflow_proposal(
         raise HTTPException(
             status_code=409, detail="Workflow proposal integrity verification failed."
         )
-    expected_signature = _proposal_signature(project_root, record.proposal_id, record.digest)
+    expected_signature = _proposal_signature(
+        project_root, record.proposal_id, record.issuer_subject, record.digest
+    )
     if not hmac.compare_digest(record.signature, expected_signature):
         raise HTTPException(
             status_code=409, detail="Workflow proposal integrity verification failed."
         )
+    if not hmac.compare_digest(record.issuer_subject, issuer_subject):
+        raise HTTPException(status_code=404, detail="Workflow proposal not found.")
     if not hmac.compare_digest(record.digest, _proposal_digest(record.proposal)):
         raise HTTPException(
             status_code=409, detail="Workflow proposal integrity verification failed."
@@ -646,63 +659,167 @@ def _workflow_apply_lock(project_root: Path):
         os.close(state_fd)
 
 
-def _file_matches(path: Path, content: str) -> bool:
-    try:
-        return path.is_file() and path.read_text(encoding="utf-8") == content
-    except (OSError, UnicodeError):
-        return False
-
-
-def _write_text_atomically(project_root: Path, relative_path: str, content: str) -> None:
+def _open_workflow_parent_fd(project_root: Path, relative_path: str) -> tuple[int, str]:
     parts = Path(relative_path).parts
-    if not parts:
+    if (
+        not parts
+        or Path(relative_path).is_absolute()
+        or Path(relative_path).anchor
+        or ".." in parts
+    ):
         raise HTTPException(status_code=400, detail="Invalid workflow file path.")
-    directory_fd = os.open(
-        project_root,
-        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
-    )
+    directory_fd = -1
     try:
+        directory_fd = os.open(project_root.resolve(), _STATE_DIRECTORY_FLAGS)
         for component in parts[:-1]:
             try:
                 next_fd = os.open(
                     component,
-                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+                    _STATE_DIRECTORY_FLAGS,
                     dir_fd=directory_fd,
                 )
             except FileNotFoundError:
-                os.mkdir(component, mode=0o755, dir_fd=directory_fd)
-                next_fd = os.open(
-                    component,
-                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
-                    dir_fd=directory_fd,
-                )
+                try:
+                    os.mkdir(component, mode=0o755, dir_fd=directory_fd)
+                except FileExistsError:
+                    pass
+                next_fd = os.open(component, _STATE_DIRECTORY_FLAGS, dir_fd=directory_fd)
+            except OSError as exc:
+                raise HTTPException(
+                    status_code=409, detail=f"Unsafe workflow file path: {relative_path}"
+                ) from exc
             os.close(directory_fd)
             directory_fd = next_fd
+        return directory_fd, parts[-1]
+    except HTTPException:
+        if directory_fd >= 0:
+            os.close(directory_fd)
+        raise
+    except OSError as exc:
+        if directory_fd >= 0:
+            os.close(directory_fd)
+        raise HTTPException(
+            status_code=409, detail=f"Unsafe workflow file path: {relative_path}"
+        ) from exc
 
-        filename = parts[-1]
-        temporary_name = f".{filename}.{secrets.token_hex(8)}.tmp"
+
+def _workflow_file_state(
+    project_root: Path, preview: WorkflowFilePreview
+) -> Literal["missing", "matching", "conflict"]:
+    directory_fd, filename = _open_workflow_parent_fd(project_root, preview.path)
+    descriptor = -1
+    try:
+        try:
+            descriptor = os.open(
+                filename,
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=directory_fd,
+            )
+        except FileNotFoundError:
+            return "missing"
+        except OSError:
+            return "conflict"
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            return "conflict"
+        with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
+            descriptor = -1
+            return "matching" if handle.read() == preview.content else "conflict"
+    except (OSError, UnicodeError):
+        return "conflict"
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        os.close(directory_fd)
+
+
+def _write_text_atomically_at(directory_fd: int, filename: str, content: str) -> None:
+    temporary_name = f".{filename}.{secrets.token_hex(8)}.tmp"
+    temporary_fd = -1
+    try:
         temporary_fd = os.open(
             temporary_name,
             os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
             0o600,
             dir_fd=directory_fd,
         )
-        try:
-            with os.fdopen(temporary_fd, "w", encoding="utf-8") as handle:
-                handle.write(content)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(
-                temporary_name,
-                filename,
-                src_dir_fd=directory_fd,
-                dst_dir_fd=directory_fd,
-            )
-        except BaseException:
-            with contextlib.suppress(FileNotFoundError):
-                os.unlink(temporary_name, dir_fd=directory_fd)
-            raise
+        with os.fdopen(temporary_fd, "w", encoding="utf-8") as handle:
+            temporary_fd = -1
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(
+            temporary_name,
+            filename,
+            src_dir_fd=directory_fd,
+            dst_dir_fd=directory_fd,
+        )
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(temporary_name, dir_fd=directory_fd)
+        raise
     finally:
+        if temporary_fd >= 0:
+            os.close(temporary_fd)
+
+
+def _apply_workflow_file(
+    project_root: Path,
+    preview: WorkflowFilePreview,
+    *,
+    conflict_policy: Literal["fail-on-conflict", "skip-if-exists"],
+    verify_only: bool = False,
+) -> Literal["written", "matching", "skipped"]:
+    directory_fd, filename = _open_workflow_parent_fd(project_root, preview.path)
+    descriptor = -1
+    try:
+        try:
+            descriptor = os.open(
+                filename,
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=directory_fd,
+            )
+        except FileNotFoundError:
+            if verify_only:
+                raise HTTPException(
+                    status_code=409, detail="Applied workflow files changed after completion."
+                )
+            _write_text_atomically_at(directory_fd, filename, preview.content)
+            return "written"
+        except OSError as exc:
+            if verify_only:
+                raise HTTPException(
+                    status_code=409, detail="Applied workflow files changed after completion."
+                ) from exc
+            if conflict_policy == "skip-if-exists":
+                return "skipped"
+            raise HTTPException(status_code=409, detail=f"File conflicts: {preview.path}") from exc
+
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            state = "conflict"
+        else:
+            with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
+                descriptor = -1
+                state = "matching" if handle.read() == preview.content else "conflict"
+        if state == "matching":
+            return "matching"
+        if verify_only:
+            raise HTTPException(
+                status_code=409, detail="Applied workflow files changed after completion."
+            )
+        if conflict_policy == "skip-if-exists":
+            return "skipped"
+        raise HTTPException(status_code=409, detail=f"File conflicts: {preview.path}")
+    except UnicodeError as exc:
+        if verify_only:
+            raise HTTPException(
+                status_code=409, detail="Applied workflow files changed after completion."
+            ) from exc
+        if conflict_policy == "skip-if-exists":
+            return "skipped"
+        raise HTTPException(status_code=409, detail=f"File conflicts: {preview.path}") from exc
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
         os.close(directory_fd)
 
 

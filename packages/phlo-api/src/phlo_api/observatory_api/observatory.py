@@ -4927,7 +4927,7 @@ def post_observatory_workflow_wizard_proposal(
 
     auth = require_scope(http_request, "project:write")
     enforce_rate_limit(auth["subject"], "workflow_wizard_proposal")
-    return build_workflow_proposal(_project_root(), request)
+    return build_workflow_proposal(_project_root(), request, auth["subject"])
 
 
 @router.post("/workflow-wizard/actions", response_model=ObservatoryWorkflowActionResult)
@@ -4941,7 +4941,7 @@ def post_observatory_workflow_wizard_action(
     enforce_rate_limit(auth["subject"], "workflow_wizard_apply")
 
     try:
-        result = apply_workflow_action(_project_root(), request)
+        result = apply_workflow_action(_project_root(), request, auth["subject"])
     except HTTPException as exc:
         message = str(exc.detail)
         append_operation(

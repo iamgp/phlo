@@ -486,6 +486,113 @@ def test_workflow_wizard_apply_requires_project_write(
     assert not (tmp_path / "workflows").exists()
 
 
+def test_workflow_wizard_proposal_is_bound_to_issuing_principal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        '{"writer-a":{"subject":"writer-a","scopes":["project:write"]},'
+        '"writer-b":{"subject":"writer-b","scopes":["project:write"]}}',
+    )
+    request = {
+        "workflow_name": "customer_health",
+        "domain": "customers",
+        "graph": {
+            "nodes": [
+                {
+                    "id": "source",
+                    "contribution_id": "dlt.rest-api-source",
+                    "stage": "source",
+                    "values": {"table_name": "orders"},
+                }
+            ],
+            "edges": [],
+        },
+    }
+    proposal = client.post(
+        "/api/observatory/workflow-wizard/proposals",
+        json=request,
+        headers={"Authorization": "Bearer writer-a"},
+    ).json()
+    body = {"action_id": proposal["actions"][0]["id"], "proposal_id": proposal["proposal_id"]}
+
+    other_writer = client.post(
+        "/api/observatory/workflow-wizard/actions",
+        json=body,
+        headers={"Authorization": "Bearer writer-b"},
+    )
+    issuing_writer = client.post(
+        "/api/observatory/workflow-wizard/actions",
+        json=body,
+        headers={"Authorization": "Bearer writer-a"},
+    )
+
+    assert other_writer.status_code == 404
+    assert issuing_writer.status_code == 200
+
+
+def test_workflow_wizard_rejects_target_directory_swap_before_safe_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setenv(
+        "PHLO_API_TOKENS",
+        '{"project-token":{"subject":"operator","scopes":["project:write"]}}',
+    )
+    workflow_root = tmp_path / "workflows"
+    workflow_root.mkdir()
+    proposal = client.post(
+        "/api/observatory/workflow-wizard/proposals",
+        json={
+            "workflow_name": "customer_health",
+            "domain": "customers",
+            "graph": {
+                "nodes": [
+                    {
+                        "id": "source",
+                        "contribution_id": "dlt.rest-api-source",
+                        "stage": "source",
+                        "values": {"table_name": "orders"},
+                    }
+                ],
+                "edges": [],
+            },
+        },
+        headers={"Authorization": "Bearer project-token"},
+    ).json()
+    target = next(item for item in proposal["files"] if item["path"].endswith("orders.py"))
+    outside = tmp_path / "outside-workflow"
+    outside_target = outside / Path(target["path"]).relative_to("workflows")
+    outside_target.parent.mkdir(parents=True)
+    outside_target.write_text(target["content"], encoding="utf-8")
+
+    original_validate = wizard._validated_workflow_targets
+
+    def swap_after_validation(
+        project_root: Path, workflow_proposal: WorkflowProposal
+    ) -> list[tuple[WorkflowFilePreview, Path]]:
+        targets = original_validate(project_root, workflow_proposal)
+        safe_root = project_root / "workflows-safe"
+        (project_root / "workflows").rename(safe_root)
+        (project_root / "workflows").symlink_to(outside, target_is_directory=True)
+        return targets
+
+    monkeypatch.setattr(wizard, "_validated_workflow_targets", swap_after_validation)
+    body = {"action_id": proposal["actions"][0]["id"], "proposal_id": proposal["proposal_id"]}
+    applied = client.post(
+        "/api/observatory/workflow-wizard/actions",
+        json=body,
+        headers={"Authorization": "Bearer project-token"},
+    )
+
+    assert applied.status_code == 409
+    assert outside_target.read_text(encoding="utf-8") == target["content"]
+    assert not (
+        tmp_path / ".phlo" / "workflow-wizard" / "applied" / f"{proposal['proposal_id']}.json"
+    ).exists()
+
+
 def test_workflow_wizard_apply_rejects_tampered_proposal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -668,6 +775,7 @@ def test_workflow_wizard_apply_retries_after_completion_record_failure(
                 ]
             ),
         ),
+        issuer_subject="operator",
     )
     request = wizard.ObservatoryWorkflowActionRequest(
         action_id=proposal["actions"][0]["id"],
@@ -690,10 +798,10 @@ def test_workflow_wizard_apply_retries_after_completion_record_failure(
 
     monkeypatch.setattr(wizard, "_write_state_json", fail_completion)
     with pytest.raises(OSError):
-        wizard.apply_workflow_action(tmp_path, request)
+        wizard.apply_workflow_action(tmp_path, request, "operator")
 
     monkeypatch.setattr(wizard, "_write_state_json", original_write)
-    result = wizard.apply_workflow_action(tmp_path, request)
+    result = wizard.apply_workflow_action(tmp_path, request, "operator")
 
     assert result.status == "succeeded"
     assert len(result.files) == len(proposal["files"])
@@ -769,6 +877,7 @@ def test_workflow_wizard_state_writes_remain_anchored_after_directory_swap(
                 ]
             ),
         ),
+        issuer_subject="operator",
     )
     proposal_files = list(
         (proposal_root / ".phlo" / "workflow-wizard" / "proposals-safe").glob("*.json")
@@ -826,6 +935,7 @@ def test_workflow_wizard_escapes_caller_values_in_generated_python(tmp_path: Pat
                 ]
             ),
         ),
+        issuer_subject="operator",
     )
 
     generated = next(
