@@ -29,6 +29,7 @@ def test_dry_run_reports_plan_without_executor(monkeypatch) -> None:
 
     assert result["status"] == "planned"
     assert result["executed"] is False
+    assert result["before_revision"] == 41
     assert result["before_snapshot_id"] == 41
     assert result["planned"]["trino_boundary"] == "not_invoked"
     assert result["retry_safe"] is True
@@ -68,6 +69,8 @@ def test_execute_passes_snapshot_and_operation_identity_to_executor(monkeypatch)
         operation_id="run-41",
     )
     assert result["status"] == "succeeded"
+    assert result["before_revision"] == 41
+    assert result["after_revision"] == 42
     assert result["before_snapshot_id"] == 41
     assert result["after_snapshot_id"] == 42
     assert result["affected"]["file_count_before"] == 4

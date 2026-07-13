@@ -8,6 +8,8 @@ from phlo.capabilities import (
     CatalogSpec,
     LineageSinkSpec,
     MaintenanceExecutor,
+    MaintenanceOperationResult,
+    MaintenanceOperationState,
     MetadataCatalogSpec,
     ObservabilityBackendSpec,
     PublishTargetSpec,
@@ -80,6 +82,25 @@ def test_maintenance_executor_protocol_is_provider_neutral() -> None:
             }
 
     assert isinstance(DeltaLikeMaintenanceExecutor(), MaintenanceExecutor)
+
+
+def test_maintenance_operation_result_uses_neutral_revision_keys() -> None:
+    result = MaintenanceOperationResult(
+        operation="compact",
+        table_name="raw.events",
+        ref="main",
+        dry_run=True,
+        status=MaintenanceOperationState.PLANNED,
+        accepted=True,
+        executed=False,
+        before_revision=41,
+        after_revision=42,
+    ).to_dict()
+
+    assert result["before_revision"] == 41
+    assert result["after_revision"] == 42
+    assert "before_snapshot_id" not in result
+    assert "after_snapshot_id" not in result
 
 
 def test_registry_tracks_ui_contributions() -> None:

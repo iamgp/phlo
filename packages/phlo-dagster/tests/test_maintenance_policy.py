@@ -324,6 +324,8 @@ def test_optimize_table_files_fallback_uses_operation_result_schema(monkeypatch)
         ).to_dict()
     )
     assert result["operation_id"] == "run-91:raw.events;DROP"
+    assert result["before_revision"] is None
+    assert result["after_revision"] is None
     assert result["planned"] == {}
     assert result["affected"] == {}
     assert result["evidence"] == {}

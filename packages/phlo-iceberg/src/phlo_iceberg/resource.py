@@ -130,27 +130,39 @@ def _blocked_compaction_result(
     message: str,
     details: dict[str, object],
 ) -> dict[str, object]:
-    return MaintenanceOperationResult(
-        operation="compact",
-        table_name=table_name,
-        ref=ref,
-        dry_run=False,
-        status=MaintenanceOperationState.BLOCKED,
-        accepted=False,
-        executed=False,
-        before_snapshot_id=before_snapshot_id,
-        planned=plan,
-        evidence={
-            "before": {
-                "snapshot_id": before_snapshot_id,
-                "file_count": plan.get("file_count", 0),
-                "snapshot_count": plan.get("snapshot_count", 0),
-            }
-        },
-        failure={"code": code, "type": "PreconditionError", "message": message, **details},
-        operation_id=operation_id,
-        retry_safe=True,
-    ).to_dict()
+    return _serialize_compaction_result(
+        MaintenanceOperationResult(
+            operation="compact",
+            table_name=table_name,
+            ref=ref,
+            dry_run=False,
+            status=MaintenanceOperationState.BLOCKED,
+            accepted=False,
+            executed=False,
+            before_revision=before_snapshot_id,
+            planned=plan,
+            evidence={
+                "before": {
+                    "snapshot_id": before_snapshot_id,
+                    "file_count": plan.get("file_count", 0),
+                    "snapshot_count": plan.get("snapshot_count", 0),
+                }
+            },
+            failure={"code": code, "type": "PreconditionError", "message": message, **details},
+            operation_id=operation_id,
+            retry_safe=True,
+        )
+    )
+
+
+def _serialize_compaction_result(result: MaintenanceOperationResult) -> dict[str, object]:
+    """Add Iceberg snapshot aliases without widening the core result contract."""
+    payload = result.to_dict()
+    if result.before_revision is not None:
+        payload["before_snapshot_id"] = result.before_revision
+    if result.after_revision is not None:
+        payload["after_snapshot_id"] = result.after_revision
+    return payload
 
 
 @dataclass
@@ -627,18 +639,20 @@ class IcebergResource:
         try:
             before_snapshot_id, before_stats = self._compaction_metadata(table_name, branch)
         except Exception as exc:  # noqa: BLE001 - return structured operation evidence
-            return MaintenanceOperationResult(
-                operation="compact",
-                table_name=table_name,
-                ref=branch,
-                dry_run=dry_run,
-                status=MaintenanceOperationState.FAILED,
-                accepted=False,
-                executed=False,
-                failure=_compaction_failure(exc, code="table_metadata_unavailable"),
-                operation_id=operation_id,
-                retry_safe=True,
-            ).to_dict()
+            return _serialize_compaction_result(
+                MaintenanceOperationResult(
+                    operation="compact",
+                    table_name=table_name,
+                    ref=branch,
+                    dry_run=dry_run,
+                    status=MaintenanceOperationState.FAILED,
+                    accepted=False,
+                    executed=False,
+                    failure=_compaction_failure(exc, code="table_metadata_unavailable"),
+                    operation_id=operation_id,
+                    retry_safe=True,
+                )
+            )
 
         plan = {
             "table_name": table_name,
@@ -651,26 +665,28 @@ class IcebergResource:
             "trino_boundary": "not_invoked" if dry_run else "pending",
         }
         if dry_run:
-            return MaintenanceOperationResult(
-                operation="compact",
-                table_name=table_name,
-                ref=branch,
-                dry_run=True,
-                status=MaintenanceOperationState.PLANNED,
-                accepted=True,
-                executed=False,
-                before_snapshot_id=before_snapshot_id,
-                planned=plan,
-                evidence={
-                    "before": {
-                        "snapshot_id": before_snapshot_id,
-                        "file_count": before_stats.get("file_count", 0),
-                        "snapshot_count": before_stats.get("snapshot_count", 0),
-                    }
-                },
-                operation_id=operation_id,
-                retry_safe=True,
-            ).to_dict()
+            return _serialize_compaction_result(
+                MaintenanceOperationResult(
+                    operation="compact",
+                    table_name=table_name,
+                    ref=branch,
+                    dry_run=True,
+                    status=MaintenanceOperationState.PLANNED,
+                    accepted=True,
+                    executed=False,
+                    before_revision=before_snapshot_id,
+                    planned=plan,
+                    evidence={
+                        "before": {
+                            "snapshot_id": before_snapshot_id,
+                            "file_count": before_stats.get("file_count", 0),
+                            "snapshot_count": before_stats.get("snapshot_count", 0),
+                        }
+                    },
+                    operation_id=operation_id,
+                    retry_safe=True,
+                )
+            )
 
         if (
             expected_revision is not None
@@ -713,25 +729,27 @@ class IcebergResource:
                 },
             )
         if executor is None:
-            return MaintenanceOperationResult(
-                operation="compact",
-                table_name=table_name,
-                ref=branch,
-                dry_run=False,
-                status=MaintenanceOperationState.FAILED,
-                accepted=False,
-                executed=False,
-                before_snapshot_id=current_snapshot_id,
-                planned=plan,
-                failure={
-                    "code": "maintenance_executor_required",
-                    "type": "ConfigurationError",
-                    "message": "Execute mode requires a ref-aware maintenance executor.",
-                    "retryable": False,
-                },
-                operation_id=operation_id,
-                retry_safe=True,
-            ).to_dict()
+            return _serialize_compaction_result(
+                MaintenanceOperationResult(
+                    operation="compact",
+                    table_name=table_name,
+                    ref=branch,
+                    dry_run=False,
+                    status=MaintenanceOperationState.FAILED,
+                    accepted=False,
+                    executed=False,
+                    before_revision=current_snapshot_id,
+                    planned=plan,
+                    failure={
+                        "code": "maintenance_executor_required",
+                        "type": "ConfigurationError",
+                        "message": "Execute mode requires a ref-aware maintenance executor.",
+                        "retryable": False,
+                    },
+                    operation_id=operation_id,
+                    retry_safe=True,
+                )
+            )
 
         provider_result: dict[str, object] = {}
         try:
@@ -744,20 +762,22 @@ class IcebergResource:
             if isinstance(raw_provider_result, dict):
                 provider_result = raw_provider_result
         except MaintenancePreconditionError as exc:
-            return MaintenanceOperationResult(
-                operation="compact",
-                table_name=table_name,
-                ref=branch,
-                dry_run=False,
-                status=MaintenanceOperationState.BLOCKED,
-                accepted=False,
-                executed=False,
-                before_snapshot_id=current_snapshot_id,
-                planned=plan,
-                failure=_compaction_failure(exc, code="provider_precondition_failed"),
-                operation_id=operation_id,
-                retry_safe=True,
-            ).to_dict()
+            return _serialize_compaction_result(
+                MaintenanceOperationResult(
+                    operation="compact",
+                    table_name=table_name,
+                    ref=branch,
+                    dry_run=False,
+                    status=MaintenanceOperationState.BLOCKED,
+                    accepted=False,
+                    executed=False,
+                    before_revision=current_snapshot_id,
+                    planned=plan,
+                    failure=_compaction_failure(exc, code="provider_precondition_failed"),
+                    operation_id=operation_id,
+                    retry_safe=True,
+                )
+            )
         except MaintenanceExecutionError as exc:
             failure = _compaction_failure(
                 exc.cause,
@@ -777,103 +797,113 @@ class IcebergResource:
                 ),
             )
             preflight_failed = exc.phase is MaintenanceExecutionPhase.PREFLIGHT
-            return MaintenanceOperationResult(
-                operation="compact",
-                table_name=table_name,
-                ref=branch,
-                dry_run=False,
-                status=MaintenanceOperationState.FAILED,
-                accepted=not preflight_failed,
-                executed=not preflight_failed,
-                before_snapshot_id=current_snapshot_id,
-                planned=plan,
-                failure=failure,
-                operation_id=operation_id,
-                retry_safe=preflight_failed,
-            ).to_dict()
+            return _serialize_compaction_result(
+                MaintenanceOperationResult(
+                    operation="compact",
+                    table_name=table_name,
+                    ref=branch,
+                    dry_run=False,
+                    status=MaintenanceOperationState.FAILED,
+                    accepted=not preflight_failed,
+                    executed=not preflight_failed,
+                    before_revision=current_snapshot_id,
+                    planned=plan,
+                    failure=failure,
+                    operation_id=operation_id,
+                    retry_safe=preflight_failed,
+                )
+            )
         except Exception as exc:  # noqa: BLE001 - provider may have committed before the error surfaced
-            return MaintenanceOperationResult(
-                operation="compact",
-                table_name=table_name,
-                ref=branch,
-                dry_run=False,
-                status=MaintenanceOperationState.FAILED,
-                accepted=True,
-                executed=True,
-                before_snapshot_id=current_snapshot_id,
-                planned=plan,
-                failure=_compaction_failure(
-                    exc,
-                    code="maintenance_outcome_unknown",
-                    retryable=False,
-                ),
-                operation_id=operation_id,
-                retry_safe=False,
-            ).to_dict()
+            return _serialize_compaction_result(
+                MaintenanceOperationResult(
+                    operation="compact",
+                    table_name=table_name,
+                    ref=branch,
+                    dry_run=False,
+                    status=MaintenanceOperationState.FAILED,
+                    accepted=True,
+                    executed=True,
+                    before_revision=current_snapshot_id,
+                    planned=plan,
+                    failure=_compaction_failure(
+                        exc,
+                        code="maintenance_outcome_unknown",
+                        retryable=False,
+                    ),
+                    operation_id=operation_id,
+                    retry_safe=False,
+                )
+            )
 
         try:
             after_snapshot_id, after_stats = self._compaction_metadata(table_name, branch)
         except Exception as exc:  # noqa: BLE001 - the commit may have succeeded
-            return MaintenanceOperationResult(
+            return _serialize_compaction_result(
+                MaintenanceOperationResult(
+                    operation="compact",
+                    table_name=table_name,
+                    ref=branch,
+                    dry_run=False,
+                    status=MaintenanceOperationState.FAILED,
+                    accepted=True,
+                    executed=True,
+                    before_revision=current_snapshot_id,
+                    planned=plan,
+                    failure=_compaction_failure(
+                        exc,
+                        code="maintenance_outcome_unknown",
+                        retryable=False,
+                    ),
+                    operation_id=operation_id,
+                    retry_safe=False,
+                )
+            )
+
+        changed = after_snapshot_id != current_snapshot_id
+        return _serialize_compaction_result(
+            MaintenanceOperationResult(
                 operation="compact",
                 table_name=table_name,
                 ref=branch,
                 dry_run=False,
-                status=MaintenanceOperationState.FAILED,
+                status=(
+                    MaintenanceOperationState.SUCCEEDED
+                    if changed
+                    else MaintenanceOperationState.NOOP
+                ),
                 accepted=True,
                 executed=True,
-                before_snapshot_id=current_snapshot_id,
-                planned=plan,
-                failure=_compaction_failure(
-                    exc,
-                    code="maintenance_outcome_unknown",
-                    retryable=False,
-                ),
+                before_revision=current_snapshot_id,
+                after_revision=after_snapshot_id,
+                planned={**plan, "trino_boundary": "executed"},
+                affected={
+                    "snapshot_changed": changed,
+                    "file_count_before": current_stats.get("file_count", 0),
+                    "file_count_after": after_stats.get("file_count", 0),
+                    "total_size_mb_before": current_stats.get("total_size_mb", 0.0),
+                    "total_size_mb_after": after_stats.get("total_size_mb", 0.0),
+                },
+                evidence={
+                    "provider": {
+                        "catalog": provider_result.get("catalog"),
+                        "ref": provider_result.get("ref", branch),
+                        "sql": provider_result.get("sql"),
+                    },
+                    "before": {
+                        "snapshot_id": current_snapshot_id,
+                        "snapshot_count": current_stats.get("snapshot_count", 0),
+                        "file_count": current_stats.get("file_count", 0),
+                    },
+                    "after": {
+                        "snapshot_id": after_snapshot_id,
+                        "snapshot_count": after_stats.get("snapshot_count", 0),
+                        "file_count": after_stats.get("file_count", 0),
+                    },
+                },
                 operation_id=operation_id,
-                retry_safe=False,
-            ).to_dict()
-
-        changed = after_snapshot_id != current_snapshot_id
-        return MaintenanceOperationResult(
-            operation="compact",
-            table_name=table_name,
-            ref=branch,
-            dry_run=False,
-            status=(
-                MaintenanceOperationState.SUCCEEDED if changed else MaintenanceOperationState.NOOP
-            ),
-            accepted=True,
-            executed=True,
-            before_snapshot_id=current_snapshot_id,
-            after_snapshot_id=after_snapshot_id,
-            planned={**plan, "trino_boundary": "executed"},
-            affected={
-                "snapshot_changed": changed,
-                "file_count_before": current_stats.get("file_count", 0),
-                "file_count_after": after_stats.get("file_count", 0),
-                "total_size_mb_before": current_stats.get("total_size_mb", 0.0),
-                "total_size_mb_after": after_stats.get("total_size_mb", 0.0),
-            },
-            evidence={
-                "provider": {
-                    "catalog": provider_result.get("catalog"),
-                    "ref": provider_result.get("ref", branch),
-                    "sql": provider_result.get("sql"),
-                },
-                "before": {
-                    "snapshot_id": current_snapshot_id,
-                    "snapshot_count": current_stats.get("snapshot_count", 0),
-                    "file_count": current_stats.get("file_count", 0),
-                },
-                "after": {
-                    "snapshot_id": after_snapshot_id,
-                    "snapshot_count": after_stats.get("snapshot_count", 0),
-                    "file_count": after_stats.get("file_count", 0),
-                },
-            },
-            operation_id=operation_id,
-            retry_safe=True,
-        ).to_dict()
+                retry_safe=True,
+            )
+        )
 
     def _compaction_metadata(self, table_name: str, ref: str) -> tuple[int | None, dict[str, Any]]:
         """Load the current Iceberg snapshot and file statistics for preconditions."""

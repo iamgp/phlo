@@ -57,8 +57,8 @@ class MaintenanceOperationResult:
     status: MaintenanceOperationState
     accepted: bool
     executed: bool
-    before_snapshot_id: int | None = None
-    after_snapshot_id: int | None = None
+    before_revision: str | int | None = None
+    after_revision: str | int | None = None
     planned: dict[str, Any] = field(default_factory=dict)
     affected: dict[str, Any] = field(default_factory=dict)
     evidence: dict[str, Any] = field(default_factory=dict)
@@ -76,8 +76,8 @@ class MaintenanceOperationResult:
             "status": self.status.value,
             "accepted": self.accepted,
             "executed": self.executed,
-            "before_snapshot_id": self.before_snapshot_id,
-            "after_snapshot_id": self.after_snapshot_id,
+            "before_revision": self.before_revision,
+            "after_revision": self.after_revision,
             "planned": self.planned,
             "affected": self.affected,
             "evidence": self.evidence,
