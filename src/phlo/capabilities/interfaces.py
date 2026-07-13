@@ -276,6 +276,44 @@ class QueryEngine(Protocol):
 
 
 @runtime_checkable
+class MaintenanceExecutor(Protocol):
+    """Provider-neutral executor for scoped table maintenance operations."""
+
+    def for_ref(self, ref: str) -> MaintenanceExecutor:
+        """Return an executor whose backend connection targets ``ref``."""
+        ...
+
+    def compact_table(
+        self,
+        *,
+        table_name: str,
+        ref: str,
+        expected_revision: str | int | None = None,
+        operation_id: str | None = None,
+    ) -> Any:
+        """Compact one table on the explicitly selected ref."""
+        ...
+
+
+@runtime_checkable
+class MaintenanceTableStore(Protocol):
+    """Provider-neutral table-store contract for planned compaction."""
+
+    def compact(
+        self,
+        *,
+        table_name: str,
+        override_ref: str | None = None,
+        dry_run: bool = False,
+        expected_revision: str | int | None = None,
+        operation_id: str | None = None,
+        executor: MaintenanceExecutor | None = None,
+    ) -> dict[str, Any]:
+        """Plan or execute compaction for one table."""
+        ...
+
+
+@runtime_checkable
 class LineageSink(Protocol):
     """Protocol for lineage backends and queryable lineage stores."""
 

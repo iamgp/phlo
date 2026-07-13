@@ -132,6 +132,16 @@ class QueryEngineSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class MaintenanceExecutorSpec:
+    """Provider for ref-aware table maintenance execution."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+    support: CapabilitySupport = field(default_factory=CapabilitySupport)
+
+
+@dataclass(frozen=True, slots=True)
 class ObjectStoreSpec:
     """Object storage capability (for example MinIO, RustFS, S3)."""
 

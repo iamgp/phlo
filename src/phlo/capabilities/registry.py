@@ -20,6 +20,7 @@ from phlo.capabilities.specs import (
     DataMigrationSourceSpec,
     GovernanceBackendSpec,
     LineageSinkSpec,
+    MaintenanceExecutorSpec,
     MaintenanceReadModelSpec,
     MetadataCatalogSpec,
     ObjectStoreSpec,
@@ -79,6 +80,12 @@ CAPABILITY_FAMILIES: dict[str, CapabilityFamilyDefinition[Any, Any]] = {
         spec_type=QueryEngineSpec,
         key=lambda spec: spec.name,
         provider_method="get_query_engines",
+    ),
+    "maintenance_executor": CapabilityFamilyDefinition(
+        name="maintenance_executor",
+        spec_type=MaintenanceExecutorSpec,
+        key=lambda spec: spec.name,
+        provider_method="get_maintenance_executors",
     ),
     "object_store": CapabilityFamilyDefinition(
         name="object_store",

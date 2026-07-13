@@ -44,15 +44,28 @@ Example:
 
 import os
 import re
+import time
 from datetime import datetime, timezone
 from typing import Any
 
 import dagster as dg
 
-from phlo.capabilities import QueryEngine, resolve_capability
+from phlo.capabilities import (
+    MaintenanceExecutor,
+    MaintenanceTableStore,
+    MaintenanceOperationResult,
+    MaintenanceOperationState,
+    QueryEngine,
+    resolve_capability,
+)
 from phlo.logging import get_logger
 
 from phlo_dagster.iceberg_maintenance_utils import list_tables
+from phlo_dagster.iceberg_maintenance_utils import (
+    MaintenanceConfig,
+    finish_maintenance_op,
+    start_maintenance_op,
+)
 from phlo_dagster.maintenance_policy import (
     NamespacePolicy,
     TableAction,
@@ -167,6 +180,37 @@ class OptimizeConfig(dg.Config):
 
     table_names: list[str]
     ref: str = "main"
+    dry_run: bool = False
+
+
+def _load_optimize_maintenance_executor() -> MaintenanceExecutor:
+    """Resolve the explicit ref-aware maintenance executor capability."""
+    resolution = resolve_capability("maintenance_executor", "trino")
+    if resolution is None:
+        raise RuntimeError(
+            "Trino compaction requires a maintenance_executor:trino capability. "
+            "Install phlo-trino or another provider exposing that capability."
+        )
+    executor = resolution.provider
+    if not isinstance(executor, MaintenanceExecutor):
+        raise RuntimeError("Resolved maintenance_executor:trino does not implement the contract")
+    return executor
+
+
+def _load_optimize_table_store() -> MaintenanceTableStore:
+    """Resolve the provider-neutral table store used for compaction."""
+    resolution = resolve_capability("table_store", "iceberg")
+    if resolution is None:
+        raise RuntimeError(
+            "Compaction requires a table_store:iceberg capability. "
+            "Install or configure a provider exposing the maintenance table-store contract."
+        )
+    table_store = resolution.provider
+    if not isinstance(table_store, MaintenanceTableStore):
+        raise RuntimeError(
+            "Resolved table_store:iceberg does not implement the maintenance table-store contract"
+        )
+    return table_store
 
 
 @dg.op
@@ -174,24 +218,87 @@ def optimize_table_files(
     context: dg.OpExecutionContext,
     config: OptimizeConfig,
 ) -> dict[str, Any]:
-    """Run Trino OPTIMIZE on tables to compact small files."""
-    query_engine = _load_optimize_query_engine()
+    """Run the shared Iceberg compaction operation for selected tables."""
+    table_store = _load_optimize_table_store()
+    executor = (
+        _load_optimize_maintenance_executor().for_ref(config.ref) if not config.dry_run else None
+    )
     results: list[dict[str, Any]] = []
     errors: list[str] = []
+    maintenance_config = MaintenanceConfig(
+        namespace="selected",
+        ref=config.ref,
+    )
+    started_at = time.monotonic()
+    telemetry = start_maintenance_op(
+        context,
+        maintenance_config,
+        "compact",
+        dry_run=config.dry_run,
+    )
 
     for table_name in config.table_names:
         try:
-            validated_table_name = _validate_table_name(table_name)
-            query_engine.execute(f"ALTER TABLE {validated_table_name} EXECUTE optimize")
-            context.log.info(f"Optimized table {table_name}")
-            results.append({"table_name": table_name, "status": "success"})
+            _validate_table_name(table_name)
+            result = table_store.compact(
+                table_name=table_name,
+                override_ref=config.ref,
+                dry_run=config.dry_run,
+                operation_id=f"{context.run_id}:{table_name}",
+                executor=executor,
+            )
+            results.append(result)
+            status = str(result.get("status", "unknown"))
+            if status in {"failed", "blocked"}:
+                error = result.get("failure") or {"message": "compaction failed"}
+                error_msg = f"Failed to compact {table_name}: {error}"
+                context.log.warning(error_msg)
+                errors.append(error_msg)
+            else:
+                context.log.info(f"Compaction {status} for {table_name}")
         except Exception as e:
             error_msg = f"Failed to optimize {table_name}: {e}"
             context.log.warning(error_msg)
             errors.append(error_msg)
-            results.append({"table_name": table_name, "status": "error", "error": str(e)})
+            results.append(
+                MaintenanceOperationResult(
+                    operation="compact",
+                    table_name=table_name,
+                    ref=config.ref,
+                    dry_run=config.dry_run,
+                    status=MaintenanceOperationState.FAILED,
+                    accepted=False,
+                    executed=False,
+                    failure={
+                        "code": "invalid_request",
+                        "type": type(e).__name__,
+                        "message": str(e),
+                        "retryable": False,
+                    },
+                    operation_id=f"{context.run_id}:{table_name}",
+                    retry_safe=False,
+                ).to_dict()
+            )
 
-    return {"results": results, "errors": errors}
+    summary = finish_maintenance_op(
+        context,
+        maintenance_config,
+        telemetry,
+        "compact",
+        duration_seconds=time.monotonic() - started_at,
+        errors=errors,
+        extra_tags={"dry_run": config.dry_run},
+        evidence={"results": results},
+        tables_processed=len(results),
+    )
+    return {
+        "operation": "compact",
+        "dry_run": config.dry_run,
+        "results": results,
+        "errors": errors,
+        "status": summary["status"],
+        "run_id": context.run_id,
+    }
 
 
 @dg.job(description="Optimize Iceberg table files via Trino EXECUTE optimize")

@@ -36,6 +36,7 @@ def test_maintenance_emitters_propagate_context_correlation(monkeypatch) -> None
         duration_seconds=3.5,
         errors=[],
         tables_processed=4,
+        evidence={"results": [{"table_name": "raw.events", "status": "succeeded"}]},
     )
 
     telemetry_events = [event for event in bus.events if isinstance(event, TelemetryEvent)]
@@ -43,3 +44,6 @@ def test_maintenance_emitters_propagate_context_correlation(monkeypatch) -> None
     for event in telemetry_events:
         assert event.correlation.run_id == "run-91"
         assert event.correlation.job_name == "maintenance_job"
+
+    complete = [event for event in telemetry_events if event.name == "iceberg.maintenance.complete"]
+    assert complete[0].payload["evidence"]["results"][0]["status"] == "succeeded"

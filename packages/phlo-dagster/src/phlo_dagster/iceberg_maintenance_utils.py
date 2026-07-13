@@ -354,6 +354,7 @@ def finish_maintenance_op(
     duration_seconds: float,
     errors: list[str],
     extra_tags: dict[str, Any] | None = None,
+    evidence: dict[str, Any] | None = None,
     **metrics_kwargs: Any,
 ) -> dict[str, Any]:
     """Emit completion telemetry, logs, and metrics for maintenance.
@@ -385,6 +386,8 @@ def finish_maintenance_op(
         **tag_extras,
         **metrics_kwargs,
     )
+    if evidence:
+        summary_payload["evidence"] = evidence
     context.log.info(
         "Completed Iceberg maintenance operation",
         extra=maintenance_log_extra(

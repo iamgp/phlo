@@ -26,13 +26,21 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+import re
 import time
 from typing import Any, Iterable
 
 import pandas as pd
 from trino.dbapi import connect
 
-from phlo.capabilities import CapabilitySupport, RuntimeContext, resolve_runtime_ref
+from phlo.capabilities import (
+    CapabilitySupport,
+    MaintenanceExecutionError,
+    MaintenanceExecutionPhase,
+    MaintenancePreconditionError,
+    RuntimeContext,
+    resolve_runtime_ref,
+)
 from phlo.logging import get_logger
 from phlo.references import LogicalRelation, quote_identifier
 from phlo_trino._errors import iter_exception_chain
@@ -40,6 +48,8 @@ from phlo_trino.settings import get_settings as get_trino_settings
 from phlo_trino.type_mapping import apply_schema_types
 
 logger = get_logger(__name__)
+
+_MAINTENANCE_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 TRINO_QUERY_ENGINE_SUPPORT = CapabilitySupport(
     supports_refs=True,
@@ -159,6 +169,17 @@ class TrinoResource:
             schema=schema,
         )
 
+    def for_ref(self, ref: str) -> TrinoResource:
+        """Return a resource configured for the requested Iceberg ref."""
+        return TrinoResource(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            catalog=self.catalog,
+            ref=ref,
+            runtime=None,
+        )
+
     @contextmanager
     def cursor(self, schema: str | None = None):
         """Yield a Trino cursor and close resources on exit.
@@ -200,6 +221,69 @@ class TrinoResource:
             if cursor.description is None:
                 return []
             return cursor.fetchall()
+
+    def compact_table(
+        self,
+        *,
+        table_name: str,
+        ref: str,
+        expected_revision: str | int | None = None,
+        operation_id: str | None = None,
+    ) -> dict[str, object]:
+        """Execute table compaction against this resource's selected ref.
+
+        The requested ref is checked against the connection catalog before any
+        SQL is sent, so a caller cannot accidentally compact the default branch
+        with a policy intended for another branch.
+        """
+        parts = table_name.split(".")
+        if len(parts) != 2 or any(not _MAINTENANCE_IDENTIFIER.fullmatch(part) for part in parts):
+            raise MaintenancePreconditionError(
+                "Compaction table_name must be a namespace.table identifier containing only "
+                "letters, numbers, and underscores."
+            )
+        requested_ref = ref or "main"
+        effective_ref = self._resolved_ref() or "main"
+        if effective_ref != requested_ref:
+            raise MaintenancePreconditionError(
+                f"Trino executor is configured for ref {effective_ref!r}, "
+                f"but compaction requested {requested_ref!r}"
+            )
+        history_relation = ".".join(
+            quote_identifier(part) for part in (*parts[:-1], f"{parts[-1]}$history")
+        )
+        try:
+            snapshot_rows = self.execute(
+                f"SELECT snapshot_id FROM {history_relation} "
+                "WHERE is_current_ancestor ORDER BY made_current_at DESC LIMIT 1"
+            )
+        except Exception as exc:  # noqa: BLE001 - no mutation was submitted
+            raise MaintenanceExecutionError(MaintenanceExecutionPhase.PREFLIGHT, exc) from exc
+        current_snapshot_id = int(snapshot_rows[0][0]) if snapshot_rows else None
+        if expected_revision != current_snapshot_id:
+            raise MaintenancePreconditionError(
+                "Iceberg snapshot changed before compaction: "
+                f"expected {expected_revision!r}, current {current_snapshot_id!r}"
+            )
+        sql = f"ALTER TABLE {'.'.join(quote_identifier(part) for part in parts)} EXECUTE optimize"
+        logger.info(
+            "trino_iceberg_compaction_requested",
+            table_name=table_name,
+            ref=effective_ref,
+            catalog=self._resolved_catalog(),
+            operation_id=operation_id,
+        )
+        try:
+            rows = self.execute(sql)
+        except Exception as exc:  # noqa: BLE001 - DDL submission outcome is ambiguous
+            raise MaintenanceExecutionError(MaintenanceExecutionPhase.SUBMISSION, exc) from exc
+        return {
+            "table_name": table_name,
+            "ref": effective_ref,
+            "catalog": self._resolved_catalog(),
+            "sql": sql,
+            "rows": rows,
+        }
 
     def read_dataframe(
         self,

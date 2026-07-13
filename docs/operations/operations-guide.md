@@ -275,35 +275,48 @@ SHOW STATS FOR bronze.events;
 **Optimize files**:
 
 ```python
-from phlo_iceberg import get_iceberg_table
+from phlo_iceberg import IcebergResource
+from phlo_trino import TrinoResource
 
-table = get_iceberg_table("bronze.events")
+iceberg = IcebergResource(ref="main")
+trino = TrinoResource(ref="main")
 
-# Compact small files
-table.optimize.compact()
+# Plan without invoking Trino. The snapshot token is checked again by the
+# provider immediately before OPTIMIZE.
+plan = iceberg.compact(table_name="bronze.events", dry_run=True)
 
-# Expire old snapshots
-table.expire_snapshots(older_than=30)  # days
+# Execute through the ref-aware Trino provider. This does not expire snapshots.
+result = iceberg.compact(
+    table_name="bronze.events",
+    expected_snapshot_id=plan["before_snapshot_id"],
+    operation_id="maintenance-2026-07-13-001",
+    executor=trino,
+)
 ```
+
+The result reports `planned`, `succeeded`, `noop`, `blocked`, or `failed`, with
+the observed snapshot transition and structured failure details. Compaction does
+not expire snapshots, so snapshot expiration and orphan-file cleanup remain
+separate operations. A stale snapshot token blocks execution, and Iceberg's
+commit conflict handling rejects a concurrent commit after the provider's
+best-effort head check; the check is not an atomic fence. The operation ID is
+correlation evidence only: execution is at-least-once, and a provider error
+after submission is `failed` with outcome-unknown evidence, so operators must
+reconcile the table before retrying. The execute path must use an executor
+configured for the requested ref.
 
 **Automated maintenance**:
 
 ```python
-# workflows/maintenance/iceberg.py
-from dagster import asset, schedule
-
-@asset
-def optimize_iceberg_tables():
-    tables = ["bronze.events", "silver.events_cleaned"]
-    for table_name in tables:
-        table = get_iceberg_table(table_name)
-        table.optimize.compact()
-        table.expire_snapshots(older_than=30)
-
-@schedule(cron_schedule="0 2 * * 0", job_name="weekly_maintenance")
-def weekly_iceberg_maintenance():
-    return RunRequest()
+# Run the existing policy-driven Dagster maintenance job for selected tables.
+# Its operation config is dry_run=False by default, and each table is guarded
+# by its current Iceberg snapshot before the injected Trino executor runs.
+from phlo_dagster.maintenance_sensor import optimize_tables_job
 ```
+
+The job returns structured per-table operation evidence and emits the existing
+maintenance telemetry. It does not provide a durable operation ledger or
+deduplication record, so outcome-unknown retries still require reconciliation.
 
 ### Dagster Performance
 
