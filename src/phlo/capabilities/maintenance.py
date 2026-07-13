@@ -64,6 +64,7 @@ class MaintenanceOperationResult:
     evidence: dict[str, Any] = field(default_factory=dict)
     failure: dict[str, Any] | None = None
     operation_id: str | None = None
+    plan_token: str | None = None
     retry_safe: bool = False
 
     def to_dict(self) -> dict[str, Any]:
@@ -83,6 +84,7 @@ class MaintenanceOperationResult:
             "evidence": self.evidence,
             "failure": self.failure,
             "operation_id": self.operation_id,
+            "plan_token": self.plan_token,
             "retry_safe": self.retry_safe,
         }
 

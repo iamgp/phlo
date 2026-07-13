@@ -26,7 +26,7 @@ Configuration File Format:
         expire:
           snapshot_count_gt: 20
           older_than_days: 7
-          retain_last: 5
+          retain_last: 1
         optimize:
           avg_file_size_mb_lt: 64.0
       - namespace: curated
@@ -60,10 +60,11 @@ from phlo.capabilities import (
 )
 from phlo.logging import get_logger
 
-from phlo_dagster.iceberg_maintenance_utils import list_tables
 from phlo_dagster.iceberg_maintenance_utils import (
     MaintenanceConfig,
     finish_maintenance_op,
+    list_tables,
+    resolve_maintenance_discovery,
     start_maintenance_op,
 )
 from phlo_dagster.maintenance_policy import (
@@ -98,26 +99,8 @@ def _validate_table_name(table_name: str) -> str:
 
 
 def _load_iceberg_stats() -> Any:
-    """Load get_table_stats lazily for optional integration support.
-
-    Args:
-        None
-
-    Returns:
-        get_table_stats function.
-
-    Raises:
-        RuntimeError: If phlo-iceberg package is not available.
-
-    """
-    try:
-        from phlo_iceberg.tables import get_table_stats
-    except Exception as exc:  # noqa: BLE001 - runtime guidance for optional dependency
-        raise RuntimeError(
-            "Iceberg maintenance requires phlo-iceberg. Install phlo-dagster[iceberg] "
-            "or phlo-iceberg."
-        ) from exc
-    return get_table_stats
+    """Resolve table statistics through the neutral maintenance contract."""
+    return resolve_maintenance_discovery().get_table_stats
 
 
 def _load_optimize_query_engine() -> QueryEngine:
@@ -385,7 +368,7 @@ def maintenance_policy_sensor(context: dg.SensorEvaluationContext):
                                     policy.expire.older_than_days if policy.expire else 7
                                 ),
                                 "snapshot_retain_last": (
-                                    policy.expire.retain_last if policy.expire else 5
+                                    policy.expire.retain_last if policy.expire else 1
                                 ),
                                 "table_allowlist": expire_tables,
                             }

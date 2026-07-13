@@ -56,6 +56,7 @@ warnings.filterwarnings(
 )
 
 logger = get_logger(__name__)
+SAFE_MIN_RETENTION_HOURS = 7 * 24
 
 
 def _align_arrow_table_to_target_schema(arrow_table, target_schema, *, table_name: str):
@@ -856,7 +857,7 @@ def delete_table(table_name: str, ref: str = "main") -> None:
 def expire_snapshots(
     table_name: str,
     older_than_days: int | None = None,
-    retain_last: int = 5,
+    retain_last: int = 1,
     ref: str = "main",
     *,
     older_than_hours: int | None = None,
@@ -867,7 +868,7 @@ def expire_snapshots(
         table_name: Fully qualified table name (namespace.table)
         older_than_days: Expire snapshots older than this many days (must be positive).
             Mutually exclusive with ``older_than_hours``; defaults to 7 when neither is set.
-        retain_last: Always retain at least this many snapshots (must be non-negative)
+        retain_last: Always retain at least this many snapshots (must be at least one)
         ref: Nessie branch reference
         older_than_hours: Expire snapshots older than this many hours (must be positive).
 
@@ -879,42 +880,27 @@ def expire_snapshots(
             retention <= 0, retain_last < 0, or table_name format invalid.
 
     """
-    from datetime import datetime, timedelta, timezone
-
     if older_than_days is not None and older_than_hours is not None:
         raise ValueError("Specify older_than_days or older_than_hours, not both")
     if older_than_hours is not None:
         if older_than_hours <= 0:
             raise ValueError(f"older_than_hours must be positive, got {older_than_hours}")
-        retention = timedelta(hours=older_than_hours)
+        if older_than_hours < SAFE_MIN_RETENTION_HOURS:
+            raise ValueError("Snapshot retention cannot be less than the 7-day safety floor")
     else:
         effective_days = older_than_days if older_than_days is not None else 7
         if effective_days <= 0:
             raise ValueError(f"older_than_days must be positive, got {effective_days}")
-        retention = timedelta(days=effective_days)
-    if retain_last < 0:
-        raise ValueError(f"retain_last must be non-negative, got {retain_last}")
+        if effective_days * 24 < SAFE_MIN_RETENTION_HOURS:
+            raise ValueError("Snapshot retention cannot be less than the 7-day safety floor")
+    if retain_last < 1:
+        raise ValueError(f"retain_last must be at least 1, got {retain_last}")
     if "." not in table_name:
         raise ValueError(f"table_name must be namespace.table format, got {table_name}")
-
-    catalog = get_catalog(ref=ref)
-    table = catalog.load_table(table_name)
-
-    older_than_ms = int((datetime.now(timezone.utc) - retention).timestamp() * 1000)
-
-    snapshots_before = len(list(table.snapshots()))
-
-    table.manage_snapshots().expire_snapshots_older_than(
-        older_than_ms=older_than_ms,
-        retain_last=retain_last,
-    ).commit()
-
-    table.refresh()
-    snapshots_after = len(list(table.snapshots()))
-    deleted = snapshots_before - snapshots_after
-
-    logger.info("snapshots_expired", table_name=table_name, deleted_snapshots=deleted)
-    return {"deleted_snapshots": deleted}
+    raise ValueError(
+        "Direct snapshot expiry is disabled; use IcebergResource.expire_snapshots "
+        "for plan-first retention maintenance"
+    )
 
 
 def remove_orphan_files(
@@ -927,14 +913,14 @@ def remove_orphan_files(
 ) -> dict[str, int | list[str] | bool]:
     """Remove orphan files not referenced by any snapshot.
 
-    WARNING: When dry_run=False, this operation permanently deletes files from storage.
-    There is a race condition risk if new snapshots are being written concurrently.
-    Always test with dry_run=True first and ensure no concurrent writes during cleanup.
+    Direct destructive deletion is disabled here. Use the provider-neutral
+    ``IcebergResource.cleanup_orphan_files`` contract for dry-run discovery;
+    destructive execution is refused on the blessed provider boundary.
 
     Args:
         table_name: Fully qualified table name (namespace.table)
-        older_than_days: Only remove files older than this many days (must be positive).
-            Mutually exclusive with ``older_than_hours``; defaults to 3 when neither is set.
+            older_than_days: Only remove files older than this many days (must be positive).
+            Mutually exclusive with ``older_than_hours``; defaults to 7 when neither is set.
         dry_run: If True, only list files without deleting
         ref: Nessie branch reference
         older_than_hours: Only remove files older than this many hours (must be positive).
@@ -954,14 +940,22 @@ def remove_orphan_files(
     if older_than_hours is not None:
         if older_than_hours <= 0:
             raise ValueError(f"older_than_hours must be positive, got {older_than_hours}")
+        if older_than_hours < SAFE_MIN_RETENTION_HOURS:
+            raise ValueError("Orphan retention cannot be less than the 7-day safety floor")
         retention = timedelta(hours=older_than_hours)
     else:
-        effective_days = older_than_days if older_than_days is not None else 3
+        effective_days = older_than_days if older_than_days is not None else 7
         if effective_days <= 0:
             raise ValueError(f"older_than_days must be positive, got {effective_days}")
+        if effective_days * 24 < SAFE_MIN_RETENTION_HOURS:
+            raise ValueError("Orphan retention cannot be less than the 7-day safety floor")
         retention = timedelta(days=effective_days)
     if "." not in table_name:
         raise ValueError(f"table_name must be namespace.table format, got {table_name}")
+    if not dry_run:
+        raise ValueError(
+            "Direct orphan deletion is disabled; use IcebergResource.cleanup_orphan_files"
+        )
 
     catalog = get_catalog(ref=ref)
     table = catalog.load_table(table_name)
@@ -986,8 +980,11 @@ def remove_orphan_files(
     try:
         # List files in data directory
         data_location = f"{table_location}/data"
-        for file_info in io.list(data_location):
-            if file_info.path not in referenced_files:
+        from phlo_iceberg.resource import _list_storage_files, _storage_path_key
+
+        normalized_references = {_storage_path_key(path) for path in referenced_files}
+        for file_info in _list_storage_files(io, data_location):
+            if _storage_path_key(str(file_info.path)) not in normalized_references:
                 # Check if file is old enough
                 if hasattr(file_info, "mtime") and file_info.mtime:
                     if file_info.mtime < older_than_ts:
@@ -1003,20 +1000,6 @@ def remove_orphan_files(
             table_name=table_name,
             orphan_file_count=len(orphan_files),
         )
-    else:
-        deleted_count = 0
-        for orphan in orphan_files:
-            try:
-                io.delete(orphan)
-                deleted_count += 1
-            except Exception as e:
-                logger.warning("orphan_file_delete_failed", orphan_file=orphan, error=str(e))
-        logger.info(
-            "orphan_files_removed",
-            table_name=table_name,
-            deleted_file_count=deleted_count,
-        )
-
     return {
         "orphan_count": len(orphan_files),
         "orphan_files": orphan_files[:100],  # Limit list size

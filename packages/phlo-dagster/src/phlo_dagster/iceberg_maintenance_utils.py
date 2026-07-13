@@ -10,7 +10,9 @@ Configuration:
     - snapshot_retention_days: Age threshold for snapshot expiration
     - snapshot_retain_last: Minimum snapshots to preserve
     - orphan_retention_days: Age threshold for orphan file deletion
-    - orphan_dry_run: List-only mode for orphan cleanup
+    - dry_run: Plan-only mode; current retention execution is refused on the blessed provider boundary
+    - catalog, confirmation_token, confirmation_tokens: Plan-binding fields reserved for a future safe adapter
+    - max_affected_objects, max_affected_bytes: Finite limits validated against the plan before any future execution
     - ref: Nessie branch reference (default: main)
     - table_allowlist: Optional restriction to specific tables
 
@@ -61,6 +63,7 @@ from __future__ import annotations
 from typing import Annotated, Any, Optional
 
 import dagster as dg
+from phlo.capabilities import MaintenanceDiscovery, resolve_capability
 from phlo.hooks import HookCorrelation, TelemetryEventContext, TelemetryEventEmitter
 from pydantic import Field
 
@@ -69,27 +72,17 @@ from phlo.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _load_get_catalog():
-    """Load phlo-iceberg catalog helper lazily for optional integration support.
-
-    Args:
-        None
-
-    Returns:
-        get_catalog function from phlo_iceberg.catalog.
-
-    Raises:
-        RuntimeError: If phlo-iceberg package is not available.
-
-    """
-    try:
-        from phlo_iceberg.catalog import get_catalog
-    except Exception as exc:  # noqa: BLE001
+def resolve_maintenance_discovery() -> MaintenanceDiscovery:
+    """Resolve neutral discovery and statistics capabilities for maintenance."""
+    resolution = resolve_capability("table_store", "iceberg")
+    if resolution is None:
+        raise RuntimeError("Maintenance discovery requires a table_store:iceberg capability.")
+    provider = resolution.provider
+    if not isinstance(provider, MaintenanceDiscovery):
         raise RuntimeError(
-            "Iceberg maintenance requires phlo-iceberg. Install phlo-dagster[iceberg] "
-            "or phlo-iceberg."
-        ) from exc
-    return get_catalog
+            "Resolved table_store:iceberg does not implement the maintenance discovery contract."
+        )
+    return provider
 
 
 class MaintenanceConfig(dg.Config):
@@ -100,7 +93,12 @@ class MaintenanceConfig(dg.Config):
         snapshot_retention_days: Snapshot age threshold for expiration in days.
         snapshot_retain_last: Minimum number of snapshots to retain.
         orphan_retention_days: Orphan file age threshold for deletion in days.
-        orphan_dry_run: If ``True``, list orphan files without deleting.
+        dry_run: If ``True``, return a plan; current retention execution is refused on the blessed provider boundary.
+        catalog: Provider catalog used in plan evidence and future adapter validation.
+        confirmation_token: Exact token returned by the dry-run plan.
+        confirmation_tokens: Optional per-table confirmation tokens for multi-table execution.
+        max_affected_objects: Maximum candidate objects covered by the plan.
+        max_affected_bytes: Maximum candidate bytes covered by the plan.
         ref: Nessie reference (branch or tag) used for catalog operations.
 
     """
@@ -109,16 +107,22 @@ class MaintenanceConfig(dg.Config):
     namespace: str = "raw"
     # Expire snapshots older than this many days (must be positive)
     snapshot_retention_days: Annotated[int, Field(gt=0)] = 7
-    # Always retain at least this many snapshots (must be non-negative)
-    snapshot_retain_last: Annotated[int, Field(ge=0)] = 5
-    # Only remove orphan files older than this many days (must be positive)
-    orphan_retention_days: Annotated[int, Field(gt=0)] = 3
-    # If True, only list orphan files without deleting
-    orphan_dry_run: bool = True
+    # Always retain at least this many snapshots
+    snapshot_retain_last: Annotated[int, Field(ge=1)] = 1
+    # Only remove orphan files older than this many days (cannot be less than 7)
+    orphan_retention_days: Annotated[int, Field(ge=7)] = 7
+    # Deprecated compatibility flag; dry_run is authoritative.
+    orphan_dry_run: Optional[bool] = None
     # Nessie branch reference
     ref: str = "main"
     # Optional allowlist of fully qualified table names to restrict maintenance to
     table_allowlist: Optional[list[str]] = None
+    dry_run: bool = True
+    catalog: Optional[str] = None
+    confirmation_token: Optional[str] = None
+    confirmation_tokens: Optional[dict[str, str]] = None
+    max_affected_objects: Annotated[int, Field(ge=0)] = 1000
+    max_affected_bytes: Annotated[int, Field(ge=0)] = 10 * 1024 * 1024 * 1024
 
 
 def maintenance_tags(
@@ -223,6 +227,9 @@ def emit_maintenance_metrics(
     errors: int,
     snapshots_deleted: int | None = None,
     orphan_files: int | None = None,
+    candidate_orphan_files: int | None = None,
+    deleted_orphan_files: int | None = None,
+    unavailable_deleted_file_evidence: int | None = None,
     total_records: int | None = None,
     total_size_mb: float | None = None,
 ) -> None:
@@ -272,6 +279,27 @@ def emit_maintenance_metrics(
             name="iceberg.maintenance.orphan_files",
             value=orphan_files,
             unit="files",
+            payload=payload,
+        )
+    if candidate_orphan_files is not None:
+        emitter.emit_metric(
+            name="iceberg.maintenance.candidate_orphan_files",
+            value=candidate_orphan_files,
+            unit="files",
+            payload=payload,
+        )
+    if deleted_orphan_files is not None:
+        emitter.emit_metric(
+            name="iceberg.maintenance.deleted_orphan_files",
+            value=deleted_orphan_files,
+            unit="files",
+            payload=payload,
+        )
+    if unavailable_deleted_file_evidence is not None:
+        emitter.emit_metric(
+            name="iceberg.maintenance.unavailable_deleted_file_evidence",
+            value=unavailable_deleted_file_evidence,
+            unit="count",
             payload=payload,
         )
     if total_records is not None:
@@ -438,15 +466,8 @@ def list_tables(namespace: str, ref: str) -> list[str]:
         Fully qualified table names, or an empty list on errors.
 
     """
-    from pyiceberg.exceptions import NoSuchNamespaceError
-
-    catalog = _load_get_catalog()(ref=ref)
     try:
-        tables = catalog.list_tables(namespace)
-        return [f"{namespace}.{table[1]}" for table in tables]
-    except NoSuchNamespaceError:
-        logger.info("namespace_not_found_skipping", namespace=namespace)
-        return []
+        return resolve_maintenance_discovery().list_tables(namespace=namespace, ref=ref)
     except Exception:
         logger.exception("list_tables_failed", namespace=namespace)
         return []
@@ -463,10 +484,8 @@ def list_namespaces(ref: str) -> list[str]:
 
     """
 
-    catalog = _load_get_catalog()(ref=ref)
     try:
-        namespaces = catalog.list_namespaces()
-        return [ns[0] for ns in namespaces]
+        return resolve_maintenance_discovery().list_namespaces(ref=ref)
     except Exception:
         logger.exception("Failed to list namespaces")
         return []

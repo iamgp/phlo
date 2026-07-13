@@ -48,8 +48,12 @@ Example:
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+import hashlib
+import json
 import re
-from typing import Any
+from typing import Any, cast
+from urllib.parse import urlsplit
 
 from pandera.pandas import DataFrameModel
 from pyiceberg.catalog import Catalog
@@ -72,18 +76,19 @@ from phlo_iceberg.tables import (
     append_to_table,
     delete_rows_from_table,
     ensure_table,
-    expire_snapshots,
     get_table_stats,
     list_table_snapshots,
     merge_to_table,
     overwrite_table,
-    remove_orphan_files,
     rollback_table_to_snapshot,
 )
 
 logger = get_logger(__name__)
 
 _COMPACTION_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+SAFE_MIN_RETENTION_HOURS = 7 * 24
+DEFAULT_MAX_AFFECTED_OBJECTS = 1_000
+DEFAULT_MAX_AFFECTED_BYTES = 10 * 1024 * 1024 * 1024
 
 
 def _validate_compaction_table_name(table_name: str) -> str:
@@ -95,6 +100,77 @@ def _validate_compaction_table_name(table_name: str) -> str:
             "letters, numbers, and underscores."
         )
     return ".".join(f'"{part}"' for part in parts)
+
+
+def _maintenance_plan_token(plan: dict[str, object]) -> str:
+    """Hash only plan fields that change the requested mutation."""
+    basis = json.loads(json.dumps(plan, sort_keys=True, default=str))
+    for key in ("plan_token", "observed_at_ms", "age_seconds", "trino_boundary"):
+        _remove_plan_field(basis, key)
+    encoded = json.dumps(basis, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _remove_plan_field(value: object, key: str) -> None:
+    if isinstance(value, dict):
+        mapping = cast(dict[str, Any], value)
+        mapping.pop(key, None)
+        for child in mapping.values():
+            _remove_plan_field(child, key)
+    elif isinstance(value, list):
+        for child in value:
+            _remove_plan_field(child, key)
+
+
+def _retention_threshold(hours: int) -> str:
+    if hours % 24 == 0:
+        return f"{hours // 24}d"
+    return f"{hours}h"
+
+
+def _snapshot_id(snapshot: object) -> int:
+    return int(getattr(snapshot, "snapshot_id"))
+
+
+def _snapshot_summary(snapshot: object) -> dict[str, object]:
+    summary = getattr(snapshot, "summary", None)
+    operation = getattr(getattr(summary, "operation", None), "value", None)
+    return {"operation": operation, "summary": dict(getattr(summary, "additional_properties", {}))}
+
+
+def _safe_file_size(file_info: object) -> int | None:
+    for name in ("size_bytes", "file_size_in_bytes", "length", "size"):
+        value = getattr(file_info, name, None)
+        if value is not None:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def _storage_path_key(path: str) -> str:
+    """Normalize URI and PyArrow filesystem paths for reference comparison."""
+    parsed = urlsplit(path)
+    if parsed.scheme in {"s3", "s3a", "s3n"}:
+        return f"{parsed.netloc}{parsed.path}".rstrip("/")
+    return path.rstrip("/")
+
+
+def _list_storage_files(io: object, location: str) -> list[Any]:
+    """List files through PyIceberg's configured PyArrow filesystem."""
+    from pyarrow.fs import FileSelector, FileType
+
+    parse_location = getattr(io, "parse_location", None)
+    fs_by_scheme = getattr(io, "fs_by_scheme", None)
+    if not callable(parse_location) or not callable(fs_by_scheme):
+        raise MaintenancePreconditionError(
+            "Configured Iceberg FileIO cannot provide a safe recursive object listing."
+        )
+    scheme, netloc, path = parse_location(location, getattr(io, "properties", {}))
+    filesystem = fs_by_scheme(scheme, netloc)
+    infos = filesystem.get_file_info(FileSelector(path, recursive=True, allow_not_found=False))
+    return [info for info in infos if getattr(info, "type", None) is FileType.File]
 
 
 def _compaction_failure(
@@ -234,6 +310,19 @@ class IcebergResource:
         """
         branch = override_ref or self.ref
         return get_catalog(ref=branch)
+
+    def list_tables(self, *, namespace: str, ref: str) -> list[str]:
+        """List fully qualified tables through the provider's catalog."""
+        tables = self.get_catalog(override_ref=ref).list_tables(namespace)
+        return [f"{namespace}.{table[1]}" for table in tables]
+
+    def list_namespaces(self, *, ref: str) -> list[str]:
+        """List namespaces through the provider's catalog."""
+        return [namespace[0] for namespace in self.get_catalog(override_ref=ref).list_namespaces()]
+
+    def get_table_stats(self, *, table_name: str, ref: str) -> dict[str, Any]:
+        """Return normalized table statistics through the provider boundary."""
+        return get_table_stats(table_name=table_name, ref=ref)
 
     def schema_from_validation_schema(
         self, validation_schema: type[DataFrameModel] | type[Any]
@@ -917,6 +1006,582 @@ class IcebergResource:
             )
         return snapshot_id, stats
 
+    def _retention_metadata(
+        self,
+        *,
+        table_name: str,
+        ref: str,
+        retention_hours: int,
+        retain_last: int,
+        operation: str,
+        catalog: str | None,
+        max_affected_objects: int | None,
+        max_affected_bytes: int | None,
+    ) -> tuple[dict[str, object], object]:
+        """Build a provider-independent snapshot-retention plan."""
+        table = self.get_catalog(override_ref=ref).load_table(table_name)
+        snapshots = sorted(
+            list(table.snapshots()),
+            key=lambda snapshot: int(getattr(snapshot, "timestamp_ms", 0)),
+            reverse=True,
+        )
+        current = table.current_snapshot()
+        current_snapshot_id = int(current.snapshot_id) if current is not None else None
+        stats = get_table_stats(table_name=table_name, ref=ref, table=table)
+        if stats.get("current_snapshot_id") != current_snapshot_id:
+            raise MaintenancePreconditionError(
+                "Iceberg metadata returned inconsistent snapshot evidence"
+            )
+        refs_available = True
+        refs: dict[str, int] = {}
+        try:
+            for name, snapshot_ref in table.refs().items():
+                snapshot_id = getattr(snapshot_ref, "snapshot_id", None)
+                if snapshot_id is not None:
+                    refs[str(name)] = int(snapshot_id)
+        except Exception:
+            refs_available = False
+        protected_ids = set(refs.values())
+        if current_snapshot_id is not None:
+            protected_ids.add(current_snapshot_id)
+        protected_ids.update(
+            _snapshot_id(snapshot) for snapshot in snapshots[: max(retain_last, 1)]
+        )
+        cutoff_ms = int((datetime.now(UTC) - timedelta(hours=retention_hours)).timestamp() * 1000)
+        candidates: list[dict[str, object]] = []
+        for snapshot in snapshots:
+            snapshot_id = _snapshot_id(snapshot)
+            timestamp_ms = int(getattr(snapshot, "timestamp_ms", 0))
+            age_seconds = max(0.0, (datetime.now(UTC).timestamp() * 1000 - timestamp_ms) / 1000)
+            if timestamp_ms < cutoff_ms and snapshot_id not in protected_ids:
+                candidates.append(
+                    {
+                        "snapshot_id": snapshot_id,
+                        "timestamp_ms": timestamp_ms,
+                        "age_seconds": round(age_seconds, 3),
+                        **_snapshot_summary(snapshot),
+                    }
+                )
+        candidate_ids: set[int] = set()
+        affected_bytes: int | None = 0 if not candidates else None
+        unavailable_fields: list[str] = []
+        if candidates:
+            try:
+                candidate_ids = {
+                    int(cast(dict[str, Any], candidate)["snapshot_id"]) for candidate in candidates
+                }
+                candidate_paths: dict[str, int | None] = {}
+                retained_paths: set[str] = set()
+                for snapshot in snapshots:
+                    snapshot_id = _snapshot_id(snapshot)
+                    for manifest in snapshot.manifests(table.io):
+                        for entry in manifest.fetch_manifest_entry(table.io):
+                            data_file = entry.data_file
+                            path = str(data_file.file_path)
+                            size = _safe_file_size(data_file)
+                            if snapshot_id in candidate_ids:
+                                candidate_paths[path] = size
+                            else:
+                                retained_paths.add(path)
+                unreferenced = set(candidate_paths) - retained_paths
+                sizes = [candidate_paths[path] for path in unreferenced]
+                if any(size is None for size in sizes):
+                    unavailable_fields.append("affected_bytes")
+                else:
+                    affected_bytes = sum(int(size) for size in sizes if size is not None)
+            except Exception:
+                unavailable_fields.append("affected_bytes")
+        plan: dict[str, object] = {
+            "operation": operation,
+            "table_name": table_name,
+            "ref": ref,
+            "catalog": catalog,
+            "retention_hours": retention_hours,
+            "retention_threshold": _retention_threshold(retention_hours),
+            "minimum_safe_retention_hours": SAFE_MIN_RETENTION_HOURS,
+            "retain_last": retain_last,
+            "count_retention": (
+                "requested_provider_479_plus" if retain_last > 1 else "not_requested"
+            ),
+            "provider_version": None,
+            "before_snapshot_id": current_snapshot_id,
+            "snapshot_count": len(snapshots),
+            "file_count": stats.get("file_count"),
+            "total_size_bytes": stats.get("total_size_bytes"),
+            "candidate_snapshots": candidates,
+            "retained_snapshot_ids": [
+                _snapshot_id(snapshot)
+                for snapshot in snapshots
+                if _snapshot_id(snapshot) not in candidate_ids
+            ],
+            "protected_snapshot_ids": sorted(protected_ids),
+            "table_snapshot_refs": refs,
+            "table_snapshot_ref_evidence": "available" if refs_available else "unavailable",
+            "nessie_ref_evidence": "unavailable",
+            "affected_objects": len(candidates),
+            "affected_bytes": affected_bytes,
+            "bytes_scope": "unreferenced_data_files_only",
+            "limits_scope": (
+                "candidate_snapshots_and_unreferenced_data_files; provider_metadata_not_counted"
+            ),
+            "limits_enforced": False,
+            "deletion_surface": "provider_threshold_not_bound",
+            "unavailable_fields": [*unavailable_fields, "provider_version"],
+            "max_affected_objects": max_affected_objects,
+            "max_affected_bytes": max_affected_bytes,
+            "snapshot_guard": "fresh_table_metadata_only",
+            "trino_boundary": "pending",
+            "execution_support": "unsupported_without_bound_deletion_set",
+            "observed_at_ms": int(datetime.now(UTC).timestamp() * 1000),
+        }
+        plan["plan_token"] = _maintenance_plan_token(plan)
+        return plan, table
+
+    def _orphan_retention_metadata(
+        self,
+        *,
+        table_name: str,
+        ref: str,
+        retention_hours: int,
+        catalog: str | None,
+        max_affected_objects: int | None,
+        max_affected_bytes: int | None,
+    ) -> tuple[dict[str, object], object]:
+        """Build an orphan plan without invoking Trino."""
+        table = self.get_catalog(override_ref=ref).load_table(table_name)
+        current = table.current_snapshot()
+        current_snapshot_id = int(current.snapshot_id) if current is not None else None
+        stats = get_table_stats(table_name=table_name, ref=ref, table=table)
+        if stats.get("current_snapshot_id") != current_snapshot_id:
+            raise MaintenancePreconditionError(
+                "Iceberg metadata returned inconsistent snapshot evidence"
+            )
+        refs_available = True
+        refs: dict[str, int] = {}
+        try:
+            for name, snapshot_ref in table.refs().items():
+                snapshot_id = getattr(snapshot_ref, "snapshot_id", None)
+                if snapshot_id is not None:
+                    refs[str(name)] = int(snapshot_id)
+        except Exception:
+            refs_available = False
+        referenced_files: set[str] = set()
+        for snapshot in table.snapshots():
+            for manifest in snapshot.manifests(table.io):
+                referenced_files.add(str(manifest.manifest_path))
+                for entry in manifest.fetch_manifest_entry(table.io):
+                    referenced_files.add(str(entry.data_file.file_path))
+        cutoff = datetime.now(UTC) - timedelta(hours=retention_hours)
+        candidates: list[dict[str, object]] = []
+        unavailable_fields: list[str] = []
+        scan_status = "available"
+        try:
+            normalized_references = {_storage_path_key(path) for path in referenced_files}
+            for file_info in _list_storage_files(table.io, f"{table.location()}/data"):
+                path = str(file_info.path)
+                if _storage_path_key(path) in normalized_references:
+                    continue
+                mtime = getattr(file_info, "mtime", None)
+                if isinstance(mtime, datetime):
+                    mtime_value = mtime if mtime.tzinfo else mtime.replace(tzinfo=UTC)
+                elif mtime is not None:
+                    mtime_value = datetime.fromtimestamp(float(mtime), tz=UTC)
+                else:
+                    unavailable_fields.append("candidate_age")
+                    continue
+                if mtime_value < cutoff:
+                    candidates.append(
+                        {
+                            "path": path,
+                            "mtime": mtime_value.isoformat(),
+                            "age_seconds": round(
+                                (datetime.now(UTC) - mtime_value).total_seconds(), 3
+                            ),
+                            "size_bytes": _safe_file_size(file_info),
+                        }
+                    )
+        except Exception as exc:  # noqa: BLE001 - fail closed on destructive scans
+            scan_status = "unavailable"
+            unavailable_fields.append(f"candidate_listing: {type(exc).__name__}")
+        sizes = [cast(int | None, candidate.get("size_bytes")) for candidate in candidates]
+        if any(size is None for size in sizes):
+            affected_bytes = None if candidates else 0
+            if candidates:
+                unavailable_fields.append("affected_bytes")
+        else:
+            affected_bytes = sum(int(size) for size in sizes if size is not None)
+        plan: dict[str, object] = {
+            "operation": "cleanup_orphan_files",
+            "table_name": table_name,
+            "ref": ref,
+            "catalog": catalog,
+            "retention_hours": retention_hours,
+            "retention_threshold": _retention_threshold(retention_hours),
+            "minimum_safe_retention_hours": SAFE_MIN_RETENTION_HOURS,
+            "before_snapshot_id": current_snapshot_id,
+            "snapshot_count": stats.get("snapshot_count"),
+            "file_count": stats.get("file_count"),
+            "total_size_bytes": stats.get("total_size_bytes"),
+            "candidate_files": candidates,
+            "retained_file_count": stats.get("file_count"),
+            "retained_bytes": stats.get("total_size_bytes"),
+            "protected_snapshot_ids": sorted({current_snapshot_id, *refs.values()} - {None}),
+            "table_snapshot_refs": refs,
+            "table_snapshot_ref_evidence": "available" if refs_available else "unavailable",
+            "nessie_ref_evidence": "unavailable",
+            "scan_status": scan_status,
+            "affected_objects": len(candidates),
+            "affected_bytes": affected_bytes,
+            "limits_scope": ("candidate_orphan_files; provider_internal_metadata_not_counted"),
+            "limits_enforced": False,
+            "deletion_surface": "provider_threshold_not_bound",
+            "max_affected_objects": max_affected_objects,
+            "max_affected_bytes": max_affected_bytes,
+            "snapshot_guard": "fresh_table_metadata_only",
+            "trino_boundary": "pending",
+            "execution_support": "unsupported_without_bound_deletion_set",
+            "observed_at_ms": int(datetime.now(UTC).timestamp() * 1000),
+            "unavailable_fields": sorted(set(unavailable_fields)),
+        }
+        plan["plan_token"] = _maintenance_plan_token(plan)
+        return plan, table
+
+    def _retention_blocked(
+        self,
+        *,
+        operation: str,
+        table_name: str,
+        ref: str,
+        dry_run: bool,
+        plan: dict[str, object],
+        code: str,
+        message: str,
+        operation_id: str | None,
+        retry_safe: bool = True,
+    ) -> dict[str, object]:
+        before_snapshot_id = plan.get("before_snapshot_id")
+        before_snapshot = (
+            int(before_snapshot_id) if isinstance(before_snapshot_id, (int, str)) else None
+        )
+        return MaintenanceOperationResult(
+            operation=operation,
+            table_name=table_name,
+            ref=ref,
+            dry_run=dry_run,
+            status=MaintenanceOperationState.BLOCKED,
+            accepted=False,
+            executed=False,
+            before_revision=before_snapshot,
+            planned=plan,
+            evidence={"before": plan, "unavailable_fields": plan.get("unavailable_fields", [])},
+            failure={
+                "code": code,
+                "type": "PreconditionError",
+                "message": message,
+                "retryable": retry_safe,
+            },
+            operation_id=operation_id,
+            plan_token=str(plan.get("plan_token")),
+            retry_safe=retry_safe,
+        ).to_dict()
+
+    def _validate_retention_execute(
+        self,
+        *,
+        operation: str,
+        table_name: str,
+        ref: str,
+        catalog: str | None,
+        plan: dict[str, object],
+        expected_snapshot_id: int | str | None,
+        confirmation_token: str | None,
+        max_affected_objects: int | None,
+        max_affected_bytes: int | None,
+        operation_id: str | None,
+    ) -> dict[str, object]:
+        """Validate an execute request and return a blocked result.
+
+        The v1 provider boundary has no operation that can bind the complete
+        planned deletion surface, so this method deliberately never submits SQL.
+        """
+        plan = cast(dict[str, Any], plan)
+        plan_token = str(plan["plan_token"])
+
+        def block(code: str, message: str, *, retry_safe: bool = True) -> dict[str, object]:
+            return self._retention_blocked(
+                operation=operation,
+                table_name=table_name,
+                ref=ref,
+                dry_run=False,
+                plan={**plan, "trino_boundary": "not_invoked"},
+                code=code,
+                message=message,
+                operation_id=operation_id,
+                retry_safe=retry_safe,
+            )
+
+        if not catalog:
+            return block("catalog_required", "Execute mode requires an explicit catalog.")
+        if expected_snapshot_id is None:
+            return block(
+                "snapshot_precondition_required",
+                "Execute mode requires the snapshot observed by the plan.",
+            )
+        if not confirmation_token or confirmation_token != plan_token:
+            return block(
+                "plan_token_invalid", "Confirmation token does not match this exact current plan."
+            )
+        if max_affected_objects is None or max_affected_bytes is None:
+            return block(
+                "safety_limits_required", "Execute mode requires finite object and byte limits."
+            )
+        if max_affected_objects < 0 or max_affected_bytes < 0:
+            return block("invalid_safety_limit", "Safety limits must be non-negative.")
+        if int(plan.get("affected_objects") or 0) > max_affected_objects:
+            return block(
+                "affected_object_limit_exceeded",
+                "The plan exceeds max_affected_objects; obtain a narrower plan.",
+            )
+        if plan.get("affected_bytes") is None and int(plan.get("affected_objects") or 0):
+            return block(
+                "affected_bytes_unavailable", "The provider cannot prove the affected bytes safely."
+            )
+        if int(plan.get("affected_bytes") or 0) > max_affected_bytes:
+            return block(
+                "affected_byte_limit_exceeded",
+                "The plan exceeds max_affected_bytes; obtain a narrower plan.",
+            )
+        if plan.get("table_snapshot_ref_evidence") != "available":
+            return block(
+                "table_snapshot_ref_evidence_unavailable",
+                "Table snapshot-reference evidence is unavailable; deletion is refused.",
+            )
+        if plan.get("scan_status") == "unavailable":
+            return block(
+                "orphan_scan_unavailable", "The orphan scan did not complete; deletion is refused."
+            )
+        try:
+            expected = int(expected_snapshot_id)
+        except (TypeError, ValueError):
+            return block(
+                "invalid_snapshot_precondition", "expected_snapshot_id must be an integer."
+            )
+        if expected != plan.get("before_snapshot_id"):
+            return block(
+                "concurrent_change_detected",
+                "The table changed after planning; obtain a fresh dry-run.",
+            )
+        return self._retention_blocked(
+            operation=operation,
+            table_name=table_name,
+            ref=ref,
+            dry_run=False,
+            plan={**plan, "trino_boundary": "not_invoked"},
+            code="bounded_execution_unsupported",
+            message=(
+                "The Trino retention procedure accepts only a threshold and cannot bind "
+                "the provider deletion surface to this exact candidate and byte plan."
+            ),
+            operation_id=operation_id,
+            retry_safe=False,
+        )
+
+    def expire_snapshots(
+        self,
+        *,
+        table_name: str,
+        override_ref: str | None = None,
+        catalog: str | None = None,
+        dry_run: bool = True,
+        retention_hours: int = SAFE_MIN_RETENTION_HOURS,
+        retain_last: int = 1,
+        minimum_retention_hours: int = SAFE_MIN_RETENTION_HOURS,
+        expected_snapshot_id: int | str | None = None,
+        confirmation_token: str | None = None,
+        max_affected_objects: int | None = None,
+        max_affected_bytes: int | None = None,
+        operation_id: str | None = None,
+    ) -> dict[str, object]:
+        """Plan or execute guarded provider-neutral snapshot expiry."""
+        branch = override_ref or self.ref
+        _validate_compaction_table_name(table_name)
+        effective_minimum = max(minimum_retention_hours, SAFE_MIN_RETENTION_HOURS)
+        if retention_hours < effective_minimum or retain_last < 1:
+            plan: dict[str, object] = {
+                "operation": "expire_snapshots",
+                "table_name": table_name,
+                "ref": branch,
+                "catalog": catalog,
+                "retention_hours": retention_hours,
+                "minimum_safe_retention_hours": effective_minimum,
+                "retain_last": retain_last,
+                "unavailable_fields": [],
+            }
+            plan["plan_token"] = _maintenance_plan_token(plan)
+            return self._retention_blocked(
+                operation="expire_snapshots",
+                table_name=table_name,
+                ref=branch,
+                dry_run=dry_run,
+                plan=plan,
+                code="retention_floor_violation",
+                message="Retention cannot be weakened below the safe production floor.",
+                operation_id=operation_id,
+            )
+        try:
+            plan, _ = self._retention_metadata(
+                table_name=table_name,
+                ref=branch,
+                retention_hours=retention_hours,
+                retain_last=retain_last,
+                operation="expire_snapshots",
+                catalog=catalog,
+                max_affected_objects=max_affected_objects,
+                max_affected_bytes=max_affected_bytes,
+            )
+        except Exception as exc:
+            return MaintenanceOperationResult(
+                operation="expire_snapshots",
+                table_name=table_name,
+                ref=branch,
+                dry_run=dry_run,
+                status=MaintenanceOperationState.FAILED,
+                accepted=False,
+                executed=False,
+                failure=_compaction_failure(exc, code="table_metadata_unavailable"),
+                operation_id=operation_id,
+                retry_safe=True,
+            ).to_dict()
+        plan = cast(dict[str, Any], plan)
+        if dry_run:
+            return MaintenanceOperationResult(
+                operation="expire_snapshots",
+                table_name=table_name,
+                ref=branch,
+                dry_run=True,
+                status=(
+                    MaintenanceOperationState.NOOP
+                    if not plan["candidate_snapshots"]
+                    else MaintenanceOperationState.PLANNED
+                ),
+                accepted=True,
+                executed=False,
+                before_revision=plan.get("before_snapshot_id"),
+                planned={**plan, "trino_boundary": "not_invoked"},
+                evidence={"before": plan},
+                operation_id=operation_id,
+                plan_token=str(plan["plan_token"]),
+                retry_safe=True,
+            ).to_dict()
+        return self._validate_retention_execute(
+            operation="expire_snapshots",
+            table_name=table_name,
+            ref=branch,
+            catalog=catalog,
+            plan=plan,
+            expected_snapshot_id=expected_snapshot_id,
+            confirmation_token=confirmation_token,
+            max_affected_objects=max_affected_objects,
+            max_affected_bytes=max_affected_bytes,
+            operation_id=operation_id,
+        )
+
+    def cleanup_orphan_files(
+        self,
+        *,
+        table_name: str,
+        override_ref: str | None = None,
+        catalog: str | None = None,
+        dry_run: bool = True,
+        retention_hours: int = SAFE_MIN_RETENTION_HOURS,
+        minimum_retention_hours: int = SAFE_MIN_RETENTION_HOURS,
+        expected_snapshot_id: int | str | None = None,
+        confirmation_token: str | None = None,
+        max_affected_objects: int | None = None,
+        max_affected_bytes: int | None = None,
+        operation_id: str | None = None,
+    ) -> dict[str, object]:
+        """Plan or execute guarded provider-neutral orphan-file cleanup."""
+        branch = override_ref or self.ref
+        _validate_compaction_table_name(table_name)
+        effective_minimum = max(minimum_retention_hours, SAFE_MIN_RETENTION_HOURS)
+        if retention_hours < effective_minimum:
+            plan: dict[str, object] = {
+                "operation": "cleanup_orphan_files",
+                "table_name": table_name,
+                "ref": branch,
+                "catalog": catalog,
+                "retention_hours": retention_hours,
+                "minimum_safe_retention_hours": effective_minimum,
+                "unavailable_fields": [],
+            }
+            plan["plan_token"] = _maintenance_plan_token(plan)
+            return self._retention_blocked(
+                operation="cleanup_orphan_files",
+                table_name=table_name,
+                ref=branch,
+                dry_run=dry_run,
+                plan=plan,
+                code="retention_floor_violation",
+                message="Retention cannot be weakened below the safe production floor.",
+                operation_id=operation_id,
+            )
+        try:
+            plan, _ = self._orphan_retention_metadata(
+                table_name=table_name,
+                ref=branch,
+                retention_hours=retention_hours,
+                catalog=catalog,
+                max_affected_objects=max_affected_objects,
+                max_affected_bytes=max_affected_bytes,
+            )
+        except Exception as exc:
+            return MaintenanceOperationResult(
+                operation="cleanup_orphan_files",
+                table_name=table_name,
+                ref=branch,
+                dry_run=dry_run,
+                status=MaintenanceOperationState.FAILED,
+                accepted=False,
+                executed=False,
+                failure=_compaction_failure(exc, code="orphan_scan_unavailable"),
+                operation_id=operation_id,
+                retry_safe=True,
+            ).to_dict()
+        plan = cast(dict[str, Any], plan)
+        if dry_run:
+            return MaintenanceOperationResult(
+                operation="cleanup_orphan_files",
+                table_name=table_name,
+                ref=branch,
+                dry_run=True,
+                status=(
+                    MaintenanceOperationState.NOOP
+                    if not plan["candidate_files"]
+                    else MaintenanceOperationState.PLANNED
+                ),
+                accepted=True,
+                executed=False,
+                before_revision=plan.get("before_snapshot_id"),
+                planned={**plan, "trino_boundary": "not_invoked"},
+                evidence={"before": plan},
+                operation_id=operation_id,
+                plan_token=str(plan["plan_token"]),
+                retry_safe=True,
+            ).to_dict()
+        return self._validate_retention_execute(
+            operation="cleanup_orphan_files",
+            table_name=table_name,
+            ref=branch,
+            catalog=catalog,
+            plan=plan,
+            expected_snapshot_id=expected_snapshot_id,
+            confirmation_token=confirmation_token,
+            max_affected_objects=max_affected_objects,
+            max_affected_bytes=max_affected_bytes,
+            operation_id=operation_id,
+        )
+
     def list_snapshots(self, *, table_name: str, limit: int = 10) -> list[dict]:
         """List recent table snapshots.
 
@@ -1005,12 +1670,19 @@ class IcebergResource:
         )
         return result
 
-    def vacuum(self, *, table_name: str, retain_hours: int = 168) -> dict:
-        """Remove expired snapshots and orphan files.
+    def vacuum(
+        self,
+        *,
+        table_name: str,
+        retain_hours: int = SAFE_MIN_RETENTION_HOURS,
+        dry_run: bool = True,
+    ) -> dict[str, object]:
+        """Plan both retention operations without bypassing their safety contract.
 
-        Performs table maintenance by:
-        1. Expiring snapshots older than the retention period
-        2. Removing orphan files not referenced by any remaining snapshot
+        Snapshot expiry and orphan deletion are separate provider procedures with
+        separate snapshot fences, so this convenience method deliberately remains
+        planning-only. Execute each returned plan independently with its own
+        confirmation token.
 
         Args:
             table_name: Fully qualified table name (``namespace.table``).
@@ -1018,9 +1690,7 @@ class IcebergResource:
                 Snapshots newer than this will be retained.
 
         Returns:
-            dict: Maintenance results containing:
-                - ``deleted_snapshots``: Number of expired snapshots removed.
-                - ``orphan_files_removed``: Number of orphan files deleted.
+            dict: Independent snapshot-expiry and orphan-cleanup plans.
 
         Raises:
             Exception: Re-raises any errors during maintenance.
@@ -1032,32 +1702,19 @@ class IcebergResource:
                     table_name="raw.events",
                     retain_hours=168  # Keep 7 days
                 )
-                print(f"Removed {result['deleted_snapshots']} snapshots")
-                print(f"Removed {result['orphan_files_removed']} orphan files")
-
-        Warning:
-            Orphan file removal permanently deletes data files from storage.
-            Ensure no concurrent writes are happening during vacuum operations.
+                print(result["expire_snapshots"]["plan_token"])
 
         """
-        logger.info(
-            "iceberg_resource_vacuum_requested",
-            table_name=table_name,
-            retain_hours=retain_hours,
-        )
-        snap_result = expire_snapshots(
-            table_name=table_name, older_than_hours=retain_hours, ref=self.ref
-        )
-        orphan_result = remove_orphan_files(
-            table_name=table_name, older_than_hours=retain_hours, dry_run=False, ref=self.ref
-        )
-        result = {
-            "deleted_snapshots": snap_result["deleted_snapshots"],
-            "orphan_files_removed": orphan_result["orphan_count"],
+        if not dry_run:
+            raise MaintenancePreconditionError(
+                "vacuum is planning-only; execute snapshot expiry and orphan cleanup "
+                "separately with their exact plan tokens"
+            )
+        return {
+            "expire_snapshots": self.expire_snapshots(
+                table_name=table_name, retention_hours=retain_hours, dry_run=True
+            ),
+            "cleanup_orphan_files": self.cleanup_orphan_files(
+                table_name=table_name, retention_hours=retain_hours, dry_run=True
+            ),
         }
-        logger.info(
-            "iceberg_resource_vacuum_completed",
-            table_name=table_name,
-            **result,
-        )
-        return result

@@ -309,14 +309,27 @@ configured for the requested ref.
 
 ```python
 # Run the existing policy-driven Dagster maintenance job for selected tables.
-# Its operation config is dry_run=False by default, and each table is guarded
-# by its current Iceberg snapshot before the injected Trino executor runs.
+# Retention jobs plan by default; the v1 controller keeps destructive retention
+# execution blocked on the blessed Trino boundary until the provider can bind
+# its full deletion surface to the reviewed plan.
 from phlo_dagster.maintenance_sensor import optimize_tables_job
 ```
 
 The job returns structured per-table operation evidence and emits the existing
-maintenance telemetry. It does not provide a durable operation ledger or
-deduplication record, so outcome-unknown retries still require reconciliation.
+maintenance telemetry. Dry-run planning uses Iceberg metadata and the configured
+object-store listing, so it does not need a Trino executor. Snapshot expiry keeps
+the seven-day floor, current-snapshot fence, and table snapshot-reference evidence
+in its plan; Nessie-wide branch/tag evidence is unavailable to this capability,
+but the blessed Trino procedure still exposes only a threshold and cannot bind
+the full metadata/data deletion surface or every Nessie reference to the plan,
+so v1 does not submit that destructive operation.
+Orphan discovery is supported in dry-run mode; destructive orphan cleanup is an
+explicit `bounded_execution_unsupported` result because Trino's threshold-only
+`remove_orphan_files` procedure could delete a larger or newer candidate set
+than the reviewed plan. No orphan deletion is submitted, and the unsupported
+result is not retry-safe. These limits are why the v1 controller makes no claim
+of atomic cancellation, durable deduplication, or rollback after partial file
+deletion.
 
 ### Dagster Performance
 

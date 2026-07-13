@@ -6,7 +6,7 @@ expiration, orphan file cleanup, and table statistics collection.
 
 Maintenance Operations:
     - expire_table_snapshots: Remove old snapshots based on retention policy
-    - cleanup_orphan_files: Delete unreferenced data files (with dry-run support)
+    - cleanup_orphan_files: Discover unreferenced files; v1 destructive execution is refused
     - collect_table_stats: Gather table metadata for monitoring and policy evaluation
 
 Jobs Provided:
@@ -19,8 +19,8 @@ Schedule:
     Default schedule runs full maintenance daily at 2 AM UTC (stopped by default).
 
 Safety Features:
-    - Dry-run mode for orphan file cleanup (orphan_dry_run=True)
-    - Destructive operation warnings in logs
+    - Planning mode by default; retention execution is refused on the blessed Trino boundary
+    - Explicit execution-refusal warnings in logs
     - Table allowlist for targeted maintenance
     - Error collection and reporting without failing entire job
 
@@ -30,7 +30,8 @@ Configuration:
     - snapshot_retention_days: Age threshold for snapshots
     - snapshot_retain_last: Minimum snapshots to keep
     - orphan_retention_days: Age threshold for orphan files
-    - orphan_dry_run: List-only mode for orphan cleanup
+    - dry_run: Plan-only mode for both retention operations
+    - catalog, confirmation_token, max_affected_objects, max_affected_bytes: Plan-binding evidence and future-adapter validation
     - ref: Nessie branch reference
 
 Integration Requirements:
@@ -46,13 +47,15 @@ Example:
 
 """
 
-from __future__ import annotations
-
 import time
-from typing import Any
+from typing import Any, cast
 
 import dagster as dg
 
+from phlo.capabilities import (
+    MaintenanceRetentionStore,
+    resolve_capability,
+)
 from phlo.logging import get_logger
 
 from phlo_dagster.iceberg_maintenance_utils import (
@@ -61,33 +64,76 @@ from phlo_dagster.iceberg_maintenance_utils import (
     list_tables,
     maintenance_log_extra,
     resolve_namespaces,
+    resolve_maintenance_discovery,
     start_maintenance_op,
 )
 
 logger = get_logger(__name__)
 
 
-def _load_iceberg_maintenance_functions() -> tuple[Any, Any, Any]:
-    """Load iceberg maintenance helpers lazily for optional integration support.
-
-    Args:
-        None
-
-    Returns:
-        Tuple of (expire_snapshots, get_table_stats, remove_orphan_files) functions.
-
-    Raises:
-        RuntimeError: If phlo-iceberg package is not available.
-
-    """
-    try:
-        from phlo_iceberg.tables import expire_snapshots, get_table_stats, remove_orphan_files
-    except Exception as exc:  # noqa: BLE001 - runtime guidance for optional dependency
+def _load_maintenance_retention_store() -> MaintenanceRetentionStore:
+    """Resolve the provider-neutral retention store capability."""
+    resolution = resolve_capability("table_store", "iceberg")
+    if resolution is None:
+        raise RuntimeError("Retention maintenance requires a table_store:iceberg capability.")
+    store = resolution.provider
+    if not isinstance(store, MaintenanceRetentionStore):
         raise RuntimeError(
-            "Iceberg maintenance requires phlo-iceberg. Install phlo-dagster[iceberg] "
-            "or phlo-iceberg."
-        ) from exc
-    return expire_snapshots, get_table_stats, remove_orphan_files
+            "Resolved table_store:iceberg does not implement the retention maintenance contract."
+        )
+    return store
+
+
+def _confirmation_token_for_table(config: MaintenanceConfig, table_name: str) -> str | None:
+    """Resolve the token bound to one table's exact plan."""
+    if config.confirmation_tokens is not None:
+        return config.confirmation_tokens.get(table_name)
+    return config.confirmation_token
+
+
+def _validate_orphan_dry_run_compatibility(config: MaintenanceConfig) -> None:
+    """Reject contradictory legacy and contract-level execution flags."""
+    if config.orphan_dry_run is not None and config.orphan_dry_run != config.dry_run:
+        raise ValueError("orphan_dry_run is deprecated; set it equal to dry_run or omit it")
+
+
+def _run_retention_resource_operation(
+    *,
+    operation: str,
+    table_name: str,
+    config: MaintenanceConfig,
+    store: MaintenanceRetentionStore,
+) -> dict[str, Any]:
+    """Plan once, then execute only with the caller's exact plan token."""
+    common: dict[str, Any] = {
+        "table_name": table_name,
+        "override_ref": config.ref,
+        "catalog": config.catalog,
+        "retention_hours": (
+            config.snapshot_retention_days
+            if operation == "expire_snapshots"
+            else config.orphan_retention_days
+        )
+        * 24,
+        "max_affected_objects": config.max_affected_objects,
+        "max_affected_bytes": config.max_affected_bytes,
+        "operation_id": None,
+    }
+    method = (
+        store.expire_snapshots if operation == "expire_snapshots" else store.cleanup_orphan_files
+    )
+    if operation == "expire_snapshots":
+        common["retain_last"] = config.snapshot_retain_last
+    plan = method(**common, dry_run=True)
+    if config.dry_run:
+        return plan
+    before_revision = cast(int | str | None, plan.get("before_revision"))
+    return method(
+        **common,
+        dry_run=False,
+        expected_snapshot_id=before_revision,
+        confirmation_token=_confirmation_token_for_table(config, table_name),
+    )
 
 
 @dg.op
@@ -110,33 +156,63 @@ def expire_table_snapshots(
     """
     tables_processed = 0
     total_snapshots_deleted = 0
+    total_candidate_snapshots = 0
     errors: list[str] = []
     operation = "expire_snapshots"
     start_time = time.time()
-    telemetry = start_maintenance_op(context, config, operation)
-    expire_snapshots, _, _ = _load_iceberg_maintenance_functions()
+    telemetry = start_maintenance_op(context, config, operation, dry_run=config.dry_run)
+    store = _load_maintenance_retention_store()
 
     for namespace in resolve_namespaces(config):
         for table_name in list_tables(namespace, config.ref):
             if config.table_allowlist and table_name not in config.table_allowlist:
                 continue
             try:
-                result = expire_snapshots(
+                result = _run_retention_resource_operation(
+                    operation=operation,
                     table_name=table_name,
-                    older_than_days=config.snapshot_retention_days,
-                    retain_last=config.snapshot_retain_last,
-                    ref=config.ref,
+                    config=config,
+                    store=store,
                 )
+                if result.get("status") in {"blocked", "failed"}:
+                    tables_processed += 1
+                    planned = result.get("planned") or {}
+                    candidate_count = len(planned.get("candidate_snapshots", []))
+                    total_candidate_snapshots += candidate_count
+                    failure = result.get("failure") or {}
+                    error_msg = (
+                        f"Maintenance refused for {table_name}: "
+                        f"{failure.get('message', result.get('status'))}"
+                    )
+                    errors.append(error_msg)
+                    context.log.warning(
+                        error_msg,
+                        extra=maintenance_log_extra(
+                            context,
+                            config,
+                            operation=operation,
+                            table_name=table_name,
+                            candidate_snapshots=candidate_count,
+                            plan_token=result.get("plan_token"),
+                            before_revision=result.get("before_revision"),
+                            deletion_submitted=False,
+                        ),
+                    )
+                    continue
                 tables_processed += 1
-                total_snapshots_deleted += result["deleted_snapshots"]
+                planned = result.get("planned", {})
+                total_candidate_snapshots += len(planned.get("candidate_snapshots", []))
+                total_snapshots_deleted += int(
+                    result.get("affected", {}).get("deleted_snapshots") or 0
+                )
                 context.log.info(
-                    f"Expired {result['deleted_snapshots']} snapshots from {table_name}",
+                    f"Processed {table_name}: {result.get('status', 'unknown')}",
                     extra=maintenance_log_extra(
                         context,
                         config,
                         operation=operation,
                         table_name=table_name,
-                        snapshots_deleted=result["deleted_snapshots"],
+                        snapshots_deleted=result.get("affected", {}).get("deleted_snapshots", 0),
                     ),
                 )
             except Exception as e:
@@ -167,6 +243,7 @@ def expire_table_snapshots(
         {
             "tables_processed": tables_processed,
             "total_snapshots_deleted": total_snapshots_deleted,
+            "total_candidate_snapshots": total_candidate_snapshots,
             "errors": errors,
         }
     )
@@ -178,11 +255,11 @@ def cleanup_orphan_files(
     context: dg.OpExecutionContext,
     config: MaintenanceConfig,
 ) -> dict[str, Any]:
-    """Remove orphan files from all tables in the specified namespace.
+    """Discover orphan files, refusing destructive execution on the v1 boundary.
 
-    WARNING: When orphan_dry_run=False, this operation permanently deletes files
-    from storage. Always test with dry_run=True first and ensure no concurrent
-    writes are happening during cleanup to avoid data loss.
+    Dry-run mode reports candidates from the configured object-store listing.
+    Execute mode returns a structured unsupported result because the blessed
+    Trino procedure cannot bind the submitted deletion set to that plan.
 
     Args:
         context: Dagster operation execution context.
@@ -195,29 +272,34 @@ def cleanup_orphan_files(
         No explicit exceptions raised. Logs warnings on table failures.
 
     """
+    _validate_orphan_dry_run_compatibility(config)
     tables_processed = 0
-    total_orphan_files = 0
+    total_candidate_files = 0
+    total_deleted_files = 0
+    deleted_file_evidence_complete = True
     errors: list[str] = []
     results: dict[str, Any] = {
         "tables_processed": tables_processed,
-        "total_orphan_files": total_orphan_files,
-        "dry_run": config.orphan_dry_run,
+        "total_orphan_files": 0,
+        "total_candidate_files": 0,
+        "total_deleted_files": 0,
+        "dry_run": config.dry_run,
         "errors": errors,
     }
     operation = "cleanup_orphan_files"
     start_time = time.time()
-    telemetry = start_maintenance_op(context, config, operation, dry_run=config.orphan_dry_run)
-    _, _, remove_orphan_files = _load_iceberg_maintenance_functions()
+    telemetry = start_maintenance_op(context, config, operation, dry_run=config.dry_run)
+    store = _load_maintenance_retention_store()
 
-    if not config.orphan_dry_run:
+    if not config.dry_run:
         context.log.warning(
-            "DESTRUCTIVE OPERATION: orphan_dry_run=False will DELETE files from storage. "
-            "Ensure no concurrent writes are happening.",
+            "EXECUTION REQUEST REFUSED: dry_run=False is unsupported for orphan cleanup "
+            "on the blessed Trino boundary; no provider deletion is submitted.",
             extra=maintenance_log_extra(
                 context,
                 config,
                 operation=operation,
-                dry_run=config.orphan_dry_run,
+                dry_run=config.dry_run,
             ),
         )
 
@@ -226,25 +308,65 @@ def cleanup_orphan_files(
             if config.table_allowlist and table_name not in config.table_allowlist:
                 continue
             try:
-                result = remove_orphan_files(
+                result = _run_retention_resource_operation(
+                    operation=operation,
                     table_name=table_name,
-                    older_than_days=config.orphan_retention_days,
-                    dry_run=config.orphan_dry_run,
-                    ref=config.ref,
+                    config=config,
+                    store=store,
                 )
+                if result.get("status") in {"blocked", "failed"}:
+                    tables_processed += 1
+                    planned = result.get("planned") or {}
+                    candidate_count = len(planned.get("candidate_files", []))
+                    total_candidate_files += candidate_count
+                    failure = result.get("failure") or {}
+                    error_msg = (
+                        f"Maintenance refused for {table_name}: "
+                        f"{failure.get('message', result.get('status'))}"
+                    )
+                    errors.append(error_msg)
+                    context.log.warning(
+                        error_msg,
+                        extra=maintenance_log_extra(
+                            context,
+                            config,
+                            operation=operation,
+                            table_name=table_name,
+                            candidate_orphan_files=candidate_count,
+                            deleted_orphan_files=0,
+                            plan_token=result.get("plan_token"),
+                            before_revision=result.get("before_revision"),
+                            deletion_submitted=False,
+                        ),
+                    )
+                    continue
                 tables_processed += 1
-                orphan_count = int(result.get("orphan_count", 0) or 0)
-                total_orphan_files += orphan_count
-                action = "Found" if config.orphan_dry_run else "Removed"
+                affected = result.get("affected", {})
+                planned = result.get("planned", {})
+                candidate_count = len(planned.get("candidate_files", []))
+                deleted_value = affected.get("deleted_files")
+                if not config.dry_run and deleted_value is None:
+                    deleted_file_evidence_complete = False
+                deleted_count = int(deleted_value or 0)
+                total_candidate_files += candidate_count
+                total_deleted_files += deleted_count
+                displayed_count: int | str = (
+                    candidate_count
+                    if config.dry_run
+                    else (deleted_count if deleted_value is not None else "unknown")
+                )
+                action = "Planned" if config.dry_run else "Removed"
                 context.log.info(
-                    f"{action} {orphan_count} orphan files in {table_name}",
+                    f"{action} {displayed_count} orphan files in {table_name}",
                     extra=maintenance_log_extra(
                         context,
                         config,
                         operation=operation,
                         table_name=table_name,
-                        orphan_files=orphan_count,
-                        dry_run=config.orphan_dry_run,
+                        orphan_files=displayed_count,
+                        candidate_orphan_files=candidate_count,
+                        deleted_orphan_files=deleted_count,
+                        dry_run=config.dry_run,
                     ),
                 )
             except Exception as e:
@@ -256,7 +378,7 @@ def cleanup_orphan_files(
                         config,
                         operation=operation,
                         table_name=table_name,
-                        dry_run=config.orphan_dry_run,
+                        dry_run=config.dry_run,
                         error=str(e),
                     ),
                 )
@@ -269,13 +391,27 @@ def cleanup_orphan_files(
         operation,
         duration_seconds=time.time() - start_time,
         errors=errors,
-        extra_tags={"dry_run": config.orphan_dry_run},
+        extra_tags={"dry_run": config.dry_run},
         tables_processed=tables_processed,
-        orphan_files=total_orphan_files,
+        orphan_files=(
+            total_candidate_files
+            if config.dry_run
+            else (total_deleted_files if deleted_file_evidence_complete else None)
+        ),
+        candidate_orphan_files=total_candidate_files,
+        deleted_orphan_files=(total_deleted_files if deleted_file_evidence_complete else None),
+        unavailable_deleted_file_evidence=(0 if deleted_file_evidence_complete else 1),
     )
 
     results["tables_processed"] = tables_processed
-    results["total_orphan_files"] = total_orphan_files
+    results["total_orphan_files"] = (
+        total_candidate_files
+        if config.dry_run
+        else (total_deleted_files if deleted_file_evidence_complete else None)
+    )
+    results["total_candidate_files"] = total_candidate_files
+    results["total_deleted_files"] = total_deleted_files if deleted_file_evidence_complete else None
+    results["unavailable_deleted_file_evidence"] = 0 if deleted_file_evidence_complete else 1
     results["errors"] = errors
 
     return results
@@ -312,7 +448,7 @@ def collect_table_stats(
     operation = "collect_table_stats"
     start_time = time.time()
     telemetry = start_maintenance_op(context, config, operation)
-    _, get_table_stats, _ = _load_iceberg_maintenance_functions()
+    get_table_stats = resolve_maintenance_discovery().get_table_stats
 
     for namespace in resolve_namespaces(config):
         for table_name in list_tables(namespace, config.ref):
