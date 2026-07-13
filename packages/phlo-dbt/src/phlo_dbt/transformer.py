@@ -281,6 +281,7 @@ def _emit_dbt_lineage(
             edges=edges,
             asset_keys=target_keys,
             metadata={"source": "dbt", "manifest_path": str(manifest_path)},
+            operation_id=f"manifest:{manifest_path}",
         )
 
 

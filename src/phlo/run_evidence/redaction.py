@@ -1,0 +1,54 @@
+"""Redaction and canonical serialization for stored run evidence."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from collections.abc import Mapping
+from datetime import date, datetime
+from typing import Any
+
+from phlo.exceptions import redact_sensitive_text
+from phlo.helpers._common import is_sensitive_key
+
+_TEXT_SECRET_PATTERN = re.compile(
+    r"(?i)\b(password|passwd|token|secret|api[_-]?key|access[_-]?token)\s*[:=]\s*([^&\s/]+)"
+)
+
+
+def redact_payload(value: Any, *, key: str | None = None) -> Any:
+    """Deep-redact sensitive keys and credential-bearing strings."""
+    if key is not None and is_sensitive_key(key):
+        return "<redacted>" if value not in (None, "") else value
+    if isinstance(value, Mapping):
+        return {str(k): redact_payload(v, key=str(k)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [redact_payload(item) for item in value]
+    if isinstance(value, tuple):
+        return [redact_payload(item) for item in value]
+    if isinstance(value, str):
+        return _TEXT_SECRET_PATTERN.sub(r"\1=<redacted>", redact_sensitive_text(value))
+    return value
+
+
+def _json_default(value: Any) -> str:
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return str(value)
+
+
+def canonical_json(value: Any) -> str:
+    """Return stable JSON used for checksums and compatibility tests."""
+    return json.dumps(
+        redact_payload(value),
+        default=_json_default,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+
+
+def payload_checksum(value: Any) -> str:
+    """Return a full SHA-256 checksum of the redacted canonical payload."""
+    return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()

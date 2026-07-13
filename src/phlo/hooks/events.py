@@ -48,8 +48,27 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
 
 EVENT_VERSION = "1.0"
+
+
+def normalize_attempt(value: Any) -> int:
+    """Return a positive integer attempt, accepting numeric strings at boundaries."""
+    if isinstance(value, bool):
+        raise ValueError("attempt must be a positive integer")
+    if isinstance(value, int):
+        attempt = value
+    elif isinstance(value, str) and value.strip():
+        try:
+            attempt = int(value)
+        except ValueError as exc:
+            raise ValueError("attempt must be a positive integer") from exc
+    else:
+        raise ValueError("attempt must be a positive integer")
+    if attempt <= 0:
+        raise ValueError("attempt must be a positive integer")
+    return attempt
 
 
 def _utc_now() -> datetime:
@@ -96,11 +115,16 @@ class HookCorrelation:
     trace_id: str | None = None
     span_id: str | None = None
     trace_flags: str | None = None
+    project_id: str | None = None
     run_id: str | None = None
+    attempt: int = 1
     asset_key: str | None = None
     job_name: str | None = None
     partition_key: str | None = None
     check_name: str | None = None
+
+    def __post_init__(self) -> None:
+        self.attempt = normalize_attempt(self.attempt)
 
 
 @dataclass(kw_only=True)
@@ -137,6 +161,8 @@ class HookEvent:
 
     event_type: str
     version: str = EVENT_VERSION
+    event_id: str = field(default_factory=lambda: str(uuid4()))
+    producer: str = "phlo"
     timestamp: datetime = field(default_factory=_utc_now)
     tags: dict[str, str] = field(default_factory=dict)
     correlation: HookCorrelation = field(default_factory=HookCorrelation)

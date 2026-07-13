@@ -110,8 +110,10 @@ class HookBus:
             return
         from phlo.hooks.telemetry import CoreTelemetryHookProvider
         from phlo.plugins.discovery import discover_plugins, get_global_registry
+        from phlo.run_evidence.hooks import CoreRunEvidenceHookProvider
 
         self.register_provider(CoreTelemetryHookProvider(), plugin_name="core")
+        self.register_provider(CoreRunEvidenceHookProvider(), plugin_name="core")
         discover_plugins(auto_register=True)
         registry = get_global_registry()
         for plugin in registry.iter_plugins():
