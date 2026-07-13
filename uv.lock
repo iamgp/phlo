@@ -3431,6 +3431,7 @@ name = "phlo-dagster"
 version = "0.6.0"
 source = { editable = "packages/phlo-dagster" }
 dependencies = [
+    { name = "dagster" },
     { name = "dagster-graphql" },
     { name = "phlo" },
     { name = "psycopg2-binary" },
@@ -3458,6 +3459,7 @@ observatory = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dagster", specifier = ">=1.13,<1.14" },
     { name = "dagster-graphql", specifier = ">=1.13,<1.14" },
     { name = "phlo", editable = "." },
     { name = "phlo-alerting", marker = "extra == 'alerting'", editable = "packages/phlo-alerting" },

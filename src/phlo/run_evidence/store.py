@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import asdict
-from datetime import UTC, datetime
+from dataclasses import asdict, replace
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,17 @@ from phlo.run_evidence.models import (
     RunResource,
     RunStage,
 )
+from phlo.run_evidence.reconciliation import (
+    DEFAULT_CLOCK_SKEW,
+    TERMINAL_STATUSES,
+    ReconciliationDecision,
+    RequiredEvidenceProfile,
+    RunEvidenceNotFound,
+    RunLookupOutcome,
+    RunObservation,
+    evaluate_reconciliation,
+    normalize_status,
+)
 from phlo.run_evidence.redaction import canonical_json, payload_checksum, redact_payload
 
 
@@ -32,6 +44,17 @@ class IdempotencyConflict(ValueError):
 
 def _timestamp(value: datetime | None) -> str | None:
     return value.isoformat() if value is not None else None
+
+
+def _parse_timestamp(value: Any) -> datetime | None:
+    if value is None or isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
 
 
 def _json(value: Any) -> str:
@@ -106,18 +129,42 @@ class _SqlRunEvidenceStore:
         lineage_edges: tuple[RunLineageEdge, ...] = (),
     ) -> bool:
         """Append one event and optional derived records in one transaction."""
+        self._validate_append_event_inputs(
+            event,
+            run=run,
+            stage=stage,
+            quality_result=quality_result,
+            lineage_edges=lineage_edges,
+        )
         with self._transaction() as (_, cursor):
-            cursor.execute(
-                f"SELECT 1 FROM {self._table('run_event')} "
-                f"WHERE project_id = {self.placeholder} AND producer = {self.placeholder} "
-                f"AND event_id = {self.placeholder}",
-                (event.project_id, event.producer, event.event_id),
-            )
-            event_exists = cursor.fetchone() is not None
-            if run is not None and not event_exists:
-                self._upsert_run(cursor, run)
-            inserted = self._insert_event(cursor, event)
+            existing = self._event_identity(cursor, event)
+            # Preserve deterministic cross-run replay conflicts even when the
+            # forged target parent does not exist and cannot be locked.
+            if existing is not None and existing[0] != event.run_id:
+                return self._insert_event(cursor, event)
+
+            # Check references before creating a placeholder parent, then
+            # repeat after locking so a concurrent stage write cannot slip
+            # between the read and the event insert.
+            self._validate_event_stage_references(cursor, event, stage, quality_result)
+
+            # Establish a lockable parent without applying provider-derived
+            # replay metadata. A concurrent delivery may otherwise both see
+            # no event and update the parent before one loses the event race.
+            self._ensure_event_parent(cursor, event, run)
+            self._lock_run(cursor, event.project_id, event.run_id)
+            self._validate_event_stage_references(cursor, event, stage, quality_result)
+            # The parent lock makes this re-check linearizable with every
+            # writer that follows the same parent-locking protocol.
+            existing = self._event_identity(cursor, event)
+            inserted = self._insert_event(cursor, event) if existing is None else False
+            if existing is not None:
+                # _insert_event validates payload, attempt, and correlation,
+                # while returning False for an identical replay.
+                self._insert_event(cursor, event)
             if inserted:
+                if run is not None:
+                    self._upsert_run(cursor, run)
                 if stage is not None:
                     self._insert_stage(cursor, stage)
                 if quality_result is not None:
@@ -126,28 +173,130 @@ class _SqlRunEvidenceStore:
                     self._insert_lineage(cursor, edge)
             return inserted
 
+    def _validate_append_event_inputs(
+        self,
+        event: RunEvent,
+        *,
+        run: PipelineRun | None,
+        stage: RunStage | None,
+        quality_result: RunQualityResult | None,
+        lineage_edges: tuple[RunLineageEdge, ...],
+    ) -> None:
+        """Reject cross-boundary bundles before a placeholder parent can be created."""
+        self._require_id("project_id", event.project_id)
+        self._require_id("run_id", event.run_id)
+        self._require_id("event_id", event.event_id)
+        self._require_id("producer", event.producer)
+        if event.attempt <= 0:
+            raise ValueError("event attempt must be positive")
+
+        def validate_object(
+            label: str,
+            value: Any,
+            *,
+            object_id: str | None = None,
+            attempt: int | None = None,
+        ) -> None:
+            if value is None:
+                return
+            if value.project_id != event.project_id or value.run_id != event.run_id:
+                raise ValueError(f"{label} crossed project/run boundaries")
+            if attempt is not None and attempt != event.attempt:
+                raise ValueError(f"{label} crossed attempt boundaries")
+            if object_id is not None:
+                self._require_id(f"{label}_id", object_id)
+
+        validate_object("run", run, attempt=run.attempt if run is not None else None)
+        validate_object(
+            "stage",
+            stage,
+            object_id=stage.stage_id if stage is not None else None,
+            attempt=stage.attempt if stage is not None else None,
+        )
+        validate_object(
+            "quality_result",
+            quality_result,
+            object_id=quality_result.quality_result_id if quality_result is not None else None,
+            attempt=quality_result.attempt if quality_result is not None else None,
+        )
+        stage_ids = {
+            stage_id
+            for stage_id in (
+                event.stage_id,
+                stage.stage_id if stage is not None else None,
+                quality_result.stage_id if quality_result is not None else None,
+            )
+            if stage_id is not None
+        }
+        if len(stage_ids) > 1:
+            raise ValueError("optional evidence has conflicting stage identities")
+        for edge in lineage_edges:
+            validate_object("lineage_edge", edge, object_id=edge.lineage_edge_id)
+
+    def _event_identity(self, cursor: Any, event: RunEvent) -> tuple[Any, ...] | None:
+        cursor.execute(
+            f"SELECT run_id, event_type, schema_version, stage_id, attempt, payload_checksum "
+            f"FROM {self._table('run_event')} "
+            f"WHERE project_id = {self.placeholder} AND producer = {self.placeholder} "
+            f"AND event_id = {self.placeholder}",
+            (event.project_id, event.producer, event.event_id),
+        )
+        row = cursor.fetchone()
+        return tuple(row) if row is not None else None
+
+    def _ensure_event_parent(self, cursor: Any, event: RunEvent, run: PipelineRun | None) -> None:
+        cursor.execute(
+            f"SELECT 1 FROM {self._table('pipeline_run')} "
+            f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
+            (event.project_id, event.run_id),
+        )
+        if cursor.fetchone() is not None:
+            return
+        if run is None:
+            raise ValueError(f"run {event.project_id}/{event.run_id} does not exist")
+        values = (
+            event.run_id,
+            event.project_id,
+            run.attempt,
+            "running",
+            EvidenceCompleteness.INCOMPLETE.value,
+        )
+        cursor.execute(
+            f"INSERT INTO {self._table('pipeline_run')} "
+            "(run_id, project_id, attempt, status, evidence_completeness) VALUES ("
+            + ", ".join([self.placeholder] * len(values))
+            + ") ON CONFLICT (project_id, run_id) DO NOTHING",
+            values,
+        )
+
     def append_stage(self, stage: RunStage) -> None:
         with self._transaction() as (_, cursor):
+            self._lock_run(cursor, stage.project_id, stage.run_id)
             self._insert_stage(cursor, stage)
 
     def append_resource(self, resource: RunResource) -> None:
         with self._transaction() as (_, cursor):
+            self._lock_run(cursor, resource.project_id, resource.run_id)
             self._insert_resource(cursor, resource)
 
     def append_lineage_edge(self, edge: RunLineageEdge) -> None:
         with self._transaction() as (_, cursor):
+            self._lock_run(cursor, edge.project_id, edge.run_id)
             self._insert_lineage(cursor, edge)
 
     def append_quality_result(self, result: RunQualityResult) -> None:
         with self._transaction() as (_, cursor):
+            self._lock_run(cursor, result.project_id, result.run_id)
             self._insert_quality(cursor, result)
 
     def append_catalog_change(self, change: RunCatalogChange) -> None:
         with self._transaction() as (_, cursor):
+            self._lock_run(cursor, change.project_id, change.run_id)
             self._insert_catalog_change(cursor, change)
 
     def append_artifact(self, artifact: RunArtifact) -> None:
         with self._transaction() as (_, cursor):
+            self._lock_run(cursor, artifact.project_id, artifact.run_id)
             self._insert_artifact(cursor, artifact)
 
     def update_run(
@@ -186,6 +335,200 @@ class _SqlRunEvidenceStore:
                 f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
                 tuple(values),
             )
+
+    def reconcile_observation(
+        self,
+        observation: RunObservation,
+        profile: RequiredEvidenceProfile,
+        *,
+        now: datetime,
+        stale_after: timedelta | None,
+        clock_skew: timedelta = DEFAULT_CLOCK_SKEW,
+    ) -> ReconciliationDecision:
+        """Ingest an observation, evaluate it, and persist the decision atomically."""
+        if observation.project_id.strip() == "" or observation.run_id.strip() == "":
+            raise ValueError("project_id and run_id must be stable non-empty identifiers")
+        with self._transaction() as (_, cursor):
+            cursor.execute(
+                f"SELECT * FROM {self._table('pipeline_run')} "
+                f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
+                (observation.project_id, observation.run_id),
+            )
+            existing_before = cursor.fetchone()
+            existing_before_row = (
+                self._row_dict(cursor, existing_before) if existing_before is not None else None
+            )
+            provider_absent = observation.lookup_outcome is RunLookupOutcome.ABSENT
+            if provider_absent:
+                if existing_before is None:
+                    raise RunEvidenceNotFound(
+                        f"provider has no durable run {observation.project_id}/{observation.run_id}"
+                    )
+                existing_row = existing_before_row
+                assert existing_row is not None
+                observation = replace(
+                    observation,
+                    attempt=max(observation.attempt, int(existing_row["attempt"])),
+                    pipeline_name=observation.pipeline_name or existing_row.get("pipeline_name"),
+                    provider_run_id=observation.provider_run_id
+                    or existing_row.get("provider_run_id"),
+                    status=existing_row.get("status"),
+                    started_at=_parse_timestamp(existing_row.get("started_at")),
+                    finished_at=_parse_timestamp(existing_row.get("finished_at")),
+                    heartbeat_at=_parse_timestamp(existing_row.get("last_heartbeat_at")),
+                )
+            else:
+                self._upsert_run(
+                    cursor,
+                    PipelineRun(
+                        project_id=observation.project_id,
+                        run_id=observation.run_id,
+                        pipeline_name=observation.pipeline_name,
+                        provider_run_id=observation.provider_run_id,
+                        attempt=observation.attempt,
+                        status=observation.status or "running",
+                        started_at=observation.started_at,
+                        finished_at=observation.finished_at,
+                        evidence_completeness=observation.evidence_state
+                        or EvidenceCompleteness.INCOMPLETE,
+                    ),
+                )
+            self._lock_run(cursor, observation.project_id, observation.run_id)
+            for event in () if provider_absent else observation.events:
+                if event.project_id != observation.project_id or event.run_id != observation.run_id:
+                    raise ValueError("event source crossed project/run boundaries")
+                if event.attempt != observation.attempt:
+                    raise ValueError("event source crossed attempt boundaries")
+                self._insert_event(cursor, event)
+            for stage in () if provider_absent else observation.stages:
+                if stage.project_id != observation.project_id or stage.run_id != observation.run_id:
+                    raise ValueError("stage source crossed project/run boundaries")
+                if stage.attempt != observation.attempt:
+                    raise ValueError("stage source crossed attempt boundaries")
+                self._insert_stage(cursor, stage)
+
+            cursor.execute(
+                f"SELECT * FROM {self._table('pipeline_run')} "
+                f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
+                (observation.project_id, observation.run_id),
+            )
+            run_row = self._row_dict(cursor, cursor.fetchone())
+            cursor.execute(
+                f"SELECT * FROM {self._table('run_event')} "
+                f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
+                (observation.project_id, observation.run_id),
+            )
+            event_rows = [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            cursor.execute(
+                f"SELECT * FROM {self._table('run_stage')} "
+                f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
+                (observation.project_id, observation.run_id),
+            )
+            stage_rows = [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            record_rows: dict[str, list[dict[str, Any]]] = {}
+            for family, table in (
+                ("resource", "run_resource"),
+                ("catalog_change", "run_catalog_change"),
+                ("quality_result", "run_quality_result"),
+                ("artifact", "run_artifact"),
+            ):
+                cursor.execute(
+                    f"SELECT * FROM {self._table(table)} "
+                    f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder} "
+                    f"AND attempt = {self.placeholder}",
+                    (observation.project_id, observation.run_id, observation.attempt),
+                )
+                record_rows[family] = [self._row_dict(cursor, row) for row in cursor.fetchall()]
+            decision = evaluate_reconciliation(
+                observation=observation,
+                profile=profile,
+                run_row=run_row,
+                event_rows=event_rows,
+                stage_rows=stage_rows,
+                record_rows=record_rows,
+                now=now,
+                stale_after=stale_after,
+                clock_skew=clock_skew,
+            )
+            stored_decision, inserted = self._insert_reconciliation_decision(cursor, decision)
+            if not inserted:
+                if existing_before_row is not None:
+                    self._restore_run_updated_at(
+                        cursor,
+                        observation.project_id,
+                        observation.run_id,
+                        existing_before_row.get("updated_at"),
+                    )
+                return stored_decision
+
+            if provider_absent:
+                cursor.execute(
+                    f"UPDATE {self._table('pipeline_run')} SET evidence_completeness = {self.placeholder}, "
+                    f"reconciled_at = {self.placeholder}, reconciliation_reason = {self.placeholder}, "
+                    f"updated_at = {self.placeholder} WHERE project_id = {self.placeholder} "
+                    f"AND run_id = {self.placeholder}",
+                    (
+                        decision.evidence_completeness.value,
+                        _timestamp(decision.decided_at),
+                        _text(decision.reason),
+                        _timestamp(datetime.now(UTC)),
+                        observation.project_id,
+                        observation.run_id,
+                    ),
+                )
+                return decision
+
+            current_attempt = int(run_row["attempt"])
+            current_status = normalize_status(str(run_row["status"])) or "running"
+            aggregate_status = decision.status
+            aggregate_finished_at: datetime | str | None = decision.finished_at
+            if (
+                current_attempt == observation.attempt
+                and current_status in TERMINAL_STATUSES
+                and decision.status in TERMINAL_STATUSES
+                and decision.status != current_status
+            ):
+                aggregate_status = current_status
+                aggregate_finished_at = run_row.get("finished_at")
+            if observation.attempt >= current_attempt and not (
+                current_attempt == observation.attempt
+                and current_status in TERMINAL_STATUSES
+                and decision.status in {"running", "incomplete", "abandoned"}
+            ):
+                cursor.execute(
+                    f"UPDATE {self._table('pipeline_run')} SET status = {self.placeholder}, "
+                    f"finished_at = {self.placeholder}, evidence_completeness = {self.placeholder}, "
+                    f"last_heartbeat_at = {self.placeholder}, reconciled_at = {self.placeholder}, "
+                    f"reconciliation_reason = {self.placeholder}, updated_at = {self.placeholder} "
+                    f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder} "
+                    f"AND attempt = {self.placeholder}",
+                    (
+                        aggregate_status,
+                        _timestamp(aggregate_finished_at)
+                        if isinstance(aggregate_finished_at, datetime)
+                        else aggregate_finished_at,
+                        decision.evidence_completeness.value,
+                        _timestamp(decision.heartbeat_at),
+                        _timestamp(decision.decided_at),
+                        _text(decision.reason),
+                        _timestamp(datetime.now(UTC)),
+                        observation.project_id,
+                        observation.run_id,
+                        observation.attempt,
+                    ),
+                )
+            return decision
+
+    def list_reconciliation_decisions(self, project_id: str, run_id: str) -> list[dict[str, Any]]:
+        """Return immutable reconciliation snapshots in evaluation order."""
+        with self._transaction() as (_, cursor):
+            cursor.execute(
+                f"SELECT * FROM {self._table('run_reconciliation_decision')} "
+                f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder} "
+                "ORDER BY decided_at, id",
+                (project_id, run_id),
+            )
+            return [self._row_dict(cursor, row) for row in cursor.fetchall()]
 
     def get_run(self, project_id: str, run_id: str) -> dict[str, Any] | None:
         with self._transaction() as (_, cursor):
@@ -281,7 +624,7 @@ class _SqlRunEvidenceStore:
                 "status = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
                 "THEN EXCLUDED.status WHEN EXCLUDED.attempt < existing_run.attempt "
                 "THEN existing_run.status WHEN existing_run.status IN "
-                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
                 "THEN existing_run.status ELSE EXCLUDED.status END",
                 "trace_id = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
                 "THEN EXCLUDED.trace_id WHEN EXCLUDED.attempt < existing_run.attempt "
@@ -289,19 +632,19 @@ class _SqlRunEvidenceStore:
                 "finished_at = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
                 "THEN EXCLUDED.finished_at WHEN EXCLUDED.attempt < existing_run.attempt "
                 "THEN existing_run.finished_at WHEN existing_run.status IN "
-                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
                 "THEN COALESCE(existing_run.finished_at, EXCLUDED.finished_at) "
                 "ELSE COALESCE(EXCLUDED.finished_at, existing_run.finished_at) END",
                 "failure_summary = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
                 "THEN EXCLUDED.failure_summary WHEN EXCLUDED.attempt < existing_run.attempt "
                 "THEN existing_run.failure_summary WHEN existing_run.status IN "
-                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
                 "THEN COALESCE(existing_run.failure_summary, EXCLUDED.failure_summary) "
                 "ELSE COALESCE(EXCLUDED.failure_summary, existing_run.failure_summary) END",
                 "evidence_completeness = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
                 "THEN EXCLUDED.evidence_completeness WHEN EXCLUDED.attempt < existing_run.attempt "
                 "THEN existing_run.evidence_completeness WHEN existing_run.status IN "
-                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data', 'abandoned') "
                 "THEN existing_run.evidence_completeness WHEN existing_run.evidence_completeness IN "
                 "('complete', 'expired', 'redacted') AND EXCLUDED.evidence_completeness = 'incomplete' "
                 "THEN existing_run.evidence_completeness ELSE EXCLUDED.evidence_completeness END",
@@ -313,6 +656,19 @@ class _SqlRunEvidenceStore:
             f"ON CONFLICT (project_id, run_id) DO UPDATE SET {updates}, "
             "updated_at = CURRENT_TIMESTAMP",
             values,
+        )
+
+    def _restore_run_updated_at(
+        self,
+        cursor: Any,
+        project_id: str,
+        run_id: str,
+        updated_at: Any,
+    ) -> None:
+        cursor.execute(
+            f"UPDATE {self._table('pipeline_run')} SET updated_at = {self.placeholder} "
+            f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}",
+            (updated_at, project_id, run_id),
         )
 
     def _insert_event(self, cursor: Any, event: RunEvent) -> bool:
@@ -330,20 +686,22 @@ class _SqlRunEvidenceStore:
             event.producer,
             _timestamp(event.observed_at),
             event.sequence,
+            event.attempt,
             _json(redacted),
             checksum,
         )
         cursor.execute(
             f"INSERT INTO {self._table('run_event')} "
             "(project_id, run_id, stage_id, event_id, event_type, schema_version, producer, "
-            "observed_at, sequence, payload, payload_checksum) VALUES ("
+            "observed_at, sequence, attempt, payload, payload_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
             + ") ON CONFLICT (project_id, producer, event_id) DO NOTHING",
             values,
         )
         inserted = cursor.rowcount == 1
         cursor.execute(
-            f"SELECT project_id, run_id, payload_checksum FROM {self._table('run_event')} "
+            f"SELECT project_id, run_id, event_type, schema_version, stage_id, observed_at, "
+            f"sequence, attempt, payload_checksum FROM {self._table('run_event')} "
             f"WHERE project_id = {self.placeholder} AND producer = {self.placeholder} "
             f"AND event_id = {self.placeholder}",
             (event.project_id, event.producer, event.event_id),
@@ -355,14 +713,210 @@ class _SqlRunEvidenceStore:
             raise IdempotencyConflict(
                 f"event {event.producer}/{event.event_id} is correlated to another run"
             )
-        if existing[2] != checksum:
+        if (existing[2], existing[3], existing[4], existing[7], existing[8]) != (
+            event.event_type,
+            event.schema_version,
+            event.stage_id,
+            event.attempt,
+            checksum,
+        ):
             raise IdempotencyConflict(
-                f"event {event.producer}/{event.event_id} was replayed with different payload"
+                f"event {event.producer}/{event.event_id} was replayed with different attempt or payload"
+            )
+        if event.stage_id is not None:
+            self._validate_existing_stage_attempt(
+                cursor,
+                project_id=event.project_id,
+                run_id=event.run_id,
+                stage_id=event.stage_id,
+                attempt=event.attempt,
             )
         return inserted
 
+    def _insert_reconciliation_decision(
+        self, cursor: Any, decision: ReconciliationDecision
+    ) -> tuple[ReconciliationDecision, bool]:
+        missing = _json(list(decision.missing_evidence))
+        record_checksum = payload_checksum(
+            {
+                "decision_id": decision.decision_id,
+                "project_id": decision.project_id,
+                "run_id": decision.run_id,
+                "attempt": decision.attempt,
+                "profile_id": decision.profile_id,
+                "profile_version": decision.profile_version,
+                "status": decision.status,
+                "evidence_completeness": decision.evidence_completeness.value,
+                "reason": decision.reason,
+                "missing_evidence": decision.missing_evidence,
+                "evidence_checksum": decision.evidence_checksum,
+                "source": decision.source,
+                "heartbeat_at": _timestamp(decision.heartbeat_at),
+                "stale_after_seconds": decision.stale_after_seconds,
+                "observed_event_count": decision.observed_event_count,
+                "finished_at": _timestamp(decision.finished_at),
+            }
+        )
+        values = (
+            decision.decision_id,
+            decision.project_id,
+            decision.run_id,
+            decision.attempt,
+            decision.profile_id,
+            decision.profile_version,
+            decision.status,
+            decision.evidence_completeness.value,
+            _text(decision.reason),
+            missing,
+            decision.evidence_checksum,
+            decision.observed_event_count,
+            _text(decision.source),
+            _timestamp(decision.heartbeat_at),
+            decision.stale_after_seconds,
+            _timestamp(decision.decided_at),
+            _timestamp(decision.finished_at),
+            record_checksum,
+        )
+        cursor.execute(
+            f"INSERT INTO {self._table('run_reconciliation_decision')} "
+            "(decision_id, project_id, run_id, attempt, profile_id, profile_version, status, "
+            "evidence_completeness, reason, missing_evidence, evidence_checksum, observed_event_count, "
+            "source, heartbeat_at, stale_after_seconds, decided_at, finished_at, record_checksum) VALUES ("
+            + ", ".join([self.placeholder] * len(values))
+            + ") ON CONFLICT (project_id, decision_id) DO NOTHING",
+            values,
+        )
+        if cursor.rowcount != 1:
+            cursor.execute(
+                f"SELECT * FROM {self._table('run_reconciliation_decision')} "
+                f"WHERE project_id = {self.placeholder} AND decision_id = {self.placeholder}",
+                (decision.project_id, decision.decision_id),
+            )
+            existing = cursor.fetchone()
+            if existing is None:
+                raise IdempotencyConflict(
+                    f"reconciliation decision {decision.project_id}/{decision.decision_id} conflicted"
+                )
+            existing_row = self._row_dict(cursor, existing)
+            if existing_row["record_checksum"] != record_checksum:
+                raise IdempotencyConflict(
+                    f"reconciliation decision {decision.project_id}/{decision.decision_id} conflicted"
+                )
+            return self._decision_from_row(existing_row), False
+        return decision, True
+
+    @staticmethod
+    def _decision_from_row(row: dict[str, Any]) -> ReconciliationDecision:
+        missing_value = row["missing_evidence"]
+        missing = json.loads(missing_value) if isinstance(missing_value, str) else missing_value
+        return ReconciliationDecision(
+            decision_id=row["decision_id"],
+            project_id=row["project_id"],
+            run_id=row["run_id"],
+            attempt=int(row["attempt"]),
+            profile_id=row["profile_id"],
+            profile_version=row["profile_version"],
+            status=row["status"],
+            evidence_completeness=EvidenceCompleteness(row["evidence_completeness"]),
+            reason=row["reason"],
+            missing_evidence=tuple(missing),
+            evidence_checksum=row["evidence_checksum"],
+            observed_event_count=int(row["observed_event_count"]),
+            source=row["source"],
+            heartbeat_at=_parse_timestamp(row.get("heartbeat_at")),
+            stale_after_seconds=(
+                int(row["stale_after_seconds"])
+                if row.get("stale_after_seconds") is not None
+                else None
+            ),
+            decided_at=_parse_timestamp(row.get("decided_at")) or datetime.min.replace(tzinfo=UTC),
+            finished_at=_parse_timestamp(row.get("finished_at")),
+        )
+
+    def _lock_run(self, cursor: Any, project_id: str, run_id: str) -> None:
+        """Serialize child evidence writes with reconciliation on one parent run."""
+        suffix = " FOR UPDATE" if self.placeholder != "?" else ""
+        cursor.execute(
+            f"SELECT project_id FROM {self._table('pipeline_run')} "
+            f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder}{suffix}",
+            (project_id, run_id),
+        )
+        if cursor.fetchone() is None:
+            raise ValueError(f"run {project_id}/{run_id} does not exist")
+
+    def _validate_event_stage_references(
+        self,
+        cursor: Any,
+        event: RunEvent,
+        stage: RunStage | None,
+        quality_result: RunQualityResult | None,
+    ) -> None:
+        for stage_id in {
+            stage_id
+            for stage_id in (
+                event.stage_id,
+                quality_result.stage_id if quality_result is not None else None,
+            )
+            if stage_id is not None
+        }:
+            self._validate_existing_stage_attempt(
+                cursor,
+                project_id=event.project_id,
+                run_id=event.run_id,
+                stage_id=stage_id,
+                attempt=event.attempt,
+            )
+        if stage is not None:
+            self._validate_stage_write_references(cursor, stage)
+
+    def _validate_existing_stage_attempt(
+        self,
+        cursor: Any,
+        *,
+        project_id: str,
+        run_id: str,
+        stage_id: str,
+        attempt: int,
+        error_type: type[ValueError] = ValueError,
+    ) -> None:
+        cursor.execute(
+            f"SELECT attempt FROM {self._table('run_stage')} "
+            f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder} "
+            f"AND stage_id = {self.placeholder}",
+            (project_id, run_id, stage_id),
+        )
+        row = cursor.fetchone()
+        if row is not None and row[0] != attempt:
+            raise error_type(
+                f"stage {project_id}/{run_id}/{stage_id} has attempt {row[0]}, expected {attempt}"
+            )
+
+    def _validate_stage_write_references(self, cursor: Any, stage: RunStage) -> None:
+        self._validate_existing_stage_attempt(
+            cursor,
+            project_id=stage.project_id,
+            run_id=stage.run_id,
+            stage_id=stage.stage_id,
+            attempt=stage.attempt,
+            error_type=IdempotencyConflict,
+        )
+        for table in ("run_event", "run_quality_result"):
+            cursor.execute(
+                f"SELECT attempt FROM {self._table(table)} "
+                f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder} "
+                f"AND stage_id = {self.placeholder}",
+                (stage.project_id, stage.run_id, stage.stage_id),
+            )
+            mismatches = [row[0] for row in cursor.fetchall() if row[0] != stage.attempt]
+            if mismatches:
+                raise ValueError(
+                    f"stage {stage.project_id}/{stage.run_id}/{stage.stage_id} attempt "
+                    f"{stage.attempt} conflicts with {table} attempt {mismatches[0]}"
+                )
+
     def _insert_stage(self, cursor: Any, stage: RunStage) -> None:
         self._require_id("stage_id", stage.stage_id)
+        self._validate_stage_write_references(cursor, stage)
         immutable_checksum = payload_checksum(
             {
                 "stage_id": stage.stage_id,
@@ -415,15 +969,15 @@ class _SqlRunEvidenceStore:
         p = self.placeholder
         cursor.execute(
             f"UPDATE {self._table('run_stage')} SET status = CASE "
-            f"WHEN status IN ('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+            f"WHEN status IN ('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
             f"THEN status ELSE {p} END, "
             f"finished_at = CASE WHEN status IN "
-            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
             f"THEN COALESCE(finished_at, {p}) ELSE COALESCE({p}, finished_at) END, "
             f"metrics = CASE WHEN status IN "
-            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
             f"THEN metrics ELSE {p} END, error = CASE WHEN status IN "
-            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped', 'no_data') "
             f"THEN COALESCE(error, {p}) ELSE COALESCE({p}, error) END "
             f"WHERE project_id = {p} AND run_id = {p} AND stage_id = {p}",
             (
@@ -448,6 +1002,7 @@ class _SqlRunEvidenceStore:
             resource.resource_id,
             resource.project_id,
             resource.run_id,
+            resource.attempt,
             resource.resource_kind,
             resource.role,
             _text(resource.normalized_identity),
@@ -466,7 +1021,7 @@ class _SqlRunEvidenceStore:
         )
         cursor.execute(
             f"INSERT INTO {self._table('run_resource')} "
-            "(resource_id, project_id, run_id, resource_kind, role, normalized_identity, uri, "
+            "(resource_id, project_id, run_id, attempt, resource_kind, role, normalized_identity, uri, "
             "table_name, catalog, ref_name, schema_hash, watermark, record_count, byte_count, "
             "staged_objects, snapshot_before, snapshot_after, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
@@ -522,6 +1077,14 @@ class _SqlRunEvidenceStore:
 
     def _insert_quality(self, cursor: Any, result: RunQualityResult) -> None:
         self._require_id("quality_result_id", result.quality_result_id)
+        if result.stage_id is not None:
+            self._validate_existing_stage_attempt(
+                cursor,
+                project_id=result.project_id,
+                run_id=result.run_id,
+                stage_id=result.stage_id,
+                attempt=result.attempt,
+            )
         record_checksum = payload_checksum(
             {key: value for key, value in asdict(result).items() if key != "quality_result_id"}
         )
@@ -529,6 +1092,7 @@ class _SqlRunEvidenceStore:
             result.quality_result_id,
             result.project_id,
             result.run_id,
+            result.attempt,
             result.stage_id,
             _text(result.check_id),
             _text(result.asset),
@@ -543,7 +1107,7 @@ class _SqlRunEvidenceStore:
         )
         cursor.execute(
             f"INSERT INTO {self._table('run_quality_result')} "
-            "(quality_result_id, project_id, run_id, stage_id, check_id, asset, severity, blocking, "
+            "(quality_result_id, project_id, run_id, attempt, stage_id, check_id, asset, severity, blocking, "
             "passed, evaluated_count, failed_count, failure_artifact_id, metadata, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
             + ") ON CONFLICT (project_id, run_id, quality_result_id) DO NOTHING",
@@ -569,6 +1133,7 @@ class _SqlRunEvidenceStore:
             change.catalog_change_id,
             change.project_id,
             change.run_id,
+            change.attempt,
             _text(change.catalog_ref),
             _text(change.content_key),
             _text(change.operation),
@@ -584,7 +1149,7 @@ class _SqlRunEvidenceStore:
         )
         cursor.execute(
             f"INSERT INTO {self._table('run_catalog_change')} "
-            "(catalog_change_id, project_id, run_id, catalog_ref, content_key, operation, "
+            "(catalog_change_id, project_id, run_id, attempt, catalog_ref, content_key, operation, "
             "source_hash, target_hash, commit_hash, commit_message, merge_outcome, snapshot_before, "
             "snapshot_after, metadata, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
@@ -611,6 +1176,7 @@ class _SqlRunEvidenceStore:
             artifact.artifact_id,
             artifact.project_id,
             artifact.run_id,
+            artifact.attempt,
             _text(artifact.artifact_kind),
             _text(artifact.uri),
             _text(artifact.content_type),
@@ -623,7 +1189,7 @@ class _SqlRunEvidenceStore:
         )
         cursor.execute(
             f"INSERT INTO {self._table('run_artifact')} "
-            "(artifact_id, project_id, run_id, artifact_kind, uri, content_type, checksum, "
+            "(artifact_id, project_id, run_id, attempt, artifact_kind, uri, content_type, checksum, "
             "retention_class, expires_at, legal_hold, status, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
             + ") ON CONFLICT (project_id, run_id, artifact_id) DO NOTHING",
@@ -721,7 +1287,170 @@ class SQLiteRunEvidenceStore(_SqlRunEvidenceStore):
             line for line in sql.splitlines() if not line.strip().startswith("COMMENT ON")
         )
         self._connection.executescript(sql)
+        self._migrate_sqlite_reconciliation_schema()
         self._connection.commit()
+
+    def _migrate_sqlite_reconciliation_schema(self) -> None:
+        """Backfill v2 columns for SQLite files created by the foundation PR."""
+        for table, column, definition in (
+            ("pipeline_run", "last_heartbeat_at", "TEXT"),
+            ("pipeline_run", "reconciled_at", "TEXT"),
+            ("pipeline_run", "reconciliation_reason", "TEXT"),
+            ("run_event", "attempt", "INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0)"),
+            ("run_resource", "attempt", "INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0)"),
+            ("run_catalog_change", "attempt", "INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0)"),
+            ("run_quality_result", "attempt", "INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0)"),
+            ("run_artifact", "attempt", "INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0)"),
+        ):
+            columns = {
+                row[1] for row in self._connection.execute(f"PRAGMA table_info({table})").fetchall()
+            }
+            if column not in columns:
+                self._connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+        self._make_sqlite_started_at_nullable()
+        self._connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS run_reconciliation_decision (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                decision_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                attempt INTEGER NOT NULL CHECK (attempt > 0),
+                profile_id TEXT NOT NULL,
+                profile_version TEXT NOT NULL,
+                status TEXT NOT NULL,
+                evidence_completeness TEXT NOT NULL CHECK (
+                    evidence_completeness IN ('complete', 'incomplete', 'missing', 'expired', 'redacted')
+                ),
+                reason TEXT NOT NULL,
+                missing_evidence TEXT NOT NULL DEFAULT '[]',
+                evidence_checksum TEXT NOT NULL,
+                observed_event_count INTEGER NOT NULL DEFAULT 0,
+                source TEXT NOT NULL,
+                heartbeat_at TEXT,
+                stale_after_seconds INTEGER,
+                decided_at TEXT NOT NULL,
+                finished_at TEXT,
+                record_checksum TEXT NOT NULL,
+                UNIQUE (project_id, decision_id),
+                FOREIGN KEY (project_id, run_id) REFERENCES pipeline_run(project_id, run_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_pipeline_run_project_heartbeat
+                ON pipeline_run(project_id, last_heartbeat_at);
+            CREATE INDEX IF NOT EXISTS idx_pipeline_run_project_started
+                ON pipeline_run(project_id, started_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_run_reconciliation_project_run
+                ON run_reconciliation_decision(project_id, run_id, attempt, decided_at);
+            CREATE INDEX IF NOT EXISTS idx_run_resource_project_run_attempt
+                ON run_resource(project_id, run_id, attempt);
+            CREATE INDEX IF NOT EXISTS idx_run_catalog_change_project_run_attempt
+                ON run_catalog_change(project_id, run_id, attempt);
+            CREATE INDEX IF NOT EXISTS idx_run_quality_project_run_attempt
+                ON run_quality_result(project_id, run_id, attempt);
+            CREATE INDEX IF NOT EXISTS idx_run_artifact_project_run_attempt
+                ON run_artifact(project_id, run_id, attempt);
+            CREATE TRIGGER IF NOT EXISTS trg_run_event_attempt_positive_insert
+                BEFORE INSERT ON run_event
+                WHEN NEW.attempt <= 0
+                BEGIN SELECT RAISE(ABORT, 'run_event attempt must be positive'); END;
+            CREATE TRIGGER IF NOT EXISTS trg_run_event_attempt_positive_update
+                BEFORE UPDATE OF attempt ON run_event
+                WHEN NEW.attempt <= 0
+                BEGIN SELECT RAISE(ABORT, 'run_event attempt must be positive'); END;
+            CREATE TRIGGER IF NOT EXISTS trg_run_resource_attempt_positive_insert
+                BEFORE INSERT ON run_resource
+                WHEN NEW.attempt <= 0
+                BEGIN SELECT RAISE(ABORT, 'run_resource attempt must be positive'); END;
+            CREATE TRIGGER IF NOT EXISTS trg_run_resource_attempt_positive_update
+                BEFORE UPDATE OF attempt ON run_resource
+                WHEN NEW.attempt <= 0
+                BEGIN SELECT RAISE(ABORT, 'run_resource attempt must be positive'); END;
+            CREATE TRIGGER IF NOT EXISTS trg_run_catalog_change_attempt_positive_insert
+                BEFORE INSERT ON run_catalog_change
+                WHEN NEW.attempt <= 0
+                BEGIN SELECT RAISE(ABORT, 'run_catalog_change attempt must be positive'); END;
+            CREATE TRIGGER IF NOT EXISTS trg_run_catalog_change_attempt_positive_update
+                BEFORE UPDATE OF attempt ON run_catalog_change
+                WHEN NEW.attempt <= 0
+                BEGIN SELECT RAISE(ABORT, 'run_catalog_change attempt must be positive'); END;
+            CREATE TRIGGER IF NOT EXISTS trg_run_quality_result_attempt_positive_insert
+                BEFORE INSERT ON run_quality_result
+                WHEN NEW.attempt <= 0
+                BEGIN SELECT RAISE(ABORT, 'run_quality_result attempt must be positive'); END;
+            CREATE TRIGGER IF NOT EXISTS trg_run_quality_result_attempt_positive_update
+                BEFORE UPDATE OF attempt ON run_quality_result
+                WHEN NEW.attempt <= 0
+                BEGIN SELECT RAISE(ABORT, 'run_quality_result attempt must be positive'); END;
+            CREATE TRIGGER IF NOT EXISTS trg_run_artifact_attempt_positive_insert
+                BEFORE INSERT ON run_artifact
+                WHEN NEW.attempt <= 0
+                BEGIN SELECT RAISE(ABORT, 'run_artifact attempt must be positive'); END;
+            CREATE TRIGGER IF NOT EXISTS trg_run_artifact_attempt_positive_update
+                BEFORE UPDATE OF attempt ON run_artifact
+                WHEN NEW.attempt <= 0
+                BEGIN SELECT RAISE(ABORT, 'run_artifact attempt must be positive'); END;
+            INSERT OR IGNORE INTO run_evidence_schema_version(version) VALUES (2);
+            """
+        )
+
+    def _make_sqlite_started_at_nullable(self) -> None:
+        """Mirror the v2 PostgreSQL relaxation for v1 SQLite files."""
+        started_at_not_null = any(
+            row[1] == "started_at" and row[3] == 1
+            for row in self._connection.execute("PRAGMA table_info(pipeline_run)").fetchall()
+        )
+        if not started_at_not_null:
+            return
+        self._connection.execute("PRAGMA foreign_keys = OFF")
+        try:
+            self._connection.executescript(
+                """
+                CREATE TABLE pipeline_run_v2 (
+                    project_id TEXT NOT NULL,
+                    run_id TEXT NOT NULL,
+                    pipeline_name TEXT,
+                    provider_run_id TEXT,
+                    trigger TEXT,
+                    initiator TEXT,
+                    effective_identity TEXT,
+                    partition_key TEXT,
+                    code_version TEXT,
+                    config_version TEXT,
+                    attempt INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0),
+                    trace_id TEXT,
+                    status TEXT NOT NULL,
+                    started_at TEXT,
+                    finished_at TEXT,
+                    failure_summary TEXT,
+                    evidence_completeness TEXT NOT NULL CHECK (
+                        evidence_completeness IN ('complete', 'incomplete', 'missing', 'expired', 'redacted')
+                    ),
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    last_heartbeat_at TEXT,
+                    reconciled_at TEXT,
+                    reconciliation_reason TEXT,
+                    PRIMARY KEY (project_id, run_id)
+                );
+                INSERT INTO pipeline_run_v2 (
+                    project_id, run_id, pipeline_name, provider_run_id, trigger, initiator,
+                    effective_identity, partition_key, code_version, config_version, attempt,
+                    trace_id, status, started_at, finished_at, failure_summary,
+                    evidence_completeness, created_at, updated_at, last_heartbeat_at,
+                    reconciled_at, reconciliation_reason
+                )
+                SELECT project_id, run_id, pipeline_name, provider_run_id, trigger, initiator,
+                    effective_identity, partition_key, code_version, config_version, attempt,
+                    trace_id, status, started_at, finished_at, failure_summary,
+                    evidence_completeness, created_at, updated_at, last_heartbeat_at,
+                    reconciled_at, reconciliation_reason
+                FROM pipeline_run;
+                DROP TABLE pipeline_run;
+                ALTER TABLE pipeline_run_v2 RENAME TO pipeline_run;
+                """
+            )
+        finally:
+            self._connection.execute("PRAGMA foreign_keys = ON")
 
 
 class PostgresRunEvidenceStore(_SqlRunEvidenceStore):
@@ -752,6 +1481,11 @@ class PostgresRunEvidenceStore(_SqlRunEvidenceStore):
         try:
             with connection.cursor() as cursor:
                 cursor.execute(sql_path.read_text(encoding="utf-8"))
+                cursor.execute(
+                    (
+                        Path(__file__).parent.parent / "sql" / "003_reconcile_run_evidence.sql"
+                    ).read_text(encoding="utf-8")
+                )
             connection.commit()
         except Exception:
             connection.rollback()
