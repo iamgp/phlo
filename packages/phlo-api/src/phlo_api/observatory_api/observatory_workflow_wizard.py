@@ -747,12 +747,15 @@ def _write_text_atomically_at(directory_fd: int, filename: str, content: str) ->
             handle.write(content)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(
+        os.link(
             temporary_name,
             filename,
             src_dir_fd=directory_fd,
             dst_dir_fd=directory_fd,
+            follow_symlinks=False,
         )
+        os.unlink(temporary_name, dir_fd=directory_fd)
+        os.fsync(directory_fd)
     except BaseException:
         with contextlib.suppress(FileNotFoundError):
             os.unlink(temporary_name, dir_fd=directory_fd)
@@ -783,7 +786,14 @@ def _apply_workflow_file(
                 raise HTTPException(
                     status_code=409, detail="Applied workflow files changed after completion."
                 )
-            _write_text_atomically_at(directory_fd, filename, preview.content)
+            try:
+                _write_text_atomically_at(directory_fd, filename, preview.content)
+            except FileExistsError as exc:
+                if conflict_policy == "skip-if-exists":
+                    return "skipped"
+                raise HTTPException(
+                    status_code=409, detail=f"File conflicts: {preview.path}"
+                ) from exc
             return "written"
         except OSError as exc:
             if verify_only:

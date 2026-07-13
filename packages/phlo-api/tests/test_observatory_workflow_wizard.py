@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
@@ -591,6 +592,65 @@ def test_workflow_wizard_rejects_target_directory_swap_before_safe_open(
     assert not (
         tmp_path / ".phlo" / "workflow-wizard" / "applied" / f"{proposal['proposal_id']}.json"
     ).exists()
+
+
+def test_workflow_wizard_publish_does_not_replace_competing_destination(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    original_link = wizard.os.link
+    injected: set[str] = set()
+
+    def inject_competing_destination(
+        source: str,
+        destination: str,
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
+        follow_symlinks: bool = True,
+    ) -> None:
+        if destination not in injected:
+            injected.add(destination)
+            assert dst_dir_fd is not None
+            descriptor = wizard.os.open(
+                destination,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+                dir_fd=dst_dir_fd,
+            )
+            try:
+                wizard.os.write(descriptor, b"competing content")
+            finally:
+                wizard.os.close(descriptor)
+        original_link(
+            source,
+            destination,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+            follow_symlinks=follow_symlinks,
+        )
+
+    monkeypatch.setattr(wizard.os, "link", inject_competing_destination)
+    fail_preview = WorkflowFilePreview(path="workflows/race-fail.py", content="generated")
+    with pytest.raises(HTTPException) as error:
+        wizard._apply_workflow_file(
+            tmp_path,
+            fail_preview,
+            conflict_policy="fail-on-conflict",
+        )
+
+    skip_preview = WorkflowFilePreview(path="workflows/race-skip.py", content="generated")
+    outcome = wizard._apply_workflow_file(
+        tmp_path,
+        skip_preview,
+        conflict_policy="skip-if-exists",
+    )
+
+    assert error.value.status_code == 409
+    assert outcome == "skipped"
+    assert (workflows / "race-fail.py").read_text(encoding="utf-8") == "competing content"
+    assert (workflows / "race-skip.py").read_text(encoding="utf-8") == "competing content"
 
 
 def test_workflow_wizard_apply_rejects_tampered_proposal(
