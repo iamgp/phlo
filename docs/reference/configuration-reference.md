@@ -53,6 +53,10 @@ Precedence:
 
 Note: `PHLO_REGULATED_MODE` and `regulated_mode:` are accepted as deprecated aliases.
 
+## Tenant scope
+
+The v1 support boundary covers one project and one tenant per deployment. Multi-tenancy configuration and isolation are not supported by this boundary.
+
 Built-in authentication provider names:
 
 - `static`
@@ -901,6 +905,9 @@ project-specific overrides belong in top-level `env:`.
 ### `infrastructure.container_backend`
 
 Selects the local container backend used by `phlo services` commands.
+
+Docker with Compose v2 is the currently supported path. Podman is documented as an
+experimental alternative and is not CI-supported.
 
 Allowed values:
 

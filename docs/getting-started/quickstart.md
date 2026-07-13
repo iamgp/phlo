@@ -16,8 +16,8 @@ A local CSV ingestion pipeline that:
 
 ## Prerequisites
 
-- Python 3.11 or later
-- Docker with Compose v2, or Podman with a Compose provider
+- Python 3.11 or 3.12 for the currently tested support boundary
+- Docker with Compose v2, which is the currently supported path; Podman with a Compose provider is documented as experimental and is not CI-supported
 - `uv`
 
 Install Phlo with the default local stack:
@@ -189,7 +189,8 @@ phlo services status
 phlo doctor --verbose
 ```
 
-For Podman, set the backend explicitly:
+Podman is a documented experimental backend and is not CI-supported. If you choose
+to try it, set the backend explicitly:
 
 ```bash
 export PHLO_CONTAINER_BACKEND=podman

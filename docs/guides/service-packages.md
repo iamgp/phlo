@@ -5,12 +5,12 @@ definition and registers a `phlo.plugins.services` entry point for CLI discovery
 
 ## Architecture
 
-Phlo services are organized into **core** and **package** services:
+Phlo services are organized into the v1 target profile and separately installed optional or preview services:
 
 ```mermaid
 flowchart TB
-    core["Core services<br/>Observatory<br/>phlo-api"]
-    packages["Installed service packages<br/>dagster, postgres, minio, nessie, trino, ..."]
+    core["v1 target services<br/>Dagster, Postgres, MinIO, Nessie, Trino<br/>API and Observatory journey"]
+    packages["Installed service packages<br/>optional, preview, or development-only"]
     discovery["Service discovery<br/>phlo.plugins.services"]
     definitions["ServiceDefinition objects"]
     compose["Compose and env generation"]
@@ -20,12 +20,12 @@ flowchart TB
     packages --> discovery --> definitions --> compose --> runtime
 ```
 
-### Core Services
+### v1 Target Services
 
-Core services are bundled with `pip install phlo` and cannot be removed:
+The v1 target stack is installed with `phlo[defaults]`; the base `phlo` package does not install every provider. Current maturity and release-gate status are recorded in [the support manifest](../../registry/support/v1.json):
 
-- **Observatory** - Data platform UI for visibility and lineage
-- **phlo-api** - Backend API exposing phlo internals to Observatory
+- **Dagster, PostgreSQL, MinIO, Nessie, and Trino** - the tested local service path
+- **phlo-api and Observatory** - the core product surface, with durable run reports still planned
 
 ### Package Services
 

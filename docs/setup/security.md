@@ -4,10 +4,12 @@ This guide covers enterprise security configuration for Phlo, including authenti
 
 ## What regulated mode now means
 
-This is the operator-facing summary of Phlo's current regulated posture.
+This is the operator-facing summary of Phlo's target regulated posture. Phlo is
+currently alpha; production and regulated deployment claims remain blocked by the
+[v1 support boundary](../../registry/support/v1.json) until its required gates pass.
 
-When `regulated: true`, Phlo now supports all of the following as one connected
-control plane:
+When `regulated: true` is used for a future gated deployment, the target profile
+connects the following into one control plane:
 
 - request-time authorization on `phlo-api`, the CLI, and Dagster GraphQL
 - autonomous Dagster daemon execution under a platform principal
@@ -70,7 +72,8 @@ openssl rand -base64 32
 
 ## Data-Plane Enforcement
 
-Regulated mode is not only about front-door auth on `phlo-api`. The supported posture is:
+Regulated mode is not only about front-door auth on `phlo-api`. The target posture for
+a gated deployment is:
 
 - request-time enforcement on `phlo-api`, CLI, and Dagster webserver
 - platform identity for autonomous Dagster daemon work
@@ -102,7 +105,7 @@ Phlo does not treat every log line as an audit record. Use this distinction:
 - **Security and audit logs** capture authentication, authorization, and administrative events.
 - **Query and access trails** show who read or queried data.
 
-The supported production posture is:
+The target production posture for a gated deployment is:
 
 | Surface | What You Get | Ownership |
 |---------|---------------|-----------|
@@ -199,8 +202,9 @@ request path, and asserted identity headers so downstream header changes are rej
 
 ### Proxy Authentication with Traefik
 
-For production and regulated deployments, Phlo supports an authentication
-gateway using Traefik reverse proxy and oauth2-proxy.
+For the future gated production and regulated profile, Phlo provides an authentication
+gateway pattern using Traefik reverse proxy and oauth2-proxy; the current alpha release
+does not establish production approval.
 
 #### Architecture
 

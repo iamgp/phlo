@@ -39,7 +39,10 @@ Attach `phlo doctor --json` output when reporting setup issues.
 
 ## Services Won't Start
 
-### Podman backend unavailable
+### Experimental Podman backend unavailable
+
+Podman is a documented experimental backend and is not CI-supported. Docker Compose v2
+is the currently supported path.
 
 Run:
 

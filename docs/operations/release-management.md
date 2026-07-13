@@ -1,6 +1,6 @@
 # Release Management
 
-Use this runbook to cut stable and beta Phlo releases.
+Use this runbook to cut alpha, beta, and future stable Phlo releases.
 
 Phlo releases are driven by ReleaseX and GitHub Actions:
 
@@ -17,8 +17,12 @@ Phlo has two ReleaseX channels:
 
 | Branch | Channel | Version shape | Purpose |
 |---|---|---:|---|
-| `main` | stable | `0.10.0` | Normal public releases |
+| `main` | stable publish channel | `0.12.x` | Normal 0.x artifacts; the product remains alpha until v1 readiness gates pass |
 | `beta` | beta | `0.10.0b1` | Prerelease validation, workshops, and release candidates |
+
+ReleaseX treats `main` as the normal stable-artifact publish channel, as configured
+in `relx.toml`. A non-prerelease `0.x` version is still an alpha product maturity
+claim, so publishing it through that channel does not mean Phlo is production-ready.
 
 Beta releases sync selected workspace package versions into the root `defaults` and
 `core-services` extras. This matters because `phlo[defaults]` must resolve the
@@ -225,6 +229,10 @@ docker pull ghcr.io/phlohouse/phlo-observatory:<version>
 ```
 
 Use the version tag without the leading `v` if the image metadata workflow emits semver tags that way.
+
+## Release artifact support boundary
+
+This release procedure documents publishing and image checks; it does not establish support for exact image tags or digests. The v1 support boundary also excludes high-availability and multi-region deployment guarantees.
 
 ## Troubleshooting
 

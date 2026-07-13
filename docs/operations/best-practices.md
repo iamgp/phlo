@@ -1,8 +1,8 @@
 # Best Practices Guide
 
-## Building Production-Ready Data Pipelines
+## Building Production-Oriented Data Pipelines
 
-This guide contains battle-tested best practices for building reliable, maintainable, and scalable data pipelines in Phlo.
+This guide contains best practices for building reliable, maintainable, and scalable data pipelines in Phlo. Phlo is currently alpha; production deployment still depends on the v1 security, run-evidence, maintenance, recovery, and golden-path gates in the [support boundary](../../registry/support/v1.json).
 
 ---
 

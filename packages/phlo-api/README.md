@@ -46,8 +46,9 @@ This package is **fully auto-configured**:
 # Start the API service
 phlo services start --service phlo-api
 
-# Or run in dev mode
-phlo services start --dev
+# For local source development, initialize dev mode first.
+phlo services init --dev --phlo-source /path/to/phlo
+phlo services start --service phlo-api
 ```
 
 ## Endpoints

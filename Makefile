@@ -40,6 +40,7 @@ TY_CHECK_SCOPE ?= src/phlo \
 	packages/phlo-traefik/src \
 	packages/phlo-trino/src
 CHECK_CMD := scripts/run-parallel \
+	"support manifest" "python3 scripts/validate_support_manifest.py" \
 	"py lint" "uv run ruff check ." \
 	"py format" "uv run ruff format --check ." \
 	"py typecheck" "uv run ty check $(TY_CHECK_SCOPE)" \
@@ -71,6 +72,7 @@ PYMDX_DOCS_PORT ?= 3000
 	health-observability health-api health-catalog \
 	check lint lint-sql lint-python format-python typecheck-python \
 	dependency-refresh dependency-refresh-check \
+	validate-support-manifest \
 	lint-ts format-ts typecheck-ts test-core-regression test-quickstart-smoke fix-sql \
 	prek-install prek-run prek-validate zizmor actionlint docs-generate docs-dev docs-build docs-serve docs-clean
 
@@ -341,6 +343,9 @@ dependency-refresh:
 
 dependency-refresh-check:
 	python3 scripts/dependency_refresh_plan.py --check
+
+validate-support-manifest:
+	python3 scripts/validate_support_manifest.py
 
 lint-ts:
 	$(NPM_OBSERVATORY) run lint

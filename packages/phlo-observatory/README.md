@@ -4,7 +4,7 @@ Phlo Observatory UI for data platform visibility.
 
 ## Description
 
-Web-based UI for exploring the data lakehouse. View lineage, browse tables, run queries, and monitor pipeline health.
+Web-based UI for exploring the data lakehouse. View lineage, browse tables, run bounded read-only previews, and monitor pipeline health; durable per-run reports remain a planned v1 capability.
 
 ## Installation
 
@@ -32,7 +32,7 @@ This package is **auto-configured** via environment:
 | ------------------ | ------------------------------------------ |
 | **API Connection** | Connects to phlo-api for backend data      |
 | **Service URLs**   | Auto-configured from environment variables |
-| **Dev Mode**       | Hot-reloading in `--dev` mode              |
+| **Local source mode** | Hot-reloading after `services init --dev` |
 
 ## Usage
 
@@ -40,13 +40,14 @@ This package is **auto-configured** via environment:
 # Start Observatory
 phlo services start --service observatory
 
-# Start with dev mode (hot-reload)
-phlo services start --dev
+# For local source development, initialize the project in dev mode first.
+phlo services init --dev --phlo-source /path/to/phlo
+phlo services start --service observatory
 ```
 
 ## Features
 
-- **Data Explorer** - Browse tables, view schemas, query data
+- **Data Explorer** - Browse tables, view schemas, and preview known tables with bounded read-only queries
 - **Lineage Graph** - Visualize data flow and dependencies
 - **Asset Browser** - View Dagster assets and materialization status
 - **Quality Dashboard** - Monitor quality check results

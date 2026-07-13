@@ -34,6 +34,9 @@ jobs:
       - name: Check package test groups
         run: python3 scripts/check_ci_package_groups.py
 
+      - name: Validate v1 support boundary
+        run: python3 scripts/validate_support_manifest.py
+
       - name: Lint workflows with zizmor
         run: make zizmor
 

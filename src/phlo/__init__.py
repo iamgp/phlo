@@ -10,7 +10,7 @@ available through this top-level module.
 Key Features:
     - Write-Audit-Publish pattern with Git-like branching
     - Type-safe data quality with automatic validation
-    - Production-ready patterns out of the box
+    - Production-oriented building blocks; v1 production readiness remains gated
     - Schema-first development with Pandera
 
 Lazy-Loaded Modules:
