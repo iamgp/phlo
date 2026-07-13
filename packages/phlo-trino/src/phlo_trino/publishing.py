@@ -332,6 +332,9 @@ def _publish_marts(
                 edges=edges,
                 asset_keys=[edge[1] for edge in edges],
                 metadata={"source_system": "trino", "target_system": target_system},
+                operation_id=(
+                    f"publish:{data_source}:{schema}:{','.join(sorted(tables_to_publish))}"
+                ),
             )
         logger.info(
             "trino_publish_completed",

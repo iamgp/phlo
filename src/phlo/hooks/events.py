@@ -48,6 +48,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
 
 EVENT_VERSION = "1.0"
 
@@ -96,7 +97,9 @@ class HookCorrelation:
     trace_id: str | None = None
     span_id: str | None = None
     trace_flags: str | None = None
+    project_id: str | None = None
     run_id: str | None = None
+    attempt: int = 1
     asset_key: str | None = None
     job_name: str | None = None
     partition_key: str | None = None
@@ -137,6 +140,8 @@ class HookEvent:
 
     event_type: str
     version: str = EVENT_VERSION
+    event_id: str = field(default_factory=lambda: str(uuid4()))
+    producer: str = "phlo"
     timestamp: datetime = field(default_factory=_utc_now)
     tags: dict[str, str] = field(default_factory=dict)
     correlation: HookCorrelation = field(default_factory=HookCorrelation)

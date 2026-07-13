@@ -98,6 +98,7 @@ _CORRELATION_FIELDS = (
     "trace_id",
     "span_id",
     "trace_flags",
+    "project_id",
     "run_id",
     "asset_key",
     "job_name",
@@ -315,7 +316,7 @@ def clear_context() -> None:
 
 def get_bound_correlation_context() -> HookCorrelation:
     """Return the current correlation fields bound in logging contextvars."""
-    values = {
+    values: dict[str, Any] = {
         field: _coerce_optional_string(structlog.contextvars.get_contextvars().get(field))
         for field in _CORRELATION_FIELDS
     }
@@ -413,7 +414,7 @@ def _record_to_event(record: logging.LogRecord, default_service: str) -> LogEven
         tags.setdefault("service", service)
 
     bound_correlation = get_bound_correlation_context()
-    correlation_values = {
+    correlation_values: dict[str, Any] = {
         field: _pop_value(extra, field) or getattr(bound_correlation, field)
         for field in _CORRELATION_FIELDS
     }

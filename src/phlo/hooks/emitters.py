@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import hashlib
+import json
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from phlo.hooks.bus import HookBus, get_hook_bus
@@ -67,6 +69,38 @@ class _ContextEmitterBase:
         )
         self._hook_bus.emit(event)
 
+    def _event_id(self, event_type: str, explicit: str | None, *identity_parts: str) -> str:
+        """Return an explicit or deterministic identity for retryable events."""
+        if explicit:
+            return explicit
+        context = asdict(self._context)
+        context.pop("tags", None)
+        context.pop("correlation", None)
+        correlation = asdict(self._context.correlation)
+        correlation = {
+            key: correlation.get(key)
+            for key in (
+                "project_id",
+                "run_id",
+                "attempt",
+                "asset_key",
+                "partition_key",
+                "job_name",
+            )
+        }
+        identity = json.dumps(
+            {
+                "event_type": event_type,
+                "context": context,
+                "correlation": correlation,
+                "identity_parts": identity_parts,
+            },
+            sort_keys=True,
+            default=str,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
+
 
 @dataclass(frozen=True)
 class IngestionEventContext:
@@ -76,18 +110,22 @@ class IngestionEventContext:
     table_name: str
     group_name: str
     partition_key: str | None = None
+    project_id: str | None = None
     run_id: str | None = None
     branch_name: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
+    producer: str = "phlo"
 
 
 class IngestionEventEmitter(_ContextEmitterBase):
     """Emit ingestion lifecycle events with a shared context."""
 
-    def emit_start(self, *, status: str = "started") -> None:
+    def emit_start(self, *, status: str = "started", event_id: str | None = None) -> None:
         """Emit an ingestion start event."""
-        self._emit(event_type="ingestion.start", status=status, metrics=None, error=None)
+        self._emit(
+            event_type="ingestion.start", status=status, metrics=None, error=None, event_id=event_id
+        )
 
     def emit_end(
         self,
@@ -95,9 +133,16 @@ class IngestionEventEmitter(_ContextEmitterBase):
         status: str,
         metrics: dict[str, Any] | None = None,
         error: str | None = None,
+        event_id: str | None = None,
     ) -> None:
         """Emit an ingestion end event."""
-        self._emit(event_type="ingestion.end", status=status, metrics=metrics, error=error)
+        self._emit(
+            event_type="ingestion.end",
+            status=status,
+            metrics=metrics,
+            error=error,
+            event_id=event_id,
+        )
 
     def _emit(
         self,
@@ -106,6 +151,7 @@ class IngestionEventEmitter(_ContextEmitterBase):
         status: str | None,
         metrics: dict[str, Any] | None,
         error: str | None,
+        event_id: str | None,
     ) -> None:
         """Emit an ingestion event.
 
@@ -119,6 +165,8 @@ class IngestionEventEmitter(_ContextEmitterBase):
         self._emit_event(
             IngestionEvent(
                 event_type=event_type,
+                event_id=self._event_id(event_type, event_id),
+                producer=self._context.producer,
                 asset_key=self._context.asset_key,
                 table_name=self._context.table_name,
                 group_name=self._context.group_name,
@@ -132,6 +180,7 @@ class IngestionEventEmitter(_ContextEmitterBase):
             ),
             correlation_overrides={
                 "run_id": self._context.run_id,
+                "project_id": self._context.project_id,
                 "asset_key": self._context.asset_key,
                 "partition_key": self._context.partition_key,
             },
@@ -147,18 +196,22 @@ class TransformEventContext:
     target: str | None = None
     partition_key: str | None = None
     asset_key: str | None = None
+    project_id: str | None = None
     run_id: str | None = None
     model_names: list[str] = field(default_factory=list)
     tags: dict[str, str] = field(default_factory=dict)
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
+    producer: str = "phlo"
 
 
 class TransformEventEmitter(_ContextEmitterBase):
     """Emit transform lifecycle events with a shared context."""
 
-    def emit_start(self, *, status: str = "started") -> None:
+    def emit_start(self, *, status: str = "started", event_id: str | None = None) -> None:
         """Emit a transform start event."""
-        self._emit(event_type="transform.start", status=status, metrics=None, error=None)
+        self._emit(
+            event_type="transform.start", status=status, metrics=None, error=None, event_id=event_id
+        )
 
     def emit_end(
         self,
@@ -166,9 +219,16 @@ class TransformEventEmitter(_ContextEmitterBase):
         status: str,
         metrics: dict[str, Any] | None = None,
         error: str | None = None,
+        event_id: str | None = None,
     ) -> None:
         """Emit a transform end event."""
-        self._emit(event_type="transform.end", status=status, metrics=metrics, error=error)
+        self._emit(
+            event_type="transform.end",
+            status=status,
+            metrics=metrics,
+            error=error,
+            event_id=event_id,
+        )
 
     def _emit(
         self,
@@ -177,6 +237,7 @@ class TransformEventEmitter(_ContextEmitterBase):
         status: str | None,
         metrics: dict[str, Any] | None,
         error: str | None,
+        event_id: str | None,
     ) -> None:
         """Emit a transform event.
 
@@ -190,6 +251,8 @@ class TransformEventEmitter(_ContextEmitterBase):
         self._emit_event(
             TransformEvent(
                 event_type=event_type,
+                event_id=self._event_id(event_type, event_id),
+                producer=self._context.producer,
                 tool=self._context.tool,
                 project_dir=self._context.project_dir,
                 target=self._context.target,
@@ -203,6 +266,7 @@ class TransformEventEmitter(_ContextEmitterBase):
             ),
             correlation_overrides={
                 "run_id": self._context.run_id,
+                "project_id": self._context.project_id,
                 "asset_key": self._context.asset_key,
                 "partition_key": self._context.partition_key,
             },
@@ -215,19 +279,23 @@ class PublishEventContext:
 
     asset_key: str | None = None
     run_id: str | None = None
+    project_id: str | None = None
     partition_key: str | None = None
     target_system: str | None = None
     tables: dict[str, str] = field(default_factory=dict)
     tags: dict[str, str] = field(default_factory=dict)
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
+    producer: str = "phlo"
 
 
 class PublishEventEmitter(_ContextEmitterBase):
     """Emit publish lifecycle events with a shared context."""
 
-    def emit_start(self, *, status: str = "started") -> None:
+    def emit_start(self, *, status: str = "started", event_id: str | None = None) -> None:
         """Emit a publish start event."""
-        self._emit(event_type="publish.start", status=status, metrics=None, error=None)
+        self._emit(
+            event_type="publish.start", status=status, metrics=None, error=None, event_id=event_id
+        )
 
     def emit_end(
         self,
@@ -235,9 +303,12 @@ class PublishEventEmitter(_ContextEmitterBase):
         status: str,
         metrics: dict[str, Any] | None = None,
         error: str | None = None,
+        event_id: str | None = None,
     ) -> None:
         """Emit a publish end event."""
-        self._emit(event_type="publish.end", status=status, metrics=metrics, error=error)
+        self._emit(
+            event_type="publish.end", status=status, metrics=metrics, error=error, event_id=event_id
+        )
 
     def _emit(
         self,
@@ -246,6 +317,7 @@ class PublishEventEmitter(_ContextEmitterBase):
         status: str | None,
         metrics: dict[str, Any] | None,
         error: str | None,
+        event_id: str | None,
     ) -> None:
         """Emit a publish event.
 
@@ -259,6 +331,8 @@ class PublishEventEmitter(_ContextEmitterBase):
         self._emit_event(
             PublishEvent(
                 event_type=event_type,
+                event_id=self._event_id(event_type, event_id),
+                producer=self._context.producer,
                 asset_key=self._context.asset_key,
                 target_system=self._context.target_system,
                 tables=self._context.tables.copy(),
@@ -269,6 +343,7 @@ class PublishEventEmitter(_ContextEmitterBase):
             ),
             correlation_overrides={
                 "run_id": self._context.run_id,
+                "project_id": self._context.project_id,
                 "asset_key": self._context.asset_key,
                 "partition_key": self._context.partition_key,
             },
@@ -280,10 +355,12 @@ class QualityResultEventContext:
     """Shared context for quality result event emissions."""
 
     asset_key: str
+    project_id: str | None = None
     run_id: str | None = None
     partition_key: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
+    producer: str = "phlo"
 
 
 class QualityResultEventEmitter(_ContextEmitterBase):
@@ -297,11 +374,14 @@ class QualityResultEventEmitter(_ContextEmitterBase):
         severity: str | None = None,
         check_type: str | None = None,
         metadata: dict[str, Any] | None = None,
+        event_id: str | None = None,
     ) -> None:
         """Emit a quality result event."""
         self._emit_event(
             QualityResultEvent(
                 event_type="quality.result",
+                event_id=self._event_id("quality.result", event_id, check_name),
+                producer=self._context.producer,
                 asset_key=self._context.asset_key,
                 check_name=check_name,
                 passed=passed,
@@ -313,6 +393,7 @@ class QualityResultEventEmitter(_ContextEmitterBase):
             ),
             correlation_overrides={
                 "run_id": self._context.run_id,
+                "project_id": self._context.project_id,
                 "asset_key": self._context.asset_key,
                 "partition_key": self._context.partition_key,
                 "check_name": check_name,
@@ -324,8 +405,12 @@ class QualityResultEventEmitter(_ContextEmitterBase):
 class LineageEventContext:
     """Shared context for lineage event emissions."""
 
+    project_id: str | None = None
+    run_id: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
     correlation: HookCorrelation = field(default_factory=HookCorrelation)
+    producer: str = "phlo"
+    operation_id: str | None = None
 
 
 class LineageEventEmitter(_ContextEmitterBase):
@@ -337,16 +422,28 @@ class LineageEventEmitter(_ContextEmitterBase):
         edges: list[tuple[str, str]],
         asset_keys: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
+        event_id: str | None = None,
+        operation_id: str | None = None,
     ) -> None:
         """Emit a lineage edges event."""
+        logical_operation_id = operation_id or self._context.operation_id or event_id
+        if logical_operation_id is None and self._context.correlation.run_id is not None:
+            raise ValueError("lineage event requires operation_id or event_id for retry identity")
+        logical_operation_id = logical_operation_id or "uncorrelated"
         self._emit_event(
             LineageEvent(
                 event_type="lineage.edges",
+                event_id=self._event_id("lineage.edges", event_id, logical_operation_id),
+                producer=self._context.producer,
                 edges=list(edges),
                 asset_keys=list(asset_keys) if asset_keys else [],
                 metadata=metadata or {},
                 tags=self._context.tags.copy(),
             ),
+            correlation_overrides={
+                "project_id": self._context.project_id,
+                "run_id": self._context.run_id,
+            },
         )
 
 
