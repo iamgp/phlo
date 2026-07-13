@@ -2,10 +2,11 @@
 
 Authentication and authorization in Phlo are layered.
 
-## What changed in the current regulated model
+## Target regulated model
 
-Phlo's regulated posture is now an end-to-end chain instead of a single
-`phlo-api` concern.
+Phlo's target regulated posture is an end-to-end chain instead of a single
+`phlo-api` concern. The current alpha release remains subject to the blocked
+[v1 support boundary](../../registry/support/v1.json).
 
 The model now connects:
 
@@ -62,7 +63,7 @@ the Dagster `run_id` for the same purpose.
 
 ## End-to-end regulated path
 
-For the supported regulated deployment model, the path is:
+For the target regulated deployment model, the path is:
 
 1. A user authenticates at ingress or through a configured API auth provider.
 2. A control-plane surface such as `phlo-api`, the CLI, or Dagster GraphQL maps

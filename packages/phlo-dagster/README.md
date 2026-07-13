@@ -57,8 +57,9 @@ Capability providers are auto-loaded:
 # Start Dagster
 phlo services start --service dagster
 
-# Start with dev mode
-phlo services start --dev
+# For local source development, initialize dev mode first.
+phlo services init --dev --phlo-source /path/to/phlo
+phlo services start --service dagster
 ```
 
 ## Endpoints

@@ -1,0 +1,8 @@
+{
+  "name": "phlo-unverified-provider",
+  "scope": "optional",
+  "target_status": "supported",
+  "current_maturity": "alpha",
+  "reason": "Fixture-only unsupported package.",
+  "evidence": ["pyproject.toml"]
+}

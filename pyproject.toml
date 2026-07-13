@@ -136,6 +136,8 @@ include = [
     "src/phlo",
     "registry/schema/v1.json",
     "registry/plugins.json",
+    "registry/support/v1.json",
+    "registry/support/schema/v1.json",
 ]
 
 [tool.hatch.build.targets.wheel]

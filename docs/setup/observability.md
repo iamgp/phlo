@@ -4,7 +4,7 @@ Complete guide to monitoring, logging, and observability in the Phlo lakehouse p
 
 ## Overview
 
-Phlo includes a production-ready observability stack based on industry-standard tools:
+Phlo includes a local observability stack based on industry-standard tools; production retention, access control, and run-evidence guarantees remain v1 release gates:
 
 - **ClickStack** - Preferred all-in-one observability backend
 - **Prometheus** - Metrics collection and storage

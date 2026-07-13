@@ -14,45 +14,45 @@ Use the generated Python Reference in the pymdx site when you need symbol-level 
 
 ## Current Versions
 
-These versions come from the current package manifests.
+These versions come from the current package manifests on the checked-in release line. The v1 support boundary is tracked separately in [registry/support/v1.json](../../registry/support/v1.json); package version presence does not mean production readiness.
 
 | Package | Version | Description |
 | ------- | ------- | ----------- |
-| `phlo` | `0.10.0` | Lakehouse platform |
-| `phlo-alerting` | `0.3.0` | Alerting destinations and hooks for Phlo |
-| `phlo-alloy` | `0.2.3` | alloy service plugin for Phlo |
-| `phlo-api` | `0.5.0` | Phlo API - Backend service exposing Phlo internals to Observatory |
-| `phlo-clickhouse` | `0.4.0` | ClickHouse service and resource plugin for Phlo |
-| `phlo-clickstack` | `0.3.1` | clickstack service plugin for Phlo |
-| `phlo-core-plugins` | `0.2.4` | Core plugin package for Phlo |
-| `phlo-dagster` | `0.4.0` | Dagster service plugin for Phlo |
-| `phlo-dbt` | `0.4.0` | dbt integration capability plugin for Phlo |
-| `phlo-delta` | `0.4.0` | Delta Lake table-store capability plugin for Phlo |
-| `phlo-dlt` | `0.5.0` | DLT ingestion engine capability plugin for Phlo |
-| `phlo-grafana` | `0.2.4` | grafana service plugin for Phlo |
-| `phlo-hasura` | `0.2.6` | hasura service plugin for Phlo |
-| `phlo-iceberg` | `0.4.0` | Iceberg table-store capability plugin for Phlo |
-| `phlo-lineage` | `0.3.3` | Lineage tracking and visualization for Phlo |
-| `phlo-loki` | `0.2.4` | loki service plugin for Phlo |
-| `phlo-mcp` | `0.2.0` | MCP server for Phlo observability and lakehouse operations |
-| `phlo-minio` | `0.3.3` | MinIO service plugin for Phlo |
-| `phlo-nessie` | `0.3.3` | Nessie service plugin for Phlo |
-| `phlo-oauth2-proxy` | `0.2.0` | oauth2-proxy service plugin for Phlo |
-| `phlo-observatory` | `0.5.0` | Phlo Observatory - Data platform UI (bundled with phlo core) |
-| `phlo-observatory-example` | `0.2.3` | Example Observatory extension plugin |
-| `phlo-openmetadata` | `0.4.0` | OpenMetadata integration for Phlo |
-| `phlo-otel` | `0.2.3` | OpenTelemetry traces and metrics for Phlo |
-| `phlo-pandera` | `0.5.0` | Quality checks and schema utilities for Phlo |
+| `phlo` | `0.12.1` | Lakehouse platform |
+| `phlo-alerting` | `0.4.0` | Alerting destinations and hooks for Phlo |
+| `phlo-alloy` | `0.2.4` | alloy service plugin for Phlo |
+| `phlo-api` | `0.7.0` | Phlo API - Backend service exposing Phlo internals to Observatory |
+| `phlo-clickhouse` | `0.5.0` | ClickHouse service and resource plugin for Phlo |
+| `phlo-clickstack` | `0.4.0` | clickstack service plugin for Phlo |
+| `phlo-core-plugins` | `0.3.0` | Core plugin package for Phlo |
+| `phlo-dagster` | `0.6.0` | Dagster service plugin for Phlo |
+| `phlo-dbt` | `0.6.1` | dbt integration capability plugin for Phlo |
+| `phlo-delta` | `0.5.0` | Delta Lake table-store capability plugin for Phlo |
+| `phlo-dlt` | `0.7.0` | DLT ingestion engine capability plugin for Phlo |
+| `phlo-grafana` | `0.3.0` | grafana service plugin for Phlo |
+| `phlo-hasura` | `0.3.0` | hasura service plugin for Phlo |
+| `phlo-iceberg` | `0.6.0` | Iceberg table-store capability plugin for Phlo |
+| `phlo-lineage` | `0.4.0` | Lineage tracking and visualization for Phlo |
+| `phlo-loki` | `0.3.0` | loki service plugin for Phlo |
+| `phlo-mcp` | `0.4.0` | MCP server for Phlo observability and lakehouse operations |
+| `phlo-minio` | `0.4.0` | MinIO service plugin for Phlo |
+| `phlo-nessie` | `0.5.0` | Nessie service plugin for Phlo |
+| `phlo-oauth2-proxy` | `0.3.0` | oauth2-proxy service plugin for Phlo |
+| `phlo-observatory` | `0.7.0` | Phlo Observatory - Data platform UI (bundled with phlo core) |
+| `phlo-observatory-example` | `0.3.0` | Example Observatory extension plugin |
+| `phlo-openmetadata` | `0.5.0` | OpenMetadata integration for Phlo |
+| `phlo-otel` | `0.3.0` | OpenTelemetry traces and metrics for Phlo |
+| `phlo-pandera` | `0.6.0` | Quality checks and schema utilities for Phlo |
 | `phlo-pgweb` | `0.2.3` | pgweb service plugin for Phlo |
-| `phlo-postgres` | `0.3.1` | Postgres service plugin for Phlo |
-| `phlo-postgrest` | `0.2.5` | postgrest service plugin for Phlo |
-| `phlo-prometheus` | `0.2.4` | prometheus service plugin for Phlo |
-| `phlo-rustfs` | `0.3.0` | RustFS service plugin for Phlo |
-| `phlo-sling` | `0.5.0` | Sling replication ingestion provider for Phlo |
-| `phlo-superset` | `0.2.5` | superset service plugin for Phlo |
-| `phlo-testing` | `0.3.0` | Testing utilities for Phlo |
-| `phlo-traefik` | `0.2.3` | Traefik service plugin for Phlo |
-| `phlo-trino` | `0.3.2` | Trino service plugin for Phlo |
+| `phlo-postgres` | `0.4.0` | Postgres service plugin for Phlo |
+| `phlo-postgrest` | `0.2.6` | postgrest service plugin for Phlo |
+| `phlo-prometheus` | `0.3.0` | prometheus service plugin for Phlo |
+| `phlo-rustfs` | `0.4.0` | RustFS service plugin for Phlo |
+| `phlo-sling` | `0.7.0` | Sling replication ingestion provider for Phlo |
+| `phlo-superset` | `0.2.6` | superset service plugin for Phlo |
+| `phlo-testing` | `0.4.0` | Testing utilities for Phlo |
+| `phlo-traefik` | `0.3.0` | Traefik service plugin for Phlo |
+| `phlo-trino` | `0.5.0` | Trino service plugin for Phlo |
 
 ## Historical Releases
 
@@ -62,7 +62,7 @@ notes match the installed code.
 
 | Release | Notes |
 | ------- | ----- |
-| `v0.10.0` | Current stable release. Adds provider-neutral decorators and flow authoring decorators. |
+| `v0.12.1` | Current alpha release line. See the support boundary and changelog for the verified scope. |
 | `v0.9.0` | Previous stable release before the May 2026 decorator APIs. |
 | `v0.8.3` | Stable release after the 0.8.1 beta series and 0.8.2 publish recovery. |
 | `v0.8.2` | Stable release that required manual tag recovery during publishing. |
@@ -325,10 +325,10 @@ release.
 pip list | grep phlo
 
 # Example output for the current release set:
-# phlo              0.10.0
-# phlo-dagster      0.4.0
-# phlo-dbt          0.4.0
-# phlo-dlt          0.5.0
+# phlo              0.12.1
+# phlo-dagster      0.6.0
+# phlo-dbt          0.6.1
+# phlo-dlt          0.7.0
 ```
 
 ---

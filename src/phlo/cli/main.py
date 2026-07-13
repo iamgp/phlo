@@ -72,7 +72,7 @@ def cli(quiet: bool, no_color: bool) -> None:
     """
     Phlo - Modern Data Lakehouse Framework
 
-    Build production-ready data pipelines with minimal boilerplate.
+    Build and inspect lakehouse workflows locally with minimal boilerplate.
 
     Documentation: https://github.com/iamgp/phlo
     """

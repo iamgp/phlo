@@ -43,7 +43,7 @@ For persistent settings storage:
 | **Asset Browser**     | View Dagster assets and materialization status |
 | **Quality Dashboard** | Monitor quality check results                  |
 | **Branch Management** | Create, view, and merge Nessie branches        |
-| **SQL Workbench**     | Execute ad-hoc queries against Trino           |
+| **SQL Workbench**     | Run bounded read-only previews against known Trino tables |
 
 ### Auto-Configuration
 
@@ -51,7 +51,7 @@ For persistent settings storage:
 | ------------------ | ------------------------------------------ |
 | **API Connection** | Connects to phlo-api for backend data      |
 | **Service URLs**   | Auto-configured from environment variables |
-| **Dev Mode**       | Hot-reloading in `--dev` mode              |
+| **Local source mode** | Hot-reloading after `services init --dev` |
 
 ## Usage
 
@@ -64,8 +64,9 @@ phlo services start --service observatory
 # Start with native mode (better for ARM Macs)
 phlo services start --native
 
-# Start with dev mode (hot-reload)
-phlo services start --dev
+# For local source development, initialize the project in dev mode first.
+phlo services init --dev --phlo-source /path/to/phlo
+phlo services start --service observatory
 ```
 
 ### Accessing the UI
@@ -99,7 +100,7 @@ Monitor Dagster assets:
 - View materialization status
 - See last run timestamps
 - Check freshness policies
-- Trigger materializations
+- Inspect materialization status; materialization and backfill actions remain preview-only and guarded
 
 ### Quality Dashboard
 
@@ -158,6 +159,10 @@ proxy authentication enabled. Direct port access bypasses ingress auth.
 
 For details on regulatory boundary status and ingress authentication assumptions,
 see [Browser-Facing Surfaces in Regulated Mode](../setup/security.md#browser-facing-surfaces-in-regulated-mode).
+
+## Durable run-report support boundary
+
+The current Observatory surface is tested for UI and API visibility, but it does not expose an authoritative durable per-run report API or projection. The v1 support boundary therefore does not claim durable run reports as an implemented capability.
 
 ## Next Steps
 

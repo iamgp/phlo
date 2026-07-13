@@ -354,6 +354,9 @@ phlo services start [OPTIONS]
 --backend docker|podman|auto # Container backend for this command
 ```
 
+Docker Compose v2 is the currently supported backend. Podman is documented as an
+experimental, non-CI-supported alternative.
+
 **Profiles**:
 
 - `observability`: Prometheus, Grafana, Loki
@@ -469,9 +472,11 @@ phlo services stop --profile observability
 phlo services stop --service postgres,minio
 ```
 
-Backend-aware service commands also accept `--backend docker|podman|auto` where they
+Backend-aware service commands accept `--backend docker|podman|auto` where they
 invoke Compose, including `start`, `stop`, `restart`, `logs`, `exec`, `status`, and `reset`.
 Runtime inspection commands `list` and `ports` accept the same option for live status.
+Docker Compose v2 is the currently supported path; Podman is documented as experimental
+and is not CI-supported.
 
 ```bash
 phlo services logs --backend podman
@@ -1175,7 +1180,7 @@ Materialize Dagster assets.
 phlo materialize ASSET_NAME [OPTIONS]
 ```
 
-When running through Docker or Podman, Phlo waits for the Dagster runtime to finish
+When running through Docker, or through the experimental non-CI-supported Podman backend, Phlo waits for the Dagster runtime to finish
 startup and local package installation before executing the materialization. If the run
 fails, normal terminal output stays concise; use `phlo logs --level ERROR --limit 20`
 for the structured failure details.

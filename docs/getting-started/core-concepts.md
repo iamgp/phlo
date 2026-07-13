@@ -9,7 +9,7 @@ Phlo is a data lakehouse framework that combines best-in-class tools into a cohe
 - **74% less code** compared to manual integration
 - **Git-like workflows** for data versioning and branching
 - **Type-safe data quality** with automatic validation
-- **Production-ready patterns** out of the box
+- **Production-oriented building blocks** with a separate v1 security and operations readiness gate
 
 ## Architecture Overview
 

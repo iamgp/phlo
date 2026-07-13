@@ -51,15 +51,15 @@ def csv_events(partition_date: str) -> object:
     return dlt.resource(rows, name="events")
 ```
 
-This single function registers a partitioned ingestion asset, validates rows with Pandera, materializes through the configured orchestrator, lands the table in your configured storage and catalog, and becomes visible in Observatory and the catalog CLI — no separate orchestration, schema, Compose, or catalog wiring needed.
+This single function registers a partitioned ingestion asset, validates rows with Pandera, materializes through the configured orchestrator, lands the table in your configured storage and catalog, and becomes visible in Observatory and the catalog CLI; the starter wires the providers you install and generates the local runtime configuration.
 
 ## Quick Start
 
 **Prerequisites**
 
-- Python 3.11 or later
+- Python 3.11 or 3.12 for the currently tested support boundary; newer versions may resolve but are not CI-verified
 - [`uv`](https://docs.astral.sh/uv/)
-- Docker with Compose v2, or Podman with a Compose provider
+- Docker with Compose v2 (the currently supported path); Podman with a Compose provider is documented as experimental and is not CI-supported
 
 ```bash
 # Create an isolated environment for the quickstart
@@ -130,6 +130,12 @@ Phlo's core stays small. Installed provider packages contribute capabilities thr
 ## Project status
 
 Phlo is **alpha**. The local development workflow is usable and exercised in CI, but APIs, provider contracts, and the on-disk project layout may change before 1.0. Pin exact versions in production.
+
+The machine-readable [v1 support boundary](registry/support/v1.json) defines the blessed target profile, preview and development-only packages, current runtime evidence, production prerequisites, exclusions, and release-gate status. A v1-target component is not a production-ready guarantee until those gates pass.
+
+## Deployment support boundary
+
+The v1 support boundary covers a single-project, single-tenant deployment. Kubernetes-native operation, high availability, and multi-region deployment are outside this support boundary.
 
 ## Development
 
