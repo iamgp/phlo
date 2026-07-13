@@ -16,9 +16,10 @@ Authorization Flow:
     5. Return GraphQL error if denied, proceed if allowed
 
 Principal Extraction:
-    - Primary: Authorization header (bearer token)
-    - Fallback: X-Dagster-User header for internal service calls
-    - If neither present and regulated mode is strict, deny with auth required
+    - Phlo HMAC service token in Authorization for service-to-service calls
+    - RS256 OIDC access token in Authorization or oauth2-proxy forwarding headers
+    - Unsigned identity headers are never trusted
+    - If neither present, deny with auth required
 
 Operation Mapping:
     - Uses the operation name from the GraphQL request
@@ -28,7 +29,10 @@ Operation Mapping:
 
 from __future__ import annotations
 
+import os
 import re
+import json
+from collections.abc import Mapping
 from typing import Any
 
 from dagster import __version__ as DAGSTER_VERSION
@@ -47,12 +51,15 @@ from phlo.security.service_identity import (
     PHLO_INITIATOR_HEADER,
     validate_service_token,
 )
+from phlo_dagster.authorization import resolve_graphql_operation
+from phlo_dagster.oidc_identity import OIDCIdentityValidator
 
 logger = get_logger(__name__)
 
 AUTHORIZATION_HEADER_RE = re.compile(r"Bearer\s+(.+)", re.IGNORECASE)
 DAGSTER_USER_HEADER = "X-Dagster-User"
 DAGSTER_API_TOKEN_HEADER = "X-Dagster-Api-Token"
+DAGSTER_ALLOWED_SERVICES_ENV = "PHLO_DAGSTER_ALLOWED_SERVICE_IDS"
 
 
 class DagsterGraphQLAuthorizationMiddleware:
@@ -86,8 +93,11 @@ class DagsterGraphQLAuthorizationMiddleware:
             surface_name: Name of the regulated surface for audit events.
             strict_mode: If True, deny requests without valid auth in regulated mode.
         """
+        if not strict_mode:
+            raise ValueError("Dagster GraphQL authorization is mandatory and cannot fail open")
         self.surface_name = surface_name
-        self.strict_mode = strict_mode
+        self.strict_mode = True
+        self._oidc_validator = OIDCIdentityValidator()
 
     def resolve(
         self,
@@ -107,18 +117,20 @@ class DagsterGraphQLAuthorizationMiddleware:
         Returns:
             Result from next_fn if authorized, GraphQLError if denied.
         """
-        if not is_regulated():
-            return next_fn(root, info, **kwargs)
-
+        regulated = is_regulated()
         try:
-            if not self._is_mutation(info):
-                if self._is_root_query_field(info):
-                    self._audit_read_operation(info)
-                return next_fn(root, info, **kwargs)
-            if not self._is_root_mutation_field(info):
+            if not regulated:
+                logger.debug("dagster_graphql_mandatory_enforcement_non_regulated")
+            if not self._is_root_operation_field(info):
                 return next_fn(root, info, **kwargs)
 
-            auth_result = self._authorize_mutation(info, kwargs)
+            if not self._is_known_field(info):
+                raise GraphQLError(
+                    "Unclassified GraphQL operation",
+                    extensions={"code": "UNCLASSIFIED_OPERATION"},
+                )
+
+            auth_result = self._authorize_field(info, kwargs)
             if not auth_result.allowed:
                 logger.warning(
                     "dagster_authorization_denied",
@@ -126,9 +138,12 @@ class DagsterGraphQLAuthorizationMiddleware:
                     reason_code=auth_result.reason_code,
                     surface=self.surface_name,
                 )
-                raise GraphQLError(
-                    f"Authorization denied: {auth_result.reason_code or 'explicit_deny'}"
-                )
+                if auth_result.reason_code == "authentication_required":
+                    raise GraphQLError(
+                        "Authentication required",
+                        extensions={"code": "UNAUTHENTICATED"},
+                    )
+                raise GraphQLError("Forbidden", extensions={"code": "FORBIDDEN"})
 
             return next_fn(root, info, **kwargs)
 
@@ -136,9 +151,10 @@ class DagsterGraphQLAuthorizationMiddleware:
             raise
         except Exception:
             logger.exception("dagster_authorization_middleware_error")
-            if self.strict_mode:
-                raise GraphQLError("Authorization check failed")
-            return next_fn(root, info, **kwargs)
+            raise GraphQLError(
+                "Authorization check failed",
+                extensions={"code": "AUTHORIZATION_UNAVAILABLE"},
+            )
 
     def _is_mutation(self, info: Any) -> bool:
         """Determine if the operation is a mutation."""
@@ -173,6 +189,36 @@ class DagsterGraphQLAuthorizationMiddleware:
         """Return True for top-level query fields only."""
         parent_type = getattr(info, "parent_type", None)
         return getattr(parent_type, "name", None) == "Query"
+
+    def _is_root_subscription_field(self, info: Any) -> bool:
+        """Return True for top-level subscription fields."""
+        parent_type = getattr(info, "parent_type", None)
+        return getattr(parent_type, "name", None) == "Subscription"
+
+    def _operation_kind(self, info: Any) -> str:
+        operation = getattr(getattr(info, "operation", None), "operation", None)
+        value = getattr(operation, "value", operation)
+        if value in {"query", "mutation", "subscription"}:
+            return value
+        raise GraphQLError("Unclassified GraphQL operation")
+
+    def _is_root_operation_field(self, info: Any) -> bool:
+        return (
+            self._is_root_query_field(info)
+            or self._is_root_mutation_field(info)
+            or self._is_root_subscription_field(info)
+        )
+
+    def _is_known_field(self, info: Any) -> bool:
+        """Reject schema fields that are absent from the security registry."""
+        field_name = self._get_mutation_field_name(info)
+        if field_name in {"__schema", "__type"}:
+            return True
+        try:
+            resolve_graphql_operation(self._operation_kind(info), field_name or "")
+        except RuntimeError:
+            return False
+        return True
 
     def _audit_read_operation(self, info: Any) -> None:
         """Emit a lightweight audit event for read operations.
@@ -212,29 +258,11 @@ class DagsterGraphQLAuthorizationMiddleware:
 
     def _map_query_to_action(self, field_name: str) -> str:
         """Map a GraphQL query field name to a canonical read action."""
-        op_lower = field_name.lower()
-        if "asset" in op_lower:
-            return "asset.read"
-        if "run" in op_lower or "pipeline" in op_lower:
-            return "run.read"
-        if "sensor" in op_lower or "schedule" in op_lower or "scheduler" in op_lower:
-            return "service.read"
-        if "repository" in op_lower or "workspace" in op_lower:
-            return "catalog.read"
-        return "admin.read"
+        return resolve_graphql_operation("query", field_name).action
 
     def _get_query_resource_type(self, field_name: str) -> str:
         """Map a GraphQL query field name to a resource type."""
-        op_lower = field_name.lower()
-        if "asset" in op_lower:
-            return "asset"
-        if "run" in op_lower or "pipeline" in op_lower:
-            return "run"
-        if "sensor" in op_lower or "schedule" in op_lower:
-            return "service"
-        if "repository" in op_lower or "workspace" in op_lower:
-            return "catalog"
-        return "admin"
+        return resolve_graphql_operation("query", field_name).resource_type
 
     def _get_selection_resource(
         self,
@@ -246,26 +274,9 @@ class DagsterGraphQLAuthorizationMiddleware:
             Tuple of (resource_type, resource_id or None).
         """
         if not mutation_field_name:
-            return "admin", None
-
-        op_lower = mutation_field_name.lower()
-
-        if "pipeline" in op_lower or "backfill" in op_lower:
-            return "run", None
-        if "terminate" in op_lower or "delete" in op_lower:
-            return "run", None
-        if "asset" in op_lower:
-            return "asset", None
-        if "sensor" in op_lower:
-            return "service", None
-        if "schedule" in op_lower:
-            return "service", None
-        if "run" in op_lower:
-            return "run", None
-        if "repository" in op_lower or "workspace" in op_lower:
-            return "catalog", None
-
-        return "admin", None
+            raise GraphQLError("Unclassified GraphQL operation")
+        spec = resolve_graphql_operation("mutation", mutation_field_name)
+        return spec.resource_type, None
 
     def _extract_principal(self, info: Any) -> AuthPrincipal | None:
         """Extract the authenticated principal from request headers.
@@ -286,6 +297,15 @@ class DagsterGraphQLAuthorizationMiddleware:
         if request is None:
             return None
 
+        connection_init = self._graphql_connection_init(request)
+        if connection_init is not None:
+            # Browser graphql-ws clients authenticate in connection_init. Do
+            # not fall back to unsigned connection metadata or user headers.
+            token = connection_init.get("access_token")
+            if not isinstance(token, str) or not token.strip():
+                return None
+            return self._oidc_validator.validate(token)
+
         headers: dict[str, str] = {}
         if hasattr(request, "headers"):
             headers = {str(k).lower(): str(v) for k, v in request.headers.items()}
@@ -301,7 +321,12 @@ class DagsterGraphQLAuthorizationMiddleware:
         if match:
             token = match.group(1)
             service_id = validate_service_token(token)
-            if service_id:
+            allowed_services = {
+                value.strip()
+                for value in os.environ.get(DAGSTER_ALLOWED_SERVICES_ENV, "phlo-api").split(",")
+                if value.strip()
+            }
+            if service_id and service_id in allowed_services:
                 attributes = {"authentication_source": "service_token"}
                 initiator = headers.get(PHLO_INITIATOR_HEADER.lower())
                 if initiator:
@@ -312,46 +337,29 @@ class DagsterGraphQLAuthorizationMiddleware:
                     groups=(),
                     attributes=attributes,
                 )
-            return self._principal_from_token(token)
+            oidc_principal = self._oidc_validator.validate(token)
+            if oidc_principal is not None:
+                return oidc_principal
+            return None
 
-        dagster_user = headers.get(DAGSTER_USER_HEADER.lower())
-        if dagster_user:
-            return AuthPrincipal(
-                subject=dagster_user,
-                principal_type="user",
-                groups=(),
-                attributes={"authentication_source": "dagster_header"},
-            )
-
-        dagster_token = headers.get(DAGSTER_API_TOKEN_HEADER.lower())
-        if dagster_token:
-            return AuthPrincipal(
-                subject="dagster-service",
-                principal_type="service",
-                groups=(),
-                attributes={"authentication_source": "dagster_token"},
-            )
+        access_token = headers.get("x-auth-request-access-token") or headers.get(
+            "x-forwarded-access-token"
+        )
+        if access_token:
+            return self._oidc_validator.validate(access_token)
 
         return None
 
-    def _principal_from_token(self, token: str) -> AuthPrincipal:
-        """Convert a bearer token to an AuthPrincipal.
-
-        In a real deployment, this would validate the token and extract claims.
-        For now, we use the token as the subject identifier.
-
-        Args:
-            token: Bearer token string.
-
-        Returns:
-            AuthPrincipal derived from token.
-        """
-        return AuthPrincipal(
-            subject="token-subject",
-            principal_type="user",
-            groups=(),
-            attributes={"authentication_source": "bearer_token"},
-        )
+    @staticmethod
+    def _graphql_connection_init(request: Any) -> dict[str, Any] | None:
+        """Read the strict graphql-ws connection_init token envelope."""
+        payload = getattr(request, "graphql_connection_init", None)
+        scope = getattr(request, "scope", None)
+        if payload is None and isinstance(scope, dict):
+            payload = scope.get("phlo_graphql_connection_init")
+        if payload is None:
+            return None
+        return payload if isinstance(payload, dict) else {}
 
     def _create_decision_context(self, info: Any) -> DecisionContext:
         """Create a DecisionContext from GraphQL execution info.
@@ -440,6 +448,86 @@ class DagsterGraphQLAuthorizationMiddleware:
             correlation_id=decision_context.request_id,
         )
 
+    def _authorize_field(self, info: Any, kwargs: dict[str, Any]):
+        """Authorize every root GraphQL query and mutation before resolution."""
+        from phlo.security.adapters import EnforcementResult
+
+        principal = self._extract_principal(info)
+        if principal is None:
+            return EnforcementResult.deny(
+                reason_code="authentication_required",
+                explanation="No valid authentication credentials provided",
+            )
+
+        field_name = self._get_mutation_field_name(info)
+        operation_kind = self._operation_kind(info)
+        spec = resolve_graphql_operation(operation_kind, field_name or "")
+        resource_id = self._graphql_resource_id(spec, field_name, kwargs)
+        context = self._create_decision_context(info)
+        return enforce(
+            principal=principal,
+            action=spec.action,
+            resource=ResourceRef(
+                resource_type=spec.resource_type,
+                resource_id=resource_id,
+            ),
+            context=context,
+            request_id=context.request_id,
+            surface=self.surface_name,
+            correlation_id=context.request_id,
+        )
+
+    def _graphql_resource_id(
+        self,
+        spec: Any,
+        field_name: str | None,
+        kwargs: dict[str, Any],
+    ) -> str:
+        """Build an identity from allow-listed leaf values in typed arguments.
+
+        Dagster puts launch, reexecution, and selector values inside input
+        objects, so checking only the top-level resolver kwargs would authorize
+        every operation against the field name instead of its target.
+        """
+        values = []
+        for key in spec.resource_keys:
+            found_values = self._find_graphql_values(kwargs, key)
+            serialized_values = [self._serialize_resource_value(value) for value in found_values]
+            distinct_values = list(dict.fromkeys(serialized_values))
+            if len(distinct_values) > 1:
+                raise GraphQLError(
+                    "Ambiguous GraphQL resource identity",
+                    extensions={"code": "AUTHORIZATION_UNAVAILABLE"},
+                )
+            if distinct_values:
+                values.append(f"{key}={distinct_values[0]}")
+        return "|".join(values) if values else f"dagster:{field_name or 'operation'}"
+
+    def _find_graphql_values(self, value: Any, key: str) -> list[Any]:
+        """Collect all allow-listed values so conflicting IDs fail closed."""
+        if isinstance(value, Mapping):
+            found: list[Any] = []
+            if key in value and value[key] is not None:
+                found.append(value[key])
+            for nested in value.values():
+                found.extend(self._find_graphql_values(nested, key))
+            return found
+        if isinstance(value, (list, tuple)):
+            found = []
+            for nested in value:
+                found.extend(self._find_graphql_values(nested, key))
+            return found
+        return []
+
+    @staticmethod
+    def _serialize_resource_value(value: Any) -> str:
+        """Serialize resource values without relying on dict repr ordering."""
+        if isinstance(value, (str, int, float, bool)):
+            return str(value)
+        if isinstance(value, (list, tuple, dict)):
+            return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+        return str(value)
+
     def _map_operation_to_action(self, mutation_field_name: str | None) -> str:
         """Map a GraphQL mutation field name to a canonical action.
 
@@ -450,23 +538,5 @@ class DagsterGraphQLAuthorizationMiddleware:
             Canonical action string.
         """
         if not mutation_field_name:
-            return "admin.manage"
-
-        op_lower = mutation_field_name.lower()
-
-        if "assetmutation" in op_lower or "materialize" in op_lower:
-            return "asset.execute"
-        if "launchpipeline" in op_lower or "launchbackfill" in op_lower:
-            return "run.execute"
-        if "terminate" in op_lower or "delete" in op_lower:
-            return "run.execute"
-        if "sensor" in op_lower:
-            return "run.manage"
-        if "schedule" in op_lower:
-            return "run.manage"
-        if "reload" in op_lower:
-            return "catalog.manage"
-        if "service" in op_lower or "scheduler" in op_lower:
-            return "service.manage"
-
-        return "admin.manage"
+            raise GraphQLError("Unclassified GraphQL operation")
+        return resolve_graphql_operation("mutation", mutation_field_name).action

@@ -13,11 +13,12 @@ from fastapi.testclient import TestClient
 
 from phlo.capabilities import WorkflowFilePreview, WorkflowProposal
 from phlo_api.main import app
+from .security_test_support import authenticated_client
 from phlo_api.observatory_api import observatory
 from phlo_api.observatory_api import observatory_workflow_wizard as wizard
 
 
-client = TestClient(app)
+client = authenticated_client("admin")
 
 
 @pytest.fixture(autouse=True)
@@ -87,8 +88,7 @@ def test_workflow_wizard_proposal_requires_project_write(
             "edges": [],
         },
     }
-    client.headers.pop("Authorization", None)
-    anonymous = client.post("/api/observatory/workflow-wizard/proposals", json=request)
+    anonymous = TestClient(app).post("/api/observatory/workflow-wizard/proposals", json=request)
     assert anonymous.status_code == 401
 
     monkeypatch.setenv(
@@ -98,7 +98,10 @@ def test_workflow_wizard_proposal_requires_project_write(
     viewer = client.post(
         "/api/observatory/workflow-wizard/proposals",
         json=request,
-        headers={"Authorization": "Bearer viewer-token"},
+        headers={
+            "Authorization": "Bearer viewer-token",
+            "X-Test-Principal": "viewer",
+        },
     )
     assert viewer.status_code == 403
 
@@ -474,8 +477,7 @@ def test_workflow_wizard_apply_requires_project_write(
     ).json()
     body = {"action_id": proposal["actions"][0]["id"], "proposal_id": proposal["proposal_id"]}
 
-    client.headers.pop("Authorization", None)
-    anonymous = client.post("/api/observatory/workflow-wizard/actions", json=body)
+    anonymous = TestClient(app).post("/api/observatory/workflow-wizard/actions", json=body)
     assert anonymous.status_code == 401
 
     monkeypatch.setenv(
@@ -485,7 +487,10 @@ def test_workflow_wizard_apply_requires_project_write(
     viewer = client.post(
         "/api/observatory/workflow-wizard/actions",
         json=body,
-        headers={"Authorization": "Bearer viewer-token"},
+        headers={
+            "Authorization": "Bearer viewer-token",
+            "X-Test-Principal": "viewer",
+        },
     )
     assert viewer.status_code == 403
     assert not (tmp_path / "workflows").exists()
@@ -518,19 +523,31 @@ def test_workflow_wizard_proposal_is_bound_to_issuing_principal(
     proposal = client.post(
         "/api/observatory/workflow-wizard/proposals",
         json=request,
-        headers={"Authorization": "Bearer writer-a"},
+        headers={
+            "Authorization": "Bearer writer-a",
+            "X-Test-Principal": "operator",
+            "X-Test-Subject": "writer-a",
+        },
     ).json()
     body = {"action_id": proposal["actions"][0]["id"], "proposal_id": proposal["proposal_id"]}
 
     other_writer = client.post(
         "/api/observatory/workflow-wizard/actions",
         json=body,
-        headers={"Authorization": "Bearer writer-b"},
+        headers={
+            "Authorization": "Bearer writer-b",
+            "X-Test-Principal": "operator",
+            "X-Test-Subject": "writer-b",
+        },
     )
     issuing_writer = client.post(
         "/api/observatory/workflow-wizard/actions",
         json=body,
-        headers={"Authorization": "Bearer writer-a"},
+        headers={
+            "Authorization": "Bearer writer-a",
+            "X-Test-Principal": "operator",
+            "X-Test-Subject": "writer-a",
+        },
     )
 
     assert other_writer.status_code == 404

@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
 
-from phlo_api.main import app
+from .security_test_support import authenticated_client
 from phlo_api.observatory_api import observatory_runs
 
 
@@ -41,7 +40,7 @@ def test_observatory_runs_adapter_normalizes_legacy_dagster_runs(
 
 
 def test_observatory_runs_endpoint_returns_provider_neutral_shape() -> None:
-    response = TestClient(app).get("/api/observatory/runs")
+    response = authenticated_client("admin").get("/api/observatory/runs")
 
     assert response.status_code == 200
     payload = response.json()
@@ -59,7 +58,7 @@ def test_observatory_runs_endpoint_returns_provider_neutral_shape() -> None:
     ],
 )
 def test_observatory_surface_endpoints_return_provider_neutral_shape(path: str) -> None:
-    response = TestClient(app).get(path)
+    response = authenticated_client("admin").get(path)
 
     assert response.status_code == 200
     payload = response.json()
@@ -76,13 +75,13 @@ def test_observatory_surface_endpoints_return_provider_neutral_shape(path: str) 
     ],
 )
 def test_removed_observatory_endpoints_are_hard_404s(path: str) -> None:
-    response = TestClient(app).get(path)
+    response = authenticated_client("admin").get(path)
 
     assert response.status_code == 404
 
 
 def test_observatory_governance_endpoint_returns_matrix_shape() -> None:
-    response = TestClient(app).get("/api/observatory/governance")
+    response = authenticated_client("admin").get("/api/observatory/governance")
 
     assert response.status_code == 200
     payload = response.json()

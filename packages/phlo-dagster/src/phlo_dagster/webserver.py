@@ -1,0 +1,236 @@
+"""Phlo's authenticated Dagster webserver entrypoint."""
+
+from __future__ import annotations
+
+import json
+import os
+from types import SimpleNamespace
+from typing import Any, Awaitable, Callable
+
+from dagster_webserver import app as dagster_app
+from dagster_webserver.cli import dagster_webserver
+from dagster_webserver.graphql import GraphQLWS
+from dagster_webserver.webserver import DagsterWebserver
+from graphql import GraphQLError, parse
+from starlette.responses import JSONResponse
+
+from phlo_dagster.authorization import get_adapter, validate_graphql_schema
+from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
+from phlo_dagster.oidc_identity import OIDC_REQUIRED_ENV
+
+
+class GraphQLWebSocketAuthenticationASGI:
+    """Authenticate graphql-ws connection_init before handing off to Dagster."""
+
+    def __init__(self, app: Callable[..., Awaitable[None]], middleware) -> None:  # noqa: ANN001
+        self.app = app
+        self.middleware = middleware
+
+    async def __call__(self, scope: dict[str, Any], receive, send) -> None:  # noqa: ANN001
+        if scope.get("type") != "websocket" or scope.get("path") != "/graphql":
+            await self.app(scope, receive, send)
+            return
+
+        headers = {
+            key.decode().lower(): value.decode()
+            for key, value in scope.get("headers", [])
+            if isinstance(key, bytes) and isinstance(value, bytes)
+        }
+        if self._principal(scope, headers) is not None:
+            await self.app(scope, receive, send)
+            return
+
+        connect = await receive()
+        if connect.get("type") != "websocket.connect":
+            await send({"type": "websocket.close", "code": 4401})
+            return
+
+        # A WebSocket peer cannot send connection_init until the HTTP upgrade
+        # has been accepted. Dagster's endpoint accepts after it receives the
+        # replayed connect event, so accept here and suppress that duplicate
+        # downstream accept while preserving the negotiated protocol.
+        await send(
+            {
+                "type": "websocket.accept",
+                "subprotocol": GraphQLWS.PROTOCOL.value,
+            }
+        )
+        init = await receive()
+        payload = self._connection_init_payload(init)
+        if payload is None:
+            await send({"type": "websocket.close", "code": 4401})
+            return
+
+        authenticated_scope = dict(scope)
+        authenticated_scope["phlo_graphql_connection_init"] = payload
+        if self._principal(authenticated_scope, headers) is None:
+            await send({"type": "websocket.close", "code": 4401})
+            return
+
+        replay = iter((connect, init))
+
+        async def receive_with_replay():  # noqa: ANN202
+            try:
+                return next(replay)
+            except StopIteration:
+                return await receive()
+
+        async def send_without_duplicate_accept(message):  # noqa: ANN001, ANN202
+            if message.get("type") == "websocket.accept":
+                return
+            await send(message)
+
+        await self.app(authenticated_scope, receive_with_replay, send_without_duplicate_accept)
+
+    @staticmethod
+    def _connection_init_payload(message: dict[str, Any]) -> dict[str, str] | None:
+        if message.get("type") != "websocket.receive":
+            return None
+        raw = message.get("text")
+        if raw is None and isinstance(message.get("bytes"), bytes):
+            raw = message["bytes"].decode("utf-8", errors="replace")
+        try:
+            envelope = json.loads(raw) if isinstance(raw, str) else None
+        except json.JSONDecodeError:
+            return None
+        payload = envelope.get("payload") if isinstance(envelope, dict) else None
+        token = payload.get("access_token") if isinstance(payload, dict) else None
+        if (
+            envelope.get("type") != "connection_init"
+            or not isinstance(payload, dict)
+            or set(payload) != {"access_token"}
+            or not isinstance(token, str)
+            or not token.strip()
+        ):
+            return None
+        return {"access_token": token}
+
+    def _principal(self, scope: dict[str, Any], headers: dict[str, str]):
+        client = scope.get("client")
+        client_host = client[0] if isinstance(client, (tuple, list)) and client else None
+        request = SimpleNamespace(
+            headers=headers,
+            scope=scope,
+            path=scope.get("path", "/graphql"),
+            client=SimpleNamespace(host=client_host),
+        )
+        info = SimpleNamespace(context=SimpleNamespace(request=request))
+        return self.middleware._extract_principal(info)
+
+
+class PhloDagsterWebserver(DagsterWebserver):
+    """Dagster webserver with Phlo's mandatory GraphQL boundary installed."""
+
+    def build_graphql_middleware(self) -> list:
+        validate_graphql_schema(self._graphene_schema.graphql_schema)
+        get_adapter().install(self)
+        middleware = self._get_graphql_authorization_middleware()
+        if self._oidc_required() and not middleware._oidc_validator.configured:
+            raise RuntimeError("Dagster OIDC identity is required but not ready")
+        return [middleware]
+
+    @staticmethod
+    def _oidc_required() -> bool:
+        return os.environ.get(OIDC_REQUIRED_ENV, "").strip().lower() == "true"
+
+    async def webserver_info_endpoint(self, _request):  # noqa: ANN001, ANN201
+        middleware = self._get_graphql_authorization_middleware()
+        if self._oidc_required() and not middleware._oidc_validator.readiness():
+            return JSONResponse(
+                {"status": "unhealthy", "reason": "oidc_unready"},
+                status_code=503,
+            )
+        return await super().webserver_info_endpoint(_request)
+
+    def create_asgi_app(self, **kwargs: Any):  # noqa: ANN202
+        app = super().create_asgi_app(**kwargs)
+        return GraphQLWebSocketAuthenticationASGI(
+            app,
+            self._get_graphql_authorization_middleware(),
+        )
+
+    def _get_graphql_authorization_middleware(self) -> DagsterGraphQLAuthorizationMiddleware:
+        middleware = getattr(self, "_phlo_graphql_authorization_middleware", None)
+        if middleware is None:
+            middleware = DagsterGraphQLAuthorizationMiddleware()
+            self._phlo_graphql_authorization_middleware = middleware
+        return middleware
+
+    async def execute_graphql_subscription(
+        self,
+        websocket,
+        operation_id: str,
+        query: str,
+        variables: dict | None,
+        operation_name: str | None,
+    ):
+        """Authorize subscription roots before Dagster starts the async task."""
+        middleware = self._get_graphql_authorization_middleware()
+        try:
+            document = parse(query)
+            operations = [
+                definition
+                for definition in document.definitions
+                if getattr(definition, "operation", None).value == "subscription"
+                and (
+                    operation_name is None
+                    or getattr(getattr(definition, "name", None), "value", None) == operation_name
+                )
+            ]
+            if len(operations) != 1:
+                raise GraphQLError("Unclassified GraphQL operation")
+            operation = operations[0]
+            for selection in operation.selection_set.selections:
+                field_name = selection.name.value
+                kwargs = {}
+                for argument in selection.arguments:
+                    value = argument.value
+                    if value.kind == "variable":
+                        kwargs[argument.name.value] = (variables or {}).get(value.name.value)
+                    elif hasattr(value, "value"):
+                        kwargs[argument.name.value] = value.value
+                info = SimpleNamespace(
+                    context=SimpleNamespace(request=websocket),
+                    operation=operation,
+                    field_name=field_name,
+                    parent_type=SimpleNamespace(name="Subscription"),
+                    path=SimpleNamespace(prev=None),
+                )
+                if not middleware._is_known_field(info):
+                    raise GraphQLError(
+                        "Unclassified GraphQL operation",
+                        extensions={"code": "UNCLASSIFIED_OPERATION"},
+                    )
+                result = middleware._authorize_field(info, kwargs)
+                if not result.allowed:
+                    if result.reason_code == "authentication_required":
+                        raise GraphQLError(
+                            "Authentication required",
+                            extensions={"code": "UNAUTHENTICATED"},
+                        )
+                    raise GraphQLError("Forbidden", extensions={"code": "FORBIDDEN"})
+        except GraphQLError as error:
+            return None, error.formatted
+        except Exception:
+            return None, GraphQLError(
+                "Authorization check failed",
+                extensions={"code": "AUTHORIZATION_UNAVAILABLE"},
+            ).formatted
+
+        return await super().execute_graphql_subscription(
+            websocket,
+            operation_id,
+            query,
+            variables,
+            operation_name,
+        )
+
+
+# Dagster's CLI factory resolves this class from dagster_webserver.app, so the
+# normal CLI options and workspace lifecycle remain unchanged while the shipped
+# entrypoint uses the secured subclass.
+dagster_app.DagsterWebserver = PhloDagsterWebserver
+
+
+if __name__ == "__main__":
+    dagster_webserver()

@@ -33,6 +33,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from phlo.logging import bind_context, clear_context, get_logger
 from phlo_api.regulated_surface_adapter import get_adapter
+from phlo_api.security_manifest import install_manifest_enforcement
 from phlo.security.validation import require_regulated_validation
 
 logger = get_logger(__name__, service="phlo-api")
@@ -835,6 +836,9 @@ def get_contract(table_name: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"Contract not found: {table_name}")
     logger.info("api_contract_get_succeeded", table_name=table_name)
     return contract
+
+
+install_manifest_enforcement(app)
 
 
 if __name__ == "__main__":

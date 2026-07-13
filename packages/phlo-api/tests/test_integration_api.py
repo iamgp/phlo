@@ -9,6 +9,7 @@ Per TEST_STRATEGY.md Level 2 (Functional):
 from unittest.mock import patch
 
 import pytest
+from .security_test_support import authenticated_client
 
 pytestmark = pytest.mark.integration
 
@@ -39,10 +40,8 @@ class TestFastAPIApp:
 
     def test_cors_allows_docker_observatory_origin(self):
         """Dockerized Observatory is exposed on host port 3001."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        response = TestClient(app).options(
+        response = authenticated_client("admin").options(
             "/health",
             headers={
                 "Origin": "http://127.0.0.1:3001",
@@ -80,10 +79,8 @@ class TestHealthEndpoint:
 
     def test_health_returns_200(self):
         """Test health endpoint returns 200 OK."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/health")
 
         assert response.status_code == 200
@@ -100,10 +97,8 @@ class TestConfigEndpoint:
 
     def test_config_returns_dict(self):
         """Test config endpoint returns a dictionary."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/api/config")
 
         assert response.status_code == 200
@@ -111,12 +106,10 @@ class TestConfigEndpoint:
 
     def test_config_with_missing_file(self):
         """Test config endpoint when phlo.yaml doesn't exist."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
         from pathlib import Path
 
         with patch("phlo_api.main.get_project_path", return_value=Path("/nonexistent")):
-            client = TestClient(app)
+            client = authenticated_client("admin")
             response = client.get("/api/config")
 
             assert response.status_code == 200
@@ -126,24 +119,20 @@ class TestConfigEndpoint:
 
     def test_config_with_malformed_file_returns_clean_error(self, tmp_path):
         """Malformed phlo.yaml should not leak a server traceback."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
         (tmp_path / "phlo.yaml").write_text("name: [bad\n", encoding="utf-8")
         with patch("phlo_api.main.get_project_path", return_value=tmp_path):
-            response = TestClient(app).get("/api/config")
+            response = authenticated_client("admin").get("/api/config")
 
         assert response.status_code == 500
         assert response.json()["detail"] == "Failed to read phlo.yaml"
 
     def test_config_with_non_mapping_file_returns_clean_error(self, tmp_path):
         """Non-object phlo.yaml should not leak a server traceback."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
         (tmp_path / "phlo.yaml").write_text("- not\n- a\n- mapping\n", encoding="utf-8")
         with patch("phlo_api.main.get_project_path", return_value=tmp_path):
-            response = TestClient(app).get("/api/config")
+            response = authenticated_client("admin").get("/api/config")
 
         assert response.status_code == 500
         assert response.json()["detail"] == "phlo.yaml must contain a mapping"
@@ -159,10 +148,8 @@ class TestPluginsEndpoints:
 
     def test_plugins_list_endpoint(self):
         """Test listing all plugins returns valid response."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/api/plugins")
 
         # Should return 200 with dict (may be empty if discovery not available)
@@ -172,10 +159,8 @@ class TestPluginsEndpoints:
 
     def test_plugins_by_type_endpoint(self):
         """Test listing plugins by type returns valid response."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/api/plugins/service")
 
         assert response.status_code == 200
@@ -183,10 +168,8 @@ class TestPluginsEndpoints:
 
     def test_plugins_unknown_type_returns_404(self):
         """Test unknown plugin type returns 404."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/api/plugins/unknown_type_that_does_not_exist")
 
         assert response.status_code == 404
@@ -194,10 +177,8 @@ class TestPluginsEndpoints:
 
     def test_plugin_info_unknown_type_returns_404(self):
         """Test unknown plugin type in plugin detail returns 404."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/api/plugins/unknown_type_that_does_not_exist/example")
 
         assert response.status_code == 404
@@ -214,10 +195,8 @@ class TestServicesEndpoints:
 
     def test_services_list_endpoint(self):
         """Test listing all services."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/api/services")
 
         assert response.status_code == 200
@@ -226,10 +205,8 @@ class TestServicesEndpoints:
 
     def test_services_with_discovery(self):
         """Test services endpoint returns valid data structure."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/api/services")
 
         assert response.status_code == 200
@@ -241,10 +218,8 @@ class TestServicesEndpoints:
 
     def test_service_info_endpoint(self):
         """Test getting specific service info returns valid response."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         # Try to get a service that likely exists or doesn't
         response = client.get("/api/services/trino")
 
@@ -253,10 +228,8 @@ class TestServicesEndpoints:
 
     def test_service_not_found_returns_404(self):
         """Test unknown service returns 404."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/api/services/nonexistent_service_xyz")
 
         assert response.status_code == 404
@@ -273,10 +246,8 @@ class TestRegistryEndpoint:
 
     def test_registry_endpoint_returns_dict(self):
         """Test registry endpoint returns dictionary."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/api/registry")
 
         assert response.status_code == 200
@@ -294,8 +265,6 @@ class TestContractsEndpoints:
 
     def test_contracts_list_endpoint(self):
         """List contracts endpoint returns helper payload."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
         payload = [
             {
@@ -305,7 +274,7 @@ class TestContractsEndpoints:
             }
         ]
         with patch("phlo_api.main._list_contracts", return_value=payload):
-            client = TestClient(app)
+            client = authenticated_client("admin")
             response = client.get("/api/contracts")
 
         assert response.status_code == 200
@@ -313,8 +282,6 @@ class TestContractsEndpoints:
 
     def test_contract_detail_endpoint(self):
         """Detail endpoint returns contract for requested table."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
         payload = {
             "table_name": "raw.contract_demo",
@@ -322,7 +289,7 @@ class TestContractsEndpoints:
             "contract_metadata": {"owner": "platform-team", "consumers": [], "sla": None},
         }
         with patch("phlo_api.main._get_contract_by_table", return_value=payload):
-            client = TestClient(app)
+            client = authenticated_client("admin")
             response = client.get("/api/contracts/raw.contract_demo")
 
         assert response.status_code == 200
@@ -330,11 +297,9 @@ class TestContractsEndpoints:
 
     def test_contract_detail_endpoint_not_found(self):
         """Detail endpoint returns 404 when table has no contract."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
         with patch("phlo_api.main._get_contract_by_table", return_value=None):
-            client = TestClient(app)
+            client = authenticated_client("admin")
             response = client.get("/api/contracts/raw.unknown_table")
 
         assert response.status_code == 404
@@ -383,10 +348,8 @@ class TestErrorHandling:
 
     def test_404_on_unknown_route(self):
         """Test 404 returned for unknown routes."""
-        from fastapi.testclient import TestClient
-        from phlo_api.main import app
 
-        client = TestClient(app)
+        client = authenticated_client("admin")
         response = client.get("/api/nonexistent/route")
 
         assert response.status_code == 404

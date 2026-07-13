@@ -3435,6 +3435,7 @@ dependencies = [
     { name = "dagster-graphql" },
     { name = "phlo" },
     { name = "psycopg2-binary" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "pyyaml" },
     { name = "requests" },
 ]
@@ -3467,6 +3468,7 @@ requires-dist = [
     { name = "phlo-nessie", marker = "extra == 'nessie'", editable = "packages/phlo-nessie" },
     { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "requests", specifier = ">=2.32.5" },

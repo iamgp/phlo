@@ -13,7 +13,7 @@ GraphQL Operation Mapping:
 Principal Extraction:
     - Bearer token from Authorization header
     - Canonicalized via EnforcementContext.identity_bridge
-    - Falls back to dagster user from X-Dagster-User header if no auth provider
+    - Service tokens and verified RS256 OIDC tokens only; unsigned user headers are rejected
 
 Route vs Operation Granularity:
     - Route-level (GraphQL endpoint) is a single entry point
@@ -23,6 +23,7 @@ Route vs Operation Granularity:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from phlo.capabilities import (
@@ -46,6 +47,276 @@ ACTION_SERVICE_READ = CanonicalAction.SERVICE_READ.value
 ACTION_ADMIN_READ = CanonicalAction.ADMIN_READ.value
 
 
+@dataclass(frozen=True)
+class GraphQLOperationSpec:
+    """Exact classification for one or more GraphQL root fields."""
+
+    operation: str
+    fields: tuple[str, ...]
+    action: str
+    resource_type: str
+    resource_keys: tuple[str, ...] = ()
+
+
+_GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
+    GraphQLOperationSpec(
+        "query",
+        (
+            "assetBackfillPreview",
+            "assetCheckExecutions",
+            "assetConditionEvaluationForPartition",
+            "assetConditionEvaluationRecordsOrError",
+            "assetConditionEvaluationsForEvaluationId",
+            "assetNodeAdditionalRequiredKeys",
+            "assetNodeDefinitionCollisions",
+            "assetNodeOrError",
+            "assetNodes",
+            "assetOrError",
+            "assetRecordsOrError",
+            "assetsLatestInfo",
+            "assetsOrError",
+            "autoMaterializeAssetEvaluationsOrError",
+            "autoMaterializeEvaluationsForEvaluationId",
+            "truePartitionsForAutomationConditionEvaluationNode",
+        ),
+        ACTION_ASSET_READ,
+        "asset",
+        ("assetKey", "assetKeyPath"),
+    ),
+    GraphQLOperationSpec(
+        "query",
+        (
+            "capturedLogs",
+            "capturedLogsMetadata",
+            "executionPlanOrError",
+            "graphOrError",
+            "latestDefsStateInfo",
+            "logsForRun",
+            "partitionBackfillOrError",
+            "partitionBackfillsOrError",
+            "partitionSetOrError",
+            "partitionSetsOrError",
+            "pipelineOrError",
+            "pipelineRunOrError",
+            "pipelineRunsOrError",
+            "pipelineSnapshotOrError",
+            "runGroupOrError",
+            "runIdsOrError",
+            "runOrError",
+            "runTagKeysOrError",
+            "runTagsOrError",
+            "runsFeedCountOrError",
+            "runsFeedOrError",
+            "runsOrError",
+        ),
+        ACTION_RUN_READ,
+        "run",
+        (
+            "runId",
+            "runIds",
+            "pipelineName",
+            "jobName",
+            "repositoryName",
+            "repositoryLocationName",
+        ),
+    ),
+    GraphQLOperationSpec(
+        "query",
+        (
+            "instigationStateOrError",
+            "instigationStatesOrError",
+            "locationStatusesOrError",
+            "scheduleOrError",
+            "scheduler",
+            "schedulesOrError",
+            "sensorOrError",
+            "sensorsOrError",
+            "workspaceLocationEntryOrError",
+        ),
+        ACTION_SERVICE_READ,
+        "service",
+        ("repositoryName", "jobName", "pipelineName"),
+    ),
+    GraphQLOperationSpec(
+        "query",
+        (
+            "allTopLevelResourceDetailsOrError",
+            "repositoriesOrError",
+            "repositoryOrError",
+            "resourcesOrError",
+            "workspaceOrError",
+        ),
+        ACTION_CATALOG_READ,
+        "catalog",
+        ("repositoryName", "locationName"),
+    ),
+    GraphQLOperationSpec(
+        "query",
+        (
+            "autoMaterializeTicks",
+            "canBulkTerminate",
+            "instance",
+            "isPipelineConfigValid",
+            "permissions",
+            "runConfigSchemaOrError",
+            "shouldShowNux",
+            "test",
+            "topLevelResourceDetailsOrError",
+            "utilizedEnvVarsOrError",
+            "version",
+        ),
+        ACTION_ADMIN_READ,
+        "admin",
+    ),
+    GraphQLOperationSpec(
+        "mutation",
+        (
+            "cancelPartitionBackfill",
+            "deletePipelineRun",
+            "deleteRun",
+            "freeConcurrencySlots",
+            "freeConcurrencySlotsForRun",
+            "launchMultipleRuns",
+            "launchPartitionBackfill",
+            "launchPipelineExecution",
+            "launchPipelineReexecution",
+            "launchRun",
+            "launchRunReexecution",
+            "reexecutePartitionBackfill",
+            "terminatePipelineExecution",
+            "terminateRun",
+            "terminateRuns",
+        ),
+        ACTION_RUN_EXECUTE,
+        "run",
+        (
+            "runId",
+            "runIds",
+            "pipelineName",
+            "jobName",
+            "repositoryName",
+            "repositoryLocationName",
+        ),
+    ),
+    GraphQLOperationSpec(
+        "mutation",
+        (
+            "addDynamicPartition",
+            "deleteConcurrencyLimit",
+            "deleteDynamicPartitions",
+            "reportAssetCheckEvaluations",
+            "reportRunlessAssetEvents",
+            "setAutoMaterializePaused",
+            "setConcurrencyLimit",
+            "wipeAssets",
+        ),
+        ACTION_ASSET_EXECUTE,
+        "asset",
+        ("assetKey", "assetKeyPath"),
+    ),
+    GraphQLOperationSpec(
+        "mutation",
+        (
+            "reloadRepositoryLocation",
+            "reloadWorkspace",
+        ),
+        ACTION_CATALOG_MANAGE,
+        "catalog",
+        ("repositoryName", "locationName"),
+    ),
+    GraphQLOperationSpec(
+        "mutation",
+        (
+            "resetSchedule",
+            "resetSensor",
+            "resumePartitionBackfill",
+            "scheduleDryRun",
+            "sensorDryRun",
+            "shutdownRepositoryLocation",
+            "startSchedule",
+            "startSensor",
+            "stopRunningSchedule",
+        ),
+        ACTION_RUN_MANAGE,
+        "service",
+        ("repositoryName", "jobName", "pipelineName"),
+    ),
+    GraphQLOperationSpec(
+        "mutation",
+        (
+            "logTelemetry",
+            "setNuxSeen",
+        ),
+        ACTION_ADMIN_READ,
+        "admin",
+    ),
+    GraphQLOperationSpec(
+        "mutation",
+        (
+            "setSensorCursor",
+            "stopSensor",
+        ),
+        ACTION_RUN_MANAGE,
+        "service",
+        ("repositoryName", "jobName", "pipelineName"),
+    ),
+    GraphQLOperationSpec(
+        "subscription",
+        ("capturedLogs", "locationStateChangeEvents", "pipelineRunLogs"),
+        ACTION_RUN_READ,
+        "run",
+        ("runId",),
+    ),
+    GraphQLOperationSpec("query", ("__schema", "__type"), ACTION_ADMIN_READ, "admin"),
+)
+
+
+def _operation_index() -> dict[tuple[str, str], GraphQLOperationSpec]:
+    index: dict[tuple[str, str], GraphQLOperationSpec] = {}
+    for spec in _GRAPHQL_OPERATION_SPECS:
+        for field in spec.fields:
+            key = (spec.operation, field)
+            if key in index:
+                raise RuntimeError(f"Duplicate Dagster GraphQL operation classification: {key}")
+            index[key] = spec
+    return index
+
+
+_GRAPHQL_OPERATION_INDEX = _operation_index()
+
+
+def resolve_graphql_operation(operation: str, field: str) -> GraphQLOperationSpec:
+    """Return the exact registry entry for a GraphQL root field."""
+    try:
+        return _GRAPHQL_OPERATION_INDEX[(operation, field)]
+    except KeyError as exc:
+        raise RuntimeError(f"Unclassified Dagster GraphQL operation: {operation}.{field}") from exc
+
+
+def validate_graphql_schema(schema: Any | None = None) -> None:
+    """Prove every reachable Dagster root field has one exact classification."""
+    if schema is None:
+        from dagster_graphql.schema import create_schema
+
+        schema = create_schema().graphql_schema
+
+    for operation in ("query", "mutation", "subscription"):
+        root = schema.get_type(operation.capitalize())
+        if root is None:
+            continue
+        actual_fields = set(root.fields)
+        classified = {field for kind, field in _GRAPHQL_OPERATION_INDEX if kind == operation}
+        missing = sorted(actual_fields - classified)
+        extra = sorted(
+            classified - actual_fields - ({"__schema", "__type"} if operation == "query" else set())
+        )
+        if missing or extra:
+            raise RuntimeError(
+                f"Dagster GraphQL registry mismatch for {operation}: "
+                f"missing={missing}, extra={extra}"
+            )
+
+
 class DagsterRegulatedSurfaceAdapter:
     """Regulated surface adapter for Dagster webserver GraphQL API.
 
@@ -58,42 +329,7 @@ class DagsterRegulatedSurfaceAdapter:
     _installed_runtime: Any | None = None
 
     _OPERATION_MAPPINGS: list[tuple[tuple[str, ...], str, str]] = [
-        (("assetMutation",), ACTION_ASSET_EXECUTE, "asset"),
-        (("launchPipelineRun",), ACTION_RUN_EXECUTE, "run"),
-        (("launchBackfill",), ACTION_RUN_EXECUTE, "run"),
-        (("terminatePipelineRun",), ACTION_RUN_EXECUTE, "run"),
-        (("terminateRun",), ACTION_RUN_EXECUTE, "run"),
-        (("deletePipelineRun",), ACTION_RUN_EXECUTE, "run"),
-        (("deleteRun",), ACTION_RUN_EXECUTE, "run"),
-        (("reloadRepository",), ACTION_CATALOG_MANAGE, "catalog"),
-        (("reloadWorkspace",), ACTION_CATALOG_MANAGE, "catalog"),
-        (("createSensor",), ACTION_RUN_MANAGE, "run"),
-        (("updateSensor",), ACTION_RUN_MANAGE, "run"),
-        (("deleteSensor",), ACTION_RUN_MANAGE, "run"),
-        (("createSchedule",), ACTION_RUN_MANAGE, "run"),
-        (("updateSchedule",), ACTION_RUN_MANAGE, "run"),
-        (("deleteSchedule",), ACTION_RUN_MANAGE, "run"),
-        (("assets",), ACTION_ASSET_READ, "asset"),
-        (("asset",), ACTION_ASSET_READ, "asset"),
-        (("assetNodes",), ACTION_ASSET_READ, "asset"),
-        (("pipeline",), ACTION_ASSET_READ, "asset"),
-        (("pipelines",), ACTION_ASSET_READ, "asset"),
-        (("pipelineSnapshot",), ACTION_ASSET_READ, "asset"),
-        (("runGroup",), ACTION_RUN_READ, "run"),
-        (("runGroups",), ACTION_RUN_READ, "run"),
-        (("run",), ACTION_RUN_READ, "run"),
-        (("runs",), ACTION_RUN_READ, "run"),
-        (("runsOrError",), ACTION_RUN_READ, "run"),
-        (("scheduler",), ACTION_SERVICE_READ, "service"),
-        (("sensors",), ACTION_SERVICE_READ, "service"),
-        (("sensor",), ACTION_SERVICE_READ, "service"),
-        (("schedules",), ACTION_SERVICE_READ, "service"),
-        (("schedule",), ACTION_SERVICE_READ, "service"),
-        (("repository",), ACTION_CATALOG_READ, "catalog"),
-        (("workspace",), ACTION_CATALOG_READ, "catalog"),
-        (("topResource",), ACTION_ADMIN_READ, "admin"),
-        (("version",), ACTION_ADMIN_READ, "admin"),
-        (("services",), ACTION_SERVICE_READ, "service"),
+        (spec.fields, spec.action, spec.resource_type) for spec in _GRAPHQL_OPERATION_SPECS
     ]
 
     def list_operations(self) -> list[SurfaceOperation]:
@@ -179,6 +415,9 @@ class DagsterRegulatedSurfaceAdapter:
                 "Dagster adapter requires a non-None Dagster webserver instance as runtime"
             )
         self._installed_runtime = runtime
+        schema = getattr(runtime, "_graphene_schema", None)
+        if schema is not None:
+            validate_graphql_schema(schema.graphql_schema)
         spec = RegulatedSurfaceSpec(
             name=SURFACE_NAME,
             provider=self,
