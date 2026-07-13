@@ -154,7 +154,16 @@ class EnforcementContext:
         return self._audit_emitter
 
     def canonicalize(self, auth_principal: Any) -> Principal:
-        """Canonicalize an AuthPrincipal to a Principal via the identity bridge."""
+        """Canonicalize an AuthPrincipal, preserving an existing Principal.
+
+        Surface adapters may already have an explicitly canonical ``Principal``.
+        Passing that value through keeps the shared enforcement contract honest;
+        every other identity must cross the configured AuthPrincipal bridge.
+        """
+        from phlo.capabilities.interfaces import Principal
+
+        if isinstance(auth_principal, Principal):
+            return auth_principal
         return self.identity_bridge.canonicalize(auth_principal)
 
 

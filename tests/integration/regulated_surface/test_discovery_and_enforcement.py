@@ -138,6 +138,20 @@ class TestEnforcementContext:
 class TestEnforceFunction:
     """Test the core enforce() function."""
 
+    def test_enforce_preserves_explicit_canonical_principal(self) -> None:
+        """A canonical Principal must not be sent through the AuthPrincipal bridge."""
+        context = EnforcementContext()
+        canonical = Principal(
+            subject="test-user",
+            principal_type="user",
+            roles=("viewer",),
+        )
+        bridge = MagicMock()
+        context._identity_bridge = bridge
+
+        assert context.canonicalize(canonical) is canonical
+        bridge.canonicalize.assert_not_called()
+
     def test_enforce_returns_error_when_no_backend(self) -> None:
         """enforce() returns error result when no authorization backend is registered."""
         EnforcementContext.reset_instance()
