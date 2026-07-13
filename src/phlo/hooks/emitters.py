@@ -19,6 +19,7 @@ from phlo.hooks.events import (
     ServiceLifecycleEvent,
     TelemetryEvent,
     TransformEvent,
+    normalize_attempt,
 )
 from phlo.logging import get_bound_correlation_context
 
@@ -33,12 +34,18 @@ def _merge_correlation(
     if base is not None:
         for key, value in vars(base).items():
             if value is not None:
-                setattr(correlation, key, str(value))
+                setattr(correlation, key, _normalize_correlation_value(key, value))
     if overrides is not None:
         for key, value in overrides.items():
             if value is not None:
-                setattr(correlation, key, str(value))
+                setattr(correlation, key, _normalize_correlation_value(key, value))
     return correlation
+
+
+def _normalize_correlation_value(key: str, value: Any) -> Any:
+    if key == "attempt":
+        return normalize_attempt(value)
+    return str(value)
 
 
 class _ContextEmitterBase:

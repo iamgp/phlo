@@ -162,6 +162,7 @@ def _stage_for_event(event: HookEvent, *, project_id: str, run_id: str) -> RunSt
         tool=getattr(event, "tool", None) or getattr(event, "target_system", None),
         asset=asset,
         status=status,
+        attempt=event.correlation.attempt,
         started_at=event.timestamp,
         finished_at=event.timestamp if status not in {"running", "observed"} else None,
         metrics=getattr(event, "metrics", {}) or {},

@@ -100,6 +100,7 @@ _CORRELATION_FIELDS = (
     "trace_flags",
     "project_id",
     "run_id",
+    "attempt",
     "asset_key",
     "job_name",
     "partition_key",
@@ -316,10 +317,11 @@ def clear_context() -> None:
 
 def get_bound_correlation_context() -> HookCorrelation:
     """Return the current correlation fields bound in logging contextvars."""
-    values: dict[str, Any] = {
-        field: _coerce_optional_string(structlog.contextvars.get_contextvars().get(field))
-        for field in _CORRELATION_FIELDS
-    }
+    values: dict[str, Any] = {}
+    for field in _CORRELATION_FIELDS:
+        value = _coerce_optional_string(structlog.contextvars.get_contextvars().get(field))
+        if value is not None:
+            values[field] = value
     return HookCorrelation(**values)
 
 

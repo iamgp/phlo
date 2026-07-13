@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
 
@@ -25,6 +26,7 @@ from phlo.hooks.events import (
 )
 from phlo.run_evidence import (
     RUN_EVIDENCE_SCHEMA_VERSION,
+    EvidenceCompleteness,
     IdempotencyConflict,
     PipelineRun,
     RunArtifact,
@@ -342,6 +344,126 @@ def test_run_attempt_and_terminal_status_are_monotonic() -> None:
     assert row["status"] == "success"
 
 
+def test_higher_attempt_replaces_summary_and_late_attempt_is_ignored() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    first_finished = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
+    second_finished = datetime(2026, 7, 13, 12, 1, tzinfo=UTC)
+    late_first_finished = datetime(2026, 7, 13, 12, 2, tzinfo=UTC)
+    first = PipelineRun(
+        project_id="project",
+        run_id="run",
+        attempt=1,
+        trace_id="trace-one",
+        effective_identity="identity-one",
+        code_version="code-one",
+        config_version="config-one",
+        status="failed",
+        finished_at=first_finished,
+        failure_summary="first failure",
+        evidence_completeness=EvidenceCompleteness.COMPLETE,
+    )
+    second_running = replace(
+        first,
+        attempt=2,
+        trace_id="trace-two",
+        effective_identity="identity-two",
+        code_version="code-two",
+        config_version="config-two",
+        status="running",
+        finished_at=None,
+        failure_summary=None,
+        evidence_completeness=EvidenceCompleteness.INCOMPLETE,
+    )
+    store.append_pipeline_run(first)
+    store.append_pipeline_run(second_running)
+
+    row = store.get_run("project", "run")
+    assert (
+        row["attempt"],
+        row["status"],
+        row["trace_id"],
+        row["effective_identity"],
+        row["code_version"],
+        row["config_version"],
+    ) == (2, "running", "trace-two", "identity-two", "code-two", "config-two")
+    assert row["finished_at"] is None
+    assert row["failure_summary"] is None
+    assert row["evidence_completeness"] == EvidenceCompleteness.INCOMPLETE
+
+    store.append_pipeline_run(
+        replace(
+            second_running,
+            status="success",
+            finished_at=second_finished,
+            evidence_completeness=EvidenceCompleteness.COMPLETE,
+        )
+    )
+    store.append_pipeline_run(
+        replace(
+            first,
+            trace_id="late-trace-one",
+            effective_identity="late-identity-one",
+            code_version="late-code-one",
+            config_version="late-config-one",
+            finished_at=late_first_finished,
+            failure_summary="late first failure",
+            evidence_completeness=EvidenceCompleteness.REDACTED,
+        )
+    )
+
+    row = store.get_run("project", "run")
+    assert (
+        row["attempt"],
+        row["status"],
+        row["trace_id"],
+        row["effective_identity"],
+        row["code_version"],
+        row["config_version"],
+    ) == (2, "success", "trace-two", "identity-two", "code-two", "config-two")
+    assert row["finished_at"] == second_finished.isoformat()
+    assert row["failure_summary"] is None
+    assert row["evidence_completeness"] == EvidenceCompleteness.COMPLETE
+
+
+def test_terminal_stage_status_and_metadata_are_sticky() -> None:
+    store = _store_with_run()
+    first_finished = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
+    later_finished = datetime(2026, 7, 13, 12, 1, tzinfo=UTC)
+    first = RunStage(
+        project_id="project",
+        run_id="run",
+        stage_id="stage",
+        stage_type="ingest",
+        status="failed",
+        finished_at=first_finished,
+        metrics={"rows": 10, "bytes": 100},
+        error="first failure",
+    )
+    store.append_stage(first)
+    store.append_stage(
+        replace(
+            first,
+            status="success",
+            finished_at=later_finished,
+            metrics={"rows": 20},
+            error="late outcome",
+        )
+    )
+    store.append_stage(replace(first, status="running", finished_at=None, metrics={}, error=None))
+
+    with store._transaction() as (_, cursor):
+        cursor.execute(
+            "SELECT status, finished_at, metrics, error FROM run_stage "
+            "WHERE project_id = ? AND run_id = ? AND stage_id = ?",
+            ("project", "run", "stage"),
+        )
+        row = cursor.fetchone()
+    assert row[0] == "failed"
+    assert row[1] == first_finished.isoformat()
+    assert row[2] == '{"bytes":100,"rows":10}'
+    assert row[3] == "first failure"
+
+
 def test_previous_event_schema_version_remains_readable() -> None:
     store = _store_with_run()
     assert store.append_event(_event(payload={"value": 1}, event_id="old")) is True
@@ -495,9 +617,10 @@ def test_retry_attempts_get_distinct_stage_evidence() -> None:
 
     with store._transaction() as (_, cursor):
         cursor.execute(
-            "SELECT COUNT(*) FROM run_stage WHERE project_id = ? AND run_id = ?", ("project", "run")
+            "SELECT attempt FROM run_stage WHERE project_id = ? AND run_id = ? ORDER BY attempt",
+            ("project", "run"),
         )
-        assert cursor.fetchone()[0] == 2
+        assert [row[0] for row in cursor.fetchall()] == [1, 2]
 
 
 def test_normalized_resource_payload_is_redacted() -> None:

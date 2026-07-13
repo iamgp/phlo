@@ -250,20 +250,32 @@ class _SqlRunEvidenceStore:
         )
         updates = ", ".join(
             [
-                f"{field} = EXCLUDED.{field}"
+                f"{field} = COALESCE(existing_run.{field}, EXCLUDED.{field})"
                 for field in (
                     "pipeline_name",
                     "provider_run_id",
                     "trigger",
                     "initiator",
-                    "effective_identity",
                     "partition_key",
-                    "code_version",
-                    "config_version",
-                    "trace_id",
                 )
             ]
             + [
+                # provider_run_id identifies the logical provider run, while
+                # these fields describe the latest execution attempt. A
+                # same-attempt replay only fills a missing value so late
+                # lower-attempt evidence cannot rewrite current provenance.
+                "effective_identity = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
+                "THEN EXCLUDED.effective_identity WHEN EXCLUDED.attempt < existing_run.attempt "
+                "THEN existing_run.effective_identity ELSE COALESCE(existing_run.effective_identity, EXCLUDED.effective_identity) END",
+                "code_version = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
+                "THEN EXCLUDED.code_version WHEN EXCLUDED.attempt < existing_run.attempt "
+                "THEN existing_run.code_version ELSE COALESCE(existing_run.code_version, EXCLUDED.code_version) END",
+                "config_version = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
+                "THEN EXCLUDED.config_version WHEN EXCLUDED.attempt < existing_run.attempt "
+                "THEN existing_run.config_version ELSE COALESCE(existing_run.config_version, EXCLUDED.config_version) END",
+                "started_at = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
+                "THEN EXCLUDED.started_at WHEN EXCLUDED.attempt < existing_run.attempt "
+                "THEN existing_run.started_at ELSE COALESCE(existing_run.started_at, EXCLUDED.started_at) END",
                 "attempt = CASE WHEN existing_run.attempt > EXCLUDED.attempt "
                 "THEN existing_run.attempt ELSE EXCLUDED.attempt END",
                 "status = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
@@ -271,9 +283,26 @@ class _SqlRunEvidenceStore:
                 "THEN existing_run.status WHEN existing_run.status IN "
                 "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
                 "THEN existing_run.status ELSE EXCLUDED.status END",
-                "finished_at = COALESCE(EXCLUDED.finished_at, existing_run.finished_at)",
-                "failure_summary = COALESCE(EXCLUDED.failure_summary, existing_run.failure_summary)",
-                "evidence_completeness = CASE WHEN existing_run.evidence_completeness IN "
+                "trace_id = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
+                "THEN EXCLUDED.trace_id WHEN EXCLUDED.attempt < existing_run.attempt "
+                "THEN existing_run.trace_id ELSE COALESCE(existing_run.trace_id, EXCLUDED.trace_id) END",
+                "finished_at = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
+                "THEN EXCLUDED.finished_at WHEN EXCLUDED.attempt < existing_run.attempt "
+                "THEN existing_run.finished_at WHEN existing_run.status IN "
+                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+                "THEN COALESCE(existing_run.finished_at, EXCLUDED.finished_at) "
+                "ELSE COALESCE(EXCLUDED.finished_at, existing_run.finished_at) END",
+                "failure_summary = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
+                "THEN EXCLUDED.failure_summary WHEN EXCLUDED.attempt < existing_run.attempt "
+                "THEN existing_run.failure_summary WHEN existing_run.status IN "
+                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+                "THEN COALESCE(existing_run.failure_summary, EXCLUDED.failure_summary) "
+                "ELSE COALESCE(EXCLUDED.failure_summary, existing_run.failure_summary) END",
+                "evidence_completeness = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
+                "THEN EXCLUDED.evidence_completeness WHEN EXCLUDED.attempt < existing_run.attempt "
+                "THEN existing_run.evidence_completeness WHEN existing_run.status IN "
+                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+                "THEN existing_run.evidence_completeness WHEN existing_run.evidence_completeness IN "
                 "('complete', 'expired', 'redacted') AND EXCLUDED.evidence_completeness = 'incomplete' "
                 "THEN existing_run.evidence_completeness ELSE EXCLUDED.evidence_completeness END",
             ]
@@ -387,14 +416,22 @@ class _SqlRunEvidenceStore:
         cursor.execute(
             f"UPDATE {self._table('run_stage')} SET status = CASE "
             f"WHEN status IN ('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
-            f"AND {p} IN ('running', 'observed') THEN status ELSE {p} END, "
-            f"finished_at = COALESCE(finished_at, {p}), metrics = {p}, error = COALESCE({p}, error) "
+            f"THEN status ELSE {p} END, "
+            f"finished_at = CASE WHEN status IN "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+            f"THEN COALESCE(finished_at, {p}) ELSE COALESCE({p}, finished_at) END, "
+            f"metrics = CASE WHEN status IN "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+            f"THEN metrics ELSE {p} END, error = CASE WHEN status IN "
+            f"('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+            f"THEN COALESCE(error, {p}) ELSE COALESCE({p}, error) END "
             f"WHERE project_id = {p} AND run_id = {p} AND stage_id = {p}",
             (
                 stage.status,
-                stage.status,
+                _timestamp(stage.finished_at),
                 _timestamp(stage.finished_at),
                 _json(stage.metrics),
+                _text(stage.error),
                 _text(stage.error),
                 stage.project_id,
                 stage.run_id,

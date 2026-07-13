@@ -53,6 +53,24 @@ from uuid import uuid4
 EVENT_VERSION = "1.0"
 
 
+def normalize_attempt(value: Any) -> int:
+    """Return a positive integer attempt, accepting numeric strings at boundaries."""
+    if isinstance(value, bool):
+        raise ValueError("attempt must be a positive integer")
+    if isinstance(value, int):
+        attempt = value
+    elif isinstance(value, str) and value.strip():
+        try:
+            attempt = int(value)
+        except ValueError as exc:
+            raise ValueError("attempt must be a positive integer") from exc
+    else:
+        raise ValueError("attempt must be a positive integer")
+    if attempt <= 0:
+        raise ValueError("attempt must be a positive integer")
+    return attempt
+
+
 def _utc_now() -> datetime:
     """Return the current UTC timestamp.
 
@@ -104,6 +122,9 @@ class HookCorrelation:
     job_name: str | None = None
     partition_key: str | None = None
     check_name: str | None = None
+
+    def __post_init__(self) -> None:
+        self.attempt = normalize_attempt(self.attempt)
 
 
 @dataclass(kw_only=True)

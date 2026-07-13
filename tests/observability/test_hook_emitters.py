@@ -24,6 +24,7 @@ from phlo.hooks.emitters import (
     TransformEventContext,
     TransformEventEmitter,
 )
+from phlo.hooks.events import HookCorrelation
 from phlo.logging import bind_context, clear_context
 from tests.helpers import RecordingBus
 
@@ -56,6 +57,27 @@ def test_ingestion_emitter_merges_bound_correlation_context() -> None:
     assert event.correlation.job_name == "daily_orders"
     assert event.correlation.trace_id == "abc123"
     assert event.correlation.span_id == "def456"
+
+
+def test_emitter_preserves_integer_attempt_after_correlation_merge() -> None:
+    bus = RecordingBus()
+    emitter = IngestionEventEmitter(
+        IngestionEventContext(
+            asset_key="silver.orders",
+            table_name="orders",
+            group_name="sales",
+            correlation=HookCorrelation(run_id="run-123", attempt=2),
+        ),
+        hook_bus=bus,
+    )
+
+    emitter.emit_start()
+
+    assert bus.events[0].correlation.attempt == 2
+    assert isinstance(bus.events[0].correlation.attempt, int)
+    assert HookCorrelation(attempt="2").attempt == 2
+    with pytest.raises(ValueError, match="positive integer"):
+        HookCorrelation(attempt=0)
 
 
 def test_transform_emitter_merges_bound_correlation_context() -> None:
