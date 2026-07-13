@@ -14,11 +14,12 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 
 
 class SupersetSettings(BaseConfig):
@@ -55,29 +56,7 @@ class SupersetSettings(BaseConfig):
     )
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> SupersetSettings:
-    """Get cached Superset settings.
-
-    This function returns a cached instance of SupersetSettings to avoid
-    repeated configuration loading and parsing. The cache ensures that
-    settings are loaded once per process and reused thereafter.
-
-    Returns:
-        Loaded Superset configuration settings instance.
-
-    Raises:
-        None
-
-    Example:
-        >>> settings = get_settings()
-        >>> settings2 = get_settings()
-        >>> settings is settings2  # Same cached instance
-        True
-
-    Note:
-        The LRU cache ensures only one settings instance exists per process.
-        For testing purposes, use functools.cache_clear() if needed.
-
-    """
+@project_root_cached
+def get_settings(project_root: Path) -> SupersetSettings:
+    """Return cached Superset settings for the selected project root."""
     return SupersetSettings()

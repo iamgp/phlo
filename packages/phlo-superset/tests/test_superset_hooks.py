@@ -77,10 +77,11 @@ def test_superset_database_uri_fails_without_config_or_metadata(monkeypatch) -> 
         hooks._discover_query_engine_database_uri()
 
 
-def test_superset_admin_credentials_fall_back_to_settings(monkeypatch) -> None:
+def test_superset_admin_credentials_fall_back_to_settings(monkeypatch, tmp_path) -> None:
     """Hook should use standard settings defaults when env vars are absent."""
     monkeypatch.delenv("SUPERSET_ADMIN_USER", raising=False)
     monkeypatch.delenv("SUPERSET_ADMIN_PASSWORD", raising=False)
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     hooks.get_settings.cache_clear()
 
     assert hooks._superset_admin_credentials() == ("admin", "admin")
@@ -119,10 +120,11 @@ def test_add_query_engine_database_handles_database_uri_resolution_failure(monke
     assert session.post.call_count == 1
 
 
-def test_add_query_engine_database_uses_settings_when_env_missing(monkeypatch) -> None:
+def test_add_query_engine_database_uses_settings_when_env_missing(monkeypatch, tmp_path) -> None:
     """Hook startup should still log in with generated default settings."""
     monkeypatch.delenv("SUPERSET_ADMIN_USER", raising=False)
     monkeypatch.delenv("SUPERSET_ADMIN_PASSWORD", raising=False)
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     hooks.get_settings.cache_clear()
     session = Mock()
     session.headers = {}

@@ -22,12 +22,13 @@ Examples:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_host
 
 
@@ -138,8 +139,8 @@ class MinioSettings(BaseConfig):
         return f"{self.minio_host}:{self.minio_api_port}"
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> MinioSettings:
+@project_root_cached
+def get_settings(project_root: Path) -> MinioSettings:
     """Return a cached MinIO settings instance.
 
     Creates and caches a single MinioSettings instance to avoid

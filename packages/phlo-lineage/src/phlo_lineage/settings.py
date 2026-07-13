@@ -40,11 +40,12 @@ See Also:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 
 
 class LineageSettings(BaseConfig):
@@ -93,8 +94,8 @@ class LineageSettings(BaseConfig):
     )
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> LineageSettings:
+@project_root_cached
+def get_settings(project_root: Path) -> LineageSettings:
     """Get cached LineageSettings instance.
 
     This function returns a singleton LineageSettings instance that is

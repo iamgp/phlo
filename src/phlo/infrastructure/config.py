@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import os
 import time
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import yaml
 from pydantic import ValidationError
 
+from phlo.config.cache import project_root_cached
 from phlo.config_schema import (
     ApiAuthorizationConfig,
     ApiConfig,
@@ -42,13 +42,10 @@ def _default_project_root() -> Path:
     return Path.cwd()
 
 
-@lru_cache(maxsize=16)
-def load_project_config(project_root: Path | None = None) -> dict[str, Any]:
+@project_root_cached
+def load_project_config(project_root: Path) -> dict[str, Any]:
     """Load raw project configuration from phlo.yaml."""
     started = time.perf_counter()
-    if project_root is None:
-        project_root = _default_project_root()
-
     config_path = project_root / "phlo.yaml"
     logger.debug(
         "project_config_load_started",
@@ -90,12 +87,10 @@ def load_project_config(project_root: Path | None = None) -> dict[str, Any]:
     return project_config
 
 
-@lru_cache(maxsize=16)
-def load_infrastructure_config(project_root: Path | None = None) -> InfrastructureConfig:
+@project_root_cached
+def load_infrastructure_config(project_root: Path) -> InfrastructureConfig:
     """Load infrastructure configuration from phlo.yaml."""
     started = time.perf_counter()
-    if project_root is None:
-        project_root = _default_project_root()
     logger.debug("infrastructure_config_load_started", project_root=str(project_root))
 
     try:

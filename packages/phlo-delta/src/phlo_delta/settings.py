@@ -13,12 +13,13 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_url
 
 
@@ -122,8 +123,8 @@ class DeltaSettings(BaseConfig):
         return opts
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> DeltaSettings:
+@project_root_cached
+def get_settings(project_root: Path) -> DeltaSettings:
     """Get cached Delta Lake settings.
 
     Returns a singleton instance of DeltaSettings, cached for performance.

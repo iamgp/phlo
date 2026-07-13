@@ -35,11 +35,12 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_url as _resolve_service_url
 from phlo_iceberg.compatibility import validate_pyiceberg_rest_catalog_config
 
@@ -223,8 +224,8 @@ class IcebergSettings(BaseConfig):
         return config
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> IcebergSettings:
+@project_root_cached
+def get_settings(project_root: Path) -> IcebergSettings:
     """Get cached Iceberg settings instance.
 
     Uses LRU cache to avoid repeatedly loading and parsing configuration.

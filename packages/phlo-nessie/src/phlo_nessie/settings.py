@@ -14,12 +14,13 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_host
 
 
@@ -73,12 +74,7 @@ class NessieSettings(BaseConfig):
         return f"http://{self.nessie_host}:{self.nessie_port}/iceberg"
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> NessieSettings:
-    """Return cached Nessie settings.
-
-    Returns:
-        NessieSettings: Singleton settings instance.
-
-    """
+@project_root_cached
+def get_settings(project_root: Path) -> NessieSettings:
+    """Return cached Nessie settings for the selected project root."""
     return NessieSettings()

@@ -15,13 +15,14 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_host
 
 
@@ -123,8 +124,8 @@ class PostgresSettings(BaseConfig):
         return f"postgresql://{user}:{password}@{self.postgres_host}:{self.postgres_port}{db_part}"
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> PostgresSettings:
+@project_root_cached
+def get_settings(project_root: Path) -> PostgresSettings:
     """Return cached PostgreSQL settings instance.
 
     Provides a singleton-style access to PostgreSQL settings with LRU caching

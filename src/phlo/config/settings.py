@@ -8,11 +8,12 @@ All settings can be customized through environment variables or by creating
 a `.phlo/.env` file in your project root.
 """
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 
 
 class Settings(BaseConfig):
@@ -138,8 +139,8 @@ class Settings(BaseConfig):
     )
 
 
-@lru_cache
-def _get_config() -> Settings:
+@project_root_cached
+def _get_config(project_root: Path) -> Settings:
     """Get cached config instance.
 
     Uses lru_cache to ensure config is loaded once and reused across
@@ -156,7 +157,7 @@ def _get_config() -> Settings:
     return Settings()
 
 
-def get_settings() -> Settings:
+def get_settings(project_root: Path | str | None = None) -> Settings:
     """Get application settings.
 
     This is the recommended way to access configuration in application code.
@@ -177,4 +178,4 @@ def get_settings() -> Settings:
         ```
 
     """
-    return _get_config()
+    return _get_config(project_root)

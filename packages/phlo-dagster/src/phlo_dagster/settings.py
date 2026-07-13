@@ -42,11 +42,12 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import AliasChoices, Field, model_validator
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 
 
 class DagsterSettings(BaseConfig):
@@ -96,7 +97,7 @@ class DagsterSettings(BaseConfig):
         return self
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> DagsterSettings:
+@project_root_cached
+def get_settings(project_root: Path) -> DagsterSettings:
     """Return cached Dagster settings."""
     return DagsterSettings()

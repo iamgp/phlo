@@ -27,7 +27,15 @@ Example:
 """
 
 from phlo.config.base import BaseConfig
-from phlo.config.env import load_project_env, parse_project_env_file, project_env_value
+from phlo.config.cache import project_root_cached
+from phlo.config.env import (
+    load_project_env,
+    parse_project_env_file,
+    project_env_files,
+    project_env_value,
+    resolve_project_root,
+    use_project_root,
+)
 from phlo.config.network import resolve_host, resolve_url
 from phlo.config.settings import Settings, _get_config, get_settings
 from phlo.config.workflow import WorkflowSettingsError, settings, workflow_settings
@@ -40,9 +48,13 @@ __all__ = [
     "get_settings",
     "load_project_env",
     "parse_project_env_file",
+    "project_root_cached",
+    "project_env_files",
     "project_env_value",
+    "resolve_project_root",
     "resolve_host",
     "resolve_url",
     "settings",
+    "use_project_root",
     "workflow_settings",
 ]

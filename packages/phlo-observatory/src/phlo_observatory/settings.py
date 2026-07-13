@@ -6,11 +6,12 @@ including database connection configuration for persistent settings storage.
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 
 
 class ObservatorySettings(BaseConfig):
@@ -34,8 +35,8 @@ class ObservatorySettings(BaseConfig):
     )
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> ObservatorySettings:
+@project_root_cached
+def get_settings(project_root: Path) -> ObservatorySettings:
     """Return cached Observatory settings instance.
 
     Settings are parsed from environment variables using PHLO_OBSERVATORY_*

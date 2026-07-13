@@ -33,11 +33,12 @@ Environment Variables:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 
 
 class AlertingSettings(BaseConfig):
@@ -84,8 +85,8 @@ class AlertingSettings(BaseConfig):
     )
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> AlertingSettings:
+@project_root_cached
+def get_settings(project_root: Path) -> AlertingSettings:
     """Return cached alerting settings instance.
 
     Provides a singleton AlertingSettings instance with caching for

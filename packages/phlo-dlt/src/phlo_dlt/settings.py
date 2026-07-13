@@ -32,11 +32,12 @@ Example:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 
 
 class DltSettings(BaseConfig):
@@ -77,8 +78,8 @@ class DltSettings(BaseConfig):
     )
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> DltSettings:
+@project_root_cached
+def get_settings(project_root: Path) -> DltSettings:
     """Return cached DLT settings instance.
 
     Factory function that returns a singleton DltSettings instance.

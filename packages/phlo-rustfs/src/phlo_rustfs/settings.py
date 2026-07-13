@@ -13,12 +13,13 @@ Functions:
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
+from phlo.config.cache import project_root_cached
 from phlo.config.network import resolve_host
 
 
@@ -86,8 +87,8 @@ class RustfsSettings(BaseConfig):
         return f"{self.rustfs_host}:{self.rustfs_api_port}"
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> RustfsSettings:
+@project_root_cached
+def get_settings(project_root: Path) -> RustfsSettings:
     """Return cached RustFS settings.
 
     Factory function returning a singleton RustfsSettings instance.
