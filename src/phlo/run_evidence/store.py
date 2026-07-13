@@ -260,14 +260,17 @@ class _SqlRunEvidenceStore:
                     "partition_key",
                     "code_version",
                     "config_version",
-                    "attempt",
                     "trace_id",
                 )
             ]
             + [
-                "status = CASE WHEN existing_run.status IN "
-                "('success', 'failed', 'error', 'cancelled', 'canceled') "
-                "AND EXCLUDED.status = 'running' THEN existing_run.status ELSE EXCLUDED.status END",
+                "attempt = CASE WHEN existing_run.attempt > EXCLUDED.attempt "
+                "THEN existing_run.attempt ELSE EXCLUDED.attempt END",
+                "status = CASE WHEN EXCLUDED.attempt > existing_run.attempt "
+                "THEN EXCLUDED.status WHEN EXCLUDED.attempt < existing_run.attempt "
+                "THEN existing_run.status WHEN existing_run.status IN "
+                "('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
+                "THEN existing_run.status ELSE EXCLUDED.status END",
                 "finished_at = COALESCE(EXCLUDED.finished_at, existing_run.finished_at)",
                 "failure_summary = COALESCE(EXCLUDED.failure_summary, existing_run.failure_summary)",
                 "evidence_completeness = CASE WHEN existing_run.evidence_completeness IN "
@@ -364,15 +367,16 @@ class _SqlRunEvidenceStore:
             "(stage_id, project_id, run_id, stage_type, provider, tool, asset, attempt, status, "
             "started_at, finished_at, metrics, error, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
-            + ") ON CONFLICT (project_id, stage_id) DO NOTHING",
+            + ") ON CONFLICT (project_id, run_id, stage_id) DO NOTHING",
             values,
         )
         if cursor.rowcount == 1:
             return
         cursor.execute(
             f"SELECT run_id, record_checksum FROM {self._table('run_stage')} "
-            f"WHERE project_id = {self.placeholder} AND stage_id = {self.placeholder}",
-            (stage.project_id, stage.stage_id),
+            f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder} "
+            f"AND stage_id = {self.placeholder}",
+            (stage.project_id, stage.run_id, stage.stage_id),
         )
         existing = cursor.fetchone()
         if existing is None or existing[0] != stage.run_id or existing[1] != immutable_checksum:
@@ -385,7 +389,7 @@ class _SqlRunEvidenceStore:
             f"WHEN status IN ('success', 'failed', 'error', 'cancelled', 'canceled', 'skipped') "
             f"AND {p} IN ('running', 'observed') THEN status ELSE {p} END, "
             f"finished_at = COALESCE(finished_at, {p}), metrics = {p}, error = COALESCE({p}, error) "
-            f"WHERE project_id = {p} AND stage_id = {p}",
+            f"WHERE project_id = {p} AND run_id = {p} AND stage_id = {p}",
             (
                 stage.status,
                 stage.status,
@@ -393,6 +397,7 @@ class _SqlRunEvidenceStore:
                 _json(stage.metrics),
                 _text(stage.error),
                 stage.project_id,
+                stage.run_id,
                 stage.stage_id,
             ),
         )
@@ -428,7 +433,7 @@ class _SqlRunEvidenceStore:
             "table_name, catalog, ref_name, schema_hash, watermark, record_count, byte_count, "
             "staged_objects, snapshot_before, snapshot_after, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
-            + ") ON CONFLICT (project_id, resource_id) DO NOTHING",
+            + ") ON CONFLICT (project_id, run_id, resource_id) DO NOTHING",
             values,
         )
         if cursor.rowcount != 1:
@@ -464,7 +469,7 @@ class _SqlRunEvidenceStore:
             "(lineage_edge_id, project_id, run_id, source, target, column_mapping, origin, "
             "derivation, confidence, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
-            + ") ON CONFLICT (project_id, lineage_edge_id) DO NOTHING",
+            + ") ON CONFLICT (project_id, run_id, lineage_edge_id) DO NOTHING",
             values,
         )
         if cursor.rowcount != 1:
@@ -491,8 +496,8 @@ class _SqlRunEvidenceStore:
             _text(result.check_id),
             _text(result.asset),
             _text(result.severity),
-            int(result.blocking),
-            int(result.passed),
+            result.blocking,
+            result.passed,
             result.evaluated_count,
             result.failed_count,
             _text(result.failure_artifact_id),
@@ -504,7 +509,7 @@ class _SqlRunEvidenceStore:
             "(quality_result_id, project_id, run_id, stage_id, check_id, asset, severity, blocking, "
             "passed, evaluated_count, failed_count, failure_artifact_id, metadata, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
-            + ") ON CONFLICT (project_id, quality_result_id) DO NOTHING",
+            + ") ON CONFLICT (project_id, run_id, quality_result_id) DO NOTHING",
             values,
         )
         if cursor.rowcount != 1:
@@ -546,7 +551,7 @@ class _SqlRunEvidenceStore:
             "source_hash, target_hash, commit_hash, commit_message, merge_outcome, snapshot_before, "
             "snapshot_after, metadata, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
-            + ") ON CONFLICT (project_id, catalog_change_id) DO NOTHING",
+            + ") ON CONFLICT (project_id, run_id, catalog_change_id) DO NOTHING",
             values,
         )
         if cursor.rowcount != 1:
@@ -575,7 +580,7 @@ class _SqlRunEvidenceStore:
             _text(artifact.checksum),
             _text(artifact.retention_class),
             _timestamp(artifact.expires_at),
-            int(artifact.legal_hold),
+            artifact.legal_hold,
             artifact.status.value,
             record_checksum,
         )
@@ -584,7 +589,7 @@ class _SqlRunEvidenceStore:
             "(artifact_id, project_id, run_id, artifact_kind, uri, content_type, checksum, "
             "retention_class, expires_at, legal_hold, status, record_checksum) VALUES ("
             + ", ".join([self.placeholder] * len(values))
-            + ") ON CONFLICT (project_id, artifact_id) DO NOTHING",
+            + ") ON CONFLICT (project_id, run_id, artifact_id) DO NOTHING",
             values,
         )
         if cursor.rowcount != 1:
@@ -623,8 +628,9 @@ class _SqlRunEvidenceStore:
     ) -> None:
         cursor.execute(
             f"SELECT run_id, record_checksum FROM {self._table(table)} "
-            f"WHERE project_id = {self.placeholder} AND {id_column} = {self.placeholder}",
-            (project_id, record_id),
+            f"WHERE project_id = {self.placeholder} AND run_id = {self.placeholder} "
+            f"AND {id_column} = {self.placeholder}",
+            (project_id, run_id, record_id),
         )
         existing = cursor.fetchone()
         if existing is None or existing[0] != run_id or existing[1] != checksum:

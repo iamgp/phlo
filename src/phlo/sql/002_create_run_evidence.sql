@@ -64,8 +64,7 @@ CREATE TABLE IF NOT EXISTS phlo.run_stage (
     metrics JSONB NOT NULL DEFAULT '{}'::jsonb,
     error TEXT,
     record_checksum TEXT NOT NULL,
-    PRIMARY KEY (project_id, stage_id),
-    UNIQUE (project_id, run_id, stage_id),
+    PRIMARY KEY (project_id, run_id, stage_id),
     FOREIGN KEY (project_id, run_id) REFERENCES phlo.pipeline_run(project_id, run_id)
 );
 
@@ -88,7 +87,7 @@ CREATE TABLE IF NOT EXISTS phlo.run_resource (
     snapshot_before TEXT,
     snapshot_after TEXT,
     record_checksum TEXT NOT NULL,
-    PRIMARY KEY (project_id, resource_id),
+    PRIMARY KEY (project_id, run_id, resource_id),
     FOREIGN KEY (project_id, run_id) REFERENCES phlo.pipeline_run(project_id, run_id)
 );
 
@@ -103,7 +102,7 @@ CREATE TABLE IF NOT EXISTS phlo.run_lineage_edge (
     derivation TEXT NOT NULL,
     confidence DOUBLE PRECISION,
     record_checksum TEXT NOT NULL,
-    PRIMARY KEY (project_id, lineage_edge_id),
+    PRIMARY KEY (project_id, run_id, lineage_edge_id),
     FOREIGN KEY (project_id, run_id) REFERENCES phlo.pipeline_run(project_id, run_id)
 );
 
@@ -123,7 +122,7 @@ CREATE TABLE IF NOT EXISTS phlo.run_catalog_change (
     snapshot_after TEXT,
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
     record_checksum TEXT NOT NULL,
-    PRIMARY KEY (project_id, catalog_change_id),
+    PRIMARY KEY (project_id, run_id, catalog_change_id),
     FOREIGN KEY (project_id, run_id) REFERENCES phlo.pipeline_run(project_id, run_id)
 );
 
@@ -140,8 +139,7 @@ CREATE TABLE IF NOT EXISTS phlo.run_artifact (
     legal_hold BOOLEAN NOT NULL DEFAULT FALSE,
     status TEXT NOT NULL CHECK (status IN ('complete', 'incomplete', 'missing', 'expired', 'redacted')),
     record_checksum TEXT NOT NULL,
-    PRIMARY KEY (project_id, artifact_id),
-    UNIQUE (project_id, run_id, artifact_id),
+    PRIMARY KEY (project_id, run_id, artifact_id),
     FOREIGN KEY (project_id, run_id) REFERENCES phlo.pipeline_run(project_id, run_id)
 );
 
@@ -160,7 +158,7 @@ CREATE TABLE IF NOT EXISTS phlo.run_quality_result (
     failure_artifact_id TEXT,
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
     record_checksum TEXT NOT NULL,
-    PRIMARY KEY (project_id, quality_result_id),
+    PRIMARY KEY (project_id, run_id, quality_result_id),
     FOREIGN KEY (project_id, run_id) REFERENCES phlo.pipeline_run(project_id, run_id),
     FOREIGN KEY (project_id, run_id, stage_id)
         REFERENCES phlo.run_stage(project_id, run_id, stage_id)

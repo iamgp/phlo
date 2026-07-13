@@ -226,6 +226,122 @@ def test_child_ids_are_project_scoped_and_cross_run_quality_refs_fail() -> None:
         )
 
 
+def test_same_project_child_ids_are_scoped_to_each_run() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    for run_id in ("one", "two"):
+        store.append_pipeline_run(PipelineRun(project_id="project", run_id=run_id))
+
+    store.append_stage(
+        RunStage(project_id="project", run_id="one", stage_id="same", stage_type="ingest")
+    )
+    store.append_stage(
+        RunStage(project_id="project", run_id="two", stage_id="same", stage_type="ingest")
+    )
+    store.append_resource(
+        RunResource(project_id="project", run_id="one", resource_id="same", uri="one")
+    )
+    store.append_resource(
+        RunResource(project_id="project", run_id="two", resource_id="same", uri="two")
+    )
+    store.append_lineage_edge(
+        RunLineageEdge(
+            project_id="project", run_id="one", lineage_edge_id="same", source="a", target="b"
+        )
+    )
+    store.append_lineage_edge(
+        RunLineageEdge(
+            project_id="project", run_id="two", lineage_edge_id="same", source="a", target="c"
+        )
+    )
+    store.append_quality_result(
+        RunQualityResult(
+            project_id="project", run_id="one", quality_result_id="same", check_id="one"
+        )
+    )
+    store.append_quality_result(
+        RunQualityResult(
+            project_id="project", run_id="two", quality_result_id="same", check_id="two"
+        )
+    )
+    store.append_catalog_change(
+        RunCatalogChange(
+            project_id="project", run_id="one", catalog_change_id="same", operation="commit"
+        )
+    )
+    store.append_catalog_change(
+        RunCatalogChange(
+            project_id="project", run_id="two", catalog_change_id="same", operation="merge"
+        )
+    )
+    store.append_artifact(
+        RunArtifact(project_id="project", run_id="one", artifact_id="same", artifact_kind="log")
+    )
+    store.append_artifact(
+        RunArtifact(
+            project_id="project", run_id="two", artifact_id="same", artifact_kind="manifest"
+        )
+    )
+
+    with store._transaction() as (_, cursor):
+        for table in (
+            "run_stage",
+            "run_resource",
+            "run_lineage_edge",
+            "run_quality_result",
+            "run_catalog_change",
+            "run_artifact",
+        ):
+            cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE project_id = ?", ("project",))
+            assert cursor.fetchone()[0] == 2, table
+
+
+def test_child_primary_keys_include_project_and_run() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    expected = {
+        "run_stage": ["project_id", "run_id", "stage_id"],
+        "run_resource": ["project_id", "run_id", "resource_id"],
+        "run_lineage_edge": ["project_id", "run_id", "lineage_edge_id"],
+        "run_quality_result": ["project_id", "run_id", "quality_result_id"],
+        "run_catalog_change": ["project_id", "run_id", "catalog_change_id"],
+        "run_artifact": ["project_id", "run_id", "artifact_id"],
+    }
+    with store._transaction() as (_, cursor):
+        for table, columns in expected.items():
+            cursor.execute(f"PRAGMA table_info({table})")
+            primary_key = [
+                row[1] for row in sorted(cursor.fetchall(), key=lambda row: row[5]) if row[5]
+            ]
+            assert primary_key == columns, table
+
+
+def test_run_attempt_and_terminal_status_are_monotonic() -> None:
+    store = SQLiteRunEvidenceStore(":memory:")
+    store.append_pipeline_run(
+        PipelineRun(project_id="project", run_id="run", attempt=1, status="failed")
+    )
+    store.append_pipeline_run(
+        PipelineRun(project_id="project", run_id="run", attempt=2, status="running")
+    )
+    store.append_pipeline_run(
+        PipelineRun(project_id="project", run_id="run", attempt=2, status="success")
+    )
+
+    row = store.get_run("project", "run")
+    assert row["attempt"] == 2
+    assert row["status"] == "success"
+
+    store.append_pipeline_run(
+        PipelineRun(project_id="project", run_id="run", attempt=1, status="failed")
+    )
+    store.append_pipeline_run(
+        PipelineRun(project_id="project", run_id="run", attempt=2, status="failed")
+    )
+
+    row = store.get_run("project", "run")
+    assert row["attempt"] == 2
+    assert row["status"] == "success"
+
+
 def test_previous_event_schema_version_remains_readable() -> None:
     store = _store_with_run()
     assert store.append_event(_event(payload={"value": 1}, event_id="old")) is True
