@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 from phlo_dagster.maintenance_policy import (
@@ -235,7 +236,8 @@ def test_optimize_table_files_dry_run_does_not_require_executor(monkeypatch) -> 
         MagicMock(return_value={"status": "planned"}),
     )
 
-    output = maintenance_sensor.optimize_table_files.compute_fn.decorated_fn(
+    compute_fn = cast(Any, maintenance_sensor.optimize_table_files.compute_fn)
+    output = compute_fn.decorated_fn(
         context,
         maintenance_sensor.OptimizeConfig(table_names=["raw.events"], dry_run=True),
     )
@@ -272,7 +274,8 @@ def test_optimize_table_files_fallback_uses_operation_result_schema(monkeypatch)
         MagicMock(return_value={"status": "failed"}),
     )
 
-    output = maintenance_sensor.optimize_table_files.compute_fn.decorated_fn(
+    compute_fn = cast(Any, maintenance_sensor.optimize_table_files.compute_fn)
+    output = compute_fn.decorated_fn(
         context,
         maintenance_sensor.OptimizeConfig(table_names=["raw.events;DROP"], dry_run=True),
     )

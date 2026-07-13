@@ -1,6 +1,7 @@
 """Provider-neutral Iceberg compaction operation contract tests."""
 
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -109,10 +110,13 @@ def test_execute_failure_is_outcome_unknown_and_not_retry_safe(monkeypatch) -> N
         RuntimeError("connection reset"),
     )
 
-    result = resource.compact(
-        table_name="raw.events",
-        expected_snapshot_id=41,
-        executor=executor,
+    result = cast(
+        dict[str, Any],
+        resource.compact(
+            table_name="raw.events",
+            expected_snapshot_id=41,
+            executor=executor,
+        ),
     )
 
     assert result["status"] == "failed"
@@ -163,10 +167,13 @@ def test_generic_provider_failure_is_outcome_unknown_and_not_retryable(monkeypat
     executor = MagicMock()
     executor.compact_iceberg_table.side_effect = RuntimeError("connection reset")
 
-    result = resource.compact(
-        table_name="raw.events",
-        expected_snapshot_id=41,
-        executor=executor,
+    result = cast(
+        dict[str, Any],
+        resource.compact(
+            table_name="raw.events",
+            expected_snapshot_id=41,
+            executor=executor,
+        ),
     )
 
     assert result["failure"]["code"] == "maintenance_outcome_unknown"
@@ -186,10 +193,13 @@ def test_post_execution_metadata_failure_is_outcome_unknown_and_not_retryable(mo
     monkeypatch.setattr(resource, "_compaction_metadata", metadata)
     executor = MagicMock()
 
-    result = resource.compact(
-        table_name="raw.events",
-        expected_snapshot_id=41,
-        executor=executor,
+    result = cast(
+        dict[str, Any],
+        resource.compact(
+            table_name="raw.events",
+            expected_snapshot_id=41,
+            executor=executor,
+        ),
     )
 
     assert result["failure"]["code"] == "maintenance_outcome_unknown"
