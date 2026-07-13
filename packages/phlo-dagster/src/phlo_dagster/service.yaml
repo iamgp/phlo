@@ -85,7 +85,8 @@ compose:
     PHLO_DAGSTER_OIDC_LEEWAY_SECONDS: ${PHLO_DAGSTER_OIDC_LEEWAY_SECONDS:-30}
     PHLO_DAGSTER_OIDC_JWKS_CACHE_TTL_SECONDS: ${PHLO_DAGSTER_OIDC_JWKS_CACHE_TTL_SECONDS:-300}
     PHLO_DAGSTER_OIDC_REFRESH_MIN_INTERVAL_SECONDS: ${PHLO_DAGSTER_OIDC_REFRESH_MIN_INTERVAL_SECONDS:-5}
-    PHLO_DAGSTER_OIDC_REQUIRED: ${PHLO_DAGSTER_OIDC_REQUIRED:-true}
+    PHLO_DAGSTER_OIDC_REQUIRED: ${PHLO_DAGSTER_OIDC_REQUIRED:-false}
+    PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS: ${PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS:-10}
     DISABLE_PANDERA_IMPORT_WARNING: "True"
   command:
     [
@@ -137,8 +138,11 @@ env_vars:
     default: "5"
     description: Minimum interval between Dagster JWKS refresh attempts
   PHLO_DAGSTER_OIDC_REQUIRED:
-    default: "true"
-    description: Keep Dagster startup and /server_info unready until OIDC JWKS validation succeeds
+    default: "false"
+    description: Set true in regulated generation to require complete HTTPS OIDC/JWKS configuration at startup
+  PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS:
+    default: "10"
+    description: Seconds allowed for graphql-ws connection_init before the socket is closed (maximum 60)
 
 hooks:
   post_start:

@@ -257,7 +257,7 @@ def test_authorize_mutation_uses_field_name_for_action_and_resource(mock_enforce
     DagsterGraphQLAuthorizationMiddleware()._authorize_mutation(info, {})
 
     kwargs = mock_enforce.call_args.kwargs
-    assert kwargs["action"] == "run.execute"
+    assert kwargs["action"] == "run.manage"
     assert kwargs["resource"].resource_type == "run"
     assert kwargs["resource"].resource_id == "dagster:terminateRun"
 

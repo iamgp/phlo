@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from types import SimpleNamespace
@@ -18,6 +19,10 @@ from phlo_dagster.authorization import get_adapter, validate_graphql_schema
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
 from phlo_dagster.oidc_identity import OIDC_REQUIRED_ENV
 
+GRAPHQL_WS_INIT_TIMEOUT_ENV = "PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS"
+_DEFAULT_GRAPHQL_WS_INIT_TIMEOUT = 10.0
+_MAX_GRAPHQL_WS_INIT_TIMEOUT = 60.0
+
 
 class GraphQLWebSocketAuthenticationASGI:
     """Authenticate graphql-ws connection_init before handing off to Dagster."""
@@ -25,10 +30,27 @@ class GraphQLWebSocketAuthenticationASGI:
     def __init__(self, app: Callable[..., Awaitable[None]], middleware) -> None:  # noqa: ANN001
         self.app = app
         self.middleware = middleware
+        raw_timeout = os.environ.get(
+            GRAPHQL_WS_INIT_TIMEOUT_ENV, str(_DEFAULT_GRAPHQL_WS_INIT_TIMEOUT)
+        )
+        try:
+            self.connection_init_timeout = float(raw_timeout)
+        except ValueError as exc:
+            raise ValueError(f"{GRAPHQL_WS_INIT_TIMEOUT_ENV} must be numeric") from exc
+        if not 0 < self.connection_init_timeout <= _MAX_GRAPHQL_WS_INIT_TIMEOUT:
+            raise ValueError(
+                f"{GRAPHQL_WS_INIT_TIMEOUT_ENV} must be greater than 0 and at most "
+                f"{_MAX_GRAPHQL_WS_INIT_TIMEOUT:g}"
+            )
 
     async def __call__(self, scope: dict[str, Any], receive, send) -> None:  # noqa: ANN001
         if scope.get("type") != "websocket" or scope.get("path") != "/graphql":
             await self.app(scope, receive, send)
+            return
+
+        offered_protocols = set(scope.get("subprotocols") or ())
+        if GraphQLWS.PROTOCOL.value not in offered_protocols:
+            await send({"type": "websocket.close", "code": 4406})
             return
 
         headers = {
@@ -55,7 +77,11 @@ class GraphQLWebSocketAuthenticationASGI:
                 "subprotocol": GraphQLWS.PROTOCOL.value,
             }
         )
-        init = await receive()
+        try:
+            init = await asyncio.wait_for(receive(), timeout=self.connection_init_timeout)
+        except asyncio.TimeoutError:
+            await send({"type": "websocket.close", "code": 4408})
+            return
         payload = self._connection_init_payload(init)
         if payload is None:
             await send({"type": "websocket.close", "code": 4401})

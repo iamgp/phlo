@@ -95,6 +95,22 @@ def test_unknown_kid_refreshes_for_key_rotation(monkeypatch) -> None:
     assert principal.subject == "viewer@example.com"
 
 
+def test_jwks_preload_ignores_rsa_encryption_keys(monkeypatch) -> None:
+    private_key, jwks = key_and_jwks()
+    encryption_key = dict(jwks["keys"][0])
+    encryption_key.update({"kid": "encryption-key", "alg": "RSA-OAEP", "use": "enc"})
+    jwks["keys"].append(encryption_key)
+    _configure(monkeypatch)
+    monkeypatch.setattr(
+        "phlo_dagster.oidc_identity.httpx.stream",
+        lambda *_args, **_kwargs: JWKSResponse(jwks),
+    )
+
+    principal = OIDCIdentityValidator().validate(token(private_key))
+
+    assert principal is not None
+
+
 def test_expired_cache_refresh_failure_fails_closed_and_backs_off(monkeypatch) -> None:
     private_key, jwks = key_and_jwks()
     _configure(monkeypatch)

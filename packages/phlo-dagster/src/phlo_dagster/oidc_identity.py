@@ -214,22 +214,29 @@ class OIDCIdentityValidator:
                     raise ValueError("OIDC JWKS contains too many keys")
                 parsed_keys: dict[str, dict[str, Any]] = {}
                 for key in keys:
-                    if not isinstance(key, dict) or not key.get("kid"):
-                        raise ValueError("OIDC JWKS contains an invalid key")
+                    if not isinstance(key, dict):
+                        continue
+                    # Providers commonly publish encryption keys alongside
+                    # signing keys. They are irrelevant to RS256 signature
+                    # verification and must not make a valid signing set
+                    # unusable.
+                    key_ops = key.get("key_ops")
+                    is_signing_candidate = (
+                        key.get("alg") == "RS256"
+                        and key.get("use") in (None, "sig")
+                        and (key_ops is None or (isinstance(key_ops, list) and "verify" in key_ops))
+                    )
+                    if not is_signing_candidate:
+                        continue
+                    if not key.get("kid"):
+                        raise ValueError("OIDC JWKS contains an invalid signing key")
                     kid = str(key["kid"])
                     if len(kid) > 128:
                         raise ValueError("OIDC JWKS kid is too long")
                     if kid in parsed_keys:
-                        raise ValueError("OIDC JWKS contains duplicate kid values")
-                    if key.get("kty") != "RSA" or key.get("alg") != "RS256":
-                        raise ValueError("OIDC JWKS contains a non-RS256 key")
-                    if key.get("use") not in (None, "sig"):
-                        raise ValueError("OIDC JWKS contains a non-signing key")
-                    key_ops = key.get("key_ops")
-                    if key_ops is not None and (
-                        not isinstance(key_ops, list) or "verify" not in key_ops
-                    ):
-                        raise ValueError("OIDC JWKS key cannot verify signatures")
+                        raise ValueError("OIDC JWKS contains duplicate signing kid values")
+                    if key.get("kty") != "RSA":
+                        raise ValueError("OIDC JWKS signing key is not RSA")
                     public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
                     if public_key.key_size < 2048:
                         raise ValueError("OIDC JWKS RSA key is smaller than 2048 bits")

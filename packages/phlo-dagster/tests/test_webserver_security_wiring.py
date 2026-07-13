@@ -6,15 +6,21 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import httpx
+import pytest
 from dagster_graphql.schema import create_schema
 from dagster_webserver.webserver import DagsterWebserver
 from starlette.applications import Starlette
 from starlette.routing import WebSocketRoute
 from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from phlo_dagster.authorization import validate_graphql_schema
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
-from phlo_dagster.webserver import GraphQLWebSocketAuthenticationASGI, PhloDagsterWebserver
+from phlo_dagster.webserver import (
+    GRAPHQL_WS_INIT_TIMEOUT_ENV,
+    GraphQLWebSocketAuthenticationASGI,
+    PhloDagsterWebserver,
+)
 from _oidc_test_helpers import (
     AUDIENCE,
     ISSUER,
@@ -61,6 +67,31 @@ def test_service_entrypoint_uses_secured_webserver_module() -> None:
 
     assert '"phlo_dagster.webserver"' in text
     assert '"dagster-webserver"' not in text.split("command:", 1)[1].split("ports:", 1)[0]
+
+
+def test_ordinary_generated_dagster_service_keeps_oidc_optional(monkeypatch) -> None:
+    service_yaml = Path(__file__).parents[1] / "src" / "phlo_dagster" / "service.yaml"
+    text = service_yaml.read_text()
+
+    monkeypatch.delenv("PHLO_DAGSTER_OIDC_REQUIRED", raising=False)
+    assert not PhloDagsterWebserver._oidc_required()
+    assert "PHLO_DAGSTER_OIDC_REQUIRED:-false" in text
+
+
+def test_regulated_dagster_startup_fails_without_complete_oidc(monkeypatch) -> None:
+    for name in (
+        "PHLO_DAGSTER_OIDC_ISSUER",
+        "PHLO_DAGSTER_OIDC_AUDIENCE",
+        "PHLO_DAGSTER_OIDC_JWKS_URL",
+        "PHLO_DAGSTER_OIDC_CA_FILE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("PHLO_DAGSTER_OIDC_REQUIRED", "true")
+    server = object.__new__(PhloDagsterWebserver)
+    server._graphene_schema = create_schema()
+
+    with pytest.raises(RuntimeError, match="OIDC identity is required"):
+        server.build_graphql_middleware()
 
 
 def test_server_info_route_binds_to_phlo_readiness_override(monkeypatch) -> None:
@@ -221,6 +252,70 @@ def test_graphql_ws_asgi_protocol_authenticates_connection_init(monkeypatch) -> 
             )
             assert websocket.accepted_subprotocol == "graphql-ws"
             assert websocket.receive_json() == {"type": "connection_ack"}
+
+
+def _websocket_downstream():
+    async def endpoint(websocket):  # noqa: ANN001
+        await websocket.receive()
+        await websocket.accept(subprotocol="graphql-ws")
+        await websocket.receive_json()
+        await websocket.send_json({"type": "connection_ack"})
+        await websocket.close()
+
+    return Starlette(routes=[WebSocketRoute("/graphql", endpoint)])
+
+
+@pytest.mark.parametrize("offered", [None, ["graphql-transport-ws"]])
+def test_graphql_ws_rejects_missing_or_unsupported_subprotocol(offered) -> None:
+    asgi = GraphQLWebSocketAuthenticationASGI(
+        _websocket_downstream(), DagsterGraphQLAuthorizationMiddleware()
+    )
+
+    with TestClient(asgi) as client:
+        with pytest.raises(WebSocketDisconnect) as error:
+            if offered is None:
+                with client.websocket_connect("/graphql"):
+                    pass
+            else:
+                with client.websocket_connect("/graphql", subprotocols=offered):
+                    pass
+
+    assert error.value.code == 4406
+
+
+def test_graphql_ws_invalid_connection_init_token_closes_unauthenticated(monkeypatch) -> None:
+    asgi = GraphQLWebSocketAuthenticationASGI(
+        _websocket_downstream(), DagsterGraphQLAuthorizationMiddleware()
+    )
+
+    with TestClient(asgi) as client:
+        with client.websocket_connect("/graphql", subprotocols=["graphql-ws"]) as websocket:
+            websocket.send_json({"type": "connection_init", "payload": {"access_token": "invalid"}})
+            error = websocket.receive()
+
+    assert error == {"type": "websocket.close", "code": 4401}
+
+
+def test_graphql_ws_idle_connection_init_times_out(monkeypatch) -> None:
+    monkeypatch.setenv(GRAPHQL_WS_INIT_TIMEOUT_ENV, "0.05")
+    asgi = GraphQLWebSocketAuthenticationASGI(
+        _websocket_downstream(), DagsterGraphQLAuthorizationMiddleware()
+    )
+
+    with TestClient(asgi) as client:
+        with client.websocket_connect("/graphql", subprotocols=["graphql-ws"]) as websocket:
+            error = websocket.receive()
+
+    assert error == {"type": "websocket.close", "code": 4408}
+
+
+def test_graphql_ws_timeout_configuration_is_bounded(monkeypatch) -> None:
+    monkeypatch.setenv(GRAPHQL_WS_INIT_TIMEOUT_ENV, "61")
+
+    with pytest.raises(ValueError, match=GRAPHQL_WS_INIT_TIMEOUT_ENV):
+        GraphQLWebSocketAuthenticationASGI(
+            _websocket_downstream(), DagsterGraphQLAuthorizationMiddleware()
+        )
 
 
 def test_server_info_readiness_tracks_expired_jwks_refresh(monkeypatch) -> None:

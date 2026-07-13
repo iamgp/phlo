@@ -128,6 +128,7 @@ class TestSurfaceOperationMapping:
                 "catalog.read",
                 "catalog.manage",
                 "admin.read",
+                "admin.manage",
             }
 
     def test_graphql_operations_in_framework_metadata(self):

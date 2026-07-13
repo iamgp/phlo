@@ -230,6 +230,13 @@ _READ_QUERY_RE = re.compile(
     r"^\s*select\s+\*\s+from\s+(?P<table>[A-Za-z0-9_.:-]+)(?:\s+limit\s+(?P<limit>\d+))?\s*;?\s*$",
     re.IGNORECASE,
 )
+
+
+def is_supported_read_query(sql: str) -> bool:
+    """Return whether SQL matches the single-table read contract."""
+    return _READ_QUERY_RE.fullmatch(sql) is not None
+
+
 _TABLE_LIST_METADATA_PREFIX_DENYLIST = ("phlo/compiled_sql",)
 _TABLE_LIST_METADATA_DENYLIST = {"preview_rows"}
 _RUNTIME_READ_MODEL_TTL_SECONDS = 30
@@ -2820,7 +2827,7 @@ def _load_table_preview(table_id: str, limit: int, offset: int) -> ObservatoryTa
 
 
 def _run_read_query(request: ObservatoryQueryRequest) -> ObservatoryQueryResult:
-    match = _READ_QUERY_RE.match(request.sql)
+    match = _READ_QUERY_RE.fullmatch(request.sql)
     if match is None:
         raise HTTPException(
             status_code=400,

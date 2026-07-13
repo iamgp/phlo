@@ -11,12 +11,11 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 from phlo.capabilities.interfaces import AuthPrincipal, AuthorizationDecision, Principal
+from phlo.security.adapters import EnforcementResult
 from phlo_api.main import app
 from phlo_api.security_manifest import (
-    GRAPHQL_OPERATION_MANIFEST,
     HTTP_ROUTE_MANIFEST,
     OperationSpec,
-    WEBSOCKET_OPERATION_MANIFEST,
     resolve_resource,
     validate_manifest,
     validate_operation_registry,
@@ -63,9 +62,11 @@ def test_http_route_manifest_covers_every_registered_route() -> None:
 
 def test_non_http_registry_is_complete_and_unique() -> None:
     validate_operation_registry()
-    entries = GRAPHQL_OPERATION_MANIFEST + WEBSOCKET_OPERATION_MANIFEST
-    assert len({entry.operation_name for entry in entries}) == len(entries)
-    assert all(entry.action and entry.resource_type and entry.endpoint for entry in entries)
+    assert all(spec.surface == "http" for spec in HTTP_ROUTE_MANIFEST.values())
+    assert not any(
+        name.startswith(("hasura.", "dagster.graphql", "hasura.websocket"))
+        for name in HTTP_ROUTE_MANIFEST
+    )
 
 
 def test_read_surfaces_use_their_specific_canonical_actions() -> None:
@@ -240,6 +241,54 @@ def test_authenticated_request_without_backend_is_503(monkeypatch) -> None:
     }
 
 
+@pytest.mark.parametrize(
+    ("decision", "expected_status"),
+    [("allow", 200), ("deny", 403), ("canonicalization_failed", 503)],
+)
+def test_regulated_route_uses_auth_principal_and_actual_policy_target(
+    monkeypatch, tmp_path, decision: str, expected_status: int
+) -> None:
+    from phlo_api import main
+
+    auth, _canonical = _principal("operator")
+    calls: list[tuple[object, str, str, str]] = []
+
+    def enforce_call(*, principal, action, resource, **_kwargs):  # noqa: ANN001
+        calls.append((principal, action, resource.resource_type, resource.resource_id))
+        assert isinstance(principal, AuthPrincipal)
+        if decision == "allow":
+            return EnforcementResult.allow()
+        if decision == "deny":
+            return EnforcementResult.deny(reason_code="default_deny")
+        return EnforcementResult.error(reason_code="canonicalization_failed")
+
+    monkeypatch.setattr("phlo_api.security_manifest.is_regulated", lambda: True)
+    monkeypatch.setattr("phlo_api.security_manifest.enforce", enforce_call)
+    monkeypatch.setattr("phlo_api.security_manifest.get_request_principal", lambda _request: auth)
+    monkeypatch.setattr(
+        "phlo_api.security_manifest.resolve_request_principal",
+        lambda *_args, **_kwargs: pytest.fail("regulated path must pass AuthPrincipal to core"),
+    )
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    monkeypatch.setattr(main, "load_phlo_config", lambda: {"name": "regulated"})
+
+    response = TestClient(app).get("/api/config", headers={"Authorization": "Bearer operator"})
+
+    assert response.status_code == expected_status
+    assert calls == [(auth, "platform_metadata.read", "platform_metadata", "project")]
+    if expected_status == 200:
+        assert response.json() == {"name": "regulated"}
+
+
+def test_regulated_anonymous_route_is_401_before_policy(monkeypatch) -> None:
+    monkeypatch.setattr("phlo_api.security_manifest.is_regulated", lambda: True)
+    monkeypatch.setattr("phlo_api.security_manifest.get_request_principal", lambda _request: None)
+
+    response = TestClient(app).get("/api/config")
+
+    assert response.status_code == 401
+
+
 def test_composite_body_resources_are_authorized_as_one_deterministic_identity(monkeypatch) -> None:
     auth, canonical = _principal("analyst")
     backend = _Backend(allowed=False)
@@ -252,12 +301,65 @@ def test_composite_body_resources_are_authorized_as_one_deterministic_identity(m
 
     response = TestClient(app).post(
         "/api/observatory/query",
-        json={"dataset_id": "orders", "table_name": "payments", "sql": "select 1"},
+        json={
+            "dataset_id": "orders",
+            "table_name": "payments",
+            "sql": "select * from payments",
+        },
         headers={"Authorization": "Bearer analyst"},
     )
 
     assert response.status_code == 403
-    assert backend.calls == [("analyst", "dataset.query", "dataset_id=orders|table_name=payments")]
+    assert backend.calls == [("analyst", "dataset.query", "project")]
+
+
+def test_query_ignores_synthetic_dataset_id_and_denies_before_handler(monkeypatch) -> None:
+    auth, canonical = _principal("analyst")
+    backend = _Backend(allowed=False)
+    monkeypatch.setattr("phlo_api.security_manifest.get_request_principal", lambda _request: auth)
+    monkeypatch.setattr(
+        "phlo_api.security_manifest.resolve_request_principal",
+        lambda _request, require_auth=True: canonical,
+    )
+    monkeypatch.setattr("phlo_api.security_manifest.get_authorization_backend", lambda: backend)
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.observatory._run_read_query",
+        lambda _request: pytest.fail("query handler must not run after policy denial"),
+    )
+
+    response = TestClient(app).post(
+        "/api/observatory/query",
+        json={"dataset_id": "orders", "sql": "select * from payments"},
+        headers={"Authorization": "Bearer analyst"},
+    )
+
+    assert response.status_code == 403
+    assert backend.calls == [("analyst", "dataset.query", "project")]
+
+
+def test_multi_table_query_is_rejected_before_handler(monkeypatch) -> None:
+    auth, canonical = _principal("analyst")
+    backend = _Backend(allowed=True)
+    monkeypatch.setattr("phlo_api.security_manifest.get_request_principal", lambda _request: auth)
+    monkeypatch.setattr(
+        "phlo_api.security_manifest.resolve_request_principal",
+        lambda _request, require_auth=True: canonical,
+    )
+    monkeypatch.setattr("phlo_api.security_manifest.get_authorization_backend", lambda: backend)
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.observatory._run_read_query",
+        lambda _request: pytest.fail("unsupported SQL must not reach the query handler"),
+    )
+
+    response = TestClient(app).post(
+        "/api/observatory/query",
+        json={"sql": "select * from orders join payments on true"},
+        headers={"Authorization": "Bearer analyst"},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"error": "unsupported_query"}
+    assert backend.calls == []
 
 
 def test_path_body_identity_mismatch_is_rejected_before_authorization() -> None:

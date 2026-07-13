@@ -209,11 +209,22 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         resource_keys=("run_id",),
     ),
     *_specs(
+        ("get_observatory_assets",),
+        action=CanonicalAction.ASSET_READ.value,
+        resource_type="asset",
+    ),
+    *_specs(
         (
-            "get_observatory_assets",
             "get_observatory_asset_graph",
             "get_observatory_asset_neighbors",
             "get_observatory_asset_impact",
+        ),
+        action=CanonicalAction.ASSET_READ.value,
+        resource_type="asset",
+        resource_keys=("asset_key",),
+    ),
+    *_specs(
+        (
             "get_observatory_asset_materializations",
             "get_observatory_asset_partitions",
             "get_observatory_asset_detail",
@@ -231,16 +242,34 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
     *_specs(
         (
             "get_observatory_datasets",
-            "get_observatory_dataset_profile",
             "get_observatory_tables",
-            "get_observatory_table_preview",
-            "post_observatory_schema_diff",
-            "get_observatory_quality",
             "get_observatory_pipelines",
         ),
         action=CanonicalAction.DATASET_READ.value,
         resource_type="dataset",
-        resource_keys=("dataset_id", "table_id", "table_name", "pipeline_id", "check_id"),
+    ),
+    *_specs(
+        ("get_observatory_dataset_profile",),
+        action=CanonicalAction.DATASET_READ.value,
+        resource_type="dataset",
+        resource_keys=("dataset_id",),
+    ),
+    *_specs(
+        ("get_observatory_table_preview",),
+        action=CanonicalAction.DATASET_READ.value,
+        resource_type="dataset",
+        resource_keys=("table_id",),
+    ),
+    *_specs(
+        ("post_observatory_schema_diff",),
+        action=CanonicalAction.ASSET_READ.value,
+        resource_type="asset",
+        resource_keys=("asset_key",),
+    ),
+    *_specs(
+        ("get_observatory_quality",),
+        action=CanonicalAction.DATASET_READ.value,
+        resource_type="dataset",
     ),
     *_specs(
         ("get_observatory_stage_diff",),
@@ -261,14 +290,21 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         resource_keys=("check_id",),
     ),
     *_specs(
+        ("post_observatory_query",),
+        action=CanonicalAction.DATASET_QUERY.value,
+        # The request carries arbitrary SQL and its Pydantic model does not
+        # bind client IDs to that SQL. Dataset grants cannot safely authorize
+        # this endpoint, so it is explicitly project-scoped.
+        resource_type="project",
+    ),
+    *_specs(
         (
-            "post_observatory_query",
             "post_observatory_contributing_rows_query",
             "post_observatory_contributing_rows_page",
         ),
         action=CanonicalAction.DATASET_QUERY.value,
         resource_type="dataset",
-        resource_keys=("dataset_id", "table_id", "table_name"),
+        resource_keys=("upstream_asset_key", "downstream_asset_key"),
     ),
     *_specs(
         ("get_observatory_saved_queries",),
@@ -278,9 +314,8 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
     ),
     *_specs(
         ("post_observatory_saved_query",),
-        action=CanonicalAction.DATASET_WRITE.value,
-        resource_type="dataset",
-        resource_keys=("dataset_id", "table_id", "table_name"),
+        action=CanonicalAction.OBJECT_WRITE.value,
+        resource_type="project",
     ),
     *_specs(
         ("get_observatory_branches", "get_observatory_branch_detail"),
@@ -319,10 +354,16 @@ HTTP_ROUTE_DECLARATIONS: tuple[OperationSpec, ...] = (
         resource_keys=("proposal_id", "workflow_id", "target", "path"),
     ),
     *_specs(
-        ("post_observatory_action", "post_observatory_package_install"),
+        ("post_observatory_action",),
         action=CanonicalAction.SERVICE_MANAGE.value,
         resource_type="service",
         resource_keys=("service_id", "action_id", "name", "package"),
+    ),
+    *_specs(
+        ("post_observatory_package_install",),
+        action=CanonicalAction.SERVICE_MANAGE.value,
+        resource_type="package",
+        resource_keys=("package_name",),
     ),
 )
 
@@ -339,79 +380,11 @@ def _build_http_manifest(declarations: tuple[OperationSpec, ...]) -> dict[str, O
 
 HTTP_ROUTE_MANIFEST = _build_http_manifest(HTTP_ROUTE_DECLARATIONS)
 
-# Explicitly catalog non-FastAPI entry points that are reachable in the v1
-# stack.  These aren't silently made public by virtue of living in another
-# service; each operation is still mapped to canonical policy.
-GRAPHQL_OPERATION_MANIFEST: tuple[OperationSpec, ...] = (
-    OperationSpec(
-        operation_name="hasura.graphql.query",
-        surface="graphql",
-        endpoint="hasura:/v1/graphql",
-        action=CanonicalAction.DATASET_QUERY.value,
-        resource_type="dataset",
-    ),
-    OperationSpec(
-        operation_name="hasura.graphql.mutation",
-        surface="graphql",
-        endpoint="hasura:/v1/graphql",
-        action=CanonicalAction.DATASET_WRITE.value,
-        resource_type="dataset",
-    ),
-    OperationSpec(
-        operation_name="hasura.graphql.subscription",
-        surface="graphql",
-        endpoint="hasura:/v1/graphql",
-        action=CanonicalAction.DATASET_QUERY.value,
-        resource_type="dataset",
-    ),
-    OperationSpec(
-        operation_name="hasura.graphql.introspection",
-        surface="graphql",
-        endpoint="hasura:/v1/graphql",
-        action=CanonicalAction.ADMIN_READ.value,
-        resource_type="admin",
-    ),
-    OperationSpec(
-        operation_name="dagster.graphql.query",
-        surface="graphql",
-        endpoint="dagster-webserver:/graphql",
-        action=CanonicalAction.ASSET_READ.value,
-        resource_type="asset",
-    ),
-    OperationSpec(
-        operation_name="dagster.graphql.mutation",
-        surface="graphql",
-        endpoint="dagster-webserver:/graphql",
-        action=CanonicalAction.RUN_EXECUTE.value,
-        resource_type="run",
-    ),
-    OperationSpec(
-        operation_name="dagster.graphql.introspection",
-        surface="graphql",
-        endpoint="dagster-webserver:/graphql",
-        action=CanonicalAction.ADMIN_READ.value,
-        resource_type="admin",
-    ),
-)
-
-WEBSOCKET_OPERATION_MANIFEST: tuple[OperationSpec, ...] = (
-    OperationSpec(
-        operation_name="hasura.websocket.subscription",
-        surface="websocket",
-        endpoint="hasura:/v1/graphql",
-        action=CanonicalAction.DATASET_QUERY.value,
-        resource_type="dataset",
-    ),
-)
-
 PUBLIC_HTTP_PATHS = frozenset({"/health"})
 
 
 def _all_manifest_names() -> list[str]:
-    names = list(HTTP_ROUTE_MANIFEST)
-    names.extend(spec.operation_name for spec in GRAPHQL_OPERATION_MANIFEST)
-    names.extend(spec.operation_name for spec in WEBSOCKET_OPERATION_MANIFEST)
-    return names
+    return list(HTTP_ROUTE_MANIFEST)
 
 
 def validate_manifest(app: Any) -> tuple[OperationSpec, ...]:
@@ -593,20 +566,22 @@ async def enforce_http_operation(
     if spec.public:
         return
 
-    if get_request_principal(request) is None:
+    auth_principal = get_request_principal(request)
+    if auth_principal is None:
         _raise_unauthorized()
 
     spec = await _specialize_operation(request, spec)
+    await _validate_request_payload(request, spec)
     resource = await resolve_resource(request, spec, path_params)
-    principal = resolve_request_principal(request, require_auth=True)
-    if principal is None:
-        _raise_unauthorized()
     context: DecisionContext = create_decision_context(request)
     correlation_id = get_request_correlation_id(request)
 
     if is_regulated():
+        # Core enforce() owns the AuthPrincipal -> canonical Principal bridge.
+        # Passing the API-layer Principal here loses groups and fails regulated
+        # canonicalization for otherwise valid callers.
         result = enforce(
-            principal=principal,
+            principal=auth_principal,
             action=spec.action,
             resource=resource,
             context=context,
@@ -626,6 +601,9 @@ async def enforce_http_operation(
             )
         return
 
+    principal = resolve_request_principal(request, require_auth=True)
+    if principal is None:
+        _raise_unauthorized()
     backend = get_authorization_backend()
     if backend is None:
         raise HTTPException(
@@ -656,6 +634,12 @@ async def _specialize_operation(request: Request, spec: OperationSpec) -> Operat
     if not isinstance(action_id, str) or not action_id:
         return spec
 
+    def bind_identity(key: str, value: str) -> None:
+        existing = body.get(key)
+        if existing is not None and str(existing) != value:
+            raise HTTPException(status_code=400, detail={"error": "ambiguous_resource"})
+        body[key] = value
+
     if action_id.startswith("dataset:"):
         action = (
             CanonicalAction.DATASET_PUBLISH.value
@@ -664,39 +648,73 @@ async def _specialize_operation(request: Request, spec: OperationSpec) -> Operat
         )
         resource_type = "dataset"
         keys = ("dataset_id", "table_id", "table_name")
+        if action_id != "dataset:publish":
+            resource_id, separator, _action_name = action_id.removeprefix("dataset:").rpartition(
+                ":"
+            )
+            if not separator or not resource_id:
+                raise HTTPException(status_code=400, detail={"error": "invalid_action"})
+            bind_identity("dataset_id", resource_id)
     elif action_id.startswith("asset:"):
+        resource_id, separator, _action_name = action_id.removeprefix("asset:").rpartition(":")
+        if not separator or not resource_id:
+            raise HTTPException(status_code=400, detail={"error": "invalid_action"})
         action = CanonicalAction.ASSET_EXECUTE.value
         resource_type = "asset"
         keys = ("asset_id", "asset_key")
+        bind_identity("asset_id", resource_id)
     elif action_id.startswith("branch:"):
+        parts = action_id.split(":", 2)
+        if len(parts) != 3 or not parts[2].strip():
+            raise HTTPException(status_code=400, detail={"error": "invalid_action"})
         action = CanonicalAction.CATALOG_MANAGE.value
         resource_type = "catalog"
         keys = ("branch_name",)
+        bind_identity("branch_name", parts[2].strip())
     elif action_id.startswith("workflow:"):
+        resource_id, separator, _action_name = action_id.removeprefix("workflow:").rpartition(":")
+        if not separator or not resource_id:
+            raise HTTPException(status_code=400, detail={"error": "invalid_action"})
         action = CanonicalAction.OBJECT_WRITE.value
         resource_type = "object"
         keys = ("workflow_id", "path")
+        bind_identity("workflow_id", resource_id)
     elif action_id.startswith("service:"):
+        resource_id, separator, _action_name = action_id.removeprefix("service:").rpartition(":")
+        if not separator or not resource_id:
+            raise HTTPException(status_code=400, detail={"error": "invalid_action"})
         action = CanonicalAction.SERVICE_MANAGE.value
         resource_type = "service"
         keys = ("service_id", "name")
+        bind_identity("service_id", resource_id)
     else:
-        action = CanonicalAction.ADMIN_MANAGE.value
-        resource_type = "admin"
-        keys = ("name", "package")
+        resource_id, separator, action_name = action_id.rpartition(":")
+        if separator and action_name in {"add", "start", "stop", "restart"} and resource_id:
+            action = CanonicalAction.SERVICE_MANAGE.value
+            resource_type = "service"
+            keys = ("service_id",)
+            bind_identity("service_id", resource_id)
+        else:
+            action = CanonicalAction.ADMIN_MANAGE.value
+            resource_type = "admin"
+            keys = ("action_id",)
+            bind_identity("action_id", action_id)
 
-    target = body.get("target")
-    if isinstance(target, dict):
-        target_id = next(
-            (target[key] for key in ("id", "name", "key") if isinstance(target.get(key), str)),
-            None,
-        )
-        if target_id:
-            # Make the target the only body identity considered by the
-            # operation-specific resolver; nested arbitrary IDs are ignored.
-            body = {**body, keys[0]: target_id}
-            request.state._phlo_security_body_override = body
+    request.state._phlo_security_body_override = body
     return replace(spec, action=action, resource_type=resource_type, resource_keys=keys)
+
+
+async def _validate_request_payload(request: Request, spec: OperationSpec) -> None:
+    """Reject unsupported query payloads before a data handler runs."""
+    if spec.operation_name != "post_observatory_query":
+        return
+    body = await _request_json(request)
+    if not isinstance(body, dict) or not isinstance(body.get("sql"), str):
+        raise HTTPException(status_code=400, detail={"error": "invalid_query"})
+    from phlo_api.observatory_api.observatory import is_supported_read_query
+
+    if not is_supported_read_query(body["sql"]):
+        raise HTTPException(status_code=400, detail={"error": "unsupported_query"})
 
 
 def install_manifest_enforcement(app: Any) -> None:
@@ -752,18 +770,9 @@ def install_manifest_enforcement(app: Any) -> None:
 
 
 def validate_operation_registry() -> None:
-    """CI-facing validation for duplicate and incomplete non-HTTP entries."""
-    names = [
-        spec.operation_name for spec in GRAPHQL_OPERATION_MANIFEST + WEBSOCKET_OPERATION_MANIFEST
-    ]
-    duplicates = sorted({name for name in names if names.count(name) > 1})
-    if duplicates:
-        raise RuntimeError(f"Duplicate GraphQL/WebSocket security operations: {duplicates!r}")
-    for spec in GRAPHQL_OPERATION_MANIFEST + WEBSOCKET_OPERATION_MANIFEST:
-        if spec.public or not spec.action or not spec.resource_type or not spec.endpoint:
-            raise RuntimeError(
-                f"Incomplete security operation manifest entry: {spec.operation_name}"
-            )
+    """Ensure this manifest only claims the HTTP boundary it actually installs."""
+    if any(spec.surface != "http" for spec in HTTP_ROUTE_MANIFEST.values()):
+        raise RuntimeError("Unenforced non-HTTP operation in the API manifest")
 
 
 validate_operation_registry()

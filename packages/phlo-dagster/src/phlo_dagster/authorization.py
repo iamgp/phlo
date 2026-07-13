@@ -45,6 +45,7 @@ ACTION_CATALOG_READ = CanonicalAction.CATALOG_READ.value
 ACTION_CATALOG_MANAGE = CanonicalAction.CATALOG_MANAGE.value
 ACTION_SERVICE_READ = CanonicalAction.SERVICE_READ.value
 ACTION_ADMIN_READ = CanonicalAction.ADMIN_READ.value
+ACTION_ADMIN_MANAGE = CanonicalAction.ADMIN_MANAGE.value
 
 
 @dataclass(frozen=True)
@@ -154,7 +155,9 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         "query",
         (
             "autoMaterializeTicks",
+            "appManagedComponentsForLocationOrError",
             "canBulkTerminate",
+            "componentTypesForLocationOrError",
             "instance",
             "isPipelineConfigValid",
             "permissions",
@@ -171,11 +174,6 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
     GraphQLOperationSpec(
         "mutation",
         (
-            "cancelPartitionBackfill",
-            "deletePipelineRun",
-            "deleteRun",
-            "freeConcurrencySlots",
-            "freeConcurrencySlotsForRun",
             "launchMultipleRuns",
             "launchPartitionBackfill",
             "launchPipelineExecution",
@@ -183,11 +181,31 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
             "launchRun",
             "launchRunReexecution",
             "reexecutePartitionBackfill",
+        ),
+        ACTION_RUN_EXECUTE,
+        "run",
+        (
+            "runId",
+            "runIds",
+            "pipelineName",
+            "jobName",
+            "repositoryName",
+            "repositoryLocationName",
+        ),
+    ),
+    GraphQLOperationSpec(
+        "mutation",
+        (
+            "cancelPartitionBackfill",
+            "deletePipelineRun",
+            "deleteRun",
+            "freeConcurrencySlots",
+            "freeConcurrencySlotsForRun",
             "terminatePipelineExecution",
             "terminateRun",
             "terminateRuns",
         ),
-        ACTION_RUN_EXECUTE,
+        ACTION_RUN_MANAGE,
         "run",
         (
             "runId",
@@ -213,6 +231,12 @@ _GRAPHQL_OPERATION_SPECS: tuple[GraphQLOperationSpec, ...] = (
         ACTION_ASSET_EXECUTE,
         "asset",
         ("assetKey", "assetKeyPath"),
+    ),
+    GraphQLOperationSpec(
+        "mutation",
+        ("deleteAppManagedComponent", "setAppManagedComponent"),
+        ACTION_ADMIN_MANAGE,
+        "admin",
     ),
     GraphQLOperationSpec(
         "mutation",
@@ -284,6 +308,16 @@ def _operation_index() -> dict[tuple[str, str], GraphQLOperationSpec]:
 
 _GRAPHQL_OPERATION_INDEX = _operation_index()
 
+_OPTIONAL_DAGSTER_FIELDS: dict[str, frozenset[str]] = {
+    "query": frozenset(
+        {
+            "appManagedComponentsForLocationOrError",
+            "componentTypesForLocationOrError",
+        }
+    ),
+    "mutation": frozenset({"deleteAppManagedComponent", "setAppManagedComponent"}),
+}
+
 
 def resolve_graphql_operation(operation: str, field: str) -> GraphQLOperationSpec:
     """Return the exact registry entry for a GraphQL root field."""
@@ -308,7 +342,10 @@ def validate_graphql_schema(schema: Any | None = None) -> None:
         classified = {field for kind, field in _GRAPHQL_OPERATION_INDEX if kind == operation}
         missing = sorted(actual_fields - classified)
         extra = sorted(
-            classified - actual_fields - ({"__schema", "__type"} if operation == "query" else set())
+            classified
+            - actual_fields
+            - ({"__schema", "__type"} if operation == "query" else set())
+            - _OPTIONAL_DAGSTER_FIELDS.get(operation, frozenset())
         )
         if missing or extra:
             raise RuntimeError(
