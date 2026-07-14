@@ -3433,6 +3433,7 @@ source = { editable = "packages/phlo-dagster" }
 dependencies = [
     { name = "dagster" },
     { name = "dagster-graphql" },
+    { name = "dagster-webserver" },
     { name = "phlo" },
     { name = "psycopg2-binary" },
     { name = "pyjwt", extra = ["crypto"] },
@@ -3462,6 +3463,7 @@ observatory = [
 requires-dist = [
     { name = "dagster", specifier = ">=1.13,<1.14" },
     { name = "dagster-graphql", specifier = ">=1.13,<1.14" },
+    { name = "dagster-webserver", specifier = ">=1.13,<1.14" },
     { name = "phlo", editable = "." },
     { name = "phlo-alerting", marker = "extra == 'alerting'", editable = "packages/phlo-alerting" },
     { name = "phlo-iceberg", marker = "extra == 'iceberg'", editable = "packages/phlo-iceberg" },

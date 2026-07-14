@@ -46,13 +46,17 @@ def test_workflow_wizard_lists_package_contributions() -> None:
     assert response.status_code == 200
     payload = response.json()
     ids = [item["id"] for item in payload["contributions"]]
-    if _can_load_workflow_plugin("phlo_dlt.plugin"):
-        assert "dlt.rest-api-source" in ids
-    assert "sling.replication-source" in ids
-    assert "dbt.transform" in ids
-    assert "pandera.quality-checks" in ids
-    assert "dagster.orchestration" in ids
-    assert "openmetadata.catalog" in ids
+    optional_contributions = (
+        ("phlo_dlt.plugin", "dlt.rest-api-source"),
+        ("phlo_sling.plugin", "sling.replication-source"),
+        ("phlo_dbt.plugin", "dbt.transform"),
+        ("phlo_pandera.plugin", "pandera.quality-checks"),
+        ("phlo_dagster.plugin", "dagster.orchestration"),
+        ("phlo_openmetadata.plugin", "openmetadata.catalog"),
+    )
+    for module_name, contribution_id in optional_contributions:
+        if _can_load_workflow_plugin(module_name):
+            assert contribution_id in ids
     assert payload["stages"] == ["source", "transform", "quality", "publish"]
 
 

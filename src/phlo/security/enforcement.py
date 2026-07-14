@@ -99,9 +99,12 @@ class EnforcementContext:
         with self._init_lock:
             if self._initialized:
                 return
-            self._init_authorization_backend()
-            self._init_identity_bridge()
-            self._init_audit_emitter()
+            if self._authorization_backend is None:
+                self._init_authorization_backend()
+            if self._identity_bridge is None:
+                self._init_identity_bridge()
+            if self._audit_emitter is None:
+                self._init_audit_emitter()
             self._initialized = True
 
     def _init_identity_bridge(self) -> None:
