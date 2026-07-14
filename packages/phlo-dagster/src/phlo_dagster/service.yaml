@@ -23,6 +23,18 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  healthcheck:
+    test:
+      [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request; raise SystemExit(urllib.request.urlopen('http://127.0.0.1:3000/server_info', timeout=3).status != 200)",
+      ]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 15s
   labels:
     phlo.metrics.enabled: "true"
     phlo.metrics.port: "dagster:3000"
@@ -65,10 +77,22 @@ compose:
     PHLO_PROJECT_PATH: /app
     SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
     PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
+    PHLO_DAGSTER_OIDC_ISSUER: ${PHLO_DAGSTER_OIDC_ISSUER:-}
+    PHLO_DAGSTER_OIDC_AUDIENCE: ${PHLO_DAGSTER_OIDC_AUDIENCE:-}
+    PHLO_DAGSTER_OIDC_JWKS_URL: ${PHLO_DAGSTER_OIDC_JWKS_URL:-}
+    PHLO_DAGSTER_OIDC_CA_FILE: ${PHLO_DAGSTER_OIDC_CA_FILE:-}
+    PHLO_DAGSTER_OIDC_GROUPS_CLAIM: ${PHLO_DAGSTER_OIDC_GROUPS_CLAIM:-groups}
+    PHLO_DAGSTER_OIDC_LEEWAY_SECONDS: ${PHLO_DAGSTER_OIDC_LEEWAY_SECONDS:-30}
+    PHLO_DAGSTER_OIDC_JWKS_CACHE_TTL_SECONDS: ${PHLO_DAGSTER_OIDC_JWKS_CACHE_TTL_SECONDS:-300}
+    PHLO_DAGSTER_OIDC_REFRESH_MIN_INTERVAL_SECONDS: ${PHLO_DAGSTER_OIDC_REFRESH_MIN_INTERVAL_SECONDS:-5}
+    PHLO_DAGSTER_OIDC_REQUIRED: ${PHLO_DAGSTER_OIDC_REQUIRED:-false}
+    PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS: ${PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS:-10}
     DISABLE_PANDERA_IMPORT_WARNING: "True"
   command:
     [
-      "dagster-webserver",
+      "python",
+      "-m",
+      "phlo_dagster.webserver",
       "-h",
       "0.0.0.0",
       "-p",
@@ -92,6 +116,36 @@ env_vars:
   PHLO_HOST_PLATFORM:
     default: ""
     description: Host platform for executor selection (Darwin/Linux)
+  PHLO_DAGSTER_OIDC_ISSUER:
+    default: ""
+    description: OIDC issuer URL accepted for Dagster human access
+  PHLO_DAGSTER_OIDC_AUDIENCE:
+    default: ""
+    description: OIDC audience required in the Dagster access token
+  PHLO_DAGSTER_OIDC_JWKS_URL:
+    default: ""
+    description: Pinned OIDC JWKS endpoint used to verify RS256 signing keys
+  PHLO_DAGSTER_OIDC_CA_FILE:
+    default: ""
+    description: CA bundle mounted into Dagster for TLS verification of the OIDC JWKS endpoint
+  PHLO_DAGSTER_OIDC_LEEWAY_SECONDS:
+    default: "30"
+    description: Bounded clock-skew allowance for Dagster OIDC token validation
+  PHLO_DAGSTER_OIDC_JWKS_CACHE_TTL_SECONDS:
+    default: "300"
+    description: Bounded positive-cache lifetime for Dagster OIDC signing keys
+  PHLO_DAGSTER_OIDC_REFRESH_MIN_INTERVAL_SECONDS:
+    default: "5"
+    description: Minimum interval between Dagster JWKS refresh attempts
+  PHLO_DAGSTER_OIDC_GROUPS_CLAIM:
+    default: "groups"
+    description: OIDC claim containing the allow-listed Dagster groups
+  PHLO_DAGSTER_OIDC_REQUIRED:
+    default: "false"
+    description: Set true in regulated generation to require complete HTTPS OIDC/JWKS configuration at startup
+  PHLO_DAGSTER_GRAPHQL_WS_INIT_TIMEOUT_SECONDS:
+    default: "10"
+    description: Seconds allowed for graphql-ws connection_init before the socket is closed (maximum 60)
 
 hooks:
   post_start:

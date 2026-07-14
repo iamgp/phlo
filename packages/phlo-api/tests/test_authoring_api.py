@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from phlo_api.main import app
+from security_test_support import authenticated_client
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,7 @@ def test_authoring_routes_create_and_list_templates(monkeypatch, tmp_path) -> No
         authoring, "create_workflow_with_provider", fake_create_workflow_with_provider
     )
 
-    client = TestClient(app)
+    client = authenticated_client("operator")
     headers = {"Authorization": "Bearer project-token"}
     created = client.post(
         "/api/authoring/workflows",
@@ -79,7 +80,7 @@ def test_authoring_create_workflow_returns_conflict_for_existing_files(
         authoring, "create_workflow_with_provider", fake_create_workflow_with_provider
     )
 
-    response = TestClient(app).post(
+    response = authenticated_client("operator").post(
         "/api/authoring/workflows",
         json={"domain": "demo", "table": "orders", "unique_key": "id"},
         headers={"Authorization": "Bearer project-token"},
@@ -126,7 +127,7 @@ def test_authoring_create_workflow_uses_project_root_and_provider(monkeypatch, t
         authoring, "create_workflow_with_provider", fake_create_workflow_with_provider
     )
 
-    response = TestClient(app).post(
+    response = authenticated_client("operator").post(
         "/api/authoring/workflows",
         json={"provider": "sling", "domain": "demo", "table": "orders", "unique_key": "id"},
         headers={"Authorization": "Bearer project-token"},
@@ -151,14 +152,17 @@ def test_authoring_write_routes_require_project_write_scope(monkeypatch, tmp_pat
     workflow_file.write_text("# workflow\n", encoding="utf-8")
     monkeypatch.setattr(authoring, "_validate_workflow_file", lambda path: None)
 
-    client = TestClient(app)
-    missing = client.post(
+    client = authenticated_client("operator")
+    missing = TestClient(app).post(
         "/api/authoring/workflows/validate", json={"workflow_path": str(workflow_file)}
     )
     forbidden = client.post(
         "/api/authoring/workflows/validate",
         json={"workflow_path": str(workflow_file)},
-        headers={"Authorization": "Bearer read-token"},
+        headers={
+            "Authorization": "Bearer read-token",
+            "X-Test-Principal": "viewer",
+        },
     )
     allowed = client.post(
         "/api/authoring/workflows/validate",
@@ -188,7 +192,7 @@ def test_authoring_validation_rejects_paths_outside_project(monkeypatch, tmp_pat
     )
     monkeypatch.setattr(authoring, "_validate_workflow_file", lambda path: None)
 
-    response = TestClient(app).post(
+    response = authenticated_client("operator").post(
         "/api/authoring/workflows/validate",
         json={"workflow_path": str(outside_file)},
         headers={"Authorization": "Bearer project-token"},
@@ -204,7 +208,7 @@ def test_authoring_doctor_route_returns_json(monkeypatch) -> None:
 
     monkeypatch.setattr(authoring, "_run_diagnostics_quietly", lambda verbose=False: [])
 
-    response = TestClient(app).get("/api/authoring/doctor")
+    response = authenticated_client("operator").get("/api/authoring/doctor")
 
     assert response.status_code == 200
     assert response.json() == {"checks": [], "summary": {"fail": 0, "ok": 0, "skip": 0, "warn": 0}}
@@ -236,7 +240,7 @@ def test_authoring_doctor_uses_configured_project_root(monkeypatch, tmp_path) ->
 
     monkeypatch.setattr(authoring, "_run_diagnostics_quietly", fake_run_diagnostics_quietly)
 
-    response = TestClient(app).get("/api/authoring/doctor?verbose=true")
+    response = authenticated_client("operator").get("/api/authoring/doctor?verbose=true")
 
     assert response.status_code == 200
     assert captured == {"cwd": project_root, "verbose": True}

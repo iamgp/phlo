@@ -26,6 +26,7 @@ from phlo.logging import get_logger
 
 if TYPE_CHECKING:
     from phlo.capabilities.interfaces import AuthPrincipal, Principal
+    from phlo.rbac.models import CanonicalRBAC
 
 logger = get_logger(__name__)
 
@@ -71,6 +72,7 @@ class IdentityBridgeConfig:
     enforce_approved_principal_types: bool = False
     propagate_idp_groups: bool = True
     authentication_source_claim: str = "authentication_source"
+    canonical_rbac: CanonicalRBAC | None = None
 
 
 class IdentityBridge:
@@ -138,10 +140,19 @@ class IdentityBridge:
             )
 
         # Map groups to canonical roles
-        roles = self._map_groups_to_roles(auth_principal.groups)
+        roles = set(self._map_groups_to_roles(auth_principal.groups))
+        if self.config.canonical_rbac is not None:
+            roles.update(
+                self.config.canonical_rbac.effective_roles_for_subject(
+                    auth_principal.subject,
+                    auth_principal.principal_type,
+                )
+            )
 
         # Apply principal-type default roles
-        roles = self._apply_principal_type_roles(auth_principal.principal_type, roles)
+        roles = self._apply_principal_type_roles(
+            auth_principal.principal_type, tuple(sorted(roles))
+        )
 
         # Build attributes (use getattr for duck-typed principals)
         principal_attributes: dict[str, str] = dict(getattr(auth_principal, "attributes", {}))
@@ -217,6 +228,7 @@ class IdentityBridge:
 
 def create_regulated_bridge(
     group_role_mapping: dict[str, str] | None = None,
+    canonical_rbac: CanonicalRBAC | None = None,
 ) -> IdentityBridge:
     """Create an identity bridge configured for regulated mode.
 
@@ -234,12 +246,14 @@ def create_regulated_bridge(
         group_role_mapping=group_role_mapping or DEFAULT_GROUP_ROLE_MAPPING.copy(),
         enforce_approved_principal_types=True,
         propagate_idp_groups=True,
+        canonical_rbac=canonical_rbac,
     )
     return IdentityBridge(config)
 
 
 def create_regulated_mode_bridge(
     group_role_mapping: dict[str, str] | None = None,
+    canonical_rbac: CanonicalRBAC | None = None,
 ) -> IdentityBridge:
     """Deprecated: use create_regulated_bridge() instead."""
     import warnings
@@ -249,7 +263,7 @@ def create_regulated_mode_bridge(
         DeprecationWarning,
         stacklevel=2,
     )
-    return create_regulated_bridge(group_role_mapping)
+    return create_regulated_bridge(group_role_mapping, canonical_rbac)
 
 
 def canonicalize_principal(

@@ -167,12 +167,12 @@ class TestEnforcementContextInitialization:
 
         _ = ctx.identity_bridge
 
-        assert calls == ["bridge"]
+        assert calls == ["backend", "bridge"]
         assert ctx._initialized is False
 
         ctx._initialize_eagerly()
 
-        assert calls == ["bridge", "bridge", "backend", "emitter"]
+        assert calls == ["backend", "bridge", "emitter"]
         assert ctx._initialized is True
 
     def test_get_instance_does_not_publish_failed_eager_init(self, monkeypatch):

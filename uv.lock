@@ -3433,8 +3433,10 @@ source = { editable = "packages/phlo-dagster" }
 dependencies = [
     { name = "dagster" },
     { name = "dagster-graphql" },
+    { name = "dagster-webserver" },
     { name = "phlo" },
     { name = "psycopg2-binary" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "pyyaml" },
     { name = "requests" },
 ]
@@ -3461,12 +3463,14 @@ observatory = [
 requires-dist = [
     { name = "dagster", specifier = ">=1.13,<1.14" },
     { name = "dagster-graphql", specifier = ">=1.13,<1.14" },
+    { name = "dagster-webserver", specifier = ">=1.13,<1.14" },
     { name = "phlo", editable = "." },
     { name = "phlo-alerting", marker = "extra == 'alerting'", editable = "packages/phlo-alerting" },
     { name = "phlo-iceberg", marker = "extra == 'iceberg'", editable = "packages/phlo-iceberg" },
     { name = "phlo-nessie", marker = "extra == 'nessie'", editable = "packages/phlo-nessie" },
     { name = "phlo-observatory", marker = "extra == 'observatory'", editable = "packages/phlo-observatory" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "requests", specifier = ">=2.32.5" },

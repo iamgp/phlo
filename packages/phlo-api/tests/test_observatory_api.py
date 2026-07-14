@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from phlo.capabilities.registry import CapabilityRegistry
 from phlo.capabilities.specs import CatalogSpec
 from phlo_api.main import app
+from security_test_support import authenticated_client
 from phlo_api.observatory_api import observatory
 from phlo_api.observatory_api import observatory_services
 from phlo_api.observatory_api.observatory import (
@@ -252,7 +253,7 @@ def test_observatory_datasets_endpoint_returns_profile_summaries(
         ],
     )
 
-    response = TestClient(app).get("/api/observatory/datasets")
+    response = authenticated_client("admin").get("/api/observatory/datasets")
 
     assert response.status_code == 200
     payload = response.json()
@@ -280,9 +281,9 @@ def test_observatory_datasets_endpoint_uses_project_read_model_cache(
     monkeypatch.setattr(observatory, "_load_tables_without_catalog", lambda: [])
     monkeypatch.setattr(observatory, "_load_quality", lambda: [])
 
-    first = TestClient(app).get("/api/observatory/datasets")
+    first = authenticated_client("admin").get("/api/observatory/datasets")
     observatory._READ_MODEL_CACHE._values.clear()
-    second = TestClient(app).get("/api/observatory/datasets")
+    second = authenticated_client("admin").get("/api/observatory/datasets")
 
     assert first.status_code == 200
     assert second.status_code == 200
@@ -310,7 +311,7 @@ def test_observatory_datasets_endpoint_returns_table_candidates(
     )
     monkeypatch.setattr(observatory, "_load_quality", lambda: [])
 
-    response = TestClient(app).get("/api/observatory/datasets")
+    response = authenticated_client("admin").get("/api/observatory/datasets")
 
     assert response.status_code == 200
     payload = response.json()
@@ -346,7 +347,7 @@ def test_observatory_dataset_profile_returns_table_candidate(
     monkeypatch.setattr(observatory, "_load_logs", lambda: [])
     monkeypatch.setattr(observatory, "_load_operations", lambda: [])
 
-    response = TestClient(app).get("/api/observatory/datasets/candidate:raw_orders")
+    response = authenticated_client("admin").get("/api/observatory/datasets/candidate:raw_orders")
 
     assert response.status_code == 200
     payload = response.json()
@@ -373,7 +374,7 @@ def test_observatory_candidate_actions_persist_workflow_state(
     monkeypatch.setattr(observatory, "_load_quality", lambda: [])
     monkeypatch.setattr(observatory, "_load_logs", lambda: [])
     monkeypatch.setattr(observatory, "_load_operations", lambda: [])
-    client = TestClient(app)
+    client = authenticated_client("admin")
 
     claim = client.post(
         "/api/observatory/actions",
@@ -437,7 +438,7 @@ def test_observatory_publication_action_persists_dataset_state(
     )
     monkeypatch.setattr(observatory, "_load_logs", lambda: [])
     monkeypatch.setattr(observatory, "_load_operations", lambda: [])
-    client = TestClient(app)
+    client = authenticated_client("admin")
 
     result = client.post(
         "/api/observatory/actions",
@@ -460,7 +461,7 @@ def test_observatory_dataset_workflow_config_round_trips(
 ) -> None:
     observatory._clear_read_model_cache()
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
-    client = TestClient(app)
+    client = authenticated_client("admin")
 
     saved = client.put(
         "/api/observatory/dataset-workflow/config",
@@ -518,7 +519,7 @@ def test_observatory_governance_endpoint_returns_dataset_control_matrix(
         ],
     )
 
-    response = TestClient(app).get("/api/observatory/governance")
+    response = authenticated_client("admin").get("/api/observatory/governance")
 
     assert response.status_code == 200
     payload = response.json()
@@ -623,7 +624,7 @@ def test_observatory_dataset_profile_returns_privacy_shaped_usage(
     monkeypatch.setattr(observatory, "_load_logs", lambda: [])
     monkeypatch.setattr(observatory, "_load_operations", lambda: [])
 
-    response = TestClient(app).get("/api/observatory/datasets/gold.orders")
+    response = authenticated_client("admin").get("/api/observatory/datasets/gold.orders")
 
     assert response.status_code == 200
     usage = response.json()["usage"]
@@ -667,7 +668,7 @@ def test_observatory_pipelines_endpoint_returns_flow_and_action_availability(
         ],
     )
 
-    response = TestClient(app).get("/api/observatory/pipelines")
+    response = authenticated_client("admin").get("/api/observatory/pipelines")
 
     assert response.status_code == 200
     pipeline = response.json()["items"][0]
@@ -734,7 +735,7 @@ def test_observatory_dataset_profile_collects_related_context(
     monkeypatch.setattr(observatory, "_load_logs", lambda: [])
     monkeypatch.setattr(observatory, "_load_operations", lambda: [])
 
-    response = TestClient(app).get("/api/observatory/datasets/gold.orders")
+    response = authenticated_client("admin").get("/api/observatory/datasets/gold.orders")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1205,7 +1206,7 @@ def test_observatory_actions_endpoint_routes_add_service_action(
     monkeypatch.setattr(subprocess, "run", fake_run)
     observatory._clear_read_model_cache()
 
-    response = TestClient(app).post(
+    response = authenticated_client("admin").post(
         "/api/observatory/actions",
         json={"action_id": "pgweb:add"},
     )
@@ -1269,7 +1270,7 @@ def test_observatory_asset_operational_routes_use_observatory_paths(
     )
     monkeypatch.setattr(observatory, "resolve_orchestrator_operations", lambda: provider)
 
-    client = TestClient(app)
+    client = authenticated_client("admin")
     headers = {"Authorization": "Bearer operate-token"}
     history = client.get("/api/observatory/assets/silver/orders/materializations?limit=3")
     materialize = client.post(
@@ -1310,7 +1311,7 @@ def test_observatory_asset_materializations_clamps_limit(monkeypatch) -> None:
     provider = _FakeOrchestratorOperations(get_materialization_history=fake_history)
     monkeypatch.setattr(observatory, "resolve_orchestrator_operations", lambda: provider)
 
-    client = TestClient(app)
+    client = authenticated_client("admin")
     too_low = client.get("/api/observatory/assets/silver/orders/materializations?limit=0")
     too_high = client.get("/api/observatory/assets/silver/orders/materializations?limit=999")
 
@@ -1364,7 +1365,7 @@ def test_observatory_run_operational_routes_use_observatory_paths(
     )
     monkeypatch.setattr(observatory, "resolve_orchestrator_operations", lambda: provider)
 
-    client = TestClient(app)
+    client = authenticated_client("admin")
     headers = {"Authorization": "Bearer operate-token"}
     status = client.get("/api/observatory/runs/run-123/status")
     retry = client.post(
@@ -1422,41 +1423,64 @@ def test_observatory_operation_routes_enforce_scope_idempotency_audit_and_rate_l
 
     provider = _FakeOrchestratorOperations(materialize_asset=fake_materialize)
     monkeypatch.setattr(observatory, "resolve_orchestrator_operations", lambda: provider)
-    client = TestClient(app)
+    client = authenticated_client("admin")
 
-    missing = client.post(
+    missing = TestClient(app).post(
         "/api/observatory/assets/silver/orders/materialize",
         json={"dry_run": False},
     )
     forbidden = client.post(
         "/api/observatory/assets/silver/orders/materialize",
         json={"dry_run": False},
-        headers={"Authorization": "Bearer read-token"},
+        headers={
+            "Authorization": "Bearer read-token",
+            "X-Test-Principal": "viewer",
+        },
     )
     first = client.post(
         "/api/observatory/assets/silver/orders/materialize",
         json={"dry_run": False, "idempotency_key": "same-key"},
-        headers={"Authorization": "Bearer operate-token"},
+        headers={
+            "Authorization": "Bearer operate-token",
+            "X-Test-Principal": "operator",
+            "X-Test-Subject": "operator-idem",
+        },
     )
     replay = client.post(
         "/api/observatory/assets/silver/orders/materialize",
         json={"dry_run": False, "idempotency_key": "same-key"},
-        headers={"Authorization": "Bearer operate-token"},
+        headers={
+            "Authorization": "Bearer operate-token",
+            "X-Test-Principal": "operator",
+            "X-Test-Subject": "operator-idem",
+        },
     )
     limited_first = client.post(
         "/api/observatory/assets/silver/orders/materialize",
         json={"dry_run": True},
-        headers={"Authorization": "Bearer limited-token"},
+        headers={
+            "Authorization": "Bearer limited-token",
+            "X-Test-Principal": "operator",
+            "X-Test-Subject": "operator-limited",
+        },
     )
     limited_second = client.post(
         "/api/observatory/assets/silver/orders/materialize",
         json={"dry_run": True},
-        headers={"Authorization": "Bearer limited-token"},
+        headers={
+            "Authorization": "Bearer limited-token",
+            "X-Test-Principal": "operator",
+            "X-Test-Subject": "operator-limited",
+        },
     )
     limited_third = client.post(
         "/api/observatory/assets/silver/orders/materialize",
         json={"dry_run": True},
-        headers={"Authorization": "Bearer limited-token"},
+        headers={
+            "Authorization": "Bearer limited-token",
+            "X-Test-Principal": "operator",
+            "X-Test-Subject": "operator-limited",
+        },
     )
 
     assert missing.status_code == 401
@@ -1519,7 +1543,7 @@ def test_observatory_operations_endpoint_includes_journal_records(
         recorded_at="2026-05-16T12:00:00+00:00",
     )
 
-    response = TestClient(app).get("/api/observatory/operations")
+    response = authenticated_client("admin").get("/api/observatory/operations")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1629,7 +1653,7 @@ def test_observatory_manifest_records_enrich_lakehouse_surfaces(
     )
     observatory._clear_read_model_cache()
 
-    client = TestClient(app)
+    client = authenticated_client("admin")
     assets = client.get("/api/observatory/assets").json()["items"]
     tables = client.get("/api/observatory/tables").json()["items"]
     quality = client.get("/api/observatory/quality").json()["items"]
@@ -1686,7 +1710,7 @@ def test_observatory_generic_skipped_action_records_operation(
     monkeypatch.setattr(observatory, "_load_capability_registry", lambda: None)
     observatory._clear_read_model_cache()
 
-    response = TestClient(app).post(
+    response = authenticated_client("admin").post(
         "/api/observatory/actions",
         json={"action_id": "quality:raw.orders:rerun"},
     )
@@ -1697,7 +1721,7 @@ def test_observatory_generic_skipped_action_records_operation(
     assert payload["operation"]["status"] == "skipped"
     assert payload["operation"]["kind"] == "quality.rerun"
 
-    operations = TestClient(app).get("/api/observatory/operations").json()["items"]
+    operations = authenticated_client("admin").get("/api/observatory/operations").json()["items"]
     assert operations[0]["id"] == payload["operation"]["id"]
     assert operations[0]["metadata"]["action_id"] == "quality:raw.orders:rerun"
 
@@ -1729,7 +1753,7 @@ def test_observatory_service_action_records_subprocess_result(
     monkeypatch.setattr(observatory, "_load_services", lambda: [service])
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    response = TestClient(app).post(
+    response = authenticated_client("admin").post(
         "/api/observatory/actions",
         json={"action_id": "phlo-api:start"},
     )
@@ -1740,7 +1764,7 @@ def test_observatory_service_action_records_subprocess_result(
     assert payload["operation"]["kind"] == "service.start"
     assert payload["operation"]["target"]["id"] == "phlo-api"
 
-    operations = TestClient(app).get("/api/observatory/operations").json()["items"]
+    operations = authenticated_client("admin").get("/api/observatory/operations").json()["items"]
     assert operations[0]["id"] == payload["operation"]["id"]
     assert operations[0]["status"] == "succeeded"
 
@@ -1775,7 +1799,7 @@ def test_observatory_package_install_uses_trusted_registry_package(
     monkeypatch.setattr(observatory, "_run_python_package_install", fake_install)
     monkeypatch.setattr(observatory, "_load_services", lambda: [])
 
-    response = TestClient(app).post(
+    response = authenticated_client("admin").post(
         "/api/observatory/packages/install",
         json={"package_name": "openmetadata"},
         headers={"Authorization": "Bearer admin-token"},
@@ -1796,7 +1820,7 @@ def test_observatory_package_install_rejects_unknown_package(monkeypatch, tmp_pa
     )
     monkeypatch.setattr(observatory, "get_registry_data", lambda: {"plugins": {}})
 
-    response = TestClient(app).post(
+    response = authenticated_client("admin").post(
         "/api/observatory/packages/install",
         json={"package_name": "not-a-phlo-package"},
         headers={"Authorization": "Bearer admin-token"},
@@ -1827,7 +1851,7 @@ def test_observatory_package_install_prefers_uv_add_for_uv_projects(
 
 
 def test_observatory_overview_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/overview")
+    response = authenticated_client("admin").get("/api/observatory/overview")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1912,7 +1936,7 @@ def test_observatory_overview_endpoint_returns_canonical_home_rows(monkeypatch) 
         lambda key, model: quality_checks if key == "quality" else [],
     )
 
-    response = TestClient(app).get("/api/observatory/overview")
+    response = authenticated_client("admin").get("/api/observatory/overview")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1935,7 +1959,7 @@ def test_observatory_overview_endpoint_returns_canonical_home_rows(monkeypatch) 
 
 
 def test_observatory_capabilities_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/capabilities")
+    response = authenticated_client("admin").get("/api/observatory/capabilities")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1999,8 +2023,8 @@ def test_observatory_capabilities_endpoint_reloads_project_capabilities(monkeypa
 
     monkeypatch.setattr(observatory, "_load_capabilities", load_capabilities)
 
-    first = TestClient(app).get("/api/observatory/capabilities")
-    second = TestClient(app).get("/api/observatory/capabilities")
+    first = authenticated_client("admin").get("/api/observatory/capabilities")
+    second = authenticated_client("admin").get("/api/observatory/capabilities")
 
     assert first.status_code == 200
     assert second.status_code == 200
@@ -2083,7 +2107,7 @@ def test_observatory_logs_include_project_phlo_logs(monkeypatch, tmp_path: Path)
         + "\n"
     )
 
-    response = TestClient(app).get("/api/observatory/logs")
+    response = authenticated_client("admin").get("/api/observatory/logs")
 
     assert response.status_code == 200
     payload = response.json()
@@ -2100,7 +2124,7 @@ def test_observatory_overview_health_describes_unavailable_runtime_state() -> No
 
 
 def test_observatory_services_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/services")
+    response = authenticated_client("admin").get("/api/observatory/services")
 
     assert response.status_code == 200
     payload = response.json()
@@ -2122,7 +2146,7 @@ def test_observatory_services_endpoint_returns_provider_neutral_payload() -> Non
 
 
 def test_observatory_service_detail_endpoint_returns_provider_neutral_payload() -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     services = client.get("/api/observatory/services").json()["items"]
     response = client.get(f"/api/observatory/services/{services[0]['id']}")
 
@@ -2145,7 +2169,7 @@ def test_observatory_service_detail_endpoint_returns_provider_neutral_payload() 
 
 
 def test_observatory_operations_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/operations")
+    response = authenticated_client("admin").get("/api/observatory/operations")
 
     assert response.status_code == 200
     payload = response.json()
@@ -2186,7 +2210,7 @@ def test_observatory_operations_endpoint_filters_before_returning_context_candid
     monkeypatch.setattr(observatory, "_load_operations", lambda: operations)
     observatory._clear_read_model_cache()
 
-    response = TestClient(app).get(
+    response = authenticated_client("admin").get(
         "/api/observatory/operations",
         params={"status": "failed", "kind": "workflow.apply", "q": "orders", "limit": 1},
     )
@@ -2200,7 +2224,7 @@ def test_observatory_operations_endpoint_filters_before_returning_context_candid
 def test_observatory_operation_detail_endpoint_returns_provider_neutral_payload(
     monkeypatch,
 ) -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     operation = ObservatoryOperation(
         id="compact:main:main",
         name="compact",
@@ -2224,7 +2248,7 @@ def test_observatory_operation_detail_endpoint_returns_provider_neutral_payload(
 
 
 def test_observatory_operation_agent_context_endpoint_returns_stable_contract(monkeypatch) -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     operation = ObservatoryOperation(
         id="op-recorded",
         name="Apply workflow proposal",
@@ -2259,7 +2283,7 @@ def test_observatory_operation_agent_context_endpoint_returns_stable_contract(mo
 
 
 def test_observatory_assets_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/assets")
+    response = authenticated_client("admin").get("/api/observatory/assets")
 
     assert response.status_code == 200
     payload = response.json()
@@ -2305,7 +2329,7 @@ def test_asset_derived_tables_include_unknown_catalog_state_when_catalog_read_fa
 def test_observatory_asset_detail_endpoint_returns_related_provider_neutral_payload(
     monkeypatch,
 ) -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     asset = ObservatoryAsset(id="raw.orders", name="raw.orders", group="raw", kinds=["table"])
     table = ObservatoryTable(
         id="orders",
@@ -2361,7 +2385,7 @@ def test_observatory_asset_graph_and_impact_are_first_class(monkeypatch) -> None
         ],
     )
 
-    client = TestClient(app)
+    client = authenticated_client("admin")
     graph_response = client.get("/api/observatory/asset-graph")
     impact_response = client.get(
         "/api/observatory/asset-graph/impact",
@@ -2388,7 +2412,7 @@ def test_observatory_asset_graph_and_impact_are_first_class(monkeypatch) -> None
 
 
 def test_observatory_tables_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/tables")
+    response = authenticated_client("admin").get("/api/observatory/tables")
 
     assert response.status_code == 200
     payload = response.json()
@@ -2398,7 +2422,7 @@ def test_observatory_tables_endpoint_returns_provider_neutral_payload() -> None:
 
 
 def test_observatory_table_preview_endpoint_returns_provider_neutral_payload(monkeypatch) -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     table = ObservatoryTable(
         id="orders",
         name="orders",
@@ -2444,7 +2468,7 @@ def test_observatory_table_preview_endpoint_returns_provider_neutral_payload(mon
 
 
 def test_observatory_query_endpoint_returns_provider_neutral_payload(monkeypatch) -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     table = ObservatoryTable(
         id="orders",
         name="orders",
@@ -2478,7 +2502,7 @@ def test_observatory_query_endpoint_returns_provider_neutral_payload(monkeypatch
 
 
 def test_observatory_query_endpoint_rejects_unknown_tables(monkeypatch) -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     monkeypatch.setattr("phlo_api.observatory_api.observatory._load_tables", lambda: [])
 
     response = client.post(
@@ -2516,7 +2540,7 @@ def test_observatory_saved_queries_contract_persists_provider_neutral_payload(
     monkeypatch, tmp_path
 ) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
-    client = TestClient(app)
+    client = authenticated_client("admin")
 
     create_response = client.post(
         "/api/observatory/saved-queries",
@@ -2582,7 +2606,7 @@ def test_observatory_stage_diff_endpoint_returns_provider_neutral_payload(monkey
         lambda table_id, *, limit, offset: previews[table_id],
     )
 
-    response = TestClient(app).get(
+    response = authenticated_client("admin").get(
         "/api/observatory/stage-diff",
         params={"source_table_id": "orders", "target_table_id": "orders_clean"},
     )
@@ -2602,7 +2626,7 @@ def test_observatory_stage_diff_endpoint_returns_provider_neutral_payload(monkey
 
 
 def test_observatory_row_journey_endpoint_returns_provider_neutral_payload(monkeypatch) -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     table = ObservatoryTable(
         id="orders",
         name="orders",
@@ -2637,6 +2661,15 @@ def test_observatory_row_journey_endpoint_returns_provider_neutral_payload(monke
 
 
 def test_observatory_contributing_rows_query_and_page(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.lineage._resolve_lineage_sink",
+        lambda: type(
+            "LineageSink",
+            (),
+            {"get_asset_graph": lambda self: {"edges": {"silver/stg_orders": ["gold/fct_orders"]}}},
+        )(),
+    )
+
     async def fake_execute_trino_query(
         query: str,
         catalog: str | None = None,
@@ -2676,7 +2709,7 @@ def test_observatory_contributing_rows_query_and_page(monkeypatch) -> None:
         lambda: "main",
     )
 
-    client = TestClient(app)
+    client = authenticated_client("admin")
     payload = {
         "downstream_asset_key": "gold/fct_orders",
         "upstream_asset_key": "silver/stg_orders",
@@ -2712,13 +2745,40 @@ def test_observatory_contributing_rows_query_and_page(monkeypatch) -> None:
     }
 
 
+def test_contributing_rows_reject_client_provider_routing(monkeypatch) -> None:
+    called = False
+
+    async def forbidden_resolver(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        nonlocal called
+        called = True
+        raise AssertionError("client-controlled provider routing reached the resolver")
+
+    monkeypatch.setattr(
+        "phlo_api.observatory_api.contributing.resolve_iceberg_table",
+        forbidden_resolver,
+    )
+    response = authenticated_client("analyst").post(
+        "/api/observatory/contributing-rows/query",
+        json={
+            "downstream_asset_key": "gold/fct_orders",
+            "upstream_asset_key": "silver/stg_orders",
+            "row_data": {"_phlo_row_id": "abc123"},
+            "catalog": "other_catalog",
+            "trino_url": "http://169.254.169.254/",
+        },
+    )
+
+    assert response.status_code == 422
+    assert called is False
+
+
 def test_observatory_branch_action_contract_skips_until_provider_write_contract_exists(
     monkeypatch, tmp_path
 ) -> None:
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     monkeypatch.setattr(observatory, "_load_capability_registry", lambda: None)
     observatory._clear_read_model_cache()
-    response = TestClient(app).post(
+    response = authenticated_client("admin").post(
         "/api/observatory/branches/actions",
         json={"action_id": "branch:create:review/demo"},
     )
@@ -2747,7 +2807,7 @@ def test_observatory_branch_action_skips_when_branches_capability_is_unavailable
 
     monkeypatch.setattr("phlo_api.observatory_api.observatory._write_branches", fail_write)
 
-    response = TestClient(app).post(
+    response = authenticated_client("admin").post(
         "/api/observatory/branches/actions",
         json={"action_id": "branch:create:review/demo"},
     )
@@ -2769,7 +2829,7 @@ def test_observatory_branch_action_skip_is_recorded(
     monkeypatch.setattr(observatory, "_load_capability_registry", lambda: None)
     observatory._clear_read_model_cache()
 
-    response = TestClient(app).post(
+    response = authenticated_client("admin").post(
         "/api/observatory/branches/actions",
         json={"action_id": "branch:create:experiment"},
     )
@@ -2780,7 +2840,7 @@ def test_observatory_branch_action_skip_is_recorded(
     assert payload["operation"]["status"] == "skipped"
     assert payload["operation"]["kind"] == "branch.create"
 
-    operations = TestClient(app).get("/api/observatory/operations").json()["items"]
+    operations = authenticated_client("admin").get("/api/observatory/operations").json()["items"]
     assert operations[0]["id"] == payload["operation"]["id"]
     assert operations[0]["metadata"]["action_id"] == "branch:create:experiment"
 
@@ -2807,7 +2867,7 @@ def test_observatory_operations_include_wap_reports(monkeypatch, tmp_path: Path)
     )
     observatory._clear_read_model_cache()
 
-    payload = TestClient(app).get("/api/observatory/operations").json()
+    payload = authenticated_client("admin").get("/api/observatory/operations").json()
 
     wap = next(item for item in payload["items"] if item["id"] == "wap:run-1")
     assert wap["status"] == "succeeded"
@@ -2854,7 +2914,7 @@ def test_observatory_branch_detail_uses_wap_report_tables_when_catalog_tables_mi
     monkeypatch.setattr("phlo_api.observatory_api.observatory._load_tables", lambda: [])
     observatory._clear_read_model_cache()
 
-    payload = TestClient(app).get("/api/observatory/branches/pipeline-run-1").json()
+    payload = authenticated_client("admin").get("/api/observatory/branches/pipeline-run-1").json()
 
     assert payload["tables"][0]["id"] == "analytics.orders"
     assert payload["contents"][0]["label"] == "orders"
@@ -2892,7 +2952,7 @@ def test_observatory_branch_actions_use_registered_catalog_provider(
     monkeypatch.setattr(observatory, "_load_capability_registry", lambda: registry)
     observatory._clear_read_model_cache()
 
-    client = TestClient(app)
+    client = authenticated_client("admin")
     create_response = client.post(
         "/api/observatory/branches/actions",
         json={"action_id": "branch:create:experiment"},
@@ -2918,7 +2978,7 @@ def test_observatory_branch_actions_use_registered_catalog_provider(
 
 
 def test_observatory_quality_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/quality")
+    response = authenticated_client("admin").get("/api/observatory/quality")
 
     assert response.status_code == 200
     payload = response.json()
@@ -2928,7 +2988,7 @@ def test_observatory_quality_endpoint_returns_provider_neutral_payload() -> None
 
 
 def test_observatory_quality_detail_endpoint_returns_provider_neutral_payload(monkeypatch) -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     asset = ObservatoryAsset(id="raw.orders", name="raw.orders", group="raw", kinds=["table"])
     check = ObservatoryQualityCheck(
         id="raw.orders:order_id_present",
@@ -2951,7 +3011,7 @@ def test_observatory_quality_detail_endpoint_returns_provider_neutral_payload(mo
 
 
 def test_observatory_logs_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/logs")
+    response = authenticated_client("admin").get("/api/observatory/logs")
 
     assert response.status_code == 200
     payload = response.json()
@@ -2961,7 +3021,7 @@ def test_observatory_logs_endpoint_returns_provider_neutral_payload() -> None:
 
 
 def test_observatory_log_facets_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/logs/facets")
+    response = authenticated_client("admin").get("/api/observatory/logs/facets")
 
     assert response.status_code == 200
     payload = response.json()
@@ -2970,7 +3030,7 @@ def test_observatory_log_facets_endpoint_returns_provider_neutral_payload() -> N
 
 
 def test_observatory_branches_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/branches")
+    response = authenticated_client("admin").get("/api/observatory/branches")
 
     assert response.status_code == 200
     payload = response.json()
@@ -2986,7 +3046,7 @@ def test_observatory_branches_endpoint_returns_provider_neutral_payload() -> Non
 
 
 def test_observatory_branch_detail_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/branches/main")
+    response = authenticated_client("admin").get("/api/observatory/branches/main")
 
     assert response.status_code == 200
     payload = response.json()
@@ -2996,7 +3056,7 @@ def test_observatory_branch_detail_endpoint_returns_provider_neutral_payload() -
 
 
 def test_observatory_extensions_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/extensions")
+    response = authenticated_client("admin").get("/api/observatory/extensions")
 
     assert response.status_code == 200
     payload = response.json()
@@ -3008,7 +3068,7 @@ def test_observatory_extensions_endpoint_returns_provider_neutral_payload() -> N
 def test_observatory_extension_detail_endpoint_returns_provider_neutral_payload(
     monkeypatch,
 ) -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     extension = ObservatoryExtension(
         id="observatory-demo",
         name="Observatory Demo",
@@ -3030,11 +3090,11 @@ def test_observatory_extension_detail_endpoint_returns_provider_neutral_payload(
 
 
 def test_observatory_extension_settings_put_reads_json_body() -> None:
-    response = TestClient(app).put(
+    response = authenticated_client("admin").put(
         "/api/observatory/extensions/not-installed/settings",
         json={"settings": {"theme": "dark"}},
     )
-    invalid = TestClient(app).put(
+    invalid = authenticated_client("admin").put(
         "/api/observatory/extensions/not-installed/settings",
         json={"theme": "dark"},
     )
@@ -3049,7 +3109,7 @@ def test_observatory_settings_endpoint_returns_provider_neutral_payload(
     monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
     monkeypatch.setenv("PHLO_COMPOSE_PROJECT", "observatory-real-stack")
 
-    response = TestClient(app).get("/api/observatory/settings")
+    response = authenticated_client("admin").get("/api/observatory/settings")
 
     assert response.status_code == 200
     payload = response.json()
@@ -3065,7 +3125,7 @@ def test_observatory_settings_endpoint_returns_provider_neutral_payload(
 
 
 def test_observatory_search_endpoint_returns_provider_neutral_payload() -> None:
-    response = TestClient(app).get("/api/observatory/search", params={"q": "gold"})
+    response = authenticated_client("admin").get("/api/observatory/search", params={"q": "gold"})
 
     assert response.status_code == 200
     payload = response.json()
@@ -3075,7 +3135,7 @@ def test_observatory_search_endpoint_returns_provider_neutral_payload() -> None:
 
 
 def test_observatory_search_endpoint_url_encodes_resource_href_segments(monkeypatch) -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
     asset = ObservatoryAsset(id="silver/demo", name="silver/demo", group="silver", kinds=["table"])
     table = ObservatoryTable(id="analytics/demo", name="demo", namespace="analytics")
     check = ObservatoryQualityCheck(
@@ -3112,7 +3172,7 @@ def test_observatory_schema_diff_returns_stable_agent_envelope(monkeypatch) -> N
     )
     monkeypatch.setattr(observatory, "_load_asset_detail", lambda asset_key: detail)
 
-    response = TestClient(app).post(
+    response = authenticated_client("admin").post(
         "/api/observatory/schemas/diff",
         json={"asset_key": "raw.orders", "from_run": "run-a", "to_run": "run-b"},
     )
@@ -3128,7 +3188,7 @@ def test_observatory_schema_diff_returns_stable_agent_envelope(monkeypatch) -> N
 
 
 def test_observatory_all_endpoints_do_not_leak_provider_url_setting_names() -> None:
-    client = TestClient(app)
+    client = authenticated_client("admin")
 
     for path in (
         "/api/observatory/overview",

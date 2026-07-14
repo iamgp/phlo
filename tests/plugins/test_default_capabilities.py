@@ -37,7 +37,8 @@ def test_discover_capabilities_registers_core_default_providers() -> None:
     authorization_specs = registry.list("authorization_policy_backend")
     maintenance_specs = registry.list("maintenance_read_model")
     observability_specs = registry.list("observability_backend")
-    assert authorization_specs == []
+    assert [spec.name for spec in authorization_specs] == ["default"]
+    assert isinstance(authorization_specs[0].provider, DefaultAuthorizationPolicyBackend)
     assert [spec.name for spec in maintenance_specs] == ["default"]
     assert isinstance(maintenance_specs[0].provider, DefaultMaintenanceReadModel)
     assert [spec.name for spec in observability_specs] == ["default"]

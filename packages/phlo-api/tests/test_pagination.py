@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
 
-from phlo_api.main import app
+from security_test_support import authenticated_client
 from phlo_api.pagination import decode_cursor, encode_cursor, paginate_items
 
 
@@ -26,7 +25,7 @@ def test_authoring_workflow_list_returns_next_cursor(monkeypatch, tmp_path) -> N
     for name in ("alpha", "beta", "gamma"):
         (workflows / f"{name}.py").write_text("# workflow\n", encoding="utf-8")
 
-    client = TestClient(app)
+    client = authenticated_client("analyst")
     first = client.get("/api/authoring/workflows?limit=2")
     second = client.get(
         "/api/authoring/workflows",

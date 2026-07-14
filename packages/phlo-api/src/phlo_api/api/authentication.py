@@ -45,7 +45,7 @@ from phlo.capabilities import (
     list_capabilities,
     resolve_capability,
 )
-from phlo.infrastructure.config import get_authentication_provider_config
+from phlo.infrastructure.config import get_configured_authentication_provider_name
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
@@ -54,13 +54,11 @@ _AUTHENTICATION_PROVIDER_ENV = "PHLO_AUTHENTICATION_PROVIDER"
 
 
 def _configured_authentication_provider_name() -> str | None:
-    """Resolve the provider name from env first, then phlo.yaml."""
-    provider_name = os.environ.get(_AUTHENTICATION_PROVIDER_ENV)
-    if provider_name is not None:
-        normalized = provider_name.strip()
-        return normalized or None
-
-    return get_authentication_provider_config()
+    """Resolve one provider name consistently with regulated validation."""
+    try:
+        return get_configured_authentication_provider_name()
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
 
 
 def get_authentication_provider() -> AuthenticationProvider | None:

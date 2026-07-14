@@ -99,24 +99,39 @@ class EnforcementContext:
         with self._init_lock:
             if self._initialized:
                 return
-            self._init_identity_bridge()
-            self._init_authorization_backend()
-            self._init_audit_emitter()
+            if self._authorization_backend is None:
+                self._init_authorization_backend()
+            if self._identity_bridge is None:
+                self._init_identity_bridge()
+            if self._audit_emitter is None:
+                self._init_audit_emitter()
             self._initialized = True
 
     def _init_identity_bridge(self) -> None:
         """Initialize the identity bridge."""
         from phlo.identity.bridge import create_regulated_bridge
 
-        self._identity_bridge = create_regulated_bridge()
+        self._identity_bridge = create_regulated_bridge(
+            canonical_rbac=getattr(self.authorization_backend, "rbac", None)
+        )
 
     def _init_authorization_backend(self) -> None:
         """Initialize the authorization backend."""
         from phlo.capabilities import resolve_capability
+        from phlo.infrastructure.config import get_configured_authorization_backend_name
 
-        result = resolve_capability("authorization_policy_backend")
+        configured_name = get_configured_authorization_backend_name() or ""
+
+        result = resolve_capability(
+            "authorization_policy_backend",
+            configured_name or None,
+        )
         if result is None:
-            msg = "No authorization_policy_backend registered"
+            msg = (
+                "Configured authorization_policy_backend is missing or ambiguous"
+                if configured_name
+                else "No authorization_policy_backend is configured"
+            )
             raise RuntimeError(msg)
         self._authorization_backend = result.provider
 
@@ -132,6 +147,8 @@ class EnforcementContext:
         if self._identity_bridge is None:
             with self._init_lock:
                 if self._identity_bridge is None:
+                    if self._authorization_backend is None:
+                        self._init_authorization_backend()
                     self._init_identity_bridge()
         return self._identity_bridge
 
@@ -154,7 +171,11 @@ class EnforcementContext:
         return self._audit_emitter
 
     def canonicalize(self, auth_principal: Any) -> Principal:
-        """Canonicalize an AuthPrincipal to a Principal via the identity bridge."""
+        """Canonicalize only a validated AuthPrincipal via the identity bridge."""
+        from phlo.capabilities.interfaces import AuthPrincipal
+
+        if not isinstance(auth_principal, AuthPrincipal):
+            raise TypeError("Core enforcement requires an AuthPrincipal")
         return self.identity_bridge.canonicalize(auth_principal)
 
 

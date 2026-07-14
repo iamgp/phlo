@@ -653,13 +653,13 @@ class ObservatoryUpstreamTableRef(BaseModel):
 class ObservatoryContributingRowsQueryRequest(BaseModel):
     """Request for a contributing-rows query."""
 
+    model_config = {"extra": "forbid"}
+
     downstream_asset_key: str
     upstream_asset_key: str
     row_data: dict[str, Any]
     limit: int | None = None
-    trino_url: str | None = None
     timeout_ms: int | None = None
-    catalog: str | None = None
 
 
 class ObservatoryContributingRowsQueryResponse(BaseModel):
@@ -672,14 +672,14 @@ class ObservatoryContributingRowsQueryResponse(BaseModel):
 class ObservatoryContributingRowsPageRequest(BaseModel):
     """Request for a page of contributing rows."""
 
+    model_config = {"extra": "forbid"}
+
     downstream_asset_key: str
     upstream_asset_key: str
     row_data: dict[str, Any]
     page: int | None = None
     page_size: int | None = None
-    trino_url: str | None = None
     timeout_ms: int | None = None
-    catalog: str | None = None
 
 
 class ObservatoryContributingRowsPageResponse(BaseModel):

@@ -37,6 +37,7 @@ class TestDagsterRegulatedSurfaceAdapter:
         actions = {op["action"] for op in operations}
         assert "asset.read" in actions
         assert "asset.execute" in actions
+        assert "asset.manage" in actions
         assert "run.read" in actions
         assert "run.execute" in actions
 
@@ -121,6 +122,7 @@ class TestSurfaceOperationMapping:
             assert op["action"] in {
                 "asset.read",
                 "asset.execute",
+                "asset.manage",
                 "run.read",
                 "run.execute",
                 "run.manage",
@@ -128,6 +130,7 @@ class TestSurfaceOperationMapping:
                 "catalog.read",
                 "catalog.manage",
                 "admin.read",
+                "admin.manage",
             }
 
     def test_graphql_operations_in_framework_metadata(self):

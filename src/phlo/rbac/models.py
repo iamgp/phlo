@@ -32,6 +32,7 @@ class CanonicalAction(StrEnum):
     DATASET_PUBLISH = "dataset.publish"
     ASSET_READ = "asset.read"
     ASSET_EXECUTE = "asset.execute"
+    ASSET_MANAGE = "asset.manage"
     ASSET_APPROVE = "asset.approve"
     SERVICE_READ = "service.read"
     SERVICE_MANAGE = "service.manage"
@@ -55,6 +56,8 @@ class CanonicalAction(StrEnum):
 class ResourceType(StrEnum):
     """Canonical resource types."""
 
+    PROJECT = "project"
+    PACKAGE = "package"
     DATASET = "dataset"
     ASSET = "asset"
     SERVICE = "service"
@@ -309,6 +312,18 @@ class CanonicalRBAC:
                 errors.append(str(e))
 
         return errors
+
+    def effective_roles_for_subject(self, subject: str, principal_type: str) -> frozenset[str]:
+        """Return assigned roles plus their inherited roles for one principal."""
+        assignments = (
+            self.roles.subjects.services
+            if principal_type in {"service", "platform"}
+            else self.roles.subjects.users
+        )
+        effective: set[str] = set()
+        for role_name in assignments.get(subject, []):
+            effective.update(self.roles.get_effective_roles(role_name))
+        return frozenset(effective)
 
 
 @dataclass(frozen=True)

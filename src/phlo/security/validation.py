@@ -25,6 +25,13 @@ PHLO_AUDIT_HMAC_KEY_ENV = "PHLO_AUDIT_HMAC_KEY"
 PHLO_SIGNATURE_HMAC_KEY_ENV = "PHLO_SIGNATURE_HMAC_KEY"
 
 
+def _project_rbac_loader() -> RBACConfigLoader:
+    """Load canonical RBAC from the same configured project as runtime startup."""
+    from phlo.infrastructure.config import _default_project_root
+
+    return RBACConfigLoader(_default_project_root() / ".phlo")
+
+
 class RegulatedValidationError(Exception):
     """Raised when regulated mode validation fails."""
 
@@ -65,30 +72,35 @@ RegulatedModeValidationReport = RegulatedValidationReport  # deprecated alias
 
 def _check_authorization_backend() -> ValidationResult:
     """Validate that an authorization backend is configured."""
-    from phlo.infrastructure.config import get_api_authorization_config
+    from phlo.capabilities import resolve_capability
+    from phlo.infrastructure.config import get_configured_authorization_backend_name
 
-    config = get_api_authorization_config()
-    backend = config.backend if config else None
-
-    if backend:
+    try:
+        backend_name = get_configured_authorization_backend_name() or ""
+    except ValueError as exc:
         return ValidationResult(
             name="authorization_backend_configured",
-            passed=True,
-            message=f"Authorization backend '{backend}' is configured",
+            passed=False,
+            message=str(exc),
+        )
+    if not backend_name:
+        return ValidationResult(
+            name="authorization_backend_configured",
+            passed=False,
+            message="No authorization backend name is configured",
         )
 
-    backend_env = os.environ.get("PHLO_AUTHORIZATION_BACKEND", "").strip()
-    if backend_env:
+    if resolve_capability("authorization_policy_backend", backend_name) is None:
         return ValidationResult(
             name="authorization_backend_configured",
-            passed=True,
-            message=f"Authorization backend '{backend_env}' is configured via environment",
+            passed=False,
+            message=f"Authorization backend {backend_name!r} is not registered",
         )
 
     return ValidationResult(
         name="authorization_backend_configured",
-        passed=False,
-        message="No authorization backend is configured. Set PHLO_AUTHORIZATION_BACKEND or configure in phlo.yaml",
+        passed=True,
+        message=f"Authorization backend {backend_name!r} is configured and registered",
     )
 
 
@@ -157,7 +169,7 @@ def _check_compliance_hmac_keys() -> ValidationResult:
 
 def _check_canonical_rbac() -> ValidationResult:
     """Validate canonical RBAC configuration exists and is valid."""
-    loader = RBACConfigLoader()
+    loader = _project_rbac_loader()
 
     try:
         roles_config = loader.load_roles()
@@ -195,7 +207,7 @@ def _check_canonical_rbac() -> ValidationResult:
 def _check_backend_coverage() -> ValidationResult:
     """Validate required backend compilers are available."""
     try:
-        loader = RBACConfigLoader()
+        loader = _project_rbac_loader()
         roles_config = loader.load_roles()
         policies_config = loader.load_policies()
         rbac = CanonicalRBAC.from_configs(roles_config, policies_config)
@@ -205,7 +217,8 @@ def _check_backend_coverage() -> ValidationResult:
             action_supported = False
             for compiler_class in COMPILER_REGISTRY.values():
                 compiler = compiler_class(backend=None)
-                if compiler.supports_action(policy.action):
+                applicability = compiler.policy_applicability(policy.action, policy.resource_type)
+                if applicability in {"trino", "surface"}:
                     action_supported = True
                     break
             if not action_supported:
@@ -234,31 +247,106 @@ def _check_backend_coverage() -> ValidationResult:
 
 def _check_identity_provider() -> ValidationResult:
     """Validate that an identity provider is configured."""
-    auth_method = os.environ.get("PHLO_AUTHENTICATION_METHOD", "").strip()
-    auth_provider = os.environ.get("PHLO_AUTHENTICATION_PROVIDER", "").strip()
+    from phlo.infrastructure.config import (
+        get_authentication_config,
+        get_configured_authentication_provider_name,
+    )
 
-    if auth_method or auth_provider:
+    try:
+        configured_name = (get_configured_authentication_provider_name() or "").lower()
+    except ValueError as exc:
         return ValidationResult(
             name="identity_provider_configured",
-            passed=True,
-            message=f"Identity provider configured ({auth_method or auth_provider})",
+            passed=False,
+            message=str(exc),
+        )
+    supported = {"proxy", "jwt", "service_token"}
+    if configured_name not in supported:
+        return ValidationResult(
+            name="identity_provider_configured",
+            passed=False,
+            message=(
+                f"Unsupported regulated identity provider {configured_name or '<missing>'!r}; "
+                f"choose one of {sorted(supported)}"
+            ),
         )
 
-    from phlo.infrastructure.config import get_authentication_provider_config
-
-    provider = get_authentication_provider_config()
-    if provider:
+    block = get_authentication_config().get(configured_name, {})
+    block = block if isinstance(block, dict) else {}
+    secret_env = {
+        "proxy": "PHLO_AUTH_PROXY_SHARED_SECRET",
+        "jwt": "PHLO_AUTH_JWT_SECRET",
+        "service_token": "PHLO_AUTH_SERVICE_TOKENS",
+    }[configured_name]
+    config_key = {"proxy": "shared_secret", "jwt": "secret", "service_token": "tokens"}[
+        configured_name
+    ]
+    if not os.environ.get(secret_env, "").strip() and not block.get(config_key):
         return ValidationResult(
             name="identity_provider_configured",
-            passed=True,
-            message=f"Identity provider configured via config ({provider})",
+            passed=False,
+            message=f"Configured regulated provider {configured_name!r} is missing {secret_env}",
+        )
+
+    if configured_name == "jwt":
+        issuer = os.environ.get("PHLO_AUTH_JWT_ISSUER", "").strip() or block.get("issuer")
+        audience = os.environ.get("PHLO_AUTH_JWT_AUDIENCE", "").strip() or block.get("audience")
+        if not isinstance(issuer, str) or not issuer.strip():
+            return ValidationResult(
+                name="identity_provider_configured",
+                passed=False,
+                message="Regulated jwt provider requires PHLO_AUTH_JWT_ISSUER",
+            )
+        if not isinstance(audience, str) or not audience.strip():
+            return ValidationResult(
+                name="identity_provider_configured",
+                passed=False,
+                message="Regulated jwt provider requires PHLO_AUTH_JWT_AUDIENCE",
+            )
+    elif configured_name == "service_token":
+        try:
+            from phlo.capabilities.authentication import _load_service_token_config
+
+            _load_service_token_config()
+        except (TypeError, ValueError) as exc:
+            return ValidationResult(
+                name="identity_provider_configured",
+                passed=False,
+                message=f"Invalid regulated service-token configuration: {exc}",
+            )
+
+    from phlo.capabilities import list_capabilities
+
+    if configured_name not in list_capabilities("authentication_provider"):
+        return ValidationResult(
+            name="identity_provider_configured",
+            passed=False,
+            message=(
+                f"Configured regulated provider {configured_name!r} is not registered; "
+                "enable its capability provider before regulated startup"
+            ),
         )
 
     return ValidationResult(
         name="identity_provider_configured",
-        passed=False,
-        message="No identity provider is configured. Set PHLO_AUTHENTICATION_METHOD or configure authentication in phlo.yaml",
+        passed=True,
+        message=f"Configured regulated identity provider: {configured_name}",
     )
+
+
+def _configured_service_names() -> list[str]:
+    """Return the selected service names from project config and environment."""
+    from phlo.cli.commands.services.utils import get_enabled_disabled_service_names
+    from phlo.infrastructure.config import _default_project_root, load_project_config
+
+    configured: set[str] = set()
+    raw_enabled = os.environ.get("PHLO_ENABLED_SERVICES", "")
+    configured.update(name.strip() for name in raw_enabled.split(",") if name.strip())
+    project = load_project_config(_default_project_root())
+    enabled, disabled = get_enabled_disabled_service_names(project)
+    configured.update(enabled)
+    configured.difference_update(disabled)
+    return sorted(configured)
 
 
 def _check_phlo_api_adapter(runtime: Any) -> ValidationResult:
@@ -433,7 +521,7 @@ def run_regulated_validation(
 
     report.add_check(_check_registered_surfaces(runtime))
 
-    service_result = validate_service_selection([])
+    service_result = validate_service_selection(_configured_service_names())
     if service_result["blocked"]:
         blocked_msgs = [b["reason"] for b in service_result["blocked"]]
         report.add_check(
@@ -551,7 +639,7 @@ def _verify_compiled_rbac(report: RegulatedValidationReport) -> None:
     from phlo.rbac.compiler import CompilerContext
 
     try:
-        rbac_loader = RBACConfigLoader()
+        rbac_loader = _project_rbac_loader()
         rbac = rbac_loader.load()
     except Exception:
         report.warnings.append("compiled_rbac_verify: could not load RBAC config")

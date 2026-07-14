@@ -101,6 +101,10 @@ class GovernanceCompiler(ABC):
             True if the compiler can handle this action.
         """
 
+    def policy_applicability(self, action: str, resource_type: str) -> str:
+        """Return whether this backend can compile a policy pair."""
+        return "backend" if self.supports_action(action) else "unsupported"
+
     @abstractmethod
     def compile(
         self,
@@ -282,15 +286,45 @@ class GovernanceCompiler(ABC):
 class TrinoCompiler(GovernanceCompiler):
     """Compiler for Trino SQL grants."""
 
+    TRINO_POLICY_PAIRS = frozenset(
+        {
+            ("dataset.read", "dataset"),
+            ("dataset.query", "dataset"),
+        }
+    )
+    SURFACE_ONLY_POLICY_PAIRS = frozenset(
+        {
+            ("dataset.query", "project"),
+            ("dataset.write", "dataset"),
+            ("dataset.publish", "dataset"),
+            ("asset.read", "asset"),
+            ("asset.execute", "asset"),
+            ("asset.manage", "asset"),
+            ("service.read", "service"),
+            ("service.manage", "service"),
+            ("admin.read", "admin"),
+            ("admin.manage", "admin"),
+            ("admin.manage", "package"),
+            ("settings.read", "settings"),
+            ("settings.manage", "settings"),
+            ("object.write", "object"),
+            ("object.write", "project"),
+            ("catalog.read", "catalog"),
+            ("catalog.manage", "catalog"),
+            ("platform_metadata.read", "platform_metadata"),
+            ("observability.read", "observability"),
+            ("maintenance.read", "maintenance"),
+            ("run.read", "run"),
+            ("run.execute", "run"),
+            ("run.manage", "run"),
+            ("run.manage", "service"),
+            ("audit.read", "audit"),
+        }
+    )
+
     ACTION_MAPPING: dict[str, tuple[str, ...]] = {
         "dataset.read": ("SELECT",),
         "dataset.query": ("SELECT",),
-        "asset.read": ("SELECT",),
-        "asset.execute": ("SELECT",),
-        "service.read": ("SELECT",),
-        "service.manage": ("ALL PRIVILEGES",),
-        "admin.read": ("SELECT",),
-        "admin.manage": ("ALL PRIVILEGES",),
     }
 
     def __init__(self, backend: GovernanceBackend | None = None):
@@ -302,6 +336,15 @@ class TrinoCompiler(GovernanceCompiler):
 
     def supports_action(self, action: str) -> bool:
         return action in self.ACTION_MAPPING
+
+    def policy_applicability(self, action: str, resource_type: str) -> str:
+        """Return whether a policy is SQL-backed, surface-only, or invalid."""
+        pair = (action, resource_type)
+        if pair in self.TRINO_POLICY_PAIRS:
+            return "trino"
+        if pair in self.SURFACE_ONLY_POLICY_PAIRS:
+            return "surface"
+        return "unsupported"
 
     def _encode_revert_id(self, artifact_name: str) -> str:
         """Encode a Trino artifact name into a reversible revert ID."""
@@ -336,10 +379,15 @@ class TrinoCompiler(GovernanceCompiler):
         artifacts: list[BackendArtifact] = []
 
         for policy in rbac.policies.policies:
-            self._ensure_supported_policy_effect(policy)
-
-            if not self.supports_action(policy.action):
+            applicability = self.policy_applicability(policy.action, policy.resource_type)
+            if applicability == "surface":
                 continue
+            if applicability == "unsupported":
+                raise ValueError(
+                    f"Trino cannot compile policy {policy.policy_id!r} for "
+                    f"{policy.action}/{policy.resource_type}"
+                )
+            self._ensure_supported_policy_effect(policy)
 
             privileges = self.ACTION_MAPPING.get(policy.action, ())
 
