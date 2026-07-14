@@ -66,6 +66,7 @@ from phlo.capabilities import (
     MaintenanceOperationResult,
     MaintenanceOperationState,
     MaintenancePreconditionError,
+    SAFE_MIN_RETENTION_HOURS,
 )
 from phlo.capabilities.interfaces import MaintenanceExecutor
 from phlo.capabilities.interfaces import TableStoreSupport
@@ -86,7 +87,6 @@ from phlo_iceberg.tables import (
 logger = get_logger(__name__)
 
 _COMPACTION_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-SAFE_MIN_RETENTION_HOURS = 7 * 24
 DEFAULT_MAX_AFFECTED_OBJECTS = 1_000
 DEFAULT_MAX_AFFECTED_BYTES = 10 * 1024 * 1024 * 1024
 

@@ -110,6 +110,7 @@ from phlo.capabilities.interfaces import (
     WorkflowAuthoringProvider,
 )
 from phlo.capabilities.maintenance import (
+    SAFE_MIN_RETENTION_HOURS,
     DefaultMaintenanceReadModel,
     MaintenanceExecutionError,
     MaintenanceExecutionPhase,
@@ -236,6 +237,7 @@ __all__ = [
     "MaintenanceOperationStatus",
     "MaintenanceReadModelSpec",
     "MaintenanceStatusSnapshot",
+    "SAFE_MIN_RETENTION_HOURS",
     "MaterializeResult",
     "MetadataCatalogSpec",
     "NormalizedSchema",

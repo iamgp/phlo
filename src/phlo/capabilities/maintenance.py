@@ -13,6 +13,7 @@ from phlo.capabilities.telemetry import get_telemetry_path, iter_telemetry_event
 from phlo.logging import get_logger
 
 MAINTENANCE_COMPLETE_EVENT = "iceberg.maintenance.complete"
+SAFE_MIN_RETENTION_HOURS = 7 * 24
 logger = get_logger(__name__)
 
 

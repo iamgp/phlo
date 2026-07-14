@@ -45,6 +45,7 @@ from pyiceberg.exceptions import TableAlreadyExistsError
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 
+from phlo.capabilities import SAFE_MIN_RETENTION_HOURS
 from phlo.logging import get_logger
 from phlo_iceberg.catalog import create_namespace, get_catalog
 
@@ -56,7 +57,6 @@ warnings.filterwarnings(
 )
 
 logger = get_logger(__name__)
-SAFE_MIN_RETENTION_HOURS = 7 * 24
 
 
 def _align_arrow_table_to_target_schema(arrow_table, target_schema, *, table_name: str):
@@ -919,7 +919,7 @@ def remove_orphan_files(
 
     Args:
         table_name: Fully qualified table name (namespace.table)
-            older_than_days: Only remove files older than this many days (must be positive).
+        older_than_days: Only remove files older than this many days (must be positive).
             Mutually exclusive with ``older_than_hours``; defaults to 7 when neither is set.
         dry_run: If True, only list files without deleting
         ref: Nessie branch reference

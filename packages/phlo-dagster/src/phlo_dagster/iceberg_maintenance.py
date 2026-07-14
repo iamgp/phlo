@@ -240,6 +240,7 @@ def expire_table_snapshots(
         errors=errors,
         tables_processed=tables_processed,
         snapshots_deleted=total_snapshots_deleted,
+        total_candidate_snapshots=total_candidate_snapshots,
     )
     summary_payload.update(
         {

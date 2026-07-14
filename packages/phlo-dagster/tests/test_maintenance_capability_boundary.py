@@ -22,6 +22,7 @@ class FakeMaintenanceRetentionStore:
             "catalog": "iceberg",
             "retention_hours": 168,
             "before_snapshot_id": 41,
+            "candidate_snapshots": [{"snapshot_id": 40}],
             "candidate_files": [{"path": "orphan.parquet", "size_bytes": 100}],
             "protected_snapshot_ids": [41],
             "table_snapshot_refs": {},
@@ -139,3 +140,35 @@ def test_orphan_execute_uses_plan_result_and_refuses_without_executor(monkeypatc
     warning_messages = [call.args[0] for call in context.log.warning.call_args_list]
     assert any("no provider deletion is submitted" in message for message in warning_messages)
     assert any("only a threshold" in message for message in warning_messages)
+
+
+def test_snapshot_expiry_completion_telemetry_includes_candidate_count(monkeypatch) -> None:
+    """Completion telemetry records every snapshot identified by planning."""
+    store = FakeMaintenanceRetentionStore()
+    finish = MagicMock(return_value={"status": "success"})
+    monkeypatch.setattr(
+        iceberg_maintenance,
+        "resolve_capability",
+        lambda capability_type, name: MagicMock(provider=store),
+    )
+    monkeypatch.setattr(iceberg_maintenance, "resolve_namespaces", lambda config: ["raw"])
+    monkeypatch.setattr(
+        iceberg_maintenance,
+        "list_tables",
+        lambda namespace, ref: ["raw.events"],
+    )
+    monkeypatch.setattr(
+        iceberg_maintenance,
+        "start_maintenance_op",
+        MagicMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(iceberg_maintenance, "finish_maintenance_op", finish)
+    context = MagicMock(run_id="run-1", job_name="maintenance")
+
+    result = iceberg_maintenance.expire_table_snapshots.compute_fn.decorated_fn(
+        context,
+        MaintenanceConfig(namespace="raw", ref="main", dry_run=True, catalog="iceberg"),
+    )
+
+    assert finish.call_args.kwargs["total_candidate_snapshots"] == 1
+    assert result["total_candidate_snapshots"] == 1
