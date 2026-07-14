@@ -51,14 +51,23 @@ from phlo.logging import get_logger
 logger = get_logger(__name__)
 
 _AUTHENTICATION_PROVIDER_ENV = "PHLO_AUTHENTICATION_PROVIDER"
+_AUTHENTICATION_METHOD_ENV = "PHLO_AUTHENTICATION_METHOD"
 
 
 def _configured_authentication_provider_name() -> str | None:
-    """Resolve the provider name from env first, then phlo.yaml."""
+    """Resolve one provider name consistently with regulated validation."""
+    method_name = os.environ.get(_AUTHENTICATION_METHOD_ENV, "").strip()
     provider_name = os.environ.get(_AUTHENTICATION_PROVIDER_ENV)
+    normalized_provider = provider_name.strip() if provider_name is not None else ""
+    if method_name and normalized_provider and method_name.lower() != normalized_provider.lower():
+        raise RuntimeError(
+            f"Conflicting authentication settings: {_AUTHENTICATION_METHOD_ENV} and "
+            f"{_AUTHENTICATION_PROVIDER_ENV} must match"
+        )
+    if method_name:
+        return method_name
     if provider_name is not None:
-        normalized = provider_name.strip()
-        return normalized or None
+        return normalized_provider or None
 
     return get_authentication_provider_config()
 

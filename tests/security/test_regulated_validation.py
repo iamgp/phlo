@@ -64,6 +64,18 @@ def test_regulated_validation_rejects_missing_provider_settings(monkeypatch) -> 
     assert "PHLO_AUTH_PROXY_SHARED_SECRET" in result.message
 
 
+def test_regulated_validation_rejects_conflicting_identity_provider_settings(monkeypatch) -> None:
+    from phlo.security.validation import _check_identity_provider
+
+    monkeypatch.setenv("PHLO_AUTHENTICATION_METHOD", "proxy")
+    monkeypatch.setenv("PHLO_AUTHENTICATION_PROVIDER", "jwt")
+
+    result = _check_identity_provider()
+
+    assert result.passed is False
+    assert "Conflicting regulated identity provider settings" in result.message
+
+
 def test_regulated_validation_rejects_unregistered_provider(monkeypatch) -> None:
     from phlo.security.validation import _check_identity_provider
 
@@ -105,12 +117,19 @@ def test_regulated_validation_requires_registered_authorization_backend(monkeypa
 
 
 def test_regulated_validation_inspects_selected_services(monkeypatch) -> None:
+    from phlo.security.gating import validate_service_selection
     from phlo.security.validation import _configured_service_names
 
     monkeypatch.setenv("PHLO_ENABLED_SERVICES", "phlo-api,pgweb")
     monkeypatch.setattr("phlo.infrastructure.config.load_project_config", lambda _root: {})
 
     assert _configured_service_names() == ["pgweb", "phlo-api"]
+    selection = validate_service_selection(["future-service"], regulated=True)
+    assert selection["unknown"] == ["future-service"]
+    assert selection["blocked"] == [
+        {"service": "future-service", "reason": "Not a known approved regulated entry point"}
+    ]
+    assert selection["allowed"] == []
 
 
 def test_regulated_validation_reads_services_from_configured_project_root(monkeypatch) -> None:

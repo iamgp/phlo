@@ -161,6 +161,10 @@ def check_service_allowed(service_name: str, regulated: bool | None = None) -> N
             service=service_name,
             approved=sorted(APPROVED_SERVICES),
         )
+        raise UnsupportedSurfaceError(
+            surface=service_name,
+            reason=f"'{service_name}' is not a known approved regulated entry point.",
+        )
 
 
 def is_service_allowed(service_name: str, regulated: bool | None = None) -> bool:
@@ -313,7 +317,9 @@ def validate_service_selection(
             result["allowed"].append(service)
         elif normalized not in APPROVED_SERVICES:
             result["unknown"].append(service)
-            result["allowed"].append(service)
+            result["blocked"].append(
+                {"service": service, "reason": "Not a known approved regulated entry point"}
+            )
         else:
             result["allowed"].append(service)
 

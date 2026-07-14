@@ -91,6 +91,16 @@ authentication:
     assert get_authentication_provider() is provider
 
 
+def test_authentication_method_and_provider_must_match(monkeypatch) -> None:
+    from phlo_api.api.authentication import get_authentication_provider
+
+    monkeypatch.setenv("PHLO_AUTHENTICATION_METHOD", "proxy")
+    monkeypatch.setenv("PHLO_AUTHENTICATION_PROVIDER", "jwt")
+
+    with pytest.raises(RuntimeError, match="Conflicting authentication settings"):
+        get_authentication_provider()
+
+
 def test_phlo_api_has_forward_auth_middleware() -> None:
     """Verify phlo-api declares forwardAuth middleware for oauth2-proxy.
 

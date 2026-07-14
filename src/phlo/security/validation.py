@@ -246,6 +246,15 @@ def _check_identity_provider() -> ValidationResult:
     configured_name = (
         auth_method or auth_provider or get_authentication_provider_config() or ""
     ).lower()
+    if auth_method and auth_provider and auth_method.lower() != auth_provider.lower():
+        return ValidationResult(
+            name="identity_provider_configured",
+            passed=False,
+            message=(
+                "Conflicting regulated identity provider settings: "
+                "PHLO_AUTHENTICATION_METHOD and PHLO_AUTHENTICATION_PROVIDER must match"
+            ),
+        )
     supported = {"proxy", "jwt", "service_token"}
     if configured_name not in supported:
         return ValidationResult(
