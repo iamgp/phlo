@@ -11,8 +11,10 @@ def test_phlo_api_main_import_does_not_load_phlo_observatory() -> None:
     for name in list(sys.modules):
         if name.startswith("phlo_observatory"):
             sys.modules.pop(name, None)
-    sys.modules.pop("phlo_api.main", None)
-
+    # Keep the already-loaded application module intact. Removing it from
+    # sys.modules creates a second `phlo_api.main` module while FastAPI route
+    # handlers still reference the first one, which makes later monkeypatches
+    # target the wrong module object.
     importlib.import_module("phlo_api.main")
 
     assert not any(name.startswith("phlo_observatory") for name in sys.modules)

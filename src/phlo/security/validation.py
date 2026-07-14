@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 from contextlib import suppress
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 from phlo.logging import get_logger
@@ -296,12 +295,12 @@ def _check_identity_provider() -> ValidationResult:
 
 def _configured_service_names() -> list[str]:
     """Return the selected service names from project config and environment."""
-    from phlo.infrastructure.config import load_project_config
+    from phlo.infrastructure.config import _default_project_root, load_project_config
 
     configured: set[str] = set()
     raw_enabled = os.environ.get("PHLO_ENABLED_SERVICES", "")
     configured.update(name.strip() for name in raw_enabled.split(",") if name.strip())
-    project = load_project_config(Path.cwd())
+    project = load_project_config(_default_project_root())
     services = project.get("services", {}) if isinstance(project, dict) else {}
     if not isinstance(services, dict):
         return sorted(configured)

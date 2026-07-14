@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from phlo.security.validation import run_regulated_validation
 
 
@@ -109,3 +111,19 @@ def test_regulated_validation_inspects_selected_services(monkeypatch) -> None:
     monkeypatch.setattr("phlo.infrastructure.config.load_project_config", lambda _root: {})
 
     assert _configured_service_names() == ["pgweb", "phlo-api"]
+
+
+def test_regulated_validation_reads_services_from_configured_project_root(monkeypatch) -> None:
+    from phlo.security.validation import _configured_service_names
+
+    project_root = Path("/configured/project")
+    observed: list[Path] = []
+
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(project_root))
+    monkeypatch.setattr(
+        "phlo.infrastructure.config.load_project_config",
+        lambda root: observed.append(root) or {"services": {"enabled": ["openmetadata"]}},
+    )
+
+    assert _configured_service_names() == ["openmetadata"]
+    assert observed == [project_root.resolve()]
