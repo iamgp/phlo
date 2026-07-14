@@ -58,6 +58,18 @@ def _parse_timestamp(value: Any) -> datetime | None:
     return None
 
 
+def _canonical_timestamp(value: Any) -> str | None:
+    """Return one UTC ISO-8601 representation for every SQL timestamp value."""
+    if value is None:
+        return None
+    parsed = _parse_timestamp(value)
+    if parsed is None:
+        return str(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC).isoformat()
+
+
 def _json(value: Any) -> str:
     return canonical_json(value)
 
@@ -101,6 +113,20 @@ _JSON_ROW_FIELDS: dict[str, dict[str, type]] = {
 _BOOLEAN_ROW_FIELDS = {
     "run_quality_result": {"blocking", "passed"},
     "run_artifact": {"legal_hold"},
+}
+_TIMESTAMP_ROW_FIELDS = {
+    "pipeline_run": {
+        "started_at",
+        "finished_at",
+        "created_at",
+        "updated_at",
+        "last_heartbeat_at",
+        "reconciled_at",
+    },
+    "run_event": {"observed_at", "created_at"},
+    "run_stage": {"started_at", "finished_at"},
+    "run_artifact": {"expires_at"},
+    "run_reconciliation_decision": {"heartbeat_at", "decided_at", "finished_at"},
 }
 
 
@@ -1351,6 +1377,8 @@ class _SqlRunEvidenceStore:
         for field in _BOOLEAN_ROW_FIELDS.get(table, set()):
             if result.get(field) is not None:
                 result[field] = bool(result[field])
+        for field in _TIMESTAMP_ROW_FIELDS.get(table, set()):
+            result[field] = _canonical_timestamp(result.get(field))
         return result
 
     @staticmethod

@@ -139,6 +139,7 @@ def _insert_v2_fixture_rows(store: object) -> dict[str, object]:
         artifact_id="legacy-artifact",
         attempt=attempt,
         artifact_kind="report",
+        expires_at=datetime(2026, 7, 15, 1, 2, 3, tzinfo=UTC),
         legal_hold=True,
     )
     event_payload = {"legacy": True}
@@ -162,6 +163,17 @@ def _insert_v2_fixture_rows(store: object) -> dict[str, object]:
             finished_at=datetime.fromisoformat(observed_at),
         )
     )
+    stage = RunStage(
+        project_id=project_id,
+        run_id=run_id,
+        stage_id="legacy-stage",
+        stage_type="ingestion",
+        attempt=attempt,
+        status="success",
+        started_at=datetime(2026, 7, 1, 1, 2, 3, tzinfo=UTC),
+        finished_at=datetime(2026, 7, 1, 1, 3, 4, tzinfo=UTC),
+    )
+    store.append_stage(stage)
     with store._transaction() as (_, cursor):
         p = store.placeholder
         cursor.execute(
@@ -238,14 +250,15 @@ def _insert_v2_fixture_rows(store: object) -> dict[str, object]:
         )
         cursor.execute(
             f"INSERT INTO {store._table('run_artifact')} "
-            "(artifact_id, project_id, run_id, attempt, artifact_kind, legal_hold, status, "
-            "record_checksum) VALUES (" + ", ".join([p] * 8) + ")",
+            "(artifact_id, project_id, run_id, attempt, artifact_kind, expires_at, legal_hold, status, "
+            "record_checksum) VALUES (" + ", ".join([p] * 9) + ")",
             (
                 artifact.artifact_id,
                 project_id,
                 run_id,
                 attempt,
                 artifact.artifact_kind,
+                artifact.expires_at.isoformat() if artifact.expires_at else None,
                 artifact.legal_hold,
                 artifact.status.value,
                 artifact_checksum,
@@ -260,6 +273,7 @@ def _insert_v2_fixture_rows(store: object) -> dict[str, object]:
         "catalog": catalog,
         "quality": quality,
         "artifact": artifact,
+        "stage": stage,
     }
 
 
@@ -277,6 +291,64 @@ def _assert_public_record_shapes(store: object, fixture: dict[str, object]) -> N
     assert quality["blocking"] is True
     assert quality["passed"] is True
     assert artifact["legal_hold"] is True
+    assert artifact["expires_at"] == "2026-07-15T01:02:03+00:00"
+
+
+def _timestamp_projection(store: object, fixture: dict[str, object]) -> dict[str, object]:
+    """Select explicit timestamp fields whose values must match across drivers."""
+    project_id = fixture["project_id"]
+    run_id = fixture["run_id"]
+    attempt = fixture["attempt"]
+    with store._transaction() as (_, cursor):
+        cursor.execute(
+            f"SELECT * FROM {store._table('run_stage')} "
+            f"WHERE project_id = {store.placeholder} AND run_id = {store.placeholder} "
+            f"AND attempt = {store.placeholder}",
+            (project_id, run_id, attempt),
+        )
+        stage = store._row_dict(cursor, cursor.fetchone(), table="run_stage")
+    run = store.get_run(project_id, run_id)
+    event = store.list_events(project_id, run_id)[0]
+    artifact = store.list_artifacts(project_id, run_id, attempt=attempt)[0]
+    return {
+        "run": {field: run[field] for field in ("started_at", "finished_at")},
+        "event": {field: event[field] for field in ("observed_at",)},
+        "stage": {field: stage[field] for field in ("started_at", "finished_at")},
+        "artifact": {field: artifact[field] for field in ("expires_at",)},
+        "nullable": {
+            "run_finished_at": None if run["finished_at"] is None else run["finished_at"],
+            "stage_started_at": stage["started_at"],
+            "artifact_expires_at": artifact["expires_at"],
+        },
+    }
+
+
+def _assert_nullable_public_timestamps(store: object, fixture: dict[str, object]) -> None:
+    project_id = fixture["project_id"]
+    run_id = fixture["run_id"]
+    with store._transaction() as (_, cursor):
+        for table, field in (
+            ("pipeline_run", "finished_at"),
+            ("run_stage", "started_at"),
+            ("run_artifact", "expires_at"),
+        ):
+            cursor.execute(
+                f"UPDATE {store._table(table)} SET {field} = NULL "
+                f"WHERE project_id = {store.placeholder} AND run_id = {store.placeholder}",
+                (project_id, run_id),
+            )
+    assert store.get_run(project_id, run_id)["finished_at"] is None
+    assert (
+        store.list_artifacts(project_id, run_id, attempt=fixture["attempt"])[0]["expires_at"]
+        is None
+    )
+    with store._transaction() as (_, cursor):
+        cursor.execute(
+            f"SELECT * FROM {store._table('run_stage')} "
+            f"WHERE project_id = {store.placeholder} AND run_id = {store.placeholder}",
+            (project_id, run_id),
+        )
+        assert store._row_dict(cursor, cursor.fetchone(), table="run_stage")["started_at"] is None
 
 
 def _fixture_checksums(store: object) -> dict[str, str]:
@@ -1612,6 +1684,17 @@ def test_true_v2_to_v3_upgrade_is_idempotent_and_compatible(tmp_path) -> None:
     assert len(store.list_lineage_edges(fixture["project_id"], fixture["run_id"], attempt=1)) == 1
     assert len(store.list_lineage_edges(fixture["project_id"], fixture["run_id"], attempt=2)) == 1
     _assert_public_record_shapes(store, fixture)
+    projection = _timestamp_projection(store, fixture)
+    assert projection["run"] == {
+        "started_at": "2026-07-01T00:00:00+00:00",
+        "finished_at": "2026-07-01T00:00:00+00:00",
+    }
+    assert projection["event"] == {"observed_at": "2026-07-01T00:00:00+00:00"}
+    assert projection["stage"] == {
+        "started_at": "2026-07-01T01:02:03+00:00",
+        "finished_at": "2026-07-01T01:03:04+00:00",
+    }
+    _assert_nullable_public_timestamps(store, fixture)
 
 
 def test_true_v2_to_v3_upgrade_is_idempotent_and_compatible_postgres() -> None:
@@ -1682,7 +1765,13 @@ def test_true_v2_to_v3_upgrade_is_idempotent_and_compatible_postgres() -> None:
             store.append_resource(replace(fixture["resource"], uri="https://changed.example"))
         with pytest.raises(IdempotencyConflict):
             store.append_catalog_change(replace(fixture["catalog"], quality_decision_id="forged"))
+        baseline = _make_sqlite_v2_store(Path(":memory:"))
+        baseline_fixture = _insert_v2_fixture_rows(baseline)
+        assert _timestamp_projection(store, fixture) == _timestamp_projection(
+            baseline, baseline_fixture
+        )
         _assert_public_record_shapes(store, fixture)
+        _assert_nullable_public_timestamps(store, fixture)
     finally:
         connection = store._connect()
         try:
