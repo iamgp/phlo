@@ -60,10 +60,11 @@ from phlo.capabilities import (
 )
 from phlo.logging import get_logger
 
-from phlo_dagster.iceberg_maintenance_utils import list_tables
 from phlo_dagster.iceberg_maintenance_utils import (
     MaintenanceConfig,
     finish_maintenance_op,
+    list_tables,
+    resolve_maintenance_discovery,
     start_maintenance_op,
 )
 from phlo_dagster.maintenance_policy import (
@@ -98,26 +99,8 @@ def _validate_table_name(table_name: str) -> str:
 
 
 def _load_iceberg_stats() -> Any:
-    """Load get_table_stats lazily for optional integration support.
-
-    Args:
-        None
-
-    Returns:
-        get_table_stats function.
-
-    Raises:
-        RuntimeError: If phlo-iceberg package is not available.
-
-    """
-    try:
-        from phlo_iceberg.tables import get_table_stats
-    except Exception as exc:  # noqa: BLE001 - runtime guidance for optional dependency
-        raise RuntimeError(
-            "Iceberg maintenance requires phlo-iceberg. Install phlo-dagster[iceberg] "
-            "or phlo-iceberg."
-        ) from exc
-    return get_table_stats
+    """Resolve table statistics through the neutral maintenance contract."""
+    return resolve_maintenance_discovery().get_table_stats
 
 
 def _load_optimize_query_engine() -> QueryEngine:

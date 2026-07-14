@@ -551,6 +551,18 @@ Optional extended operations:
 - `rollback_to_snapshot(...)`
 - `vacuum(...)`
 
+### MaintenanceRetentionStore
+
+Optional plan-first retention capability resolved separately from the base table
+store. Providers return an exact plan token and structured evidence for
+`expire_snapshots(...)` and `cleanup_orphan_files(...)`; a controller must not
+assume that a provider's threshold-only procedure enforces the plan's object or
+byte limits.
+
+Maintenance discovery and table statistics are resolved through the neutral
+`table_store` capability's optional discovery contract, so Dagster does not
+import a provider package to enumerate tables or collect statistics.
+
 ### GovernanceBackend
 
 Policy contract for governance providers:

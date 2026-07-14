@@ -175,7 +175,11 @@ def test_maintenance_sensor_run_config_shape() -> None:
         requests = list(maintenance_policy_sensor._raw_fn(context))
 
     for request in requests:
-        config_dict = request.run_config.to_config_dict()
+        config_dict = (
+            request.run_config.to_config_dict()
+            if hasattr(request.run_config, "to_config_dict")
+            else request.run_config
+        )
         op_name = next(iter(config_dict["ops"].keys()))
         assert "config" in config_dict["ops"][op_name]
 

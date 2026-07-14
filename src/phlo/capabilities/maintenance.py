@@ -13,6 +13,7 @@ from phlo.capabilities.telemetry import get_telemetry_path, iter_telemetry_event
 from phlo.logging import get_logger
 
 MAINTENANCE_COMPLETE_EVENT = "iceberg.maintenance.complete"
+SAFE_MIN_RETENTION_HOURS = 7 * 24
 logger = get_logger(__name__)
 
 
@@ -64,6 +65,7 @@ class MaintenanceOperationResult:
     evidence: dict[str, Any] = field(default_factory=dict)
     failure: dict[str, Any] | None = None
     operation_id: str | None = None
+    plan_token: str | None = None
     retry_safe: bool = False
 
     def to_dict(self) -> dict[str, Any]:
@@ -83,6 +85,7 @@ class MaintenanceOperationResult:
             "evidence": self.evidence,
             "failure": self.failure,
             "operation_id": self.operation_id,
+            "plan_token": self.plan_token,
             "retry_safe": self.retry_safe,
         }
 

@@ -296,6 +296,63 @@ class MaintenanceExecutor(Protocol):
 
 
 @runtime_checkable
+class MaintenanceRetentionStore(Protocol):
+    """Provider-neutral plan/execute contract for retention maintenance."""
+
+    def expire_snapshots(
+        self,
+        *,
+        table_name: str,
+        override_ref: str | None = None,
+        catalog: str | None = None,
+        dry_run: bool = True,
+        retention_hours: int,
+        retain_last: int,
+        expected_snapshot_id: int | str | None = None,
+        confirmation_token: str | None = None,
+        max_affected_objects: int | None = None,
+        max_affected_bytes: int | None = None,
+        operation_id: str | None = None,
+    ) -> dict[str, object]:
+        """Plan or execute guarded snapshot expiration."""
+        ...
+
+    def cleanup_orphan_files(
+        self,
+        *,
+        table_name: str,
+        override_ref: str | None = None,
+        catalog: str | None = None,
+        dry_run: bool = True,
+        retention_hours: int,
+        expected_snapshot_id: int | str | None = None,
+        confirmation_token: str | None = None,
+        max_affected_objects: int | None = None,
+        max_affected_bytes: int | None = None,
+        operation_id: str | None = None,
+    ) -> dict[str, object]:
+        """Plan or execute guarded orphan-file cleanup."""
+        ...
+
+
+@runtime_checkable
+class MaintenanceDiscovery(Protocol):
+    """Provider-neutral catalog discovery and table-statistics contract."""
+
+    def list_tables(self, *, namespace: str, ref: str) -> list[str]:
+        """List fully qualified tables in a namespace and reference."""
+        ...
+
+    def list_namespaces(self, *, ref: str) -> list[str]:
+        """List namespaces visible on a reference."""
+        ...
+
+    def get_table_stats(self, *, table_name: str, ref: str) -> dict[str, Any]:
+        """Return normalized maintenance statistics for one table."""
+        ...
+
+
+@runtime_checkable
 class MaintenanceTableStore(Protocol):
     """Provider-neutral table-store contract for planned compaction."""
 

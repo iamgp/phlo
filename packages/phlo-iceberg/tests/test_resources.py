@@ -73,7 +73,7 @@ class TestResourcesUnitTests:
             {"identity", "day", "hour", "month", "year"}
         )
         assert support.supports_snapshots is True
-        assert support.supports_vacuum is True
+        assert support.supports_vacuum is False
         assert support.supports_compaction is True
 
     @patch("phlo_trino.resource.connect")
