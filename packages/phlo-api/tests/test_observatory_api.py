@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from phlo.capabilities.registry import CapabilityRegistry
 from phlo.capabilities.specs import CatalogSpec
 from phlo_api.main import app
-from .security_test_support import authenticated_client
+from security_test_support import authenticated_client
 from phlo_api.observatory_api import observatory
 from phlo_api.observatory_api import observatory_services
 from phlo_api.observatory_api.observatory import (

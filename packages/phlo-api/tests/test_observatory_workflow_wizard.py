@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from phlo.capabilities import WorkflowFilePreview, WorkflowProposal
 from phlo_api.main import app
-from .security_test_support import authenticated_client
+from security_test_support import authenticated_client
 from phlo_api.observatory_api import observatory
 from phlo_api.observatory_api import observatory_workflow_wizard as wizard
 

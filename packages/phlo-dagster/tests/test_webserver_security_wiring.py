@@ -18,7 +18,12 @@ from starlette.routing import WebSocketRoute
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from phlo_dagster.authorization import validate_graphql_schema
+from phlo_dagster.authorization import (
+    extract_dagster_run_id_from_log_key,
+    extract_dagster_run_id_from_log_path,
+    resolve_graphql_operation,
+    validate_graphql_schema,
+)
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
 from phlo_dagster.webserver import (
     DagsterHTTPAuthenticationASGI,
@@ -155,6 +160,71 @@ def test_inherited_http_route_enforces_before_handler(
 
     assert response.status_code == status_code
     assert called is (status_code == 200)
+
+
+def test_dagster_log_keys_bind_http_authorization_to_the_run_before_handler(monkeypatch) -> None:
+    assert (
+        extract_dagster_run_id_from_log_key(["run-allowed", "compute_logs", "step"])
+        == "run-allowed"
+    )
+    assert (
+        extract_dagster_run_id_from_log_path("run-allowed/compute_logs/step/stdout")
+        == "run-allowed"
+    )
+    assert extract_dagster_run_id_from_log_key(["run-allowed", "events", "step"]) is None
+    assert extract_dagster_run_id_from_log_path("run-allowed/not-compute-logs/step/stdout") is None
+
+    calls: list[str] = []
+    called_runs: list[str] = []
+
+    async def endpoint(request):  # noqa: ANN001
+        called_runs.append(request.path_params["path"])
+        return JSONResponse({"ok": True})
+
+    downstream = Starlette(routes=[Route("/logs/{path:path}", endpoint, name="dagster_logs")])
+    middleware = MagicMock()
+    middleware._extract_principal.return_value = AuthPrincipal(
+        subject="viewer", principal_type="user"
+    )
+
+    def enforce(**kwargs):  # noqa: ANN003
+        calls.append(kwargs["resource"].resource_id)
+        if kwargs["resource"].resource_id == "runId=run-allowed":
+            return EnforcementResult.allow()
+        return EnforcementResult.deny(reason_code="default_deny")
+
+    monkeypatch.setattr("phlo.security.enforce", enforce)
+    secured = DagsterHTTPAuthenticationASGI(downstream, middleware, downstream.routes)
+
+    with TestClient(secured) as client:
+        allowed = client.get("/logs/run-allowed/compute_logs/step/stdout")
+        denied = client.get("/logs/run-other/compute_logs/step/stdout")
+        malformed = client.get("/logs/run-allowed/not-compute-logs/step/stdout")
+
+    assert allowed.status_code == 200
+    assert denied.status_code == 403
+    assert malformed.status_code == 403
+    assert calls == ["runId=run-allowed", "runId=run-other"]
+    assert called_runs == ["run-allowed/compute_logs/step/stdout"]
+
+
+def test_dagster_graphql_captured_logs_bind_log_key_to_one_run() -> None:
+    middleware = DagsterGraphQLAuthorizationMiddleware.__new__(
+        DagsterGraphQLAuthorizationMiddleware
+    )
+    spec = resolve_graphql_operation("query", "capturedLogs")
+
+    assert middleware._graphql_resource_ids(
+        spec,
+        "capturedLogs",
+        {"logKey": ["run-allowed", "compute_logs", "step"]},
+    ) == ["runId=run-allowed"]
+    with pytest.raises(Exception, match="Malformed or ambiguous"):
+        middleware._graphql_resource_ids(
+            spec,
+            "capturedLogs",
+            {"logKey": ["run-other", "events", "step"]},
+        )
 
 
 def test_ordinary_generated_dagster_service_keeps_oidc_optional(monkeypatch) -> None:

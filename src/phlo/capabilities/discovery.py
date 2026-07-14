@@ -27,7 +27,14 @@ def discover_capabilities() -> None:
     """Discover capability providers and register their specs."""
     logger.info("capability_discovery_started")
     register_default_authentication_providers()
-    register_default_authorization_providers()
+    from phlo.infrastructure.config import _default_project_root
+    from phlo.rbac.config import RBACConfigLoader
+
+    try:
+        canonical_rbac = RBACConfigLoader(_default_project_root() / ".phlo").load()
+    except (FileNotFoundError, ValueError):
+        canonical_rbac = None
+    register_default_authorization_providers(rbac=canonical_rbac)
     register_default_observability_providers()
     discover_plugins(plugin_type="asset_provider", auto_register=True)
     discover_plugins(plugin_type="resource_provider", auto_register=True)

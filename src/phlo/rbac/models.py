@@ -313,6 +313,18 @@ class CanonicalRBAC:
 
         return errors
 
+    def effective_roles_for_subject(self, subject: str, principal_type: str) -> frozenset[str]:
+        """Return assigned roles plus their inherited roles for one principal."""
+        assignments = (
+            self.roles.subjects.services
+            if principal_type in {"service", "platform"}
+            else self.roles.subjects.users
+        )
+        effective: set[str] = set()
+        for role_name in assignments.get(subject, []):
+            effective.update(self.roles.get_effective_roles(role_name))
+        return frozenset(effective)
+
 
 @dataclass(frozen=True)
 class BackendArtifact:

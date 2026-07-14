@@ -9,7 +9,7 @@ Per TEST_STRATEGY.md Level 2 (Functional):
 from unittest.mock import patch
 
 import pytest
-from .security_test_support import authenticated_client
+from security_test_support import authenticated_client
 
 pytestmark = pytest.mark.integration
 

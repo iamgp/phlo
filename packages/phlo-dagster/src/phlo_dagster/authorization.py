@@ -24,6 +24,7 @@ Route vs Operation Granularity:
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
 
 from phlo.capabilities import (
@@ -47,6 +48,50 @@ ACTION_CATALOG_MANAGE = CanonicalAction.CATALOG_MANAGE.value
 ACTION_SERVICE_READ = CanonicalAction.SERVICE_READ.value
 ACTION_ADMIN_READ = CanonicalAction.ADMIN_READ.value
 ACTION_ADMIN_MANAGE = CanonicalAction.ADMIN_MANAGE.value
+
+_DAGSTER_LOG_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]*$")
+
+
+def _valid_log_component(value: Any) -> bool:
+    """Return whether a Dagster log-key path component is safe and non-empty."""
+    return (
+        isinstance(value, str)
+        and bool(value)
+        and value not in {".", ".."}
+        and "/" not in value
+        and "\\" not in value
+    )
+
+
+def extract_dagster_run_id_from_log_key(log_key: Any) -> str | None:
+    """Extract the run ID from Dagster's captured-compute-log key grammar.
+
+    Dagster's ``build_log_key_for_run`` emits ``[run_id, "compute_logs", step_key]``.
+    The first component is the only authoritative run identity; arbitrary log
+    keys and path-like values are rejected rather than authorized as a field.
+    """
+    if not isinstance(log_key, (list, tuple)) or len(log_key) < 3:
+        return None
+    run_id, namespace, *components = log_key
+    if (
+        not isinstance(run_id, str)
+        or not _DAGSTER_LOG_ID_RE.fullmatch(run_id)
+        or namespace != "compute_logs"
+        or not components
+        or not all(_valid_log_component(component) for component in components)
+    ):
+        return None
+    return run_id
+
+
+def extract_dagster_run_id_from_log_path(path: Any) -> str | None:
+    """Extract a run ID from Dagster's ``/logs/{log_key}/{io}`` URL path."""
+    if not isinstance(path, str):
+        return None
+    parts = path.strip("/").split("/")
+    if len(parts) < 4 or parts[-1] not in {"stdout", "stderr"}:
+        return None
+    return extract_dagster_run_id_from_log_key(parts[:-1])
 
 
 @dataclass(frozen=True)

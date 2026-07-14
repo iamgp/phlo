@@ -49,7 +49,27 @@ class DefaultAuthorizationPolicyBackend:
     def __init__(
         self,
         policies: list[dict[str, Any]] | None = None,
+        rbac: Any = None,
     ):
+        self.rbac = rbac
+        if policies is None and rbac is not None:
+            policies = [
+                {
+                    "policy_id": policy.policy_id,
+                    "effect": policy.effect.value,
+                    "principal": {
+                        "roles": policy.principal_roles,
+                        "attributes": dict(policy.principal_attributes),
+                    },
+                    "action": policy.action,
+                    "resource": {
+                        "type": policy.resource_type,
+                        "id_pattern": policy.resource_id_pattern,
+                        "attributes": dict(policy.resource_attributes),
+                    },
+                }
+                for policy in rbac.policies.policies
+            ]
         self._policies = self._parse_policies(policies or [])
 
     def _parse_policies(self, policy_configs: list[dict[str, Any]]) -> list[PolicyRule]:
@@ -211,7 +231,7 @@ class DefaultAuthorizationPolicyBackend:
         return True
 
 
-def register_default_capability_providers() -> None:
+def register_default_capability_providers(*, rbac: Any = None) -> None:
     """Register the default backend from the authoritative project policy file."""
     from phlo.infrastructure.config import _default_project_root
     from phlo.rbac.config import RBACConfigLoader
@@ -219,11 +239,16 @@ def register_default_capability_providers() -> None:
 
     loader = RBACConfigLoader(_default_project_root() / ".phlo")
     try:
-        policies = loader.load_policies().policies
+        if rbac is None:
+            rbac = loader.load()
+        policies = rbac.policies.policies
     except (FileNotFoundError, ValueError) as exc:
         if is_regulated():
             raise RuntimeError("Regulated authorization policies are unavailable") from exc
-        policies = ()
+        try:
+            policies = loader.load_policies().policies
+        except (FileNotFoundError, ValueError):
+            policies = ()
 
     register_capability(
         "authorization_policy_backend",
@@ -246,11 +271,13 @@ def register_default_capability_providers() -> None:
                         },
                     }
                     for policy in policies
-                ]
+                ],
+                rbac=rbac,
             ),
             metadata={
                 "policy_format": "rbac",
                 "default_policies": [policy.policy_id for policy in policies],
+                "canonical_rbac_version": getattr(rbac, "version_hash", None),
             },
             support=CapabilitySupport(
                 supports_permissions=True,

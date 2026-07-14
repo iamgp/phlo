@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from .security_test_support import authenticated_client
+from security_test_support import authenticated_client
 from phlo_api.observatory_api import observatory_runs
 
 

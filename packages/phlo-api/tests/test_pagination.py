@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-from .security_test_support import authenticated_client
+from security_test_support import authenticated_client
 from phlo_api.pagination import decode_cursor, encode_cursor, paginate_items
 
 

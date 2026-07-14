@@ -99,8 +99,8 @@ class EnforcementContext:
         with self._init_lock:
             if self._initialized:
                 return
-            self._init_identity_bridge()
             self._init_authorization_backend()
+            self._init_identity_bridge()
             self._init_audit_emitter()
             self._initialized = True
 
@@ -108,7 +108,9 @@ class EnforcementContext:
         """Initialize the identity bridge."""
         from phlo.identity.bridge import create_regulated_bridge
 
-        self._identity_bridge = create_regulated_bridge()
+        self._identity_bridge = create_regulated_bridge(
+            canonical_rbac=getattr(self.authorization_backend, "rbac", None)
+        )
 
     def _init_authorization_backend(self) -> None:
         """Initialize the authorization backend."""
@@ -142,6 +144,8 @@ class EnforcementContext:
         if self._identity_bridge is None:
             with self._init_lock:
                 if self._identity_bridge is None:
+                    if self._authorization_backend is None:
+                        self._init_authorization_backend()
                     self._init_identity_bridge()
         return self._identity_bridge
 

@@ -50,7 +50,10 @@ from phlo.security.service_identity import (
     PHLO_CORRELATION_HEADER,
     validate_service_token,
 )
-from phlo_dagster.authorization import resolve_graphql_operation
+from phlo_dagster.authorization import (
+    extract_dagster_run_id_from_log_key,
+    resolve_graphql_operation,
+)
 from phlo_dagster.oidc_identity import OIDCIdentityValidator
 
 logger = get_logger(__name__)
@@ -504,6 +507,20 @@ class DagsterGraphQLAuthorizationMiddleware:
         values = []
         for key in spec.keys_for_field(field_name or ""):
             found_values = self._find_graphql_values(kwargs, key)
+            if key == "logKey":
+                run_ids = [
+                    run_id
+                    for value in found_values
+                    if (run_id := extract_dagster_run_id_from_log_key(value)) is not None
+                ]
+                distinct_run_ids = list(dict.fromkeys(run_ids))
+                if len(distinct_run_ids) != len(found_values) or len(distinct_run_ids) != 1:
+                    raise GraphQLError(
+                        "Malformed or ambiguous Dagster log key",
+                        extensions={"code": "AUTHORIZATION_UNAVAILABLE"},
+                    )
+                values.append(f"runId={distinct_run_ids[0]}")
+                continue
             serialized_values = [self._serialize_resource_value(value) for value in found_values]
             distinct_values = list(dict.fromkeys(serialized_values))
             if len(distinct_values) > 1:

@@ -18,7 +18,11 @@ from graphql import GraphQLError, parse
 from starlette.responses import JSONResponse
 from starlette.routing import Match
 
-from phlo_dagster.authorization import get_adapter, validate_graphql_schema
+from phlo_dagster.authorization import (
+    extract_dagster_run_id_from_log_path,
+    get_adapter,
+    validate_graphql_schema,
+)
 from phlo_dagster.authorization_middleware import DagsterGraphQLAuthorizationMiddleware
 from phlo_dagster.oidc_identity import OIDC_REQUIRED_ENV
 
@@ -212,14 +216,26 @@ class DagsterHTTPAuthenticationASGI:
             from phlo.capabilities import DecisionContext, ResourceRef
             from phlo.security import enforce
 
-            resource_id = (
-                "|".join(
-                    f"{key}={path_params[key]}"
-                    for key in spec.resource_keys
-                    if path_params.get(key)
+            if spec.resource_keys == ("path",):
+                run_id = extract_dagster_run_id_from_log_path(path_params.get("path"))
+                if run_id is None:
+                    response = JSONResponse(
+                        {"error": "forbidden", "reason": "access_denied"},
+                        status_code=403,
+                        headers={"X-Request-Id": request_id},
+                    )
+                    await response(scope, receive, send)
+                    return
+                resource_id = f"runId={run_id}"
+            else:
+                resource_id = (
+                    "|".join(
+                        f"{key}={path_params[key]}"
+                        for key in spec.resource_keys
+                        if path_params.get(key)
+                    )
+                    or "dagster"
                 )
-                or "dagster"
-            )
             result = enforce(
                 principal=principal,
                 action=spec.action,

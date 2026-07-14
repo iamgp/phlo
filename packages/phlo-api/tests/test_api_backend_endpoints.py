@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .security_test_support import authenticated_client
+from security_test_support import authenticated_client
 
 
 def test_api_backends_endpoint_returns_capability_payload(monkeypatch) -> None:

@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from phlo_api.main import app
-from .security_test_support import authenticated_client
+from security_test_support import authenticated_client
 
 
 @dataclass(frozen=True)
