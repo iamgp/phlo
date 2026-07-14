@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import asyncio
+import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -522,7 +523,9 @@ def test_server_info_readiness_tracks_expired_jwks_refresh(monkeypatch) -> None:
     middleware = server._get_graphql_authorization_middleware()
 
     healthy = asyncio.run(server.webserver_info_endpoint(None))
-    middleware._oidc_validator._keys_fetched_at = 0
+    middleware._oidc_validator._keys_fetched_at = (
+        time.monotonic() - middleware._oidc_validator.cache_ttl - 1
+    )
     unhealthy = asyncio.run(server.webserver_info_endpoint(None))
 
     assert healthy.status_code == 200
